@@ -1,0 +1,33 @@
+{
+  "name": "mister-chameleon",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/**/*.test.ts'",
+    "test:cms": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/cms/*.test.ts'",
+    "studio": "cd apps/studio && npm run dev",
+    "studio:install": "cd apps/studio && npm install"
+  },
+  "dependencies": {
+    "@sanity/client": "^7.17.0",
+    "@supabase/supabase-js": "^2.99.1",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "sanity": "^5.15.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

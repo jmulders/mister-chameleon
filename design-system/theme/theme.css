@@ -1,0 +1,328 @@
+/*
+ * ─────────────────────────────────────────────────────────────────
+ * Mister Chameleon — Design System Theme
+ *
+ * Two concerns handled here:
+ *
+ *  1. `@theme` — extends Tailwind v4's utility layer so token-named
+ *     classes like `bg-brand-500`, `text-neutral-900`, `rounded-xl`,
+ *     `font-sans` etc. are available throughout the project.
+ *
+ *  2. `:root` semantic aliases — CSS custom properties for runtime
+ *     theming and direct CSS consumption (not Tailwind utilities).
+ *     These will power the experience-driven theme switching later.
+ *
+ * ─── Section index ──────────────────────────────────────────────
+ *
+ *   1. @theme — Tailwind v4 utility extensions
+ *   2. :root  — Semantic runtime variables
+ *      2a. Global: surfaces, text, borders, brand/interactive
+ *      2b. Motion / transition tokens       (--transition-*, --ease-*)
+ *      2c. Border-width tokens              (--border-width*)
+ *      2d. Button component tokens          (--btn-*)
+ *      2e. Component radii                  (--radius-interactive/card/popover)
+ *      2f. Section surface tokens           (--section-*)
+ *      2g. Card component tokens            (--card-*)
+ *      2h. Hero component tokens            (--hero-*)
+ *      2i. Proof/testimonial tokens         (--proof-*)
+ *      2j. Feature-grid tokens              (--feature-grid-*)
+ *      2k. Typography component tokens      (--font-heading-*)
+ *   3. Dark-mode overrides
+ *   4. Experience-driven override hook
+ * ─────────────────────────────────────────────────────────────────
+ */
+
+/* ── 1. Tailwind v4 theme extensions ─────────────────────────── */
+
+@theme {
+  /* Brand palette */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
+
+  /* Neutral / slate palette */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* Surface shortcuts */
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f8fafc;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-inverse: #0f172a;
+
+  /* Semantic intent */
+  --color-success-50: #f0fdf4;
+  --color-success-500: #22c55e;
+  --color-success-700: #15803d;
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+  --color-warning-700: #b45309;
+  --color-error-50: #fef2f2;
+  --color-error-500: #ef4444;
+  --color-error-700: #b91c1c;
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Monaco,
+    Consolas, "Courier New", monospace;
+
+  /* Border radius */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-brand: 0 0 0 3px rgb(99 102 241 / 0.25);
+}
+
+/* ── 2. Semantic runtime CSS variables ───────────────────────── */
+/*
+ * These power runtime theme switching (dark mode, experience variants,
+ * tenant overrides).  Components should reference these over raw palette
+ * values wherever the value needs to be swappable at runtime.
+ *
+ * All variables in this block are overridden per-tenant by the inline
+ * <style> tag injected by layout.tsx via tenantThemeToCSS().
+ */
+
+:root {
+
+  /* ── 2a. Global: surfaces, text, borders, brand ─────────────── */
+
+  --bg: var(--color-neutral-50);
+  --bg-subtle: var(--color-neutral-100);
+  --bg-inverse: var(--color-neutral-900);
+
+  --text: var(--color-neutral-900);
+  --text-muted: var(--color-neutral-500);
+  --text-subtle: var(--color-neutral-400);
+  --text-inverse: var(--color-neutral-0);
+  --text-brand: var(--color-brand-600);
+
+  --border: var(--color-neutral-200);
+  --border-strong: var(--color-neutral-300);
+
+  --primary: var(--color-brand-500);
+  --primary-hover: var(--color-brand-600);
+  --primary-active: var(--color-brand-700);
+  --primary-subtle: var(--color-brand-50);
+  --primary-text: var(--color-neutral-0);
+
+  --ring: var(--color-brand-500);
+  --ring-offset: var(--color-neutral-0);
+
+  /* ── 2b. Motion / transition tokens ─────────────────────────── */
+  /*
+   * Shared timing so all interactive elements animate consistently.
+   * Override at the tenant/preset level for a snappier (enterprise) or
+   * bouncier (bold-brand) interaction feel.
+   */
+  --transition-fast:   100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base:   150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:   300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-default:      cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:           cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:          cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring:       cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── 2c. Border-width tokens ─────────────────────────────────── */
+  /*
+   * Consistent border widths across all components.
+   * Changing --border-width from 1px to 2px tightens every border at once.
+   */
+  --border-width:        1px;
+  --border-width-strong: 2px;
+
+  /* ── 2d. Button component tokens ─────────────────────────────── */
+  /*
+   * A complete surface map for button components.  Using these instead of
+   * --primary / --primary-hover directly means button style can diverge
+   * from link/badge accent colour when a tenant needs it.
+   */
+  --btn-bg:          var(--primary);
+  --btn-text:        var(--primary-text);
+  --btn-hover-bg:    var(--primary-hover);
+  --btn-active-bg:   var(--primary-active);
+  --btn-ring:        var(--ring);
+  --btn-radius:      var(--radius-interactive);
+  --btn-shadow:      var(--shadow-sm);
+  --btn-font-weight: 600;
+
+  /* ── 2e. Component radii ─────────────────────────────────────── */
+  /*
+   * Derived from the radius personality token (sharp / balanced / soft).
+   * Emitted by tenantThemeToCSS() from the RADIUS_PRESETS table.
+   *
+   *   --radius-interactive   buttons, inputs, badges, chips
+   *   --radius-card          cards, panels, modals, sheets
+   *   --radius-popover       dropdowns, tooltips, menus
+   */
+  --radius-interactive: var(--radius-md);
+  --radius-card:        var(--radius-xl);
+  --radius-popover:     var(--radius-lg);
+
+  /* ── 2f. Section surface tokens ──────────────────────────────── */
+  /*
+   * Runtime-themeable surface colours for the three major section types:
+   *
+   *   hero   — inverse/dark full-bleed hero section
+   *   cta    — brand-coloured conversion section
+   *   subtle — light recessed section (proof, features, FAQ)
+   */
+  --section-hero-bg:       var(--color-neutral-950);
+  --section-cta-bg:        var(--primary);
+  --section-cta-body:      var(--primary-subtle);
+  --section-subtle-bg:     var(--bg-subtle);
+  --section-subtle-border: var(--border);
+
+  /* ── 2g. Card component tokens ───────────────────────────────── */
+  /*
+   * Shared surface tokens for card, panel, and item-level containers.
+   * Individual component overrides (--proof-card-*, --feature-grid-card-*)
+   * default to these so tenants can tune globally or per-component
+   * independently.
+   */
+  --card-bg:     var(--color-surface);
+  --card-border: var(--border);
+  --card-radius: var(--radius-card);
+  --card-shadow: var(--shadow-sm);
+  --card-quote:  var(--primary);
+
+  /* ── 2h. Hero component tokens ───────────────────────────────── */
+  /*
+   * Fine-grained control over the above-the-fold hero section.
+   * Defaults derived from global tokens — works out-of-box for any palette;
+   * presets / tenants override for their specific personality.
+   */
+  --hero-bg:             var(--section-hero-bg);
+  --hero-glow-color:     var(--primary);
+  --hero-glow-opacity:   0.2;
+  --hero-title-color:    var(--text-inverse);
+  --hero-subtitle-color: var(--text-subtle);
+
+  /* ── 2i. Proof / testimonial component tokens ────────────────── */
+  /*
+   * Dedicated surface tokens for testimonial / social-proof sections.
+   * Default to shared card tokens so any card customisation is inherited
+   * automatically.  Tenants can override independently for proof surfaces.
+   */
+  --proof-bg:           var(--bg);
+  --proof-border:       transparent;
+  --proof-card-bg:      var(--card-bg);
+  --proof-card-border:  var(--card-border);
+  --proof-card-radius:  var(--card-radius);
+  --proof-card-shadow:  var(--card-shadow);
+  --proof-quote-color:  var(--card-quote);
+
+  /* ── 2j. Feature-grid component tokens ───────────────────────── */
+  /*
+   * Dedicated surface tokens for feature-grid sections.
+   * Default to subtle section + card tokens.  Overriding allows a tenant
+   * to give feature sections their own background / card style without
+   * changing the base card or section tokens.
+   */
+  --feature-grid-bg:           var(--section-subtle-bg);
+  --feature-grid-border:       var(--section-subtle-border);
+  --feature-grid-card-bg:      var(--card-bg);
+  --feature-grid-card-border:  var(--card-border);
+  --feature-grid-card-radius:  var(--card-radius);
+  --feature-grid-card-shadow:  var(--card-shadow);
+  --feature-grid-icon-bg:      var(--section-subtle-bg);
+
+  /* ── 2k. Form component tokens ───────────────────────────────── */
+  /*
+   * Section-level tokens for the formSection block.
+   * Default variant uses subtle-bg/border like faqSection + featureGrid.
+   * Card variant elevates the form into a card container (reuses --card-*).
+   * Minimal variant has no section bg or border (transparent).
+   *
+   * Input-field tokens provide a consistent surface for all rendered inputs.
+   * They default to existing global tokens and can be overridden per-tenant.
+   */
+  --form-bg:                var(--section-subtle-bg);
+  --form-border:            var(--section-subtle-border);
+
+  --form-input-bg:          var(--card-bg);
+  --form-input-border:      var(--border-strong);
+  --form-input-radius:      var(--radius-interactive);
+  --form-input-text:        var(--text);
+  --form-input-placeholder: var(--text-subtle);
+  --form-input-focus-ring:  var(--ring);
+
+  --form-label-color:       var(--text);
+  --form-label-weight:      500;
+  --form-help-color:        var(--text-muted);
+
+  /* ── 2m. Typography component tokens ─────────────────────────── */
+  /*
+   * Heading font family and weight tokens decoupled from body text so a
+   * tenant can run a display serif for headings while keeping system-sans
+   * for body copy.
+   */
+  --font-heading:           var(--font-sans);
+  --font-heading-weight:    700;
+  --font-subheading-weight: 600;
+}
+
+/* ── 3. Dark mode — overrides semantic aliases only ──────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--color-neutral-950);
+    --bg-subtle: var(--color-neutral-900);
+    --bg-inverse: var(--color-neutral-50);
+
+    --text: var(--color-neutral-50);
+    --text-muted: var(--color-neutral-400);
+    --text-subtle: var(--color-neutral-500);
+    --text-inverse: var(--color-neutral-900);
+    --text-brand: var(--color-brand-400);
+
+    --border: var(--color-neutral-800);
+    --border-strong: var(--color-neutral-700);
+
+    --primary-subtle: var(--color-brand-950);
+    --ring-offset: var(--color-neutral-950);
+
+    /* Card surface: dark neutral instead of white */
+    --card-bg: var(--color-neutral-900);
+    --card-border: var(--color-neutral-800);
+  }
+}
+
+/* ── 4. Experience-driven theme override hook ────────────────── */
+/*
+ * The decision engine will set data-theme on <html> at runtime.
+ * Example: [data-theme="summer-promo"] { --primary: #f97316; }
+ */
+[data-theme] {
+  /* Placeholder — individual experience themes extend this selector */
+}

@@ -1,0 +1,1063 @@
+[
+  {
+    "id": "home",
+    "tenantId": "workengine",
+    "slug": "home",
+    "title": "WorkEngine — Smarter Recruitment",
+    "templateKey": "marketing-page",
+    "contextSlots": [
+      {
+        "slotId": "hero",
+        "variantKey": "hero_direct_brand",
+        "position": "before-content"
+      },
+      {
+        "slotId": "proof",
+        "variantKey": "proof_cases",
+        "position": "before-content"
+      },
+      {
+        "slotId": "cta",
+        "variantKey": "cta_direct_brand",
+        "position": "after-content"
+      }
+    ],
+    "contentBlocks": [
+      {
+        "id": "hp-logos",
+        "blockType": "logoStrip",
+        "variant": "muted",
+        "data": {
+          "heading": "Trusted by leading employers",
+          "logos": [
+            {
+              "name": "Acme Corp",
+              "src": "/logos/acme.svg"
+            },
+            {
+              "name": "Beacon Group",
+              "src": "/logos/beacon.svg"
+            },
+            {
+              "name": "Meridian Labs",
+              "src": "/logos/meridian.svg"
+            },
+            {
+              "name": "Apex Partners",
+              "src": "/logos/apex.svg"
+            },
+            {
+              "name": "Crestline Co",
+              "src": "/logos/crestline.svg"
+            }
+          ]
+        }
+      },
+      {
+        "id": "hp-about",
+        "blockType": "about",
+        "variant": "split",
+        "data": {
+          "heading": "The platform that connects talent with opportunity",
+          "body": [
+            {
+              "_type": "block",
+              "_key": "ab-body-1",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ab-span-1",
+                  "text": "WorkEngine combines AI-assisted candidate matching with a structured vacancy workflow so your recruitment team can focus on the conversations that matter — not the admin that slows them down."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "ab-body-2",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ab-span-2",
+                  "text": "From first vacancy to signed contract, WorkEngine gives you full visibility across every role, every candidate, and every client relationship."
+                }
+              ]
+            }
+          ],
+          "imageUrl": "/images/platform-dashboard.png",
+          "imageAlt": "WorkEngine recruitment platform dashboard",
+          "teamMembers": []
+        }
+      },
+      {
+        "id": "hp-companies",
+        "blockType": "listing",
+        "variant": "grid",
+        "data": {
+          "heading": "Companies growing with WorkEngine",
+          "items": [
+            {
+              "id": "acme-corp",
+              "title": "Acme Corp",
+              "href": "/companies/acme-corp",
+              "excerpt": "A global manufacturing leader scaling its engineering division across Europe.",
+              "imageUrl": "/logos/acme.svg",
+              "imageAlt": "Acme Corp logo",
+              "category": "Manufacturing"
+            },
+            {
+              "id": "beacon-group",
+              "title": "Beacon Group",
+              "href": "/companies/beacon-group",
+              "excerpt": "Professional services firm expanding its advisory and consulting teams.",
+              "imageUrl": "/logos/beacon.svg",
+              "imageAlt": "Beacon Group logo",
+              "category": "Consulting"
+            },
+            {
+              "id": "meridian-labs",
+              "title": "Meridian Labs",
+              "href": "/companies/meridian-labs",
+              "excerpt": "Life-science startup hiring across clinical research and regulatory affairs.",
+              "imageUrl": "/logos/meridian.svg",
+              "imageAlt": "Meridian Labs logo",
+              "category": "Life Sciences"
+            }
+          ],
+          "viewAllHref": "/companies",
+          "viewAllLabel": "See all companies"
+        }
+      },
+      {
+        "id": "hp-features",
+        "blockType": "featureGrid",
+        "variant": "default",
+        "data": {
+          "heading": "Everything you need to scale recruitment",
+          "features": [
+            {
+              "title": "AI-Assisted Matching",
+              "description": "Surface the best candidates instantly. Our matching engine ranks applicants by fit score so your team reviews the right people first.",
+              "icon": "sparkles"
+            },
+            {
+              "title": "Vacancy Management",
+              "description": "Create, publish, and track every vacancy from a single board. Status updates, deadlines, and approval workflows — built in.",
+              "icon": "clipboard-list"
+            },
+            {
+              "title": "Recruiter Dashboard",
+              "description": "Your full pipeline at a glance. See every candidate, every role, and every next action — no toggling between tools.",
+              "icon": "layout-dashboard"
+            },
+            {
+              "title": "Client Portal",
+              "description": "Give hiring managers a clean view of shortlists, interview schedules, and offer stages — without inbox overload.",
+              "icon": "users"
+            },
+            {
+              "title": "Automated Outreach",
+              "description": "Send personalised candidate outreach at scale. Templates, sequencing, and reply tracking — all tied to your ATS data.",
+              "icon": "mail"
+            },
+            {
+              "title": "Analytics & Reporting",
+              "description": "Know your time-to-fill, source quality, and team capacity at a glance. Export-ready reports for client QBRs.",
+              "icon": "bar-chart"
+            }
+          ]
+        }
+      },
+      {
+        "id": "hp-stats",
+        "blockType": "stats",
+        "variant": "default",
+        "data": {
+          "heading": "Recruitment at scale",
+          "items": [
+            {
+              "label": "Companies hiring",
+              "value": "500",
+              "suffix": "+"
+            },
+            {
+              "label": "Placements made",
+              "value": "12,000",
+              "suffix": "+"
+            },
+            {
+              "label": "Average client rating",
+              "value": "4.8",
+              "suffix": " / 5"
+            },
+            {
+              "label": "Average days to placement",
+              "value": "18",
+              "suffix": " days"
+            }
+          ]
+        }
+      },
+      {
+        "id": "hp-testimonials",
+        "blockType": "testimonialSection",
+        "variant": "default",
+        "data": {
+          "heading": "What our clients say",
+          "testimonials": [
+            {
+              "quote": "WorkEngine cut our time-to-hire by 40%. The matching quality is genuinely impressive — candidates arrive already pre-screened for culture and skills.",
+              "author": "Sophie van der Berg",
+              "company": "Acme Corp — Head of Talent"
+            },
+            {
+              "quote": "We scaled from 12 to 45 open roles in a quarter without adding headcount to our recruitment team. The dashboard keeps everyone aligned.",
+              "author": "James Holloway",
+              "company": "Beacon Group — VP Operations"
+            },
+            {
+              "quote": "The client portal changed how we work with hiring managers. They now engage with shortlists in hours, not weeks.",
+              "author": "Lena Koster",
+              "company": "Meridian Labs — HR Director"
+            }
+          ]
+        }
+      },
+      {
+        "id": "hp-news",
+        "blockType": "newsList",
+        "variant": "featured",
+        "data": {
+          "heading": "Insights from WorkEngine",
+          "maxItems": 4,
+          "items": [
+            {
+              "title": "How AI matching reduces bias in early-stage screening",
+              "url": "/news/ai-matching-bias-reduction",
+              "excerpt": "Structured scoring replaces gut-feel shortlisting and measurably increases diverse hire rates.",
+              "date": "2025-11-12",
+              "imageUrl": "/images/news-ai-matching.jpg",
+              "category": "AI & Matching"
+            },
+            {
+              "title": "5 vacancy workflow mistakes slowing your team down",
+              "url": "/news/vacancy-workflow-mistakes",
+              "excerpt": "Simple process fixes that save 3-5 hours per open role per week.",
+              "date": "2025-10-28",
+              "imageUrl": "/images/news-workflow.jpg",
+              "category": "Best Practices"
+            },
+            {
+              "title": "WorkEngine Q3 Product Update: Client Portal 2.0",
+              "url": "/news/q3-product-update",
+              "excerpt": "New interview scheduling, offer tracking, and API webhooks now live for all plans.",
+              "date": "2025-10-03",
+              "imageUrl": "/images/news-product.jpg",
+              "category": "Product"
+            },
+            {
+              "title": "The 2025 Recruitment Benchmarks Report",
+              "url": "/news/2025-benchmarks-report",
+              "excerpt": "Time-to-fill, offer acceptance rates, and source quality across 500 European employers.",
+              "date": "2025-09-15",
+              "imageUrl": "/images/news-benchmarks.jpg",
+              "category": "Research"
+            }
+          ]
+        }
+      },
+      {
+        "id": "hp-cta",
+        "blockType": "ctaSection",
+        "variant": "brand",
+        "data": {
+          "title": "Ready to fill your next role faster?",
+          "description": "Join 500+ companies using WorkEngine to reduce time-to-hire and improve candidate quality.",
+          "primaryCta": {
+            "label": "Book a demo",
+            "href": "/contact"
+          }
+        }
+      }
+    ],
+    "seo": {
+      "title": "WorkEngine — Smarter Recruitment Platform",
+      "description": "WorkEngine connects ambitious companies with top talent faster. AI-assisted matching, vacancy management, and recruiter dashboards — all in one platform."
+    },
+    "createdAt": "2026-03-21T15:59:35.448Z",
+    "updatedAt": "2026-03-21T15:59:35.448Z"
+  },
+  {
+    "id": "companies",
+    "tenantId": "workengine",
+    "slug": "companies",
+    "title": "Companies — WorkEngine",
+    "templateKey": "listing-page",
+    "contextSlots": [],
+    "contentBlocks": [
+      {
+        "id": "co-filter",
+        "blockType": "filterBar",
+        "data": {
+          "placeholder": "Search companies…",
+          "categories": [
+            {
+              "label": "All industries",
+              "value": ""
+            },
+            {
+              "label": "Manufacturing",
+              "value": "Manufacturing"
+            },
+            {
+              "label": "Consulting",
+              "value": "Consulting"
+            },
+            {
+              "label": "Life Sciences",
+              "value": "Life Sciences"
+            }
+          ],
+          "showSearch": true,
+          "showCategoryFilter": true
+        }
+      },
+      {
+        "id": "co-listing",
+        "blockType": "listing",
+        "variant": "grid",
+        "data": {
+          "heading": "Companies hiring with WorkEngine",
+          "items": [
+            {
+              "id": "acme-corp",
+              "title": "Acme Corp",
+              "href": "/companies/acme-corp",
+              "excerpt": "Acme Corp is a global manufacturing leader headquartered in Amsterdam, scaling its engineering and operations division across Europe. With over 4,000 employees in 12 countries, Acme partners with WorkEngine to attract top technical talent at scale.",
+              "imageUrl": "/logos/acme.svg",
+              "imageAlt": "Acme Corp logo",
+              "category": "Precision Manufacturing",
+              "meta": [
+                {
+                  "label": "Founded",
+                  "value": "1998"
+                },
+                {
+                  "label": "Employees",
+                  "value": "4,200+"
+                }
+              ]
+            },
+            {
+              "id": "beacon-group",
+              "title": "Beacon Group",
+              "href": "/companies/beacon-group",
+              "excerpt": "Beacon Group is a mid-market professional services firm specialising in strategy, finance, and technology advisory. We are expanding our consulting and analyst teams across the Benelux and DACH regions, using WorkEngine to identify and attract exceptional talent faster.",
+              "imageUrl": "/logos/beacon.svg",
+              "imageAlt": "Beacon Group logo",
+              "category": "Strategy Consulting",
+              "meta": [
+                {
+                  "label": "Founded",
+                  "value": "2007"
+                },
+                {
+                  "label": "Employees",
+                  "value": "850"
+                }
+              ]
+            },
+            {
+              "id": "meridian-labs",
+              "title": "Meridian Labs",
+              "href": "/companies/meridian-labs",
+              "excerpt": "Meridian Labs is a fast-growing life-science startup developing next-generation diagnostics and clinical research tools. We hire across clinical research, regulatory affairs, and bioinformatics — partnering with WorkEngine to move quickly on critical specialist roles.",
+              "imageUrl": "/logos/meridian.svg",
+              "imageAlt": "Meridian Labs logo",
+              "category": "Clinical Research",
+              "meta": [
+                {
+                  "label": "Founded",
+                  "value": "2016"
+                },
+                {
+                  "label": "Employees",
+                  "value": "290"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "seo": {
+      "title": "Companies Hiring with WorkEngine",
+      "description": "Browse companies growing their teams with WorkEngine. Find your next employer across manufacturing, consulting, life sciences, and more."
+    },
+    "createdAt": "2026-03-21T15:59:35.448Z",
+    "updatedAt": "2026-03-21T15:59:35.448Z"
+  },
+  {
+    "id": "news",
+    "tenantId": "workengine",
+    "slug": "news",
+    "title": "Insights — WorkEngine",
+    "templateKey": "listing-page",
+    "contextSlots": [],
+    "contentBlocks": [
+      {
+        "id": "news-filter",
+        "blockType": "filterBar",
+        "data": {
+          "placeholder": "Search articles…",
+          "categories": [
+            {
+              "label": "All topics",
+              "value": ""
+            },
+            {
+              "label": "AI & Matching",
+              "value": "AI & Matching"
+            },
+            {
+              "label": "Best Practices",
+              "value": "Best Practices"
+            },
+            {
+              "label": "Product",
+              "value": "Product"
+            },
+            {
+              "label": "Research",
+              "value": "Research"
+            }
+          ],
+          "showSearch": true,
+          "showCategoryFilter": true
+        }
+      },
+      {
+        "id": "news-listing",
+        "blockType": "listing",
+        "variant": "grid",
+        "data": {
+          "heading": "Insights from WorkEngine",
+          "items": [
+            {
+              "id": "ai-matching-bias-reduction",
+              "title": "How AI matching reduces bias in early-stage screening",
+              "href": "/news/ai-matching-bias-reduction",
+              "excerpt": "Structured scoring replaces gut-feel shortlisting and measurably increases diverse hire rates.",
+              "date": "2025-11-12",
+              "imageUrl": "/images/news-ai-matching.jpg",
+              "imageAlt": "AI matching illustration",
+              "category": "AI & Matching"
+            },
+            {
+              "id": "vacancy-workflow-mistakes",
+              "title": "5 vacancy workflow mistakes slowing your team down",
+              "href": "/news/vacancy-workflow-mistakes",
+              "excerpt": "Simple process fixes that save 3–5 hours per open role per week.",
+              "date": "2025-10-28",
+              "imageUrl": "/images/news-workflow.jpg",
+              "imageAlt": "Workflow process diagram",
+              "category": "Best Practices"
+            },
+            {
+              "id": "q3-product-update",
+              "title": "WorkEngine Q3 Product Update: Client Portal 2.0",
+              "href": "/news/q3-product-update",
+              "excerpt": "New interview scheduling, offer tracking, and API webhooks now live for all plans.",
+              "date": "2025-10-03",
+              "imageUrl": "/images/news-product.jpg",
+              "imageAlt": "WorkEngine product dashboard",
+              "category": "Product"
+            },
+            {
+              "id": "2025-benchmarks-report",
+              "title": "The 2025 Recruitment Benchmarks Report",
+              "href": "/news/2025-benchmarks-report",
+              "excerpt": "Time-to-fill, offer acceptance rates, and source quality across 500 European employers.",
+              "date": "2025-09-15",
+              "imageUrl": "/images/news-benchmarks.jpg",
+              "imageAlt": "Recruitment benchmark data",
+              "category": "Research"
+            }
+          ]
+        }
+      }
+    ],
+    "seo": {
+      "title": "Recruitment Insights — WorkEngine",
+      "description": "Practical articles on recruitment, AI matching, workforce trends, and platform updates from the WorkEngine team."
+    },
+    "createdAt": "2026-03-21T15:59:35.448Z",
+    "updatedAt": "2026-03-21T15:59:35.448Z"
+  },
+  {
+    "id": "careers",
+    "tenantId": "workengine",
+    "slug": "careers",
+    "title": "Careers — WorkEngine",
+    "templateKey": "listing-page",
+    "contextSlots": [],
+    "contentBlocks": [
+      {
+        "id": "careers-filter",
+        "blockType": "filterBar",
+        "data": {
+          "placeholder": "Search vacancies…",
+          "categories": [
+            {
+              "label": "All departments",
+              "value": ""
+            },
+            {
+              "label": "Engineering",
+              "value": "Engineering"
+            },
+            {
+              "label": "Product",
+              "value": "Product"
+            },
+            {
+              "label": "Clinical Research",
+              "value": "Clinical Research"
+            }
+          ],
+          "tags": [
+            {
+              "label": "Remote",
+              "value": "remote"
+            },
+            {
+              "label": "Hybrid",
+              "value": "hybrid"
+            },
+            {
+              "label": "On-site",
+              "value": "on-site"
+            }
+          ],
+          "showSearch": true,
+          "showCategoryFilter": true,
+          "showTagFilter": true
+        }
+      },
+      {
+        "id": "careers-listing",
+        "blockType": "listing",
+        "variant": "list",
+        "data": {
+          "heading": "Open positions",
+          "items": [
+            {
+              "id": "senior-frontend-engineer",
+              "title": "Senior Frontend Engineer",
+              "href": "/careers/senior-frontend-engineer",
+              "excerpt": "Acme Corp is looking for an experienced Senior Frontend Engineer to join their growing engineering division in Amsterdam. You will lead the development of their",
+              "category": "Engineering",
+              "tags": [
+                "hybrid",
+                "Amsterdam"
+              ],
+              "meta": [
+                {
+                  "label": "Company",
+                  "value": "Acme Corp"
+                },
+                {
+                  "label": "Location",
+                  "value": "Amsterdam"
+                },
+                {
+                  "label": "Contract",
+                  "value": "full-time"
+                },
+                {
+                  "label": "Salary",
+                  "value": "€ 5 000 – € 6 500 / maand"
+                }
+              ]
+            },
+            {
+              "id": "product-manager-marketplace",
+              "title": "Product Manager — Marketplace",
+              "href": "/careers/product-manager-marketplace",
+              "excerpt": "Beacon Group is seeking a Product Manager to take ownership of the company's B2B marketplace product. You'll work at the intersection of growth, operations, and",
+              "category": "Product",
+              "tags": [
+                "hybrid",
+                "Rotterdam"
+              ],
+              "meta": [
+                {
+                  "label": "Company",
+                  "value": "Beacon Group"
+                },
+                {
+                  "label": "Location",
+                  "value": "Rotterdam"
+                },
+                {
+                  "label": "Contract",
+                  "value": "full-time"
+                },
+                {
+                  "label": "Salary",
+                  "value": "€ 4 800 – € 6 000 / maand"
+                }
+              ]
+            },
+            {
+              "id": "clinical-research-associate",
+              "title": "Clinical Research Associate",
+              "href": "/careers/clinical-research-associate",
+              "excerpt": "Meridian Labs is looking for a Clinical Research Associate (CRA) to support ongoing Phase II and III clinical trials across European study sites. You'll ensure ",
+              "category": "Clinical Research",
+              "tags": [
+                "on-site",
+                "Utrecht"
+              ],
+              "meta": [
+                {
+                  "label": "Company",
+                  "value": "Meridian Labs"
+                },
+                {
+                  "label": "Location",
+                  "value": "Utrecht"
+                },
+                {
+                  "label": "Contract",
+                  "value": "full-time"
+                },
+                {
+                  "label": "Salary",
+                  "value": "€ 3 800 – € 4 800 / maand"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "careers-team",
+        "blockType": "about",
+        "variant": "team-grid",
+        "data": {
+          "heading": "Our recruitment team",
+          "body": [
+            {
+              "_type": "block",
+              "_key": "ct-p1",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ct-s1",
+                  "text": "Our team of specialist recruiters works across engineering, product, clinical, and consulting disciplines. We bring deep sector knowledge and a genuine commitment to finding the right fit — for both candidates and employers."
+                }
+              ]
+            }
+          ],
+          "teamMembers": [
+            {
+              "name": "Sophie van der Berg",
+              "role": "Technical Recruiter",
+              "bio": "Specialist in software engineering and product roles across the Netherlands.",
+              "imageUrl": "/avatars/sophie.jpg"
+            },
+            {
+              "name": "Liam de Vries",
+              "role": "Senior Recruiter",
+              "bio": "Focused on product, strategy, and commercial leadership positions.",
+              "imageUrl": "/avatars/liam.jpg"
+            },
+            {
+              "name": "Anna Klaassen",
+              "role": "Life Sciences Recruiter",
+              "bio": "15 years placing clinical research and regulatory affairs professionals.",
+              "imageUrl": "/avatars/anna.jpg"
+            }
+          ]
+        }
+      },
+      {
+        "id": "careers-faq",
+        "blockType": "faqSection",
+        "variant": "default",
+        "data": {
+          "heading": "Frequently asked questions",
+          "items": [
+            {
+              "question": "How long does the application process take?",
+              "answer": "Typically 2–4 weeks from application to offer, depending on the role and company. Your recruiter will keep you informed at every stage."
+            },
+            {
+              "question": "Can I apply for multiple roles at once?",
+              "answer": "Yes — you can apply for as many roles as you are genuinely interested in. We recommend tailoring your application for each position."
+            },
+            {
+              "question": "Do you place candidates outside the Netherlands?",
+              "answer": "Primarily the Netherlands and Belgium, with some roles in Germany and the UK. Each vacancy indicates the location and remote policy."
+            },
+            {
+              "question": "Is there a fee for candidates?",
+              "answer": "Never. WorkEngine is entirely free for job seekers. Our fees are always paid by the hiring company."
+            },
+            {
+              "question": "What happens to my personal data?",
+              "answer": "Your data is processed in line with GDPR. We share your information with hiring companies only with your explicit consent, and you can request deletion at any time."
+            }
+          ]
+        }
+      }
+    ],
+    "seo": {
+      "title": "Open Vacancies — WorkEngine",
+      "description": "Browse open roles at WorkEngine partner companies. Engineering, product, clinical, and consulting positions across Europe."
+    },
+    "createdAt": "2026-03-21T15:59:35.448Z",
+    "updatedAt": "2026-03-21T15:59:35.448Z"
+  },
+  {
+    "id": "contact",
+    "tenantId": "workengine",
+    "slug": "contact",
+    "title": "Contact — WorkEngine",
+    "templateKey": "detail-page",
+    "contextSlots": [],
+    "contentBlocks": [
+      {
+        "id": "contact-search",
+        "blockType": "search",
+        "data": {
+          "title": "Find a company or recruiter",
+          "placeholder": "Search for a company, recruiter, or topic…",
+          "scopes": [
+            "pages",
+            "vacancies"
+          ],
+          "showFilters": true,
+          "enableInstant": true,
+          "maxResults": 8,
+          "emptyMessage": "Start typing to search companies, recruiters, and open roles.",
+          "noResultsMessage": "No results found. Try a different search term."
+        }
+      },
+      {
+        "id": "contact-filter",
+        "blockType": "filterBar",
+        "variant": "compact",
+        "data": {
+          "placeholder": "Filter by region…",
+          "categories": [
+            {
+              "label": "All offices",
+              "value": ""
+            },
+            {
+              "label": "Amsterdam",
+              "value": "amsterdam"
+            },
+            {
+              "label": "Rotterdam",
+              "value": "rotterdam"
+            },
+            {
+              "label": "Utrecht",
+              "value": "utrecht"
+            }
+          ],
+          "showCategoryFilter": true
+        }
+      },
+      {
+        "id": "contact-address",
+        "blockType": "textSection",
+        "variant": "default",
+        "data": {
+          "heading": "Our offices",
+          "body": [
+            {
+              "_type": "block",
+              "_key": "ca-p1",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ca-s1",
+                  "text": "WorkEngine operates from three offices across the Netherlands. Our Amsterdam headquarters houses the platform and engineering teams; Rotterdam and Utrecht host our specialist recruitment practices."
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "ca-p2",
+              "style": "h3",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ca-s2",
+                  "text": "Amsterdam (HQ)"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "ca-p3",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ca-s3",
+                  "text": "Herengracht 182, 1016 BR Amsterdam · hello@workengine.io · +31 20 123 4567"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "ca-p4",
+              "style": "h3",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ca-s4",
+                  "text": "Rotterdam"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "ca-p5",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ca-s5",
+                  "text": "Coolsingel 40, 3011 AD Rotterdam · rotterdam@workengine.io · +31 10 234 5678"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "ca-p6",
+              "style": "h3",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ca-s6",
+                  "text": "Utrecht"
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "ca-p7",
+              "style": "normal",
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "ca-s7",
+                  "text": "Lange Viestraat 2B, 3511 BK Utrecht · utrecht@workengine.io · +31 30 345 6789"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "contact-form",
+        "blockType": "formSection",
+        "variant": "card",
+        "data": {
+          "formKey": "contact",
+          "title": "Send us a message",
+          "intro": "Not sure who to contact? Fill in the form and we'll route your message to the right person.",
+          "submitLabel": "Send message",
+          "successMessage": "Thanks for reaching out — we'll reply within one business day."
+        }
+      }
+    ],
+    "seo": {
+      "title": "Contact WorkEngine",
+      "description": "Get in touch with the WorkEngine team. Find the right office, recruiter, or support channel for your enquiry."
+    },
+    "createdAt": "2026-03-21T15:59:35.448Z",
+    "updatedAt": "2026-03-21T15:59:35.448Z"
+  },
+  {
+    "id": "join",
+    "tenantId": "workengine",
+    "slug": "join",
+    "title": "Join WorkEngine — Grow Your Team Smarter",
+    "templateKey": "article-page",
+    "contextSlots": [],
+    "contentBlocks": [
+      {
+        "id": "join-benefits",
+        "blockType": "featureGrid",
+        "variant": "cards",
+        "data": {
+          "heading": "Why partner with WorkEngine?",
+          "features": [
+            {
+              "title": "AI-assisted matching",
+              "description": "Our matching engine surfaces the highest-quality candidates for each role, reducing time-to-shortlist by up to 60%.",
+              "icon": "sparkles"
+            },
+            {
+              "title": "Structured workflows",
+              "description": "From intake to offer, every step is tracked, accountable, and auditable — no more lost emails or missed follow-ups.",
+              "icon": "clipboard-check"
+            },
+            {
+              "title": "Deep recruiter network",
+              "description": "Access a curated network of specialist recruiters with proven track records in your sector.",
+              "icon": "users"
+            },
+            {
+              "title": "Transparent reporting",
+              "description": "Real-time dashboards give hiring managers full visibility into funnel metrics, source quality, and time-to-fill.",
+              "icon": "chart-bar"
+            },
+            {
+              "title": "GDPR-compliant by default",
+              "description": "Candidate data is processed and stored in line with European data protection regulations. Built-in consent management.",
+              "icon": "shield-check"
+            },
+            {
+              "title": "Fast to get started",
+              "description": "Most clients are live within 48 hours. Our onboarding team walks you through setup and integrates with your existing ATS.",
+              "icon": "rocket-launch"
+            }
+          ]
+        }
+      },
+      {
+        "id": "join-stats",
+        "blockType": "stats",
+        "variant": "default",
+        "data": {
+          "heading": "WorkEngine by the numbers",
+          "items": [
+            {
+              "label": "Partner companies",
+              "value": "120+",
+              "description": "Employers across the Netherlands, Belgium, and beyond."
+            },
+            {
+              "label": "Placements in 2025",
+              "value": "1 400+",
+              "description": "Successful hires across all sectors and seniority levels."
+            },
+            {
+              "label": "Avg. time-to-fill",
+              "value": "18 days",
+              "description": "vs. sector median of 34 days."
+            },
+            {
+              "label": "Hiring manager NPS",
+              "value": "72",
+              "description": "Net Promoter Score — consistently above industry average."
+            }
+          ]
+        }
+      },
+      {
+        "id": "join-process",
+        "blockType": "processSteps",
+        "variant": "accordion",
+        "data": {
+          "heading": "How to get started",
+          "steps": [
+            {
+              "title": "Book a discovery call",
+              "description": "Fill in the form below and one of our account managers will reach out to understand your recruitment needs and answer your questions.",
+              "duration": "30 min"
+            },
+            {
+              "title": "Platform setup",
+              "description": "We configure your WorkEngine workspace, connect your ATS (if applicable), and onboard your team — typically within 48 hours.",
+              "duration": "1–2 days"
+            },
+            {
+              "title": "First vacancy briefing",
+              "description": "Your assigned recruiter runs a structured intake session to understand the role, team, and culture before going to market.",
+              "duration": "60 min"
+            },
+            {
+              "title": "Candidate shortlist",
+              "description": "Within 5 business days, you receive a curated shortlist of pre-screened candidates with detailed profiles and match scores.",
+              "duration": "5 days"
+            },
+            {
+              "title": "Interview & offer",
+              "description": "We coordinate interview logistics, collect feedback, and support offer negotiation so you can move fast when you find the right person.",
+              "duration": "1–2 weeks"
+            }
+          ]
+        }
+      },
+      {
+        "id": "join-companies",
+        "blockType": "listing",
+        "variant": "compact",
+        "data": {
+          "heading": "Companies already partnering with us",
+          "items": [
+            {
+              "id": "acme-corp",
+              "title": "Acme Corp",
+              "href": "/companies/acme-corp",
+              "excerpt": "Acme Corp is a global manufacturing leader headquartered in Amsterdam, scaling its engineering and operations division across Europe. With over 4,000 employees in 12 countries, Acme partners with WorkEngine to attract top technical talent at scale.",
+              "imageUrl": "/logos/acme.svg",
+              "imageAlt": "Acme Corp logo",
+              "category": "Precision Manufacturing"
+            },
+            {
+              "id": "beacon-group",
+              "title": "Beacon Group",
+              "href": "/companies/beacon-group",
+              "excerpt": "Beacon Group is a mid-market professional services firm specialising in strategy, finance, and technology advisory. We are expanding our consulting and analyst teams across the Benelux and DACH regions, using WorkEngine to identify and attract exceptional talent faster.",
+              "imageUrl": "/logos/beacon.svg",
+              "imageAlt": "Beacon Group logo",
+              "category": "Strategy Consulting"
+            },
+            {
+              "id": "meridian-labs",
+              "title": "Meridian Labs",
+              "href": "/companies/meridian-labs",
+              "excerpt": "Meridian Labs is a fast-growing life-science startup developing next-generation diagnostics and clinical research tools. We hire across clinical research, regulatory affairs, and bioinformatics — partnering with WorkEngine to move quickly on critical specialist roles.",
+              "imageUrl": "/logos/meridian.svg",
+              "imageAlt": "Meridian Labs logo",
+              "category": "Clinical Research"
+            }
+          ],
+          "viewAllHref": "/companies",
+          "viewAllLabel": "See all companies"
+        }
+      },
+      {
+        "id": "join-form",
+        "blockType": "formSection",
+        "variant": "card",
+        "data": {
+          "formKey": "appointment",
+          "title": "Book a discovery call",
+          "intro": "Tell us about your recruitment needs and we'll schedule a call within one business day.",
+          "submitLabel": "Request a call",
+          "successMessage": "Thanks! We'll be in touch within one business day to arrange your call."
+        }
+      }
+    ],
+    "seo": {
+      "title": "Partner with WorkEngine — Smarter Recruitment for Growing Teams",
+      "description": "Join the WorkEngine network. Whether you're an employer looking to scale or a recruiter building your practice, we have the tools and talent to support you."
+    },
+    "createdAt": "2026-03-21T15:59:35.448Z",
+    "updatedAt": "2026-03-21T15:59:35.448Z"
+  }
+]

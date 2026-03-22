@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-03-20T18:41:52.424Z",
+  "rules": [
+    {
+      "id": "homepage.returning_cta_clicked",
+      "priority": 7,
+      "label": "Returning visitor — CTA previously clicked",
+      "condition": {
+        "type": "named",
+        "name": "returning_cta_clicked"
+      },
+      "plan": {
+        "heroKey": "hero_direct_brand",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_meeting"
+      },
+      "reason": "Returning visitor who previously clicked CTA — escalated to meeting intent."
+    },
+    {
+      "id": "homepage.google",
+      "priority": 5,
+      "label": "Google traffic",
+      "condition": {
+        "type": "field",
+        "field": "source",
+        "value": "google"
+      },
+      "plan": {
+        "heroKey": "hero_google_problem",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_guide"
+      },
+      "reason": "Traffic source indicates search/problem intent."
+    },
+    {
+      "id": "homepage.high_engagement",
+      "priority": 10,
+      "label": "High-engagement returning visitor (3+ page views)",
+      "condition": {
+        "type": "named",
+        "name": "high_engagement"
+      },
+      "plan": {
+        "heroKey": "hero_direct_brand",
+        "proofKey": "proof_vision",
+        "ctaKey": "cta_meeting"
+      },
+      "reason": "Highly engaged returning visitor (3+ page views) — platform-confidence experience."
+    },
+    {
+      "id": "homepage.linkedin",
+      "priority": 1,
+      "label": "LinkedIn traffic",
+      "condition": {
+        "type": "group",
+        "logic": "and",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "source",
+            "value": "linkedin"
+          },
+          {
+            "type": "field",
+            "field": "utmSource",
+            "operator": "equals",
+            "value": "linkedin"
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_linkedin_vision",
+        "proofKey": "proof_vision",
+        "ctaKey": "cta_platform"
+      },
+      "reason": "Traffic source indicates thought-leadership/social intent."
+    }
+  ],
+  "defaultPlan": {
+    "heroKey": "hero_direct_brand",
+    "proofKey": "proof_platform",
+    "ctaKey": "cta_meeting",
+    "reason": "Default/direct traffic gets brand-led experience."
+  }
+}

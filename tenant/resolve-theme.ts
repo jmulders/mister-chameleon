@@ -1,0 +1,310 @@
+/**
+ * Tenant Theme Resolver
+ *
+ * Converts a TenantSettings object into a flat set of CSS custom property
+ * overrides that can be injected as an inline :root{…} block.
+ *
+ * ─── Design intent ────────────────────────────────────────────────────────────
+ *
+ *   The design system already generates a base :root block in theme.css (the
+ *   "default" theme).  This resolver produces *override* vars only — the delta
+ *   between the tenant's requested theme and the platform baseline.
+ *
+ * ─── Three levels of override (applied in order, highest wins) ───────────────
+ *
+ *   1. Preset — controlled by `design.theme` (ThemeKey).
+ *      Maps to a radius personality ("sharp" / "balanced" / "soft") and
+ *      determines the values of --radius-interactive, --radius-card, and
+ *      --radius-popover.
+ *
+ *   2. Legacy token overrides — `design.primaryColor`, `design.primaryFont`,
+ *      and the flat `design.tokenOverrides.radius*` fields.
+ *
+ *   3. Grouped token overrides — `design.tokenOverrides.color.*`,
+ *      `design.tokenOverrides.typography.*`, etc.  Applied last; highest
+ *      specificity in the CSS variable cascade.
+ *
+ * ─── CSS vars emitted ─────────────────────────────────────────────────────────
+ *
+ *   From preset / legacy:
+ *     --primary, --ring, --text-brand    ← primaryColor
+ *     --font-sans                        ← primaryFont
+ *     --radius-interactive               ← radiusInteractive / radius.interactive
+ *     --radius-card                      ← radiusCard / radius.card
+ *     --radius-popover                   ← radiusPopover / radius.popover
+ *
+ *   From grouped token overrides (examples):
+ *     color.*        → --primary/--ring/--text-brand (primary), --{key} (others)
+ *     typography.*   → --font-sans/--font-mono/--font-serif (known keys),
+ *                      --typography-{kebab-key} (others)
+ *     radius.*       → --radius-{key} (all keys)
+ *     spacing.*      → --spacing-{kebab-key}
+ *     border.*       → --border-{kebab-key}
+ *     shadow.*       → --shadow-{kebab-key}
+ *     motion.*       → --motion-{kebab-key}
+ *     component.*    → --component-{kebab-key}
+ *
+ * ─── Fallback ─────────────────────────────────────────────────────────────────
+ *
+ *   resolveThemeForTenant(null) — and any settings row where `design` is absent
+ *   or partial — returns { key: "default", vars: {} } which emits no overrides,
+ *   so the compiled theme.css baseline applies unchanged.
+ *
+ * ─── Usage ────────────────────────────────────────────────────────────────────
+ *
+ *   // In a Server Component:
+ *   const theme = resolveThemeForTenant(tenant);
+ *   const css   = resolvedThemeToCSS(theme);
+ *   // → ":root{--primary:#e63946;--radius-card:24px}"
+ *
+ *   // Inject inline in the page:
+ *   {css && <style dangerouslySetInnerHTML={{ __html: css }} />}
+ */
+
+import type { TenantSettings, ThemeKey, TenantTokenOverrides } from "./types";
+
+// ── Public types ───────────────────────────────────────────────────────────────
+
+/**
+ * The result of resolving a tenant's design settings into concrete CSS vars.
+ *
+ * `key`  — the resolved ThemeKey (falls back to "default" when tenant is null)
+ * `vars` — flat map of CSS custom property name → value.
+ *          Empty when no overrides are needed (default theme, no token tweaks).
+ */
+export interface ResolvedTheme {
+  readonly key:  ThemeKey;
+  readonly vars: Record<string, string>;
+}
+
+// ── Preset radius tables ───────────────────────────────────────────────────────
+//
+// Values mirror RADIUS_PRESETS in design-system/theme/tenant-theme.ts:
+//   sharp    → interactive 2px, card 4px, popover 2px
+//   balanced → interactive 8px, card 16px, popover 12px  (platform default)
+//   soft     → interactive 12px, card 24px, popover 16px
+//
+// Theme → radius personality mapping:
+//   default  → balanced (no-op; matches theme.css :root)
+//   minimal  → sharp   (clean, technical aesthetic)
+//   bold     → soft    (generous, expressive aesthetic)
+//   custom   → balanced (only explicit token overrides apply)
+
+const PRESET_RADIUS_VARS: Record<ThemeKey, Record<string, string>> = {
+  default: {}, // Matches compiled theme.css baseline — emit nothing.
+  minimal: {
+    "--radius-interactive": "2px",
+    "--radius-card":        "4px",
+    "--radius-popover":     "2px",
+  },
+  bold: {
+    "--radius-interactive": "12px",
+    "--radius-card":        "24px",
+    "--radius-popover":     "16px",
+  },
+  custom: {}, // No radius preset; only explicit overrides apply.
+};
+
+// ── Grouped token → CSS var mapping ──────────────────────────────────────────
+
+/**
+ * Converts a camelCase token key to a kebab-case CSS var suffix.
+ * e.g. "fontSans" → "font-sans", "durationBase" → "duration-base"
+ */
+function toKebabCase(key: string): string {
+  return key.replace(/([A-Z])/g, (m) => `-${m.toLowerCase()}`);
+}
+
+/**
+ * Direct CSS var mappings for color group keys following the shadcn/ui
+ * design token convention.  Keys not listed fall back to `--color-{kebab-key}`.
+ *
+ * "primary" is special: it sets three vars to match the legacy primaryColor
+ * behaviour (--primary, --ring, --text-brand).
+ */
+const COLOR_CSS_VARS: Record<string, string[]> = {
+  primary:               ["--primary", "--ring", "--text-brand"],
+  secondary:             ["--secondary"],
+  accent:                ["--accent"],
+  background:            ["--background"],
+  foreground:            ["--foreground"],
+  muted:                 ["--muted"],
+  mutedForeground:       ["--muted-foreground"],
+  border:                ["--border"],
+  input:                 ["--input"],
+  ring:                  ["--ring"],
+  destructive:           ["--destructive"],
+  destructiveForeground: ["--destructive-foreground"],
+  card:                  ["--card"],
+  cardForeground:        ["--card-foreground"],
+  popover:               ["--popover"],
+  popoverForeground:     ["--popover-foreground"],
+};
+
+/**
+ * Direct CSS var mappings for typography group keys.
+ * Keys not listed fall back to `--typography-{kebab-key}`.
+ */
+const TYPOGRAPHY_CSS_VARS: Record<string, string> = {
+  fontSans:       "--font-sans",
+  fontMono:       "--font-mono",
+  fontSerif:      "--font-serif",
+  baseFontSize:   "--font-size-base",
+  lineHeightBase: "--line-height-base",
+};
+
+/**
+ * Direct CSS var mappings for radius group keys.
+ * Keys not listed fall back to `--radius-{kebab-key}`.
+ */
+const RADIUS_CSS_VARS: Record<string, string> = {
+  interactive: "--radius-interactive",
+  card:        "--radius-card",
+  popover:     "--radius-popover",
+};
+
+/**
+ * Resolves all entries in one grouped token override into CSS var assignments,
+ * writing them into the `vars` map.
+ *
+ * Applies named mappings for well-known keys; falls back to a
+ * `--{group}-{kebab-key}` convention for any keys that have no explicit mapping.
+ */
+function resolveGroupVars(
+  group:   string,
+  entries: Readonly<Record<string, string>>,
+  vars:    Record<string, string>,
+): void {
+  for (const [key, value] of Object.entries(entries)) {
+    if (!value) continue;
+    const kebab = toKebabCase(key);
+
+    switch (group) {
+      case "color": {
+        const cssVarNames = COLOR_CSS_VARS[key];
+        if (cssVarNames) {
+          for (const v of cssVarNames) vars[v] = value;
+        } else {
+          vars[`--color-${kebab}`] = value;
+        }
+        break;
+      }
+
+      case "typography": {
+        const cssVar = TYPOGRAPHY_CSS_VARS[key];
+        vars[cssVar ?? `--typography-${kebab}`] = value;
+        break;
+      }
+
+      case "radius": {
+        const cssVar = RADIUS_CSS_VARS[key];
+        vars[cssVar ?? `--radius-${kebab}`] = value;
+        break;
+      }
+
+      case "spacing":   vars[`--spacing-${kebab}`]   = value; break;
+      case "border":    vars[`--border-${kebab}`]     = value; break;
+      case "shadow":    vars[`--shadow-${kebab}`]     = value; break;
+      case "motion":    vars[`--motion-${kebab}`]     = value; break;
+      case "component": vars[`--component-${kebab}`]  = value; break;
+    }
+  }
+}
+
+// ── Resolver ──────────────────────────────────────────────────────────────────
+
+/**
+ * Resolves a tenant's design settings into a flat set of CSS var overrides.
+ *
+ * Applies overrides in three passes (ascending priority):
+ *   1. Preset radius table for the chosen ThemeKey.
+ *   2. Legacy primaryColor / primaryFont / tokenOverrides.radius* fields.
+ *   3. Grouped token overrides (color, typography, radius, spacing, …).
+ *
+ * Passing `null` — or a settings row where `design` is absent or partial —
+ * produces `{ key: "default", vars: {} }` — no overrides.
+ *
+ * ─── Defensive reads ─────────────────────────────────────────────────────────
+ *
+ *   Every access into `settings.design.*` uses `?.` at each step because
+ *   TenantSettings rows sourced from Supabase JSONB may omit the `design`
+ *   object entirely (rows created before the field was added, or rows with
+ *   partial writes).  The pattern `settings?.design.X` only guards against
+ *   `settings` being null; it still crashes when `design` is undefined.
+ *   All accesses are written as `settings?.design?.X` throughout this function.
+ *
+ * @param settings  The tenant's settings object, or null to use the defaults.
+ * @returns         A ResolvedTheme ready for `resolvedThemeToCSS()`.
+ */
+export function resolveThemeForTenant(
+  settings: TenantSettings | null,
+): ResolvedTheme {
+  const key = settings?.design?.theme ?? "default";
+
+  // ── 1. Preset radius ────────────────────────────────────────────────────────
+  const vars: Record<string, string> = { ...PRESET_RADIUS_VARS[key] };
+
+  // ── 2. Legacy primaryColor / primaryFont / flat tokenOverrides ─────────────
+
+  if (settings?.design?.primaryColor) {
+    const c = settings.design.primaryColor;
+    vars["--primary"]    = c;
+    vars["--ring"]       = c;
+    vars["--text-brand"] = c;
+  }
+
+  if (settings?.design?.primaryFont) {
+    vars["--font-sans"] = settings.design.primaryFont;
+  }
+
+  const to: TenantTokenOverrides | undefined = settings?.design?.tokenOverrides;
+
+  if (to) {
+    // Legacy flat radius overrides — applied before grouped radius so that
+    // the grouped radius group (level 3) wins when both are present.
+    if (to.radiusInteractive) vars["--radius-interactive"] = to.radiusInteractive;
+    if (to.radiusCard)        vars["--radius-card"]        = to.radiusCard;
+    if (to.radiusPopover)     vars["--radius-popover"]     = to.radiusPopover;
+
+    // ── 3. Grouped token overrides (highest specificity) ──────────────────────
+    const GROUPS = [
+      "color", "typography", "radius", "spacing",
+      "border", "shadow", "motion", "component",
+    ] as const;
+
+    for (const group of GROUPS) {
+      const groupOverrides = to[group as keyof TenantTokenOverrides] as
+        | Readonly<Record<string, string>>
+        | undefined;
+      if (groupOverrides) {
+        resolveGroupVars(group, groupOverrides, vars);
+      }
+    }
+  }
+
+  return { key, vars };
+}
+
+// ── CSS serialiser ─────────────────────────────────────────────────────────────
+
+/**
+ * Serialises a ResolvedTheme into an inline CSS `:root { … }` string.
+ *
+ * Returns an empty string when there are no overrides — safe to inject
+ * unconditionally without emitting an empty `<style>` tag.
+ *
+ * @param theme  Output of resolveThemeForTenant().
+ * @returns      A CSS string, e.g. ":root{--primary:#e63946;--radius-card:24px}"
+ *               or "" when vars is empty.
+ *
+ * @example
+ * const css = resolvedThemeToCSS(resolveThemeForTenant(tenant));
+ * // In JSX:
+ * {css && <style dangerouslySetInnerHTML={{ __html: css }} />}
+ */
+export function resolvedThemeToCSS(theme: ResolvedTheme): string {
+  const entries = Object.entries(theme.vars);
+  if (entries.length === 0) return "";
+  const body = entries.map(([k, v]) => `${k}:${v}`).join(";");
+  return `:root{${body}}`;
+}

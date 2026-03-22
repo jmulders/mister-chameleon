@@ -1,0 +1,42 @@
+/*
+ * globals.css
+ *
+ * Entry point for all styles. Two things happen here:
+ *
+ *  1. Tailwind v4 is loaded, which processes the @theme blocks in
+ *     design-system/theme/theme.css and makes all token-named utilities
+ *     (bg-brand-500, text-neutral-900, rounded-xl, etc.) available.
+ *
+ *  2. The design-system theme is imported, which:
+ *       • Registers all palette and semantic tokens via @theme
+ *       • Sets :root semantic CSS variables (--primary, --bg, --text, …)
+ *       • Provides the dark-mode override via @media prefers-color-scheme
+ *
+ *  3. The Geist font variables (injected by next/font in layout.tsx) are
+ *     wired to the design-system font tokens via @theme inline, overriding
+ *     the system-ui fallback defined in theme.css.
+ *
+ * The tenant-specific CSS variable overrides are injected by the root layout
+ * at request time as an inline <style> tag — see app/layout.tsx.
+ * Those overrides shadow the :root defaults set here without touching this file.
+ */
+
+@import "tailwindcss";
+@import "../design-system/theme/theme.css";
+
+/*
+ * Wire Next.js Geist font variables to the design-system font tokens.
+ *
+ * layout.tsx loads Geist with:
+ *   const geistSans = Geist({ variable: "--font-geist-sans", ... });
+ *   const geistMono = Geist_Mono({ variable: "--font-geist-mono", ... });
+ *
+ * @theme inline overrides the --font-sans / --font-mono values set in
+ * theme.css so that Tailwind's `font-sans` and `font-mono` utilities,
+ * and any CSS consuming var(--font-sans), use Geist instead of the
+ * system-ui / ui-monospace fallbacks.
+ */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}

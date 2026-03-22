@@ -1,0 +1,1428 @@
+/**
+ * TenantSettingsForm
+ *
+ * Full-page editable form for a single tenant's settings.
+ * Client component — owns all form state and calls the save server action.
+ *
+ * ─── Sections ─────────────────────────────────────────────────────────────────
+ *
+ *   Basic     tenantId (read-only), package selector + summary + change diff
+ *   AI        mode, provider, confidence threshold
+ *   CMS       provider, project ID, dataset
+ *   Design    theme preset (package-gated), primary colour, primary font
+ *   Blocks    context + content block allow-lists (package-gated checkboxes)
+ *   Features  experiments, AI, analytics toggles (package-gated)
+ *
+ * ─── Package awareness ────────────────────────────────────────────────────────
+ *
+ *   On every render, `pkgDef` is derived from the current `packageKey`.
+ *   Inputs that are unavailable on the current package are disabled and
+ *   show a hint badge ("Growth or Pro" / "Pro only").
+ *
+ *   Changing the package also immediately cleans up any selections that
+ *   are no longer valid (blocks, themes, AI mode, features).
+ *
+ *   A PackageSummaryStrip beneath the selector always shows what the
+ *   selected package includes.  When the package differs from the saved
+ *   value a PackageChangeDiff panel lists what is gained and lost.
+ *
+ * ─── Save flow ────────────────────────────────────────────────────────────────
+ *
+ *   1. User edits fields.
+ *   2. User clicks "Save changes".
+ *   3. `useTransition` + `saveTenantAction` (server action) — async, non-blocking.
+ *   4. Inline success / error message appears.
+ *   5. Any subsequent form change clears the message.
+ */
+
+"use client";
+
+import { useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { getPackageDefinition, getPackageOption } from "@/tenant";
+import { Badge } from "@/components/ui/Badge";
+import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { Text } from "@/components/primitives/Text";
+import { saveTenantAction } from "./actions";
+import type {
+  TenantSettings,
+  PackageKey,
+  PackageDefinition,
+  ThemeKey,
+  ContextBlockKey,
+  ContentBlockKey,
+  TenantAiSettings,
+  TenantAiProviderName,
+} from "@/tenant";
+
+// ── Local aliases ──────────────────────────────────────────────────────────────
+
+type AiMode      = TenantAiSettings["mode"];
+type CmsProvider = "sanity" | "storyblok" | "statamic" | "mock";
+
+// ── Provider slot state ────────────────────────────────────────────────────────
+//
+// apiKey is ALWAYS initialised to "" — the page strips the stored key before
+// passing TenantSettings to this component.  A non-empty apiKey in form state
+// means the user has typed a NEW key that should replace the stored one.
+
+interface ProviderSlotState {
+  name:   string;   // TenantAiProviderName | ""
+  apiKey: string;   // "" = no new key → server preserves existing
+  model:  string;
+}
+
+// ── Form state ────────────────────────────────────────────────────────────────
+//
+// String fields that map to optional numbers (confidenceThreshold) are kept
+// as strings in state so native <input type="number"> is fully controlled.
+// They're parsed back to numbers in formStateToSettings().
+//
+// `identity.additionalDomains` is stored as a newline-separated string so it
+// fits naturally in a <textarea>.  Converted back to an array in
+// formStateToSettings() by splitting on newlines and filtering empty lines.
+
+interface FormState {
+  identity: {
+    name:              string;
+    slug:              string;
+    primaryDomain:     string;
+    additionalDomains: string; // newline-separated; converted to array on save
+  };
+  packageKey: PackageKey;
+  ai: {
+    mode:                AiMode;
+    confidenceThreshold: string;
+    liveProvider:        ProviderSlotState;
+    shadowProvider:      ProviderSlotState;
+  };
+  cms: {
+    provider:  CmsProvider;
+    projectId: string;
+    dataset:   string;
+  };
+  design: {
+    theme:        ThemeKey;
+    primaryColor: string;
+    primaryFont:  string;
+  };
+  features: {
+    experiments: boolean;
+    ai:          boolean;
+    analytics:   boolean;
+  };
+  blocks: {
+    context: ContextBlockKey[];
+    content: ContentBlockKey[];
+  };
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const ALL_PACKAGES: readonly PackageKey[] = ["starter", "growth", "pro"];
+
+const PACKAGE_DISPLAY: Record<PackageKey, string> = {
+  starter: "Starter",
+  growth:  "Growth",
+  pro:     "Pro",
+};
+
+const ALL_AI_MODES: readonly AiMode[] = ["disabled", "shadow", "live"];
+
+const AI_MODE_DISPLAY: Record<AiMode, string> = {
+  disabled: "Disabled",
+  shadow:   "Shadow (observe only)",
+  live:     "Live (serve AI plans)",
+};
+
+const ALL_AI_PROVIDERS: readonly (TenantAiProviderName | "")[] = ["", "claude", "openai", "gemini"];
+
+const AI_PROVIDER_DISPLAY: Record<TenantAiProviderName | "", string> = {
+  "":       "— Select provider —",
+  claude:   "Claude (Anthropic)",
+  openai:   "OpenAI",
+  gemini:   "Gemini (Google) — mock only (adapter pending)",
+};
+
+const ALL_CMS_PROVIDERS: readonly CmsProvider[] = [
+  "sanity", "storyblok", "statamic", "mock",
+];
+
+const CMS_PROVIDER_DISPLAY: Record<CmsProvider, string> = {
+  sanity:    "Sanity",
+  storyblok: "Storyblok",
+  statamic:  "Statamic",
+  mock:      "Mock (local dev)",
+};
+
+/** Dynamic field labels per CMS provider. */
+const CMS_FIELD_LABELS: Record<CmsProvider, { projectId: string; dataset: string }> = {
+  sanity:    { projectId: "Project ID",  dataset: "Dataset (e.g. production)" },
+  storyblok: { projectId: "Space ID",    dataset: "Environment" },
+  statamic:  { projectId: "Site ID",     dataset: "Collection" },
+  mock:      { projectId: "Project ID",  dataset: "Dataset" },
+};
+
+const ALL_THEMES: readonly ThemeKey[] = ["default", "minimal", "bold", "custom"];
+
+const THEME_DISPLAY: Record<ThemeKey, string> = {
+  default: "Default",
+  minimal: "Minimal",
+  bold:    "Bold",
+  custom:  "Custom",
+};
+
+/** Minimum package hint per theme — shown in the select option label. */
+const THEME_HINTS: Record<ThemeKey, string> = {
+  default: "",
+  minimal: "Growth or Pro",
+  bold:    "Pro only",
+  custom:  "Pro only",
+};
+
+const ALL_CONTEXT_BLOCKS: readonly ContextBlockKey[] = ["hero", "proof", "cta"];
+
+const ALL_CONTENT_BLOCKS: readonly ContentBlockKey[] = [
+  // text
+  "textSection", "richText",
+  // media
+  "image", "video", "slider",
+  // social proof
+  "testimonialSection", "quote", "logoStrip", "stats",
+  // features / content
+  "featureGrid", "faqSection", "about", "newsList", "caseHighlight",
+  // listing / detail
+  "listing", "articleBody", "articleMeta", "relatedContent",
+  "vacancyMeta", "applyPanel", "filterBar",
+  // search
+  "search",
+  // conversion
+  "ctaSection",
+  // forms
+  "formSection",
+];
+
+/** Minimum package hint per content block — shown next to disabled checkboxes. */
+const CONTENT_BLOCK_HINTS: Record<ContentBlockKey, string> = {
+  textSection:        "",
+  richText:           "Growth or Pro",
+  image:              "Growth or Pro",
+  video:              "Pro only",
+  slider:             "Pro only",
+  testimonialSection: "Growth or Pro",
+  quote:              "Growth or Pro",
+  logoStrip:          "Growth or Pro",
+  stats:              "Growth or Pro",
+  featureGrid:        "Growth or Pro",
+  faqSection:         "Growth or Pro",
+  about:              "Pro only",
+  newsList:           "Pro only",
+  caseHighlight:      "Pro only",
+  listing:            "Growth or Pro",
+  articleBody:        "Growth or Pro",
+  articleMeta:        "Growth or Pro",
+  relatedContent:     "Growth or Pro",
+  vacancyMeta:        "Pro only",
+  applyPanel:         "Pro only",
+  filterBar:          "Pro only",
+  searchResults:      "",          // internal rendering concept — not user-selectable
+  search:             "Growth or Pro",
+  ctaSection:         "Growth or Pro",
+  formSection:        "Growth or Pro",
+  // careers / W6
+  processSteps:       "Pro only",
+  recruiterPanel:     "Pro only",
+};
+
+/** Human-readable display names for content blocks — used in the diff panel. */
+const CONTENT_BLOCK_DISPLAY: Record<ContentBlockKey, string> = {
+  textSection:        "Text section",
+  richText:           "Rich text",
+  image:              "Image",
+  video:              "Video",
+  slider:             "Slider",
+  testimonialSection: "Testimonials",
+  quote:              "Quote",
+  logoStrip:          "Logo strip",
+  stats:              "Stats",
+  featureGrid:        "Feature grid",
+  faqSection:         "FAQ",
+  about:              "About",
+  newsList:           "News list",
+  caseHighlight:      "Case highlight",
+  listing:            "Listing",
+  articleBody:        "Article body",
+  articleMeta:        "Article meta",
+  relatedContent:     "Related content",
+  vacancyMeta:        "Vacancy meta",
+  applyPanel:         "Apply panel",
+  filterBar:          "Filter bar",
+  searchResults:      "Search results",  // internal — not shown in UI
+  search:             "Search",
+  ctaSection:         "Call to action",
+  formSection:        "Form",
+  // careers / W6
+  processSteps:       "Process steps",
+  recruiterPanel:     "Recruiter panel",
+};
+
+// ── Package diff helpers ──────────────────────────────────────────────────────
+//
+// Used by PackageSummaryStrip (always shown) and PackageChangeDiff (shown only
+// when the form package differs from the saved package).
+
+type DiffDirection = "gain" | "lose";
+
+interface DiffLine {
+  label:     string;
+  direction: DiffDirection;
+}
+
+const FEATURE_DIFF_LABELS: Record<"experiments" | "ai" | "analytics", string> = {
+  experiments: "A/B experiments",
+  ai:          "AI decision layer",
+  analytics:   "Analytics & logging",
+};
+
+/** Formats a numeric limit for display in the diff or summary. */
+function limitLabel(n: number, zeroLabel = "None"): string {
+  if (n === Infinity) return "Unlimited";
+  if (n === 0)        return zeroLabel;
+  return String(n);
+}
+
+/**
+ * Computes a list of DiffLines describing what is gained and lost when moving
+ * from one package to another.  Covers features, content blocks, themes, and
+ * key numeric limits.  Returns an empty array when both packages are identical.
+ */
+function computePackageDiff(from: PackageDefinition, to: PackageDefinition): DiffLine[] {
+  const lines: DiffLine[] = [];
+
+  // Features ─────────────────────────────────────────────────────────────────
+  (["experiments", "ai", "analytics"] as const).forEach((k) => {
+    const label = FEATURE_DIFF_LABELS[k];
+    if (!from.allowedFeatures[k] && to.allowedFeatures[k]) {
+      lines.push({ label, direction: "gain" });
+    } else if (from.allowedFeatures[k] && !to.allowedFeatures[k]) {
+      lines.push({ label, direction: "lose" });
+    }
+  });
+
+  // Content blocks ───────────────────────────────────────────────────────────
+  const gainedBlocks = to.allowedBlocks.content.filter(
+    (b) => !from.allowedBlocks.content.includes(b),
+  );
+  const lostBlocks = from.allowedBlocks.content.filter(
+    (b) => !to.allowedBlocks.content.includes(b),
+  );
+  if (gainedBlocks.length > 0) {
+    lines.push({
+      label:     `Content blocks: ${gainedBlocks.map((b) => CONTENT_BLOCK_DISPLAY[b]).join(", ")}`,
+      direction: "gain",
+    });
+  }
+  if (lostBlocks.length > 0) {
+    lines.push({
+      label:     `Content blocks removed: ${lostBlocks.map((b) => CONTENT_BLOCK_DISPLAY[b]).join(", ")}`,
+      direction: "lose",
+    });
+  }
+
+  // Themes ───────────────────────────────────────────────────────────────────
+  const gainedThemes = to.allowedThemes.filter((t) => !from.allowedThemes.includes(t));
+  const lostThemes   = from.allowedThemes.filter((t) => !to.allowedThemes.includes(t));
+  if (gainedThemes.length > 0) {
+    lines.push({
+      label:     `Themes: ${gainedThemes.map((t) => THEME_DISPLAY[t]).join(", ")}`,
+      direction: "gain",
+    });
+  }
+  if (lostThemes.length > 0) {
+    lines.push({
+      label:     `Themes removed: ${lostThemes.map((t) => THEME_DISPLAY[t]).join(", ")}`,
+      direction: "lose",
+    });
+  }
+
+  // Numeric limits ───────────────────────────────────────────────────────────
+  if (from.limits.maxSites !== to.limits.maxSites) {
+    lines.push({
+      label:     `Sites: ${limitLabel(from.limits.maxSites)} → ${limitLabel(to.limits.maxSites)}`,
+      direction: to.limits.maxSites > from.limits.maxSites ? "gain" : "lose",
+    });
+  }
+  if (from.limits.maxExperiments !== to.limits.maxExperiments) {
+    lines.push({
+      label: `Concurrent experiments: ${limitLabel(from.limits.maxExperiments, "Not permitted")} → ${limitLabel(to.limits.maxExperiments, "Not permitted")}`,
+      direction: to.limits.maxExperiments > from.limits.maxExperiments ? "gain" : "lose",
+    });
+  }
+  if (from.limits.maxVariantsPerSlot !== to.limits.maxVariantsPerSlot) {
+    lines.push({
+      label:     `Variants per slot: ${limitLabel(from.limits.maxVariantsPerSlot)} → ${limitLabel(to.limits.maxVariantsPerSlot)}`,
+      direction: to.limits.maxVariantsPerSlot > from.limits.maxVariantsPerSlot ? "gain" : "lose",
+    });
+  }
+
+  return lines;
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const inputCls = [
+  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2",
+  "text-sm text-neutral-900 placeholder:text-neutral-400",
+  "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
+  "disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400",
+].join(" ");
+
+const selectCls = [
+  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2",
+  "text-sm text-neutral-900",
+  "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
+  "disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400",
+].join(" ");
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function initFormState(tenant: TenantSettings): FormState {
+  return {
+    identity: {
+      name:              tenant.name              ?? "",
+      slug:              tenant.slug              ?? "",
+      primaryDomain:     tenant.primaryDomain     ?? "",
+      additionalDomains: tenant.additionalDomains ? tenant.additionalDomains.join("\n") : "",
+    },
+    packageKey: tenant.packageKey,
+    ai: {
+      mode:                tenant.ai.mode,
+      confidenceThreshold: tenant.ai.confidenceThreshold !== undefined
+                             ? String(tenant.ai.confidenceThreshold)
+                             : "",
+      liveProvider: {
+        name:   tenant.ai.liveProvider?.name   ?? "",
+        apiKey: "",  // page strips stored key; "" means "no new key"
+        model:  tenant.ai.liveProvider?.model  ?? "",
+      },
+      shadowProvider: {
+        name:   tenant.ai.shadowProvider?.name   ?? "",
+        apiKey: "",
+        model:  tenant.ai.shadowProvider?.model  ?? "",
+      },
+    },
+    cms: {
+      provider:  tenant.cms.provider as CmsProvider,
+      projectId: tenant.cms.projectId ?? "",
+      dataset:   tenant.cms.dataset ?? "",
+    },
+    design: {
+      theme:        tenant.design.theme,
+      primaryColor: tenant.design.primaryColor ?? "",
+      primaryFont:  tenant.design.primaryFont ?? "",
+    },
+    features: {
+      experiments: tenant.features.experiments,
+      ai:          tenant.features.ai,
+      analytics:   tenant.features.analytics,
+    },
+    blocks: {
+      context: [...tenant.blocks.context],
+      content: [...tenant.blocks.content],
+    },
+  };
+}
+
+/**
+ * Converts a provider slot's form state to a TenantAiProviderConfig fragment,
+ * or returns an empty object when no provider name is selected.
+ *
+ * apiKey is included only when the user typed a new value; an empty string
+ * means "keep the existing key" and is intentionally omitted so the server
+ * action can fill it back in from the stored record.
+ */
+function buildProviderSlotSettings(
+  key:  "liveProvider" | "shadowProvider",
+  slot: ProviderSlotState,
+): Partial<Pick<TenantAiSettings, "liveProvider" | "shadowProvider">> {
+  if (!slot.name) return {};
+  return {
+    [key]: {
+      name:  slot.name as TenantAiProviderName,
+      ...(slot.apiKey.trim() ? { apiKey: slot.apiKey.trim() } : {}),
+      ...(slot.model.trim()  ? { model:  slot.model.trim() }  : {}),
+    },
+  };
+}
+
+/** Converts form state back to a valid TenantSettings shape for saving. */
+function formStateToSettings(tenantId: string, form: FormState): TenantSettings {
+  const rawThreshold = parseFloat(form.ai.confidenceThreshold);
+  const validThreshold =
+    Number.isFinite(rawThreshold) && rawThreshold >= 0 && rawThreshold <= 1;
+
+  // Parse additionalDomains textarea — split on newlines, trim each line,
+  // discard empty lines and duplicates.
+  const parsedAdditionalDomains = [
+    ...new Set(
+      form.identity.additionalDomains
+        .split("\n")
+        .map((d) => d.trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  return {
+    tenantId,
+    // Identity
+    ...(form.identity.name.trim()         ? { name:              form.identity.name.trim()         } : {}),
+    ...(form.identity.slug.trim()         ? { slug:              form.identity.slug.trim()         } : {}),
+    ...(form.identity.primaryDomain.trim() ? { primaryDomain:    form.identity.primaryDomain.trim() } : {}),
+    ...(parsedAdditionalDomains.length > 0 ? { additionalDomains: parsedAdditionalDomains }          : {}),
+    packageKey: form.packageKey,
+    features: {
+      experiments: form.features.experiments,
+      ai:          form.features.ai,
+      analytics:   form.features.analytics,
+    },
+    blocks: {
+      context: form.blocks.context,
+      content: form.blocks.content,
+    },
+    ai: {
+      mode: form.ai.mode,
+      ...(validThreshold ? { confidenceThreshold: rawThreshold } : {}),
+      // Include both provider slots regardless of current mode so that
+      // switching modes doesn't discard the configuration for the other slot.
+      ...buildProviderSlotSettings("liveProvider",   form.ai.liveProvider),
+      ...buildProviderSlotSettings("shadowProvider", form.ai.shadowProvider),
+    },
+    cms: {
+      provider: form.cms.provider,
+      ...(form.cms.projectId.trim() ? { projectId: form.cms.projectId.trim() }          : {}),
+      ...(form.cms.dataset.trim()   ? { dataset:   form.cms.dataset.trim() }            : {}),
+    },
+    design: {
+      theme: form.design.theme,
+      ...(form.design.primaryColor.trim() ? { primaryColor: form.design.primaryColor.trim() } : {}),
+      ...(form.design.primaryFont.trim()  ? { primaryFont:  form.design.primaryFont.trim() }  : {}),
+    },
+  };
+}
+
+/** Toggles an item in an array — adds if absent, removes if present. */
+function toggleItem<T>(arr: readonly T[], val: T): T[] {
+  return arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
+}
+
+// ── Atoms ─────────────────────────────────────────────────────────────────────
+
+function SectionCard({
+  title,
+  badge,
+  hint,
+  children,
+}: {
+  title:    string;
+  badge?:   string;
+  hint?:    string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <Text variant="h4">{title}</Text>
+          {badge && (
+            <Badge variant="outline" size="sm">
+              {badge}
+            </Badge>
+          )}
+        </div>
+        {hint && (
+          <p className="text-xs text-neutral-500">{hint}</p>
+        )}
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-neutral-700">{label}</label>
+      {hint && <p className="text-xs text-neutral-400">{hint}</p>}
+      {children}
+    </div>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      className={cn(
+        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
+        "transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+        checked ? "bg-brand-600" : "bg-neutral-200",
+        disabled && "cursor-not-allowed opacity-40",
+      )}
+    >
+      <span
+        className={cn(
+          "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm",
+          "transition duration-200 ease-in-out",
+          checked ? "translate-x-4" : "translate-x-0",
+        )}
+      />
+    </button>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  blockedHint,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label:        string;
+  hint?:        string;
+  blockedHint?: string;
+  checked:      boolean;
+  onChange:     (v: boolean) => void;
+  disabled?:    boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-neutral-100 py-3 last:border-0">
+      <div className="space-y-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-neutral-700">{label}</span>
+          {blockedHint && (
+            <Badge variant="outline" size="sm">
+              {blockedHint}
+            </Badge>
+          )}
+        </div>
+        {hint && <p className="text-xs text-neutral-400">{hint}</p>}
+      </div>
+      <Toggle checked={checked} onChange={onChange} disabled={disabled} />
+    </div>
+  );
+}
+
+// ── PackageSummaryStrip ────────────────────────────────────────────────────────
+//
+// Always-visible summary beneath the package selector.  Shows the selected
+// package's positioning statement and key limits at a glance so the admin
+// knows exactly what they are configuring without opening a docs page.
+
+function PackageSummaryStrip({ pkgDef }: { pkgDef: PackageDefinition }) {
+  const opt = getPackageOption(pkgDef.key);
+
+  const siteLabel = pkgDef.limits.maxSites === Infinity
+    ? "Unlimited sites"
+    : pkgDef.limits.maxSites === 1
+      ? "1 site"
+      : `Up to ${pkgDef.limits.maxSites} sites`;
+
+  const expLabel = pkgDef.limits.maxExperiments === 0
+    ? "No experiments"
+    : pkgDef.limits.maxExperiments === Infinity
+      ? "Unlimited experiments"
+      : `Up to ${pkgDef.limits.maxExperiments} experiments`;
+
+  const variantLabel = pkgDef.limits.maxVariantsPerSlot === Infinity
+    ? "Unlimited variants/slot"
+    : `Up to ${pkgDef.limits.maxVariantsPerSlot} variants/slot`;
+
+  const chips = [siteLabel, expLabel, variantLabel];
+
+  return (
+    <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
+      {/* Positioning statement */}
+      <p className="text-xs italic text-neutral-500">{pkgDef.shortDescription}</p>
+
+      {/* Key highlights — plain-language selling points from the package definition */}
+      <ul className="space-y-0.5">
+        {opt.highlights.slice(0, 4).map((h, i) => (
+          <li key={i} className="flex items-start gap-1.5 text-xs text-neutral-600">
+            <span className="mt-px shrink-0 text-success-500" aria-hidden>✓</span>
+            {h}
+          </li>
+        ))}
+      </ul>
+
+      {/* Operational limits */}
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-neutral-200 pt-1.5">
+        {chips.map((chip, i) => (
+          <span key={i} className="text-xs text-neutral-400">
+            {i > 0 && <span className="mr-1.5 text-neutral-300">·</span>}
+            {chip}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── PackageChangeDiff ─────────────────────────────────────────────────────────
+//
+// Shown only when the in-form packageKey differs from the saved packageKey.
+// Computes a list of gains and losses between the two definitions and presents
+// them as a compact before→after panel with green/red indicators.
+//
+// A downgrade warning reminds the admin that settings outside the new package's
+// limits will be normalised automatically when the save is submitted.
+
+function PackageChangeDiff({
+  from,
+  to,
+}: {
+  from: PackageDefinition;
+  to:   PackageDefinition;
+}) {
+  const diff    = computePackageDiff(from, to);
+  const gains   = diff.filter((d) => d.direction === "gain");
+  const losses  = diff.filter((d) => d.direction === "lose");
+  const toOpt   = getPackageOption(to.key);
+
+  if (diff.length === 0) return null;
+
+  return (
+    <div className="space-y-3 rounded-lg border border-neutral-200 bg-white px-3 py-3">
+      <div>
+        <p className="text-xs font-semibold text-neutral-500">
+          Switching {from.displayName} → {to.displayName}
+        </p>
+        <p className="mt-0.5 text-xs text-neutral-400">{toOpt.recommendedFor}</p>
+      </div>
+
+      {gains.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-success-600">
+            Gains
+          </p>
+          {gains.map((line, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <span className="shrink-0 text-xs font-bold leading-4 text-success-600">+</span>
+              <span className="text-xs text-neutral-700">{line.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {losses.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-error-600">
+            Loses
+          </p>
+          {losses.map((line, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <span className="shrink-0 text-xs font-bold leading-4 text-error-600">−</span>
+              <span className="text-xs text-neutral-700">{line.label}</span>
+            </div>
+          ))}
+          <p className="pt-1 text-xs text-neutral-400">
+            ⚠ Settings outside {to.displayName} limits will be adjusted automatically when you save.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── ProviderSlotFields ─────────────────────────────────────────────────────────
+//
+// Renders the three inputs for a single provider slot (name, api key, model).
+// The API key input is always type="password".  When an existing key is stored
+// and the user has not typed a new one, a hint explains that the key is
+// preserved automatically — the blank field does NOT mean "delete the key".
+
+function ProviderSlotFields({
+  label,
+  state,
+  hasExistingKey,
+  disabled,
+  onChange,
+}: {
+  label:          string;
+  state:          ProviderSlotState;
+  hasExistingKey: boolean;
+  disabled:       boolean;
+  onChange:       (next: ProviderSlotState) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{label}</p>
+
+      <Field label="Provider">
+        <select
+          value={state.name}
+          disabled={disabled}
+          onChange={(e) => onChange({ ...state, name: e.target.value })}
+          className={selectCls}
+        >
+          {ALL_AI_PROVIDERS.map((p) => (
+            <option key={p} value={p} disabled={p === "gemini"}>
+              {AI_PROVIDER_DISPLAY[p]}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
+        label="API key"
+        hint={
+          !state.apiKey && hasExistingKey
+            ? "Key is configured — leave blank to keep it unchanged, or enter a new key to replace it."
+            : "Stored server-side only and never returned to the browser."
+        }
+      >
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={state.apiKey}
+          disabled={disabled || !state.name}
+          placeholder={hasExistingKey ? "••••••••  (configured)" : "Paste key here"}
+          onChange={(e) => onChange({ ...state, apiKey: e.target.value })}
+          className={inputCls}
+        />
+      </Field>
+
+      <Field label="Model override" hint="Leave blank to use the platform default for the selected provider.">
+        <input
+          type="text"
+          value={state.model}
+          disabled={disabled || !state.name}
+          placeholder={
+            state.name === "claude"  ? "claude-3-5-haiku-20241022" :
+            state.name === "openai"  ? "gpt-4o-mini" :
+            "e.g. gemini-1.5-flash"
+          }
+          onChange={(e) => onChange({ ...state, model: e.target.value })}
+          className={inputCls}
+        />
+      </Field>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export function TenantSettingsForm({
+  tenant,
+  existingKeys = { hasLiveKey: false, hasShadowKey: false },
+}: {
+  tenant:       TenantSettings;
+  existingKeys?: { hasLiveKey: boolean; hasShadowKey: boolean };
+}) {
+  const router = useRouter();
+  const [form, setForm] = useState<FormState>(() => initFormState(tenant));
+  const [isPending, startTransition] = useTransition();
+  const [saveResult, setSaveResult] = useState<{ ok: boolean; message: string; warnings?: string[] } | null>(null);
+
+  // Derived — recomputed on every render from the current packageKey.
+  const pkgDef = getPackageDefinition(form.packageKey);
+
+  // ── Section-level contextual hints ─────────────────────────────────────────
+  // Computed from current form state so they stay in sync as the user edits.
+
+  const aiSectionHint: string | undefined =
+    !pkgDef.allowedFeatures.ai
+      ? "AI is not available on this package — upgrade to Pro to enable shadow or live mode."
+      : form.ai.mode === "shadow"
+        ? "Shadow mode logs AI decisions but never serves them to visitors. Good for evaluating model quality before going live."
+        : form.ai.mode === "live"
+          ? "Live mode may override the rules engine when the AI confidence score meets the threshold. Monitor results closely."
+          : undefined;
+
+  const cmsSectionHint: string | undefined =
+    form.cms.provider === "mock"
+      ? "Mock provider is for local development only — switch to a real CMS provider before going live."
+      : !form.cms.projectId.trim()
+        ? "Enter the project ID and dataset below to fully configure this CMS integration."
+        : undefined;
+
+  const blocksSectionHint: string | undefined =
+    "Context blocks are rendered and personalised by the adaptive rules engine. Content blocks are CMS-authored page sections. Both lists are capped by your package.";
+
+  const featuresSectionHint: string | undefined =
+    "Features marked with a package badge cannot be enabled on the current plan. Upgrade the package to unlock them.";
+
+  // Clear the save banner whenever the user changes anything.
+  useEffect(() => {
+    setSaveResult(null);
+  }, [form]);
+
+  // ── Package change ──────────────────────────────────────────────────────────
+  //
+  // When the package changes we clean up any selections that are no longer
+  // valid: resets AI mode to "disabled" if AI isn't allowed, clamps the theme
+  // to the first allowed value, and removes blocked blocks + features.
+
+  function handlePackageChange(newKey: PackageKey) {
+    const pkg = getPackageDefinition(newKey);
+    setForm((prev) => ({
+      ...prev,
+      packageKey: newKey,
+      features: {
+        experiments: prev.features.experiments && pkg.allowedFeatures.experiments,
+        ai:          prev.features.ai && pkg.allowedFeatures.ai,
+        analytics:   prev.features.analytics, // always available
+      },
+      ai: {
+        ...prev.ai,
+        // If AI is no longer allowed, force mode back to disabled.
+        mode: !pkg.allowedFeatures.ai && prev.ai.mode !== "disabled"
+          ? "disabled"
+          : prev.ai.mode,
+        // Provider slot state is preserved across package changes.
+      },
+      design: {
+        ...prev.design,
+        theme: pkg.allowedThemes.includes(prev.design.theme)
+          ? prev.design.theme
+          : pkg.allowedThemes[0],
+      },
+      blocks: {
+        context: prev.blocks.context.filter((b) => pkg.allowedBlocks.context.includes(b)),
+        content: prev.blocks.content.filter((b) => pkg.allowedBlocks.content.includes(b)),
+      },
+    }));
+  }
+
+  // ── Save ───────────────────────────────────────────────────────────────────
+
+  function handleSave() {
+    startTransition(async () => {
+      try {
+        const settings = formStateToSettings(tenant.tenantId, form);
+        const result   = await saveTenantAction(settings);
+        setSaveResult(
+          result.ok
+            ? { ok: true,  message: "Settings saved.", warnings: result.warnings }
+            : { ok: false, message: result.error },
+        );
+        if (result.ok) {
+          // Re-render the server shell so the page header badges (package
+          // tier, active status) immediately reflect the saved values.
+          // This does not reset form state — only server components refresh.
+          router.refresh();
+        }
+      } catch (err) {
+        setSaveResult({
+          ok:      false,
+          message: err instanceof Error ? err.message : "An unexpected error occurred.",
+        });
+      }
+    });
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="max-w-3xl space-y-6">
+
+      {/* ── Identity ──────────────────────────────────────────────────────── */}
+      <SectionCard
+        title="Identity"
+        hint="Public-facing name, URL slug, and domain configuration. The tenant ID (below) stays fixed — these fields can all be changed after creation."
+      >
+        <div className="space-y-4">
+          <Field
+            label="Display name"
+            hint="Human-readable name shown in admin UIs and CMS content labels."
+          >
+            <input
+              type="text"
+              value={form.identity.name}
+              placeholder="e.g. Acme Corp"
+              onChange={(e) =>
+                setForm((f) => ({ ...f, identity: { ...f.identity, name: e.target.value } }))
+              }
+              className={inputCls}
+            />
+          </Field>
+
+          <Field
+            label="Slug"
+            hint="URL-safe public identifier. Lowercase letters, digits, and hyphens only."
+          >
+            <input
+              type="text"
+              value={form.identity.slug}
+              placeholder="e.g. acme-corp"
+              pattern="^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$"
+              onChange={(e) =>
+                setForm((f) => ({ ...f, identity: { ...f.identity, slug: e.target.value.toLowerCase() } }))
+              }
+              className={inputCls}
+            />
+          </Field>
+
+          <Field
+            label="Primary domain"
+            hint="Production hostname for domain-based routing. No protocol — e.g. acme.com, not https://acme.com."
+          >
+            <input
+              type="text"
+              value={form.identity.primaryDomain}
+              placeholder="e.g. acme.com"
+              onChange={(e) =>
+                setForm((f) => ({ ...f, identity: { ...f.identity, primaryDomain: e.target.value.toLowerCase().trim() } }))
+              }
+              className={inputCls}
+            />
+          </Field>
+
+          <Field
+            label="Additional domains"
+            hint="Extra hostnames (www, staging, etc.) — one per line. Same format as primary domain."
+          >
+            <textarea
+              value={form.identity.additionalDomains}
+              rows={3}
+              placeholder={"www.acme.com\nstaging.acme.com"}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, identity: { ...f.identity, additionalDomains: e.target.value } }))
+              }
+              className={cn(inputCls, "resize-y")}
+            />
+          </Field>
+        </div>
+      </SectionCard>
+
+      {/* ── Basic ─────────────────────────────────────────────────────────── */}
+      <SectionCard title="Basic">
+        <div className="space-y-4">
+          <Field
+            label="Tenant ID"
+            hint="The stable slug used as a primary key — cannot be changed after creation."
+          >
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-mono text-neutral-500">
+              {tenant.tenantId}
+            </div>
+          </Field>
+
+          <Field label="Package">
+            <select
+              value={form.packageKey}
+              onChange={(e) => handlePackageChange(e.target.value as PackageKey)}
+              className={selectCls}
+            >
+              {ALL_PACKAGES.map((key) => (
+                <option key={key} value={key}>
+                  {PACKAGE_DISPLAY[key]}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {/* Always-visible package summary — description + key limits */}
+          <PackageSummaryStrip pkgDef={pkgDef} />
+
+          {/* Change diff — only shown when the package selection has changed */}
+          {form.packageKey !== tenant.packageKey && (
+            <PackageChangeDiff
+              from={getPackageDefinition(tenant.packageKey)}
+              to={pkgDef}
+            />
+          )}
+        </div>
+      </SectionCard>
+
+      {/* ── AI ────────────────────────────────────────────────────────────── */}
+      <SectionCard
+        title="AI Settings"
+        badge={!pkgDef.allowedFeatures.ai ? "Pro plan required" : undefined}
+        hint={aiSectionHint}
+      >
+        <div className="space-y-4">
+          <Field label="Mode">
+            <select
+              value={form.ai.mode}
+              disabled={!pkgDef.allowedFeatures.ai}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, ai: { ...f.ai, mode: e.target.value as AiMode } }))
+              }
+              className={selectCls}
+            >
+              {ALL_AI_MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {AI_MODE_DISPLAY[mode]}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {/* Live provider — shown when mode is "live" */}
+          {form.ai.mode === "live" && (
+            <ProviderSlotFields
+              label="Live provider"
+              state={form.ai.liveProvider}
+              hasExistingKey={existingKeys.hasLiveKey}
+              disabled={!pkgDef.allowedFeatures.ai}
+              onChange={(next) =>
+                setForm((f) => ({ ...f, ai: { ...f.ai, liveProvider: next } }))
+              }
+            />
+          )}
+
+          {/* Shadow provider — shown when mode is "shadow" */}
+          {form.ai.mode === "shadow" && (
+            <ProviderSlotFields
+              label="Shadow provider"
+              state={form.ai.shadowProvider}
+              hasExistingKey={existingKeys.hasShadowKey}
+              disabled={!pkgDef.allowedFeatures.ai}
+              onChange={(next) =>
+                setForm((f) => ({ ...f, ai: { ...f.ai, shadowProvider: next } }))
+              }
+            />
+          )}
+
+          <Field
+            label="Confidence threshold"
+            hint={
+              form.ai.mode !== "live"
+                ? "Only applied in live mode — edit when mode is Live."
+                : "Minimum confidence score to serve an AI plan. Range: 0–1. Platform default: 0.70."
+            }
+          >
+            <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={form.ai.confidenceThreshold}
+              disabled={!pkgDef.allowedFeatures.ai || form.ai.mode !== "live"}
+              placeholder="0.70"
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  ai: { ...f.ai, confidenceThreshold: e.target.value },
+                }))
+              }
+              className={inputCls}
+            />
+          </Field>
+        </div>
+      </SectionCard>
+
+      {/* ── CMS ───────────────────────────────────────────────────────────── */}
+      <SectionCard title="CMS Settings" hint={cmsSectionHint}>
+        <div className="space-y-4">
+          <Field label="Provider">
+            <select
+              value={form.cms.provider}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  cms: { ...f.cms, provider: e.target.value as CmsProvider },
+                }))
+              }
+              className={selectCls}
+            >
+              {ALL_CMS_PROVIDERS.map((p) => (
+                <option key={p} value={p}>
+                  {CMS_PROVIDER_DISPLAY[p]}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={CMS_FIELD_LABELS[form.cms.provider].projectId}>
+              <input
+                type="text"
+                value={form.cms.projectId}
+                disabled={form.cms.provider === "mock"}
+                placeholder={form.cms.provider === "mock" ? "Not required" : ""}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, cms: { ...f.cms, projectId: e.target.value } }))
+                }
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label={CMS_FIELD_LABELS[form.cms.provider].dataset}>
+              <input
+                type="text"
+                value={form.cms.dataset}
+                disabled={form.cms.provider === "mock"}
+                placeholder={form.cms.provider === "mock" ? "Not required" : ""}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, cms: { ...f.cms, dataset: e.target.value } }))
+                }
+                className={inputCls}
+              />
+            </Field>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* ── Design ────────────────────────────────────────────────────────── */}
+      <SectionCard title="Design">
+        <div className="space-y-4">
+          <Field label="Theme preset">
+            <select
+              value={form.design.theme}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  design: { ...f.design, theme: e.target.value as ThemeKey },
+                }))
+              }
+              className={selectCls}
+            >
+              {ALL_THEMES.map((t) => {
+                const allowed = pkgDef.allowedThemes.includes(t);
+                const hint    = THEME_HINTS[t];
+                return (
+                  <option key={t} value={t} disabled={!allowed}>
+                    {THEME_DISPLAY[t]}
+                    {!allowed && hint ? ` — ${hint}` : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Primary colour" hint="Any valid CSS colour value.">
+              <input
+                type="text"
+                value={form.design.primaryColor}
+                placeholder="#e63946 or hsl(354,73%,56%)"
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    design: { ...f.design, primaryColor: e.target.value },
+                  }))
+                }
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Primary font" hint="CSS font-family stack.">
+              <input
+                type="text"
+                value={form.design.primaryFont}
+                placeholder="'Inter', sans-serif"
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    design: { ...f.design, primaryFont: e.target.value },
+                  }))
+                }
+                className={inputCls}
+              />
+            </Field>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* ── Blocks ────────────────────────────────────────────────────────── */}
+      <SectionCard title="Allowed Blocks" hint={blocksSectionHint}>
+        <div className="grid gap-6 sm:grid-cols-2">
+
+          {/* Context blocks */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+              Context blocks (adaptive)
+            </p>
+            {ALL_CONTEXT_BLOCKS.map((block) => {
+              const allowed = pkgDef.allowedBlocks.context.includes(block);
+              const checked = form.blocks.context.includes(block);
+              return (
+                <label
+                  key={block}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3",
+                    !allowed && "cursor-not-allowed",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={!allowed}
+                    onChange={() => {
+                      if (!allowed) return;
+                      setForm((f) => ({
+                        ...f,
+                        blocks: {
+                          ...f.blocks,
+                          context: toggleItem(f.blocks.context, block),
+                        },
+                      }));
+                    }}
+                    className="h-4 w-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                  <span
+                    className={cn(
+                      "text-sm text-neutral-700",
+                      !allowed && "text-neutral-400",
+                    )}
+                  >
+                    {block}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {/* Content blocks */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+              Content blocks (CMS)
+            </p>
+            {ALL_CONTENT_BLOCKS.map((block) => {
+              const allowed = pkgDef.allowedBlocks.content.includes(block);
+              const checked = form.blocks.content.includes(block);
+              const hint    = CONTENT_BLOCK_HINTS[block];
+              return (
+                <label
+                  key={block}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3",
+                    !allowed && "cursor-not-allowed",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={!allowed}
+                    onChange={() => {
+                      if (!allowed) return;
+                      setForm((f) => ({
+                        ...f,
+                        blocks: {
+                          ...f.blocks,
+                          content: toggleItem(f.blocks.content, block),
+                        },
+                      }));
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                  <div>
+                    <span
+                      className={cn(
+                        "text-sm text-neutral-700",
+                        !allowed && "text-neutral-400",
+                      )}
+                    >
+                      {block}
+                    </span>
+                    {!allowed && hint && (
+                      <p className="text-xs text-neutral-400">{hint}</p>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+        </div>
+      </SectionCard>
+
+      {/* ── Features ──────────────────────────────────────────────────────── */}
+      <SectionCard title="Features" hint={featuresSectionHint}>
+        <div>
+          <ToggleRow
+            label="Experiments"
+            hint="Enable A/B testing via the experiment decision provider."
+            blockedHint={!pkgDef.allowedFeatures.experiments ? "Growth or Pro" : undefined}
+            checked={form.features.experiments}
+            disabled={!pkgDef.allowedFeatures.experiments}
+            onChange={(v) =>
+              setForm((f) => ({ ...f, features: { ...f.features, experiments: v } }))
+            }
+          />
+          <ToggleRow
+            label="AI"
+            hint="Allow the AI decision layer to run in shadow or live mode."
+            blockedHint={!pkgDef.allowedFeatures.ai ? "Pro only" : undefined}
+            checked={form.features.ai}
+            disabled={!pkgDef.allowedFeatures.ai}
+            onChange={(v) =>
+              setForm((f) => ({ ...f, features: { ...f.features, ai: v } }))
+            }
+          />
+          <ToggleRow
+            label="Analytics"
+            hint="Enable event tracking and served-variant logging."
+            checked={form.features.analytics}
+            onChange={(v) =>
+              setForm((f) => ({ ...f, features: { ...f.features, analytics: v } }))
+            }
+          />
+        </div>
+      </SectionCard>
+
+      {/* ── Save ──────────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-start gap-4 pb-8 pt-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isPending}
+          className={cn(
+            "rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white",
+            "transition-colors hover:bg-brand-700",
+            "focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+            isPending && "cursor-not-allowed opacity-60",
+          )}
+        >
+          {isPending ? "Saving…" : "Save changes"}
+        </button>
+
+        {saveResult && (
+          <div className="space-y-1">
+            <span
+              className={cn(
+                "text-sm",
+                saveResult.ok ? "text-success-600" : "text-error-600",
+              )}
+            >
+              {saveResult.ok ? "✓ " : "⚠ "}
+              {saveResult.message}
+            </span>
+            {saveResult.ok && saveResult.warnings && saveResult.warnings.length > 0 && (
+              <div className="space-y-0.5">
+                {saveResult.warnings.map((w, i) => (
+                  <p key={i} className="text-xs text-warning-600">
+                    ⚠ {w}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+    </div>
+  );
+}
