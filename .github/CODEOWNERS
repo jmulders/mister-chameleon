@@ -1,0 +1,27 @@
+# CODEOWNERS
+#
+# Code owners are automatically requested for review when a PR modifies files
+# they own. At least one owner must approve before merging to main.
+#
+# Format: <pattern> <@github-username or @org/team>
+#
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ── Default owner for all files ───────────────────────────────────────────────
+
+* @jaspermulders
+
+# ── Database migrations — extra scrutiny ────────────────────────────────────────
+
+supabase/migrations/  @jaspermulders
+
+# ── Billing and pricing — always needs owner review ─────────────────────────────
+
+pricing/              @jaspermulders
+billing/              @jaspermulders
+app/api/webhooks/     @jaspermulders
+
+# ── Infrastructure / CI ───────────────────────────────────────────────────────
+
+.github/              @jaspermulders
+scripts/              @jaspermulders

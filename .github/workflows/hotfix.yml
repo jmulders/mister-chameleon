@@ -1,0 +1,76 @@
+name: Hotfix Deploy
+
+# ── Trigger ────────────────────────────────────────────────────────────────────
+#
+# Hotfix branches follow the pattern: hotfix/*
+# This workflow triggers when a hotfix branch is pushed.
+# After review and merge to main, the production workflow handles the actual deploy.
+#
+# ─── Hotfix flow ──────────────────────────────────────────────────────────────
+#
+#   1. git checkout -b hotfix/fix-description main
+#   2. Apply fix (keep it minimal and focused)
+#   3. git push origin hotfix/fix-description
+#   4. Open PR → main  (this workflow runs CI)
+#   5. After merge to main → production.yml deploys automatically
+#   6. Cherry-pick back to develop:
+#      git checkout develop && git cherry-pick <commit-sha>
+
+on:
+  push:
+    branches:
+      - "hotfix/**"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Fast CI for hotfix branches (no build step — speed matters)
+  # ─────────────────────────────────────────────────────────────────────────────
+  hotfix-ci:
+    name: Hotfix CI
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/hotfix/') || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'hotfix/'))
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.TEST_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY:      ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+      ADMIN_SESSION_SECRET:           test-session-secret-not-for-production
+      MC_HOMEPAGE_DECISION_PROVIDER:  rules
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Tests (fast path — personalisation suite only)
+        run: npm run test:personalization
+
+      - name: Post hotfix instructions
+        if: github.event_name == 'push'
+        run: |
+          echo ""
+          echo "════════════════════════════════════════════════════════════"
+          echo "  HOTFIX CI PASSED"
+          echo ""
+          echo "  Next steps:"
+          echo "  1. Open a PR from ${GITHUB_REF_NAME} → main"
+          echo "  2. Get approval from a code owner"
+          echo "  3. Merge — production.yml will deploy automatically"
+          echo "  4. After production deploy, cherry-pick back to develop:"
+          echo "     git checkout develop"
+          echo "     git cherry-pick \$(git rev-parse HEAD)"
+          echo "════════════════════════════════════════════════════════════"

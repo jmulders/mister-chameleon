@@ -1,0 +1,150 @@
+name: Deploy — Production
+
+# ── Trigger ────────────────────────────────────────────────────────────────────
+#
+# Production deploys ONLY from `main`.
+# Requires:
+#   - PR approval from a code owner
+#   - All CI checks green
+#   - Manual approval via GitHub Environments (configured in repo settings)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: "Skip DB migrations (use with extreme caution)"
+        required: false
+        default: "false"
+        type: boolean
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false   # never cancel an in-flight production deploy
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 1. Final CI gate before production
+  # ─────────────────────────────────────────────────────────────────────────────
+  test:
+    name: Tests (pre-deploy gate)
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 2. Manual approval gate (configure in Settings → Environments → production)
+  # ─────────────────────────────────────────────────────────────────────────────
+  approve:
+    name: Approval Gate
+    needs: [test]
+    runs-on: ubuntu-latest
+    environment: production   # requires configured reviewers in GitHub Settings
+    steps:
+      - name: Deployment approved
+        run: echo "Production deployment approved."
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 3. DB migrations — production
+  # ─────────────────────────────────────────────────────────────────────────────
+  migrate:
+    name: DB Migrations — Production
+    needs: [approve]
+    if: ${{ github.event.inputs.skip_migrations != 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN:    ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD:     ${{ secrets.PRODUCTION_DB_PASSWORD }}
+      PRODUCTION_PROJECT_ID:    ${{ secrets.PRODUCTION_SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project (production)
+        run: supabase link --project-ref $PRODUCTION_PROJECT_ID
+
+      - name: Push migrations
+        run: supabase db push
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 4. Deploy to Vercel production
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Vercel — Production
+    needs: [migrate]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://misterchameleon.com
+    env:
+      VERCEL_ORG_ID:     ${{ secrets.VERCEL_TEAM_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel env (production)
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to production
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $URL"
+
+      - name: Post-deploy health check
+        run: |
+          sleep 10
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://misterchameleon.com/api/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "Production health check FAILED: HTTP $STATUS"
+            exit 1
+          fi
+          echo "Production health check PASSED: HTTP $STATUS"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 5. Create GitHub release with version tag
+  # ─────────────────────────────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node --experimental-strip-types scripts/release.ts \
+            --create-tag \
+            --push \
+            --github-release
