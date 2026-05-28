@@ -26,8 +26,24 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   test:
     name: Tests (pre-deploy gate)
-    uses: ./.github/workflows/ci.yml
-    secrets: inherit
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_SUPABASE_URL:      ${{ secrets.TEST_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY:     ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+      ADMIN_SESSION_SECRET:          test-session-secret-not-for-production
+      MC_HOMEPAGE_DECISION_PROVIDER: rules
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 2. Apply DB migrations to staging Supabase project
