@@ -1365,26 +1365,6 @@ export function EnrichmentPlatformClient({
         <TestResultPanel state={wxTestState} onDismiss={() => setWxTestState({ mode: "idle" })} />
       </div>
 
-      {/* ── GA4 (moved to per-tenant) ─────────────────────────────────────── */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
-
-        <div className="mb-2 flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-amber-900">GA4 — Moved to tenant settings</h2>
-          <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">
-            Deprecated here
-          </span>
-        </div>
-
-        <p className="text-xs text-amber-800 leading-relaxed">
-          GA4 Analytics History and GA4 Tracking are now configured per-tenant, not at platform level.
-          Platform-level GA4 settings have been deprecated and are no longer used by the runtime.
-        </p>
-        <p className="mt-3 text-xs text-amber-700">
-          To configure GA4 for a tenant, go to{" "}
-          <strong>Admin → Tenants → [tenant] → Integrations → Google Analytics 4</strong>.
-        </p>
-      </div>
-
       {/* ── What enrichment provides ───────────────────────────────────────── */}
       <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
         <h3 className="text-xs font-semibold text-neutral-700">Staged enrichment pipeline</h3>
