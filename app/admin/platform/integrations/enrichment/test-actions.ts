@@ -204,14 +204,15 @@ export async function testOpenKvKConnectionAction(
   }
 
   /**
-   * Fetch via the list endpoint: GET /v3/openkvk?query={q}&queryfields[]=huidigeHandelsNamen
-   * Fallback when suggest returns 0 results.
+   * Fetch via the list endpoint: GET /v3/openkvk?query={q}
+   * No explicit queryfields[] — uses the API default (huidigeHandelsNamen + kvknummer).
+   * Adding queryfields[]=huidigeHandelsNamen appears to be MORE restrictive (exact/phrase),
+   * while omitting it uses a broader default Elasticsearch query.
    */
   async function fetchList(q: string): Promise<FetchResult> {
     const url =
       `https://api.overheid.io/v3/openkvk` +
-      `?query=${encodeURIComponent(q)}` +
-      `&queryfields[]=huidigeHandelsNamen`;
+      `?query=${encodeURIComponent(q)}`;
     const response = await fetch(url, {
       headers: { Accept: "application/json", "ovio-api-key": ovioApiKey },
       signal:  AbortSignal.timeout(6_000),
@@ -234,37 +235,47 @@ export async function testOpenKvKConnectionAction(
 
   /**
    * Search strategy (in order — stops at first non-empty result):
-   *   1. List endpoint — exact-ish Elasticsearch match on huidigeHandelsNamen
-   *   2. Suffix-stripped list  (e.g. "STEETS B.V." → "STEETS")
-   *   3. Suggest endpoint — fuzzy / autocomplete fallback
-   *   4. Suffix-stripped suggest
+   *   1. List: "{company} {city}" combined  (only when city hint provided — mirrors openkvk.nl)
+   *   2. List: full query alone
+   *   3. List: suffix-stripped query  (e.g. "STEETS B.V." → "STEETS")
+   *   4. Suggest: full query (fuzzy — last resort, may return phonetically similar names)
+   *   5. Suggest: suffix-stripped query (fuzzy)
    *
-   * List is tried first because suggest uses edit-distance fuzzy matching that
-   * easily confuses e.g. "STEETS" with "SMEETS".
+   * List is tried before suggest because suggest uses edit-distance fuzzy matching
+   * that easily confuses similar names (e.g. "STEETS" → "Smeets").
+   * The city-combined query (step 1) mirrors what openkvk.nl does internally.
    */
   async function search(q: string): Promise<{ result: FetchResult; usedQuery: string }> {
     const stripped = q
       .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
       .trim();
 
-    // 1. List — full query
+    // 1. List — company + city combined (when city hint provided)
+    if (safeCity) {
+      const withCity = `${q} ${safeCity}`;
+      const lc = await fetchList(withCity);
+      if (lc.results === null) return { result: lc, usedQuery: withCity };
+      if (lc.results.length > 0) return { result: lc, usedQuery: withCity };
+    }
+
+    // 2. List — full query alone
     const l1 = await fetchList(q);
     if (l1.results === null) return { result: l1, usedQuery: q };
     if (l1.results.length > 0) return { result: l1, usedQuery: q };
 
-    // 2. List — suffix stripped
+    // 3. List — suffix stripped
     if (stripped && stripped !== q) {
       const l2 = await fetchList(stripped);
       if (l2.results === null) return { result: l2, usedQuery: stripped };
       if (l2.results.length > 0) return { result: l2, usedQuery: stripped };
     }
 
-    // 3. Suggest — full query (fuzzy)
+    // 4. Suggest — full query (fuzzy)
     const s1 = await fetchSuggest(q);
     if (s1.results === null) return { result: s1, usedQuery: q };
     if (s1.results.length > 0) return { result: s1, usedQuery: q };
 
-    // 4. Suggest — suffix stripped (fuzzy)
+    // 5. Suggest — suffix stripped (fuzzy)
     if (stripped && stripped !== q) {
       const s2 = await fetchSuggest(stripped);
       if (s2.results && s2.results.length > 0) return { result: s2, usedQuery: stripped };

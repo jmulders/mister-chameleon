@@ -592,10 +592,12 @@ export class OpenKvKProvider {
    * Returns the full bedrijf object including website and bezoeklocatie.
    */
   private async fetchListCandidates(q: string): Promise<OpenKvKResultaat[]> {
+    // No explicit queryfields[] — use API defaults (huidigeHandelsNamen + kvknummer).
+    // Adding queryfields[]=huidigeHandelsNamen appears to make the search MORE
+    // restrictive (exact/phrase only); omitting it uses the broader default behavior.
     const url =
       `${this.apiBase}/v3/openkvk` +
-      `?query=${encodeURIComponent(q)}` +
-      `&queryfields[]=huidigeHandelsNamen`;
+      `?query=${encodeURIComponent(q)}`;
 
     const headers: Record<string, string> = { Accept: "application/json" };
     if (this.apiKey) headers["ovio-api-key"] = this.apiKey;
