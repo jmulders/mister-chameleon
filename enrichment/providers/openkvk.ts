@@ -52,9 +52,9 @@
  * ─── Output mapping ───────────────────────────────────────────────────────────
  *
  *   Accepted match:
- *     • companyName            ← bedrijfsnaam
+ *     • companyName            ← naam
  *     • companyDomain          ← website (normalised, stripped of protocol/www)
- *     • city                   ← vestiging (only when city not already set)
+ *     • city                   ← bezoeklocatie.plaats (only when city not already set)
  *     • companyMatchSource     ← "openkvk"
  *     • companyMatchConfidence ← score / 100, capped at 0.99
  *
@@ -88,21 +88,21 @@ const candidatesCache = new ProviderCache<OpenKvKResultaat[]>(6 * 60 * 60 * 1_00
 // ── OpenKvK API types ─────────────────────────────────────────────────────────
 
 interface OpenKvKResultaat {
-  bedrijfsnaam?: string;
-  kvk?:          string;
-  adres?:        string;
-  postcode?:     string;
-  vestiging?:    string;
-  /** "Actief" | "Opgeheven" | … */
-  status?:       string;
+  naam?:              string;
+  kvknummer?:         string;
+  /** true = active entity, false = dissolved */
+  actief?:            boolean;
   /** "Hoofdvestiging" | "Nevenvestiging" | … */
-  type?:         string;
-  website?:      string;
+  inschrijvingstype?: string;
+  website?:           string;
+  bezoeklocatie?: {
+    plaats?: string;
+  };
 }
 
 interface OpenKvKResponse {
-  RESULT?: {
-    resultaten?: OpenKvKResultaat[];
+  _embedded?: {
+    bedrijf?: OpenKvKResultaat[];
   };
 }
 
@@ -307,7 +307,7 @@ function scoreCandidate(
 
   // ── Name signals ──────────────────────────────────────────────────────────
   // Test both networkOrg and companyName; award the best single name score.
-  const candidateName = candidate.bedrijfsnaam ?? "";
+  const candidateName = candidate.naam ?? "";
   const inputNames    = (
     [input.networkOrg, input.companyName] as Array<string | null>
   ).filter((n): n is string => !!n);
@@ -343,19 +343,20 @@ function scoreCandidate(
   }
 
   // ── Geo signals ───────────────────────────────────────────────────────────
-  if (input.city && candidate.vestiging) {
-    if (input.city.trim().toLowerCase() === candidate.vestiging.trim().toLowerCase()) {
+  const candidateCity = candidate.bezoeklocatie?.plaats;
+  if (input.city && candidateCity) {
+    if (input.city.trim().toLowerCase() === candidateCity.trim().toLowerCase()) {
       signals["geo:city"] = 15;
       score += 15;
     }
   }
 
   // ── Structural bonuses ────────────────────────────────────────────────────
-  if (candidate.type === "Hoofdvestiging") {
+  if (candidate.inschrijvingstype === "Hoofdvestiging") {
     signals["struct:hoofdvestiging"] = 5;
     score += 5;
   }
-  if (candidate.status === "Actief") {
+  if (candidate.actief === true) {
     signals["struct:actief"] = 5;
     score += 5;
   }
@@ -392,7 +393,7 @@ function acceptTopCandidate(scored: ScoredCandidate[]): {
       accepted: null,
       reason: [
         `score too low: ${top.score} < threshold ${MIN_ACCEPT_SCORE}`,
-        `(best candidate: "${top.candidate.bedrijfsnaam ?? "?"}"`,
+        `(best candidate: "${top.candidate.naam ?? "?"}"`,
         `signals: ${fmtSignals(top.signals)})`,
       ].join(" "),
     };
@@ -403,8 +404,8 @@ function acceptTopCandidate(scored: ScoredCandidate[]): {
       accepted: null,
       reason: [
         `ambiguous: gap ${top.score - second.score} < minimum ${MIN_SCORE_GAP}`,
-        `(#1 "${top.candidate.bedrijfsnaam ?? "?"}" score=${top.score}`,
-        `vs #2 "${second.candidate.bedrijfsnaam ?? "?"}" score=${second.score})`,
+        `(#1 "${top.candidate.naam ?? "?"}" score=${top.score}`,
+        `vs #2 "${second.candidate.naam ?? "?"}" score=${second.score})`,
       ].join(" "),
     };
   }
@@ -447,7 +448,7 @@ export type OpenKvKMatchingStrategy = "networkOrg" | "companyName" | "networkDom
 export interface OpenKvKProviderOptions {
   /**
    * Override the API base URL (useful in tests).
-   * Default: "https://api.openkvk.nl"
+   * Default: "https://api.overheid.io"
    */
   apiBase?: string;
   /** Enable verbose debug logging. */
@@ -472,7 +473,7 @@ export class OpenKvKProvider {
   readonly isDev:           boolean;
 
   constructor(options: OpenKvKProviderOptions = {}) {
-    this.apiBase = options.apiBase ?? "https://api.openkvk.nl";
+    this.apiBase = options.apiBase ?? "https://api.overheid.io";
     this.isDev   = options.isDev   ?? false;
   }
 
@@ -500,7 +501,15 @@ export class OpenKvKProvider {
     }
 
     try {
-      const url      = `${this.apiBase}/json/naam=${encodeURIComponent(q)}`;
+      const url =
+        `${this.apiBase}/v3/openkvk` +
+        `?query=${encodeURIComponent(q)}` +
+        `&queryfields[]=huidigeHandelsNamen` +
+        `&fields[]=bezoeklocatie.plaats` +
+        `&fields[]=website` +
+        `&fields[]=actief` +
+        `&fields[]=inschrijvingstype`;
+
       const response = await fetch(url, {
         headers: { Accept: "application/json" },
         signal:  AbortSignal.timeout(4_000),
@@ -514,7 +523,7 @@ export class OpenKvKProvider {
       }
 
       const data    = (await response.json()) as OpenKvKResponse;
-      const results = data.RESULT?.resultaten ?? [];
+      const results = data._embedded?.bedrijf ?? [];
 
       candidatesCache.set(cacheKey, results);
 
@@ -580,7 +589,7 @@ export class OpenKvKProvider {
       const batch = await this.fetchCandidates(term);
       for (const c of batch.slice(0, MAX_CANDIDATES_TO_SCORE)) {
         // De-dupe: prefer KvK number, fall back to name as identity
-        const key = c.kvk?.trim() ?? c.bedrijfsnaam?.trim().toLowerCase() ?? "";
+        const key = c.kvknummer?.trim() ?? c.naam?.trim().toLowerCase() ?? "";
         if (key && seenKvk.has(key)) continue;
         if (key) seenKvk.add(key);
         allCandidates.push(c);
@@ -597,11 +606,11 @@ export class OpenKvKProvider {
 
     if (this.isDev) {
       const top5 = scored.slice(0, 5).map((s) => ({
-        name:    s.candidate.bedrijfsnaam ?? "?",
-        city:    s.candidate.vestiging    ?? "?",
-        website: s.candidate.website      ?? "?",
-        type:    s.candidate.type         ?? "?",
-        status:  s.candidate.status       ?? "?",
+        name:    s.candidate.naam                   ?? "?",
+        city:    s.candidate.bezoeklocatie?.plaats  ?? "?",
+        website: s.candidate.website                ?? "?",
+        type:    s.candidate.inschrijvingstype       ?? "?",
+        actief:  s.candidate.actief                 ?? "?",
         score:   s.score,
         signals: s.signals,
       }));
@@ -636,9 +645,9 @@ export class OpenKvKProvider {
       companyMatchConfidence: confidence,
     };
 
-    if (top.bedrijfsnaam) output.companyName   = top.bedrijfsnaam;
-    if (top.website)      output.companyDomain = normalizeDomain(top.website);
-    if (top.vestiging)    output.city          = top.vestiging;
+    if (top.naam)                    output.companyName   = top.naam;
+    if (top.website)                 output.companyDomain = normalizeDomain(top.website);
+    if (top.bezoeklocatie?.plaats)   output.city          = top.bezoeklocatie.plaats;
 
     return {
       output,

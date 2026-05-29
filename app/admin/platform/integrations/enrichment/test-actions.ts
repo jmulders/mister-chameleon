@@ -11,7 +11,7 @@
  *
  *   IP address:    8.8.8.8   (Google Public DNS — always reachable, well-known)
  *   Country code:  NL        (Netherlands — for Nager.Date holiday lookups)
- *   KvK query:     ING       (large Dutch bank — reliable OpenKvK result)
+ *   KvK query:     ING       (large Dutch bank — reliable overheid.io/openkvk result)
  *
  * ─── Error taxonomy ──────────────────────────────────────────────────────────
  *
@@ -136,13 +136,14 @@ export async function testNagerDateConnectionAction(): Promise<TestConnectionRes
 // ── 2. OpenKvK ────────────────────────────────────────────────────────────────
 
 /**
- * Test OpenKvK — no credentials required.
+ * Test OpenKvK (overheid.io) — no credentials required.
  *
- * Endpoint: GET https://api.openkvk.nl/json/naam={query}[&vestiging={city}]
- * Shows: result count, top match name, city, KvK number, website, and match type.
+ * Endpoint: GET https://api.overheid.io/v3/openkvk?query={query}&queryfields[]=huidigeHandelsNamen
+ *           Optional: &filters[bezoeklocatie.plaats]={city}
+ * Shows: result count, top match name, city, KvK number, website, and type.
  *
  * @param query  Company name to search for. Defaults to "ING" (large Dutch bank, reliable result).
- * @param city   Optional city name to narrow the search. When provided, filters by vestiging.
+ * @param city   Optional city name to narrow the search.
  */
 export async function testOpenKvKConnectionAction(
   query: string = "ING",
@@ -155,9 +156,16 @@ export async function testOpenKvKConnectionAction(
   const safeCity  = (city  ?? "").trim() || undefined;
 
   try {
-    // Build URL: append &vestiging= only when a city was provided.
-    let url = `https://api.openkvk.nl/json/naam=${encodeURIComponent(safeQuery)}`;
-    if (safeCity) url += `&vestiging=${encodeURIComponent(safeCity)}`;
+    // Build URL: append city filter only when provided.
+    let url =
+      `https://api.overheid.io/v3/openkvk` +
+      `?query=${encodeURIComponent(safeQuery)}` +
+      `&queryfields[]=huidigeHandelsNamen` +
+      `&fields[]=bezoeklocatie.plaats` +
+      `&fields[]=website` +
+      `&fields[]=actief` +
+      `&fields[]=inschrijvingstype`;
+    if (safeCity) url += `&filters[bezoeklocatie.plaats]=${encodeURIComponent(safeCity)}`;
 
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
@@ -170,19 +178,21 @@ export async function testOpenKvKConnectionAction(
     }
 
     const data = (await response.json()) as {
-      RESULT?: {
-        resultaten?: Array<{
-          bedrijfsnaam?: string;
-          kvk?:          string;
-          vestiging?:    string;
-          website?:      string;
-          status?:       string;
-          type?:         string;
+      _embedded?: {
+        bedrijf?: Array<{
+          naam?:              string;
+          kvknummer?:         string;
+          website?:           string;
+          actief?:            boolean;
+          inschrijvingstype?: string;
+          bezoeklocatie?: {
+            plaats?: string;
+          };
         }>;
       };
     };
 
-    const results = data.RESULT?.resultaten ?? [];
+    const results = data._embedded?.bedrijf ?? [];
     if (results.length === 0) {
       return {
         ok:        false,
@@ -193,7 +203,7 @@ export async function testOpenKvKConnectionAction(
     }
 
     // Prefer Hoofdvestiging (main branch); fall back to first result.
-    const top = results.find((r) => r.type === "Hoofdvestiging") ?? results[0];
+    const top = results.find((r) => r.inschrijvingstype === "Hoofdvestiging") ?? results[0];
 
     // Build display label for the query used.
     const queryLabel = safeCity ? `${safeQuery} (city: ${safeCity})` : safeQuery;
@@ -204,12 +214,12 @@ export async function testOpenKvKConnectionAction(
       fields: [
         { label: "Query",          value: queryLabel },
         { label: "Results found",  value: String(results.length) },
-        { label: "Top match",      value: top.bedrijfsnaam ?? null },
-        { label: "City",           value: top.vestiging    ?? null },
-        { label: "KvK number",     value: top.kvk          ?? null },
-        { label: "Website",        value: top.website      ?? null },
-        { label: "Type",           value: top.type         ?? null },
-        { label: "Status",         value: top.status       ?? null },
+        { label: "Top match",      value: top.naam                  ?? null },
+        { label: "City",           value: top.bezoeklocatie?.plaats  ?? null },
+        { label: "KvK number",     value: top.kvknummer             ?? null },
+        { label: "Website",        value: top.website               ?? null },
+        { label: "Type",           value: top.inschrijvingstype      ?? null },
+        { label: "Active",         value: top.actief != null ? (top.actief ? "Yes" : "No") : null },
       ],
     };
   } catch (err) {
