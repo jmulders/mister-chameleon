@@ -22,6 +22,7 @@ import { BackupPanel }         from "./_components/BackupPanel";
 import { CodeBlock }           from "./_components/CodeBlock";
 import { WorkflowButton }      from "./_components/WorkflowButton";
 import { RollbackTriggerButton } from "./_components/RollbackTriggerButton";
+import { GitCommitPanel }      from "./_components/GitCommitPanel";
 import type { BackupMeta }     from "@/app/api/admin/backup/route";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +113,13 @@ export default async function SystemPage() {
           Backup, build pipeline, environments, and rollback — all in one place.
         </p>
       </div>
+
+      {/* ── PART 0: COMMIT & PUSH (dev only — hidden on Vercel) ─────────────── */}
+      {process.env.NODE_ENV !== "production" && (
+        <Section title="Commit & Deploy">
+          <GitCommitPanel />
+        </Section>
+      )}
 
       {/* ── PART 1: BACKUP ──────────────────────────────────────────────────── */}
       <Section title="Backup">
