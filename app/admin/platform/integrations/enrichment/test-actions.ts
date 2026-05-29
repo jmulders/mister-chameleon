@@ -233,32 +233,44 @@ export async function testOpenKvKConnectionAction(
   }
 
   /**
-   * Attempt with suffix-stripped fallback.
-   * Returns first attempt that yields results across both endpoints.
+   * Search strategy (in order — stops at first non-empty result):
+   *   1. List endpoint — exact-ish Elasticsearch match on huidigeHandelsNamen
+   *   2. Suffix-stripped list  (e.g. "STEETS B.V." → "STEETS")
+   *   3. Suggest endpoint — fuzzy / autocomplete fallback
+   *   4. Suffix-stripped suggest
+   *
+   * List is tried first because suggest uses edit-distance fuzzy matching that
+   * easily confuses e.g. "STEETS" with "SMEETS".
    */
   async function search(q: string): Promise<{ result: FetchResult; usedQuery: string }> {
-    // 1. Try suggest
-    let r = await fetchSuggest(q);
-    if (r.results === null) return { result: r, usedQuery: q };
-    if (r.results.length > 0) return { result: r, usedQuery: q };
-
-    // 2. Try list endpoint (different Elasticsearch query path)
-    const listR = await fetchList(q);
-    if (listR.results === null) return { result: listR, usedQuery: q };
-    if (listR.results.length > 0) return { result: listR, usedQuery: q };
-
-    // 3. Strip legal suffix and retry suggest + list
     const stripped = q
       .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
       .trim();
+
+    // 1. List — full query
+    const l1 = await fetchList(q);
+    if (l1.results === null) return { result: l1, usedQuery: q };
+    if (l1.results.length > 0) return { result: l1, usedQuery: q };
+
+    // 2. List — suffix stripped
+    if (stripped && stripped !== q) {
+      const l2 = await fetchList(stripped);
+      if (l2.results === null) return { result: l2, usedQuery: stripped };
+      if (l2.results.length > 0) return { result: l2, usedQuery: stripped };
+    }
+
+    // 3. Suggest — full query (fuzzy)
+    const s1 = await fetchSuggest(q);
+    if (s1.results === null) return { result: s1, usedQuery: q };
+    if (s1.results.length > 0) return { result: s1, usedQuery: q };
+
+    // 4. Suggest — suffix stripped (fuzzy)
     if (stripped && stripped !== q) {
       const s2 = await fetchSuggest(stripped);
       if (s2.results && s2.results.length > 0) return { result: s2, usedQuery: stripped };
-      const l2 = await fetchList(stripped);
-      if (l2.results && l2.results.length > 0) return { result: l2, usedQuery: stripped };
     }
 
-    return { result: r, usedQuery: q }; // return empty suggest result
+    return { result: l1, usedQuery: q }; // all attempts empty
   }
 
   try {

@@ -506,16 +506,16 @@ export class OpenKvKProvider {
   /**
    * Fetch raw OpenKvK candidate records for a name query.
    *
-   * Uses the suggest endpoint (`/v3/suggest/openkvk/{query}`) which is
-   * purpose-built for company name search: it handles spaces, partial names,
-   * and fuzzy matches.  The suggest response is mapped to `OpenKvKResultaat`
-   * so the existing scored resolver works unchanged.
+   * Search strategy (stops at first non-empty result):
+   *   1. List endpoint  — exact-ish phrase/term match on `huidigeHandelsNamen`
+   *   2. List endpoint  — suffix-stripped query (e.g. "STEETS B.V." → "STEETS")
+   *   3. Suggest endpoint — fuzzy / autocomplete fallback
+   *   4. Suggest endpoint — suffix-stripped query (fuzzy)
    *
-   * Note: the suggest endpoint does not return `website` or
-   * `bezoeklocatie.plaats`.  Domain scoring (network signal) and city scoring
-   * are therefore unavailable for candidates found via this endpoint.  The
-   * scorer still applies name matching, Hoofdvestiging bonus, and accepts only
-   * when MIN_ACCEPT_SCORE is met — typically requiring a strong name match.
+   * List is preferred because the suggest endpoint uses edit-distance fuzzy
+   * matching that can confuse similar names (e.g. "STEETS" → "Smeets").
+   * List results include `website` and `bezoeklocatie.plaats`, enabling the
+   * domain and city scoring signals.  Suggest results omit those fields.
    *
    * Results are cached for 6 hours keyed by normalised query string.
    *
@@ -534,32 +534,42 @@ export class OpenKvKProvider {
     }
 
     try {
-      const results = await this.fetchSuggestCandidates(q);
+      const stripped = q
+        .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
+        .trim();
 
-      // Retry without legal-form suffix when the full query returns nothing.
-      // e.g. "STEETS B.V." → "STEETS"
+      // Strategy: list endpoint first (exact-ish match), suggest as fuzzy fallback.
+      // Suggest uses edit-distance fuzzy matching that can confuse similar names
+      // (e.g. "STEETS" → "Smeets").  The list endpoint with explicit queryfields
+      // runs a phrase/term search and is more precise.
+
+      // 1. List — full query
+      let results = await this.fetchListCandidates(q);
+      if (this.isDev) console.debug("[openkvk] list response", { query: q, count: results.length });
+
+      // 2. List — suffix stripped
+      if (results.length === 0 && stripped && stripped !== q) {
+        results = await this.fetchListCandidates(stripped);
+        if (this.isDev && results.length > 0) {
+          console.debug(`[openkvk] list suffix-stripped succeeded: "${q}" → "${stripped}" (${results.length})`);
+        }
+      }
+
+      // 3. Suggest — full query (fuzzy fallback)
       if (results.length === 0) {
-        const stripped = q
-          .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
-          .trim();
-        if (stripped && stripped !== q) {
-          const retryResults = await this.fetchSuggestCandidates(stripped);
-          if (retryResults.length > 0) {
-            if (this.isDev) {
-              console.debug(`[openkvk] retry without suffix succeeded: "${q}" → "${stripped}" (${retryResults.length} results)`);
-            }
-            candidatesCache.set(cacheKey, retryResults);
-            return retryResults;
-          }
+        results = await this.fetchSuggestCandidates(q);
+        if (this.isDev) console.debug("[openkvk] suggest response", { query: q, count: results.length });
+      }
+
+      // 4. Suggest — suffix stripped
+      if (results.length === 0 && stripped && stripped !== q) {
+        results = await this.fetchSuggestCandidates(stripped);
+        if (this.isDev && results.length > 0) {
+          console.debug(`[openkvk] suggest suffix-stripped succeeded: "${q}" → "${stripped}" (${results.length})`);
         }
       }
 
       candidatesCache.set(cacheKey, results);
-
-      if (this.isDev) {
-        console.debug("[openkvk] suggest response", { query: q, count: results.length });
-      }
-
       return results;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -570,6 +580,42 @@ export class OpenKvKProvider {
       }
       return [];
     }
+  }
+
+  /**
+   * Internal: call the list endpoint with explicit queryfields and map to OpenKvKResultaat.
+   *
+   * GET /v3/openkvk?query={q}&queryfields[]=huidigeHandelsNamen
+   *
+   * The list endpoint runs a phrase/term search and is more exact than the
+   * fuzzy suggest endpoint — preferred for production enrichment matching.
+   * Returns the full bedrijf object including website and bezoeklocatie.
+   */
+  private async fetchListCandidates(q: string): Promise<OpenKvKResultaat[]> {
+    const url =
+      `${this.apiBase}/v3/openkvk` +
+      `?query=${encodeURIComponent(q)}` +
+      `&queryfields[]=huidigeHandelsNamen`;
+
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (this.apiKey) headers["ovio-api-key"] = this.apiKey;
+
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(4_000),
+      cache:  "no-store",
+      next:   { revalidate: 0 },
+    });
+
+    if (!response.ok) {
+      console.warn(`[openkvk] list API error ${response.status} for query "${q}"`);
+      return [];
+    }
+
+    const data = (await response.json()) as {
+      _embedded?: { bedrijf?: OpenKvKResultaat[] };
+    };
+    return data._embedded?.bedrijf ?? [];
   }
 
   /**
