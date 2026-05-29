@@ -168,54 +168,67 @@ export async function testOpenKvKConnectionAction(
     };
   }
 
-  try {
-    // No server-side city filter (stored city names may not match exactly).
-    // No queryfields restriction — limiting to huidigeHandelsNamen misses companies
-    // whose legal name includes a suffix like "B.V." that isn't in the trade name.
+  /** Strip common Dutch/English legal-form suffixes for a fallback query. */
+  function stripLegalSuffix(name: string): string {
+    return name
+      .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
+      .trim();
+  }
+
+  /** Fetch candidates for a given query, returning parsed bedrijf array. */
+  async function fetchKvK(q: string) {
     const url =
       `https://api.overheid.io/v3/openkvk` +
-      `?query=${encodeURIComponent(safeQuery)}` +
+      `?query=${encodeURIComponent(q)}` +
       `&fields[]=bezoeklocatie.plaats` +
       `&fields[]=website` +
       `&fields[]=actief` +
       `&fields[]=inschrijvingstype`;
 
     const response = await fetch(url, {
-      headers: {
-        Accept:          "application/json",
-        "ovio-api-key":  ovioApiKey,
-      },
-      signal: AbortSignal.timeout(6_000),
-      cache:  "no-store",
+      headers: { Accept: "application/json", "ovio-api-key": ovioApiKey },
+      signal:  AbortSignal.timeout(6_000),
+      cache:   "no-store",
     });
 
-    if (response.status === 401 || response.status === 403) return authError(response.status, elapsed(start));
+    if (response.status === 401 || response.status === 403) return { status: response.status, results: null };
+    if (!response.ok) return { status: response.status, results: null };
 
-    if (!response.ok) {
-      return networkError(`API returned HTTP ${response.status}`, elapsed(start));
+    type Bedrijf = { naam?: string; kvknummer?: string; website?: string; actief?: boolean; inschrijvingstype?: string; bezoeklocatie?: { plaats?: string } };
+    const data = (await response.json()) as { _embedded?: { bedrijf?: Bedrijf[] } };
+    return { status: 200, results: data._embedded?.bedrijf ?? [] };
+  }
+
+  try {
+    // First attempt: full query.
+    let attempt = await fetchKvK(safeQuery);
+
+    if (attempt.results === null) {
+      return attempt.status === 401 || attempt.status === 403
+        ? authError(attempt.status, elapsed(start))
+        : networkError(`API returned HTTP ${attempt.status}`, elapsed(start));
     }
 
-    const data = (await response.json()) as {
-      _embedded?: {
-        bedrijf?: Array<{
-          naam?:              string;
-          kvknummer?:         string;
-          website?:           string;
-          actief?:            boolean;
-          inschrijvingstype?: string;
-          bezoeklocatie?: {
-            plaats?: string;
-          };
-        }>;
-      };
-    };
+    // Fallback: strip legal suffix (e.g. "STEETS B.V." → "STEETS") and retry.
+    let usedQuery = safeQuery;
+    if (attempt.results.length === 0) {
+      const stripped = stripLegalSuffix(safeQuery);
+      if (stripped && stripped !== safeQuery) {
+        const retry = await fetchKvK(stripped);
+        if (retry.results && retry.results.length > 0) {
+          attempt  = retry;
+          usedQuery = stripped;
+        }
+      }
+    }
 
-    const results = data._embedded?.bedrijf ?? [];
+    const results = attempt.results;
+
     if (results.length === 0) {
       return {
         ok:        false,
         errorType: "empty",
-        message:   `API is reachable but returned no results for query "${safeQuery}"${safeCity ? ` in ${safeCity}` : ""}.`,
+        message:   `API is reachable but returned no results for "${safeQuery}"${safeCity ? ` (city: ${safeCity})` : ""}. This company may not be in the overheid.io database. Try a larger Dutch company like "Coolblue" to verify connectivity.`,
         latencyMs: elapsed(start),
       };
     }
@@ -228,7 +241,9 @@ export async function testOpenKvKConnectionAction(
     ) ?? results.find((r) => r.inschrijvingstype === "Hoofdvestiging") ?? results[0];
 
     // Build display label for the query used.
-    const queryLabel = safeCity ? `${safeQuery} (city filter: ${safeCity})` : safeQuery;
+    const queryLabel = usedQuery !== safeQuery
+      ? `${safeQuery} → retried as "${usedQuery}"${safeCity ? ` (city: ${safeCity})` : ""}`
+      : safeCity ? `${safeQuery} (city: ${safeCity})` : safeQuery;
 
     return {
       ok:       true,

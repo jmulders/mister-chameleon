@@ -538,7 +538,34 @@ export class OpenKvKProvider {
       }
 
       const data    = (await response.json()) as OpenKvKResponse;
-      const results = data._embedded?.bedrijf ?? [];
+      let   results = data._embedded?.bedrijf ?? [];
+
+      // Retry without legal-form suffix when the full query returns nothing.
+      // e.g. "STEETS B.V." → "STEETS" (B.V. is a suffix, not a trade-name token).
+      if (results.length === 0) {
+        const stripped = q
+          .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
+          .trim();
+        if (stripped && stripped !== q) {
+          const retryUrl =
+            `${this.apiBase}/v3/openkvk` +
+            `?query=${encodeURIComponent(stripped)}` +
+            `&fields[]=bezoeklocatie.plaats` +
+            `&fields[]=website` +
+            `&fields[]=actief` +
+            `&fields[]=inschrijvingstype`;
+          const retryHeaders: Record<string, string> = { Accept: "application/json" };
+          if (this.apiKey) retryHeaders["ovio-api-key"] = this.apiKey;
+          const retryRes = await fetch(retryUrl, { headers: retryHeaders, signal: AbortSignal.timeout(4_000), cache: "no-store", next: { revalidate: 0 } });
+          if (retryRes.ok) {
+            const retryData = (await retryRes.json()) as OpenKvKResponse;
+            results = retryData._embedded?.bedrijf ?? [];
+            if (this.isDev && results.length > 0) {
+              console.debug(`[openkvk] retry without suffix succeeded: "${q}" → "${stripped}" (${results.length} results)`);
+            }
+          }
+        }
+      }
 
       candidatesCache.set(cacheKey, results);
 
