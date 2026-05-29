@@ -166,16 +166,35 @@ function base64urlBytes(buffer: ArrayBuffer): string {
 
 /** Sign a string with an RSA private key (PEM) using RS256. */
 async function signRS256(input: string, privateKeyPem: string): Promise<string> {
-  // Strip PEM headers/footers and whitespace to get raw base64.
-  // Also normalise literal \n (backslash-n, two characters) that Vercel env vars
-  // sometimes contain when a multi-line value is pasted as a single-line string.
-  const pemContents = privateKeyPem
-    .replace(/\\n/g, "\n")          // literal \n → real newline
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\s+/g, "");
+  // Robust PEM parser — handles all common formats:
+  //   • Literal \n (two chars, backslash-n) from Vercel / .env files
+  //   • Real newlines from dotenv-parsed values
+  //   • Windows line endings (\r\n)
+  //   • Surrounding quotes accidentally included in the value
+  const normalised = privateKeyPem
+    .replace(/^["']|["']$/g, "")   // strip accidental surrounding quotes
+    .replace(/\\n/g, "\n");        // literal \n → real newline
 
-  const binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+  // Split on line breaks only (NOT spaces — the header "-----BEGIN PRIVATE KEY-----"
+  // contains spaces and would otherwise split into "KEY-----" which pollutes the base64).
+  // Filter out any line that starts with a dash (PEM header/footer lines).
+  const pemContents = normalised
+    .split(/\r?\n|\r/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith("-"))
+    .join("");
+
+  let binaryKey: Uint8Array;
+  try {
+    binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+  } catch {
+    // Find the first invalid base64 character to aid debugging
+    const invalid = [...pemContents].find((c) => !/[A-Za-z0-9+/=]/.test(c));
+    throw new Error(
+      `Google private key contains an invalid character: ${invalid ? JSON.stringify(invalid) : "unknown"}. ` +
+      `Key preview: "${privateKeyPem.slice(0, 60).replace(/\n/g, "\\n")}..."`,
+    );
+  }
 
   const cryptoKey = await crypto.subtle.importKey(
     "pkcs8",
