@@ -247,12 +247,12 @@ function AiStatusBanner({
 
       {/* Link to tenant admin */}
       <span className="ml-auto text-xs">
-        <a
+        <Link
           href="/dashboard/tenant"
           className="text-brand-600 hover:text-brand-700 underline-offset-2 hover:underline"
         >
           Configure →
-        </a>
+        </Link>
       </span>
     </div>
   );
@@ -652,7 +652,7 @@ function PageHeader({ filter }: { filter: FilterValue }) {
           </Text>
         </div>
 
-        <a
+        <Link
           href="/dashboard/ai"
           className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 shadow-sm hover:bg-neutral-50 transition-colors"
         >
@@ -668,7 +668,7 @@ function PageHeader({ filter }: { filter: FilterValue }) {
             <path d="M10.5 4.5 13.5 4.7 13.3 1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           Refresh
-        </a>
+        </Link>
       </div>
 
       <FilterTabs active={filter} />
@@ -747,12 +747,12 @@ function EmptyState({ filter }: { filter: FilterValue }) {
         <Text variant="body-sm" color="muted" className="mt-4">{message}</Text>
         <Text variant="caption" color="muted" className="mt-1 max-w-xs mx-auto">{hint}</Text>
         {filter !== "all" && (
-          <a
+          <Link
             href="/dashboard/ai"
             className="mt-4 inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-800 hover:underline"
           >
             ← View all decisions
-          </a>
+          </Link>
         )}
       </CardContent>
     </Card>

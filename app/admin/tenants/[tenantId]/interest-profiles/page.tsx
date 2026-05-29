@@ -86,7 +86,7 @@ export default async function TenantInterestProfilesPage({
   if (!rawTenant) notFound();
   const tenant = normalizeTenant(rawTenant);
 
-  let result = await listProfilesWithOverridesAction(tenantId);
+  const result = await listProfilesWithOverridesAction(tenantId);
   const tableMissing = !result.ok && isTableMissingError(result.error);
 
 
@@ -132,7 +132,7 @@ export default async function TenantInterestProfilesPage({
           <p className="text-sm font-semibold text-neutral-700">Interest profiles not included in current plan</p>
           <p className="mt-1 text-xs text-neutral-500 max-w-sm mx-auto">
             Upgrade this tenant&apos;s plan at{" "}
-            <a href="/admin/platform/billing/plans" className="text-brand-600 hover:underline">/admin/platform/billing/plans</a>
+            <Link href="/admin/platform/billing/plans" className="text-brand-600 hover:underline">/admin/platform/billing/plans</Link>
             {" "}to unlock interest profiles and behavioral scoring.
           </p>
         </div>

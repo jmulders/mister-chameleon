@@ -9,6 +9,7 @@
  */
 
 import { useRouter }       from "next/navigation";
+import Link                from "next/link";
 import { ProfileForm }     from "../_components/ProfileForm";
 import { createInterestProfileAction } from "../actions";
 import type { ProfileFormValues } from "../_components/ProfileForm";
@@ -28,12 +29,12 @@ export default function NewInterestProfilePage() {
     <div className="p-8 max-w-2xl">
       {/* Header */}
       <div className="mb-8">
-        <a
+        <Link
           href="/admin/interest-profiles"
           className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700 transition-colors"
         >
           ← Interest profiles
-        </a>
+        </Link>
         <h1 className="text-2xl font-bold text-neutral-900">New interest profile</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Define a named interest area with keywords and weights. The scoring engine

@@ -827,6 +827,7 @@ export async function trackEnrichmentUsage(
 // ── Convenience: build billing client ─────────────────────────────────────────
 
 export function createBillingClient() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createClient } = require("@supabase/supabase-js") as typeof import("@supabase/supabase-js");
   return createClient(
     process.env["NEXT_PUBLIC_SUPABASE_URL"]!,

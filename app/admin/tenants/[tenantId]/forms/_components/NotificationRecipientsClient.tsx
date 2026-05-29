@@ -25,6 +25,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import type { ConfigSource } from "@/lib/config/types";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
@@ -137,9 +138,9 @@ export function NotificationRecipientsClient({
           ) : (
             <p className="mt-1 text-xs text-neutral-400">
               When empty, falls back to the platform default backoffice address (
-              <a href="/admin/platform/integrations/email" className="underline hover:text-neutral-600">
+              <Link href="/admin/platform/integrations/email" className="underline hover:text-neutral-600">
                 Platform › Email
-              </a>
+              </Link>
               ), then the{" "}
               <code className="bg-neutral-100 px-0.5 rounded">BACKOFFICE_EMAIL</code> env var.
             </p>

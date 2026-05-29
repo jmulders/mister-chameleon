@@ -229,6 +229,7 @@ export function PreviewBar() {
       </span>
 
       {/* ── Exit preview ─────────────────────────────────────────────────── */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a
         href="/api/exit-preview"
         style={{

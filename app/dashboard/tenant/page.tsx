@@ -55,6 +55,7 @@ import type { RadiusPersonality } from "@/design-system/theme/tenant-theme";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import type { AiRuntimeConfig, AiProviderConfig } from "@/ai/types";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Text } from "@/components/primitives/Text";
 import { SiteBuilderReadiness } from "@/components/admin/SiteBuilderReadiness";
@@ -390,12 +391,12 @@ function IdentityPackageSection({
               </span>
             </div>
             <div className="mt-3 border-t border-neutral-200 pt-3">
-              <a
+              <Link
                 href={`/admin/tenants/${tenantConfig.tenantId}`}
                 className="text-xs text-brand-600 hover:text-brand-700 hover:underline"
               >
                 Edit package &amp; settings →
-              </a>
+              </Link>
             </div>
           </div>
         ) : (
@@ -403,7 +404,7 @@ function IdentityPackageSection({
             <Text variant="body-sm" color="muted">
               No TenantSettings record for this tenant. Package info, block entitlements,
               and design settings are using defaults. Configure in the{" "}
-              <a href="/admin/tenants" className="text-brand-600 hover:underline">tenant admin</a>.
+              <Link href="/admin/tenants" className="text-brand-600 hover:underline">tenant admin</Link>.
             </Text>
           </div>
         )}
@@ -739,9 +740,9 @@ function AiProviderSlot({
                 </span>
                 <span className="text-xs text-neutral-500">
                   {keyEnvVar && <>Set <Mono>{keyEnvVar}</Mono> or configure in the{" "}</>}
-                  <a href="/admin/tenants" className="text-brand-600 hover:underline">
+                  <Link href="/admin/tenants" className="text-brand-600 hover:underline">
                     tenant admin
-                  </a>
+                  </Link>
                   . AI returns <Mono>DisabledAiProvider</Mono> at runtime.
                 </span>
               </span>
@@ -810,7 +811,7 @@ function AiConfigSection({
           <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 px-4 py-3">
             <Text variant="body-sm" color="muted">
               AI is disabled. Enable in the{" "}
-              <a href="/admin/tenants" className="text-brand-600 hover:underline">tenant admin</a>
+              <Link href="/admin/tenants" className="text-brand-600 hover:underline">tenant admin</Link>
               {" "}by setting AI mode to <strong>shadow</strong> or <strong>live</strong>.
             </Text>
           </div>
@@ -819,13 +820,13 @@ function AiConfigSection({
         {aiConfig.mode !== "disabled" && (
           <div className="flex items-center gap-2 text-xs text-neutral-400">
             <span>→</span>
-            <a href="/dashboard/ai" className="text-brand-600 hover:text-brand-700 hover:underline">
+            <Link href="/dashboard/ai" className="text-brand-600 hover:text-brand-700 hover:underline">
               View AI decision logs
-            </a>
+            </Link>
             <span>·</span>
-            <a href="/admin/ai-logs" className="text-brand-600 hover:text-brand-700 hover:underline">
+            <Link href="/admin/ai-logs" className="text-brand-600 hover:text-brand-700 hover:underline">
               All-tenant AI logs
-            </a>
+            </Link>
           </div>
         )}
       </div>
@@ -1113,9 +1114,9 @@ function ResolvedDesignSection({
           {tenantSettings && (
             <p className="text-xs leading-snug text-neutral-400">
               Configure in the{" "}
-              <a href={`/admin/tenants/${tenantSettings.tenantId}`} className="text-brand-600 hover:underline">
+              <Link href={`/admin/tenants/${tenantSettings.tenantId}`} className="text-brand-600 hover:underline">
                 tenant admin → Design section
-              </a>
+              </Link>
               .
             </p>
           )}

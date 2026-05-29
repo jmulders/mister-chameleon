@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { getAgencyBranding, saveAgencyBranding, type AgencyBranding } from "../actions";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -96,9 +97,9 @@ export default function AgencyBrandingPage() {
           No tenant context found. Access this page from your agency dashboard or
           add <code className="font-mono text-xs bg-neutral-100 px-1 rounded">?tenant=your_id</code> to the URL.
         </p>
-        <a href="/dashboard/agency" className="mt-4 inline-block text-sm text-brand-600 hover:underline">
+        <Link href="/dashboard/agency" className="mt-4 inline-block text-sm text-brand-600 hover:underline">
           ← Back to agency
-        </a>
+        </Link>
       </div>
     );
   }
@@ -114,12 +115,12 @@ export default function AgencyBrandingPage() {
             Customise how your agency&apos;s product appears to clients.
           </p>
         </div>
-        <a
+        <Link
           href="/dashboard/agency"
           className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
         >
           ← Agency
-        </a>
+        </Link>
       </div>
 
       {/* Live colour preview strip */}
@@ -280,12 +281,12 @@ export default function AgencyBrandingPage() {
           >
             {isPending ? "Saving…" : "Save branding"}
           </button>
-          <a
+          <Link
             href="/dashboard/agency"
             className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
           >
             Cancel
-          </a>
+          </Link>
         </div>
       </form>
     </div>

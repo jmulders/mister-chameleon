@@ -34,6 +34,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { saveCmsCredentialsAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { CMSProviderName } from "@/tenant/types";
 
@@ -190,12 +191,12 @@ export function CmsCredentialsPanel({
           Storyblok credentials (access token and region) are configured at the{" "}
           <strong className="font-medium">platform level</strong>, not per-tenant.
           Set them in{" "}
-          <a
+          <Link
             href="/admin/platform/cms"
             className="font-medium text-indigo-600 hover:underline"
           >
             Platform → CMS settings
-          </a>
+          </Link>
           {" "}or via the{" "}
           <code className="rounded bg-neutral-100 px-1 font-mono">STORYBLOK_ACCESS_TOKEN</code>
           {" "}environment variable. All tenants using Storyblok share the platform token.
@@ -211,12 +212,12 @@ export function CmsCredentialsPanel({
           {" "}and{" "}
           <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_TOKEN</code>
           {" "}or in{" "}
-          <a
+          <Link
             href="/admin/platform/cms"
             className="font-medium text-indigo-600 hover:underline"
           >
             Platform → CMS settings
-          </a>
+          </Link>
           . No per-tenant credential is stored here.
         </InfoPanel>
       )}
@@ -228,9 +229,9 @@ export function CmsCredentialsPanel({
             A per-tenant Sanity write token lets the provisioner seed or update
             content in this tenant&rsquo;s Sanity project. Leave blank to use the
             platform-level token from{" "}
-            <a href="/admin/platform/cms" className="text-indigo-600 hover:underline">
+            <Link href="/admin/platform/cms" className="text-indigo-600 hover:underline">
               Platform → CMS settings
-            </a>
+            </Link>
             {" "}or the{" "}
             <code className="rounded bg-neutral-100 px-1 font-mono text-xs">SANITY_API_WRITE_TOKEN</code>
             {" "}env var.

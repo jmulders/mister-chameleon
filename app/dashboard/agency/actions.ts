@@ -66,7 +66,7 @@ export async function listAgencyMembers(
 
     // Enrich with tenant name/domain from tenants table
     const memberIds = (data ?? []).map((m: { member_tenant_id: string }) => m.member_tenant_id);
-    let tenantMeta: Record<string, { name?: string; domain?: string }> = {};
+    const tenantMeta: Record<string, { name?: string; domain?: string }> = {};
 
     if (memberIds.length > 0) {
       const { data: tenants } = await db

@@ -9,6 +9,7 @@
  */
 
 import { getActiveTenantWithDevOverride } from "@/tenant/server";
+import Link from "next/link";
 import { checkPlanFeature }               from "@/billing/plan-enforcement";
 import { Text }                           from "@/components/primitives/Text";
 import {
@@ -60,12 +61,12 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
             {gate.reason} Upgrade your plan to unlock the full analytics dashboard with
             funnel visualisation and variant performance reporting.
           </p>
-          <a
+          <Link
             href="/dashboard/tenant"
             className="mt-4 inline-block rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700"
           >
             View plan options
-          </a>
+          </Link>
         </div>
       </div>
     );

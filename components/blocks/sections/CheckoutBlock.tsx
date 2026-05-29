@@ -25,6 +25,7 @@
  */
 
 import { useState, type FormEvent }  from "react";
+import Link                          from "next/link";
 import { Container }                  from "@/components/primitives/Container";
 import { Section }                    from "@/components/primitives/Section";
 import type { CheckoutBlockData }     from "@/page-config";
@@ -477,9 +478,9 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
                   }}
                 >
                   By creating an account you agree to our{" "}
-                  <a href="/terms" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>Terms of Service</a>
+                  <Link href="/terms" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>Terms of Service</Link>
                   {" "}and{" "}
-                  <a href="/privacy" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>Privacy Policy</a>.
+                  <Link href="/privacy" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>Privacy Policy</Link>.
                 </p>
               </form>
             </div>

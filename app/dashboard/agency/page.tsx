@@ -8,6 +8,7 @@
  */
 
 import { getActiveTenantWithDevOverride } from "@/tenant/server";
+import Link from "next/link";
 import { checkPlanFeature }               from "@/billing/plan-enforcement";
 import { Text }                           from "@/components/primitives/Text";
 import {
@@ -71,12 +72,12 @@ export default async function AgencyPage({ searchParams }: PageProps) {
             {gate.reason} Upgrade to Pro to manage multiple client tenants, set
             white-label branding, and view cross-tenant session stats.
           </p>
-          <a
+          <Link
             href="/dashboard/tenant"
             className="mt-4 inline-block rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700"
           >
             View plan options
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -112,12 +113,12 @@ export default async function AgencyPage({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a
+          <Link
             href="/dashboard/agency/branding"
             className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 transition-colors"
           >
             White-label branding →
-          </a>
+          </Link>
         </div>
       </div>
 

@@ -22,6 +22,7 @@
  */
 
 import type { Metadata }          from "next";
+import Link                       from "next/link";
 import type { ExperimentRow }     from "@/data/types";
 import { listAllExperiments }     from "@/data/repositories/experiments-repository";
 import { getActiveTenantWithDevOverride } from "@/tenant/server";
@@ -181,7 +182,7 @@ function PageHeader({
         </div>
       </div>
 
-      <a
+      <Link
         href="/dashboard/experiments"
         className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 shadow-sm hover:bg-neutral-50 transition-colors"
       >
@@ -197,7 +198,7 @@ function PageHeader({
           <path d="M10.5 4.5 13.5 4.7 13.3 1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         Refresh
-      </a>
+      </Link>
     </div>
   );
 }

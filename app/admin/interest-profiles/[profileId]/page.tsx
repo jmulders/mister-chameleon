@@ -17,6 +17,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
+import Link                                    from "next/link";
 import { ProfileForm }                         from "../_components/ProfileForm";
 import {
   getInterestProfileByIdAction,
@@ -121,9 +122,9 @@ export default function EditInterestProfilePage() {
   if (loadError) {
     return (
       <div className="p-8 max-w-2xl">
-        <a href="/admin/interest-profiles" className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700">
+        <Link href="/admin/interest-profiles" className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700">
           ← Interest profiles
-        </a>
+        </Link>
         <div className="mt-4 rounded-lg border border-error-200 bg-error-50 px-4 py-3">
           <p className="text-sm font-medium text-error-700">Failed to load profile</p>
           <p className="text-xs text-error-600 mt-0.5">{loadError}</p>
@@ -145,12 +146,12 @@ export default function EditInterestProfilePage() {
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="mb-8">
-        <a
+        <Link
           href="/admin/interest-profiles"
           className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700 transition-colors"
         >
           ← Interest profiles
-        </a>
+        </Link>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-neutral-900">{profile.name}</h1>
           <span className={[

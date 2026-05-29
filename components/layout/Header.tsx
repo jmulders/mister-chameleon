@@ -49,6 +49,7 @@
  */
 
 import Image from "next/image";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -253,7 +254,7 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   // ── Shared brand element ──────────────────────────────────────────────────
 
   const BrandLink = (
-    <a
+    <Link
       href="/"
       aria-label={`${siteTitle} — go to homepage`}
       className="shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4 rounded-sm"
@@ -275,7 +276,7 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
         className="h-14 w-auto object-contain"
         style={{ width: "auto", height: "3.5rem" }}
       />
-    </a>
+    </Link>
   );
 
   // ── header_centered ────────────────────────────────────────────────────────

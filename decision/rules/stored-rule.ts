@@ -1155,8 +1155,8 @@ function evalContextLibraryCondition(
   condition: ContextLibraryCondition,
   ctx:       RuleEvaluationContext,
 ): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { matchContextDefinitions } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("@/context/library") as typeof import("@/context/library");
 
   const { contextIds, minConfidence = 0 } = condition;

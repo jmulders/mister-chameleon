@@ -30,6 +30,7 @@
  *   --footer-border   Divider line colour
  */
 
+import Link from "next/link";
 import { Container } from "@/components/primitives";
 import type { NavigationItemData, FooterColumnData, SocialLinkData } from "@/cms/types";
 
@@ -78,7 +79,7 @@ export function FooterCorporate({
             /* ── Column layout ─────────────────────────────────────────────── */
             <div className="space-y-8">
               {/* Brand row above columns */}
-              <a
+              <Link
                 href="/"
                 aria-label={`${siteTitle} — go to homepage`}
                 className="inline-block rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4"
@@ -95,7 +96,7 @@ export function FooterCorporate({
                     {siteTitle}
                   </span>
                 )}
-              </a>
+              </Link>
 
               {/* Columns */}
               <div className={`grid gap-8 sm:grid-cols-2 ${
@@ -188,7 +189,7 @@ export function FooterCorporate({
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
 
               {/* Brand */}
-              <a
+              <Link
                 href="/"
                 aria-label={`${siteTitle} — go to homepage`}
                 className="shrink-0 self-start rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4"
@@ -205,7 +206,7 @@ export function FooterCorporate({
                     {siteTitle}
                   </span>
                 )}
-              </a>
+              </Link>
 
               {/* Navigation links — inline */}
               {footerNav.length > 0 && (

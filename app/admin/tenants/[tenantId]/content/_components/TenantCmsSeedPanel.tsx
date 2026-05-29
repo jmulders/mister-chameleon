@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /**
  * TenantCmsSeedPanel
  *
@@ -102,9 +104,9 @@ function SanitySeedSection({
         <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
           <strong>Write token not configured.</strong>{" "}
           Add a Sanity write token in{" "}
-          <a href="/admin/platform/integrations/cms" className="underline hover:text-amber-900">
+          <Link href="/admin/platform/integrations/cms" className="underline hover:text-amber-900">
             Platform → CMS settings
-          </a>{" "}
+          </Link>{" "}
           before seeding.
         </div>
       )}
@@ -261,9 +263,9 @@ function StoryblokSeedSection({
         <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">site-settings</code>{" "}
         story with the navigation menu. Safe to re-run — existing stories are updated, not
         duplicated. Uses the Management API token and Space ID from{" "}
-        <a href="/admin/platform/integrations/cms" className="underline hover:text-neutral-700">
+        <Link href="/admin/platform/integrations/cms" className="underline hover:text-neutral-700">
           Platform → CMS settings
-        </a>.
+        </Link>.
       </p>
 
       {!isReady && (
@@ -271,9 +273,9 @@ function StoryblokSeedSection({
           <strong>Provisioning credentials not fully configured.</strong>{" "}
           Add a{!hasManagementToken ? " Management API token and" : ""}{!hasSpaceId ? " Space ID and" : ""}{" "}
           in{" "}
-          <a href="/admin/platform/integrations/cms" className="underline hover:text-amber-900">
+          <Link href="/admin/platform/integrations/cms" className="underline hover:text-amber-900">
             Platform → CMS settings
-          </a>.
+          </Link>.
         </div>
       )}
 

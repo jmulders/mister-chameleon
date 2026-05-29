@@ -20,6 +20,7 @@
  *   --primary         Brand accent on the divider swatch
  */
 
+import Link from "next/link";
 import { Container } from "@/components/primitives";
 import type { NavigationItemData, SocialLinkData } from "@/cms/types";
 
@@ -59,7 +60,7 @@ export function FooterBranding({
         <div className={`${outerPy} flex flex-col items-center text-center ${gap}`}>
 
           {/* ── Brand (centred, prominent) ────────────────────────────────── */}
-          <a
+          <Link
             href="/"
             aria-label={`${siteTitle} — go to homepage`}
             className="inline-block rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4"
@@ -79,7 +80,7 @@ export function FooterBranding({
                 {siteTitle}
               </span>
             )}
-          </a>
+          </Link>
 
           {/* ── Brand accent line ─────────────────────────────────────────── */}
           <div

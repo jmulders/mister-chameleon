@@ -589,7 +589,7 @@ export class SanityProvider implements CMSProvider {
 
       if (collection === "companies") {
         const companies = await this.getCompanies({ limit: mode === "recent" ? (limit ?? 50) : undefined });
-        let items = companies.map((c) => ({
+        const items = companies.map((c) => ({
           id:       c.slug,
           title:    c.name,
           href:     `/companies/${c.slug}`,

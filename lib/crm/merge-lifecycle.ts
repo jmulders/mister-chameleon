@@ -200,6 +200,7 @@ export function normalizeCrmProfile(
   const rawStage = enrichment.crmLifecycleStage ?? null;
 
   // Import inline to avoid circular dependency — types.ts has no project imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { normalizeCrmLifecycleStage } = require("./types") as typeof import("./types");
   const normalized = normalizeCrmLifecycleStage(rawStage);
 

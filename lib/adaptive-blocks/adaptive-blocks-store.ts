@@ -184,8 +184,8 @@ export async function upsertAdaptiveBlock(
 
     if (block.id) row.id = block.id;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = asSingle<AdaptiveBlockRow>(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (getDb() as any)
         .from("adaptive_blocks")
         .upsert(row, { onConflict: "key,tenant_id" })

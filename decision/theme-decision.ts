@@ -733,6 +733,7 @@ export function resolveThemeDecisionLegacy(
     } else if (rule.familyKey) {
       try {
         const { getCanonicalPreset } =
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
           require("@/design-system/theme/theme-family") as typeof import("@/design-system/theme/theme-family");
         resolvedTheme = getCanonicalPreset(rule.familyKey);
       } catch { continue; }

@@ -123,7 +123,7 @@ export async function fetchRecentJourneySessionsAction(
     // exist for older behavior rows written before the sessions table).
     const sessionIds = res.data.map((r) => r.session_id);
     type SessionRow = { id: string; source: string; device: string };
-    let sessionMeta: Map<string, SessionRow> = new Map();
+    const sessionMeta: Map<string, SessionRow> = new Map();
     try {
       const metaRes = (await db
         .from("sessions")

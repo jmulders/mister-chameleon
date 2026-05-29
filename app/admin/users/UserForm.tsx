@@ -243,12 +243,12 @@ export function UserForm({ mode, user, tenants, action, error, tenantAssignments
         >
           {isEdit ? "Save changes" : "Create user"}
         </button>
-        <a
+        <Link
           href="/admin/users"
           className="rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
         >
           Cancel
-        </a>
+        </Link>
       </div>
     </form>
   );

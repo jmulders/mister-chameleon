@@ -65,6 +65,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getFormDefinition, isFormKey } from "@/forms";
 import type { FormField } from "@/forms";
@@ -1126,14 +1127,14 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
           </div>
 
           {/* CTA */}
-          <a
+          <Link
             href="/contact"
             style={ctaStyle}
             onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.88"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1"; }}
           >
             Start growing — talk to us
-          </a>
+          </Link>
           <p style={subNoteStyle}>
             Based on Growth plan at {fmtEur(GROWTH_PLAN_MONTHLY)}/month &bull; No commitment required
           </p>

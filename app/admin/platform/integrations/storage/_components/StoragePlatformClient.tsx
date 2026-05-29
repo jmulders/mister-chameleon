@@ -19,6 +19,7 @@
  */
 
 import { useState, useTransition }   from "react";
+import Link                          from "next/link";
 import type { SafeStorageConfig }    from "../actions";
 import type {
   SaveR2CredentialsInput,
@@ -382,9 +383,9 @@ export function StoragePlatformClient({
           {!config.sanityConfigured && (
             <p className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800">
               Configure Sanity in{" "}
-              <a href="/admin/platform/integrations/cms" className="font-medium underline">
+              <Link href="/admin/platform/integrations/cms" className="font-medium underline">
                 Admin → Integrations → CMS
-              </a>{" "}
+              </Link>{" "}
               first.
             </p>
           )}
@@ -392,9 +393,9 @@ export function StoragePlatformClient({
             <p className="rounded bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800">
               Set <code className="bg-amber-100 px-1 rounded">SANITY_API_WRITE_TOKEN</code> or
               add a write token in{" "}
-              <a href="/admin/platform/integrations/cms" className="font-medium underline">
+              <Link href="/admin/platform/integrations/cms" className="font-medium underline">
                 Admin → Integrations → CMS
-              </a>
+              </Link>
               .
             </p>
           )}

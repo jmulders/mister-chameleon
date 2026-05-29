@@ -10,6 +10,7 @@
  */
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import type { DeploymentData, DeploymentCheck, EnvVarStatus, CheckStatus } from "../page";
 import {
   seedEnrichmentPricingAction,
@@ -286,8 +287,8 @@ function EnvVarsTab({ envVars }: { envVars: EnvVarStatus[] }) {
                     <p className="text-xs text-blue-700">
                       These credentials are stored in <strong>Platform Settings</strong> (configured via{" "}
                       {group === "Cloudflare R2"
-                        ? <a href="/admin/platform/integrations/storage" className="underline hover:text-blue-900">Integrations → Storage</a>
-                        : <a href="/admin/platform/integrations/email" className="underline hover:text-blue-900">Integrations → Email</a>
+                        ? <Link href="/admin/platform/integrations/storage" className="underline hover:text-blue-900">Integrations → Storage</Link>
+                        : <Link href="/admin/platform/integrations/email" className="underline hover:text-blue-900">Integrations → Email</Link>
                       }
                       ) — env vars are optional when using this method.
                     </p>

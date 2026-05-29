@@ -390,7 +390,7 @@ const FEATURES_DATA = {
 };
 const LOGOS_DATA = {
   heading: "Vertrouwd door",
-  logos: [] as any[],
+  logos: [] as unknown[],
   animationEnabled: true,
   grayscale: true,
 };
@@ -993,7 +993,7 @@ function HomePage({ p }: { p: P }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1.25rem" }}>
           {[["case-1","E-commerce","CONVERSIE +40%","TechCorp NL"],["case-2","SaaS","TIME-TO-MARKET −60%","CloudBase"],["case-3","Retail","€1,2M EXTRA","ShopMax"]].map(([seed,cat,kpi,brand]) => (
-            <div key={seed as string} style={{ position: "relative", borderRadius: 20, overflow: "hidden", aspectRatio: "4/3" as "4/3" }}>
+            <div key={seed as string} style={{ position: "relative", borderRadius: 20, overflow: "hidden", aspectRatio: "4/3" as const }}>
               <img src={pic(seed as string, 480, 360)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, var(--primary) 0%, transparent 65%)", opacity: 0.88 }} />
               <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "1.5rem" }}>
@@ -1030,7 +1030,7 @@ function HomePage({ p }: { p: P }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
             {TEAM_MEMBERS.map(m => (
-              <div key={m.name} style={{ position: "relative", borderRadius: 12, overflow: "hidden", aspectRatio: "1" as "1" }}>
+              <div key={m.name} style={{ position: "relative", borderRadius: 12, overflow: "hidden", aspectRatio: "1" as const }}>
                 <img src={m.imageUrl} alt={m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", padding: "0.4rem 0.75rem" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{m.name.split(" ")[0]}</div>

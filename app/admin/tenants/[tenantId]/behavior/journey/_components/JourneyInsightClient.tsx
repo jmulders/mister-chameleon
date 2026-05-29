@@ -340,6 +340,18 @@ function SessionSelector({
   onSelect:   (id: string) => void;
   compact?:   boolean;
 }) {
+  // Hooks must be declared unconditionally before any early returns.
+  const [search,      setSearch]      = useState("");
+  const [stageFilter, setStageFilter] = useState<StageFilter>("all");
+  const [mySessionId, setMySessionId] = useState<string | null>(null);
+  const [isPending,   startTransition] = useTransition();
+
+  // Read the visitor's own mc_session_id cookie client-side (runs once on mount).
+  React.useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)mc_session_id=([^;]+)/);
+    if (match?.[1]) setMySessionId(match[1]);
+  }, []);
+
   // ── Compact mode: inline dropdown to switch sessions ─────────────────────
   if (compact) {
     return (
@@ -359,17 +371,6 @@ function SessionSelector({
       </select>
     );
   }
-
-  const [search,      setSearch]      = useState("");
-  const [stageFilter, setStageFilter] = useState<StageFilter>("all");
-  const [mySessionId, setMySessionId] = useState<string | null>(null);
-  const [isPending,   startTransition] = useTransition();
-
-  // Read the visitor's own mc_session_id cookie client-side (runs once on mount).
-  React.useEffect(() => {
-    const match = document.cookie.match(/(?:^|;\s*)mc_session_id=([^;]+)/);
-    if (match?.[1]) setMySessionId(match[1]);
-  }, []);
 
   const filtered = sessions.filter((s) => {
     const matchesSearch =

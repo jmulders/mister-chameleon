@@ -66,7 +66,7 @@ function slugify(str: string): string {
 /** Returns a slug that does not already exist in tenant_settings. */
 async function uniqueTenantSlug(base: string): Promise<string> {
   const db   = getDb();
-  let   slug = slugify(base) || "tenant";
+  const slug = slugify(base) || "tenant";
   let   attempt = 0;
 
   while (true) {

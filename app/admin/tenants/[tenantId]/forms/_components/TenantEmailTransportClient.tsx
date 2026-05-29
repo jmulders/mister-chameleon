@@ -39,6 +39,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import type {
   SafeTransportConfig,
   TransportFormInput,
@@ -197,9 +198,9 @@ export function TenantEmailTransportClient({
         <h2 className="text-sm font-semibold text-neutral-900">Email Transport</h2>
         <p className="text-xs text-neutral-500 mt-0.5">
           Configure a tenant-specific email transport, or use the{" "}
-          <a href="/admin/platform/integrations/email" className="underline hover:text-neutral-700">
+          <Link href="/admin/platform/integrations/email" className="underline hover:text-neutral-700">
             platform default
-          </a>
+          </Link>
           . Tenant transport takes priority over the platform default and env vars.
         </p>
       </div>

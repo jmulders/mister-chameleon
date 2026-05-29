@@ -38,6 +38,7 @@
 
 import { cookies }        from "next/headers";
 import { notFound }       from "next/navigation";
+import Link               from "next/link";
 import { getTenantById }  from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
 import { DEV_TENANT_COOKIE } from "@/tenant/dev-tenant-cookie";
@@ -179,12 +180,12 @@ function DevControlsSection({ tenantId, isActive, currentOverrideTenantId }: Dev
           )}
 
           {isActive && (
-            <a
+            <Link
               href="/dashboard"
               className="inline-flex items-center rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-50"
             >
               View in dashboard →
-            </a>
+            </Link>
           )}
         </div>
 

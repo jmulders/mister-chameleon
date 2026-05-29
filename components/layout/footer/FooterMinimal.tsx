@@ -20,6 +20,7 @@
  *   --footer-border   Top border colour
  */
 
+import Link from "next/link";
 import { Container } from "@/components/primitives";
 import type { NavigationItemData } from "@/cms/types";
 
@@ -55,7 +56,7 @@ export function FooterMinimal({
         <div className={`${py} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
 
           {/* ── Brand ─────────────────────────────────────────────────────── */}
-          <a
+          <Link
             href="/"
             aria-label={`${siteTitle} — go to homepage`}
             className="shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4"
@@ -72,7 +73,7 @@ export function FooterMinimal({
                 {siteTitle}
               </span>
             )}
-          </a>
+          </Link>
 
           {/* ── Footer navigation (centred) ────────────────────────────────── */}
           {footerNav.length > 0 && (
