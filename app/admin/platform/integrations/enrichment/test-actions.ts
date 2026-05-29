@@ -319,6 +319,18 @@ export async function testOpenKvKConnectionAction(
     // Top result (prefer Hoofdvestiging).
     const top = results.find((r) => String(r.link).toLowerCase().includes("hoofdvestiging")) ?? results[0];
 
+    // When the list endpoint returns 0 and we fall back to suggest (fuzzy),
+    // the results may be phonetically similar companies, not an exact match.
+    // Surface this clearly so the user knows the API is reachable but their
+    // specific company could not be found by name.
+    const isFuzzyFallback = attempt.source === "suggest";
+    const fuzzyNote = isFuzzyFallback
+      ? `Fuzzy fallback — the overheid.io list search returned 0 results for this name. ` +
+        `The matches above are phonetically similar companies, NOT exact results. ` +
+        `The API IS reachable and authenticated. For reliable name lookup use a large ` +
+        `company like "ING" or "Coolblue" to verify connectivity.`
+      : null;
+
     return {
       ok:        true,
       latencyMs: elapsed(start),
@@ -326,9 +338,10 @@ export async function testOpenKvKConnectionAction(
         { label: "Query",          value: queryLabel },
         { label: "Results found",  value: String(results.length) },
         { label: "Top 5 matches",  value: top5Names || null },
-        { label: "KvK number",     value: top.kvknummer != null ? String(top.kvknummer) : null },
-        { label: "Postcode",       value: top.postcode ?? null },
+        { label: "KvK number",     value: !isFuzzyFallback && top.kvknummer != null ? String(top.kvknummer) : null },
+        { label: "Postcode",       value: !isFuzzyFallback ? (top.postcode ?? null) : null },
         { label: "Source",         value: attempt.source ?? null },
+        { label: "Note",           value: fuzzyNote },
       ],
     };
   } catch (err) {
