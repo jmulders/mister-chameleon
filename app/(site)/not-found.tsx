@@ -7,6 +7,7 @@
  * rather than broken.
  */
 
+import Link from "next/link";
 import { Container } from "@/components/primitives/Container";
 import { Section } from "@/components/primitives/Section";
 import { Stack } from "@/components/primitives/Stack";
@@ -62,12 +63,12 @@ export default function NotFound() {
             </Text>
 
             {/* Return home CTA */}
-            <a
+            <Link
               href="/"
               className="mt-2 inline-flex items-center justify-center rounded-lg bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
             >
               Back to homepage
-            </a>
+            </Link>
           </Stack>
         </Container>
       </Section>

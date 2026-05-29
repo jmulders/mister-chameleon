@@ -677,7 +677,7 @@ export interface ContextVariableManagerProps {
 export function ContextVariableManager({ initialVars }: ContextVariableManagerProps) {
   const [vars,       setVars]       = useState<MergedContextVar[]>(initialVars);
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [togglePending, startToggle] = useTransition();
+  const [, startToggle] = useTransition();
 
   function handleToggle(key: string, value: boolean) {
     startToggle(async () => {
@@ -706,7 +706,7 @@ export function ContextVariableManager({ initialVars }: ContextVariableManagerPr
 
   // Group by source for display.
   const sourceOrder = ["request", "session", "history", "tenant", "page", "enrichment", "time", "custom"] as const;
-  type SourceGroup = typeof sourceOrder[number];
+  type _SourceGroup = typeof sourceOrder[number];
 
   const grouped = vars.reduce<Record<string, MergedContextVar[]>>((acc, v) => {
     const group = v.isCustom ? "custom" : v.source;

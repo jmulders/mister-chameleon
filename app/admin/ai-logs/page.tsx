@@ -117,7 +117,7 @@ function LogRow({ log }: { log: AiDecisionLogRow }) {
   const match                   = matchBadge(log.plans_match);
   const verdict                 = verdictBadge(log.shadow_plan.policyVerdict);
   const confidence              = formatConfidence(log.shadow_plan.confidence);
-  const tenantLabel             = log.tenant_id ?? "—";
+  // const tenantLabel             = log.tenant_id ?? "—"; // reserved for future use
   const source                  = log.context.source ?? "—";
 
   return (

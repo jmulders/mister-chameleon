@@ -48,7 +48,7 @@ import type {
 import { buildFieldFillPrompt }            from "./field-fill-prompt";
 import { validateFieldFillOutput }         from "./field-fill-validator";
 import type { ResolvedAiPolicy }           from "@/ai/policy/types";
-import { shouldCallAi, shouldApplyAi }     from "@/ai/policy/resolve-policy";
+import { shouldCallAi }                    from "@/ai/policy/resolve-policy";
 
 // ── Adapter interface ─────────────────────────────────────────────────────────
 
@@ -325,7 +325,7 @@ function applyFields(
   slotType: "hero" | "proof" | "cta",
   data:     HeroBlockData | ProofBlockData | CTABlockData,
   aiFields: Record<string, string>,
-  fallback: Record<string, string>,
+  _fallback: Record<string, string>,
 ): { updated: HeroBlockData | ProofBlockData | CTABlockData; appliedFields: Record<string, string> } {
   const appliedFields: Record<string, string> = {};
 

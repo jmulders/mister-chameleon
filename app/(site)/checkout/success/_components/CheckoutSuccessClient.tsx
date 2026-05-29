@@ -121,7 +121,7 @@ export default function CheckoutSuccessClient() {
           Thank you — your 14-day free trial has started.
         </p>
         <p style={{ color: "#6b7280", fontSize: "0.9375rem", lineHeight: 1.6, marginBottom: 0 }}>
-          We're setting up your account now and will send a welcome email
+          We&apos;re setting up your account now and will send a welcome email
           with login instructions within a few minutes.
         </p>
 
@@ -161,7 +161,7 @@ export default function CheckoutSuccessClient() {
           maxWidth: 400,
         }}>
           <strong style={{ color: "#374151" }}>Need help?</strong>{" "}
-          If you don't receive a welcome email within 5 minutes, please check your spam folder or{" "}
+          If you don&apos;t receive a welcome email within 5 minutes, please check your spam folder or{" "}
           <Link href="/contact" style={{ color: "#6366f1", textDecoration: "none" }}>
             contact our support team
           </Link>.

@@ -111,7 +111,7 @@ function PasswordStrength({ password }: { password: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function CheckoutPageClient() {
-  const { cart, clearCart, totalCents } = useCart();
+  const { cart, clearCart: _clearCart, totalCents: _totalCents } = useCart();
 
   const [name,     setName]     = useState("");
   const [email,    setEmail]    = useState("");
@@ -232,7 +232,7 @@ export function CheckoutPageClient() {
               </h2>
               {cart.plan && (
                 <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.375rem", marginBottom: 0 }}>
-                  14-day free trial. You'll add a card now but won't be charged until the trial ends.
+                  14-day free trial. You&apos;ll add a card now but won&apos;t be charged until the trial ends.
                 </p>
               )}
             </div>

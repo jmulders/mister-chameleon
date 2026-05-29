@@ -215,7 +215,7 @@ export class DisabledAiProvider implements AiProvider {
 
   constructor(private readonly _reason: string) {}
 
-  async suggest(_input: DecisionInput): Promise<AiProviderResult> {
+  async suggest(_: DecisionInput): Promise<AiProviderResult> {
     return {
       ok:     false,
       code:   "DISABLED",

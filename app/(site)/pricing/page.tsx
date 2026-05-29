@@ -28,6 +28,7 @@
  *   All data from static billing/plans.ts, billing/credits.ts, billing/copy.ts.
  */
 
+import Link from "next/link";
 import { BILLING_PLANS } from "@/billing/plans";
 import { CATEGORY_COPY, PRICING_COPY, USAGE_SCENARIOS } from "@/billing/copy";
 import type { Metadata } from "next";
@@ -420,21 +421,21 @@ export default function PricingPage() {
         </h2>
         <p className="mt-4 max-w-lg mx-auto text-base text-neutral-500">
           Try Mister Chameleon with 500 included credits on the Starter plan.
-          No surprise invoices. No commitment. Scale when you're ready.
+          No surprise invoices. No commitment. Scale when you&apos;re ready.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <a
+          <Link
             href="/contact"
             className="rounded-xl bg-neutral-900 px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-700 transition-colors"
           >
             Start free trial
-          </a>
-          <a
+          </Link>
+          <Link
             href="/demo"
             className="rounded-xl border border-neutral-300 px-6 py-3 text-sm font-semibold text-neutral-700 hover:border-neutral-500 transition-colors"
           >
             See a live demo
-          </a>
+          </Link>
         </div>
       </section>
     </div>

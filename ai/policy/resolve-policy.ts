@@ -36,7 +36,6 @@ import type {
   AiPolicyMode,
   AiPolicyConfig,
   AiPhasePolicies,
-  SlotAiPolicyOverrides,
   ResolvedAiPolicy,
 } from "./types";
 import { SYSTEM_DEFAULT_POLICIES } from "./types";
