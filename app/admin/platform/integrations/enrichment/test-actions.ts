@@ -204,15 +204,17 @@ export async function testOpenKvKConnectionAction(
   }
 
   /**
-   * Fetch via the list endpoint: GET /v3/openkvk?query={q}
-   * No explicit queryfields[] — uses the API default (huidigeHandelsNamen + kvknummer).
-   * Adding queryfields[]=huidigeHandelsNamen appears to be MORE restrictive (exact/phrase),
-   * while omitting it uses a broader default Elasticsearch query.
+   * Fetch via the list endpoint with an optional set of queryfields.
+   *
+   * The overheid.io API default queryfields are "huidigeHandelsNamen" and "kvknummer".
+   * Some companies (e.g. STEETS B.V.) seem to be stored under the `naam` field but not
+   * in `huidigeHandelsNamen`, so we try multiple field combinations.
    */
-  async function fetchList(q: string): Promise<FetchResult> {
-    const url =
-      `https://api.overheid.io/v3/openkvk` +
-      `?query=${encodeURIComponent(q)}`;
+  async function fetchList(q: string, queryfields?: string[]): Promise<FetchResult> {
+    let url = `https://api.overheid.io/v3/openkvk?query=${encodeURIComponent(q)}`;
+    if (queryfields && queryfields.length > 0) {
+      url += queryfields.map((f) => `&queryfields[]=${encodeURIComponent(f)}`).join("");
+    }
     const response = await fetch(url, {
       headers: { Accept: "application/json", "ovio-api-key": ovioApiKey },
       signal:  AbortSignal.timeout(6_000),
@@ -234,54 +236,50 @@ export async function testOpenKvKConnectionAction(
   }
 
   /**
-   * Search strategy (in order — stops at first non-empty result):
-   *   1. List: "{company} {city}" combined  (only when city hint provided — mirrors openkvk.nl)
-   *   2. List: full query alone
-   *   3. List: suffix-stripped query  (e.g. "STEETS B.V." → "STEETS")
-   *   4. Suggest: full query (fuzzy — last resort, may return phonetically similar names)
-   *   5. Suggest: suffix-stripped query (fuzzy)
-   *
-   * List is tried before suggest because suggest uses edit-distance fuzzy matching
-   * that easily confuses similar names (e.g. "STEETS" → "Smeets").
-   * The city-combined query (step 1) mirrors what openkvk.nl does internally.
+   * Search strategy (in order — stops at first non-empty result).
+   * Multiple queryfield combinations are tried because some companies are stored
+   * in `naam` but not in `huidigeHandelsNamen` (API default), and vice versa.
    */
   async function search(q: string): Promise<{ result: FetchResult; usedQuery: string }> {
     const stripped = q
       .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
       .trim();
 
-    // 1. List — company + city combined (when city hint provided)
-    if (safeCity) {
-      const withCity = `${q} ${safeCity}`;
-      const lc = await fetchList(withCity);
-      if (lc.results === null) return { result: lc, usedQuery: withCity };
-      if (lc.results.length > 0) return { result: lc, usedQuery: withCity };
+    // Helper: try a list query and return if results found
+    async function tryList(qry: string, fields?: string[]): Promise<FetchResult | null> {
+      const r = await fetchList(qry, fields);
+      if (r.results === null || r.results.length > 0) return r;
+      return null;
     }
 
-    // 2. List — full query alone
-    const l1 = await fetchList(q);
-    if (l1.results === null) return { result: l1, usedQuery: q };
-    if (l1.results.length > 0) return { result: l1, usedQuery: q };
+    // Queries to try (with city-combined variant first when city hint given)
+    const queries = safeCity
+      ? [`${q} ${safeCity}`, q, ...(stripped && stripped !== q ? [stripped] : [])]
+      : [q, ...(stripped && stripped !== q ? [stripped] : [])];
 
-    // 3. List — suffix stripped
-    if (stripped && stripped !== q) {
-      const l2 = await fetchList(stripped);
-      if (l2.results === null) return { result: l2, usedQuery: stripped };
-      if (l2.results.length > 0) return { result: l2, usedQuery: stripped };
+    // Queryfield combinations to try per query
+    const fieldSets: Array<string[] | undefined> = [
+      undefined,                              // API defaults (huidigeHandelsNamen + kvknummer)
+      ["naam"],                               // primary name field
+      ["naam", "huidigeHandelsNamen"],        // both name fields
+      ["huidigeHandelsNamen"],                // trade names only (explicit)
+    ];
+
+    for (const qry of queries) {
+      for (const fields of fieldSets) {
+        const r = await tryList(qry, fields);
+        if (r) return { result: r, usedQuery: qry };
+      }
     }
 
-    // 4. Suggest — full query (fuzzy)
-    const s1 = await fetchSuggest(q);
-    if (s1.results === null) return { result: s1, usedQuery: q };
-    if (s1.results.length > 0) return { result: s1, usedQuery: q };
-
-    // 5. Suggest — suffix stripped (fuzzy)
-    if (stripped && stripped !== q) {
-      const s2 = await fetchSuggest(stripped);
-      if (s2.results && s2.results.length > 0) return { result: s2, usedQuery: stripped };
+    // All list attempts failed — fall back to fuzzy suggest
+    for (const qry of [q, ...(stripped && stripped !== q ? [stripped] : [])]) {
+      const s = await fetchSuggest(qry);
+      if (s.results === null) return { result: s, usedQuery: qry };
+      if (s.results.length > 0) return { result: s, usedQuery: qry };
     }
 
-    return { result: l1, usedQuery: q }; // all attempts empty
+    return { result: await fetchList(q), usedQuery: q }; // all attempts empty
   }
 
   try {

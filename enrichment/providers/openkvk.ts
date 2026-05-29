@@ -543,29 +543,40 @@ export class OpenKvKProvider {
       // (e.g. "STEETS" → "Smeets").  The list endpoint with explicit queryfields
       // runs a phrase/term search and is more precise.
 
-      // 1. List — full query
-      let results = await this.fetchListCandidates(q);
-      if (this.isDev) console.debug("[openkvk] list response", { query: q, count: results.length });
+      // Try multiple queryfield combinations — some companies are stored in `naam`
+      // but not in `huidigeHandelsNamen` (the API default), so we probe both.
+      const fieldSets: Array<string[] | undefined> = [
+        undefined,                           // API default (huidigeHandelsNamen + kvknummer)
+        ["naam"],                            // primary name field
+        ["naam", "huidigeHandelsNamen"],     // both
+      ];
 
-      // 2. List — suffix stripped
-      if (results.length === 0 && stripped && stripped !== q) {
-        results = await this.fetchListCandidates(stripped);
-        if (this.isDev && results.length > 0) {
-          console.debug(`[openkvk] list suffix-stripped succeeded: "${q}" → "${stripped}" (${results.length})`);
+      const queries = [q, ...(stripped && stripped !== q ? [stripped] : [])];
+
+      let results: OpenKvKResultaat[] = [];
+      outer: for (const qry of queries) {
+        for (const fields of fieldSets) {
+          results = await this.fetchListCandidates(qry, fields);
+          if (this.isDev) {
+            console.debug("[openkvk] list probe", {
+              query: qry,
+              fields: fields ?? "default",
+              count: results.length,
+            });
+          }
+          if (results.length > 0) break outer;
         }
       }
 
-      // 3. Suggest — full query (fuzzy fallback)
+      // All list attempts failed — fall back to fuzzy suggest
       if (results.length === 0) {
         results = await this.fetchSuggestCandidates(q);
         if (this.isDev) console.debug("[openkvk] suggest response", { query: q, count: results.length });
       }
-
-      // 4. Suggest — suffix stripped
       if (results.length === 0 && stripped && stripped !== q) {
         results = await this.fetchSuggestCandidates(stripped);
         if (this.isDev && results.length > 0) {
-          console.debug(`[openkvk] suggest suffix-stripped succeeded: "${q}" → "${stripped}" (${results.length})`);
+          console.debug(`[openkvk] suggest suffix-stripped: "${q}" → "${stripped}" (${results.length})`);
         }
       }
 
@@ -591,13 +602,11 @@ export class OpenKvKProvider {
    * fuzzy suggest endpoint — preferred for production enrichment matching.
    * Returns the full bedrijf object including website and bezoeklocatie.
    */
-  private async fetchListCandidates(q: string): Promise<OpenKvKResultaat[]> {
-    // No explicit queryfields[] — use API defaults (huidigeHandelsNamen + kvknummer).
-    // Adding queryfields[]=huidigeHandelsNamen appears to make the search MORE
-    // restrictive (exact/phrase only); omitting it uses the broader default behavior.
-    const url =
-      `${this.apiBase}/v3/openkvk` +
-      `?query=${encodeURIComponent(q)}`;
+  private async fetchListCandidates(q: string, queryfields?: string[]): Promise<OpenKvKResultaat[]> {
+    let url = `${this.apiBase}/v3/openkvk?query=${encodeURIComponent(q)}`;
+    if (queryfields && queryfields.length > 0) {
+      url += queryfields.map((f) => `&queryfields[]=${encodeURIComponent(f)}`).join("");
+    }
 
     const headers: Record<string, string> = { Accept: "application/json" };
     if (this.apiKey) headers["ovio-api-key"] = this.apiKey;
