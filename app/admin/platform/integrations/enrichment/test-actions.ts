@@ -155,6 +155,19 @@ export async function testOpenKvKConnectionAction(
   const safeQuery = (query ?? "").trim() || "ING";
   const safeCity  = (city  ?? "").trim() || undefined;
 
+  // Read the ovio API key from the platform store.
+  const enrichmentSettings = await getPlatformEnrichmentSettings();
+  const ovioApiKey = enrichmentSettings.ok ? (enrichmentSettings.data.ovioApiKey ?? "") : "";
+
+  if (!ovioApiKey) {
+    return {
+      ok:        false,
+      errorType: "config",
+      message:   "overheid.io API key (ovio-api-key) is not configured. Add the key in the API Keys section above and save first. Register for free at https://overheid.io/register.",
+      latencyMs: elapsed(start),
+    };
+  }
+
   try {
     // Build URL: append city filter only when provided.
     let url =
@@ -168,10 +181,15 @@ export async function testOpenKvKConnectionAction(
     if (safeCity) url += `&filters[bezoeklocatie.plaats]=${encodeURIComponent(safeCity)}`;
 
     const response = await fetch(url, {
-      headers: { Accept: "application/json" },
-      signal:  AbortSignal.timeout(6_000),
-      cache:   "no-store",
+      headers: {
+        Accept:          "application/json",
+        "ovio-api-key":  ovioApiKey,
+      },
+      signal: AbortSignal.timeout(6_000),
+      cache:  "no-store",
     });
+
+    if (response.status === 401 || response.status === 403) return authError(response.status, elapsed(start));
 
     if (!response.ok) {
       return networkError(`API returned HTTP ${response.status}`, elapsed(start));

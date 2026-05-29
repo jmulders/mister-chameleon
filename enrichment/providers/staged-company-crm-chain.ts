@@ -185,6 +185,11 @@ export interface CompanyCrmChainOptions {
    * Default: "networkOrg"
    */
   openKvKMatchingStrategy?: OpenKvKMatchingStrategy;
+  /**
+   * overheid.io API key (header: ovio-api-key) for the OpenKvK endpoint.
+   * Required — requests without a key return HTTP 401.
+   */
+  ovioApiKey?: string;
 
   // ── Stage 4: Leadinfo ─────────────────────────────────────────────────────
   /**
@@ -338,6 +343,7 @@ export function buildCompanyCrmChain(
     openKvKMode,
     openKvKConfidenceThreshold,
     openKvKMatchingStrategy,
+    ovioApiKey,
     leadinfoApiKey,
     enableLeadinfo             = false,
     hubspotAccessToken,
@@ -486,6 +492,7 @@ export function buildCompanyCrmChain(
       ...createOpenKvKStagedEnricher({
         isDev,
         mode:                effectiveOpenKvKMode,
+        ...(ovioApiKey                 !== undefined ? { apiKey:              ovioApiKey                } : {}),
         ...(openKvKConfidenceThreshold !== undefined ? { confidenceThreshold: openKvKConfidenceThreshold } : {}),
         ...(openKvKMatchingStrategy    !== undefined ? { matchingStrategy:    openKvKMatchingStrategy    } : {}),
       }),

@@ -406,10 +406,11 @@ export interface EnrichmentPlatformClientProps {
   accountId:           string;
   hasLicenseKey:       boolean;
   updatedAt:           string | null;
-  // Clearbit / IPinfo / Leadinfo
+  // Clearbit / IPinfo / Leadinfo / overheid.io
   hasClearbitKey:      boolean;
   hasIpinfoToken:      boolean;
   hasLeadinfoKey:      boolean;
+  hasOvioApiKey:       boolean;
   enrichmentUpdatedAt: string | null;
   // OpenKvK
   openKvKMode:                "off" | "nl-only" | "always";
@@ -453,6 +454,7 @@ export function EnrichmentPlatformClient({
   hasClearbitKey:             initialHasClearbitKey,
   hasIpinfoToken:             initialHasIpinfoToken,
   hasLeadinfoKey:             initialHasLeadinfoKey,
+  hasOvioApiKey:              initialHasOvioApiKey,
   enrichmentUpdatedAt:        initialEnrichmentUpdatedAt,
   openKvKMode:                initialOpenKvKMode,
   openKvKConfidenceThreshold: initialOpenKvKConfidence,
@@ -495,9 +497,11 @@ export function EnrichmentPlatformClient({
   const [clearbitKey,  setClearbitKey]  = useState("");
   const [ipinfoToken,  setIpinfoToken]  = useState("");
   const [leadinfoKey,  setLeadinfoKey]  = useState("");
+  const [ovioKey,      setOvioKey]      = useState("");
   const [hasClearbit,  setHasClearbit]  = useState(initialHasClearbitKey);
   const [hasIpinfo,    setHasIpinfo]    = useState(initialHasIpinfoToken);
   const [hasLeadinfo,  setHasLeadinfo]  = useState(initialHasLeadinfoKey);
+  const [hasOvio,      setHasOvio]      = useState(initialHasOvioApiKey);
   const [enrichUpdatedAt, setEnrichUpdatedAt] = useState<string | null>(initialEnrichmentUpdatedAt);
   const [enrichSaveState, setEnrichSaveState] = useState<SaveState>({ mode: "idle" });
   const [enrichPending, startEnrichTransition] = useTransition();
@@ -632,11 +636,13 @@ export function EnrichmentPlatformClient({
         clearbitSecretKey: clearbitKey || undefined,
         ipinfoToken:       ipinfoToken || undefined,
         leadinfoApiKey:    leadinfoKey || undefined,
+        ovioApiKey:        ovioKey     || undefined,
       });
       if (result.ok) {
         if (clearbitKey) setHasClearbit(true);
         if (ipinfoToken) setHasIpinfo(true);
         if (leadinfoKey) setHasLeadinfo(true);
+        if (ovioKey)     setHasOvio(true);
         setClearbitKey("");
         setIpinfoToken("");
         setLeadinfoKey("");
@@ -1005,6 +1011,15 @@ export function EnrichmentPlatformClient({
           hint="Found at app.leadinfo.com → Settings → API. Commercial plan required."
         />
 
+        <SecretField
+          label="overheid.io API key (OpenKvK)"
+          value={ovioKey}
+          onChange={setOvioKey}
+          hasExisting={hasOvio}
+          placeholder="••••••••••••••••"
+          hint="Required for the OpenKvK Dutch company registry endpoint. Register for free at overheid.io/register."
+        />
+
         <CardFooter>
           <SaveFooter
             isPending={enrichPending}
@@ -1031,10 +1046,11 @@ export function EnrichmentPlatformClient({
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              No API key required — public registry. Looks up Dutch companies by name and resolves
+              Looks up Dutch companies by name and resolves
               <code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">companyName</code>,
               <code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">companyDomain</code>, and
               <code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">city</code>.
+              Requires a free <strong>overheid.io</strong> API key (register at overheid.io).
               Enable per-tenant via the OpenKvK toggle in each tenant&apos;s Integrations tab.
             </p>
           </div>

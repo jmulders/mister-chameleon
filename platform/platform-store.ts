@@ -266,6 +266,13 @@ export interface PlatformEnrichmentSettings {
    * SERVER ONLY — must never be serialised to the client.
    */
   leadinfoApiKey?: string;
+  /**
+   * overheid.io API key (header: ovio-api-key) for the OpenKvK Dutch company
+   * registry endpoint at api.overheid.io/v3/openkvk.
+   * SERVER ONLY — must never be serialised to the client.
+   * Register for free at https://overheid.io/register.
+   */
+  ovioApiKey?: string;
 }
 
 /**
@@ -1132,6 +1139,9 @@ export async function savePlatformEnrichmentSettings(
   if (patch.leadinfoApiKey !== undefined) {
     normalized.leadinfoApiKey = patch.leadinfoApiKey === "" ? null : patch.leadinfoApiKey;
   }
+  if (patch.ovioApiKey !== undefined) {
+    normalized.ovioApiKey = patch.ovioApiKey === "" ? null : patch.ovioApiKey;
+  }
 
   return writeSection<Record<string, unknown>>(KEYS.enrichment, normalized);
 }
@@ -1141,11 +1151,13 @@ export function enrichmentFlags(settings: PlatformEnrichmentSettings): {
   hasClearbitKey:  boolean;
   hasIpinfoToken:  boolean;
   hasLeadinfoKey:  boolean;
+  hasOvioApiKey:   boolean;
 } {
   return {
     hasClearbitKey:  Boolean(settings.clearbitSecretKey),
     hasIpinfoToken:  Boolean(settings.ipinfoToken),
     hasLeadinfoKey:  Boolean(settings.leadinfoApiKey),
+    hasOvioApiKey:   Boolean(settings.ovioApiKey),
   };
 }
 

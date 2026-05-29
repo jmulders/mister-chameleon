@@ -353,6 +353,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     openKvKMode:                 (platformOpenKvK as { mode?: "off" | "nl-only" | "always" }).mode,
     openKvKConfidenceThreshold:  (platformOpenKvK as { confidenceThreshold?: number }).confidenceThreshold,
     openKvKMatchingStrategy:     (platformOpenKvK as { matchingStrategy?: "networkOrg" | "companyName" | "networkDomain" }).matchingStrategy,
+    ovioApiKey:                  (platformEnrichment as { ovioApiKey?: string }).ovioApiKey || undefined,
     leadinfoApiKey:              (platformEnrichment as { leadinfoApiKey?: string }).leadinfoApiKey || undefined,
     enableLeadinfo:              pipelineEnabled("leadinfo",
                                    tenant?.leadinfo?.enabled ?? false),

@@ -53,6 +53,7 @@ export async function getEnrichmentPlatformSettingsAction(): Promise<
       hasClearbitKey:  boolean;
       hasIpinfoToken:  boolean;
       hasLeadinfoKey:  boolean;
+      hasOvioApiKey:   boolean;
       updatedAt:       string | null;
     }
   | { ok: false; error: string }
@@ -67,6 +68,7 @@ export async function getEnrichmentPlatformSettingsAction(): Promise<
     hasClearbitKey:  flags.hasClearbitKey,
     hasIpinfoToken:  flags.hasIpinfoToken,
     hasLeadinfoKey:  flags.hasLeadinfoKey,
+    hasOvioApiKey:   flags.hasOvioApiKey,
     updatedAt:       result.updatedAt,
   };
 }
@@ -91,6 +93,7 @@ export async function saveEnrichmentPlatformSettingsAction(input: {
   clearbitSecretKey?: string;
   ipinfoToken?:       string;
   leadinfoApiKey?:    string;
+  ovioApiKey?:        string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   // Validate lengths
   for (const [field, raw] of Object.entries(input)) {
@@ -107,11 +110,14 @@ export async function saveEnrichmentPlatformSettingsAction(input: {
     input.ipinfoToken !== undefined ? trimField(input.ipinfoToken) : undefined;
   const leadinfoApiKey =
     input.leadinfoApiKey !== undefined ? trimField(input.leadinfoApiKey) : undefined;
+  const ovioApiKey =
+    input.ovioApiKey !== undefined ? trimField(input.ovioApiKey) : undefined;
 
   const result = await savePlatformEnrichmentSettings({
     clearbitSecretKey,
     ipinfoToken,
     leadinfoApiKey,
+    ovioApiKey,
   });
 
   if (!result.ok) return result;

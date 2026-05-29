@@ -451,6 +451,12 @@ export interface OpenKvKProviderOptions {
    * Default: "https://api.overheid.io"
    */
   apiBase?: string;
+  /**
+   * overheid.io API key sent as the `ovio-api-key` request header.
+   * Required for production use — requests without a key return HTTP 401.
+   * Register for free at https://overheid.io/register.
+   */
+  apiKey?:  string;
   /** Enable verbose debug logging. */
   isDev?:   boolean;
   /**
@@ -470,10 +476,12 @@ export interface OpenKvKProviderOptions {
  */
 export class OpenKvKProvider {
   private readonly apiBase: string;
+  private readonly apiKey:  string | undefined;
   readonly isDev:           boolean;
 
   constructor(options: OpenKvKProviderOptions = {}) {
     this.apiBase = options.apiBase ?? "https://api.overheid.io";
+    this.apiKey  = options.apiKey;
     this.isDev   = options.isDev   ?? false;
   }
 
@@ -510,11 +518,14 @@ export class OpenKvKProvider {
         `&fields[]=actief` +
         `&fields[]=inschrijvingstype`;
 
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (this.apiKey) headers["ovio-api-key"] = this.apiKey;
+
       const response = await fetch(url, {
-        headers: { Accept: "application/json" },
-        signal:  AbortSignal.timeout(4_000),
-        cache:   "no-store",
-        next:    { revalidate: 0 },
+        headers,
+        signal: AbortSignal.timeout(4_000),
+        cache:  "no-store",
+        next:   { revalidate: 0 },
       });
 
       if (!response.ok) {
