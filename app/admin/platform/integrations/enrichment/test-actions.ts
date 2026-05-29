@@ -172,55 +172,97 @@ export async function testOpenKvKConnectionAction(
     };
   }
 
-  /**
-   * Parse the establishment type from an overheid.io slug/link.
-   * e.g. "/v3/openkvk/hoofdvestiging-89830466-…" → "Hoofdvestiging"
-   */
-  function typeFromLink(link: string): string | null {
-    if (link.includes("hoofdvestiging")) return "Hoofdvestiging";
-    if (link.includes("nevenvestiging")) return "Nevenvestiging";
-    if (link.includes("rechtspersoon"))  return "Rechtspersoon";
-    return null;
+  type SuggestResult = {
+    link:    string;
+    kvknummer: number | string;
+    postcode:  string | null;
+    naam:      string | string[];
+  };
+  type FetchResult = { status: number; results: SuggestResult[] | null; source?: string };
+
+  /** Normalise naam to a single display string regardless of API shape. */
+  function toNaamString(naam: string | string[] | null | undefined): string {
+    if (!naam) return "";
+    if (Array.isArray(naam)) return naam[0] ?? "";
+    return naam;
   }
 
-  /** Fetch suggest candidates for a given query. */
-  async function fetchSuggest(q: string): Promise<{
-    status: number;
-    results: Array<{
-      link:             string;
-      kvknummer:        number | string;
-      postcode:         string | null;
-      /** naam may be a string or an array depending on the API response. */
-      naam:             string | string[];
-    }> | null;
-  }> {
+  /** Fetch via the suggest endpoint: GET /v3/suggest/openkvk/{q} */
+  async function fetchSuggest(q: string): Promise<FetchResult> {
     const url = `https://api.overheid.io/v3/suggest/openkvk/${encodeURIComponent(q)}`;
-
     const response = await fetch(url, {
       headers: { Accept: "application/json", "ovio-api-key": ovioApiKey },
       signal:  AbortSignal.timeout(6_000),
       cache:   "no-store",
     });
-
     if (response.status === 401 || response.status === 403) return { status: response.status, results: null };
     if (!response.ok) return { status: response.status, results: null };
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = (await response.json()) as any[];
+    const data = (await response.json()) as any;
     if (!Array.isArray(data)) return { status: 200, results: [] };
-    return { status: 200, results: data };
+    return { status: 200, results: data as SuggestResult[], source: "suggest" };
   }
 
-  /** Normalise naam to string[] regardless of what the API returns. */
-  function toNaamArray(naam: string | string[] | null | undefined): string[] {
-    if (!naam) return [];
-    if (Array.isArray(naam)) return naam;
-    return [naam];
+  /**
+   * Fetch via the list endpoint: GET /v3/openkvk?query={q}&queryfields[]=huidigeHandelsNamen
+   * Fallback when suggest returns 0 results.
+   */
+  async function fetchList(q: string): Promise<FetchResult> {
+    const url =
+      `https://api.overheid.io/v3/openkvk` +
+      `?query=${encodeURIComponent(q)}` +
+      `&queryfields[]=huidigeHandelsNamen`;
+    const response = await fetch(url, {
+      headers: { Accept: "application/json", "ovio-api-key": ovioApiKey },
+      signal:  AbortSignal.timeout(6_000),
+      cache:   "no-store",
+    });
+    if (response.status === 401 || response.status === 403) return { status: response.status, results: null };
+    if (!response.ok) return { status: response.status, results: null };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (await response.json()) as Record<string, any>;
+    type Bedrijf = { naam?: string; kvknummer?: string; bezoeklocatie?: { postcode?: string }; inschrijvingstype?: string };
+    const bedrijven: Bedrijf[] = data._embedded?.bedrijf ?? [];
+    const mapped: SuggestResult[] = bedrijven.map((b) => ({
+      link:      b.inschrijvingstype?.toLowerCase().includes("hoofd") ? "hoofdvestiging" : (b.inschrijvingstype ?? ""),
+      kvknummer: b.kvknummer ?? "",
+      postcode:  b.bezoeklocatie?.postcode ?? null,
+      naam:      b.naam ?? "",
+    }));
+    return { status: 200, results: mapped, source: "list" };
+  }
+
+  /**
+   * Attempt with suffix-stripped fallback.
+   * Returns first attempt that yields results across both endpoints.
+   */
+  async function search(q: string): Promise<{ result: FetchResult; usedQuery: string }> {
+    // 1. Try suggest
+    let r = await fetchSuggest(q);
+    if (r.results === null) return { result: r, usedQuery: q };
+    if (r.results.length > 0) return { result: r, usedQuery: q };
+
+    // 2. Try list endpoint (different Elasticsearch query path)
+    const listR = await fetchList(q);
+    if (listR.results === null) return { result: listR, usedQuery: q };
+    if (listR.results.length > 0) return { result: listR, usedQuery: q };
+
+    // 3. Strip legal suffix and retry suggest + list
+    const stripped = q
+      .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
+      .trim();
+    if (stripped && stripped !== q) {
+      const s2 = await fetchSuggest(stripped);
+      if (s2.results && s2.results.length > 0) return { result: s2, usedQuery: stripped };
+      const l2 = await fetchList(stripped);
+      if (l2.results && l2.results.length > 0) return { result: l2, usedQuery: stripped };
+    }
+
+    return { result: r, usedQuery: q }; // return empty suggest result
   }
 
   try {
-    // First attempt with full query.
-    let attempt = await fetchSuggest(safeQuery);
+    const { result: attempt, usedQuery } = await search(safeQuery);
 
     if (attempt.results === null) {
       return (attempt.status === 401 || attempt.status === 403)
@@ -228,53 +270,42 @@ export async function testOpenKvKConnectionAction(
         : networkError(`API returned HTTP ${attempt.status}`, elapsed(start));
     }
 
-    // Fallback: strip legal suffix (e.g. "STEETS B.V." → "STEETS") and retry.
-    let usedQuery = safeQuery;
-    if (attempt.results.length === 0) {
-      const stripped = safeQuery
-        .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
-        .trim();
-      if (stripped && stripped !== safeQuery) {
-        const retry = await fetchSuggest(stripped);
-        if (retry.results && retry.results.length > 0) {
-          attempt   = retry;
-          usedQuery = stripped;
-        }
-      }
-    }
-
-    const results = attempt.results ?? [];
+    const results = attempt.results;
 
     if (results.length === 0) {
       return {
         ok:        false,
         errorType: "empty",
-        message:   `API is reachable but "${safeQuery}" returned no suggestions from overheid.io. The dataset covers all KvK-registered entities — check that the company name is spelled correctly and is a Dutch entity.`,
+        message:   `API is reachable but "${safeQuery}" returned no results from overheid.io (tried both suggest and list endpoints). Check that the company name is spelled correctly and is a Dutch KvK-registered entity.`,
         latencyMs: elapsed(start),
       };
     }
-
-    // Pick best result: prefer Hoofdvestiging, then first.
-    const top     = results.find((r) => r.link.includes("hoofdvestiging")) ?? results[0];
-    const namen   = toNaamArray(top.naam);
-    const topName = namen[0] ?? null;
 
     // Build display label for the query used.
     const queryLabel = usedQuery !== safeQuery
       ? `${safeQuery} → retried as "${usedQuery}"${safeCity ? ` (city hint: ${safeCity})` : ""}`
       : safeCity ? `${safeQuery} (city hint: ${safeCity})` : safeQuery;
 
+    // Show top-5 names so the user can verify their company is in the list.
+    const top5Names = results
+      .slice(0, 5)
+      .map((r) => toNaamString(r.naam))
+      .filter(Boolean)
+      .join(", ");
+
+    // Top result (prefer Hoofdvestiging).
+    const top = results.find((r) => String(r.link).toLowerCase().includes("hoofdvestiging")) ?? results[0];
+
     return {
       ok:        true,
       latencyMs: elapsed(start),
       fields: [
-        { label: "Query",         value: queryLabel },
-        { label: "Results found", value: String(results.length) },
-        { label: "Top match",     value: topName },
-        { label: "All names",     value: namen.length > 1 ? namen.join(", ") : null },
-        { label: "KvK number",    value: top.kvknummer != null ? String(top.kvknummer) : null },
-        { label: "Postcode",      value: top.postcode ?? null },
-        { label: "Type",          value: typeFromLink(top.link) },
+        { label: "Query",          value: queryLabel },
+        { label: "Results found",  value: String(results.length) },
+        { label: "Top 5 matches",  value: top5Names || null },
+        { label: "KvK number",     value: top.kvknummer != null ? String(top.kvknummer) : null },
+        { label: "Postcode",       value: top.postcode ?? null },
+        { label: "Source",         value: attempt.source ?? null },
       ],
     };
   } catch (err) {
