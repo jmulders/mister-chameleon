@@ -169,14 +169,12 @@ export async function testOpenKvKConnectionAction(
   }
 
   try {
-    // No server-side city filter — bezoeklocatie.plaats is often stored with a
-    // different capitalisation or municipality name than the input, so filtering
-    // server-side frequently returns zero results.  The city is used for display
-    // only; the provider scorer handles city-match weighting at runtime.
+    // No server-side city filter (stored city names may not match exactly).
+    // No queryfields restriction — limiting to huidigeHandelsNamen misses companies
+    // whose legal name includes a suffix like "B.V." that isn't in the trade name.
     const url =
       `https://api.overheid.io/v3/openkvk` +
       `?query=${encodeURIComponent(safeQuery)}` +
-      `&queryfields[]=huidigeHandelsNamen` +
       `&fields[]=bezoeklocatie.plaats` +
       `&fields[]=website` +
       `&fields[]=actief` +

@@ -509,13 +509,14 @@ export class OpenKvKProvider {
     }
 
     try {
-      // Note: no server-side city filter — the scorer awards +15 for city match.
-      // Filtering server-side on bezoeklocatie.plaats misses results because
-      // the stored city name may not exactly match the visitor's city string.
+      // No server-side city filter — the scorer awards +15 for city match.
+      // No queryfields restriction — searching only huidigeHandelsNamen misses
+      // companies whose legal name includes a legal-form suffix (B.V., N.V., etc.)
+      // that isn't part of the trade name.  Omitting queryfields uses the API
+      // default (full-text across naam + handelsnamen).
       const url =
         `${this.apiBase}/v3/openkvk` +
         `?query=${encodeURIComponent(q)}` +
-        `&queryfields[]=huidigeHandelsNamen` +
         `&fields[]=bezoeklocatie.plaats` +
         `&fields[]=website` +
         `&fields[]=actief` +
