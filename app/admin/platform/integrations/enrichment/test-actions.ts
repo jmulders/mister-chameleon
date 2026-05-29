@@ -252,17 +252,24 @@ export async function testOpenKvKConnectionAction(
       return null;
     }
 
-    // Queries to try (with city-combined variant first when city hint given)
-    const queries = safeCity
-      ? [`${q} ${safeCity}`, q, ...(stripped && stripped !== q ? [stripped] : [])]
-      : [q, ...(stripped && stripped !== q ? [stripped] : [])];
+    // Query variants to try (exact, wildcard suffix, city-combined)
+    const baseQueries = [q, ...(stripped && stripped !== q ? [stripped] : [])];
+    const queries: string[] = [];
+    for (const bq of baseQueries) {
+      if (safeCity) queries.push(`${bq} ${safeCity}`);     // "STEETS B.V. Veenendaal"
+      queries.push(bq);                                     // "STEETS B.V."
+      if (!bq.endsWith("*")) queries.push(`${bq}*`);       // "STEETS B.V.*" — wildcard
+    }
 
-    // Queryfield combinations to try per query
+    // Queryfield combinations to try per query.
+    // Docs say API default is "handelsnaam" + "straat"; some versions list
+    // "huidigeHandelsNamen" + "kvknummer". Try all plausible name fields.
     const fieldSets: Array<string[] | undefined> = [
-      undefined,                              // API defaults (huidigeHandelsNamen + kvknummer)
-      ["naam"],                               // primary name field
-      ["naam", "huidigeHandelsNamen"],        // both name fields
-      ["huidigeHandelsNamen"],                // trade names only (explicit)
+      undefined,                                          // API defaults
+      ["handelsnaam"],                                    // explicit trade name field
+      ["naam"],                                           // primary registered name
+      ["naam", "handelsnaam"],                            // both
+      ["naam", "huidigeHandelsNamen"],                    // older API field name
     ];
 
     for (const qry of queries) {

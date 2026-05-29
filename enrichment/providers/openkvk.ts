@@ -543,15 +543,23 @@ export class OpenKvKProvider {
       // (e.g. "STEETS" → "Smeets").  The list endpoint with explicit queryfields
       // runs a phrase/term search and is more precise.
 
-      // Try multiple queryfield combinations — some companies are stored in `naam`
-      // but not in `huidigeHandelsNamen` (the API default), so we probe both.
-      const fieldSets: Array<string[] | undefined> = [
-        undefined,                           // API default (huidigeHandelsNamen + kvknummer)
-        ["naam"],                            // primary name field
-        ["naam", "huidigeHandelsNamen"],     // both
-      ];
+      // Query variants: exact, wildcard suffix, suffix-stripped, stripped wildcard
+      const baseQueries = [q, ...(stripped && stripped !== q ? [stripped] : [])];
+      const queries: string[] = [];
+      for (const bq of baseQueries) {
+        queries.push(bq);
+        if (!bq.endsWith("*")) queries.push(`${bq}*`); // wildcard: "STEETS*"
+      }
 
-      const queries = [q, ...(stripped && stripped !== q ? [stripped] : [])];
+      // Queryfield combinations: try all plausible name fields.
+      // API docs list different defaults in different versions; probe all.
+      const fieldSets: Array<string[] | undefined> = [
+        undefined,                         // API defaults
+        ["handelsnaam"],                   // explicit trade name (some API versions)
+        ["naam"],                          // primary registered name
+        ["naam", "handelsnaam"],           // both
+        ["naam", "huidigeHandelsNamen"],   // older field name
+      ];
 
       let results: OpenKvKResultaat[] = [];
       outer: for (const qry of queries) {
