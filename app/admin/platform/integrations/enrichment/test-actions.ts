@@ -187,11 +187,11 @@ export async function testOpenKvKConnectionAction(
   async function fetchSuggest(q: string): Promise<{
     status: number;
     results: Array<{
-      link:              string;
-      kvknummer:         number;
-      subdossiernummer:  number | null;
-      postcode:          string | null;
-      naam:              string[];
+      link:             string;
+      kvknummer:        number | string;
+      postcode:         string | null;
+      /** naam may be a string or an array depending on the API response. */
+      naam:             string | string[];
     }> | null;
   }> {
     const url = `https://api.overheid.io/v3/suggest/openkvk/${encodeURIComponent(q)}`;
@@ -209,6 +209,13 @@ export async function testOpenKvKConnectionAction(
     const data = (await response.json()) as any[];
     if (!Array.isArray(data)) return { status: 200, results: [] };
     return { status: 200, results: data };
+  }
+
+  /** Normalise naam to string[] regardless of what the API returns. */
+  function toNaamArray(naam: string | string[] | null | undefined): string[] {
+    if (!naam) return [];
+    if (Array.isArray(naam)) return naam;
+    return [naam];
   }
 
   try {
@@ -248,8 +255,9 @@ export async function testOpenKvKConnectionAction(
     }
 
     // Pick best result: prefer Hoofdvestiging, then first.
-    const top = results.find((r) => r.link.includes("hoofdvestiging")) ?? results[0];
-    const topName = top.naam[0] ?? null;
+    const top     = results.find((r) => r.link.includes("hoofdvestiging")) ?? results[0];
+    const namen   = toNaamArray(top.naam);
+    const topName = namen[0] ?? null;
 
     // Build display label for the query used.
     const queryLabel = usedQuery !== safeQuery
@@ -263,7 +271,7 @@ export async function testOpenKvKConnectionAction(
         { label: "Query",         value: queryLabel },
         { label: "Results found", value: String(results.length) },
         { label: "Top match",     value: topName },
-        { label: "All names",     value: top.naam.length > 1 ? top.naam.join(", ") : null },
+        { label: "All names",     value: namen.length > 1 ? namen.join(", ") : null },
         { label: "KvK number",    value: top.kvknummer != null ? String(top.kvknummer) : null },
         { label: "Postcode",      value: top.postcode ?? null },
         { label: "Type",          value: typeFromLink(top.link) },

@@ -111,12 +111,15 @@ interface OpenKvKResultaat {
 interface OpenKvKSuggestItem {
   /** Slug path, e.g. "/v3/openkvk/hoofdvestiging-89830466-blah" */
   link:              string;
-  kvknummer:         number;
+  kvknummer:         number | string;
   subdossiernummer:  number | null;
   vestigingsnummer:  number | null;
   postcode:          string | null;
-  /** Array of trade names (primary name first). */
-  naam:              string[];
+  /**
+   * Trade name(s).  The API may return a single string or an array —
+   * always normalise with `toNaamString()` before use.
+   */
+  naam:              string | string[];
 }
 
 // ── Internal types ────────────────────────────────────────────────────────────
@@ -605,7 +608,7 @@ export class OpenKvKProvider {
     if (!Array.isArray(data)) return [];
 
     return data.map((item): OpenKvKResultaat => ({
-      naam:              item.naam[0],
+      naam:              Array.isArray(item.naam) ? item.naam[0] : (item.naam ?? undefined),
       kvknummer:         String(item.kvknummer),
       inschrijvingstype: item.link.includes("hoofdvestiging")
         ? "Hoofdvestiging"
