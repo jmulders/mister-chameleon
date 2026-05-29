@@ -979,3 +979,103 @@ export async function testGa4HistoryConnectionAction(): Promise<TestConnectionRe
     latencyMs: elapsed(start),
   };
 }
+
+// ── KvK Zoeken ────────────────────────────────────────────────────────────────
+
+/**
+ * Test the official KvK (Kamer van Koophandel) Zoeken API.
+ *
+ * When no API key is configured in the platform store, the free test key
+ * is used automatically with the KvK test base URL.
+ *
+ * Endpoint: GET https://api.kvk.nl/[test/]api/v2/zoeken?naam=ING&resultatenPerPagina=5
+ */
+export async function testKvkZoekenConnectionAction(): Promise<TestConnectionResult> {
+  const start = Date.now();
+
+  // Read kvkApiKey from platform store
+  const enrichmentSettings = await getPlatformEnrichmentSettings();
+  const storedKey = enrichmentSettings.ok
+    ? ((enrichmentSettings.data as Record<string, unknown>).kvkApiKey as string | undefined) ?? ""
+    : "";
+
+  // Fall back to the free test key when nothing is configured
+  const KVK_TEST_KEY = "l7xx1f2691f2520d487b902f4e0b57a0b197";
+  const isTestKey    = !storedKey || storedKey === KVK_TEST_KEY;
+  const apiKey       = storedKey || KVK_TEST_KEY;
+  const apiBase      = isTestKey
+    ? "https://api.kvk.nl/test/api/v2"
+    : "https://api.kvk.nl/api/v2";
+
+  try {
+    const url = new URL(`${apiBase}/zoeken`);
+    url.searchParams.set("naam", "ING");
+    url.searchParams.set("resultatenPerPagina", "5");
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Accept: "application/json",
+        apikey: apiKey,
+      },
+      signal: AbortSignal.timeout(8_000),
+      cache:  "no-store",
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      return authError(response.status, elapsed(start));
+    }
+
+    if (!response.ok) {
+      return networkError(`KvK API returned HTTP ${response.status}`, elapsed(start));
+    }
+
+    type KvkResultaat = {
+      kvkNummer?: string;
+      naam?:      string;
+      type?:      string;
+      adres?: {
+        binnenlandsAdres?: { plaats?: string };
+      };
+    };
+    type KvkResponse = {
+      totaal?:     number;
+      resultaten?: KvkResultaat[];
+    };
+
+    const data = (await response.json()) as KvkResponse;
+    const resultaten = data.resultaten ?? [];
+
+    if (resultaten.length === 0) {
+      return {
+        ok:        false,
+        errorType: "empty",
+        message:   "KvK API is reachable but returned no results for query 'ING'.",
+        latencyMs: elapsed(start),
+      };
+    }
+
+    // Prefer hoofdvestiging as the top result
+    const top = resultaten.find((r) => (r.type ?? "").toLowerCase() === "hoofdvestiging") ?? resultaten[0];
+    const topPlaats = top?.adres?.binnenlandsAdres?.plaats ?? null;
+
+    return {
+      ok:        true,
+      latencyMs: elapsed(start),
+      fields: [
+        { label: "API mode",          value: isTestKey ? "Test key (gratis testomgeving)" : "Production key" },
+        { label: "Resultaten (ING)",  value: String(data.totaal ?? resultaten.length) },
+        { label: "Top match naam",    value: top?.naam ?? null },
+        { label: "Type",              value: top?.type ?? null },
+        { label: "Plaats",            value: topPlaats },
+        { label: "KvK nummer",        value: top?.kvkNummer ?? null },
+      ],
+    };
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return networkError(
+      msg.includes("timeout") ? "Request timed out after 8 s." : msg,
+      elapsed(start),
+    );
+  }
+}

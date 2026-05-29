@@ -273,6 +273,14 @@ export interface PlatformEnrichmentSettings {
    * Register for free at https://overheid.io/register.
    */
   ovioApiKey?: string;
+  /**
+   * Official KvK (Kamer van Koophandel) Zoeken API key for the Dutch company
+   * registry endpoint at api.kvk.nl/api/v2/zoeken.
+   * SERVER ONLY — must never be serialised to the client.
+   * Zoeken queries are free (€0/query); subscription €6.40/month.
+   * Register at https://developers.kvk.nl.
+   */
+  kvkApiKey?: string;
 }
 
 /**
@@ -1142,6 +1150,9 @@ export async function savePlatformEnrichmentSettings(
   if (patch.ovioApiKey !== undefined) {
     normalized.ovioApiKey = patch.ovioApiKey === "" ? null : patch.ovioApiKey;
   }
+  if (patch.kvkApiKey !== undefined) {
+    normalized.kvkApiKey = patch.kvkApiKey === "" ? null : patch.kvkApiKey;
+  }
 
   return writeSection<Record<string, unknown>>(KEYS.enrichment, normalized);
 }
@@ -1152,12 +1163,14 @@ export function enrichmentFlags(settings: PlatformEnrichmentSettings): {
   hasIpinfoToken:  boolean;
   hasLeadinfoKey:  boolean;
   hasOvioApiKey:   boolean;
+  hasKvkApiKey:    boolean;
 } {
   return {
     hasClearbitKey:  Boolean(settings.clearbitSecretKey),
     hasIpinfoToken:  Boolean(settings.ipinfoToken),
     hasLeadinfoKey:  Boolean(settings.leadinfoApiKey),
     hasOvioApiKey:   Boolean(settings.ovioApiKey),
+    hasKvkApiKey:    Boolean(settings.kvkApiKey),
   };
 }
 

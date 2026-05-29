@@ -91,6 +91,7 @@ import type { ReverseGeocodeOptions }          from "./reverse-geocode";
 import { createWeatherStagedEnricher }         from "./weather";
 import { createOpenKvKStagedEnricher }         from "./openkvk";
 import type { OpenKvKMode, OpenKvKMatchingStrategy } from "./openkvk";
+import { createKvkZoekenStagedEnricher }      from "./kvk-zoeken";
 import { createLeadinfoStagedEnricher }        from "./leadinfo";
 import { HubSpotCrmProvider }                  from "./hubspot-crm";
 import {
@@ -159,6 +160,15 @@ export interface CompanyCrmChainOptions {
    * Default: 3 600 000 ms (60 minutes).
    */
   weatherCacheTtlMs?: number;
+
+  // ── KvK Zoeken (official kvk.nl API) ─────────────────────────────────────
+  /**
+   * Official KvK (Kamer van Koophandel) Zoeken API key.
+   * When present, the KvK Zoeken stage is inserted BEFORE OpenKvK in the chain.
+   * When absent, the stage is omitted.
+   * Obtain at https://developers.kvk.nl. Zoeken queries are free (€0/query).
+   */
+  kvkApiKey?: string;
 
   // ── Stage 5: OpenKvK ─────────────────────────────────────────────────────
   /**
@@ -339,6 +349,7 @@ export function buildCompanyCrmChain(
     reverseGeocodeCacheTtlMs,
     enableWeather              = false,
     weatherCacheTtlMs,
+    kvkApiKey,
     enableOpenKvK              = true,
     openKvKMode,
     openKvKConfidenceThreshold,
@@ -473,6 +484,21 @@ export function buildCompanyCrmChain(
         ...(weatherCacheTtlMs !== undefined ? { cacheTtlMs: weatherCacheTtlMs } : {}),
       }),
       stageKey: "weather",
+      wave:     2,
+    });
+  }
+
+  // ── KvK Zoeken (official kvk.nl API)  (wave 2) ───────────────────────────
+  //
+  // Runs BEFORE OpenKvK so that if both are configured, KvK Zoeken (the
+  // official registry) takes precedence.  OpenKvK still runs afterwards and
+  // will fill in fields that KvK Zoeken did not populate.
+  //
+  // Gated on: kvkApiKey present + not a cloud IP + at least one company signal.
+  if (kvkApiKey) {
+    stages.push({
+      ...createKvkZoekenStagedEnricher({ apiKey: kvkApiKey, isDev }),
+      stageKey: "kvk-zoeken",
       wave:     2,
     });
   }

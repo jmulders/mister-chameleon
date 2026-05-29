@@ -34,6 +34,7 @@ import {
   testReverseGeocodeConnectionAction,
   testWeatherConnectionAction,
   testGa4HistoryConnectionAction,
+  testKvkZoekenConnectionAction,
   type TestConnectionResult,
 } from "../test-actions";
 import {
@@ -406,11 +407,12 @@ export interface EnrichmentPlatformClientProps {
   accountId:           string;
   hasLicenseKey:       boolean;
   updatedAt:           string | null;
-  // Clearbit / IPinfo / Leadinfo / overheid.io
+  // Clearbit / IPinfo / Leadinfo / overheid.io / KvK Zoeken
   hasClearbitKey:      boolean;
   hasIpinfoToken:      boolean;
   hasLeadinfoKey:      boolean;
   hasOvioApiKey:       boolean;
+  hasKvkApiKey:        boolean;
   enrichmentUpdatedAt: string | null;
   // OpenKvK
   openKvKMode:                "off" | "nl-only" | "always";
@@ -455,6 +457,7 @@ export function EnrichmentPlatformClient({
   hasIpinfoToken:             initialHasIpinfoToken,
   hasLeadinfoKey:             initialHasLeadinfoKey,
   hasOvioApiKey:              initialHasOvioApiKey,
+  hasKvkApiKey:               initialHasKvkApiKey,
   enrichmentUpdatedAt:        initialEnrichmentUpdatedAt,
   openKvKMode:                initialOpenKvKMode,
   openKvKConfidenceThreshold: initialOpenKvKConfidence,
@@ -498,10 +501,12 @@ export function EnrichmentPlatformClient({
   const [ipinfoToken,  setIpinfoToken]  = useState("");
   const [leadinfoKey,  setLeadinfoKey]  = useState("");
   const [ovioKey,      setOvioKey]      = useState("");
+  const [kvkKey,       setKvkKey]       = useState("");
   const [hasClearbit,  setHasClearbit]  = useState(initialHasClearbitKey);
   const [hasIpinfo,    setHasIpinfo]    = useState(initialHasIpinfoToken);
   const [hasLeadinfo,  setHasLeadinfo]  = useState(initialHasLeadinfoKey);
   const [hasOvio,      setHasOvio]      = useState(initialHasOvioApiKey);
+  const [hasKvk,       setHasKvk]       = useState(initialHasKvkApiKey);
   const [enrichUpdatedAt, setEnrichUpdatedAt] = useState<string | null>(initialEnrichmentUpdatedAt);
   const [enrichSaveState, setEnrichSaveState] = useState<SaveState>({ mode: "idle" });
   const [enrichPending, startEnrichTransition] = useTransition();
@@ -509,6 +514,8 @@ export function EnrichmentPlatformClient({
   const [ipinfoTestPending, startIpinfoTestTransition] = useTransition();
   const [leadinfoTestState, setLeadinfoTestState] = useState<TestState>({ mode: "idle" });
   const [leadinfoTestPending, startLeadinfoTestTransition] = useTransition();
+  const [kvkTestState,     setKvkTestState]     = useState<TestState>({ mode: "idle" });
+  const [kvkTestPending,   startKvkTestTransition] = useTransition();
 
   // ── OpenKvK state ───────────────────────────────────────────────────────────
   const [openKvKMode,       setOpenKvKMode]       = useState<"off" | "nl-only" | "always">(initialOpenKvKMode);
@@ -637,15 +644,18 @@ export function EnrichmentPlatformClient({
         ipinfoToken:       ipinfoToken || undefined,
         leadinfoApiKey:    leadinfoKey || undefined,
         ovioApiKey:        ovioKey     || undefined,
+        kvkApiKey:         kvkKey      || undefined,
       });
       if (result.ok) {
         if (clearbitKey) setHasClearbit(true);
         if (ipinfoToken) setHasIpinfo(true);
         if (leadinfoKey) setHasLeadinfo(true);
         if (ovioKey)     setHasOvio(true);
+        if (kvkKey)      setHasKvk(true);
         setClearbitKey("");
         setIpinfoToken("");
         setLeadinfoKey("");
+        setKvkKey("");
         setEnrichUpdatedAt(new Date().toISOString());
         setEnrichSaveState({ mode: "success" });
       } else {
@@ -697,6 +707,14 @@ export function EnrichmentPlatformClient({
       setLeadinfoTestState({ mode: "testing" });
       const result = await testLeadinfoConnectionAction();
       setLeadinfoTestState({ mode: "done", result });
+    });
+  }
+
+  function handleTestKvk() {
+    startKvkTestTransition(async () => {
+      setKvkTestState({ mode: "testing" });
+      const result = await testKvkZoekenConnectionAction();
+      setKvkTestState({ mode: "done", result });
     });
   }
 
@@ -796,16 +814,18 @@ export function EnrichmentPlatformClient({
       setMmTestState({ mode: "testing" });
       setIpinfoTestState({ mode: "testing" });
       setLeadinfoTestState({ mode: "testing" });
+      setKvkTestState({ mode: "testing" });
       setOpenKvKTestState({ mode: "testing" });
       setNagerTestState({ mode: "testing" });
       setRgTestState({ mode: "testing" });
       setWxTestState({ mode: "testing" });
 
       // Run all in parallel
-      const [mm, ipinfo, leadinfo, openkvk, nager, rg, wx] = await Promise.all([
+      const [mm, ipinfo, leadinfo, kvk, openkvk, nager, rg, wx] = await Promise.all([
         testMaxMindConnectionAction(),
         testIpinfoConnectionAction(),
         testLeadinfoConnectionAction(),
+        testKvkZoekenConnectionAction(),
         testOpenKvKConnectionAction(openKvKTestQuery || "ING", openKvKTestCity || undefined),
         testNagerDateConnectionAction(),
         testReverseGeocodeConnectionAction(),
@@ -815,6 +835,7 @@ export function EnrichmentPlatformClient({
       setMmTestState({ mode: "done", result: mm });
       setIpinfoTestState({ mode: "done", result: ipinfo });
       setLeadinfoTestState({ mode: "done", result: leadinfo });
+      setKvkTestState({ mode: "done", result: kvk });
       setOpenKvKTestState({ mode: "done", result: openkvk });
       setNagerTestState({ mode: "done", result: nager });
       setRgTestState({ mode: "done", result: rg });
@@ -1021,6 +1042,53 @@ export function EnrichmentPlatformClient({
           <TestButton isTesting={leadinfoTestPending || leadinfoTestState.mode === "testing"} onTest={handleTestLeadinfo} />
         </CardFooter>
         <TestResultPanel state={leadinfoTestState} onDismiss={() => setLeadinfoTestState({ mode: "idle" })} />
+      </div>
+
+      {/* ── Officiële KvK API (kvk.nl) ────────────────────────────────────── */}
+      <div className="rounded-lg border border-neutral-200 bg-white p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="mb-0.5 flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold text-neutral-900">Officiële KvK API (kvk.nl)</h2>
+              <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                hasKvk ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-700"
+              }`}>
+                {hasKvk ? "✓ Geconfigureerd" : "API-sleutel vereist"}
+              </span>
+            </div>
+            <p className="text-xs text-neutral-500">
+              Officiële Kamer van Koophandel Zoeken API (<code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">api.kvk.nl/api/v2/zoeken</code>).
+              Zoeken is gratis (€0/query). Abonnement €6,40/maand.
+              Registreer via{" "}
+              <a href="https://developers.kvk.nl" target="_blank" rel="noreferrer" className="underline hover:text-neutral-700">developers.kvk.nl</a>.
+            </p>
+          </div>
+          {enrichUpdatedAt && (
+            <span className="shrink-0 text-[11px] text-neutral-400">
+              Last saved: {formatDate(enrichUpdatedAt)}
+            </span>
+          )}
+        </div>
+
+        <SecretField
+          label="KvK API-sleutel"
+          value={kvkKey}
+          onChange={setKvkKey}
+          hasExisting={hasKvk}
+          placeholder="l7xx••••••••••••••••••••••••••••••••"
+          hint="Verzonden als de apikey header. Gratis testsleutel beschikbaar op developers.kvk.nl."
+        />
+
+        <CardFooter>
+          <SaveFooter
+            isPending={enrichPending}
+            saveState={enrichSaveState}
+            onSave={handleEnrichSave}
+            onDismiss={() => setEnrichSaveState({ mode: "idle" })}
+          />
+          <TestButton isTesting={kvkTestPending || kvkTestState.mode === "testing"} onTest={handleTestKvk} />
+        </CardFooter>
+        <TestResultPanel state={kvkTestState} onDismiss={() => setKvkTestState({ mode: "idle" })} />
       </div>
 
       {/* ── overheid.io (OpenKvK API key) ─────────────────────────────────── */}

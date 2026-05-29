@@ -140,6 +140,8 @@ export default async function IntegrationsEnrichmentPage() {
         hasLeadinfoKey={enrichmentResult.ok ? enrichmentResult.hasLeadinfoKey : false}
         // overheid.io (OpenKvK)
         hasOvioApiKey={enrichmentResult.ok ? enrichmentResult.hasOvioApiKey : false}
+        // KvK Zoeken (officieel kvk.nl)
+        hasKvkApiKey={enrichmentResult.ok ? enrichmentResult.hasKvkApiKey : false}
         enrichmentUpdatedAt={enrichmentResult.ok ? enrichmentResult.updatedAt : null}
         // OpenKvK
         openKvKMode={openKvKResult.ok ? openKvKResult.mode : "off"}
