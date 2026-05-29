@@ -56,6 +56,16 @@ import { tenantThemeToVarsRecord }   from "@/design-system/theme";
 const STORYBOOK_URL =
   process.env.NEXT_PUBLIC_STORYBOOK_URL ?? "http://localhost:6006";
 
+/**
+ * Only attempt to load Storybook iframes when a real (non-localhost) URL is
+ * configured.  Without this guard, browsers that enforce Local Network access
+ * permissions (Safari on iOS/macOS) show a permission dialog on every page
+ * load when NEXT_PUBLIC_STORYBOOK_URL is unset in production.
+ */
+const STORYBOOK_ENABLED =
+  !STORYBOOK_URL.includes("localhost") &&
+  !STORYBOOK_URL.includes("127.0.0.1");
+
 /** Natural iframe dimensions the Storybook story renders at. */
 const IFRAME_W = 1280;
 const IFRAME_H = 900;
@@ -329,7 +339,7 @@ export function PresetPreviewViewer({
         <MiniPreview presetKey={presetKey} height={height} />
 
         {/* Storybook iframe — overlaid per active page, lazy-mounted */}
-        {activePage && (
+        {STORYBOOK_ENABLED && activePage && (
           // Key on the storyId so React unmounts/remounts when the active tab changes.
           // This forces the new story to load fresh rather than reusing a stale iframe.
           <IframeLayer

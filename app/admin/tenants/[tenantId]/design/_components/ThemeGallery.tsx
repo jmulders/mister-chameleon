@@ -65,6 +65,16 @@ import {
 const STORYBOOK_URL =
   process.env.NEXT_PUBLIC_STORYBOOK_URL ?? "http://localhost:6006";
 
+/**
+ * Only attempt to load Storybook iframes when a real (non-localhost) URL is
+ * configured.  Without this guard, browsers that enforce Local Network access
+ * permissions (Safari on iOS/macOS) show a permission dialog on every page
+ * load when NEXT_PUBLIC_STORYBOOK_URL is unset in production.
+ */
+const STORYBOOK_ENABLED =
+  !STORYBOOK_URL.includes("localhost") &&
+  !STORYBOOK_URL.includes("127.0.0.1");
+
 /** Natural iframe dimensions that the Storybook story renders at. */
 const IFRAME_W = 1280;
 const IFRAME_H = 900;
@@ -397,7 +407,7 @@ function ThemeThumbnail({ presetKey, label }: ThemeThumbnailProps) {
       <MiniPreview presetKey={presetKey} />
 
       {/* Storybook iframe — layered on top, fades in when loaded */}
-      {!iframeErrored && (
+      {STORYBOOK_ENABLED && !iframeErrored && (
         <div
           style={{
             position:   "absolute",

@@ -4,8 +4,10 @@
  * System Operations — the single place to run, trigger, or understand:
  *
  *   • Backup          — interactive create + version history with rollback
- *   • Build pipeline  — staging, production, hotfix, rollback flows
+ *   • Build pipeline  — production deploy, hotfix, rollback flows
  *   • Environments    — what each environment is and how to deploy to it
+ *
+ * Two environments: local dev (laptop) and production (Vercel).
  *
  * The Backup section is an interactive client component backed by
  * /api/admin/backup (POST = create, GET = list) and
@@ -133,22 +135,15 @@ export default async function SystemPage() {
               <tbody>
                 <EnvRow
                   env="Development"
-                  branch="any feature branch"
+                  branch="any branch"
                   url="localhost:3000"
-                  db="Shared dev project"
-                  stripe="Test mode"
-                />
-                <EnvRow
-                  env="Staging"
-                  branch="develop"
-                  url="staging.misterchameleon.com"
-                  db="Staging project"
+                  db="Dev project"
                   stripe="Test mode"
                 />
                 <EnvRow
                   env="Production"
                   branch="main"
-                  url="misterchameleon.com"
+                  url="project-w9ql1.vercel.app"
                   db="Production project"
                   stripe="Live mode"
                 />
@@ -157,10 +152,9 @@ export default async function SystemPage() {
           </div>
 
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
-            Environment variable templates:{" "}
-            <code className="font-mono text-xs">.env.local.example</code> (dev) ·{" "}
-            <code className="font-mono text-xs">.env.staging.example</code> (staging) ·{" "}
-            <code className="font-mono text-xs">.env.production.example</code> (production)
+            Environment variable template:{" "}
+            <code className="font-mono text-xs">.env.local.example</code> — copy to <code className="font-mono text-xs">.env.local</code> for local dev.
+            Production variables are set in <strong>Vercel → Settings → Environment Variables</strong>.
           </div>
         </div>
       </Section>
@@ -169,48 +163,19 @@ export default async function SystemPage() {
       <Section title="Build Pipeline">
         <div className="space-y-6">
 
-          {/* Staging */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="rounded bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700">STAGING</span>
-              <span className="text-sm text-neutral-600">Auto-deploys on every push to <code className="font-mono text-xs">develop</code></span>
-            </div>
-            <div className="space-y-2">
-              <Step n={1}>
-                Push to <code className="font-mono text-xs">develop</code> (or merge a PR into it):
-                <CodeBlock>{`git push origin develop`}</CodeBlock>
-              </Step>
-              <Step n={2}>GitHub Actions: CI → Migrations → Vercel deploy → health check</Step>
-              <Step n={3}>Staging URL aliases to <strong>staging.misterchameleon.com</strong> automatically</Step>
-            </div>
-            <WorkflowButton
-              workflow="staging.yml"
-              branch="develop"
-              className="inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 disabled:opacity-60"
-            >
-              <GitHubIcon />
-              Deploy to staging
-            </WorkflowButton>
-          </div>
-
-          <div className="border-t border-neutral-100" />
-
           {/* Production */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="rounded bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">PRODUCTION</span>
-              <span className="text-sm text-neutral-600">Merge to <code className="font-mono text-xs">main</code> + manual approval gate</span>
+              <span className="text-sm text-neutral-600">Push to <code className="font-mono text-xs">main</code> → Vercel auto-deploys</span>
             </div>
             <div className="space-y-2">
               <Step n={1}>
-                Open a PR from <code className="font-mono text-xs">develop</code> → <code className="font-mono text-xs">main</code> with code owner approval:
-                <CodeBlock>{`gh pr create --base main --head develop --title "Release vX.Y.Z"`}</CodeBlock>
+                Commit en push naar <code className="font-mono text-xs">main</code>:
+                <CodeBlock>{`git push origin main`}</CodeBlock>
               </Step>
-              <Step n={2}>After merge: GitHub Actions runs CI, then pauses for <strong>manual approval</strong> in the production environment gate</Step>
-              <Step n={3}>After approval: Migrations → Vercel production deploy → health check → GitHub release tag created automatically</Step>
-            </div>
-            <div className="rounded-lg border border-neutral-100 bg-neutral-50 px-4 py-3 text-xs text-neutral-600">
-              Manual approval gate: <strong>GitHub → Settings → Environments → production → Required reviewers</strong>
+              <Step n={2}>GitHub Actions draait CI (lint + typecheck). Bij success deployt Vercel automatisch naar productie.</Step>
+              <Step n={3}>Of trigger handmatig via de knop hieronder (handig na een config-wijziging zonder code).</Step>
             </div>
             <WorkflowButton
               workflow="production.yml"
@@ -228,16 +193,15 @@ export default async function SystemPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="rounded bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700">HOTFIX</span>
-              <span className="text-sm text-neutral-600">Critical fix that requires a code change</span>
+              <span className="text-sm text-neutral-600">Urgente fix via aparte branch</span>
             </div>
             <div className="space-y-2">
-              <Step n={1}><CodeBlock>{`git checkout -b hotfix/fix-description main`}</CodeBlock></Step>
-              <Step n={2}>Apply minimal, focused fix. Push branch — CI runs automatically via hotfix workflow.</Step>
-              <Step n={3}>Open PR → <code className="font-mono text-xs">main</code>. After merge, production workflow deploys automatically.</Step>
-              <Step n={4}>
-                Cherry-pick back to <code className="font-mono text-xs">develop</code>:
-                <CodeBlock>{`git checkout develop\ngit cherry-pick <commit-sha>`}</CodeBlock>
+              <Step n={1}>
+                Maak een hotfix-branch vanaf <code className="font-mono text-xs">main</code>:
+                <CodeBlock>{`git checkout -b hotfix/omschrijving main`}</CodeBlock>
               </Step>
+              <Step n={2}>Pas de minimale fix toe en push. CI draait automatisch.</Step>
+              <Step n={3}>Open een PR naar <code className="font-mono text-xs">main</code> en merge. Vercel deployt automatisch.</Step>
             </div>
             <Link
               href="https://github.com/jmulders/mister-chameleon/actions/workflows/hotfix.yml"
@@ -290,10 +254,10 @@ export default async function SystemPage() {
           {[
             { label: "Create a backup",          value: "System page → Backup → Create Backup button" },
             { label: "Restore a backup",         value: "System page → Backup → ↩ Restore on any version" },
-            { label: "Deploy to staging",        value: "push to develop (or PR merge)" },
-            { label: "Deploy to production",     value: "PR to main → GitHub approval gate" },
+            { label: "Deploy to production",     value: "git push origin main (Vercel auto-deploys)" },
+            { label: "Manual deploy trigger",    value: "System page → Build Pipeline → Deploy to production" },
             { label: "Emergency hotfix",         value: "hotfix/* branch → PR → main" },
-            { label: "Rollback production",      value: "GitHub Actions → Rollback → Run workflow" },
+            { label: "Rollback production",      value: "System page → Rollback (of Vercel dashboard)" },
             { label: "DB point-in-time restore", value: "Supabase Dashboard → Database → Backups" },
             { label: "View deploy history",      value: "vercel.com → project → Deployments" },
           ].map(({ label, value }) => (
