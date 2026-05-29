@@ -715,6 +715,7 @@ const KEYS = {
   stripe:          "stripe",
   storage:         "storage",
   contentBudget:   "content_budget",
+  googleCalendar:  "google-calendar",
 } as const;
 
 // ── Generic read / write ───────────────────────────────────────────────────────
@@ -1803,4 +1804,104 @@ export async function savePlatformContentBudgetSettings(
     conversionMax: clamp(input.conversionMax),
   };
   return writeSection<Record<string, unknown>>(KEYS.contentBudget, patch as Record<string, unknown>);
+}
+
+// ── Google Calendar ────────────────────────────────────────────────────────────
+
+/**
+ * Platform-wide Google Calendar integration settings for demo booking.
+ *
+ * Uses a Service Account (not OAuth2) — credentials come from the JSON key
+ * file downloaded from Google Cloud Console.
+ *
+ * ─── Resolution order at runtime ─────────────────────────────────────────────
+ *
+ *   1. platform_settings DB  (this store)       — highest priority
+ *   2. Env vars              (GOOGLE_SERVICE_ACCOUNT_EMAIL etc.) — legacy fallback
+ *
+ * ─── Secret handling ──────────────────────────────────────────────────────────
+ *
+ *   `serviceAccountPrivateKey` is SERVER ONLY — encrypted at rest.
+ *   Use `googleCalendarFlags()` for safe client-facing status.
+ */
+export interface PlatformGoogleCalendarSettings {
+  /**
+   * Service account email from Google Cloud Console.
+   * e.g. demo-booking@my-project.iam.gserviceaccount.com
+   * Non-secret — safe to show in the UI.
+   */
+  serviceAccountEmail?: string;
+  /**
+   * RSA private key PEM string from the service account JSON.
+   * SERVER ONLY — encrypted at rest, never returned to the client.
+   */
+  serviceAccountPrivateKey?: string;
+  /**
+   * Google Calendar ID to check for availability.
+   * Usually the service account owner's email address.
+   * Non-secret — safe to show in the UI.
+   */
+  calendarId?: string;
+  /**
+   * IANA timezone string for slot generation.
+   * Default: "Europe/Amsterdam"
+   */
+  bookingTimezone?: string;
+  /**
+   * First available slot hour (inclusive, 24h). Default: 9
+   */
+  bookingHoursStart?: number;
+  /**
+   * Last slot hour (exclusive, 24h). Default: 17
+   * e.g. 17 = slots up to 16:30 are shown.
+   */
+  bookingHoursEnd?: number;
+}
+
+export async function getPlatformGoogleCalendarSettings(): Promise<SettingsResult<PlatformGoogleCalendarSettings>> {
+  return readSection<PlatformGoogleCalendarSettings>(KEYS.googleCalendar);
+}
+
+export async function savePlatformGoogleCalendarSettings(
+  patch: PlatformGoogleCalendarSettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { encryptSecret } = await import("@/lib/email-crypto");
+
+  const normalized: Record<string, unknown> = {};
+
+  if (patch.serviceAccountEmail  !== undefined) normalized.serviceAccountEmail  = patch.serviceAccountEmail  || null;
+  if (patch.calendarId           !== undefined) normalized.calendarId           = patch.calendarId           || null;
+  if (patch.bookingTimezone      !== undefined) normalized.bookingTimezone      = patch.bookingTimezone      || null;
+  if (patch.bookingHoursStart    !== undefined) normalized.bookingHoursStart    = patch.bookingHoursStart;
+  if (patch.bookingHoursEnd      !== undefined) normalized.bookingHoursEnd      = patch.bookingHoursEnd;
+
+  // Empty string = clear; non-empty = encrypt and store.
+  if (patch.serviceAccountPrivateKey !== undefined) {
+    normalized.serviceAccountPrivateKey = patch.serviceAccountPrivateKey
+      ? encryptSecret(patch.serviceAccountPrivateKey)
+      : null;
+  }
+
+  return writeSection<Record<string, unknown>>(KEYS.googleCalendar, normalized);
+}
+
+/** Safe flags for client components — private key replaced with boolean. */
+export function googleCalendarFlags(s: PlatformGoogleCalendarSettings): {
+  serviceAccountEmail:  string;
+  hasPrivateKey:        boolean;
+  calendarId:           string;
+  bookingTimezone:      string;
+  bookingHoursStart:    number;
+  bookingHoursEnd:      number;
+  isConfigured:         boolean;
+} {
+  return {
+    serviceAccountEmail: s.serviceAccountEmail ?? "",
+    hasPrivateKey:       Boolean(s.serviceAccountPrivateKey),
+    calendarId:          s.calendarId          ?? "",
+    bookingTimezone:     s.bookingTimezone      ?? "Europe/Amsterdam",
+    bookingHoursStart:   s.bookingHoursStart    ?? 9,
+    bookingHoursEnd:     s.bookingHoursEnd      ?? 17,
+    isConfigured:        Boolean(s.serviceAccountEmail && s.serviceAccountPrivateKey && s.calendarId),
+  };
 }

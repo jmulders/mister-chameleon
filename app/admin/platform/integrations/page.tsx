@@ -32,6 +32,7 @@ import { getCrmPlatformSettingsAction }           from "@/app/admin/platform/crm
 import { getPlatformEmailAction }                 from "@/app/admin/platform/integrations/email/actions";
 import { getStripePlatformSettingsAction }        from "@/app/admin/platform/integrations/stripe/actions";
 import { getStorageSettingsAction }               from "@/app/admin/platform/integrations/storage/actions";
+import { getGoogleCalendarSettingsAction }        from "@/app/admin/platform/integrations/calendar/actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ const BADGE_CLASSES = {
 
 export default async function IntegrationsHubPage() {
   // Fetch all integration statuses in parallel.
-  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult] =
+  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult, calendarResult] =
     await Promise.all([
       getPlatformSettingsAction(),
       getCmsPlatformSettingsAction(),
@@ -84,6 +85,7 @@ export default async function IntegrationsHubPage() {
       getPlatformEmailAction(),
       getStripePlatformSettingsAction(),
       getStorageSettingsAction(),
+      getGoogleCalendarSettingsAction(),
     ]);
 
   // Determine CMS configured state: any provider with credentials counts.
@@ -166,6 +168,13 @@ export default async function IntegrationsHubPage() {
         : [{ label: "Sanity · Supabase · R2", variant: "neutral" as const }],
       href:        "/admin/platform/integrations/storage",
       configured:  storageResult.ok,
+    },
+    {
+      name:        "Google Calendar",
+      description: "Service Account credentials voor de /book-demo pagina. Checkt je agenda op bezette tijden en toont alleen vrije slots.",
+      providers:   [{ label: "Google Calendar", variant: "blue" as const }],
+      href:        "/admin/platform/integrations/calendar",
+      configured:  calendarResult.ok && calendarResult.config.isConfigured,
     },
   ];
 

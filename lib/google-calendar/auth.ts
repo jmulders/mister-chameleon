@@ -12,15 +12,10 @@
  *     3. Google returns a short-lived access token (1 hour).
  *     4. The access token is cached in memory and refreshed automatically.
  *
- * ─── Required env vars ────────────────────────────────────────────────────────
+ * ─── Credential resolution order ──────────────────────────────────────────────
  *
- *   GOOGLE_SERVICE_ACCOUNT_EMAIL   The service account email from Google Cloud.
- *                                  e.g. demo-booking@my-project.iam.gserviceaccount.com
- *
- *   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
- *                                  The RSA private key from the service account JSON.
- *                                  Paste the full PEM string with literal \n chars,
- *                                  e.g. "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"
+ *   1. platform_settings DB  (Admin → Platform → Integrations → Calendar)
+ *   2. Env vars              (GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY)
  *
  * ─── Setup instructions ───────────────────────────────────────────────────────
  *
@@ -35,14 +30,12 @@
  *        Click the service account → Keys → Add Key → Create new key → JSON
  *        Download the JSON file.
  *   6. From the JSON file, copy:
- *        "client_email"  → GOOGLE_SERVICE_ACCOUNT_EMAIL
- *        "private_key"   → GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+ *        "client_email"  → service account email
+ *        "private_key"   → private key PEM
  *   7. Share your Google Calendar with the service account email:
  *        Open Google Calendar → Settings → [Your calendar] → Share
- *        Add the service account email with "Make changes to events" permission.
- *   8. Find your calendar ID:
- *        Google Calendar → Settings → [Your calendar] → Calendar ID
- *        Copy it into GOOGLE_CALENDAR_ID in .env.local.
+ *        Add the service account email with "See all event details" permission.
+ *   8. Configure in Admin → Platform → Integrations → Calendar.
  */
 
 import "server-only";
@@ -63,6 +56,10 @@ let _tokenCache: CachedToken | null = null;
 /**
  * Returns a valid Google API access token, using a cached one when available
  * and fetching a fresh one otherwise.
+ *
+ * Credentials are resolved in order:
+ *   1. platform_settings DB  (Admin → Integrations → Calendar)
+ *   2. GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY env vars
  */
 export async function getGoogleAccessToken(): Promise<string> {
   const now = Date.now();
@@ -72,20 +69,45 @@ export async function getGoogleAccessToken(): Promise<string> {
     return _tokenCache.accessToken;
   }
 
-  const email      = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const { email, privateKey } = await resolveCredentials();
 
   if (!email || !privateKey) {
     throw new Error(
       "Google Calendar is not configured. " +
-      "Set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY in .env.local. " +
-      "See lib/google-calendar/auth.ts for setup instructions.",
+      "Set the service account credentials in Admin → Platform → Integrations → Calendar, " +
+      "or set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY in your env vars.",
     );
   }
 
   const token = await fetchServiceAccountToken(email, privateKey);
   _tokenCache = token;
   return token.accessToken;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal: credential resolution (DB first, env fallback)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function resolveCredentials(): Promise<{ email: string | undefined; privateKey: string | undefined }> {
+  try {
+    const { getPlatformGoogleCalendarSettings } = await import("@/platform/platform-store");
+    const { decryptSecret }                     = await import("@/lib/email-crypto");
+
+    const result = await getPlatformGoogleCalendarSettings();
+    if (result.ok && result.data.serviceAccountEmail && result.data.serviceAccountPrivateKey) {
+      return {
+        email:      result.data.serviceAccountEmail,
+        privateKey: decryptSecret(result.data.serviceAccountPrivateKey),
+      };
+    }
+  } catch {
+    // DB not available or not configured — fall through to env vars
+  }
+
+  return {
+    email:      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    privateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -167,7 +189,7 @@ function base64urlBytes(buffer: ArrayBuffer): string {
 /** Sign a string with an RSA private key (PEM) using RS256. */
 async function signRS256(input: string, privateKeyPem: string): Promise<string> {
   // Robust PEM parser — handles all common formats:
-  //   • Literal \n (two chars, backslash-n) from Vercel / .env files
+  //   • Literal \n (two chars, backslash-n) from Vercel / .env files without quotes
   //   • Real newlines from dotenv-parsed values
   //   • Windows line endings (\r\n)
   //   • Surrounding quotes accidentally included in the value
@@ -177,7 +199,7 @@ async function signRS256(input: string, privateKeyPem: string): Promise<string> 
 
   // Split on line breaks only (NOT spaces — the header "-----BEGIN PRIVATE KEY-----"
   // contains spaces and would otherwise split into "KEY-----" which pollutes the base64).
-  // Filter out any line that starts with a dash (PEM header/footer lines).
+  // Filter out any line starting with a dash (PEM header/footer lines).
   const pemContents = normalised
     .split(/\r?\n|\r/)
     .map((l) => l.trim())
