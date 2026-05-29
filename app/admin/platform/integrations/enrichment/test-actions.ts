@@ -169,8 +169,11 @@ export async function testOpenKvKConnectionAction(
   }
 
   try {
-    // Build URL: append city filter only when provided.
-    let url =
+    // No server-side city filter — bezoeklocatie.plaats is often stored with a
+    // different capitalisation or municipality name than the input, so filtering
+    // server-side frequently returns zero results.  The city is used for display
+    // only; the provider scorer handles city-match weighting at runtime.
+    const url =
       `https://api.overheid.io/v3/openkvk` +
       `?query=${encodeURIComponent(safeQuery)}` +
       `&queryfields[]=huidigeHandelsNamen` +
@@ -178,7 +181,6 @@ export async function testOpenKvKConnectionAction(
       `&fields[]=website` +
       `&fields[]=actief` +
       `&fields[]=inschrijvingstype`;
-    if (safeCity) url += `&filters[bezoeklocatie.plaats]=${encodeURIComponent(safeCity)}`;
 
     const response = await fetch(url, {
       headers: {
@@ -220,11 +222,15 @@ export async function testOpenKvKConnectionAction(
       };
     }
 
-    // Prefer Hoofdvestiging (main branch); fall back to first result.
-    const top = results.find((r) => r.inschrijvingstype === "Hoofdvestiging") ?? results[0];
+    // Prefer city match when a city was supplied, then Hoofdvestiging, then first result.
+    const top = (
+      safeCity
+        ? results.find((r) => r.bezoeklocatie?.plaats?.toLowerCase() === safeCity.toLowerCase())
+        : undefined
+    ) ?? results.find((r) => r.inschrijvingstype === "Hoofdvestiging") ?? results[0];
 
     // Build display label for the query used.
-    const queryLabel = safeCity ? `${safeQuery} (city: ${safeCity})` : safeQuery;
+    const queryLabel = safeCity ? `${safeQuery} (city filter: ${safeCity})` : safeQuery;
 
     return {
       ok:       true,

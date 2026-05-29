@@ -509,6 +509,9 @@ export class OpenKvKProvider {
     }
 
     try {
+      // Note: no server-side city filter — the scorer awards +15 for city match.
+      // Filtering server-side on bezoeklocatie.plaats misses results because
+      // the stored city name may not exactly match the visitor's city string.
       const url =
         `${this.apiBase}/v3/openkvk` +
         `?query=${encodeURIComponent(q)}` +
