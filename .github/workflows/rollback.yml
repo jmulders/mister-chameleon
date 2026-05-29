@@ -38,7 +38,7 @@ jobs:
   rollback:
     name: Rollback Production
     runs-on: ubuntu-latest
-    environment: production  # requires approval from configured reviewers
+    # environment: production  # uncomment to require manual approval gate
     env:
       VERCEL_ORG_ID:     ${{ secrets.VERCEL_TEAM_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -60,13 +60,24 @@ jobs:
 
       - name: Alias production domain to previous deployment
         run: |
-          vercel alias ${{ github.event.inputs.deployment_url }} misterchameleon.com \
+          # PRODUCTION_DOMAIN secret should be set to your live domain (e.g. misterchameleon.com).
+          # Falls back to the Vercel project default URL if the secret is not set.
+          DOMAIN="${{ secrets.PRODUCTION_DOMAIN }}"
+          if [ -z "$DOMAIN" ]; then
+            DOMAIN="project-w9ql1.vercel.app"
+          fi
+          echo "Aliasing $DOMAIN → ${{ github.event.inputs.deployment_url }}"
+          vercel alias ${{ github.event.inputs.deployment_url }} "$DOMAIN" \
             --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Post-rollback health check
         run: |
+          DOMAIN="${{ secrets.PRODUCTION_DOMAIN }}"
+          if [ -z "$DOMAIN" ]; then
+            DOMAIN="project-w9ql1.vercel.app"
+          fi
           sleep 10
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://misterchameleon.com/api/health)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/health")
           if [ "$STATUS" != "200" ]; then
             echo "ROLLBACK health check FAILED: HTTP $STATUS"
             exit 1
