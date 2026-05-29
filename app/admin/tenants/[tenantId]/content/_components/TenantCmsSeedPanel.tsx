@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 /**
@@ -31,8 +33,6 @@ import Link from "next/link";
  *   The seed actions automatically rebuild the tenant nav from the seeded
  *   site-settings document.  No separate "Reset navigation" step is required.
  */
-
-"use client";
 
 import { useState, useTransition }               from "react";
 import { seedTenantSanityAction, seedTenantStoryblokAction } from "../seed-actions";
