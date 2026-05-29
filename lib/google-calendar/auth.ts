@@ -166,8 +166,11 @@ function base64urlBytes(buffer: ArrayBuffer): string {
 
 /** Sign a string with an RSA private key (PEM) using RS256. */
 async function signRS256(input: string, privateKeyPem: string): Promise<string> {
-  // Strip PEM headers/footers and whitespace to get raw base64
+  // Strip PEM headers/footers and whitespace to get raw base64.
+  // Also normalise literal \n (backslash-n, two characters) that Vercel env vars
+  // sometimes contain when a multi-line value is pasted as a single-line string.
   const pemContents = privateKeyPem
+    .replace(/\\n/g, "\n")          // literal \n → real newline
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
     .replace(/\s+/g, "");
