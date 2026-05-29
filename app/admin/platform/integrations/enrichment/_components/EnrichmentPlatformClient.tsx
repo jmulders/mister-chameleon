@@ -1011,15 +1011,6 @@ export function EnrichmentPlatformClient({
           hint="Found at app.leadinfo.com → Settings → API. Commercial plan required."
         />
 
-        <SecretField
-          label="overheid.io API key (OpenKvK)"
-          value={ovioKey}
-          onChange={setOvioKey}
-          hasExisting={hasOvio}
-          placeholder="••••••••••••••••"
-          hint="Required for the OpenKvK Dutch company registry endpoint. Register for free at overheid.io/register."
-        />
-
         <CardFooter>
           <SaveFooter
             isPending={enrichPending}
@@ -1030,6 +1021,44 @@ export function EnrichmentPlatformClient({
           <TestButton isTesting={leadinfoTestPending || leadinfoTestState.mode === "testing"} onTest={handleTestLeadinfo} />
         </CardFooter>
         <TestResultPanel state={leadinfoTestState} onDismiss={() => setLeadinfoTestState({ mode: "idle" })} />
+      </div>
+
+      {/* ── overheid.io (OpenKvK API key) ─────────────────────────────────── */}
+      <div className="rounded-lg border border-neutral-200 bg-white p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="mb-0.5 flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold text-neutral-900">overheid.io</h2>
+              <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                hasOvio ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-700"
+              }`}>
+                {hasOvio ? "✓ API key configured" : "API key required"}
+              </span>
+            </div>
+            <p className="text-xs text-neutral-500">
+              API key for the OpenKvK Dutch company registry endpoint (<code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">api.overheid.io/v3/openkvk</code>).
+              Free account at <a href="https://overheid.io/register" target="_blank" rel="noreferrer" className="underline hover:text-neutral-700">overheid.io/register</a>.
+            </p>
+          </div>
+        </div>
+
+        <SecretField
+          label="overheid.io API key"
+          value={ovioKey}
+          onChange={setOvioKey}
+          hasExisting={hasOvio}
+          placeholder="••••••••••••••••"
+          hint="Sent as the ovio-api-key header. Required for OpenKvK company lookups."
+        />
+
+        <CardFooter>
+          <SaveFooter
+            isPending={enrichPending}
+            saveState={enrichSaveState}
+            onSave={handleEnrichSave}
+            onDismiss={() => setEnrichSaveState({ mode: "idle" })}
+          />
+        </CardFooter>
       </div>
 
       {/* ── OpenKvK (Dutch company registry) ──────────────────────────────── */}
