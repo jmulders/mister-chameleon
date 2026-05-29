@@ -39,9 +39,11 @@
  *     page             A general-purpose CMS page with composable sections.
  *
  *   Adaptive content variants (document types):
- *     heroVariant      Hero block — headline, subtitle, CTA, eyebrow tag.
- *     proofVariant     Social proof block — section heading + array of proof items.
- *     ctaVariant       CTA block — headline, supporting copy, CTA button.
+ *     heroVariant        Hero block — headline, subtitle, CTA, eyebrow tag.
+ *     proofVariant       Social proof block — section heading + array of proof items.
+ *     ctaVariant         CTA block — headline, supporting copy, CTA button.
+ *     featureVariant     Feature highlights / benefit grid — section heading + items.
+ *     conversionVariant  Conversion section — headline, copy, CTAs, optional form.
  *
  *   Content entities (document types — standalone, NOT page sections):
  *     company          A company/employer with logo, description, services, branches,
@@ -50,6 +52,10 @@
  *                      optional company reference, and editorial tags.
  *     vacancy          A job vacancy with job details, description (Portable Text),
  *                      requirements, process steps, and recruiter contact.
+ *     eventEntry       An event with name, start/end dates, location, cover image,
+ *                      Portable Text description, and a registration URL.
+ *     formDefinition   A reusable CMS-managed form with field definitions, success
+ *                      behaviour, and email actions (confirmation + backoffice).
  *
  *   Page section blocks (object types — used inside page.sections):
  *     Core:
@@ -69,8 +75,21 @@
  *       relatedContent     Curated item teasers.
  *       vacancyMeta        Job metadata header.
  *       applyPanel         Application CTA panel.
+ *       recruiterPanel     Recruiter / contact-person spotlight.
  *     Search:
  *       search             Full-text search + inline results.
+ *     Rich editorial / marketing:
+ *       contentSection     Eyebrow + heading + intro + body + CTAs.
+ *       textMedia          Text + image/video split block.
+ *       teamSection        Team member card grid or compact list.
+ *       timeline           Ordered milestones / history entries.
+ *       quickLinks         Navigation hub / resource directory.
+ *       processSteps       Ordered step-by-step process list.
+ *       pricingSection     Pricing tiers / plans.
+ *       contactSection     Contact details + optional map.
+ *     Commerce / product:
+ *       productOverview    Product card grid with optional prices, badges, and CTAs.
+ *       productDetail      Full product detail view with gallery, specs, and price.
  *
  * ─── Adding a new schema ──────────────────────────────────────────────────────
  *
@@ -91,21 +110,31 @@
  *   Sidebar order:
  *     Site Settings → Navigation Items → Pages →
  *     Hero Variants → Proof Variants → CTA Variants →
- *     Companies → News Articles → Vacancies
+ *     Feature Variants → Conversion Variants →
+ *     Companies → News Articles → Vacancies → Events
  */
 
 // ── Document types ─────────────────────────────────────────────────────────────
 import siteSettings    from "./siteSettings";
 import navigationItem  from "./navigationItem";
 import page            from "./page";
-import heroVariant     from "./heroVariant";
-import proofVariant    from "./proofVariant";
-import ctaVariant      from "./ctaVariant";
+import heroVariant        from "./heroVariant";
+import proofVariant       from "./proofVariant";
+import ctaVariant         from "./ctaVariant";
+import featureVariant     from "./featureVariant";
+import conversionVariant      from "./conversionVariant";
+import notificationVariant    from "./notificationVariant";
 
 // ── Content entity document types ─────────────────────────────────────────────
 import company         from "./company";
 import newsArticle     from "./newsArticle";
 import vacancy         from "./vacancy";
+import eventEntry      from "./eventEntry";
+import formDefinition  from "./formDefinition";
+
+// ── Form definition object types (embedded inside formDefinition documents) ────
+import formFieldDef from "./objects/formFieldDef";
+import emailAction  from "./objects/emailAction";
 
 // ── Page section object types — core ──────────────────────────────────────────
 import textSection        from "./objects/textSection";
@@ -126,6 +155,7 @@ import articleBody        from "./objects/articleBody";
 import relatedContent     from "./objects/relatedContent";
 import vacancyMeta        from "./objects/vacancyMeta";
 import applyPanel         from "./objects/applyPanel";
+import recruiterPanel     from "./objects/recruiterPanel";
 
 // ── Page section object types — search ────────────────────────────────────────
 import search             from "./objects/search";
@@ -135,6 +165,29 @@ import logoStrip          from "./objects/logoStrip";
 import stats              from "./objects/stats";
 import about              from "./objects/about";
 import newsList           from "./objects/newsList";
+
+// ── Page section object types — rich editorial / marketing ────────────────────
+import contentSection     from "./objects/contentSection";
+import textMedia          from "./objects/textMedia";
+import teamSection        from "./objects/teamSection";
+import timeline           from "./objects/timeline";
+import quickLinks         from "./objects/quickLinks";
+import processSteps       from "./objects/processSteps";
+import pricingSection     from "./objects/pricingSection";
+import contactSection     from "./objects/contactSection";
+
+// ── Page section object types — commerce / product ────────────────────────────
+import productOverview     from "./objects/productOverview";
+import productDetail       from "./objects/productDetail";
+
+// ── AI decision metadata object type ─────────────────────────────────────────
+import variantDecisionMeta from "./objects/variantDecisionMeta";
+
+// ── Mega menu object types ─────────────────────────────────────────────────────
+import megaMenuColumn, { megaMenuLinkItem, megaMenuMediaItem } from "./objects/megaMenuColumn";
+
+// ── Footer structure object types ─────────────────────────────────────────────
+import footerColumn, { footerLinkSchema } from "./objects/footerColumn";
 
 /**
  * All Sanity schema types registered for this project.
@@ -157,11 +210,20 @@ export const schemaTypes = [
   heroVariant,
   proofVariant,
   ctaVariant,
+  featureVariant,
+  conversionVariant,
+  notificationVariant,
 
   // ── Content entity document types ────────────────────────────────────────
   company,
   newsArticle,
   vacancy,
+  eventEntry,
+  formDefinition,
+
+  // ── Form definition object types (embedded inside formDefinition) ─────────
+  formFieldDef,
+  emailAction,
 
   // ── Page section object types — core ─────────────────────────────────────
   textSection,
@@ -182,6 +244,7 @@ export const schemaTypes = [
   relatedContent,
   vacancyMeta,
   applyPanel,
+  recruiterPanel,
 
   // ── Page section object types — search ───────────────────────────────────
   search,
@@ -191,6 +254,32 @@ export const schemaTypes = [
   stats,
   about,
   newsList,
+
+  // ── Page section object types — rich editorial / marketing ───────────────
+  contentSection,
+  textMedia,
+  teamSection,
+  timeline,
+  quickLinks,
+  processSteps,
+  pricingSection,
+  contactSection,
+
+  // ── Page section object types — commerce / product ───────────────────────
+  productOverview,
+  productDetail,
+
+  // ── Mega menu object types (embedded — not top-level documents) ─────────────
+  megaMenuLinkItem,
+  megaMenuMediaItem,
+  megaMenuColumn,
+
+  // ── Footer structure object types (embedded — not top-level documents) ──────
+  footerLinkSchema,
+  footerColumn,
+
+  // ── AI decision metadata (embedded object — not a top-level document) ─────
+  variantDecisionMeta,
 ];
 
 // Named exports for consumers who need individual schemas
@@ -201,10 +290,18 @@ export {
   heroVariant,
   proofVariant,
   ctaVariant,
+  featureVariant,
+  conversionVariant,
+  notificationVariant,
   // content entity document types
   company,
   newsArticle,
   vacancy,
+  eventEntry,
+  formDefinition,
+  // form definition object types
+  formFieldDef,
+  emailAction,
   // page section object types — core
   textSection,
   featureGrid,
@@ -229,4 +326,22 @@ export {
   stats,
   about,
   newsList,
+  // page section object types — rich editorial / marketing
+  contentSection,
+  textMedia,
+  teamSection,
+  timeline,
+  quickLinks,
+  processSteps,
+  pricingSection,
+  contactSection,
+  recruiterPanel,
+  // page section object types — commerce / product
+  productOverview,
+  productDetail,
+  // footer structure object types
+  footerLinkSchema,
+  footerColumn,
+  // AI decision metadata object type
+  variantDecisionMeta,
 };

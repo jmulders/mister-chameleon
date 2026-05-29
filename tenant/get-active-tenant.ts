@@ -78,8 +78,9 @@
 
 import { headers, cookies }  from "next/headers";
 import { resolveTenant, resolveTenantOrNull, resolveTenantById } from "./resolve-tenant";
-import { getTenantByDomain }  from "./tenant-store";
+import { getTenantByDomain, getTenantById }  from "./tenant-store";
 import { DEV_TENANT_COOKIE }  from "./dev-tenant-cookie";
+import { buildTenantConfigFromSettings } from "./build-tenant-config";
 import type { TenantConfig }  from "./types";
 
 /**
@@ -109,7 +110,10 @@ export async function getActiveTenant(): Promise<TenantConfig> {
     if (headerOverride) {
       const override = resolveTenantById(headerOverride);
       if (override) return override;
-      // Unknown tenantId in header — fall through to cookie/host resolution.
+      // Not in static registry — try the store (handles admin-provisioned tenants).
+      const storedSettings = await getTenantById(headerOverride);
+      if (storedSettings) return buildTenantConfigFromSettings(storedSettings);
+      // Unknown tenantId — fall through to cookie/host resolution.
     }
   }
 
@@ -123,7 +127,12 @@ export async function getActiveTenant(): Promise<TenantConfig> {
     if (devTenantId) {
       const override = resolveTenantById(devTenantId);
       if (override) return override;
-      // Unknown tenantId in cookie (stale entry after registry change) —
+      // Not in static registry — try the store (handles admin-provisioned tenants
+      // like those onboarded via /admin/onboarding whose config isn't in the
+      // static TENANT_REGISTRY yet).
+      const storedSettings = await getTenantById(devTenantId);
+      if (storedSettings) return buildTenantConfigFromSettings(storedSettings);
+      // Truly unknown tenantId (stale cookie after tenant deletion) —
       // fall through to host-based resolution rather than erroring out.
     }
   }

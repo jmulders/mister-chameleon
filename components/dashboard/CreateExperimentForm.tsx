@@ -14,17 +14,25 @@
  *   name             Human-readable display label.
  *   slot             hero | proof | cta — the page block being tested.
  *   variants         Ordered bucket list. Each checkbox maps to a bucket index.
- *                    Options are restricted to the per-slot allow-list from
- *                    decision/rules/stored-rule.ts. Minimum 2 required.
+ *                    Options are populated from the variant catalogue: platform
+ *                    variants first, then CMS tenant variants, then CMS shared.
+ *                    Minimum 2 required.
  *   status           active | paused | ended. Defaults to "active".
  *   traffic_fraction Entered as a whole percentage (1–100); stored as 0–1.
+ *
+ * ─── Variant catalogue ────────────────────────────────────────────────────────
+ *
+ *   When a VariantCatalogue is passed as a prop the form renders all available
+ *   variants (platform + CMS tenant + CMS shared).  Each variant chip shows a
+ *   small source badge so authors know whether it's a platform or CMS key.
+ *   When the prop is omitted the form falls back to the platform-only catalogue.
  *
  * ─── Variant ordering ─────────────────────────────────────────────────────────
  *
  *   The decision engine maps bucket 0 → variants[0], bucket 1 → variants[1],
- *   etc. The variant checkboxes appear in a fixed display order and the
- *   resulting array preserves that order, so the bucket assignment is
- *   deterministic and visible in the UI.
+ *   etc. The variant checkboxes appear in catalogue order and the resulting
+ *   array preserves that order, so the bucket assignment is deterministic and
+ *   visible in the UI.
  *
  * ─── After save ───────────────────────────────────────────────────────────────
  *
@@ -35,11 +43,11 @@
 import { useState, useTransition }   from "react";
 import { useRouter }                 from "next/navigation";
 import { createExperimentAction }    from "@/app/dashboard/experiments/actions";
-import {
-  ALLOWED_HERO_KEYS,
-  ALLOWED_PROOF_KEYS,
-  ALLOWED_CTA_KEYS,
-} from "@/decision/rules/stored-rule";
+import { buildPlatformCatalogue } from "@/decision/rules/variant-catalogue";
+import type {
+  VariantCatalogue,
+  VariantEntry,
+} from "@/decision/rules/variant-catalogue";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -48,12 +56,6 @@ type Status = "active" | "paused" | "ended";
 
 const VALID_SLOTS:    Slot[]   = ["hero", "proof", "cta"];
 const VALID_STATUSES: Status[] = ["active", "paused", "ended"];
-
-const VARIANTS_FOR_SLOT: Record<Slot, readonly string[]> = {
-  hero:  ALLOWED_HERO_KEYS,
-  proof: ALLOWED_PROOF_KEYS,
-  cta:   ALLOWED_CTA_KEYS,
-};
 
 interface FormDraft {
   id:               string;
@@ -73,10 +75,25 @@ const DEFAULT_DRAFT: FormDraft = {
   trafficPct:       "100",
 };
 
+// ── Props ──────────────────────────────────────────────────────────────────────
+
+interface CreateExperimentFormProps {
+  /**
+   * Merged platform + CMS variant catalogue, grouped by slot.
+   * Pass the result of fetchVariantCatalogue(tenantId) from the server page.
+   * When absent the form falls back to the platform-only catalogue.
+   */
+  variantCatalogue?: VariantCatalogue;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function CreateExperimentForm() {
+export function CreateExperimentForm({ variantCatalogue }: CreateExperimentFormProps = {}) {
   const router = useRouter();
+
+  // Resolve the effective catalogue once — use the prop when available,
+  // otherwise fall back to the platform-only catalogue.
+  const catalogue: VariantCatalogue = variantCatalogue ?? buildPlatformCatalogue();
 
   const [open,        setOpen]        = useState(false);
   const [draft,       setDraft]       = useState<FormDraft>(DEFAULT_DRAFT);
@@ -132,10 +149,12 @@ export function CreateExperimentForm() {
     setSuccessMsg(null);
     setFieldErrors([]);
 
-    // Preserve display order from the allow-list rather than Set insertion order.
-    const slotKeys  = VARIANTS_FOR_SLOT[draft.slot];
-    const variants  = slotKeys.filter((k) => draft.selectedVariants.has(k));
-    const tf        = parseFloat(draft.trafficPct) / 100;
+    // Preserve catalogue display order rather than Set insertion order.
+    const slotEntries = catalogue[draft.slot];
+    const variants    = slotEntries
+      .filter((e) => draft.selectedVariants.has(e.key))
+      .map((e) => e.key);
+    const tf          = parseFloat(draft.trafficPct) / 100;
 
     const payload = {
       id:               draft.id.trim(),
@@ -165,9 +184,13 @@ export function CreateExperimentForm() {
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
-  const availableKeys  = VARIANTS_FOR_SLOT[draft.slot];
-  const selectedCount  = draft.selectedVariants.size;
-  const variantsValid  = selectedCount >= 2;
+  const availableEntries = catalogue[draft.slot] as VariantEntry[];
+  const selectedCount    = draft.selectedVariants.size;
+  const variantsValid    = selectedCount >= 2;
+
+  // Count entries by source for the hint line.
+  const platformCount  = availableEntries.filter((e) => e.source === "platform").length;
+  const cmsCount       = availableEntries.length - platformCount;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -293,22 +316,28 @@ export function CreateExperimentForm() {
             {/* variants */}
             <Field
               label="Variants"
-              hint={`Bucket 0 is listed first · select ≥ 2 · ${availableKeys.length} keys available for ${draft.slot}`}
+              hint={[
+                `Bucket 0 is listed first · select ≥ 2`,
+                `${availableEntries.length} key${availableEntries.length === 1 ? "" : "s"} for ${draft.slot}`,
+                cmsCount > 0 ? `${platformCount} platform + ${cmsCount} CMS` : `${platformCount} platform`,
+              ].join(" · ")}
               span2
             >
               <div className="flex flex-wrap gap-2">
-                {availableKeys.map((key, idx) => {
+                {availableEntries.map((entry, idx) => {
+                  const { key } = entry;
                   const checked     = draft.selectedVariants.has(key);
                   // Bucket index = position within selected variants in display order
                   const bucketIndex = checked
-                    ? availableKeys.filter(
-                        (k) => draft.selectedVariants.has(k) && availableKeys.indexOf(k) <= idx,
+                    ? availableEntries.filter(
+                        (e) => draft.selectedVariants.has(e.key) && availableEntries.indexOf(e) <= idx,
                       ).length - 1
                     : null;
 
                   return (
                     <label
                       key={key}
+                      title={entry.label !== key ? entry.label : undefined}
                       className={[
                         "inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors",
                         checked
@@ -333,6 +362,9 @@ export function CreateExperimentForm() {
                         <span className="flex size-4 shrink-0 items-center justify-center rounded-full border border-neutral-300" />
                       )}
                       <span className="font-mono">{key}</span>
+                      {entry.source !== "platform" && (
+                        <SourceBadge source={entry.source} />
+                      )}
                     </label>
                   );
                 })}
@@ -463,6 +495,28 @@ const STATUS_ACTIVE_CLS: Record<Status, string> = {
   paused: "border-amber-300   bg-amber-50   text-amber-700",
   ended:  "border-neutral-300 bg-neutral-100 text-neutral-600",
 };
+
+// ── SourceBadge ────────────────────────────────────────────────────────────────
+
+/**
+ * Compact source label shown inside CMS variant chips.
+ * Platform variants don't get a badge — they're the baseline.
+ */
+function SourceBadge({ source }: { source: "cms-tenant" | "cms-shared" }) {
+  const isTenant = source === "cms-tenant";
+  return (
+    <span
+      className={[
+        "shrink-0 rounded px-1 py-px text-[9px] font-semibold tracking-wide uppercase leading-none",
+        isTenant
+          ? "bg-violet-100 text-violet-600"
+          : "bg-sky-100 text-sky-600",
+      ].join(" ")}
+    >
+      {isTenant ? "CMS" : "Shared"}
+    </span>
+  );
+}
 
 // ── SVG icons ──────────────────────────────────────────────────────────────────
 

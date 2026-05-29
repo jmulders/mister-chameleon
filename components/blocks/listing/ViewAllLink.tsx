@@ -30,12 +30,12 @@ export function ViewAllLink({ href, label = "View all" }: ViewAllLinkProps) {
           gap:            "0.375rem",
           fontSize:       "0.875rem",
           fontWeight:     600,
-          color:          "var(--primary)",
+          color:          "var(--text)",
           textDecoration: "none",
-          transition:     "opacity var(--transition-base)",
+          transition:     "color var(--transition-base), opacity var(--transition-base)",
         }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.75"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1"; }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "var(--primary)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "var(--text)"; }}
       >
         {label}
         {/* Arrow → */}

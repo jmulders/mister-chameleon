@@ -186,7 +186,7 @@ export function getTenantReadiness(
   // "mock" is the dev/staging placeholder.  A production tenant should use a
   // real CMS backend (sanity, storyblok, or statamic) before going live.
   //
-  const notMock = tenant.cms.provider !== "mock";
+  const notMock = (tenant.cms?.provider ?? "mock") !== "mock";
   checks.push({
     id:     "cms-provider",
     label:  "Production CMS provider selected",
@@ -201,7 +201,7 @@ export function getTenantReadiness(
   // Always passes post-creation — design.theme is a required ThemeKey.
   // Shown explicitly so operators can confirm the chosen preset at a glance.
   //
-  const themePassed = Boolean(tenant.design.theme);
+  const themePassed = Boolean(tenant.design?.theme);
   checks.push({
     id:     "theme-preset",
     label:  "Theme preset selected",
@@ -215,7 +215,7 @@ export function getTenantReadiness(
   // tenant's allowed context list.  At minimum one block must be active for
   // the adaptive pipeline to do any work.
   //
-  const hasContextBlock = tenant.blocks.context.length > 0;
+  const hasContextBlock = (tenant.blocks?.context?.length ?? 0) > 0;
   checks.push({
     id:     "context-blocks",
     label:  "At least one adaptive block enabled",
@@ -231,7 +231,7 @@ export function getTenantReadiness(
   // If it is absent from the allowed context blocks the decision engine
   // cannot serve CTA variants — a common sign of a misconfigured block list.
   //
-  const ctaAllowed = (tenant.blocks.context as readonly ContextBlockKey[]).includes("cta");
+  const ctaAllowed = ((tenant.blocks?.context ?? []) as readonly ContextBlockKey[]).includes("cta");
   checks.push({
     id:     "cta-block",
     label:  "CTA block allowed",

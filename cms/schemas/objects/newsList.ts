@@ -12,7 +12,7 @@
  *     ↳ url       string   Link to the article detail page.
  *     ↳ excerpt   string?  Short teaser text.
  *     ↳ date      string?  Publication date (ISO 8601 or display string).
- *     ↳ imageUrl  string?  Cover image URL.
+ *     ↳ image     image?   Cover image (Sanity asset with inline alt).
  *     ↳ category  string?  Category label.
  *   maxItems  number   Optional display limit (default: show all).
  */
@@ -25,6 +25,22 @@ export default defineType({
   type: "object",
 
   fields: [
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls the visual layout of this news list section.",
+      options: {
+        list: [
+          { title: "3-column card grid (default)",    value: "default" },
+          { title: "Single-column row list",          value: "list" },
+          { title: "Featured item + smaller grid",    value: "featured" },
+          { title: "Horizontal scroll carousel",      value: "news_slider" },
+        ],
+      },
+      initialValue: "default",
+    }),
+
     defineField({
       name: "heading",
       title: "Heading",
@@ -69,10 +85,19 @@ export default defineType({
               description: "Publication date. ISO 8601 preferred (e.g. \"2025-03-15\").",
             }),
             defineField({
-              name: "imageUrl",
-              title: "Cover Image URL",
-              type: "string",
-              description: "Optional cover image for the card.",
+              name: "image",
+              title: "Cover Image",
+              type: "image",
+              description: "Upload or select a cover image for the card from the Sanity asset library.",
+              options: { hotspot: true },
+              fields: [
+                defineField({
+                  name: "alt",
+                  title: "Alt Text",
+                  type: "string",
+                  description: "Describe the image for screen readers.",
+                }),
+              ],
             }),
             defineField({
               name: "category",

@@ -37,6 +37,10 @@ export const ALLOWED_EVENT_TYPES = [
   "cta_click",
   "scroll_depth",
   "contact_form_submit",
+  // Journey behavioral events — must match JOURNEY_EVENT_TYPES in app/api/events/route.ts
+  "form_start",
+  "form_submit",
+  "download",
 ] as const;
 
 /**
@@ -156,6 +160,46 @@ export interface ContactFormSubmitPayload {
   n8n_dispatched?: boolean;
 }
 
+/**
+ * Fired when a visitor begins interacting with a form (first focus on any field).
+ * Used for behavioral scoring — indicates intent to engage with a conversion path.
+ */
+export interface FormStartPayload {
+  /** The page pathname where the form appears */
+  page_path?: string;
+  /** Form identifier, e.g. "contact", "demo-request", "newsletter" */
+  form_id?: string;
+  /** Which CTA variant was active when the form was engaged */
+  cta_key?: string;
+}
+
+/**
+ * Fired when a visitor successfully submits a form.
+ * Identical scope to `contact_form_submit` but generic (not CMS-specific).
+ * Journey engine treats this as a strong conversion signal.
+ */
+export interface FormSubmitPayload {
+  /** The page pathname where the form appears */
+  page_path?: string;
+  /** Form identifier */
+  form_id?: string;
+  /** Which CTA variant was shown before submission */
+  cta_key?: string;
+}
+
+/**
+ * Fired when a visitor downloads a resource (PDF, whitepaper, template, etc.)
+ * Indicates high-value research intent; scored strongly in the journey engine.
+ */
+export interface DownloadPayload {
+  /** URL or path of the downloaded resource */
+  resource_url?: string;
+  /** Human-readable resource label, e.g. "Product Brochure 2025" */
+  resource_label?: string;
+  /** The page pathname where the download was triggered */
+  page_path?: string;
+}
+
 // ── Payload map ───────────────────────────────────────────────────────────────
 
 /**
@@ -167,11 +211,14 @@ export interface ContactFormSubmitPayload {
  *   //                                         ↑ typed as CtaClickPayload
  */
 export interface EventPayloadMap {
-  page_view: PageViewPayload;
-  variant_served: VariantServedPayload;
-  cta_click: CtaClickPayload;
-  scroll_depth: ScrollDepthPayload;
-  contact_form_submit: ContactFormSubmitPayload;
+  page_view:            PageViewPayload;
+  variant_served:       VariantServedPayload;
+  cta_click:            CtaClickPayload;
+  scroll_depth:         ScrollDepthPayload;
+  contact_form_submit:  ContactFormSubmitPayload;
+  form_start:           FormStartPayload;
+  form_submit:          FormSubmitPayload;
+  download:             DownloadPayload;
 }
 
 // ── Tracking event (used by the client-side track() helper) ───────────────────

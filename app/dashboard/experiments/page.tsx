@@ -25,6 +25,7 @@ import type { Metadata }          from "next";
 import type { ExperimentRow }     from "@/data/types";
 import { listAllExperiments }     from "@/data/repositories/experiments-repository";
 import { getActiveTenantWithDevOverride } from "@/tenant/server";
+import { fetchVariantCatalogue }  from "@/decision/rules/fetch-variant-catalogue";
 import { CreateExperimentForm }   from "@/components/dashboard/CreateExperimentForm";
 import { ExperimentsTable }       from "@/components/dashboard/ExperimentsTable";
 
@@ -44,7 +45,12 @@ export default async function ExperimentsPage({ searchParams }: PageProps) {
   const { tenantConfig, devTenantOverride, devOverrideSource } =
     await getActiveTenantWithDevOverride(params, "dashboard/experiments");
 
-  const result = await listAllExperiments();
+  // Fetch experiments + variant catalogue in parallel.
+  // Catalogue is scoped to the active tenant so CMS variants are included.
+  const [result, variantCatalogue] = await Promise.all([
+    listAllExperiments(),
+    fetchVariantCatalogue(tenantConfig.tenantId),
+  ]);
 
   if (!result.ok) {
     return (
@@ -96,7 +102,7 @@ export default async function ExperimentsPage({ searchParams }: PageProps) {
       )}
 
       {/* Create form */}
-      <CreateExperimentForm />
+      <CreateExperimentForm variantCatalogue={variantCatalogue} />
 
       {/* Slot conflict warning */}
       {conflicts.length > 0 && (

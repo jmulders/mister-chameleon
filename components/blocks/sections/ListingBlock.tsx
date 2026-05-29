@@ -69,6 +69,50 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
 
   if (items.length === 0) return null;
 
+  // ── listing_slider variant ──────────────────────────────────────────────────
+  //
+  // Horizontally scrolling CSS-snap card carousel.
+  // Cards are fixed-width so a partial next card peeks at the trailing edge —
+  // providing a natural affordance for horizontal scrolling.
+
+  if (variant === "listing_slider") {
+    return (
+      <Section spacing="lg">
+        <Container size="lg">
+          <Stack gap={8}>
+            {(heading || viewAllHref) && (
+              <div className="flex items-center justify-between gap-4">
+                {heading && (
+                  <Text
+                    variant="h2"
+                    style={{
+                      color:      "var(--text)",
+                      fontFamily: "var(--font-heading)",
+                      fontWeight: "var(--font-heading-weight)",
+                    }}
+                  >
+                    {heading}
+                  </Text>
+                )}
+                {viewAllHref && <ViewAllLink href={viewAllHref} label={viewAllLabel} />}
+              </div>
+            )}
+            <div
+              className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {items.map((item, i) => (
+                <div key={item.id ?? i} className="min-w-72 flex-shrink-0 snap-start sm:min-w-80">
+                  <ResultCard item={item} layout="card" headingLevel={3} />
+                </div>
+              ))}
+            </div>
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
   // ── compact variant ─────────────────────────────────────────────────────────
   //
   // Text-only list with a bottom border separator per item.
@@ -93,8 +137,8 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
             )}
 
             <div>
-              {items.map((item) => (
-                <ResultCard key={item.id} item={item} layout="compact" headingLevel={3} />
+              {items.map((item, i) => (
+                <ResultCard key={item.id ?? i} item={item} layout="compact" headingLevel={3} />
               ))}
             </div>
 
@@ -131,8 +175,8 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
             )}
 
             <Stack gap={4}>
-              {items.map((item) => (
-                <ResultCard key={item.id} item={item} layout="row" headingLevel={3} />
+              {items.map((item, i) => (
+                <ResultCard key={item.id ?? i} item={item} layout="row" headingLevel={3} />
               ))}
             </Stack>
 
@@ -175,8 +219,8 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
           )}
 
           <Grid cols={3} gap="lg">
-            {items.map((item) => (
-              <ResultCard key={item.id} item={item} layout="card" headingLevel={3} />
+            {items.map((item, i) => (
+              <ResultCard key={item.id ?? i} item={item} layout="card" headingLevel={3} />
             ))}
           </Grid>
 

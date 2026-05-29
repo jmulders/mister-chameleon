@@ -41,11 +41,13 @@ export interface SanityProofItemRaw {
  * fallback so callers always receive a fully-formed ProofBlockData.
  */
 export interface SanityProofRaw {
-  _id:       string;
-  tenantId?: string;
-  key:       string;
-  title:     string;
-  items?:    SanityProofItemRaw[];
+  _id:            string;
+  tenantId?:      string;
+  key:            string;
+  /** Layout variant for the proof block (e.g. "proof_logos"). */
+  layoutVariant?: string;
+  title:          string;
+  items?:         SanityProofItemRaw[];
 }
 
 // ── GROQ query ────────────────────────────────────────────────────────────────
@@ -73,7 +75,8 @@ export const PROOF_BY_KEY_QUERY = buildVariantQuery(
   `
     _id,
     tenantId,
-    "key": key.current,
+    key,
+    layoutVariant,
     title,
     "items": items[] {
       title,

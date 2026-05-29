@@ -29,79 +29,37 @@
  *   --font-subheading-weight FAQ question font weight
  */
 
-import { Container } from "@/components/primitives/Container";
-import { Section } from "@/components/primitives/Section";
-import { Stack } from "@/components/primitives/Stack";
-import { Text } from "@/components/primitives/Text";
-import { resolveBlockVariant } from "@/page-config/block-variants";
-import type { FaqSectionVariant } from "@/page-config/block-variants";
+import { Container }                from "@/components/primitives/Container";
+import { Section }                  from "@/components/primitives/Section";
+import { Stack }                    from "@/components/primitives/Stack";
+import { Text }                     from "@/components/primitives/Text";
+import { Accordion, AccordionItem } from "@/components/molecules";
+import { resolveBlockVariant }      from "@/page-config/block-variants";
+import type { FaqSectionVariant }   from "@/page-config/block-variants";
 import type { FaqSectionBlockData, FaqItem } from "@/page-config";
+import { resolveSurface, type BlockSurface } from "@/lib/surface";
 
 interface FaqSectionBlockProps {
   data:     FaqSectionBlockData;
   variant?: string;
-}
-
-// ── Shared accordion item ──────────────────────────────────────────────────────
-
-function FaqItem({ faq, index }: { faq: FaqItem; index: number }) {
-  return (
-    <details
-      key={`${faq.question}-${index}`}
-      className="group border"
-      style={{
-        backgroundColor: "var(--card-bg)",
-        borderColor: "var(--card-border)",
-        borderRadius: "var(--card-radius)",
-      }}
-    >
-      {/*
-       * summary hover/focus: text-brand and ring come from CSS vars
-       * so they adapt to enterprise-clean (indigo accent) and
-       * bold-brand (vivid indigo) without any code change here.
-       */}
-      <summary
-        className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline-none focus-visible:ring-2"
-        style={{
-          fontWeight: "var(--font-subheading-weight)",
-          color: "var(--text)",
-        }}
-      >
-        <span className="group-hover:text-[var(--text-brand)] transition-colors">
-          {faq.question}
-        </span>
-        {/* Chevron — rotates on open via group-open */}
-        <svg
-          className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
-          style={{ color: "var(--text-subtle)" }}
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path
-            fillRule="evenodd"
-            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </summary>
-
-      <div className="px-5 pb-5">
-        <Text variant="body" color="muted" className="leading-relaxed">
-          {faq.answer}
-        </Text>
-      </div>
-    </details>
-  );
+  surface?: BlockSurface;
 }
 
 // ── Block component ────────────────────────────────────────────────────────────
 
-export function FaqSectionBlock({ data, variant: rawVariant }: FaqSectionBlockProps) {
-  const variant = resolveBlockVariant("faqSection", rawVariant) as FaqSectionVariant;
+export function FaqSectionBlock({ data, variant: rawVariant, surface }: FaqSectionBlockProps) {
+  const resolved = resolveBlockVariant("faqSection", rawVariant) as FaqSectionVariant;
   const { heading, items } = data;
   const faqs = items ?? [];
+
+  // Normalise canonical spec names → implementation keys.
+  // faq_default → default (single-column accordion)
+  // faq_split   → two-col (two-column accordion grid)
+  const variant: FaqSectionVariant = (
+    resolved === "faq_default" ? "default" :
+    resolved === "faq_split"   ? "two-col" :
+    resolved
+  ) as FaqSectionVariant;
 
   // ── two-col variant ─────────────────────────────────────────────────────────
   //
@@ -117,7 +75,7 @@ export function FaqSectionBlock({ data, variant: rawVariant }: FaqSectionBlockPr
       <Section
         spacing="lg"
         style={{
-          background: "var(--section-subtle-bg)",
+          background: resolveSurface(surface) ?? "var(--section-subtle-bg)",
           borderTopColor: "var(--section-subtle-border)",
           borderBottomColor: "var(--section-subtle-border)",
         }}
@@ -133,16 +91,20 @@ export function FaqSectionBlock({ data, variant: rawVariant }: FaqSectionBlockPr
 
             {faqs.length > 0 && (
               <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
-                <Stack gap={2}>
+                <Accordion gap={2}>
                   {left.map((faq, index) => (
-                    <FaqItem key={`${faq.question}-${index}`} faq={faq} index={index} />
+                    <AccordionItem key={`${faq.question}-${index}`} title={faq.question}>
+                      <p className="leading-relaxed text-neutral-700">{faq.answer}</p>
+                    </AccordionItem>
                   ))}
-                </Stack>
-                <Stack gap={2}>
+                </Accordion>
+                <Accordion gap={2}>
                   {right.map((faq, index) => (
-                    <FaqItem key={`${faq.question}-${index + mid}`} faq={faq} index={index + mid} />
+                    <AccordionItem key={`${faq.question}-${index + mid}`} title={faq.question}>
+                      <p className="leading-relaxed text-neutral-700">{faq.answer}</p>
+                    </AccordionItem>
                   ))}
-                </Stack>
+                </Accordion>
               </div>
             )}
           </Stack>
@@ -159,7 +121,7 @@ export function FaqSectionBlock({ data, variant: rawVariant }: FaqSectionBlockPr
     <Section
       spacing="lg"
       style={{
-        background: "var(--section-subtle-bg)",
+        background: resolveSurface(surface) ?? "var(--section-subtle-bg)",
         borderTopColor: "var(--section-subtle-border)",
         borderBottomColor: "var(--section-subtle-border)",
       }}
@@ -174,11 +136,13 @@ export function FaqSectionBlock({ data, variant: rawVariant }: FaqSectionBlockPr
           )}
 
           {faqs.length > 0 && (
-            <Stack gap={2}>
+            <Accordion gap={2}>
               {faqs.map((faq, index) => (
-                <FaqItem key={`${faq.question}-${index}`} faq={faq} index={index} />
+                <AccordionItem key={`${faq.question}-${index}`} title={faq.question}>
+                  <p className="leading-relaxed text-neutral-700">{faq.answer}</p>
+                </AccordionItem>
               ))}
-            </Stack>
+            </Accordion>
           )}
         </Stack>
       </Container>

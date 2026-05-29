@@ -12,6 +12,22 @@ export default defineType({
   title: "Apply Panel",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls how the application CTA panel is displayed.",
+      options: {
+        list: [
+          { title: "Default — full-width application CTA section (default)", value: "default" },
+          { title: "Inline — card embedded mid-page",                        value: "inline"  },
+          { title: "Sticky — sticky sidebar card (desktop)",                 value: "sticky"  },
+        ],
+      },
+      initialValue: "default",
+    }),
+
     defineField({ name: "heading",     title: "Heading",      type: "string" }),
     defineField({ name: "body",        title: "Body",         type: "text", rows: 3 }),
     defineField({ name: "closingDate", title: "Closing Date", type: "date",

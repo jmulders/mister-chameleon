@@ -6,6 +6,21 @@ export default defineType({
   type: "object",
   fields: [
     defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls the visual layout of this text section.",
+      options: {
+        list: [
+          { title: "Single column — left-aligned (default)", value: "text_single" },
+          { title: "Split — heading left, body right",       value: "text_split" },
+          { title: "Lead — centred extra-large paragraph",   value: "text_lead" },
+        ],
+      },
+      initialValue: "text_single",
+    }),
+
+    defineField({
       name: "heading",
       title: "Heading",
       type: "string",

@@ -17,11 +17,15 @@
  *  call site (or DI root). No other code changes required.
  */
 
-import type { CMSProvider } from "./cms-provider";
+import type { CMSProvider, ProvisionResult, TestConnectionResult } from "./cms-provider";
+import type { TenantSettings } from "@/tenant/types";
 import type {
   HeroBlockData,
   ProofBlockData,
   CTABlockData,
+  FeatureBlockData,
+  ConversionBlockData,
+  NotificationBlockData,
   SiteSettingsData,
   PageData,
   PageSectionData,
@@ -35,11 +39,30 @@ import type {
   RecruiterPanelSectionData,
   ApplyPanelData,
 } from "../types";
+import type { CollectionContentSource, CollectionItem } from "@/page-config/collection-source";
 import {
   mapCompanyToPageData,
   mapNewsArticleToPageData,
   mapVacancyToPageData,
 } from "../mappers/entity-page-assemblers";
+
+// ── Portable Text helper ──────────────────────────────────────────────────────
+// Wraps a plain string into a single-paragraph Portable Text array so inline
+// mock content stays readable without repeating the full block schema.
+
+let _ptKey = 0;
+function pt(text: string): PortableTextBlock[] {
+  const k = ++_ptKey;
+  return [
+    {
+      _type:    "block",
+      _key:     `blk${k}`,
+      style:    "normal",
+      children: [{ _type: "span", _key: `sp${k}`, text, marks: [] }],
+      markDefs: [],
+    } as unknown as PortableTextBlock,
+  ];
+}
 
 // ── Hero variants ─────────────────────────────────────────────────────────────
 
@@ -55,10 +78,10 @@ const HERO_VARIANTS: Record<string, HeroBlockData> = {
     title: "Your website speaks to no one.\nFix that in minutes.",
     subtitle:
       "Most visitors leave because your homepage wasn't written for them. Mister Chameleon detects where they came from and instantly serves the version of your site that converts.",
-    cta: {
-      label: "See how it works",
-      href: "#how-it-works",
-    },
+    ctas: [
+      { label: "See how it works", href: "#how-it-works" },
+      { label: "Book a demo",      href: "#demo",         variant: "secondary" as const },
+    ],
   },
 
   /**
@@ -72,26 +95,33 @@ const HERO_VARIANTS: Record<string, HeroBlockData> = {
     title: "Your website,\never-adapting.",
     subtitle:
       "Mister Chameleon is the platform for growth teams who believe personalisation shouldn't require an engineering sprint, a data science team, or a six-figure enterprise contract.",
-    cta: {
-      label: "Explore the platform",
-      href: "#platform",
-    },
+    ctas: [
+      { label: "Explore the platform", href: "#platform" },
+    ],
   },
 
   /**
    * hero_direct_brand
    * Audience: typed URL, bookmark, or dark social — intent unknown.
    * Framing:  Brand clarity. Lead with the core value proposition.
+   * Layout:   hero_background — full-viewport backdrop, content centred.
+   * Media:    YouTube video ioblgpA5eTo.
    */
   hero_direct_brand: {
-    id: "hero_direct_brand",
-    tag: "Adaptive websites, without the complexity",
-    title: "Your website, tailored\nto every visitor.",
+    id:            "hero_direct_brand",
+    layoutVariant: "hero_background",
+    contentAlign:  "center" as const,
+    tag:           "Adaptive websites, without the complexity",
+    title:         "Your website, tailored\nto every visitor.",
     subtitle:
       "Mister Chameleon delivers the right message to the right person — automatically. No A/B testing required. No engineering sprints. No excuses.",
-    cta: {
-      label: "Start for free",
-      href: "#signup",
+    ctas: [
+      { label: "Start for free",   href: "#signup" },
+      { label: "Watch the demo",   href: "#demo",  variant: "secondary" as const },
+    ],
+    media: {
+      kind:  "video" as const,
+      video: { source: "youtube" as const, videoId: "ioblgpA5eTo" },
     },
   },
 };
@@ -903,11 +933,11 @@ const WORKENGINE_CAREERS_PAGE: PageData = {
       variant:  "default",
       heading:  "Frequently asked questions",
       items: [
-        { question: "How long does the application process take?",    answer: "Typically 2–4 weeks from application to offer, depending on the role and company. Your recruiter will keep you informed at every stage." },
-        { question: "Can I apply for multiple roles at once?",        answer: "Yes — you can apply for as many roles as you are genuinely interested in. We recommend tailoring your application for each position." },
+        { question: "How long does the application process take?",      answer: "Typically 2–4 weeks from application to offer, depending on the role and company. Your recruiter will keep you informed at every stage." },
+        { question: "Can I apply for multiple roles at once?",          answer: "Yes — you can apply for as many roles as you are genuinely interested in. We recommend tailoring your application for each position." },
         { question: "Do you place candidates outside the Netherlands?", answer: "Primarily the Netherlands and Belgium, with some roles in Germany and the UK. Each vacancy indicates the location and remote policy." },
-        { question: "Is there a fee for candidates?",                 answer: "Never. WorkEngine is entirely free for job seekers. Our fees are always paid by the hiring company." },
-        { question: "What happens to my personal data?",              answer: "Your data is processed in line with GDPR. We share your information with hiring companies only with your explicit consent, and you can request deletion at any time." },
+        { question: "Is there a fee for candidates?",                   answer: "Never. WorkEngine is entirely free for job seekers. Our fees are always paid by the hiring company." },
+        { question: "What happens to my personal data?",                answer: "Your data is processed in line with GDPR. We share your information with hiring companies only with your explicit consent, and you can request deletion at any time." },
       ],
     },
   ],
@@ -1412,11 +1442,32 @@ export class MockCMSProvider implements CMSProvider {
     return Promise.resolve(CTA_VARIANTS[key] ?? null);
   }
 
-  async getSiteSettings(): Promise<SiteSettingsData | null> {
+  async getFeatureVariant(_key: string): Promise<FeatureBlockData | null> {
+    // Extended slot — no mock data seeded; returns null so the slot is gracefully absent.
+    return Promise.resolve(null);
+  }
+
+  async getConversionVariant(_key: string): Promise<ConversionBlockData | null> {
+    // Extended slot — no mock data seeded; returns null so the slot is gracefully absent.
+    return Promise.resolve(null);
+  }
+
+  async getNotificationVariant(_key: string): Promise<NotificationBlockData | null> {
+    // Extended slot — no mock data seeded; returns null so the notification is gracefully absent.
+    return Promise.resolve(null);
+  }
+
+  async getAdaptiveBlock(_key: string): Promise<import("../types").AdaptiveBlockData | null> {
+    // No mock adaptive blocks seeded. Returns null so ChameleonHero falls back
+    // to its defaultVariant (the SEO-safe fallback) in development.
+    return Promise.resolve(null);
+  }
+
+  async getSiteSettings(_locale = "en"): Promise<SiteSettingsData | null> {
     return Promise.resolve(MOCK_SITE_SETTINGS);
   }
 
-  async getPageBySlug(slug: string): Promise<PageData | null> {
+  async getPageBySlug(slug: string, _locale = "en"): Promise<PageData | null> {
     // ── Homepage ──────────────────────────────────────────────────────────────
     if (slug === "home") return Promise.resolve(WORKENGINE_HOMEPAGE);
 
@@ -1531,6 +1582,92 @@ export class MockCMSProvider implements CMSProvider {
       return Promise.resolve(companies.slice(0, options.limit));
     }
     return Promise.resolve(companies);
+  }
+
+  // ── Collection resolution ─────────────────────────────────────────────────
+
+  async resolveCollection(source: CollectionContentSource): Promise<CollectionItem[]> {
+    const { collection, mode, limit, sortDir = "desc", selectedIds } = source;
+
+    // ── Map collection key → mock entity fetch ────────────────────────────
+    let items: CollectionItem[] = [];
+
+    if (collection === "articles" || collection === "news") {
+      const articles = await this.getNewsArticles({ limit: mode === "recent" ? (limit ?? 10) : undefined });
+      items = articles.map((a): CollectionItem => ({
+        id:       a.slug,             // stable identifier
+        title:    a.title,
+        href:     `/news/${a.slug}`,
+        excerpt:  a.excerpt      ?? undefined,
+        date:     a.publishedAt  ?? undefined,
+        imageUrl: a.coverImage?.url ?? undefined,
+        imageAlt: a.coverImage?.alt ?? undefined,
+        tags:     a.tags         ?? undefined,
+      }));
+    } else if (collection === "vacancies") {
+      const vacancies = await this.getVacancies({ limit: mode === "recent" ? (limit ?? 10) : undefined });
+      items = vacancies.map((v): CollectionItem => ({
+        id:       v.slug,
+        title:    v.title,
+        href:     `/careers/${v.slug}`,
+        date:     v.closingDate  ?? undefined,
+        category: v.department   ?? undefined,
+      }));
+    } else if (collection === "companies") {
+      const companies = await this.getCompanies({ limit: mode === "recent" ? (limit ?? 10) : undefined });
+      items = companies.map((c): CollectionItem => ({
+        id:       c.slug,
+        title:    c.name,
+        href:     `/companies/${c.slug}`,
+        excerpt:  c.description ?? undefined,
+      }));
+    } else {
+      // "cases" and any future keys — no mock data yet, return empty
+      return [];
+    }
+
+    // ── Apply mode-specific processing ───────────────────────────────────
+    if (mode === "specific") {
+      if (!selectedIds?.length) return [];
+      const idSet = new Set(selectedIds);
+      // Filter to selected IDs only — sortBySelectedIds is called by the resolver
+      return items.filter((item) => idSet.has(item.id));
+    }
+
+    // recent mode — apply sort direction and limit
+    if (sortDir === "asc") {
+      items = [...items].reverse();
+    }
+    if (limit) {
+      items = items.slice(0, limit);
+    }
+    return items;
+  }
+
+  // ── Provider management ───────────────────────────────────────────────────
+
+  /**
+   * MockCMSProvider does not write to any external system — provisionSite()
+   * returns a successful no-op result so that provisioning flows don't fail
+   * in development / test environments that use the mock provider.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async provisionSite(_tenant: TenantSettings, _options?: { dryRun?: boolean; siteType?: string; pages?: ReadonlyArray<{ presetKey: string; title: string; slug: string }>; includeDefaultBlocks?: boolean; starterContentMode?: import("./cms-provider").StarterContentMode; includeShowcasePage?: boolean }): Promise<ProvisionResult> {
+    return {
+      ok:                  true,
+      documentIds:         [],
+      pagesCreated:        0,
+      pagesUpdated:        0,
+      variantsWritten:     0,
+      siteSettingsWritten: false,
+      navItemsWritten:     0,
+      warnings:            ["MockCMSProvider: provisionSite() is a no-op. No documents were written."],
+    };
+  }
+
+  /** MockCMSProvider is always reachable — returns ok immediately. */
+  async testConnection(): Promise<TestConnectionResult> {
+    return { ok: true, provider: "mock", readAccess: true };
   }
 
   // ── Introspection helpers (testing / debug use only) ────────────────────

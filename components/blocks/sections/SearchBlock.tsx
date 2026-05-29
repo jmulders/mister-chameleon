@@ -136,8 +136,8 @@ function SearchInput({ value, placeholder, onChange, onSubmit, isLoading }: Sear
           minWidth:     0,
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--primary, #6d28d9)";
-          e.currentTarget.style.boxShadow   = "0 0 0 3px var(--primary-subtle, #ede9fe)";
+          e.currentTarget.style.borderColor = "var(--primary)";
+          e.currentTarget.style.boxShadow   = "0 0 0 3px var(--primary-subtle)";
         }}
         onBlur={(e) => {
           e.currentTarget.style.borderColor = "var(--form-input-border, #d1d5db)";
@@ -150,7 +150,7 @@ function SearchInput({ value, placeholder, onChange, onSubmit, isLoading }: Sear
         aria-label="Submit search"
         style={{
           padding:         "0.625rem 1.25rem",
-          background:      "var(--btn-primary-bg, var(--primary, #6d28d9))",
+          background:      "var(--btn-bg)",
           color:           "var(--btn-primary-text, #fff)",
           border:          "none",
           borderRadius:    "var(--form-input-radius, var(--radius-md, 0.5rem))",
@@ -202,9 +202,9 @@ function ScopeFilters({ activeScopes, availableScopes, onToggle }: ScopeFiltersP
             style={{
               padding:      "0.25rem 0.75rem",
               borderRadius: "var(--radius-full, 9999px)",
-              border:       `1px solid ${active ? "var(--primary, #6d28d9)" : "var(--card-border, #e5e7eb)"}`,
-              background:   active ? "var(--primary-subtle, #ede9fe)" : "transparent",
-              color:        active ? "var(--primary, #6d28d9)" : "var(--text-muted, #6b7280)",
+              border:       `1px solid ${active ? "var(--primary)" : "var(--card-border)"}`,
+              background:   active ? "var(--primary-subtle)" : "transparent",
+              color:        active ? "var(--primary)" : "var(--text-muted)",
               fontSize:     "0.8125rem",
               fontWeight:   active ? 600 : 400,
               cursor:       "pointer",

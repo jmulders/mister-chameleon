@@ -62,6 +62,10 @@
  */
 
 import type { TenantSettings, ThemeKey, TenantTokenOverrides } from "./types";
+import { THEME_PRESETS }           from "@/design-system/theme/presets";
+import type { ThemePresetKey }      from "@/design-system/theme/presets";
+import { tenantThemeToVarsRecord }  from "@/design-system/theme/tenant-theme";
+import { isThemePresetKey }        from "@/design-system/theme/presets";
 
 // ── Public types ───────────────────────────────────────────────────────────────
 
@@ -77,6 +81,58 @@ export interface ResolvedTheme {
   readonly vars: Record<string, string>;
 }
 
+// ── Curated theme → ThemePresetKey mapping ────────────────────────────────────
+//
+// Each new ThemeKey maps to its matching ThemePresetKey in THEME_PRESETS.
+// resolveThemeForTenant() uses this to emit the FULL CSS var set for curated
+// themes, rather than only a radius delta like the legacy preset keys.
+// Resolution order: curated vars (if any) → legacy radius delta → token overrides
+
+const CURATED_THEME_MAP: Partial<Record<ThemeKey, ThemePresetKey>> = {
+  "corporate-blue":     "corporate-blue",
+  "modern-green":       "modern-green",
+  "minimal-neutral":    "minimal-neutral",
+  "bold-dark":          "bold-dark",
+  "tech-indigo":        "tech-indigo",
+  "warm-professional":  "warm-professional",
+  "recruitment-energy": "recruitment-energy",
+  "healthcare-calm":    "healthcare-calm",
+  "industrial-strong":  "industrial-strong",
+  "premium-editorial":  "premium-editorial",
+  "dark-contrast":      "dark-contrast",
+  "editorial-classic":  "editorial-classic",
+  "playful-startup":    "playful-startup",
+  "startup-energy":     "startup-energy",
+  "corporate-trust":    "corporate-trust",
+  "modern-saas":        "modern-saas",
+  "corporate-clean":    "corporate-clean",
+  "bold-marketing":     "bold-marketing",
+  "portfolio-showcase": "portfolio-showcase",
+  "premium-luxury":     "premium-luxury",
+  // ── Seasonal themes ──────────────────────────────────────────────────────
+  "valentine-pink":     "valentine-pink",
+  "dutch-orange":       "dutch-orange",
+  // ── Careers / HR themes ──────────────────────────────────────────────────
+  "careers-human":      "careers-human",
+  // ── Premium families ─────────────────────────────────────────────────────
+  // Dark AI and Clean Corporate use the new featured-family CSS var pipeline
+  // (tenantThemeToCSS + familyTypographyToVars + familyStructuralToVars) and
+  // do NOT need a CURATED_THEME_MAP entry — their vars come from THEME_PRESETS
+  // directly.  Structured SaaS follows the same pattern.
+} as const;
+
+// Pre-computed full CSS var sets for each curated theme.
+// Built once at module initialisation — pure, no I/O.
+const CURATED_THEME_VARS: Partial<Record<ThemeKey, Record<string, string>>> =
+  Object.fromEntries(
+    (Object.entries(CURATED_THEME_MAP) as [ThemeKey, ThemePresetKey][]).map(
+      ([themeKey, presetKey]) => [
+        themeKey,
+        tenantThemeToVarsRecord(THEME_PRESETS[presetKey]),
+      ],
+    ),
+  );
+
 // ── Preset radius tables ───────────────────────────────────────────────────────
 //
 // Values mirror RADIUS_PRESETS in design-system/theme/tenant-theme.ts:
@@ -84,13 +140,16 @@ export interface ResolvedTheme {
 //   balanced → interactive 8px, card 16px, popover 12px  (platform default)
 //   soft     → interactive 12px, card 24px, popover 16px
 //
-// Theme → radius personality mapping:
+// Theme → radius personality mapping (legacy preset keys only):
 //   default  → balanced (no-op; matches theme.css :root)
 //   minimal  → sharp   (clean, technical aesthetic)
 //   bold     → soft    (generous, expressive aesthetic)
 //   custom   → balanced (only explicit token overrides apply)
+//
+// Curated theme keys map to {} here — their full vars come from CURATED_THEME_VARS.
 
 const PRESET_RADIUS_VARS: Record<ThemeKey, Record<string, string>> = {
+  // ── Legacy platform presets ────────────────────────────────────────────────
   default: {}, // Matches compiled theme.css baseline — emit nothing.
   minimal: {
     "--radius-interactive": "2px",
@@ -103,6 +162,37 @@ const PRESET_RADIUS_VARS: Record<ThemeKey, Record<string, string>> = {
     "--radius-popover":     "16px",
   },
   custom: {}, // No radius preset; only explicit overrides apply.
+  // ── Curated themes — full vars handled by CURATED_THEME_VARS above ─────────
+  "corporate-blue":     {},
+  "modern-green":       {},
+  "minimal-neutral":    {},
+  "bold-dark":          {},
+  "tech-indigo":        {},
+  "warm-professional":  {},
+  "recruitment-energy": {},
+  "healthcare-calm":    {},
+  "industrial-strong":  {},
+  "premium-editorial":  {},
+  "dark-contrast":      {},
+  "editorial-classic":  {},
+  "playful-startup":    {},
+  "startup-energy":     {},
+  "corporate-trust":    {},
+  "modern-saas":        {},
+  "corporate-clean":    {},
+  "bold-marketing":     {},
+  // ── Signature themes — full vars handled by CURATED_THEME_VARS ──────────────
+  "portfolio-showcase": {},
+  "premium-luxury":     {},
+  // ── Seasonal themes — full vars handled by CURATED_THEME_VARS ───────────────
+  "valentine-pink":     {},
+  "dutch-orange":       {},
+  // ── Careers / HR themes — full vars handled by CURATED_THEME_VARS ────────────
+  "careers-human":      {},
+  // ── Premium families — resolved via tenantThemeToCSS(resolveTheme(key)) ──────
+  "dark-ai":            {},
+  "clean-corporate":    {},
+  "structured-saas":    {},
 };
 
 // ── Grouped token → CSS var mapping ──────────────────────────────────────────
@@ -144,13 +234,26 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
 /**
  * Direct CSS var mappings for typography group keys.
  * Keys not listed fall back to `--typography-{kebab-key}`.
+ *
+ * Two-tier layout:
+ *   Base families — fontSans/fontMono/fontSerif → --font-sans etc.
+ *   Role mappings — fontHeading/fontBody/fontUI/fontCode → --font-heading etc.
+ *
+ * Source keys (fontSansSource, fontHeadingSource, …) are UI-only metadata and
+ * are intentionally absent from this map — they produce no CSS output.
  */
 const TYPOGRAPHY_CSS_VARS: Record<string, string> = {
+  // Base font families
   fontSans:       "--font-sans",
   fontMono:       "--font-mono",
   fontSerif:      "--font-serif",
   baseFontSize:   "--font-size-base",
   lineHeightBase: "--line-height-base",
+  // Usage-role mappings
+  fontHeading:    "--font-heading",
+  fontBody:       "--font-body",
+  fontUI:         "--font-ui",
+  fontCode:       "--font-code",
 };
 
 /**
@@ -161,6 +264,28 @@ const RADIUS_CSS_VARS: Record<string, string> = {
   interactive: "--radius-interactive",
   card:        "--radius-card",
   popover:     "--radius-popover",
+};
+
+/**
+ * Direct CSS var mappings for layout group keys (header + footer shell tokens).
+ * Keys not listed fall back to `--layout-{kebab-key}`.
+ */
+const LAYOUT_CSS_VARS: Record<string, string> = {
+  // Header shell
+  headerBg:         "--header-bg",
+  headerBgScrolled: "--header-bg-scrolled",
+  headerFg:         "--header-fg",
+  headerBorder:     "--header-border",
+  // Footer shell
+  footerBg:         "--footer-bg",
+  footerFg:         "--footer-fg",
+  footerBorder:     "--footer-border",
+  // Navigation typography
+  navLinkSize:         "--nav-link-size",
+  navLinkWeight:       "--nav-link-weight",
+  navLinkTracking:     "--nav-link-tracking",
+  navDropdownItemSize: "--nav-dropdown-item-size",
+  footerNavSize:       "--footer-nav-size",
 };
 
 /**
@@ -207,6 +332,12 @@ function resolveGroupVars(
       case "shadow":    vars[`--shadow-${kebab}`]     = value; break;
       case "motion":    vars[`--motion-${kebab}`]     = value; break;
       case "component": vars[`--component-${kebab}`]  = value; break;
+
+      case "layout": {
+        const cssVar = LAYOUT_CSS_VARS[key];
+        vars[cssVar ?? `--layout-${kebab}`] = value;
+        break;
+      }
     }
   }
 }
@@ -233,27 +364,69 @@ function resolveGroupVars(
  *   `settings` being null; it still crashes when `design` is undefined.
  *   All accesses are written as `settings?.design?.X` throughout this function.
  *
- * @param settings  The tenant's settings object, or null to use the defaults.
- * @returns         A ResolvedTheme ready for `resolvedThemeToCSS()`.
+ * @param settings         The tenant's settings object, or null to use the defaults.
+ * @param themeKeyOverride Optional ThemePresetKey resolved by the contextual theme
+ *                         decision engine (resolveThemeDecision).  When provided,
+ *                         this overrides `settings.design.theme` so contextual rules
+ *                         (time-of-day, seasonal, campaign) can change the active
+ *                         theme for a visitor's session without touching the DB.
+ * @returns                A ResolvedTheme ready for `resolvedThemeToCSS()`.
  */
 export function resolveThemeForTenant(
-  settings: TenantSettings | null,
+  settings:         TenantSettings | null,
+  themeKeyOverride?: ThemePresetKey | null,
 ): ResolvedTheme {
-  const key = settings?.design?.theme ?? "default";
+  // Use the override when provided and valid — it comes from resolveThemeDecision()
+  // and takes precedence over the tenant's stored design.theme.
+  const overrideKey = themeKeyOverride && isThemePresetKey(themeKeyOverride)
+    ? themeKeyOverride as unknown as ThemeKey
+    : null;
+  // Defensive: settings.design.theme must be a string.  It can be a non-string object
+  // in the unlikely event that a data-write bug corrupted the DB (e.g. spreading a
+  // string into numeric keys + a "preset" property).  Fall back to "default" in that
+  // case so the homepage renders cleanly instead of throwing a React child error.
+  const rawTheme = settings?.design?.theme;
+  const storedKey: ThemeKey = typeof rawTheme === "string" ? rawTheme : "default";
+  const key = overrideKey ?? storedKey;
 
-  // ── 1. Preset radius ────────────────────────────────────────────────────────
-  const vars: Record<string, string> = { ...PRESET_RADIUS_VARS[key] };
+  // ── 1. Base vars: full preset (curated themes) or radius delta (legacy) ──────
+  //
+  // For curated theme keys: emit all CSS vars from the full TenantTheme preset.
+  // For legacy keys ("default", "minimal", "bold", "custom"): emit only the
+  // radius delta — the CSS baseline from theme.css covers the rest, and legacy
+  // token overrides (primaryColor, primaryFont) are applied in pass 2–3.
+  const curatedVars = CURATED_THEME_VARS[key];
+  const vars: Record<string, string> = curatedVars
+    ? { ...curatedVars }
+    : { ...PRESET_RADIUS_VARS[key] };
 
   // ── 2. Legacy primaryColor / primaryFont / flat tokenOverrides ─────────────
+  //
+  // primaryColor is a legacy single-value override that predates the curated
+  // theme system.  For CURATED themes (dutch-orange, valentine-pink, etc.) the
+  // full TenantTheme preset already defines all brand colours — including a
+  // correct textBrand that is intentionally distinct from the primary button
+  // colour.  Applying a stale primaryColor (e.g. the old indigo default that
+  // was stored before the tenant switched theme) would overwrite --primary and
+  // --text-brand back to purple, producing the unintended purple text bug.
+  //
+  // Rule: for curated themes, skip the legacy primaryColor override entirely.
+  // The curated preset is the source of truth for all brand colours.
+  // Operators who want to tweak individual tokens should use the grouped
+  // tokenOverrides (level-3, applied below), not the legacy primaryColor field.
 
-  if (settings?.design?.primaryColor) {
+  if (settings?.design?.primaryColor && !curatedVars) {
+    // Apply only for non-curated (legacy) themes.
     const c = settings.design.primaryColor;
     vars["--primary"]    = c;
     vars["--ring"]       = c;
     vars["--text-brand"] = c;
   }
 
-  if (settings?.design?.primaryFont) {
+  // Legacy primaryFont — only applied when typography override is explicitly enabled.
+  // When override is off the active family's --font-sans wins, so injecting a stale
+  // primaryFont here would silently mask the new family's body font.
+  if (settings?.design?.primaryFont && settings?.design?.typographyOverrideEnabled === true) {
     vars["--font-sans"] = settings.design.primaryFont;
   }
 
@@ -267,12 +440,22 @@ export function resolveThemeForTenant(
     if (to.radiusPopover)     vars["--radius-popover"]     = to.radiusPopover;
 
     // ── 3. Grouped token overrides (highest specificity) ──────────────────────
+    //
+    // Typography overrides are only applied when `typographyOverrideEnabled` is
+    // explicitly `true`.  When the flag is absent or false the active theme
+    // family's typography (already embedded in CURATED_THEME_VARS) wins, which
+    // is what makes switching families produce visually distinct results.
+    const typographyOverrideEnabled = settings?.design?.typographyOverrideEnabled === true;
+
     const GROUPS = [
       "color", "typography", "radius", "spacing",
-      "border", "shadow", "motion", "component",
+      "border", "shadow", "motion", "component", "layout",
     ] as const;
 
     for (const group of GROUPS) {
+      // Skip typography when the override toggle is off.
+      if (group === "typography" && !typographyOverrideEnabled) continue;
+
       const groupOverrides = to[group as keyof TenantTokenOverrides] as
         | Readonly<Record<string, string>>
         | undefined;

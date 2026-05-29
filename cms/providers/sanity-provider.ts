@@ -58,19 +58,32 @@
  *                        documents with no `tenantId` field (shared content)
  */
 
-import type { SanityClient, QueryParams } from "@sanity/client";
-import type { CMSProvider } from "./cms-provider";
+import type { SanityClient, QueryParams, FilteredResponseQueryOptions } from "@sanity/client";
+import type { CMSProvider, ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type {
   HeroBlockData,
   ProofBlockData,
   CTABlockData,
+  FeatureBlockData,
+  ConversionBlockData,
+  NotificationBlockData,
+  AdaptiveBlockData,
   SiteSettingsData,
   PageData,
 } from "../types";
+import type { TenantSettings } from "@/tenant/types";
+// The provisioner is a Sanity-specific implementation detail — imported here
+// so that SanityProvider.provisionSite() can delegate to it without the
+// call site (actions.ts) needing to know about the Sanity implementation.
+import { provisionTenant } from "@/cms/seed/tenant-provisioner";
 import type {
   SanityHeroRaw,
   SanityProofRaw,
   SanityCTARaw,
+  SanityFeatureRaw,
+  SanityConversionRaw,
+  SanityNotificationRaw,
+  SanityAdaptiveHeroRaw,
   SanitySiteSettingsRaw,
   SanityPageRaw,
 } from "../queries/sanity";
@@ -78,6 +91,10 @@ import {
   HERO_BY_KEY_QUERY,
   PROOF_BY_KEY_QUERY,
   CTA_BY_KEY_QUERY,
+  FEATURE_BY_KEY_QUERY,
+  CONVERSION_BY_KEY_QUERY,
+  NOTIFICATION_BY_KEY_QUERY,
+  ADAPTIVE_HERO_BY_KEY_QUERY,
   SITE_SETTINGS_QUERY,
   PAGE_BY_SLUG_QUERY,
 } from "../queries/sanity";
@@ -85,15 +102,22 @@ import {
   mapSanityHero,
   mapSanityProof,
   mapSanityCTA,
+  mapSanityFeature,
+  mapSanityConversion,
+  mapSanityNotification,
+  mapSanityAdaptiveHero,
   mapSanitySiteSettings,
   mapSanityPage,
 } from "../mappers/sanity";
 import {
   createSanityClient,
+  createPreviewSanityClient,
   SANITY_REVALIDATE_SECONDS,
   SANITY_CACHE_TAG,
+  type SanityClientOverrides,
 } from "./sanity-client";
 import { logger } from "@/lib/logger";
+import { logSanityFetch } from "@/cms/sanity-bandwidth-logger";
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -116,40 +140,95 @@ const CONTENT_BY_KEYS_QUERY = `*[_id in $keys]`;
  * Next.js fetch options applied to all Sanity requests.
  *
  * @sanity/client >= 6.4.0 passes these through to the underlying native fetch,
- * enabling ISR participation without any extra configuration.
+ * enabling both standard cache directives and ISR participation.
+ *
+ * Development (`NODE_ENV === "development"`):
+ *   Uses `cache: "no-store"` which bypasses the Next.js data cache entirely.
+ *   Every Sanity request hits the live API directly — CMS changes are visible
+ *   on the very next page load without any ISR revalidation lag.
+ *   Combined with the in-process CMS cache bypass (CMS_CACHE_ENABLED=false),
+ *   this gives zero-delay CMS change visibility in local development.
+ *
+ * Production:
+ *   Participates in Next.js ISR via `next: { revalidate, tags }`.  The cache
+ *   is revalidated after SANITY_REVALIDATE_SECONDS (default 60 s in prod) or
+ *   on-demand via `revalidateTag("sanity")` from a webhook route handler.
  *
  * Note: typed explicitly (not `as const`) so that `tags` is `string[]`, which
  * is what FilteredResponseQueryOptions expects. Using `as const` would produce
  * a `readonly ["sanity"]` tuple that is not assignable to `string[]`.
  */
-const FETCH_OPTIONS: { next: { revalidate: number; tags: string[] } } = {
-  next: {
-    revalidate: SANITY_REVALIDATE_SECONDS,
-    tags: [SANITY_CACHE_TAG],
-  },
-};
+const FETCH_OPTIONS: FilteredResponseQueryOptions =
+  process.env.NODE_ENV === "development"
+    // `cache: "no-store"` tells Next.js (and the underlying native fetch) to
+    // skip the data cache entirely — the live Sanity API is hit on every request.
+    // This is safe in development and eliminates all ISR-level delay.
+    ? ({ cache: "no-store" } as FilteredResponseQueryOptions)
+    : {
+        next: {
+          revalidate: SANITY_REVALIDATE_SECONDS,
+          tags: [SANITY_CACHE_TAG],
+        },
+      };
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export class SanityProvider implements CMSProvider {
-  private readonly client:   SanityClient;
+  private readonly client:       SanityClient;
   /**
    * Tenant scope injected into every GROQ query as `$tenantId`.
    * null → no filtering (backward-compatible; all documents returned).
    * "<slug>" → documents for that tenant + documents with no tenantId set.
    */
-  private readonly tenantId: string | null;
+  private readonly tenantId:     string | null;
+  /**
+   * Locale scope injected into every variant GROQ query as `$locale`.
+   * null → no locale filtering (all locale variants returned; EN is fallback).
+   * "nl" / "de" → prefer locale-specific variant documents first.
+   */
+  private readonly locale:       string | null;
+  /**
+   * Per-instance fetch options.
+   *
+   * In preview mode (`preview: true`) this is always `{ cache: "no-store" }` so
+   * draft content is never served from a stale Next.js data-cache entry.
+   * In non-preview mode this follows the module-level FETCH_OPTIONS constant
+   * (no-store in dev, ISR-tagged in production).
+   */
+  private readonly fetchOptions: FilteredResponseQueryOptions;
 
   /**
-   * @param client    Optional pre-configured SanityClient.
-   *                  Omit in production — a client is created from env vars.
-   *                  Inject in tests to avoid env var setup.
-   * @param tenantId  Optional tenant scope, e.g. "workengine".
-   *                  Omit (or pass null) to return all-tenant documents.
+   * @param client     Optional pre-configured SanityClient.
+   *                   Omit in production — a client is created from env vars.
+   *                   Inject in tests to avoid env var setup.
+   * @param tenantId   Optional tenant scope, e.g. "workengine".
+   *                   Omit (or pass null) to return all-tenant documents.
+   * @param overrides  Optional per-tenant config overrides (projectId, dataset,
+   *                   apiVersion).  Ignored when `client` is supplied directly.
+   *                   When present, these values override the platform-level env
+   *                   vars so that each tenant can target its own Sanity project.
+   * @param preview    When true, the provider uses `perspective: "previewDrafts"`
+   *                   and `cache: "no-store"` so draft documents are always
+   *                   fetched fresh from the Sanity live API.
+   * @param locale     Optional locale code, e.g. "nl" or "de".
+   *                   When provided, variant queries prefer locale-specific
+   *                   documents over the default (EN) documents for that tenant.
    */
-  constructor(client?: SanityClient, tenantId?: string | null) {
-    this.client   = client ?? createSanityClient();
+  constructor(
+    client?:    SanityClient,
+    tenantId?:  string | null,
+    overrides?: SanityClientOverrides,
+    preview = false,
+    locale?:    string | null,
+  ) {
+    this.client   = client ?? (preview ? createPreviewSanityClient(overrides) : createSanityClient(overrides));
     this.tenantId = tenantId ?? null;
+    this.locale   = locale ?? null;
+    // Preview mode must never serve stale data — bypass the Next.js data cache
+    // so every draft request hits the Sanity live API directly.
+    this.fetchOptions = preview
+      ? ({ cache: "no-store" } as FilteredResponseQueryOptions)
+      : FETCH_OPTIONS;
   }
 
   // ── CMSProvider interface ─────────────────────────────────────────────────
@@ -181,27 +260,68 @@ export class SanityProvider implements CMSProvider {
     );
   }
 
-  // tenantId is threaded through fetchVariant (below) — the three methods above
+  async getFeatureVariant(key: string): Promise<FeatureBlockData | null> {
+    return this.fetchVariant<SanityFeatureRaw, FeatureBlockData>(
+      FEATURE_BY_KEY_QUERY,
+      key,
+      mapSanityFeature,
+      "feature variant",
+    );
+  }
+
+  async getConversionVariant(key: string): Promise<ConversionBlockData | null> {
+    return this.fetchVariant<SanityConversionRaw, ConversionBlockData>(
+      CONVERSION_BY_KEY_QUERY,
+      key,
+      mapSanityConversion,
+      "conversion variant",
+    );
+  }
+
+  async getNotificationVariant(key: string): Promise<NotificationBlockData | null> {
+    return this.fetchVariant<SanityNotificationRaw, NotificationBlockData>(
+      NOTIFICATION_BY_KEY_QUERY,
+      key,
+      mapSanityNotification,
+      "notification variant",
+    );
+  }
+
+  async getAdaptiveBlock(key: string): Promise<AdaptiveBlockData | null> {
+    return this.fetchVariant<SanityAdaptiveHeroRaw, AdaptiveBlockData>(
+      ADAPTIVE_HERO_BY_KEY_QUERY,
+      key,
+      mapSanityAdaptiveHero,
+      "adaptive block",
+    );
+  }
+
+  // tenantId is threaded through fetchVariant (below) — the methods above
   // share the same helper which injects this.tenantId into each GROQ params object.
 
-  async getSiteSettings(): Promise<SiteSettingsData | null> {
+  async getSiteSettings(locale = "en"): Promise<SiteSettingsData | null> {
+    logSanityFetch("SanityProvider/getSiteSettings", { tenantId: this.tenantId, locale });
+    // Pass tenantId and locale so the query can prefer the locale-specific
+    // siteSettings document and fall back to the default when unavailable.
     return this.fetchDocument<SanitySiteSettingsRaw, SiteSettingsData>(
       SITE_SETTINGS_QUERY,
       mapSanitySiteSettings,
       "site settings",
+      { tenantId: this.tenantId ?? "", locale },
     );
   }
 
-  async getPageBySlug(slug: string): Promise<PageData | null> {
+  async getPageBySlug(slug: string, locale = "en"): Promise<PageData | null> {
+    logSanityFetch("SanityProvider/getPageBySlug", { slug, tenantId: this.tenantId, locale });
     try {
       const raw = await this.client.fetch<SanityPageRaw | null>(
         PAGE_BY_SLUG_QUERY,
-        { slug, tenantId: this.tenantId } satisfies QueryParams,
-        FETCH_OPTIONS,
+        { slug, tenantId: this.tenantId, locale } satisfies QueryParams,
+        this.fetchOptions,
       );
 
       if (raw === null || raw === undefined) {
-        logger.debug(`[SanityProvider] page not found.`, { slug });
+        logger.debug(`[SanityProvider] page not found.`, { slug, locale });
         return null;
       }
 
@@ -209,6 +329,7 @@ export class SanityProvider implements CMSProvider {
     } catch (err) {
       logger.warn(`[SanityProvider] Failed to fetch page.`, {
         slug,
+        locale,
         error: err instanceof Error ? err.message : String(err),
       });
       return null;
@@ -249,6 +370,7 @@ export class SanityProvider implements CMSProvider {
   ): Promise<Record<string, unknown>> {
     // Fast-path: nothing to fetch.
     if (keys.length === 0) return {};
+    logSanityFetch("SanityProvider/getContentByKeys", { count: keys.length, tenantId: this.tenantId });
 
     // Pre-populate every key with null. Documents found in Sanity will
     // overwrite their entry; any key absent from the result set stays null.
@@ -260,7 +382,7 @@ export class SanityProvider implements CMSProvider {
       const docs = await this.client.fetch<Record<string, unknown>[]>(
         CONTENT_BY_KEYS_QUERY,
         { keys } satisfies QueryParams,
-        FETCH_OPTIONS,
+        this.fetchOptions,
       );
 
       // Index found documents by _id.
@@ -314,22 +436,63 @@ export class SanityProvider implements CMSProvider {
     mapper: (raw: TRaw) => TResult,
     label: string,
   ): Promise<TResult | null> {
+    logSanityFetch(`SanityProvider/${label}`, { key, tenantId: this.tenantId, locale: this.locale });
     try {
       const raw = await this.client.fetch<TRaw | null>(
         query,
-        { key, tenantId: this.tenantId } satisfies QueryParams,
-        FETCH_OPTIONS,
+        { key, tenantId: this.tenantId, locale: this.locale } satisfies QueryParams,
+        this.fetchOptions,
       );
 
       if (raw === null || raw === undefined) {
-        logger.debug(`[SanityProvider] ${label} not found.`, { key });
+        logger.debug(`[SanityProvider] ${label} not found.`, {
+          key,
+          queryTenantId: this.tenantId,
+        });
         return null;
+      }
+
+      // ── Variant resolution debug ─────────────────────────────────────────
+      //
+      //   Log which document won the resolution race.  This is the primary
+      //   diagnostic for "shared platform variant beats tenant variant" bugs.
+      //
+      //   Expected: docTenantId == queryTenantId  → tenant document won ✓
+      //   Unexpected: docTenantId == null/undefined → shared document won  ✗
+      //
+      //   If you see "shared" in logs when expecting "tenant", check:
+      //     a) The Sanity doc's tenantId field matches queryTenantId exactly.
+      //     b) The Sanity doc's isActive field is true.
+      //     c) The Sanity doc's key field is a plain string (not a slug object).
+      const docRecord = raw as Record<string, unknown>;
+      const docTenantId = docRecord.tenantId as string | undefined | null;
+      const docKey      = (docRecord.key as string | { current?: string } | undefined);
+      const resolvedKey = typeof docKey === "string" ? docKey : docKey?.current ?? "(unknown)";
+      const scope       = docTenantId ? "tenant" : "shared";
+
+      logger.debug(`[SanityProvider] ${label} resolved.`, {
+        requestedKey:    key,
+        resolvedKey,
+        queryTenantId:   this.tenantId,
+        docTenantId:     docTenantId ?? null,
+        scope,
+        docId:           docRecord._id ?? "(no _id)",
+      });
+
+      if (scope === "shared" && this.tenantId !== null) {
+        logger.warn(`[SanityProvider] ${label} resolved to SHARED document — no tenant-specific variant found.`, {
+          requestedKey:  key,
+          queryTenantId: this.tenantId,
+          docId:         docRecord._id ?? "(no _id)",
+          hint: "Check that a Sanity document exists with this key AND tenantId set to the expected tenant slug, and that isActive is true.",
+        });
       }
 
       return mapper(raw);
     } catch (err) {
       logger.warn(`[SanityProvider] Failed to fetch ${label}.`, {
         key,
+        queryTenantId: this.tenantId,
         error: err instanceof Error ? err.message : String(err),
       });
       return null;
@@ -379,16 +542,142 @@ export class SanityProvider implements CMSProvider {
     return [];
   }
 
+  // ── Collection resolution ─────────────────────────────────────────────────
+
+  async resolveCollection(
+    source: import("@/page-config/collection-source").CollectionContentSource,
+  ): Promise<import("@/page-config/collection-source").CollectionItem[]> {
+    const { collection, mode, limit, sortDir = "desc", selectedIds } = source;
+
+    try {
+      if (collection === "articles" || collection === "news") {
+        const articles = await this.getNewsArticles({ limit: mode === "recent" ? (limit ?? 50) : undefined });
+        let items = articles.map((a) => ({
+          id:       a.slug,
+          title:    a.title,
+          href:     `/news/${a.slug}`,
+          excerpt:  a.excerpt        ?? undefined,
+          date:     a.publishedAt    ?? undefined,
+          imageUrl: a.coverImage?.url ?? undefined,
+          imageAlt: a.coverImage?.alt ?? undefined,
+          tags:     a.tags           ?? undefined,
+        }));
+        if (mode === "specific" && selectedIds?.length) {
+          const idSet = new Set(selectedIds);
+          return items.filter((i) => idSet.has(i.id));
+        }
+        if (sortDir === "asc") items = [...items].reverse();
+        return limit ? items.slice(0, limit) : items;
+      }
+
+      if (collection === "vacancies") {
+        const vacancies = await this.getVacancies({ limit: mode === "recent" ? (limit ?? 50) : undefined });
+        let items = vacancies.map((v) => ({
+          id:       v.slug,
+          title:    v.title,
+          href:     `/careers/${v.slug}`,
+          date:     v.closingDate ?? undefined,
+          category: v.department  ?? undefined,
+        }));
+        if (mode === "specific" && selectedIds?.length) {
+          const idSet = new Set(selectedIds);
+          return items.filter((i) => idSet.has(i.id));
+        }
+        if (sortDir === "asc") items = [...items].reverse();
+        return limit ? items.slice(0, limit) : items;
+      }
+
+      if (collection === "companies") {
+        const companies = await this.getCompanies({ limit: mode === "recent" ? (limit ?? 50) : undefined });
+        let items = companies.map((c) => ({
+          id:       c.slug,
+          title:    c.name,
+          href:     `/companies/${c.slug}`,
+          excerpt:  c.description ?? undefined,
+        }));
+        if (mode === "specific" && selectedIds?.length) {
+          const idSet = new Set(selectedIds);
+          return items.filter((i) => idSet.has(i.id));
+        }
+        return limit ? items.slice(0, limit) : items;
+      }
+
+      // cases + future keys — implement once Sanity schemas are published
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  // ── Provider management ───────────────────────────────────────────────────
+
+  /**
+   * Provisions starter CMS content for a tenant into this Sanity dataset.
+   *
+   * Delegates to `provisionTenant()` from `cms/seed/tenant-provisioner` which
+   * handles credential resolution (per-tenant writeToken → platform settings →
+   * env vars), document building, and idempotent Sanity `createOrReplace` writes.
+   *
+   * This keeps all Sanity-specific provisioning logic in tenant-provisioner.ts
+   * while making the call site (actions.ts) CMS-agnostic.
+   */
+  async provisionSite(
+    tenant:   TenantSettings,
+    options?: {
+      dryRun?:               boolean;
+      siteType?:             string;
+      pages?:                ReadonlyArray<{ presetKey: string; title: string; slug: string }>;
+      includeDefaultBlocks?: boolean;
+      starterContentMode?:   import("./cms-provider").StarterContentMode;
+      includeShowcasePage?:  boolean;
+    },
+  ): Promise<ProvisionResult> {
+    return provisionTenant(
+      tenant,
+      options?.dryRun ?? false,
+      options?.siteType,
+      options?.pages,
+      options?.includeDefaultBlocks,
+      options?.starterContentMode,
+      options?.includeShowcasePage,
+    );
+  }
+
+  /**
+   * Tests connectivity to this Sanity project/dataset using the configured
+   * read client.
+   *
+   * Runs a zero-cost GROQ query (`count(*[false])`) which confirms:
+   *   - Network reach to the Sanity API/CDN
+   *   - Project ID and dataset name are valid
+   *   - The read token (if any) is accepted
+   *
+   * The check is read-only and writes nothing.
+   */
+  async testConnection(): Promise<TestConnectionResult> {
+    try {
+      await this.client.fetch<number>(`count(*[false])`);
+      return { ok: true, provider: "sanity", readAccess: true };
+    } catch (err) {
+      return {
+        ok:       false,
+        provider: "sanity",
+        error:    err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
   private async fetchDocument<TRaw, TResult>(
     query: string,
     mapper: (raw: TRaw) => TResult,
     label: string,
+    params?: Record<string, unknown>,
   ): Promise<TResult | null> {
     try {
       const raw = await this.client.fetch<TRaw | null>(
         query,
-        {} satisfies QueryParams,
-        FETCH_OPTIONS,
+        (params ?? {}) as QueryParams,
+        this.fetchOptions,
       );
 
       if (raw === null || raw === undefined) {

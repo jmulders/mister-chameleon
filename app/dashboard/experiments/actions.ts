@@ -48,6 +48,7 @@ import {
   listAllExperiments,
   createExperiment,
   updateExperiment,
+  deleteExperiment,
 } from "@/data/repositories/experiments-repository";
 import type { ExperimentRow, ExperimentInsert } from "@/data/types";
 import {
@@ -341,6 +342,33 @@ export async function updateExperimentAction(
   }
 
   return { ok: true, experiment: result.data };
+}
+
+// ── deleteExperimentAction ────────────────────────────────────────────────────
+
+/**
+ * Permanently deletes an experiment by its slug ID.
+ *
+ * This is a destructive operation — use it only when an experiment is no
+ * longer needed and should be removed from the list entirely.  If you want to
+ * stop traffic from being split, use changeExperimentStatusAction("ended")
+ * instead — that preserves the experiment for reporting purposes.
+ *
+ * @param id  The experiment slug (primary key).
+ */
+export async function deleteExperimentAction(
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!id || typeof id !== "string") {
+    return { ok: false, error: "Experiment ID is required." };
+  }
+
+  const result = await deleteExperiment(id);
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+
+  return { ok: true };
 }
 
 // ── changeExperimentStatusAction ──────────────────────────────────────────────

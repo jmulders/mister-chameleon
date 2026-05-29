@@ -38,10 +38,12 @@ import { Text }                from "@/components/primitives/Text";
 import { resolveBlockVariant }  from "@/page-config/block-variants";
 import type { RecruiterPanelVariant } from "@/page-config/block-variants";
 import type { RecruiterPanelBlockData } from "@/page-config";
+import { resolveSurface, type BlockSurface } from "@/lib/surface";
 
 interface RecruiterPanelBlockProps {
   data:     RecruiterPanelBlockData;
   variant?: string;
+  surface?: BlockSurface;
 }
 
 // ── Avatar subcomponent ───────────────────────────────────────────────────────
@@ -66,8 +68,8 @@ function Avatar({ src, name, size = "md" }: { src?: string; name: string; size?:
     <span
       className={`${dim} rounded-full flex items-center justify-center shrink-0 text-lg font-bold`}
       style={{
-        background: "color-mix(in srgb, var(--text-brand) 15%, transparent)",
-        color:      "var(--text-brand)",
+        background: "var(--primary-subtle)",
+        color:      "var(--primary)",
       }}
       aria-hidden="true"
     >
@@ -118,7 +120,7 @@ function ContactRow({ email, phone }: { email?: string; phone?: string }) {
 
 // ── Block component ────────────────────────────────────────────────────────────
 
-export function RecruiterPanelBlock({ data, variant: rawVariant }: RecruiterPanelBlockProps) {
+export function RecruiterPanelBlock({ data, variant: rawVariant, surface }: RecruiterPanelBlockProps) {
   const variant  = resolveBlockVariant("recruiterPanel", rawVariant) as RecruiterPanelVariant;
   const { heading, name, role, bio, avatarUrl, email, phone, ctaLabel, ctaHref } = data;
 
@@ -129,7 +131,7 @@ export function RecruiterPanelBlock({ data, variant: rawVariant }: RecruiterPane
 
   if (variant === "compact") {
     return (
-      <Section spacing="sm">
+      <Section spacing="sm" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
         <Container size="md">
           <div
             className="flex flex-wrap items-center gap-4 rounded-lg border px-5 py-4"
@@ -171,7 +173,7 @@ export function RecruiterPanelBlock({ data, variant: rawVariant }: RecruiterPane
 
   if (variant === "card") {
     return (
-      <Section spacing="lg">
+      <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
         <Container size="md">
           {heading && (
             <Text variant="h2" className="mb-8 text-center">
@@ -231,7 +233,7 @@ export function RecruiterPanelBlock({ data, variant: rawVariant }: RecruiterPane
     <Section
       spacing="lg"
       style={{
-        background:          "var(--section-subtle-bg)",
+        background:          resolveSurface(surface) ?? "var(--section-subtle-bg)",
         borderTopColor:    "var(--section-subtle-border)",
         borderBottomColor: "var(--section-subtle-border)",
       }}

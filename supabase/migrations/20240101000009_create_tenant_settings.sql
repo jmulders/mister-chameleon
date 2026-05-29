@@ -54,11 +54,16 @@ COMMENT ON COLUMN public.tenant_settings.updated_at IS 'Last write timestamp, se
 --
 -- Insert the Mister Chameleon platform tenant as the initial row.
 -- Uses INSERT … ON CONFLICT DO NOTHING so re-running the migration is safe.
+--
+-- Wrapped in a DO block so it handles environments where an `id` column has
+-- already been added to tenant_settings (e.g. by migration 000015 in a prior
+-- push).  When `id` exists the INSERT supplies it explicitly; when it does not
+-- exist the INSERT omits it.  Both branches use ON CONFLICT DO NOTHING so the
+-- block is idempotent whether or not the row already exists.
 
-INSERT INTO public.tenant_settings (tenant_id, settings, updated_at)
-VALUES (
-  'mister-chameleon',
-  '{
+DO $$
+DECLARE
+  _settings jsonb := '{
     "tenantId":   "mister-chameleon",
     "packageKey": "pro",
     "features": {
@@ -82,7 +87,22 @@ VALUES (
       "theme": "default"
     },
     "name": "Mister Chameleon"
-  }'::jsonb,
-  now()
-)
-ON CONFLICT (tenant_id) DO NOTHING;
+  }'::jsonb;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE  table_schema = 'public'
+      AND  table_name   = 'tenant_settings'
+      AND  column_name  = 'id'
+  ) THEN
+    -- id column present: supply it to avoid NOT NULL violation
+    INSERT INTO public.tenant_settings (id, tenant_id, settings, updated_at)
+    VALUES ('mister-chameleon', 'mister-chameleon', _settings, now())
+    ON CONFLICT (tenant_id) DO NOTHING;
+  ELSE
+    -- id column absent (fresh env, pre-migration-015): omit it
+    INSERT INTO public.tenant_settings (tenant_id, settings, updated_at)
+    VALUES ('mister-chameleon', _settings, now())
+    ON CONFLICT (tenant_id) DO NOTHING;
+  END IF;
+END $$;

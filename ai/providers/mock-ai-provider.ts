@@ -57,7 +57,9 @@
  */
 
 import type { DecisionInput, ExperiencePlan, HeroVariantKey, ProofVariantKey, CTAVariantKey } from "@/decision/types";
+import type { VariantCandidate } from "@/ai/variant-meta";
 import { buildHomepagePrompt } from "@/ai/prompt-builder";
+import { filterAiReady, platformOnlyCandidates } from "@/ai/resolve-variant-candidates";
 import type { AiProvider, AiProviderResult } from "./base-provider";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -140,21 +142,43 @@ export class MockAiProvider implements AiProvider {
     // real model would receive.  Included in rawReasoning for observability.
     const { systemPrompt, userPrompt, metadata } = buildHomepagePrompt(input);
 
-    // Resolve the deterministic plan for this visitor's source.
-    const planTemplate =
-      SOURCE_PLANS[input.source] ?? DEFAULT_PLAN;
+    // Resolve the aiReady candidate pools — used to validate that the mock's
+    // chosen keys are actually available in this tenant's configuration.
+    const candidates = input.variantCandidates ?? platformOnlyCandidates();
+    const heroReady  = filterAiReady(candidates.hero);
+    const proofReady = filterAiReady(candidates.proof);
+    const ctaReady   = filterAiReady(candidates.cta);
+
+    // Resolve the deterministic plan for this visitor's source, then validate
+    // that each chosen key is present in the aiReady pool.  Fall back to the
+    // first available candidate per slot if the preferred key is not present.
+    const planTemplate = SOURCE_PLANS[input.source] ?? DEFAULT_PLAN;
+
+    const heroKey  = pickKey(heroReady,  planTemplate.heroKey)  as HeroVariantKey;
+    const proofKey = pickKey(proofReady, planTemplate.proofKey) as ProofVariantKey;
+    const ctaKey   = pickKey(ctaReady,   planTemplate.ctaKey)   as CTAVariantKey;
+
+    const fallbackNote =
+      heroKey  !== planTemplate.heroKey  ||
+      proofKey !== planTemplate.proofKey ||
+      ctaKey   !== planTemplate.ctaKey
+        ? `\nNote: one or more preferred keys were not aiReady — fell back to first available.`
+        : "";
 
     // Construct the full ExperiencePlan (satisfies the decision/types shape).
     const plan: ExperiencePlan = {
-      heroKey:  planTemplate.heroKey,
-      proofKey: planTemplate.proofKey,
-      ctaKey:   planTemplate.ctaKey,
-      reason:   planTemplate.reason,
+      heroKey,
+      proofKey,
+      ctaKey,
+      reason: planTemplate.reason,
     };
 
     // Build a short summary of which signals were present so the rawReasoning
     // field gives operators useful context in the AI dashboard.
     const signalSummary = buildSignalSummary(input, metadata.signalCount);
+
+    const candidateSummary =
+      `aiReady candidates — hero: ${heroReady.length}, proof: ${proofReady.length}, cta: ${ctaReady.length}`;
 
     return {
       ok: true,
@@ -167,7 +191,8 @@ export class MockAiProvider implements AiProvider {
         // operators see meaningful data in the dashboard without a real API call.
         rawReasoning:
           `[MOCK PROVIDER — no real model called]\n\n` +
-          `Signal summary: ${signalSummary}\n\n` +
+          `Signal summary: ${signalSummary}\n` +
+          `${candidateSummary}${fallbackNote}\n\n` +
           `Selected plan: source="${input.source}" → ${plan.heroKey} / ${plan.proofKey} / ${plan.ctaKey}\n\n` +
           `--- System prompt (would have been sent) ---\n` +
           `${systemPrompt}\n\n` +
@@ -179,6 +204,19 @@ export class MockAiProvider implements AiProvider {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Returns `preferred` if it exists in the aiReady candidate list, otherwise
+ * returns the key of the first available candidate.
+ *
+ * Ensures the mock never emits a key that the AI prompt would reject —
+ * respects the aiReady gating that applies to real models.
+ */
+function pickKey(candidates: VariantCandidate[], preferred: string): string {
+  if (candidates.some((c) => c.key === preferred)) return preferred;
+  // Preferred key not aiReady for this tenant — use first available
+  return candidates[0]?.key ?? preferred;
+}
 
 /**
  * Builds a one-line human-readable summary of the visitor's signals.

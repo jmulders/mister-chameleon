@@ -153,7 +153,7 @@ export default async function TenantPageEditorPage({
 
       {/* Page header */}
       <div className="mb-8 flex flex-wrap items-center gap-3">
-        <Text variant="h2">{page.title}</Text>
+        <h1 className="text-xl font-semibold text-neutral-900">{page.title}</h1>
         <Badge
           variant={TEMPLATE_VARIANT[page.templateKey] ?? "default"}
           size="md"
@@ -216,6 +216,14 @@ export default async function TenantPageEditorPage({
           title="Context slots"
           description="Adaptive slots rendered before or after the content flow. Configure the allowed variant envelope and fallback. The decision engine selects the final per-visitor variant at request time."
         >
+          <div className="text-right -mt-1 mb-1">
+            <Link
+              href="/admin/platform/variants"
+              className="text-xs text-neutral-400 hover:text-brand-700 transition-colors"
+            >
+              What does each variant mean for AI? →
+            </Link>
+          </div>
           <ContextSlotsEditor
             pageId={page.id}
             initialSlots={page.contextSlots}
@@ -234,6 +242,7 @@ export default async function TenantPageEditorPage({
             initialBlocks={page.contentBlocks}
             blockDefs={blockDefs}
             onSave={boundSaveBlocks}
+            tenantId={tenantId}
           />
         </EditorSection>
 

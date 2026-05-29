@@ -61,7 +61,21 @@
  *   - Safe unknown-field handling in case a stored rule slips past validation.
  */
 
-import type { DecisionInput, HeroVariantKey, ProofVariantKey, CTAVariantKey } from "../types";
+import type {
+  DecisionInput,
+  HeroVariantKey,
+  ProofVariantKey,
+  CTAVariantKey,
+  FeatureVariantKey,
+  ConversionVariantKey,
+  NotificationVariantKey,
+} from "../types";
+import {
+  FEATURE_VARIANT_KEYS,
+  CONVERSION_VARIANT_KEYS,
+  NOTIFICATION_VARIANT_KEYS,
+} from "../types";
+import type { ThemePresetKey } from "@/design-system/theme/presets";
 import type { HomepageRule } from "./homepage-rules";
 import {
   FIELD_REGISTRY,
@@ -78,6 +92,8 @@ import type {
   RuleEvaluationContext,
   FieldRuntimeValue,
 } from "./field-registry";
+import { ALL_CONTEXT_IDS } from "./context-library";
+import type { PrecedenceLevel } from "./rule-packs";
 import { logger } from "@/lib/logger";
 
 // ── Re-exports for consumers that import from stored-rule ──────────────────────
@@ -209,16 +225,176 @@ export interface GroupCondition {
   conditions: readonly RuleCondition[];
 }
 
+/**
+ * A condition that delegates to a named ContextDefinition from the Context Library.
+ *
+ * This is the primary way rules should express visitor segments: reference a
+ * named context (e.g. "ctx_google_traffic") rather than duplicating a field
+ * condition inline.  Context IDs are stable keys in CONTEXT_REGISTRY.
+ *
+ * Advantages over inline field conditions:
+ *   - If the underlying definition changes (e.g. "google_traffic" gains paid-ads
+ *     source values), all rules that reference it update automatically.
+ *   - The rule editor can present a curated context picker instead of raw fields.
+ *   - Debug output shows which named contexts matched, making traces readable.
+ *
+ * @example
+ *   { type: "context", contextId: "ctx_google_traffic" }
+ */
+export interface ContextCondition {
+  type:      "context";
+  contextId: string;
+}
+
+/**
+ * Condition that triggers when one or more named Context Library audience
+ * profiles match the current visitor.
+ *
+ * Context Library definitions live in `context/library/definitions.ts` and are
+ * separate from the simpler `CONTEXT_REGISTRY` used by ContextCondition.
+ * They are richer audience profiles with criteria-based matching and per-criterion
+ * confidence scoring.
+ *
+ * Logic: OR across `contextIds` — if ANY of the listed definitions match the
+ * visitor (and meet the optional confidence threshold) the condition fires.
+ *
+ * This enables three condition modes in the ThemeRulesEditor:
+ *   "raw_condition"         — FieldCondition / NamedCondition / ContextCondition / GroupCondition
+ *   "context_match"         — ContextLibraryCondition (one or more library IDs)
+ *   "context_plus_condition" — GroupCondition { logic: "and", conditions: [ContextLibraryCondition, rawCondition] }
+ *
+ * @example
+ *   { type: "context_library", contextIds: ["intent-high-saas-evaluator", "lifecycle-active-trial"] }
+ *   { type: "context_library", contextIds: ["lifecycle-customer"], minConfidence: 0.8 }
+ */
+export interface ContextLibraryCondition {
+  type: "context_library";
+  /**
+   * One or more Context Library definition IDs from `context/library/definitions.ts`.
+   * The condition fires when ANY listed definition matches (OR logic).
+   */
+  contextIds: readonly string[];
+  /**
+   * Minimum confidence threshold for a match to count.
+   * Confidence is the ratio of passed criteria / total criteria (0–1).
+   * Defaults to 0 (any match qualifies, including partial optional criteria).
+   */
+  minConfidence?: number;
+}
+
 /** Any condition that can appear in a StoredRule or as a GroupCondition child. */
-export type RuleCondition = FieldCondition | NamedCondition | GroupCondition;
+export type RuleCondition =
+  | FieldCondition
+  | NamedCondition
+  | ContextCondition
+  | ContextLibraryCondition
+  | GroupCondition;
 
 // ── Stored plan ────────────────────────────────────────────────────────────────
 
-/** The variant key triple stored inside a rule or the default plan. */
+/**
+ * The variant key triple (+ optional theme override) stored inside a rule
+ * or the default plan.
+ *
+ * `themeKey` is optional — omit it when the rule only affects variant selection.
+ * When present it overrides the tenant's design.theme for the session.
+ */
 export interface StoredPlan {
-  heroKey:  HeroVariantKey;
-  proofKey: ProofVariantKey;
-  ctaKey:   CTAVariantKey;
+  heroKey:   HeroVariantKey;
+  proofKey:  ProofVariantKey;
+  ctaKey:    CTAVariantKey;
+  /**
+   * Optional theme preset override for this plan.
+   * When set the experience pipeline injects this theme instead of the
+   * tenant's default design.theme for the visitor's session.
+   */
+  themeKey?: ThemePresetKey;
+
+  /**
+   * Controls how prominently the pricing section is displayed.
+   *
+   * hidden     — Customer in onboarding/post-conversion. Acquisition pricing
+   *              suppressed; replaced by lifecycle CTAs only.
+   * teaser     — Awareness/consideration stage. Brief pricing preview only
+   *              (e.g. "starting from €79/mo" + link to full page).
+   * standard   — Mid-funnel default. Full pricing table shown without
+   *              special visual emphasis or urgency signals.
+   * emphasized — High-intent / trial-ready. Pricing prominent with stronger
+   *              CTA labels, highlight on recommended plan, and optional
+   *              urgency copy.
+   *
+   * When absent, components default to "standard".
+   */
+  pricingEmphasis?: "hidden" | "teaser" | "standard" | "emphasized";
+
+  /**
+   * Controls which CTA type is shown in pricing-sensitive sections.
+   *
+   * trial      — Show "Start gratis" / free trial CTA (Starter emphasis).
+   * demo       — Show "Plan demo" / "Bekijk demo" CTA (default for Growth/Pro).
+   * onboarding — Customer just converted; show "Plan je onboarding" / dashboard CTA.
+   * expansion  — Existing customer; show "Upgrade je plan" / enrichment CTA.
+   * none       — Suppress acquisition CTA entirely (customer, post-conversion).
+   *
+   * When absent, components use each plan's canonical ctaType from pricing-table.ts.
+   */
+  pricingCtaMode?: "trial" | "demo" | "onboarding" | "expansion" | "none";
+
+  /**
+   * Optional feature block variant for this plan.
+   *
+   * Controls the "features" adaptive slot — a content-managed feature grid,
+   * highlights strip, or comparison table.  When absent the slot falls back to
+   * the tenant's default featureKey or is omitted from the page.
+   *
+   * feature_grid_primary  — Full feature grid (typical awareness / consideration).
+   * feature_highlights    — Condensed differentiator highlights (mid-funnel).
+   * feature_comparison    — Side-by-side comparison table (high intent / trial).
+   */
+  featureKey?: FeatureVariantKey;
+
+  /**
+   * Optional conversion block variant for this plan.
+   *
+   * Controls the "conversion" adaptive slot — a richer conversion section
+   * (form, booking embed, or sign-up flow) placed below the main CTA block.
+   *
+   * conversion_signup   — Email / account signup form (trial / starter).
+   * conversion_demo     — Demo request or booking embed (growth / enterprise).
+   * conversion_contact  — Contact / enquiry form (careers / post-conversion).
+   */
+  conversionKey?: ConversionVariantKey;
+
+  /**
+   * Optional notification overlay variant for this plan.
+   *
+   * Controls the "notification" adaptive slot — a toast or banner shown on top
+   * of the page layout.  When absent, no notification is shown.
+   *
+   * notification_default   — Generic informational notice.
+   * notification_offer     — Promotional / limited-time offer banner.
+   * notification_urgency   — Urgency/scarcity nudge for high-intent visitors.
+   * notification_returning — Personalised welcome-back for known visitors.
+   */
+  notificationKey?: NotificationVariantKey;
+
+  /**
+   * Visitor-adaptive hero variant key for compact inner-page banners.
+   *
+   * Used exclusively by the CMS slug page decision pipeline
+   * (`lib/cms-page-decision.ts`) to personalise the `hero` context slot on
+   * inner pages without affecting the homepage experience.
+   *
+   * Targets `hero_page_banner_*` variants (compact, dark ~160–280px header
+   * with optional media panel).  The homepage always uses `heroKey` instead;
+   * this field is intentionally separate so a rule author can target both
+   * surfaces independently from one rule.
+   *
+   * Resolution order applied by `cms-page-decision.ts`:
+   *   1. plan.pageBannerKey  — engine-chosen compact banner (visitor-adaptive)
+   *   2. slot.variantKey     — page-specific fallback set by the CMS author
+   */
+  pageBannerKey?: string;
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────
@@ -249,6 +425,53 @@ export interface StoredRule {
 
   /** Explanation shown in debug output and analytics. */
   reason: string;
+
+  /**
+   * Whether this rule participates in evaluation.
+   * When false the rule is skipped by the engine regardless of its condition.
+   * Defaults to true when absent (backward compatible with stored rules
+   * that were created before this field existed).
+   */
+  enabled?: boolean;
+
+  /**
+   * Origin of this rule, used by the blueprint merge system.
+   *
+   * "system"    — shipped with the platform; updated automatically on deploy.
+   * "blueprint" — installed from a demo or starter blueprint; safe to overwrite.
+   * "tenant"    — created or customised by the tenant; never overwritten by merges.
+   *
+   * Defaults to "tenant" when absent so that rules created before this field
+   * existed are never accidentally overwritten.
+   */
+  source?: "system" | "blueprint" | "tenant";
+
+  /**
+   * The rule pack this rule belongs to.
+   *
+   * References a key in RULE_PACK_REGISTRY (e.g. "pack_traffic_source") or a
+   * custom tenant pack ID.  Used for grouping and filtering in the admin UI.
+   * Has no effect on rule evaluation — purely organisational metadata.
+   *
+   * Defaults to undefined (uncategorised) when absent.
+   */
+  packId?: string;
+
+  /**
+   * The named precedence tier this rule operates in.
+   *
+   * Must be consistent with the priority value:
+   *   hard_state          → priority 1–9
+   *   high_intent         → priority 10–19
+   *   medium_segmentation → priority 20–49
+   *   decorative          → priority 50–99
+   *
+   * If absent, the tier is inferred from the priority at display time by
+   * inferPrecedenceLevel().  Explicit declaration is preferred because it makes
+   * the intent visible in stored JSON without requiring the caller to know the
+   * tier boundaries.
+   */
+  precedenceLevel?: PrecedenceLevel;
 }
 
 // ── Default plan ───────────────────────────────────────────────────────────────
@@ -269,26 +492,94 @@ export interface StoredRulesConfig {
   updatedAt:     string;
   rules:         StoredRule[];
   defaultPlan:   StoredDefaultPlan;
+
+  /**
+   * Tenant-level master switch for the rules engine.
+   * When false the engine skips all rules and falls back to the defaultPlan,
+   * regardless of individual rule.enabled values.
+   * Defaults to true when absent (backward compatible).
+   */
+  rulesEnabled?: boolean;
 }
 
 // ── Allowed variant key sets ───────────────────────────────────────────────────
 
 export const ALLOWED_HERO_KEYS: readonly HeroVariantKey[] = [
+  // Platform defaults
+  "hero_default",
   "hero_google_problem",
   "hero_linkedin_vision",
   "hero_direct_brand",
+  "hero_consideration",
+  "hero_intent_direct",
+  "hero_customer_onboarding",
+  // B2B SaaS blueprint
+  "hero_saas_default",
+  "hero_saas_consideration",
+  "hero_saas_intent",
+  "hero_saas_trial",
+  "hero_saas_customer_onboarding",
+  // Careers / Werken-bij blueprint
+  "hero_careers_default",
+  "hero_careers_job_match",
+  "hero_careers_high_intent",
+  "hero_careers_reassurance",
 ] as const;
 
 export const ALLOWED_PROOF_KEYS: readonly ProofVariantKey[] = [
+  // Platform defaults
+  "proof_default",
   "proof_cases",
   "proof_vision",
   "proof_platform",
+  "proof_stats",
+  "proof_reassurance",
+  // B2B SaaS blueprint
+  "proof_saas_default",
+  "proof_saas_consideration",
+  "proof_saas_intent",
+  "proof_saas_reassurance",
+  // Careers / Werken-bij blueprint
+  "proof_careers_default",
+  "proof_careers_team",
+  "proof_careers_reassurance",
 ] as const;
 
 export const ALLOWED_CTA_KEYS: readonly CTAVariantKey[] = [
+  // Platform defaults
+  "cta_default",
   "cta_guide",
   "cta_platform",
   "cta_meeting",
+  "cta_demo",
+  "cta_onboarding",
+  "cta_expansion",
+  // B2B SaaS blueprint
+  "cta_saas_default",
+  "cta_saas_demo",
+  "cta_saas_trial",
+  "cta_saas_onboarding",
+  "cta_saas_expansion",
+  // Careers / Werken-bij blueprint
+  "cta_careers_browse",
+  "cta_careers_apply",
+  "cta_careers_open",
+  "cta_careers_contact",
+] as const;
+
+/** All valid feature variant keys — mirrors FEATURE_VARIANT_KEYS from decision/types.ts. */
+export const ALLOWED_FEATURE_KEYS: readonly FeatureVariantKey[] = [
+  ...FEATURE_VARIANT_KEYS,
+] as const;
+
+/** All valid conversion variant keys — mirrors CONVERSION_VARIANT_KEYS from decision/types.ts. */
+export const ALLOWED_CONVERSION_KEYS: readonly ConversionVariantKey[] = [
+  ...CONVERSION_VARIANT_KEYS,
+] as const;
+
+/** All valid notification variant keys — mirrors NOTIFICATION_VARIANT_KEYS from decision/types.ts. */
+export const ALLOWED_NOTIFICATION_KEYS: readonly NotificationVariantKey[] = [
+  ...NOTIFICATION_VARIANT_KEYS,
 ] as const;
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -299,6 +590,21 @@ export interface ValidationError {
   message: string;
 }
 
+// ── Extra allowed keys (CMS variants) ─────────────────────────────────────────
+
+/**
+ * Optional extra variant key sets passed to validateStoredConfig() by server
+ * actions that have already fetched the CMS catalogue.
+ *
+ * Each array extends the corresponding ALLOWED_*_KEYS whitelist so that
+ * CMS-created variants are accepted without relaxing the platform defaults.
+ */
+export interface ExtraAllowedKeys {
+  heroKeys?:  readonly string[];
+  proofKeys?: readonly string[];
+  ctaKeys?:   readonly string[];
+}
+
 /**
  * Validate a StoredRulesConfig against the field registry and allowed key
  * vocabulary.  Returns an array of errors; empty array = valid.
@@ -306,8 +612,16 @@ export interface ValidationError {
  * Deliberately strict — rejects any value not in the explicit allow-lists
  * to prevent injection of unexpected content via the editor API.
  * Condition trees are validated recursively with a depth cap of 5.
+ *
+ * @param config     The raw config value (JSON-parsed from the request body).
+ * @param extraKeys  Optional CMS variant keys to extend the platform allow-lists.
+ *                   Pass the keys fetched by fetchVariantCatalogue() so rules
+ *                   that target CMS variants pass validation.
  */
-export function validateStoredConfig(config: unknown): ValidationError[] {
+export function validateStoredConfig(
+  config:    unknown,
+  extraKeys: ExtraAllowedKeys = {},
+): ValidationError[] {
   const errors: ValidationError[] = [];
 
   if (!config || typeof config !== "object") {
@@ -321,12 +635,28 @@ export function validateStoredConfig(config: unknown): ValidationError[] {
     errors.push({ field: "schemaVersion", message: "schemaVersion must be 1." });
   }
 
+  // rulesEnabled (optional boolean)
+  if (c.rulesEnabled !== undefined && typeof c.rulesEnabled !== "boolean") {
+    errors.push({ field: "rulesEnabled", message: "rulesEnabled must be a boolean." });
+  }
+
+  // Merge platform + extra allowed keys for plan validation.
+  const allowedHeroKeys:  readonly string[] = extraKeys.heroKeys
+    ? [...ALLOWED_HERO_KEYS, ...extraKeys.heroKeys]
+    : ALLOWED_HERO_KEYS;
+  const allowedProofKeys: readonly string[] = extraKeys.proofKeys
+    ? [...ALLOWED_PROOF_KEYS, ...extraKeys.proofKeys]
+    : ALLOWED_PROOF_KEYS;
+  const allowedCtaKeys:   readonly string[] = extraKeys.ctaKeys
+    ? [...ALLOWED_CTA_KEYS, ...extraKeys.ctaKeys]
+    : ALLOWED_CTA_KEYS;
+
   // Default plan
   const dp = c.defaultPlan as Record<string, unknown> | undefined;
   if (!dp) {
     errors.push({ field: "defaultPlan", message: "defaultPlan is required." });
   } else {
-    validatePlan(dp, "defaultPlan", undefined, errors);
+    validatePlan(dp, "defaultPlan", undefined, errors, allowedHeroKeys, allowedProofKeys, allowedCtaKeys);
     if (typeof dp.reason !== "string" || dp.reason.trim() === "") {
       errors.push({ field: "defaultPlan.reason", message: "reason must be a non-empty string." });
     }
@@ -374,35 +704,60 @@ export function validateStoredConfig(config: unknown): ValidationError[] {
       errors.push({ ruleId: r.id as string, field: `${idx}.reason`, message: "reason must be a non-empty string." });
     }
 
+    // enabled (optional boolean — omitted means true)
+    if (r.enabled !== undefined && typeof r.enabled !== "boolean") {
+      errors.push({ ruleId: r.id as string, field: `${idx}.enabled`, message: "enabled must be a boolean." });
+    }
+
     // condition
     validateCondition(r.condition, idx, r.id as string | undefined, errors, 0);
 
     // plan
-    validatePlan(r.plan as Record<string, unknown>, idx, r.id as string | undefined, errors);
+    validatePlan(r.plan as Record<string, unknown>, idx, r.id as string | undefined, errors, allowedHeroKeys, allowedProofKeys, allowedCtaKeys);
   }
 
   return errors;
 }
 
 function validatePlan(
-  plan:   Record<string, unknown> | undefined,
-  idx:    string,
-  ruleId: string | undefined,
-  errors: ValidationError[],
+  plan:             Record<string, unknown> | undefined,
+  idx:              string,
+  ruleId:           string | undefined,
+  errors:           ValidationError[],
+  allowedHeroKeys:  readonly string[] = ALLOWED_HERO_KEYS,
+  allowedProofKeys: readonly string[] = ALLOWED_PROOF_KEYS,
+  allowedCtaKeys:   readonly string[] = ALLOWED_CTA_KEYS,
 ): void {
   if (!plan || typeof plan !== "object") {
     errors.push({ ruleId, field: `${idx}.plan`, message: "plan is required." });
     return;
   }
 
-  if (!ALLOWED_HERO_KEYS.includes(plan.heroKey as HeroVariantKey)) {
-    errors.push({ ruleId, field: `${idx}.plan.heroKey`, message: `Invalid heroKey "${plan.heroKey}". Allowed: ${ALLOWED_HERO_KEYS.join(", ")}` });
+  if (!(allowedHeroKeys as string[]).includes(plan.heroKey as string)) {
+    errors.push({ ruleId, field: `${idx}.plan.heroKey`, message: `Invalid heroKey "${plan.heroKey}". Allowed: ${allowedHeroKeys.join(", ")}` });
   }
-  if (!ALLOWED_PROOF_KEYS.includes(plan.proofKey as ProofVariantKey)) {
-    errors.push({ ruleId, field: `${idx}.plan.proofKey`, message: `Invalid proofKey "${plan.proofKey}". Allowed: ${ALLOWED_PROOF_KEYS.join(", ")}` });
+  if (!(allowedProofKeys as string[]).includes(plan.proofKey as string)) {
+    errors.push({ ruleId, field: `${idx}.plan.proofKey`, message: `Invalid proofKey "${plan.proofKey}". Allowed: ${allowedProofKeys.join(", ")}` });
   }
-  if (!ALLOWED_CTA_KEYS.includes(plan.ctaKey as CTAVariantKey)) {
-    errors.push({ ruleId, field: `${idx}.plan.ctaKey`, message: `Invalid ctaKey "${plan.ctaKey}". Allowed: ${ALLOWED_CTA_KEYS.join(", ")}` });
+  if (!(allowedCtaKeys as string[]).includes(plan.ctaKey as string)) {
+    errors.push({ ruleId, field: `${idx}.plan.ctaKey`, message: `Invalid ctaKey "${plan.ctaKey}". Allowed: ${allowedCtaKeys.join(", ")}` });
+  }
+
+  // Optional extended slots — validate when present
+  if (plan.featureKey !== undefined) {
+    if (!(ALLOWED_FEATURE_KEYS as string[]).includes(plan.featureKey as string)) {
+      errors.push({ ruleId, field: `${idx}.plan.featureKey`, message: `Invalid featureKey "${plan.featureKey}". Allowed: ${ALLOWED_FEATURE_KEYS.join(", ")}` });
+    }
+  }
+  if (plan.conversionKey !== undefined) {
+    if (!(ALLOWED_CONVERSION_KEYS as string[]).includes(plan.conversionKey as string)) {
+      errors.push({ ruleId, field: `${idx}.plan.conversionKey`, message: `Invalid conversionKey "${plan.conversionKey}". Allowed: ${ALLOWED_CONVERSION_KEYS.join(", ")}` });
+    }
+  }
+  if (plan.notificationKey !== undefined) {
+    if (!(ALLOWED_NOTIFICATION_KEYS as string[]).includes(plan.notificationKey as string)) {
+      errors.push({ ruleId, field: `${idx}.plan.notificationKey`, message: `Invalid notificationKey "${plan.notificationKey}". Allowed: ${ALLOWED_NOTIFICATION_KEYS.join(", ")}` });
+    }
   }
 }
 
@@ -436,6 +791,21 @@ function validateCondition(
     return;
   }
 
+  if (c.type === "context") {
+    if (typeof c.contextId !== "string" || c.contextId.trim() === "") {
+      errors.push({ ruleId, field: `${idx}.condition.contextId`, message: "contextId must be a non-empty string." });
+      return;
+    }
+    if (!(ALL_CONTEXT_IDS as string[]).includes(c.contextId as string)) {
+      errors.push({
+        ruleId,
+        field:   `${idx}.condition.contextId`,
+        message: `Unknown contextId "${c.contextId}". Allowed: ${ALL_CONTEXT_IDS.join(", ")}`,
+      });
+    }
+    return;
+  }
+
   if (c.type === "group") {
     if (depth >= MAX_CONDITION_DEPTH) {
       errors.push({ ruleId, field: `${idx}.condition`, message: `Group condition nesting exceeds maximum depth of ${MAX_CONDITION_DEPTH}.` });
@@ -459,7 +829,27 @@ function validateCondition(
     return;
   }
 
-  errors.push({ ruleId, field: `${idx}.condition.type`, message: `Unknown condition type "${c.type}". Must be "field", "named", or "group".` });
+  if (c.type === "context_library") {
+    if (!Array.isArray(c.contextIds) || (c.contextIds as unknown[]).length === 0) {
+      errors.push({ ruleId, field: `${idx}.condition.contextIds`, message: 'context_library condition requires a non-empty "contextIds" array.' });
+      return;
+    }
+    for (const id of c.contextIds as unknown[]) {
+      if (typeof id !== "string" || (id as string).trim() === "") {
+        errors.push({ ruleId, field: `${idx}.condition.contextIds`, message: "All contextIds must be non-empty strings." });
+        return;
+      }
+    }
+    if (c.minConfidence !== undefined) {
+      const conf = c.minConfidence as unknown;
+      if (typeof conf !== "number" || (conf as number) < 0 || (conf as number) > 1) {
+        errors.push({ ruleId, field: `${idx}.condition.minConfidence`, message: "minConfidence must be a number between 0 and 1." });
+      }
+    }
+    return;
+  }
+
+  errors.push({ ruleId, field: `${idx}.condition.type`, message: `Unknown condition type "${c.type}". Must be "field", "named", "context", "context_library", or "group".` });
 }
 
 function validateFieldCondition(
@@ -674,6 +1064,12 @@ function evalNode(condition: RuleCondition, ctx: RuleEvaluationContext): boolean
   if (condition.type === "named") {
     return evalNamedCondition(condition, ctx);
   }
+  if (condition.type === "context") {
+    return evalContextCondition(condition, ctx);
+  }
+  if (condition.type === "context_library") {
+    return evalContextLibraryCondition(condition, ctx);
+  }
   if (condition.type === "group") {
     return evalGroupCondition(condition, ctx);
   }
@@ -722,6 +1118,60 @@ function evalNamedCondition(
     case "high_engagement":
       return ctx.history.fromDatabase === true && ctx.history.pageViewCount >= 3;
   }
+}
+
+/**
+ * Evaluate a ContextCondition by looking up the definition in CONTEXT_REGISTRY
+ * and delegating to evaluateCondition() on its underlying condition.
+ *
+ * Uses a lazy import to avoid a circular dependency:
+ *   stored-rule → context-library → stored-rule (for evaluateCondition)
+ *
+ * The dynamic require is synchronous (Node.js module cache); it introduces no
+ * async overhead.  The eslint-disable covers the require() call.
+ */
+function evalContextCondition(
+  condition: ContextCondition,
+  ctx:       RuleEvaluationContext,
+): boolean {
+  // Inline import to break the potential circular reference.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { evaluateContext } = require("./context-library") as typeof import("./context-library");
+  return evaluateContext(condition.contextId, ctx);
+}
+
+/**
+ * Evaluate a ContextLibraryCondition by running matchContextDefinitions() from
+ * context/library and checking whether any of the listed definition IDs matched
+ * at or above the optional confidence threshold.
+ *
+ * Uses a lazy require() to break the module cycle:
+ *   stored-rule → context/library → (no dependency on stored-rule)
+ *
+ * The dynamic require is synchronous (Node.js module cache); it introduces no
+ * async overhead.
+ */
+function evalContextLibraryCondition(
+  condition: ContextLibraryCondition,
+  ctx:       RuleEvaluationContext,
+): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { matchContextDefinitions } =
+    require("@/context/library") as typeof import("@/context/library");
+
+  const { contextIds, minConfidence = 0 } = condition;
+
+  if (!contextIds || contextIds.length === 0) return false;
+
+  const matches = matchContextDefinitions(ctx, { statuses: ["active", "suggested"] });
+
+  const matchedIdSet = new Set(
+    matches
+      .filter((m) => m.confidence >= minConfidence)
+      .map((m) => m.definition.id),
+  );
+
+  return contextIds.some((id) => matchedIdSet.has(id));
 }
 
 function evalGroupCondition(
@@ -825,6 +1275,9 @@ export function compileStoredRule(stored: StoredRule): HomepageRule {
     match:    buildMatchPredicate(stored.condition),
     plan:     stored.plan,
     reason:   stored.reason,
+    // Propagate the enabled flag so the provider can skip disabled rules.
+    // Omit when true (or absent) to keep the object shape lean.
+    ...(stored.enabled === false ? { enabled: false } : {}),
   };
 }
 
@@ -850,52 +1303,68 @@ export const SEED_RULES_CONFIG: StoredRulesConfig = {
   updatedAt: new Date(0).toISOString(),
   rules: [
     {
-      id:       "homepage.returning_cta_clicked",
-      priority: 5,
-      label:    "Returning visitor — CTA previously clicked",
-      condition: { type: "named", name: "returning_cta_clicked" },
+      id:              "homepage.returning_cta_clicked",
+      priority:        5,
+      precedenceLevel: "hard_state",
+      packId:          "pack_behaviour",
+      label:           "Returning visitor — CTA previously clicked",
+      // Migrated: was { type: "named", name: "returning_cta_clicked" }
+      condition:       { type: "context", contextId: "ctx_returning_cta_clicked" },
       plan: {
         heroKey:  "hero_direct_brand",
         proofKey: "proof_cases",
         ctaKey:   "cta_meeting",
       },
       reason: "Returning visitor who previously clicked CTA — escalated to meeting intent.",
+      source: "system",
     },
     {
-      id:       "homepage.high_engagement",
-      priority: 7,
-      label:    "High-engagement returning visitor (3+ page views)",
-      condition: { type: "named", name: "high_engagement" },
+      id:              "homepage.high_engagement",
+      priority:        7,
+      precedenceLevel: "hard_state",
+      packId:          "pack_behaviour",
+      label:           "High-engagement returning visitor (3+ page views)",
+      // Migrated: was { type: "named", name: "high_engagement" }
+      condition:       { type: "context", contextId: "ctx_high_engagement" },
       plan: {
         heroKey:  "hero_direct_brand",
         proofKey: "proof_vision",
         ctaKey:   "cta_meeting",
       },
       reason: "Highly engaged returning visitor (3+ page views) — platform-confidence experience.",
+      source: "system",
     },
     {
-      id:       "homepage.google",
-      priority: 10,
-      label:    "Google traffic",
-      condition: { type: "field", field: "source", operator: "equals", value: "google" },
+      id:              "homepage.google",
+      priority:        10,
+      precedenceLevel: "high_intent",
+      packId:          "pack_traffic_source",
+      label:           "Google traffic",
+      // Migrated: was { type: "field", field: "source", operator: "equals", value: "google" }
+      condition:       { type: "context", contextId: "ctx_google_traffic" },
       plan: {
         heroKey:  "hero_google_problem",
         proofKey: "proof_cases",
         ctaKey:   "cta_guide",
       },
       reason: "Traffic source indicates search/problem intent.",
+      source: "system",
     },
     {
-      id:       "homepage.linkedin",
-      priority: 20,
-      label:    "LinkedIn traffic",
-      condition: { type: "field", field: "source", operator: "equals", value: "linkedin" },
+      id:              "homepage.linkedin",
+      priority:        20,
+      precedenceLevel: "medium_segmentation",
+      packId:          "pack_traffic_source",
+      label:           "LinkedIn traffic",
+      // Migrated: was { type: "field", field: "source", operator: "equals", value: "linkedin" }
+      condition:       { type: "context", contextId: "ctx_linkedin_traffic" },
       plan: {
         heroKey:  "hero_linkedin_vision",
         proofKey: "proof_vision",
         ctaKey:   "cta_platform",
       },
       reason: "Traffic source indicates thought-leadership/social intent.",
+      source: "system",
     },
   ],
   defaultPlan: {
@@ -932,6 +1401,14 @@ export function formatCondition(condition: RuleCondition): string {
 
   if (condition.type === "named") {
     return NAMED_CONDITIONS[condition.name].label;
+  }
+
+  if (condition.type === "context") {
+    // Lazy import to avoid circular dep
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { CONTEXT_REGISTRY } = require("./context-library") as typeof import("./context-library");
+    const ctx = CONTEXT_REGISTRY[condition.contextId];
+    return ctx ? `ctx: ${ctx.label}` : `ctx: ${condition.contextId}`;
   }
 
   if (condition.type === "group") {

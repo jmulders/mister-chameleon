@@ -7,15 +7,18 @@
  * Receives pre-resolved NavigationItemData from the server (via Header),
  * so it has no CMS dependency — it only owns interactivity.
  *
- * ─── Desktop ──────────────────────────────────────────────────────────────────
+ * ─── Desktop dispatch ─────────────────────────────────────────────────────────
  *
- *   Top-level items are rendered as a horizontal row.
- *   Items with children show a chevron and reveal a dropdown panel on hover.
- *   The dropdown stays open while the cursor is over the trigger or the panel.
- *   Keyboard users can open/close with Enter/Space and dismiss with Escape.
+ *   navVariant controls which desktop dropdown pattern is used:
+ *     "flyout"  → NavFlyout  (editorial-classic, premium-luxury)
+ *     "mega"    → NavMega    (corporate-clean)
+ *     "grid"    → NavGrid    (portfolio-showcase)
+ *     "content" → NavContent (bold-marketing)
+ *   Defaults to "flyout" when not specified.
  *
  * ─── Mobile ───────────────────────────────────────────────────────────────────
  *
+ *   MobileNav is always rendered — it is independent of navVariant.
  *   A hamburger button toggles a full-width stacked menu below the header bar.
  *   Top-level items with children can be expanded individually with a chevron
  *   toggle. The mobile menu closes automatically when a link is followed.
@@ -28,12 +31,21 @@
  *
  * ─── Props ────────────────────────────────────────────────────────────────────
  *
- *   items  NavigationItemData[]  Resolved nav items from CMS site settings.
+ *   items       NavigationItemData[]                  Resolved nav items.
+ *   navVariant  "flyout"|"mega"|"grid"|"content"      Desktop dropdown pattern.
+ *   navDensity  "compact"|"comfortable"               Link padding density.
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { NavigationItemData } from "@/cms/types";
+import type { NavigationItemData, HeaderCtaData, LocaleEntry } from "@/cms/types";
+import { NavFlyout }    from "./nav/NavFlyout";
+import { NavMega }      from "./nav/NavMega";
+import { NavMegaRich }  from "./nav/NavMegaRich";
+import type { MegaMenuStyle } from "./nav/NavMegaRich";
+import { NavGrid }     from "./nav/NavGrid";
+import { NavContent }  from "./nav/NavContent";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 // Inline SVGs keep the bundle lean — no icon library dependency.
@@ -71,117 +83,278 @@ function CloseIcon() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type NavVariant = "flyout" | "mega" | "grid" | "content";
+export type NavDensity = "compact" | "comfortable";
+
 interface NavBarProps {
-  items: NavigationItemData[];
+  items:          NavigationItemData[];
+  /** Desktop dropdown pattern driven by the active theme family. */
+  navVariant?:    NavVariant;
+  /** Link padding density driven by the active theme family. */
+  navDensity?:    NavDensity;
+  /**
+   * Active theme family key — used to select the per-theme mega menu style.
+   * Passed from Header which resolves it from the tenant's featuredFamilyKey.
+   *
+   * Mapping:
+   *   "dark-ai"         → NavMegaRich megaStyle="dark-ai"
+   *   "clean-corporate" → NavMegaRich megaStyle="clean-corporate"
+   *   "structured-saas" → NavMegaRich megaStyle="structured-saas"
+   *   anything else     → NavMegaRich megaStyle="default" (clean-corporate look)
+   */
+  navFamily?:     string | null;
 }
 
-// ── Desktop dropdown item ─────────────────────────────────────────────────────
+// ── Locale flag map ────────────────────────────────────────────────────────────
+// Maps ISO 639-1 language codes to Unicode flag emoji.
+// Add more entries as additional locales are configured.
 
-interface DesktopDropdownProps {
-  item: NavigationItemData;
-}
+const LOCALE_FLAGS: Record<string, string> = {
+  en: "🇬🇧",
+  nl: "🇳🇱",
+  de: "🇩🇪",
+  fr: "🇫🇷",
+  es: "🇪🇸",
+  it: "🇮🇹",
+  pt: "🇵🇹",
+  pl: "🇵🇱",
+};
 
-function DesktopDropdownItem({ item }: DesktopDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+// ── UtilityBar — desktop utility row ──────────────────────────────────────────
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setOpen(false);
-      triggerRef.current?.focus();
+/**
+ * Thin bar rendered above the main nav row.
+ * Shows: utility links (Login, Search, Status) + language-switcher dropdown + CTA button.
+ * "Search" utility items render as a magnifying-glass icon to save space.
+ * Hidden on mobile — the mobile menu renders these items inline.
+ *
+ * Exported so that Header.tsx can render it into HeaderShell's `utilityBar` slot,
+ * which places it in the collapsible top row (above the logo + nav row).
+ */
+export function UtilityBar({
+  utilityItems = [],
+  headerCta    = null,
+  locales      = [],
+  currentLocale: currentLocaleCode,
+}: {
+  utilityItems?:  NavigationItemData[];
+  headerCta?:     HeaderCtaData | null;
+  locales?:       LocaleEntry[];
+  /** ISO 639-1 code of the active locale (from cookie). Defaults to locales[0]. */
+  currentLocale?: string;
+}) {
+  const [localeOpen, setLocaleOpen] = useState(false);
+  const localeRef = useRef<HTMLDivElement>(null);
+
+  // Close the dropdown when the user clicks outside of it.
+  useEffect(() => {
+    if (!localeOpen) return;
+    function handleOutsideClick(e: MouseEvent) {
+      if (localeRef.current && !localeRef.current.contains(e.target as Node)) {
+        setLocaleOpen(false);
+      }
     }
-  }, []);
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setLocaleOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown",   handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown",   handleEscape);
+    };
+  }, [localeOpen]);
+
+  const hasUtility = utilityItems.length > 0;
+  const hasCta     = !!headerCta;
+  const hasLocales = locales.length > 1;   // switcher only makes sense with 2+ locales
+
+  if (!hasUtility && !hasCta && !hasLocales) return null;
+
+  // Active locale: use cookie value if provided and found in the list; else first in list.
+  const currentLocale = (currentLocaleCode && locales.find((l) => l.code === currentLocaleCode))
+    ?? locales[0];
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onKeyDown={handleKeyDown}
-    >
-      {/* Trigger */}
-      <button
-        ref={triggerRef}
-        aria-haspopup="true"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "inline-flex items-center gap-1 rounded-md px-3 py-2",
-          "text-sm font-medium text-neutral-600",
-          "hover:bg-neutral-100 hover:text-neutral-900",
-          "transition-colors duration-150 focus-visible:outline-2",
-          "focus-visible:outline-brand-500 focus-visible:outline-offset-2",
-        )}
-      >
-        {item.label}
-        <ChevronDown
-          className={cn("transition-transform duration-150", open && "rotate-180")}
-        />
-      </button>
+    <div className="hidden md:flex items-center gap-1">
 
-      {/* Dropdown panel */}
-      {open && (
-        <div
-          role="menu"
-          className={cn(
-            "absolute left-0 top-full z-50 mt-1",
-            "min-w-48 rounded-lg border border-neutral-200",
-            "bg-white py-1 shadow-lg",
-          )}
-        >
-          {item.children!.map((child) => (
-            <a
-              key={child.id}
-              href={child.href}
-              role="menuitem"
+      {/* Utility links */}
+      {hasUtility && (
+        <nav aria-label="Utility navigation" className="flex items-center gap-0.5">
+          {utilityItems.map((item) => {
+            const isSearch = item.label.toLowerCase() === "search";
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                target={item.openInNewTab ? "_blank" : undefined}
+                rel={item.openInNewTab ? "noopener noreferrer" : undefined}
+                aria-label={isSearch ? "Search" : undefined}
+                title={isSearch ? "Search" : undefined}
+                className={cn(
+                  "rounded-md py-1.5 text-sm transition-colors duration-150",
+                  isSearch ? "px-2" : "px-3",
+                  "text-[var(--nav-link,var(--header-fg,var(--text-muted)))]",
+                  "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))]",
+                  "hover:text-[var(--nav-link-hover,var(--text-brand))]",
+                  "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
+                )}
+                style={{ fontWeight: "var(--nav-link-weight, 500)" } as React.CSSProperties}
+              >
+                {isSearch ? <SearchIcon /> : item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* Separator */}
+      {hasUtility && (hasCta || hasLocales) && (
+        <span
+          aria-hidden="true"
+          className="mx-1 h-4 w-px opacity-20"
+          style={{ backgroundColor: "var(--header-fg, var(--text))" }}
+        />
+      )}
+
+      {/* Language switcher — compact dropdown */}
+      {hasLocales && (
+        <div ref={localeRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setLocaleOpen((v) => !v)}
+            aria-expanded={localeOpen}
+            aria-haspopup="listbox"
+            aria-label="Select language"
+            className={cn(
+              "flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors duration-150",
+              "text-[var(--nav-link,var(--header-fg,var(--text-muted)))]",
+              "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))]",
+              "hover:text-[var(--nav-link-hover,var(--text-brand))]",
+              "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
+            )}
+          >
+            <span aria-hidden="true" className="text-base leading-none">
+              {LOCALE_FLAGS[currentLocale.code] ?? "🌐"}
+            </span>
+            <span className="uppercase tracking-wide">{currentLocale.code}</span>
+            <ChevronDown className={cn("size-3 transition-transform duration-150", localeOpen && "rotate-180")} />
+          </button>
+
+          {localeOpen && (
+            <div
+              role="listbox"
+              aria-label="Select language"
               className={cn(
-                "block px-4 py-2",
-                "text-sm text-neutral-700",
-                "hover:bg-neutral-50 hover:text-neutral-900",
-                "transition-colors duration-100",
+                "absolute right-0 top-full mt-1 z-[200] min-w-[8rem] rounded-md py-1 shadow-xl",
+                "border border-[var(--nav-dropdown-border,var(--border))]",
               )}
+              style={{
+                // Inline style guarantees a solid background even when the
+                // utility-bar ancestor would otherwise make it translucent.
+                // Opacity is non-overridable from children — always resolve here.
+                backgroundColor: "var(--nav-dropdown-bg, #ffffff)",
+                color:           "var(--nav-dropdown-text, #374151)",
+              }}
             >
-              {child.label}
-            </a>
-          ))}
+              {locales.map((locale) => (
+                <a
+                  key={locale.code}
+                  href={`?lang=${locale.code}`}
+                  role="option"
+                  aria-selected={locale.code === currentLocale.code}
+                  onClick={() => setLocaleOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 text-sm transition-colors duration-100",
+                    "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))]",
+                    "hover:text-[var(--nav-dropdown-link-hover-text,var(--text-brand))]",
+                  )}
+                >
+                  <span aria-hidden="true" className="text-base leading-none">
+                    {LOCALE_FLAGS[locale.code] ?? "🌐"}
+                  </span>
+                  <span>{locale.label}</span>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* CTA button */}
+      {hasCta && (
+        <Link
+          href={headerCta!.href}
+          target={headerCta!.openInNewTab ? "_blank" : undefined}
+          rel={headerCta!.openInNewTab ? "noopener noreferrer" : undefined}
+          className={cn(
+            "ml-2 inline-flex items-center justify-center rounded-md px-4 py-1.5",
+            "text-sm font-semibold text-white shadow-sm transition-colors hover:opacity-90",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2",
+          )}
+          style={{ backgroundColor: "var(--btn-bg, var(--primary))" }}
+        >
+          {headerCta!.label}
+        </Link>
       )}
     </div>
   );
 }
 
-// ── Desktop nav ───────────────────────────────────────────────────────────────
+// ── Mobile nav helpers ────────────────────────────────────────────────────────
 
-function DesktopNav({ items }: { items: NavigationItemData[] }) {
-  return (
-    <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1">
-      {items.map((item) => {
-        const hasChildren = item.children && item.children.length > 0;
+/**
+ * Flatten megaMenu columns into a simple link list for mobile rendering.
+ * Returns NavigationItemData-compatible child items derived from mega menu columns.
+ */
+function flattenMegaMenuForMobile(item: NavigationItemData): NavigationItemData[] {
+  if (!item.megaMenu?.columns?.length) return item.children ?? [];
 
-        if (hasChildren) {
-          return <DesktopDropdownItem key={item.id} item={item} />;
-        }
-
-        return (
-          <a
-            key={item.id}
-            href={item.href}
-            className={cn(
-              "rounded-md px-3 py-2",
-              "text-sm font-medium text-neutral-600",
-              "hover:bg-neutral-100 hover:text-neutral-900",
-              "transition-colors duration-150",
-              "focus-visible:outline-2 focus-visible:outline-brand-500 focus-visible:outline-offset-2",
-            )}
-          >
-            {item.label}
-          </a>
-        );
-      })}
-    </nav>
-  );
+  const flattened: NavigationItemData[] = [];
+  for (const col of item.megaMenu.columns) {
+    for (const mItem of col.items) {
+      if (mItem.type === "megaMenuLinkItem" && mItem.label) {
+        flattened.push({
+          id:           mItem._key,
+          label:        mItem.label,
+          href:         mItem.href,
+          description:  mItem.description ?? undefined,
+          openInNewTab: mItem.openInNewTab,
+        });
+      }
+      // Media items without linkUrl are skipped on mobile (no meaningful href)
+      if (mItem.type === "megaMenuMediaItem" && mItem.linkUrl) {
+        flattened.push({
+          id:           mItem._key,
+          label:        mItem.caption ?? "View",
+          href:         mItem.linkUrl,
+          openInNewTab: mItem.linkOpenInNewTab,
+        });
+      }
+    }
+  }
+  return flattened;
 }
 
 // ── Mobile nav ────────────────────────────────────────────────────────────────
@@ -203,10 +376,10 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
         aria-controls="mobile-nav-menu"
         onClick={() => setMenuOpen((v) => !v)}
         className={cn(
-          "rounded-md p-2 text-neutral-600",
-          "hover:bg-neutral-100 hover:text-neutral-900",
+          "rounded-md p-2 text-[var(--nav-link,var(--header-fg,var(--text)))]",
+          "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))] hover:text-[var(--nav-link-hover,var(--text-brand))]",
           "transition-colors duration-150",
-          "focus-visible:outline-2 focus-visible:outline-brand-500 focus-visible:outline-offset-2",
+          "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
         )}
       >
         {menuOpen ? <CloseIcon /> : <MenuIcon />}
@@ -219,74 +392,115 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
           role="navigation"
           aria-label="Mobile navigation"
           className={cn(
-            "absolute inset-x-0 top-16 z-40",
-            "border-b border-neutral-200 bg-white shadow-lg",
+            // top-full positions the panel flush against the bottom of the
+            // sticky <header> element regardless of its current height.
+            // Previously hardcoded top-16 broke when HeaderShell changed the
+            // header's height via scroll-aware padding transitions.
+            "absolute inset-x-0 top-full z-40",
+            "border-b border-[var(--nav-dropdown-border,var(--border))] bg-[var(--nav-dropdown-bg,var(--bg,#ffffff))] shadow-lg",
           )}
         >
           <div className="px-4 py-3 space-y-1">
             {items.map((item) => {
-              const hasChildren = item.children && item.children.length > 0;
+              const mobileChildren = flattenMegaMenuForMobile(item);
+              const hasChildren = mobileChildren.length > 0;
               const isExpanded = expandedItem === item.id;
+
+              // Mobile nav uses the same nav-link-size/weight vars as desktop.
+              // --nav-link-weight fallback: 500 (medium) — consistent with flyout/mega/grid.
+              const mobileLinkStyle = {
+                fontSize:   "var(--nav-link-size, 0.875rem)",
+                fontWeight: "var(--nav-link-weight, 500)",
+              } as React.CSSProperties;
+              const mobileChildStyle = {
+                fontSize: "var(--nav-dropdown-item-size, 0.875rem)",
+              } as React.CSSProperties;
 
               return (
                 <div key={item.id}>
                   {hasChildren ? (
                     <>
-                      {/* Expandable parent */}
-                      <button
-                        aria-expanded={isExpanded}
-                        onClick={() => toggleItem(item.id)}
-                        className={cn(
-                          "flex w-full items-center justify-between",
-                          "rounded-md px-3 py-2",
-                          "text-sm font-medium text-neutral-700",
-                          "hover:bg-neutral-100",
-                          "transition-colors duration-150",
-                        )}
-                      >
-                        {item.label}
-                        <ChevronDown
+                      {/*
+                       * Split trigger row: label link navigates to the parent page;
+                       * chevron-only button expands/collapses the children list.
+                       * A hairline divider separates the two tap targets.
+                       */}
+                      <div className="flex w-full items-stretch rounded-md overflow-hidden">
+                        {/* Parent page link */}
+                        <Link
+                          href={item.href}
+                          onClick={() => setMenuOpen(false)}
+                          style={mobileLinkStyle}
                           className={cn(
-                            "transition-transform duration-150",
-                            isExpanded && "rotate-180",
+                            "flex-1 px-3 py-2",
+                            "text-[var(--nav-dropdown-text,var(--text-muted))]",
+                            "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))] hover:text-[var(--nav-dropdown-link-hover-text,var(--text-brand))]",
+                            "transition-colors duration-150",
                           )}
-                        />
-                      </button>
+                        >
+                          {item.label}
+                        </Link>
+
+                        {/* Expand/collapse chevron */}
+                        <button
+                          aria-label={`${isExpanded ? "Collapse" : "Expand"} ${item.label} submenu`}
+                          aria-expanded={isExpanded}
+                          onClick={() => toggleItem(item.id)}
+                          className={cn(
+                            "flex items-center px-3 py-2 shrink-0",
+                            "border-l border-[var(--nav-dropdown-border,var(--border))]",
+                            "text-[var(--nav-dropdown-text,var(--text-muted))]",
+                            "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))] hover:text-[var(--nav-dropdown-link-hover-text,var(--text-brand))]",
+                            "transition-colors duration-150",
+                          )}
+                        >
+                          <ChevronDown
+                            className={cn(
+                              "transition-transform duration-150",
+                              isExpanded && "rotate-180",
+                            )}
+                          />
+                        </button>
+                      </div>
 
                       {/* Children */}
                       {isExpanded && (
-                        <div className="mt-1 ml-4 space-y-1 border-l border-neutral-200 pl-3">
-                          {item.children!.map((child) => (
-                            <a
+                        <div className="mt-1 ml-4 space-y-1 border-l border-[var(--nav-dropdown-border,var(--border))] pl-3">
+                          {mobileChildren.map((child) => (
+                            <Link
                               key={child.id}
                               href={child.href}
                               onClick={() => setMenuOpen(false)}
+                              target={child.openInNewTab ? "_blank" : undefined}
+                              rel={child.openInNewTab ? "noopener noreferrer" : undefined}
+                              style={mobileChildStyle}
                               className={cn(
                                 "block rounded-md px-3 py-1.5",
-                                "text-sm text-neutral-600",
-                                "hover:bg-neutral-50 hover:text-neutral-900",
+                                "text-[var(--nav-dropdown-text,var(--text-muted))]",
+                                "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))] hover:text-[var(--nav-dropdown-link-hover-text,var(--text-brand))]",
                                 "transition-colors duration-100",
                               )}
                             >
                               {child.label}
-                            </a>
+                            </Link>
                           ))}
                         </div>
                       )}
                     </>
                   ) : (
-                    <a
+                    <Link
                       href={item.href}
                       onClick={() => setMenuOpen(false)}
+                      style={mobileLinkStyle}
                       className={cn(
                         "block rounded-md px-3 py-2",
-                        "text-sm font-medium text-neutral-700",
-                        "hover:bg-neutral-100 hover:text-neutral-900",
+                        "text-[var(--nav-dropdown-text,var(--text-muted))]",
+                        "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))] hover:text-[var(--nav-dropdown-link-hover-text,var(--text-brand))]",
                         "transition-colors duration-150",
                       )}
                     >
                       {item.label}
-                    </a>
+                    </Link>
                   )}
                 </div>
               );
@@ -301,15 +515,75 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
 // ── NavBar ─────────────────────────────────────────────────────────────────────
 
 /**
+ * Resolve the mega menu style from the active theme family key.
+ *
+ * This mapping is the single source of truth for which family key produces
+ * which NavMegaRich visual variant.
+ */
+function resolveMegaStyle(navFamily: string | null | undefined): MegaMenuStyle {
+  switch (navFamily) {
+    case "dark-ai":         return "dark-ai";
+    case "clean-corporate": return "clean-corporate";
+    case "structured-saas": return "structured-saas";
+    default:                return "default";
+  }
+}
+
+/**
+ * Check whether any item in the nav has a mega menu configured.
+ * When true, NavMegaRich is used instead of the legacy NavMega.
+ */
+function hasMegaMenuItems(items: NavigationItemData[]): boolean {
+  return items.some((item) => Boolean(item.megaMenu?.columns?.length));
+}
+
+/**
  * Primary navigation bar. Renders desktop + mobile layouts.
  * Returns null (no DOM output) when items is empty.
+ *
+ * The desktop component is chosen from navVariant:
+ *   "flyout"  → NavFlyout    (vertical list; editorial/luxury)
+ *   "mega"    → NavMegaRich  (rich column mega menu; corporate / AI / SaaS)
+ *              — falls back to NavMega when no megaMenu.columns are configured
+ *   "grid"    → NavGrid      (tile grid; portfolio)
+ *   "content" → NavContent   (featured + list; marketing)
  */
-export function NavBar({ items }: NavBarProps) {
+export function NavBar({
+  items,
+  navVariant   = "flyout",
+  navDensity   = "comfortable",
+  navFamily    = null,
+}: NavBarProps) {
   if (items.length === 0) return null;
+
+  const megaStyle = resolveMegaStyle(navFamily);
+
+  // ── Desktop nav — dispatch to the family-appropriate pattern ────────────────
+  let DesktopNavComponent: React.ReactNode;
+  switch (navVariant) {
+    case "mega":
+      // Use NavMegaRich when any item has megaMenu.columns configured.
+      // Fall back to the legacy NavMega when no rich column data is present —
+      // this ensures backward compatibility with existing navigationItem documents.
+      DesktopNavComponent = hasMegaMenuItems(items)
+        ? <NavMegaRich items={items} density={navDensity} megaStyle={megaStyle} />
+        : <NavMega     items={items} density={navDensity} />;
+      break;
+    case "grid":
+      DesktopNavComponent = <NavGrid    items={items} density={navDensity} />;
+      break;
+    case "content":
+      DesktopNavComponent = <NavContent items={items} density={navDensity} />;
+      break;
+    case "flyout":
+    default:
+      DesktopNavComponent = <NavFlyout  items={items} density={navDensity} />;
+      break;
+  }
 
   return (
     <>
-      <DesktopNav items={items} />
+      {DesktopNavComponent}
       <MobileNav items={items} />
     </>
   );

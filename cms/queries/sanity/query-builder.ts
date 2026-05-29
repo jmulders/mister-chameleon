@@ -9,7 +9,7 @@
  *   Every variant document type (heroVariant, proofVariant, ctaVariant, …)
  *   shares the same filter predicate and resolution order:
  *
- *     *[_type == "…" && key.current == $key && isActive == true
+ *     *[_type == "…" && key == $key && isActive == true
  *       && ($tenantId == null || tenantId == $tenantId || !defined(tenantId))]
  *     | order(select($tenantId != null && tenantId == $tenantId => 1, 0) desc)
  *     [0] { … }
@@ -28,15 +28,27 @@
  *   This keeps the schema coupling local to each query file while sharing only
  *   the structural boilerplate.
  *
- * ─── Slug field: key.current ─────────────────────────────────────────────────
+ * ─── Tenant-scoped variant identity ──────────────────────────────────────────
  *
- *   The `key` field in all variant schemas is a Sanity slug type:
+ *   Variant documents are identified by the composite (tenantId, key) pair,
+ *   NOT by key alone.  The same key string (e.g. "hero_direct_brand") is
+ *   reusable across tenants — each tenant holds its own independent copy.
+ *   Uniqueness within a tenant's key space is enforced by the Sanity Studio
+ *   async rule.custom() validator on the string key field (see cms/schemas/heroVariant.ts).
  *
- *     { _type: "slug", current: "hero_google_problem" }
+ *   Shared/platform variants have no tenantId set and serve as a global
+ *   fallback for any tenant that hasn't created a tenant-specific document
+ *   for the requested key.
  *
- *   GROQ comparisons must use `key.current == $key` (not `key == $key`) to
- *   compare the nested string value rather than the slug object itself.
- *   Each query's projection must also dereference: `"key": key.current`.
+ * ─── String field: key ───────────────────────────────────────────────────────
+ *
+ *   The `key` field in all variant schemas is a plain Sanity string type (not
+ *   a slug). This was changed from slug type to avoid Sanity's dataset-wide
+ *   uniqueness enforcement which prevented two tenants from creating documents
+ *   with the same key value.
+ *
+ *   GROQ comparisons use `key == $key` directly (no `.current` dereference
+ *   needed). Each query's projection uses bare `key` (not `"key": key.current`).
  *
  * ─── Tenant filtering and resolution order ───────────────────────────────────
  *
@@ -62,12 +74,23 @@
  *   natural Sanity document order — same backward-compatible behaviour as
  *   before this ordering was introduced.
  *
+ * ─── Backward compatibility ───────────────────────────────────────────────────
+ *
+ *   Documents created before the tenant-scoped model (e.g. a heroVariant with
+ *   key = "hero_workengine_default" and tenantId = "workengine") continue
+ *   to work without migration.  They are resolved by the existing tenantId filter
+ *   whenever the caller passes `$key = "hero_workengine_default"`.  Only new
+ *   provisioning and new documents use the clean key convention.
+ *
+ *   Documents with no tenantId field at all (pre-tenantId era) match the
+ *   `!defined(tenantId)` predicate and are treated as shared platform variants.
+ *
  * ─── Adding a new variant type ───────────────────────────────────────────────
  *
  *   1. Create cms/queries/sanity/<type>-queries.ts
  *   2. Call buildVariantQuery("<docType>", `<projection>`)
  *   3. Export the query constant and a SanityXxxRaw interface
- *      — remember to project key as `"key": key.current` in the projection
+ *      — use bare `key` in projections (not `"key": key.current`)
  *   4. Register the export in cms/queries/sanity/index.ts
  *
  * @example
@@ -76,7 +99,7 @@
  *     `
  *       _id,
  *       tenantId,
- *       "key": key.current,
+ *       key,
  *       title,
  *       subtitle,
  *       ctaLabel,
@@ -88,7 +111,7 @@
 
 /**
  * Builds a GROQ query that fetches a single variant document by its `key`
- * slug field, returning only documents where `isActive == true`.
+ * string field, returning only documents where `isActive == true`.
  *
  * Resolution order (when tenantId is provided):
  *   1. Tenant-specific document (tenantId == $tenantId) — returned first
@@ -110,16 +133,34 @@
  * @param docType    The Sanity document `_type` value, e.g. "heroVariant".
  * @param projection GROQ field list to include in the result, indented for
  *                   readability. Do not include the surrounding `{ }` braces.
- *                   Use `"key": key.current` (not bare `key`) in projections.
+ *                   Use bare `key` (not `"key": key.current`) in projections.
  */
 export function buildVariantQuery(docType: string, projection: string): string {
   return (
-    // Filter: type + key (slug dereference) + active flag + tenant scope
-    `*[_type == "${docType}" && key.current == $key && isActive == true` +
+    // Filter: type + key (plain string OR legacy slug object) + active flag + tenant scope.
+    //
+    // DEFENSIVE: Accept both `key == $key` (post-migration plain string) and
+    // `key.current == $key` (pre-migration slug format).  Documents that were
+    // created before the slug→string migration may still carry the slug shape in
+    // the dataset; the OR guard ensures they are still matched.
+    `*[_type == "${docType}"` +
+    ` && (key == $key || key.current == $key)` +
+    ` && isActive == true` +
     ` && ($tenantId == null || tenantId == $tenantId || !defined(tenantId))]` +
-    // Order: tenant-specific (priority 1) before shared/platform (priority 0).
-    // When $tenantId == null, all docs score 0 → natural Sanity order preserved.
-    ` | order(select($tenantId != null && tenantId == $tenantId => 1, 0) desc)` +
+    // Locale-aware resolution order (highest score wins):
+    //   3 — tenant-specific + locale match   (most specific)
+    //   2 — tenant-specific + no locale      (tenant default / EN)
+    //   1 — shared/platform + locale match
+    //   0 — shared/platform + no locale      (global fallback)
+    //
+    // When $locale is null or $tenantId is null the ordering degrades
+    // gracefully to the prior tenant-only (1/0) behaviour.
+    ` | order(select(` +
+    `   $tenantId != null && tenantId == $tenantId && $locale != null && locale == $locale => 3,` +
+    `   $tenantId != null && tenantId == $tenantId => 2,` +
+    `   $locale != null && locale == $locale => 1,` +
+    `   0` +
+    ` ) desc)` +
     `[0]` +
     ` {${projection}}`
   );

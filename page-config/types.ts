@@ -49,9 +49,13 @@
  *   index.ts        — barrel export
  */
 
+import type { BlockSurface }                               from "@/lib/surface";
 import type { ContextBlockKey, ContentBlockKey }          from "@/tenant";
 import type { PortableTextBlock, HeroBlockData,
-              ProofBlockData, CTABlockData }               from "@/cms/types";
+              ProofBlockData, CTABlockData,
+              NotificationBlockData,
+              ConversionBlockData }                        from "@/cms/types";
+import type { ContentSource }                              from "./collection-source";
 
 // ═════════════════════════════════════════════════════════════════════════════
 // TEMPLATE LAYER
@@ -349,11 +353,18 @@ export interface FeatureItem {
  *
  * Renders a grid of feature cards (title + body + optional icon).
  * `columns` is a visual hint; defaults to 3 when absent.
+ *
+ * `cta` — optional call-to-action button rendered below the grid.
+ *          When present the component renders a centred button row after the
+ *          feature cards.  `cta.variant` controls the button style; defaults
+ *          to "primary" when absent.
  */
 export interface FeatureGridBlockData {
   readonly heading?:  string;
   readonly features:  readonly FeatureItem[];
   readonly columns?:  2 | 3 | 4;
+  /** Optional CTA rendered below the feature grid */
+  readonly cta?:      BlockCTA;
 }
 
 // ── TestimonialSection ────────────────────────────────────────────────────────
@@ -386,6 +397,11 @@ export interface TestimonialSectionBlockData {
  */
 export interface FaqItem {
   readonly question: string;
+  /**
+   * Plain text string.
+   * The Sanity faqSection schema defines answer as type "text" (not Portable Text).
+   * The frontend renders it as a plain paragraph — do not pass into PortableTextRenderer.
+   */
   readonly answer:   string;
 }
 
@@ -480,25 +496,40 @@ export interface QuoteBlockData {
 
 /**
  * A single logo entry within a LogoStripBlock.
+ *
+ * `src` is optional so the component can render a text fallback when no image
+ * URL has been provided, rather than displaying a broken <img>.  In practice
+ * the Sanity schema requires `src`, but TypeScript models the graceful path.
  */
 export interface LogoItem {
-  readonly name:  string;
-  /** Resolved image URL from the CMS asset pipeline */
-  readonly src:   string;
+  readonly name: string;
+  /** Resolved image URL from the CMS.  When absent the `name` is shown as text. */
+  readonly src?: string;
   /** Optional link — wraps the logo in an anchor tag */
-  readonly url?:  string;
+  readonly url?: string;
 }
 
 /**
  * Data for a LogoStripBlock.
  *
- * Renders a horizontal strip of client/partner/integration logos.
+ * Renders a slow marquee carousel of client/partner/integration logos.
  * Typically used as a social-proof or "trusted by" section.
- * `heading` is optional — often the logos speak for themselves.
+ *
+ * ─── Display options ────────────────────────────────────────────────────────
+ *
+ *   animationEnabled  Whether the marquee scrolls (default: true).
+ *   speed             "slow" | "medium" | "fast" — carousel duration (default: "slow").
+ *   grayscale         Render logos in greyscale.  Defaults to true for the
+ *                     "muted" variant and false otherwise.
+ *   showLabels        Show company name beneath each logo image (default: false).
  */
 export interface LogoStripBlockData {
-  readonly heading?: string;
-  readonly logos:    readonly LogoItem[];
+  readonly heading?:          string;
+  readonly logos:             readonly LogoItem[];
+  readonly animationEnabled?: boolean;
+  readonly speed?:            "slow" | "medium" | "fast";
+  readonly grayscale?:        boolean;
+  readonly showLabels?:       boolean;
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
@@ -535,12 +566,24 @@ export interface StatsBlockData {
  * A single slide within a SliderBlock.
  */
 export interface SlideItem {
-  readonly heading?:   string;
-  readonly body?:      string;
-  readonly imageUrl?:  string;
-  readonly imageAlt?:  string;
-  readonly ctaLabel?:  string;
-  readonly ctaHref?:   string;
+  readonly heading?:     string;
+  readonly body?:        string;
+  readonly imageUrl?:    string;
+  readonly imageAlt?:    string;
+  readonly ctaLabel?:    string;
+  readonly ctaHref?:     string;
+  /**
+   * Optional caption rendered below the image (or at the foot of the slide).
+   * Short text only — typically a photographer credit or brief description.
+   */
+  readonly caption?:     string;
+  /**
+   * Content type hint for the slide renderer.
+   *   "image" — render imageUrl as an image (default)
+   *   "video" — render imageUrl as a video source (or embed URL)
+   *   "text"  — text-only slide; no media
+   */
+  readonly contentType?: "image" | "video" | "text";
 }
 
 /**
@@ -558,16 +601,38 @@ export interface SliderBlockData {
   readonly interval?:  number;
 }
 
+// ── Shared BlockCTA ───────────────────────────────────────────────────────────
+
+/**
+ * A reusable call-to-action button — platform-internal shape.
+ *
+ * Consumed by blocks that support 0–2 CTAs: About/split, ContentSection,
+ * TeamSection.  `variant` controls the button style; when absent the
+ * component infers it from position (first → primary, second → secondary).
+ */
+export interface BlockCTA {
+  readonly label:    string;
+  readonly href:     string;
+  readonly variant?: "primary" | "secondary" | "outline" | "ghost";
+}
+
 // ── About ─────────────────────────────────────────────────────────────────────
 
 /**
  * A single team member entry within an AboutBlock.
  */
 export interface TeamMember {
-  readonly name:      string;
-  readonly role:      string;
-  readonly bio?:      string;
-  readonly imageUrl?: string;
+  readonly name:         string;
+  readonly role:         string;
+  readonly bio?:         string;
+  readonly imageUrl?:    string;
+  /** Link to the member's profile page or external profile */
+  readonly profileHref?: string;
+  readonly socials?: {
+    readonly linkedin?: string;
+    readonly twitter?:  string;
+    readonly github?:   string;
+  };
 }
 
 /**
@@ -585,6 +650,8 @@ export interface AboutBlockData {
   readonly imageUrl?:    string;
   readonly imageAlt?:    string;
   readonly teamMembers?: readonly TeamMember[];
+  /** 0–2 CTA buttons below the body text (media_right/left/full variants) */
+  readonly ctas?:        readonly BlockCTA[];
 }
 
 // ── NewsList ──────────────────────────────────────────────────────────────────
@@ -608,11 +675,30 @@ export interface NewsItem {
  * A list of recent news articles or blog post teasers.
  * `maxItems` is a display cap — the renderer shows at most this many items
  * regardless of how many are in the `items` array.  Defaults to the full list.
+ *
+ * ─── Collection-driven mode ───────────────────────────────────────────────────
+ *
+ *   When `contentSource.source === "collection"`, the renderer fetches items at
+ *   request time via CMSProvider.resolveCollection() rather than rendering the
+ *   static `items` array.  When `contentSource` is absent or `{ source: "manual" }`,
+ *   `items` is used directly (backward-compatible default).
+ *
+ *   `items` will be an empty array for collection-driven blocks as authored in
+ *   the CMS; the resolver populates it at render time.
  */
 export interface NewsListBlockData {
-  readonly heading?:  string;
-  readonly items:     readonly NewsItem[];
-  readonly maxItems?: number;
+  readonly heading?:       string;
+  readonly items:          readonly NewsItem[];
+  readonly maxItems?:      number;
+  /**
+   * How items are sourced for this block.
+   *
+   *   Absent / { source: "manual" } → use the `items` array directly
+   *   { source: "collection" }      → resolve from CMSProvider at render time
+   *
+   * @see ContentSource in @/page-config/collection-source
+   */
+  readonly contentSource?: ContentSource;
 }
 
 // ── CaseHighlight ─────────────────────────────────────────────────────────────
@@ -739,13 +825,24 @@ export interface ListingItem {
  * `viewAllHref` / `viewAllLabel` support a "See all posts →" footer link
  * when the block is embedded on a marketing page rather than the full listing
  * page itself.
+ *
+ * ─── Collection-driven mode ───────────────────────────────────────────────────
+ *
+ *   When `contentSource.source === "collection"`, the renderer fetches items at
+ *   request time via CMSProvider.resolveCollection() rather than rendering the
+ *   static `items` array.  Absent / { source: "manual" } = manual mode (default).
  */
 export interface ListingBlockData {
-  readonly heading?:      string;
-  readonly items:         readonly ListingItem[];
-  readonly maxItems?:     number;
-  readonly viewAllHref?:  string;
-  readonly viewAllLabel?: string;
+  readonly heading?:       string;
+  readonly items:          readonly ListingItem[];
+  readonly maxItems?:      number;
+  readonly viewAllHref?:   string;
+  readonly viewAllLabel?:  string;
+  /**
+   * How items are sourced for this block.
+   * @see ContentSource in @/page-config/collection-source
+   */
+  readonly contentSource?: ContentSource;
 }
 
 // ── ArticleBody ───────────────────────────────────────────────────────────────
@@ -798,6 +895,12 @@ export interface ArticleAuthor {
  * `readingTime` is an estimate in minutes; the CMS or a pre-processing step
  * should populate this from the article word count.
  */
+/** A single breadcrumb trail item. Structurally matches molecules/Breadcrumbs.BreadcrumbItem. */
+export interface BreadcrumbItem {
+  readonly label: string;
+  readonly href?:  string;
+}
+
 export interface ArticleMetaBlockData {
   readonly title?:          string;
   /** ISO 8601, e.g. "2024-09-01" */
@@ -813,6 +916,8 @@ export interface ArticleMetaBlockData {
   readonly coverImageAlt?:  string;
   /** Short summary / deck rendered below the title */
   readonly summary?:        string;
+  /** Optional breadcrumb trail rendered above the title. */
+  readonly breadcrumbs?:    readonly BreadcrumbItem[];
 }
 
 // ── RelatedContent ────────────────────────────────────────────────────────────
@@ -839,11 +944,42 @@ export interface RelatedItem {
  *
  * Shows a curated set of related articles, vacancies, or case studies at
  * the end of a detail page to encourage further reading.
+ *
+ * ─── Collection-driven mode ───────────────────────────────────────────────────
+ *
+ *   When `contentSource.source === "collection"`, the renderer fetches items at
+ *   request time via CMSProvider.resolveCollection() rather than rendering the
+ *   static `items` array.  Absent / { source: "manual" } = manual mode (default).
+ *
+ *   For relatedContent, "specific" mode is the most common collection pattern —
+ *   editors hand-pick items and control their order via selectedIds.
  */
 export interface RelatedContentBlockData {
-  readonly heading?:  string;
-  readonly items:     readonly RelatedItem[];
-  readonly maxItems?: number;
+  readonly heading?:       string;
+  readonly items:          readonly RelatedItem[];
+  readonly maxItems?:      number;
+  /**
+   * How items are sourced for this block.
+   * @see ContentSource in @/page-config/collection-source
+   */
+  readonly contentSource?: ContentSource;
+}
+
+// ── MapBlock ──────────────────────────────────────────────────────────────────
+
+export interface MapBlockData {
+  readonly heading?:   string;
+  readonly address?:   string;
+  readonly city?:      string;
+  readonly country?:   string;
+  readonly email?:     string;
+  readonly phone?:     string;
+  readonly embedUrl?:  string;
+}
+
+export interface MapBlock extends ContentBlockBase {
+  readonly blockType: "mapBlock";
+  readonly data:      MapBlockData;
 }
 
 // ── VacancyMeta ───────────────────────────────────────────────────────────────
@@ -880,6 +1016,8 @@ export interface VacancyMetaBlockData {
   readonly closingDate?:  string;
   /** Seniority level, e.g. "Senior", "Medior", "Lead" */
   readonly level?:        string;
+  /** Optional breadcrumb trail rendered above the vacancy title. */
+  readonly breadcrumbs?:  readonly BreadcrumbItem[];
 }
 
 // ── ApplyPanel ────────────────────────────────────────────────────────────────
@@ -1069,6 +1207,12 @@ export interface CtaSectionBlockData {
    *   "dark"    — dark neutral background (neutral-900 area)
    */
   readonly background?:   "default" | "brand" | "dark";
+  /**
+   * Optional background image URL — used by the `cta_media_first` variant.
+   * Other variants ignore this field.
+   */
+  readonly imageUrl?:     string;
+  readonly imageAlt?:     string;
 }
 
 // ── ProcessSteps ──────────────────────────────────────────────────────────────
@@ -1129,6 +1273,259 @@ export interface RecruiterPanelBlockData {
   readonly ctaHref?:   string;
 }
 
+// ── ContentSection ────────────────────────────────────────────────────────────
+
+/**
+ * Data for a ContentSectionBlock.
+ *
+ * A flexible editorial block: optional eyebrow + headline + intro paragraph +
+ * Portable Text body + 0–2 CTA buttons.  The go-to block for standalone prose
+ * sections that do not need a more specialised layout.
+ *
+ * `maxWidth` constrains the content column:
+ *   narrow  — ~65ch reading column
+ *   default — standard content column (default)
+ *   wide    — full container width
+ *
+ * `align` controls text and CTA alignment:
+ *   left    — default; works well in combination with images
+ *   center  — centered; suits narrow columns and introductory sections
+ *
+ * Variants:
+ *   content_default — single centred or left-aligned column (default)
+ *   content_split   — eyebrow/heading left, body/CTAs right (two-column)
+ */
+export interface ContentSectionBlockData {
+  readonly eyebrow?:  string;
+  readonly heading?:  string;
+  readonly intro?:    string;
+  readonly body?:     readonly PortableTextBlock[];
+  readonly ctas?:     readonly BlockCTA[];
+  readonly maxWidth?: "narrow" | "default" | "wide";
+  readonly align?:    "left" | "center";
+}
+
+// ── TeamSection ───────────────────────────────────────────────────────────────
+
+/**
+ * A single team member within a TeamSectionBlock.
+ *
+ * Extends the simpler `TeamMember` (from AboutBlock) with a dedicated profile
+ * link and social-handle fields suited to standalone team-page contexts.
+ */
+export interface TeamMemberItem {
+  readonly name:         string;
+  readonly role:         string;
+  readonly bio?:         string;
+  readonly imageUrl?:    string;
+  /** Optional link to a profile page or LinkedIn */
+  readonly profileHref?: string;
+  readonly socials?: {
+    readonly linkedin?: string;
+    readonly twitter?:  string;
+    readonly github?:   string;
+  };
+}
+
+/**
+ * Data for a TeamSectionBlock.
+ *
+ * A dedicated team-member showcase with richer member data than the team-grid
+ * variant of AboutBlock.  Suitable as a standalone block on team pages or as
+ * a social-proof section on marketing pages.
+ *
+ * Variants:
+ *   team_grid    — 3-col card grid (default)
+ *   team_compact — tight single-column list: avatar + name + role
+ */
+export interface TeamSectionBlockData {
+  readonly heading?: string;
+  readonly intro?:   string;
+  readonly members:  readonly TeamMemberItem[];
+}
+
+// ── Timeline ──────────────────────────────────────────────────────────────────
+
+/**
+ * A single milestone or event within a TimelineBlock.
+ */
+export interface TimelineItem {
+  /** Stable, CMS-assigned identifier; used for React `key` props */
+  readonly id:          string;
+  readonly title:       string;
+  /** ISO 8601 date string or display label, e.g. "2021" or "January 2024" */
+  readonly date?:       string;
+  readonly description?: string;
+  /** Optional icon name or URL for the timeline marker */
+  readonly icon?:       string;
+  /** Optional link for items that expand to a detail page */
+  readonly href?:       string;
+}
+
+/**
+ * Data for a TimelineBlock.
+ *
+ * Renders an ordered list of milestones, events, or process steps in
+ * chronological or reverse-chronological order.
+ *
+ * Variants:
+ *   timeline_vertical  — stacked vertical timeline with alternating content (default)
+ *   timeline_compact   — tight single-column list; lower vertical footprint
+ *   timeline_milestones — icon + date emphasis; suitable for company history
+ */
+export interface TimelineBlockData {
+  readonly heading?:    string;
+  readonly description?: string;
+  readonly items:       readonly TimelineItem[];
+}
+
+// ── QuickLinks ────────────────────────────────────────────────────────────────
+
+/**
+ * A single quick-link card.
+ */
+export interface QuickLinkItem {
+  /** Stable, CMS-assigned identifier; used for React `key` props */
+  readonly id:          string;
+  readonly label:       string;
+  readonly href:        string;
+  readonly description?: string;
+  /** Icon name or URL; decorative when present */
+  readonly icon?:       string;
+}
+
+/**
+ * Data for a QuickLinksBlock.
+ *
+ * A compact grid of linkable cards — useful for navigation hubs, service
+ * overviews, or resource directories.
+ *
+ * Variants:
+ *   quicklinks_grid    — icon + label grid (default)
+ *   quicklinks_list    — single-column list
+ *   quicklinks_compact — dense tight grid, no descriptions
+ */
+export interface QuickLinksBlockData {
+  readonly heading?:    string;
+  readonly description?: string;
+  readonly links:       readonly QuickLinkItem[];
+}
+
+// ── TextMedia ─────────────────────────────────────────────────────────────────
+
+/**
+ * Data for a TextMediaBlock.
+ *
+ * A flexible two-column block: editorial text (eyebrow + heading + body + CTAs)
+ * on one side and a media element (image or video) on the other.
+ *
+ * Distinct from AboutBlock: TextMedia has no team-member list and is intended
+ * as a lightweight marketing or editorial split — not a narrative bio section.
+ *
+ * `mediaUrl` is the primary media asset.  When `mediaType === "video"` the URL
+ * can be a YouTube/Vimeo embed URL or a native video source.
+ *
+ * Variants:
+ *   text_media_right  — text left, media right (default)
+ *   text_media_left   — media left, text right
+ *   text_media_stacked — media above, text below (full-width)
+ */
+export interface TextMediaBlockData {
+  readonly eyebrow?:   string;
+  readonly heading?:   string;
+  readonly body?:      readonly PortableTextBlock[];
+  readonly ctas?:      readonly BlockCTA[];
+  /** Primary media URL — image CDN URL or video embed/source URL */
+  readonly mediaUrl?:  string;
+  readonly mediaAlt?:  string;
+  /** Caption rendered below the media element */
+  readonly caption?:   string;
+  /**
+   * Type of the media asset.
+   *   "image" — render as an <img> (default)
+   *   "video" — render as an embedded or native video player
+   */
+  readonly mediaType?: "image" | "video";
+}
+
+// ── ContactSection ────────────────────────────────────────────────────────────
+
+/**
+ * Data for a ContactSectionBlock.
+ *
+ * Renders contact details (address, phone, email, hours) alongside optional
+ * CTAs and a map embed link.  Flexible enough to serve as a standalone
+ * contact page block or as a footer contact strip.
+ *
+ * Variants:
+ *   contact_default — stacked contact cards on a subtle-bg section (default)
+ *   contact_split   — contact details left, map / image right
+ *   contact_minimal — compact inline contact row; no section background
+ */
+export interface ContactSectionBlockData {
+  readonly heading?:      string;
+  readonly description?:  string;
+  readonly address?:      string;
+  readonly phone?:        string;
+  readonly email?:        string;
+  /** Business hours string, e.g. "Mon–Fri 09:00–17:00" */
+  readonly hours?:        string;
+  /**
+   * URL for an embedded map or a link to Google Maps / Apple Maps.
+   * Rendered as an iframe embed or a "View on map" link depending on context.
+   */
+  readonly mapUrl?:       string;
+  readonly ctas?:         readonly BlockCTA[];
+}
+
+// ── PricingSection ────────────────────────────────────────────────────────────
+
+/**
+ * A single pricing tier within a PricingSectionBlock.
+ *
+ * `price` is a display string (e.g. "€49", "Free", "Custom") — not a number —
+ * so editors control formatting and currency symbols without component logic.
+ * `period` is the billing cadence shown alongside the price ("/month").
+ * `features` is an ordered list of included feature strings.
+ * `highlighted` marks the recommended / most-popular tier for visual emphasis.
+ * `badge` is an optional label overlay, e.g. "Most popular".
+ */
+export interface PriceTier {
+  readonly name:         string;
+  /** Display price string, e.g. "€49", "Free", "Custom" */
+  readonly price:        string;
+  /** Billing period, e.g. "/month", "/year" — displayed next to price */
+  readonly period?:      string;
+  readonly description?: string;
+  /** Ordered list of included features rendered as a checklist */
+  readonly features:     readonly string[];
+  readonly ctaLabel:     string;
+  readonly ctaHref:      string;
+  /** When true the tier renders with accent/brand styling to draw attention */
+  readonly highlighted?: boolean;
+  /** Short badge text overlaid on the card, e.g. "Most popular" */
+  readonly badge?:       string;
+}
+
+/**
+ * Data for a PricingSectionBlock.
+ *
+ * Renders a set of pricing tiers as a card grid.  Typically 2–4 tiers.
+ * All fields except `tiers` are optional so the block can be used with or
+ * without a section heading or legal footnote.
+ *
+ * Variants:
+ *   pricing_tiers   — 3-col card grid, one card per tier (default)
+ *   pricing_compact — simplified row list; lower vertical footprint
+ */
+export interface PricingSectionBlockData {
+  readonly heading?:    string;
+  readonly subheading?: string;
+  readonly tiers:       readonly PriceTier[];
+  /** Optional legal / billing footnote below the tier cards */
+  readonly footnote?:   string;
+}
+
 // ── ContentBlock discriminated union ─────────────────────────────────────────
 
 /**
@@ -1143,6 +1540,7 @@ export interface RecruiterPanelBlockData {
 interface ContentBlockBase {
   readonly id:       string;
   readonly variant?: string;
+  readonly surface?: BlockSurface;
 }
 
 // ── Existing live blocks ──────────────────────────────────────────────────────
@@ -1288,6 +1686,63 @@ export interface RecruiterPanelBlock extends ContentBlockBase {
   readonly data:      RecruiterPanelBlockData;
 }
 
+export interface PricingSectionBlock extends ContentBlockBase {
+  readonly blockType: "pricingSection";
+  readonly data:      PricingSectionBlockData;
+}
+
+export interface ContentSectionBlock extends ContentBlockBase {
+  readonly blockType: "contentSection";
+  readonly data:      ContentSectionBlockData;
+}
+
+export interface TeamSectionBlock extends ContentBlockBase {
+  readonly blockType: "teamSection";
+  readonly data:      TeamSectionBlockData;
+}
+
+export interface TimelineBlock extends ContentBlockBase {
+  readonly blockType: "timeline";
+  readonly data:      TimelineBlockData;
+}
+
+export interface QuickLinksBlock extends ContentBlockBase {
+  readonly blockType: "quickLinks";
+  readonly data:      QuickLinksBlockData;
+}
+
+export interface TextMediaBlock extends ContentBlockBase {
+  readonly blockType: "textMedia";
+  readonly data:      TextMediaBlockData;
+}
+
+export interface ContactSectionBlock extends ContentBlockBase {
+  readonly blockType: "contactSection";
+  readonly data:      ContactSectionBlockData;
+}
+
+// ── Commerce / product block interfaces ───────────────────────────────────────
+
+export interface ProductOverviewBlock extends ContentBlockBase {
+  readonly blockType: "productOverview";
+  readonly data:      ProductOverviewBlockData;
+}
+
+export interface ProductDetailBlock extends ContentBlockBase {
+  readonly blockType: "productDetail";
+  readonly data:      ProductDetailBlockData;
+}
+
+export interface CartSummaryBlock extends ContentBlockBase {
+  readonly blockType: "cartSummary";
+  readonly data:      CartSummaryBlockData;
+}
+
+export interface CheckoutBlock extends ContentBlockBase {
+  readonly blockType: "checkoutBlock";
+  readonly data:      CheckoutBlockData;
+}
+
 /**
  * The discriminated union of all supported content block types.
  *
@@ -1349,7 +1804,24 @@ export type ContentBlock =
   | SearchBlock
   // careers / W6
   | ProcessStepsBlock
-  | RecruiterPanelBlock;
+  | RecruiterPanelBlock
+  // conversion / pricing
+  | PricingSectionBlock
+  // content / editorial
+  | ContentSectionBlock
+  | TeamSectionBlock
+  // new core blocks
+  | TimelineBlock
+  | QuickLinksBlock
+  | TextMediaBlock
+  | ContactSectionBlock
+  // commerce / product
+  | ProductOverviewBlock
+  | ProductDetailBlock
+  | CartSummaryBlock
+  | CheckoutBlock
+  // map
+  | MapBlock;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // CONTEXT SLOT (resolved)
@@ -1377,6 +1849,21 @@ export interface ResolvedContextSlot {
   readonly variantKey: string | null;
   /** Structural position inherited from the template's ContextSlotSpec */
   readonly position:   ContextSlotPosition;
+  /**
+   * Optional layout/structural variant for the context block component.
+   *
+   * Controls the block's structural layout (e.g. "hero_split", "proof_logos")
+   * independently of the content variant key.  Resolved by
+   * resolveContextBlockVariant() before being passed to the block component.
+   * When absent the block falls back to its family default layout.
+   *
+   * Valid keys per slotId:
+   *   hero:   hero_default | hero_split | hero_proof
+   *   proof:  proof_stats  | proof_logos | proof_quotes
+   *   cta:    cta_banner   | cta_split  | cta_card
+   *   header: header_default | header_centered | header_cta
+   */
+  readonly layoutVariant?: string;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1494,6 +1981,138 @@ export interface PageConfig {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// COMMERCE / PRODUCT BLOCKS
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── ProductOverview ───────────────────────────────────────────────────────────
+
+/**
+ * A single product card within a ProductOverviewBlock.
+ *
+ * `price` is a pre-formatted display string (e.g. "€49 / mo" or "From $99").
+ * The platform does not perform currency formatting — the CMS author owns the
+ * display string so localisation is handled in the CMS.
+ *
+ * `badge` is an optional short label rendered as a pill on the card
+ * (e.g. "Popular", "New", "Best value").
+ *
+ * `cta` is an optional call-to-action for this individual product card.
+ */
+export interface ProductCardItem {
+  readonly title:       string;
+  readonly description: string;
+  readonly price?:      string;
+  readonly imageUrl?:   string;
+  readonly imageAlt?:   string;
+  readonly badge?:      string;
+  readonly cta?:        BlockCTA;
+}
+
+/**
+ * Data for a ProductOverviewBlock.
+ *
+ * Renders a grid of product cards with optional heading, intro text, prices,
+ * badges, and per-card CTAs.  A section-level CTA below the grid is also
+ * supported for "View all products"-style links.
+ *
+ * `showPrices` is a display toggle; when false all per-card `price` values
+ * are hidden regardless of what the CMS returns.  Defaults to true.
+ */
+export interface ProductOverviewBlockData {
+  readonly heading?:    string;
+  readonly intro?:      string;
+  readonly products:    readonly ProductCardItem[];
+  readonly showPrices?: boolean;
+  /** Optional section-level CTA rendered below the product grid */
+  readonly cta?:        BlockCTA;
+}
+
+// ── ProductDetail ─────────────────────────────────────────────────────────────
+
+/**
+ * A single specification row in a ProductDetailBlock.
+ */
+export interface ProductSpecItem {
+  readonly label: string;
+  readonly value: string;
+}
+
+/**
+ * Data for a ProductDetailBlock.
+ *
+ * Renders a full product detail view: gallery/media on one side, title +
+ * description + specs + price + CTA on the other.  Optional related products
+ * section below.
+ *
+ * `gallery` is an ordered list of image URLs; the first entry is the hero
+ * image.  The component renders thumbnails for subsequent images.
+ *
+ * `specs` is a table of label/value pairs rendered as a definition list.
+ *
+ * `price` is a pre-formatted display string (same as ProductCardItem.price).
+ */
+export interface ProductDetailBlockData {
+  readonly title:        string;
+  readonly description?: string;
+  readonly gallery?:     readonly { readonly url: string; readonly alt: string }[];
+  readonly specs?:       readonly ProductSpecItem[];
+  readonly price?:       string;
+  readonly badge?:       string;
+  /** Primary CTA (e.g. "Add to cart", "Request quote") */
+  readonly cta?:         BlockCTA;
+  /** Secondary CTA (e.g. "Learn more", "Download spec sheet") */
+  readonly secondaryCta?: BlockCTA;
+  /** Optional related product cards shown below the detail view */
+  readonly relatedProducts?: readonly ProductCardItem[];
+}
+
+// ── CartSummary ───────────────────────────────────────────────────────────────
+
+/**
+ * Data for a CartSummaryBlock.
+ *
+ * Foundation commerce block — renders a cart summary placeholder.
+ * In a full implementation this would be a client-side cart component;
+ * the platform ships a static foundation that integrators replace with
+ * their own cart logic.
+ *
+ * `emptyMessage` is shown when the cart is empty.
+ * `checkoutHref` is the URL of the checkout page.
+ * `continueShoppingHref` is the URL of the product listing page.
+ */
+export interface CartSummaryBlockData {
+  readonly heading?:               string;
+  readonly emptyMessage?:          string;
+  readonly checkoutHref?:          string;
+  readonly continueShoppingHref?:  string;
+  readonly checkoutLabel?:         string;
+  readonly continueShoppingLabel?: string;
+  /** Plan identifier — "starter" | "growth" | "pro". Used to render plan-specific pricing and features. */
+  readonly planId?:                string;
+}
+
+// ── CheckoutBlock ─────────────────────────────────────────────────────────────
+
+/**
+ * Data for a CheckoutBlock.
+ *
+ * Foundation commerce block — renders a checkout placeholder with configurable
+ * copy.  Integrators replace this with a real payment processor embed.
+ *
+ * `paymentProvider` is informational text shown in the placeholder UI.
+ * `returnHref` is the URL to redirect to after a successful purchase.
+ */
+export interface CheckoutBlockData {
+  readonly heading?:          string;
+  readonly intro?:            string;
+  readonly paymentProvider?:  string;
+  readonly returnHref?:       string;
+  readonly returnLabel?:      string;
+  /** Plan id — "starter" | "growth" | "pro" — drives the signup form's plan selection */
+  readonly planId?:           string;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // CONTEXT SLOT DATA  (pre-fetched, incremental-migration bridge)
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -1523,9 +2142,20 @@ export interface PageConfig {
  */
 export interface ContextSlotData {
   /** Hero slot content + decision-engine variant key for analytics attribution */
-  readonly hero?:  HeroBlockData  & { readonly ctaKey?: string };
+  readonly hero?:         HeroBlockData  & { readonly ctaKey?: string };
   /** Proof slot content */
-  readonly proof?: ProofBlockData;
+  readonly proof?:        ProofBlockData;
   /** CTA slot content + decision-engine variant key for analytics attribution */
-  readonly cta?:   CTABlockData   & { readonly ctaKey?: string };
+  readonly cta?:          CTABlockData   & { readonly ctaKey?: string };
+  /**
+   * Conversion section content (headline + CTAs, optional booking embed).
+   * When present, a ConversionBlock is rendered at the after-content position.
+   */
+  readonly conversion?: ConversionBlockData;
+  /**
+   * Notification overlay content.
+   * When present, the page renders an adaptive overlay (toast or banner)
+   * above all other content.  When absent, no notification is shown.
+   */
+  readonly notification?: NotificationBlockData;
 }

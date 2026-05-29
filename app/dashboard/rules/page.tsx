@@ -20,6 +20,7 @@ import { getActiveTenantWithDevOverride } from "@/tenant/server";
 import { getRulesAction }                  from "./actions";
 import { RulesEditor }                     from "./_components/RulesEditor";
 import { Text }                            from "@/components/primitives/Text";
+import { fetchVariantCatalogue }           from "@/decision/rules/fetch-variant-catalogue";
 
 export const metadata = { title: "Rules Editor · Dashboard" };
 
@@ -37,7 +38,12 @@ export default async function RulesPage({ searchParams }: PageProps) {
   const { tenantConfig, devTenantOverride, devOverrideSource } =
     await getActiveTenantWithDevOverride(params, "dashboard/rules");
 
-  const result = await getRulesAction();
+  // Fetch rules config and variant catalogue in parallel.
+  const activeTenantId = devTenantOverride ?? tenantConfig.tenantId;
+  const [result, variantCatalogue] = await Promise.all([
+    getRulesAction(),
+    fetchVariantCatalogue(activeTenantId),
+  ]);
 
   if (!result.ok) {
     return (
@@ -60,7 +66,10 @@ export default async function RulesPage({ searchParams }: PageProps) {
           page="rules"
         />
       )}
-      <RulesEditor initialConfig={result.config} />
+      <RulesEditor
+        initialConfig={result.config}
+        variantCatalogue={variantCatalogue}
+      />
     </div>
   );
 }
@@ -76,7 +85,7 @@ function PageHeader({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <Text variant="h2" as="h1">Homepage Rules</Text>
+      <Text variant="h2" as="h1">Decision Rules</Text>
       <div className="flex items-center gap-2 text-sm text-neutral-500">
         <span>
           Tenant:{" "}

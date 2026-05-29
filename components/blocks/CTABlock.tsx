@@ -1,37 +1,44 @@
+import type React from "react";
 import { Container } from "@/components/primitives/Container";
 import { Section } from "@/components/primitives/Section";
 import { Stack } from "@/components/primitives/Stack";
 import { Text } from "@/components/primitives/Text";
 import { TrackedCTAButton } from "@/components/tracking/TrackedCTAButton";
+import { resolveContextBlockVariant } from "@/page-config/block-variants";
+import type { CtaLayoutVariant } from "@/page-config/block-variants";
 
 /**
  * CTABlock
  *
- * Bottom-of-page conversion section. High-contrast background makes
- * it impossible to miss. This block is the closing argument — its copy
- * acknowledges the visitor's journey and removes final friction.
+ * Bottom-of-page conversion section.
  *
- * Prop names align with CMS field names (CTABlockData) so that experience
- * data can be spread directly onto this component without a mapper step:
+ * ─── Layout variants ─────────────────────────────────────────────────────────
  *
- *   <CTABlock {...experience.cta} />
+ *   cta_banner  — full-width brand-coloured centred section (default)
+ *   cta_split   — headline/body left, CTA button group pinned right
+ *   cta_card    — contained card on a neutral section background
  *
  * ─── Props ───────────────────────────────────────────────────────────────────
  *
- *   title    Required  Large display headline
- *   text     Required  Supporting paragraph beneath the headline
- *   cta      Required  Primary call-to-action button { label, href }
+ *   title          Required  Large display headline
+ *   text           Required  Supporting paragraph beneath the headline
+ *   cta            Required  Primary call-to-action button { label, href }
+ *   layoutVariant  Optional  Structural layout key (default: "cta_banner")
  *
  * ─── Design tokens consumed ──────────────────────────────────────────────────
  *
- *   --section-cta-bg        Section background (default: --primary / brand-600)
- *                           Per-preset: brand-600 (marketing), neutral-800 (enterprise)
- *   --section-cta-body      Body text colour on CTA background (default: --primary-subtle)
+ *   --section-cta-bg        Section background (banner/split variants)
+ *   --section-cta-body      Body text colour on CTA background
  *   --primary               Glow decoration at low opacity
- *   --card-bg               Inverted CTA button background (white/surface)
- *   --primary-active        CTA button text colour (readable on card-bg)
+ *   --card-bg               Inverted button bg / card background
+ *   --card-border           Card border (card variant)
+ *   --card-radius           Card border-radius (card variant)
+ *   --card-shadow           Card shadow (card variant)
+ *   --primary-active        CTA button text colour
  *   --font-heading          Heading font family
  *   --font-heading-weight   Heading font weight
+ *   --section-subtle-bg     Neutral section background (card variant)
+ *   --section-subtle-border Section border colour (card variant)
  */
 
 export interface CTABlockProps {
@@ -46,9 +53,150 @@ export interface CTABlockProps {
    * Forwarded to TrackedCTAButton for attribution in click events.
    */
   ctaKey?: string;
+  /**
+   * Structural layout variant for this CTA block.
+   * Defaults to "cta_banner" when absent or unrecognised.
+   */
+  layoutVariant?: string;
 }
 
-export function CTABlock({ title, text, cta, ctaKey }: CTABlockProps) {
+export function CTABlock({ title, text, cta, ctaKey, layoutVariant: rawLayout }: CTABlockProps) {
+  const layout = resolveContextBlockVariant("cta", rawLayout) as CtaLayoutVariant;
+
+  // ── cta_split ───────────────────────────────────────────────────────────────
+  //
+  // Headline and body text on the left; CTA button group pinned to the right.
+  // Section uses the same --section-cta-bg as the banner variant so it adapts
+  // to tenant presets consistently.
+
+  if (layout === "cta_split") {
+    return (
+      <Section
+        spacing="lg"
+        style={{ background: "var(--section-cta-bg)" }}
+        className="relative overflow-hidden"
+      >
+        <Container size="lg" className="relative z-10">
+          {/* Mobile: stacked column (text then button, full-width).
+               lg+: side-by-side row with text left, button right. */}
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+
+            {/* Text column — full-width on mobile, flex-1 in row */}
+            <div className="flex-1 min-w-0">
+              <Stack gap={3}>
+                <Text
+                  variant="h2"
+                  color="inverse"
+                  balance
+                  className="max-w-xl"
+                  style={{
+                    fontFamily:    "var(--font-heading)",
+                    fontWeight:    "var(--font-heading-weight)",
+                    letterSpacing: "var(--block-heading-tracking)",
+                    textTransform: "var(--block-heading-transform)" as React.CSSProperties["textTransform"],
+                  }}
+                >
+                  {title}
+                </Text>
+                <Text
+                  variant="body"
+                  className="max-w-xl text-lg"
+                  style={{ color: "var(--section-cta-body)" }}
+                >
+                  {text}
+                </Text>
+              </Stack>
+            </div>
+
+            {/* CTA column — full-width on mobile, shrink-0 in row */}
+            <div className="shrink-0">
+              <TrackedCTAButton
+                href={cta.href}
+                label={cta.label}
+                ctaKey={ctaKey}
+                position="cta_block"
+                style={{
+                  backgroundColor: "var(--card-bg)",
+                  color: "var(--primary-active)",
+                }}
+                className="w-full sm:w-auto shadow-lg"
+              />
+            </div>
+
+          </div>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── cta_card ─────────────────────────────────────────────────────────────────
+  //
+  // CTA content inside an elevated card on a neutral section background.
+  // Good for in-page CTAs that should not dominate the full viewport width.
+
+  if (layout === "cta_card") {
+    return (
+      <Section
+        spacing="xl"
+        style={{
+          background:        "var(--section-subtle-bg)",
+          borderTopColor:    "var(--section-subtle-border)",
+          borderBottomColor: "var(--section-subtle-border)",
+        }}
+        className="border-y"
+      >
+        <Container size="md">
+          {/* Elevated card */}
+          <div
+            className="border p-8 sm:p-12 text-center"
+            style={{
+              backgroundColor: "var(--card-bg)",
+              borderColor:     "var(--card-border)",
+              borderRadius:    "var(--card-radius)",
+              boxShadow:       "var(--card-shadow)",
+            }}
+          >
+            <Stack gap={6} align="center">
+              <Text
+                variant="h2"
+                align="center"
+                balance
+                className="max-w-xl"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontWeight: "var(--font-heading-weight)",
+                }}
+              >
+                {title}
+              </Text>
+              <Text
+                variant="body"
+                color="muted"
+                align="center"
+                className="max-w-lg"
+              >
+                {text}
+              </Text>
+              <TrackedCTAButton
+                href={cta.href}
+                label={cta.label}
+                ctaKey={ctaKey}
+                position="cta_block"
+                variant="primary"
+                className="shadow-sm"
+              />
+            </Stack>
+          </div>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── cta_banner (default) ─────────────────────────────────────────────────────
+  //
+  // Full-width brand-coloured centred section. High-contrast background makes
+  // it impossible to miss.
+
   return (
     /*
      * --section-cta-bg replaces hardcoded bg-brand-600.

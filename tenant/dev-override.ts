@@ -46,6 +46,8 @@ import "server-only";
 import { cookies }           from "next/headers";
 import { getActiveTenant }   from "./get-active-tenant";
 import { resolveTenantById } from "./resolve-tenant";
+import { getTenantById }     from "./tenant-store";
+import { buildTenantConfigFromSettings } from "./build-tenant-config";
 import { DEV_TENANT_COOKIE } from "./dev-tenant-cookie";
 import { logger }            from "@/lib/logger";
 import type { TenantConfig } from "./types";
@@ -108,7 +110,15 @@ export async function getActiveTenantWithDevOverride(
         devTenantOverride = paramId;
         devOverrideSource = "query-param";
       } else {
-        logger.warn(`[${context}] Dev tenant override ignored — unknown tenantId`, { overrideId: paramId });
+        // Not in static registry — try the store (admin-provisioned tenants).
+        const storedSettings = await getTenantById(paramId);
+        if (storedSettings) {
+          tenantConfig      = buildTenantConfigFromSettings(storedSettings);
+          devTenantOverride = paramId;
+          devOverrideSource = "query-param";
+        } else {
+          logger.warn(`[${context}] Dev tenant override ignored — unknown tenantId`, { overrideId: paramId });
+        }
       }
     } else {
       // ── Cookie (second priority) ─────────────────────────────────────────

@@ -66,10 +66,11 @@
  *   a materialised aggregate or a Postgres FUNCTION called via `.rpc()`.
  */
 
-import { getDb } from "@/data/db";
-import { logger } from "@/lib/logger";
-import { emptyHistory } from "./visitor-history";
+import { getDb }               from "@/data/db";
+import { logger }              from "@/lib/logger";
+import { emptyHistory }        from "./visitor-history";
 import type { VisitorHistory } from "./visitor-history";
+import { fetchJourneyState }   from "@/lib/journey/fetch-journey-state";
 
 // ── Type helpers ──────────────────────────────────────────────────────────────
 // Same pattern used throughout the repositories layer to work around the
@@ -138,7 +139,7 @@ export async function fetchVisitorHistory(
     const db = getDb();
 
     // ── Run all queries concurrently ────────────────────────────────────────
-    const [pageViewResult, ctaClickResult, lastVariantResult] = await Promise.all([
+    const [pageViewResult, ctaClickResult, lastVariantResult, journeyState] = await Promise.all([
       // 1. Page view rows — fetch payload so the tenant filter can be applied.
       //    Rows per session are tiny (one per page-load within a 30-day window).
       asRows<EventRow>(
@@ -173,6 +174,11 @@ export async function fetchVisitorHistory(
           .order("created_at", { ascending: false })
           .limit(1),
       ),
+
+      // 4. Journey / behavior state — single PK lookup on visitor_behavior_state.
+      //    Returns emptyJourneyState() on any failure so the main query pipeline
+      //    is unaffected.
+      fetchJourneyState(sessionId, tenantId),
     ]);
 
     // ── Check for query errors ──────────────────────────────────────────────
@@ -247,6 +253,7 @@ export async function fetchVisitorHistory(
       lastCtaKey: lastVariant?.cta_key ?? null,
       firstSeenAt,
       fromDatabase: true,
+      journey: journeyState.fromDatabase ? journeyState : null,
     };
   } catch (err) {
     logger.debug("[fetch-visitor-history] Unexpected error — using empty history", {

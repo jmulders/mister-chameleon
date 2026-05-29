@@ -11,6 +11,21 @@ export default defineType({
   title: "Search Results",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls how search results are rendered.",
+      options: {
+        list: [
+          { title: "Grid — card grid (default)", value: "grid" },
+          { title: "List — single-column rows",  value: "list" },
+        ],
+      },
+      initialValue: "grid",
+    }),
+
     defineField({ name: "heading",      title: "Heading",       type: "string" }),
     defineField({ name: "emptyMessage", title: "Empty Message", type: "string",
       description: "Message shown when the result set is empty." }),

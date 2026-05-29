@@ -13,6 +13,13 @@ import { cn } from "@/lib/utils";
  *  muted      → muted/grey, slightly darkens on hover
  *  underline  → always underlined (useful in prose)
  *  nav        → no decoration, inherits weight/color (for navbars)
+ *
+ * ─── Design tokens consumed ──────────────────────────────────────────────────
+ *
+ *  primary / underline / default hover  →  --text-brand
+ *
+ *  Resolved from the tenant TenantTheme preset; falls back to the theme.css
+ *  :root default (brand-indigo #4f46e5) when no override is active.
  */
 
 type LinkVariant = "default" | "primary" | "muted" | "underline" | "nav";
@@ -26,13 +33,15 @@ interface LinkProps extends Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 
   external?: boolean;
 }
 
+// Use Tailwind's CSS-var arbitrary-value syntax for brand-coloured variants so
+// they respond to the active tenant preset.  Neutral variants (muted, nav) stay
+// on the static palette — they don't carry brand identity.
 const variantClasses: Record<LinkVariant, string> = {
-  default: "text-inherit hover:text-brand-600 transition-colors duration-150",
-  primary: "text-brand-600 hover:text-brand-700 transition-colors duration-150",
-  muted: "text-neutral-500 hover:text-neutral-700 transition-colors duration-150",
-  underline:
-    "text-brand-600 underline underline-offset-2 hover:text-brand-700 transition-colors duration-150",
-  nav: "text-neutral-700 hover:text-neutral-900 transition-colors duration-150",
+  default:   "text-inherit hover:text-[var(--text-brand)] transition-colors duration-150",
+  primary:   "text-[var(--text-brand)] hover:text-[var(--text-brand)] hover:opacity-80 transition-colors duration-150",
+  muted:     "text-neutral-500 hover:text-neutral-700 transition-colors duration-150",
+  underline: "text-[var(--text-brand)] underline underline-offset-2 hover:opacity-80 transition-opacity duration-150",
+  nav:       "text-neutral-700 hover:text-neutral-900 transition-colors duration-150",
 };
 
 export function Link({

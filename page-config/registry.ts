@@ -67,7 +67,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "textSection",
     displayName:     "Text section",
     category:        "text",
-    allowedVariants: ["left-aligned", "centered", "right-aligned"],
+    allowedVariants: ["text_single", "text_split", "text_lead", "default", "centered"],
     dataType:        "TextSectionBlockData",
     status:          "live",
   },
@@ -77,7 +77,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     category:        "text",
     allowedVariants: ["narrow", "default", "wide"],
     dataType:        "RichTextBlockData",
-    status:          "defined",
+    status:          "live",
   },
 
   // ── Media ──────────────────────────────────────────────────────────────────
@@ -113,7 +113,11 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "testimonialSection",
     displayName:     "Testimonials",
     category:        "social-proof",
-    allowedVariants: ["grid", "carousel", "single", "masonry"],
+    allowedVariants: [
+      "testimonial_grid", "testimonial_single", "testimonial_highlight",
+      "testimonial_slider", "testimonial_featured_image",
+      "default", "quote-card",
+    ],
     dataType:        "TestimonialSectionBlockData",
     status:          "live",
   },
@@ -129,7 +133,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "logoStrip",
     displayName:     "Logo strip",
     category:        "social-proof",
-    allowedVariants: ["default", "muted"],
+    allowedVariants: ["default", "muted", "logo_grid", "logo_wall_light"],
     dataType:        "LogoStripBlockData",
     status:          "live",
   },
@@ -148,7 +152,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "featureGrid",
     displayName:     "Feature grid",
     category:        "features",
-    allowedVariants: ["2-col", "3-col", "4-col", "icon-list"],
+    allowedVariants: ["feature_grid_3up", "feature_grid_4up", "feature_grid_cards", "feature_grid_checklist", "feature_grid_dark", "feature_grid_spacious", "default", "cards", "compact", "icons-left"],
     dataType:        "FeatureGridBlockData",
     status:          "live",
   },
@@ -159,7 +163,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "faqSection",
     displayName:     "FAQ",
     category:        "content",
-    allowedVariants: ["accordion", "two-col"],
+    allowedVariants: ["faq_default", "faq_split", "default", "two-col"],
     dataType:        "FaqSectionBlockData",
     status:          "live",
   },
@@ -167,7 +171,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "about",
     displayName:     "About / Split media",
     category:        "content",
-    allowedVariants: ["default", "split", "team-grid"],
+    allowedVariants: ["media_right", "media_left", "media_full", "default", "split", "team-grid"],
     dataType:        "AboutBlockData",
     status:          "live",
   },
@@ -175,7 +179,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "newsList",
     displayName:     "News list",
     category:        "content",
-    allowedVariants: ["default", "grid", "list", "featured"],
+    allowedVariants: ["default", "grid", "list", "featured", "news_slider"],
     dataType:        "NewsListBlockData",
     status:          "live",
   },
@@ -194,7 +198,12 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "ctaSection",
     displayName:     "Call to action",
     category:        "conversion",
-    allowedVariants: ["default", "brand", "dark"],
+    allowedVariants: [
+      "cta_banner", "cta_split", "cta_card", "cta_media_first", // full-section variants
+      "cta_banner_default", "cta_banner_compact",                // compact banner variants
+      "cta_glow", "cta_soft",                                    // premium family variants
+      "default", "brand", "dark",                                // legacy aliases
+    ],
     dataType:        "CtaSectionBlockData",
     status:          "live",
   },
@@ -208,7 +217,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "formSection",
     displayName:     "Form",
     category:        "conversion",
-    allowedVariants: ["default", "card", "minimal"],
+    allowedVariants: ["form_inline", "form_split", "form_panel", "default", "card", "minimal"],
     dataType:        "FormBlockData",
     status:          "live",
   },
@@ -224,7 +233,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "listing",
     displayName:     "Listing",
     category:        "content",
-    allowedVariants: ["default", "grid", "list", "compact"],
+    allowedVariants: ["listing_cards", "listing_rows", "listing_compact", "listing_slider", "default", "grid", "list", "compact"],
     dataType:        "ListingBlockData",
     status:          "live",
   },
@@ -248,7 +257,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "relatedContent",
     displayName:     "Related content",
     category:        "content",
-    allowedVariants: ["default", "grid", "list", "carousel"],
+    allowedVariants: ["default", "grid", "list", "carousel", "related_slider"],
     dataType:        "RelatedContentBlockData",
     status:          "live",
   },
@@ -319,6 +328,117 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     status:          "live",
   },
 
+  // ── Conversion / pricing ───────────────────────────────────────────────────
+
+  {
+    key:             "pricingSection",
+    displayName:     "Pricing",
+    category:        "conversion",
+    allowedVariants: ["pricing_tiers", "pricing_compact", "pricing_table"],
+    dataType:        "PricingSectionBlockData",
+    status:          "live",
+  },
+
+  // ── Content / editorial ────────────────────────────────────────────────────
+
+  {
+    key:             "contentSection",
+    displayName:     "Content section",
+    category:        "content",
+    allowedVariants: ["content_default", "content_split"],
+    dataType:        "ContentSectionBlockData",
+    status:          "live",
+  },
+  {
+    key:             "teamSection",
+    displayName:     "Team",
+    category:        "content",
+    allowedVariants: ["team_grid", "team_compact"],
+    dataType:        "TeamSectionBlockData",
+    status:          "live",
+  },
+
+  // ── New core blocks ─────────────────────────────────────────────────────────
+
+  {
+    key:             "timeline",
+    displayName:     "Timeline",
+    category:        "content",
+    allowedVariants: ["timeline_vertical", "timeline_compact", "timeline_milestones"],
+    dataType:        "TimelineBlockData",
+    status:          "live",
+  },
+  {
+    key:             "quickLinks",
+    displayName:     "Quick links",
+    category:        "content",
+    allowedVariants: ["quicklinks_grid", "quicklinks_list", "quicklinks_compact"],
+    dataType:        "QuickLinksBlockData",
+    status:          "live",
+  },
+  {
+    key:             "textMedia",
+    displayName:     "Text + media",
+    category:        "content",
+    allowedVariants: ["text_media_right", "text_media_left", "text_media_stacked"],
+    dataType:        "TextMediaBlockData",
+    status:          "live",
+  },
+  {
+    key:             "contactSection",
+    displayName:     "Contact",
+    category:        "conversion",
+    allowedVariants: ["contact_default", "contact_split", "contact_minimal"],
+    dataType:        "ContactSectionBlockData",
+    status:          "live",
+  },
+
+  // ── Commerce / product ─────────────────────────────────────────────────────
+
+  {
+    key:             "productOverview",
+    displayName:     "Product overview",
+    category:        "features",
+    allowedVariants: ["product_grid", "product_cards", "product_list"],
+    dataType:        "ProductOverviewBlockData",
+    status:          "live",
+  },
+  {
+    key:             "productDetail",
+    displayName:     "Product detail",
+    category:        "content",
+    allowedVariants: ["product_detail_default", "product_detail_full"],
+    dataType:        "ProductDetailBlockData",
+    status:          "live",
+  },
+  {
+    key:             "cartSummary",
+    displayName:     "Cart summary",
+    category:        "conversion",
+    allowedVariants: ["cart_default"],
+    dataType:        "CartSummaryBlockData",
+    status:          "live",
+  },
+  {
+    key:             "checkoutBlock",
+    displayName:     "Checkout",
+    category:        "conversion",
+    allowedVariants: ["checkout_default"],
+    dataType:        "CheckoutBlockData",
+    status:          "live",
+  },
+
+  // ── Map ─────────────────────────────────────────────────────────────────────
+
+  {
+    key:             "mapBlock",
+    displayName:     "Map",
+    category:        "content",
+    allowedVariants: ["default"],
+    dataType:        "MapBlockData",
+    status:          "live",
+  },
+
 ] satisfies readonly BlockDefinition[];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -362,6 +482,7 @@ export const BLOCK_REGISTRY: Readonly<Record<ContentBlockType, BlockDefinition>>
 export const REGISTERED_CONTENT_BLOCK_TYPES = [
   // ── Core marketing blocks ──────────────────────────────────────────────────
   "textSection",
+  "richText",
   "featureGrid",
   "testimonialSection",
   "faqSection",
@@ -388,6 +509,19 @@ export const REGISTERED_CONTENT_BLOCK_TYPES = [
   // ── Careers / W6 ──────────────────────────────────────────────────────────
   "processSteps",
   "recruiterPanel",
+  // ── Conversion / pricing ──────────────────────────────────────────────────
+  "pricingSection",
+  // ── Content / editorial ────────────────────────────────────────────────────
+  "textMedia",
+  "contentSection",
+  "teamSection",
+  // ── Commerce / product ─────────────────────────────────────────────────────
+  "productOverview",
+  "productDetail",
+  "cartSummary",
+  "checkoutBlock",
+  // ── Map ────────────────────────────────────────────────────────────────────
+  "mapBlock",
 ] as const satisfies readonly ContentBlockType[];
 
 // ─────────────────────────────────────────────────────────────────────────────

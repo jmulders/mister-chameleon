@@ -24,12 +24,15 @@
  * ─── Mapping tables ────────────────────────────────────────────────────────
  *
  *   StatamicHeroEntry       →  HeroBlockData
- *   ──────────────────          ──────────────────────
+ *   ──────────────────          ──────────────────────────────
  *   key                     →  id
  *   title                   →  title
  *   subtitle                →  subtitle
- *   cta_label               →  cta.label
- *   cta_href                →  cta.href
+ *   ctas[].label            →  ctas[].label   (preferred)
+ *   ctas[].href             →  ctas[].href
+ *   ctas[].variant          →  ctas[].variant
+ *   cta_label               →  cta.label      (legacy fallback)
+ *   cta_href                →  cta.href       (legacy fallback)
  *   tag                     →  tag
  *
  *   StatamicProofEntry      →  ProofBlockData
@@ -52,12 +55,60 @@
  *   cta_href                →  cta.href
  */
 
-import type { HeroBlockData, ProofBlockData, CTABlockData } from "../../types";
+import type { HeroBlockData, HeroBannerMedia, ProofBlockData, CTABlockData } from "../../types";
 import type {
   StatamicHeroEntry,
+  StatamicHeroMedia,
   StatamicProofEntry,
   StatamicCTAEntry,
 } from "../../queries/statamic";
+
+// ── Hero media helper ───────────────────────────────────────────────────────
+
+/**
+ * Translate the flat Statamic media object into the HeroBannerMedia union.
+ * Returns undefined for absent / "none" / incomplete media (safe fallback).
+ */
+function mapStatamicHeroMedia(raw: StatamicHeroMedia | null | undefined): HeroBannerMedia | undefined {
+  if (!raw || !raw.media_type || raw.media_type === "none") return undefined;
+
+  if (raw.media_type === "image") {
+    if (!raw.media_image) return undefined;
+    return { kind: "image", url: raw.media_image, alt: raw.media_alt ?? "" };
+  }
+
+  if (raw.media_type === "video") {
+    if (!raw.video_source) return undefined;
+
+    if (raw.video_source === "upload") {
+      if (!raw.video_file) return undefined;
+      return {
+        kind:  "video",
+        video: {
+          source:   "upload",
+          url:       raw.video_file,
+          poster:    raw.video_poster   ?? undefined,
+          autoplay:  raw.video_autoplay,
+          muted:     raw.video_muted,
+          loop:      raw.video_loop,
+          controls:  raw.video_controls,
+        },
+      };
+    }
+
+    if (raw.video_source === "youtube") {
+      if (!raw.video_id) return undefined;
+      return { kind: "video", video: { source: "youtube", videoId: raw.video_id } };
+    }
+
+    if (raw.video_source === "vimeo") {
+      if (!raw.video_id) return undefined;
+      return { kind: "video", video: { source: "vimeo", videoId: raw.video_id } };
+    }
+  }
+
+  return undefined;
+}
 
 // ── Hero mapper ───────────────────────────────────────────────────────────
 
@@ -68,15 +119,28 @@ import type {
  * @returns      A HeroBlockData ready for the experience composer.
  */
 export function mapStatamicHero(entry: StatamicHeroEntry): HeroBlockData {
+  // Prefer the new ctas array; fall back to the legacy flat fields for
+  // entries authored before the ctas field was added to the blueprint.
+  const ctas: HeroBlockData["ctas"] =
+    entry.ctas && entry.ctas.length > 0
+      ? entry.ctas.map((c) => ({
+          label:   c.label,
+          href:    c.href,
+          variant: c.variant,
+        }))
+      : entry.cta_label
+        ? [{ label: entry.cta_label, href: entry.cta_href ?? "" }]
+        : [];
+
   return {
-    id:       entry.key,
-    title:    entry.title,
-    subtitle: entry.subtitle,
-    cta: {
-      label: entry.cta_label,
-      href:  entry.cta_href,
-    },
-    tag: entry.tag,
+    id:            entry.key,
+    layoutVariant: entry.layout_variant,
+    contentAlign:  entry.content_align,
+    title:         entry.title,
+    subtitle:      entry.subtitle,
+    ctas,
+    tag:           entry.tag,
+    media:         mapStatamicHeroMedia(entry.media),
   };
 }
 

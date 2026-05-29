@@ -13,4 +13,13 @@ export {
   mapStoryblokHero,
   mapStoryblokProof,
   mapStoryblokCTA,
+  mapStoryblokFeature,
+  mapStoryblokConversion,
+  mapStoryblokNotification,
+  mapStoryblokPage,
+} from "./storyblok-mappers";
+
+export type {
+  StoryblokPageContent,
+  StoryblokSectionRaw,
 } from "./storyblok-mappers";

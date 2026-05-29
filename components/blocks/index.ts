@@ -26,3 +26,6 @@ export type { CTABlockProps } from "./CTABlock";
 
 export { ExperienceDiagnosticsBar } from "./ExperienceDiagnosticsBar";
 export type { ExperienceDiagnosticsBarProps } from "./ExperienceDiagnosticsBar";
+
+export { NotificationBlock } from "./NotificationBlock";
+export type { NotificationBlockProps } from "./NotificationBlock";

@@ -52,20 +52,33 @@
  *     and ContentBlockRenderer. No styling tokens are used here.
  */
 
+import { cookies } from "next/headers";
 import type { PageConfig, ContextSlotData, ContextSlotId, ResolvedContextSlot } from "@/page-config";
 import { createCMSProvider } from "@/cms";
-import { HeroBlock }  from "@/components/blocks/HeroBlock";
-import { ProofBlock } from "@/components/blocks/ProofBlock";
-import { CTABlock }   from "@/components/blocks/CTABlock";
+import { HeroBlock }          from "@/components/blocks/HeroBlock";
+import { ProofBlock }         from "@/components/blocks/ProofBlock";
+import { CTABlock }           from "@/components/blocks/CTABlock";
+import { ConversionBlock }    from "@/components/blocks/ConversionBlock";
+import { NotificationBlock }  from "@/components/blocks/NotificationBlock";
+import { mapHeroBlockData } from "@/cms/mappers/content-mappers";
 import { ContentBlockRenderer } from "./ContentBlockRenderer";
+import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
+import {
+  resolveAdaptiveVariant,
+  adaptiveVariantToHeroBlockData,
+} from "@/lib/tokens/resolve-adaptive-variant";
+import { parseTokens, type TokenContext } from "@/lib/tokens/parse-tokens";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTEXT SLOT RENDERER
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface ContextSlotRendererProps {
-  slotId:      ContextSlotId;
-  contextData: ContextSlotData;
+  slotId:         ContextSlotId;
+  contextData:    ContextSlotData;
+  layoutVariant?: string;
+  tokenContext?:  TokenContext;
 }
 
 /**
@@ -74,18 +87,49 @@ interface ContextSlotRendererProps {
  * Switches on slotId — exhaustive over the three defined context block types
  * (hero, proof, cta).  Returns null when the slot's data is absent (slot
  * disabled or CMS returned no content for the variant key).
+ *
+ * `layoutVariant` is the structural layout to use for the block, sourced from
+ * ResolvedContextSlot.layoutVariant.  When absent the block falls back to its
+ * family default (hero_default, proof_stats, cta_banner).
+ *
+ * ─── Why the conditional spread ────────────────────────────────────────────────
+ *
+ *   Each block's data type (HeroBlockData, ProofBlockData, CTABlockData) already
+ *   carries a `layoutVariant` field from the CMS document.  mapHeroBlockData()
+ *   and friends pass it through in their spread.
+ *
+ *   If we always pass `layoutVariant={layoutVariant}` as an explicit prop AFTER
+ *   the spread, JSX compiles it to:
+ *     Object.assign({}, mapHeroBlockData(data), { layoutVariant: undefined })
+ *   When slot.layoutVariant is absent (undefined), this OVERWRITES the CMS value
+ *   with undefined — causing resolveContextBlockVariant() to always return the
+ *   family default (hero_default), ignoring the CMS-authored selection entirely.
+ *
+ *   Fix: only pass the slot's layoutVariant when it is explicitly non-undefined.
+ *   When absent, the CMS document value already present in the spread takes effect.
  */
-function ContextSlotRenderer({ slotId, contextData }: ContextSlotRendererProps) {
+function ContextSlotRenderer({ slotId, contextData, layoutVariant, tokenContext }: ContextSlotRendererProps) {
+  // Only override layoutVariant when the slot explicitly specifies one.
+  // Passing `undefined` after a spread in JSX writes undefined into the prop
+  // object and silently discards whatever the spread provided.
+  const layoutOverride = layoutVariant !== undefined ? { layoutVariant } : {};
+
+  // Token replacement helper — no-op when tokenContext is absent (non-homepage pages).
+  const t = tokenContext
+    ? (s: string | undefined) => (s ? parseTokens(s, tokenContext) : s)
+    : (s: string | undefined) => s;
+
   switch (slotId) {
     case "hero":
       if (!contextData.hero) return null;
       return (
         <HeroBlock
-          title={contextData.hero.title}
-          subtitle={contextData.hero.subtitle}
-          cta={contextData.hero.cta}
-          tag={contextData.hero.tag}
+          {...mapHeroBlockData(contextData.hero)}
+          title={t(contextData.hero.title) ?? contextData.hero.title}
+          subtitle={t(contextData.hero.subtitle) ?? contextData.hero.subtitle}
+          tag={t(contextData.hero.tag)}
           ctaKey={contextData.hero.ctaKey}
+          {...layoutOverride}
         />
       );
 
@@ -93,8 +137,10 @@ function ContextSlotRenderer({ slotId, contextData }: ContextSlotRendererProps) 
       if (!contextData.proof) return null;
       return (
         <ProofBlock
-          title={contextData.proof.title}
+          title={t(contextData.proof.title) ?? contextData.proof.title}
           items={contextData.proof.items}
+          layoutVariant={contextData.proof.layoutVariant}
+          {...layoutOverride}
         />
       );
 
@@ -102,12 +148,23 @@ function ContextSlotRenderer({ slotId, contextData }: ContextSlotRendererProps) 
       if (!contextData.cta) return null;
       return (
         <CTABlock
-          title={contextData.cta.title}
-          text={contextData.cta.text}
+          title={t(contextData.cta.title) ?? contextData.cta.title}
+          text={t(contextData.cta.text)}
           cta={contextData.cta.cta}
           ctaKey={contextData.cta.ctaKey}
+          layoutVariant={contextData.cta.layoutVariant}
+          {...layoutOverride}
         />
       );
+
+    case "conversion":
+      if (!contextData.conversion) return null;
+      return <ConversionBlock data={contextData.conversion} />;
+
+    case "notification":
+      // Notification is an overlay — rendered outside the before/after slot
+      // groups by the TemplateRenderer directly.  Skip here to avoid duplicate.
+      return null;
 
     default:
       // Unknown slot type — forward-compatible; skip silently.
@@ -141,6 +198,23 @@ interface TemplateRendererProps {
    *   slot's variantKey and createCMSProvider(), in parallel.
    */
   contextData?: ContextSlotData;
+  /**
+   * Token substitution context — enables merge-tag resolution in variant copy.
+   *
+   * When provided, ContextSlotRenderer replaces `{{device}}`, `{{company_short}}`,
+   * `{{source}}`, `{{campaign}}` etc. in hero/proof/cta text fields.
+   *
+   * ─── Homepage path ────────────────────────────────────────────────────────
+   *
+   *   Built by buildTokenContextFromInput(input) in app/(site)/page.tsx.
+   *
+   * ─── CMS slug page path ───────────────────────────────────────────────────
+   *
+   *   Returned alongside pageConfig by resolveSlugPageConfig(), which builds
+   *   it from the same decision input object (carries device, source, UTMs,
+   *   enrichment fields available without running the full enrichment pipeline).
+   */
+  tokenContext?: TokenContext;
 }
 
 /**
@@ -157,7 +231,7 @@ interface TemplateRendererProps {
  * This component is a React Server Component — no "use client" directive,
  * no hooks, no client-side state.
  */
-export async function TemplateRenderer({ pageConfig, contextData }: TemplateRendererProps) {
+export async function TemplateRenderer({ pageConfig, contextData, tokenContext }: TemplateRendererProps) {
   // ── Resolve context data ──────────────────────────────────────────────────
   //
   // Engine path:    contextData is pre-fetched by the caller; use it directly.
@@ -175,12 +249,27 @@ export async function TemplateRenderer({ pageConfig, contextData }: TemplateRend
 
   return (
     <>
+      {/* ── Notification overlay (rendered once, outside page flow) ──────── */}
+      {effectiveContextData.notification && (
+        <NotificationBlock
+          message={effectiveContextData.notification.message}
+          severity={effectiveContextData.notification.severity}
+          ctaLabel={effectiveContextData.notification.ctaLabel}
+          ctaHref={effectiveContextData.notification.ctaHref}
+          position={effectiveContextData.notification.position}
+          dismissible={effectiveContextData.notification.dismissible}
+          autoDismissMs={effectiveContextData.notification.autoDismissMs}
+        />
+      )}
+
       {/* ── Before-content context slots (hero, proof, …) ─────────────────── */}
       {beforeSlots.map((slot) => (
         <ContextSlotRenderer
           key={slot.slotId}
           slotId={slot.slotId}
           contextData={effectiveContextData}
+          layoutVariant={slot.layoutVariant}
+          tokenContext={tokenContext}
         />
       ))}
 
@@ -195,6 +284,8 @@ export async function TemplateRenderer({ pageConfig, contextData }: TemplateRend
           key={slot.slotId}
           slotId={slot.slotId}
           contextData={effectiveContextData}
+          layoutVariant={slot.layoutVariant}
+          tokenContext={tokenContext}
         />
       ))}
     </>
@@ -218,6 +309,12 @@ export async function TemplateRenderer({ pageConfig, contextData }: TemplateRend
  *
  * ctaKey is set to the variantKey so click events on hero/cta buttons can be
  * attributed to the correct variant in analytics.
+ *
+ * Locale is resolved from the request cookie so that NL/DE locale-tagged
+ * variant documents are preferred over the EN defaults when the visitor has
+ * a non-EN locale set.  tenantId and tenant CMS settings are resolved via
+ * getActiveTenant() / getTenantById() — the same resolution used by the
+ * parent page component.
  */
 async function fetchContextDataFromSlots(
   slots: readonly ResolvedContextSlot[],
@@ -225,7 +322,14 @@ async function fetchContextDataFromSlots(
   const activeSlots = slots.filter((s) => s.variantKey !== null);
   if (activeSlots.length === 0) return {};
 
-  const cms = createCMSProvider();
+  // ── Resolve locale and tenant for locale-aware variant fetching ────────────
+  const cookieStore  = await cookies();
+  const localeRaw    = cookieStore.get(LOCALE_COOKIE)?.value ?? "";
+  const locale       = isSupportedLocale(localeRaw) ? localeRaw : DEFAULT_LOCALE;
+  const { tenantId } = await getActiveTenant();
+  const tenant       = tenantId ? await getTenantById(tenantId) : null;
+
+  const cms = createCMSProvider(tenant?.cms, tenantId, locale);
 
   // Fetch all active slots in parallel — no waterfall.
   const partials = await Promise.all(
@@ -234,7 +338,21 @@ async function fetchContextDataFromSlots(
       switch (slot.slotId) {
         case "hero": {
           const data = await cms.getHeroVariant(key);
-          return data ? { hero: { ...data, ctaKey: key } } : {};
+          if (data) return { hero: { ...data, ctaKey: key } };
+
+          // ── Adaptive-block fallback ─────────────────────────────────────────
+          // When no regular hero variant is found for this key, try an adaptive
+          // block (Content Matrix).  The no-engine path has no visitor context,
+          // so we always resolve to the defaultVariant here.  The engine path
+          // (homepage) pre-resolves contextData before calling TemplateRenderer
+          // and therefore bypasses this fetch entirely.
+          const adaptive = await cms.getAdaptiveBlock(key);
+          if (adaptive && adaptive.isActive) {
+            const { content } = resolveAdaptiveVariant(adaptive);
+            const heroData    = adaptiveVariantToHeroBlockData(content, adaptive.key);
+            return { hero: { ...heroData, ctaKey: key } };
+          }
+          return {};
         }
         case "proof": {
           const data = await cms.getProofVariant(key);
@@ -243,6 +361,10 @@ async function fetchContextDataFromSlots(
         case "cta": {
           const data = await cms.getCTAVariant(key);
           return data ? { cta: { ...data, ctaKey: key } } : {};
+        }
+        case "notification": {
+          const data = await cms.getNotificationVariant(key);
+          return data ? { notification: data } : {};
         }
         default:
           // Unknown slot type — forward-compatible; no content to fetch.

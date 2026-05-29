@@ -41,7 +41,10 @@ const EXPECTED_MOCK_HERO: HeroBlockData = {
   subtitle: "Most visitors leave because your homepage wasn't written for them. " +
             'Mister Chameleon detects where they came from and instantly serves ' +
             'the version of your site that converts.',
-  cta: { label: 'See how it works', href: '#how-it-works' },
+  ctas: [
+    { label: 'See how it works', href: '#how-it-works' },
+    { label: 'Book a demo',      href: '#demo',         variant: 'secondary' },
+  ],
 };
 
 const EXPECTED_MOCK_PROOF: ProofBlockData = {

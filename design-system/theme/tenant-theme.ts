@@ -42,6 +42,16 @@ import { radii } from "../tokens/radii";
 import type { RadiusKey } from "../tokens/radii";
 import { fontFamily } from "../tokens/typography";
 import { shadows } from "../tokens/shadow";
+import {
+  type BlockStyleProfile,
+  DEFAULT_BLOCK_STYLE_PROFILE,
+  blockStyleProfileToVars,
+} from "./block-style-profile";
+import {
+  isFeaturedFamilyKey,
+  familyTypographyToVars,
+  familyStructuralToVars,
+} from "./theme-families.config";
 
 // ── Brand color surface ───────────────────────────────────────────────────────
 
@@ -130,6 +140,27 @@ export const RADIUS_PRESETS: Record<RadiusPersonality, TenantRadiusValues> = {
 // ── Typography overrides ──────────────────────────────────────────────────────
 
 export interface ThemeTypography {
+  /**
+   * Body / UI sans-serif font stack. Overrides --font-sans.
+   * Use a full CSS font-family stack, e.g. "'DM Sans', system-ui, sans-serif".
+   * When set to a supported Google Font name, the font-redirect layer in
+   * layout.tsx automatically connects --font-sans to the pre-loaded @font-face.
+   */
+  fontSans?: string;
+  /**
+   * Serif font stack. Overrides --font-serif.
+   * Use a full CSS font-family stack, e.g. "'Playfair Display', Georgia, serif".
+   * When set to a supported Google Font name, the font-redirect layer in
+   * layout.tsx automatically connects --font-serif to the pre-loaded @font-face.
+   */
+  fontSerif?: string;
+  /**
+   * Monospace font stack. Overrides --font-mono.
+   * Use a full CSS font-family stack, e.g. "'JetBrains Mono', monospace".
+   * When set to a supported Google Font name, the font-redirect layer in
+   * layout.tsx automatically connects --font-mono to the pre-loaded @font-face.
+   */
+  fontMono?: string;
   /** Heading font-family stack. Overrides --font-heading. */
   headingFont?: string;
   /** Heading font-weight. Overrides --font-heading-weight. Defaults to "700". */
@@ -255,6 +286,96 @@ export interface ThemeComponentStyles {
   featureGridCardShadow?: string;
   /** Feature-grid icon container background (icons-left variant). */
   featureGridIconBg?: string;
+
+  // ── Header tokens ────────────────────────────────────────────────────────────
+  /**
+   * Header background at the top of the page (before scrolling).
+   * Accepts any CSS color including semi-transparent values like
+   * `rgba(255,255,255,0)` for a fully transparent overlay header.
+   * Defaults to `rgba(255,255,255,0.95)` (the platform look).
+   */
+  headerBg?: string;
+  /**
+   * Header background after the user scrolls past 24 px.
+   * Defaults to `rgba(255,255,255,0.95)` to keep the header readable.
+   */
+  headerBgScrolled?: string;
+  /** Header text / icon foreground colour. Defaults to --text. */
+  headerFg?: string;
+  /** Header bottom-border colour. Defaults to --border. */
+  headerBorder?: string;
+
+  // ── Footer tokens ─────────────────────────────────────────────────────────────
+  /** Footer section background. Defaults to --bg-subtle. */
+  footerBg?: string;
+  /** Footer text / icon foreground colour. Defaults to --text-muted. */
+  footerFg?: string;
+  /** Footer top-border colour. Defaults to --border. */
+  footerBorder?: string;
+
+  // ── Navigation / dropdown tokens ──────────────────────────────────────────────
+  //
+  // These break the purple-leak chain for nav components.  Without them,
+  // dropdowns fall back to hardcoded bg-white / text-neutral-700 which produces
+  // a jarring white panel on dark-background presets (dark-contrast etc.).
+  // Each value is emitted as a concrete hex by tenantThemeToCSS() so components
+  // never fall through to the :root indigo defaults.
+
+  /** Dropdown panel background. Defaults to cardBg (white on light, dark on dark themes). */
+  navDropdownBg?: string;
+  /** Dropdown panel border colour. Defaults to --border. */
+  navDropdownBorder?: string;
+  /** Dropdown child-link text colour. Defaults to --text-muted. */
+  navDropdownText?: string;
+  /** Dropdown child-link :hover background. Defaults to --primary-subtle. */
+  navDropdownLinkHoverBg?: string;
+  /** Dropdown child-link :hover text. Defaults to --text-brand (the preset-correct value). */
+  navDropdownLinkHoverText?: string;
+
+  // ── Navigation typography tokens ───────────────────────────────────────────────
+  //
+  // Component-level typography overrides for the navigation bar.  These sit
+  // ABOVE the theme family's base typography and BELOW any admin token override.
+  //
+  // When absent (the common case), nav components apply their own Tailwind class
+  // defaults (text-sm / font-medium etc.) via per-variant fallback values in the
+  // var() call — no default is emitted by buildThemeVarsArray() unless the preset
+  // explicitly sets these fields.
+
+  /**
+   * Font size for top-level header nav links.
+   * CSS value: "0.875rem", "1rem", "0.9375rem", etc.
+   * Consumed as --nav-link-size; absent → per-variant Tailwind class applies.
+   */
+  navLinkSize?: string;
+
+  /**
+   * Font weight for top-level header nav links.
+   * CSS value: "400", "500", "600", "700".
+   * Consumed as --nav-link-weight; absent → per-variant fallback (500 or 600).
+   */
+  navLinkWeight?: string;
+
+  /**
+   * Letter-spacing for top-level header nav links.
+   * CSS value: "normal", "0.025em", "0.05em", "-0.01em", etc.
+   * Consumed as --nav-link-tracking; absent → per-variant fallback.
+   */
+  navLinkTracking?: string;
+
+  /**
+   * Font size for dropdown / submenu child links.
+   * CSS value: "0.875rem", "0.8125rem", etc.
+   * Consumed as --nav-dropdown-item-size; absent → 0.875rem (text-sm).
+   */
+  navDropdownItemSize?: string;
+
+  /**
+   * Font size for footer navigation links.
+   * CSS value: "0.875rem", "0.8125rem", etc.
+   * Consumed as --footer-nav-size; absent → 0.875rem (text-sm).
+   */
+  footerNavSize?: string;
 }
 
 // ── Brand / identity metadata ─────────────────────────────────────────────────
@@ -297,18 +418,46 @@ export interface TenantTheme {
   motion?: ThemeMotionTokens;
   /** Optional component-level style overrides. */
   componentStyles?: ThemeComponentStyles;
+  /**
+   * Block style profile — controls the visual character of block layouts beyond
+   * raw colour / typography tokens.  When omitted the DEFAULT_BLOCK_STYLE_PROFILE
+   * applies (marketing-default character: standard tracking, rounded media, 1px dividers).
+   *
+   * See design-system/theme/block-style-profile.ts for available profiles and
+   * the full BlockStyleProfile interface.
+   */
+  blockStyle?: BlockStyleProfile;
+
+  /**
+   * Optional featured theme family key.
+   *
+   * When set to a recognised FeaturedFamilyKey value, the family's canonical
+   * typography configuration (heading/body fonts, weights, line-height, and
+   * fluid size scale) is appended to the CSS var output **after** all other
+   * declarations.  This makes the family layer the highest-priority typography
+   * override — presets no longer need to inline their own font definitions.
+   *
+   * See design-system/theme/theme-families.config.ts for the registry and the
+   * full list of CSS variables emitted.
+   *
+   * Accepted values (as of writing):
+   *   "editorial-classic" | "corporate-clean" | "bold-marketing"
+   *   "portfolio-showcase" | "premium-luxury"
+   */
+  featuredFamilyKey?: string;
 }
 
 // ── CSS variable generator ────────────────────────────────────────────────────
 
 /**
- * Converts a TenantTheme to a block of CSS custom property declarations.
+ * Builds the flat array of [cssVarName, value] pairs that represents the full
+ * token set for a TenantTheme.  Shared by tenantThemeToCSS() and
+ * tenantThemeToVarsRecord() so both outputs derive from a single source.
  *
- * Returns the inner content of a :root { } rule — each line is indented
- * with two spaces and ends with a semicolon.
+ * @internal — not exported; use the two public helpers below.
  */
-export function tenantThemeToCSS(theme: TenantTheme): string {
-  const { colors, radius, typography, button, motion, componentStyles: cs } = theme;
+function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
+  const { colors, radius, typography, button, motion, componentStyles: cs, blockStyle } = theme;
   const r = RADIUS_PRESETS[radius];
 
   // ── Derived defaults ────────────────────────────────────────────────────────
@@ -349,7 +498,44 @@ export function tenantThemeToCSS(theme: TenantTheme): string {
   const fgCardShadow       = cs?.featureGridCardShadow  ?? cardShadow;
   const fgIconBg           = cs?.featureGridIconBg      ?? subtleBg;
 
+  // Header
+  const headerDefaultBg    = "rgba(255,255,255,0.95)";
+  const headerBg           = cs?.headerBg          ?? headerDefaultBg;
+  const headerBgScrolled   = cs?.headerBgScrolled  ?? headerDefaultBg;
+  const headerFg           = cs?.headerFg          ?? colors.text.text;
+  const headerBorder       = cs?.headerBorder      ?? colors.border.border;
+
+  // Footer
+  const footerBg           = cs?.footerBg    ?? colors.background.bgSubtle;
+  const footerFg           = cs?.footerFg    ?? colors.text.textMuted;
+  const footerBorder       = cs?.footerBorder ?? colors.border.border;
+
+  // Navigation — top-level link tokens
+  //
+  // --nav-link derives from headerFg (nav links sit against the header surface).
+  // --nav-link-hover tracks textBrand (brand accent on hover — intentional).
+  //
+  // These are emitted as CONCRETE HEX so nav components always receive a
+  // resolved colour rather than depending on the :root CSS var chain
+  // `var(--header-fg, var(--text))` propagating correctly across the
+  // [data-site] boundary.  The chain is correct in theory but unreliable in
+  // admin preview, Storybook, and other contexts that skip [data-site].
+  const navLink                     = headerFg;                           // top-level link resting text
+  const navLinkHover                = colors.brand.textBrand;             // top-level link :hover text
+
+  // Navigation / dropdown
+  // navDropdownBg defaults to cardBg so light themes get white and dark themes
+  // get their explicit dark card surface — no purple or white-on-dark surprises.
+  const navDropdownBg               = cs?.navDropdownBg             ?? cardBg;
+  const navDropdownBorder           = cs?.navDropdownBorder         ?? colors.border.border;
+  const navDropdownText             = cs?.navDropdownText           ?? colors.text.textMuted;
+  const navDropdownLinkHoverBg      = cs?.navDropdownLinkHoverBg    ?? colors.brand.primarySubtle;
+  const navDropdownLinkHoverText    = cs?.navDropdownLinkHoverText  ?? colors.brand.textBrand;
+
   // Typography
+  const fontSans           = typography?.fontSans        ?? null;
+  const fontSerif          = typography?.fontSerif       ?? null;
+  const fontMono           = typography?.fontMono        ?? null;
   const headingFont        = typography?.headingFont      ?? fontFamily.sans;
   const headingWeight      = typography?.headingWeight    ?? "700";
   const subheadingWeight   = typography?.subheadingWeight ?? "600";
@@ -387,6 +573,23 @@ export function tenantThemeToCSS(theme: TenantTheme): string {
     ["--text-muted",        colors.text.textMuted],
     ["--text-subtle",       colors.text.textSubtle],
     ["--text-inverse",      colors.text.textInverse],
+
+    // ── Foreground aliases (shadcn/ui convention) ─────────────────────────────
+    //
+    // Emitted alongside our native --text/* vars so any component that follows
+    // the shadcn/ui naming convention ("foreground" instead of "text") also
+    // receives the correct theme colour rather than falling through to the
+    // browser default (purple link colour, undefined card-foreground, etc.).
+    //
+    // Mapping:
+    //   --foreground            → body text colour  (--text)
+    //   --card-foreground       → body text on cards (same as --text)
+    //   --popover-foreground    → text in popovers/tooltips (same as --text)
+    //   --muted-foreground      → de-emphasised text (--text-muted)
+    ["--foreground",         colors.text.text],
+    ["--card-foreground",    colors.text.text],
+    ["--popover-foreground", colors.text.text],
+    ["--muted-foreground",   colors.text.textMuted],
 
     // ── Backgrounds ───────────────────────────────────────────────────────────
     ["--bg",                colors.background.bg],
@@ -459,12 +662,135 @@ export function tenantThemeToCSS(theme: TenantTheme): string {
     ["--feature-grid-icon-bg",      fgIconBg],
 
     // ── Typography component tokens ───────────────────────────────────────────
+    //
+    // --font-sans and --font-serif are emitted only when the preset explicitly
+    // specifies them (non-null).  When absent the theme.css baseline applies,
+    // keeping the existing system-ui / font-family.sans defaults for all other
+    // presets unchanged.
+    ...(fontSans  ? [["--font-sans",  fontSans]  as [string, string]] : []),
+    ...(fontSerif ? [["--font-serif", fontSerif] as [string, string]] : []),
+    ...(fontMono  ? [["--font-mono",  fontMono]  as [string, string]] : []),
     ["--font-heading",           headingFont],
     ["--font-heading-weight",    headingWeight],
     ["--font-subheading-weight", subheadingWeight],
+
+    // ── Header component tokens ───────────────────────────────────────────────
+    ["--header-bg",          headerBg],
+    ["--header-bg-scrolled", headerBgScrolled],
+    ["--header-fg",          headerFg],
+    ["--header-border",      headerBorder],
+
+    // ── Footer component tokens ───────────────────────────────────────────────
+    ["--footer-bg",     footerBg],
+    ["--footer-fg",     footerFg],
+    ["--footer-border", footerBorder],
+
+    // ── Navigation component tokens ───────────────────────────────────────────
+    //
+    // All seven nav tokens emitted as concrete hex values so components NEVER
+    // fall back to the :root CSS var chains that could resolve to purple.
+    //
+    // --nav-link / --nav-link-hover: top-level links in the header bar.
+    //   Concrete emission is the critical fix — the :root chain
+    //   `var(--header-fg, var(--text))` works in theory but is unreliable in
+    //   admin preview and Storybook where [data-site] is not in scope.
+    //
+    // --nav-dropdown-*: dropdown panel surface + child link colours.
+    ["--nav-link",                      navLink],
+    ["--nav-link-hover",                navLinkHover],
+    ["--nav-dropdown-bg",               navDropdownBg],
+    ["--nav-dropdown-border",           navDropdownBorder],
+    ["--nav-dropdown-text",             navDropdownText],
+    ["--nav-dropdown-link-hover-bg",    navDropdownLinkHoverBg],
+    ["--nav-dropdown-link-hover-text",  navDropdownLinkHoverText],
+
+    // ── Navigation typography tokens ─────────────────────────────────────────
+    //
+    // Emitted ONLY when the preset explicitly sets these fields.  When absent,
+    // nav components apply their own Tailwind class defaults via per-variant
+    // fallback values in their var() calls.  This lets NavContent use its
+    // own font-semibold (600) fallback while NavFlyout/Mega/Grid use 500,
+    // without needing a per-variant config in the preset.
+    ...(cs?.navLinkSize         ? [["--nav-link-size",          cs.navLinkSize]         as [string, string]] : []),
+    ...(cs?.navLinkWeight       ? [["--nav-link-weight",        cs.navLinkWeight]       as [string, string]] : []),
+    ...(cs?.navLinkTracking     ? [["--nav-link-tracking",      cs.navLinkTracking]     as [string, string]] : []),
+    ...(cs?.navDropdownItemSize ? [["--nav-dropdown-item-size", cs.navDropdownItemSize] as [string, string]] : []),
+    ...(cs?.footerNavSize       ? [["--footer-nav-size",        cs.footerNavSize]       as [string, string]] : []),
+
+    // ── Badge component tokens ────────────────────────────────────────────────
+    //
+    // Concrete values break the badge purple-leak chain:
+    //   Badge primary: --badge-primary-bg (bg) + --badge-primary-text (text)
+    // These default to primarySubtle / textBrand but are emitted as hex so the
+    // :root chain-fallback to brand-500 never activates inside [data-site].
+    ["--badge-primary-bg",   colors.brand.primarySubtle],
+    ["--badge-primary-text", colors.brand.textBrand],
+
+    // ── Secondary button tokens ───────────────────────────────────────────────
+    //
+    // Same rationale as badge: concrete hex values prevent the :root purple
+    // fallback from showing on secondary buttons in any preset.
+    ["--btn-secondary-bg",       colors.brand.primarySubtle],
+    ["--btn-secondary-text",     colors.brand.textBrand],
+    ["--btn-secondary-hover-bg", colors.brand.primarySubtle],
+
+    // ── Block style profile ───────────────────────────────────────────────────
+    //
+    // Controls visual character beyond colour/font: heading treatment, media
+    // framing, logo filter, section dividers, card density/spacing.
+    // Falls back to DEFAULT_BLOCK_STYLE_PROFILE when the theme omits blockStyle.
+    ...blockStyleProfileToVars(blockStyle ?? DEFAULT_BLOCK_STYLE_PROFILE),
+
+    // ── Featured family typography override ───────────────────────────────────
+    //
+    // Appended LAST so the family layer always wins over preset-level typography.
+    // ── Family typography layer ───────────────────────────────────────────────
+    // Emits: --font-heading, --font-body, --font-sans, --font-serif (optional),
+    //        --font-heading-weight, --font-subheading-weight, --font-body-weight,
+    //        --font-line-height, --block-heading-tracking (overrides BlockStyleProfile),
+    //        --font-size-h1…h3, --font-size-body, --font-size-small, --mc-family-key.
+    ...(theme.featuredFamilyKey && isFeaturedFamilyKey(theme.featuredFamilyKey)
+      ? familyTypographyToVars(theme.featuredFamilyKey)
+      : []),
+
+    // ── Family structural layer ───────────────────────────────────────────────
+    // Emits: --btn-radius, --btn-font-weight, --btn-text-transform,
+    //        --card-radius (overrides preset), --block-heading-transform,
+    //        --family-hero-layout.
+    // Appended last so the family layer wins over both the preset and
+    // the BlockStyleProfile for all structural tokens.
+    ...(theme.featuredFamilyKey && isFeaturedFamilyKey(theme.featuredFamilyKey)
+      ? familyStructuralToVars(theme.featuredFamilyKey)
+      : []),
   ];
 
-  return vars.map(([key, val]) => `  ${key}: ${val};`).join("\n") + "\n";
+  return vars;
+}
+
+/**
+ * Converts a TenantTheme to a block of CSS custom property declarations.
+ *
+ * Returns the inner content of a :root { } rule — each line is indented
+ * with two spaces and ends with a semicolon.
+ */
+export function tenantThemeToCSS(theme: TenantTheme): string {
+  return buildThemeVarsArray(theme)
+    .map(([key, val]) => `  ${key}: ${val};`)
+    .join("\n") + "\n";
+}
+
+/**
+ * Converts a TenantTheme to a flat Record of CSS custom property name → value.
+ *
+ * Useful when CSS vars need to be merged into an existing Record (e.g. the
+ * theme resolver's var delta map) without going through CSS string parsing.
+ *
+ * @example
+ * const vars = tenantThemeToVarsRecord(THEME_PRESETS["corporate-blue"]);
+ * // { "--primary": "#1d4ed8", "--bg": "#f8fafc", ... }
+ */
+export function tenantThemeToVarsRecord(theme: TenantTheme): Record<string, string> {
+  return Object.fromEntries(buildThemeVarsArray(theme));
 }
 
 // ── Re-export palette references ─────────────────────────────────────────────

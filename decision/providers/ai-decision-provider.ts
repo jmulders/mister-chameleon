@@ -99,6 +99,10 @@ import { saveAiDecisionLog } from "@/data/repositories/ai-logs-repository";
 import type { AiPlanSnapshot, AiContextSnapshot } from "@/data/types";
 import { logger } from "@/lib/logger";
 import type { AiProvider } from "@/ai/providers/base-provider";
+import { buildHomepagePrompt } from "@/ai/prompt-builder";
+import type { SlotModeRegistry } from "@/decision/slot-selection-mode";
+import { allSlotsAiAssisted }   from "@/decision/slot-selection-mode";
+import { assembleSlotPlan, type SlotPlanAssembly } from "@/decision/ai-selector";
 
 // ── Decision metadata ─────────────────────────────────────────────────────────
 
@@ -126,12 +130,39 @@ export interface AiDecisionMeta {
   aiUsed: boolean;
 
   /**
-   * Normalised AI confidence in [0, 1], or undefined when:
+   * Normalised AI self-reported confidence in [0, 1], or undefined when:
    *   • context was too sparse (AI not called)
    *   • AI provider errored
    *   • model did not return a valid confidence score
    */
   aiConfidence: number | undefined;
+
+  /**
+   * Structural validation score for the AI plan: 1.0 = all keys present and
+   * in the authorised vocabulary; 0.0 = hard-validation failure.
+   * Undefined when AI was not called (context sparse or AI error).
+   */
+  validationScore: number | undefined;
+
+  /**
+   * Visitor context strength score in [0, 1].
+   * Measures how much the context signals support trusting the AI output.
+   * Undefined when AI was not called (context sparse or AI error).
+   */
+  contextStrength: number | undefined;
+
+  /**
+   * Composite final confidence score in [0, 1]:
+   *   finalConfidence = aiConfidence×0.60 + validationScore×0.20 + contextStrength×0.20
+   * Undefined when AI was not called (context sparse or AI error).
+   */
+  finalConfidence: number | undefined;
+
+  /**
+   * The configured minimum finalConfidence threshold for this decision.
+   * Populated from policy.minConfidence; always present regardless of outcome.
+   */
+  configuredThreshold: number;
 
   /**
    * Why the fallback was used, or null if the AI plan was served.
@@ -162,25 +193,45 @@ const EMERGENCY_FALLBACK_PLAN: ExperiencePlan = {
 
 export class AiDecisionProvider implements DecisionProvider {
   /**
-   * @param fallback    Inner provider used as the baseline / fallback.
-   *                    Always runs in parallel with the AI call.
-   * @param aiProvider  The AI provider to call for inference.
-   * @param sessionId   Visitor's session UUID — written to the log row.
-   * @param policy      Confidence thresholds (defaults to DEFAULT_CONFIDENCE_POLICY).
-   * @param shadowOnly  When true, always serve the rules plan even on USE_AI verdict.
-   *                    Useful during the shadow evaluation phase.
-   * @param tenantId    Tenant slug written to the log row for per-tenant filtering
-   *                    in the admin AI Logs dashboard.  Defaults to "" (no tenant).
-   *                    Never pass API keys — use tenantId (slug) only.
+   * @param fallback      Inner provider used as the baseline / fallback.
+   *                      Always runs in parallel with the AI call.
+   * @param aiProvider    The AI provider to call for inference.
+   * @param sessionId     Visitor's session UUID — written to the log row.
+   * @param policy        Confidence thresholds (defaults to DEFAULT_CONFIDENCE_POLICY).
+   * @param shadowOnly    When true, always serve the rules plan even on USE_AI verdict.
+   *                      Useful during the shadow evaluation phase.
+   * @param tenantId      Tenant slug written to the log row for per-tenant filtering
+   *                      in the admin AI Logs dashboard.  Defaults to "" (no tenant).
+   *                      Never pass API keys — use tenantId (slug) only.
+   * @param slotRegistry  Optional per-slot mode configuration (Phase 1).
+   *                      When absent or all slots are "ai-assisted", the existing
+   *                      global-plan path is used (full backward compatibility).
+   *                      When present with any non-ai-assisted slot, assembleSlotPlan()
+   *                      is called after the global AI/rules decision to compose the
+   *                      final plan one slot at a time.
    */
   constructor(
-    protected readonly fallback: DecisionProvider,
-    private readonly _aiProvider: AiProvider,
-    protected readonly sessionId: string,
-    protected readonly policy: ConfidencePolicyConfig = DEFAULT_CONFIDENCE_POLICY,
-    protected readonly shadowOnly: boolean = false,
-    protected readonly tenantId: string = "",
+    protected readonly fallback:      DecisionProvider,
+    private readonly _aiProvider:     AiProvider,
+    protected readonly sessionId:     string,
+    protected readonly policy:        ConfidencePolicyConfig = DEFAULT_CONFIDENCE_POLICY,
+    protected readonly shadowOnly:    boolean = false,
+    protected readonly tenantId:      string = "",
+    protected readonly slotRegistry?: SlotModeRegistry,
   ) {}
+
+  // ── Chain access ─────────────────────────────────────────────────────────────
+
+  /**
+   * The inner fallback provider wrapped by this AI layer.
+   * Exposed for provider-chain walking by buildDecisionTrace().
+   *
+   * In the standard stack this is an ExperimentDecisionProvider wrapping
+   * a RulesDecisionProvider.
+   */
+  get fallbackProvider(): DecisionProvider {
+    return this.fallback;
+  }
 
   // ── Provider identity ────────────────────────────────────────────────────────
 
@@ -215,6 +266,44 @@ export class AiDecisionProvider implements DecisionProvider {
    */
   get lastDecisionMeta(): AiDecisionMeta | null {
     return this._lastDecisionMeta;
+  }
+
+  // ── Last slot assembly (Phase 1 — per-slot mode result) ─────────────────────
+
+  private _lastSlotAssembly: SlotPlanAssembly | null = null;
+
+  /**
+   * The per-slot plan assembly from the most recent `getHomepagePlan()` call.
+   *
+   * Populated when `slotRegistry` was provided and assembleSlotPlan() ran.
+   * Null when AI is disabled, context was too sparse, or no slot registry is
+   * configured (full backward compatibility for tenants without slot configs).
+   *
+   * Exposed publicly so buildDecisionTrace() can read lastSlotAssembly.perSlot
+   * and populate DecisionTrace.perSlot for the admin debug panel.
+   */
+  get lastSlotAssembly(): SlotPlanAssembly | null {
+    return this._lastSlotAssembly;
+  }
+
+  // ── Last prompt payload (for debug visibility) ───────────────────────────────
+
+  private _lastPromptPayload: { userPrompt: string; signalCount: number } | null = null;
+
+  /**
+   * The exact user prompt sent to the AI model on the last `getHomepagePlan()` call.
+   *
+   * Null when:
+   *   - No call has been made yet.
+   *   - Context was too sparse (AI was not called).
+   *   - The AI call errored before the prompt was built.
+   *
+   * Use this in the debug panel to verify what the AI actually received.
+   * The system prompt is stable per tenant configuration and is NOT stored here
+   * to avoid redundant data; retrieve it via `buildSystemPrompt(candidates)` if needed.
+   */
+  get lastPromptPayload(): { userPrompt: string; signalCount: number } | null {
+    return this._lastPromptPayload;
   }
 
   // ── AI model call ────────────────────────────────────────────────────────────
@@ -274,12 +363,17 @@ export class AiDecisionProvider implements DecisionProvider {
         error: err instanceof Error ? err.message : String(err),
       });
       this._lastDecisionMeta = {
-        aiMode:         this.aiMode,
-        aiUsed:         false,
-        aiConfidence:   undefined,
-        fallbackReason: "UNEXPECTED_ERROR",
-        providerName:   this.providerName,
+        aiMode:              this.aiMode,
+        aiUsed:              false,
+        aiConfidence:        undefined,
+        validationScore:     undefined,
+        contextStrength:     undefined,
+        finalConfidence:     undefined,
+        configuredThreshold: this.policy.minConfidence,
+        fallbackReason:      "UNEXPECTED_ERROR",
+        providerName:        this.providerName,
       };
+      this._lastSlotAssembly = null;
       return EMERGENCY_FALLBACK_PLAN;
     }
   }
@@ -302,14 +396,29 @@ export class AiDecisionProvider implements DecisionProvider {
         visitType:    input.visitType,
       });
       this._lastDecisionMeta = {
-        aiMode:         this.aiMode,
-        aiUsed:         false,
-        aiConfidence:   undefined,
-        fallbackReason: "FALLBACK_CONTEXT_SPARSE",
-        providerName:   this.providerName,
+        aiMode:              this.aiMode,
+        aiUsed:              false,
+        aiConfidence:        undefined,
+        validationScore:     undefined,
+        contextStrength:     undefined,
+        finalConfidence:     undefined,
+        configuredThreshold: this.policy.minConfidence,
+        fallbackReason:      "FALLBACK_CONTEXT_SPARSE",
+        providerName:        this.providerName,
       };
+      this._lastSlotAssembly = null;
       // No AI call, no log row — just return the rules plan directly.
       return this.fallback.getHomepagePlan(input);
+    }
+
+    // ── Capture prompt payload for debug visibility ───────────────────────
+    // Build the prompt before the AI call so we can expose it via
+    // lastPromptPayload regardless of whether the AI call succeeds.
+    try {
+      const { userPrompt, metadata } = buildHomepagePrompt(input);
+      this._lastPromptPayload = { userPrompt, signalCount: metadata.signalCount };
+    } catch {
+      this._lastPromptPayload = null;
     }
 
     // ── Run fallback + AI in parallel ─────────────────────────────────────
@@ -350,12 +459,17 @@ export class AiDecisionProvider implements DecisionProvider {
       });
 
       this._lastDecisionMeta = {
-        aiMode:         this.aiMode,
-        aiUsed:         false,
-        aiConfidence:   undefined,
-        fallbackReason: "AI_ERROR",
-        providerName:   this.providerName,
+        aiMode:              this.aiMode,
+        aiUsed:              false,
+        aiConfidence:        undefined,
+        validationScore:     undefined,
+        contextStrength:     undefined,
+        finalConfidence:     undefined,
+        configuredThreshold: this.policy.minConfidence,
+        fallbackReason:      "AI_ERROR",
+        providerName:        this.providerName,
       };
+      this._lastSlotAssembly = null;
       // No log row for hard failures — the warn above is the signal.
       return fallbackPlan;
     }
@@ -367,17 +481,43 @@ export class AiDecisionProvider implements DecisionProvider {
 
     // Decide what is actually served
     const useAiPlan = !this.shadowOnly && policyResult.verdict === "USE_AI";
-    const servedPlan = useAiPlan ? aiOutput.plan : fallbackPlan;
     const liveProvider = useAiPlan ? this.providerName : "rules";
+
+    // ── Phase 1: Per-slot assembly ────────────────────────────────────────────
+    // When a slotRegistry is configured and at least one slot is non-ai-assisted,
+    // compose the final plan one slot at a time based on each slot's mode.
+    // When the registry is absent or all slots are ai-assisted, use the existing
+    // global path — zero overhead for tenants without slot configuration.
+    let servedPlan: ExperiencePlan;
+    if (this.slotRegistry && !allSlotsAiAssisted(this.slotRegistry)) {
+      const assembly = assembleSlotPlan(
+        useAiPlan ? aiOutput.plan : null,
+        fallbackPlan,
+        useAiPlan,
+        this.slotRegistry,
+        input.variantCandidates,
+        input,
+      );
+      this._lastSlotAssembly = assembly;
+      servedPlan = assembly.plan;
+    } else {
+      // Existing global path — AI plan or rules plan wholesale.
+      this._lastSlotAssembly = null;
+      servedPlan = useAiPlan ? aiOutput.plan : fallbackPlan;
+    }
 
     // Normalise confidence for meta/logging — ensures no NaN or Infinity leaks out
     const normConf = normaliseConfidence(aiOutput.confidence);
 
     // ── Capture decision metadata ─────────────────────────────────────────
     this._lastDecisionMeta = {
-      aiMode:         this.aiMode,
-      aiUsed:         useAiPlan,
-      aiConfidence:   normConf,
+      aiMode:              this.aiMode,
+      aiUsed:              useAiPlan,
+      aiConfidence:        normConf,
+      validationScore:     policyResult.validationScore,
+      contextStrength:     policyResult.contextStrength,
+      finalConfidence:     policyResult.finalConfidence,
+      configuredThreshold: policyResult.configuredThreshold,
       // In shadow mode: verdict is informational (AI never served), so
       // fallbackReason reflects the policy gate result even on USE_AI
       // to clarify that serving the fallback was intentional, not a failure.
@@ -386,7 +526,7 @@ export class AiDecisionProvider implements DecisionProvider {
         : (this.shadowOnly && policyResult.verdict === "USE_AI"
           ? null                    // shadow: AI would have been used in live mode
           : policyResult.verdict),  // actual policy rejection
-      providerName:   this.providerName,
+      providerName:        this.providerName,
     };
 
     // ── Emit structured log ───────────────────────────────────────────────
@@ -463,15 +603,19 @@ export class AiDecisionProvider implements DecisionProvider {
   ): Promise<void> {
     try {
       const shadowPlan: AiPlanSnapshot = {
-        heroKey:         aiOutput.plan.heroKey,
-        proofKey:        aiOutput.plan.proofKey,
-        ctaKey:          aiOutput.plan.ctaKey,
-        reason:          aiOutput.plan.reason,
-        confidence:      normaliseConfidence(aiOutput.confidence),
-        policyVerdict:   policyResult.verdict,
-        contextRichness: policyResult.contextRichness,
-        modelId:         aiOutput.modelId,
-        latencyMs:       aiOutput.latencyMs,
+        heroKey:             aiOutput.plan.heroKey,
+        proofKey:            aiOutput.plan.proofKey,
+        ctaKey:              aiOutput.plan.ctaKey,
+        reason:              aiOutput.plan.reason,
+        confidence:          normaliseConfidence(aiOutput.confidence),
+        policyVerdict:       policyResult.verdict,
+        contextRichness:     policyResult.contextRichness,
+        validationScore:     policyResult.validationScore,
+        contextStrength:     policyResult.contextStrength,
+        finalConfidence:     policyResult.finalConfidence,
+        configuredThreshold: policyResult.configuredThreshold,
+        modelId:             aiOutput.modelId,
+        latencyMs:           aiOutput.latencyMs,
         gateResults: policyResult.gates.map((g) => ({
           gate:   g.gate,
           passed: g.passed,

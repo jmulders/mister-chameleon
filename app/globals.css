@@ -13,8 +13,9 @@
  *       • Provides the dark-mode override via @media prefers-color-scheme
  *
  *  3. The Geist font variables (injected by next/font in layout.tsx) are
- *     wired to the design-system font tokens via @theme inline, overriding
- *     the system-ui fallback defined in theme.css.
+ *     wired to the design-system font tokens via a :root override block,
+ *     making --font-sans / --font-mono overrideable at runtime by the tenant
+ *     token system without Tailwind v4's @theme inline breaking the cascade.
  *
  * The tenant-specific CSS variable overrides are injected by the root layout
  * at request time as an inline <style> tag — see app/layout.tsx.
@@ -31,12 +32,208 @@
  *   const geistSans = Geist({ variable: "--font-geist-sans", ... });
  *   const geistMono = Geist_Mono({ variable: "--font-geist-mono", ... });
  *
- * @theme inline overrides the --font-sans / --font-mono values set in
- * theme.css so that Tailwind's `font-sans` and `font-mono` utilities,
- * and any CSS consuming var(--font-sans), use Geist instead of the
- * system-ui / ui-monospace fallbacks.
+ * These next/font classes are applied to <html> (not <body>) so that
+ * --font-geist-sans and --font-geist-mono are registered on :root and are
+ * therefore accessible in any :root { } rule.
+ *
+ * WHY :root instead of @theme inline
+ * ───────────────────────────────────
+ * @theme inline causes Tailwind v4 to compile utility classes and Preflight
+ * to reference var(--font-geist-sans) DIRECTLY, bypassing --font-sans
+ * entirely.  This means runtime overrides to --font-sans (e.g. the tenant
+ * token editor selecting Inter) are silently ignored — Tailwind's font-sans
+ * utility keeps using Geist regardless.
+ *
+ * Using :root here instead keeps Tailwind's compiled utilities referencing
+ * var(--font-sans) (as declared in theme.css @theme), while this :root block
+ * sets the default value to Geist.  When the tenant token system injects a
+ * Layer C override like :root{--font-sans:var(--font-inter)}, Tailwind's
+ * font-sans utility picks it up automatically.
  */
-@theme inline {
+:root {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/*
+ * Base element typography — use the semantic role tokens so tenant overrides
+ * to --font-heading / --font-body / --font-ui / --font-code are automatically
+ * reflected everywhere without extra CSS.
+ *
+ * These rules deliberately avoid specificity battles with Tailwind utilities.
+ * Class-level utilities (font-sans, font-mono, etc.) will always win when
+ * applied explicitly; these are just sensible browser-default overrides.
+ */
+
+/*
+ * ── Base element rules — placed inside @layer base ───────────────────────────
+ *
+ * CSS Cascade Level 5: unlayered declarations outrank ALL @layer rules,
+ * including @layer utilities.  Placing these element rules inside @layer base
+ * ensures that Tailwind utility classes (text-neutral-600, text-[var(--text)],
+ * etc.) can properly override them — which is the expected Tailwind behaviour.
+ *
+ * Without this wrapper, `a { color: var(--text-brand); }` would silently beat
+ * `text-neutral-600` on every <a> element regardless of specificity, causing
+ * brand-colour bleed across nav links, badges, and other components that
+ * explicitly set a neutral text colour via Tailwind utilities.
+ */
+@layer base {
+  /*
+   * Base surface — apply semantic background and text vars to the root elements
+   * so every block section (transparent by default) inherits the correct surface
+   * for the active theme preset without needing explicit `background` overrides
+   * on every section.
+   *
+   * Using --bg / --text here means Dark Contrast (#000 / #fafafa), Enterprise
+   * (#f8fafc / #0f172a), or any other preset is applied immediately to the page
+   * shell — blocks that set their own background override this per-section.
+   */
+  html {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  /*
+   * Tenant site shell — applies the tenant background and text colour to the
+   * [data-site] wrapper that anchors all CSS custom property scoping.
+   *
+   * WHY this is needed:
+   *   html/body use var(--bg) from :root (the platform admin default — white).
+   *   Tenant theme overrides are scoped to [data-site], NOT :root, so html/body
+   *   do not inherit the tenant dark background for dark presets like Dark AI.
+   *   Block sections that render with no explicit background (e.g. testimonials,
+   *   icons-left feature grids) are transparent and show the body's white default.
+   *
+   *   By applying background-color to [data-site] itself — which is where --bg is
+   *   defined — we get the correct dark value (#06060c for Dark AI), making all
+   *   transparent sections inherit that dark surface instead of the white body.
+   *
+   *   [data-site] previously used display:contents (no layout box, no painted
+   *   background). It now renders as a standard block element so this rule takes
+   *   effect. Admin/dashboard routes have no [data-site] ancestor and are unaffected.
+   */
+  [data-site] {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  /*
+   * Link colour reset — use the tenant theme brand colour for all bare <a> elements.
+   *
+   * Without this, unclassed <a> tags (CMS-rendered rich text, Prose content,
+   * block-level links not wrapped in the Link component) fall through to the
+   * browser default link colour — typically browser-purple for visited links and
+   * bright-blue for unvisited — neither of which matches Dutch Orange, Valentine
+   * Pink, or any other themed preset.
+   *
+   * Tailwind utility classes (e.g. text-neutral-600, text-[var(--text)]) now
+   * correctly override this rule because @layer utilities > @layer base in
+   * cascade precedence.
+   */
+  a {
+    color: var(--text-brand);
+  }
+
+  a:hover {
+    opacity: 0.8;
+  }
+
+  /* Headings */
+  /*
+   * Explicitly set heading color to --text (the semantic foreground token) so
+   * headings can never inherit a brand/primary color from a parent element or an
+   * adjacent CSS rule.  This guarantees h1–h6 stay neutral regardless of the
+   * active theme preset — brand/primary colors must be applied explicitly via an
+   * inline style or a utility class, never as a default heading color.
+   */
+  h1, h2, h3 {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    color: var(--text);
+  }
+
+  h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: var(--font-subheading-weight);
+    color: var(--text);
+  }
+
+  /* Body copy */
+  body,
+  p,
+  li,
+  blockquote,
+  figcaption {
+    font-family: var(--font-body);
+  }
+
+  /* UI chrome — buttons, labels, nav, form controls, captions */
+  button,
+  label,
+  input,
+  select,
+  textarea,
+  nav,
+  figcaption,
+  caption,
+  small {
+    font-family: var(--font-ui);
+  }
+
+  /* Code / preformatted */
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-code);
+  }
+}
+
+/*
+ * ── Logo marquee / carousel ──────────────────────────────────────────────────
+ *
+ * Used by LogoStripBlock for the slow scrolling logo carousel.
+ *
+ * The animation duration is controlled by the --marquee-duration CSS variable
+ * set as an inline style on the element:
+ *   style={{ "--marquee-duration": "60s" }}
+ *
+ * A seamless loop is achieved by rendering the logo list twice — the keyframe
+ * moves the track -50% (exactly one copy's width) before resetting to 0.
+ *
+ * Reduced-motion: animation is disabled, duplicate items are hidden, and the
+ * track wraps into a centred multi-row layout.
+ */
+@keyframes logo-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.logo-marquee-track {
+  animation: logo-marquee var(--marquee-duration, 60s) linear infinite;
+  will-change: transform;
+}
+
+/* Pause on hover / keyboard focus inside the track */
+.logo-marquee-track:hover,
+.logo-marquee-track:focus-within {
+  animation-play-state: paused;
+}
+
+/* Reduced-motion: stop animation, wrap into centred rows, hide duplicates */
+@media (prefers-reduced-motion: reduce) {
+  .logo-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .logo-marquee-dup {
+    display: none;
+  }
 }

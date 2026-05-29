@@ -120,14 +120,43 @@ export function buildHomepagePageConfig(
   // Each slot in HOMEPAGE_TEMPLATE.contextSlots becomes a ResolvedContextSlot.
   // variantKey is set when the slot is enabled; null when the tenant has
   // disabled this block or the entitlement check fails.
+  //
+  // layoutVariant is sourced from the CMS block data so that both
+  // TemplateRenderer and the debug panel have a consistent source of truth.
+  // Without it, the slot carries no layoutVariant at all, and the renderer's
+  // explicit `layoutVariant={slot.layoutVariant}` prop (which JSX evaluates as
+  // `layoutVariant={undefined}`) silently overwrites the value in the
+  // mapHeroBlockData/mapProofBlockData/mapCTABlockData spread — causing the
+  // component to always resolve to its family default layout (hero_default).
   const contextSlots: ResolvedContextSlot[] = MARKETING_PAGE_TEMPLATE.contextSlots.map(
-    (spec): ResolvedContextSlot => ({
-      slotId:     spec.slotId as ContextSlotId,
-      position:   spec.position,
-      variantKey: enabledContextBlocks.has(spec.slotId as ContextBlockKey)
-        ? resolveVariantKey(experience, spec.slotId)
-        : null,
-    }),
+    (spec): ResolvedContextSlot => {
+      const slotId = spec.slotId as ContextSlotId;
+
+      // Extended slots (conversion, notification) are not gated by
+      // enabledContextBlocks — they render whenever the experience resolved
+      // content for them, regardless of the stored tenant block config.
+      // This mirrors how notification is handled in contextData below:
+      // the slot is active iff the experience returned content for it.
+      //
+      // Core slots (hero, proof, cta) ARE gated by enabledContextBlocks so
+      // tenants can disable sections that don't fit their site structure.
+      const isExtendedSlot = slotId === "conversion" || slotId === "notification";
+      const variantKey = isExtendedSlot
+        ? resolveVariantKey(experience, slotId)
+        : enabledContextBlocks.has(spec.slotId as ContextBlockKey)
+          ? resolveVariantKey(experience, spec.slotId)
+          : null;
+
+      return {
+        slotId,
+        position: spec.position,
+        variantKey,
+        // Propagate the CMS-authored layout variant from the fetched block data.
+        // Stored here so downstream code (debug panel, tests) can inspect it
+        // without traversing contextData.
+        ...slotLayoutVariant(experience, slotId),
+      };
+    },
   );
 
   // ── 2. Map CMS sections → ContentBlocks ────────────────────────────────────
@@ -169,6 +198,16 @@ export function buildHomepagePageConfig(
     cta: enabledContextBlocks.has("cta")
       ? { ...experience.cta,   ctaKey: experience.plan.ctaKey }
       : undefined,
+    // Conversion block — not gated by enabledContextBlocks.
+    // Renders whenever the experience resolved conversion content (i.e. the
+    // decision plan had a conversionKey AND the CMS returned content for it).
+    // All packages include conversion in their allowedBlocks.context, so
+    // gating here by stored tenant config adds friction without value and
+    // can cause the block to silently disappear when the DB config is stale.
+    conversion: experience.conversion ?? undefined,
+    // Notification is an overlay — enabled when the experience resolved one.
+    // It is not gated by enabledContextBlocks (which governs inline sections).
+    notification: experience.notification ?? undefined,
   };
 
   return { pageConfig, contextData };
@@ -182,9 +221,47 @@ export function buildHomepagePageConfig(
  */
 function resolveVariantKey(experience: HomepageExperience, slotId: string): string | null {
   switch (slotId) {
-    case "hero":  return experience.plan.heroKey;
-    case "proof": return experience.plan.proofKey;
-    case "cta":   return experience.plan.ctaKey;
-    default:      return null;
+    case "hero":       return experience.plan.heroKey;
+    case "proof":      return experience.plan.proofKey;
+    case "cta":        return experience.plan.ctaKey;
+    case "conversion": return experience.plan.conversionKey ?? null;
+    default:           return null;
+  }
+}
+
+/**
+ * Extract the CMS-authored layoutVariant from the pre-fetched block data for a
+ * given context slot.  Returns a partial object so it can be spread directly into
+ * the ResolvedContextSlot constructor — absent when the slot has no layoutVariant.
+ *
+ * Storing this value on the slot means:
+ *   a) TemplateRenderer can pass it as the authoritative layout source without
+ *      reading contextData separately.
+ *   b) Debug panels and tests can inspect it from the slot without traversing
+ *      the contextData bundle.
+ */
+function slotLayoutVariant(
+  experience: HomepageExperience,
+  slotId: ContextSlotId,
+): { layoutVariant?: string } {
+  switch (slotId) {
+    case "hero":
+      return experience.hero.layoutVariant
+        ? { layoutVariant: experience.hero.layoutVariant }
+        : {};
+    case "proof":
+      return experience.proof.layoutVariant
+        ? { layoutVariant: experience.proof.layoutVariant }
+        : {};
+    case "cta":
+      return experience.cta.layoutVariant
+        ? { layoutVariant: experience.cta.layoutVariant }
+        : {};
+    case "conversion":
+      return experience.conversion?.layoutVariant
+        ? { layoutVariant: experience.conversion.layoutVariant }
+        : {};
+    default:
+      return {};
   }
 }

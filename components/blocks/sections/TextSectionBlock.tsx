@@ -8,12 +8,17 @@
  * ─── Props ───────────────────────────────────────────────────────────────────
  *
  *   data      TextSectionBlockData  { heading?, body? }
- *   variant   "default" | "centered"
+ *   variant   TextSectionVariant    see below
  *
  * ─── Variants ────────────────────────────────────────────────────────────────
  *
- *   default  — left-aligned text, standard container width
- *   centered — center-aligned heading and body; reduced max-width
+ *   text_single — left-aligned single column (default)
+ *   text_split  — heading in a narrow left column, body in a wider right column
+ *   text_lead   — centred, extra-large lead paragraph treatment
+ *
+ *   Legacy aliases:
+ *   default  → text_single
+ *   centered → text_lead
  *
  * ─── Design tokens consumed ──────────────────────────────────────────────────
  *
@@ -29,20 +34,74 @@ import type { TextSectionVariant } from "@/page-config/block-variants";
 import type { TextSectionBlockData } from "@/page-config";
 import { PortableTextRenderer } from "./PortableTextRenderer";
 import type { PortableTextBlock } from "@/cms/types";
+import { resolveSurface, type BlockSurface } from "@/lib/surface";
 
 interface TextSectionBlockProps {
   data:     TextSectionBlockData;
   variant?: string;
+  surface?: BlockSurface;
 }
 
-export function TextSectionBlock({ data, variant: rawVariant }: TextSectionBlockProps) {
-  const variant = resolveBlockVariant("textSection", rawVariant) as TextSectionVariant;
+export function TextSectionBlock({ data, variant: rawVariant, surface }: TextSectionBlockProps) {
+  const resolved = resolveBlockVariant("textSection", rawVariant) as TextSectionVariant;
   const { heading, body } = data;
+
+  // Normalise canonical spec names → implementation identifiers.
+  // text_single → default | text_lead → centered
+  const variant: TextSectionVariant = (
+    resolved === "text_single" ? "default"  :
+    resolved === "text_lead"   ? "centered" :
+    resolved
+  ) as TextSectionVariant;
+
+  // ── text_split variant ──────────────────────────────────────────────────────
+  //
+  // Two-column layout: narrow heading column on the left, body copy on the
+  // right. Good for editorial sections where the heading acts as a section
+  // label alongside longer body text.
+
+  if (variant === "text_split") {
+    return (
+      <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
+        <Container size="lg">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-16">
+
+            {/* Heading column — narrow label */}
+            {heading && (
+              <div className="lg:w-1/3 lg:shrink-0">
+                <Text
+                  variant="h2"
+                  style={{ fontFamily: "var(--font-heading)", fontWeight: "var(--font-heading-weight)" }}
+                >
+                  {heading}
+                </Text>
+              </div>
+            )}
+
+            {/* Body column — wider */}
+            {body && body.length > 0 && (
+              <div className="flex-1 min-w-0">
+                <PortableTextRenderer
+                  blocks={body as PortableTextBlock[]}
+                  className="prose-neutral max-w-none"
+                />
+              </div>
+            )}
+          </div>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── centered / text_lead variant and default ─────────────────────────────────
+  //
+  // "centered" → heading and body centre-aligned, narrower max-width.
+  // "default"  → left-aligned, standard container width.
 
   const isCentered = variant === "centered";
 
   return (
-    <Section spacing="lg">
+    <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
       <Container size="md">
         <Stack gap={6}>
           {heading && (

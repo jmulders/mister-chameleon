@@ -1,3 +1,4 @@
+import Link   from "next/link";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,6 +18,15 @@ import { cn } from "@/lib/utils";
  *  sm  → compact (forms, toolbars)
  *  md  → default
  *  lg  → prominent CTAs in heroes / blocks
+ *
+ * ─── Design tokens consumed ──────────────────────────────────────────────────
+ *
+ *  primary   --btn-bg, --btn-text, --btn-hover-bg, --btn-active-bg
+ *  secondary --btn-secondary-bg, --btn-secondary-text, --btn-secondary-hover-bg
+ *  focus     --ring
+ *
+ *  Resolved from tenant TenantTheme preset; falls back to theme.css :root
+ *  defaults (brand-indigo palette) when no override is in effect.
  */
 
 type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
@@ -29,18 +39,41 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
   /** Render as a different element (pass className/onClick via standard props) */
   as?: React.ElementType;
+  /**
+   * Forwarded to the rendered element when `as="a"` (or any anchor-like element).
+   * Not used when rendering as the default `<button>`.
+   */
+  href?: string;
 }
+
+// ── Variant classes ────────────────────────────────────────────────────────────
+//
+// primary / secondary use Tailwind's CSS-variable arbitrary-value syntax
+// (`bg-[var(--token)]`) so the button palette responds to the tenant's saved
+// Visual Token Editor preset without any component-level knowledge of which
+// theme is active.
+//
+// outline / ghost are neutral and don't depend on brand tokens.
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: [
-    "bg-brand-500 text-white",
-    "hover:bg-brand-600 active:bg-brand-700",
+    // Background and text colours driven by --btn-* token group (from TenantTheme).
+    // Falls back to --primary / --primary-text if the button tokens are absent.
+    "bg-[var(--btn-bg,var(--primary))]",
+    "text-[var(--btn-text,var(--primary-text,#fff))]",
+    "hover:bg-[var(--btn-hover-bg,var(--primary-hover))]",
+    "active:bg-[var(--btn-active-bg,var(--primary-active))]",
     "shadow-xs hover:shadow-sm",
   ].join(" "),
 
   secondary: [
-    "bg-brand-50 text-brand-700",
-    "hover:bg-brand-100 active:bg-brand-200",
+    // Dedicated --btn-secondary-* tokens so secondary button surface can diverge
+    // from badge/link accent colour when a preset needs it.  Emitted as concrete
+    // hex by tenantThemeToCSS() — never falls through to the :root purple chain.
+    "bg-[var(--btn-secondary-bg)]",
+    "text-[var(--btn-secondary-text)]",
+    "hover:bg-[var(--btn-secondary-hover-bg)] hover:opacity-90",
+    "active:opacity-80",
   ].join(" "),
 
   outline: [
@@ -56,10 +89,20 @@ const variantClasses: Record<ButtonVariant, string> = {
   ].join(" "),
 };
 
+// ── Size classes ───────────────────────────────────────────────────────────────
+//
+// rounded-[var(--btn-radius,...)] lets the active family config (or tenant
+// override) drive button corner rounding without a component change.
+//   editorial-classic  → 0px   (sharp corners)
+//   corporate-clean    → 0.375rem
+//   bold-marketing     → 9999px (fully pill-shaped)
+//   premium-luxury     → 0.125rem (barely rounded)
+// Falls back to 0.375rem (≈ rounded-md) when no family var is in scope.
+
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm gap-1.5 rounded-md",
-  md: "h-10 px-4 text-sm gap-2 rounded-md",
-  lg: "h-12 px-6 text-base gap-2.5 rounded-lg",
+  sm: "h-8 px-3 text-sm gap-1.5 rounded-[var(--btn-radius,0.375rem)]",
+  md: "h-10 px-4 text-sm gap-2 rounded-[var(--btn-radius,0.375rem)]",
+  lg: "h-12 px-6 text-base gap-2.5 rounded-[var(--btn-radius,0.375rem)]",
 };
 
 export function Button({
@@ -70,19 +113,47 @@ export function Button({
   loading = false,
   disabled,
   as: Tag = "button",
+  href,
   ...props
 }: ButtonProps) {
   const isDisabled = disabled || loading;
 
+  // When used as a link (`as="a"`) with an internal path (starts with "/"),
+  // render a Next.js <Link> for client-side navigation so the in-memory
+  // window.__journey event store is NOT reset on every click.
+  // External URLs (http/https) and anchors (#) are left as plain <a> elements.
+  const ResolvedTag: React.ElementType =
+    Tag === "a" && typeof href === "string" && href.startsWith("/")
+      ? Link
+      : Tag;
+
   return (
-    <Tag
-      disabled={Tag === "button" ? isDisabled : undefined}
+    <ResolvedTag
+      href={href}
+      disabled={ResolvedTag === "button" ? isDisabled : undefined}
       aria-disabled={isDisabled}
       className={cn(
-        // Base
-        "inline-flex items-center justify-center font-medium",
+        // Base layout
+        "inline-flex items-center justify-center",
+        // ── font-weight / text-transform via Tailwind arbitrary class utilities ──
+        //
+        // Using CSS classes instead of inline `style` props avoids the React
+        // hydration mismatch that arises when CSS custom-property strings like
+        // "var(--btn-font-weight, 600)" are serialised differently by the server
+        // renderer and the client reconciler (browsers normalise whitespace in
+        // inline style values during HTML parsing, causing React to see a
+        // different string during hydration).
+        //
+        // The class names are stable compile-time strings — identical on server
+        // and client — so hydration never mismatches.  The CSS custom properties
+        // are resolved by the browser's CSS engine, not by React.
+        //
+        // Fallback (600) matches the --btn-font-weight default in theme.css.
+        "[font-weight:var(--btn-font-weight,600)]",
+        "[text-transform:var(--btn-text-transform,none)]",
         "transition-colors duration-150 cursor-pointer",
-        "focus-visible:outline-2 focus-visible:outline-brand-500 focus-visible:outline-offset-2",
+        // Focus ring — uses --ring CSS var (overridden by tenant preset)
+        "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
         "select-none whitespace-nowrap",
         // Variant + size
         variantClasses[variant],
@@ -97,6 +168,6 @@ export function Button({
         <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
       )}
       {children}
-    </Tag>
+    </ResolvedTag>
   );
 }

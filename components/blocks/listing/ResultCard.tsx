@@ -156,8 +156,8 @@ function CategoryBadge({ category }: { category: string }) {
         fontWeight:      600,
         letterSpacing:   "0.03em",
         textTransform:   "uppercase",
-        color:           "var(--primary)",
-        backgroundColor: "var(--primary-subtle)",
+        color:           "var(--text-muted)",
+        backgroundColor: "var(--bg-subtle)",
         borderRadius:    "2rem",
         padding:         "0.1875rem 0.625rem",
       }}
@@ -184,7 +184,7 @@ function GridCard({ item, HeadingTag }: InnerCardProps) {
         border:          "1px solid var(--card-border)",
         borderRadius:    "var(--card-radius)",
         overflow:        "hidden",
-        height:          "100%",
+        alignSelf:       "start",
         transition:      `box-shadow var(--transition-base), transform var(--transition-base)`,
       }}
       onMouseEnter={(e) => {
@@ -243,7 +243,6 @@ function GridCard({ item, HeadingTag }: InnerCardProps) {
             fontSize:   "0.875rem",
             color:      "var(--text-muted)",
             lineHeight: 1.6,
-            flexGrow:   1,
             // Clamp to 3 lines
             display:            "-webkit-box",
             WebkitBoxOrient:    "vertical",

@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils";
  * A semantic `<section>` (or any block element) with standardised
  * vertical padding. Pair with Container for a full layout unit.
  *
- * Spacing presets:
- *  sm  → py-10  ( 40px) — tight utility sections
- *  md  → py-16  ( 64px) — standard sections   ← default
- *  lg  → py-24  ( 96px) — spacious sections
- *  xl  → py-32  (128px) — hero-scale sections
- *  none → no padding    — when Section is used as a semantic wrapper only
+ * Spacing presets (mobile-first — scales up at sm/lg breakpoints):
+ *  sm  → py-6  sm:py-8  lg:py-10  ( 24→32→40px) — tight utility sections
+ *  md  → py-8  sm:py-12 lg:py-16  ( 32→48→64px) — standard sections   ← default
+ *  lg  → py-10 sm:py-16 lg:py-24  ( 40→64→96px) — spacious sections
+ *  xl  → py-12 sm:py-20 lg:py-32  ( 48→80→128px) — hero-scale sections
+ *  none → no padding               — when Section is used as a semantic wrapper only
  */
 
-interface SectionProps {
+export interface SectionProps {
   children: React.ReactNode;
   className?: string;
   /**
@@ -30,10 +30,10 @@ interface SectionProps {
 
 const spacingMap: Record<NonNullable<SectionProps["spacing"]>, string> = {
   none: "",
-  sm: "py-10",
-  md: "py-16",
-  lg: "py-24",
-  xl: "py-32",
+  sm:   "py-6 sm:py-8 lg:py-10",
+  md:   "py-8 sm:py-12 lg:py-16",
+  lg:   "py-10 sm:py-16 lg:py-24",
+  xl:   "py-12 sm:py-20 lg:py-32",
 };
 
 export function Section({

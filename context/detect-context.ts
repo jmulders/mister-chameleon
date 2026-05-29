@@ -11,16 +11,30 @@
  * ──────────────────
  *
  *  1. Extract raw signals from headers and URL search params
- *  2. Resolve each dimension independently (source / device / visitType)
- *  3. Return a fully typed VisitorContext
+ *  2. Apply attribution cookie fallbacks for any null UTM / referrer fields
+ *  3. Resolve each dimension independently (source / device / visitType)
+ *  4. Return a fully typed VisitorContext
  *
- * Source resolution precedence (MVP)
- * ───────────────────────────────────
+ * Source resolution precedence
+ * ────────────────────────────
  *
- *  UTM params  →  evaluated first (they are explicit and intentional)
- *  Referrer    →  fallback when UTM is absent
- *  "direct"    →  no referrer AND no utm_source
- *  "unknown"   →  referrer present but unrecognised AND no utm_source
+ *  UTM params (URL)  →  highest priority (marketer-controlled, explicit)
+ *  mc_attr cookie    →  fallback for UTM when URL params are absent (persisted attribution)
+ *  Referrer header   →  fallback for source when UTM is absent
+ *  "direct"          →  no referrer AND no UTM
+ *  "unknown"         →  referrer present but unrecognised AND no UTM
+ *
+ * Attribution persistence
+ * ───────────────────────
+ *
+ *  UTM params and the first external referrer domain are stored in the `mc_attr`
+ *  cookie by middleware on the first UTM-carrying request. On subsequent page
+ *  visits (e.g. internal navigation to /about without UTM params in the URL),
+ *  the attribution cookie provides the fallback values so that DecisionContext
+ *  always carries the original campaign attribution.
+ *
+ *  See context/attribution.ts for the cookie format and middleware.ts for the
+ *  cookie-writing logic.
  *
  * Caching note
  * ────────────
@@ -31,6 +45,7 @@
 
 import type { TrafficSource, VisitorContext } from "./types";
 import { detectDevice, parseReferrer, readCookies } from "./helpers";
+import { parseAttributionCookie, ATTRIBUTION_COOKIE } from "./attribution";
 
 /** Cookie name set by the client-side tracking layer after the first visit. */
 export const SEEN_COOKIE = "mc_seen";
@@ -59,6 +74,11 @@ const UTM_SOURCE_MAP: Record<string, TrafficSource> = {
 /**
  * Detect the visitor context from an HTTP request.
  *
+ * UTM fields are read from URL query params first. When a param is absent,
+ * the value is taken from the `mc_attr` attribution cookie (written by
+ * middleware on the first UTM-carrying request). This ensures attribution
+ * survives internal navigations and return visits without UTM params.
+ *
  * @param request - Web API Request (from Route Handler, Middleware, or test)
  * @returns A fully populated VisitorContext — never throws.
  */
@@ -70,33 +90,61 @@ export function detectVisitorContext(request: Request): VisitorContext {
   const rawReferrer =
     headers.get("referer") ?? headers.get("referrer") ?? null;
 
-  const userAgent = headers.get("user-agent");
+  const userAgent    = headers.get("user-agent");
   const cookieHeader = headers.get("cookie");
 
   // Parse URL — wrap in try/catch; malformed URLs should not crash the server
-  let utmSource: string | null = null;
-  let utmMedium: string | null = null;
-  let utmCampaign: string | null = null;
-  let utmContent: string | null = null;
-  let utmTerm: string | null = null;
+  let urlUtmSource:   string | null = null;
+  let urlUtmMedium:   string | null = null;
+  let urlUtmCampaign: string | null = null;
+  let urlUtmContent:  string | null = null;
+  let urlUtmTerm:     string | null = null;
+  let requestHostname = "";
 
   try {
     const url = new URL(request.url);
-    utmSource = url.searchParams.get("utm_source");
-    utmMedium = url.searchParams.get("utm_medium");
-    utmCampaign = url.searchParams.get("utm_campaign");
-    utmContent = url.searchParams.get("utm_content");
-    utmTerm = url.searchParams.get("utm_term");
+    requestHostname    = url.hostname.replace(/^www\./, "").toLowerCase();
+    urlUtmSource   = url.searchParams.get("utm_source")   || null;
+    urlUtmMedium   = url.searchParams.get("utm_medium")   || null;
+    urlUtmCampaign = url.searchParams.get("utm_campaign") || null;
+    urlUtmContent  = url.searchParams.get("utm_content")  || null;
+    urlUtmTerm     = url.searchParams.get("utm_term")     || null;
   } catch {
-    // Proceed without UTM data — all remain null
+    // Proceed without URL signals — all remain null
   }
 
   // ── 2. Parse helpers ─────────────────────────────────────────────────────
 
   const parsedReferrer = parseReferrer(rawReferrer);
-  const cookies = readCookies(cookieHeader);
+  const cookies        = readCookies(cookieHeader);
 
-  // ── 3. Resolve each dimension ────────────────────────────────────────────
+  // ── 3. Attribution cookie fallback ───────────────────────────────────────
+  //
+  // When UTM params are absent from the URL (e.g. the visitor navigated to
+  // an internal page after arriving via a campaign URL), read stored values
+  // from the mc_attr cookie.  URL params always win if both are present.
+  //
+  // referrerDomain: use the current (fresh) referrer only when it is external.
+  // For internal navigation (same hostname), the stored external referrer is
+  // preserved so rules always see the original referral source.
+
+  const stored = parseAttributionCookie(cookies.get(ATTRIBUTION_COOKIE));
+
+  const utmSource   = urlUtmSource   ?? stored.utmSource   ?? null;
+  const utmMedium   = urlUtmMedium   ?? stored.utmMedium   ?? null;
+  const utmCampaign = urlUtmCampaign ?? stored.utmCampaign ?? null;
+  const utmContent  = urlUtmContent  ?? stored.utmContent  ?? null;
+  const utmTerm     = urlUtmTerm     ?? stored.utmTerm     ?? null;
+
+  // Referrer domain: fresh external referrer wins; same-origin navigation falls
+  // back to the stored external referrer so the original referral is preserved.
+  const freshDomain = parsedReferrer?.domain ?? null;
+  const isExternal  = freshDomain !== null && freshDomain !== requestHostname;
+  const referrerDomain = isExternal
+    ? freshDomain
+    : (stored.referrerDomain ?? freshDomain ?? null);
+
+  // ── 4. Resolve each dimension ────────────────────────────────────────────
 
   const source = resolveTrafficSource({
     utmSource,
@@ -110,7 +158,7 @@ export function detectVisitorContext(request: Request): VisitorContext {
     ? "returning"
     : "new";
 
-  // ── 4. Return assembled context ──────────────────────────────────────────
+  // ── 5. Return assembled context ──────────────────────────────────────────
 
   return {
     // Resolved dimensions
@@ -120,7 +168,7 @@ export function detectVisitorContext(request: Request): VisitorContext {
 
     // Raw signals (debugging / future rules)
     rawReferrer,
-    referrerDomain: parsedReferrer?.domain ?? null,
+    referrerDomain,
     utmSource,
     utmMedium,
     utmCampaign,

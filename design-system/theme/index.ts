@@ -43,18 +43,46 @@ export type {
   ThemeComponentStyles,
 } from "./tenant-theme";
 
-export { RADIUS_PRESETS, tenantThemeToCSS } from "./tenant-theme";
+export { RADIUS_PRESETS, tenantThemeToCSS, tenantThemeToVarsRecord } from "./tenant-theme";
 
 // ── Named theme presets ───────────────────────────────────────────────────────
 //
-// Three complete visual personalities shipped with the platform:
-//   "marketing-default"  indigo-violet, balanced radius, dark hero
-//   "enterprise-clean"   slate neutral, sharp radius, muted CTA
-//   "bold-brand"         vivid brand palette, soft radius, expressive hero
+// 18 complete visual personalities: 16 curated commercial themes +
+// 2 signature showcase/luxury themes. See THEME_CATALOG for the full list.
 //
 // Usage:
 //   import { resolveTheme, THEME_PRESETS } from "@/design-system/theme";
-//   const theme = resolveTheme("enterprise-clean", { meta: { name: "Acme" } });
+//   const theme = resolveTheme("corporate-trust", { meta: { name: "Acme" } });
 //   const css   = tenantThemeToCSS(theme);
-export type { ThemePresetKey, ThemePresetOverrides } from "./presets";
-export { THEME_PRESETS, resolveTheme, isThemePresetKey } from "./presets";
+export type {
+  ThemePresetKey,
+  ThemePresetOverrides,
+  ThemeCatalogCategory,
+  ThemeCatalogEntry,
+} from "./presets";
+export {
+  THEME_PRESETS,
+  THEME_CATALOG,
+  resolveTheme,
+  isThemePresetKey,
+} from "./presets";
+
+// ── Featured theme family typography config ───────────────────────────────────
+export type {
+  FeaturedFamilyKey,
+  FontScaleProfile,
+  FamilyBlockStyleName,
+  ThemeFamilyTypography,
+  ThemeFamilyConfig,
+  StructuralFamilyConfig,
+  ResolvedFamilyTheme,
+} from "./theme-families.config";
+export {
+  fontScaleProfiles,
+  FEATURED_FAMILY_CONFIGS,
+  FEATURED_FAMILY_KEYS,
+  isFeaturedFamilyKey,
+  familyTypographyToVars,
+  familyStructuralToVars,
+  resolveThemeWithFamily,
+} from "./theme-families.config";

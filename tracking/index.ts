@@ -59,12 +59,31 @@ export { ALLOWED_EVENT_TYPES, isValidEventType } from "./event-types";
 
 export { trackEvent } from "./track-event";
 
+import { trackEvent } from "./track-event";
+
 // ── track() ───────────────────────────────────────────────────────────────────
+//
+// Typed wrapper over trackEvent() for callers that prefer the object-arg style:
+//
+//   track({ eventType: "cta_click", payload: { cta_key: "cta_meeting" } });
+//
+// Internally this delegates to trackEvent() which provides:
+//   • Consent gate (analytics + personalization)
+//   • Optimistic local store (window.__journey, status: pending → synced/failed/suppressed)
+//   • RFC-4122 UUID v4 eventId for server-side deduplication
+//   • Failed-event retry queue (drained on next user action)
+//   • keepalive fetch so events survive page navigation
+//
+// Returns void — the legacy Promise<void> return type is preserved for
+// backward compatibility, but callers should never need to await it.
 
 import type { EventType, EventPayloadMap, TrackingEvent } from "./event-types";
 
 /**
  * Sends a typed tracking event to POST /api/events.
+ *
+ * Delegates to `trackEvent()` — all reliability guarantees (consent gate,
+ * optimistic store, deduplication, retry) apply automatically.
  *
  * Fire-and-forget — call without await. Never throws; errors are swallowed.
  *
@@ -74,27 +93,13 @@ import type { EventType, EventPayloadMap, TrackingEvent } from "./event-types";
  *   // In an onClick handler — no await needed:
  *   track({ eventType: "cta_click", payload: { cta_key: "cta_meeting" } });
  */
-export async function track<T extends EventType>(
+export function track<T extends EventType>(
   event: TrackingEvent<T>,
-): Promise<void> {
-  try {
-    await fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventType: event.eventType,
-        payload: (event.payload as Record<string, unknown>) ?? {},
-      }),
-      // keepalive: true keeps the request alive even if the page navigates away,
-      // which is critical for CTA click events where the href fires immediately.
-      keepalive: true,
-    });
-  } catch {
-    // Tracking should never break the user experience.
-    // Errors are silently discarded in production.
-    // For debugging, consider logging to console.warn in development:
-    // if (process.env.NODE_ENV === "development") console.warn("[track] failed", event);
-  }
+): void {
+  trackEvent(
+    event.eventType,
+    (event.payload as Record<string, unknown> | undefined) ?? {},
+  );
 }
 
 /**
@@ -105,13 +110,13 @@ export async function track<T extends EventType>(
 /** Record a CTA button click. */
 export function trackCtaClick(
   payload: EventPayloadMap["cta_click"],
-): Promise<void> {
-  return track({ eventType: "cta_click", payload });
+): void {
+  trackEvent("cta_click", payload as Record<string, unknown>);
 }
 
 /** Record a scroll depth milestone (25 / 50 / 75 / 90 / 100). */
 export function trackScrollDepth(
   payload: EventPayloadMap["scroll_depth"],
-): Promise<void> {
-  return track({ eventType: "scroll_depth", payload });
+): void {
+  trackEvent("scroll_depth", payload as unknown as Record<string, unknown>);
 }

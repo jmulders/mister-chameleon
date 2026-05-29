@@ -39,6 +39,8 @@ interface NavItem {
   href: string;
   /** Whether this item is a placeholder (future section). */
   placeholder?: boolean;
+  /** Optional badge text shown inline (e.g. "Pro"). */
+  badge?: string;
   icon: React.ReactNode;
 }
 
@@ -52,6 +54,11 @@ const navItems: NavItem[] = [
     label: "Sessions",
     href: "/dashboard/sessions",
     icon: <IconSessions />,
+  },
+  {
+    label: "Analytics",
+    href: "/dashboard/analytics",
+    icon: <IconAnalytics />,
   },
   {
     label: "Variants",
@@ -69,6 +76,11 @@ const navItems: NavItem[] = [
     icon: <IconSettings />,
   },
   {
+    label: "Session Credits",
+    href: "/dashboard/billing",
+    icon: <IconBilling />,
+  },
+  {
     label: "Content Status",
     href: "/dashboard/content-status",
     icon: <IconContentStatus />,
@@ -82,6 +94,17 @@ const navItems: NavItem[] = [
     label: "Rules Editor",
     href: "/dashboard/rules",
     icon: <IconRules />,
+  },
+  {
+    label: "Agency",
+    href: "/dashboard/agency",
+    icon: <IconAgency />,
+    badge: "Pro",
+  },
+  {
+    label: "Decision Trace",
+    href: "/dashboard/debug",
+    icon: <IconTrace />,
   },
   {
     label: "Report Preview",
@@ -189,6 +212,11 @@ export function DashboardNav({ devTenantId = null }: DashboardNavProps) {
                 {item.label}
                 {item.placeholder && (
                   <span className="ml-auto text-xs font-normal text-neutral-400">soon</span>
+                )}
+                {item.badge && !item.placeholder && (
+                  <span className="ml-auto rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600">
+                    {item.badge}
+                  </span>
                 )}
               </Link>
             </li>
@@ -305,6 +333,50 @@ function IconNewTenant() {
       <rect x="1.5" y="1.5" width="9" height="11" rx="1.5" />
       <path d="M5 8h4M7 6v4" strokeLinecap="round" />
       <path d="M11.5 5.5h3M13 4v3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconTrace() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <circle cx="3" cy="3" r="1.5" />
+      <circle cx="13" cy="8" r="1.5" />
+      <circle cx="3" cy="13" r="1.5" />
+      <path d="M4.5 3h3a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2" strokeLinecap="round" />
+      <path d="M11.5 8a2 2 0 0 0-2 2v1a2 2 0 0 1-2 2H4.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconAnalytics() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <rect x="1.5" y="8" width="2.5" height="5.5" rx="0.5" />
+      <rect x="6" y="5" width="2.5" height="8.5" rx="0.5" />
+      <rect x="10.5" y="2" width="2.5" height="11.5" rx="0.5" />
+      <path d="M2.75 6l3.5-2.5 4 1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconBilling() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" />
+      <path d="M1.5 6.5h13" strokeLinecap="round" />
+      <path d="M4 9.5h2.5M10.5 9.5h1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconAgency() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <rect x="1.5" y="5.5" width="6" height="9" rx="1" />
+      <rect x="8.5" y="2.5" width="6" height="12" rx="1" />
+      <path d="M3.5 8h2M3.5 10.5h2M3.5 13h2" strokeLinecap="round" />
+      <path d="M10.5 5.5h2M10.5 8h2M10.5 10.5h2" strokeLinecap="round" />
     </svg>
   );
 }

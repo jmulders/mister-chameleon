@@ -72,6 +72,7 @@ export type {
   TenantTokenOverrides,
   TenantDesignSettings,
   TenantSettings,
+  TemplateCatalogKey,
 } from "./types";
 
 // Theme sub-types — available when callers need to work with individual surfaces.
@@ -89,7 +90,21 @@ export type {
 export {
   RADIUS_PRESETS,
   tenantThemeToCSS,
+  tenantThemeToVarsRecord,
 } from "@/design-system/theme/tenant-theme";
+
+// Theme catalog (admin UI metadata — labels, descriptions, swatch colours)
+export type {
+  ThemePresetKey,
+  ThemeCatalogCategory,
+  ThemeCatalogEntry,
+} from "@/design-system/theme/presets";
+export {
+  THEME_PRESETS,
+  THEME_CATALOG,
+  resolveTheme,
+  isThemePresetKey,
+} from "@/design-system/theme/presets";
 
 // ── Runtime theme resolution ──────────────────────────────────────────────────
 // Maps TenantSettings → a flat CSS-var override map ready for injection.
@@ -133,6 +148,8 @@ export { MISTER_CHAMELEON_THEME } from "./theme";
 export {
   getPackageDefinition,
   getAllPackageDefinitions,
+  isValidPackageKey,
+  VALID_PACKAGE_KEYS,
   STARTER_PACKAGE,
   GROWTH_PACKAGE,
   PRO_PACKAGE,
@@ -182,6 +199,9 @@ export type {
 } from "./design-theme";
 export {
   DESIGN_PRESETS,
+  LEGACY_THEME_MAP,
+  normalizeThemeKey,
+  getSafeDesignPreset,
   getResolvedTenantTheme,
 } from "./design-theme";
 

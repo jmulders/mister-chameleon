@@ -1,35 +1,43 @@
 /**
- * CmsProvisioningPanel
+ * CmsProvisioningPanel — "Sync CMS"
  *
- * Admin panel for provisioning a tenant's starter content into the shared
- * Sanity CMS.  Shows the current provisioning state, a summary of what will
- * be written, and a "Provision site to CMS" action button.
+ * Admin panel for syncing / repairing a tenant's CMS content.  This is a
+ * REPEATABLE action that recreates missing or stale CMS documents without
+ * touching tenant settings, design, or integration config.
  *
- * ─── What it shows ────────────────────────────────────────────────────────────
+ * ─── What "Sync CMS" does ─────────────────────────────────────────────────────
  *
- *   • Provisioning status — "Not provisioned" or "Last provisioned: <date>"
- *   • Package summary — which package tier controls the content block set
- *   • Content block set — the sections that will be written (package-gated)
- *   • Design snapshot — active theme preset + primaryColor if set
- *   • CMS target — provider and projectId from tenant settings
- *   • Action result — document IDs written on success, or error details
+ *   Writes (or overwrites) the following documents in the CMS:
+ *     • Homepage, About, Contact page documents
+ *     • Any additional pages stored in the internal page builder
+ *     • Hero / Proof / CTA variant documents (default starter copy)
+ *     • Package-gated homepage section blocks
  *
- * ─── Idempotency warning ──────────────────────────────────────────────────────
+ *   Uses create-or-replace — each run is safe to repeat.
+ *   Records cmsProvisionedAt after a successful sync.
  *
- *   When the tenant has already been provisioned, a "content will be replaced"
- *   warning is shown before the button so operators know re-provisioning
- *   overwrites any customisations made in Sanity Studio.
+ * ─── What "Sync CMS" does NOT do ─────────────────────────────────────────────
+ *
+ *   • Does NOT touch tenant settings, packageKey, or features
+ *   • Does NOT reset design system baseline (theme, blocks, token overrides)
+ *   • Does NOT reset integration config (CRM, enrichment, AI mode)
+ *   • Does NOT set siteInitializedAt — that timestamp is exclusive to
+ *     "Initialize site" on the Overview page
+ *
+ * ─── Distinct from "Initialize site" ─────────────────────────────────────────
+ *
+ *   "Initialize site" (on the Overview tab) is the first-time full tenant
+ *   bootstrap: it sets design system baseline, integration defaults, AND
+ *   provisions CMS pages in one step.  Use it once when onboarding a tenant.
+ *
+ *   "Sync CMS" is for ongoing maintenance — recreating missing CMS docs,
+ *   repairing a broken or partial provisioning, or syncing CMS content after
+ *   a page-builder change.  Safe to run at any time.
  *
  * ─── Guards ───────────────────────────────────────────────────────────────────
  *
- *   The "Provision" button is disabled when the CMS provider is "mock" or
- *   when no projectId is configured — the operator must connect a real CMS
- *   before provisioning makes sense.
- *
- * ─── Server action integration ────────────────────────────────────────────────
- *
- *   Calls `provisionSiteAction(tenantId)` via `useTransition` so the button
- *   shows a loading state without a page reload.
+ *   The "Sync CMS" button is disabled when the CMS provider is "mock" or when
+ *   no projectId is configured — a real CMS must be connected first.
  */
 
 "use client";
@@ -39,7 +47,7 @@ import { Card, CardContent }          from "@/components/ui/Card";
 import { Badge }                      from "@/components/ui/Badge";
 import { getPackageDefinition }       from "@/tenant";
 import { provisionSiteAction }        from "@/app/admin/tenants/[tenantId]/actions";
-import type { ProvisionSiteResult }   from "@/app/admin/tenants/[tenantId]/actions";
+import type { ProvisionSiteResult }   from "@/app/admin/tenants/[tenantId]/types";
 import type { TenantSettings, PackageKey } from "@/tenant";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -51,9 +59,9 @@ interface CmsProvisioningPanelProps {
   > & {
     /**
      * Whether a per-tenant CMS write token is stored server-side.
-     * When false AND no platform env var is configured, provisioning will fail
+     * When false AND no platform env var is configured, syncing will fail
      * with a clear error. The panel shows a warning in this case so the
-     * operator knows to add a token before provisioning.
+     * operator knows to add a token before syncing.
      */
     hasCmsWriteToken?: boolean;
   };
@@ -84,12 +92,11 @@ function formatDate(iso: string): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
- * Provisioning panel for the admin tenant detail page.
+ * Sync CMS panel for the admin Content tab.
  *
- * Displays current provisioning state, a summary of what will be written,
- * and the action button.  Keeps result state locally in the component so
- * the page doesn't reload on success (the revalidatePath in the action
- * will refresh the server component data on next navigation).
+ * Displays current sync state, a summary of what will be written, and the
+ * action button.  Keeps result state locally so the page doesn't reload on
+ * success.
  *
  * @example
  * <CmsProvisioningPanel tenant={tenant} />
@@ -104,28 +111,32 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
   const allowedBlocks = pkg.allowedBlocks.content;
 
   // ── CMS guard ────────────────────────────────────────────────────────────
-  const cmsReady       = cms.provider !== "mock" && !!cms.projectId;
-  const alreadyDone    = !!cmsProvisionedAt;
-  // Show a token warning when neither a per-tenant token nor an env-level
-  // token is known to be configured.  We can't verify the env vars client-side
-  // so we only warn when hasCmsWriteToken is explicitly false; when undefined
-  // (not supplied by the parent page) we stay silent.
-  const showTokenWarning = hasCmsWriteToken === false;
+  // Sanity requires a per-tenant projectId; other real providers (Storyblok,
+  // Statamic, platform) rely on platform-level credentials and have no
+  // per-tenant projectId requirement.
+  const needsProjectId = cms.provider === "sanity";
+  const cmsReady       = cms.provider !== "mock" && (!needsProjectId || !!cms.projectId);
+  const alreadySynced  = !!cmsProvisionedAt;
+  // Write-token warning is Sanity-only — Storyblok/Statamic/platform use
+  // platform-level credentials, not a per-tenant write token.
+  // Only warn when hasCmsWriteToken is explicitly false (not undefined) so we
+  // stay silent when the parent page doesn't supply the prop.
+  const showTokenWarning = cms.provider === "sanity" && hasCmsWriteToken === false;
 
   // ── Action ───────────────────────────────────────────────────────────────
-  function handleProvision() {
+  function handleSync() {
     startTransition(async () => {
       const r = await provisionSiteAction(tenantId);
       setResult(r);
     });
   }
 
-  // ── Sections that will be written ────────────────────────────────────────
+  // ── What will be synced ──────────────────────────────────────────────────
   // Matches the logic in buildHomepageSections() in tenant-provisioner.ts.
-  const allowedSet     = new Set(allowedBlocks);
+  const allowedSet      = new Set(allowedBlocks);
   const plannedSections: string[] = [];
-  if (allowedSet.has("textSection"))       plannedSections.push("Text section (intro)");
-  if (allowedSet.has("featureGrid"))       plannedSections.push("Feature grid");
+  if (allowedSet.has("textSection"))        plannedSections.push("Text section (intro)");
+  if (allowedSet.has("featureGrid"))        plannedSections.push("Feature grid");
   if (allowedSet.has("testimonialSection")) plannedSections.push("Testimonial section");
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -135,34 +146,36 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
       {/* Header */}
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-          CMS provisioning
+          Sync CMS
         </p>
         <Badge
-          variant={alreadyDone ? "success" : "outline"}
+          variant={alreadySynced ? "success" : "outline"}
           size="sm"
-          dot={alreadyDone}
+          dot={alreadySynced}
         >
-          {alreadyDone ? "Provisioned" : "Not provisioned"}
+          {alreadySynced ? "Synced" : "Not synced"}
         </Badge>
       </div>
 
       <CardContent>
 
-        {/* Last provisioned date */}
-        {alreadyDone && (
+        {/* Last synced date */}
+        {alreadySynced && (
           <p className="mb-3 text-xs text-neutral-500">
-            Last provisioned:{" "}
+            Last synced:{" "}
             <span className="font-medium text-neutral-700">
               {formatDate(cmsProvisionedAt!)}
             </span>
           </p>
         )}
 
-        {/* What will be written */}
+        {/* Scope callout — what this action does and doesn't change */}
         <div className="mb-4 rounded-md border border-neutral-100 bg-neutral-50 p-3 text-xs">
-          <p className="mb-2 font-medium text-neutral-700">Will provision:</p>
+          <p className="mb-2 font-medium text-neutral-700">Will sync / repair:</p>
           <ul className="space-y-1 text-neutral-500">
             <li>• Homepage page document (<code>home</code>)</li>
+            <li>• About page document (<code>about</code>)</li>
+            <li>• Contact page document (<code>contact</code>)</li>
             <li>• Hero variant — default brand copy</li>
             <li>• Proof variant — starter trust signals</li>
             <li>• CTA variant — get-in-touch call to action</li>
@@ -170,6 +183,10 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
               <li key={s}>• Homepage section: {s}</li>
             ))}
           </ul>
+          <p className="mt-2 text-[11px] text-neutral-400">
+            Any additional pages stored in the page builder for this tenant will also be
+            synced.  Each document is written with create-or-replace — safe to repeat.
+          </p>
           <div className="mt-2 flex flex-wrap gap-3 pt-2 text-neutral-400 border-t border-neutral-200">
             <span>
               Package:{" "}
@@ -192,33 +209,44 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
               </span>
             </span>
           </div>
+          <p className="mt-2 text-[11px] italic text-neutral-400 border-t border-neutral-200 pt-2">
+            Only CMS documents are updated — tenant settings, design tokens, and
+            integration config are not changed.
+          </p>
         </div>
 
-        {/* Idempotency warning when already provisioned */}
-        {alreadyDone && !result && (
+        {/* Warning when re-syncing (content in Sanity Studio may be overwritten) */}
+        {alreadySynced && !result && (
           <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            ⚠ Re-provisioning will <strong>replace</strong> the existing starter documents.
-            Any content you have edited in Sanity Studio will be overwritten.
+            ⚠ Resyncing will overwrite existing starter documents in the CMS.  Any
+            content edits made directly in Sanity Studio since the last sync may be lost.
           </p>
         )}
 
         {/* CMS not configured warning */}
         {!cmsReady && (
           <p className="mb-3 text-xs text-neutral-500 bg-neutral-50 border border-neutral-200 rounded px-3 py-2">
-            CMS is not configured (provider is{" "}
-            <code className="font-mono">{cms.provider}</code>
-            {!cms.projectId ? ", projectId missing" : ""}).
-            Configure a real CMS provider and project ID in tenant settings before provisioning.
+            {cms.provider === "mock"
+              ? "Switch to a real CMS provider in tenant settings before syncing."
+              : <>
+                  CMS not ready — provider is{" "}
+                  <code className="font-mono">{cms.provider}</code>
+                  {needsProjectId && !cms.projectId ? " but Project ID is missing" : ""}.
+                  {needsProjectId
+                    ? " Configure the Project ID and Dataset in tenant settings."
+                    : " Configure the provider credentials in Platform → CMS settings."}
+                </>
+            }
           </p>
         )}
 
         {/* Write token warning — shown when no per-tenant token is stored */}
         {cmsReady && showTokenWarning && (
           <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            ⚠ No per-tenant write token configured. Provisioning will use the{" "}
+            ⚠ No per-tenant write token configured. Syncing will use the{" "}
             <code className="font-mono">SANITY_API_WRITE_TOKEN</code> /{" "}
             <code className="font-mono">SANITY_WRITE_TOKEN</code> environment variable
-            if set. If neither is configured, provisioning will fail.
+            if set. If neither is configured, the sync will fail.
             Add a write token via the CMS Credentials panel above.
           </p>
         )}
@@ -234,10 +262,20 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
           >
             {result.ok ? (
               <>
-                <p className="mb-1 font-semibold">
-                  ✓ Provisioned {result.documentIds.length} document
-                  {result.documentIds.length !== 1 ? "s" : ""}
-                </p>
+                <p className="mb-1 font-semibold">✓ CMS synced</p>
+                <div className="mt-1 mb-2 flex flex-wrap gap-x-4 gap-y-1 text-success-700">
+                  <span>
+                    Pages:{" "}
+                    <span className="font-semibold">{result.pagesCreated} created</span>
+                    {result.pagesUpdated > 0 && (
+                      <span>, {result.pagesUpdated} updated</span>
+                    )}
+                  </span>
+                  <span>
+                    Variants:{" "}
+                    <span className="font-semibold">{result.variantsWritten} written</span>
+                  </span>
+                </div>
                 <ul className="space-y-0.5 text-success-700">
                   {result.documentIds.map((id) => (
                     <li key={id}>
@@ -255,7 +293,7 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
               </>
             ) : (
               <>
-                <p className="mb-1 font-semibold">✗ Provisioning failed</p>
+                <p className="mb-1 font-semibold">✗ Sync failed</p>
                 <p className="text-error-700">{result.error}</p>
                 {result.partial && result.partial.length > 0 && (
                   <p className="mt-1 text-error-600">
@@ -271,15 +309,15 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
         {/* Action button */}
         <button
           type="button"
-          onClick={handleProvision}
+          onClick={handleSync}
           disabled={isPending || !cmsReady}
           className="rounded-md bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600"
         >
           {isPending
-            ? "Provisioning…"
-            : alreadyDone
-              ? "Re-provision site"
-              : "Provision site to CMS"
+            ? "Syncing…"
+            : alreadySynced
+              ? "Resync CMS"
+              : "Sync CMS"
           }
         </button>
 

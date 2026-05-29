@@ -79,14 +79,14 @@ function computeItems(tenant: TenantSettings | null): ReadinessItem[] {
   getResolvedTenantTheme(tenant); // ensure it resolves without throwing
   const isCustomTheme =
     !!tenant &&
-    (tenant.design.theme !== "default" ||
-      !!tenant.design.primaryColor      ||
-      !!tenant.design.primaryFont);
+    (tenant.design?.theme !== "default" ||
+      !!tenant.design?.primaryColor      ||
+      !!tenant.design?.primaryFont);
   const themeDetail = isCustomTheme
     ? [
-        tenant!.design.theme !== "default" ? tenant!.design.theme : null,
-        tenant!.design.primaryColor         ? tenant!.design.primaryColor : null,
-        tenant!.design.primaryFont          ? tenant!.design.primaryFont : null,
+        tenant!.design?.theme !== "default" ? tenant!.design?.theme : null,
+        tenant!.design?.primaryColor ?? null,
+        tenant!.design?.primaryFont  ?? null,
       ]
         .filter(Boolean)
         .join(" · ") || "customised"
@@ -95,9 +95,12 @@ function computeItems(tenant: TenantSettings | null): ReadinessItem[] {
   // ── 4. CMS page mapping ──────────────────────────────────────────────────────
   const cmsProvider  = tenant?.cms?.provider ?? "mock";
   const cmsProjectId = tenant?.cms?.projectId ?? "";
-  const cmsReady     = cmsProvider !== "mock" && !!cmsProjectId;
+  // Sanity requires a per-tenant projectId; Storyblok, Statamic, and platform
+  // use platform-level credentials so an empty projectId is fine for them.
+  const cmsNeedsProjectId = cmsProvider === "sanity";
+  const cmsReady     = cmsProvider !== "mock" && (!cmsNeedsProjectId || !!cmsProjectId);
   const cmsDetail    = cmsReady
-    ? `${cmsProvider} · ${cmsProjectId}`
+    ? cmsProjectId ? `${cmsProvider} · ${cmsProjectId}` : cmsProvider
     : cmsProvider === "mock"
       ? "mock (no live content)"
       : `${cmsProvider} — projectId missing`;
@@ -171,7 +174,7 @@ function computeItems(tenant: TenantSettings | null): ReadinessItem[] {
       label:  "CMS content provisioned",
       passed: cmsProvisioned,
       detail: cmsProvisionedDetail,
-      hint:   "Use the CMS Provisioning panel on this page to write starter documents to Sanity.",
+      hint:   "Run 'Initialize site' on the Overview tab for first-time bootstrap, or 'Sync CMS' on the Content tab to repair missing CMS documents.",
     },
     {
       id:     "forms",

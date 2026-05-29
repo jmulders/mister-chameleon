@@ -204,7 +204,7 @@ export interface PackageDefinition {
 // ── Block allow-list shorthands ───────────────────────────────────────────────
 // Named constants keep the package objects below readable at a glance.
 
-const ALL_CONTEXT_BLOCKS: readonly ContextBlockKey[] = ["hero", "proof", "cta"];
+const ALL_CONTEXT_BLOCKS: readonly ContextBlockKey[] = ["hero", "proof", "cta", "feature", "conversion", "notification"];
 
 const STARTER_CONTENT_BLOCKS: readonly ContentBlockKey[] = [
   // Live blocks only — keep the starter surface simple
@@ -235,14 +235,14 @@ const GROWTH_CONTENT_BLOCKS: readonly ContentBlockKey[] = [
 ];
 
 const PRO_CONTENT_BLOCKS: readonly ContentBlockKey[] = [
-  // Live blocks
+  // ── Core marketing ─────────────────────────────────────────────────────────
   "textSection",
   "featureGrid",
   "testimonialSection",
   "faqSection",
   "ctaSection",
   "formSection",
-  // Defined blocks (promoted as their renderers ship)
+  // ── Rich media ─────────────────────────────────────────────────────────────
   "richText",
   "image",
   "video",
@@ -250,20 +250,38 @@ const PRO_CONTENT_BLOCKS: readonly ContentBlockKey[] = [
   "logoStrip",
   "stats",
   "slider",
+  // ── Editorial / content ────────────────────────────────────────────────────
   "about",
   "newsList",
   "caseHighlight",
-  // Listing / editorial
+  "contentSection",
+  "teamSection",
+  // ── New core blocks ────────────────────────────────────────────────────────
+  "timeline",
+  "quickLinks",
+  "textMedia",
+  "contactSection",
+  // ── Listing / detail ──────────────────────────────────────────────────────
   "listing",
   "articleBody",
   "articleMeta",
   "relatedContent",
-  // Vacancy-specific blocks
+  // ── Vacancy / careers ─────────────────────────────────────────────────────
   "vacancyMeta",
   "applyPanel",
-  // Interactive listing features + full-text search
+  // ── Interactive listing + search ──────────────────────────────────────────
   "filterBar",
   "search",
+  // ── Careers / W6 ──────────────────────────────────────────────────────────
+  "processSteps",
+  "recruiterPanel",
+  // ── Conversion / pricing ──────────────────────────────────────────────────
+  "pricingSection",
+  // ── Commerce / product ────────────────────────────────────────────────────
+  "productOverview",
+  "productDetail",
+  "cartSummary",
+  "checkoutBlock",
 ];
 
 // ── Starter ───────────────────────────────────────────────────────────────────
@@ -374,7 +392,32 @@ export const GROWTH_PACKAGE: PackageDefinition = {
     analytics:   true,
   },
 
-  allowedThemes: ["default", "minimal"],
+  allowedThemes: [
+    "default",
+    "minimal",
+    "corporate-blue",
+    "modern-green",
+    "minimal-neutral",
+    "warm-professional",
+    "healthcare-calm",
+    "dark-contrast",
+    "editorial-classic",
+    "playful-startup",
+    "startup-energy",
+    "corporate-trust",
+    "modern-saas",
+    // ── New commercial themes ────────────────────────────────────────────────
+    "corporate-clean",
+    "bold-marketing",
+    // ── Signature themes ─────────────────────────────────────────────────────
+    "portfolio-showcase",
+    "premium-luxury",
+    // ── Seasonal themes ──────────────────────────────────────────────────────
+    "valentine-pink",
+    "dutch-orange",
+    // ── Careers / HR themes ──────────────────────────────────────────────────
+    "careers-human",
+  ],
 
   limits: {
     maxSites:                 3,
@@ -388,14 +431,14 @@ export const GROWTH_PACKAGE: PackageDefinition = {
     annualPriceIndicative:  479,
     recommendedFor:
       "Growth teams running structured conversion experiments alongside personalisation — " +
-      "up to 3 sites, richer editorial layouts, and two brand theme options.",
+      "up to 3 sites, richer editorial layouts, and a broad set of curated brand themes.",
     salesHighlights: [
       "Everything in Starter",
       "A/B experiments — up to 5 concurrent, 3 variants each",
       "All live block types plus rich-text, image, quote, logo strip, and stats",
       "Testimonials and CTA section blocks included",
       "Listing, editorial, and full-text search block",
-      "Minimal theme for a cleaner brand look",
+      "17 curated themes including Corporate Clean, Bold Marketing, and seasonal options",
       "Up to 3 sites and 4 CMS variants per adaptive slot",
     ],
   },
@@ -417,11 +460,14 @@ export const GROWTH_PACKAGE: PackageDefinition = {
  * ─── Entitlements ─────────────────────────────────────────────────────────────
  *
  *   Context blocks:       hero, proof, cta
- *   Content blocks:       all block types including rich-text, image, video,
- *                         quote, logo strip, stats, slider, about, news-list,
- *                         case-highlight, vacancy blocks, and full-text search
+ *   Content blocks:       all block types — rich-text, image, video, quote,
+ *                         logo strip, stats, slider, about, news-list,
+ *                         case-highlight, content section, team, timeline,
+ *                         quick links, text+media, contact, listing, editorial,
+ *                         vacancy, careers (W6), pricing, commerce (product,
+ *                         cart, checkout), and full-text search
  *   Features:             experiments + AI (shadow or live) + analytics
- *   Themes:               default, minimal, bold, custom
+ *   Themes:               default, minimal, bold, custom + all curated presets
  *   Sites:                unlimited
  *   Experiments:          unlimited concurrent; variants uncapped
  *   Variants per slot:    unlimited
@@ -445,7 +491,46 @@ export const PRO_PACKAGE: PackageDefinition = {
     analytics:   true,
   },
 
-  allowedThemes: ["default", "minimal", "bold", "custom"],
+  allowedThemes: [
+    // ── Original platform presets ──────────────────────────────────────────
+    "default",
+    "minimal",
+    "bold",
+    "custom",
+    // ── Curated commercial themes ──────────────────────────────────────────
+    "corporate-blue",
+    "modern-green",
+    "minimal-neutral",
+    "bold-dark",
+    "tech-indigo",
+    "warm-professional",
+    "recruitment-energy",
+    "healthcare-calm",
+    "industrial-strong",
+    "premium-editorial",
+    "dark-contrast",
+    "editorial-classic",
+    "playful-startup",
+    "startup-energy",
+    "corporate-trust",
+    "modern-saas",
+    "corporate-clean",
+    "bold-marketing",
+    // ── Signature themes ─────────────────────────────────────────────────────
+    "portfolio-showcase",
+    "premium-luxury",
+    // ── Seasonal themes ───────────────────────────────────────────────────────
+    //   Seasonal themes must be gated here — enforcePackageLimits() resets any
+    //   theme key absent from this list, silently overwriting the saved value.
+    "valentine-pink",
+    "dutch-orange",
+    // ── Careers / HR themes ───────────────────────────────────────────────────
+    "careers-human",
+    // ── Premium style families ────────────────────────────────────────────────
+    "dark-ai",
+    "clean-corporate",
+    "structured-saas",
+  ],
 
   limits: {
     maxSites:            Infinity,
@@ -464,7 +549,7 @@ export const PRO_PACKAGE: PackageDefinition = {
     salesHighlights: [
       "Everything in Growth",
       "AI decision layer — shadow mode for evaluation, live mode for serving",
-      "All 15 block types: video, slider, about, news list, case highlight, and more",
+      "All 35+ block types: video, slider, pricing, commerce, careers, timeline, and more",
       "Bold and fully custom theme presets",
       "Unlimited sites, experiments, and variants",
       "Enterprise SLA and dedicated onboarding available",
@@ -498,11 +583,46 @@ const PACKAGE_DEFINITIONS: Record<PackageKey, PackageDefinition> = {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
+ * The set of valid package keys as a runtime-checkable constant.
+ *
+ * Use `isValidPackageKey()` for most validation needs. This constant is
+ * exported for callers that need to enumerate valid keys without loading
+ * all package definitions.
+ */
+export const VALID_PACKAGE_KEYS: ReadonlySet<PackageKey> =
+  new Set<PackageKey>(PACKAGE_ORDER);
+
+/**
+ * Runtime type guard: returns true iff `key` is a valid `PackageKey`.
+ *
+ * Use this whenever a package key arrives from an external source — raw DB
+ * rows, URL parameters, legacy JSONB fields — where TypeScript cannot
+ * guarantee the value is one of the known tier strings.
+ *
+ * @example
+ * const raw = tenant.packageKey;          // string | null | undefined at runtime
+ * if (!isValidPackageKey(raw)) {
+ *   console.error(`Unknown package key: "${raw}"`);
+ *   // fall back or return early
+ * }
+ * const pkg = getPackageDefinition(raw);  // typed as PackageKey here
+ */
+export function isValidPackageKey(key: unknown): key is PackageKey {
+  return typeof key === "string" && VALID_PACKAGE_KEYS.has(key as PackageKey);
+}
+
+/**
  * Retrieve the package definition for a given subscription tier key.
  *
  * Returns the authoritative `PackageDefinition` for the named tier.
  * The return type is always defined — TypeScript ensures `packageKey` is a
  * valid `PackageKey`, and `PACKAGE_DEFINITIONS` is exhaustive over that union.
+ *
+ * For untrusted / runtime-sourced keys, call `isValidPackageKey()` first.
+ * Passing an invalid key at runtime returns `undefined` (JS does not throw);
+ * the typed signature intentionally does not surface `| undefined` so that
+ * typed callers can use the result without null-checks.  Untyped callers
+ * (e.g. values cast from DB rows) should guard with `isValidPackageKey`.
  *
  * @param packageKey  The subscription tier key.
  * @returns           The corresponding `PackageDefinition`.

@@ -48,10 +48,14 @@ export function Card({
   return (
     <Tag
       className={cn(
-        "rounded-xl border border-neutral-200 bg-white",
+        // rounded-[var(--card-radius,...)] lets the active family config drive
+        // card corner rounding:  editorial-classic/portfolio → 0px (sharp),
+        // corporate-clean → 0.5rem, bold-marketing → 1rem.
+        // Falls back to 0.75rem (≈ rounded-xl) when no family var is in scope.
+        "rounded-[var(--card-radius,0.75rem)] border border-[var(--border,#e5e7eb)] bg-[var(--card-bg,#ffffff)]",
         paddingMap[padding],
         shadowMap[shadow],
-        hover && "transition-shadow duration-200 hover:shadow-md hover:border-neutral-300",
+        hover && "transition-shadow duration-200 hover:shadow-md cursor-pointer",
         className,
       )}
     >

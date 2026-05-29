@@ -81,6 +81,45 @@ export function RelatedContentBlock({ data, variant: rawVariant }: RelatedConten
 
   const heading = data.heading ?? "Related content";
 
+  // ── related_slider variant ─────────────────────────────────────────────────
+  //
+  // Tailwind-class-driven CSS-snap carousel matching the listing_slider /
+  // news_slider pattern — consistent scroll behaviour across all list-like blocks.
+
+  if (variant === "related_slider") {
+    return (
+      <Section
+        spacing="lg"
+        style={{ borderTop: "1px solid var(--card-border)", background: "var(--bg)" }}
+      >
+        <Container size="lg">
+          <Stack gap={6}>
+            <Text
+              variant="h2"
+              style={{
+                color:      "var(--text)",
+                fontFamily: "var(--font-heading)",
+                fontWeight: "var(--font-heading-weight)",
+              }}
+            >
+              {heading}
+            </Text>
+            <div
+              className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {items.map((item, i) => (
+                <div key={item.id ?? String(i)} className="min-w-72 flex-shrink-0 snap-start sm:min-w-80">
+                  <ResultCard item={toListingItem(item)} layout="card" headingLevel={3} />
+                </div>
+              ))}
+            </div>
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
   // ── carousel ───────────────────────────────────────────────────────────────
   //
   // Horizontally scrolling strip; snaps to each card.
@@ -121,8 +160,8 @@ export function RelatedContentBlock({ data, variant: rawVariant }: RelatedConten
                 paddingInline:        "var(--container-padding, 1rem)",
               }}
             >
-              {items.map((item) => (
-                <div key={item.id} style={{ scrollSnapAlign: "start" }}>
+              {items.map((item, i) => (
+                <div key={item.id ?? String(i)} style={{ scrollSnapAlign: "start" }}>
                   <ResultCard item={toListingItem(item)} layout="card" headingLevel={3} />
                 </div>
               ))}
@@ -155,8 +194,8 @@ export function RelatedContentBlock({ data, variant: rawVariant }: RelatedConten
             </Text>
 
             <Stack gap={4}>
-              {items.map((item) => (
-                <ResultCard key={item.id} item={toListingItem(item)} layout="row" headingLevel={3} />
+              {items.map((item, i) => (
+                <ResultCard key={item.id ?? String(i)} item={toListingItem(item)} layout="row" headingLevel={3} />
               ))}
             </Stack>
           </Stack>
@@ -189,8 +228,8 @@ export function RelatedContentBlock({ data, variant: rawVariant }: RelatedConten
           </Text>
 
           <Grid cols={3} gap="lg">
-            {items.map((item) => (
-              <ResultCard key={item.id} item={toListingItem(item)} layout="card" headingLevel={3} />
+            {items.map((item, i) => (
+              <ResultCard key={item.id ?? String(i)} item={toListingItem(item)} layout="card" headingLevel={3} />
             ))}
           </Grid>
         </Stack>

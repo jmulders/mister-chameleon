@@ -1,0 +1,301 @@
+"use client";
+
+import Link        from "next/link";
+import { usePathname } from "next/navigation";
+import { cn }      from "@/lib/utils";
+
+/**
+ * TenantSubNav
+ *
+ * Two-row navigation for the tenant workspace (/admin/tenants/[tenantId]).
+ *
+ * Primary row — 6 grouped tabs (always visible):
+ *   Overview · Configure · Content · Audience · Platform · Admin
+ *
+ * Secondary row — sub-items for the active primary group (contextual):
+ *   Shown only when the active group has more than one page.
+ *
+ * Tab ownership:
+ *   Content  — CMS · AI · Rules · Variants · Experiments · Slots · Blueprints
+ *   Audience — Interests · Segments · Journey · Scoring
+ *
+ * Note: /behavior/* routes are split across tabs by concept —
+ *   behavior/journey + behavior/ (scoring) → Audience
+ *   behavior/slots → Content
+ *   behavior/ai-policy + behavior/field-fill → Content → AI (active highlight)
+ *
+ * This replaces the previous 20-tab single row that overflowed horizontally.
+ */
+
+interface TenantSubNavProps {
+  tenantId:   string;
+  tenantName: string;
+}
+
+interface SubItem {
+  label:        string;
+  href:         string;
+  exact?:       boolean;
+  activePrefix: string;
+}
+
+interface PrimaryGroup {
+  key:      string;
+  label:    string;
+  href:     string;           // landing page for the group
+  prefix:   string;           // pathname prefix that activates this group
+  icon:     React.ReactNode;
+  items:    SubItem[];        // sub-items (empty = no secondary row)
+}
+
+// ── Inline SVG icons ──────────────────────────────────────────────────────────
+
+function Svg({ children }: { children: React.ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4 shrink-0"
+    >
+      {children}
+    </svg>
+  );
+}
+
+const ICONS = {
+  overview: (
+    <Svg>
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </Svg>
+  ),
+  configure: (
+    <Svg>
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </Svg>
+  ),
+  content: (
+    <Svg>
+      <ellipse cx="12" cy="5" rx="9" ry="3"/>
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+    </Svg>
+  ),
+  audience: (
+    <Svg>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </Svg>
+  ),
+  platform: (
+    <Svg>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </Svg>
+  ),
+  admin: (
+    <Svg>
+      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+      <line x1="1" y1="10" x2="23" y2="10"/>
+    </Svg>
+  ),
+};
+
+export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
+  const pathname = usePathname();
+  const base     = `/admin/tenants/${tenantId}`;
+
+  // ── Group definitions ───────────────────────────────────────────────────────
+
+  const groups: PrimaryGroup[] = [
+    {
+      key:    "overview",
+      label:  "Overview",
+      href:   base,
+      prefix: base,
+      icon:   ICONS.overview,
+      items:  [],   // no secondary row — single page
+    },
+    {
+      key:    "configure",
+      label:  "Configure",
+      href:   `${base}/setup`,
+      prefix: `${base}/setup|${base}/design|${base}/settings|${base}/forms`,
+      icon:   ICONS.configure,
+      items: [
+        { label: "Setup",    href: `${base}/setup`,    activePrefix: `${base}/setup` },
+        { label: "Design",   href: `${base}/design`,   activePrefix: `${base}/design` },
+        { label: "Settings", href: `${base}/settings`, activePrefix: `${base}/settings` },
+        { label: "Forms",    href: `${base}/forms`,    activePrefix: `${base}/forms` },
+      ],
+    },
+    {
+      key:    "content",
+      label:  "Content",
+      href:   `${base}/content`,
+      prefix: `${base}/content|${base}/ai|${base}/rules|${base}/experiments|${base}/behavior/slots|${base}/behavior/ai-policy|${base}/behavior/field-fill|${base}/blueprints|${base}/variants`,
+      icon:   ICONS.content,
+      items: [
+        { label: "CMS",         href: `${base}/content`,              activePrefix: `${base}/content` },
+        { label: "AI",          href: `${base}/ai`,                   activePrefix: `${base}/ai`,     exact: true },
+        { label: "Rules",       href: `${base}/rules`,                activePrefix: `${base}/rules` },
+        { label: "Variants",    href: `${base}/variants`,             activePrefix: `${base}/variants` },
+        { label: "Experiments", href: `${base}/experiments`,          activePrefix: `${base}/experiments` },
+        { label: "Slots",       href: `${base}/behavior/slots`,       activePrefix: `${base}/behavior/slots` },
+        { label: "Blueprints",  href: `${base}/blueprints`,           activePrefix: `${base}/blueprints` },
+      ],
+    },
+    {
+      key:    "audience",
+      label:  "Audience",
+      href:   `${base}/interest-profiles`,
+      prefix: `${base}/interest-profiles|${base}/audience-segments|${base}/behavior/journey|${base}/behavior/context|${base}/behavior`,
+      icon:   ICONS.audience,
+      items: [
+        { label: "Interests", href: `${base}/interest-profiles`,    activePrefix: `${base}/interest-profiles` },
+        { label: "Segments",  href: `${base}/audience-segments`,    activePrefix: `${base}/audience-segments` },
+        { label: "Journey",   href: `${base}/behavior/journey`,     activePrefix: `${base}/behavior/journey` },
+        { label: "Scoring",   href: `${base}/behavior`,             activePrefix: `${base}/behavior`,         exact: true },
+      ],
+    },
+    {
+      key:    "platform",
+      label:  "Platform",
+      href:   `${base}/integrations`,
+      prefix: `${base}/integrations|${base}/assets|${base}/debug|${base}/search|${base}/snippet`,
+      icon:   ICONS.platform,
+      items: [
+        { label: "Integrations", href: `${base}/integrations`,          activePrefix: `${base}/integrations`, exact: true },
+        { label: "Pipeline",     href: `${base}/integrations/pipeline`, activePrefix: `${base}/integrations/pipeline` },
+        { label: "Snippet",       href: `${base}/snippet`,                   activePrefix: `${base}/snippet`, exact: true },
+        { label: "Search",       href: `${base}/search`,                activePrefix: `${base}/search` },
+        { label: "Assets",       href: `${base}/assets`,                activePrefix: `${base}/assets` },
+        { label: "Debug",        href: `${base}/debug`,                 activePrefix: `${base}/debug` },
+      ],
+    },
+    {
+      key:    "admin",
+      label:  "Admin",
+      href:   `${base}/billing`,
+      prefix: `${base}/billing|${base}/users`,
+      icon:   ICONS.admin,
+      items: [
+        { label: "Billing", href: `${base}/billing`, activePrefix: `${base}/billing` },
+        { label: "Users",   href: `${base}/users`,   activePrefix: `${base}/users` },
+      ],
+    },
+  ];
+
+  // ── Active group detection ─────────────────────────────────────────────────
+
+  function isGroupActive(group: PrimaryGroup): boolean {
+    if (group.key === "overview") {
+      // Overview is active only at the exact base path or when NO other group matches
+      const anyOtherActive = groups
+        .filter((g) => g.key !== "overview")
+        .some((g) => isGroupActive(g));
+      return !anyOtherActive;
+    }
+    // Multi-prefix groups: check if pathname matches any segment
+    return group.prefix.split("|").some((prefix) => pathname.startsWith(prefix));
+  }
+
+  function isSubItemActive(item: SubItem): boolean {
+    if (item.label === "AI") {
+      return (
+        pathname === `${base}/ai` ||
+        pathname.startsWith(`${base}/ai-`) ||
+        pathname.startsWith(`${base}/context`) ||
+        pathname.startsWith(`${base}/behavior/ai-policy`) ||
+        pathname.startsWith(`${base}/behavior/field-fill`)
+      );
+    }
+    return item.exact ? pathname === item.activePrefix : pathname.startsWith(item.activePrefix);
+  }
+
+  const activeGroup = groups.find((g) => isGroupActive(g)) ?? groups[0];
+
+  return (
+    <div className="border-b border-neutral-200 bg-white shadow-sm">
+
+      {/* Breadcrumb strip */}
+      <div className="flex items-center gap-2 px-6 pt-3.5 pb-0">
+        <Link
+          href="/admin/tenants"
+          className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-indigo-600 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Tenants
+        </Link>
+        <span className="text-neutral-300 text-xs">/</span>
+        <span className="text-sm font-semibold text-neutral-900 truncate max-w-[220px]">
+          {tenantName || tenantId}
+        </span>
+        <code className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[11px] font-mono text-neutral-500 border border-neutral-200">
+          {tenantId}
+        </code>
+      </div>
+
+      {/* Primary tab row */}
+      <nav
+        className="flex items-center gap-0.5 px-6 pt-2"
+        aria-label={`${tenantId} workspace navigation`}
+      >
+        {groups.map((group) => {
+          const active = group.key === activeGroup.key;
+          return (
+            <Link
+              key={group.key}
+              href={group.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative -mb-px inline-flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2.5 text-sm font-medium transition-all",
+                active
+                  ? "border-indigo-600 bg-indigo-50/60 text-indigo-700"
+                  : "border-transparent text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800",
+              )}
+            >
+              <span className={active ? "text-indigo-500" : "text-neutral-400"}>
+                {group.icon}
+              </span>
+              {group.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Secondary sub-nav row — shown only when the active group has items */}
+      {activeGroup.items.length > 0 && (
+        <div className="flex items-center gap-0 border-t border-neutral-100 bg-neutral-50/50 px-6">
+          {activeGroup.items.map((item) => {
+            const active = isSubItemActive(item);
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "inline-flex items-center px-3.5 py-2 text-xs font-medium transition-all border-b-2 -mb-px",
+                  active
+                    ? "border-indigo-500 text-indigo-700"
+                    : "border-transparent text-neutral-500 hover:text-neutral-800",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

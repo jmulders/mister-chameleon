@@ -96,9 +96,12 @@ const CONTENT_CATEGORY_GROUPS: { label: string; keys: ContentBlockKey[] }[] = [
 ];
 
 const CONTEXT_BLOCK_DISPLAY: Record<ContextBlockKey, string> = {
-  hero:  "Hero",
-  proof: "Proof",
-  cta:   "CTA",
+  hero:         "Hero",
+  proof:        "Proof",
+  cta:          "CTA",
+  feature:      "Feature",
+  conversion:   "Conversion",
+  notification: "Notification",
 };
 
 const CONTENT_BLOCK_DISPLAY: Partial<Record<ContentBlockKey, string>> = {

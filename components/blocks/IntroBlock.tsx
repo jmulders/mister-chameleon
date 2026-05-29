@@ -40,12 +40,12 @@ export function IntroBlock(props: IntroBlockProps) {
   const { label, headline, body, points } = { ...defaults, ...props };
 
   return (
-    <Section spacing="lg" className="bg-white">
+    <Section spacing="lg" style={{ background: "var(--section-subtle-bg)" }}>
       <Container size="lg">
         <Stack gap={12}>
           {/* Header */}
           <Stack gap={4} align="center" className="text-center">
-            {label && <Badge variant="default">{label}</Badge>}
+            {label && <Badge variant="primary">{label}</Badge>}
 
             <Text variant="h2" balance className="max-w-2xl mx-auto">
               {headline}
@@ -62,7 +62,7 @@ export function IntroBlock(props: IntroBlockProps) {
           {points && points.length > 0 && (
             <Grid cols={3} gap="lg">
               {points.map((point, i) => (
-                <Stack key={i} gap={3} className="rounded-xl border border-neutral-200 bg-neutral-50 p-6">
+                <Stack key={i} gap={3} className="rounded-xl p-6" style={{ background: "var(--card-bg)", border: "1px solid var(--border)" }}>
                   <span className="text-3xl">{point.icon}</span>
                   <Text variant="body" color="muted">
                     {point.text}

@@ -21,14 +21,25 @@
  *   If the served_variants schema evolves — e.g. adding a `pathname` column
  *   or a `version` field — only this file needs to change, not the page.
  *
- * ─── Usage (inside after() in the homepage) ──────────────────────────────────
+ * ─── Pre-condition: session row must already exist ────────────────────────────
  *
+ *   `served_variants.session_id` is a NOT NULL FK → `sessions(id)`.
+ *   The caller MUST call `upsertSession({ id: sessionId, ... })` and confirm
+ *   `result.ok === true` before calling this function.  Calling this without
+ *   a prior successful upsert will throw a FK violation at the DB level.
+ *
+ * ─── Usage (in the homepage Server Component) ─────────────────────────────────
+ *
+ *   import { upsertSession, sessionInputFromContext } from "@/data/repositories";
  *   import { logServedVariants } from "@/experience/log-served-variants";
  *
- *   after(async () => {
- *     // ...upsertSession...
- *     await logServedVariants(sessionId, experience, tenantId);
+ *   const sessionUpsert = await upsertSession({
+ *     id: sessionId,
+ *     ...sessionInputFromContext(input, input.pathname ?? "/"),
  *   });
+ *   if (sessionUpsert.ok) {
+ *     await logServedVariants(sessionId, experience, tenantId);
+ *   }
  *
  * ─── Error handling ──────────────────────────────────────────────────────────
  *
@@ -50,7 +61,8 @@ import type { HomepageExperience } from "./types";
  * `HomepageExperience.plan` and writes them to the `served_variants` table.
  *
  * @param sessionId   The UUID from the visitor's `mc_session_id` cookie.
- *                    Must match an existing `sessions.id` row (FK constraint).
+ *                    MUST match an existing `sessions.id` row — call
+ *                    `upsertSession` and verify `ok === true` before this.
  * @param experience  The fully composed homepage experience.
  * @returns           A `RepositoryResult` — ok:true on success, ok:false on error.
  */

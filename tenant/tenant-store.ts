@@ -67,8 +67,10 @@ import type {
   CMSProviderName,
 } from "./types";
 import { enforcePackageLimits }  from "./package-enforcement";
-import { getDb }                 from "@/data/db";
+import { DESIGN_PRESETS }        from "./design-theme";
+import { getDb, isNetworkError } from "@/data/db";
 import { getDomainByHostname }   from "./domain-store";
+import { logger }                from "@/lib/logger";
 
 // ── Typed query helpers ───────────────────────────────────────────────────────
 //
@@ -103,13 +105,23 @@ export type StoreResult<T> =
 // ── Allowed value sets ────────────────────────────────────────────────────────
 // Used in validateTenantSettings — mirrors the union types in types.ts without
 // importing them as values (they are type-only).
+//
+// VALID_THEME_KEYS is derived from DESIGN_PRESETS — the platform's single
+// source of truth for available themes.  Adding a new theme to DESIGN_PRESETS
+// automatically makes it valid in the save path without a separate update here.
 
 const VALID_PACKAGE_KEYS       = new Set<PackageKey>(["starter", "growth", "pro"]);
 const VALID_AI_MODES           = new Set(["disabled", "shadow", "live"]);
 const VALID_AI_PROVIDER_NAMES  = new Set(["openai", "claude", "gemini"]);
 const VALID_CMS_PROVIDERS    = new Set<CMSProviderName>(["sanity", "storyblok", "statamic", "mock"]);
-const VALID_THEME_KEYS       = new Set<ThemeKey>(["default", "minimal", "bold", "custom"]);
-const VALID_CONTEXT_BLOCKS   = new Set<ContextBlockKey>(["hero", "proof", "cta"]);
+const VALID_THEME_KEYS       = new Set<ThemeKey>(
+  Object.keys(DESIGN_PRESETS) as ThemeKey[],
+);
+const VALID_CONTEXT_BLOCKS   = new Set<ContextBlockKey>([
+  "hero", "proof", "cta",
+  // adaptive slots
+  "feature", "conversion", "notification",
+]);
 const VALID_CONTENT_BLOCKS   = new Set<ContentBlockKey>([
   // text
   "textSection", "richText",
@@ -126,8 +138,21 @@ const VALID_CONTENT_BLOCKS   = new Set<ContentBlockKey>([
   "search",
   // conversion
   "ctaSection",
+  // conversion / pricing
+  "pricingSection",
   // forms
   "formSection",
+  // careers
+  "processSteps", "recruiterPanel",
+  // content / editorial
+  "contentSection", "teamSection",
+  // new core blocks
+  "timeline", "quickLinks", "textMedia", "contactSection",
+  // commerce / product
+  "productOverview", "productDetail", "cartSummary", "checkoutBlock",
+  // map
+  "mapBlock",
+  // NOTE: "searchResults" is intentionally excluded — internal rendering concept only
 ]);
 
 // ── Validation ────────────────────────────────────────────────────────────────
@@ -332,6 +357,13 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
         const GROUPED_OVERRIDE_KEYS = [
           "color", "typography", "radius", "spacing",
           "border", "shadow", "motion", "component",
+          // "layout" carries structural chrome tokens: header/footer shell colors
+          // (headerBg, headerFg, headerBorder, footerBg, footerFg, footerBorder)
+          // and navigation typography overrides (navLinkSize, navLinkWeight,
+          // navLinkTracking, navDropdownItemSize, footerNavSize).
+          // These map to --header-*, --footer-*, --nav-link-* CSS custom properties
+          // via LAYOUT_CSS_VARS in resolve-theme.ts.
+          "layout",
         ] as const;
         for (const group of GROUPED_OVERRIDE_KEYS) {
           if (to[group] === undefined) continue;
@@ -446,7 +478,18 @@ async function fetchAllTenants(): Promise<TenantSettings[]> {
   );
 
   if (error) {
-    console.error("[tenant-store] fetchAllTenants DB error:", error.message);
+    if (isNetworkError(error.message)) {
+      logger.error(
+        "[tenant-store] fetchAllTenants: network-level DB failure — " +
+        "Supabase may be paused or unreachable. " +
+        "Check https://supabase.com/dashboard and verify NEXT_PUBLIC_SUPABASE_URL.",
+        { errorMessage: error.message },
+      );
+    } else {
+      logger.error("[tenant-store] fetchAllTenants DB error", {
+        message: error.message,
+      });
+    }
     return [];
   }
 
@@ -485,21 +528,50 @@ export async function getAllTenants(): Promise<TenantSettings[]> {
  * if (!tenant) { ... }
  */
 export async function getTenantById(tenantId: string): Promise<TenantSettings | null> {
-  const { data, error } = asSingle<{ settings: Record<string, unknown> }>(
+  // Select both `tenant_id` and `settings` so we can inject the DB column as
+  // the authoritative `tenantId` — identical to what fetchAllTenants() does.
+  //
+  // The JSONB settings blob may lack `tenantId` (rows inserted manually,
+  // legacy data written before validation was enforced, or rows where the JSONB
+  // was not yet written with a `tenantId` key).  Relying on `settings.tenantId`
+  // alone causes "tenantId: must be a non-empty string" in validateTenantSettings
+  // when any downstream action calls saveTenant() after reading with this function.
+  const { data, error } = asSingle<{ tenant_id: string; settings: Record<string, unknown> }>(
     await getDb()
       .from("tenant_settings")
-      .select("settings")
+      .select("tenant_id, settings")
       .eq("tenant_id", tenantId)
       .maybeSingle(),
   );
 
   if (error) {
-    console.error("[tenant-store] getTenantById DB error:", error.message);
+    if (isNetworkError(error.message)) {
+      logger.error(
+        "[tenant-store] getTenantById: network-level DB failure — " +
+        "Supabase may be paused or unreachable. " +
+        "Check https://supabase.com/dashboard and verify NEXT_PUBLIC_SUPABASE_URL.",
+        { tenantId, errorMessage: error.message },
+      );
+    } else {
+      logger.error("[tenant-store] getTenantById DB error", {
+        tenantId,
+        message: error.message,
+      });
+    }
     return null;
   }
 
   if (!data) return null;
-  return data.settings as unknown as TenantSettings;
+
+  // Spread the JSONB blob first, then override tenantId with the DB column.
+  // The DB column is the true primary key and is always present and unique.
+  // Double-cast via `unknown` is required here because the hand-authored
+  // Database type lacks the PostgrestVersion discriminant, causing Supabase's
+  // typed helpers to narrow `settings` to `Record<string, unknown>`.
+  return {
+    ...(data.settings as unknown as TenantSettings),
+    tenantId: data.tenant_id,
+  };
 }
 
 /**
@@ -556,6 +628,47 @@ export async function getTenantByDomain(hostname: string): Promise<TenantSetting
     if (t.additionalDomains?.some((d) => d.toLowerCase().trim() === normalised)) return true;
     return false;
   }) ?? null;
+}
+
+/**
+ * Returns the tenant whose snippet siteKey matches the given string, or null.
+ *
+ * Uses a direct Supabase JSONB column filter so only the matching row is
+ * fetched from the database — O(1) query instead of loading all tenants and
+ * filtering in application code.  This is the correct lookup path for the
+ * hot /api/snippet/decide endpoint which is called on every visitor pageview.
+ *
+ * @param siteKey  The public snippet site key, e.g. "sk_live_abc123".
+ *
+ * @example
+ * const tenant = await getTenantBySiteKey("sk_live_abc123");
+ * if (!tenant) return 403;
+ */
+export async function getTenantBySiteKey(siteKey: string): Promise<TenantSettings | null> {
+  const { data, error } = asSingle<{ tenant_id: string; settings: Record<string, unknown> }>(
+    await getDb()
+      .from("tenant_settings")
+      .select("tenant_id, settings")
+      // PostgREST JSONB path: settings->'snippet'->>'siteKey'
+      // Uses the ->> text operator so the comparison is against a plain string.
+      .filter("settings->snippet->>siteKey", "eq", siteKey)
+      .maybeSingle(),
+  );
+
+  if (error) {
+    logger.error("[tenant-store] getTenantBySiteKey DB error", {
+      siteKey,
+      message: error.message,
+    });
+    return null;
+  }
+
+  if (!data) return null;
+
+  return {
+    ...(data.settings as TenantSettings),
+    tenantId: data.tenant_id,
+  };
 }
 
 /**
@@ -619,10 +732,18 @@ export async function saveTenant(
   }
 
   // ── Persist (upsert) ──────────────────────────────────────────────────────
+  //
+  // `id` is set to the same value as `tenant_id` (the tenant slug).
+  // The live tenant_settings table has an `id` NOT NULL column that was added
+  // by the Supabase dashboard after the original migration was applied.  It
+  // mirrors tenant_id and must be included explicitly because the column has
+  // no DEFAULT — omitting it causes a null constraint violation on INSERT.
+  // On the UPDATE (conflict) path it is idempotent: the slug doesn't change.
   const { error } = await getDb()
     .from("tenant_settings")
     .upsert(
       {
+        id:         enforced.tenantId,
         tenant_id:  enforced.tenantId,
         settings:   enforced as unknown as Record<string, unknown>,
         updated_at: new Date().toISOString(),
@@ -682,9 +803,12 @@ export async function createTenant(
   }
 
   // ── Insert new row ────────────────────────────────────────────────────────
+  //
+  // `id` mirrors `tenant_id` — see saveTenant() for the full explanation.
   const { error } = await getDb()
     .from("tenant_settings")
     .insert({
+      id:         enforced.tenantId,
       tenant_id:  enforced.tenantId,
       settings:   enforced as unknown as Record<string, unknown>,
       updated_at: new Date().toISOString(),
@@ -699,4 +823,53 @@ export async function createTenant(
     data: enforced,
     ...(violations.length > 0 ? { warnings: [...violations] } : {}),
   };
+}
+
+// ── getTenantPipelineStages ────────────────────────────────────────────────────
+
+/**
+ * Load the enrichment pipeline stage configuration for a tenant from the
+ * `tenant_pipeline_stages` table (migration 090).
+ *
+ * Returns an array of stage rows that can be passed directly as the
+ * `stageConfig` option of `buildCompanyCrmChain`.
+ *
+ * Returns an empty array when:
+ *   • The table does not exist yet (migration 090 not applied).
+ *   • No rows exist for this tenant (defaults in the chain are used).
+ *   • Any DB error (safe fallback — pipeline runs in default order).
+ */
+export async function getTenantPipelineStages(
+  tenantId: string,
+): Promise<Array<{ stageKey: string; position: number; enabled: boolean }>> {
+  if (!tenantId) return [];
+
+  try {
+    const { data, error } = await getDb()
+      .from("tenant_pipeline_stages")
+      .select("stage_key, position, enabled")
+      .eq("tenant_id", tenantId);
+
+    // 42P01 = table does not exist (migration 090 not yet applied) — silent fallback.
+    if (error) {
+      if (error.code !== "42P01") {
+        logger.warn("[tenant-store] getTenantPipelineStages DB error", {
+          tenantId,
+          code:    error.code,
+          message: error.message,
+        });
+      }
+      return [];
+    }
+
+    if (!data || data.length === 0) return [];
+
+    return (data as { stage_key: string; position: number; enabled: boolean }[]).map((r) => ({
+      stageKey: r.stage_key,
+      position: r.position,
+      enabled:  Boolean(r.enabled),
+    }));
+  } catch {
+    return [];
+  }
 }

@@ -40,7 +40,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { getPackageDefinition, getPackageOption } from "@/tenant";
+import { getPackageDefinition, getPackageOption, isValidPackageKey } from "@/tenant";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Text } from "@/components/primitives/Text";
@@ -55,11 +55,13 @@ import type {
   TenantAiSettings,
   TenantAiProviderName,
 } from "@/tenant";
+import { THEME_CATALOG } from "@/design-system/theme/presets";
+import { BlockCatalogue }  from "./_components/BlockCatalogue";
 
 // ── Local aliases ──────────────────────────────────────────────────────────────
 
 type AiMode      = TenantAiSettings["mode"];
-type CmsProvider = "sanity" | "storyblok" | "statamic" | "mock";
+type CmsProvider = "sanity" | "storyblok" | "statamic" | "mock" | "platform";
 
 // ── Provider slot state ────────────────────────────────────────────────────────
 //
@@ -98,9 +100,11 @@ interface FormState {
     shadowProvider:      ProviderSlotState;
   };
   cms: {
-    provider:  CmsProvider;
-    projectId: string;
-    dataset:   string;
+    provider:   CmsProvider;
+    projectId:  string;
+    dataset:    string;
+    apiVersion: string;
+    studioUrl:  string;
   };
   design: {
     theme:        ThemeKey;
@@ -146,10 +150,11 @@ const AI_PROVIDER_DISPLAY: Record<TenantAiProviderName | "", string> = {
 };
 
 const ALL_CMS_PROVIDERS: readonly CmsProvider[] = [
-  "sanity", "storyblok", "statamic", "mock",
+  "platform", "sanity", "storyblok", "statamic", "mock",
 ];
 
 const CMS_PROVIDER_DISPLAY: Record<CmsProvider, string> = {
+  platform:  "Platform (built-in) — no external CMS needed",
   sanity:    "Sanity",
   storyblok: "Storyblok",
   statamic:  "Statamic",
@@ -158,28 +163,46 @@ const CMS_PROVIDER_DISPLAY: Record<CmsProvider, string> = {
 
 /** Dynamic field labels per CMS provider. */
 const CMS_FIELD_LABELS: Record<CmsProvider, { projectId: string; dataset: string }> = {
+  platform:  { projectId: "Project ID",  dataset: "Dataset" },
   sanity:    { projectId: "Project ID",  dataset: "Dataset (e.g. production)" },
   storyblok: { projectId: "Space ID",    dataset: "Environment" },
   statamic:  { projectId: "Site ID",     dataset: "Collection" },
   mock:      { projectId: "Project ID",  dataset: "Dataset" },
 };
 
-const ALL_THEMES: readonly ThemeKey[] = ["default", "minimal", "bold", "custom"];
+// ── Theme helpers ──────────────────────────────────────────────────────────────
+//
+// Labels and hints are derived from THEME_CATALOG (single source of truth for
+// curated themes). Platform originals (default/minimal/bold/custom) are kept
+// explicit because their ThemeKey differs from their ThemePresetKey.
 
-const THEME_DISPLAY: Record<ThemeKey, string> = {
-  default: "Default",
-  minimal: "Minimal",
-  bold:    "Bold",
+/** Hard-coded labels for the 4 platform-original themes. */
+const PLATFORM_THEME_LABELS: Partial<Record<ThemeKey, string>> = {
+  default: "Platform Default",
+  minimal: "Enterprise Clean",
+  bold:    "Bold Brand",
   custom:  "Custom",
 };
 
-/** Minimum package hint per theme — shown in the select option label. */
-const THEME_HINTS: Record<ThemeKey, string> = {
+/** Hard-coded package hints for the 4 platform-original themes. */
+const PLATFORM_THEME_HINTS: Partial<Record<ThemeKey, string>> = {
   default: "",
   minimal: "Growth or Pro",
   bold:    "Pro only",
   custom:  "Pro only",
 };
+
+/** Returns a human-readable label for any ThemeKey. */
+function themeLabel(key: ThemeKey): string {
+  if (PLATFORM_THEME_LABELS[key]) return PLATFORM_THEME_LABELS[key]!;
+  return THEME_CATALOG.find((e) => e.presetKey === key)?.label ?? key;
+}
+
+/** Returns a package-requirement hint for any ThemeKey in the context of pkgDef. */
+function themeHint(key: ThemeKey, pkgAllowedThemes: readonly ThemeKey[]): string {
+  if (pkgAllowedThemes.includes(key)) return PLATFORM_THEME_HINTS[key] ?? "";
+  return "upgrade required";
+}
 
 const ALL_CONTEXT_BLOCKS: readonly ContextBlockKey[] = ["hero", "proof", "cta"];
 
@@ -233,6 +256,22 @@ const CONTENT_BLOCK_HINTS: Record<ContentBlockKey, string> = {
   // careers / W6
   processSteps:       "Pro only",
   recruiterPanel:     "Pro only",
+  // conversion / pricing
+  pricingSection:     "Pro only",
+  // content / editorial
+  contentSection:     "Pro only",
+  teamSection:        "Pro only",
+  // new core blocks
+  timeline:           "Pro only",
+  quickLinks:         "Pro only",
+  textMedia:          "Pro only",
+  contactSection:     "Pro only",
+  // commerce / product
+  productOverview:    "Pro only",
+  productDetail:      "Pro only",
+  cartSummary:        "Pro only",
+  checkoutBlock:      "Pro only",
+  mapBlock:           "All plans",
 };
 
 /** Human-readable display names for content blocks — used in the diff panel. */
@@ -265,6 +304,22 @@ const CONTENT_BLOCK_DISPLAY: Record<ContentBlockKey, string> = {
   // careers / W6
   processSteps:       "Process steps",
   recruiterPanel:     "Recruiter panel",
+  // conversion / pricing
+  pricingSection:     "Pricing section",
+  // content / editorial
+  contentSection:     "Content section",
+  teamSection:        "Team",
+  // new core blocks
+  timeline:           "Timeline",
+  quickLinks:         "Quick links",
+  textMedia:          "Text + media",
+  contactSection:     "Contact",
+  // commerce / product
+  productOverview:    "Product overview",
+  productDetail:      "Product detail",
+  cartSummary:        "Cart summary",
+  checkoutBlock:      "Checkout",
+  mapBlock:           "Map",
 };
 
 // ── Package diff helpers ──────────────────────────────────────────────────────
@@ -335,13 +390,13 @@ function computePackageDiff(from: PackageDefinition, to: PackageDefinition): Dif
   const lostThemes   = from.allowedThemes.filter((t) => !to.allowedThemes.includes(t));
   if (gainedThemes.length > 0) {
     lines.push({
-      label:     `Themes: ${gainedThemes.map((t) => THEME_DISPLAY[t]).join(", ")}`,
+      label:     `Themes: ${gainedThemes.map((t) => themeLabel(t)).join(", ")}`,
       direction: "gain",
     });
   }
   if (lostThemes.length > 0) {
     lines.push({
-      label:     `Themes removed: ${lostThemes.map((t) => THEME_DISPLAY[t]).join(", ")}`,
+      label:     `Themes removed: ${lostThemes.map((t) => themeLabel(t)).join(", ")}`,
       direction: "lose",
     });
   }
@@ -395,41 +450,43 @@ function initFormState(tenant: TenantSettings): FormState {
       primaryDomain:     tenant.primaryDomain     ?? "",
       additionalDomains: tenant.additionalDomains ? tenant.additionalDomains.join("\n") : "",
     },
-    packageKey: tenant.packageKey,
+    packageKey: (isValidPackageKey(tenant.packageKey) ? tenant.packageKey : "starter") as PackageKey,
     ai: {
-      mode:                tenant.ai.mode,
-      confidenceThreshold: tenant.ai.confidenceThreshold !== undefined
+      mode:                tenant.ai?.mode ?? "disabled",
+      confidenceThreshold: tenant.ai?.confidenceThreshold !== undefined
                              ? String(tenant.ai.confidenceThreshold)
                              : "",
       liveProvider: {
-        name:   tenant.ai.liveProvider?.name   ?? "",
+        name:   tenant.ai?.liveProvider?.name   ?? "",
         apiKey: "",  // page strips stored key; "" means "no new key"
-        model:  tenant.ai.liveProvider?.model  ?? "",
+        model:  tenant.ai?.liveProvider?.model  ?? "",
       },
       shadowProvider: {
-        name:   tenant.ai.shadowProvider?.name   ?? "",
+        name:   tenant.ai?.shadowProvider?.name   ?? "",
         apiKey: "",
-        model:  tenant.ai.shadowProvider?.model  ?? "",
+        model:  tenant.ai?.shadowProvider?.model  ?? "",
       },
     },
     cms: {
-      provider:  tenant.cms.provider as CmsProvider,
-      projectId: tenant.cms.projectId ?? "",
-      dataset:   tenant.cms.dataset ?? "",
+      provider:   (tenant.cms?.provider ?? "mock") as CmsProvider,
+      projectId:  tenant.cms?.projectId  ?? "",
+      dataset:    tenant.cms?.dataset    ?? "",
+      apiVersion: tenant.cms?.apiVersion ?? "",
+      studioUrl:  tenant.cms?.studioUrl  ?? "",
     },
     design: {
-      theme:        tenant.design.theme,
-      primaryColor: tenant.design.primaryColor ?? "",
-      primaryFont:  tenant.design.primaryFont ?? "",
+      theme:        tenant.design?.theme        ?? "default",
+      primaryColor: tenant.design?.primaryColor ?? "",
+      primaryFont:  tenant.design?.primaryFont  ?? "",
     },
     features: {
-      experiments: tenant.features.experiments,
-      ai:          tenant.features.ai,
-      analytics:   tenant.features.analytics,
+      experiments: tenant.features?.experiments ?? false,
+      ai:          tenant.features?.ai          ?? false,
+      analytics:   tenant.features?.analytics   ?? false,
     },
     blocks: {
-      context: [...tenant.blocks.context],
-      content: [...tenant.blocks.content],
+      context: [...(tenant.blocks?.context ?? [])],
+      content: [...(tenant.blocks?.content ?? [])],
     },
   };
 }
@@ -500,8 +557,10 @@ function formStateToSettings(tenantId: string, form: FormState): TenantSettings 
     },
     cms: {
       provider: form.cms.provider,
-      ...(form.cms.projectId.trim() ? { projectId: form.cms.projectId.trim() }          : {}),
-      ...(form.cms.dataset.trim()   ? { dataset:   form.cms.dataset.trim() }            : {}),
+      ...(form.cms.projectId.trim()  ? { projectId:  form.cms.projectId.trim() }  : {}),
+      ...(form.cms.dataset.trim()    ? { dataset:    form.cms.dataset.trim() }    : {}),
+      ...(form.cms.apiVersion.trim() ? { apiVersion: form.cms.apiVersion.trim() } : {}),
+      ...(form.cms.studioUrl.trim()  ? { studioUrl:  form.cms.studioUrl.trim() }  : {}),
     },
     design: {
       theme: form.design.theme,
@@ -836,9 +895,18 @@ function ProviderSlotFields({
 export function TenantSettingsForm({
   tenant,
   existingKeys = { hasLiveKey: false, hasShadowKey: false },
+  isSuperAdmin = false,
+  planFeatures,
 }: {
-  tenant:       TenantSettings;
+  tenant:        TenantSettings;
   existingKeys?: { hasLiveKey: boolean; hasShadowKey: boolean };
+  /** When false the Package selector is read-only — tenant-admin users cannot
+   *  override their plan directly.  They manage their subscription via the
+   *  Billing page instead. */
+  isSuperAdmin?: boolean;
+  /** Effective plan feature flags — overrides package-level defaults when provided.
+   *  Use to enforce DB-configured billing plan features (e.g. aiDecisioning, abExperiments). */
+  planFeatures?: { aiDecisioning: boolean; abExperiments: boolean };
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => initFormState(tenant));
@@ -848,12 +916,18 @@ export function TenantSettingsForm({
   // Derived — recomputed on every render from the current packageKey.
   const pkgDef = getPackageDefinition(form.packageKey);
 
+  // ── Effective feature gates ─────────────────────────────────────────────────
+  // planFeatures (from billing_plans DB table) takes precedence over package-level defaults.
+  // This ensures admin-configured plan feature changes take effect without code deploys.
+  const canUseAi          = planFeatures !== undefined ? planFeatures.aiDecisioning  : pkgDef.allowedFeatures.ai;
+  const canUseExperiments = planFeatures !== undefined ? planFeatures.abExperiments  : pkgDef.allowedFeatures.experiments;
+
   // ── Section-level contextual hints ─────────────────────────────────────────
   // Computed from current form state so they stay in sync as the user edits.
 
   const aiSectionHint: string | undefined =
-    !pkgDef.allowedFeatures.ai
-      ? "AI is not available on this package — upgrade to Pro to enable shadow or live mode."
+    !canUseAi
+      ? "AI Decisioning is not enabled on this tenant's current plan — update the plan in /admin/platform/billing/plans to unlock shadow or live mode."
       : form.ai.mode === "shadow"
         ? "Shadow mode logs AI decisions but never serves them to visitors. Good for evaluating model quality before going live."
         : form.ai.mode === "live"
@@ -861,11 +935,13 @@ export function TenantSettingsForm({
           : undefined;
 
   const cmsSectionHint: string | undefined =
-    form.cms.provider === "mock"
-      ? "Mock provider is for local development only — switch to a real CMS provider before going live."
-      : !form.cms.projectId.trim()
-        ? "Enter the project ID and dataset below to fully configure this CMS integration."
-        : undefined;
+    form.cms.provider === "platform"
+      ? "Platform CMS stores variant content directly in your Mister Chameleon database — no external CMS needed. Edit variants on the Content tab."
+      : form.cms.provider === "mock"
+        ? "Mock provider is for local development only — switch to a real CMS provider before going live."
+        : !form.cms.projectId.trim()
+          ? "Enter the project ID and dataset below to fully configure this CMS integration."
+          : undefined;
 
   const blocksSectionHint: string | undefined =
     "Context blocks are rendered and personalised by the adaptive rules engine. Content blocks are CMS-authored page sections. Both lists are capped by your package.";
@@ -1016,8 +1092,16 @@ export function TenantSettingsForm({
         </div>
       </SectionCard>
 
-      {/* ── Basic ─────────────────────────────────────────────────────────── */}
-      <SectionCard title="Basic">
+      {/* ── Package ───────────────────────────────────────────────────────── */}
+      <SectionCard
+        title="Package"
+        badge={isSuperAdmin ? "Super-admin" : undefined}
+        hint={
+          isSuperAdmin
+            ? "The commercial tier determines which blocks, themes, AI capabilities, and experiment limits are available to this tenant. Only super-admins can change this directly."
+            : "Your current plan and entitlements. To upgrade, downgrade, or manage your payment method, go to the Billing page."
+        }
+      >
         <div className="space-y-4">
           <Field
             label="Tenant ID"
@@ -1028,29 +1112,66 @@ export function TenantSettingsForm({
             </div>
           </Field>
 
-          <Field label="Package">
-            <select
-              value={form.packageKey}
-              onChange={(e) => handlePackageChange(e.target.value as PackageKey)}
-              className={selectCls}
-            >
-              {ALL_PACKAGES.map((key) => (
-                <option key={key} value={key}>
-                  {PACKAGE_DISPLAY[key]}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {isSuperAdmin ? (
+            /* ── Super-admin: editable package selector ── */
+            <>
+              <Field label="Package">
+                <select
+                  value={form.packageKey}
+                  onChange={(e) => handlePackageChange(e.target.value as PackageKey)}
+                  className={selectCls}
+                >
+                  {ALL_PACKAGES.map((key) => (
+                    <option key={key} value={key}>
+                      {PACKAGE_DISPLAY[key]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-          {/* Always-visible package summary — description + key limits */}
-          <PackageSummaryStrip pkgDef={pkgDef} />
+              {/* Always-visible package summary — description + key limits */}
+              <PackageSummaryStrip pkgDef={pkgDef} />
 
-          {/* Change diff — only shown when the package selection has changed */}
-          {form.packageKey !== tenant.packageKey && (
-            <PackageChangeDiff
-              from={getPackageDefinition(tenant.packageKey)}
-              to={pkgDef}
-            />
+              {/* Change diff — only shown when the package selection has changed */}
+              {form.packageKey !== tenant.packageKey && isValidPackageKey(tenant.packageKey) && (
+                <PackageChangeDiff
+                  from={getPackageDefinition(tenant.packageKey)}
+                  to={pkgDef}
+                />
+              )}
+            </>
+          ) : (
+            /* ── Tenant-admin: read-only plan display + billing link ── */
+            <>
+              <Field label="Current plan">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
+                    {PACKAGE_DISPLAY[tenant.packageKey]}
+                  </div>
+                  <a
+                    href={`/admin/tenants/${tenant.tenantId}/billing`}
+                    className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors"
+                  >
+                    Manage subscription →
+                  </a>
+                </div>
+              </Field>
+
+              {/* Read-only summary of current entitlements */}
+              <PackageSummaryStrip pkgDef={pkgDef} />
+
+              <p className="text-xs text-neutral-400">
+                To upgrade or downgrade your plan, add a payment method, or view your invoices,
+                use the{" "}
+                <a
+                  href={`/admin/tenants/${tenant.tenantId}/billing`}
+                  className="font-medium text-brand-600 underline hover:no-underline"
+                >
+                  Billing page
+                </a>
+                .
+              </p>
+            </>
           )}
         </div>
       </SectionCard>
@@ -1058,14 +1179,14 @@ export function TenantSettingsForm({
       {/* ── AI ────────────────────────────────────────────────────────────── */}
       <SectionCard
         title="AI Settings"
-        badge={!pkgDef.allowedFeatures.ai ? "Pro plan required" : undefined}
+        badge={!canUseAi ? "Pro plan required" : undefined}
         hint={aiSectionHint}
       >
         <div className="space-y-4">
           <Field label="Mode">
             <select
               value={form.ai.mode}
-              disabled={!pkgDef.allowedFeatures.ai}
+              disabled={!canUseAi}
               onChange={(e) =>
                 setForm((f) => ({ ...f, ai: { ...f.ai, mode: e.target.value as AiMode } }))
               }
@@ -1085,7 +1206,7 @@ export function TenantSettingsForm({
               label="Live provider"
               state={form.ai.liveProvider}
               hasExistingKey={existingKeys.hasLiveKey}
-              disabled={!pkgDef.allowedFeatures.ai}
+              disabled={!canUseAi}
               onChange={(next) =>
                 setForm((f) => ({ ...f, ai: { ...f.ai, liveProvider: next } }))
               }
@@ -1098,7 +1219,7 @@ export function TenantSettingsForm({
               label="Shadow provider"
               state={form.ai.shadowProvider}
               hasExistingKey={existingKeys.hasShadowKey}
-              disabled={!pkgDef.allowedFeatures.ai}
+              disabled={!canUseAi}
               onChange={(next) =>
                 setForm((f) => ({ ...f, ai: { ...f.ai, shadowProvider: next } }))
               }
@@ -1119,7 +1240,7 @@ export function TenantSettingsForm({
               max="1"
               step="0.01"
               value={form.ai.confidenceThreshold}
-              disabled={!pkgDef.allowedFeatures.ai || form.ai.mode !== "live"}
+              disabled={!canUseAi || form.ai.mode !== "live"}
               placeholder="0.70"
               onChange={(e) =>
                 setForm((f) => ({
@@ -1139,12 +1260,24 @@ export function TenantSettingsForm({
           <Field label="Provider">
             <select
               value={form.cms.provider}
-              onChange={(e) =>
+              onChange={(e) => {
+                const next = e.target.value as CmsProvider;
                 setForm((f) => ({
                   ...f,
-                  cms: { ...f.cms, provider: e.target.value as CmsProvider },
-                }))
-              }
+                  cms: {
+                    ...f.cms,
+                    provider: next,
+                    // Clear provider-specific credential fields on switch so stale
+                    // values from the previous provider (e.g. a Sanity projectId)
+                    // are not saved alongside the new provider and don't trigger
+                    // SDK validation errors in the CMS factory.
+                    projectId:  "",
+                    dataset:    "",
+                    apiVersion: undefined,
+                    studioUrl:  undefined,
+                  },
+                }));
+              }}
               className={selectCls}
             >
               {ALL_CMS_PROVIDERS.map((p) => (
@@ -1155,33 +1288,115 @@ export function TenantSettingsForm({
             </select>
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={CMS_FIELD_LABELS[form.cms.provider].projectId}>
-              <input
-                type="text"
-                value={form.cms.projectId}
-                disabled={form.cms.provider === "mock"}
-                placeholder={form.cms.provider === "mock" ? "Not required" : ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, cms: { ...f.cms, projectId: e.target.value } }))
-                }
-                className={inputCls}
-              />
-            </Field>
+          {/* Platform CMS info panel — no credentials needed */}
+          {form.cms.provider === "platform" && (
+            <div className="rounded-md border border-brand-200 bg-brand-50 px-3 py-3 text-xs text-brand-700 space-y-1">
+              <p className="font-semibold">✓ No external CMS required</p>
+              <p>
+                Variant content (hero, proof, CTA) is stored directly in the Mister Chameleon database.
+                Edit content on the{" "}
+                <a
+                  href={`/admin/tenants/${tenant.tenantId}/content`}
+                  className="underline font-medium hover:no-underline"
+                >
+                  Content tab →
+                </a>
+              </p>
+              <p className="text-brand-500">
+                Note: Page structure, navigation, and entity documents (news, vacancies) are not
+                supported in Platform CMS. For full page management, connect an external CMS.
+              </p>
+            </div>
+          )}
 
-            <Field label={CMS_FIELD_LABELS[form.cms.provider].dataset}>
-              <input
-                type="text"
-                value={form.cms.dataset}
-                disabled={form.cms.provider === "mock"}
-                placeholder={form.cms.provider === "mock" ? "Not required" : ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, cms: { ...f.cms, dataset: e.target.value } }))
-                }
-                className={inputCls}
-              />
-            </Field>
-          </div>
+          {/* Validation warning: projectId + dataset are required for Sanity only.
+              Storyblok and Statamic use platform-level credentials (env vars or
+              Platform → CMS settings) so leaving these blank is valid for them. */}
+          {form.cms.provider === "sanity" && !form.cms.projectId.trim() && (
+            <div className="rounded-md border border-warning-300 bg-warning-50 px-3 py-2 text-xs text-warning-700">
+              <strong>⚠ Project ID required</strong> — Sanity pages will not load until a Project ID is configured.
+              {!form.cms.dataset.trim() && " Dataset is also required."}
+            </div>
+          )}
+          {form.cms.provider === "sanity" && form.cms.projectId.trim() && !form.cms.dataset.trim() && (
+            <div className="rounded-md border border-warning-300 bg-warning-50 px-3 py-2 text-xs text-warning-700">
+              <strong>⚠ Dataset required</strong> — enter the Sanity dataset name (e.g. <code>production</code>).
+            </div>
+          )}
+
+          {/* Credential fields — hidden for platform and mock providers */}
+          {form.cms.provider !== "platform" && (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label={CMS_FIELD_LABELS[form.cms.provider].projectId}
+                  hint={form.cms.provider === "sanity" ? "Required — overrides SANITY_PROJECT_ID" : undefined}
+                >
+                  <input
+                    type="text"
+                    value={form.cms.projectId}
+                    disabled={form.cms.provider === "mock"}
+                    placeholder={form.cms.provider === "mock" ? "Not required" : "e.g. in3s2m2m"}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, cms: { ...f.cms, projectId: e.target.value } }))
+                    }
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field
+                  label={CMS_FIELD_LABELS[form.cms.provider].dataset}
+                  hint={form.cms.provider === "sanity" ? "Required — overrides SANITY_DATASET" : undefined}
+                >
+                  <input
+                    type="text"
+                    value={form.cms.dataset}
+                    disabled={form.cms.provider === "mock"}
+                    placeholder={form.cms.provider === "mock" ? "Not required" : "e.g. production"}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, cms: { ...f.cms, dataset: e.target.value } }))
+                    }
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+
+              {/* Sanity-specific optional fields */}
+              {form.cms.provider === "sanity" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label="API Version"
+                    hint="Optional — overrides SANITY_API_VERSION (e.g. 2024-01-01)"
+                  >
+                    <input
+                      type="text"
+                      value={form.cms.apiVersion ?? ""}
+                      placeholder="Leave blank to use platform default"
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, cms: { ...f.cms, apiVersion: e.target.value } }))
+                      }
+                      className={inputCls}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Studio URL"
+                    hint="Optional — URL of the Sanity Studio for this tenant"
+                  >
+                    <input
+                      type="url"
+                      value={form.cms.studioUrl ?? ""}
+                      placeholder="https://my-studio.sanity.studio"
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, cms: { ...f.cms, studioUrl: e.target.value } }))
+                      }
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </SectionCard>
 
@@ -1199,13 +1414,12 @@ export function TenantSettingsForm({
               }
               className={selectCls}
             >
-              {ALL_THEMES.map((t) => {
-                const allowed = pkgDef.allowedThemes.includes(t);
-                const hint    = THEME_HINTS[t];
+              {pkgDef.allowedThemes.map((t) => {
+                const hint = themeHint(t, pkgDef.allowedThemes);
                 return (
-                  <option key={t} value={t} disabled={!allowed}>
-                    {THEME_DISPLAY[t]}
-                    {!allowed && hint ? ` — ${hint}` : ""}
+                  <option key={t} value={t}>
+                    {themeLabel(t)}
+                    {hint ? ` — ${hint}` : ""}
                   </option>
                 );
               })}
@@ -1248,105 +1462,35 @@ export function TenantSettingsForm({
 
       {/* ── Blocks ────────────────────────────────────────────────────────── */}
       <SectionCard title="Allowed Blocks" hint={blocksSectionHint}>
-        <div className="grid gap-6 sm:grid-cols-2">
-
-          {/* Context blocks */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-              Context blocks (adaptive)
-            </p>
-            {ALL_CONTEXT_BLOCKS.map((block) => {
-              const allowed = pkgDef.allowedBlocks.context.includes(block);
-              const checked = form.blocks.context.includes(block);
-              return (
-                <label
-                  key={block}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3",
-                    !allowed && "cursor-not-allowed",
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={!allowed}
-                    onChange={() => {
-                      if (!allowed) return;
-                      setForm((f) => ({
-                        ...f,
-                        blocks: {
-                          ...f.blocks,
-                          context: toggleItem(f.blocks.context, block),
-                        },
-                      }));
-                    }}
-                    className="h-4 w-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
-                  />
-                  <span
-                    className={cn(
-                      "text-sm text-neutral-700",
-                      !allowed && "text-neutral-400",
-                    )}
-                  >
-                    {block}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-
-          {/* Content blocks */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-              Content blocks (CMS)
-            </p>
-            {ALL_CONTENT_BLOCKS.map((block) => {
-              const allowed = pkgDef.allowedBlocks.content.includes(block);
-              const checked = form.blocks.content.includes(block);
-              const hint    = CONTENT_BLOCK_HINTS[block];
-              return (
-                <label
-                  key={block}
-                  className={cn(
-                    "flex cursor-pointer items-start gap-3",
-                    !allowed && "cursor-not-allowed",
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={!allowed}
-                    onChange={() => {
-                      if (!allowed) return;
-                      setForm((f) => ({
-                        ...f,
-                        blocks: {
-                          ...f.blocks,
-                          content: toggleItem(f.blocks.content, block),
-                        },
-                      }));
-                    }}
-                    className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
-                  />
-                  <div>
-                    <span
-                      className={cn(
-                        "text-sm text-neutral-700",
-                        !allowed && "text-neutral-400",
-                      )}
-                    >
-                      {block}
-                    </span>
-                    {!allowed && hint && (
-                      <p className="text-xs text-neutral-400">{hint}</p>
-                    )}
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-
-        </div>
+        <BlockCatalogue
+          pkgAllowedContext={pkgDef.allowedBlocks.context}
+          pkgAllowedContent={pkgDef.allowedBlocks.content}
+          enabledContext={form.blocks.context}
+          enabledContent={form.blocks.content}
+          onContextToggle={(key, enabled) =>
+            setForm((f) => ({
+              ...f,
+              blocks: {
+                ...f.blocks,
+                context: enabled
+                  ? [...f.blocks.context, key]
+                  : f.blocks.context.filter((k) => k !== key),
+              },
+            }))
+          }
+          onContentToggle={(key, enabled) =>
+            setForm((f) => ({
+              ...f,
+              blocks: {
+                ...f.blocks,
+                content: enabled
+                  ? [...f.blocks.content, key]
+                  : f.blocks.content.filter((k) => k !== key),
+              },
+            }))
+          }
+          contentBlockHints={CONTENT_BLOCK_HINTS}
+        />
       </SectionCard>
 
       {/* ── Features ──────────────────────────────────────────────────────── */}
@@ -1355,9 +1499,9 @@ export function TenantSettingsForm({
           <ToggleRow
             label="Experiments"
             hint="Enable A/B testing via the experiment decision provider."
-            blockedHint={!pkgDef.allowedFeatures.experiments ? "Growth or Pro" : undefined}
+            blockedHint={!canUseExperiments ? "Growth or Pro" : undefined}
             checked={form.features.experiments}
-            disabled={!pkgDef.allowedFeatures.experiments}
+            disabled={!canUseExperiments}
             onChange={(v) =>
               setForm((f) => ({ ...f, features: { ...f.features, experiments: v } }))
             }
@@ -1365,9 +1509,9 @@ export function TenantSettingsForm({
           <ToggleRow
             label="AI"
             hint="Allow the AI decision layer to run in shadow or live mode."
-            blockedHint={!pkgDef.allowedFeatures.ai ? "Pro only" : undefined}
+            blockedHint={!canUseAi ? "Pro only" : undefined}
             checked={form.features.ai}
-            disabled={!pkgDef.allowedFeatures.ai}
+            disabled={!canUseAi}
             onChange={(v) =>
               setForm((f) => ({ ...f, features: { ...f.features, ai: v } }))
             }

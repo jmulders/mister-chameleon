@@ -16,6 +16,22 @@ export default defineType({
   title: "Article Meta",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls how article metadata is presented.",
+      options: {
+        list: [
+          { title: "Default — stacked metadata row below cover image (default)", value: "default" },
+          { title: "Compact — inline pill-row of metadata",                      value: "compact" },
+          { title: "Hero — full-bleed cover image with overlaid metadata",       value: "hero"    },
+        ],
+      },
+      initialValue: "default",
+    }),
+
     defineField({ name: "title",       title: "Title",       type: "string" }),
     defineField({ name: "publishedAt", title: "Published At", type: "datetime" }),
     defineField({ name: "updatedAt",   title: "Updated At",   type: "datetime" }),

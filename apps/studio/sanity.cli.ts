@@ -12,7 +12,7 @@
  *   4. Optionally set SANITY_DATASET (defaults to "production")
  *
  *   .env.local example:
- *     SANITY_PROJECT_ID=abc123def
+ *     SANITY_PROJECT_ID=in3s2m2m
  *     SANITY_DATASET=production
  */
 

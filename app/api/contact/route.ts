@@ -73,6 +73,13 @@ import {
 import type { ContactFormFields } from "@/contact/types";
 import { logger } from "@/lib/logger";
 import { getActiveTenant } from "@/tenant/server";
+import { getFormDefinition } from "@/forms";
+import {
+  dispatchBackofficeNotification,
+  dispatchSubmitterConfirmation,
+} from "@/forms/email";
+import { resolveEmailConfig, resolveFormsConfig } from "@/lib/config";
+import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
@@ -116,13 +123,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // ── Step 4: Resolve tenant, then fetch history + last served variant ──────
   // getActiveTenant() is a fast registry + header lookup (no DB).
-  // Once we have the tenantId, history and variants are fetched concurrently.
+  // Once we have the tenantId, history, variants, and email/form config are
+  // all fetched concurrently so the critical-path latency is minimised.
   const activeTenant = await getActiveTenant();
   const tenantId = activeTenant.tenantId;
 
-  const [scopedHistory, variantsResult] = await Promise.all([
+  const [
+    scopedHistory,
+    variantsResult,
+    emailResolution,
+    formsResolution,
+    formOverride,
+  ] = await Promise.all([
     fetchVisitorHistory(sessionId, tenantId),
     getServedVariantsBySession(sessionId, 1),
+    resolveEmailConfig(tenantId),
+    resolveFormsConfig(tenantId),
+    loadTenantFormOverrides(tenantId, "contact"),
   ]);
 
   const lastServedVariant =
@@ -151,6 +168,90 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // ── Step 6: Dispatch to n8n ───────────────────────────────────────────────
   const dispatchResult = await sendToN8n(payload);
+
+  // ── Step 6a: Dispatch emails via the registered forms pipeline ────────────
+  //
+  //   The contact form now uses the same email infrastructure as every other
+  //   registered form: tenant / platform transport config, per-form overrides,
+  //   and the four-layer recipient resolution chain.
+  //
+  //   Emails fire regardless of n8n dispatch success — the visitor's confirmation
+  //   and the backoffice notification should always go out when validation passes.
+  //   All failures are logged but never surfaced to the submitter.
+  {
+    const contactFormDef = getFormDefinition("contact");
+
+    if (contactFormDef) {
+      // Apply the same override resolution as /api/forms/[formKey]/route.ts.
+      const isFormOverride     = formOverride.overrideEnabled;
+      const tenantFormSettings = formsResolution.config;
+
+      const effectiveNotify   = isFormOverride
+        ? formOverride.notifyEnabled
+        : contactFormDef.action.notifyBackoffice;
+
+      const effectiveConfirm  = isFormOverride
+        ? formOverride.confirmEnabled
+        : tenantFormSettings.sendConfirmationEmails;
+
+      const effectiveOverrideRecipients =
+        isFormOverride && formOverride.customRecipients.length > 0
+          ? formOverride.customRecipients
+          : formsResolution.config.effectiveRecipients.length > 0
+            ? formsResolution.config.effectiveRecipients
+            : undefined;
+
+      // Extract raw transport layers for the existing dispatch functions.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tenantTransport     = emailResolution.layers.tenant   as any ?? null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const platformEmailConfig = emailResolution.layers.platform as any ?? null;
+
+      // The email values mirror the validated form fields.
+      const emailValues: Record<string, string> = {
+        name:    formFields.name,
+        email:   formFields.email,
+        message: formFields.message,
+      };
+
+      logger.debug("[contact] Email dispatch config", {
+        configSource:   isFormOverride ? "form-override" : "tenant",
+        notify:         effectiveNotify,
+        confirm:        effectiveConfirm,
+        recipientCount: effectiveOverrideRecipients?.length ?? 0,
+        transport:      emailResolution.source,
+      });
+
+      void Promise.allSettled([
+        effectiveNotify
+          ? dispatchBackofficeNotification({
+              formDef:            contactFormDef,
+              values:             emailValues,
+              overrideRecipients: effectiveOverrideRecipients,
+              tenantTransport,
+              platformEmailConfig,
+            }).then((result) => {
+              if (!result.ok) {
+                logger.warn("[contact] Backoffice notification failed", { error: result.error });
+              }
+            })
+          : Promise.resolve(),
+
+        (effectiveConfirm && contactFormDef.action.sendConfirmation)
+          ? dispatchSubmitterConfirmation({
+              formDef:            contactFormDef,
+              values:             emailValues,
+              tenantTransport,
+              platformEmailConfig,
+            }).then((result) => {
+              if (!result.ok) {
+                logger.warn("[contact] Submitter confirmation failed", { error: result.error });
+              }
+            })
+          : Promise.resolve(),
+      ]);
+    }
+  }
 
   // ── Step 7: Write first-party contact_form_submit event (fire-and-forget) ─
   // This captures the submission in the events table so it feeds back into

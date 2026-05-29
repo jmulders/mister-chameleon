@@ -43,6 +43,9 @@
  *     - The session is brand-new and has no recorded events yet
  */
 
+import type { JourneyState } from "@/lib/journey/types";
+export type { JourneyState };
+
 // ── VisitorHistory type ───────────────────────────────────────────────────────
 
 /**
@@ -114,6 +117,13 @@ export interface VisitorHistory {
    * DB errors masquerading as "no history".
    */
   fromDatabase: boolean;
+
+  /**
+   * Behavioral journey state derived from visitor_behavior_state.
+   * Includes scoring, sequence matching, funnel stage, and content interest signals.
+   * null when the journey system has not yet processed any events for this session.
+   */
+  journey: JourneyState | null;
 }
 
 // ── Safe zero value ───────────────────────────────────────────────────────────
@@ -138,6 +148,7 @@ export function emptyHistory(): VisitorHistory {
     lastCtaKey: null,
     firstSeenAt: null,
     fromDatabase: false,
+    journey: null,
   };
 }
 
@@ -154,5 +165,11 @@ export function historyToLogMeta(history: VisitorHistory): Record<string, unknow
     lastCtaKey: history.lastCtaKey,
     firstSeenAt: history.firstSeenAt,
     fromDatabase: history.fromDatabase,
+    journey: history.journey ? {
+      funnelStage:    history.journey.funnelStage,
+      intentScore:    history.journey.intentScore,
+      engagementScore: history.journey.engagementScore,
+      matchedSequences: history.journey.matchedSequences,
+    } : null,
   };
 }

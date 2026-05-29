@@ -26,10 +26,15 @@
  *   Pages
  *     workengine_page_home     Homepage (marketing-page template)
  *
- *   Adaptive content variants
- *     hero_workengine_default    Hero variant — default brand copy
- *     proof_workengine_default   Proof variant — key metrics
- *     cta_workengine_default     CTA variant — register / contact
+ *   Adaptive content variants (Sanity _id → key)
+ *     hero_workengine_default  → "hero_default"   (tenantId: "workengine")
+ *     proof_workengine_default → "proof_default"  (tenantId: "workengine")
+ *     cta_workengine_default   → "cta_default"    (tenantId: "workengine")
+ *
+ *   The _id stays namespaced (hero_workengine_default) for dataset uniqueness.
+ *   The key is a clean tenant-scoped plain string: "hero_default" resolves
+ *   to this tenant's document first via GROQ tenantId filtering, then falls
+ *   back to shared/platform variants (!defined(tenantId)) if absent.
  *
  *   Companies
  *     workengine_company_acme    Acme Logistics (example employer)
@@ -45,8 +50,12 @@
  * ─── Notes ────────────────────────────────────────────────────────────────────
  *
  *   - All documents use `createOrReplace` so re-running the script is safe.
- *   - The `key` field on heroVariant / proofVariant / ctaVariant is stored as a
- *     Sanity slug object { _type: "slug", current: "..." }.
+ *   - The `key` field on heroVariant / proofVariant / ctaVariant is a plain
+ *     string (NOT a Sanity slug object). The schemas define `key` as
+ *     `type: "string"` to allow tenant-scoped uniqueness validation.
+ *   - Variant keys are tenant-scoped: "hero_default" is unique within the
+ *     "workengine" tenant scope, not globally. A different tenant may also
+ *     have a "hero_default" document — GROQ resolves the right one via tenantId.
  *   - Portable Text fields (body, description) use the minimal block format.
  */
 
@@ -108,9 +117,11 @@ export const workengineDocuments = [
     isPublished: true,
 
     contextConfig: {
-      hero:  { fallbackVariantKey: "hero_workengine_default" },
-      proof: { fallbackVariantKey: "proof_workengine_default" },
-      cta:   { fallbackVariantKey: "cta_workengine_default"  },
+      // Tenant-scoped keys: GROQ resolves "hero_default" for tenantId="workengine"
+      // to this document first; falls back to shared platform variant if absent.
+      hero:  { fallbackVariantKey: "hero_default"  },
+      proof: { fallbackVariantKey: "proof_default" },
+      cta:   { fallbackVariantKey: "cta_default"   },
     },
 
     sections: [
@@ -160,10 +171,12 @@ export const workengineDocuments = [
 
   // ── Hero variant — default brand copy ─────────────────────────────────────
   {
+    // _id stays namespaced for dataset uniqueness; key is the clean
+    // tenant-scoped business key used by GROQ queries and the decision engine.
     _id:      "hero_workengine_default",
     _type:    "heroVariant",
     tenantId: "workengine",
-    key:      { _type: "slug", current: "hero_workengine_default" },
+    key:      "hero_default",
     isActive: true,
     tag:      "Recruitment & Staffing",
     title:    "De juiste kandidaat, op het juiste moment",
@@ -178,7 +191,7 @@ export const workengineDocuments = [
     _id:      "proof_workengine_default",
     _type:    "proofVariant",
     tenantId: "workengine",
-    key:      { _type: "slug", current: "proof_workengine_default" },
+    key:      "proof_default",
     isActive: true,
     title:    "Bewezen resultaten",
     items: [
@@ -202,7 +215,7 @@ export const workengineDocuments = [
     _id:      "cta_workengine_default",
     _type:    "ctaVariant",
     tenantId: "workengine",
-    key:      { _type: "slug", current: "cta_workengine_default" },
+    key:      "cta_default",
     isActive: true,
     title:    "Klaar om te groeien?",
     text:     "Of u nu op zoek bent naar uw volgende uitdaging of de perfecte kandidaat — WorkEngine staat voor u klaar.",

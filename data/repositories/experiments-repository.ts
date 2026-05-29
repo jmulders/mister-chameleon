@@ -327,6 +327,41 @@ export async function updateExperiment(
   }
 }
 
+// ── deleteExperiment ──────────────────────────────────────────────────────────
+
+/**
+ * Permanently deletes a single experiment by its slug ID.
+ *
+ * Assignments (experiment_assignments rows) are NOT cascade-deleted here —
+ * the DB should have ON DELETE CASCADE on experiment_assignments.experiment_id
+ * if you want historical assignment rows cleaned up automatically.  Otherwise
+ * they become orphaned rows referencing a deleted experiment slug.
+ *
+ * @param id  The experiment slug (primary key).
+ */
+export async function deleteExperiment(id: string): Promise<RepositoryResult<void>> {
+  try {
+    const db = getDb();
+
+    const { error } = await db
+      .from("experiments")
+      .delete()
+      .eq("id", id as never);
+
+    if (error) {
+      logger.error("[experiments] Failed to delete experiment", { id, error: (error as { message: string }).message });
+      return { ok: false, error: (error as { message: string }).message };
+    }
+
+    logger.debug("[experiments] Experiment deleted", { id });
+    return { ok: true, data: undefined };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("[experiments] Unexpected error deleting experiment", { error: message });
+    return { ok: false, error: message };
+  }
+}
+
 // ── Re-export types for consumers ─────────────────────────────────────────────
 
 export type { ExperimentRow, ExperimentAssignmentRow, ExperimentAssignmentInsert };

@@ -64,9 +64,11 @@ import { NextRequest, NextResponse }   from "next/server";
 import { headers }                      from "next/headers";
 import { getFormDefinition, isFormKey } from "@/forms";
 import { validateSubmission }           from "@/forms/validation";
+import { buildSystemVars }              from "@/forms/validation";
 import {
   dispatchBackofficeNotification,
   dispatchSubmitterConfirmation,
+  dispatchCMSEmailActions,
 }                                       from "@/forms/email";
 import { storeSubmission }              from "@/forms/storage";
 import {
@@ -76,6 +78,14 @@ import {
 }                                       from "@/forms/spam";
 import { resolveSession }               from "@/data/session";
 import { logger }                       from "@/lib/logger";
+import { getActiveTenant }              from "@/tenant/server";
+import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
+import { serverEnv }                    from "@/lib/env";
+import {
+  resolveEmailConfig,
+  resolveFormsConfig,
+}                                       from "@/lib/config";
+import { loadTenantFormOverrides }      from "@/forms/load-tenant-form-overrides";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -92,21 +102,80 @@ export async function POST(
   const { formKey } = await params;
 
   // ── 1. Resolve form definition ────────────────────────────────────────────
-  if (!isFormKey(formKey)) {
+  //
+  //   Resolution order:
+  //     a) Platform-registered FormKey (code registry)
+  //     b) CMS-managed formDefinition document (Sanity GROQ lookup)
+  //
+  //   Tenant context is loaded first so the CMS lookup is properly scoped.
+
+  // ── 1a. Load tenant context ──────────────────────────────────────────────
+  let tenantId: string | undefined;
+  try {
+    const tenant = await getActiveTenant();
+    tenantId = tenant.tenantId;
+  } catch {
+    // Non-fatal: proceed without tenant scoping.
+  }
+
+  // ── 1b. Resolve tenant settings + email config via layered resolvers ──────
+  //
+  //   Both resolvers implement the standard four-layer model:
+  //     tenant → platform → env → system
+  //
+  //   `resolveFormsConfig` surfaces `effectiveRecipients` and `recipientSource`
+  //   so the dispatch layer doesn't need to re-implement the fallback chain.
+  //
+  //   `resolveEmailConfig` surfaces the merged transport config (type, credentials,
+  //   fromName/fromEmail) and the primary `source` for diagnostics.
+  //
+  //   The email dispatch functions still accept the raw layer objects
+  //   (TenantEmailTransport / PlatformEmailSettings) — extract them from
+  //   `resolution.layers` so no dispatch-layer refactor is required.
+  const [emailResolution, formsResolution] = await Promise.all([
+    resolveEmailConfig(tenantId ?? ""),
+    resolveFormsConfig(tenantId ?? ""),
+  ]);
+
+  const tenantFormSettings  = formsResolution.config;
+
+  // ── 1b-ii. Load per-form override (highest-priority config layer) ─────────
+  //
+  //   Loaded AFTER the form key is known (we need formKey for the DB lookup).
+  //   Applied BEFORE the action dispatch in step 6.  When overrideEnabled is
+  //   false, this object has no effect and all tenant defaults apply unchanged.
+  //
+  //   This lookup runs in parallel with the form-def resolution below but is
+  //   declared here so it is available throughout the rest of the handler.
+  const formOverridePromise = loadTenantFormOverrides(tenantId ?? "", formKey);
+  // Extract raw layers for existing dispatch functions that expect the old types.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tenantTransport     = emailResolution.layers.tenant   as any ?? null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const platformEmailConfig = emailResolution.layers.platform as any ?? null;
+
+  // ── 1c. Try platform registry first ─────────────────────────────────────
+  const formDef = isFormKey(formKey) ? getFormDefinition(formKey) : null;
+
+  // ── 1d. Fall back to CMS-managed form definition ─────────────────────────
+  const cmsForm = !formDef
+    ? await fetchCMSFormByName(formKey, tenantId)
+    : null;
+
+  if (!formDef && !cmsForm) {
     return NextResponse.json(
       { ok: false, error: "Form not found" },
       { status: 404 },
     );
   }
 
-  const formDef = getFormDefinition(formKey);
-  if (!formDef) {
-    // Registered as a FormKey but missing from the registry — defensive guard.
-    return NextResponse.json(
-      { ok: false, error: "Form not found" },
-      { status: 404 },
-    );
-  }
+  // Await the per-form override now that we know the form exists.
+  const formOverride = await formOverridePromise;
+
+  // Derive fields for validation — FormField[] (platform) or converted CMS fields.
+  const fieldsForValidation = formDef
+    ? formDef.fields
+    : toPlatformFields(cmsForm!.fields);
 
   // ── 2. Parse request body ─────────────────────────────────────────────────
   let body: Record<string, string>;
@@ -135,7 +204,8 @@ export async function POST(
   //     Return a fake success so the bot cannot detect it was blocked.
   if (checkHoneypot(body)) {
     const fakeMessage =
-      formDef.action.successMessage ??
+      formDef?.action.successMessage ??
+      cmsForm?.successMessage ??
       "Thank you — your submission has been received.";
     return NextResponse.json({ ok: true, message: fakeMessage }, { status: 200 });
   }
@@ -155,7 +225,7 @@ export async function POST(
   }
 
   // ── 4. Validate against form definition ──────────────────────────────────
-  const validation = validateSubmission(formDef.fields, body);
+  const validation = validateSubmission(fieldsForValidation, body);
 
   if (!validation.ok) {
     return NextResponse.json(
@@ -177,75 +247,177 @@ export async function POST(
     // Ignore — submission proceeds without a session link.
   }
 
-  const emailConfig = { formDef, values: validation.values };
-
-  // ── 6. Post-submission actions ────────────────────────────────────────────
+  // ── 6. Derive action flags and dispatch ──────────────────────────────────
   //
   //   All actions run inside Promise.allSettled() — one failure cannot block
-  //   the others or change the HTTP response.  Each result is individually
-  //   logged when not ok.
+  //   the others or change the HTTP response.
+
+  // ── Apply per-form override (highest-priority config layer) ──────────────
+  //
+  //   Resolution order for each flag (highest → lowest):
+  //     form-level override (when overrideEnabled)
+  //       → tenant default (tenantFormSettings)
+  //       → form definition default (formDef.action.*)
+  //
+  const isFormOverride = formOverride.overrideEnabled;
+
+  // Effective flags depend on source (platform formDef vs CMS form), then override.
+  const shouldStore  = cmsForm
+    ? cmsForm.storeSubmissions
+    : isFormOverride
+      ? formOverride.storeEnabled
+      : tenantFormSettings.storeSubmissions;
+
+  const webhookUrl   = tenantFormSettings.webhookUrl ?? formDef?.action.webhookUrl;
+  const effectiveKey = formDef?.key ?? cmsForm!.name.current;
+
+  // Per-form recipient override: use form-level custom recipients when set,
+  // otherwise fall through to the tenant-level resolved recipients.
+  const effectiveOverrideRecipients =
+    isFormOverride && formOverride.customRecipients.length > 0
+      ? formOverride.customRecipients
+      : formsResolution.config.effectiveRecipients.length > 0
+        ? formsResolution.config.effectiveRecipients
+        : undefined;
+
+  // Per-form notify/confirm flag overrides.
+  const effectiveNotify   = isFormOverride
+    ? formOverride.notifyEnabled
+    : (formDef?.action.notifyBackoffice ?? true);
+  const effectiveConfirm  = isFormOverride
+    ? formOverride.confirmEnabled
+    : tenantFormSettings.sendConfirmationEmails;
+
+  logger.debug("[forms] Resolved config", {
+    formKey:        effectiveKey,
+    configSource:   isFormOverride ? "form-override" : "tenant",
+    notify:         effectiveNotify,
+    confirm:        effectiveConfirm,
+    store:          shouldStore,
+    recipientCount: effectiveOverrideRecipients?.length ?? 0,
+    transport:      emailResolution.source,
+  });
+
+  // System variables for CMS template interpolation.
+  const sysVars = buildSystemVars({
+    formName:   effectiveKey,
+    tenantName: tenantId ?? "",
+  });
+  const allTemplateVars = { ...validation.values, ...sysVars };
+
+  // From address for CMS email actions.
+  // `emailResolution.config` already merges all layers (tenant → platform → env → system)
+  // so we read from it directly instead of re-implementing the fallback chain.
+  const { fromName, fromEmail } = emailResolution.config;
+  const fromAddress = fromEmail
+    ? (fromName?.trim() ? `${fromName} <${fromEmail}>` : fromEmail)
+    : serverEnv.email.fromAddress ?? "noreply@example.com";
 
   await Promise.allSettled([
 
-    // 6a. Storage ──────────────────────────────────────────────────────────
-    formDef.action.storeSubmissions
+    // 6a. Storage ─────────────────────────────────────────────────────────
+    shouldStore
       ? storeSubmission({
-          formKey:   formDef.key,
+          formKey:   effectiveKey,
           values:    validation.values,
           sessionId,
         }).then((result) => {
           if (!result.ok) {
             logger.warn("[forms] Submission storage failed", {
-              formKey: formDef.key,
+              formKey: effectiveKey,
               error:   result.error,
             });
           }
         })
       : Promise.resolve(),
 
-    // 6b. Backoffice notification ───────────────────────────────────────────
-    formDef.action.notifyBackoffice
-      ? dispatchBackofficeNotification(emailConfig).then((result) => {
-          if (!result.ok) {
-            logger.warn("[forms] Backoffice notification failed", {
-              formKey: formDef.key,
-              error:   result.error,
-            });
-          }
-        })
-      : Promise.resolve(),
+    // 6b–c. Platform form: backoffice + confirmation ───────────────────────
+    ...(formDef ? [
+      effectiveNotify
+        ? dispatchBackofficeNotification({
+            formDef,
+            values: validation.values,
+            // Use per-form custom recipients when set (form override),
+            // otherwise use the tenant → platform → env resolved recipients.
+            overrideRecipients: effectiveOverrideRecipients,
+            tenantTransport,
+            platformEmailConfig,
+          }).then((result) => {
+            if (!result.ok) logger.warn("[forms] Backoffice notification failed", { formKey: effectiveKey, error: result.error });
+          })
+        : Promise.resolve(),
 
-    // 6c. Submitter confirmation ────────────────────────────────────────────
-    formDef.action.sendConfirmation
-      ? dispatchSubmitterConfirmation(emailConfig).then((result) => {
-          if (!result.ok) {
-            logger.warn("[forms] Submitter confirmation failed", {
-              formKey: formDef.key,
-              error:   result.error,
-            });
-          }
-        })
-      : Promise.resolve(),
+      (effectiveConfirm && formDef.action.sendConfirmation)
+        ? dispatchSubmitterConfirmation({
+            formDef,
+            values: validation.values,
+            tenantTransport,
+            platformEmailConfig,
+          }).then((result) => {
+            if (!result.ok) logger.warn("[forms] Confirmation failed", { formKey: effectiveKey, error: result.error });
+          })
+        : Promise.resolve(),
+    ] : []),
 
-    // 6d. Webhook (Fm5+ TODO) ───────────────────────────────────────────────
-    //
-    //   const webhookUrl = formDef.action.webhookUrl
-    //     ?? process.env.N8N_CONTACT_WEBHOOK_URL;
-    //   if (webhookUrl) {
-    //     fetch(webhookUrl, {
-    //       method: "POST",
-    //       headers: { "Content-Type": "application/json" },
-    //       body: JSON.stringify({ formKey: formDef.key, values: validation.values }),
-    //     }).catch((err) =>
-    //       logger.error("[forms] Webhook dispatch failed", { error: String(err) })
-    //     );
-    //   }
+    // 6d. CMS form: dispatch all CMS-defined email actions ────────────────
+    ...(cmsForm?.emailActions?.length
+      ? [
+          dispatchCMSEmailActions({
+            actions:         cmsForm.emailActions,
+            allVars:         allTemplateVars,
+            fromAddress,
+            tenantTransport,
+            platformEmailConfig,
+          }).then((results) => {
+            results.forEach((r, i) => {
+              if (!r.ok) {
+                logger.warn("[forms] CMS email action failed", {
+                  formKey: effectiveKey,
+                  index:   i,
+                  error:   (r as { ok: false; error: string }).error,
+                });
+              }
+            });
+          }),
+        ]
+      : []),
+
+    // 6e. Webhook ─────────────────────────────────────────────────────────
+    webhookUrl
+      ? fetch(webhookUrl, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            formKey:  effectiveKey,
+            values:   validation.values,
+            tenantId: tenantId ?? null,
+          }),
+        })
+          .then(async (res) => {
+            if (!res.ok) {
+              logger.warn("[forms] Webhook returned non-2xx", {
+                formKey: effectiveKey,
+                status:  res.status,
+                url:     webhookUrl,
+              });
+            }
+          })
+          .catch((err: unknown) => {
+            logger.error("[forms] Webhook dispatch failed", {
+              formKey: effectiveKey,
+              error:   String(err),
+              url:     webhookUrl,
+            });
+          })
+      : Promise.resolve(),
 
   ]);
 
   // ── 7. Return success ─────────────────────────────────────────────────────
   const message =
-    formDef.action.successMessage ??
+    tenantFormSettings.successMessage ??
+    cmsForm?.successMessage ??
+    formDef?.action.successMessage ??
     "Thank you — your submission has been received.";
 
   return NextResponse.json({ ok: true, message }, { status: 200 });

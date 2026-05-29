@@ -63,7 +63,7 @@ export function SolutionBlock(props: SolutionBlockProps) {
   const { label, headline, subheadline, features } = { ...defaults, ...props };
 
   return (
-    <Section spacing="lg" className="bg-white">
+    <Section spacing="lg" style={{ background: "var(--section-subtle-bg)" }}>
       <Container size="lg">
         <Stack gap={12}>
           {/* Header */}
@@ -87,7 +87,7 @@ export function SolutionBlock(props: SolutionBlockProps) {
               {features.map((feature) => (
                 <Card key={feature.step} hover className="relative">
                   {/* Step number */}
-                  <span className="mb-4 flex size-8 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-600">
+                  <span className="mb-4 flex size-8 items-center justify-center rounded-full text-sm font-bold" style={{ background: "var(--primary-subtle)", color: "var(--text-brand)" }}>
                     {feature.step}
                   </span>
 

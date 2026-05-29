@@ -35,22 +35,42 @@ import type { CTABlockProps } from "@/components/blocks/CTABlock";
  * CMS field names match component prop names in the MVP, so this is a
  * structural subset — `id` is dropped, all other fields pass through.
  *
- * CMS field  →  HeroBlockProps prop
- * ──────────    ──────────────────────────
- * tag        →  tag      (eyebrow badge above headline)
- * title      →  title    (primary display headline)
- * subtitle   →  subtitle (supporting paragraph)
- * cta        →  cta      (primary CTA button)
+ * CMS field    →  HeroBlockProps prop
+ * ──────────       ──────────────────────────
+ * tag          →  tag          (eyebrow badge above headline)
+ * title        →  title        (primary display headline)
+ * subtitle     →  subtitle     (supporting paragraph)
+ * ctas         →  ctas         (0–2 CTA buttons)
+ * proofItems   →  proofItems   (optional trust metrics for hero_proof bar)
+ * contentAlign →  contentAlign (alignment for hero_background)
+ * media        →  media        (optional image/video attachment)
+ *
+ * Backward compat:
+ *   When `data.ctas` is empty and the legacy `data.cta` field is present,
+ *   this mapper normalises it to a single-entry `ctas` array so the
+ *   component never needs to handle the legacy shape.
  */
 export function mapHeroBlockData(data: HeroBlockData): HeroBlockProps {
+  // Normalise: prefer ctas; fall back to legacy cta field.
+  const ctas: HeroBlockProps["ctas"] =
+    data.ctas && data.ctas.length > 0
+      ? data.ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant }))
+      : data.cta
+        ? [{ label: data.cta.label, href: data.cta.href }]
+        : [];
+
   return {
-    tag: data.tag,
-    title: data.title,
-    subtitle: data.subtitle,
-    cta: {
-      label: data.cta.label,
-      href: data.cta.href,
-    },
+    tag:          data.tag,
+    title:        data.title,
+    subtitle:     data.subtitle,
+    ctas,
+    layoutVariant: data.layoutVariant,
+    // Pass contentAlign through; absent on non-background layouts.
+    ...(data.contentAlign !== undefined ? { contentAlign: data.contentAlign } : {}),
+    // Pass proofItems through; absent on non-proof layouts.
+    ...(data.proofItems   !== undefined ? { proofItems:   data.proofItems   } : {}),
+    // Pass media through unchanged — the component handles all rendering.
+    ...(data.media        !== undefined ? { media:        data.media        } : {}),
   };
 }
 

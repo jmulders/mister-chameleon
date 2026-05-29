@@ -116,64 +116,70 @@ function UrgencyCallout({ closingDate }: { closingDate: string }) {
   );
 }
 
+/* Hover styles — CSS-only, no JS event handlers needed */
+const applyBtnStyles = (
+  <style>{`
+    .apply-btn-primary:hover{background-color:var(--btn-hover-bg)}
+    .apply-btn-secondary:hover{border-color:var(--text-muted);color:var(--primary)}
+  `}</style>
+);
+
 function PrimaryButton({ label, href }: { label: string; href: string }) {
   return (
-    <a
-      href={href}
-      style={{
-        display:         "inline-flex",
-        alignItems:      "center",
-        justifyContent:  "center",
-        padding:         "0.75rem 2rem",
-        backgroundColor: "var(--btn-bg)",
-        color:           "var(--btn-text)",
-        fontWeight:      "var(--btn-font-weight)",
-        fontSize:        "1rem",
-        borderRadius:    "var(--btn-radius)",
-        boxShadow:       "var(--btn-shadow)",
-        textDecoration:  "none",
-        transition:      "background-color var(--transition-base)",
-        border:          "none",
-        cursor:          "pointer",
-      }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "var(--btn-hover-bg)"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = "var(--btn-bg)"; }}
-    >
-      {label}
-    </a>
+    <>
+      {applyBtnStyles}
+      <a
+        href={href}
+        className="apply-btn-primary"
+        style={{
+          display:         "inline-flex",
+          alignItems:      "center",
+          justifyContent:  "center",
+          padding:         "0.75rem 2rem",
+          backgroundColor: "var(--btn-bg)",
+          color:           "var(--btn-text)",
+          fontWeight:      "var(--btn-font-weight)",
+          fontSize:        "1rem",
+          borderRadius:    "var(--btn-radius)",
+          boxShadow:       "var(--btn-shadow)",
+          textDecoration:  "none",
+          transition:      "background-color var(--transition-base)",
+          border:          "none",
+          cursor:          "pointer",
+        }}
+      >
+        {label}
+      </a>
+    </>
   );
 }
 
 function SecondaryButton({ label, href }: { label: string; href: string }) {
   return (
-    <a
-      href={href}
-      style={{
-        display:         "inline-flex",
-        alignItems:      "center",
-        justifyContent:  "center",
-        padding:         "0.75rem 1.5rem",
-        backgroundColor: "transparent",
-        color:           "var(--text)",
-        fontWeight:      500,
-        fontSize:        "0.9375rem",
-        borderRadius:    "var(--btn-radius)",
-        textDecoration:  "none",
-        border:          "1px solid var(--card-border)",
-        transition:      "border-color var(--transition-base), color var(--transition-base)",
-        cursor:          "pointer",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--text-muted)";
-        (e.currentTarget as HTMLAnchorElement).style.color       = "var(--primary)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--card-border)";
-        (e.currentTarget as HTMLAnchorElement).style.color       = "var(--text)";
-      }}
-    >
-      {label}
-    </a>
+    <>
+      {applyBtnStyles}
+      <a
+        href={href}
+        className="apply-btn-secondary"
+        style={{
+          display:         "inline-flex",
+          alignItems:      "center",
+          justifyContent:  "center",
+          padding:         "0.75rem 1.5rem",
+          backgroundColor: "transparent",
+          color:           "var(--text)",
+          fontWeight:      500,
+          fontSize:        "0.9375rem",
+          borderRadius:    "var(--btn-radius)",
+          textDecoration:  "none",
+          border:          "1px solid var(--card-border)",
+          transition:      "border-color var(--transition-base), color var(--transition-base)",
+          cursor:          "pointer",
+        }}
+      >
+        {label}
+      </a>
+    </>
   );
 }
 

@@ -40,6 +40,7 @@
 import type { ContentBlock } from "@/page-config";
 import {
   TextSectionBlock,
+  RichTextBlock,
   FeatureGridBlock,
   TestimonialSectionBlock,
   FaqSectionBlock,
@@ -60,6 +61,18 @@ import {
   SearchBlock,
   ProcessStepsBlock,
   RecruiterPanelBlock,
+  PricingSectionBlock,
+  ContentSectionBlock,
+  TeamSectionBlock,
+  ProductOverviewBlock,
+  ProductDetailBlock,
+  CartSummaryBlock,
+  CheckoutBlock,
+  TextMediaBlock,
+  MapBlock,
+  TimelineBlock,
+  QuickLinksBlock,
+  ContactSectionBlock,
 } from "@/components/blocks/sections";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,26 +95,32 @@ export function ContentBlockRenderer({ block }: ContentBlockRendererProps) {
     // ── text ──────────────────────────────────────────────────────────────────
 
     case "textSection":
-      return <TextSectionBlock data={block.data} variant={block.variant} />;
+      return <TextSectionBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    case "richText":
+      return <RichTextBlock data={block.data} variant={block.variant} />;
 
     // ── features ──────────────────────────────────────────────────────────────
 
     case "featureGrid":
-      return <FeatureGridBlock data={block.data} variant={block.variant} />;
+      return <FeatureGridBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     case "faqSection":
-      return <FaqSectionBlock data={block.data} variant={block.variant} />;
+      return <FaqSectionBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     // ── social proof ──────────────────────────────────────────────────────────
 
     case "testimonialSection":
-      return <TestimonialSectionBlock data={block.data} variant={block.variant} />;
+      return <TestimonialSectionBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     case "stats":
-      return <StatsBlock data={block.data} variant={block.variant} />;
+      return <StatsBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     case "logoStrip":
-      return <LogoStripBlock data={block.data} variant={block.variant} />;
+      return <LogoStripBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    case "textMedia":
+      return <TextMediaBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     // ── conversion ────────────────────────────────────────────────────────────
 
@@ -114,10 +133,10 @@ export function ContentBlockRenderer({ block }: ContentBlockRendererProps) {
     // ── content ────────────────────────────────────────────────────────────────
 
     case "about":
-      return <AboutBlock data={block.data} variant={block.variant} />;
+      return <AboutBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     case "newsList":
-      return <NewsListBlock data={block.data} variant={block.variant} />;
+      return <NewsListBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     // ── listing / detail ──────────────────────────────────────────────────────
 
@@ -155,10 +174,57 @@ export function ContentBlockRenderer({ block }: ContentBlockRendererProps) {
     // ── careers / W6 ──────────────────────────────────────────────────────────
 
     case "processSteps":
-      return <ProcessStepsBlock data={block.data} variant={block.variant} />;
+      return <ProcessStepsBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     case "recruiterPanel":
-      return <RecruiterPanelBlock data={block.data} variant={block.variant} />;
+      return <RecruiterPanelBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    // ── conversion / pricing ──────────────────────────────────────────────────
+
+    case "pricingSection":
+      return <PricingSectionBlock data={block.data} variant={block.variant} />;
+
+    // ── content / editorial ───────────────────────────────────────────────────
+
+    case "contentSection":
+      return <ContentSectionBlock data={block.data} variant={block.variant} />;
+
+    case "teamSection":
+      return <TeamSectionBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    // ── commerce / product ────────────────────────────────────────────────────
+
+    case "productOverview":
+      return <ProductOverviewBlock data={block.data} variant={block.variant} />;
+
+    case "productDetail":
+      return <ProductDetailBlock data={block.data} variant={block.variant} />;
+
+    case "cartSummary":
+      return <CartSummaryBlock data={block.data} variant={block.variant} />;
+
+    case "checkoutBlock":
+      return <CheckoutBlock data={block.data} variant={block.variant} />;
+
+    // ── map ───────────────────────────────────────────────────────────────────
+
+    case "mapBlock":
+      return <MapBlock data={block.data} variant={block.variant} />;
+
+    // ── timeline ──────────────────────────────────────────────────────────────
+
+    case "timeline":
+      return <TimelineBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    // ── quick links ───────────────────────────────────────────────────────────
+
+    case "quickLinks":
+      return <QuickLinksBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    // ── contact section ───────────────────────────────────────────────────────
+
+    case "contactSection":
+      return <ContactSectionBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     // ── defined (not yet implemented) ─────────────────────────────────────────
     //

@@ -24,6 +24,22 @@ export default defineType({
   title: "Filter Bar",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls the density and display mode of the filter controls.",
+      options: {
+        list: [
+          { title: "Default — full-width bar with labelled controls (default)", value: "default" },
+          { title: "Compact — icon-driven collapsed filter bar",                value: "compact" },
+          { title: "Expanded — all filters visible without interaction",        value: "expanded" },
+        ],
+      },
+      initialValue: "default",
+    }),
+
     defineField({
       name: "placeholder",
       title: "Search Placeholder",

@@ -51,8 +51,9 @@ export type { TenantTheme };
  * "storyblok"  — Storyblok CDN (requires STORYBLOK_ACCESS_TOKEN env var)
  * "statamic"   — Statamic CMS (requires STATAMIC_API_URL env var)
  * "mock"       — In-memory mock (development, preview, tests)
+ * "platform"   — Built-in platform CMS stored in Supabase (no external CMS needed)
  */
-export type CMSProviderName = "sanity" | "storyblok" | "statamic" | "mock";
+export type CMSProviderName = "sanity" | "storyblok" | "statamic" | "mock" | "platform";
 
 /**
  * Which decision engine the tenant uses for experience selection.
@@ -104,6 +105,251 @@ export interface TenantFeatureFlags {
    * be wired into the page.  Requires confidence policy configuration.
    */
   aiDecisionProvider?: boolean;
+}
+
+// ── Form submission settings ───────────────────────────────────────────────────
+
+/**
+ * Tenant-level configuration for all form submissions (`/api/forms/[formKey]`).
+ *
+ * These settings are stored per-tenant in the `tenant_form_settings` Supabase table
+ * and loaded at request time by the form submission handler.  They override the
+ * defaults coming from the form definition and the environment variables.
+ *
+ * Resolution priority (highest → lowest):
+ *   1. TenantFormSettings (this — per-tenant, stored in DB)
+ *   2. FormDefinition.action / FormEmailRouting (per-form, hardcoded)
+ *   3. Environment variables (BACKOFFICE_EMAIL, RESEND_API_KEY, …)
+ *
+ * ─── Stored in DB, not in code ────────────────────────────────────────────────
+ *
+ *   Unlike TenantConfig (which lives in mister-chameleon-config.ts), these
+ *   settings are edited by tenant admins at runtime through the admin UI
+ *   at /admin/tenants/[tenantId]/forms.  No deployment is required to change them.
+ */
+export interface TenantFormSettings {
+  /**
+   * Whether to store form submissions in the `form_submissions` database table.
+   * Turning this off disables DB writes but email/webhook still fire.
+   * @default true
+   */
+  storeSubmissions: boolean;
+
+  /**
+   * Email addresses that receive a backoffice notification on every submission.
+   *
+   * When empty, falls back to the `BACKOFFICE_EMAIL` environment variable.
+   * Multiple recipients are supported.
+   *
+   * @default []  (falls back to BACKOFFICE_EMAIL env var)
+   */
+  notificationRecipients: string[];
+
+  /**
+   * Optional reply-to address for backoffice notification emails.
+   *
+   * When set, recipients can reply directly to this address instead of the From
+   * address. Useful for routing replies to a monitored inbox (e.g. a support
+   * alias) rather than the transactional sender address.
+   */
+  replyTo?: string;
+
+  /**
+   * Whether to send a confirmation email to the submitter.
+   * The submitter's address is resolved from the submission's email field.
+   * @default true
+   */
+  sendConfirmationEmails: boolean;
+
+  /**
+   * Optional webhook URL.
+   * When set, the submission handler POSTs a JSON payload to this URL after
+   * validation.  This enables custom workflows (n8n, Zapier, HubSpot, etc.).
+   * Payload shape: `{ formKey: string; values: Record<string, string> }`
+   */
+  webhookUrl?: string;
+
+  /**
+   * Optional HubSpot integration.
+   * When true, submissions are forwarded to HubSpot via the Forms API.
+   * Requires `HUBSPOT_PORTAL_ID` and `HUBSPOT_FORM_GUID` env vars to be set.
+   * @default false
+   */
+  hubspotEnabled?: boolean;
+
+  /**
+   * Global success message override — shown to the submitter after a successful
+   * submission.  When absent, each form definition's `successMessage` is used.
+   */
+  successMessage?: string;
+
+  /**
+   * Optional redirect URL after successful submission.
+   * When set, the FormSectionBlock will navigate here instead of showing the
+   * inline success message.
+   * Must be an absolute URL or a root-relative path ("/thank-you").
+   */
+  successRedirectUrl?: string;
+}
+
+/**
+ * Default TenantFormSettings used when no settings have been saved for a tenant.
+ * Mirrors the previous hardcoded behaviour (store + notify + confirm).
+ */
+export const DEFAULT_TENANT_FORM_SETTINGS: TenantFormSettings = {
+  storeSubmissions:       true,
+  notificationRecipients: [],
+  sendConfirmationEmails: true,
+};
+
+// ── Per-form override settings ────────────────────────────────────────────────
+
+/**
+ * Per-form configuration override for a specific (tenant_id, form_key) pair.
+ *
+ * Stored in the `tenant_form_overrides` Supabase table as a JSONB `overrides`
+ * column.  When `overrideEnabled` is true, these values take precedence over
+ * the tenant-level defaults from `TenantFormSettings` for this specific form.
+ *
+ * ─── Resolution priority (highest → lowest) ────────────────────────────────
+ *
+ *   1. TenantFormOverrideSettings (this — per-form, when overrideEnabled)
+ *   2. TenantFormSettings (tenant-level defaults, tenant_form_settings table)
+ *   3. FormDefinition.action (per-form hardcoded code defaults)
+ *   4. Environment variables
+ *   5. System hardcoded defaults
+ *
+ * ─── Stored in DB, not in code ─────────────────────────────────────────────
+ *
+ *   Managed via the admin UI at /admin/tenants/[tenantId]/forms/[formKey].
+ *   No deployment required to change per-form behaviour.
+ */
+export interface TenantFormOverrideSettings {
+  /**
+   * Master toggle.  When false, all other fields in this object are ignored
+   * and the tenant-level defaults apply unchanged.
+   * @default false
+   */
+  overrideEnabled: boolean;
+
+  /**
+   * Whether to send a backoffice notification for submissions to this form.
+   * Overrides the form definition's `notifyBackoffice` flag when `overrideEnabled`.
+   * @default true
+   */
+  notifyEnabled: boolean;
+
+  /**
+   * Whether to send a confirmation email to the submitter for this form.
+   * Overrides the tenant-level `sendConfirmationEmails` flag when `overrideEnabled`.
+   * @default true
+   */
+  confirmEnabled: boolean;
+
+  /**
+   * Whether to store submissions to DB for this form.
+   * Overrides the tenant-level `storeSubmissions` flag when `overrideEnabled`.
+   * @default true
+   */
+  storeEnabled: boolean;
+
+  /**
+   * Custom notification recipients for this form only.
+   * When non-empty and `overrideEnabled`, replaces the tenant-level
+   * `notificationRecipients` for this form's backoffice notification.
+   * Falls through to tenant recipients when empty.
+   * @default []
+   */
+  customRecipients: string[];
+
+  /**
+   * Custom email subject for the backoffice notification for this form.
+   * When set and `overrideEnabled`, used instead of the form definition's
+   * default subject template.
+   */
+  customSubject?: string;
+
+  /**
+   * Custom "From" display name for emails sent for this form.
+   * When set and `overrideEnabled`, used instead of the tenant-level fromName.
+   */
+  customSenderName?: string;
+}
+
+/**
+ * Default TenantFormOverrideSettings — no override active.
+ * Returned when no row exists for the (tenant, form) pair.
+ */
+export const DEFAULT_FORM_OVERRIDE_SETTINGS: TenantFormOverrideSettings = {
+  overrideEnabled: false,
+  notifyEnabled:   true,
+  confirmEnabled:  true,
+  storeEnabled:    true,
+  customRecipients: [],
+};
+
+// ── Email transport settings ───────────────────────────────────────────────────
+
+/**
+ * Tenant-level email transport configuration.
+ *
+ * Stored in the `tenant_email_transport` Supabase table.  Controls which
+ * transport (SMTP or Resend) is used to send transactional emails for this
+ * tenant's form submissions.
+ *
+ * ─── Priority (highest → lowest) ──────────────────────────────────────────────
+ *
+ *   1. TenantEmailTransport (this — per-tenant, stored in DB)
+ *   2. SMTP_HOST env var → SMTP transport
+ *   3. RESEND_API_KEY env var → Resend transport
+ *   4. No config → silent skip ("none")
+ *
+ * ─── Security note ────────────────────────────────────────────────────────────
+ *
+ *   SMTP credentials (smtpPassword, resendApiKey) should be stored encrypted
+ *   in the DB and decrypted in the admin actions layer before use.
+ *   The transport layer receives already-decrypted values.
+ *
+ * ─── Not in CMS ───────────────────────────────────────────────────────────────
+ *
+ *   Mail transport credentials are sensitive and should never appear in the CMS.
+ *   They are managed exclusively via the admin UI at
+ *   /admin/tenants/[tenantId]/email-transport and stored in the DB.
+ */
+export interface TenantEmailTransport {
+  /** Which transport mechanism to use for this tenant's outbound email. */
+  transportType: "resend" | "smtp" | "none";
+
+  /**
+   * Display name used in the "From" field, e.g. "Acme Recruiting".
+   * Combined with `fromEmail` to form "Acme Recruiting <hello@acme.com>".
+   */
+  fromName?: string;
+
+  /**
+   * Email address in the "From" field, e.g. "hello@acme.com".
+   * Falls back to MAIL_FROM_ADDRESS env var or "noreply@example.com".
+   */
+  fromEmail?: string;
+
+  // ── Resend ──────────────────────────────────────────────────────────────────
+  /** Resend API secret key. Required when transportType === "resend". */
+  resendApiKey?: string;
+
+  // ── SMTP ────────────────────────────────────────────────────────────────────
+  /** SMTP server hostname, e.g. "smtp.mailgun.org". Required when transportType === "smtp". */
+  smtpHost?: string;
+  /** SMTP port. Defaults to 587 (STARTTLS). */
+  smtpPort?: number;
+  /** SMTP authentication username. */
+  smtpUsername?: string;
+  /** SMTP authentication password (decrypted). */
+  smtpPassword?: string;
+  /**
+   * Use implicit TLS (port 465) when true; STARTTLS when false.
+   * Defaults to false.
+   */
+  smtpSecure?: boolean;
 }
 
 // ── Contact configuration ─────────────────────────────────────────────────────
@@ -357,19 +603,103 @@ export interface TenantConfig {
  */
 export type PackageKey = "starter" | "growth" | "pro";
 
+// ── Template catalog key ──────────────────────────────────────────────────────
+
+/**
+ * The logical page types available in the platform's template catalog.
+ *
+ * Each key maps to a TemplateCatalogEntry in page-config/template-catalog.ts,
+ * which in turn references a PagePreset used for provisioning.
+ *
+ * Defined here (in tenant/types.ts) rather than in page-config to avoid a
+ * circular import: page-config/types.ts already imports ContextBlockKey /
+ * ContentBlockKey from @/tenant.
+ *
+ * Keep in sync with TEMPLATE_CATALOG in page-config/template-catalog.ts.
+ */
+export type TemplateCatalogKey =
+  // ── Legacy catalog entries (original set) ──────────────────────────────────
+  | "home"
+  | "about"
+  | "services"
+  | "contact"
+  | "news-listing"
+  | "news-detail"
+  | "cases-listing"
+  | "case-detail"
+  | "vacancies-listing"
+  | "vacancy-detail"
+  | "landing"
+  | "team"
+  | "faq"
+  // ── Template registry additions (added with template-registry.ts) ───────────
+  // These keys correspond to TemplateRegistryEntry.catalogKey values for the
+  // entries in CORE_TEMPLATE_REGISTRY and EXTENDED_TEMPLATE_REGISTRY that do
+  // not have a legacy catalog equivalent.
+  | "content-page"      // registry: content_page  — article-page, no slots
+  | "listing-generic"   // registry: listing_page  — listing-page, no slots
+  | "detail-generic"    // registry: detail_page   — detail-page, no slots
+  | "basic-page"        // registry: basic_page    — article-page, minimal
+  | "sector-page"       // registry: sector_page   — marketing-page, corporate
+  | "comparison-page"   // registry: comparison_page — landing-page, comparison
+  | "team-detail"       // registry: team_detail   — detail-page, person detail
+  | "event-listing"     // registry: event_listing — listing-page, events archive
+  | "event-detail"      // registry: event_detail  — marketing-page, single event + registration
+  // ── Shop catalog entries ──────────────────────────────────────────────────────
+  | "shop-home"         // shop homepage: hero + product grid + feature grid + testimonials
+  | "products-listing"  // product catalogue: intro + product grid + CTA
+  | "product-detail"    // single product: gallery + specs + add-to-cart CTA
+  | "cart"              // shopping cart: cart summary + continue shopping + checkout
+  | "checkout";         // checkout: payment provider placeholder
+
 // ── Block key vocabularies ────────────────────────────────────────────────────
 
 /**
- * The decision-engine controlled (adaptive) blocks on the homepage.
+ * The decision-engine controlled (adaptive) slots on a page.
  *
- * Each value maps to a slot in the ExperiencePlan produced by the decision
- * provider.  Packages gate which slots a tenant may activate.
+ * Each value maps to a typed slot in the ExperiencePlan produced by the
+ * decision provider.  Packages gate which slots a tenant may activate.
  *
- *   hero   — headline + sub-headline section
- *   proof  — social proof / trust signals section
- *   cta    — primary call-to-action section
+ * ─── Core slots (always available) ──────────────────────────────────────────
+ *
+ *   hero         — Adaptive headline + sub-headline section.
+ *                  Variant type: heroVariant.  Key prefix: hero_
+ *   proof        — Adaptive social proof / trust signals section.
+ *                  Variant type: proofVariant.  Key prefix: proof_
+ *   cta          — Adaptive primary call-to-action section.
+ *                  Variant type: ctaVariant.  Key prefix: cta_
+ *
+ * ─── Extended adaptive slots (package-gated) ────────────────────────────────
+ *
+ *   feature      — Adaptive feature highlights / benefit grid section.
+ *                  Variant type: featureVariant.  Key prefix: feature_
+ *   conversion   — Adaptive conversion section (richer intent signalling
+ *                  than a simple CTA — form, multi-step, urgency copy, etc.).
+ *                  Variant type: conversionVariant.  Key prefix: conversion_
+ *
+ * ─── Reserved (add when variant document type + schema exist) ───────────────
+ *
+ *   content      — Long-form editorial content slot
+ *   faq          — FAQ / collapsible accordion slot
+ *   feed         — Dynamic news / blog-post feed slot
+ *   trust        — Trust badges / certifications / awards slot
+ *
+ * ─── Adding a new slot ───────────────────────────────────────────────────────
+ *
+ *   1. Add the key here.
+ *   2. Add a FeatureVariantKey / ConversionVariantKey analog in decision/types.ts.
+ *   3. Add a *BlockData interface in cms/types.ts.
+ *   4. Create cms/schemas/<type>Variant.ts + cms/queries/sanity/<type>-queries.ts.
+ *   5. Add get*Variant() to CMSProvider + implementations in each provider.
+ *   6. Add to ADAPTIVE_SLOT_REGISTRY in decision/types.ts.
  */
-export type ContextBlockKey = "hero" | "proof" | "cta";
+export type ContextBlockKey =
+  | "hero"
+  | "proof"
+  | "cta"
+  | "feature"
+  | "conversion"
+  | "notification";
 
 /**
  * CMS-authored page section block types.
@@ -467,7 +797,24 @@ export type ContentBlockKey =
   | "search"
   // careers / W6
   | "processSteps"
-  | "recruiterPanel";
+  | "recruiterPanel"
+  // conversion / pricing
+  | "pricingSection"
+  // content / editorial
+  | "contentSection"
+  | "teamSection"
+  // new core blocks
+  | "timeline"
+  | "quickLinks"
+  | "textMedia"
+  | "contactSection"
+  // commerce / product blocks
+  | "productOverview"
+  | "productDetail"
+  | "cartSummary"
+  | "checkoutBlock"
+  // map
+  | "mapBlock";
 
 /**
  * The combined block entitlement for a tenant.
@@ -501,6 +848,157 @@ export interface TenantFeatures {
   readonly experiments: boolean;
   readonly ai:          boolean;
   readonly analytics:   boolean;
+}
+
+// ── Adaptive slot settings ────────────────────────────────────────────────────
+
+/**
+ * Per-slot selection mode for a single core adaptive slot.
+ *
+ * Mirrors SlotSelectionMode in decision/slot-selection-mode.ts — redeclared
+ * here to keep @/tenant free of circular imports with @/decision.
+ *
+ *   "static"       — serve a fixed operator-chosen key; AI and rules bypassed.
+ *   "rules-only"   — use the rules plan key only; AI never consulted for this slot.
+ *   "ai-assisted"  — AI may select this slot (default behaviour).
+ */
+export type TenantSlotMode = "static" | "rules-only" | "ai-assisted";
+
+/**
+ * Configuration for a single core adaptive slot's selection behaviour.
+ */
+export interface TenantAdaptiveSlotConfig {
+  /**
+   * Selection mode for this slot.
+   * Default when absent: "ai-assisted".
+   */
+  readonly mode: TenantSlotMode;
+
+  /**
+   * Fixed variant key to serve when mode === "static".
+   * Must be a valid key for the slot type (e.g. "hero_default" for the hero slot).
+   * When mode === "static" and staticKey is absent, falls back to "rules-only".
+   */
+  readonly staticKey?: string;
+}
+
+/**
+ * Per-slot AI selection mode configuration for a tenant.
+ *
+ * Stored in TenantSettings.adaptiveSlots.
+ * Managed via /admin/tenants/[tenantId]/behavior/slots.
+ *
+ * ─── Default (when absent) ───────────────────────────────────────────────────
+ *
+ *   When this field is absent from TenantSettings, all three core slots default
+ *   to "ai-assisted" mode — identical to the behaviour before Phase 1 was
+ *   introduced.  No migration is required for existing tenants.
+ *
+ * ─── Relationship to TenantAiSettings ────────────────────────────────────────
+ *
+ *   TenantAiSettings.mode ("disabled" | "shadow" | "live") gates whether the
+ *   AI layer runs at all.  TenantAdaptiveSlotSettings configures per-slot
+ *   behaviour WITHIN the AI layer.  When AI is disabled, slot modes have no
+ *   effect (all slots use the rules plan regardless).
+ */
+export interface TenantAdaptiveSlotSettings {
+  readonly hero?:  TenantAdaptiveSlotConfig;
+  readonly proof?: TenantAdaptiveSlotConfig;
+  readonly cta?:   TenantAdaptiveSlotConfig;
+}
+
+// ── AI Policy settings (Phase 3 — unified governance) ────────────────────────
+
+/**
+ * AI policy mode stored at the tenant level.
+ *
+ * Mirrors AiPolicyMode from @/ai/policy/types but re-declared here to avoid
+ * a circular import between @/tenant and @/ai.
+ *
+ *   disabled — AI is not called; original content is always served.
+ *   shadow   — AI runs but output is only logged, never applied to responses.
+ *   live     — AI runs and output is applied when confidence ≥ threshold.
+ */
+export type TenantAiPolicyMode = "disabled" | "shadow" | "live";
+
+/**
+ * Per-phase AI policy configuration stored in TenantSettings.aiPolicies.
+ */
+export interface TenantAiPolicyConfig {
+  readonly mode?:                TenantAiPolicyMode;
+  readonly confidenceThreshold?: number;
+}
+
+/**
+ * Unified AI governance policies covering both Phase 1 (selection) and
+ * Phase 2 (fieldFill).
+ *
+ * Stored in TenantSettings.aiPolicies.  Both fields are optional — absent
+ * phase policies fall through to the platform policy and then system defaults.
+ *
+ * Resolution order (for each phase):
+ *   slot override → TenantSettings.aiPolicies → platform policy → system default
+ */
+export interface TenantAiPolicies {
+  /** Phase 1 — variant selection. */
+  readonly selection?: TenantAiPolicyConfig;
+  /** Phase 2 — content field fill. */
+  readonly fieldFill?: TenantAiPolicyConfig;
+}
+
+// ── AI Field Fill settings (Phase 2) ─────────────────────────────────────────
+
+/**
+ * Per-field AI fill specification stored in TenantFieldFillSettings.
+ *
+ * Controls whether a specific text field may be AI-rewritten and what
+ * constraints apply.  Absent from tenant settings = aiEnabled defaults to false.
+ */
+export interface TenantFieldFillSpec {
+  /** Whether AI may rewrite this field. */
+  readonly aiEnabled:  boolean;
+  /** Maximum word count. undefined = no limit. */
+  readonly maxWords?:  number;
+  /** Maximum character count. undefined = no limit. */
+  readonly maxChars?:  number;
+  /** Tone/style directive for this field injected into the AI prompt. */
+  readonly style?:     string;
+}
+
+/**
+ * Per-slot AI field fill configuration.
+ *
+ * Stored in TenantSettings.fieldFill.[hero|proof|cta].
+ */
+export interface TenantSlotFieldFillConfig {
+  /** Master switch — when false, no AI call is made for this slot. */
+  readonly enabled:              boolean;
+  /**
+   * Minimum AI confidence to apply field fill.
+   * When AI confidence < threshold, original CMS content is kept.
+   * undefined = no confidence gating.
+   */
+  readonly confidenceThreshold?: number;
+  /**
+   * Per-field fill specs, keyed by field path.
+   *
+   * Supported paths per slot:
+   *   hero:  "title", "subtitle", "tag", "ctas.0.label", "ctas.1.label"
+   *   proof: "title", "items.0.title", "items.0.text", …
+   *   cta:   "title", "text", "cta.label"
+   */
+  readonly fields:               Record<string, TenantFieldFillSpec>;
+}
+
+/**
+ * Top-level field fill configuration stored in TenantSettings.
+ *
+ * All slots optional — absent slot means field fill disabled for that slot.
+ */
+export interface TenantFieldFillSettings {
+  readonly hero?:  TenantSlotFieldFillConfig;
+  readonly proof?: TenantSlotFieldFillConfig;
+  readonly cta?:   TenantSlotFieldFillConfig;
 }
 
 // ── AI settings ───────────────────────────────────────────────────────────────
@@ -575,40 +1073,551 @@ export interface TenantAiSettings {
   readonly confidenceThreshold?: number;
 }
 
+// ── CRM settings ──────────────────────────────────────────────────────────────
+
+/**
+ * Tenant-level CRM integration settings.
+ *
+ * Controls whether the CRM enrichment pipeline is active for this tenant
+ * and how CRM-derived context fields are used in decisioning.
+ *
+ * The platform-level HubSpot token is configured at
+ * /admin/platform/crm.  These settings gate whether that integration is
+ * exercised for each individual tenant's visitor traffic.
+ *
+ * ─── Fields ───────────────────────────────────────────────────────────────────
+ *
+ *   enabled            — master switch; when false the CRM enricher is skipped
+ *                        for this tenant entirely (saves API quota).
+ *   useCrmEnrichment   — when true, CRM-derived fields (crmMatched,
+ *                        crmIsCustomer, crmIndustry, etc.) are included in
+ *                        the enrichment payload passed to the decision engine.
+ *                        Requires `enabled = true`.
+ */
+export interface TenantCrmSettings {
+  /**
+   * Master switch for CRM integration on this tenant.
+   * Safe default: false (off until explicitly enabled).
+   */
+  readonly enabled: boolean;
+
+  /**
+   * When true, CRM-derived fields are made available to rules and the AI
+   * decision provider for this tenant's traffic.
+   * Has no effect when `enabled` is false.
+   */
+  readonly useCrmEnrichment: boolean;
+}
+
+// ── Privacy settings ─────────────────────────────────────────────────────────
+
+/**
+ * Tenant-level privacy policy settings.
+ *
+ * Controls which consent categories the platform is allowed to act on for this
+ * tenant's visitors, independent of the visitor's own cookie consent.
+ *
+ * ─── Precedence model ─────────────────────────────────────────────────────────
+ *
+ *   finalAllowed(category) = tenantPolicyAllows(category) && userConsentGiven(category)
+ *
+ *   A tenant can restrict a category platform-wide (e.g. legal requirement,
+ *   conservative data policy) even when the visitor would otherwise consent.
+ *   User consent can only further restrict, never expand, the tenant ceiling.
+ *
+ * ─── Consent banner ───────────────────────────────────────────────────────────
+ *
+ *   `showConsentBanner: false` hides the banner entirely (useful for internal
+ *   tools or B2B deployments where consent is governed by DPA, not cookies).
+ *
+ * ─── Defaults ─────────────────────────────────────────────────────────────────
+ *
+ *   When this field is absent from TenantSettings, the platform defaults to
+ *   showing the banner and deferring entirely to the visitor's cookie choice.
+ */
+export interface TenantPrivacySettings {
+  /**
+   * Whether to show the cookie consent banner to visitors.
+   * Default: true.  Set to false for internal/DPA-governed deployments.
+   */
+  readonly showConsentBanner?: boolean;
+
+  /**
+   * Tenant ceiling for analytics consent (page views, event logs, GA4).
+   * When false, analytics tracking is disabled regardless of user consent.
+   * Default: true.
+   */
+  readonly allowAnalytics?: boolean;
+
+  /**
+   * Tenant ceiling for personalization consent (behavioral scoring,
+   * journey tracking, adaptive content decisions).
+   * When false, the site always serves the default experience.
+   * Default: true.
+   */
+  readonly allowPersonalization?: boolean;
+
+  /**
+   * Tenant ceiling for enrichment consent (IP-to-company, Leadinfo, CRM).
+   * When false, all enrichment pipeline stages are skipped.
+   * Default: true.
+   */
+  readonly allowEnrichment?: boolean;
+
+  /**
+   * Optional override for the consent banner title text.
+   * Falls back to the platform default when absent.
+   */
+  readonly bannerTitle?: string;
+
+  /**
+   * Optional override for the consent banner body text.
+   * Falls back to the platform default when absent.
+   */
+  readonly bannerDescription?: string;
+}
+
+// ── Enrichment settings ───────────────────────────────────────────────────────
+
+/**
+ * Tenant-level IP enrichment (geo + CRM) settings.
+ *
+ * Controls whether the enrichment pipeline is active for this tenant's visitor
+ * traffic.  Credentials (MaxMind license key, HubSpot token) live at the
+ * platform level — these flags gate whether those credentials are exercised.
+ *
+ * ─── Fields ───────────────────────────────────────────────────────────────────
+ *
+ *   enabled           — master switch; when false the enrichment pipeline is
+ *                       skipped entirely for this tenant (saves quota).
+ *   useGeoEnrichment  — when true, MaxMind GeoIP is queried and geo context
+ *                       fields (geoCity, geoCountry, geoOrg, geoIsVpn, etc.)
+ *                       are populated for the decision engine.
+ *                       Requires `enabled = true`.
+ */
+export interface TenantEnrichmentSettings {
+  /**
+   * Master switch for all enrichment for this tenant.
+   * Safe default: false (off until explicitly enabled).
+   */
+  readonly enabled: boolean;
+
+  /**
+   * When true, MaxMind GeoIP enrichment is performed for this tenant's traffic.
+   * Has no effect when `enabled` is false.
+   * The MaxMind license key must be configured at platform level.
+   */
+  readonly useGeoEnrichment: boolean;
+
+  /**
+   * When true, IPinfo Lite enrichment runs for this tenant to resolve
+   * ASN, organization name, and network domain from the visitor IP.
+   * Has no effect when `enabled` is false.
+   * The IPinfo API token must be configured at platform level.
+   */
+  readonly useIpinfoLite: boolean;
+
+  /**
+   * When true, the OpenKvK Dutch company registry lookup runs for visitors
+   * whose IP resolves to a Netherlands countryCode.
+   * Has no effect when `enabled` is false or countryCode !== "NL".
+   * No API key required — OpenKvK is a public API.
+   */
+  readonly useOpenKvK: boolean;
+
+  /**
+   * When true, Leadinfo IP-to-company enrichment runs for this tenant.
+   * Has no effect when `enabled` is false.
+   * The Leadinfo API key must be configured at platform level.
+   */
+  readonly useLeadinfo: boolean;
+
+  /**
+   * When true, IP-to-company enrichment runs (via Clearbit or other providers
+   * configured at platform level).  Enables the company identification stages
+   * of the enrichment pipeline.
+   * Has no effect when `enabled` is false.
+   */
+  readonly useIpCompanyEnrichment: boolean;
+
+  /**
+   * When true, the seasonal event stage runs for this tenant.
+   * This enables the Nager.Date public holiday API and the business-event
+   * date-math layer (black-friday, cyber-monday, back-to-school).
+   * Has no effect when `enabled` is false or the holiday provider is not
+   * enabled at platform level (/admin/platform/integrations/enrichment).
+   * Safe default: false.
+   */
+  readonly useSeasonalEvents?: boolean;
+
+  /**
+   * When true, the enrichment pipeline uses `testIpAddress` instead of the
+   * real visitor IP.  Useful for QA and geo-targeting verification without
+   * needing to physically change network location.
+   *
+   * Safety gate: only honoured in development mode or when the environment
+   * variable `ENABLE_DEBUG_IP_OVERRIDE=true` is set.  The flag is silently
+   * ignored in production without the env var.
+   *
+   * Safe default: false (disabled).
+   */
+  readonly testIpEnabled?: boolean;
+
+  /**
+   * The IP address to use when `testIpEnabled` is true.
+   *
+   * Must be a valid IPv4 or IPv6 address string, e.g. "8.8.8.8" or
+   * "2001:4860:4860::8888".  An empty or absent value means no override
+   * is applied even when `testIpEnabled` is true.
+   */
+  readonly testIpAddress?: string;
+}
+
+// ── Domains settings ──────────────────────────────────────────────────────────
+
+/**
+ * Tenant-level domain and deployment configuration.
+ *
+ * Controls how this tenant maps to the underlying hosting infrastructure.
+ * The Vercel API token that enables domain provisioning lives at the platform
+ * level — these fields configure the per-tenant mapping.
+ *
+ * ─── Fields ───────────────────────────────────────────────────────────────────
+ *
+ *   vercelProjectId  — the Vercel project name or ID this tenant maps to.
+ *                      Used to add/remove custom domains for this tenant via
+ *                      the Vercel Domains API.  Leave blank to use the
+ *                      platform-wide project default.
+ *
+ * Note: primaryDomain and additionalDomains (routing hostnames) live directly
+ * on TenantSettings for historical reasons.  This type holds Vercel-specific
+ * deployment configuration only.
+ */
+export interface TenantDomainsSettings {
+  /**
+   * Vercel project name or project ID this tenant is hosted on.
+   * Example: "my-project", "prj_abc123"
+   * Leave absent to use the platform-wide default Vercel project.
+   */
+  readonly vercelProjectId?: string;
+}
+
+// ── Debug settings ────────────────────────────────────────────────────────────
+
+/**
+ * On-site debug overlay visibility settings for this tenant.
+ *
+ * Controls whether the developer diagnostics panel is rendered on the site.
+ * The runtime context-building and decision logic always runs regardless of
+ * these settings — only the rendered output is gated.
+ *
+ * ─── Levels ───────────────────────────────────────────────────────────────────
+ *
+ *   "off"      Nothing is rendered. Same as showDebugOverlay = false.
+ *   "summary"  Compact section: hero/proof/cta keys, source, AI mode, fallback.
+ *   "full"     Full output: summary + ContextDebugPanel (all context variable
+ *              tables) + EnrichmentDebugPanel (pipeline trace, IP, Leadinfo,
+ *              GA4 history).
+ *
+ * ─── Default ──────────────────────────────────────────────────────────────────
+ *
+ *   When this field is absent on a tenant record the overlay is treated as OFF.
+ *   This is the safe default — no debug information is rendered publicly.
+ */
+export interface TenantDebugSettings {
+  /**
+   * Master switch.  When false (or when this object is absent), no debug
+   * overlay is rendered on the site regardless of debugLevel.
+   */
+  readonly showDebugOverlay: boolean;
+
+  /**
+   * Granularity of the debug output when showDebugOverlay is true.
+   *
+   *   "off"      — same as showDebugOverlay: false (belt-and-suspenders).
+   *   "summary"  — hero/proof/cta/source/AI info only (compact, low noise).
+   *   "full"     — everything: summary + all context variable tables +
+   *                enrichment pipeline trace.
+   *
+   * Defaults to "full" when showDebugOverlay is true and this field is absent
+   * (matches the pre-feature behaviour where the full panel was always shown).
+   */
+  readonly debugLevel: "off" | "summary" | "full";
+}
+
+// ── Experiments settings ──────────────────────────────────────────────────────
+
+/**
+ * Tenant-level A/B experiment runtime settings.
+ *
+ * Controls whether the experiment evaluation layer runs at all for this
+ * tenant's traffic.  Individual experiment on/off state is managed via
+ * each experiment's `status` field ("active" / "paused" / "ended").
+ *
+ * ─── Global toggle ─────────────────────────────────────────────────────────────
+ *
+ *   enabled = true  (default) — active experiments are evaluated normally.
+ *   enabled = false           — ALL experiment evaluation is skipped for this
+ *                               tenant.  Visitors receive the rules/fallback plan.
+ *
+ * ─── Default ──────────────────────────────────────────────────────────────────
+ *
+ *   When this field is absent on a tenant record the engine treats it as
+ *   enabled = true (experiments run by default, preserving legacy behaviour).
+ */
+export interface TenantExperimentsSettings {
+  /**
+   * Global experiment master switch.
+   * When false, ExperimentDecisionProvider skips all experiment evaluation for
+   * this tenant and returns the base rules plan unchanged.
+   * Defaults to true when absent.
+   */
+  readonly enabled: boolean;
+}
+
+// ── GA4 settings ──────────────────────────────────────────────────────────────
+
+/**
+ * Tenant-level GA4 tracking configuration (Measurement Protocol / gtag send).
+ *
+ * Controls whether this tenant sends visitor events to Google Analytics 4,
+ * which measurement stream to use, and how events are dispatched (client JS
+ * or server-side Measurement Protocol).
+ *
+ * ─── Security ─────────────────────────────────────────────────────────────────
+ *
+ *   `apiSecret` is a server-only value.  Strip it before crossing the
+ *   server→client boundary (pass only `hasApiSecret: boolean` to the client).
+ */
+export interface TenantGa4TrackingSettings {
+  /** Master switch. When false, no events are sent to GA4. */
+  readonly enabled: boolean;
+
+  /**
+   * GA4 Measurement ID from Admin → Data Streams → Web stream.
+   * Format: "G-XXXXXXXXXX".  Required for both client and server send modes.
+   */
+  readonly measurementId?: string;
+
+  /**
+   * How GA4 events are dispatched.
+   *
+   *   "off"    — no events sent (default)
+   *   "client" — gtag.js injected in the browser; events sent from the client
+   *   "server" — Measurement Protocol; events sent from Next.js API routes
+   */
+  readonly sendMode?: "off" | "client" | "server";
+
+  /**
+   * Name of the GA4 user property / custom dimension that stores the visitor ID.
+   * Must match the GA4 custom dimension and the History enricher's dimension name.
+   * Default: "visitor_id"
+   */
+  readonly visitorIdParamName?: string;
+
+  /**
+   * API Secret for server-side Measurement Protocol sends.
+   * Created in GA4 Admin → Data Streams → Measurement Protocol API secrets.
+   * Required when sendMode === "server".
+   *
+   * SERVER ONLY — must never be serialised to a client-side response or logged.
+   */
+  readonly apiSecret?: string;
+}
+
+/**
+ * Tenant-level GA4 Analytics History enrichment settings.
+ *
+ * Controls whether this tenant reads historical GA4 signals for returning
+ * visitors via the GA4 Data API, using a service account credential.
+ *
+ * ─── Security ─────────────────────────────────────────────────────────────────
+ *
+ *   `serviceAccountJson` is a server-only secret — strip it before crossing
+ *   the server→client boundary (pass only `hasServiceAccount: boolean`).
+ */
+export interface TenantGa4HistorySettings {
+  /** Master switch. When false, GA4 history enrichment is skipped. */
+  readonly enabled: boolean;
+
+  /**
+   * GA4 property ID (numeric, not the measurement ID).
+   * Found in GA4 Admin → Property Settings.
+   * Example: "123456789"
+   */
+  readonly propertyId?: string;
+
+  /**
+   * Google service account JSON key file (full JSON string).
+   * The account must have Viewer access to the GA4 property.
+   *
+   * SERVER ONLY — must never be serialised to a client-side response or logged.
+   */
+  readonly serviceAccountJson?: string;
+
+  /**
+   * Name of the User-scoped custom dimension in GA4 that stores the visitor ID.
+   * The "customUser:" prefix is added automatically by the enricher.
+   * Default: "visitor_id"
+   */
+  readonly visitorIdDimension?: string;
+
+  /**
+   * How far back to query GA4 for visitor history (days).
+   * Default: 90
+   */
+  readonly lookbackDays?: number;
+
+  /**
+   * How long to cache GA4 results per visitor (minutes).
+   * Default: 30
+   */
+  readonly cacheTtlMinutes?: number;
+}
+
+/**
+ * Combined GA4 settings for a tenant.
+ *
+ * Bundles tracking (send) and history (read) into a single optional field
+ * on TenantSettings.  Both sub-settings are independently optional — a tenant
+ * can enable client-side tracking without history enrichment, or vice versa.
+ */
+export interface TenantGa4Settings {
+  readonly tracking?: TenantGa4TrackingSettings;
+  readonly history?:  TenantGa4HistorySettings;
+}
+
+// ── Leadinfo settings ─────────────────────────────────────────────────────────
+
+/**
+ * Tenant-level Leadinfo client-side enrichment settings.
+ *
+ * Leadinfo is a B2B IP-identification service.  Unlike the server-side
+ * `useLeadinfo` flag (which gates the server-to-server API call),
+ * these settings control the *client-side* integration: the Leadinfo
+ * `identify` script is executed in the visitor's browser with the real
+ * client IP, then the normalised result is persisted in the `mc_li`
+ * cookie for server-side enrichment.
+ *
+ * ─── Security ─────────────────────────────────────────────────────────────────
+ *
+ *   `siteToken` is a non-secret public identifier — Leadinfo embeds it in
+ *   the browser-facing JS snippet.  Store it here (not as an env var) so it
+ *   can be per-tenant in multi-tenant deployments.
+ *
+ * ─── Fields ───────────────────────────────────────────────────────────────────
+ *
+ *   enabled         — master switch; no client-side script runs when false
+ *   siteToken       — Leadinfo site/tracking token (public, non-secret)
+ *   pushToDataLayer — when true, normalised company fields are pushed to
+ *                     window.dataLayer after the identify call succeeds,
+ *                     making them available to GTM tags
+ *   storeInContext  — when true, the result is POSTed to /api/enrichment/leadinfo
+ *                     and persisted in the mc_li cookie so the server can read
+ *                     it on subsequent requests
+ */
+export interface TenantLeadinfoSettings {
+  /** Master switch for Leadinfo client-side integration. Default: false. */
+  readonly enabled: boolean;
+
+  /**
+   * Leadinfo site token — the public identifier for this tenant's Leadinfo account.
+   * Found in the Leadinfo dashboard under Script Settings.
+   * Example: "abc123def456"
+   */
+  readonly siteToken?: string;
+
+  /**
+   * When true, Leadinfo identify results are pushed to window.dataLayer
+   * as a "leadinfo_identified" event with company fields as properties.
+   * Enables GTM tags to use Leadinfo data without additional setup.
+   * Default: false.
+   */
+  readonly pushToDataLayer?: boolean;
+
+  /**
+   * When true, the normalised Leadinfo result is POSTed to
+   * /api/enrichment/leadinfo and persisted in the mc_li httpOnly cookie.
+   * This makes the data available for server-side enrichment on subsequent
+   * page loads via buildDecisionContext.
+   * Default: true.
+   */
+  readonly storeInContext?: boolean;
+}
+
 // ── CMS settings ──────────────────────────────────────────────────────────────
 
 /**
- * CMS integration settings expressed at the settings/entitlement level.
+ * CMS integration settings for a single tenant.
  *
  * Uses `CMSProviderName` (declared above) as the provider discriminator so
  * the two type families stay consistent.
  *
- * `projectId` and `dataset` are provider-specific credential references —
- * their meaning depends on the chosen provider:
+ * ─── Provider-specific fields ─────────────────────────────────────────────────
  *
- *   sanity     — Sanity project ID + dataset name
- *   storyblok  — Space ID + environment name
- *   statamic   — Site ID + collection name
- *   mock       — ignored
+ *   Sanity:
+ *     projectId   — Sanity project ID (overrides platform default)
+ *     dataset     — Sanity dataset name, e.g. "production"
+ *     writeToken  — Sanity write token (server-only; overrides platform default)
+ *
+ *   Storyblok:
+ *     projectId        — Storyblok space ID (overrides platform default)
+ *     storyblokRegion  — CDN region: "eu" | "us" | "ap" (overrides platform)
+ *     storyblokVersion — "published" | "draft" (overrides platform)
+ *
+ *   Statamic:
+ *     statamicBaseUrl  — Base URL of the Statamic site (overrides platform)
+ *
+ *   mock — all fields ignored
+ *
+ * ─── Resolution order ──────────────────────────────────────────────────────────
+ *
+ *   Tenant-level value → Platform store value → Environment variable
  */
 export interface TenantCmsSettings {
-  readonly provider:    CMSProviderName;
+  readonly provider:   CMSProviderName;
+
+  // ── Shared / Sanity ────────────────────────────────────────────────────────
   readonly projectId?:  string;
   readonly dataset?:    string;
   /**
-   * Write token for the CMS provider (e.g. Sanity write token).
-   * Used by the provisioner to create/replace documents for this tenant.
-   *
-   * ─── Security ────────────────────────────────────────────────────────────────
-   *
-   *   Server-only.  MUST NEVER be serialised to a client-side response or logged.
-   *   The admin page strips this field before passing TenantSettings to any
-   *   client component and shows only a boolean "configured" hint in its place.
-   *
-   *   When present, takes precedence over the platform-level
-   *   SANITY_API_WRITE_TOKEN / SANITY_WRITE_TOKEN environment variables.
+   * Sanity API version override for this tenant, e.g. "2024-01-01".
+   * Overrides the platform-level SANITY_API_VERSION environment variable.
+   * Falls back to serverEnv.sanity.apiVersion when absent.
+   */
+  readonly apiVersion?: string;
+  /**
+   * URL of the Sanity Studio for this tenant.
+   * Informational only — used in admin UIs and debug output.
+   * Example: "https://my-studio.sanity.studio"
+   */
+  readonly studioUrl?:  string;
+  /**
+   * Write token for the CMS provider.
+   * SERVER ONLY — must never be serialised to a client response or logged.
+   * When present, takes precedence over the platform-level token.
    */
   readonly writeToken?: string;
+
+  // ── Storyblok-specific (non-secret) ───────────────────────────────────────
+  /**
+   * Storyblok CDN region for this tenant.
+   * "eu" | "us" | "ap" | "ca" | "cn" (default: platform default or "eu").
+   */
+  readonly storyblokRegion?:   string;
+  /**
+   * Storyblok content version for this tenant.
+   * "published" | "draft" (default: platform default or "published").
+   */
+  readonly storyblokVersion?:  string;
+
+  // ── Statamic-specific (non-secret) ────────────────────────────────────────
+  /**
+   * Base URL of this tenant's Statamic installation.
+   * Example: "https://cms.tenant.com"
+   * Overrides the platform-level STATAMIC_API_URL / platform store baseUrl.
+   */
+  readonly statamicBaseUrl?:   string;
 }
 
 // ── Design settings ───────────────────────────────────────────────────────────
@@ -616,15 +1625,75 @@ export interface TenantCmsSettings {
 /**
  * Named theme keys representing pre-built visual design configurations.
  *
- * Package tiers gate which themes are available.  Custom themes require
- * the "pro" tier.
+ * Package tiers gate which themes are available:
+ *   starter   → default only
+ *   growth    → default + minimal + most commercial themes
+ *   pro       → all themes including bold, custom, and specialist themes
  *
- *   default  — platform standard theme (indigo-violet, balanced radius)
- *   minimal  — reduced visual weight; neutral palette, sharp radius
- *   bold     — high-contrast, expressive brand colour, soft radius
- *   custom   — fully bespoke TenantTheme object; pro tier only
+ * ─── Original platform presets ────────────────────────────────────────────
+ *   default               — indigo-violet, balanced radius (platform standard)
+ *   minimal               — neutral slate, sharp radius (enterprise clean)
+ *   bold                  — deep indigo, soft radius, heavy weight
+ *   custom                — fully bespoke; pro tier only
+ *
+ * ─── Curated commercial themes ────────────────────────────────────────────
+ *   corporate-blue        — navy blue, sharp radius; professional services, B2B
+ *   modern-green          — emerald, balanced; sustainability, growth-focused
+ *   minimal-neutral       — zinc monochrome, sharp; architecture, design, editorial
+ *   bold-dark             — amber on near-black; product launches, high-energy SaaS
+ *   tech-indigo           — deep violet-800, sharp; developer tools, dashboards
+ *   warm-professional     — amber-600, balanced; consulting, coaching, HR
+ *   recruitment-energy    — orange, soft, heavy; job boards, career sites
+ *   healthcare-calm       — cyan on sky-blue, soft; healthcare, wellness
+ *   industrial-strong     — red on stone, sharp; manufacturing, logistics
+ *   premium-editorial     — gold on warm-white, sharp; publishing, luxury, legal
+ *   dark-contrast         — pure black / white; high-contrast minimal premium
+ *   editorial-classic     — white editorial; serif headings, newspaper-style
+ *   playful-startup       — vivid violet, soft radius, rounded fonts; consumer apps, EdTech
+ *   startup-energy        — rose-red, ultra-bold, spring motion; product launches, B2C
+ *   corporate-trust       — blue-600, balanced, DM Sans; financial, professional services
  */
-export type ThemeKey = "default" | "minimal" | "bold" | "custom";
+export type ThemeKey =
+  // ── Original platform presets ────────────────────────────────────────────
+  | "default"
+  | "minimal"
+  | "bold"
+  | "custom"
+  // ── Curated commercial themes ─────────────────────────────────────────────
+  | "corporate-blue"
+  | "modern-green"
+  | "minimal-neutral"
+  | "bold-dark"
+  | "tech-indigo"
+  | "warm-professional"
+  | "recruitment-energy"
+  | "healthcare-calm"
+  | "industrial-strong"
+  | "premium-editorial"
+  | "dark-contrast"
+  | "editorial-classic"
+  | "playful-startup"
+  | "startup-energy"
+  | "corporate-trust"
+  | "modern-saas"
+  | "corporate-clean"
+  | "bold-marketing"
+  // ── Signature themes (editorial · corporate · bold · showcase · luxury) ────
+  | "portfolio-showcase"
+  | "premium-luxury"
+  // ── Seasonal themes ────────────────────────────────────────────────────────
+  | "valentine-pink"
+  | "dutch-orange"
+  // ── Careers / HR themes ───────────────────────────────────────────────────
+  | "careers-human"
+  // ── Premium families ──────────────────────────────────────────────────────
+  | "dark-ai"
+  | "clean-corporate"
+  | "structured-saas"
+  // ── Client-type blueprints ────────────────────────────────────────────────
+  | "werkenbij-blueprint"
+  | "corporate-b2b-blueprint"
+  | "saas-blueprint";
 
 /**
  * Fine-grained CSS token overrides applied on top of the active theme preset.
@@ -692,6 +1761,60 @@ export interface TenantTokenOverrides {
 
   /** Component token overrides.  Keys map to --component-{kebab-key}. */
   readonly component?: Readonly<Record<string, string>>;
+
+  /**
+   * Layout-shell component token overrides.
+   *
+   * Well-known keys are mapped to specific CSS custom properties:
+   *   headerBg          → --header-bg          (header background, default / top of page)
+   *   headerBgScrolled  → --header-bg-scrolled (header background after scroll)
+   *   headerFg          → --header-fg          (header foreground / text colour)
+   *   headerBorder      → --header-border      (header bottom-border colour)
+   *   footerBg          → --footer-bg          (footer background)
+   *   footerFg          → --footer-fg          (footer foreground / text colour)
+   *   footerBorder      → --footer-border      (footer top-border colour)
+   *
+   * Unknown keys fall back to `--layout-{kebab-key}`.
+   */
+  readonly layout?: Readonly<Record<string, string>>;
+}
+
+// ── Custom font types ──────────────────────────────────────────────────────────
+
+/**
+ * Metadata for one uploaded custom font file set.
+ *
+ * Font files are stored in the `tenant-fonts` Supabase Storage bucket at
+ * path `{tenantId}/{role}/{weight}.{ext}`.  The public URL is stored here.
+ *
+ * Only `regularUrl` is required.  Medium, bold, and italic variants are
+ * optional — the browser will synthesise them from regular when absent.
+ */
+export interface CustomFontFace {
+  /** CSS font-family name to use in @font-face and font stacks, e.g. "Brandica". */
+  readonly name: string;
+  /** Public URL to the regular (400) weight font file (woff2 or woff). */
+  readonly regularUrl: string;
+  /** Public URL to the medium (500) weight font file, if uploaded. */
+  readonly mediumUrl?: string;
+  /** Public URL to the bold (700) weight font file, if uploaded. */
+  readonly boldUrl?: string;
+  /** Public URL to the italic (400 italic) font file, if uploaded. */
+  readonly italicUrl?: string;
+}
+
+/**
+ * Collection of custom fonts configured for each semantic font role.
+ *
+ * Stored as `design.customFonts` in TenantDesignSettings.
+ */
+export interface TenantCustomFonts {
+  /** Custom font for the primary sans/body role (--font-sans). */
+  readonly sans?:  CustomFontFace;
+  /** Custom font for the editorial serif role (--font-serif). */
+  readonly serif?: CustomFontFace;
+  /** Custom font for the monospace/code role (--font-mono). */
+  readonly mono?:  CustomFontFace;
 }
 
 /**
@@ -707,7 +1830,44 @@ export interface TenantTokenOverrides {
  * `tokenOverrides` carries fine-grained per-token overrides (e.g. radius values)
  * that are set via the design token upload and not exposed in the main settings
  * form.  They are applied after the preset and primaryColor/primaryFont.
+ *
+ * `customFonts` carries platform-level custom font configurations (woff2/woff
+ * files uploaded to Supabase Storage).  @font-face declarations are generated
+ * from this at request time and injected as Layer D in app/layout.tsx.
  */
+/**
+ * Header structural variant.
+ *
+ *   minimal     — compact bar, horizontal links, no mega/flyout panels
+ *   flyout      — standard bar, vertical flyout dropdown panels on hover
+ *   mega        — full-width bar, multi-column mega-menu panels
+ *   transparent — no initial background; floats over the hero section
+ *
+ * When absent the active theme family prescribes the default.
+ * Store as `design.headerVariant` in TenantDesignSettings.
+ */
+export type HeaderVariant = "minimal" | "flyout" | "mega" | "transparent";
+
+/**
+ * Footer structural variant.
+ *
+ *   minimal    — single-row strip: brand | nav links | copyright
+ *   corporate  — multi-column: brand+tagline on the left, link columns on the right
+ *   branding   — centred layout: prominent logo, centred nav, centred copyright
+ *
+ * When absent the active theme family prescribes the default.
+ * Store as `design.footerVariant` in TenantDesignSettings.
+ */
+export type FooterVariant = "minimal" | "corporate" | "branding";
+
+/**
+ * Footer padding density.
+ *   compact      — tighter vertical rhythm (business / data-dense sites)
+ *   comfortable  — balanced rhythm (default for most family presets)
+ *   spacious     — generous padding (editorial / luxury sites)
+ */
+export type FooterDensity = "compact" | "comfortable" | "spacious";
+
 export interface TenantDesignSettings {
   readonly theme:           ThemeKey;
   readonly primaryColor?:   string;
@@ -717,6 +1877,158 @@ export interface TenantDesignSettings {
    * Applied on top of the preset — highest specificity in the theme cascade.
    */
   readonly tokenOverrides?: TenantTokenOverrides;
+  /**
+   * Platform-level custom font configurations.
+   * Keyed by font role: sans, serif, mono.
+   * @font-face CSS is generated from these at request time (Layer D).
+   */
+  readonly customFonts?:    TenantCustomFonts;
+  /**
+   * The Featured Theme Family that was explicitly selected in Design → Style.
+   *
+   * This field tracks the user's intentional family choice so the admin UI can
+   * display "Inherited from [Family Name]" labels in the Typography and Layout
+   * sections.  It does NOT affect CSS rendering — family defaults are applied at
+   * render time via familyTypographyToVars() / familyStructuralToVars() using the
+   * preset's own `featuredFamilyKey` property.
+   *
+   * Set automatically when the user activates a preset that belongs to a
+   * featured family.  Absent for tenants created before this field was added;
+   * in that case the UI falls back to deriving the family from `design.theme`.
+   *
+   * Stored as a plain string (not the typed union) so that future family keys
+   * added to FeaturedFamilyKey do not cause deserialization errors on older data.
+   */
+  readonly selectedStyleFamily?: string;
+  /**
+   * Whether tenant typography token overrides are actively applied.
+   *
+   * When `true`: values in `tokenOverrides.typography` (fontHeading, fontBody,
+   * fontSans, etc.) are merged on top of the active theme family's typography,
+   * letting the tenant customise individual font roles.
+   *
+   * When `false` or absent (the default): all `tokenOverrides.typography` values
+   * are ignored and the active theme family's typography is used as-is.
+   * This ensures switching theme families always results in visually distinct
+   * typography without requiring a manual "reset" step.
+   *
+   * Set via the "Override typography" toggle in Design → Typography.
+   * Automatically reset to `false` when the operator switches to a different
+   * theme preset from the Style gallery.
+   */
+  readonly typographyOverrideEnabled?: boolean;
+  /**
+   * Header structural variant override.
+   *
+   * When set, this takes precedence over the theme family's default header
+   * style and nav-dropdown pattern.  When absent, the active family's
+   * structural config applies (editorial → flyout/light, corporate → mega/light,
+   * bold-marketing → flyout/transparent, etc.).
+   *
+   * See HeaderVariant for the full set of accepted values.
+   */
+  readonly headerVariant?: HeaderVariant;
+  /**
+   * Footer structural variant override.
+   *
+   * When set, this takes precedence over the theme family's default footer
+   * layout.  When absent, the active family's structural footer config applies.
+   *
+   * See FooterVariant for the full set of accepted values.
+   */
+  readonly footerVariant?: FooterVariant;
+  /**
+   * Footer padding density override.
+   *
+   * Controls vertical rhythm of the footer section.  When absent, the active
+   * family's density setting applies (spacious for editorial/luxury/marketing,
+   * compact for corporate/portfolio).
+   */
+  readonly footerDensity?: FooterDensity;
+  /**
+   * @deprecated Use plan.themeKey on StoredRules in rules_config instead.
+   *
+   * Legacy contextual theme rule configuration.  The production theme decision
+   * engine now reads StoredRulesConfig (rules_config table) and evaluates
+   * plan.themeKey on matched rules.  This field is preserved for backward
+   * compatibility so existing stored data is not lost, but it is no longer
+   * evaluated at runtime.
+   *
+   * New theme overrides should be configured via the Design → Theme Overrides
+   * panel, which writes to plan.themeKey on individual StoredRules.
+   */
+  readonly themeRules?: import("@/decision/theme-decision").ThemeRuleConfig;
+}
+
+// ── Search settings ───────────────────────────────────────────────────────────
+
+/**
+ * Per-tenant search provider configuration.
+ *
+ * Stored in the `tenant_search_settings` Supabase table (config JSONB column).
+ * The Meilisearch API key is stored encrypted (AES-256-GCM) and is NEVER
+ * present in this type — runtime loaders decrypt it when building the provider.
+ *
+ * ─── Provider resolution order ────────────────────────────────────────────────
+ *
+ *   1. Meilisearch  — when provider === "meilisearch" AND host + key are set
+ *   2. Sanity GROQ  — when SANITY_PROJECT_ID is set in the environment
+ *   3. InMemory     — always-available fixture-corpus fallback
+ *
+ * ─── Index naming ─────────────────────────────────────────────────────────────
+ *
+ *   A single Meilisearch index per tenant is used:
+ *     {indexPrefix}{tenantId}
+ *
+ *   All content types (pages, posts, vacancies, etc.) are stored in one index
+ *   with a `contentType` field for scope-based filtering.  This avoids
+ *   multi-index fan-out and simplifies cross-type ranking.
+ *
+ * ─── Indexing ─────────────────────────────────────────────────────────────────
+ *
+ *   Content is pushed to Meilisearch by the reindex action
+ *   (`reindexTenantSearchAction`) triggered from the admin panel.
+ *   The source of truth remains the CMS (Sanity).
+ */
+export interface TenantSearchSettings {
+  /**
+   * Which search provider is active for this tenant.
+   *
+   *   "none"          — use platform default (Sanity GROQ or InMemory)
+   *   "meilisearch"   — use Meilisearch with the credentials below
+   */
+  readonly provider: "none" | "meilisearch";
+
+  /**
+   * Meilisearch instance URL.
+   * Example: "https://search.acme.com", "http://localhost:7700"
+   * Required when provider === "meilisearch".
+   */
+  readonly meilisearchHost?: string;
+
+  /**
+   * Meilisearch index name prefix.
+   * Final index name: `{indexPrefix}{tenantId}`.
+   * Defaults to "" (empty — index name equals tenantId).
+   * Example: "prod_" → index "prod_acme"
+   */
+  readonly indexPrefix?: string;
+
+  /**
+   * ISO 8601 timestamp (UTC) of the most recent successful reindex run.
+   * Set by `reindexTenantSearchAction` after a completed index push.
+   * Absent when the index has never been built.
+   */
+  readonly lastIndexedAt?: string;
+
+  /**
+   * Summary statistics from the most recent reindex run.
+   * Written alongside `lastIndexedAt` by the indexer.
+   */
+  readonly lastIndexStats?: {
+    readonly docCount: number;
+    readonly errorCount: number;
+  };
 }
 
 // ── Top-level TenantSettings ──────────────────────────────────────────────────
@@ -743,12 +2055,27 @@ export interface TenantDesignSettings {
  *   packageKey        — which tier the tenant is subscribed to
  *   features          — which platform features are entitled (derived from package)
  *   blocks            — which blocks are entitled (derived from package)
- *   ai                — AI layer settings specific to this tenant
- *   cms               — CMS integration settings specific to this tenant
+ *   ai                — AI layer settings specific to this tenant (mode, provider, model)
+ *   cms               — CMS provider + per-tenant config (provider, projectId, overrides)
+ *   crm               — CRM enablement flags for this tenant
+ *   enrichment        — IP/geo enrichment enablement flags for this tenant
+ *   domains           — Vercel deployment mapping for this tenant
  *   design            — visual design settings for this tenant
  *   cmsProvisionedAt  — ISO 8601 timestamp of the last successful CMS provisioning
  *                       run.  Set by provisionSiteAction; absent when the tenant
  *                       has not yet been provisioned into the CMS.
+ *
+ * ─── Two-layer integration model ─────────────────────────────────────────────
+ *
+ *   Platform layer (/admin/platform/integrations):
+ *     Stores API keys, tokens, and infrastructure defaults that apply to all
+ *     tenants unless overridden.  Contains only secrets and optional defaults.
+ *
+ *   Tenant layer (this type, managed at /admin/tenants/[id]/integrations):
+ *     Stores usage config: which integrations are active for this tenant,
+ *     tenant-specific provider settings, and per-tenant overrides.
+ *     Contains no secrets (writeToken is the sole exception — it's a
+ *     per-tenant CMS write credential, not a copy of the platform secret).
  */
 export interface TenantSettings {
   readonly tenantId:          string;
@@ -802,11 +2129,129 @@ export interface TenantSettings {
    */
   readonly additionalDomains?: readonly string[];
 
+  /**
+   * IANA timezone string for this tenant, e.g. "Europe/Amsterdam" or
+   * "America/New_York".  Used to derive time-based context variables
+   * (currentHour, dayOfWeek, timeOfDay, seasonalEvent, etc.) in local
+   * tenant time rather than raw UTC.
+   *
+   * Defaults to "UTC" when absent.
+   *
+   * @example "Europe/Amsterdam", "America/Chicago", "Asia/Tokyo"
+   */
+  readonly timezone?: string;
+
   readonly packageKey:        PackageKey;
   readonly features:          TenantFeatures;
   readonly blocks:            TenantBlocks;
+
+  /**
+   * AI decision layer configuration — provider, mode, model, confidence.
+   *
+   * Platform-level API keys are stored at /admin/platform/integrations/ai.
+   * These settings control which mode is active, which provider/model to use,
+   * and the per-tenant confidence threshold.
+   *
+   * The optional `liveProvider.apiKey` / `shadowProvider.apiKey` fields allow a
+   * per-tenant API key override — use only when a client brings their own key.
+   */
   readonly ai:                TenantAiSettings;
+
+  /**
+   * CMS integration settings — provider + per-tenant provider config.
+   *
+   * Platform-level CMS credentials (write tokens, access tokens) are stored at
+   * /admin/platform/integrations/cms.  These settings control which CMS provider
+   * this tenant uses and any tenant-specific overrides (projectId, dataset, etc.).
+   */
   readonly cms:               TenantCmsSettings;
+
+  /**
+   * CRM integration settings — enablement and usage flags.
+   *
+   * The HubSpot access token lives at /admin/platform/integrations/crm.
+   * These flags gate whether that integration runs for this tenant's traffic.
+   *
+   * When absent, CRM enrichment is disabled for this tenant.
+   */
+  readonly crm?: TenantCrmSettings;
+
+  /**
+   * Enrichment integration settings — geo enrichment enablement.
+   *
+   * The MaxMind license key lives at /admin/platform/integrations/enrichment.
+   * These flags gate whether geo enrichment runs for this tenant's traffic.
+   *
+   * When absent, enrichment is disabled for this tenant.
+   */
+  readonly enrichment?: TenantEnrichmentSettings;
+
+  /**
+   * Domains and deployment settings for this tenant.
+   *
+   * The Vercel API token lives at /admin/platform/integrations/domains.
+   * This object holds the per-tenant Vercel project mapping for domain
+   * provisioning.  Routing hostnames are in primaryDomain / additionalDomains.
+   */
+  readonly domains?: TenantDomainsSettings;
+
+  /**
+   * GA4 integration settings — tracking (event send) and Analytics History.
+   *
+   * When absent, GA4 tracking and history enrichment are both disabled for
+   * this tenant.  Configure tracking.measurementId + tracking.sendMode to
+   * enable event sending; configure history.propertyId + history.serviceAccountJson
+   * to enable the GA4 Analytics History enrichment stage.
+   *
+   * ─── Security ─────────────────────────────────────────────────────────────
+   *
+   *   ga4.tracking.apiSecret and ga4.history.serviceAccountJson are
+   *   server-only secrets.  They must never be serialised to a client
+   *   component or included in a public API response.
+   */
+  readonly ga4?: TenantGa4Settings;
+
+  /**
+   * Leadinfo client-side enrichment settings.
+   *
+   * When absent or `enabled: false`, the Leadinfo identify script is not
+   * injected into the page.  When enabled, the LeadinfoProvider component
+   * runs the Leadinfo Identify API in the visitor's browser and persists the
+   * normalised result in the `mc_li` cookie for server-side decision context.
+   *
+   * `siteToken` is a non-secret public identifier — safe to include in the
+   * browser-facing component props.
+   */
+  readonly leadinfo?: TenantLeadinfoSettings;
+
+  /**
+   * Tenant-level privacy policy.
+   *
+   * Controls which consent categories the platform may act on for this tenant's
+   * visitors, and whether to show the cookie consent banner.
+   *
+   * When absent: banner is shown, all categories defer to visitor cookie.
+   * Configure via the Privacy tab in the tenant admin workspace.
+   */
+  readonly privacy?: TenantPrivacySettings;
+
+  /**
+   * On-site debug overlay visibility settings.
+   *
+   * When absent the overlay is treated as OFF — no debug information is
+   * rendered.  Enable via the Debug tab in the tenant admin workspace.
+   */
+  readonly debug?: TenantDebugSettings;
+
+  /**
+   * A/B experiment runtime settings.
+   *
+   * When absent, experiments are treated as enabled (preserves legacy
+   * behaviour where the engine ran unconditionally).  Disable via the
+   * Experiments tab in the tenant admin workspace.
+   */
+  readonly experiments?: TenantExperimentsSettings;
+
   readonly design:            TenantDesignSettings;
 
   /**
@@ -820,4 +2265,203 @@ export interface TenantSettings {
    * by the admin panel to show when the last provisioning occurred.
    */
   readonly cmsProvisionedAt?: string;
+
+  /**
+   * ISO 8601 timestamp (UTC) of the most recent successful full site
+   * initialization run via `createSiteAction`.
+   *
+   * Set after all initialization sections complete: tenant base, design system,
+   * CMS pages and variants, site settings, integration baseline, domain baseline.
+   * Absent when the tenant has not yet been initialized via "Create starter site".
+   *
+   * Distinct from `cmsProvisionedAt`, which records CMS-only provisioning.
+   */
+  readonly siteInitializedAt?: string;
+
+  /**
+   * The site archetype chosen during initialization.
+   *
+   * Acts as a starter preset that drives the recommended template selection —
+   * it does NOT gate features or templates after initialization.
+   *
+   * Optional: absent on tenants created before site-type selection was
+   * introduced.  Callers should treat a missing value as "unknown" rather
+   * than a specific site type.
+   *
+   * Typed as string (not SiteType) to avoid a circular import between
+   * tenant/types.ts and page-config.  Validated by createSiteAction before use.
+   */
+  readonly siteType?: string;
+
+  /**
+   * The page templates explicitly selected by the operator during site
+   * initialization.
+   *
+   * This is the authoritative provisioning input used by `createSiteAction`.
+   * The site type is stored separately as metadata only.
+   *
+   * When absent (tenants initialized before template selection was introduced),
+   * `createSiteAction` falls back to the site preset's `pages` list for
+   * backward compatibility.
+   */
+  readonly selectedTemplates?: readonly TemplateCatalogKey[];
+
+  /**
+   * Meilisearch (or future search provider) settings for this tenant.
+   *
+   * When absent or `provider: "none"`, the platform falls back to the
+   * SanitySearchProvider → InMemorySearchProvider resolution chain.
+   *
+   * The Meilisearch API key is stored encrypted in `tenant_search_settings`
+   * and is NEVER included in this interface — only a boolean `hasApiKey`
+   * flag is surfaced to the client.  Runtime loaders decrypt on demand.
+   *
+   * Configure at /admin/tenants/[tenantId]/search.
+   */
+  readonly search?: TenantSearchSettings;
+
+  /**
+   * Per-slot AI selection mode configuration (Phase 1 — AI Slot Selector).
+   *
+   * Controls whether each core content slot (hero / proof / cta) uses AI,
+   * rules-only, or a fixed static key.
+   *
+   * When absent (the default), all slots are "ai-assisted" — the AI may
+   * select any slot when the global confidence gates pass.  This matches
+   * the pre-Phase-1 behaviour exactly; no migration is required.
+   *
+   * ─── Relationship to ai.mode ──────────────────────────────────────────────
+   *
+   *   ai.mode must be "shadow" or "live" for any "ai-assisted" slot to have
+   *   effect.  When ai.mode === "disabled" the AI layer does not run at all
+   *   and all slots fall through to the rules plan regardless of adaptiveSlots.
+   *
+   * Configure via /admin/tenants/[tenantId]/behavior/slots.
+   */
+  readonly adaptiveSlots?: TenantAdaptiveSlotSettings;
+
+  /**
+   * Unified AI governance policies — Phase 3.
+   *
+   * Controls the operational mode (disabled / shadow / live) and confidence
+   * thresholds for both Phase 1 (variant selection) and Phase 2 (field fill).
+   *
+   * ─── Resolution order ───────────────────────────────────────────────────────
+   *
+   *   For each AI phase:
+   *     slot override → aiPolicies → platform env vars → system defaults
+   *
+   *   Absent fields fall through to the next tier, allowing partial overrides.
+   *   For example, a tenant can set only `fieldFill.confidenceThreshold` and
+   *   inherit everything else from platform defaults.
+   *
+   * ─── Relationship to ai.mode ─────────────────────────────────────────────
+   *
+   *   `ai.mode` (legacy) maps to `aiPolicies.selection.mode` for backward
+   *   compatibility.  When `aiPolicies` is set, it takes precedence over
+   *   the legacy `ai.mode` for both phases.
+   *
+   * ─── Backward compatibility ─────────────────────────────────────────────
+   *
+   *   When this field is absent, the system falls back to the platform
+   *   environment variables and then system defaults.  Existing tenants
+   *   that rely on `ai.mode` continue to work unchanged.
+   *
+   * Configure via /admin/tenants/[tenantId]/behavior/ai-policy.
+   */
+  readonly aiPolicies?: TenantAiPolicies;
+
+  /**
+   * AI field fill configuration — Phase 2.
+   *
+   * Controls whether AI may rewrite individual text fields within a
+   * CMS-fetched variant block, and which specific fields are eligible.
+   *
+   * ─── Relationship to adaptiveSlots ────────────────────────────────────────
+   *
+   *   adaptiveSlots (Phase 1) controls WHICH variant key is selected.
+   *   fieldFill     (Phase 2) controls WHAT text is shown within that variant.
+   *
+   *   Both phases are independently configurable and can be active, inactive,
+   *   or mixed (e.g. rules-only variant selection + AI-enhanced copy).
+   *
+   * ─── Fail-safe ────────────────────────────────────────────────────────────
+   *
+   *   Any failure in the field fill pipeline silently returns the original
+   *   CMS content.  The variant is always served — field fill is best-effort.
+   *
+   * ─── Backward compatibility ───────────────────────────────────────────────
+   *
+   *   When this field is absent from TenantSettings, all slots serve the
+   *   original CMS field values without any AI modification — identical to
+   *   the pre-Phase-2 behaviour.  No migration required.
+   *
+   * Configure via /admin/tenants/[tenantId]/behavior/field-fill.
+   */
+  readonly fieldFill?: TenantFieldFillSettings;
+
+  /**
+   * JavaScript snippet integration settings.
+   *
+   * Enables the one-line `<script>` tag integration mode: a small async
+   * JavaScript snippet fetches personalised variant content from the
+   * `/api/snippet/decide` endpoint and swaps it into DOM elements marked
+   * with `data-mc-slot` attributes — without any server-side rendering.
+   *
+   * ─── Use case ─────────────────────────────────────────────────────────────
+   *
+   *   Existing websites, SPAs, and non-Next.js frameworks that cannot adopt
+   *   the full server-rendering pipeline.  Drop one `<script>` tag into the
+   *   `<head>` and add `data-mc-slot="hero-title"` attributes to the elements
+   *   you want to personalise.  The snippet does the rest.
+   *
+   * ─── Site key ─────────────────────────────────────────────────────────────
+   *
+   *   `siteKey` is a public identifier (not a secret) embedded in the snippet
+   *   script tag.  It identifies the tenant when the browser calls the decide
+   *   endpoint.  Format: `sk_live_<random>`.
+   *
+   *   Generate via /admin/tenants/[tenantId]/snippet or the
+   *   `generateSnippetSiteKeyAction` server action.
+   *
+   * ─── Security ─────────────────────────────────────────────────────────────
+   *
+   *   The site key is intentionally public — it is embedded in the page HTML.
+   *   It gates which variant content the decide endpoint returns, but does not
+   *   grant access to any admin or write operations.
+   *
+   * Configure via /admin/tenants/[tenantId]/snippet.
+   */
+  readonly snippet?: TenantSnippetSettings;
+}
+
+// ── Snippet settings ───────────────────────────────────────────────────────────
+
+/**
+ * JavaScript snippet integration settings for a tenant.
+ *
+ * See TenantSettings.snippet for full documentation.
+ */
+export interface TenantSnippetSettings {
+  /**
+   * Whether the snippet integration is enabled for this tenant.
+   * When false, the `/api/snippet/decide` endpoint rejects requests from this
+   * tenant's site key with a 403.
+   * @default false
+   */
+  enabled?: boolean;
+
+  /**
+   * Public site key embedded in the `<script>` tag.
+   * Format: `sk_live_<random>`.
+   * Generated by `generateSnippetSiteKeyAction`.
+   * Absent until the operator generates a key for the first time.
+   */
+  siteKey?: string;
+
+  /**
+   * ISO 8601 timestamp (UTC) when the site key was last generated or
+   * regenerated.  Used to show "Generated on …" in the admin UI.
+   */
+  siteKeyGeneratedAt?: string;
 }

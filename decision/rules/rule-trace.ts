@@ -55,10 +55,12 @@ import {
   type RuleCondition,
   type FieldCondition,
   type NamedCondition,
+  type ContextCondition,
   type GroupCondition,
   type NamedConditionId,
   type FieldConditionValue,
 } from "./stored-rule";
+import { CONTEXT_REGISTRY } from "./context-library";
 
 // ── Privacy flag ──────────────────────────────────────────────────────────────
 
@@ -109,6 +111,25 @@ export interface NamedConditionTrace {
 }
 
 /**
+ * Trace of a ContextCondition evaluation.
+ *
+ * Shows which context was referenced, its label, and whether it matched.
+ * The underlying condition of the context definition is NOT re-traced here
+ * (tracing the inner condition would produce a duplicate trace subtree in
+ * every rule that references the same context).  The context library panel
+ * in the admin UI shows the full context definition separately.
+ */
+export interface ContextConditionTrace {
+  kind:       "context";
+  contextId:  string;
+  /** Human-readable label from CONTEXT_REGISTRY, or the raw ID if not found. */
+  label:      string;
+  matched:    boolean;
+  /** Set when the contextId was not found in CONTEXT_REGISTRY. */
+  error?:     "unknown-context";
+}
+
+/**
  * Trace of a GroupCondition evaluation.
  *
  * All children are always present (no short-circuit in the trace walk) so the
@@ -136,6 +157,7 @@ export interface UnknownConditionTrace {
 export type ConditionTrace =
   | FieldConditionTrace
   | NamedConditionTrace
+  | ContextConditionTrace
   | GroupConditionTrace
   | UnknownConditionTrace;
 
@@ -144,13 +166,18 @@ export type ConditionTrace =
  *
  * `matched` mirrors what evaluateCondition() returned for the rule's condition.
  * `condition` is the root of the trace tree.
+ * `matchedContextIds` lists all ContextCondition IDs that matched for this rule.
  */
 export interface RuleEvalTrace {
-  ruleId:    string;
-  ruleLabel: string;
-  priority:  number;
-  matched:   boolean;
-  condition: ConditionTrace;
+  ruleId:            string;
+  ruleLabel:         string;
+  priority:          number;
+  packId?:           string;
+  precedenceLevel?:  string;
+  matched:           boolean;
+  condition:         ConditionTrace;
+  /** IDs of context conditions that were referenced and matched in this rule. */
+  matchedContextIds: string[];
 }
 
 // ── Core trace walker ─────────────────────────────────────────────────────────
@@ -188,15 +215,70 @@ export function evaluateConditionTrace(
   }
 }
 
+/**
+ * Walk a ConditionTrace tree and collect all matched ContextCondition IDs.
+ *
+ * Used by generateRuleTrace() to populate RuleEvalTrace.matchedContextIds,
+ * which gives the debug panel a flat list of "which named contexts fired".
+ */
+export function collectMatchedContextIds(trace: ConditionTrace): string[] {
+  const ids: string[] = [];
+
+  function walk(node: ConditionTrace): void {
+    if (node.kind === "context" && node.matched) {
+      ids.push(node.contextId);
+    } else if (node.kind === "group") {
+      for (const child of node.children) walk(child);
+    }
+  }
+
+  walk(trace);
+  return ids;
+}
+
+/**
+ * Build a full RuleEvalTrace for a given stored rule and evaluation context.
+ * This is the entry point for the RulesDecisionProvider trace machinery.
+ *
+ * Includes packId, precedenceLevel, and matchedContextIds in the trace so
+ * the debug panel can display the complete picture without additional lookups.
+ *
+ * @param stored   The raw StoredRule (for metadata: packId, precedenceLevel).
+ * @param matched  The authoritative match result from evaluateCondition().
+ * @param condition The rule's condition descriptor.
+ * @param ctx      The full visitor evaluation context for this request.
+ */
+export function generateRuleTrace(
+  stored:    { id: string; label: string; priority: number; packId?: string; precedenceLevel?: string },
+  matched:   boolean,
+  condition: RuleCondition,
+  ctx:       RuleEvaluationContext,
+): RuleEvalTrace {
+  const { matched: _ignored, trace } = evaluateConditionTrace(condition, ctx);
+  void _ignored; // match result comes from the caller (authoritative)
+
+  return {
+    ruleId:            stored.id,
+    ruleLabel:         stored.label,
+    priority:          stored.priority,
+    packId:            stored.packId,
+    precedenceLevel:   stored.precedenceLevel,
+    matched,
+    condition:         trace,
+    matchedContextIds: collectMatchedContextIds(trace),
+  };
+}
+
 // ── Internal walk helpers ─────────────────────────────────────────────────────
 
 function traceNode(
   condition: RuleCondition,
   ctx:       RuleEvaluationContext,
 ): { matched: boolean; trace: ConditionTrace } {
-  if (condition.type === "field")  return traceField(condition, ctx);
-  if (condition.type === "named")  return traceNamed(condition, ctx);
-  if (condition.type === "group")  return traceGroup(condition, ctx);
+  if (condition.type === "field")   return traceField(condition, ctx);
+  if (condition.type === "named")   return traceNamed(condition, ctx);
+  if (condition.type === "context") return traceContext(condition, ctx);
+  if (condition.type === "group")   return traceGroup(condition, ctx);
   // Unreachable for valid condition trees.
   return {
     matched: false,
@@ -276,6 +358,37 @@ function traceNamed(
   };
 }
 
+function traceContext(
+  condition: ContextCondition,
+  ctx:       RuleEvaluationContext,
+): { matched: boolean; trace: ContextConditionTrace } {
+  const def     = CONTEXT_REGISTRY[condition.contextId];
+  const matched = evaluateCondition(condition, ctx);
+
+  if (!def) {
+    return {
+      matched: false,
+      trace: {
+        kind:      "context",
+        contextId: condition.contextId,
+        label:     condition.contextId,
+        matched:   false,
+        error:     "unknown-context",
+      },
+    };
+  }
+
+  return {
+    matched,
+    trace: {
+      kind:      "context",
+      contextId: condition.contextId,
+      label:     def.label,
+      matched,
+    },
+  };
+}
+
 function traceGroup(
   condition: GroupCondition,
   ctx:       RuleEvaluationContext,
@@ -305,18 +418,21 @@ function traceGroup(
  * A `conditionSummary` string gives a quick one-liner; a `conditionDetail`
  * object carries the full structured trace for log aggregation / parsing.
  *
- * @example output for a matched group rule:
+ * @example output for a matched context-based rule:
  *   {
- *     ruleId: "homepage.google_mobile",
- *     ruleLabel: "Google on mobile",
+ *     ruleId: "homepage.google",
+ *     ruleLabel: "Google traffic",
  *     priority: 10,
+ *     packId: "pack_traffic_source",
+ *     precedenceLevel: "high_intent",
  *     matched: true,
- *     conditionSummary: "(Traffic source equals google AND Device type equals mobile) → ✓",
- *     conditionDetail: { kind: "group", logic: "and", matched: true, children: [...] }
+ *     matchedContextIds: ["ctx_google_traffic"],
+ *     conditionSummary: "ctx: Google traffic → ✓",
+ *     conditionDetail: { kind: "context", contextId: "ctx_google_traffic", ... }
  *   }
  */
 export function ruleTraceToLogMeta(trace: RuleEvalTrace): Record<string, unknown> {
-  return {
+  const meta: Record<string, unknown> = {
     ruleId:           trace.ruleId,
     ruleLabel:        trace.ruleLabel,
     priority:         trace.priority,
@@ -324,6 +440,14 @@ export function ruleTraceToLogMeta(trace: RuleEvalTrace): Record<string, unknown
     conditionSummary: summariseTrace(trace.condition),
     conditionDetail:  serialiseTrace(trace.condition),
   };
+
+  if (trace.packId)            meta.packId            = trace.packId;
+  if (trace.precedenceLevel)   meta.precedenceLevel   = trace.precedenceLevel;
+  if (trace.matchedContextIds.length > 0) {
+    meta.matchedContextIds = trace.matchedContextIds;
+  }
+
+  return meta;
 }
 
 /**
@@ -344,6 +468,9 @@ export function summariseTrace(trace: ConditionTrace): string {
     }
     case "named":
       return `${trace.label} → ${tick}`;
+
+    case "context":
+      return `ctx: ${trace.label} → ${tick}`;
 
     case "group": {
       const sep   = ` ${trace.logic.toUpperCase()} `;
@@ -380,6 +507,17 @@ function serialiseTrace(trace: ConditionTrace): Record<string, unknown> {
         label:   trace.label,
         matched: trace.matched,
       };
+
+    case "context": {
+      const base: Record<string, unknown> = {
+        kind:      trace.kind,
+        contextId: trace.contextId,
+        label:     trace.label,
+        matched:   trace.matched,
+      };
+      if (trace.error) base.error = trace.error;
+      return base;
+    }
 
     case "group":
       return {

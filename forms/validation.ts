@@ -236,6 +236,14 @@ export function validateSubmission(
  * empty string rather than left as-is — prevents raw `{{key}}` tokens from
  * leaking into sent emails.
  *
+ * Pass system variables (formName, submittedAt, tenantName) by merging them
+ * into the `values` argument using `buildSystemVars()`:
+ *
+ * @example
+ * const allVars = { ...validatedValues, ...buildSystemVars({ formName: "contact-form", tenantName: "Acme" }) };
+ * interpolateTemplate("New message from {{naam}} via {{formName}}", allVars);
+ * // → "New message from Jan via contact-form"
+ *
  * @param template  - A string containing zero or more `{{key}}` tokens.
  * @param values    - The validated submission values (keyed by field key).
  *
@@ -252,4 +260,46 @@ export function interpolateTemplate(
   values:   Record<string, string>,
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// System variable builder
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Options for building system-level template variables.
+ *
+ *   formName    — internal slug/name of the form definition
+ *   tenantName  — human-readable name of the receiving tenant
+ *   submittedAt — ISO timestamp string; defaults to the current UTC time
+ */
+export interface SystemVarsOptions {
+  readonly formName?:    string;
+  readonly tenantName?:  string;
+  readonly submittedAt?: string;
+}
+
+/**
+ * Builds the set of system-level template variables available in all email
+ * action templates, regardless of which fields the form contains.
+ *
+ * System variables:
+ *   {{formName}}     — the form's slug identifier (e.g. "contact-form")
+ *   {{submittedAt}}  — UTC submission timestamp (e.g. "Mon, 06 Apr 2026 09:00:00 GMT")
+ *   {{tenantName}}   — display name of the receiving tenant
+ *
+ * Merge the result with validated submission values before calling
+ * `interpolateTemplate()` so both field and system variables resolve:
+ *
+ * @example
+ * const sysVars  = buildSystemVars({ formName: "contact-form", tenantName: "Acme B.V." });
+ * const allVars  = { ...validationResult.values, ...sysVars };
+ * const subject  = interpolateTemplate("Bericht via {{formName}} van {{naam}}", allVars);
+ */
+export function buildSystemVars(options: SystemVarsOptions = {}): Record<string, string> {
+  return {
+    formName:    options.formName    ?? "",
+    submittedAt: options.submittedAt ?? new Date().toUTCString(),
+    tenantName:  options.tenantName  ?? "",
+  };
 }

@@ -39,7 +39,8 @@
  *     "border":    { "width": "1px" },
  *     "shadow":    { "sm": "0 1px 2px rgba(0,0,0,0.05)" },
  *     "motion":    { "durationBase": "200ms" },
- *     "component": { "buttonRadius": "4px" }
+ *     "component": { "buttonRadius": "4px" },
+ *     "layout":    { "navLinkSize": "0.875rem", "headerBg": "#ffffff" }
  *   }
  *
  *   The two formats must not be mixed: a file may not contain both grouped
@@ -66,6 +67,9 @@
  *     shadow.*          → TenantDesignSettings.tokenOverrides.shadow.*
  *     motion.*          → TenantDesignSettings.tokenOverrides.motion.*
  *     component.*       → TenantDesignSettings.tokenOverrides.component.*
+ *     layout.*          → TenantDesignSettings.tokenOverrides.layout.*
+ *                          header/footer shell colors + navigation typography
+ *                          → --header-bg, --header-fg, --nav-link-size, etc.
  *
  * ─── Security ─────────────────────────────────────────────────────────────────
  *
@@ -79,6 +83,7 @@
  */
 
 import type { ThemeKey } from "./types";
+import { DESIGN_PRESETS }  from "./design-theme";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -112,6 +117,9 @@ export interface DesignTokenUploadInput {
   shadow?:     Record<string, string>;
   motion?:     Record<string, string>;
   component?:  Record<string, string>;
+  // layout: header/footer shell colors + navigation typography overrides.
+  // Maps to --header-*, --footer-*, --nav-link-* CSS custom properties.
+  layout?:     Record<string, string>;
 }
 
 // ── Token key definitions ──────────────────────────────────────────────────────
@@ -144,6 +152,9 @@ export const GROUPED_TOKEN_GROUPS = [
   "shadow",
   "motion",
   "component",
+  // layout: structural chrome layer — header/footer shell colors and
+  // navigation typography.  Maps to LAYOUT_CSS_VARS in resolve-theme.ts.
+  "layout",
 ] as const;
 
 export type GroupedTokenGroup = (typeof GROUPED_TOKEN_GROUPS)[number];
@@ -167,8 +178,13 @@ export const GROUP_TOKEN_KEYS: Record<GroupedTokenGroup, readonly string[]> = {
     "popover", "popoverForeground",
   ],
   typography: [
+    // Base font families
     "fontSans", "fontMono", "fontSerif",
     "baseFontSize", "lineHeightBase",
+    "fontSansSource", "fontSerifSource", "fontMonoSource",
+    // Usage-role mappings
+    "fontHeading", "fontBody", "fontUI", "fontCode",
+    "fontHeadingSource",
   ],
   radius: [
     "interactive", "card", "popover",
@@ -192,6 +208,28 @@ export const GROUP_TOKEN_KEYS: Record<GroupedTokenGroup, readonly string[]> = {
     "cardPadding", "cardRadius",
     "inputRadius", "inputHeight",
     "badgeRadius",
+  ],
+  // ── layout — structural chrome layer ─────────────────────────────────────
+  // Header/footer shell color tokens + navigation typography tokens.
+  // Each key maps to a specific CSS custom property via LAYOUT_CSS_VARS in
+  // resolve-theme.ts (e.g. navLinkSize → --nav-link-size).
+  // Unknown keys fall back to --layout-{kebab-key} as a safety net.
+  layout: [
+    // Header shell
+    "headerBg",
+    "headerBgScrolled",
+    "headerFg",
+    "headerBorder",
+    // Footer shell
+    "footerBg",
+    "footerFg",
+    "footerBorder",
+    // Navigation typography
+    "navLinkSize",
+    "navLinkWeight",
+    "navLinkTracking",
+    "navDropdownItemSize",
+    "footerNavSize",
   ],
 } as const;
 
@@ -221,7 +259,14 @@ export type DesignTokenValidationResult =
 
 // ── Internal helpers ───────────────────────────────────────────────────────────
 
-const VALID_THEME_KEYS = new Set<ThemeKey>(["default", "minimal", "bold", "custom"]);
+/**
+ * Valid theme keys derived from DESIGN_PRESETS — the platform's single source
+ * of truth for available themes.  Adding a new theme to DESIGN_PRESETS
+ * automatically makes it valid here without a separate manual update.
+ */
+const VALID_THEME_KEYS = new Set<ThemeKey>(
+  Object.keys(DESIGN_PRESETS) as ThemeKey[],
+);
 
 /**
  * Characters that indicate a CSS injection attempt when they appear in a
@@ -358,11 +403,21 @@ const GROUP_VALUE_TYPES: Record<GroupedTokenGroup, Partial<Record<string, CssVal
     popover: "color", popoverForeground: "color",
   },
   typography: {
-    fontSans:      "font-family",
-    fontMono:      "font-family",
-    fontSerif:     "font-family",
-    baseFontSize:  "length",
-    lineHeightBase:"string",   // accepts unitless (1.5), percentage (150%), or length
+    // Base families
+    fontSans:       "font-family",
+    fontMono:       "font-family",
+    fontSerif:      "font-family",
+    baseFontSize:   "length",
+    lineHeightBase: "string",     // accepts unitless (1.5), percentage (150%), or length
+    fontSansSource: "string",     // Google Fonts / Fontsource URL or identifier
+    fontSerifSource:"string",
+    fontMonoSource: "string",
+    // Usage-role mappings
+    fontHeading:       "font-family",
+    fontBody:          "font-family",
+    fontUI:            "font-family",
+    fontCode:          "font-family",
+    fontHeadingSource: "string",
   },
   radius: {
     interactive: "length", card: "length", popover: "length",
@@ -390,6 +445,26 @@ const GROUP_VALUE_TYPES: Record<GroupedTokenGroup, Partial<Record<string, CssVal
     cardPadding: "length", cardRadius: "length",
     inputRadius: "length", inputHeight: "length",
     badgeRadius: "length",
+  },
+  // layout — header/footer shell colors are CSS colors; typography tokens are
+  // CSS lengths (font-size) or strings (font-weight, letter-spacing).
+  layout: {
+    // Shell colors
+    headerBg:         "color",
+    headerBgScrolled: "color",
+    headerFg:         "color",
+    headerBorder:     "color",
+    footerBg:         "color",
+    footerFg:         "color",
+    footerBorder:     "color",
+    // Navigation typography — font sizes are lengths; weight/tracking are strings
+    // because font-weight accepts numeric values (400, 500, 700) and letter-spacing
+    // may be "normal", "0", or a length with units.
+    navLinkSize:         "length",
+    navLinkWeight:       "string",
+    navLinkTracking:     "string",
+    navDropdownItemSize: "length",
+    footerNavSize:       "length",
   },
 };
 

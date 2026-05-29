@@ -151,12 +151,22 @@ export async function createSession(
  * with that UUID already exists.
  *
  * The "one DB row per cookie session" rule is enforced here:
- *   - First visit  → no existing row → inserts the new session
- *   - Reload/return within the same cookie session → row already exists → no-op
+ *   - First visit  → no existing row → inserts the new session row
+ *   - Reload / return within the same cookie session → row already exists → no-op
  *
- * The returned `SessionRow` reflects the current state of the row after the
- * upsert. On a conflict (row already existed) Supabase returns the existing
- * row thanks to `select()`.
+ * ─── Why two steps? ───────────────────────────────────────────────────────────
+ *
+ *   `onConflict: "id", ignoreDuplicates: true` maps to `ON CONFLICT (id) DO NOTHING`.
+ *   When the row already exists PostgREST returns an **empty** result set — zero rows.
+ *   Chaining `.select().single()` on zero rows raises PGRST116 ("JSON object
+ *   requested, multiple (or no) rows returned").
+ *
+ *   The safe pattern is therefore:
+ *     1. Upsert without `.select()` — just confirm no DB-level error.
+ *     2. Fetch the (now-guaranteed) row by PK using `.maybeSingle()`.
+ *
+ *   This adds one extra indexed PK lookup per call but eliminates PGRST116 on
+ *   every subsequent page-load within the same cookie session.
  *
  * @param input  Session data including `id` from the mc_session_id cookie.
  * @returns      A `RepositoryResult` containing the `SessionRow`.
@@ -164,7 +174,11 @@ export async function createSession(
 export async function upsertSession(
   input: UpsertSessionInput,
 ): Promise<RepositoryResult<SessionRow>> {
-  const { data, error } = await getDb()
+  // ── Step 1: idempotent insert ─────────────────────────────────────────────
+  // Do NOT call .select() or .single() here.
+  // ignoreDuplicates (ON CONFLICT DO NOTHING) returns 0 rows when the row
+  // already exists; .single() on 0 rows always throws PGRST116.
+  const { error: insertError } = await getDb()
     .from("sessions")
     .upsert(
       {
@@ -179,21 +193,42 @@ export async function upsertSession(
         utm_campaign: input.utmCampaign ?? null,
       },
       {
-        // ON CONFLICT (id) DO NOTHING — preserves the original first-visit data.
         onConflict: "id",
         ignoreDuplicates: true,
       },
-    )
-    .select()
-    .single();
+    );
 
-  if (error) {
-    logger.error("[sessions-repository] upsertSession failed", {
-      error: error.message,
-      code: error.code,
+  if (insertError) {
+    logger.error("[sessions-repository] upsertSession insert failed", {
+      error: insertError.message,
+      code: insertError.code,
       id: input.id,
     });
-    return { ok: false, error: error.message };
+    return { ok: false, error: insertError.message };
+  }
+
+  // ── Step 2: fetch the row that now definitely exists ──────────────────────
+  // A PK lookup — always a single, indexed row.  .maybeSingle() (not .single())
+  // avoids PGRST116 in the astronomically unlikely case the row is somehow gone.
+  const { data, error: fetchError } = await getDb()
+    .from("sessions")
+    .select()
+    .eq("id", input.id)
+    .maybeSingle();
+
+  if (fetchError) {
+    logger.error("[sessions-repository] upsertSession post-fetch failed", {
+      error: fetchError.message,
+      code: fetchError.code,
+      id: input.id,
+    });
+    return { ok: false, error: fetchError.message };
+  }
+
+  if (!data) {
+    // Should never happen — we just inserted or confirmed the row exists.
+    logger.error("[sessions-repository] upsertSession: row missing after upsert", { id: input.id });
+    return { ok: false, error: "Session row not found after upsert" };
   }
 
   return { ok: true, data };

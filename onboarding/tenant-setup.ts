@@ -70,8 +70,10 @@ import type {
   TenantDesignSettings,
 } from "@/tenant/types";
 
-import { getPackageDefinition }  from "@/tenant/packages";
-import { getPackageSeedDefaults } from "@/tenant/package-defaults";
+import { getPackageDefinition }   from "@/tenant/packages";
+import { getPackageSeedDefaults }  from "@/tenant/package-defaults";
+import { getThemeLayoutProfile }   from "@/design-system/theme/layout-profiles";
+import type { ContextBlockKey }    from "@/tenant/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INPUT SHAPE
@@ -419,9 +421,28 @@ export function onboardingInputToTenantSettings(
   //   features.analytics    — true  (immediate; no setup required)
   //   features.experiments  — false (off until an experiment record exists)
   //   features.ai           — false (off until provider + policy are configured)
-  //   blocks.*              — all allowed blocks enabled by default
+  //   blocks.context        — filtered by the theme's layout profile (see below)
+  //   blocks.content        — all allowed content blocks enabled by default
   //   ai.mode               — "disabled" (operator activates post-setup)
-  const { features, blocks, ai } = getPackageSeedDefaults(input.packageKey);
+  const { features, blocks: packageBlocks, ai } = getPackageSeedDefaults(input.packageKey);
+
+  // Apply the theme's layout profile to the context block set.
+  //
+  // The layout profile declares which adaptive context blocks make sense for
+  // the selected theme (e.g. "corporate-standard" skips the notification bar).
+  // We intersect this with the package-allowed set so the package remains the
+  // ceiling — a theme profile can never grant blocks the package doesn't allow.
+  //
+  // Operators can still enable additional blocks after creation via the admin.
+  const layoutProfile = getThemeLayoutProfile(resolvedTheme);
+  const profileBlockSet = new Set<string>(layoutProfile.contextBlocks);
+
+  const blocks = {
+    ...packageBlocks,
+    context: packageBlocks.context.filter(
+      (key) => profileBlockSet.has(key),
+    ) as readonly ContextBlockKey[],
+  };
 
   // CMS provider from input; credentials are set during technical setup.
   const cms: TenantCmsSettings = {

@@ -40,6 +40,14 @@
 // Content types — context block data shapes
 export type {
   CTAData,
+  HeroCTAItem,
+  HeroBannerImage,
+  HeroBannerVideoUpload,
+  HeroBannerVideoYouTube,
+  HeroBannerVideoVimeo,
+  HeroBannerVideoSource,
+  HeroBannerVideo,
+  HeroBannerMedia,
   HeroBlockData,
   ProofItem,
   ProofBlockData,
@@ -75,11 +83,11 @@ export type {
   VacancyData,
 } from "./types";
 
-// Provider interface + implementations
-export type { CMSProvider } from "./providers/cms-provider";
+// Provider interface + shared result types
+export type { CMSProvider, ProvisionResult, TestConnectionResult } from "./providers/cms-provider";
 export { MockCMSProvider } from "./providers/mock-provider";
 export { SanityProvider } from "./providers/sanity-provider";
-export { createCMSProvider } from "./providers/create-cms-provider";
+export { createCMSProvider, createPreviewCMSProvider } from "./providers/create-cms-provider";
 
 // Mappers (content-layer)
 export {

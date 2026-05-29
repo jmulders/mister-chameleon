@@ -39,6 +39,8 @@ import {
   SEED_RULES_CONFIG,
 } from "@/decision/rules/stored-rule";
 import { getDb } from "@/data/db";
+import { fetchVariantCatalogue } from "@/decision/rules/fetch-variant-catalogue";
+import { getActiveTenant }       from "@/tenant/server";
 
 // ── Typed query helper ─────────────────────────────────────────────────────────
 //
@@ -110,8 +112,24 @@ export async function getRulesAction(): Promise<{
 export async function saveRulesAction(
   config: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string; fieldErrors?: string[] }> {
+  // Resolve the active tenant so we can fetch CMS variant keys for validation.
+  let tenantId: string | undefined;
+  try {
+    const tenant = await getActiveTenant();
+    tenantId = tenant.tenantId;
+  } catch {
+    // Non-fatal: proceed without CMS variant scoping.
+  }
+
+  const catalogue = await fetchVariantCatalogue(tenantId ?? null);
+  const extraKeys = {
+    heroKeys:  catalogue.hero.filter((e) => e.source !== "platform").map((e) => e.key),
+    proofKeys: catalogue.proof.filter((e) => e.source !== "platform").map((e) => e.key),
+    ctaKeys:   catalogue.cta.filter((e) => e.source !== "platform").map((e) => e.key),
+  };
+
   // Validate first — reject anything that doesn't pass the whitelist checks.
-  const errors = validateStoredConfig(config);
+  const errors = validateStoredConfig(config, extraKeys);
   if (errors.length > 0) {
     const messages = errors.map((e) =>
       e.ruleId ? `[${e.ruleId}] ${e.field}: ${e.message}` : `${e.field}: ${e.message}`,

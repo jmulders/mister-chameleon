@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  *  full → no max-width
  */
 
-interface ContainerProps {
+export interface ContainerProps {
   children: React.ReactNode;
   className?: string;
   as?: React.ElementType;

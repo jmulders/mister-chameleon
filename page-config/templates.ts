@@ -62,9 +62,10 @@ export const MARKETING_PAGE_TEMPLATE: TemplateDefinition = {
   key:         "marketing-page",
   displayName: "Marketing page",
   contextSlots: [
-    { slotId: "hero",  position: "before-content", required: true,  allowMultiple: false },
-    { slotId: "proof", position: "before-content", required: false, allowMultiple: false },
-    { slotId: "cta",   position: "after-content",  required: false, allowMultiple: true  },
+    { slotId: "hero",       position: "before-content", required: true,  allowMultiple: false },
+    { slotId: "proof",      position: "before-content", required: false, allowMultiple: false },
+    { slotId: "cta",        position: "after-content",  required: false, allowMultiple: true  },
+    { slotId: "conversion", position: "after-content",  required: false, allowMultiple: false },
   ],
 } as const;
 

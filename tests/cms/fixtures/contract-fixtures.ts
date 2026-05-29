@@ -48,7 +48,9 @@ export const EXPECTED_HERO: HeroBlockData = {
   id:       HERO_KEY,
   title:    'Your site speaks to every visitor.',
   subtitle: 'Adaptive personalisation without the engineering overhead.',
-  cta:      { label: 'See how it works', href: '#how-it-works' },
+  // The raw CMS fixture uses legacy ctaLabel/ctaHref flat fields (no ctas array),
+  // so the mapper normalises them into a single-item ctas array.
+  ctas:     [{ label: 'See how it works', href: '#how-it-works' }],
   tag:      'No A/B testing required',
 };
 
@@ -62,7 +64,7 @@ export const EXPECTED_HERO_NO_TAG: HeroBlockData = {
   id:       HERO_NO_TAG_KEY,
   title:    'A headline without an eyebrow.',
   subtitle: 'This variant has no tag field set.',
-  cta:      { label: 'Get started', href: '/start' },
+  ctas:     [{ label: 'Get started', href: '/start' }],
   tag:      undefined,
 };
 
@@ -90,11 +92,12 @@ export const EXPECTED_CTA: CTABlockData = {
 
 export const SANITY_HERO_RAW: SanityHeroRaw = {
   _id:      'sanity-doc-hero-test',
-  key:      HERO_KEY,                         // → id
+  key:      HERO_KEY,                              // → id
   title:    EXPECTED_HERO.title,
   subtitle: EXPECTED_HERO.subtitle,
-  ctaLabel: EXPECTED_HERO.cta.label,          // → cta.label
-  ctaHref:  EXPECTED_HERO.cta.href,           // → cta.href
+  // Legacy flat fields — mapper normalises these to ctas[0]
+  ctaLabel: EXPECTED_HERO.ctas[0]!.label,          // → ctas[0].label
+  ctaHref:  EXPECTED_HERO.ctas[0]!.href,           // → ctas[0].href
   tag:      EXPECTED_HERO.tag,
 };
 
@@ -103,8 +106,8 @@ export const SANITY_HERO_NO_TAG_RAW: SanityHeroRaw = {
   key:      HERO_NO_TAG_KEY,
   title:    EXPECTED_HERO_NO_TAG.title,
   subtitle: EXPECTED_HERO_NO_TAG.subtitle,
-  ctaLabel: EXPECTED_HERO_NO_TAG.cta.label,
-  ctaHref:  EXPECTED_HERO_NO_TAG.cta.href,
+  ctaLabel: EXPECTED_HERO_NO_TAG.ctas[0]!.label,
+  ctaHref:  EXPECTED_HERO_NO_TAG.ctas[0]!.href,
   // tag intentionally absent → mapper produces tag: undefined
 };
 
@@ -137,11 +140,12 @@ function makeStory<TContent>(slug: string, content: TContent): StoryblokStory<TC
 export const STORYBLOK_HERO_STORY: StoryblokStory<StoryblokHeroContent> = makeStory(
   `hero-variants/${HERO_KEY}`,
   {
-    key:       HERO_KEY,                      // → id
+    key:       HERO_KEY,                              // → id
     title:     EXPECTED_HERO.title,
     subtitle:  EXPECTED_HERO.subtitle,
-    cta_label: EXPECTED_HERO.cta.label,       // → cta.label
-    cta_href:  EXPECTED_HERO.cta.href,        // → cta.href
+    // Legacy flat fields — mapper normalises these to ctas[0]
+    cta_label: EXPECTED_HERO.ctas[0]!.label,          // → ctas[0].label
+    cta_href:  EXPECTED_HERO.ctas[0]!.href,           // → ctas[0].href
     tag:       EXPECTED_HERO.tag,
     is_active: true,
   },
@@ -153,8 +157,8 @@ export const STORYBLOK_HERO_NO_TAG_STORY: StoryblokStory<StoryblokHeroContent> =
     key:       HERO_NO_TAG_KEY,
     title:     EXPECTED_HERO_NO_TAG.title,
     subtitle:  EXPECTED_HERO_NO_TAG.subtitle,
-    cta_label: EXPECTED_HERO_NO_TAG.cta.label,
-    cta_href:  EXPECTED_HERO_NO_TAG.cta.href,
+    cta_label: EXPECTED_HERO_NO_TAG.ctas[0]!.label,
+    cta_href:  EXPECTED_HERO_NO_TAG.ctas[0]!.href,
     is_active: true,
     // tag intentionally absent → mapper produces tag: undefined
   } as StoryblokHeroContent,
@@ -196,11 +200,12 @@ export const STORYBLOK_CTA_STORY: StoryblokStory<StoryblokCTAContent> = makeStor
 export const STATAMIC_HERO_ENTRY: StatamicHeroEntry = {
   id:        'statamic-uuid-hero-test',
   slug:      'hero_test',
-  key:       HERO_KEY,                        // → id
+  key:       HERO_KEY,                               // → id
   title:     EXPECTED_HERO.title,
   subtitle:  EXPECTED_HERO.subtitle,
-  cta_label: EXPECTED_HERO.cta.label,         // → cta.label
-  cta_href:  EXPECTED_HERO.cta.href,          // → cta.href
+  // Legacy flat fields — mapper normalises these to ctas[0]
+  cta_label: EXPECTED_HERO.ctas[0]!.label,           // → ctas[0].label
+  cta_href:  EXPECTED_HERO.ctas[0]!.href,            // → ctas[0].href
   tag:       EXPECTED_HERO.tag,
   is_active: true,
 };
@@ -211,8 +216,8 @@ export const STATAMIC_HERO_NO_TAG_ENTRY: StatamicHeroEntry = {
   key:       HERO_NO_TAG_KEY,
   title:     EXPECTED_HERO_NO_TAG.title,
   subtitle:  EXPECTED_HERO_NO_TAG.subtitle,
-  cta_label: EXPECTED_HERO_NO_TAG.cta.label,
-  cta_href:  EXPECTED_HERO_NO_TAG.cta.href,
+  cta_label: EXPECTED_HERO_NO_TAG.ctas[0]!.label,
+  cta_href:  EXPECTED_HERO_NO_TAG.ctas[0]!.href,
   is_active: true,
   // tag intentionally absent → mapper produces tag: undefined
 };

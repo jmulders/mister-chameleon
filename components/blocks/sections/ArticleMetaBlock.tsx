@@ -50,6 +50,7 @@ import { Container }              from "@/components/primitives/Container";
 import { Section }                from "@/components/primitives/Section";
 import { Stack }                  from "@/components/primitives/Stack";
 import { Text }                   from "@/components/primitives/Text";
+import { Breadcrumbs }            from "@/components/molecules";
 import { resolveBlockVariant }    from "@/page-config/block-variants";
 import type { ArticleMetaVariant } from "@/page-config/block-variants";
 import type { ArticleMetaBlockData } from "@/page-config";
@@ -86,8 +87,8 @@ function CategoryBadge({ category }: { category: string }) {
         fontWeight:      600,
         letterSpacing:   "0.05em",
         textTransform:   "uppercase",
-        color:           "var(--primary)",
-        backgroundColor: "var(--primary-subtle)",
+        color:           "var(--text-muted)",
+        backgroundColor: "var(--bg-subtle)",
         borderRadius:    "2rem",
         padding:         "0.1875rem 0.75rem",
       }}
@@ -109,6 +110,9 @@ function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowP
   const displayDate = updatedAt ?? publishedAt;
 
   return (
+    <>
+    {/* Hover style — CSS-only, no JS event handlers needed */}
+    <style>{`.article-author-link:hover{color:var(--primary)}`}</style>
     <div
       style={{
         display:    "flex",
@@ -134,14 +138,13 @@ function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowP
             {author.href ? (
               <a
                 href={author.href}
+                className="article-author-link"
                 style={{
                   color:          "var(--text)",
                   fontWeight:     500,
                   textDecoration: "none",
                   transition:     "color var(--transition-base)",
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "var(--primary)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "var(--text)"; }}
               >
                 {author.name}
               </a>
@@ -178,9 +181,9 @@ function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowP
       {/* Tags */}
       {tags && tags.length > 0 && (
         <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
-          {tags.slice(0, 5).map((tag) => (
+          {tags.filter((tag): tag is string => !!tag).slice(0, 5).map((tag, i) => (
             <span
-              key={tag}
+              key={`${tag}-${i}`}
               style={{
                 fontSize:        "0.75rem",
                 color:           "var(--text-muted)",
@@ -196,6 +199,7 @@ function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowP
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -209,15 +213,20 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
     return (
       <div style={{ paddingBlock: "1.5rem", borderBottom: "1px solid var(--card-border)" }}>
         <Container size="md">
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.75rem" }}>
-            {data.category && <CategoryBadge category={data.category} />}
-            <MetaRow
-              author={data.author}
-              publishedAt={data.publishedAt}
-              updatedAt={data.updatedAt}
-              readingTime={data.readingTime}
-            />
-          </div>
+          <Stack gap={2}>
+            {data.breadcrumbs && data.breadcrumbs.length > 0 && (
+              <Breadcrumbs items={data.breadcrumbs} />
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.75rem" }}>
+              {data.category && <CategoryBadge category={data.category} />}
+              <MetaRow
+                author={data.author}
+                publishedAt={data.publishedAt}
+                updatedAt={data.updatedAt}
+                readingTime={data.readingTime}
+              />
+            </div>
+          </Stack>
         </Container>
       </div>
     );
@@ -226,7 +235,7 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
   // ── hero — full-bleed cover image, title overlaid ─────────────────────────
   if (variant === "hero") {
     return (
-      <header>
+      <header style={{ paddingTop: "2rem" }}>
         {/* Cover image — full viewport width, 50vh height */}
         {data.coverImageUrl && (
           <div
@@ -299,6 +308,9 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
         >
           <Container size="md">
             <Stack gap={3}>
+              {data.breadcrumbs && data.breadcrumbs.length > 0 && (
+                <Breadcrumbs items={data.breadcrumbs} />
+              )}
               {/* Title when no cover image */}
               {data.title && !data.coverImageUrl && (
                 <>
@@ -343,7 +355,7 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
 
   // ── default — contained cover image, title, summary, meta row ─────────────
   return (
-    <header style={{ borderBottom: "1px solid var(--card-border)", paddingBottom: "2rem" }}>
+    <header style={{ borderBottom: "1px solid var(--card-border)", paddingTop: "2.5rem", paddingBottom: "2rem" }}>
       <Container size="md">
         <Stack gap={5}>
           {/* Cover image */}
@@ -366,6 +378,9 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
           )}
 
           <Stack gap={3}>
+            {data.breadcrumbs && data.breadcrumbs.length > 0 && (
+              <Breadcrumbs items={data.breadcrumbs} />
+            )}
             {data.category && <div><CategoryBadge category={data.category} /></div>}
 
             {data.title && (

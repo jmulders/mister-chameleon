@@ -58,6 +58,7 @@ import { Section }             from "@/components/primitives/Section";
 import { Grid }                from "@/components/primitives/Grid";
 import { Stack }               from "@/components/primitives/Stack";
 import { Text }                from "@/components/primitives/Text";
+import { Pagination }          from "@/components/molecules";
 import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { SearchResultsVariant } from "@/page-config/block-variants";
 import type { SearchResultsBlockData, ListingItem } from "@/page-config";
@@ -148,6 +149,7 @@ function SearchResultsFallback({
       variant={variant}
       emptyMessage={data.emptyMessage}
       isFiltered={false}
+      paginate={false}
     />
   );
 }
@@ -167,8 +169,10 @@ function SearchResultsInner({
   const category = searchParams.get("category") ?? "";
   const tag      = searchParams.get("tag")      ?? "";
   const sort     = searchParams.get("sort")     ?? "";
+  const page     = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
 
-  const allItems = data.items ?? [];
+  const allItems    = data.items ?? [];
+  const perPage     = data.itemsPerPage ?? 0; // 0 = no pagination
 
   const isFiltered = Boolean(
     data.enableSearch && query ||
@@ -187,14 +191,24 @@ function SearchResultsInner({
     );
   }, [allItems, isFiltered, query, category, tag, sort, data.enableSearch, data.enableFilter]);
 
+  // Pagination — only applied when itemsPerPage > 0
+  const totalPages  = perPage > 0 ? Math.ceil(filtered.length / perPage) : 1;
+  const currentPage = Math.min(page, Math.max(1, totalPages));
+  const paged       = perPage > 0
+    ? filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
+    : filtered;
+
   return (
     <ResultsLayout
       heading={data.heading}
-      items={filtered}
+      items={paged}
       totalCount={allItems.length}
+      filteredCount={filtered.length}
       variant={variant}
       emptyMessage={data.emptyMessage}
       isFiltered={isFiltered}
+      totalPages={totalPages}
+      paginate={totalPages > 1}
     />
   );
 }
@@ -202,22 +216,34 @@ function SearchResultsInner({
 // ── ResultsLayout ─────────────────────────────────────────────────────────────
 
 interface ResultsLayoutProps {
-  heading?:      string;
-  items:         readonly ListingItem[] | ListingItem[];
-  totalCount:    number;
-  variant:       SearchResultsVariant;
-  emptyMessage?: string;
-  isFiltered:    boolean;
+  heading?:       string;
+  items:          readonly ListingItem[] | ListingItem[];
+  totalCount:     number;
+  filteredCount?: number;
+  variant:        SearchResultsVariant;
+  emptyMessage?:  string;
+  isFiltered:     boolean;
+  totalPages?:    number;
+  /**
+   * When true, renders the Pagination molecule at the bottom.
+   * Must NOT be set to true in the SSR fallback since Pagination calls
+   * useSearchParams() which requires a Suspense boundary.
+   */
+  paginate?:      boolean;
 }
 
 function ResultsLayout({
   heading,
   items,
   totalCount,
+  filteredCount,
   variant,
   emptyMessage = "No results found. Try adjusting your search or filters.",
   isFiltered,
+  totalPages = 1,
+  paginate = false,
 }: ResultsLayoutProps) {
+  const displayCount = filteredCount ?? items.length;
 
   return (
     <Section spacing="lg" style={{ background: "var(--bg)" }}>
@@ -245,9 +271,9 @@ function ResultsLayout({
                   aria-atomic="true"
                   style={{ fontSize: "0.875rem", color: "var(--text-muted)", margin: 0 }}
                 >
-                  {items.length === totalCount
+                  {displayCount === totalCount
                     ? `${totalCount} ${totalCount === 1 ? "result" : "results"}`
-                    : `${items.length} of ${totalCount} ${totalCount === 1 ? "result" : "results"}`}
+                    : `${displayCount} of ${totalCount} ${totalCount === 1 ? "result" : "results"}`}
                 </p>
               )}
             </div>
@@ -280,6 +306,11 @@ function ResultsLayout({
                 <ResultCard key={item.id} item={item} layout="row" headingLevel={3} />
               ))}
             </Stack>
+          )}
+
+          {/* Pagination — only in the interactive inner (not the SSR fallback) */}
+          {paginate && totalPages > 1 && (
+            <Pagination totalPages={totalPages} />
           )}
 
         </Stack>

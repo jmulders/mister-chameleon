@@ -34,9 +34,13 @@
 "use client";
 
 import { useState, useTransition, useId } from "react";
-import { saveContentBlocksAction } from "./actions";
-import type { ActionResult }       from "./actions";
-import type { EditableContentBlock } from "@/page-store";
+import Image                                           from "next/image";
+import { saveContentBlocksAction }                     from "./actions";
+import type { ActionResult }                           from "./actions";
+import type { EditableContentBlock }                   from "@/page-store";
+import { AssetPickerModal }                            from "@/components/admin/AssetPickerModal";
+import { loadAssetsForPickerAction }                   from "@/lib/assets/asset-picker-action";
+import type { SelectedAsset }                          from "@/components/admin/AssetPickerModal";
 
 // ── Serialisable block-def shape (passed from server) ─────────────────────────
 
@@ -111,6 +115,178 @@ const CATEGORY_LABEL: Record<string, string> = {
   "conversion":   "Conversion",
 };
 
+// ── Image field helpers ───────────────────────────────────────────────────────
+
+/**
+ * Field names that are treated as image URL inputs.
+ * These will be surfaced as "Pick from library" helpers inside the block editor.
+ */
+const IMAGE_URL_FIELD_SET = new Set([
+  "src",
+  "imageUrl",
+  "coverImageUrl",
+  "backgroundImageUrl",
+  "heroImageUrl",
+  "posterUrl",
+  "avatarUrl",
+  "photoUrl",
+  "logoUrl",
+  "thumbnailUrl",
+  "bannerUrl",
+  "iconUrl",
+  "pictureUrl",
+  "mediaUrl",
+  "heroImage",
+  "cardImageUrl",
+  "image",
+]);
+
+/**
+ * For a given image field name, return the corresponding alt-text field name
+ * (if any) so that selecting a library asset auto-fills the alt field too.
+ */
+const ALT_COMPANION: Record<string, string> = {
+  src:                  "alt",
+  imageUrl:             "imageAlt",
+  coverImageUrl:        "coverImageAlt",
+  backgroundImageUrl:   "backgroundImageAlt",
+  heroImageUrl:         "heroImageAlt",
+  avatarUrl:            "avatarAlt",
+  posterUrl:            "posterAlt",
+  photoUrl:             "photoAlt",
+  logoUrl:              "logoAlt",
+  thumbnailUrl:         "thumbnailAlt",
+};
+
+/** Detect top-level string fields in JSON that look like image URLs. */
+function detectImageFields(rawJson: string): string[] {
+  try {
+    const obj = JSON.parse(rawJson || "{}") as Record<string, unknown>;
+    return Object.keys(obj).filter((key) => {
+      const val = obj[key];
+      if (typeof val !== "string" && val !== null && val !== undefined) return false;
+      if (IMAGE_URL_FIELD_SET.has(key)) return true;
+      // Also catch any field ending with "Url" (e.g. customLogoUrl, teamPhotoUrl)
+      if (key.endsWith("Url")) return true;
+      return false;
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Return the value of a field from raw JSON (or "" on error / missing). */
+function getJsonField(rawJson: string, field: string): string {
+  try {
+    const obj = JSON.parse(rawJson || "{}") as Record<string, unknown>;
+    return typeof obj[field] === "string" ? (obj[field] as string) : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Patch one (or two) top-level fields in a raw JSON string and re-serialise.
+ * Returns the original string unchanged if the JSON is currently invalid.
+ */
+function patchJsonFields(
+  rawJson: string,
+  patches: Record<string, string>,
+): string {
+  try {
+    const obj = JSON.parse(rawJson || "{}") as Record<string, unknown>;
+    for (const [k, v] of Object.entries(patches)) {
+      obj[k] = v;
+    }
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return rawJson;
+  }
+}
+
+// ── ImageFieldRow — one image-field picker inside BlockEditorPanel ─────────────
+
+function ImageFieldRow({
+  fieldName,
+  currentUrl,
+  tenantId,
+  onPick,
+}: {
+  fieldName:  string;
+  currentUrl: string;
+  tenantId:   string;
+  onPick:     (fieldName: string, asset: SelectedAsset) => void;
+}) {
+  const hasImage = Boolean(currentUrl);
+
+  return (
+    <div className="flex items-center gap-3 rounded-md border border-neutral-200 bg-white px-3 py-2">
+      {/* Thumbnail */}
+      <div className="shrink-0 relative size-10 rounded bg-neutral-100 overflow-hidden border border-neutral-200 flex items-center justify-center">
+        {hasImage ? (
+          <Image
+            src={currentUrl}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="40px"
+            unoptimized
+          />
+        ) : (
+          <span className="text-neutral-300 text-base" aria-hidden="true">🖼</span>
+        )}
+      </div>
+
+      {/* Field name + URL preview */}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-neutral-700 font-mono">{fieldName}</p>
+        {hasImage ? (
+          <p className="text-[10px] text-neutral-400 truncate" title={currentUrl}>{currentUrl}</p>
+        ) : (
+          <p className="text-[10px] text-neutral-400 italic">No image set</p>
+        )}
+      </div>
+
+      {/* Picker trigger */}
+      <AssetPickerModal
+        tenantId={tenantId}
+        loadAssets={loadAssetsForPickerAction}
+        currentUrl={currentUrl || undefined}
+        onSelect={(asset) => onPick(fieldName, asset)}
+        trigger={
+          <button
+            type="button"
+            className="shrink-0 rounded border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 hover:border-brand-400 hover:text-brand-700 transition-colors whitespace-nowrap"
+          >
+            {hasImage ? "Change" : "Pick image"}
+          </button>
+        }
+      />
+
+      {/* Clear button (only when set) */}
+      {hasImage && (
+        <button
+          type="button"
+          title="Clear image"
+          onClick={() => onPick(fieldName, {
+            publicUrl: "",
+            altText:   "",
+            title:     "",
+            mimeType:  null,
+            width:     null,
+            height:    null,
+            assetId:   "",
+          })}
+          className="shrink-0 text-neutral-300 hover:text-error-500 transition-colors text-sm"
+          aria-label={`Clear ${fieldName}`}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Small primitives ──────────────────────────────────────────────────────────
 
 function IconButton({
@@ -183,6 +359,7 @@ function BlockEditorPanel({
   onVariantChange,
   onJsonChange,
   uid,
+  tenantId,
 }: {
   row:            BlockRow;
   def:            BlockDefInfo | undefined;
@@ -190,6 +367,7 @@ function BlockEditorPanel({
   onVariantChange:(variant: string) => void;
   onJsonChange:   (raw: string) => void;
   uid:            string;
+  tenantId?:      string;
 }) {
   const typeId    = `type-${uid}`;
   const variantId = `variant-${uid}`;
@@ -245,6 +423,45 @@ function BlockEditorPanel({
         </div>
       </div>
 
+      {/* ── Image field helpers (only when tenantId is available) ─────────── */}
+      {tenantId && (() => {
+        const imageFields = detectImageFields(row.rawJson);
+        if (imageFields.length === 0) return null;
+
+        function handleImagePick(fieldName: string, asset: SelectedAsset) {
+          const patches: Record<string, string> = { [fieldName]: asset.publicUrl };
+
+          // Auto-fill companion alt text field if it exists in the JSON
+          const altField = ALT_COMPANION[fieldName];
+          if (altField) {
+            const currentAlt = getJsonField(row.rawJson, altField);
+            // Only overwrite alt if it's blank or if asset has alt text
+            if (!currentAlt || asset.altText) {
+              patches[altField] = asset.altText;
+            }
+          }
+
+          onJsonChange(patchJsonFields(row.rawJson, patches));
+        }
+
+        return (
+          <div className="flex flex-col gap-2 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+              Image fields
+            </p>
+            {imageFields.map((fieldName) => (
+              <ImageFieldRow
+                key={fieldName}
+                fieldName={fieldName}
+                currentUrl={getJsonField(row.rawJson, fieldName)}
+                tenantId={tenantId}
+                onPick={handleImagePick}
+              />
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Data / props JSON editor */}
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor={dataId}>Props (JSON)</FieldLabel>
@@ -286,9 +503,15 @@ interface ContentFlowEditorProps {
    * Signature matches saveContentBlocksAction: (blocks) => Promise<ActionResult>
    */
   onSave?: (blocks: EditableContentBlock[]) => Promise<ActionResult>;
+  /**
+   * When provided, enables the asset-library image picker inside each block
+   * editor panel.  Pass the active tenantId from the surrounding tenant-scoped
+   * server component.
+   */
+  tenantId?: string;
 }
 
-export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave }: ContentFlowEditorProps) {
+export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, tenantId }: ContentFlowEditorProps) {
   const [rows,        setRows]        = useState<BlockRow[]>(() => toRows(initialBlocks));
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [addType,     setAddType]     = useState<string>(blockDefs[0]?.key ?? "");
@@ -509,6 +732,7 @@ export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave }: 
                   row={row}
                   def={def}
                   uid={rowUid}
+                  tenantId={tenantId}
                   onTypeChange={(type) => handleTypeChange(row.id, type)}
                   onVariantChange={(variant) => updateRow(row.id, { variant, jsonError: null })}
                   onJsonChange={(raw) => updateRow(row.id, { rawJson: raw, jsonError: null })}

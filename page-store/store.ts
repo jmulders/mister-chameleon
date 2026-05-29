@@ -85,13 +85,25 @@ const DEFAULT_TENANT = "workengine";
 
 /**
  * Coerce a raw DB row's `page` JSONB column to EditablePage, normalising
- * legacy rows that pre-date the `tenantId` field.
+ * legacy rows that pre-date individual fields.
+ *
+ * Normalisation rules applied in order:
+ *   tenantId      — falls back to DEFAULT_TENANT for pre-migration rows.
+ *   contextSlots  — defaults to [] when absent or non-array (field added
+ *                   after initial schema; old rows may not have it).
+ *   contentBlocks — defaults to [] for the same reason.
  */
 function toEditablePage(raw: Record<string, unknown>): EditablePage {
   // Cast via unknown first — Database JSONB columns are typed as
   // Record<string, unknown> but the stored shape IS an EditablePage.
   const page = (raw as unknown) as EditablePage & { tenantId?: string };
-  return page.tenantId ? (page as EditablePage) : { ...page, tenantId: DEFAULT_TENANT };
+
+  return {
+    ...page,
+    tenantId:      page.tenantId ?? DEFAULT_TENANT,
+    contextSlots:  Array.isArray(page.contextSlots)  ? page.contextSlots  : [],
+    contentBlocks: Array.isArray(page.contentBlocks) ? page.contentBlocks : [],
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -246,6 +258,7 @@ export async function savePage(
         id:         saved.id,
         tenant_id:  saved.tenantId,
         slug:       normalised,
+        title:      saved.title,
         page:       { ...saved, slug: normalised } as unknown as Record<string, unknown>,
         created_at: saved.createdAt,
         updated_at: saved.updatedAt,
@@ -264,20 +277,37 @@ export async function savePage(
 /**
  * Remove the page with the given identifier from the store.
  *
- * @returns `true` when a page was found and removed; `false` when not found.
+ * When `tenantId` is supplied the page is only removed if it belongs to that
+ * tenant — an id match on a different tenant's page returns `false` without
+ * deleting anything.  Always pass `tenantId` from admin server actions to
+ * prevent accidental cross-tenant deletion.
+ *
+ * @returns `true` when a page was found and removed; `false` when not found
+ *          (or when the page belongs to a different tenant).
  *
  * @example
- * const removed = await deletePage("about-us");
+ * const removed = await deletePage("abc-123", "workengine");
  */
-export async function deletePage(id: string): Promise<boolean> {
+export async function deletePage(id: string, tenantId?: string): Promise<boolean> {
   // Check for existence first so we can return the correct boolean.
-  const existing = await getPageById(id);
+  // Passing tenantId enforces tenant scoping at the read stage — if the page
+  // belongs to a different tenant, getPageById returns undefined and we bail.
+  const existing = await getPageById(id, tenantId);
   if (!existing) return false;
 
-  const { error } = await getDb()
+  // Build the delete query — always filter by id, additionally by tenant_id
+  // when tenantId is provided (defense-in-depth: even if getPageById somehow
+  // returned a cross-tenant page, the DB operation would still be scoped).
+  let query = getDb()
     .from("pages")
     .delete()
     .eq("id", id);
+
+  if (tenantId !== undefined) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error("[page-store] deletePage DB error:", error.message);

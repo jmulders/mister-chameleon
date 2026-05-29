@@ -33,6 +33,7 @@ import { Badge }                           from "@/components/ui/Badge";
 import { Card, CardContent }               from "@/components/ui/Card";
 import { getPackageDefinition, getPackageOption } from "@/tenant";
 import { getAllTemplateDefinitions }        from "@/page-config";
+import { normalizeTenant }                 from "@/tenant/normalize";
 import type { TenantSettings, PackageKey, ContentBlockKey, ThemeKey, ContextBlockKey } from "@/tenant";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -115,11 +116,12 @@ function CapSection({ children }: { children: React.ReactNode }) {
 
 // ── Lookup tables ─────────────────────────────────────────────────────────────
 
-function packageBadgeVariant(key: PackageKey): BadgeVariant {
+function packageBadgeVariant(key: PackageKey | undefined): BadgeVariant {
   switch (key) {
     case "starter": return "default";
     case "growth":  return "primary";
     case "pro":     return "success";
+    default:        return "default";
   }
 }
 
@@ -130,10 +132,46 @@ const PACKAGE_DISPLAY: Record<PackageKey, string> = {
 };
 
 const THEME_DISPLAY: Record<ThemeKey, string> = {
+  // ── Original platform presets ──────────────────────────────────────────────
   default: "Default",
   minimal: "Minimal",
   bold:    "Bold",
   custom:  "Custom",
+  // ── Curated commercial themes ──────────────────────────────────────────────
+  "corporate-blue":     "Corporate Blue",
+  "modern-green":       "Modern Green",
+  "minimal-neutral":    "Minimal Neutral",
+  "bold-dark":          "Bold Dark",
+  "tech-indigo":        "Tech Indigo",
+  "warm-professional":  "Warm Professional",
+  "recruitment-energy": "Recruitment Energy",
+  "healthcare-calm":    "Healthcare Calm",
+  "industrial-strong":  "Industrial Strong",
+  "premium-editorial":  "Premium Editorial",
+  // ── Recent additions ──────────────────────────────────────────────────────
+  "dark-contrast":      "Dark Contrast",
+  "editorial-classic":  "Editorial Classic",
+  "playful-startup":    "Playful Startup",
+  "startup-energy":     "Startup Energy",
+  "corporate-trust":    "Corporate Trust",
+  "modern-saas":        "Modern SaaS",
+  "corporate-clean":    "Corporate Clean",
+  "bold-marketing":     "Bold Marketing",
+  // ── Signature themes ──────────────────────────────────────────────────────
+  "portfolio-showcase": "Portfolio Showcase",
+  "premium-luxury":     "Premium Luxury",
+  // ── Seasonal themes ───────────────────────────────────────────────────────
+  "valentine-pink":     "Valentine Pink",
+  "dutch-orange":       "Dutch Orange",
+  "careers-human":      "Careers Human",
+  // ── Premium families ──────────────────────────────────────────────────────
+  "dark-ai":            "Dark AI",
+  "clean-corporate":    "Clean Corporate",
+  "structured-saas":    "Structured SaaS",
+  // ── Client-type blueprints ────────────────────────────────────────────────
+  "werkenbij-blueprint":     "Werkenbij Blueprint",
+  "corporate-b2b-blueprint": "Corporate B2B Blueprint",
+  "saas-blueprint":          "SaaS Blueprint",
 };
 
 const CONTENT_BLOCK_DISPLAY: Record<ContentBlockKey, string> = {
@@ -165,6 +203,22 @@ const CONTENT_BLOCK_DISPLAY: Record<ContentBlockKey, string> = {
   // careers / W6
   processSteps:       "Process steps",
   recruiterPanel:     "Recruiter panel",
+  // conversion / pricing
+  pricingSection:     "Pricing",
+  // content / editorial
+  contentSection:     "Content section",
+  teamSection:        "Team",
+  // new core blocks
+  timeline:           "Timeline",
+  quickLinks:         "Quick links",
+  textMedia:          "Text + media",
+  contactSection:     "Contact",
+  // commerce / product
+  productOverview:    "Product overview",
+  productDetail:      "Product detail",
+  cartSummary:        "Cart summary",
+  checkoutBlock:      "Checkout",
+  mapBlock:           "Map",
 };
 
 function aiModeLabel(mode: "disabled" | "shadow" | "live"): string {
@@ -184,19 +238,20 @@ function limitDisplay(n: number, zeroLabel = "Not permitted"): string {
 // ── Derived booleans ──────────────────────────────────────────────────────────
 
 function isCmsConfigured(tenant: TenantSettings): boolean {
-  return tenant.cms.provider !== "mock" && Boolean(tenant.cms.projectId?.trim());
+  return tenant.cms?.provider !== "mock" && Boolean(tenant.cms?.projectId?.trim());
 }
 
 function isAiConfigured(tenant: TenantSettings): boolean {
-  const { ai } = tenant;
-  if (ai.mode === "disabled") return false;
-  if (ai.mode === "live")     return Boolean(ai.liveProvider?.name);
-  if (ai.mode === "shadow")   return Boolean(ai.shadowProvider?.name);
+  const ai = tenant.ai;
+  if (!ai || ai.mode === "disabled") return false;
+  if (ai.mode === "live")            return Boolean(ai.liveProvider?.name);
+  if (ai.mode === "shadow")          return Boolean(ai.shadowProvider?.name);
   return false;
 }
 
 function activeProviderLabel(tenant: TenantSettings): string | undefined {
-  const { ai } = tenant;
+  const ai = tenant.ai;
+  if (!ai) return undefined;
   if (ai.mode === "live")   return ai.liveProvider?.name;
   if (ai.mode === "shadow") return ai.shadowProvider?.name;
   return undefined;
@@ -205,12 +260,12 @@ function activeProviderLabel(tenant: TenantSettings): string | undefined {
 // ── Capability group helpers ───────────────────────────────────────────────────
 
 function hasContentCapability(tenant: TenantSettings, keys: ContentBlockKey[]): boolean {
-  const allowed = new Set(tenant.blocks.content);
+  const allowed = new Set(tenant.blocks?.content ?? []);
   return keys.some((k) => allowed.has(k));
 }
 
 function countEnabledBlocks(tenant: TenantSettings, keys: ContentBlockKey[]): number {
-  const allowed = new Set(tenant.blocks.content);
+  const allowed = new Set(tenant.blocks?.content ?? []);
   return keys.filter((k) => allowed.has(k)).length;
 }
 
@@ -401,7 +456,8 @@ const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
 };
 
 /** Section 3: templates, block matrix, feature support, and token overrides. */
-function PlatformCapabilitiesSection({ tenant }: { tenant: TenantSettings }) {
+function PlatformCapabilitiesSection({ tenant: rawTenant }: { tenant: TenantSettings }) {
+  const tenant     = normalizeTenant(rawTenant);
   const pkg        = getPackageDefinition(tenant.packageKey);
   const pkgAllowed = new Set(pkg.allowedBlocks.content);
   const templates  = getAllTemplateDefinitions();
@@ -411,7 +467,7 @@ function PlatformCapabilitiesSection({ tenant }: { tenant: TenantSettings }) {
   const vacancySupported = hasContentCapability(tenant, VACANCY_BLOCKS);
   const searchSupported  = hasContentCapability(tenant, SEARCH_BLOCKS);
 
-  const tenantAllowed = new Set(tenant.blocks.content);
+  const tenantAllowed = new Set(tenant.blocks?.content ?? []);
   const categoryRows  = CATEGORY_GROUPS.map((g) => ({
     ...g,
     pkgTotal:     g.keys.filter((k) => pkgAllowed.has(k)).length,
@@ -517,13 +573,13 @@ function PlatformCapabilitiesSection({ tenant }: { tenant: TenantSettings }) {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-neutral-500">Theme preset</span>
                 <Badge variant="outline" size="sm">
-                  {THEME_DISPLAY[tenant.design.theme]}
+                  {THEME_DISPLAY[tenant.design?.theme ?? "default"]}
                 </Badge>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-neutral-500">Primary colour</span>
                 <div className="flex items-center gap-1.5">
-                  {tenant.design.primaryColor ? (
+                  {tenant.design?.primaryColor ? (
                     <>
                       <span
                         className="inline-block h-3 w-3 rounded-full border border-neutral-200"
@@ -543,9 +599,9 @@ function PlatformCapabilitiesSection({ tenant }: { tenant: TenantSettings }) {
                 <span className="text-neutral-500">Font family</span>
                 <span className={cn(
                   "max-w-[140px] truncate text-right",
-                  tenant.design.primaryFont ? "text-neutral-700" : "text-neutral-400",
+                  tenant.design?.primaryFont ? "text-neutral-700" : "text-neutral-400",
                 )}>
-                  {tenant.design.primaryFont ?? "preset default"}
+                  {tenant.design?.primaryFont ?? "preset default"}
                 </span>
               </div>
             </div>
@@ -559,16 +615,20 @@ function PlatformCapabilitiesSection({ tenant }: { tenant: TenantSettings }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function TenantStatusPanel({ tenant }: { tenant: TenantSettings }) {
-  const pkg = getPackageDefinition(tenant.packageKey);
-  const opt = getPackageOption(tenant.packageKey);
+export function TenantStatusPanel({ tenant: rawTenant }: { tenant: TenantSettings }) {
+  // Normalize at the component boundary so all nested fields are guaranteed
+  // to be present regardless of partial JSONB rows in the database.
+  const tenant = normalizeTenant(rawTenant);
+  const pkg    = getPackageDefinition(tenant.packageKey);
+  const opt    = getPackageOption(tenant.packageKey);
 
   // ── CMS status ──────────────────────────────────────────────────────────────
   const cmsConfigured = isCmsConfigured(tenant);
-  const cmsIsMock     = tenant.cms.provider === "mock";
+  const cmsProvider   = tenant.cms?.provider ?? "mock";
+  const cmsIsMock     = cmsProvider === "mock";
   const cmsValueLabel = cmsIsMock
     ? "Mock (local dev)"
-    : tenant.cms.provider.charAt(0).toUpperCase() + tenant.cms.provider.slice(1);
+    : cmsProvider.charAt(0).toUpperCase() + cmsProvider.slice(1);
 
   const cmsBadge: { text: string; variant: BadgeVariant } = cmsIsMock
     ? { text: "Dev only",         variant: "warning" }
@@ -576,13 +636,13 @@ export function TenantStatusPanel({ tenant }: { tenant: TenantSettings }) {
       ? { text: "✓ Configured",     variant: "success" }
       : { text: "⚠ Not configured", variant: "warning" };
 
-  const cmsSub = !cmsIsMock && tenant.cms.projectId
+  const cmsSub = !cmsIsMock && tenant.cms?.projectId
     ? tenant.cms.projectId + (tenant.cms.dataset ? ` / ${tenant.cms.dataset}` : "")
     : undefined;
 
   // ── AI status ───────────────────────────────────────────────────────────────
   const aiConfigured    = isAiConfigured(tenant);
-  const aiMode          = tenant.ai.mode;
+  const aiMode          = tenant.ai?.mode ?? "disabled";
   const aiProviderName  = activeProviderLabel(tenant);
   const aiProviderModel = aiMode === "live"
     ? tenant.ai.liveProvider?.model
@@ -597,14 +657,14 @@ export function TenantStatusPanel({ tenant }: { tenant: TenantSettings }) {
         ? { text: `✓ ${aiProviderName}${aiProviderModel ? ` / ${aiProviderModel}` : ""}`, variant: "success" }
         : { text: "⚠ No provider set", variant: "warning" };
 
-  const aiSub = aiMode !== "disabled" && tenant.ai.confidenceThreshold !== undefined
+  const aiSub = aiMode !== "disabled" && tenant.ai?.confidenceThreshold !== undefined
     ? `threshold: ${tenant.ai.confidenceThreshold}`
     : undefined;
 
   // ── Feature status ──────────────────────────────────────────────────────────
-  const analyticsActive   = tenant.features.analytics   && pkg.allowedFeatures.analytics;
-  const experimentsActive = tenant.features.experiments && pkg.allowedFeatures.experiments;
-  const aiFeatureActive   = tenant.features.ai          && pkg.allowedFeatures.ai;
+  const analyticsActive   = !!(tenant.features?.analytics   && pkg.allowedFeatures?.analytics);
+  const experimentsActive = !!(tenant.features?.experiments && pkg.allowedFeatures?.experiments);
+  const aiFeatureActive   = !!(tenant.features?.ai          && pkg.allowedFeatures?.ai);
 
   return (
     <div className="mb-8">
@@ -642,9 +702,9 @@ export function TenantStatusPanel({ tenant }: { tenant: TenantSettings }) {
               />
               <StatusRow
                 label="Theme"
-                value={THEME_DISPLAY[tenant.design.theme]}
+                value={THEME_DISPLAY[tenant.design?.theme ?? "default"] ?? "Default"}
                 sub={
-                  tenant.design.primaryColor
+                  tenant.design?.primaryColor
                     ? `custom colour: ${tenant.design.primaryColor}`
                     : undefined
                 }
@@ -691,8 +751,8 @@ export function TenantStatusPanel({ tenant }: { tenant: TenantSettings }) {
               />
               <StatusRow
                 label="Context blocks"
-                value={`${tenant.blocks.context.length} of 3 active`}
-                sub={tenant.blocks.context.join(", ") || "none"}
+                value={`${tenant.blocks?.context?.length ?? 0} of 3 active`}
+                sub={tenant.blocks?.context?.join(", ") || "none"}
               />
             </div>
           </CardContent>
@@ -731,7 +791,7 @@ export function TenantStatusPanel({ tenant }: { tenant: TenantSettings }) {
 
               <CapSection>Theme presets</CapSection>
               <div className="flex flex-wrap gap-1.5 pt-0.5">
-                {(["default", "minimal", "bold", "custom"] as ThemeKey[]).map((t) => {
+                {(Object.keys(THEME_DISPLAY) as ThemeKey[]).map((t) => {
                   const allowed = pkg.allowedThemes.includes(t);
                   return (
                     <Badge

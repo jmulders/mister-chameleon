@@ -48,7 +48,8 @@
  *   The compiler will flag any missing cases in this switch.
  */
 
-import type { PageSectionData, PageData, CmsPageContextConfig } from "@/cms/types";
+import type { PageSectionData, PageData, CmsPageContextConfig,
+              CmsContentSource }           from "@/cms/types";
 import type {
   ContentBlock,
   ResolvedContextSlot,
@@ -62,6 +63,10 @@ import {
   getTemplateDefinition,
   isTemplateKey,
 }                                          from "@/page-config/templates";
+import type { ContentSource,
+              CollectionKey,
+              CollectionSourceMode,
+              CollectionSortDir }          from "@/page-config/collection-source";
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -86,7 +91,9 @@ import {
 export function mapSectionsToContentBlocks(sections: PageSectionData[]): ContentBlock[] {
   const blocks: ContentBlock[] = [];
   for (const section of sections) {
-    if (!isRegisteredBlockType(section._type)) continue;
+    // Sanity returns null for unresolvable references (deleted blocks).
+    // Guard here so callers never need to pre-filter the raw sections array.
+    if (!section || !isRegisteredBlockType(section._type)) continue;
     const block = mapSectionToContentBlock(section);
     if (block) blocks.push(block);
   }
@@ -103,11 +110,8 @@ export function mapSectionsToContentBlocks(sections: PageSectionData[]): Content
  *
  * Template inference order:
  *   1. pageData.templateKey if it is a valid TemplateKey
- *   2. "marketing-page" if contextConfig or heroVariantKey is present
+ *   2. "marketing-page" if contextConfig is present
  *   3. "article-page" (no context slots)
- *
- * Backward compat: if contextConfig.hero is absent but heroVariantKey is set,
- * the hero slot is resolved using heroVariantKey as the variantKey.
  *
  * @param pageData  A non-null CMS page document.
  * @returns         ResolvedContextSlot[] matching the page's template slots.
@@ -121,7 +125,7 @@ export function mapContextConfigToResolvedSlots(
   const rawKey = pageData.templateKey;
   const templateKey: TemplateKey = (rawKey && isTemplateKey(rawKey))
     ? rawKey
-    : hasAnyContextSignal(config, pageData.heroVariantKey)
+    : hasAnyContextSignal(config)
       ? "marketing-page"
       : inferTemplateFromSections(pageData.sections ?? []);
 
@@ -132,10 +136,8 @@ export function mapContextConfigToResolvedSlots(
   return template.contextSlots.map((spec) => {
     const slotCfg = config[spec.slotId as keyof CmsPageContextConfig];
 
-    // Prefer contextConfig fallback; bridge legacy heroVariantKey for hero slot.
     const variantKey: string | null =
-      slotCfg?.fallbackVariantKey ??
-      (spec.slotId === "hero" ? (pageData.heroVariantKey ?? null) : null);
+      slotCfg?.fallbackVariantKey ?? null;
 
     return {
       slotId:     spec.slotId,
@@ -211,6 +213,30 @@ export function mapPageDataToPageConfig(
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 /**
+ * Convert a CmsContentSource to the platform-internal ContentSource.
+ *
+ * The two types are structurally identical (the CMS layer defines its own
+ * version to stay decoupled from page-config).  This function performs the
+ * cross-layer translation and provides a single conversion point.
+ *
+ * Returns `undefined` when the CMS value is absent so that block data types
+ * correctly represent the absent-source (manual) case without an explicit
+ * { source: "manual" } value.
+ */
+function mapCmsContentSource(src: CmsContentSource | undefined): ContentSource | undefined {
+  if (!src) return undefined;
+  if (src.source === "manual") return { source: "manual" };
+  return {
+    source:      "collection",
+    collection:  src.collection  as CollectionKey,
+    mode:        src.mode        as CollectionSourceMode,
+    limit:       src.limit,
+    sortDir:     src.sortDir     as CollectionSortDir | undefined,
+    selectedIds: src.selectedIds ? [...src.selectedIds] as readonly string[] : undefined,
+  };
+}
+
+/**
  * Convert a single CMS PageSectionData into a platform-internal ContentBlock.
  *
  * Returns null for unknown _type values (callers should filter these out).
@@ -230,6 +256,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "textSection",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading: section.heading,
           // Cast: readonly PortableTextBlock[] is widened to the mutable array
@@ -238,11 +265,27 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         },
       };
 
+    case "richText":
+      return {
+        id:        section._key,
+        blockType: "richText",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          // Cast: optional mutable array → required readonly array.
+          // Empty array fallback mirrors the CMS contract (body is always
+          // present in practice; component handles empty body gracefully).
+          body:     (section.body ?? []) as readonly PortableTextBlock[],
+          maxWidth: section.maxWidth,
+        },
+      };
+
     case "featureGrid":
       return {
         id:        section._key,
         blockType: "featureGrid",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading:  section.heading,
           features: (section.features ?? []).map((f) => ({
@@ -258,6 +301,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "testimonialSection",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading:      section.heading,
           testimonials: (section.testimonials ?? []).map((t) => ({
@@ -273,6 +317,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "faqSection",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading: section.heading,
           items:   (section.items ?? []).map((i) => ({
@@ -282,21 +327,25 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         },
       };
 
-    case "ctaSection":
+    case "ctaSection": {
+      // Prefer the structured `cta` object; fall back to the legacy flat fields
+      // for documents that pre-date the schema migration.
+      const ctaLabel = section.cta?.label ?? section.buttonLabel;
+      const ctaHref  = section.cta?.href  ?? section.buttonHref;
       return {
         id:        section._key,
         blockType: "ctaSection",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           title:       section.title,
           description: section.description,
-          // Normalise flat CMS fields into the typed primaryCta object.
-          // ContentBlockRenderer reverses this when calling CtaSectionBlock.
-          primaryCta:  section.buttonLabel && section.buttonHref
-            ? { label: section.buttonLabel, href: section.buttonHref }
+          primaryCta:  ctaLabel && ctaHref
+            ? { label: ctaLabel, href: ctaHref }
             : undefined,
         },
       };
+    }
 
     case "formSection":
       // The CMS carries only placement config + copy overrides.
@@ -306,6 +355,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "formSection",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           formKey:        section.formKey,
           title:          section.title,
@@ -322,21 +372,54 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "logoStrip",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
-          heading: section.heading,
-          logos:   (section.logos ?? []).map((logo) => ({
+          heading:          section.heading,
+          logos:            (section.logos ?? []).map((logo) => ({
             name: logo.name,
             src:  logo.src,
             url:  logo.url,
           })),
+          animationEnabled: section.animationEnabled,
+          speed:            section.speed as "slow" | "medium" | "fast" | undefined,
+          grayscale:        section.grayscale,
+          showLabels:       section.showLabels,
         },
       };
+
+    case "textMedia": {
+      // body is stored as plain text (type:"text") in Sanity.
+      // Wrap it in a minimal PortableText block so PortableTextRenderer can consume it.
+      const tmBody: PortableTextBlock[] | undefined = section.body
+        ? [{ _type: "block", _key: "b0", style: "normal", markDefs: [], children: [{ _type: "span", _key: "s0", text: section.body, marks: [] }] } as unknown as PortableTextBlock]
+        : undefined;
+      return {
+        id:        section._key,
+        blockType: "textMedia",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          eyebrow:   section.eyebrow,
+          heading:   section.heading,
+          body:      tmBody,
+          mediaType: section.mediaType,
+          mediaUrl:  section.mediaUrl,
+          mediaAlt:  section.mediaAlt,
+          caption:   section.caption,
+          ctas: (section.ctas ?? []).map((c) => ({
+            label: c.label,
+            href:  c.href,
+          })),
+        },
+      };
+    }
 
     case "stats":
       return {
         id:        section._key,
         blockType: "stats",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading: section.heading,
           items:   (section.items ?? []).map((item) => ({
@@ -356,16 +439,24 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "about",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading:     section.heading,
           body:        section.body as PortableTextBlock[] | undefined,
           imageUrl:    section.imageUrl,
           imageAlt:    section.imageAlt,
           teamMembers: (section.teamMembers ?? []).map((m) => ({
-            name:     m.name,
-            role:     m.role,
-            bio:      m.bio,
-            imageUrl: m.imageUrl,
+            name:        m.name,
+            role:        m.role,
+            bio:         m.bio,
+            imageUrl:    m.imageUrl,
+            profileHref: m.profileHref,
+            socials:     m.socials,
+          })),
+          ctas: (section.ctas ?? []).map((c) => ({
+            label:   c.label,
+            href:    c.href,
+            variant: c.variant,
           })),
         },
       };
@@ -375,10 +466,12 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "newsList",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
-          heading:  section.heading,
-          maxItems: section.maxItems,
-          items:    (section.items ?? []).map((item) => ({
+          heading:       section.heading,
+          maxItems:      section.maxItems,
+          // Inline items — populated for manual-source blocks; empty for collection-driven
+          items:         (section.items ?? []).map((item) => ({
             title:    item.title,
             url:      item.url,
             excerpt:  item.excerpt,
@@ -386,6 +479,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
             imageUrl: item.imageUrl,
             category: item.category,
           })),
+          contentSource: mapCmsContentSource(section.contentSource),
         },
       };
 
@@ -396,9 +490,11 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "listing",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
-          heading:      section.heading,
-          items:        (section.items ?? []).map((item) => ({
+          heading:       section.heading,
+          // Inline items — populated for manual-source blocks; empty for collection-driven
+          items:         (section.items ?? []).map((item) => ({
             id:       item.id ?? item._key,
             title:    item.title,
             href:     item.href,
@@ -410,9 +506,10 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
             tags:     item.tags,
             meta:     item.meta,
           })),
-          maxItems:     section.maxItems,
-          viewAllHref:  section.viewAllHref,
-          viewAllLabel: section.viewAllLabel,
+          maxItems:      section.maxItems,
+          viewAllHref:   section.viewAllHref,
+          viewAllLabel:  section.viewAllLabel,
+          contentSource: mapCmsContentSource(section.contentSource),
         },
       };
 
@@ -421,6 +518,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "filterBar",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           placeholder:        section.placeholder,
           categories:         section.categories?.map((c) => ({ label: c.label, value: c.value, count: c.count })),
@@ -437,6 +535,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "searchResults",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading:      section.heading,
           emptyMessage: section.emptyMessage,
@@ -463,6 +562,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "articleMeta",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           title:         section.title,
           publishedAt:   section.publishedAt,
@@ -482,6 +582,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "articleBody",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           body:       section.body,
           footnotes:  section.footnotes,
@@ -493,9 +594,11 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "relatedContent",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
-          heading:  section.heading,
-          items:    section.items.map((item) => ({
+          heading:       section.heading,
+          // Inline items — populated for manual-source blocks; empty for collection-driven
+          items:         section.items.map((item) => ({
             id:       item.id ?? item._key,
             title:    item.title,
             href:     item.href,
@@ -505,7 +608,8 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
             category: item.category,
             date:     item.date,
           })),
-          maxItems: section.maxItems,
+          maxItems:      section.maxItems,
+          contentSource: mapCmsContentSource(section.contentSource),
         },
       };
 
@@ -514,6 +618,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "vacancyMeta",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           title:        section.title,
           department:   section.department,
@@ -533,6 +638,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "applyPanel",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading:      section.heading,
           body:         section.body,
@@ -550,6 +656,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "search",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           title:            section.title,
           placeholder:      section.placeholder,
@@ -570,6 +677,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "processSteps",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading: section.heading,
           steps:   (section.steps ?? []).map((s) => ({
@@ -585,6 +693,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         id:        section._key,
         blockType: "recruiterPanel",
         variant:   section.variant,
+        surface:   section.surface,
         data: {
           heading:   section.heading,
           name:      section.name,
@@ -595,6 +704,125 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
           phone:     section.phone,
           ctaLabel:  section.ctaLabel,
           ctaHref:   section.ctaHref,
+        },
+      };
+
+    // ── Content / editorial ───────────────────────────────────────────────────
+
+    case "contentSection":
+      return {
+        id:        section._key,
+        blockType: "contentSection",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          eyebrow:  section.eyebrow,
+          heading:  section.heading,
+          intro:    section.intro,
+          body:     section.body as PortableTextBlock[] | undefined,
+          ctas:     (section.ctas ?? []).map((c) => ({
+            label:   c.label,
+            href:    c.href,
+            variant: c.variant,
+          })),
+          maxWidth: section.maxWidth,
+          align:    section.align,
+        },
+      };
+
+    case "teamSection":
+      return {
+        id:        section._key,
+        blockType: "teamSection",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          heading: section.heading,
+          intro:   section.intro,
+          members: (section.members ?? []).map((m) => ({
+            name:        m.name,
+            role:        m.role,
+            bio:         m.bio,
+            imageUrl:    m.imageUrl,
+            profileHref: m.profileHref,
+            socials:     m.socials,
+          })),
+        },
+      };
+
+    // ── Conversion / pricing ──────────────────────────────────────────────────
+
+    case "pricingSection":
+      return {
+        id:        section._key,
+        blockType: "pricingSection",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          heading:    section.heading,
+          subheading: section.subheading,
+          footnote:   section.footnote,
+          tiers: (section.tiers ?? []).map((t) => ({
+            name:        t.name,
+            price:       t.price,
+            period:      t.period,
+            description: t.description,
+            features:    t.features ?? [],
+            ctaLabel:    t.ctaLabel,
+            ctaHref:     t.ctaHref,
+            highlighted: t.highlighted,
+            badge:       t.badge,
+          })),
+        },
+      };
+
+    case "mapBlock":
+      return {
+        id:        section._key,
+        blockType: "mapBlock",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          heading:  section.heading,
+          address:  section.address,
+          city:     section.city,
+          country:  section.country,
+          email:    section.email,
+          phone:    section.phone,
+          embedUrl: section.embedUrl,
+        },
+      };
+
+    case "cartSummary":
+      return {
+        id:        section._key,
+        blockType: "cartSummary",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          heading:              section.heading,
+          emptyMessage:         section.emptyMessage,
+          checkoutHref:         section.checkoutHref,
+          continueShoppingHref: section.continueShoppingHref,
+          checkoutLabel:        section.checkoutLabel,
+          continueShoppingLabel: section.continueShoppingLabel,
+          planId:               section.planId,
+        },
+      };
+
+    case "checkoutBlock":
+      return {
+        id:        section._key,
+        blockType: "checkoutBlock",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          heading:         section.heading,
+          intro:           section.intro,
+          paymentProvider: section.paymentProvider,
+          returnHref:      section.returnHref,
+          returnLabel:     section.returnLabel,
+          planId:          section.planId,
         },
       };
 
@@ -645,7 +873,7 @@ function inferTemplateKey(
 function inferTemplateFromSections(
   sections: readonly PageSectionData[],
 ): "listing-page" | "detail-page" | "article-page" {
-  const types = new Set(sections.map((s) => s._type));
+  const types = new Set(sections.filter(Boolean).map((s) => s._type));
   if (types.has("listing") || types.has("filterBar") || types.has("searchResults")) {
     return "listing-page";
   }
@@ -656,13 +884,10 @@ function inferTemplateFromSections(
 }
 
 /**
- * Return true when the page has any context slot signal — either a
- * contextConfig entry or the legacy heroVariantKey — so that the template
- * key can be inferred as "marketing-page" rather than "article-page".
+ * Return true when the page has any context slot signal (contextConfig entry)
+ * so that the template key can be inferred as "marketing-page" rather than
+ * "article-page".
  */
-function hasAnyContextSignal(
-  config: CmsPageContextConfig,
-  heroVariantKey: string | undefined,
-): boolean {
-  return !!(config.hero || config.proof || config.cta || heroVariantKey);
+function hasAnyContextSignal(config: CmsPageContextConfig): boolean {
+  return !!(config.hero || config.proof || config.cta);
 }

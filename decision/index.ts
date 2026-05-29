@@ -43,6 +43,23 @@ export type {
 } from "./types";
 export { buildDecisionInput } from "./types";
 
+// ── Normalized DecisionContext ─────────────────────────────────────────────────
+//
+// The canonical runtime context object composed from all signal sources.
+// Use buildDecisionContext() in RSC page components; pass the result to rules,
+// AI providers, and the admin debug panel.
+
+export type {
+  DecisionContext,
+  BuildDecisionContextOptions,
+} from "./decision-context";
+
+export {
+  buildDecisionContext,
+  extractAIContext,
+  applyEnrichment,
+} from "./decision-context";
+
 // Provider interface
 export type { DecisionProvider } from "./providers/decision-provider";
 

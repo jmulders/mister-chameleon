@@ -12,6 +12,21 @@ export default defineType({
   title: "Article Body",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls the prose column width.",
+      options: {
+        list: [
+          { title: "Default — standard prose column (~70ch, default)", value: "default" },
+          { title: "Wide — full content-column width",                 value: "wide"    },
+        ],
+      },
+      initialValue: "default",
+    }),
+
     defineField({
       name: "body",
       title: "Body",

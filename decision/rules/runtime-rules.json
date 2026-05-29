@@ -1,86 +1,524 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-03-20T18:41:52.424Z",
+  "updatedAt": "2026-05-16T00:00:00.000Z",
   "rules": [
     {
-      "id": "homepage.returning_cta_clicked",
-      "priority": 7,
-      "label": "Returning visitor — CTA previously clicked",
-      "condition": {
-        "type": "named",
-        "name": "returning_cta_clicked"
-      },
-      "plan": {
-        "heroKey": "hero_direct_brand",
-        "proofKey": "proof_cases",
-        "ctaKey": "cta_meeting"
-      },
-      "reason": "Returning visitor who previously clicked CTA — escalated to meeting intent."
-    },
-    {
-      "id": "homepage.google",
-      "priority": 5,
-      "label": "Google traffic",
+      "id": "segment_target_account",
+      "priority": 2,
+      "label": "ABM — target account match",
+      "source": "system",
       "condition": {
         "type": "field",
-        "field": "source",
-        "value": "google"
-      },
-      "plan": {
-        "heroKey": "hero_google_problem",
-        "proofKey": "proof_cases",
-        "ctaKey": "cta_guide"
-      },
-      "reason": "Traffic source indicates search/problem intent."
-    },
-    {
-      "id": "homepage.high_engagement",
-      "priority": 10,
-      "label": "High-engagement returning visitor (3+ page views)",
-      "condition": {
-        "type": "named",
-        "name": "high_engagement"
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "target-account"
       },
       "plan": {
         "heroKey": "hero_direct_brand",
-        "proofKey": "proof_vision",
-        "ctaKey": "cta_meeting"
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_meeting",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "notificationKey": "notification_offer",
+        "pageBannerKey": "hero_page_banner_enterprise"
       },
-      "reason": "Highly engaged returning visitor (3+ page views) — platform-confidence experience."
+      "reason": "Named target account — highest-value prospect: brand-authority hero, ROI case proof, direct meeting CTA, competitive comparison, offer notification. Enterprise banner signals we know who they are."
     },
     {
-      "id": "homepage.linkedin",
-      "priority": 1,
-      "label": "LinkedIn traffic",
+      "id": "segment_crm_known",
+      "priority": 4,
+      "label": "CRM — known contact returning",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "crm-known"
+      },
+      "plan": {
+        "heroKey": "hero_consideration",
+        "proofKey": "proof_vision",
+        "ctaKey": "cta_meeting",
+        "featureKey": "feature_highlights",
+        "conversionKey": "conversion_contact",
+        "notificationKey": "notification_returning",
+        "pageBannerKey": "hero_page_banner_returning"
+      },
+      "reason": "CRM-matched contact — warm relationship: consideration hero skips the intro, strategic vision proof reinforces long-term fit, direct meeting CTA is appropriate for a known contact, returning notification acknowledges the relationship."
+    },
+    {
+      "id": "segment_ready_to_convert",
+      "priority": 6,
+      "label": "Segment — ready to convert",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "ready-to-convert"
+      },
+      "plan": {
+        "heroKey": "hero_intent_direct",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_meeting",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "notificationKey": "notification_urgency",
+        "pageBannerKey": "hero_page_banner_high_intent"
+      },
+      "reason": "Ready-to-convert segment — strongest purchase signal: direct intent hero, case proof for final reassurance, booking CTA, comparison closes the decision, urgency notification creates the tipping point."
+    },
+    {
+      "id": "segment_high_intent",
+      "priority": 8,
+      "label": "Segment — high intent",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "high-intent"
+      },
+      "plan": {
+        "heroKey": "hero_intent_direct",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_meeting",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "notificationKey": "notification_offer",
+        "pageBannerKey": "hero_page_banner_high_intent"
+      },
+      "reason": "High-intent segment — strong purchase signal: direct intent hero, case proof, meeting CTA, comparison feature, offer notification. One step below ready-to-convert; no urgency but an incentive helps tip the balance."
+    },
+    {
+      "id": "segment_enterprise_prospect",
+      "priority": 10,
+      "label": "Segment — enterprise prospect",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "enterprise-prospect"
+      },
+      "plan": {
+        "heroKey": "hero_linkedin_vision",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_meeting",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "pageBannerKey": "hero_page_banner_enterprise"
+      },
+      "reason": "Enterprise-sized company — strategic / relationship sell: aspirational vision hero resonates with senior buyers, case proof demonstrates enterprise ROI, meeting CTA suits a considered sales cycle, no urgency notification (enterprise doesn't respond to scarcity)."
+    },
+    {
+      "id": "rule_customer_expansion",
+      "priority": 12,
+      "label": "Customer — expansion signal (pricing revisit after conversion)",
+      "source": "blueprint",
       "condition": {
         "type": "group",
         "logic": "and",
         "conditions": [
           {
             "type": "field",
-            "field": "source",
-            "value": "linkedin"
+            "field": "journey.hasSubmittedForm",
+            "operator": "equals",
+            "value": true
           },
           {
             "type": "field",
-            "field": "utmSource",
+            "field": "journey.hasVisitedPricing",
             "operator": "equals",
-            "value": "linkedin"
+            "value": true
           }
         ]
       },
       "plan": {
+        "heroKey": "hero_direct_brand",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_expansion",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "pageBannerKey": "hero_page_banner_enterprise"
+      },
+      "reason": "Existing customer revisiting pricing — expansion signal: brand hero, ROI case proof, upgrade CTA, competitive comparison to justify the step-up."
+    },
+    {
+      "id": "rule_customer_onboarding",
+      "priority": 15,
+      "label": "Customer — post-conversion onboarding",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "and",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "customer"
+          },
+          {
+            "type": "field",
+            "field": "journey.hasSubmittedForm",
+            "operator": "equals",
+            "value": true
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_customer_onboarding",
+        "proofKey": "proof_platform",
+        "ctaKey": "cta_onboarding",
+        "featureKey": "feature_highlights",
+        "conversionKey": "conversion_contact",
+        "pageBannerKey": "hero_page_banner_returning"
+      },
+      "reason": "Confirmed customer who submitted a form — onboarding mode: welcome-back hero, platform proof (get value fast), first-value onboarding CTA, feature highlights surface what to explore next."
+    },
+    {
+      "id": "rule_tier_pro",
+      "priority": 16,
+      "label": "Customer — Pro tier (platform mastery)",
+      "source": "blueprint",
+      "condition": {
+        "type": "field",
+        "field": "crm.planTier",
+        "operator": "equals",
+        "value": "pro"
+      },
+      "plan": {
+        "heroKey": "hero_direct_brand",
+        "proofKey": "proof_platform",
+        "ctaKey": "cta_expansion",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_contact",
+        "pageBannerKey": "hero_page_banner_enterprise"
+      },
+      "reason": "Pro-tier customer — platform mastery mode: authoritative brand hero anchors identity, platform proof reinforces deep product value, expansion CTA opens upsell conversation, comparison helps justify next tier. No notification — high-value customers aren't nudged with urgency."
+    },
+    {
+      "id": "rule_tier_growth",
+      "priority": 17,
+      "label": "Customer — Growth tier (actively scaling)",
+      "source": "blueprint",
+      "condition": {
+        "type": "field",
+        "field": "crm.planTier",
+        "operator": "equals",
+        "value": "growth"
+      },
+      "plan": {
+        "heroKey": "hero_consideration",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_expansion",
+        "featureKey": "feature_highlights",
+        "conversionKey": "conversion_demo",
+        "notificationKey": "notification_returning",
+        "pageBannerKey": "hero_page_banner_returning"
+      },
+      "reason": "Growth-tier customer — scaling mode: consideration hero acknowledges they're past basics, real case proof shows what's possible at scale, expansion CTA invites an upgrade conversation, returning notification acknowledges the ongoing relationship."
+    },
+    {
+      "id": "rule_tier_starter",
+      "priority": 19,
+      "label": "Customer — Starter tier (getting started)",
+      "source": "blueprint",
+      "condition": {
+        "type": "field",
+        "field": "crm.planTier",
+        "operator": "equals",
+        "value": "starter"
+      },
+      "plan": {
+        "heroKey": "hero_customer_onboarding",
+        "proofKey": "proof_default",
+        "ctaKey": "cta_onboarding",
+        "featureKey": "feature_highlights",
+        "conversionKey": "conversion_contact",
+        "pageBannerKey": "hero_page_banner_awareness"
+      },
+      "reason": "Starter-tier customer — onboarding mode: welcome hero sets expectations, default proof shows broad product value, onboarding CTA gets them to first value quickly, feature highlights surface what to explore next. No urgency — they're already a customer, not a prospect."
+    },
+    {
+      "id": "segment_pricing_researcher",
+      "priority": 18,
+      "label": "Segment — pricing researcher",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "pricing-researcher"
+      },
+      "plan": {
+        "heroKey": "hero_intent_direct",
+        "proofKey": "proof_stats",
+        "ctaKey": "cta_platform",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "notificationKey": "notification_urgency",
+        "pageBannerKey": "hero_page_banner_high_intent"
+      },
+      "reason": "Pricing researcher — mid-funnel, cost-conscious: direct intent hero, stats proof validates ROI, platform CTA lets them self-qualify, comparison shows value vs. cost, urgency notification nudges before they drift."
+    },
+    {
+      "id": "rule_form_dropoff",
+      "priority": 20,
+      "label": "Form drop-off — friction recovery",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "and",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.hasStartedForm",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.hasSubmittedForm",
+            "operator": "equals",
+            "value": false
+          },
+          {
+            "type": "field",
+            "field": "journey.frictionScore",
+            "operator": "greater_than_or_equal",
+            "value": 10
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_direct_brand",
+        "proofKey": "proof_reassurance",
+        "ctaKey": "cta_guide",
+        "featureKey": "feature_highlights",
+        "conversionKey": "conversion_signup",
+        "pageBannerKey": "hero_page_banner_friction"
+      },
+      "reason": "Form drop-off with friction — recovery mode: brand hero rebuilds trust, reassurance proof addresses hesitation, lower-commitment guide CTA re-engages without pressure, feature highlights answer lingering 'why us?' questions."
+    },
+    {
+      "id": "segment_returning_engager",
+      "priority": 24,
+      "label": "Segment — returning engager",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "returning-engager"
+      },
+      "plan": {
+        "heroKey": "hero_consideration",
+        "proofKey": "proof_vision",
+        "ctaKey": "cta_meeting",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "notificationKey": "notification_returning",
+        "pageBannerKey": "hero_page_banner_returning"
+      },
+      "reason": "Returning engager — multiple visits, clearly evaluating: skip the brand intro, consideration hero picks up where they left off, vision proof reinforces strategic fit, meeting CTA is now appropriate, returning notification acknowledges their loyalty."
+    },
+    {
+      "id": "segment_linkedin_traffic",
+      "priority": 28,
+      "label": "Segment — LinkedIn traffic",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "linkedin-traffic"
+      },
+      "plan": {
         "heroKey": "hero_linkedin_vision",
         "proofKey": "proof_vision",
-        "ctaKey": "cta_platform"
+        "ctaKey": "cta_platform",
+        "featureKey": "feature_highlights",
+        "conversionKey": "conversion_contact",
+        "pageBannerKey": "hero_page_banner_consideration"
       },
-      "reason": "Traffic source indicates thought-leadership/social intent."
+      "reason": "LinkedIn referral — thought-leadership / evaluate stage: vision hero matches the LinkedIn mindset, vision proof reinforces strategic narrative, platform CTA invites exploration, feature highlights answer 'why Nascita?', soft contact conversion suits their exploratory intent."
+    },
+    {
+      "id": "segment_paid_acquisition",
+      "priority": 32,
+      "label": "Segment — paid acquisition",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "paid-acquisition"
+      },
+      "plan": {
+        "heroKey": "hero_google_problem",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_guide",
+        "featureKey": "feature_grid_primary",
+        "conversionKey": "conversion_signup",
+        "pageBannerKey": "hero_page_banner_consideration"
+      },
+      "reason": "Paid ad click — discover/problem-aware stage: problem hero matches search intent, case proof gives credibility, guide CTA nurtures before asking for a meeting, feature grid answers 'what do you do?', diagnostic download is the right low-friction first ask."
+    },
+    {
+      "id": "segment_smb_startup",
+      "priority": 38,
+      "label": "Segment — SMB / startup",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "audienceSegmentIds",
+        "operator": "contains",
+        "value": "smb-startup"
+      },
+      "plan": {
+        "heroKey": "hero_direct_brand",
+        "proofKey": "proof_platform",
+        "ctaKey": "cta_guide",
+        "featureKey": "feature_grid_primary",
+        "conversionKey": "conversion_signup",
+        "pageBannerKey": "hero_page_banner_awareness"
+      },
+      "reason": "SMB / startup — cost-sensitive, self-serve mindset: brand hero establishes credibility, platform proof shows what they get, guide CTA is low-friction, feature grid explains the product clearly, signup conversion invites self-service."
+    },
+    {
+      "id": "rule_high_intent",
+      "priority": 45,
+      "label": "Journey — commercial intent (high score or pricing visit)",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "or",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "intent"
+          },
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "high_intent"
+          },
+          {
+            "type": "field",
+            "field": "journey.intentScore",
+            "operator": "greater_than_or_equal",
+            "value": 60
+          },
+          {
+            "type": "group",
+            "logic": "and",
+            "conditions": [
+              {
+                "type": "field",
+                "field": "journey.hasVisitedPricing",
+                "operator": "equals",
+                "value": true
+              },
+              {
+                "type": "field",
+                "field": "journey.intentScore",
+                "operator": "greater_than_or_equal",
+                "value": 50
+              }
+            ]
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_intent_direct",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_meeting",
+        "featureKey": "feature_comparison",
+        "conversionKey": "conversion_demo",
+        "notificationKey": "notification_offer",
+        "pageBannerKey": "hero_page_banner_high_intent"
+      },
+      "reason": "High intent by journey signal — decide stage: score ≥60 or pricing visit with score ≥50. Direct intent hero, case proof for final reassurance, booking CTA, comparison feature, offer notification push them to act."
+    },
+    {
+      "id": "rule_consideration",
+      "priority": 55,
+      "label": "Journey — consideration (evaluation and product exploration)",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "or",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "consideration"
+          },
+          {
+            "type": "field",
+            "field": "journey.hasVisitedCases",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.hasVisitedAbout",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.matchedSequences",
+            "operator": "contains",
+            "value": "homepage_to_product"
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_consideration",
+        "proofKey": "proof_vision",
+        "ctaKey": "cta_platform",
+        "featureKey": "feature_highlights",
+        "conversionKey": "conversion_contact",
+        "pageBannerKey": "hero_page_banner_consideration"
+      },
+      "reason": "Consideration by journey signal — evaluate stage: visited cases/about or explored product pages. Consideration hero picks up the conversation, vision proof reinforces strategic fit, platform CTA invites deeper exploration, feature highlights answer 'why Nascita?'."
+    },
+    {
+      "id": "rule_awareness",
+      "priority": 70,
+      "label": "Journey — awareness stage (new or low-signal visit)",
+      "source": "blueprint",
+      "condition": {
+        "type": "field",
+        "field": "journey.funnelStage",
+        "operator": "equals",
+        "value": "awareness"
+      },
+      "plan": {
+        "heroKey": "hero_direct_brand",
+        "proofKey": "proof_platform",
+        "ctaKey": "cta_guide",
+        "featureKey": "feature_grid_primary",
+        "conversionKey": "conversion_signup",
+        "pageBannerKey": "hero_page_banner_awareness"
+      },
+      "reason": "Awareness — discover stage: new or low-signal visitor. Brand hero, platform proof, guide CTA, feature grid answers 'what do you do?', low-friction signup. No notification — don't overwhelm a first-time visitor."
     }
   ],
   "defaultPlan": {
     "heroKey": "hero_direct_brand",
     "proofKey": "proof_platform",
     "ctaKey": "cta_meeting",
-    "reason": "Default/direct traffic gets brand-led experience."
+    "featureKey": "feature_grid_primary",
+    "conversionKey": "conversion_demo",
+    "pageBannerKey": "hero_page_banner_awareness",
+    "reason": "Default / direct traffic — brand-led experience with a direct meeting ask."
   }
 }

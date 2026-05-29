@@ -58,7 +58,7 @@
  */
 
 import type { CMSProvider } from "./cms-provider";
-import type { HeroBlockData, ProofBlockData, CTABlockData, SiteSettingsData, PageData } from "../types";
+import type { HeroBlockData, ProofBlockData, CTABlockData, FeatureBlockData, ConversionBlockData, NotificationBlockData, SiteSettingsData, PageData } from "../types";
 import type {
   StatamicHeroEntry,
   StatamicProofEntry,
@@ -76,6 +76,8 @@ import {
 } from "../mappers/statamic";
 import { StatamicClient, createStatamicClient } from "./statamic-client";
 import { logger } from "@/lib/logger";
+import type { ProvisionResult, TestConnectionResult } from "./cms-provider";
+import type { TenantSettings } from "@/tenant/types";
 
 // ── Provider ───────────────────────────────────────────────────────────────
 
@@ -120,14 +122,39 @@ export class StatamicProvider implements CMSProvider {
     );
   }
 
+  async getFeatureVariant(_key: string): Promise<FeatureBlockData | null> {
+    // Extended slot — Statamic implementation not yet available.
+    // Returns null so the slot is gracefully absent from the experience.
+    return Promise.resolve(null);
+  }
+
+  async getConversionVariant(_key: string): Promise<ConversionBlockData | null> {
+    // Extended slot — Statamic implementation not yet available.
+    // Returns null so the slot is gracefully absent from the experience.
+    return Promise.resolve(null);
+  }
+
+  async getNotificationVariant(_key: string): Promise<NotificationBlockData | null> {
+    // Extended slot — Statamic implementation not yet available.
+    // Returns null so the notification is gracefully absent from the experience.
+    return Promise.resolve(null);
+  }
+
+  async getAdaptiveBlock(key: string): Promise<import("../types").AdaptiveBlockData | null> {
+    // Adaptive blocks are platform-managed (Supabase-backed), not stored in Statamic.
+    // Delegate to the shared adaptive-blocks store.
+    const { getAdaptiveBlockByKey } = await import("@/lib/adaptive-blocks/adaptive-blocks-store");
+    return getAdaptiveBlockByKey(key, null);
+  }
+
   // TODO: implement Statamic site settings fetch when a siteSettings entry
   // has been created in the Statamic collection.
-  async getSiteSettings(): Promise<SiteSettingsData | null> {
+  async getSiteSettings(_locale = "en"): Promise<SiteSettingsData | null> {
     return Promise.resolve(null);
   }
 
   // TODO: implement Statamic page fetch when page entries have been created.
-  async getPageBySlug(_slug: string): Promise<PageData | null> {
+  async getPageBySlug(_slug: string, _locale = "en"): Promise<PageData | null> {
     return Promise.resolve(null);
   }
 
@@ -192,6 +219,61 @@ export class StatamicProvider implements CMSProvider {
 
   async getCompanies(_options?: { limit?: number }): Promise<import("../types").CompanyData[]> {
     return [];
+  }
+
+  // ── Collection resolution ─────────────────────────────────────────────────
+
+  /**
+   * Resolves collection-driven block items via the Statamic REST API.
+   *
+   * Each CollectionKey maps to a Statamic collection endpoint:
+   *   articles / news → /api/collections/articles/entries
+   *   vacancies       → /api/collections/vacancies/entries
+   *   companies       → /api/collections/companies/entries
+   *   cases           → /api/collections/cases/entries
+   *
+   * Full implementation is deferred until Statamic collection endpoints are
+   * configured for the tenant. Returns [] in the interim so blocks degrade
+   * gracefully to empty rather than erroring.
+   */
+  async resolveCollection(
+    _source: import("@/page-config/collection-source").CollectionContentSource,
+  ): Promise<import("@/page-config/collection-source").CollectionItem[]> {
+    // TODO: Implement full Statamic collection resolution via REST API
+    // Delegate to getNewsArticles() / getVacancies() / getCompanies() once those
+    // methods are wired to live Statamic endpoints.
+    return [];
+  }
+
+  // ── Provider management ───────────────────────────────────────────────────
+
+  /**
+   * Provisioning is not yet supported for the Statamic provider.
+   * Use the Statamic Control Panel or CLI to seed starter content for a tenant.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async provisionSite(_tenant: TenantSettings, _options?: { dryRun?: boolean; siteType?: string; pages?: ReadonlyArray<{ presetKey: string; title: string; slug: string }>; includeDefaultBlocks?: boolean; starterContentMode?: import("./cms-provider").StarterContentMode; includeShowcasePage?: boolean }): Promise<ProvisionResult> {
+    return {
+      ok:    false,
+      error: "Provisioning is not yet implemented for the Statamic provider. " +
+             "Create starter content via the Statamic Control Panel or CLI.",
+    };
+  }
+
+  /** Tests connectivity by attempting a low-cost API read. */
+  async testConnection(): Promise<TestConnectionResult> {
+    try {
+      // Fetching a non-existent entry returns null (not a throw) on 404 —
+      // a thrown error signals a real connectivity or auth failure.
+      await this.client.fetchEntry("__connection_test__", "__platform_test__");
+      return { ok: true, provider: "statamic", readAccess: true };
+    } catch (err) {
+      return {
+        ok:       false,
+        provider: "statamic",
+        error:    err instanceof Error ? err.message : String(err),
+      };
+    }
   }
 
   private async fetchVariant<TEntry extends { is_active?: boolean }, TResult>(

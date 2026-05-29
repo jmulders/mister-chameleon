@@ -24,6 +24,20 @@ export default defineType({
 
   fields: [
     defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls the visual layout of this stats section.",
+      options: {
+        list: [
+          { title: "Metric cards row (default)", value: "default" },
+          { title: "Compact inline row",         value: "compact" },
+        ],
+      },
+      initialValue: "default",
+    }),
+
+    defineField({
       name: "heading",
       title: "Heading",
       type: "string",

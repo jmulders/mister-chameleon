@@ -1,26 +1,34 @@
 /**
  * CmsCredentialsPanel
  *
- * Admin panel for configuring the CMS write token used by the provisioner.
+ * Admin panel for CMS credential status on the tenant Setup page.
  *
- * ─── Security model ────────────────────────────────────────────────────────────
+ * ─── Per-provider behaviour ───────────────────────────────────────────────────
+ *
+ *   sanity    — Write token for the provisioner.  Stored per-tenant in
+ *               `tenant.cms.writeToken`.  Falls back to the platform-level
+ *               write token (DB platform_settings or SANITY_API_WRITE_TOKEN
+ *               / SANITY_WRITE_TOKEN env vars).  The `platformWriteTokenConfigured`
+ *               prop suppresses the amber warning when the fallback covers it.
+ *
+ *   storyblok — Access token and region are configured at the platform level
+ *               (Platform → CMS settings) or via STORYBLOK_ACCESS_TOKEN env var.
+ *               There is no per-tenant Storyblok credential — show an info note
+ *               that links to the platform CMS settings page.
+ *
+ *   statamic  — API URL and token are configured via environment variables
+ *               (STATAMIC_API_URL, STATAMIC_API_TOKEN) or Platform → CMS
+ *               settings.  No per-tenant credential stored here.
+ *
+ *   platform  — The built-in platform CMS requires no external credentials.
+ *
+ *   mock      — No credentials required.  Dev / local-only provider.
+ *
+ * ─── Security model (Sanity) ─────────────────────────────────────────────────
  *
  *   The write token is stored server-side only via saveCmsCredentialsAction.
  *   After save the full token value is NEVER returned to the client — only a
- *   boolean `hasCmsWriteToken` flag is reflected back.  The UI shows:
- *
- *     • No token configured — warning strip + input prompt
- *     • Token configured    — masked indicator (sk-••••••) + update option
- *
- * ─── When to use ──────────────────────────────────────────────────────────────
- *
- *   When SANITY_API_WRITE_TOKEN / SANITY_WRITE_TOKEN environment variables are
- *   not set, the provisioner falls back to this per-tenant token.  Useful when:
- *     – Each tenant has their own Sanity project with its own write token.
- *     – The platform operator cannot update environment variables at runtime.
- *
- *   If a platform-level env var is already set the per-tenant token is still
- *   accepted and takes precedence (useful for testing or override purposes).
+ *   boolean `hasCmsWriteToken` flag is reflected back.
  */
 
 "use client";
@@ -35,6 +43,13 @@ interface CmsCredentialsPanelProps {
   tenantId:         string;
   hasCmsWriteToken: boolean;
   cmsProvider:      CMSProviderName;
+  /**
+   * Sanity only.  True when a platform-level Sanity write token is available
+   * (DB platform_settings or SANITY_API_WRITE_TOKEN / SANITY_WRITE_TOKEN env var).
+   * When true and no per-tenant token is set, the amber warning is suppressed
+   * because provisioning will succeed via the platform fallback.
+   */
+  platformWriteTokenConfigured?: boolean;
 }
 
 type PanelState =
@@ -47,11 +62,27 @@ type PanelState =
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PROVIDER_LABEL: Record<CMSProviderName, string> = {
+  platform:  "Platform",
   sanity:    "Sanity",
   storyblok: "Storyblok",
   statamic:  "Statamic",
   mock:      "Mock",
 };
+
+// ── Per-provider informational panels ─────────────────────────────────────────
+
+/** Shown for providers where credentials are managed outside this panel. */
+function InfoPanel({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2.5 text-xs text-neutral-600">
+      {children}
+    </div>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -59,6 +90,7 @@ export function CmsCredentialsPanel({
   tenantId,
   hasCmsWriteToken: initialHasToken,
   cmsProvider,
+  platformWriteTokenConfigured = false,
 }: CmsCredentialsPanelProps) {
   const [panelState, setPanelState] = useState<PanelState>({ mode: "idle" });
   const [tokenInput,  setTokenInput]  = useState("");
@@ -66,11 +98,6 @@ export function CmsCredentialsPanel({
   const [isPending, startTransition]  = useTransition();
 
   const providerLabel = PROVIDER_LABEL[cmsProvider] ?? cmsProvider;
-
-  // Only show the write-token section when the provider is Sanity (other
-  // providers use different credential patterns).  For mock providers, show
-  // a simple informational note instead.
-  const isMock = cmsProvider === "mock";
 
   function handleEdit() {
     setTokenInput("");
@@ -115,36 +142,101 @@ export function CmsCredentialsPanel({
     <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-5">
 
       {/* Header */}
-      <div className="mb-1 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-neutral-900">
           CMS Credentials
         </span>
         <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-500">
           {providerLabel}
         </span>
-        {hasToken && (
+
+        {/* Sanity-specific status badges */}
+        {cmsProvider === "sanity" && hasToken && (
           <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700">
             ✓ Write token configured
           </span>
         )}
-        {!hasToken && !isMock && (
+        {cmsProvider === "sanity" && !hasToken && platformWriteTokenConfigured && (
+          <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-500">
+            Via platform setting
+          </span>
+        )}
+        {cmsProvider === "sanity" && !hasToken && !platformWriteTokenConfigured && (
           <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
             No write token
           </span>
         )}
       </div>
 
-      <p className="mb-4 text-xs text-neutral-500">
-        {isMock
-          ? "Mock provider — no credentials required."
-          : `Configure a ${providerLabel} write token for the CMS provisioner. ` +
-            "If a platform-level environment variable is already set, " +
-            "the per-tenant token takes precedence (useful for per-project overrides)."}
-      </p>
+      {/* ── Mock ──────────────────────────────────────────────────────────── */}
+      {cmsProvider === "mock" && (
+        <InfoPanel>
+          Mock provider — no credentials required. Switch to a real CMS provider
+          before going live.
+        </InfoPanel>
+      )}
 
-      {isMock ? null : (
+      {/* ── Platform ──────────────────────────────────────────────────────── */}
+      {cmsProvider === "platform" && (
+        <InfoPanel>
+          The built-in platform CMS stores content in the platform database.
+          No external credentials are required.
+        </InfoPanel>
+      )}
+
+      {/* ── Storyblok ─────────────────────────────────────────────────────── */}
+      {cmsProvider === "storyblok" && (
+        <InfoPanel>
+          Storyblok credentials (access token and region) are configured at the{" "}
+          <strong className="font-medium">platform level</strong>, not per-tenant.
+          Set them in{" "}
+          <a
+            href="/admin/platform/cms"
+            className="font-medium text-indigo-600 hover:underline"
+          >
+            Platform → CMS settings
+          </a>
+          {" "}or via the{" "}
+          <code className="rounded bg-neutral-100 px-1 font-mono">STORYBLOK_ACCESS_TOKEN</code>
+          {" "}environment variable. All tenants using Storyblok share the platform token.
+        </InfoPanel>
+      )}
+
+      {/* ── Statamic ──────────────────────────────────────────────────────── */}
+      {cmsProvider === "statamic" && (
+        <InfoPanel>
+          Statamic credentials (API URL and token) are configured via environment
+          variables{" "}
+          <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_URL</code>
+          {" "}and{" "}
+          <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_TOKEN</code>
+          {" "}or in{" "}
+          <a
+            href="/admin/platform/cms"
+            className="font-medium text-indigo-600 hover:underline"
+          >
+            Platform → CMS settings
+          </a>
+          . No per-tenant credential is stored here.
+        </InfoPanel>
+      )}
+
+      {/* ── Sanity — full write token management ──────────────────────────── */}
+      {cmsProvider === "sanity" && (
         <>
-          {/* Token status */}
+          <p className="mb-3 text-xs text-neutral-500">
+            A per-tenant Sanity write token lets the provisioner seed or update
+            content in this tenant&rsquo;s Sanity project. Leave blank to use the
+            platform-level token from{" "}
+            <a href="/admin/platform/cms" className="text-indigo-600 hover:underline">
+              Platform → CMS settings
+            </a>
+            {" "}or the{" "}
+            <code className="rounded bg-neutral-100 px-1 font-mono text-xs">SANITY_API_WRITE_TOKEN</code>
+            {" "}env var.
+          </p>
+
+          {/* Token configured — masked + update/clear */}
           {hasToken && panelState.mode === "idle" && (
             <div className="mb-3 flex items-center gap-3 rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2">
               <span className="font-mono text-xs text-neutral-500 tracking-widest">
@@ -155,7 +247,7 @@ export function CmsCredentialsPanel({
                   onClick={handleEdit}
                   className="text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
                 >
-                  Update token
+                  Update
                 </button>
                 <span className="text-neutral-300">|</span>
                 <button
@@ -169,12 +261,21 @@ export function CmsCredentialsPanel({
             </div>
           )}
 
-          {!hasToken && panelState.mode === "idle" && (
+          {/* No per-tenant token — platform covers it */}
+          {!hasToken && panelState.mode === "idle" && platformWriteTokenConfigured && (
+            <div className="mb-3 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+              No per-tenant token set — provisioning will use the{" "}
+              <strong className="font-medium">platform-level write token</strong>.
+              Add a token here only to override it for this specific tenant.
+            </div>
+          )}
+
+          {/* No per-tenant token — nothing covers it */}
+          {!hasToken && panelState.mode === "idle" && !platformWriteTokenConfigured && (
             <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              No write token configured for this tenant. The provisioner will
-              fall back to <code className="font-mono font-semibold">SANITY_API_WRITE_TOKEN</code>{" "}
-              / <code className="font-mono font-semibold">SANITY_WRITE_TOKEN</code> environment
-              variables. If neither is set, provisioning will fail.
+              No write token configured. Set one here or configure{" "}
+              <code className="font-mono font-semibold">SANITY_API_WRITE_TOKEN</code>
+              {" "}at the platform level — otherwise provisioning will fail.
             </div>
           )}
 
@@ -182,20 +283,19 @@ export function CmsCredentialsPanel({
           {panelState.mode === "editing" && (
             <div className="mb-3 space-y-2">
               <label className="block text-xs font-medium text-neutral-700">
-                {providerLabel} write token
+                Sanity write token
                 <span className="ml-1.5 font-normal text-neutral-400">(not shown after save)</span>
               </label>
               <input
                 type="password"
                 autoComplete="off"
-                placeholder={`sk-...`}
+                placeholder="sk-..."
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value)}
                 className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
               />
               <p className="text-[11px] text-neutral-400">
-                Token is stored server-side only. Only a &ldquo;configured&rdquo; indicator
-                is shown after save — the value is never echoed back.
+                Stored server-side only — the value is never echoed back after saving.
               </p>
               <div className="flex gap-2 pt-1">
                 <button
@@ -215,13 +315,18 @@ export function CmsCredentialsPanel({
             </div>
           )}
 
-          {/* Add token button when none configured */}
+          {/* Add / override button */}
           {!hasToken && panelState.mode === "idle" && (
             <button
               onClick={handleEdit}
-              className="rounded bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+              className={[
+                "rounded px-3 py-1.5 text-xs font-semibold transition-colors",
+                platformWriteTokenConfigured
+                  ? "border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                  : "bg-brand-600 text-white hover:bg-brand-700",
+              ].join(" ")}
             >
-              Add write token
+              {platformWriteTokenConfigured ? "Override with per-tenant token" : "Add write token"}
             </button>
           )}
 
@@ -234,7 +339,7 @@ export function CmsCredentialsPanel({
           {panelState.mode === "success" && (
             <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
               {panelState.hasToken
-                ? "✓ Write token saved. Provisioning can now run for this tenant."
+                ? "✓ Write token saved."
                 : "✓ Write token cleared."}
               {" "}
               <button

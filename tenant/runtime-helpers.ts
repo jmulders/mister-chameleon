@@ -85,7 +85,7 @@ import type { PackageDefinition }            from "./packages";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
-const DEFAULT_CONTEXT_BLOCKS: readonly ContextBlockKey[] = ["hero", "proof", "cta"];
+const DEFAULT_CONTEXT_BLOCKS: readonly ContextBlockKey[] = ["hero", "proof", "cta", "conversion"];
 
 /**
  * Feature flag defaults used when no tenant record is available, or when
@@ -153,7 +153,12 @@ function resolvePackageSafe(key: unknown): PackageDefinition {
       content: [],
     },
     allowedFeatures: SAFE_PACKAGE_FEATURES_FALLBACK,
-    allowedThemes:   ["default", "minimal", "bold", "custom"],
+    allowedThemes:   [
+      "default", "minimal", "bold", "custom",
+      "corporate-blue", "modern-green", "minimal-neutral", "bold-dark",
+      "tech-indigo", "warm-professional", "recruitment-energy",
+      "healthcare-calm", "industrial-strong", "premium-editorial",
+    ],
     limits: {
       maxSites:           Infinity,
       maxExperiments:     Infinity,
@@ -248,11 +253,22 @@ export function getEnabledContentTypes(
 ): ReadonlySet<ContentBlockKey> | null {
   if (!tenant) return null;
 
+  // The platform's own marketing/demo site is not subject to content-type
+  // restrictions.  It must always display every registered block type so the
+  // public site renders correctly regardless of what the DB record says.
+  // "mister-chameleon" is the canonical tenantId for the platform's own tenant
+  // (see tenant/mister-chameleon-config.ts).
+  if (tenant.tenantId === "mister-chameleon") return null;
+
   const pkg        = resolvePackageSafe(tenant.packageKey);
   const pkgAllowed = new Set(pkg.allowedBlocks.content);
 
-  // Defensive: `blocks` or `blocks.content` may be absent on legacy rows.
-  const storedContent = tenant.blocks?.content ?? pkg.allowedBlocks.content;
+  // Defensive: `blocks` or `blocks.content` may be absent on legacy rows,
+  // or may be normalised to `[]` when no explicit content types have been
+  // configured for this tenant.  An empty array means "not yet configured",
+  // NOT "explicitly block everything" — fall back to the package defaults.
+  const stored = tenant.blocks?.content;
+  const storedContent = (stored && stored.length > 0) ? stored : pkg.allowedBlocks.content;
 
   return new Set(storedContent.filter((b) => pkgAllowed.has(b)));
 }
@@ -263,23 +279,45 @@ export function getEnabledContentTypes(
  * Accepts any object that has a `_type` string field — works with raw CMS
  * documents, the mapped PageSectionData shape, or any similar structure.
  *
- * Returns the original array unchanged when the tenant is null or has no
- * content-type restriction, preserving all sections in that case.
+ * Returns the original array (minus any invalid entries) unchanged when the
+ * tenant is null or has no content-type restriction.
+ *
+ * ─── Null / undefined safety ─────────────────────────────────────────────────
+ *
+ *   The sections array may contain null or undefined entries at runtime even
+ *   when TypeScript types say otherwise.  Known sources:
+ *
+ *   1. mapSanitySection() returns undefined for any section whose _type is not
+ *      yet declared in SanityPageSectionRaw (e.g. "about", "stats", "logoStrip").
+ *      mapSanityPage() now filters these out, but this guard ensures that if
+ *      any slip through — or come via a different code path — they are silently
+ *      dropped instead of crashing on `s._type` access.
+ *
+ *   2. Sanity GROQ can return null for inline array items that are malformed
+ *      or in an unexpected state.
  *
  * @param sections  The full CMS section list from the page document.
+ *                  Typed permissively to accept the null/undefined entries
+ *                  that can appear at runtime.
  * @param tenant    TenantSettings, or null to skip filtering.
- * @returns         The sections permitted for this tenant.
+ * @returns         The sections permitted for this tenant (invalid items dropped).
  *
  * @example
  * const visible = filterSectionsByTenant(homePage.sections ?? [], tenant);
  */
 export function filterSectionsByTenant<T extends { _type: string }>(
-  sections: T[],
+  sections: readonly (T | null | undefined)[],
   tenant:   TenantSettings | null,
 ): T[] {
+  // Remove any null/undefined entries before accessing ._type.
+  // These arise from mapSanitySection()'s implicit undefined return on unknown
+  // section types; the upstream fix in mapSanityPage now filters them, but this
+  // guard defends the function contract regardless of the call path.
+  const valid = sections.filter((s): s is T => s != null);
+
   const allowed = getEnabledContentTypes(tenant);
-  if (allowed === null) return sections;
-  return sections.filter((s) => allowed.has(s._type as ContentBlockKey));
+  if (allowed === null) return valid;
+  return valid.filter((s) => allowed.has(s._type as ContentBlockKey));
 }
 
 // ── Feature flag helpers ──────────────────────────────────────────────────────

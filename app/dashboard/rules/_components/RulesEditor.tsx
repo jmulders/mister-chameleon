@@ -55,6 +55,7 @@ import type {
   RuleCondition,
   FieldCondition,
   NamedCondition,
+  ContextCondition,
   ConditionField,
   NamedConditionId,
   FieldConditionValue,
@@ -66,6 +67,9 @@ import {
   ALLOWED_CTA_KEYS,
   formatCondition,
 } from "@/decision/rules/stored-rule";
+import type { VariantCatalogue, VariantEntry, VariantSource } from "@/decision/rules/variant-catalogue";
+import { SOURCE_LABELS, buildPlatformCatalogue } from "@/decision/rules/variant-catalogue";
+import { PRESET_PLANS }                           from "@/decision/rules/preset-plans";
 import {
   FIELD_REGISTRY,
   FIELD_KEYS_BY_GROUP,
@@ -78,7 +82,25 @@ import type {
   FieldOperator,
   FieldGroup,
 } from "@/decision/rules/field-registry";
-import type { HeroVariantKey, ProofVariantKey, CTAVariantKey } from "@/decision/types";
+import type {
+  HeroVariantKey,
+  ProofVariantKey,
+  CTAVariantKey,
+  FeatureVariantKey,
+  ConversionVariantKey,
+} from "@/decision/types";
+import {
+  CONTEXT_REGISTRY,
+  ALL_CONTEXT_IDS,
+} from "@/decision/rules/context-library";
+import type { ContextId } from "@/decision/rules/context-library";
+import {
+  RULE_PACK_REGISTRY,
+  PRECEDENCE_TIERS,
+  inferPrecedenceLevel,
+} from "@/decision/rules/rule-packs";
+import type { PrecedenceLevel } from "@/decision/rules/rule-packs";
+import { PRESET_CONDITIONS } from "@/decision/rules/preset-conditions";
 
 // ── Internal editor model ──────────────────────────────────────────────────────
 //
@@ -87,7 +109,7 @@ import type { HeroVariantKey, ProofVariantKey, CTAVariantKey } from "@/decision/
 // nested group children will have those nested children stripped on load.
 
 /** A leaf is any non-group condition — the only editable unit in this UI. */
-type EditorLeaf = FieldCondition | NamedCondition;
+type EditorLeaf = FieldCondition | NamedCondition | ContextCondition;
 
 /**
  * The internal flat model for a rule's condition block.
@@ -105,7 +127,7 @@ function toEditorGroup(condition: RuleCondition): EditorGroup {
   if (condition.type === "group") {
     // Only include direct leaf children — nested sub-groups are not editable here.
     const leaves = condition.conditions.filter(
-      (c): c is EditorLeaf => c.type === "field" || c.type === "named",
+      (c): c is EditorLeaf => c.type === "field" || c.type === "named" || c.type === "context",
     );
     return {
       logic:  condition.logic,
@@ -141,21 +163,78 @@ type EditableRule = StoredRule & {
 // ── Variant key labels ─────────────────────────────────────────────────────────
 
 const HERO_KEY_LABELS: Record<HeroVariantKey, string> = {
-  hero_google_problem:  "Google Problem — search / solution intent",
-  hero_linkedin_vision: "LinkedIn Vision — thought-leadership intent",
-  hero_direct_brand:    "Direct Brand — unattributed / returning",
+  // ── Platform defaults ──────────────────────────────────────────────────────
+  hero_default:             "Default — generic awareness entry",
+  hero_google_problem:      "Google Problem — search / solution intent",
+  hero_linkedin_vision:     "LinkedIn Vision — thought-leadership intent",
+  hero_direct_brand:        "Direct Brand — unattributed / returning",
+  hero_consideration:       "Consideration — mid-funnel evaluation",
+  hero_intent_direct:       "Intent Direct — high-intent, direct apply",
+  hero_customer_onboarding: "Customer Onboarding — post-conversion",
+  // ── B2B SaaS blueprint ────────────────────────────────────────────────────
+  hero_saas_default:            "SaaS Default — platform intro",
+  hero_saas_consideration:      "SaaS Consideration — evaluating fit",
+  hero_saas_intent:             "SaaS Intent — ready to trial",
+  hero_saas_trial:              "SaaS Trial — start free trial",
+  hero_saas_customer_onboarding:"SaaS Onboarding — activation mode",
+  // ── Careers / Werken-bij blueprint ───────────────────────────────────────
+  hero_careers_default:      "Careers Default — brand intro, culture showcase",
+  hero_careers_job_match:    "Careers Job Match — role-led messaging",
+  hero_careers_high_intent:  "Careers High Intent — direct apply CTA",
+  hero_careers_reassurance:  "Careers Reassurance — drop-off recovery",
 };
 
 const PROOF_KEY_LABELS: Record<ProofVariantKey, string> = {
-  proof_cases:    "Cases — concrete case studies & ROI numbers",
-  proof_vision:   "Vision — analyst quotes & industry recognition",
-  proof_platform: "Platform — scale & reliability stats",
+  // ── Platform defaults ──────────────────────────────────────────────────────
+  proof_default:     "Default — general trust building",
+  proof_cases:       "Cases — concrete case studies & ROI numbers",
+  proof_vision:      "Vision — analyst quotes & industry recognition",
+  proof_platform:    "Platform — scale & reliability stats",
+  proof_stats:       "Stats — performance metrics",
+  proof_reassurance: "Reassurance — low-pressure fallback",
+  // ── B2B SaaS blueprint ────────────────────────────────────────────────────
+  proof_saas_default:       "SaaS Default — platform value & credibility",
+  proof_saas_consideration: "SaaS Consideration — use cases & fit signals",
+  proof_saas_intent:        "SaaS Intent — ROI & conversion impact",
+  proof_saas_reassurance:   "SaaS Reassurance — safe fallback",
+  // ── Careers / Werken-bij blueprint ───────────────────────────────────────
+  proof_careers_default:     "Careers Default — culture & employer credibility",
+  proof_careers_team:        "Careers Team — team spotlights & department proof",
+  proof_careers_reassurance: "Careers Reassurance — process transparency",
 };
 
 const CTA_KEY_LABELS: Record<CTAVariantKey, string> = {
-  cta_guide:    "Guide — get the free personalisation guide",
-  cta_platform: "Platform — start building for free",
-  cta_meeting:  "Meeting — book a 20-minute intro call",
+  // ── Platform defaults ──────────────────────────────────────────────────────
+  cta_default:    "Default — low-friction awareness CTA",
+  cta_guide:      "Guide — get the free personalisation guide",
+  cta_platform:   "Platform — start building for free",
+  cta_meeting:    "Meeting — book a 20-minute intro call",
+  cta_demo:       "Demo — bekijk een gratis demo",
+  cta_onboarding: "Onboarding — start je onboarding",
+  cta_expansion:  "Expansion — bekijk uitbreidingsopties",
+  // ── B2B SaaS blueprint ────────────────────────────────────────────────────
+  cta_saas_default:    "SaaS Default — learn more / see how it works",
+  cta_saas_demo:       "SaaS Demo — book a product demo",
+  cta_saas_trial:      "SaaS Trial — start free trial",
+  cta_saas_onboarding: "SaaS Onboarding — next onboarding step",
+  cta_saas_expansion:  "SaaS Expansion — expand plan",
+  // ── Careers / Werken-bij blueprint ───────────────────────────────────────
+  cta_careers_browse:  "Careers Browse — Bekijk vacatures",
+  cta_careers_apply:   "Careers Apply — Solliciteer nu",
+  cta_careers_open:    "Careers Open — Stuur open sollicitatie",
+  cta_careers_contact: "Careers Contact — Stel een vraag",
+};
+
+const FEATURE_KEY_LABELS: Record<FeatureVariantKey, string> = {
+  feature_grid_primary: "Feature Grid — full feature overview (awareness / orientation)",
+  feature_highlights:   "Feature Highlights — condensed differentiators (mid-funnel)",
+  feature_comparison:   "Feature Comparison — side-by-side plan table (high intent / trial)",
+};
+
+const CONVERSION_KEY_LABELS: Record<ConversionVariantKey, string> = {
+  conversion_signup:  "Conversion Signup — email / account signup form",
+  conversion_demo:    "Conversion Demo — demo request or booking embed",
+  conversion_contact: "Conversion Contact — contact / enquiry form",
 };
 
 // ── Field group labels (for <optgroup> headings) ───────────────────────────────
@@ -165,6 +244,12 @@ const GROUP_LABELS: Record<FieldGroup, string> = {
   device_session: "Device & Session",
   behavior:       "Behaviour & History",
   tenant_page:    "Tenant & Page",
+  enrichment:     "Enrichment",
+  time:           "Time",
+  client_device:  "Client Device",
+  derived:        "Derived Signals",
+  interest:       "Interest Profiles",
+  audience:       "Audience Segments",
 };
 
 // ── Operator labels ────────────────────────────────────────────────────────────
@@ -186,13 +271,25 @@ const OPERATOR_LABELS: Record<FieldOperator, string> = {
 
 // ── New rule template ──────────────────────────────────────────────────────────
 
-let _nextPriority = 100;
-
-function newEditableRule(): EditableRule {
-  _nextPriority += 10;
+/**
+ * Build a new blank EditableRule with a priority that is guaranteed not to
+ * collide with any of the existing rules.
+ *
+ * Priority is computed as `max(existing priorities) + 10`, rounded up to the
+ * nearest 10 for readability.  This avoids the duplicate-priority validation
+ * error that arose when a module-level counter was used (the counter reset to
+ * 100 on every full page reload, colliding with previously-saved rules that
+ * were already at priority 110+).
+ */
+function newEditableRule(existingRules: EditableRule[]): EditableRule {
+  const maxPriority = existingRules.length > 0
+    ? Math.max(...existingRules.map((r) => r.priority))
+    : 100;
+  // Round up to the next clean multiple of 10 above maxPriority.
+  const nextPriority = Math.ceil((maxPriority + 1) / 10) * 10;
   return {
     id:        `homepage.rule_${Date.now()}`,
-    priority:  _nextPriority,
+    priority:  nextPriority,
     label:     "",
     condition: { type: "field", field: "source", operator: "equals", value: "google" },
     plan: {
@@ -208,10 +305,25 @@ function newEditableRule(): EditableRule {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 interface RulesEditorProps {
-  initialConfig: StoredRulesConfig;
+  initialConfig:     StoredRulesConfig;
+  variantCatalogue?: VariantCatalogue;
+  /**
+   * Override the default saveRulesAction with a tenant-scoped action.
+   * Provided by admin/tenants/[tenantId]/rules/page.tsx; when absent
+   * the component falls back to the global saveRulesAction.
+   */
+  saveAction?:  (config: unknown) => Promise<{ ok: true } | { ok: false; error: string; fieldErrors?: string[] }>;
+  /** Override the default resetRulesAction with a tenant-scoped one. */
+  resetAction?: () => Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Plan limits for this tenant — enables active-rule counter and limit enforcement. */
+  planLimits?: { maxRules?: number };
 }
 
-export function RulesEditor({ initialConfig }: RulesEditorProps) {
+export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits }: RulesEditorProps) {
+  const catalogue     = variantCatalogue ?? buildPlatformCatalogue();
+  const doSaveAction  = saveAction  ?? saveRulesAction;
+  const doResetAction = resetAction ?? resetRulesAction;
+  const maxRules      = planLimits?.maxRules;
   const [rules, setRules] = useState<EditableRule[]>(
     () => initialConfig.rules.map((r) => ({ ...r, _editOpen: false })),
   );
@@ -222,6 +334,13 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<string[]>([]);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [packFilter, setPackFilter]     = useState<string>("all");
+  const [tierFilter, setTierFilter]     = useState<string>("all");
+  const [showContextLib, setShowContextLib] = useState(false);
+  // ── Bulk selection state ───────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set());
+  const [bulkPackId,  setBulkPackId]      = useState<string>("");
+  const [limitError,  setLimitError]      = useState<string | null>(null);
 
   // ── Mutation helpers ─────────────────────────────────────────────────────────
 
@@ -255,7 +374,7 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
   );
 
   const addRule = useCallback(() => {
-    setRules((prev) => [...prev, newEditableRule()]);
+    setRules((prev) => [...prev, newEditableRule(prev)]);
     markDirty();
   }, [markDirty]);
 
@@ -281,6 +400,95 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
     [markDirty],
   );
 
+  // ── Enable / disable individual rule (with limit check) ──────────────────────
+
+  const toggleEnabled = useCallback((id: string) => {
+    setLimitError(null);
+    setRules((prev) => {
+      const rule = prev.find((r) => r.id === id);
+      if (!rule) return prev;
+      const isCurrentlyEnabled = rule.enabled !== false;
+      if (!isCurrentlyEnabled) {
+        // Trying to enable — check plan limit
+        const enabledCount = prev.filter((r) => r.enabled !== false).length;
+        if (maxRules !== undefined && enabledCount >= maxRules) {
+          setLimitError(
+            `Plan limit reached: your plan allows ${maxRules} active rule${maxRules === 1 ? "" : "s"}. ` +
+            `Disable another rule first, or upgrade your plan.`,
+          );
+          return prev; // block the change
+        }
+      }
+      return prev.map((r) => r.id === id ? { ...r, enabled: isCurrentlyEnabled ? false : undefined } : r);
+    });
+    markDirty();
+  }, [markDirty, maxRules]);
+
+  // ── Bulk selection helpers ────────────────────────────────────────────────────
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(rules.map((r) => r.id)));
+  }, [rules]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setBulkPackId("");
+  }, []);
+
+  const bulkEnable = useCallback(() => {
+    setLimitError(null);
+    setRules((prev) => {
+      const currentEnabled = prev.filter((r) => r.enabled !== false).length;
+      const toEnable       = [...selectedIds].filter((id) => {
+        const r = prev.find((x) => x.id === id);
+        return r && r.enabled === false;
+      });
+      if (maxRules !== undefined && currentEnabled + toEnable.length > maxRules) {
+        setLimitError(
+          `Cannot enable ${toEnable.length} rule${toEnable.length === 1 ? "" : "s"}: ` +
+          `that would bring the total to ${currentEnabled + toEnable.length}, exceeding your plan limit of ${maxRules}.`,
+        );
+        return prev;
+      }
+      return prev.map((r) =>
+        selectedIds.has(r.id) ? { ...r, enabled: undefined } : r,
+      );
+    });
+    markDirty();
+    setSelectedIds(new Set());
+  }, [selectedIds, markDirty, maxRules]);
+
+  const bulkDisable = useCallback(() => {
+    setLimitError(null);
+    setRules((prev) =>
+      prev.map((r) => selectedIds.has(r.id) ? { ...r, enabled: false } : r),
+    );
+    markDirty();
+    setSelectedIds(new Set());
+  }, [selectedIds, markDirty]);
+
+  const bulkAssignPack = useCallback(() => {
+    if (!bulkPackId) return;
+    setRules((prev) =>
+      prev.map((r) =>
+        selectedIds.has(r.id)
+          ? { ...r, packId: bulkPackId === "__clear" ? undefined : bulkPackId }
+          : r,
+      ),
+    );
+    markDirty();
+    setSelectedIds(new Set());
+    setBulkPackId("");
+  }, [selectedIds, bulkPackId, markDirty]);
+
   // ── Save ─────────────────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
@@ -295,7 +503,7 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
       defaultPlan,
     };
 
-    const result = await saveRulesAction(config);
+    const result = await doSaveAction(config);
 
     if (result.ok) {
       setSaveStatus("saved");
@@ -307,13 +515,13 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
         setFieldErrors(result.fieldErrors);
       }
     }
-  }, [rules, defaultPlan]);
+  }, [rules, defaultPlan, doSaveAction]);
 
   // ── Reset ────────────────────────────────────────────────────────────────────
 
   const handleReset = useCallback(async () => {
     setSaveStatus("saving");
-    const result = await resetRulesAction();
+    const result = await doResetAction();
     if (result.ok) {
       window.location.reload();
     } else {
@@ -321,21 +529,34 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
       setSaveError(result.error);
     }
     setConfirmReset(false);
-  }, []);
+  }, [doResetAction]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
+  const sortedRules   = [...rules].sort((a, b) => a.priority - b.priority);
+  const enabledCount  = rules.filter((r) => r.enabled !== false).length;
+  const isOverLimit   = maxRules !== undefined && enabledCount > maxRules;
+  const isAtLimit     = maxRules !== undefined && enabledCount >= maxRules;
+
+  const filteredRules = sortedRules.filter((r) => {
+    if (packFilter !== "all" && r.packId !== packFilter) return false;
+    if (tierFilter !== "all") {
+      const effectiveTier = r.precedenceLevel ?? inferPrecedenceLevel(r.priority);
+      if (effectiveTier !== tierFilter) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="flex flex-col gap-8 px-8 py-8">
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold text-neutral-900">Homepage Rules</h1>
+          <h1 className="text-xl font-semibold text-neutral-900">Decision Rules</h1>
           <p className="text-sm text-neutral-500">
-            Decision rules that map visitor signals to content variant sets.
-            Rules are evaluated in priority order — first match wins.
+            Rules that map visitor signals to content variants, adaptive slots, and
+            theme overrides. Evaluated across all page templates in priority order —
+            first match wins.
           </p>
         </div>
         <SaveBar
@@ -361,7 +582,7 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
       )}
       {saveStatus === "saved" && (
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          Rules saved to <code className="font-mono text-xs">decision/rules/runtime-rules.json</code>.
+          Rules saved successfully.
         </div>
       )}
 
@@ -371,35 +592,195 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
           <div>
             <h2 className="text-base font-semibold text-neutral-800">Rules</h2>
             <p className="text-xs text-neutral-500 mt-0.5">
-              {sortedRules.length} rule{sortedRules.length === 1 ? "" : "s"} · evaluated top to bottom
+              {/* Active counter */}
+              {maxRules !== undefined ? (
+                <span className={isOverLimit ? "text-red-600 font-semibold" : isAtLimit ? "text-amber-600 font-medium" : ""}>
+                  {enabledCount} / {maxRules} active
+                </span>
+              ) : (
+                <span>{enabledCount} active</span>
+              )}
+              {" · "}
+              {filteredRules.length === sortedRules.length
+                ? `${sortedRules.length} total · evaluated top to bottom`
+                : `${filteredRules.length} of ${sortedRules.length} shown · filtered`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={addRule}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 transition-colors"
-          >
-            <span aria-hidden className="text-neutral-400">+</span>
-            Add rule
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowContextLib((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 shadow-sm hover:bg-neutral-50 transition-colors"
+              title="Context Library — named reusable predicates"
+            >
+              <span aria-hidden className="text-neutral-400">≡</span>
+              Contexts
+            </button>
+            <button
+              type="button"
+              onClick={addRule}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 transition-colors"
+            >
+              <span aria-hidden className="text-neutral-400">+</span>
+              Add rule
+            </button>
+          </div>
         </div>
 
+        {/* ── Filter toolbar ─────────────────────────────────────────── */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-neutral-500 font-medium shrink-0">Filter:</span>
+          <select
+            value={packFilter}
+            onChange={(e) => setPackFilter(e.target.value)}
+            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            aria-label="Filter by pack"
+          >
+            <option value="all">All packs</option>
+            {Object.values(RULE_PACK_REGISTRY).map((pack) => (
+              <option key={pack.id} value={pack.id}>{pack.label}</option>
+            ))}
+            <option value="">No pack</option>
+          </select>
+          <select
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value)}
+            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            aria-label="Filter by precedence tier"
+          >
+            <option value="all">All tiers</option>
+            {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
+              <option key={level} value={level}>{meta.label}</option>
+            ))}
+          </select>
+          {(packFilter !== "all" || tierFilter !== "all") && (
+            <button
+              type="button"
+              onClick={() => { setPackFilter("all"); setTierFilter("all"); }}
+              className="text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        {/* ── Over-limit warning ────────────────────────────────────── */}
+        {isOverLimit && (
+          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
+            <p className="font-medium text-red-800">
+              Over plan limit — {enabledCount - maxRules!} rule{enabledCount - maxRules! === 1 ? "" : "s"} over your allowance of {maxRules} active.
+            </p>
+            <p className="mt-1 text-xs text-red-700">
+              Disable {enabledCount - maxRules!} rule{enabledCount - maxRules! === 1 ? "" : "s"} to stay within your plan, or upgrade.
+            </p>
+          </div>
+        )}
+
+        {/* ── Limit-blocked error ────────────────────────────────────── */}
+        {limitError && (
+          <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+            <p className="text-amber-800">{limitError}</p>
+            <button
+              type="button"
+              onClick={() => setLimitError(null)}
+              className="shrink-0 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* ── Context Library panel ──────────────────────────────────── */}
+        {showContextLib && (
+          <ContextLibraryPanel onClose={() => setShowContextLib(false)} />
+        )}
+
+        {/* ── Bulk action toolbar ────────────────────────────────────── */}
+        {selectedIds.size > 0 && (
+          <div className="mb-1 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+            <span className="text-xs font-medium text-neutral-600 shrink-0">
+              {selectedIds.size} of {sortedRules.length} selected
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={bulkEnable}
+                className="inline-flex items-center gap-1 rounded border border-green-300 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100 transition-colors"
+              >
+                Enable
+              </button>
+              <button
+                type="button"
+                onClick={bulkDisable}
+                className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
+              >
+                Disable
+              </button>
+              <span className="select-none text-neutral-300">|</span>
+              <select
+                value={bulkPackId}
+                onChange={(e) => setBulkPackId(e.target.value)}
+                className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 focus:outline-none"
+                aria-label="Bulk assign pack"
+              >
+                <option value="">Assign to pack…</option>
+                {Object.values(RULE_PACK_REGISTRY).map((pack) => (
+                  <option key={pack.id} value={pack.id}>{pack.label}</option>
+                ))}
+                <option value="__clear">— Remove from pack —</option>
+              </select>
+              <button
+                type="button"
+                onClick={bulkAssignPack}
+                disabled={!bulkPackId}
+                className="inline-flex items-center rounded border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Apply
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={selectAll}
+              className="text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="ml-auto text-xs text-neutral-400 hover:text-neutral-700 transition-colors shrink-0"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
-          {sortedRules.length === 0 && (
+          {filteredRules.length === 0 && sortedRules.length === 0 && (
             <div className="rounded-lg border border-dashed border-neutral-300 py-10 text-center text-sm text-neutral-400">
               No rules yet. Click &ldquo;Add rule&rdquo; to create one.
             </div>
           )}
-          {sortedRules.map((rule, idx) => (
+          {filteredRules.length === 0 && sortedRules.length > 0 && (
+            <div className="rounded-lg border border-dashed border-neutral-300 py-8 text-center text-sm text-neutral-400">
+              No rules match the current filters.
+            </div>
+          )}
+          {filteredRules.map((rule, idx) => (
             <RuleCard
               key={rule.id}
               rule={rule}
               index={idx}
               total={sortedRules.length}
+              catalogue={catalogue}
               onChange={(patch) => updateRule(rule.id, patch)}
               onToggleEdit={() => toggleEdit(rule.id)}
               onDelete={() => deleteRule(rule.id)}
               onMove={(dir) => moveRule(rule.id, dir)}
+              isSelected={selectedIds.has(rule.id)}
+              onSelect={() => toggleSelect(rule.id)}
+              onToggleEnabled={() => toggleEnabled(rule.id)}
+              isAtLimit={isAtLimit}
             />
           ))}
         </div>
@@ -416,6 +797,7 @@ export function RulesEditor({ initialConfig }: RulesEditorProps) {
         <DefaultPlanCard
           plan={defaultPlan}
           editOpen={defaultEditOpen}
+          catalogue={catalogue}
           onToggleEdit={() => setDefaultEditOpen((v) => !v)}
           onChange={(patch) => {
             setDefaultPlan((prev) => ({ ...prev, ...patch }));
@@ -497,51 +879,106 @@ function SaveBar({
 // ── RuleCard ───────────────────────────────────────────────────────────────────
 
 interface RuleCardProps {
-  rule:         EditableRule;
-  index:        number;
-  total:        number;
-  onChange:     (patch: Partial<EditableRule>) => void;
-  onToggleEdit: () => void;
-  onDelete:     () => void;
-  onMove:       (dir: "up" | "down") => void;
+  rule:            EditableRule;
+  index:           number;
+  total:           number;
+  catalogue:       VariantCatalogue;
+  onChange:        (patch: Partial<EditableRule>) => void;
+  onToggleEdit:    () => void;
+  onDelete:        () => void;
+  onMove:          (dir: "up" | "down") => void;
+  isSelected:      boolean;
+  onSelect:        () => void;
+  onToggleEnabled: () => void;
+  isAtLimit:       boolean;
 }
 
 function RuleCard({
   rule,
   index,
   total,
+  catalogue,
   onChange,
   onToggleEdit,
   onDelete,
   onMove,
+  isSelected,
+  onSelect,
+  onToggleEnabled,
+  isAtLimit,
 }: RuleCardProps) {
-  const isFirst = index === 0;
-  const isLast  = index === total - 1;
+  const isFirst        = index === 0;
+  const isLast         = index === total - 1;
+  const isDisabled     = rule.enabled === false;
+  const conditionLabel = formatCondition(rule.condition);
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+    <div className={`rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden transition-opacity${isDisabled ? " opacity-60" : ""}`}>
       {/* ── Summary row ───────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-start gap-3 px-4 py-3">
+        {/* Selection checkbox — nudge down so it aligns with the first text line */}
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onSelect}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 mt-1 h-4 w-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+          aria-label={`Select rule: ${rule.label || "Unnamed rule"}`}
+        />
+
         <span className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-neutral-100 text-xs font-mono font-semibold text-neutral-600">
           {rule.priority}
         </span>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-neutral-900 truncate">
-            {rule.label || <span className="italic text-neutral-400">Unnamed rule</span>}
-          </p>
-          <p className="text-xs text-neutral-500 mt-0.5 font-mono truncate">
-            {formatCondition(rule.condition)}
+          <div className="flex items-baseline gap-x-2 gap-y-1 flex-wrap">
+            <p className="text-sm font-medium text-neutral-900">
+              {rule.label || <span className="italic text-neutral-400">Unnamed rule</span>}
+            </p>
+            {isDisabled && (
+              <span className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">
+                disabled
+              </span>
+            )}
+            {rule.packId && RULE_PACK_REGISTRY[rule.packId] && (
+              <PackBadge packId={rule.packId} />
+            )}
+            <TierChip priority={rule.priority} precedenceLevel={rule.precedenceLevel} />
+          </div>
+          <p
+            className="text-xs text-neutral-500 mt-0.5 font-mono truncate"
+            title={conditionLabel}
+          >
+            {conditionLabel}
           </p>
         </div>
 
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+        {/* Plan badges — only show at xl+ so they don't crowd narrower viewports */}
+        <div className="hidden xl:flex items-start gap-1.5 shrink-0 flex-wrap max-w-xs justify-end">
           <PlanBadge block="hero"  value={rule.plan.heroKey} />
           <PlanBadge block="proof" value={rule.plan.proofKey} />
           <PlanBadge block="cta"   value={rule.plan.ctaKey} />
+          {rule.plan.featureKey    && <PlanBadge block="feature"    value={rule.plan.featureKey} />}
+          {rule.plan.conversionKey && <PlanBadge block="conversion" value={rule.plan.conversionKey} />}
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
+          {/* Enable / Disable toggle */}
+          <button
+            type="button"
+            onClick={onToggleEnabled}
+            title={isDisabled
+              ? (isAtLimit ? "Plan limit reached — disable another rule first" : "Enable this rule")
+              : "Disable this rule"
+            }
+            className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+              isDisabled
+                ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50"
+            }`}
+          >
+            {isDisabled ? "Enable" : "Disable"}
+          </button>
           <IconButton label="Move up"   onClick={() => onMove("up")}   disabled={isFirst} icon={<ArrowUpIcon />} />
           <IconButton label="Move down" onClick={() => onMove("down")} disabled={isLast}  icon={<ArrowDownIcon />} />
           <button
@@ -593,6 +1030,36 @@ function RuleCard({
                 />
               </Field>
 
+              <Field label="Rule pack" hint="Organisational group for admin filtering. Does not affect evaluation.">
+                <select
+                  value={rule.packId ?? ""}
+                  onChange={(e) => onChange({ packId: e.target.value || undefined })}
+                  className={selectCls}
+                >
+                  <option value="">— None —</option>
+                  {Object.values(RULE_PACK_REGISTRY).map((pack) => (
+                    <option key={pack.id} value={pack.id}>{pack.label}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Precedence tier" hint="Overrides the tier inferred from priority. Leave blank to infer automatically.">
+                <select
+                  value={rule.precedenceLevel ?? ""}
+                  onChange={(e) =>
+                    onChange({ precedenceLevel: (e.target.value as PrecedenceLevel) || undefined })
+                  }
+                  className={selectCls}
+                >
+                  <option value="">— Infer from priority —</option>
+                  {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
+                    <option key={level} value={level}>
+                      {meta.label} ({meta.range[0]}–{meta.range[1]})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
               <FlatGroupEditor
                 condition={rule.condition}
                 onChange={(condition) => onChange({ condition })}
@@ -601,10 +1068,50 @@ function RuleCard({
 
             {/* Right column: plan */}
             <div className="flex flex-col gap-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Variant Plan
-              </p>
+              {/* Header row: label + Fill from preset */}
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Variant Plan
+                </p>
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    const key = e.target.value;
+                    if (!key) return;
+                    const preset = PRESET_PLANS[key];
+                    if (!preset) return;
+                    onChange({
+                      plan: {
+                        ...rule.plan,
+                        heroKey:       preset.heroKey,
+                        proofKey:      preset.proofKey,
+                        ctaKey:        preset.ctaKey,
+                        featureKey:    preset.featureKey,
+                        conversionKey: preset.conversionKey,
+                        pricingEmphasis: preset.pricingEmphasis,
+                        pricingCtaMode:  preset.pricingCtaMode,
+                      },
+                    });
+                    e.target.value = "";
+                  }}
+                  className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                  title="Fill all plan fields from a scenario preset"
+                >
+                  <option value="" disabled>Fill from preset…</option>
+                  <optgroup label="Generic / B2B SaaS">
+                    {PRESET_CONDITIONS.filter((p) => p.group === "generic").map((p) => (
+                      <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Careers / Werken-bij">
+                    {PRESET_CONDITIONS.filter((p) => p.group === "careers").map((p) => (
+                      <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
 
+              {/* Core slots */}
               <Field label="Hero variant">
                 <select
                   value={rule.plan.heroKey}
@@ -613,11 +1120,7 @@ function RuleCard({
                   }
                   className={selectCls}
                 >
-                  {ALLOWED_HERO_KEYS.map((k) => (
-                    <option key={k} value={k}>
-                      {k} — {HERO_KEY_LABELS[k]}
-                    </option>
-                  ))}
+                  <VariantOptions entries={catalogue.hero} />
                 </select>
               </Field>
 
@@ -629,11 +1132,7 @@ function RuleCard({
                   }
                   className={selectCls}
                 >
-                  {ALLOWED_PROOF_KEYS.map((k) => (
-                    <option key={k} value={k}>
-                      {k} — {PROOF_KEY_LABELS[k]}
-                    </option>
-                  ))}
+                  <VariantOptions entries={catalogue.proof} />
                 </select>
               </Field>
 
@@ -645,10 +1144,47 @@ function RuleCard({
                   }
                   className={selectCls}
                 >
-                  {ALLOWED_CTA_KEYS.map((k) => (
-                    <option key={k} value={k}>
-                      {k} — {CTA_KEY_LABELS[k]}
-                    </option>
+                  <VariantOptions entries={catalogue.cta} />
+                </select>
+              </Field>
+
+              {/* Extended slots */}
+              <Field label="Feature variant" hint="Optional — leave blank to omit this slot.">
+                <select
+                  value={rule.plan.featureKey ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      plan: {
+                        ...rule.plan,
+                        featureKey: (e.target.value as FeatureVariantKey) || undefined,
+                      },
+                    })
+                  }
+                  className={selectCls}
+                >
+                  <option value="">— None (slot omitted) —</option>
+                  {catalogue.feature.map((entry) => (
+                    <option key={entry.key} value={entry.key}>{entry.label}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Conversion variant" hint="Optional — leave blank to omit this slot.">
+                <select
+                  value={rule.plan.conversionKey ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      plan: {
+                        ...rule.plan,
+                        conversionKey: (e.target.value as ConversionVariantKey) || undefined,
+                      },
+                    })
+                  }
+                  className={selectCls}
+                >
+                  <option value="">— None (slot omitted) —</option>
+                  {catalogue.conversion.map((entry) => (
+                    <option key={entry.key} value={entry.key}>{entry.label}</option>
                   ))}
                 </select>
               </Field>
@@ -675,11 +1211,13 @@ function RuleCard({
 function DefaultPlanCard({
   plan,
   editOpen,
+  catalogue,
   onToggleEdit,
   onChange,
 }: {
   plan:         StoredDefaultPlan;
   editOpen:     boolean;
+  catalogue:    VariantCatalogue;
   onToggleEdit: () => void;
   onChange:     (patch: Partial<StoredDefaultPlan>) => void;
 }) {
@@ -693,10 +1231,12 @@ function DefaultPlanCard({
           <p className="text-sm font-medium text-neutral-900">Default (no match)</p>
           <p className="text-xs text-neutral-500 mt-0.5">Applied when no rule fires.</p>
         </div>
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+        <div className="hidden sm:flex items-center gap-1.5 shrink-0 flex-wrap">
           <PlanBadge block="hero"  value={plan.heroKey} />
           <PlanBadge block="proof" value={plan.proofKey} />
           <PlanBadge block="cta"   value={plan.ctaKey} />
+          {plan.featureKey    && <PlanBadge block="feature"    value={plan.featureKey} />}
+          {plan.conversionKey && <PlanBadge block="conversion" value={plan.conversionKey} />}
         </div>
         <button
           type="button"
@@ -721,15 +1261,14 @@ function DefaultPlanCard({
               </Field>
             </div>
             <div className="flex flex-col gap-4">
+              {/* Core slots */}
               <Field label="Hero variant">
                 <select
                   value={plan.heroKey}
                   onChange={(e) => onChange({ heroKey: e.target.value as HeroVariantKey })}
                   className={selectCls}
                 >
-                  {ALLOWED_HERO_KEYS.map((k) => (
-                    <option key={k} value={k}>{k} — {HERO_KEY_LABELS[k]}</option>
-                  ))}
+                  <VariantOptions entries={catalogue.hero} />
                 </select>
               </Field>
               <Field label="Proof variant">
@@ -738,9 +1277,7 @@ function DefaultPlanCard({
                   onChange={(e) => onChange({ proofKey: e.target.value as ProofVariantKey })}
                   className={selectCls}
                 >
-                  {ALLOWED_PROOF_KEYS.map((k) => (
-                    <option key={k} value={k}>{k} — {PROOF_KEY_LABELS[k]}</option>
-                  ))}
+                  <VariantOptions entries={catalogue.proof} />
                 </select>
               </Field>
               <Field label="CTA variant">
@@ -749,8 +1286,35 @@ function DefaultPlanCard({
                   onChange={(e) => onChange({ ctaKey: e.target.value as CTAVariantKey })}
                   className={selectCls}
                 >
-                  {ALLOWED_CTA_KEYS.map((k) => (
-                    <option key={k} value={k}>{k} — {CTA_KEY_LABELS[k]}</option>
+                  <VariantOptions entries={catalogue.cta} />
+                </select>
+              </Field>
+              {/* Extended slots */}
+              <Field label="Feature variant" hint="Optional — omit to skip this slot.">
+                <select
+                  value={plan.featureKey ?? ""}
+                  onChange={(e) =>
+                    onChange({ featureKey: (e.target.value as FeatureVariantKey) || undefined })
+                  }
+                  className={selectCls}
+                >
+                  <option value="">— None (slot omitted) —</option>
+                  {catalogue.feature.map((entry) => (
+                    <option key={entry.key} value={entry.key}>{entry.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Conversion variant" hint="Optional — omit to skip this slot.">
+                <select
+                  value={plan.conversionKey ?? ""}
+                  onChange={(e) =>
+                    onChange({ conversionKey: (e.target.value as ConversionVariantKey) || undefined })
+                  }
+                  className={selectCls}
+                >
+                  <option value="">— None (slot omitted) —</option>
+                  {catalogue.conversion.map((entry) => (
+                    <option key={entry.key} value={entry.key}>{entry.label}</option>
                   ))}
                 </select>
               </Field>
@@ -810,11 +1374,48 @@ function FlatGroupEditor({
 
   const isMulti = group.leaves.length > 1;
 
+  const genericPresets = PRESET_CONDITIONS.filter((p) => p.group === "generic");
+  const careersPresets = PRESET_CONDITIONS.filter((p) => p.group === "careers");
+
+  const handlePresetSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const key = e.target.value;
+    if (!key) return;
+    const preset = PRESET_CONDITIONS.find((p) => p.key === key);
+    if (!preset) return;
+    emit({ logic: preset.logic, leaves: [...preset.leaves] });
+    // Reset the select back to the placeholder so it can be re-used.
+    e.target.value = "";
+  };
+
   return (
     <fieldset className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3">
       <legend className="text-xs font-semibold uppercase tracking-wide text-neutral-500 px-1">
         {isMulti ? "Conditions" : "Condition"}
       </legend>
+
+      {/* ── Quick preset selector ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-2 -mt-1">
+        <span className="text-xs text-neutral-400">Start from a preset or build manually below.</span>
+        <select
+          defaultValue=""
+          onChange={handlePresetSelect}
+          className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-500 shadow-sm hover:border-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+          aria-label="Apply a quick preset condition"
+          title="Replace conditions with a scenario preset"
+        >
+          <option value="" disabled>Quick preset…</option>
+          <optgroup label="Generic / B2B SaaS">
+            {genericPresets.map((p) => (
+              <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="Careers / Werken-bij">
+            {careersPresets.map((p) => (
+              <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+            ))}
+          </optgroup>
+        </select>
+      </div>
 
       {/* ── AND / OR logic selector (only shown for 2+ conditions) ───── */}
       {isMulti && (
@@ -896,11 +1497,13 @@ function ConditionRow({
     { label: string; description: string },
   ][];
 
-  const handleTypeChange = (type: "field" | "named") => {
+  const handleTypeChange = (type: "field" | "named" | "context") => {
     if (type === "field") {
       onChange({ type: "field", field: "source", operator: "equals", value: "google" });
-    } else {
+    } else if (type === "named") {
       onChange({ type: "named", name: "returning_cta_clicked" });
+    } else {
+      onChange({ type: "context", contextId: ALL_CONTEXT_IDS[0] as ContextId });
     }
   };
 
@@ -921,12 +1524,13 @@ function ConditionRow({
         <div className="flex items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2">
           <select
             value={leaf.type}
-            onChange={(e) => handleTypeChange(e.target.value as "field" | "named")}
+            onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context")}
             className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             aria-label="Condition type"
           >
             <option value="field">Field condition</option>
             <option value="named">Named condition</option>
+            <option value="context">Context condition</option>
           </select>
 
           {!isOnly && (
@@ -970,6 +1574,35 @@ function ConditionRow({
               <p className="mt-1.5 text-xs text-neutral-500">
                 {NAMED_CONDITIONS[leaf.name].description}
               </p>
+            </Field>
+          )}
+
+          {leaf.type === "context" && (
+            <Field
+              label="Context"
+              hint="Reusable named predicate from the Context Library. Evaluated once per request."
+            >
+              <select
+                value={leaf.contextId}
+                onChange={(e) =>
+                  onChange({ type: "context", contextId: e.target.value as ContextId })
+                }
+                className={selectCls}
+              >
+                {ALL_CONTEXT_IDS.map((id) => {
+                  const ctx = CONTEXT_REGISTRY[id];
+                  return (
+                    <option key={id} value={id}>
+                      {ctx?.label ?? id}
+                    </option>
+                  );
+                })}
+              </select>
+              {leaf.contextId && CONTEXT_REGISTRY[leaf.contextId] && (
+                <p className="mt-1.5 text-xs text-neutral-500">
+                  {CONTEXT_REGISTRY[leaf.contextId].description}
+                </p>
+              )}
             </Field>
           )}
         </div>
@@ -1209,15 +1842,196 @@ function deriveDefaultValue(
   return "";
 }
 
-// ── PlanBadge ──────────────────────────────────────────────────────────────────
+// ── VariantOptions ─────────────────────────────────────────────────────────────
 
-const BADGE_COLORS: Record<"hero" | "proof" | "cta", string> = {
-  hero:  "bg-violet-50 text-violet-700 border-violet-200",
-  proof: "bg-sky-50    text-sky-700    border-sky-200",
-  cta:   "bg-amber-50  text-amber-700  border-amber-200",
+/**
+ * Renders <optgroup> / <option> elements for a slot's variant catalogue entries.
+ *
+ * Entries are grouped by source ("Platform", "CMS / Tenant", "CMS / Shared").
+ * Groups with only one source level that spans all entries skip the <optgroup>
+ * wrapper (platform-only catalogue) to keep the select clean.
+ */
+function VariantOptions({ entries }: { entries: VariantEntry[] }) {
+  // Determine the distinct source values in the order they appear.
+  const sources: VariantSource[] = [];
+  for (const e of entries) {
+    if (!sources.includes(e.source)) sources.push(e.source);
+  }
+
+  // Single source → flat list (no optgroups needed).
+  if (sources.length <= 1) {
+    return (
+      <>
+        {entries.map((e) => (
+          <option key={e.key} value={e.key}>
+            {e.key} — {e.label}
+          </option>
+        ))}
+      </>
+    );
+  }
+
+  // Multiple sources → group by source.
+  return (
+    <>
+      {sources.map((src) => {
+        const group = entries.filter((e) => e.source === src);
+        return (
+          <optgroup key={src} label={SOURCE_LABELS[src]}>
+            {group.map((e) => (
+              <option key={e.key} value={e.key}>
+                {e.key} — {e.label}
+              </option>
+            ))}
+          </optgroup>
+        );
+      })}
+    </>
+  );
+}
+
+// ── PackBadge ──────────────────────────────────────────────────────────────────
+
+const PACK_BADGE_COLORS: Record<string, string> = {
+  purple:  "bg-purple-50 text-purple-700 border-purple-200",
+  blue:    "bg-blue-50   text-blue-700   border-blue-200",
+  slate:   "bg-slate-100 text-slate-600  border-slate-300",
+  green:   "bg-green-50  text-green-700  border-green-200",
+  amber:   "bg-amber-50  text-amber-700  border-amber-200",
+  neutral: "bg-neutral-100 text-neutral-600 border-neutral-300",
 };
 
-function PlanBadge({ block, value }: { block: "hero" | "proof" | "cta"; value: string }) {
+function PackBadge({ packId }: { packId: string }) {
+  const pack  = RULE_PACK_REGISTRY[packId];
+  if (!pack) return null;
+  const color = PACK_BADGE_COLORS[pack.color ?? "neutral"] ?? PACK_BADGE_COLORS.neutral;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${color}`}
+      title={pack.description}
+    >
+      {pack.label}
+    </span>
+  );
+}
+
+// ── TierChip ───────────────────────────────────────────────────────────────────
+
+const TIER_CHIP_COLORS: Record<string, string> = {
+  red:     "bg-red-50    text-red-700    border-red-200",
+  orange:  "bg-orange-50 text-orange-700 border-orange-200",
+  blue:    "bg-blue-50   text-blue-700   border-blue-200",
+  neutral: "bg-neutral-100 text-neutral-500 border-neutral-200",
+};
+
+function TierChip({
+  priority,
+  precedenceLevel,
+}: {
+  priority:         number;
+  precedenceLevel?: PrecedenceLevel;
+}) {
+  const level = precedenceLevel ?? inferPrecedenceLevel(priority);
+  if (!level) return null;
+  const meta  = PRECEDENCE_TIERS[level];
+  const color = TIER_CHIP_COLORS[meta.color] ?? TIER_CHIP_COLORS.neutral;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${color}`}
+      title={meta.description}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+// ── ContextLibraryPanel ────────────────────────────────────────────────────────
+
+/**
+ * Read-only reference panel listing all registered context definitions.
+ * Shows each context's label, description, ID, and tags.
+ */
+function ContextLibraryPanel({ onClose }: { onClose: () => void }) {
+  const TAG_COLORS: Record<string, string> = {
+    traffic:    "bg-blue-50   text-blue-700   border-blue-200",
+    source:     "bg-sky-50    text-sky-700    border-sky-200",
+    paid:       "bg-amber-50  text-amber-700  border-amber-200",
+    visitor:    "bg-violet-50 text-violet-700 border-violet-200",
+    history:    "bg-purple-50 text-purple-700 border-purple-200",
+    engagement: "bg-green-50  text-green-700  border-green-200",
+    intent:     "bg-orange-50 text-orange-700 border-orange-200",
+    device:     "bg-slate-100 text-slate-600  border-slate-300",
+    default:    "bg-neutral-100 text-neutral-500 border-neutral-200",
+  };
+
+  return (
+    <div className="mb-4 rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 border-b border-neutral-100 bg-neutral-50 px-4 py-3">
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-800">Context Library</h3>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Reusable named predicates — reference them in rules with a &ldquo;Context condition&rdquo;.
+            Evaluated once per request and cached.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-xs text-neutral-400 hover:text-neutral-700 transition-colors shrink-0"
+          aria-label="Close context library"
+        >
+          Close
+        </button>
+      </div>
+
+      {/* Context grid */}
+      <div className="grid grid-cols-1 gap-px bg-neutral-100 md:grid-cols-2 lg:grid-cols-3">
+        {ALL_CONTEXT_IDS.map((id) => {
+          const ctx = CONTEXT_REGISTRY[id];
+          if (!ctx) return null;
+          return (
+            <div key={id} className="bg-white px-4 py-3 flex flex-col gap-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-semibold text-neutral-800">{ctx.label}</p>
+                <code className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-[10px] text-neutral-500">
+                  {id}
+                </code>
+              </div>
+              <p className="text-xs text-neutral-500 leading-relaxed">{ctx.description}</p>
+              {ctx.tags && ctx.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-0.5">
+                  {ctx.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${TAG_COLORS[tag] ?? TAG_COLORS.default}`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── PlanBadge ──────────────────────────────────────────────────────────────────
+
+type PlanSlot = "hero" | "proof" | "cta" | "feature" | "conversion";
+
+const BADGE_COLORS: Record<PlanSlot, string> = {
+  hero:       "bg-violet-50 text-violet-700 border-violet-200",
+  proof:      "bg-sky-50    text-sky-700    border-sky-200",
+  cta:        "bg-amber-50  text-amber-700  border-amber-200",
+  feature:    "bg-emerald-50 text-emerald-700 border-emerald-200",
+  conversion: "bg-rose-50   text-rose-700   border-rose-200",
+};
+
+function PlanBadge({ block, value }: { block: PlanSlot; value: string }) {
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-xs ${BADGE_COLORS[block]}`}

@@ -29,13 +29,16 @@ import { Container } from "@/components/primitives/Container";
 import { Section }   from "@/components/primitives/Section";
 import { Stack }     from "@/components/primitives/Stack";
 import { Text }      from "@/components/primitives/Text";
+import { Image }     from "@/components/primitives/Image";
 import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { NewsListVariant }  from "@/page-config/block-variants";
 import type { NewsListBlockData, NewsItem } from "@/page-config";
+import { resolveSurface, type BlockSurface } from "@/lib/surface";
 
 interface NewsListBlockProps {
   data:     NewsListBlockData;
   variant?: string;
+  surface?: BlockSurface;
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -67,19 +70,12 @@ function NewsCardGrid({ item }: { item: NewsItem }) {
       }}
     >
       {/* Image */}
-      <div
-        className="aspect-video w-full overflow-hidden"
-        style={{ background: "var(--section-subtle-bg)" }}
-      >
-        {item.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.imageUrl}
-            alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        )}
-      </div>
+      <Image
+        src={item.imageUrl}
+        alt={item.title}
+        aspectRatio="video"
+        imgClassName="transition-transform duration-300 group-hover:scale-105"
+      />
 
       {/* Content */}
       <div className="flex flex-1 flex-col gap-2 p-5">
@@ -88,7 +84,7 @@ function NewsCardGrid({ item }: { item: NewsItem }) {
             {item.category && (
               <span
                 className="rounded-full px-2 py-0.5 text-xs font-medium"
-                style={{ background: "var(--section-subtle-bg)", color: "var(--text-brand)" }}
+                style={{ background: "var(--section-subtle-bg)", color: "var(--text-muted)" }}
               >
                 {item.category}
               </span>
@@ -102,7 +98,7 @@ function NewsCardGrid({ item }: { item: NewsItem }) {
           {item.title}
         </Text>
         {item.excerpt && (
-          <Text variant="body-sm" color="muted" className="line-clamp-3 flex-1">
+          <Text variant="body-sm" color="muted" className="line-clamp-3">
             {item.excerpt}
           </Text>
         )}
@@ -124,17 +120,11 @@ function NewsRowList({ item }: { item: NewsItem }) {
     >
       {/* Thumbnail */}
       {item.imageUrl && (
-        <div
-          className="h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg"
-          style={{ background: "var(--section-subtle-bg)" }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.imageUrl}
-            alt={item.title}
-            className="h-full w-full object-cover"
-          />
-        </div>
+        <Image
+          src={item.imageUrl}
+          alt={item.title}
+          className="h-20 w-28 flex-shrink-0 rounded-lg overflow-hidden"
+        />
       )}
 
       {/* Content */}
@@ -142,7 +132,7 @@ function NewsRowList({ item }: { item: NewsItem }) {
         {(item.category || item.date) && (
           <div className="flex items-center gap-3">
             {item.category && (
-              <Text variant="body-sm" style={{ color: "var(--text-brand)", fontWeight: 600 }}>
+              <Text variant="body-sm" style={{ color: "var(--text-muted)", fontWeight: 600 }}>
                 {item.category}
               </Text>
             )}
@@ -166,18 +156,45 @@ function NewsRowList({ item }: { item: NewsItem }) {
 
 // ── Block component ────────────────────────────────────────────────────────────
 
-export function NewsListBlock({ data, variant: rawVariant }: NewsListBlockProps) {
+export function NewsListBlock({ data, variant: rawVariant, surface }: NewsListBlockProps) {
   const variant = resolveBlockVariant("newsList", rawVariant) as NewsListVariant;
   const { heading, items, maxItems } = data;
 
   const allItems = items ?? [];
   const capped   = maxItems ? allItems.slice(0, maxItems) : allItems;
 
+  // ── news_slider variant ─────────────────────────────────────────────────────
+  //
+  // Horizontally scrolling CSS-snap card carousel.
+  // Fixed-width cards with partial peeking to signal horizontal scroll.
+
+  if (variant === "news_slider") {
+    return (
+      <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
+        <Container size="lg">
+          <Stack gap={8}>
+            {heading && <Text variant="h2">{heading}</Text>}
+            <div
+              className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {capped.map((item, i) => (
+                <div key={`${item.url ?? "item"}-${i}`} className="min-w-72 flex-shrink-0 snap-start sm:min-w-80">
+                  <NewsCardGrid item={item} />
+                </div>
+              ))}
+            </div>
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
   // ── list variant ───────────────────────────────────────────────────────────
 
   if (variant === "list") {
     return (
-      <Section spacing="lg">
+      <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
         <Container size="lg">
           <Stack gap={10}>
             {heading && <Text variant="h2">{heading}</Text>}
@@ -202,7 +219,7 @@ export function NewsListBlock({ data, variant: rawVariant }: NewsListBlockProps)
   if (variant === "featured" && capped.length > 0) {
     const [first, ...rest] = capped;
     return (
-      <Section spacing="lg">
+      <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
         <Container size="lg">
           <Stack gap={10}>
             {heading && <Text variant="h2">{heading}</Text>}
@@ -235,13 +252,13 @@ export function NewsListBlock({ data, variant: rawVariant }: NewsListBlockProps)
           {heading && <Text variant="h2">{heading}</Text>}
           {capped.length > 0 && (
             <div
-              className="grid gap-6"
+              className="grid items-start gap-6"
               style={{
                 gridTemplateColumns: `repeat(${Math.min(capped.length, 3)}, minmax(0, 1fr))`,
               }}
             >
-              {capped.map((item) => (
-                <NewsCardGrid key={item.url} item={item} />
+              {capped.map((item, idx) => (
+                <NewsCardGrid key={item.url ? `${item.url}-${idx}` : `item-${idx}`} item={item} />
               ))}
             </div>
           )}

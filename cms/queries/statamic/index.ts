@@ -19,7 +19,7 @@
  */
 
 // Hero
-export type { StatamicHeroEntry } from "./hero-queries";
+export type { StatamicHeroEntry, StatamicHeroMedia, StatamicHeroCTAItem } from "./hero-queries";
 export { HERO_VARIANTS_COLLECTION } from "./hero-queries";
 
 // Proof

@@ -103,11 +103,15 @@ export function runCMSProviderContractSuite(
       it('result conforms to the HeroBlockData shape', async () => {
         const result = await provider.getHeroVariant(setup.heroKey);
         assert.ok(result !== null, 'expected non-null HeroBlockData for known key');
-        assert.strictEqual(typeof result.id,        'string',  'id must be a string');
-        assert.strictEqual(typeof result.title,     'string',  'title must be a string');
-        assert.strictEqual(typeof result.subtitle,  'string',  'subtitle must be a string');
-        assert.strictEqual(typeof result.cta.label, 'string',  'cta.label must be a string');
-        assert.strictEqual(typeof result.cta.href,  'string',  'cta.href must be a string');
+        assert.strictEqual(typeof result.id,       'string',  'id must be a string');
+        assert.strictEqual(typeof result.title,    'string',  'title must be a string');
+        assert.strictEqual(typeof result.subtitle, 'string',  'subtitle must be a string');
+        assert.ok(Array.isArray(result.ctas),      'ctas must be an array');
+        // At least the first CTA item must have label and href strings
+        if (result.ctas.length > 0) {
+          assert.strictEqual(typeof result.ctas[0]!.label, 'string', 'ctas[0].label must be a string');
+          assert.strictEqual(typeof result.ctas[0]!.href,  'string', 'ctas[0].href must be a string');
+        }
         assert.ok(
           result.tag === undefined || typeof result.tag === 'string',
           '`tag` must be a string or undefined',

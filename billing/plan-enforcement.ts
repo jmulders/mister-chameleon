@@ -1,0 +1,381 @@
+/**
+ * billing/plan-enforcement.ts
+ *
+ * Plan feature checks and session-cap enforcement — server-side only.
+ *
+ * ─── Model ────────────────────────────────────────────────────────────────────
+ *
+ *   Mister Chameleon bills on personalised sessions, not on configuration
+ *   object counts.  All plans have unlimited rules, experiments, interest
+ *   profiles, scoring rules, and audience segments.
+ *
+ *   The single numeric limit is:
+ *     personalizedSessionsPerMonth  — 25 K / 150 K / 500 K for Starter/Growth/Pro.
+ *
+ *   When a tenant exceeds their monthly cap, subsequent visitor requests receive
+ *   the default (unmodified) experience.  No errors are thrown; the platform
+ *   degrades gracefully until the next calendar month or until the tenant
+ *   upgrades.
+ *
+ * ─── Feature gates ────────────────────────────────────────────────────────────
+ *
+ *   aiPersonalization    — AI shadow/live decisions (Growth+)
+ *   crmAbmEnrichment     — CRM (HubSpot/Salesforce) + ABM enrichment (Growth+)
+ *   customDecayProfiles  — custom behavioural decay profiles (Growth+)
+ *   multiTenant          — agency multi-tenant management (Pro)
+ *   analyticsDashboard   — full analytics reports (Growth+)
+ *   prioritySupport      — priority support channel (Pro)
+ *
+ * ─── Session tracking ────────────────────────────────────────────────────────
+ *
+ *   recordPersonalizedSession(tenantId, sessionId)
+ *     — Inserts a de-duplicated row into personalization_sessions.
+ *       INSERT … ON CONFLICT DO NOTHING ensures the same session ID in the
+ *       same calendar month is counted only once.
+ *       When the tenant is over their plan cap but has purchased session credits,
+ *       also calls deduct_session_credit() RPC — atomically debits 1 credit and
+ *       writes a 'deduction' row to session_credit_ledger for Transaction History.
+ *       Call this AFTER personalisation runs successfully (not on bot/fallback).
+ *
+ *   getMonthlySessionCount(tenantId, monthKey?)
+ *     — Returns the number of unique personalised sessions for the month.
+ *       monthKey defaults to the current UTC calendar month ("YYYY-MM").
+ *
+ *   getSessionCreditBalance(tenantId)
+ *     — Returns the tenant's available purchased session credits (bonus sessions
+ *       above the plan cap).  Returns 0 if no credits have been purchased.
+ *
+ *   checkSessionSoftCap(tenantId)
+ *     — Returns { overLimit, current, limit, planLimit, bonusSessions } without throwing.
+ *       effectiveLimit = planLimit + bonusSessions.
+ *       Use this in the decision pipeline to decide whether to personalise.
+ *
+ * ─── Plan resolution order ────────────────────────────────────────────────────
+ *
+ *   1. Active Stripe subscription (subscriptions.plan) — most authoritative.
+ *   2. Tenant's manually-assigned packageKey (tenant_settings JSONB).
+ *   3. Default fallback: "starter".
+ *
+ *   After the plan ID is resolved, the billing_plans DB row is fetched and its
+ *   features/limits JSONB overlaid on top of the static BILLING_PLANS defaults
+ *   (admin-editable at /admin/platform/billing/plans).
+ *
+ * ─── Server only ──────────────────────────────────────────────────────────────
+ *
+ *   This file imports `server-only`.  Do NOT import in client components.
+ */
+
+import "server-only";
+import { getDb }                  from "@/data/db";
+import { BILLING_PLANS }          from "./plans";
+import type { BillingPlan }       from "./plans";
+import type { SupabaseClient }    from "@supabase/supabase-js";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export type PlanFeatureKey = keyof BillingPlan["features"];
+
+export interface PlanEnforcementResult {
+  allowed:   boolean;
+  reason?:   string;
+  planName?: string;
+  limit?:    number;
+  current?:  number;
+}
+
+export interface SessionCapResult {
+  /** true when the tenant has consumed their monthly personalised session cap (including any purchased credits). */
+  overLimit:    boolean;
+  /** Sessions used so far this calendar month. */
+  current:      number;
+  /** Effective monthly cap = plan limit + purchased session credits. 0 = unlimited. */
+  limit:        number;
+  /** Sessions provided by the subscription plan alone (before bonus credits). */
+  planLimit?:   number;
+  /** Purchased bonus sessions added on top of the plan limit. */
+  bonusSessions?: number;
+  /** The calendar month key checked ("YYYY-MM"). */
+  monthKey:     string;
+}
+
+// ── Internal DB helper ────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getAnyDb(): SupabaseClient<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return getDb() as unknown as SupabaseClient<any>;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns the current UTC month key in "YYYY-MM" format. */
+export function currentMonthKey(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+// ── Plan resolution ───────────────────────────────────────────────────────────
+
+/**
+ * Resolve the effective billing plan for a tenant.
+ *
+ * Resolution order:
+ *   1. Active Stripe subscription (subscriptions.plan)
+ *   2. Tenant's manually-assigned packageKey (tenant_settings.settings→packageKey)
+ *   3. "starter" fallback
+ *
+ * The billing_plans DB row (editable at /admin/platform/billing/plans) is then
+ * overlaid on top of the static BILLING_PLANS defaults.
+ *
+ * Never throws — returns the starter plan on any DB error.
+ */
+export async function getEffectivePlan(tenantId: string): Promise<BillingPlan> {
+  const db = getAnyDb();
+
+  const [subResult, settingsResult] = await Promise.all([
+    db.from("subscriptions").select("plan, status").eq("tenant_id", tenantId).maybeSingle(),
+    db.from("tenant_settings").select("settings").eq("tenant_id", tenantId).maybeSingle(),
+  ]);
+
+  let planId = "starter";
+
+  if (subResult.data?.plan && subResult.data.status !== "canceled") {
+    planId = subResult.data.plan;
+  } else {
+    const packageKey = (
+      settingsResult.data?.settings as { packageKey?: string } | null
+    )?.packageKey;
+    if (packageKey) planId = packageKey;
+  }
+
+  const staticPlan =
+    BILLING_PLANS[planId as keyof typeof BILLING_PLANS] ?? BILLING_PLANS["starter"];
+
+  const { data: dbRow } = await db
+    .from("billing_plans")
+    .select("label, features, limits")
+    .eq("plan_id", planId)
+    .maybeSingle();
+
+  if (!dbRow) return staticPlan;
+
+  return {
+    ...staticPlan,
+    name:     (dbRow.label    as string | null) ?? staticPlan.name,
+    features: { ...staticPlan.features, ...(dbRow.features as Partial<BillingPlan["features"]> ?? {}) },
+    limits:   { ...staticPlan.limits,   ...(dbRow.limits   as Partial<BillingPlan["limits"]>   ?? {}) },
+  };
+}
+
+// ── Feature checks ────────────────────────────────────────────────────────────
+
+/**
+ * Check whether a premium feature flag is enabled for a tenant's current plan.
+ */
+export async function checkPlanFeature(
+  tenantId: string,
+  feature:  PlanFeatureKey,
+): Promise<PlanEnforcementResult> {
+  const plan = await getEffectivePlan(tenantId);
+
+  if (plan.features[feature]) {
+    return { allowed: true, planName: plan.name };
+  }
+
+  const upgradeHints: Partial<Record<PlanFeatureKey, string>> = {
+    aiPersonalization:   "AI personalisation requires the Growth plan or higher.",
+    crmAbmEnrichment:    "CRM and ABM enrichment require the Growth plan or higher.",
+    customDecayProfiles: "Custom decay profiles require the Growth plan or higher.",
+    multiTenant:         "Multi-tenant agency management requires the Pro plan.",
+    analyticsDashboard:  "The analytics dashboard requires the Growth plan or higher.",
+    prioritySupport:     "Priority support requires the Pro plan.",
+  };
+
+  return {
+    allowed:  false,
+    planName: plan.name,
+    reason:   upgradeHints[feature] ??
+              `"${feature}" is not available on the ${plan.name} plan. Upgrade to unlock it.`,
+  };
+}
+
+// ── Session tracking ──────────────────────────────────────────────────────────
+
+/**
+ * Record a single personalised visitor session for billing purposes.
+ *
+ * Uses INSERT … ON CONFLICT DO NOTHING so the same (tenant, month, session)
+ * triple is counted only once — idempotent and safe to call multiple times.
+ *
+ * @param tenantId  The tenant that served the personalised content.
+ * @param sessionId A stable, opaque visitor session token (hashed, no PII).
+ * @param monthKey  Calendar month in "YYYY-MM" format (default: current UTC month).
+ */
+export async function recordPersonalizedSession(
+  tenantId:  string,
+  sessionId: string,
+  monthKey?: string,
+): Promise<void> {
+  if (!tenantId || !sessionId) return;
+
+  const key = monthKey ?? currentMonthKey();
+  const db  = getAnyDb();
+
+  try {
+    // ── Check if this session is served from purchased bonus credits ──────────
+    // If current count >= plan limit AND tenant has purchased credits, deduct 1.
+    // The RPC is atomic (FOR UPDATE) and writes to session_credit_ledger.
+    const [currentCount, plan, creditBalance] = await Promise.all([
+      getMonthlySessionCount(tenantId, key),
+      getEffectivePlan(tenantId),
+      getSessionCreditBalance(tenantId),
+    ]);
+
+    const planLimit = plan.limits.personalizedSessionsPerMonth;
+    const isOverPlanCap = planLimit > 0 && currentCount >= planLimit;
+
+    if (isOverPlanCap && creditBalance > 0) {
+      // Deduct 1 session credit — non-fatal if it fails.
+      await db.rpc("deduct_session_credit", {
+        p_tenant_id: tenantId,
+        p_session_id: sessionId,
+      }).then(() => null).catch(() => null);
+    }
+
+    // ── Record in personalization_sessions (de-duplicated) ────────────────────
+    await db.from("personalization_sessions").insert({
+      tenant_id:  tenantId,
+      month_key:  key,
+      session_id: sessionId,
+    });
+    // ON CONFLICT DO NOTHING is handled by the DB constraint — no error on duplicate.
+  } catch {
+    // Non-fatal — session tracking failure must never break personalisation.
+  }
+}
+
+/**
+ * Get the number of unique personalised sessions served this calendar month.
+ *
+ * @param tenantId  Tenant to query.
+ * @param monthKey  Optional "YYYY-MM" key (default: current UTC month).
+ */
+export async function getMonthlySessionCount(
+  tenantId: string,
+  monthKey?: string,
+): Promise<number> {
+  if (!tenantId) return 0;
+
+  const key = monthKey ?? currentMonthKey();
+  const db  = getAnyDb();
+
+  try {
+    const { count, error } = await db
+      .from("personalization_sessions")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("month_key",  key);
+
+    if (error) return 0;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Fetch the tenant's purchased session credit balance.
+ *
+ * Returns 0 when the tenant has no credits row (never purchased top-ups).
+ * Never throws — a query failure simply means no bonus credits are applied.
+ */
+export async function getSessionCreditBalance(tenantId: string): Promise<number> {
+  if (!tenantId) return 0;
+  const db = getAnyDb();
+  try {
+    const { data, error } = await db
+      .from("session_credit_balances")
+      .select("balance")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error || !data) return 0;
+    return (data as { balance: number }).balance ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+// ── Session credit ledger ─────────────────────────────────────────────────────
+
+export interface SessionCreditLedgerEntry {
+  id:                       string;
+  entry_type:               "purchase" | "deduction" | "grant" | "refund" | "adjustment";
+  amount:                   number;     // positive = credit added; negative = deducted
+  balance_after:            number;
+  bundle_id:                string | null;
+  stripe_payment_intent_id: string | null;
+  note:                     string | null;
+  created_at:               string;
+}
+
+/**
+ * Fetch the session credit ledger for a tenant, newest first.
+ *
+ * Returns purchases (top-up bundles), deductions (sessions served from bonus
+ * credits), grants, refunds, and manual adjustments.
+ *
+ * @param tenantId  Tenant to query.
+ * @param limit     Max rows to return (default 50).
+ */
+export async function getSessionCreditLedger(
+  tenantId: string,
+  limit = 50,
+): Promise<SessionCreditLedgerEntry[]> {
+  if (!tenantId) return [];
+  const db = getAnyDb();
+  try {
+    const { data, error } = await db
+      .from("session_credit_ledger")
+      .select("id, entry_type, amount, balance_after, bundle_id, stripe_payment_intent_id, note, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error || !data) return [];
+    return data as SessionCreditLedgerEntry[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Check whether a tenant has consumed their monthly personalised session cap.
+ *
+ * The effective limit is:
+ *   plan.limits.personalizedSessionsPerMonth + purchased session credits
+ *
+ * When overLimit is true the caller should serve the default (unpersonalised)
+ * experience.  No errors are thrown — degradation is always graceful.
+ *
+ * A planLimit of 0 means unlimited (used for enterprise overrides).
+ */
+export async function checkSessionSoftCap(tenantId: string): Promise<SessionCapResult> {
+  const monthKey = currentMonthKey();
+
+  const [plan, current, bonusSessions] = await Promise.all([
+    getEffectivePlan(tenantId),
+    getMonthlySessionCount(tenantId, monthKey),
+    getSessionCreditBalance(tenantId),
+  ]);
+
+  const planLimit = plan.limits.personalizedSessionsPerMonth;
+  // 0 = unlimited (enterprise override); otherwise add purchased credits on top.
+  const limit = planLimit === 0 ? 0 : planLimit + bonusSessions;
+
+  return {
+    overLimit:    limit > 0 && current >= limit,
+    current,
+    limit,
+    planLimit,
+    bonusSessions,
+    monthKey,
+  };
+}

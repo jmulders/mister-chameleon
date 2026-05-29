@@ -126,10 +126,34 @@
   --text-muted: var(--color-neutral-500);
   --text-subtle: var(--color-neutral-400);
   --text-inverse: var(--color-neutral-0);
-  --text-brand: var(--color-brand-600);
+  --text-brand: var(--primary);
+                                  /* ↑ Always tracks --primary so tenant overrides
+                                       (e.g. dutch-orange → orange, valentine-pink →
+                                       rose) cascade to ALL text-brand usages.
+                                       Previously was var(--color-brand-600) — a
+                                       compile-time Tailwind constant that tenant
+                                       themes could NOT override, causing indigo/
+                                       purple to leak through on every non-default
+                                       theme. */
 
   --border: var(--color-neutral-200);
   --border-strong: var(--color-neutral-300);
+
+  /* ── Foreground aliases (shadcn/ui convention) ───────────────────────────── */
+  /*
+   * Emitted here so components following the shadcn/ui naming convention
+   * get a sensible non-purple default even before the tenant theme overrides
+   * are applied.  tenantThemeToVarsRecord() overrides all four vars so the
+   * final rendered values are always theme-specific.
+   *
+   * Without these base values, --foreground is undefined in the stylesheet,
+   * which causes browser defaults (blue / purple link colours) to bleed
+   * through on any element that references var(--foreground) or similar.
+   */
+  --foreground:         var(--text);
+  --card-foreground:    var(--text);
+  --popover-foreground: var(--text);
+  --muted-foreground:   var(--text-muted);
 
   --primary: var(--color-brand-500);
   --primary-hover: var(--color-brand-600);
@@ -167,6 +191,11 @@
    * A complete surface map for button components.  Using these instead of
    * --primary / --primary-hover directly means button style can diverge
    * from link/badge accent colour when a tenant needs it.
+   *
+   * Secondary button tokens are separated so the secondary style can diverge
+   * from the raw --primary-subtle / --text-brand without a component change.
+   * All six vars are emitted as concrete hex values by tenantThemeToCSS() so
+   * they never fall back to the :root purple defaults even for legacy themes.
    */
   --btn-bg:          var(--primary);
   --btn-text:        var(--primary-text);
@@ -176,6 +205,24 @@
   --btn-radius:      var(--radius-interactive);
   --btn-shadow:      var(--shadow-sm);
   --btn-font-weight: 600;
+
+  /* Secondary button surface — separate tokens so secondary can be styled
+     independently from the global brand accent without touching components. */
+  --btn-secondary-bg:          var(--primary-subtle);
+  --btn-secondary-text:        var(--text-brand);
+  --btn-secondary-hover-bg:    var(--primary-subtle);
+  --btn-secondary-border:      transparent;
+
+  /* ── 2d-ii. Badge component tokens ──────────────────────────── */
+  /*
+   * Dedicated tokens for badge surfaces so badge colours can diverge from
+   * the raw --primary-subtle / --text-brand when a preset needs it.
+   * Concrete hex values are emitted by tenantThemeToCSS() for every preset
+   * — the :root defaults here are the indigo baseline and should never be
+   * visible on any tenant page (the [data-site] layer always wins).
+   */
+  --badge-primary-bg:   var(--primary-subtle);
+  --badge-primary-text: var(--text-brand);
 
   /* ── 2e. Component radii ─────────────────────────────────────── */
   /*
@@ -223,11 +270,14 @@
    * Defaults derived from global tokens — works out-of-box for any palette;
    * presets / tenants override for their specific personality.
    */
-  --hero-bg:             var(--section-hero-bg);
-  --hero-glow-color:     var(--primary);
-  --hero-glow-opacity:   0.2;
-  --hero-title-color:    var(--text-inverse);
-  --hero-subtitle-color: var(--text-subtle);
+  --hero-bg:               var(--section-hero-bg);
+  --hero-glow-color:       var(--primary);
+  --hero-glow-opacity:     0.2;
+  --hero-title-color:      var(--text-inverse);
+  --hero-subtitle-color:   var(--text-subtle);
+  /* Background-media variant overlay — darkens the image/video for readability */
+  --hero-overlay-color:    #000000;
+  --hero-overlay-opacity:  0.45;
 
   /* ── 2i. Proof / testimonial component tokens ────────────────── */
   /*
@@ -282,13 +332,75 @@
   --form-label-weight:      500;
   --form-help-color:        var(--text-muted);
 
+  /* ── 2l. Header & footer component tokens ───────────────────── */
+  /*
+   * Dedicated surface tokens for the site header and footer.
+   * The header has two states: default (top of page) and scrolled (after 24 px).
+   * Both default to the same semi-opaque white so existing sites look unchanged.
+   * Tenants can set --header-bg to "transparent" to create an overlay header
+   * that sits on top of a full-bleed hero image.
+   *
+   * Footer defaults to the subtle background surface to lift it visually
+   * off the page body while remaining neutral.
+   */
+  --header-bg:          rgba(255, 255, 255, 0.95);
+  --header-bg-scrolled: rgba(255, 255, 255, 0.95);
+  --header-fg:          var(--text);
+  --header-border:      var(--border);
+
+  --footer-bg:     var(--bg-subtle);
+  --footer-fg:     var(--text-muted);
+  --footer-border: var(--border);
+
+  /* ── 2l-ii. Navigation component tokens ─────────────────────── */
+  /*
+   * Semantic tokens for the nav bar, nav links, and dropdown panels.
+   *
+   * These break the purple-leak chain: components now consume dedicated
+   * tokens that are emitted as concrete hex values by tenantThemeToCSS()
+   * rather than chains like var(--text-brand) → var(--primary) → :root purple.
+   *
+   * --nav-link              top-level link text (inherits from --header-fg)
+   * --nav-link-hover        top-level link text on hover
+   * --nav-dropdown-bg       dropdown panel background (tracks --card-bg)
+   * --nav-dropdown-border   dropdown panel border
+   * --nav-dropdown-text     dropdown child link text (de-emphasised)
+   * --nav-dropdown-link-hover-bg    child link :hover background
+   * --nav-dropdown-link-hover-text  child link :hover text
+   *
+   * All seven are emitted by tenantThemeToCSS() as concrete values so the
+   * :root chain-fallbacks below are only ever visible in zero-JS Storybook
+   * stories that skip the tenant theme injection layer.
+   */
+  --nav-link:                     var(--header-fg, var(--text));
+  --nav-link-hover:               var(--text-brand);
+  --nav-dropdown-bg:              var(--card-bg, #ffffff);
+  --nav-dropdown-border:          var(--border);
+  --nav-dropdown-text:            var(--text-muted);
+  --nav-dropdown-link-hover-bg:   var(--primary-subtle);
+  --nav-dropdown-link-hover-text: var(--text-brand);
+
   /* ── 2m. Typography component tokens ─────────────────────────── */
   /*
-   * Heading font family and weight tokens decoupled from body text so a
-   * tenant can run a display serif for headings while keeping system-sans
-   * for body copy.
+   * Usage-level font role tokens — these are the vars consumed by elements.
+   * Each role defaults to a base font family token so existing themes
+   * continue to work without any changes.
+   *
+   *   --font-heading  → headings (h1 – h3); tenant can set to serif / display
+   *   --font-body     → body copy, paragraphs, list items
+   *   --font-ui       → labels, buttons, nav, captions, form controls
+   *   --font-code     → code, pre, kbd, samp
+   *
+   * Tenant-level overrides: the token editor writes these four vars plus the
+   * base family vars.  The indirection (role → family) means swapping a base
+   * family automatically cascades to all roles that reference it, while still
+   * allowing per-role overrides.
    */
   --font-heading:           var(--font-sans);
+  --font-body:              var(--font-sans);
+  --font-ui:                var(--font-sans);
+  --font-code:              var(--font-mono);
+
   --font-heading-weight:    700;
   --font-subheading-weight: 600;
 }
@@ -304,7 +416,13 @@
     --text-muted: var(--color-neutral-400);
     --text-subtle: var(--color-neutral-500);
     --text-inverse: var(--color-neutral-900);
-    --text-brand: var(--color-brand-400);
+    --text-brand: var(--primary);  /* Dark mode: inherits the themed --primary */
+
+    /* Keep foreground aliases in sync with dark-mode text vars. */
+    --foreground:         var(--text);
+    --card-foreground:    var(--text);
+    --popover-foreground: var(--text);
+    --muted-foreground:   var(--text-muted);
 
     --border: var(--color-neutral-800);
     --border-strong: var(--color-neutral-700);

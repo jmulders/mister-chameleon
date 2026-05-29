@@ -12,6 +12,24 @@ export default defineType({
   title: "Related Content",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls the display layout of related items.",
+      options: {
+        list: [
+          { title: "Default — 3-column card grid (default)",         value: "default"        },
+          { title: "Grid (alias → default)",                          value: "grid"           },
+          { title: "List — single-column row list",                  value: "list"           },
+          { title: "Carousel — horizontally scrolling card strip",   value: "carousel"       },
+          { title: "Slider — CSS-scroll carousel",                   value: "related_slider" },
+        ],
+      },
+      initialValue: "default",
+    }),
+
     defineField({ name: "heading",  title: "Heading",   type: "string" }),
     defineField({ name: "maxItems", title: "Max Items", type: "number",
       description: "Limit to this many items. Leave blank to show all." }),

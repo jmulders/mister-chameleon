@@ -151,12 +151,34 @@ export interface AiPlanSnapshot {
   proofKey: string;
   ctaKey: string;
   reason: string;
-  /** AI confidence score (0-1), only present in shadow_plan */
+  /** AI self-reported confidence (0-1), only present in shadow_plan */
   confidence?: number;
   /** Confidence policy verdict, only present in shadow_plan */
   policyVerdict?: string;
   /** Context richness score at decision time, only present in shadow_plan */
   contextRichness?: number;
+  /**
+   * Structural validation score for the AI plan (0 or 1):
+   * 1.0 = all keys present and in allowed vocabulary; 0.0 = hard-validation failure.
+   * Only present in shadow_plan.
+   */
+  validationScore?: number;
+  /**
+   * Visitor context strength score (0..1): how much context signal supports
+   * trusting the AI output.  Only present in shadow_plan.
+   */
+  contextStrength?: number;
+  /**
+   * Composite final confidence (0..1):
+   *   finalConfidence = aiConfidence×0.60 + validationScore×0.20 + contextStrength×0.20
+   * Only present in shadow_plan.
+   */
+  finalConfidence?: number;
+  /**
+   * The configured confidence threshold at decision time.
+   * Only present in shadow_plan.
+   */
+  configuredThreshold?: number;
   /** Model that produced this plan, only present in shadow_plan */
   modelId?: string;
   /** Inference latency in ms, only present in shadow_plan */
@@ -298,6 +320,91 @@ export interface ExperimentAssignmentInsert {
   created_at?: string;
 }
 
+// ── plan_experiments ──────────────────────────────────────────────────────────
+
+/**
+ * A plan-based A/B experiment that targets a specific rule.
+ *
+ * When the rule fires for a visitor, the experiment determines whether that
+ * visitor receives the rule's control plan (bucket 0) or the challenger plan
+ * (bucket 1, which merges challenger_plan onto the control plan).
+ */
+export interface PlanExperimentRow {
+  /** Stable text slug used in the bucket hash. */
+  id: string;
+  /** Human-readable label for the dashboard. */
+  name: string;
+  /** Tenant that owns this experiment (matches tenantConfig.tenantId). */
+  tenant_id: string;
+  /** Soft reference to the rule ID this experiment targets. */
+  rule_id: string;
+  /**
+   * Partial ExperiencePlan applied to bucket-1 visitors.
+   * Keys present override the corresponding control-plan slot.
+   * Missing keys inherit from the control plan unchanged.
+   */
+  challenger_plan: {
+    heroKey?:       string;
+    proofKey?:      string;
+    ctaKey?:        string;
+    featureKey?:    string;
+    conversionKey?: string;
+  };
+  /** Lifecycle state */
+  status: "draft" | "active" | "paused" | "ended";
+  /** Fraction of matching sessions enrolled: 0 < f ≤ 1.0 */
+  traffic_fraction: number;
+  /** ISO-8601 creation timestamp */
+  created_at: string;
+  /** ISO-8601 end timestamp, or null while active/paused/draft */
+  ended_at: string | null;
+}
+
+export interface PlanExperimentInsert {
+  id: string;
+  name: string;
+  /**
+   * Tenant that owns this experiment.
+   * Optional here so form components can omit it — the server action always
+   * sets it explicitly before the DB insert (via `tenant_id: tenantId` spread).
+   */
+  tenant_id?: string;
+  rule_id: string;
+  challenger_plan?: PlanExperimentRow["challenger_plan"];
+  status?: "draft" | "active" | "paused" | "ended";
+  traffic_fraction?: number;
+  created_at?: string;
+  ended_at?: string | null;
+}
+
+// ── plan_experiment_assignments ───────────────────────────────────────────────
+
+/**
+ * One row per (session × plan_experiment) pair.
+ * bucket 0 = control (rule plan unchanged)
+ * bucket 1 = challenger (challenger_plan applied)
+ */
+export interface PlanExperimentAssignmentRow {
+  /** UUID primary key */
+  id: string;
+  /** FK → sessions.id */
+  session_id: string;
+  /** FK → plan_experiments.id */
+  experiment_id: string;
+  /** 0 = control, 1 = challenger */
+  bucket: 0 | 1;
+  /** ISO-8601 assignment timestamp */
+  created_at: string;
+}
+
+export interface PlanExperimentAssignmentInsert {
+  id?: string;
+  session_id: string;
+  experiment_id: string;
+  bucket: 0 | 1;
+  created_at?: string;
+}
+
 // ── form_submissions ──────────────────────────────────────────────────────────
 
 /**
@@ -344,8 +451,24 @@ export interface FormSubmissionInsert {
  * Replaces the local tenant/tenants.json file store.
  *
  * SQL migration: supabase/migrations/20240101000009_create_tenant_settings.sql
+ *
+ * ─── Column notes ────────────────────────────────────────────────────────────
+ *
+ *   id         — primary row identifier; set to the same value as tenant_id
+ *                (the tenant slug, e.g. "mister-chameleon").  Required by the
+ *                live schema; must be included in every INSERT / UPSERT.
+ *
+ *   tenant_id  — the natural key used for ON CONFLICT / application lookups.
+ *                Mirrors `id` — they always hold the same slug string.
+ *
+ * Having both columns is a historical artefact of the Supabase dashboard
+ * adding an `id` column when the table was inspected after the original
+ * migration (which defined only tenant_id as PK) was applied.  Both columns
+ * are kept in sync by always writing `id = tenantId` in the application layer.
  */
 export interface TenantSettingsRow {
+  /** Row identity — same value as tenant_id (the tenant slug). */
+  id:         string;
   /** Stable tenant slug (TenantSettings.tenantId), e.g. "workengine". */
   tenant_id:  string;
   /** Full TenantSettings object serialised as JSONB. */
@@ -355,6 +478,8 @@ export interface TenantSettingsRow {
 }
 
 export interface TenantSettingsInsert {
+  /** Row identity — must equal tenant_id (the tenant slug). */
+  id:          string;
   tenant_id:   string;
   settings:    Record<string, unknown>;
   /** Optional: omit to let the database set to now(). */
@@ -401,6 +526,8 @@ export interface PageRow {
   tenant_id:  string;
   /** URL slug without leading slash, e.g. "about-us". */
   slug:       string;
+  /** Human-readable page title, mirrors EditablePage.title for indexed lookups. */
+  title:      string;
   /** Full EditablePage object serialised as JSONB. */
   page:       Record<string, unknown>;
   /** Row creation timestamp. */
@@ -413,6 +540,8 @@ export interface PageInsert {
   id:          string;
   tenant_id:   string;
   slug:        string;
+  /** Human-readable page title — NOT NULL in the DB. */
+  title:       string;
   page:        Record<string, unknown>;
   /** Optional: omit to let the database set to now(). */
   created_at?: string;
@@ -471,6 +600,379 @@ export interface TenantDomainInsert {
   updated_at?:          string;
 }
 
+// ── context_variable_metadata ─────────────────────────────────────────────────
+
+/**
+ * One row per context variable that has been given admin-editable metadata.
+ *
+ * Built-in variables (is_custom = false) have their system fields (type, source,
+ * operators, allowedValues) defined in context/registry.ts — only the editable
+ * overlay fields are stored here.
+ *
+ * Custom variables (is_custom = true) are fully described by this row; they do
+ * not exist in the registry.  custom_type and custom_source are required for them.
+ *
+ * SQL migration: supabase/migrations/20240101000013_create_context_variable_metadata.sql
+ */
+export interface ContextVariableMetadataRow {
+  /** The stable context variable key, e.g. "source" or "company_name". */
+  key:             string;
+  /** Operator-edited human-readable label; null means use the registry default. */
+  label:           string | null;
+  /** Operator-edited description; null means use the registry default. */
+  description:     string | null;
+  /** When false the variable is hidden from rules / AI selection. */
+  enabled:         boolean;
+  /** Runtime gate for rules availability; null means defer to registry flag. */
+  usable_in_rules: boolean | null;
+  /** Runtime gate for AI availability; null means defer to registry flag. */
+  usable_in_ai:    boolean | null;
+  /** Optional grouping label shown in the admin UI. */
+  category:        string | null;
+  /** Display order within a group; defaults to 0. */
+  sort_order:      number;
+  /** True only for variables created via the admin UI; false for registry vars. */
+  is_custom:       boolean;
+  /**
+   * Required when is_custom = true.
+   * One of: string | enum | number | boolean
+   */
+  custom_type:     string | null;
+  /**
+   * Required when is_custom = true.
+   * One of: request | session | history | tenant | page | enrichment
+   */
+  custom_source:   string | null;
+  /** Row creation timestamp. */
+  created_at:      string;
+  /** Last modification timestamp. */
+  updated_at:      string;
+}
+
+export interface ContextVariableMetadataInsert {
+  key:              string;
+  label?:           string | null;
+  description?:     string | null;
+  enabled?:         boolean;
+  usable_in_rules?: boolean | null;
+  usable_in_ai?:    boolean | null;
+  category?:        string | null;
+  sort_order?:      number;
+  is_custom?:       boolean;
+  custom_type?:     string | null;
+  custom_source?:   string | null;
+  created_at?:      string;
+  updated_at?:      string;
+}
+
+/** Subset of fields that can be changed after creation. */
+export interface ContextVariableMetadataUpdate {
+  label?:           string | null;
+  description?:     string | null;
+  enabled?:         boolean;
+  usable_in_rules?: boolean | null;
+  usable_in_ai?:    boolean | null;
+  category?:        string | null;
+  sort_order?:      number;
+}
+
+// ── platform_settings ─────────────────────────────────────────────────────────
+
+/**
+ * One row per platform-wide integration section.
+ * Stores secrets and provider configuration as JSONB.
+ *
+ * Well-known keys: "sanity" | "maxmind" | "ai" | "vercel"
+ *
+ * SQL migration: supabase/migrations/20240101000016_create_platform_settings.sql
+ *
+ * ─── Security ─────────────────────────────────────────────────────────────────
+ *
+ *   `value` is a JSONB blob that MAY contain API keys and write tokens.
+ *   It must NEVER be returned to the browser client — only boolean presence
+ *   flags (e.g. hasSanityWriteToken) should cross the server→client boundary.
+ */
+export interface PlatformSettingsRow {
+  /** Integration section name, e.g. "sanity" | "maxmind" | "ai" | "vercel". */
+  key:        string;
+  /**
+   * Full settings blob serialised as JSONB.
+   * Contains secrets — never serialise to the client.
+   */
+  value:      Record<string, unknown>;
+  /** Last write timestamp. */
+  updated_at: string;
+}
+
+export interface PlatformSettingsInsert {
+  key:         string;
+  value:       Record<string, unknown>;
+  /** Optional: omit to let the database set to now(). */
+  updated_at?: string;
+}
+
+// ── admin_users ───────────────────────────────────────────────────────────────
+
+/**
+ * One row per platform admin/operator user.
+ *
+ * two_factor_secret         — live TOTP shared secret (server-side only, never sent to client)
+ * two_factor_pending_secret — temporary secret stored during 2FA setup, before verification
+ * two_factor_backup_codes   — array of SHA-256 hashed one-time recovery codes
+ *
+ * SQL migration: supabase/migrations/20240101000020_create_admin_users.sql
+ */
+export interface AdminUserRow {
+  /** UUID primary key. */
+  id:                        string;
+  /** Normalised email address (lower-cased). */
+  email:                     string;
+  /** bcrypt-hashed password. Never returned to client code. */
+  password_hash:             string;
+  /** Display name, e.g. "Jasper Mulders". */
+  name:                      string;
+  /** "superadmin" | "tenant_admin" (legacy: "admin") */
+  role:                      string;
+  /** False when the account has been deactivated by a superadmin. */
+  is_active:                 boolean;
+  /** True when TOTP 2FA is active for this account. */
+  two_factor_enabled:        boolean;
+  /** Live TOTP shared secret. Null until 2FA is enabled. */
+  two_factor_secret:         string | null;
+  /** Temporary TOTP secret during setup flow (before verification). Cleared on enable. */
+  two_factor_pending_secret: string | null;
+  /** Array of SHA-256 hashed one-time backup codes. */
+  two_factor_backup_codes:   string[] | null;
+  /** ISO-8601 timestamp when 2FA was enabled. */
+  two_factor_enabled_at:     string | null;
+  /** ISO-8601 timestamp of last successful login. */
+  last_login_at:             string | null;
+  /** Row creation timestamp. */
+  created_at:                string;
+  /** Last write timestamp. */
+  updated_at:                string;
+}
+
+export interface AdminUserInsert {
+  id?:                        string;
+  email:                      string;
+  password_hash:              string;
+  name:                       string;
+  role?:                      string;
+  is_active?:                 boolean;
+  two_factor_enabled?:        boolean;
+  two_factor_secret?:         string | null;
+  two_factor_pending_secret?: string | null;
+  two_factor_backup_codes?:   string[] | null;
+  two_factor_enabled_at?:     string | null;
+  last_login_at?:             string | null;
+  created_at?:                string;
+  updated_at?:                string;
+}
+
+// ── admin_user_tenants ─────────────────────────────────────────────────────────
+
+/**
+ * One row per user ↔ tenant assignment.
+ * Junction table for the many-to-many relationship between admin_users and tenants.
+ * Superadmin users bypass this table — they can access all tenants implicitly.
+ *
+ * SQL migration: supabase/migrations/20240101000021_admin_user_management.sql
+ */
+export interface AdminUserTenantRow {
+  id:          string;
+  user_id:     string;
+  tenant_id:   string;
+  assigned_at: string;
+}
+
+export interface AdminUserTenantInsert {
+  id?:          string;
+  user_id:      string;
+  tenant_id:    string;
+  assigned_at?: string;
+}
+
+// ── tenant_form_settings ──────────────────────────────────────────────────────
+
+/**
+ * Row shape for the `tenant_form_settings` table.
+ * SQL migration: supabase/migrations/20240101000024_create_tenant_form_settings.sql
+ *
+ *   tenant_form_settings (
+ *     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid()
+ *     tenant_id  text        UNIQUE NOT NULL
+ *     settings   jsonb       NOT NULL DEFAULT '{}'
+ *     updated_at timestamptz NOT NULL DEFAULT now()
+ *   )
+ */
+export interface TenantFormSettingsRow {
+  id:         string;
+  tenant_id:  string;
+  settings:   Record<string, unknown>;
+  updated_at: string;
+}
+
+export interface TenantFormSettingsInsert {
+  id?:         string;
+  tenant_id:   string;
+  settings:    Record<string, unknown>;
+  updated_at?: string;
+}
+
+// ── tenant_email_transport ────────────────────────────────────────────────────
+
+/**
+ * Row shape for the `tenant_email_transport` table.
+ * SQL migration: supabase/migrations/20240101000025_create_tenant_email_transport.sql
+ *
+ * Stores per-tenant email transport configuration.  SMTP credentials should
+ * be stored encrypted (application-layer encryption) in the `config` JSONB
+ * column and decrypted by the admin actions before use.
+ *
+ *   tenant_email_transport (
+ *     id           uuid        PRIMARY KEY DEFAULT gen_random_uuid()
+ *     tenant_id    text        UNIQUE NOT NULL
+ *     config       jsonb       NOT NULL DEFAULT '{}'
+ *     updated_at   timestamptz NOT NULL DEFAULT now()
+ *   )
+ *
+ * The `config` column maps to TenantEmailTransport in tenant/types.ts.
+ */
+export interface TenantEmailTransportRow {
+  id:         string;
+  tenant_id:  string;
+  config:     Record<string, unknown>;
+  updated_at: string;
+}
+
+export interface TenantEmailTransportInsert {
+  id?:         string;
+  tenant_id:   string;
+  config:      Record<string, unknown>;
+  updated_at?: string;
+}
+
+// ── interest_profiles ─────────────────────────────────────────────────────────
+
+/**
+ * Row shape for the `interest_profiles` table.
+ * SQL migration: supabase/migrations/20240101000026_create_interest_profiles.sql
+ *
+ * Operators manage profiles via /admin/interest-profiles.
+ * The scoring engine reads active profiles to compute per-visitor interest scores.
+ *
+ *   interest_profiles (
+ *     id          uuid        PRIMARY KEY DEFAULT gen_random_uuid()
+ *     key         text        UNIQUE NOT NULL
+ *     name        text        NOT NULL
+ *     description text
+ *     tags        jsonb       NOT NULL DEFAULT '[]'
+ *     is_active   boolean     NOT NULL DEFAULT true
+ *     created_at  timestamptz NOT NULL DEFAULT now()
+ *     updated_at  timestamptz NOT NULL DEFAULT now()
+ *   )
+ */
+export interface InterestProfileRow {
+  /** UUID primary key. */
+  id:          string;
+  /** URL-safe slug identifier, e.g. "logistics". */
+  key:         string;
+  /** Human-readable label shown in admin UI. */
+  name:        string;
+  /** Optional operator notes. */
+  description: string | null;
+  /** JSONB array of { keyword: string, weight: number }. */
+  tags:        Array<{ keyword: string; weight: number }>;
+  /** Only active profiles are evaluated at runtime. */
+  is_active:   boolean;
+  /** Row creation timestamp. */
+  created_at:  string;
+  /** Last modification timestamp. */
+  updated_at:  string;
+}
+
+export interface InterestProfileInsert {
+  /** Optional: omit to let the database generate a UUID. */
+  id?:          string;
+  key:          string;
+  name:         string;
+  description?: string | null;
+  tags:         Array<{ keyword: string; weight: number }>;
+  is_active?:   boolean;
+  created_at?:  string;
+  updated_at?:  string;
+}
+
+// ── Platform CMS content ──────────────────────────────────────────────────────
+
+/**
+ * platform_cms_content
+ *
+ * Stores variant documents for tenants using the built-in "platform" CMS.
+ * One row per (tenant_id, variant_type, variant_key) triple.
+ *
+ *   platform_cms_content (
+ *     id           uuid        PRIMARY KEY DEFAULT gen_random_uuid()
+ *     tenant_id    text        NOT NULL
+ *     variant_type text        NOT NULL  CHECK IN ('hero','proof','cta','feature','conversion')
+ *     variant_key  text        NOT NULL
+ *     content      jsonb       NOT NULL DEFAULT '{}'
+ *     created_at   timestamptz NOT NULL DEFAULT now()
+ *     updated_at   timestamptz NOT NULL DEFAULT now()
+ *     UNIQUE (tenant_id, variant_type, variant_key)
+ *   )
+ */
+export interface PlatformCmsContentRow {
+  id:           string;
+  tenant_id:    string;
+  variant_type: "hero" | "proof" | "cta" | "feature" | "conversion" | "notification";
+  variant_key:  string;
+  content:      Record<string, unknown>;
+  created_at:   string;
+  updated_at:   string;
+}
+
+export interface PlatformCmsContentInsert {
+  id?:           string;
+  tenant_id:     string;
+  variant_type:  "hero" | "proof" | "cta" | "feature" | "conversion" | "notification";
+  variant_key:   string;
+  content?:      Record<string, unknown>;
+  created_at?:   string;
+  updated_at?:   string;
+}
+
+// ── Adaptive blocks (Content Matrix) ─────────────────────────────────────────
+
+/**
+ * Row shape of the `adaptive_blocks` Supabase table.
+ * default_variant and adaptive_variants are stored as JSONB.
+ */
+export interface AdaptiveBlockRow {
+  id:                 string;
+  created_at:         string;
+  updated_at:         string;
+  key:                string;
+  tenant_id:          string | null;
+  label:              string | null;
+  is_active:          boolean;
+  default_variant:    Record<string, unknown>;   // AdaptiveVariantContent shape
+  adaptive_variants:  Record<string, unknown>[];  // AdaptiveVariantEntry[] shape
+}
+
+export interface AdaptiveBlockInsert {
+  id?:                string;
+  created_at?:        string;
+  updated_at?:        string;
+  key:                string;
+  tenant_id?:         string | null;
+  label?:             string | null;
+  is_active?:         boolean;
+  default_variant:    Record<string, unknown>;
+  adaptive_variants?: Record<string, unknown>[];
+}
+
 // ── Database schema (Supabase client generic) ─────────────────────────────────
 
 /**
@@ -505,6 +1007,16 @@ export interface Database {
         Insert: ExperimentAssignmentInsert;
         Update: Partial<ExperimentAssignmentInsert>;
       };
+      plan_experiments: {
+        Row: PlanExperimentRow;
+        Insert: PlanExperimentInsert;
+        Update: Partial<PlanExperimentInsert>;
+      };
+      plan_experiment_assignments: {
+        Row: PlanExperimentAssignmentRow;
+        Insert: PlanExperimentAssignmentInsert;
+        Update: Partial<PlanExperimentAssignmentInsert>;
+      };
       ai_decision_logs: {
         Row: AiDecisionLogRow;
         Insert: AiDecisionLogInsert;
@@ -534,6 +1046,51 @@ export interface Database {
         Row:    TenantDomainRow;
         Insert: TenantDomainInsert;
         Update: Partial<TenantDomainInsert>;
+      };
+      context_variable_metadata: {
+        Row:    ContextVariableMetadataRow;
+        Insert: ContextVariableMetadataInsert;
+        Update: ContextVariableMetadataUpdate;
+      };
+      platform_settings: {
+        Row:    PlatformSettingsRow;
+        Insert: PlatformSettingsInsert;
+        Update: Partial<PlatformSettingsInsert>;
+      };
+      admin_users: {
+        Row:    AdminUserRow;
+        Insert: AdminUserInsert;
+        Update: Partial<AdminUserInsert>;
+      };
+      admin_user_tenants: {
+        Row:    AdminUserTenantRow;
+        Insert: AdminUserTenantInsert;
+        Update: Partial<AdminUserTenantInsert>;
+      };
+      tenant_form_settings: {
+        Row:    TenantFormSettingsRow;
+        Insert: TenantFormSettingsInsert;
+        Update: Partial<TenantFormSettingsInsert>;
+      };
+      tenant_email_transport: {
+        Row:    TenantEmailTransportRow;
+        Insert: TenantEmailTransportInsert;
+        Update: Partial<TenantEmailTransportInsert>;
+      };
+      interest_profiles: {
+        Row:    InterestProfileRow;
+        Insert: InterestProfileInsert;
+        Update: Partial<InterestProfileInsert>;
+      };
+      platform_cms_content: {
+        Row:    PlatformCmsContentRow;
+        Insert: PlatformCmsContentInsert;
+        Update: Partial<PlatformCmsContentInsert>;
+      };
+      adaptive_blocks: {
+        Row:    AdaptiveBlockRow;
+        Insert: AdaptiveBlockInsert;
+        Update: Partial<AdaptiveBlockInsert>;
       };
     };
   };

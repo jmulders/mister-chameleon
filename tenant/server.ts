@@ -41,15 +41,17 @@ import "server-only";
 // Server files can use a single import source for all tenant symbols.
 export * from "./index";
 
-// ── Tenant store (file-system backed, Node.js only) ───────────────────────────
+// ── Tenant store (Supabase-backed) ────────────────────────────────────────────
 export {
   validateTenantSettings,
   getAllTenants,
   getTenantById,
+  getTenantBySiteKey,
   getTenantByDomain,
   getTenantBySlug,
   saveTenant,
   createTenant,
+  getTenantPipelineStages,
 } from "./tenant-store";
 export type { StoreResult } from "./tenant-store";
 

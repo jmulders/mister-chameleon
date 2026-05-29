@@ -45,7 +45,8 @@ function renderSpan(span: PortableTextSpan, index: number): React.ReactNode {
     node = (
       <code
         key={`${index}-code`}
-        className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm text-neutral-800"
+        className="rounded px-1 py-0.5 font-mono text-sm"
+        style={{ background: "var(--bg-subtle)", color: "var(--text)" }}
       >
         {node}
       </code>
@@ -66,7 +67,8 @@ function renderBlock(block: PortableTextBlock, index: number): React.ReactNode {
       return (
         <h2
           key={key}
-          className="mt-8 mb-3 text-2xl font-bold tracking-tight text-neutral-900"
+          className="mt-8 mb-3 text-2xl font-bold tracking-tight"
+          style={{ color: "var(--text)" }}
         >
           {children}
         </h2>
@@ -76,7 +78,8 @@ function renderBlock(block: PortableTextBlock, index: number): React.ReactNode {
       return (
         <h3
           key={key}
-          className="mt-6 mb-2 text-xl font-semibold tracking-tight text-neutral-900"
+          className="mt-6 mb-2 text-xl font-semibold tracking-tight"
+          style={{ color: "var(--text)" }}
         >
           {children}
         </h3>
@@ -86,7 +89,8 @@ function renderBlock(block: PortableTextBlock, index: number): React.ReactNode {
       return (
         <h4
           key={key}
-          className="mt-4 mb-2 text-lg font-semibold text-neutral-900"
+          className="mt-4 mb-2 text-lg font-semibold"
+          style={{ color: "var(--text)" }}
         >
           {children}
         </h4>
@@ -96,7 +100,8 @@ function renderBlock(block: PortableTextBlock, index: number): React.ReactNode {
       return (
         <blockquote
           key={key}
-          className="my-4 border-l-4 border-brand-500 pl-4 italic text-neutral-600"
+          className="my-4 border-l-4 pl-4 italic"
+          style={{ borderColor: "var(--primary)", color: "var(--text-muted)" }}
         >
           {children}
         </blockquote>
@@ -105,7 +110,7 @@ function renderBlock(block: PortableTextBlock, index: number): React.ReactNode {
     default:
       // normal and any unrecognised style → <p>
       return (
-        <p key={key} className="mb-4 leading-relaxed text-neutral-700">
+        <p key={key} className="mb-4 leading-relaxed" style={{ color: "var(--text-muted)" }}>
           {children}
         </p>
       );

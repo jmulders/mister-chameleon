@@ -26,6 +26,7 @@
 
 import type { DecisionInput } from "../types";
 import type { ExperiencePlan, HeroVariantKey, ProofVariantKey, CTAVariantKey } from "../types";
+import type { RuleEvaluationContext } from "./field-registry";
 
 // ── Rule shape ────────────────────────────────────────────────────────────────
 
@@ -50,18 +51,39 @@ export interface HomepageRule {
   /** Human-readable label for the debug panel */
   label: string;
 
-  /** Predicate — return true to apply this rule */
-  match: (input: DecisionInput) => boolean;
+  /**
+   * Predicate — return true to apply this rule.
+   *
+   * The input is typed as `RuleEvaluationContext` (a superset of DecisionInput)
+   * so predicates can access enrichment, interest scores, and client context in
+   * addition to the base visitor + history signals.  Existing predicates that
+   * only read `ctx.source` or `ctx.history.*` compile unchanged.
+   */
+  match: (input: RuleEvaluationContext) => boolean;
 
-  /** The three variant keys selected when this rule fires */
+  /** The variant keys selected when this rule fires */
   plan: {
-    heroKey: HeroVariantKey;
-    proofKey: ProofVariantKey;
-    ctaKey: CTAVariantKey;
+    heroKey:        HeroVariantKey;
+    proofKey:       ProofVariantKey;
+    ctaKey:         CTAVariantKey;
+    /**
+     * Visitor-adaptive compact banner key for inner CMS pages.
+     * See StoredPlan.pageBannerKey for full documentation.
+     * Only used by cms-page-decision.ts; ignored by the homepage pipeline.
+     */
+    pageBannerKey?: string;
   };
 
   /** Explanation surfaced in debug output and analytics */
   reason: string;
+
+  /**
+   * Whether this rule is active.
+   * When false the engine skips this rule during evaluation.
+   * Absent for hard-coded HomepageRule constants (always enabled).
+   * Set by compileStoredRule() when StoredRule.enabled === false.
+   */
+  enabled?: boolean;
 }
 
 // ── Named rules ───────────────────────────────────────────────────────────────
@@ -144,6 +166,132 @@ const HIGH_ENGAGEMENT_RULE: HomepageRule = {
   reason: "Highly engaged returning visitor (3+ page views) — platform-confidence experience.",
 };
 
+// ── Interest-profile rules (medium_segmentation tier: 30–37) ─────────────────
+//
+// These rules fire when the visitor's computed interest profile scores indicate
+// a clear topical preference.  They sit in the medium_segmentation tier so
+// hard_state (1–9) and high_intent (10–19) rules always take precedence.
+//
+// Confidence threshold: 0.3 — requires at least 30 % confidence to avoid
+// personalising visitors with only one or two tangentially-matching keyword hits.
+//
+// All eight rules resolve from ctx.interestContext which is populated by
+// buildDecisionContext() after scoreInterests() / buildInterestContextVars() run.
+
+const MIN_INTEREST_CONFIDENCE = 0.3;
+
+/** Helper: returns true when interestContext primary equals `key` with sufficient confidence. */
+function isInterestPrimary(ctx: RuleEvaluationContext, key: string): boolean {
+  return (
+    ctx.interestContext?.interestPrimary === key &&
+    (ctx.interestContext?.interestConfidence ?? 0) >= MIN_INTEREST_CONFIDENCE
+  );
+}
+
+const INTEREST_PRICING_RULE: HomepageRule = {
+  id:       "homepage.interest_pricing",
+  priority: 30,
+  label:    "Interest: Pricing",
+  match:    (ctx) => isInterestPrimary(ctx, "pricing"),
+  plan: {
+    heroKey:  "hero_intent_direct",
+    proofKey: "proof_stats",
+    ctaKey:   "cta_meeting",
+  },
+  reason: "Visitor's primary interest profile is 'pricing' — show intent-direct hero with ROI proof.",
+};
+
+const INTEREST_PRODUCT_RULE: HomepageRule = {
+  id:       "homepage.interest_product",
+  priority: 31,
+  label:    "Interest: Product",
+  match:    (ctx) => isInterestPrimary(ctx, "product"),
+  plan: {
+    heroKey:  "hero_consideration",
+    proofKey: "proof_cases",
+    ctaKey:   "cta_platform",
+  },
+  reason: "Visitor's primary interest is 'product' — show consideration hero with case-study proof.",
+};
+
+const INTEREST_USE_CASE_RULE: HomepageRule = {
+  id:       "homepage.interest_use_case",
+  priority: 32,
+  label:    "Interest: Use case",
+  match:    (ctx) => isInterestPrimary(ctx, "use-case"),
+  plan: {
+    heroKey:  "hero_consideration",
+    proofKey: "proof_cases",
+    ctaKey:   "cta_guide",
+  },
+  reason: "Visitor's primary interest is 'use-case' — show consideration hero with case-study proof and guide CTA.",
+};
+
+const INTEREST_TRUST_RULE: HomepageRule = {
+  id:       "homepage.interest_trust",
+  priority: 33,
+  label:    "Interest: Trust & security",
+  match:    (ctx) => isInterestPrimary(ctx, "trust"),
+  plan: {
+    heroKey:  "hero_direct_brand",
+    proofKey: "proof_vision",
+    ctaKey:   "cta_guide",
+  },
+  reason: "Visitor's primary interest is 'trust' — show brand credibility with vision-level proof.",
+};
+
+const INTEREST_TECHNICAL_RULE: HomepageRule = {
+  id:       "homepage.interest_technical",
+  priority: 34,
+  label:    "Interest: Technical / developer",
+  match:    (ctx) => isInterestPrimary(ctx, "technical"),
+  plan: {
+    heroKey:  "hero_google_problem",
+    proofKey: "proof_platform",
+    ctaKey:   "cta_platform",
+  },
+  reason: "Visitor's primary interest is 'technical' — lead with problem-solution and platform proof.",
+};
+
+const INTEREST_CANDIDATE_RULE: HomepageRule = {
+  id:       "homepage.interest_candidate",
+  priority: 35,
+  label:    "Interest: Candidate / careers",
+  match:    (ctx) => isInterestPrimary(ctx, "candidate"),
+  plan: {
+    heroKey:  "hero_careers_default",
+    proofKey: "proof_careers_default",
+    ctaKey:   "cta_careers_browse",
+  },
+  reason: "Visitor's primary interest is 'candidate' — activate careers experience.",
+};
+
+const INTEREST_COMMERCE_PRODUCT_RULE: HomepageRule = {
+  id:       "homepage.interest_commerce_product",
+  priority: 36,
+  label:    "Interest: Commerce product",
+  match:    (ctx) => isInterestPrimary(ctx, "commerce-product"),
+  plan: {
+    heroKey:  "hero_consideration",
+    proofKey: "proof_cases",
+    ctaKey:   "cta_demo",
+  },
+  reason: "Visitor's primary interest is 'commerce-product' — show product-consideration experience.",
+};
+
+const INTEREST_PROPERTY_RULE: HomepageRule = {
+  id:       "homepage.interest_property",
+  priority: 37,
+  label:    "Interest: Property / real estate",
+  match:    (ctx) => isInterestPrimary(ctx, "property"),
+  plan: {
+    heroKey:  "hero_consideration",
+    proofKey: "proof_platform",
+    ctaKey:   "cta_demo",
+  },
+  reason: "Visitor's primary interest is 'property' — show platform-consideration experience.",
+};
+
 // ── Ordered rule set ──────────────────────────────────────────────────────────
 
 /**
@@ -155,6 +303,14 @@ const HIGH_ENGAGEMENT_RULE: HomepageRule = {
  *   7  — high-engagement returning visitor (3+ views) (HIGH_ENGAGEMENT_RULE)
  *  10  — Google / search traffic                       (GOOGLE_RULE)
  *  20  — LinkedIn / social traffic                     (LINKEDIN_RULE)
+ *  30  — Interest: Pricing                             (INTEREST_PRICING_RULE)
+ *  31  — Interest: Product                             (INTEREST_PRODUCT_RULE)
+ *  32  — Interest: Use case                            (INTEREST_USE_CASE_RULE)
+ *  33  — Interest: Trust & security                    (INTEREST_TRUST_RULE)
+ *  34  — Interest: Technical / developer               (INTEREST_TECHNICAL_RULE)
+ *  35  — Interest: Candidate / careers                 (INTEREST_CANDIDATE_RULE)
+ *  36  — Interest: Commerce product                    (INTEREST_COMMERCE_PRODUCT_RULE)
+ *  37  — Interest: Property / real estate              (INTEREST_PROPERTY_RULE)
  *
  * New rules are inserted here without touching the provider implementation.
  */
@@ -163,6 +319,14 @@ export const HOMEPAGE_RULES: readonly HomepageRule[] = [
   HIGH_ENGAGEMENT_RULE,
   GOOGLE_RULE,
   LINKEDIN_RULE,
+  INTEREST_PRICING_RULE,
+  INTEREST_PRODUCT_RULE,
+  INTEREST_USE_CASE_RULE,
+  INTEREST_TRUST_RULE,
+  INTEREST_TECHNICAL_RULE,
+  INTEREST_CANDIDATE_RULE,
+  INTEREST_COMMERCE_PRODUCT_RULE,
+  INTEREST_PROPERTY_RULE,
 ] as const;
 
 // ── Default plan ──────────────────────────────────────────────────────────────

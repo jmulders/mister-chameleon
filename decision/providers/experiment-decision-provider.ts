@@ -1,213 +1,339 @@
 /**
  * ExperimentDecisionProvider
  *
- * A DecisionProvider decorator that layers controlled A/B experiments on top
+ * A DecisionProvider decorator that layers plan-based A/B experiments on top
  * of any other DecisionProvider implementation.
  *
  * ─── Composition pattern ──────────────────────────────────────────────────────
  *
  *   const provider = new ExperimentDecisionProvider(
- *     new RulesDecisionProvider(),   // inner provider — resolves the base plan
- *     sessionId,                     // visitor's session UUID from the cookie
+ *     new RulesDecisionProvider(config), // inner provider — resolves the base plan
+ *     sessionId,                          // visitor's session UUID from the cookie
  *   );
  *
  *   const plan = await provider.getHomepagePlan(context);
- *   // plan.heroKey, proofKey, ctaKey may have been overridden by an experiment
+ *   // plan may have challenger_plan slots merged in if an experiment was active
  *
- * ─── Processing order ─────────────────────────────────────────────────────────
+ * ─── How plan experiments work ────────────────────────────────────────────────
  *
- *   1. Call inner.getHomepagePlan(context) → basePlan
- *   2. Fetch active experiments from the database (one query, small result set)
- *   3. For each active experiment in creation order:
- *        a. Check enrollment  → resolveExperimentBucket(sessionId, exp.id, …)
- *        b. If enrolled:      → override the experiment's slot in the plan
- *        c. Fire-and-forget:  → saveExperimentAssignment(…)
- *   4. Annotate reason string with all applied experiments
- *   5. Return the (potentially modified) ExperiencePlan
+ *   Unlike the old slot-based system, plan experiments do not override
+ *   individual slots in isolation.  Instead:
+ *
+ *   1. The inner provider resolves a base plan (the "control").
+ *      For RulesDecisionProvider, this is the matched rule's complete plan.
+ *
+ *   2. If the inner provider matched a rule (lastMatchedRuleId != null), we
+ *      look up active plan_experiments for that rule_id.
+ *
+ *   3. Bucket assignment (FNV-1a hash, deterministic):
+ *        bucket 0 → control   (base plan unchanged)
+ *        bucket 1 → challenger (challenger_plan keys merged onto base plan)
+ *
+ *   4. Fire-and-forget: assignment persisted to plan_experiment_assignments.
+ *
+ *   5. The reason string is annotated with the experiment outcome.
+ *
+ * ─── No matched rule → no experiment ─────────────────────────────────────────
+ *
+ *   When no rule matched (visitor got the default plan), plan experiments are
+ *   skipped entirely.  This is intentional: experiments target specific
+ *   audiences (rule segments), not the default-plan population.
+ *
+ * ─── Multiple active experiments for one rule ─────────────────────────────────
+ *
+ *   At most one active experiment per rule is expected.  If multiple exist,
+ *   the one created earliest wins; the rest are skipped with a warning.
  *
  * ─── Error handling ───────────────────────────────────────────────────────────
  *
- *   - If the database query for active experiments fails, the base plan is
- *     returned unchanged.  The visitor sees the rules-based experience.
- *   - If a specific experiment row has a malformed variants array, it is
- *     skipped with a warning.
- *   - Assignment persistence failures are logged but never surface to the visitor.
+ *   DB errors → base plan returned unchanged (graceful degradation).
+ *   Assignment persistence failures → logged, never surfaced to the visitor.
  *
  * ─── Determinism guarantee ───────────────────────────────────────────────────
  *
- *   Given the same sessionId and the same set of active experiments,
- *   getHomepagePlan() always returns the same plan.  The hash function
- *   (FNV-1a 32-bit) has no runtime state.
- *
- * ─── Conflict resolution ─────────────────────────────────────────────────────
- *
- *   If two active experiments target the same slot, the one created earlier
- *   (ORDER BY created_at ASC) wins.  The later experiment is skipped for that
- *   slot to avoid undefined/incoherent combinations.
- *   A warning is logged when this occurs.
+ *   Same sessionId + same active experiment → same bucket on every request.
+ *   FNV-1a 32-bit hash has no runtime state.
  */
 
-import type { ExperiencePlan, DecisionInput, HeroVariantKey, ProofVariantKey, CTAVariantKey } from "@/decision/types";
-import type { DecisionProvider } from "./decision-provider";
-import { getActiveExperiments, saveExperimentAssignment } from "@/data/repositories/experiments-repository";
-import { resolveExperimentBucket } from "@/experiments/bucket-assignment";
-import type { ResolvedAssignment, ExperimentSlot } from "@/experiments/types";
-import { logger } from "@/lib/logger";
+import type { ExperiencePlan, DecisionInput } from "@/decision/types";
+import type { DecisionProvider }              from "./decision-provider";
+import {
+  getActivePlanExperimentsForRule,
+  getActiveExperimentsForTenant,
+  savePlanExperimentAssignment,
+}                                             from "@/data/repositories/plan-experiments-repository";
+import type { PlanExperimentRow }             from "@/data/types";
+import { isEnrolled, assignBucket }           from "@/experiments/bucket-assignment";
+import { logger }                             from "@/lib/logger";
+
+// ── Duck-type helper ──────────────────────────────────────────────────────────
+
+/**
+ * Returns the last matched rule ID from the inner provider, if the provider
+ * exposes a `lastMatchedRuleId` property (RulesDecisionProvider does).
+ * Returns null for any other provider type.
+ */
+function getLastMatchedRuleId(provider: DecisionProvider): string | null {
+  if (
+    typeof provider === "object" &&
+    provider !== null &&
+    "lastMatchedRuleId" in provider &&
+    (typeof (provider as Record<string, unknown>).lastMatchedRuleId === "string" ||
+      (provider as Record<string, unknown>).lastMatchedRuleId === null)
+  ) {
+    return (provider as { lastMatchedRuleId: string | null }).lastMatchedRuleId;
+  }
+  return null;
+}
+
+// ── Provider ──────────────────────────────────────────────────────────────────
 
 export class ExperimentDecisionProvider implements DecisionProvider {
+  /**
+   * Whether experiment evaluation was enabled on the most recent
+   * getHomepagePlan() call.  Reflects the constructor arg (defaults to true).
+   * Read by debug panels to surface the global experiments toggle state.
+   */
+  public lastExperimentsEnabled: boolean;
+
   constructor(
     private readonly inner: DecisionProvider,
     private readonly sessionId: string,
-  ) {}
+    /**
+     * Tenant-level master switch (TenantSettings.experiments.enabled).
+     * When false, all plan experiment evaluation is skipped for this request.
+     * Defaults to true — preserves legacy behaviour for callers that don't
+     * yet pass the flag.
+     */
+    private readonly experimentsEnabled: boolean = true,
+    /**
+     * The active tenant ID.  Used to scope plan experiment lookups so that
+     * experiments from other tenants cannot bleed into this tenant's traffic.
+     *
+     * When omitted (empty string), the query falls back to returning no rows
+     * because no experiment has tenant_id = '' after the migration.
+     */
+    private readonly tenantId: string = "",
+    /**
+     * Dev-only: force a specific bucket (0 or 1) regardless of session hash.
+     * Undefined in production; set via ?_expBucket=<n> in development.
+     */
+    private readonly forceBucket?: 0 | 1,
+  ) {
+    this.lastExperimentsEnabled = experimentsEnabled;
+  }
 
   /**
-   * Resolve a homepage ExperiencePlan, potentially overriding one or more
-   * slots based on active A/B experiments.
+   * The plan experiment applied on the most recent getHomepagePlan() call.
+   *
+   *   null  — provider not yet called, experiments disabled, no matched rule,
+   *            or DB error before assignment phase.
+   *   object — one experiment was evaluated; bucket indicates control or challenger.
+   *
+   * Read by buildDecisionTrace() to populate DecisionTrace.appliedPlanExperiment.
+   */
+  public lastAppliedPlanExperiment: {
+    experimentId:   string;
+    experimentName: string;
+    ruleId:         string;
+    bucket:         0 | 1;
+    isChallenger:   boolean;
+  } | null = null;
+
+  /**
+   * The inner provider wrapped by this decorator.
+   * Exposed for provider-chain walking by buildDecisionTrace().
+   */
+  get innerProvider(): DecisionProvider {
+    return this.inner;
+  }
+
+  /**
+   * Resolve a homepage ExperiencePlan, potentially swapping to a challenger
+   * plan when an active plan experiment targets the matched rule.
    */
   async getHomepagePlan(input: DecisionInput): Promise<ExperiencePlan> {
     // ── Step 1: Get the base plan from the inner provider ──────────────────
     const basePlan = await this.inner.getHomepagePlan(input);
 
-    // ── Step 2: Load active experiments ───────────────────────────────────
-    const experimentsResult = await getActiveExperiments();
+    // ── Global experiments master switch ───────────────────────────────────
+    if (!this.experimentsEnabled) {
+      if (this.forceBucket !== undefined) {
+        // eslint-disable-next-line no-console
+        console.log("[plan-experiment] DEV DEBUG: experimentsEnabled=false — experiment skipped", {
+          sessionId: this.sessionId, tenantId: this.tenantId, forceBucket: this.forceBucket,
+        });
+      }
+      logger.debug("[plan-experiment] Experiments disabled at tenant level; skipping.", {
+        sessionId: this.sessionId,
+      });
+      this.lastAppliedPlanExperiment = null;
+      return basePlan;
+    }
+
+    // ── Step 2: Require a matched rule ────────────────────────────────────
+    //
+    // Plan experiments target rule-matched traffic.  When no rule matched
+    // (visitor received the default plan), skip experiment evaluation.
+    //
+    // Exception (dev-only): when forceBucket is set (via ?_expBucket=N),
+    // we allow experiment lookup even without a matched rule so developers
+    // can preview any active experiment regardless of visitor conditions.
+    const matchedRuleId = getLastMatchedRuleId(this.inner);
+
+    if (this.forceBucket !== undefined) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[plan-experiment] DEV DEBUG: forceBucket=${this.forceBucket} tenantId=${this.tenantId} experimentsEnabled=${this.experimentsEnabled} matchedRuleId=${matchedRuleId ?? "null"} sessionId=${this.sessionId}`,
+      );
+    }
+
+    if (!matchedRuleId && this.forceBucket === undefined) {
+      logger.debug("[plan-experiment] No matched rule — skipping plan experiment evaluation.", {
+        sessionId: this.sessionId,
+      });
+      this.lastAppliedPlanExperiment = null;
+      return basePlan;
+    }
+
+    // ── Step 3: Load active plan experiments ─────────────────────────────
+    //
+    // When a rule matched, scope to that rule.
+    // When forceBucket is set and no rule matched (dev preview), fetch ALL
+    // active experiments for the tenant and use the first one.
+    const experimentsResult = matchedRuleId
+      ? await getActivePlanExperimentsForRule(matchedRuleId, this.tenantId)
+      : await getActiveExperimentsForTenant(this.tenantId);
+
+    if (this.forceBucket !== undefined) {
+      const count = experimentsResult.ok ? experimentsResult.data.length : "ERROR";
+      const ids   = experimentsResult.ok
+        ? experimentsResult.data.map(e => `${e.id}(tenant:${e.tenant_id},status:${e.status})`).join(", ") || "(empty)"
+        : experimentsResult.error;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[plan-experiment] DEV DEBUG: query ok=${experimentsResult.ok} count=${count} tenantId=${this.tenantId} usedFallback=${!matchedRuleId} experiments=${ids}`,
+      );
+    }
 
     if (!experimentsResult.ok) {
-      // DB error — degrade gracefully, return the rules-based plan.
-      logger.warn("[experiment] Failed to load active experiments; using base plan.", {
-        sessionId: this.sessionId,
-        error: experimentsResult.error,
+      logger.warn("[plan-experiment] Failed to load plan experiments; using base plan.", {
+        sessionId:     this.sessionId,
+        matchedRuleId,
+        error:         experimentsResult.error,
       });
+      this.lastAppliedPlanExperiment = null;
       return basePlan;
     }
 
     const experiments = experimentsResult.data;
 
     if (experiments.length === 0) {
-      // Fast path: no active experiments.
+      // Fast path: no active experiments for this rule.
+      this.lastAppliedPlanExperiment = null;
       return basePlan;
     }
 
-    // ── Step 3: Apply experiments to the plan ─────────────────────────────
-    // Work on a mutable copy so we can patch slots without mutating the original.
-    let plan: ExperiencePlan = { ...basePlan };
-    const appliedAssignments: ResolvedAssignment[] = [];
-    const overriddenSlots = new Set<ExperimentSlot>();
-
-    for (const experiment of experiments) {
-      // Validate variants array
-      if (!Array.isArray(experiment.variants) || experiment.variants.length < 2) {
-        logger.warn("[experiment] Experiment has invalid variants array; skipping.", {
-          experimentId: experiment.id,
-          variants: experiment.variants,
-        });
-        continue;
-      }
-
-      const slot = experiment.slot as ExperimentSlot;
-
-      // Conflict check: a earlier experiment already owns this slot
-      if (overriddenSlots.has(slot)) {
-        logger.warn("[experiment] Slot conflict — two active experiments target the same slot; later one skipped.", {
-          slot,
-          skippedExperimentId: experiment.id,
-        });
-        continue;
-      }
-
-      // Resolve bucket (handles enrollment check internally)
-      const bucket = resolveExperimentBucket(
-        this.sessionId,
-        experiment.id,
-        experiment.variants.length,
-        experiment.traffic_fraction,
-      );
-
-      if (bucket === null) {
-        // Session is not in this experiment's traffic fraction
-        logger.debug("[experiment] Session not enrolled.", {
-          sessionId: this.sessionId,
-          experimentId: experiment.id,
-          trafficFraction: experiment.traffic_fraction,
-        });
-        continue;
-      }
-
-      const variantKey = experiment.variants[bucket] as string;
-
-      // Apply the override to the plan
-      plan = applySlotOverride(plan, slot, variantKey);
-      overriddenSlots.add(slot);
-
-      const assignment: ResolvedAssignment = {
-        experimentId: experiment.id,
-        experimentName: experiment.name,
-        slot,
-        bucket,
-        variantKey,
-      };
-      appliedAssignments.push(assignment);
-
-      logger.debug("[experiment] Bucket assigned.", {
-        sessionId: this.sessionId,
-        experimentId: experiment.id,
-        slot,
-        bucket,
-        variantKey,
-      });
-
-      // ── Fire-and-forget: persist the assignment ───────────────────────
-      void saveExperimentAssignment({
-        session_id: this.sessionId,
-        experiment_id: experiment.id,
-        bucket,
-        variant_key: variantKey,
-      }).then((result) => {
-        if (!result.ok) {
-          logger.warn("[experiment] Failed to persist assignment (non-blocking).", {
-            sessionId: this.sessionId,
-            experimentId: experiment.id,
-            error: result.error,
-          });
-        }
+    if (experiments.length > 1) {
+      // Warn but still proceed with the first (oldest) experiment.
+      logger.warn("[plan-experiment] Multiple active plan experiments for same rule; using oldest.", {
+        matchedRuleId,
+        experimentIds: experiments.map((e) => e.id),
       });
     }
 
-    // ── Step 4: Annotate the reason string ────────────────────────────────
-    if (appliedAssignments.length > 0) {
-      const experimentSummaries = appliedAssignments
-        .map((a) => `exp:"${a.experimentId}" slot:${a.slot} bucket:${a.bucket} key:${a.variantKey}`)
-        .join("; ");
+    const experiment = experiments[0];
 
-      plan = {
-        ...plan,
-        reason: `${plan.reason} | Experiments applied: [${experimentSummaries}]`,
-      };
+    // ── Step 4: Enrollment check ──────────────────────────────────────────
+    const enrolled = isEnrolled(this.sessionId, experiment.id, experiment.traffic_fraction);
+
+    if (!enrolled) {
+      logger.debug("[plan-experiment] Session not enrolled in experiment.", {
+        sessionId:     this.sessionId,
+        experimentId:  experiment.id,
+        trafficFraction: experiment.traffic_fraction,
+      });
+      this.lastAppliedPlanExperiment = null;
+      return basePlan;
     }
+
+    // ── Step 5: Bucket assignment (0 = control, 1 = challenger) ──────────
+    const bucket = (this.forceBucket !== undefined
+      ? this.forceBucket
+      : assignBucket(this.sessionId, experiment.id, 2)) as 0 | 1;
+    const isChallenger = bucket === 1;
+
+    // ── Step 6: Apply challenger plan (or keep control) ───────────────────
+    let plan: ExperiencePlan = basePlan;
+
+    if (isChallenger) {
+      plan = applyChallenger(basePlan, experiment);
+    }
+
+    // ── Step 7: Annotate reason string ────────────────────────────────────
+    const bucketLabel = isChallenger ? "challenger" : "control";
+    plan = {
+      ...plan,
+      reason: `${plan.reason} | PlanExp:"${experiment.id}" rule:${matchedRuleId} bucket:${bucket}(${bucketLabel})`,
+    };
+
+    // ── Record for trace/debug access ─────────────────────────────────────
+    this.lastAppliedPlanExperiment = {
+      experimentId:   experiment.id,
+      experimentName: experiment.name,
+      ruleId:         matchedRuleId ?? "dev-force",
+      bucket,
+      isChallenger,
+    };
+
+    logger.debug("[plan-experiment] Bucket assigned.", {
+      sessionId:    this.sessionId,
+      experimentId: experiment.id,
+      ruleId:       matchedRuleId,
+      bucket,
+      isChallenger,
+    });
+
+    // ── Step 8: Fire-and-forget persistence ───────────────────────────────
+    void savePlanExperimentAssignment({
+      session_id:    this.sessionId,
+      experiment_id: experiment.id,
+      bucket,
+    }).then((result) => {
+      if (!result.ok) {
+        logger.warn("[plan-experiment] Failed to persist assignment (non-blocking).", {
+          sessionId:    this.sessionId,
+          experimentId: experiment.id,
+          error:        result.error,
+        });
+      }
+    });
 
     return plan;
   }
 }
 
-// ── Slot override helper ──────────────────────────────────────────────────────
+// ── Challenger plan merge ─────────────────────────────────────────────────────
 
 /**
- * Returns a new ExperiencePlan with the given slot replaced by variantKey.
+ * Returns a new ExperiencePlan with the challenger_plan slots merged in.
  *
- * Type assertions are intentional — experiment variant keys come from the
- * database and must be valid keys for the slot they target (enforced by
- * the experiment configuration, not the type system).
+ * Only keys present in challenger_plan are overridden — missing keys inherit
+ * from the control plan.  This preserves narrative coherence: if the
+ * experiment only tests a hero variant, proof and CTA stay consistent.
  */
-function applySlotOverride(
-  plan: ExperiencePlan,
-  slot: ExperimentSlot,
-  variantKey: string,
+function applyChallenger(
+  control:    ExperiencePlan,
+  experiment: PlanExperimentRow,
 ): ExperiencePlan {
-  switch (slot) {
-    case "hero":
-      return { ...plan, heroKey: variantKey as HeroVariantKey };
-    case "proof":
-      return { ...plan, proofKey: variantKey as ProofVariantKey };
-    case "cta":
-      return { ...plan, ctaKey: variantKey as CTAVariantKey };
-  }
+  const cp = experiment.challenger_plan;
+
+  return {
+    ...control,
+    ...(cp.heroKey       ? { heroKey:       cp.heroKey       as ExperiencePlan["heroKey"]       } : {}),
+    ...(cp.proofKey      ? { proofKey:      cp.proofKey      as ExperiencePlan["proofKey"]      } : {}),
+    ...(cp.ctaKey        ? { ctaKey:        cp.ctaKey        as ExperiencePlan["ctaKey"]        } : {}),
+    ...(cp.featureKey    ? { featureKey:    cp.featureKey    as ExperiencePlan["featureKey"]    } : {}),
+    ...(cp.conversionKey ? { conversionKey: cp.conversionKey as ExperiencePlan["conversionKey"] } : {}),
+  };
 }

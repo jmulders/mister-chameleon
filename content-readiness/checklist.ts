@@ -494,7 +494,7 @@ const ctaHrefsNonPlaceholder: ContentReadinessCheck = {
     // Also check hero CTA hrefs
     for (const key of (getHeroKeys(tenant))) {
       const content = snapshot.hero[key];
-      if (content && isPlaceholderHref(content.cta.href)) {
+      if (content && content.ctas.some((c) => isPlaceholderHref(c.href))) {
         affectedKeys.push(key);
       }
     }
@@ -674,7 +674,7 @@ const contactCtaHasBookingLink: ContentReadinessCheck = {
     const heroKeys = getHeroKeys(tenant);
     const hasBookingHero = heroKeys.some(k => {
       const content = snapshot.hero[k];
-      return content && isBookingHref(content.cta.href);
+      return content && content.ctas.some((c) => isBookingHref(c.href));
     });
 
     if (!hasBookingCta && !hasBookingHero) {

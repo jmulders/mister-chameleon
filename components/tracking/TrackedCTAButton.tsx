@@ -49,8 +49,16 @@
  *   />
  */
 
+import Link           from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { trackEvent } from "@/tracking/track-event";
+import {
+  getJourneyStoreVisitorId,
+  pushToJourneyStore,
+  generateEventId,
+} from "@/tracking/journey-store";
+import { hasConsent } from "@/tracking/consent-store";
 
 interface TrackedCTAButtonProps {
   /** Navigation destination */
@@ -90,18 +98,47 @@ export function TrackedCTAButton({
   className,
   style,
 }: TrackedCTAButtonProps) {
+  const pathname = usePathname();
+
   const handleClick = () => {
-    trackEvent("cta_click", {
+    const payload = {
       href,
-      cta_key: ctaKey,
+      cta_key:    ctaKey,
       label,
       position,
-    });
+      page_path:  pathname,
+      visitor_id: getJourneyStoreVisitorId() ?? undefined,
+    };
+
+    if (hasConsent("analytics") && hasConsent("personalization")) {
+      // Normal path: consent granted — trackEvent handles local store + DB write.
+      trackEvent("cta_click", payload);
+    } else {
+      // Consent not yet given (e.g. admin testing before accepting the banner).
+      // Push directly to the local journey store for immediate Live State
+      // reflection, and write to the DB via the scenario endpoint which
+      // intentionally bypasses the consent gate for demo/admin use.
+      pushToJourneyStore(generateEventId(), "cta_click", {
+        ...payload,
+        occurred_at:    new Date().toISOString(),
+        scenario_panel: true,
+      });
+      fetch("/api/scenario/event", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          eventType:  "cta_click",
+          pagePath:   pathname,
+          eventValue: ctaKey ?? href,
+        }),
+        credentials: "include",
+      }).catch(() => {/* fire-and-forget */});
+    }
   };
 
   return (
     <Button
-      as="a"
+      as={Link}
       size="lg"
       variant={variant}
       href={href}

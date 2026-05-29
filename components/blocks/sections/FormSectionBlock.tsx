@@ -46,29 +46,35 @@
  *
  *   --form-bg                  Section background (default variant)
  *   --form-border              Section border colour (default variant)
- *   --form-input-bg            Input field background
- *   --form-input-border        Input field border colour
- *   --form-input-radius        Input field border-radius
- *   --form-input-text          Input field text colour
- *   --form-input-placeholder   Input placeholder text colour
- *   --form-input-focus-ring    Input focus-ring colour
- *   --form-label-color         Field label text colour
- *   --form-label-weight        Field label font weight
- *   --form-help-color          Help / hint text colour
+ *   --form-input-bg            Input field background       (→ Input/Textarea/Select atoms)
+ *   --form-input-border        Input field border colour    (→ Input/Textarea/Select atoms)
+ *   --form-input-radius        Input field border-radius    (→ Input/Textarea/Select atoms)
+ *   --form-input-text          Input field text colour      (→ Input/Textarea/Select atoms)
+ *   --form-input-placeholder   Input placeholder            (→ Input/Textarea/Select atoms)
+ *   --form-input-focus-ring    Input focus-ring colour      (→ Input/Textarea/Select atoms)
+ *   --form-label-color         Field label text colour      (→ FormField atom)
+ *   --form-label-weight        Field label font weight      (→ FormField atom)
+ *   --form-help-color          Help / hint text colour      (→ FormField atom)
  *   --card-bg / --card-border / --card-radius / --card-shadow
  *                              Card container (card variant only)
  *   --btn-bg / --btn-text / --btn-hover-bg / --btn-radius / --btn-shadow
  *                              Submit button
- *   --radius-interactive       Interactive element radius (inputs, button)
- *   --transition-base          Hover/focus transition timing
- *   --color-error-500          Required asterisk + field error text colour
+ *   --color-error-500          Required asterisk + field error text colour (→ FormField atom)
  */
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { getFormDefinition, isFormKey } from "@/forms";
 import type { FormField } from "@/forms";
+import { trackEvent } from "@/tracking/track-event";
+import {
+  pushToJourneyStore,
+  generateEventId,
+  getJourneyStoreVisitorId,
+} from "@/tracking/journey-store";
+import { hasConsent } from "@/tracking/consent-store";
 
 // Must match HONEYPOT_FIELD in forms/spam.ts — kept here to avoid importing
 // a server-only module into a client component.
@@ -76,10 +82,15 @@ const HONEYPOT_FIELD = "_hp" as const;
 import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { FormSectionVariant } from "@/page-config/block-variants";
 import type { FormBlockData } from "@/page-config";
-import { Container } from "@/components/primitives/Container";
-import { Section } from "@/components/primitives/Section";
-import { Stack } from "@/components/primitives/Stack";
-import { Text } from "@/components/primitives/Text";
+import { Container }  from "@/components/primitives/Container";
+import { Section }    from "@/components/primitives/Section";
+import { Stack }      from "@/components/primitives/Stack";
+import { Text }       from "@/components/primitives/Text";
+import { Button }     from "@/components/ui/Button";
+import { Input }      from "@/components/ui/Input";
+import { Textarea }   from "@/components/ui/Textarea";
+import { Select }     from "@/components/ui/Select";
+import { FormField as FormFieldAtom } from "@/components/ui/FormField";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -100,7 +111,15 @@ type SubmitState =
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlockProps) {
-  const variant = resolveBlockVariant("formSection", rawVariant) as FormSectionVariant;
+  const pathname = usePathname();
+  const resolved = resolveBlockVariant("formSection", rawVariant) as FormSectionVariant;
+  // Normalise canonical spec names → implementation keys.
+  // form_inline → default | form_panel → card | form_split stays as form_split
+  const variant: FormSectionVariant = (
+    resolved === "form_inline" ? "default" :
+    resolved === "form_panel"  ? "card"    :
+    resolved
+  ) as FormSectionVariant;
 
   // ── Resolve platform-side form definition ──────────────────────────────────
   //
@@ -119,6 +138,40 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   const successMessage = data.successMessage ?? formDef?.action.successMessage
     ?? "Thank you — your submission has been received.";
 
+  // ── Tracking helper ────────────────────────────────────────────────────────
+  //
+  // Mirrors the consent-bypass pattern used in PageTracker and TrackedCTAButton:
+  //   • Normal path  (consent granted): delegate to trackEvent (local + DB write).
+  //   • No-consent path               : push directly to window.__journey for the
+  //     Live State panel, and POST to /api/scenario/event for DB persistence.
+  const fireFormEvent = useCallback((eventType: "form_start" | "form_submit") => {
+    const payload = {
+      form_key:   data.formKey,
+      page_path:  pathname,
+      visitor_id: getJourneyStoreVisitorId() ?? undefined,
+    };
+
+    if (hasConsent("analytics") && hasConsent("personalization")) {
+      trackEvent(eventType, payload);
+    } else {
+      pushToJourneyStore(generateEventId(), eventType, {
+        ...payload,
+        occurred_at:    new Date().toISOString(),
+        scenario_panel: true,
+      });
+      fetch("/api/scenario/event", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          eventType,
+          pagePath:   pathname,
+          eventValue: data.formKey,
+        }),
+        credentials: "include",
+      }).catch(() => {/* fire-and-forget */});
+    }
+  }, [data.formKey, pathname]);
+
   // ── Submit state ───────────────────────────────────────────────────────────
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
 
@@ -126,6 +179,11 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   // re-occur on a second attempt.  Used as a stable useEffect dependency in
   // FormFields to trigger focus-first-error without over-firing.
   const [errorRevision, setErrorRevision] = useState(0);
+
+  // Special-case: interactive ROI calculator
+  if (data.formKey === "roi-calculator") {
+    return <RoiCalculatorInteractive title={title} intro={intro} />;
+  }
 
   // Guard: nothing to render when formKey is not registered
   if (!formDef) return null;
@@ -153,6 +211,7 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
       }
 
       if (json.ok) {
+        fireFormEvent("form_submit");
         setSubmitState({
           status:  "success",
           message: (json as { ok: true; message: string }).message ?? successMessage,
@@ -222,8 +281,8 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
 
   // ── Form render ────────────────────────────────────────────────────────────
 
-  const fieldErrors = submitState.status === "fieldErrors" ? submitState.errors : {};
-  const globalError = submitState.status === "error" ? submitState.message : undefined;
+  const fieldErrors  = submitState.status === "fieldErrors" ? submitState.errors : {};
+  const globalError  = submitState.status === "error" ? submitState.message : undefined;
   const isSubmitting = submitState.status === "submitting";
 
   const formContent = (
@@ -236,8 +295,64 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
       globalError={globalError}
       errorRevision={errorRevision}
       onSubmit={handleSubmit}
+      onFormStart={() => fireFormEvent("form_start")}
     />
   );
+
+  // ── form_split layout ─────────────────────────────────────────────────────
+  //
+  // Two-column layout: intro/heading in a narrower left column, form in the
+  // wider right column.  Useful for contact and demo-request pages where the
+  // intro copy supports the form conversion without hiding the form itself.
+
+  if (variant === "form_split") {
+    return (
+      <Section
+        spacing="xl"
+        style={{
+          background:   "var(--form-bg)",
+          borderTop:    "1px solid var(--form-border)",
+          borderBottom: "1px solid var(--form-border)",
+        }}
+      >
+        <Container size="lg">
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-16">
+
+            {/* Intro column */}
+            {(title || intro) && (
+              <div className="lg:w-1/3 lg:shrink-0">
+                <Stack gap={4}>
+                  {title && (
+                    <Text
+                      variant="h2"
+                      style={{
+                        color:      "var(--text)",
+                        fontFamily: "var(--font-heading)",
+                        fontWeight: "var(--font-heading-weight)",
+                      }}
+                    >
+                      {title}
+                    </Text>
+                  )}
+                  {intro && (
+                    <Text variant="body" style={{ color: "var(--text-muted)" }}>
+                      {intro}
+                    </Text>
+                  )}
+                </Stack>
+              </div>
+            )}
+
+            {/* Form column */}
+            <div className="flex-1 min-w-0">
+              {formContent}
+            </div>
+
+          </div>
+        </Container>
+      </Section>
+    );
+  }
 
   return (
     <FormWrapper variant={variant}>
@@ -331,6 +446,8 @@ interface FormFieldsProps {
   globalError?:  string;
   errorRevision: number;
   onSubmit:      (values: Record<string, string>) => Promise<void>;
+  /** Fired once when the visitor first focuses any form field. */
+  onFormStart?:  () => void;
 }
 
 function FormFields({
@@ -342,8 +459,18 @@ function FormFields({
   globalError,
   errorRevision,
   onSubmit,
+  onFormStart,
 }: FormFieldsProps) {
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Fire form_start exactly once when the visitor first focuses any field.
+  // Using a ref (not state) to avoid re-renders on focus.
+  const hasStartedRef = useRef(false);
+  const handleFormFocus = useCallback(() => {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    onFormStart?.();
+  }, [onFormStart]);
 
   // Focus the first field with an error after each validation round.
   // Skips the initial mount (errorRevision === 0) so no unwanted auto-focus.
@@ -391,7 +518,7 @@ function FormFields({
   };
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} noValidate aria-label={formKey}>
+    <form ref={formRef} onSubmit={handleSubmit} onFocusCapture={handleFormFocus} noValidate aria-label={formKey}>
       {/*
        * Honeypot — visually off-screen, aria-hidden, not keyboard-reachable.
        * Bots that auto-fill all inputs will fill this; real users never will.
@@ -442,70 +569,37 @@ function FormFields({
           />
         ))}
 
-        {/* Submit button */}
+        {/* Submit button — uses Button atom for consistent token-driven styling */}
         <div className="pt-2">
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
+            loading={isSubmitting}
             disabled={isSubmitting}
-            aria-busy={isSubmitting}
+            className="w-full"
             style={{
-              display:         "inline-flex",
-              alignItems:      "center",
-              justifyContent:  "center",
-              gap:             "0.5rem",
-              padding:         "0.625rem 1.5rem",
-              backgroundColor: isSubmitting ? "var(--btn-hover-bg)" : "var(--btn-bg)",
+              backgroundColor: "var(--btn-bg)",
               color:           "var(--btn-text)",
               borderRadius:    "var(--btn-radius)",
               boxShadow:       "var(--btn-shadow)",
               fontWeight:      "var(--btn-font-weight)",
-              fontSize:        "0.875rem",
-              lineHeight:      "1.25rem",
-              border:          "none",
-              cursor:          isSubmitting ? "not-allowed" : "pointer",
-              opacity:         isSubmitting ? 0.7 : 1,
-              transition:      "background-color var(--transition-base), opacity var(--transition-base)",
-              width:           "100%",
-            }}
-            onMouseEnter={(e) => {
-              if (!isSubmitting) {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--btn-hover-bg)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isSubmitting) {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--btn-bg)";
-              }
             }}
           >
-            {isSubmitting && (
-              /* Minimal spinner using CSS border trick */
-              <span
-                aria-hidden
-                style={{
-                  display:      "inline-block",
-                  width:        "0.875rem",
-                  height:       "0.875rem",
-                  border:       "2px solid currentColor",
-                  borderTopColor: "transparent",
-                  borderRadius: "50%",
-                  animation:    "spin 0.6s linear infinite",
-                }}
-              />
-            )}
             {isSubmitting ? "Sending…" : submitLabel}
-          </button>
+          </Button>
         </div>
 
       </Stack>
 
-      {/* Spinner keyframes — injected once per form instance */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </form>
   );
 }
 
 // ── FieldRenderer ─────────────────────────────────────────────────────────────
+//
+// Renders a single form field using the appropriate form atom (Input, Textarea,
+// Select) wrapped in the FormField atom for label + error + hint wiring.
 
 interface FieldRendererProps {
   field: FormField;
@@ -515,89 +609,18 @@ interface FieldRendererProps {
 function FieldRenderer({ field, error }: FieldRendererProps) {
   const isRequired = field.validation?.required === true;
   const hasError   = Boolean(error);
-  const errorId    = hasError ? `${field.key}-error` : undefined;
 
-  const labelEl = (
-    <label
-      htmlFor={field.key}
-      style={{
-        display:      "block",
-        fontSize:     "0.875rem",
-        fontWeight:   "var(--form-label-weight)",
-        color:        "var(--form-label-color)",
-        marginBottom: "0.375rem",
-      }}
-    >
-      {field.label}
-      {isRequired && (
-        <span
-          aria-hidden
-          style={{ color: "var(--color-error-500)", marginLeft: "0.25rem" }}
-        >
-          *
-        </span>
-      )}
-    </label>
-  );
-
-  const baseInputStyle: React.CSSProperties = {
-    display:         "block",
-    width:           "100%",
-    padding:         "0.5rem 0.75rem",
-    backgroundColor: "var(--form-input-bg)",
-    border:          hasError
-      ? "1px solid var(--color-error-500)"
-      : "1px solid var(--form-input-border)",
-    borderRadius:    "var(--form-input-radius)",
-    color:           "var(--form-input-text)",
-    fontSize:        "0.875rem",
-    lineHeight:      "1.5",
-    outline:         "none",
-    transition:      "border-color var(--transition-base), box-shadow var(--transition-base)",
-  };
-
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.currentTarget.style.borderColor = hasError
-      ? "var(--color-error-500)"
-      : "var(--form-input-focus-ring)";
-    e.currentTarget.style.boxShadow = hasError
-      ? `0 0 0 3px color-mix(in srgb, var(--color-error-500) 15%, transparent)`
-      : `0 0 0 3px color-mix(in srgb, var(--form-input-focus-ring) 20%, transparent)`;
-  };
-
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.currentTarget.style.borderColor = hasError
-      ? "var(--color-error-500)"
-      : "var(--form-input-border)";
-    e.currentTarget.style.boxShadow = "none";
-  };
-
-  // ── Error message ──────────────────────────────────────────────────────────
-  const errorEl = hasError ? (
-    <p
-      id={errorId}
-      role="alert"
-      style={{
-        fontSize:  "0.75rem",
-        color:     "var(--color-error-500)",
-        marginTop: "0.25rem",
-      }}
-    >
-      {error}
-    </p>
-  ) : null;
-
-  // ── Checkbox (inline layout) ───────────────────────────────────────────────
+  // ── Checkbox (inline layout — not using FormField atom) ────────────────────
   if (field.type === "checkbox") {
     return (
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem" }}>
+      <div className="flex items-start gap-2.5">
         <input
           type="checkbox"
           id={field.key}
           name={field.key}
           required={isRequired}
           defaultChecked={field.defaultValue === true}
-          aria-describedby={errorId}
+          aria-invalid={hasError || undefined}
           style={{
             marginTop:   "0.125rem",
             width:       "1rem",
@@ -609,29 +632,33 @@ function FieldRenderer({ field, error }: FieldRendererProps) {
         <div>
           <label
             htmlFor={field.key}
+            className="cursor-pointer text-sm"
             style={{
-              fontSize:   "0.875rem",
               fontWeight: "var(--form-label-weight)",
               color:      "var(--form-label-color)",
-              cursor:     "pointer",
             }}
           >
             {field.label}
             {isRequired && (
               <span
                 aria-hidden
-                style={{ color: "var(--color-error-500)", marginLeft: "0.25rem" }}
+                className="ml-1"
+                style={{ color: "var(--color-error-500)" }}
               >
                 *
               </span>
             )}
           </label>
-          {field.helpText && (
-            <p style={{ fontSize: "0.75rem", color: "var(--form-help-color)", marginTop: "0.125rem" }}>
+          {field.helpText && !hasError && (
+            <p className="mt-0.5 text-xs" style={{ color: "var(--form-help-color)" }}>
               {field.helpText}
             </p>
           )}
-          {errorEl}
+          {hasError && (
+            <p className="mt-0.5 text-xs" style={{ color: "var(--color-error-500)" }} role="alert">
+              {error}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -652,88 +679,468 @@ function FieldRenderer({ field, error }: FieldRendererProps) {
   // ── Textarea ───────────────────────────────────────────────────────────────
   if (field.type === "textarea") {
     return (
-      <div>
-        {labelEl}
-        <textarea
-          id={field.key}
-          name={field.key}
-          placeholder={field.placeholder}
-          required={isRequired}
-          rows={5}
-          aria-describedby={errorId}
-          aria-invalid={hasError || undefined}
-          style={{ ...baseInputStyle, resize: "vertical" }}
-          onFocus={handleFocus as React.FocusEventHandler<HTMLTextAreaElement>}
-          onBlur={handleBlur   as React.FocusEventHandler<HTMLTextAreaElement>}
-        />
-        {field.helpText && !hasError && (
-          <p style={{ fontSize: "0.75rem", color: "var(--form-help-color)", marginTop: "0.25rem" }}>
-            {field.helpText}
-          </p>
+      <FormFieldAtom
+        label={field.label}
+        htmlFor={field.key}
+        required={isRequired}
+        hint={field.helpText}
+        error={error}
+      >
+        {(errorId) => (
+          <Textarea
+            id={field.key}
+            name={field.key}
+            placeholder={field.placeholder}
+            required={isRequired}
+            rows={5}
+            error={hasError}
+            aria-invalid={hasError || undefined}
+            aria-describedby={errorId}
+          />
         )}
-        {errorEl}
-      </div>
+      </FormFieldAtom>
     );
   }
 
   // ── Select ─────────────────────────────────────────────────────────────────
   if (field.type === "select") {
     return (
-      <div>
-        {labelEl}
-        <select
-          id={field.key}
-          name={field.key}
-          required={isRequired}
-          defaultValue={typeof field.defaultValue === "string" ? field.defaultValue : ""}
-          aria-describedby={errorId}
-          aria-invalid={hasError || undefined}
-          style={baseInputStyle}
-          onFocus={handleFocus as React.FocusEventHandler<HTMLSelectElement>}
-          onBlur={handleBlur   as React.FocusEventHandler<HTMLSelectElement>}
-        >
-          <option value="" disabled>
-            {field.placeholder ?? "Select an option"}
-          </option>
-          {field.options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
+      <FormFieldAtom
+        label={field.label}
+        htmlFor={field.key}
+        required={isRequired}
+        hint={field.helpText}
+        error={error}
+      >
+        {(errorId) => (
+          <Select
+            id={field.key}
+            name={field.key}
+            required={isRequired}
+            defaultValue={typeof field.defaultValue === "string" ? field.defaultValue : ""}
+            error={hasError}
+            aria-invalid={hasError || undefined}
+            aria-describedby={errorId}
+          >
+            <option value="" disabled>
+              {field.placeholder ?? "Select an option"}
             </option>
-          ))}
-        </select>
-        {field.helpText && !hasError && (
-          <p style={{ fontSize: "0.75rem", color: "var(--form-help-color)", marginTop: "0.25rem" }}>
-            {field.helpText}
-          </p>
+            {field.options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
         )}
-        {errorEl}
-      </div>
+      </FormFieldAtom>
     );
   }
 
   // ── text | email | tel | url ───────────────────────────────────────────────
   return (
-    <div>
-      {labelEl}
-      <input
-        type={field.type}
-        id={field.key}
-        name={field.key}
-        placeholder={field.placeholder}
-        required={isRequired}
-        aria-describedby={errorId}
-        aria-invalid={hasError || undefined}
-        style={baseInputStyle}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-      />
-      {field.helpText && !hasError && (
-        <p style={{ fontSize: "0.75rem", color: "var(--form-help-color)", marginTop: "0.25rem" }}>
-          {field.helpText}
-        </p>
+    <FormFieldAtom
+      label={field.label}
+      htmlFor={field.key}
+      required={isRequired}
+      hint={field.helpText}
+      error={error}
+    >
+      {(errorId) => (
+        <Input
+          type={field.type}
+          id={field.key}
+          name={field.key}
+          placeholder={field.placeholder}
+          required={isRequired}
+          error={hasError}
+          aria-invalid={hasError || undefined}
+          aria-describedby={errorId}
+        />
       )}
-      {errorEl}
-    </div>
+    </FormFieldAtom>
+  );
+}
+
+// ── RoiCalculatorInteractive ──────────────────────────────────────────────────
+//
+// Rendered when formKey === "roi-calculator".  Entirely client-side — no form
+// submission.  All state is local; results update live as sliders move.
+
+interface RoiCalculatorInteractiveProps {
+  title?: string;
+  intro?: string;
+}
+
+type LiftScenario = "conservative" | "moderate" | "aggressive";
+
+const LIFT_LABELS: Record<LiftScenario, string> = {
+  conservative: "Conservative (25%)",
+  moderate:     "Moderate (35%)",
+  aggressive:   "Aggressive (50%)",
+};
+
+const LIFT_VALUES: Record<LiftScenario, number> = {
+  conservative: 0.25,
+  moderate:     0.35,
+  aggressive:   0.50,
+};
+
+const GROWTH_PLAN_MONTHLY = 349; // € / month baseline
+
+function fmtEur(n: number): string {
+  return "€" + Math.round(n).toLocaleString("en-GB");
+}
+
+function fmtNum(n: number): string {
+  return Math.round(n).toLocaleString("en-GB");
+}
+
+function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProps) {
+  const [visitors,        setVisitors]        = useState(10_000);
+  const [conversionRate,  setConversionRate]  = useState(2.0);    // %
+  const [contractValue,   setContractValue]   = useState(5_000);  // €
+  const [liftScenario,    setLiftScenario]    = useState<LiftScenario>("moderate");
+
+  const liftFactor        = LIFT_VALUES[liftScenario];
+  const currentConv       = visitors * (conversionRate / 100);
+  const projectedConv     = currentConv * (1 + liftFactor);
+  const extraConv         = projectedConv - currentConv;
+  const extraPipeline     = extraConv * contractValue;
+  const annualLift        = extraPipeline * 12;
+  const roiMultiple       = extraPipeline / GROWTH_PLAN_MONTHLY;
+
+  // ── Styles (all inline with CSS variables, no Tailwind) ───────────────────
+
+  const sectionStyle: React.CSSProperties = {
+    background:   "var(--form-bg, var(--bg-subtle, #f8f9fa))",
+    borderTop:    "1px solid var(--form-border, var(--border))",
+    borderBottom: "1px solid var(--form-border, var(--border))",
+    padding:      "5rem 1.5rem",
+  };
+
+  const gridStyle: React.CSSProperties = {
+    display:             "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap:                 "3rem",
+    maxWidth:            "1100px",
+    margin:              "0 auto",
+  };
+
+  const headingStyle: React.CSSProperties = {
+    color:      "var(--text)",
+    fontFamily: "var(--font-heading)",
+    fontWeight: "var(--font-heading-weight, 700)",
+    fontSize:   "clamp(1.75rem, 3vw, 2.5rem)",
+    lineHeight: 1.2,
+    marginBottom: "0.75rem",
+  };
+
+  const introStyle: React.CSSProperties = {
+    color:        "var(--text-muted)",
+    fontSize:     "1.0625rem",
+    lineHeight:   1.6,
+    marginBottom: "2.5rem",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display:      "block",
+    color:        "var(--form-label-color, var(--text))",
+    fontWeight:   "var(--form-label-weight, 600)",
+    fontSize:     "0.875rem",
+    marginBottom: "0.375rem",
+  };
+
+  const valueTagStyle: React.CSSProperties = {
+    display:         "inline-block",
+    backgroundColor: "var(--primary-subtle, color-mix(in srgb, var(--primary) 12%, transparent))",
+    color:           "var(--primary)",
+    borderRadius:    "0.375rem",
+    padding:         "0.125rem 0.5rem",
+    fontSize:        "0.8125rem",
+    fontWeight:      600,
+    marginLeft:      "0.5rem",
+    verticalAlign:   "middle",
+  };
+
+  const sliderStyle: React.CSSProperties = {
+    width:       "100%",
+    marginTop:   "0.5rem",
+    accentColor: "var(--primary)",
+    cursor:      "pointer",
+  };
+
+  const sliderGroupStyle: React.CSSProperties = {
+    marginBottom: "1.75rem",
+  };
+
+  const scenarioGroupStyle: React.CSSProperties = {
+    display:       "flex",
+    gap:           "0.625rem",
+    flexWrap:      "wrap",
+    marginTop:     "0.5rem",
+  };
+
+  const resultsPanelStyle: React.CSSProperties = {
+    backgroundColor: "var(--card-bg, var(--bg))",
+    border:          "1px solid var(--card-border, var(--border))",
+    borderRadius:    "var(--card-radius, 1rem)",
+    boxShadow:       "var(--card-shadow, 0 4px 24px rgba(0,0,0,0.08))",
+    padding:         "2rem",
+    display:         "flex",
+    flexDirection:   "column",
+    gap:             "0",
+  };
+
+  const resultsPanelHeadingStyle: React.CSSProperties = {
+    color:        "var(--text)",
+    fontFamily:   "var(--font-heading)",
+    fontWeight:   700,
+    fontSize:     "1rem",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    marginBottom: "1.5rem",
+    opacity:      0.55,
+  };
+
+  const resultRowStyle: React.CSSProperties = {
+    display:        "flex",
+    justifyContent: "space-between",
+    alignItems:     "baseline",
+    padding:        "0.875rem 0",
+    borderBottom:   "1px solid var(--form-border, var(--border, rgba(0,0,0,0.08)))",
+  };
+
+  const resultLabelStyle: React.CSSProperties = {
+    color:    "var(--text-muted)",
+    fontSize: "0.9375rem",
+  };
+
+  const resultValueStyle: React.CSSProperties = {
+    color:      "var(--text)",
+    fontWeight: 700,
+    fontSize:   "1rem",
+  };
+
+  const highlightRowStyle: React.CSSProperties = {
+    ...resultRowStyle,
+    borderBottom:    "none",
+    marginTop:       "0.5rem",
+    padding:         "1rem 1.25rem",
+    backgroundColor: "var(--primary-subtle, color-mix(in srgb, var(--primary) 10%, transparent))",
+    borderRadius:    "0.75rem",
+  };
+
+  const highlightLabelStyle: React.CSSProperties = {
+    ...resultLabelStyle,
+    color:      "var(--primary)",
+    fontWeight: 600,
+  };
+
+  const highlightValueStyle: React.CSSProperties = {
+    ...resultValueStyle,
+    color:    "var(--primary)",
+    fontSize: "1.375rem",
+  };
+
+  const ctaStyle: React.CSSProperties = {
+    display:         "block",
+    width:           "100%",
+    textAlign:       "center",
+    marginTop:       "1.5rem",
+    padding:         "0.875rem 1.5rem",
+    backgroundColor: "var(--btn-bg, var(--primary))",
+    color:           "var(--btn-text, #fff)",
+    borderRadius:    "var(--btn-radius, 0.5rem)",
+    boxShadow:       "var(--btn-shadow, 0 2px 8px rgba(0,0,0,0.15))",
+    fontWeight:      "var(--btn-font-weight, 700)" as React.CSSProperties["fontWeight"],
+    fontSize:        "1rem",
+    textDecoration:  "none",
+    border:          "none",
+    cursor:          "pointer",
+    transition:      "opacity 0.15s",
+  };
+
+  const subNoteStyle: React.CSSProperties = {
+    textAlign:  "center",
+    color:      "var(--text-muted)",
+    fontSize:   "0.78125rem",
+    marginTop:  "0.75rem",
+    lineHeight: 1.4,
+  };
+
+  return (
+    <section style={sectionStyle} aria-label="ROI Calculator">
+      {/* Responsive wrapper — collapses to single column on narrow viewports */}
+      <style>{`
+        @media (max-width: 768px) {
+          .roi-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: "1100px", margin: "0 auto 3rem" }}>
+        {title && <h2 style={headingStyle}>{title}</h2>}
+        {intro && <p style={introStyle}>{intro}</p>}
+      </div>
+
+      {/* ── Two-column grid ────────────────────────────────────────────────── */}
+      <div className="roi-grid" style={gridStyle}>
+
+        {/* ── Left: Inputs ─────────────────────────────────────────────────── */}
+        <div>
+
+          {/* Monthly visitors */}
+          <div style={sliderGroupStyle}>
+            <label style={labelStyle}>
+              Monthly visitors
+              <span style={valueTagStyle}>{fmtNum(visitors)}</span>
+            </label>
+            <input
+              type="range"
+              min={1_000}
+              max={500_000}
+              step={1_000}
+              value={visitors}
+              onChange={(e) => setVisitors(Number(e.target.value))}
+              style={sliderStyle}
+              aria-label="Monthly visitors"
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+              <span>1,000</span><span>500,000</span>
+            </div>
+          </div>
+
+          {/* Current conversion rate */}
+          <div style={sliderGroupStyle}>
+            <label style={labelStyle}>
+              Current conversion rate
+              <span style={valueTagStyle}>{conversionRate.toFixed(1)}%</span>
+            </label>
+            <input
+              type="range"
+              min={0.1}
+              max={10}
+              step={0.1}
+              value={conversionRate}
+              onChange={(e) => setConversionRate(Number(e.target.value))}
+              style={sliderStyle}
+              aria-label="Current conversion rate"
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+              <span>0.1%</span><span>10%</span>
+            </div>
+          </div>
+
+          {/* Average contract value */}
+          <div style={sliderGroupStyle}>
+            <label style={labelStyle}>
+              Average contract value
+              <span style={valueTagStyle}>{fmtEur(contractValue)}</span>
+            </label>
+            <input
+              type="range"
+              min={100}
+              max={50_000}
+              step={100}
+              value={contractValue}
+              onChange={(e) => setContractValue(Number(e.target.value))}
+              style={sliderStyle}
+              aria-label="Average contract value"
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+              <span>€100</span><span>€50,000</span>
+            </div>
+          </div>
+
+          {/* Lift scenario */}
+          <div style={{ marginBottom: "0.375rem" }}>
+            <span style={labelStyle}>Lift scenario</span>
+            <div style={scenarioGroupStyle} role="group" aria-label="Lift scenario">
+              {(Object.keys(LIFT_LABELS) as LiftScenario[]).map((key) => {
+                const isActive = liftScenario === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setLiftScenario(key)}
+                    aria-pressed={isActive}
+                    style={{
+                      padding:         "0.5rem 1rem",
+                      borderRadius:    "2rem",
+                      border:          isActive
+                        ? "2px solid var(--primary)"
+                        : "2px solid var(--form-border, var(--border, rgba(0,0,0,0.15)))",
+                      backgroundColor: isActive
+                        ? "var(--primary-subtle, color-mix(in srgb, var(--primary) 12%, transparent))"
+                        : "transparent",
+                      color:           isActive ? "var(--primary)" : "var(--text-muted)",
+                      fontWeight:      isActive ? 700 : 400,
+                      fontSize:        "0.875rem",
+                      cursor:          "pointer",
+                      transition:      "all 0.15s",
+                      whiteSpace:      "nowrap",
+                    }}
+                  >
+                    {LIFT_LABELS[key]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+
+        {/* ── Right: Results panel ──────────────────────────────────────────── */}
+        <div style={resultsPanelStyle}>
+          <p style={resultsPanelHeadingStyle}>Your projected results</p>
+
+          <div style={resultRowStyle}>
+            <span style={resultLabelStyle}>Current monthly conversions</span>
+            <span style={resultValueStyle}>{fmtNum(currentConv)}</span>
+          </div>
+
+          <div style={resultRowStyle}>
+            <span style={resultLabelStyle}>Projected monthly conversions</span>
+            <span style={resultValueStyle}>{fmtNum(projectedConv)}</span>
+          </div>
+
+          <div style={resultRowStyle}>
+            <span style={resultLabelStyle}>Extra conversions / month</span>
+            <span style={{ ...resultValueStyle, color: "var(--primary)" }}>+{fmtNum(extraConv)}</span>
+          </div>
+
+          <div style={resultRowStyle}>
+            <span style={resultLabelStyle}>Extra pipeline / month</span>
+            <span style={{ ...resultValueStyle, color: "var(--primary)" }}>{fmtEur(extraPipeline)}</span>
+          </div>
+
+          <div style={resultRowStyle}>
+            <span style={resultLabelStyle}>Annual revenue lift</span>
+            <span style={{ ...resultValueStyle, fontSize: "1.125rem" }}>{fmtEur(annualLift)}</span>
+          </div>
+
+          {/* ROI highlight */}
+          <div style={highlightRowStyle}>
+            <span style={highlightLabelStyle}>ROI vs Growth plan</span>
+            <span style={highlightValueStyle}>{roiMultiple.toFixed(1)}× / month</span>
+          </div>
+
+          {/* CTA */}
+          <a
+            href="/contact"
+            style={ctaStyle}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.88"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1"; }}
+          >
+            Start growing — talk to us
+          </a>
+          <p style={subNoteStyle}>
+            Based on Growth plan at {fmtEur(GROWTH_PLAN_MONTHLY)}/month &bull; No commitment required
+          </p>
+
+        </div>
+      </div>
+    </section>
   );
 }
 

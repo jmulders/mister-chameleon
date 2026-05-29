@@ -55,8 +55,21 @@ CREATE TABLE IF NOT EXISTS tenant_domains (
 );
 
 -- One hostname → one tenant only.
-CREATE UNIQUE INDEX IF NOT EXISTS tenant_domains_hostname_unique
-  ON tenant_domains (hostname);
+-- Wrapped in DO block to gracefully handle schema mismatches when the table
+-- already exists without the hostname column (fixed by migration 069).
+DO $$
+BEGIN
+  -- Only create the index if hostname column exists (prevents SQLSTATE 42703).
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'tenant_domains'
+      AND column_name  = 'hostname'
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS tenant_domains_hostname_unique
+      ON tenant_domains (hostname);
+  END IF;
+END $$;
 
 -- Fast lookups of all domains belonging to a tenant.
 CREATE INDEX IF NOT EXISTS tenant_domains_tenant_id_idx

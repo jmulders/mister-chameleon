@@ -40,11 +40,12 @@
  *   --bg-subtle
  */
 
-import { Container }               from "@/components/primitives/Container";
-import { Section }                 from "@/components/primitives/Section";
-import { resolveBlockVariant }     from "@/page-config/block-variants";
-import type { VacancyMetaVariant } from "@/page-config/block-variants";
-import type { VacancyMetaBlockData } from "@/page-config";
+import { Container }                    from "@/components/primitives/Container";
+import { Section }                      from "@/components/primitives/Section";
+import { Breadcrumbs, MetaItem, MetaList } from "@/components/molecules";
+import { resolveBlockVariant }          from "@/page-config/block-variants";
+import type { VacancyMetaVariant }      from "@/page-config/block-variants";
+import type { VacancyMetaBlockData }    from "@/page-config";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -103,36 +104,6 @@ function isCloseDeadline(iso: string): boolean {
   }
 }
 
-// ── MetaRow ───────────────────────────────────────────────────────────────────
-
-function MetaRow({ label, value, urgent }: { label: string; value: string; urgent?: boolean }) {
-  return (
-    <div
-      style={{
-        display:        "grid",
-        gridTemplateColumns: "8rem 1fr",
-        gap:            "0.5rem",
-        alignItems:     "baseline",
-        padding:        "0.625rem 0",
-        borderBottom:   "1px solid var(--card-border)",
-      }}
-    >
-      <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)", fontWeight: 500 }}>
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize:   "0.9375rem",
-          color:      urgent ? "var(--color-error-500, #ef4444)" : "var(--text)",
-          fontWeight: urgent ? 600 : 400,
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
 // ── Badge ─────────────────────────────────────────────────────────────────────
 
 function MetaBadge({ label }: { label: string }) {
@@ -180,8 +151,8 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
             style={{
               fontSize:        "0.75rem",
               fontWeight:      600,
-              color:           "var(--primary)",
-              backgroundColor: "var(--primary-subtle)",
+              color:           "var(--text-muted)",
+              backgroundColor: "var(--bg-subtle)",
               borderRadius:    "2rem",
               padding:         "0.1875rem 0.625rem",
             }}
@@ -189,7 +160,7 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
             {department}
           </span>
         )}
-        {badges.map((b) => <MetaBadge key={b} label={b} />)}
+        {badges.filter(Boolean).map((b) => <MetaBadge key={b} label={b} />)}
         {closingDate && (
           <span
             style={{
@@ -210,6 +181,11 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
   return (
     <Section spacing="sm" style={{ background: "var(--bg)" }}>
       <Container size="md">
+        {data.breadcrumbs && data.breadcrumbs.length > 0 && (
+          <div style={{ marginBottom: "0.75rem" }}>
+            <Breadcrumbs items={data.breadcrumbs} />
+          </div>
+        )}
         <div
           style={{
             backgroundColor: "var(--card-bg)",
@@ -247,8 +223,8 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
                     marginTop:       title ? "0.375rem" : 0,
                     fontSize:        "0.75rem",
                     fontWeight:      600,
-                    color:           "var(--primary)",
-                    backgroundColor: "var(--primary-subtle)",
+                    color:           "var(--text-muted)",
+                    backgroundColor: "var(--bg-subtle)",
                     borderRadius:    "2rem",
                     padding:         "0.1875rem 0.625rem",
                   }}
@@ -260,9 +236,9 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
           )}
 
           {/* Metadata rows */}
-          <div style={{ padding: "0 1.5rem" }}>
+          <MetaList>
             {location && (
-              <MetaRow
+              <MetaItem
                 label="Location"
                 value={remote && remote !== "on-site"
                   ? `${location} · ${REMOTE_LABELS[remote]}`
@@ -270,31 +246,31 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
               />
             )}
             {!location && remote && (
-              <MetaRow label="Work style" value={REMOTE_LABELS[remote]} />
+              <MetaItem label="Work style" value={REMOTE_LABELS[remote]} />
             )}
             {contractType && (
-              <MetaRow label="Contract" value={CONTRACT_LABELS[contractType]} />
+              <MetaItem label="Contract" value={CONTRACT_LABELS[contractType]} />
             )}
             {hoursPerWeek && (
-              <MetaRow label="Hours" value={hoursPerWeek} />
+              <MetaItem label="Hours" value={hoursPerWeek} />
             )}
             {level && (
-              <MetaRow label="Level" value={level} />
+              <MetaItem label="Level" value={level} />
             )}
             {salaryRange && (
-              <MetaRow label="Salary" value={salaryRange} />
+              <MetaItem label="Salary" value={salaryRange} />
             )}
             {startDate && (
-              <MetaRow label="Start date" value={startDate} />
+              <MetaItem label="Start date" value={startDate} />
             )}
             {closingDate && (
-              <MetaRow
+              <MetaItem
                 label="Deadline"
                 value={formatDeadline(closingDate)}
                 urgent={isCloseDeadline(closingDate)}
               />
             )}
-          </div>
+          </MetaList>
 
           {/* Empty state */}
           {!location && !remote && !contractType && !hoursPerWeek && !level && !salaryRange && !startDate && !closingDate && (

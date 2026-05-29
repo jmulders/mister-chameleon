@@ -13,6 +13,10 @@ export {
   mapSanityHero,
   mapSanityProof,
   mapSanityCTA,
+  mapSanityFeature,
+  mapSanityConversion,
+  mapSanityNotification,
+  mapSanityAdaptiveHero,
   mapSanitySiteSettings,
   mapSanityPage,
 } from "./sanity-mappers";

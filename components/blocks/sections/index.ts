@@ -33,3 +33,22 @@ export { SearchBlock }             from "./SearchBlock";
 // careers / W6
 export { ProcessStepsBlock }       from "./ProcessStepsBlock";
 export { RecruiterPanelBlock }     from "./RecruiterPanelBlock";
+// text
+export { RichTextBlock }           from "./RichTextBlock";
+// conversion / pricing
+export { PricingSectionBlock }     from "./PricingSectionBlock";
+// content / editorial
+export { ContentSectionBlock }     from "./ContentSectionBlock";
+export { TeamSectionBlock }        from "./TeamSectionBlock";
+// new core blocks
+export { TimelineBlock }           from "./TimelineBlock";
+export { QuickLinksBlock }         from "./QuickLinksBlock";
+export { TextMediaBlock }          from "./TextMediaBlock";
+export { ContactSectionBlock }     from "./ContactSectionBlock";
+// commerce / product blocks
+export { ProductOverviewBlock }    from "./ProductOverviewBlock";
+export { ProductDetailBlock }      from "./ProductDetailBlock";
+export { CartSummaryBlock }        from "./CartSummaryBlock";
+export { CheckoutBlock }           from "./CheckoutBlock";
+// map
+export { MapBlock }                from "./MapBlock";

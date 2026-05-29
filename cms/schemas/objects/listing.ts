@@ -13,6 +13,28 @@ export default defineType({
   title: "Listing",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls the visual layout of this listing section.",
+      options: {
+        list: [
+          { title: "Cards — 3-column card grid (default)", value: "listing_cards" },
+          { title: "Rows — single-column row list",        value: "listing_rows" },
+          { title: "Compact — text-only dense list",       value: "listing_compact" },
+          { title: "Slider — horizontal scroll carousel", value: "listing_slider" },
+          // Legacy aliases
+          { title: "Default (alias → cards)",              value: "default" },
+          { title: "Grid (alias → cards)",                 value: "grid" },
+          { title: "List (alias → rows)",                  value: "list" },
+          { title: "Compact (alias)",                      value: "compact" },
+        ],
+      },
+      initialValue: "listing_cards",
+    }),
+
     defineField({
       name: "heading",
       title: "Heading",

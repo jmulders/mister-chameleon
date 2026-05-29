@@ -27,6 +27,26 @@
  * import { MARKETING_PAGE_TEMPLATE, isRegisteredBlockType } from "@/page-config";
  */
 
+// ── Collection source (CMS-agnostic content source model) ─────────────────────
+
+export type {
+  CollectionKey,
+  CollectionSourceMode,
+  CollectionSortDir,
+  ManualContentSource,
+  CollectionContentSource,
+  ContentSource,
+  CollectionItem,
+} from "./collection-source";
+
+export {
+  COLLECTION_KEY_LABELS,
+  isCollectionSource,
+  isManualSource,
+  isCollectionKey,
+  sortBySelectedIds,
+} from "./collection-source";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type {
@@ -79,6 +99,7 @@ export type {
   ArticleBodyBlockData,
   ArticleAuthor,
   ArticleMetaBlockData,
+  BreadcrumbItem,
   RelatedItem,
   RelatedContentBlockData,
   VacancyMetaBlockData,
@@ -92,6 +113,31 @@ export type {
   ProcessStep,
   ProcessStepsBlockData,
   RecruiterPanelBlockData,
+
+  // ── Conversion / pricing block data types ────────────────────────────────────
+  PriceTier,
+  PricingSectionBlockData,
+
+  // ── Content / editorial block data types ─────────────────────────────────────
+  BlockCTA,
+  ContentSectionBlockData,
+  TeamMemberItem,
+  TeamSectionBlockData,
+
+  // ── New core block data types ─────────────────────────────────────────────────
+  TimelineItem,
+  TimelineBlockData,
+  QuickLinkItem,
+  QuickLinksBlockData,
+  TextMediaBlockData,
+  ContactSectionBlockData,
+
+  // ── Map block data type ──────────────────────────────────────────────────────
+  MapBlockData,
+
+  // ── Commerce block data types ────────────────────────────────────────────────
+  CartSummaryBlockData,
+  CheckoutBlockData,
 
   // ── Content block union (all blocks) ────────────────────────────────────────
   TextSectionBlock,
@@ -122,6 +168,21 @@ export type {
   // careers / W6
   ProcessStepsBlock,
   RecruiterPanelBlock,
+  // conversion / pricing
+  PricingSectionBlock,
+  // content / editorial
+  ContentSectionBlock,
+  TeamSectionBlock,
+  // new core blocks
+  TimelineBlock,
+  QuickLinksBlock,
+  TextMediaBlock,
+  ContactSectionBlock,
+  // map
+  MapBlock,
+  // commerce
+  CartSummaryBlock,
+  CheckoutBlock,
   ContentBlock,
 
   // Context slot
@@ -150,6 +211,22 @@ export {
   isTemplateKey,
 } from "./templates";
 
+// ── Block variant register ────────────────────────────────────────────────────
+
+export type {
+  VariantDefinition,
+  VariantRegisterEntry,
+} from "./block-variant-register";
+
+export {
+  BLOCK_VARIANT_REGISTER,
+  VARIANT_REGISTER_MAP,
+  getVariantRegisterEntry,
+  getDefaultVariant,
+  isRegisteredVariant,
+  getVariantOptions,
+} from "./block-variant-register";
+
 // ── Block variants ────────────────────────────────────────────────────────────
 
 export type {
@@ -172,6 +249,19 @@ export type {
   // careers / W6
   ProcessStepsVariant,
   RecruiterPanelVariant,
+  // conversion / pricing
+  PricingSectionVariant,
+  // content / editorial
+  ContentSectionVariant,
+  TeamSectionVariant,
+  AboutVariant,
+  // new core blocks
+  TimelineVariant,
+  QuickLinksVariant,
+  TextMediaVariant,
+  ContactSectionVariant,
+  // extended variants
+  NewsListVariant,
 } from "./block-variants";
 
 export {
@@ -191,3 +281,84 @@ export {
   getAllBlockDefinitions,
   getBlocksByCategory,
 } from "./registry";
+
+// ── Page presets ──────────────────────────────────────────────────────────────
+
+export type { PagePreset } from "./page-presets";
+
+export {
+  PAGE_PRESETS,
+  PAGE_PRESET_MAP,
+  getPreset,
+  getAllPresets,
+} from "./page-presets";
+
+// ── Site presets ───────────────────────────────────────────────────────────────
+
+export type { SiteType, SitePreset, SitePageEntry } from "./site-presets";
+
+export {
+  SITE_PRESETS,
+  SITE_PRESET_MAP,
+  getSitePreset,
+  getAllSitePresets,
+  isSiteType,
+} from "./site-presets";
+
+// ── Site starters ─────────────────────────────────────────────────────────────
+//
+// Use-case-driven starter bundles.  Each combines siteTypeKey + themeKey +
+// blueprintKey into a single meaningful setup choice for the operator.
+
+export type { SiteStarter } from "./starters";
+
+export {
+  SITE_STARTERS,
+  getAllStarters,
+  findStarterByKey,
+  getStartersBySiteType,
+} from "./starters";
+
+// ── Template catalog ──────────────────────────────────────────────────────────
+
+export type {
+  TemplateCatalogCategory,
+  TemplateCatalogEntry,
+  TemplatePreviewType,
+} from "./template-catalog";
+
+export {
+  TEMPLATE_CATALOG,
+  TEMPLATE_CATALOG_MAP,
+  TEMPLATE_CATALOG_CATEGORY_LABELS,
+  getTemplateCatalogEntry,
+  getAllTemplateCatalogEntries,
+  getTemplateCatalogByCategory,
+  resolvePresetKey,
+  templateKeysToPageEntries,
+} from "./template-catalog";
+
+// ── Template registry ─────────────────────────────────────────────────────────
+
+export type {
+  SlotContractKey,
+  SlotContractStatus,
+  SlotContract,
+  TemplateRegistryKey,
+  TemplateRegistryCategory,
+  TemplateRegistryEntry,
+} from "./template-registry";
+
+export {
+  SLOT_CONTRACT_REGISTRY,
+  CORE_TEMPLATE_REGISTRY,
+  EXTENDED_TEMPLATE_REGISTRY,
+  FULL_TEMPLATE_REGISTRY,
+  TEMPLATE_REGISTRY_MAP,
+  getTemplateRegistryEntry,
+  getRegistryByCategory,
+  getRegistryEntryByCatalogKey,
+  getDefaultSelectedTemplates,
+  getSlotContract,
+  getActiveSlotContracts,
+} from "./template-registry";

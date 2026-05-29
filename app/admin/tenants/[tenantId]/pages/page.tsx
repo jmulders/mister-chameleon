@@ -150,7 +150,7 @@ export default async function TenantPagesPage({
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <Text variant="h2">Pages</Text>
+          <h1 className="text-xl font-semibold text-neutral-900">Pages</h1>
           <Text variant="body-sm" color="muted" className="mt-1">
             {pages.length} page{pages.length !== 1 ? "s" : ""} for{" "}
             <code className="font-mono text-xs">{tenantId}</code>

@@ -91,9 +91,10 @@ import {
 } from "../rules/stored-rule";
 import type { RuleEvaluationContext } from "../rules/field-registry";
 import {
-  evaluateConditionTrace,
+  generateRuleTrace,
   ruleTraceToLogMeta,
   summariseTrace,
+  collectMatchedContextIds,
   type RuleEvalTrace,
 } from "../rules/rule-trace";
 import { logger } from "@/lib/logger";
@@ -121,18 +122,40 @@ const RULES_PATH = path.join(
 // ── Rule loading ──────────────────────────────────────────────────────────────
 
 /**
- * Load, validate, and compile the runtime rules.
+ * Build the compiled rule set from a StoredRulesConfig.
  *
  * Returns a `storedRuleMap` (ruleId → StoredRule) alongside the compiled
  * HomepageRules.  The map gives the trace machinery access to the raw
  * RuleCondition descriptors without adding a dependency between HomepageRule
  * and the stored-rule types (which would create a circular import).
  */
+function buildFromConfig(config: StoredRulesConfig, source: "db" | "runtime" | "seed"): {
+  rules:          HomepageRule[];
+  storedRuleMap:  ReadonlyMap<string, StoredRule>;
+  defaultPlan:    ExperiencePlan;
+  rulesEnabled:   boolean;
+  source:         "db" | "runtime" | "seed";
+} {
+  const sorted = [...config.rules].sort((a, b) => a.priority - b.priority);
+  return {
+    rules:         sorted.map(compileStoredRule),
+    storedRuleMap: new Map(sorted.map((r) => [r.id, r])),
+    defaultPlan:   { ...config.defaultPlan },
+    rulesEnabled:  config.rulesEnabled !== false,   // default true when absent
+    source,
+  };
+}
+
+/**
+ * Load, validate, and compile the runtime rules from the JSON file.
+ * Falls back to SEED_RULES_CONFIG when the file is absent or invalid.
+ */
 function buildRuntimeRules(): {
   rules:          HomepageRule[];
   storedRuleMap:  ReadonlyMap<string, StoredRule>;
   defaultPlan:    ExperiencePlan;
-  source:         "runtime" | "seed";
+  rulesEnabled:   boolean;
+  source:         "db" | "runtime" | "seed";
 } {
   try {
     const raw       = fs.readFileSync(RULES_PATH, "utf8");
@@ -140,14 +163,7 @@ function buildRuntimeRules(): {
     const errors    = validateStoredConfig(candidate);
 
     if (errors.length === 0) {
-      const config = candidate as StoredRulesConfig;
-      const sorted = [...config.rules].sort((a, b) => a.priority - b.priority);
-      return {
-        rules:         sorted.map(compileStoredRule),
-        storedRuleMap: new Map(sorted.map((r) => [r.id, r])),
-        defaultPlan:   { ...config.defaultPlan },
-        source:        "runtime",
-      };
+      return buildFromConfig(candidate as StoredRulesConfig, "runtime");
     }
 
     logger.warn("[decision] runtime-rules.json invalid — falling back to seed rules", {
@@ -159,18 +175,83 @@ function buildRuntimeRules(): {
     });
   }
 
-  const sorted = [...SEED_RULES_CONFIG.rules].sort((a, b) => a.priority - b.priority);
-  return {
-    rules:         sorted.map(compileStoredRule),
-    storedRuleMap: new Map(sorted.map((r) => [r.id, r])),
-    defaultPlan:   { ...SEED_RULES_CONFIG.defaultPlan },
-    source:        "seed",
-  };
+  return buildFromConfig(SEED_RULES_CONFIG, "seed");
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export class RulesDecisionProvider implements DecisionProvider {
+  /**
+   * Optional pre-loaded StoredRulesConfig to use instead of the JSON file.
+   *
+   * When supplied (e.g. from the DB-backed tenant rules), the provider skips
+   * the runtime-rules.json read entirely and compiles from this config.
+   * This is the mechanism that makes per-tenant rules + enabled flags work.
+   *
+   * When omitted (legacy path), the provider reads from runtime-rules.json as
+   * before — backward compatible with existing callsites that pass no args.
+   */
+  private readonly _storedConfig: StoredRulesConfig | undefined;
+
+  constructor(storedConfig?: StoredRulesConfig) {
+    this._storedConfig = storedConfig;
+  }
+
+  /**
+   * The rule that matched on the most recent getHomepagePlan() call.
+   *
+   * Reset to null at the start of each call and populated when a rule fires.
+   * Null when no rule matched (default plan was used) or before the first call.
+   *
+   * Read by buildDecisionTrace() to populate DecisionTrace.matchedRule.
+   */
+  public lastMatchedRuleInfo: {
+    ruleId:            string;
+    ruleLabel:         string;
+    priority:          number;
+    packId?:           string;
+    precedenceLevel?:  string;
+    matchedContextIds: string[];
+  } | null = null;
+
+  /**
+   * Convenience getter: the rule ID that matched on the most recent call, or
+   * null when no rule matched / before the first call.
+   *
+   * Used by ExperimentDecisionProvider to look up plan experiments for the
+   * matched rule without needing to read the full lastMatchedRuleInfo object.
+   */
+  get lastMatchedRuleId(): string | null {
+    return this.lastMatchedRuleInfo?.ruleId ?? null;
+  }
+
+  /**
+   * Context IDs that were active (matched true) on the most recent call.
+   *
+   * Collected from the matched rule's trace; empty when no rule matched or
+   * when the winning rule had no ContextCondition leaves.
+   * Exposed for debug panels that want to display "active contexts".
+   */
+  public lastMatchedContextIds: string[] = [];
+
+  /**
+   * Whether the rules engine was enabled for the most recent call.
+   *
+   * true  — rules were evaluated normally.
+   * false — the tenant-level master switch was off; all rules were skipped.
+   * null  — before the first call.
+   *
+   * Exposed for debug panels and DecisionTrace enrichment.
+   */
+  public lastRulesEnabled: boolean | null = null;
+
+  /**
+   * IDs of rules skipped on the most recent call because rule.enabled === false.
+   * Empty array when no individually-disabled rules were encountered.
+   * Exposed for debug visibility.
+   */
+  public lastDisabledRuleIds: string[] = [];
+
   /**
    * Resolve a homepage ExperiencePlan for the given input.
    *
@@ -182,8 +263,26 @@ export class RulesDecisionProvider implements DecisionProvider {
    * Never throws — returns DEFAULT_HOMEPAGE_PLAN on any unrecoverable error.
    */
   async getHomepagePlan(input: DecisionInput): Promise<ExperiencePlan> {
+    this.lastMatchedRuleInfo  = null; // reset per-call so stale state never leaks
+    this.lastRulesEnabled     = null;
+    this.lastDisabledRuleIds  = [];
+    this.lastMatchedContextIds = [];
+
     try {
-      const { rules, storedRuleMap, defaultPlan, source } = buildRuntimeRules();
+      const { rules, storedRuleMap, defaultPlan, rulesEnabled, source } =
+        this._storedConfig
+          ? buildFromConfig(this._storedConfig, "db")
+          : buildRuntimeRules();
+
+      // ── Tenant-level master switch ──────────────────────────────────────────
+      this.lastRulesEnabled = rulesEnabled;
+
+      if (!rulesEnabled) {
+        logger.debug("[decision] Rules engine disabled for this tenant — using default plan", {
+          rulesSource: source,
+        });
+        return defaultPlan;
+      }
 
       // Widen to RuleEvaluationContext so compiled predicates (which call
       // evaluateCondition internally) can resolve page-level fields when the
@@ -194,6 +293,18 @@ export class RulesDecisionProvider implements DecisionProvider {
       const matched = this.evaluateRules(ctx, rules, storedRuleMap, source);
 
       if (matched) {
+        // Pull the raw stored rule to get pack/context metadata for the info object.
+        const matchedStored = storedRuleMap.get(matched.id);
+
+        this.lastMatchedRuleInfo = {
+          ruleId:            matched.id,
+          ruleLabel:         matched.label,
+          priority:          matched.priority,
+          packId:            matchedStored?.packId,
+          precedenceLevel:   matchedStored?.precedenceLevel,
+          matchedContextIds: this.lastMatchedContextIds,
+        };
+
         const plan: ExperiencePlan = {
           ...matched.plan,
           reason: matched.reason,
@@ -255,9 +366,20 @@ export class RulesDecisionProvider implements DecisionProvider {
     ctx:          RuleEvaluationContext,
     rules:        readonly HomepageRule[],
     storedRuleMap: ReadonlyMap<string, StoredRule>,
-    rulesSource:  "runtime" | "seed",
+    rulesSource:  "db" | "runtime" | "seed",
   ): HomepageRule | null {
     for (const rule of rules) {
+      // ── Per-rule enabled check ──────────────────────────────────────────────
+      if (rule.enabled === false) {
+        this.lastDisabledRuleIds.push(rule.id);
+        logger.debug(`[decision] Rule disabled (priority ${rule.priority}) — skipping`, {
+          ruleId:    rule.id,
+          ruleLabel: rule.label,
+          rulesSource,
+        });
+        continue;
+      }
+
       // ── Evaluate the rule (critical path) ──────────────────────────────────
       let matched = false;
 
@@ -301,22 +423,23 @@ export class RulesDecisionProvider implements DecisionProvider {
     matched:      boolean,
     ctx:          RuleEvaluationContext,
     storedRuleMap: ReadonlyMap<string, StoredRule>,
-    rulesSource:  "runtime" | "seed",
+    rulesSource:  "db" | "runtime" | "seed",
   ): void {
     try {
       const stored = storedRuleMap.get(rule.id);
 
       if (stored) {
-        // Compiled stored rule — generate the full condition trace.
-        const { trace } = evaluateConditionTrace(stored.condition, ctx);
+        // Compiled stored rule — generate the full condition trace with
+        // pack/context/precedence metadata baked in.
+        const ruleTrace: RuleEvalTrace = generateRuleTrace(stored, matched, stored.condition, ctx);
 
-        const ruleTrace: RuleEvalTrace = {
-          ruleId:    rule.id,
-          ruleLabel: rule.label,
-          priority:  rule.priority,
-          matched,
-          condition: trace,
-        };
+        // Accumulate matched context IDs on the provider for debug panels.
+        if (matched && ruleTrace.matchedContextIds.length > 0) {
+          this.lastMatchedContextIds = [
+            ...this.lastMatchedContextIds,
+            ...ruleTrace.matchedContextIds,
+          ];
+        }
 
         if (matched) {
           // Full detail for the matched rule so the developer can answer
@@ -331,7 +454,8 @@ export class RulesDecisionProvider implements DecisionProvider {
           logger.debug(`[decision] Rule skipped (priority ${rule.priority})`, {
             ruleId:           rule.id,
             ruleLabel:        rule.label,
-            conditionSummary: summariseTrace(trace),
+            conditionSummary: summariseTrace(ruleTrace.condition),
+            ...(stored.packId ? { packId: stored.packId } : {}),
           });
         }
       } else {

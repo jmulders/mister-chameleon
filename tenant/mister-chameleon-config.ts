@@ -12,10 +12,13 @@
  *                                 Falls back to "misterchameleon.com" if unset.
  *
  *   SANITY_PROJECT_ID             When present, cmsProvider is set to "sanity".
- *                                 When absent, cmsProvider is set to "mock".
- *                                 The SanityProvider itself validates the remaining
- *                                 Sanity vars (SANITY_DATASET, SANITY_API_VERSION)
- *                                 at first use via serverEnv.sanity.
+ *                                 The SanityProvider validates remaining Sanity vars
+ *                                 (SANITY_DATASET, SANITY_API_VERSION) at first use.
+ *
+ *   STORYBLOK_ACCESS_TOKEN        When present (and SANITY_PROJECT_ID absent),
+ *                                 cmsProvider is set to "storyblok".
+ *
+ *   When neither is set, cmsProvider falls back to "mock".
  *
  *   NODE_ENV                      "development" enables the diagnostics bar.
  *
@@ -75,12 +78,18 @@ export const MISTER_CHAMELEON_TENANT: TenantConfig = {
 
   // ── Providers ───────────────────────────────────────────────────────────────
   //
-  // cmsProvider mirrors the logic in cms/providers/create-cms-provider.ts:
-  //   Sanity when SANITY_PROJECT_ID is present, mock otherwise.
+  // cmsProvider mirrors the priority order in cms/providers/create-cms-provider.ts:
+  //   1. Sanity     — SANITY_PROJECT_ID is set
+  //   2. Storyblok  — STORYBLOK_ACCESS_TOKEN is set (and Sanity is not)
+  //   3. Mock       — fallback when nothing is configured
   //
   // decisionProvider is "rules" — the only implemented provider today.
   // When AI providers are added, update DecisionProviderName and switch here.
-  cmsProvider: process.env.SANITY_PROJECT_ID ? "sanity" : "mock",
+  cmsProvider: process.env.SANITY_PROJECT_ID
+    ? "sanity"
+    : process.env.STORYBLOK_ACCESS_TOKEN
+      ? "storyblok"
+      : "mock",
   decisionProvider: "rules",
 
   // ── Features ────────────────────────────────────────────────────────────────

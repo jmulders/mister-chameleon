@@ -63,8 +63,8 @@ function TypeBadge({ type }: { type: string }) {
       fontWeight:      600,
       letterSpacing:   "0.04em",
       textTransform:   "uppercase",
-      background:      "var(--primary-subtle, #ede9fe)",
-      color:           "var(--primary, #6d28d9)",
+      background:      "var(--bg-subtle)",
+      color:           "var(--text-muted)",
       whiteSpace:      "nowrap",
     }}>
       {label}
@@ -161,8 +161,12 @@ function CardLayout({
   const H = `h${headingLevel}` as "h2" | "h3" | "h4";
 
   return (
+    <>
+    {/* Hover style — CSS-only, no JS event handlers needed */}
+    <style>{`.src-result-card:hover{box-shadow:var(--card-shadow-hover,0 4px 16px rgba(0,0,0,0.12));transform:translateY(-2px)}`}</style>
     <a
       href={result.slug}
+      className="src-result-card"
       style={{
         display:        "flex",
         flexDirection:  "column",
@@ -174,16 +178,6 @@ function CardLayout({
         color:          "inherit",
         transition:     "box-shadow 0.15s ease, transform 0.15s ease",
         boxShadow:      "var(--card-shadow, 0 1px 3px rgba(0,0,0,0.07))",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow =
-          "var(--card-shadow-hover, 0 4px 16px rgba(0,0,0,0.12))";
-        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow =
-          "var(--card-shadow, 0 1px 3px rgba(0,0,0,0.07))";
-        (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
       }}
     >
       {result.image && (
@@ -215,6 +209,7 @@ function CardLayout({
         {result.meta && <MetaRow meta={result.meta} />}
       </div>
     </a>
+    </>
   );
 }
 
@@ -296,7 +291,7 @@ function CompactLayout({
       style={{
         display:        "block",
         padding:        "0.625rem 0.875rem",
-        borderLeft:     "3px solid var(--primary, #6d28d9)",
+        borderLeft:     "3px solid var(--primary)",
         marginBottom:   "0.5rem",
         textDecoration: "none",
         color:          "inherit",

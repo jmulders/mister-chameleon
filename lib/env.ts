@@ -52,7 +52,10 @@
  *   SANITY_PROJECT_ID=your_project_id
  *   SANITY_DATASET=production
  *   SANITY_API_VERSION=2024-01-01
- *   SANITY_READ_TOKEN=your_read_token    # optional: needed for draft/preview only
+ *   SANITY_READ_TOKEN=your_read_token    # optional: explicit read token (preferred)
+ *   # Fallbacks when SANITY_READ_TOKEN is absent (first one found is used):
+ *   # SANITY_API_TOKEN=your_api_token      # common Sanity CLI / integration token
+ *   # SANITY_API_WRITE_TOKEN=your_token    # write token also grants read access
  *
  *   # Supabase server-side
  *   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
@@ -109,6 +112,20 @@ export interface SanityEnvConfig {
   readonly apiVersion: string;
   readonly readToken: string | undefined;
   /**
+   * Base URL of the deployed Sanity Studio, e.g. "https://your-project.sanity.studio".
+   * Used by admin pages to generate direct "Edit in Studio" deep links.
+   * Undefined when SANITY_STUDIO_URL is not set.
+   */
+  readonly studioUrl: string | undefined;
+  /**
+   * Sanity API token used by the preview client (`perspective: "previewDrafts"`).
+   * Must have at least "Viewer" access so it can read draft documents.
+   * Falls back to `readToken` when absent — set SANITY_PREVIEW_TOKEN to use a
+   * dedicated, narrowly-scoped preview token instead of the general read token.
+   * Undefined when neither SANITY_PREVIEW_TOKEN nor any read token is set.
+   */
+  readonly previewToken: string | undefined;
+  /**
    * True when all required Sanity vars are present and validated.
    * False when SANITY_PROJECT_ID is not set — MockCMSProvider is used instead.
    */
@@ -139,6 +156,62 @@ export interface SupabaseServerEnvConfig {
 /** n8n webhook configuration. All fields are optional. */
 export interface N8nEnvConfig {
   readonly contactWebhookUrl: string | undefined;
+}
+
+/**
+ * Visitor enrichment configuration.
+ *
+ * All fields are optional — when absent the enrichment pipeline uses stubs
+ * (no network calls, all fields null) so the site always renders correctly.
+ *
+ *   CLEARBIT_SECRET_KEY      — Clearbit Reveal secret key for reverse-IP
+ *                              company identification (e.g. "sk_live_...").
+ *                              Absent → StubCompanyProvider used instead.
+ *
+ *   DEV_COMPANY_FALLBACK_IP  — Public IP substituted for 127.0.0.1 / ::1 when
+ *                              NODE_ENV === "development".  Lets Clearbit
+ *                              return real company data on localhost.
+ *                              Absent → falls back to DEV_GEO_FALLBACK_IP,
+ *                              then "8.8.8.8" (Google DNS / no-op company).
+ */
+export interface EnrichmentEnvConfig {
+  /**
+   * Clearbit Reveal secret key.
+   * Absent → reverse-IP company lookup is skipped (StubCompanyProvider).
+   */
+  readonly clearbitSecretKey:    string | undefined;
+  /**
+   * IPinfo API token for ASN / network-org enrichment.
+   * Absent → IPinfo stage is skipped.
+   */
+  readonly ipinfoToken:          string | undefined;
+  /**
+   * Leadinfo API key for IP-to-company enrichment.
+   * Absent → Leadinfo stage is skipped.
+   */
+  readonly leadinfoApiKey:       string | undefined;
+  /**
+   * Public IP to substitute for localhost during development.
+   * Absent → falls back to DEV_GEO_FALLBACK_IP or "8.8.8.8".
+   */
+  readonly devCompanyFallbackIp: string | undefined;
+}
+
+/**
+ * Admin authentication configuration.
+ *
+ * ADMIN_SESSION_SECRET — HS256 signing key for admin session JWTs.
+ *                        Must be ≥ 32 characters. Required.
+ *                        Generate: openssl rand -hex 32
+ *
+ * ADMIN_TOTP_ISSUER   — Label shown in the authenticator app next to the
+ *                        account. Optional; defaults to "Mister Chameleon Admin".
+ */
+export interface AdminAuthEnvConfig {
+  /** HS256 JWT signing secret. Throws if absent or shorter than 32 chars. */
+  readonly sessionSecret: string;
+  /** Authenticator app issuer label. */
+  readonly totpIssuer:    string;
 }
 
 /**
@@ -184,6 +257,76 @@ export interface EmailEnvConfig {
   readonly fromAddress:       string | undefined;
   /** Default backoffice notification recipient address. */
   readonly backofficeEmail:   string | undefined;
+}
+
+/**
+ * Cloudflare R2 storage configuration.
+ *
+ * Optional — when R2_ACCOUNT_ID is absent the platform falls back to the
+ * storage provider configured in the admin dashboard (Supabase Storage or
+ * Sanity Assets).  If R2_ACCOUNT_ID is set, all five vars become required.
+ *
+ *   R2_ACCOUNT_ID        — Cloudflare account ID (found in dashboard sidebar)
+ *   R2_ACCESS_KEY_ID     — R2 API token Access Key ID
+ *   R2_SECRET_ACCESS_KEY — R2 API token Secret Access Key
+ *   R2_BUCKET_NAME       — Bucket name (e.g. "mister-chameleon-assets")
+ *   R2_PUBLIC_URL        — Public bucket base URL
+ *                          e.g. https://pub-xxxxxxxx.r2.dev  (built-in)
+ *                          or   https://assets.yourdomain.com (custom)
+ */
+export interface R2EnvConfig {
+  /** Cloudflare account ID. */
+  readonly accountId:        string;
+  /** R2 API token Access Key ID. */
+  readonly accessKeyId:      string;
+  /** R2 API token Secret Access Key. SERVER ONLY. */
+  readonly secretAccessKey:  string;
+  /** R2 bucket name. */
+  readonly bucketName:       string;
+  /**
+   * Public base URL for asset delivery.
+   * e.g. "https://pub-xxxxxxxx.r2.dev" or "https://assets.yourdomain.com"
+   */
+  readonly publicUrl:        string;
+  /**
+   * True when all five R2 vars are present.
+   * False when R2_ACCOUNT_ID is absent — R2 storage is disabled.
+   */
+  readonly isConfigured:     boolean;
+}
+
+/**
+ * SMTP transport configuration (env-var fallback for mail-transport.ts).
+ *
+ * When SMTP_HOST is set, the mail transport uses nodemailer SMTP instead of
+ * (or before) the Resend API.  All other SMTP vars are optional with sensible
+ * defaults.
+ *
+ * Variables:
+ *   SMTP_HOST      — SMTP server hostname (e.g. "smtp.mailgun.org")
+ *   SMTP_PORT      — SMTP port; defaults to 587 (STARTTLS)
+ *   SMTP_USER      — SMTP auth username
+ *   SMTP_PASS      — SMTP auth password
+ *   SMTP_SECURE    — "true" to use implicit TLS (port 465); defaults to false
+ *   SMTP_FROM      — Default "From" address for SMTP sends; falls back to
+ *                    MAIL_FROM_ADDRESS when absent
+ */
+export interface SmtpEnvConfig {
+  /** SMTP hostname. Absent → SMTP transport is not used. */
+  readonly host:     string | undefined;
+  /** SMTP port; defaults to 587. */
+  readonly port:     number | undefined;
+  /** SMTP auth username. */
+  readonly username: string | undefined;
+  /** SMTP auth password. */
+  readonly password: string | undefined;
+  /**
+   * Use implicit TLS (port 465) when true; STARTTLS upgrade when false.
+   * Defaults to false.
+   */
+  readonly secure:   boolean | undefined;
+  /** Default "From" address for SMTP sends. Falls back to MAIL_FROM_ADDRESS. */
+  readonly from:     string | undefined;
 }
 
 // ── Validation infrastructure ─────────────────────────────────────────────────
@@ -288,6 +431,8 @@ const getSanityConfig = once((): SanityEnvConfig => {
       dataset: "",
       apiVersion: "",
       readToken: undefined,
+      previewToken: undefined,
+      studioUrl: undefined,
       isConfigured: false,
     };
   }
@@ -297,7 +442,27 @@ const getSanityConfig = once((): SanityEnvConfig => {
     projectId: required("SANITY_PROJECT_ID"),
     dataset: required("SANITY_DATASET"),
     apiVersion: required("SANITY_API_VERSION"),
-    readToken: optional("SANITY_READ_TOKEN"),
+    // readToken resolution (highest → lowest priority):
+    //   1. SANITY_READ_TOKEN     — explicit read-only token (preferred)
+    //   2. SANITY_API_TOKEN      — common Sanity CLI / integration token
+    //   3. SANITY_API_WRITE_TOKEN — write token also grants read access
+    //   4. undefined             — no auth; CDN only (requires a public dataset)
+    //
+    // Many local/staging setups only configure a write token (SANITY_API_TOKEN
+    // or SANITY_API_WRITE_TOKEN) without a separate read token.  Falling back
+    // to the write token lets the read client authenticate against private
+    // datasets without requiring a separate token to be provisioned.
+    readToken:
+      optional("SANITY_READ_TOKEN") ??
+      optional("SANITY_API_TOKEN") ??
+      optional("SANITY_API_WRITE_TOKEN"),
+    // previewToken: dedicated token for the preview client (previewDrafts perspective).
+    // Falls back to readToken when SANITY_PREVIEW_TOKEN is not explicitly set — the
+    // fallback is handled in createPreviewSanityClient() rather than here so that the
+    // preview client always gets the most appropriate token available.
+    previewToken: optional("SANITY_PREVIEW_TOKEN"),
+    // Optional Studio base URL for admin deep-link generation.
+    studioUrl: optional("SANITY_STUDIO_URL"),
     isConfigured: true,
   }));
 });
@@ -343,6 +508,61 @@ const getEmailConfig = once(
     backofficeEmail: process.env.BACKOFFICE_EMAIL   || undefined,
   }),
 );
+
+const getSmtpConfig = once(
+  (): SmtpEnvConfig => ({
+    // All SMTP vars are optional — falls back to Resend or "none".
+    host:     process.env.SMTP_HOST  || undefined,
+    port:     process.env.SMTP_PORT  ? parseInt(process.env.SMTP_PORT, 10) : undefined,
+    username: process.env.SMTP_USER  || undefined,
+    password: process.env.SMTP_PASS  || undefined,
+    secure:   process.env.SMTP_SECURE === "true" ? true : undefined,
+    from:     process.env.SMTP_FROM  || process.env.MAIL_FROM_ADDRESS || undefined,
+  }),
+);
+
+const getAdminAuthConfig = once((): AdminAuthEnvConfig =>
+  makeGroup("Admin auth", (required, optional) => ({
+    sessionSecret: required("ADMIN_SESSION_SECRET"),
+    totpIssuer:    optional("ADMIN_TOTP_ISSUER") ?? "Mister Chameleon Admin",
+  })),
+);
+
+const getEnrichmentConfig = once(
+  (): EnrichmentEnvConfig => ({
+    // All enrichment vars are optional — stubs are used when absent.
+    clearbitSecretKey:    process.env.CLEARBIT_SECRET_KEY     || undefined,
+    ipinfoToken:          process.env.IPINFO_TOKEN            || undefined,
+    leadinfoApiKey:       process.env.LEADINFO_API_KEY        || undefined,
+    devCompanyFallbackIp: process.env.DEV_COMPANY_FALLBACK_IP || undefined,
+  }),
+);
+
+const getR2Config = once((): R2EnvConfig => {
+  // If R2_ACCOUNT_ID is absent, R2 is not enabled.
+  // Return a "not configured" sentinel so the storage layer falls back gracefully.
+  const accountId = process.env.R2_ACCOUNT_ID;
+  if (!accountId) {
+    return {
+      accountId:       "",
+      accessKeyId:     "",
+      secretAccessKey: "",
+      bucketName:      "",
+      publicUrl:       "",
+      isConfigured:    false,
+    };
+  }
+
+  // R2_ACCOUNT_ID is set → the remaining four vars become required.
+  return makeGroup("Cloudflare R2", (required) => ({
+    accountId:       required("R2_ACCOUNT_ID"),
+    accessKeyId:     required("R2_ACCESS_KEY_ID"),
+    secretAccessKey: required("R2_SECRET_ACCESS_KEY"),
+    bucketName:      required("R2_BUCKET_NAME"),
+    publicUrl:       required("R2_PUBLIC_URL"),
+    isConfigured:    true,
+  }));
+});
 
 const getVercelConfig = once((): VercelEnvConfig => {
   // Try both common env var names for the API token.
@@ -481,6 +701,25 @@ export const serverEnv = {
   },
 
   /**
+   * SMTP transport configuration (env-var fallback for mail-transport.ts).
+   *
+   * All fields are optional — never throws.
+   * When host is present, mail-transport.ts uses SMTP instead of Resend.
+   * When both SMTP_HOST and RESEND_API_KEY are absent, email is silently skipped.
+   *
+   * Set in .env.local:
+   *   SMTP_HOST=smtp.mailgun.org
+   *   SMTP_PORT=587
+   *   SMTP_USER=postmaster@mg.example.com
+   *   SMTP_PASS=your-smtp-password
+   *   SMTP_SECURE=false     # true for port 465 implicit TLS
+   *   SMTP_FROM="Acme <hello@acme.com>"
+   */
+  get smtp(): SmtpEnvConfig {
+    return getSmtpConfig();
+  },
+
+  /**
    * Vercel Domains API configuration.
    *
    * All fields are optional — never throws.
@@ -492,5 +731,56 @@ export const serverEnv = {
    */
   get vercel(): VercelEnvConfig {
     return getVercelConfig();
+  },
+
+  /**
+   * Admin authentication configuration.
+   *
+   * Throws if ADMIN_SESSION_SECRET is absent or shorter than 32 characters.
+   * ADMIN_TOTP_ISSUER is optional (defaults to "Mister Chameleon Admin").
+   *
+   * Add to .env.local:
+   *   ADMIN_SESSION_SECRET=<openssl rand -hex 32>
+   *   ADMIN_TOTP_ISSUER=My App Admin      # optional
+   */
+  get adminAuth(): AdminAuthEnvConfig {
+    return getAdminAuthConfig();
+  },
+
+  /**
+   * Visitor enrichment configuration.
+   *
+   * All fields are optional — never throws.
+   * When clearbitSecretKey is absent, the enrichment pipeline uses stubs
+   * (no Clearbit API call, all company fields null).
+   *
+   * Add to .env.local:
+   *   CLEARBIT_SECRET_KEY=sk_live_...
+   *   DEV_COMPANY_FALLBACK_IP=203.0.113.1   # optional: dev-only public IP
+   */
+  get enrichment(): EnrichmentEnvConfig {
+    return getEnrichmentConfig();
+  },
+
+  /**
+   * Cloudflare R2 storage configuration.
+   *
+   * When R2_ACCOUNT_ID is not set: returns `{ isConfigured: false }`.
+   * When R2_ACCOUNT_ID is set but any of the other four vars are missing:
+   *   throws with all missing names listed.
+   *
+   * Env-var configuration is the fallback for R2; credentials can also be
+   * stored in the admin dashboard (platform_settings key = "storage").
+   * The DB config takes priority over env vars at runtime.
+   *
+   * Add to .env.local:
+   *   R2_ACCOUNT_ID=<your-account-id>
+   *   R2_ACCESS_KEY_ID=<your-access-key-id>
+   *   R2_SECRET_ACCESS_KEY=<your-secret-access-key>
+   *   R2_BUCKET_NAME=mister-chameleon-assets
+   *   R2_PUBLIC_URL=https://pub-xxxxxxxx.r2.dev
+   */
+  get r2(): R2EnvConfig {
+    return getR2Config();
   },
 } as const;

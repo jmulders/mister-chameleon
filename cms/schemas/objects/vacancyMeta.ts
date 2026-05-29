@@ -16,6 +16,22 @@ export default defineType({
   title: "Vacancy Meta",
   type: "object",
   fields: [
+    // ── Layout variant ─────────────────────────────────────────────────────────
+    defineField({
+      name: "variant",
+      title: "Layout Variant",
+      type: "string",
+      description: "Controls how job metadata is presented on the page.",
+      options: {
+        list: [
+          { title: "Default — metadata summary card centred on the page (default)", value: "default" },
+          { title: "Compact — condensed single-row badge strip",                    value: "compact" },
+          { title: "Sidebar — float-right card for two-column detail layout",       value: "sidebar" },
+        ],
+      },
+      initialValue: "default",
+    }),
+
     defineField({ name: "title",        title: "Job Title",     type: "string" }),
     defineField({ name: "department",   title: "Department",    type: "string" }),
     defineField({ name: "location",     title: "Location",      type: "string" }),
