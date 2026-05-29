@@ -29,6 +29,13 @@
  *   All queries are de-duplicated and run concurrently.  Their candidate lists
  *   are merged (by KvK number) and all are scored against all available signals.
  *
+ *   Candidates are fetched via the overheid.io **suggest** endpoint
+ *   (`GET /v3/suggest/openkvk/{query}`) which is purpose-built for company-name
+ *   search and handles spaces, partial names, and fuzzy matching.  The suggest
+ *   response does not include `website` or `bezoeklocatie.plaats`, so domain
+ *   and city signals are not available for candidates from this endpoint —
+ *   scoring relies on name matching, Hoofdvestiging bonus, and actief bonus.
+ *
  * ─── Scoring weights ─────────────────────────────────────────────────────────
  *
  *   60 — domain exact match      (candidate website === networkDomain)
@@ -100,10 +107,16 @@ interface OpenKvKResultaat {
   };
 }
 
-interface OpenKvKResponse {
-  _embedded?: {
-    bedrijf?: OpenKvKResultaat[];
-  };
+/** Response shape from the suggest endpoint: GET /v3/suggest/openkvk/{query} */
+interface OpenKvKSuggestItem {
+  /** Slug path, e.g. "/v3/openkvk/hoofdvestiging-89830466-blah" */
+  link:              string;
+  kvknummer:         number;
+  subdossiernummer:  number | null;
+  vestigingsnummer:  number | null;
+  postcode:          string | null;
+  /** Array of trade names (primary name first). */
+  naam:              string[];
 }
 
 // ── Internal types ────────────────────────────────────────────────────────────
@@ -490,16 +503,25 @@ export class OpenKvKProvider {
   /**
    * Fetch raw OpenKvK candidate records for a name query.
    *
-   * Results are cached for 6 hours keyed by normalised query string, so that
-   * repeated lookups from different visitors on the same corporate network
-   * do not incur extra API calls.
+   * Uses the suggest endpoint (`/v3/suggest/openkvk/{query}`) which is
+   * purpose-built for company name search: it handles spaces, partial names,
+   * and fuzzy matches.  The suggest response is mapped to `OpenKvKResultaat`
+   * so the existing scored resolver works unchanged.
+   *
+   * Note: the suggest endpoint does not return `website` or
+   * `bezoeklocatie.plaats`.  Domain scoring (network signal) and city scoring
+   * are therefore unavailable for candidates found via this endpoint.  The
+   * scorer still applies name matching, Hoofdvestiging bonus, and accepts only
+   * when MIN_ACCEPT_SCORE is met — typically requiring a strong name match.
+   *
+   * Results are cached for 6 hours keyed by normalised query string.
    *
    * Returns an empty array on any API error or timeout.
    */
   async fetchCandidates(query: string): Promise<OpenKvKResultaat[]> {
-    const q          = query.trim();
-    const cacheKey   = q.toLowerCase();
-    const cached     = candidatesCache.get(cacheKey);
+    const q        = query.trim();
+    const cacheKey = q.toLowerCase();
+    const cached   = candidatesCache.get(cacheKey);
 
     if (cached.hit) {
       if (this.isDev) {
@@ -509,52 +531,22 @@ export class OpenKvKProvider {
     }
 
     try {
-      // No server-side city filter — the scorer awards +15 for city match.
-      // No queryfields restriction — searching only huidigeHandelsNamen misses
-      // companies whose legal name includes a legal-form suffix (B.V., N.V., etc.)
-      // that isn't part of the trade name.  Omitting queryfields uses the API
-      // default (full-text across naam + handelsnamen).
-      const url =
-        `${this.apiBase}/v3/openkvk` +
-        `?query=${encodeURIComponent(q)}`;
-
-      const headers: Record<string, string> = { Accept: "application/json" };
-      if (this.apiKey) headers["ovio-api-key"] = this.apiKey;
-
-      const response = await fetch(url, {
-        headers,
-        signal: AbortSignal.timeout(4_000),
-        cache:  "no-store",
-        next:   { revalidate: 0 },
-      });
-
-      if (!response.ok) {
-        console.warn(`[openkvk] API error ${response.status} for query "${q}"`);
-        return [];
-      }
-
-      const data    = (await response.json()) as OpenKvKResponse;
-      let   results = data._embedded?.bedrijf ?? [];
+      const results = await this.fetchSuggestCandidates(q);
 
       // Retry without legal-form suffix when the full query returns nothing.
-      // e.g. "STEETS B.V." → "STEETS" (B.V. is a suffix, not a trade-name token).
+      // e.g. "STEETS B.V." → "STEETS"
       if (results.length === 0) {
         const stripped = q
           .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
           .trim();
         if (stripped && stripped !== q) {
-          const retryUrl =
-            `${this.apiBase}/v3/openkvk` +
-            `?query=${encodeURIComponent(stripped)}`;
-          const retryHeaders: Record<string, string> = { Accept: "application/json" };
-          if (this.apiKey) retryHeaders["ovio-api-key"] = this.apiKey;
-          const retryRes = await fetch(retryUrl, { headers: retryHeaders, signal: AbortSignal.timeout(4_000), cache: "no-store", next: { revalidate: 0 } });
-          if (retryRes.ok) {
-            const retryData = (await retryRes.json()) as OpenKvKResponse;
-            results = retryData._embedded?.bedrijf ?? [];
-            if (this.isDev && results.length > 0) {
-              console.debug(`[openkvk] retry without suffix succeeded: "${q}" → "${stripped}" (${results.length} results)`);
+          const retryResults = await this.fetchSuggestCandidates(stripped);
+          if (retryResults.length > 0) {
+            if (this.isDev) {
+              console.debug(`[openkvk] retry without suffix succeeded: "${q}" → "${stripped}" (${retryResults.length} results)`);
             }
+            candidatesCache.set(cacheKey, retryResults);
+            return retryResults;
           }
         }
       }
@@ -562,7 +554,7 @@ export class OpenKvKProvider {
       candidatesCache.set(cacheKey, results);
 
       if (this.isDev) {
-        console.debug("[openkvk] API response", { query: q, count: results.length });
+        console.debug("[openkvk] suggest response", { query: q, count: results.length });
       }
 
       return results;
@@ -575,6 +567,56 @@ export class OpenKvKProvider {
       }
       return [];
     }
+  }
+
+  /**
+   * Internal: call the suggest endpoint and map results to `OpenKvKResultaat`.
+   *
+   * Suggest response shape:
+   *   Array<{ link, kvknummer, subdossiernummer, vestigingsnummer, postcode, naam[] }>
+   *
+   * Mapped to OpenKvKResultaat:
+   *   naam              ← item.naam[0]  (primary trade name)
+   *   kvknummer         ← String(item.kvknummer)
+   *   inschrijvingstype ← derived from item.link slug
+   *   website           ← undefined (not available from suggest)
+   *   actief            ← undefined (not available from suggest; scorer ignores null)
+   *   bezoeklocatie     ← undefined (not available from suggest)
+   */
+  private async fetchSuggestCandidates(q: string): Promise<OpenKvKResultaat[]> {
+    const url = `${this.apiBase}/v3/suggest/openkvk/${encodeURIComponent(q)}`;
+
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (this.apiKey) headers["ovio-api-key"] = this.apiKey;
+
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(4_000),
+      cache:  "no-store",
+      next:   { revalidate: 0 },
+    });
+
+    if (!response.ok) {
+      console.warn(`[openkvk] suggest API error ${response.status} for query "${q}"`);
+      return [];
+    }
+
+    const data = (await response.json()) as OpenKvKSuggestItem[];
+    if (!Array.isArray(data)) return [];
+
+    return data.map((item): OpenKvKResultaat => ({
+      naam:              item.naam[0],
+      kvknummer:         String(item.kvknummer),
+      inschrijvingstype: item.link.includes("hoofdvestiging")
+        ? "Hoofdvestiging"
+        : item.link.includes("nevenvestiging")
+          ? "Nevenvestiging"
+          : item.link.includes("rechtspersoon")
+            ? "Rechtspersoon"
+            : undefined,
+      // website and bezoeklocatie are not returned by the suggest endpoint.
+      // The scorer will simply award 0 pts for domain and city signals.
+    }));
   }
 
   // ── Scored resolver ──────────────────────────────────────────────────────────

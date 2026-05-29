@@ -136,14 +136,18 @@ export async function testNagerDateConnectionAction(): Promise<TestConnectionRes
 // ── 2. OpenKvK ────────────────────────────────────────────────────────────────
 
 /**
- * Test OpenKvK (overheid.io) — no credentials required.
+ * Test OpenKvK (overheid.io) — requires ovio-api-key.
  *
- * Endpoint: GET https://api.overheid.io/v3/openkvk?query={query}&queryfields[]=huidigeHandelsNamen
- *           Optional: &filters[bezoeklocatie.plaats]={city}
- * Shows: result count, top match name, city, KvK number, website, and type.
+ * Endpoint: GET https://api.overheid.io/v3/suggest/openkvk/{query}
+ *
+ * The suggest endpoint is purpose-built for company name search: it handles
+ * spaces, partial names, and fuzzy matches.  The list endpoint (/v3/openkvk)
+ * uses Elasticsearch full-text and requires explicit queryfields[] — the
+ * suggest endpoint is simpler and more reliable for name-first lookups.
  *
  * @param query  Company name to search for. Defaults to "ING" (large Dutch bank, reliable result).
- * @param city   Optional city name to narrow the search.
+ * @param city   Optional city hint — used to prefer a result with a matching postcode city if
+ *               the full detail is fetched, but the suggest endpoint itself does not filter by city.
  */
 export async function testOpenKvKConnectionAction(
   query: string = "ING",
@@ -168,16 +172,29 @@ export async function testOpenKvKConnectionAction(
     };
   }
 
-  /** Strip common Dutch/English legal-form suffixes for a fallback query. */
-  function stripLegalSuffix(name: string): string {
-    return name
-      .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
-      .trim();
+  /**
+   * Parse the establishment type from an overheid.io slug/link.
+   * e.g. "/v3/openkvk/hoofdvestiging-89830466-…" → "Hoofdvestiging"
+   */
+  function typeFromLink(link: string): string | null {
+    if (link.includes("hoofdvestiging")) return "Hoofdvestiging";
+    if (link.includes("nevenvestiging")) return "Nevenvestiging";
+    if (link.includes("rechtspersoon"))  return "Rechtspersoon";
+    return null;
   }
 
-  /** Fetch candidates for a given query, returning parsed bedrijf array. */
-  async function fetchKvK(q: string) {
-    const url = `https://api.overheid.io/v3/openkvk?query=${encodeURIComponent(q)}`;
+  /** Fetch suggest candidates for a given query. */
+  async function fetchSuggest(q: string): Promise<{
+    status: number;
+    results: Array<{
+      link:              string;
+      kvknummer:         number;
+      subdossiernummer:  number | null;
+      postcode:          string | null;
+      naam:              string[];
+    }> | null;
+  }> {
+    const url = `https://api.overheid.io/v3/suggest/openkvk/${encodeURIComponent(q)}`;
 
     const response = await fetch(url, {
       headers: { Accept: "application/json", "ovio-api-key": ovioApiKey },
@@ -185,19 +202,18 @@ export async function testOpenKvKConnectionAction(
       cache:   "no-store",
     });
 
-    if (response.status === 401 || response.status === 403) return { status: response.status, results: null, raw: null };
-    if (!response.ok) return { status: response.status, results: null, raw: null };
+    if (response.status === 401 || response.status === 403) return { status: response.status, results: null };
+    if (!response.ok) return { status: response.status, results: null };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = (await response.json()) as Record<string, any>;
-    type Bedrijf = { naam?: string; kvknummer?: string; website?: string; actief?: boolean; inschrijvingstype?: string; bezoeklocatie?: { plaats?: string }; [k: string]: unknown };
-    const results: Bedrijf[] = data._embedded?.bedrijf ?? [];
-    return { status: 200, results, raw: data };
+    const data = (await response.json()) as any[];
+    if (!Array.isArray(data)) return { status: 200, results: [] };
+    return { status: 200, results: data };
   }
 
   try {
-    // First attempt: full query.
-    let attempt = await fetchKvK(safeQuery);
+    // First attempt with full query.
+    let attempt = await fetchSuggest(safeQuery);
 
     if (attempt.results === null) {
       return (attempt.status === 401 || attempt.status === 403)
@@ -208,53 +224,49 @@ export async function testOpenKvKConnectionAction(
     // Fallback: strip legal suffix (e.g. "STEETS B.V." → "STEETS") and retry.
     let usedQuery = safeQuery;
     if (attempt.results.length === 0) {
-      const stripped = stripLegalSuffix(safeQuery);
+      const stripped = safeQuery
+        .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
+        .trim();
       if (stripped && stripped !== safeQuery) {
-        const retry = await fetchKvK(stripped);
+        const retry = await fetchSuggest(stripped);
         if (retry.results && retry.results.length > 0) {
-          attempt  = retry;
+          attempt   = retry;
           usedQuery = stripped;
         }
       }
     }
 
-    const results = attempt.results;
+    const results = attempt.results ?? [];
 
     if (results.length === 0) {
-      // Show the raw top-level keys so we can see what the API actually returned.
-      const rawKeys = attempt.raw ? Object.keys(attempt.raw).join(", ") : "–";
       return {
         ok:        false,
         errorType: "empty",
-        message:   `API is reachable but returned no results for "${safeQuery}"${safeCity ? ` (city: ${safeCity})` : ""}. Raw response keys: [${rawKeys}]. Try "Coolblue" to verify connectivity.`,
+        message:   `API is reachable but "${safeQuery}" returned no suggestions from overheid.io. The dataset covers all KvK-registered entities — check that the company name is spelled correctly and is a Dutch entity.`,
         latencyMs: elapsed(start),
       };
     }
 
-    // Prefer city match when a city was supplied, then Hoofdvestiging, then first result.
-    const top = (
-      safeCity
-        ? results.find((r) => r.bezoeklocatie?.plaats?.toLowerCase() === safeCity.toLowerCase())
-        : undefined
-    ) ?? results.find((r) => r.inschrijvingstype === "Hoofdvestiging") ?? results[0];
+    // Pick best result: prefer Hoofdvestiging, then first.
+    const top = results.find((r) => r.link.includes("hoofdvestiging")) ?? results[0];
+    const topName = top.naam[0] ?? null;
 
     // Build display label for the query used.
     const queryLabel = usedQuery !== safeQuery
-      ? `${safeQuery} → retried as "${usedQuery}"${safeCity ? ` (city: ${safeCity})` : ""}`
-      : safeCity ? `${safeQuery} (city: ${safeCity})` : safeQuery;
+      ? `${safeQuery} → retried as "${usedQuery}"${safeCity ? ` (city hint: ${safeCity})` : ""}`
+      : safeCity ? `${safeQuery} (city hint: ${safeCity})` : safeQuery;
 
     return {
-      ok:       true,
+      ok:        true,
       latencyMs: elapsed(start),
       fields: [
-        { label: "Query",          value: queryLabel },
-        { label: "Results found",  value: String(results.length) },
-        { label: "Top match",      value: top.naam                  ?? null },
-        { label: "City",           value: top.bezoeklocatie?.plaats  ?? null },
-        { label: "KvK number",     value: top.kvknummer             ?? null },
-        { label: "Website",        value: top.website               ?? null },
-        { label: "Type",           value: top.inschrijvingstype      ?? null },
-        { label: "Active",         value: top.actief != null ? (top.actief ? "Yes" : "No") : null },
+        { label: "Query",         value: queryLabel },
+        { label: "Results found", value: String(results.length) },
+        { label: "Top match",     value: topName },
+        { label: "All names",     value: top.naam.length > 1 ? top.naam.join(", ") : null },
+        { label: "KvK number",    value: top.kvknummer != null ? String(top.kvknummer) : null },
+        { label: "Postcode",      value: top.postcode ?? null },
+        { label: "Type",          value: typeFromLink(top.link) },
       ],
     };
   } catch (err) {
