@@ -177,13 +177,7 @@ export async function testOpenKvKConnectionAction(
 
   /** Fetch candidates for a given query, returning parsed bedrijf array. */
   async function fetchKvK(q: string) {
-    const url =
-      `https://api.overheid.io/v3/openkvk` +
-      `?query=${encodeURIComponent(q)}` +
-      `&fields[]=bezoeklocatie.plaats` +
-      `&fields[]=website` +
-      `&fields[]=actief` +
-      `&fields[]=inschrijvingstype`;
+    const url = `https://api.overheid.io/v3/openkvk?query=${encodeURIComponent(q)}`;
 
     const response = await fetch(url, {
       headers: { Accept: "application/json", "ovio-api-key": ovioApiKey },
@@ -191,12 +185,14 @@ export async function testOpenKvKConnectionAction(
       cache:   "no-store",
     });
 
-    if (response.status === 401 || response.status === 403) return { status: response.status, results: null };
-    if (!response.ok) return { status: response.status, results: null };
+    if (response.status === 401 || response.status === 403) return { status: response.status, results: null, raw: null };
+    if (!response.ok) return { status: response.status, results: null, raw: null };
 
-    type Bedrijf = { naam?: string; kvknummer?: string; website?: string; actief?: boolean; inschrijvingstype?: string; bezoeklocatie?: { plaats?: string } };
-    const data = (await response.json()) as { _embedded?: { bedrijf?: Bedrijf[] } };
-    return { status: 200, results: data._embedded?.bedrijf ?? [] };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (await response.json()) as Record<string, any>;
+    type Bedrijf = { naam?: string; kvknummer?: string; website?: string; actief?: boolean; inschrijvingstype?: string; bezoeklocatie?: { plaats?: string }; [k: string]: unknown };
+    const results: Bedrijf[] = data._embedded?.bedrijf ?? [];
+    return { status: 200, results, raw: data };
   }
 
   try {
@@ -204,7 +200,7 @@ export async function testOpenKvKConnectionAction(
     let attempt = await fetchKvK(safeQuery);
 
     if (attempt.results === null) {
-      return attempt.status === 401 || attempt.status === 403
+      return (attempt.status === 401 || attempt.status === 403)
         ? authError(attempt.status, elapsed(start))
         : networkError(`API returned HTTP ${attempt.status}`, elapsed(start));
     }
@@ -225,10 +221,12 @@ export async function testOpenKvKConnectionAction(
     const results = attempt.results;
 
     if (results.length === 0) {
+      // Show the raw top-level keys so we can see what the API actually returned.
+      const rawKeys = attempt.raw ? Object.keys(attempt.raw).join(", ") : "–";
       return {
         ok:        false,
         errorType: "empty",
-        message:   `API is reachable but returned no results for "${safeQuery}"${safeCity ? ` (city: ${safeCity})` : ""}. This company may not be in the overheid.io database. Try a larger Dutch company like "Coolblue" to verify connectivity.`,
+        message:   `API is reachable but returned no results for "${safeQuery}"${safeCity ? ` (city: ${safeCity})` : ""}. Raw response keys: [${rawKeys}]. Try "Coolblue" to verify connectivity.`,
         latencyMs: elapsed(start),
       };
     }

@@ -516,11 +516,7 @@ export class OpenKvKProvider {
       // default (full-text across naam + handelsnamen).
       const url =
         `${this.apiBase}/v3/openkvk` +
-        `?query=${encodeURIComponent(q)}` +
-        `&fields[]=bezoeklocatie.plaats` +
-        `&fields[]=website` +
-        `&fields[]=actief` +
-        `&fields[]=inschrijvingstype`;
+        `?query=${encodeURIComponent(q)}`;
 
       const headers: Record<string, string> = { Accept: "application/json" };
       if (this.apiKey) headers["ovio-api-key"] = this.apiKey;
@@ -549,11 +545,7 @@ export class OpenKvKProvider {
         if (stripped && stripped !== q) {
           const retryUrl =
             `${this.apiBase}/v3/openkvk` +
-            `?query=${encodeURIComponent(stripped)}` +
-            `&fields[]=bezoeklocatie.plaats` +
-            `&fields[]=website` +
-            `&fields[]=actief` +
-            `&fields[]=inschrijvingstype`;
+            `?query=${encodeURIComponent(stripped)}`;
           const retryHeaders: Record<string, string> = { Accept: "application/json" };
           if (this.apiKey) retryHeaders["ovio-api-key"] = this.apiKey;
           const retryRes = await fetch(retryUrl, { headers: retryHeaders, signal: AbortSignal.timeout(4_000), cache: "no-store", next: { revalidate: 0 } });
