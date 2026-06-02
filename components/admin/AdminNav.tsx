@@ -165,7 +165,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
   ];
 
   const salesItems = [
-    { label: "Prospect Demo",   href: "/admin/demo/new",                activePrefix: "/admin/demo/new",                icon: icons.demo,   note: "Sales tool" },
+    { label: "Prospect Demos",  href: "/admin/demo",                    activePrefix: "/admin/demo",                    icon: icons.demo,   note: "Sales tool" },
     { label: "Demo Importer",   href: "/admin/platform/demo-importer",  activePrefix: "/admin/platform/demo-importer",  icon: icons.import },
   ];
 

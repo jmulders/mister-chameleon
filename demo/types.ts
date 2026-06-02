@@ -270,6 +270,12 @@ export interface DemoInstance {
   // Mirror mode (v3) — instrumented copy of the prospect's own homepage
   demo_mode:       DemoInstanceMode;
   mirrored_html:   string | null;
+  /**
+   * AI-generated slot content per blueprint scenario.
+   * Shape: { awareness: { "hero-title": "...", ... }, high_intent: {...}, ... }
+   * Used by /api/snippet/decide when context._demoId is present.
+   */
+  scenario_slots:  Record<string, Record<string, string>> | null;
 
   // Lifecycle
   created_at:      string;

@@ -32,6 +32,7 @@ import { mirrorSite }                       from "@/demo/site-mirror";
 import { instrumentHtml }                   from "@/demo/slot-injector";
 import { analyzeSite }                      from "@/demo/analyzer";
 import { generateScenarios }               from "@/demo/content-generator";
+import { analyzeAndGenerateSlots }         from "@/demo/ai-slot-analyzer";
 import { createDemoInstance }              from "@/demo/store";
 import type { DemoScenario }               from "@/demo/types";
 
@@ -174,42 +175,87 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const scenarios = generateScenarios(analysis);
 
-  // ── Step 3: Build scenario slot content for the panel ──────────────────────
-  //   Maps the 5 legacy scenario experiences to the 6 blueprint scenario keys.
-  //   These are embedded in the injected JS and applied immediately on click —
-  //   no API call required for the demo to show visual personalisation.
+  // ── Step 2b: AI-driven slot analysis ────────────────────────────────────────
+  //   Uses Claude to identify 8-12 personalizable elements in the mirrored HTML
+  //   and generate 6 unique content variants per element (one per blueprint
+  //   scenario).  Runs concurrently with nothing else — result is non-fatal on
+  //   failure (falls back to regex heuristics in slot-injector.ts).
 
-  /** Extract slot values from a DemoScenario's experience block. */
+  const aiSlotDefs = await analyzeAndGenerateSlots(mirrored.html, {
+    url:         mirrored.baseUrl,
+    title:       mirrored.title,
+    category:    analysis.category,
+    description: analysis.description,
+  });
+
+  // ── Step 3: Build scenario slot content for the panel ──────────────────────
+  //   Start with the 5 legacy scenario experiences (mapped to 6 blueprint keys)
+  //   as a base, then layer in the AI-generated slots on top — giving us unique
+  //   content for all detected elements across all 6 scenarios.
+
+  /**
+   * Extract slot values from a DemoScenario's experience block.
+   * Maps scenario content to the 8 slot keys that the HTML taggers inject:
+   *   hero-title / hero-subtitle / hero-cta-label
+   *   proof-title / proof-body
+   *   cta-title / cta-body / cta-cta
+   */
+  /**
+   * Extract slot values from a DemoScenario's experience block.
+   * Slot key names MUST match what /api/snippet/decide emits so the
+   * same data-mc-slot attributes work for both embedded and API-driven content.
+   */
   function slotsFromScenario(s: DemoScenario | undefined): Record<string, string> {
     if (!s) return {};
     const slots: Record<string, string> = {};
     const { hero, proof, cta } = s.experience;
-    if (hero.headline)    slots["hero-title"]     = hero.headline;
-    if (hero.subheadline) slots["hero-subtitle"]  = hero.subheadline;
-    if (hero.ctaLabel)    slots["hero-cta-label"] = hero.ctaLabel;
-    if (proof.heading)    slots["proof-title"]    = proof.heading;
-    if (cta.heading)      slots["cta-title"]      = cta.heading;
+    // Hero block
+    if (hero.headline)    slots["hero-title"]        = hero.headline;
+    if (hero.subheadline) slots["hero-subtitle"]     = hero.subheadline;
+    if (hero.ctaLabel)    slots["hero-cta-label"]    = hero.ctaLabel;
+    // Proof block — key matches decide endpoint: proof-item-0-text
+    if (proof.heading)    slots["proof-title"]       = proof.heading;
+    if (proof.body)       slots["proof-item-0-text"] = proof.body;
+    // CTA block — keys match decide endpoint: cta-text, cta-cta-label
+    if (cta.heading)      slots["cta-title"]         = cta.heading;
+    if (cta.body)         slots["cta-text"]          = cta.body;
+    if (cta.ctaLabel)     slots["cta-cta-label"]     = cta.ctaLabel;
     return slots;
   }
 
   const scenarioMap = Object.fromEntries(scenarios.map((s) => [s.id, s]));
 
+  // Build base slots from legacy scenarios
   const scenarioSlots: Record<string, Record<string, string>> = {
-    awareness:    slotsFromScenario(scenarioMap["new_visitor"]),
-    consideration: slotsFromScenario(scenarioMap["returning_visitor"]),
-    high_intent:  slotsFromScenario(scenarioMap["high_intent"]),
-    form_dropout:  slotsFromScenario(scenarioMap["returning_visitor"]),
-    customer:      slotsFromScenario(scenarioMap["returning_visitor"]),
-    expansion:     slotsFromScenario(scenarioMap["high_intent"]),
+    awareness:     { ...slotsFromScenario(scenarioMap["new_visitor"])      },
+    consideration: { ...slotsFromScenario(scenarioMap["returning_visitor"]) },
+    high_intent:   { ...slotsFromScenario(scenarioMap["high_intent"])      },
+    form_dropout:  { ...slotsFromScenario(scenarioMap["returning_visitor"]) },
+    customer:      { ...slotsFromScenario(scenarioMap["returning_visitor"]) },
+    expansion:     { ...slotsFromScenario(scenarioMap["high_intent"])      },
   };
+
+  // Merge AI-generated slots on top (AI content takes precedence for its keys;
+  // legacy content fills any gaps for keys the AI didn't produce variants for).
+  for (const slotDef of aiSlotDefs) {
+    for (const [scenarioKey, content] of Object.entries(slotDef.scenarios)) {
+      if (!scenarioSlots[scenarioKey]) scenarioSlots[scenarioKey] = {};
+      scenarioSlots[scenarioKey][slotDef.slotKey] = content;
+    }
+  }
 
   // ── Step 4: Instrument the HTML ─────────────────────────────────────────────
 
   const mirroredHtml = instrumentHtml(mirrored.html, {
-    siteKey:       DEMO_SITE_KEY,
-    decideBase:    baseUrl,
-    siteName:      mirrored.title,
-    faviconUrl:    mirrored.faviconUrl,
+    siteKey:        DEMO_SITE_KEY,
+    decideBase:     baseUrl,
+    siteName:       mirrored.title,
+    faviconUrl:     mirrored.faviconUrl,
+    aiSlots:        aiSlotDefs,
+    // Embed the full scenario→slot map directly in the HTML so the scenario
+    // panel applies content instantly without a decide round-trip.
+    // This makes the demo self-contained and reliable even before the
+    // scenario_slots DB migration is applied.
     scenarioSlots,
   });
 
@@ -231,8 +277,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       generatedBy:  input.generatedBy ?? auth.adminEmail,
       generationMs,
       expiryDays,
-      demoMode:     "mirror" as const,
+      demoMode:      "mirror" as const,
       mirroredHtml,
+      scenarioSlots,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -250,7 +297,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.info(
     `[api/demo/mirror] mirror demo created — demoId=${demo.id}` +
     ` siteName=${demo.site_name} fetchSucceeded=${mirrored.fetchSucceeded}` +
-    ` generationMs=${generationMs} createdBy=${auth.adminEmail}`,
+    ` aiSlots=${aiSlotDefs.length} generationMs=${generationMs} createdBy=${auth.adminEmail}`,
   );
 
   return NextResponse.json(

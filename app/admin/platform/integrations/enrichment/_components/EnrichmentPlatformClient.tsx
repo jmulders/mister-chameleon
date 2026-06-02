@@ -1044,22 +1044,23 @@ export function EnrichmentPlatformClient({
         <TestResultPanel state={leadinfoTestState} onDismiss={() => setLeadinfoTestState({ mode: "idle" })} />
       </div>
 
-      {/* ── Officiële KvK API (kvk.nl) ────────────────────────────────────── */}
+      {/* ── Official KvK API (kvk.nl) ─────────────────────────────────────── */}
       <div className="rounded-lg border border-neutral-200 bg-white p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="mb-0.5 flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-neutral-900">Officiële KvK API (kvk.nl)</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">Official KvK API (kvk.nl)</h2>
               <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                 hasKvk ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-700"
               }`}>
-                {hasKvk ? "✓ Geconfigureerd" : "API-sleutel vereist"}
+                {hasKvk ? "✓ Configured" : "API key required"}
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              Officiële Kamer van Koophandel Zoeken API (<code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">api.kvk.nl/api/v2/zoeken</code>).
-              Zoeken is gratis (€0/query). Abonnement €6,40/maand.
-              Registreer via{" "}
+              Official Dutch Chamber of Commerce search API (<code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">api.kvk.nl/api/v2/zoeken</code>).
+              Free per query (€0/query). A production API key requires a subscription (€6.40/month).
+              A free test key is used automatically when no key is configured.
+              Register at{" "}
               <a href="https://developers.kvk.nl" target="_blank" rel="noreferrer" className="underline hover:text-neutral-700">developers.kvk.nl</a>.
             </p>
           </div>

@@ -9,7 +9,7 @@
  *   CMS         — content management (Sanity · Storyblok · Statamic)
  *   CRM         — customer enrichment (HubSpot)
  *   AI          — LLM provider keys (Anthropic · OpenAI)
- *   Enrichment  — IP geolocation enrichment (MaxMind GeoIP)
+ *   Enrichment  — visitor & company enrichment (MaxMind GeoIP · KvK API · OpenKvK)
  *   Domains     — custom domain management (Vercel Domains API)
  *
  * ─── Status display ───────────────────────────────────────────────────────────
@@ -33,6 +33,7 @@ import { getPlatformEmailAction }                 from "@/app/admin/platform/int
 import { getStripePlatformSettingsAction }        from "@/app/admin/platform/integrations/stripe/actions";
 import { getStorageSettingsAction }               from "@/app/admin/platform/integrations/storage/actions";
 import { getGoogleCalendarSettingsAction }        from "@/app/admin/platform/integrations/calendar/actions";
+import { getEnrichmentPlatformSettingsAction }   from "@/app/admin/platform/integrations/enrichment/actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ const BADGE_CLASSES = {
 
 export default async function IntegrationsHubPage() {
   // Fetch all integration statuses in parallel.
-  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult, calendarResult] =
+  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult, calendarResult, enrichmentResult] =
     await Promise.all([
       getPlatformSettingsAction(),
       getCmsPlatformSettingsAction(),
@@ -86,6 +87,7 @@ export default async function IntegrationsHubPage() {
       getStripePlatformSettingsAction(),
       getStorageSettingsAction(),
       getGoogleCalendarSettingsAction(),
+      getEnrichmentPlatformSettingsAction(),
     ]);
 
   // Determine CMS configured state: any provider with credentials counts.
@@ -134,10 +136,22 @@ export default async function IntegrationsHubPage() {
     },
     {
       name:        "Enrichment",
-      description: "MaxMind GeoIP license key for IP-based visitor enrichment. Whether geo enrichment runs for a specific tenant is controlled per-tenant.",
-      providers:   [{ label: "MaxMind GeoIP", variant: "neutral" }],
+      description: "Visitor & company enrichment: IP geolocation (MaxMind), company lookup via KvK.nl and OpenKvK. Per-tenant enrichment is controlled in each tenant's Integrations tab.",
+      providers:   (() => {
+        const badges: IntegrationCard["providers"] = [];
+        if (platformResult.ok && platformResult.maxmind.hasLicenseKey)
+          badges.push({ label: "MaxMind GeoIP", variant: "teal" });
+        if (enrichmentResult.ok && enrichmentResult.hasKvkApiKey)
+          badges.push({ label: "KvK API", variant: "blue" });
+        if (enrichmentResult.ok && enrichmentResult.hasOvioApiKey)
+          badges.push({ label: "OpenKvK", variant: "neutral" });
+        if (badges.length === 0)
+          badges.push({ label: "MaxMind · KvK · OpenKvK", variant: "neutral" });
+        return badges;
+      })(),
       href:        "/admin/platform/integrations/enrichment",
-      configured:  platformResult.ok && platformResult.maxmind.hasLicenseKey,
+      configured:  (platformResult.ok && platformResult.maxmind.hasLicenseKey) ||
+                   (enrichmentResult.ok && (enrichmentResult.hasOvioApiKey || enrichmentResult.hasKvkApiKey)),
     },
     {
       name:        "Domains",

@@ -167,6 +167,25 @@ function cleanHtml(html: string, baseUrl: string): string {
   out = out.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, "");
   out = out.replace(/<iframe\b[^>]*\/>/gi, "");
 
+  // 5b. Strip video sources so we get a static poster image in the demo.
+  //   Videos almost never load in mirrored demos (CORS, autoplay policy,
+  //   large file sizes).  Stripping the src + <source> children causes the
+  //   browser to show the poster attribute as a static image — which is a
+  //   perfectly readable visual for a sales demo.
+  //   We keep the <video> element itself (and its poster/width/height attrs)
+  //   so the layout is preserved; we just remove the media source data.
+  out = out.replace(/<video\b([^>]*)>([\s\S]*?)<\/video>/gi, (_m, attrs, inner) => {
+    // Strip src from the opening tag
+    const cleanAttrs = attrs
+      .replace(/\bsrc=(['"])[^'"]*\1/gi, "")
+      .replace(/\bautoplay\b/gi, "")
+      .replace(/\bloop\b/gi, "")
+      .replace(/\bmuted\b/gi, "");
+    // Strip all <source> elements from inner content
+    const cleanInner = inner.replace(/<source\b[^>]*\/?>/gi, "");
+    return `<video${cleanAttrs}>${cleanInner}</video>`;
+  });
+
   // 6. Always inject our own <base> tag as the very first <head> child.
   //    Remove any existing <base> tag first — the prospect's may point to
   //    a different path or be relative, which would break asset resolution.

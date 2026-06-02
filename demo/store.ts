@@ -61,8 +61,14 @@ export interface CreateDemoInput {
   contentNl?:   DemoPageContent | null;
   pageImages?:  DemoImages | null;
   // v3 mirror mode
-  demoMode?:    DemoInstanceMode;
-  mirroredHtml?: string | null;
+  demoMode?:      DemoInstanceMode;
+  mirroredHtml?:  string | null;
+  /**
+   * AI-generated slot content per blueprint scenario.
+   * Stored in demo_instances.scenario_slots and served by the decide endpoint
+   * when the scenario panel passes _demoId in context.
+   */
+  scenarioSlots?: Record<string, Record<string, string>> | null;
 }
 
 export async function createDemoInstance(
@@ -78,8 +84,9 @@ export async function createDemoInstance(
     contentEn    = null,
     contentNl    = null,
     pageImages   = null,
-    demoMode     = "synthetic",
-    mirroredHtml = null,
+    demoMode      = "synthetic",
+    mirroredHtml  = null,
+    scenarioSlots = null,
   } = input;
 
   const id        = generateDemoId();
@@ -105,13 +112,37 @@ export async function createDemoInstance(
     brand_signals:    analysis.brandSignals ?? null,
     demo_mode:        demoMode,
     mirrored_html:    mirroredHtml,
+    scenario_slots:   scenarioSlots,
   };
 
-  const { data, error } = await client
+  let { data, error } = await client
     .from("demo_instances")
     .insert(row)
     .select()
     .single();
+
+  // ── Graceful fallback for missing optional columns ────────────────────────
+  //
+  // scenario_slots (migration 128) and other columns added after the initial
+  // schema may not exist yet.  If the insert fails because an optional column
+  // is missing, retry without it so demos keep working until the migration
+  // is applied.  The decide endpoint falls back to DEMO_SCENARIO_PLANS in
+  // that case.
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    const missingCol = extractMissingColumn(error.message ?? "");
+    if (missingCol === "scenario_slots") {
+      console.warn("[demo/store] scenario_slots column missing — retrying without it (apply migration 128)");
+      const rowWithout = { ...row };
+      delete rowWithout["scenario_slots"];
+      const retry = await client
+        .from("demo_instances")
+        .insert(rowWithout)
+        .select()
+        .single();
+      data  = retry.data;
+      error = retry.error;
+    }
+  }
 
   if (error) {
     const code = error.code ?? "unknown";
@@ -131,8 +162,8 @@ export async function createDemoInstance(
       case "42703": {
         const col = extractMissingColumn(msg);
         detail = col
-          ? `column '${col}' missing from demo_instances — run: supabase db push (migration 064)`
-          : `column missing in demo_instances — run: supabase db push (migration 064)`;
+          ? `column '${col}' missing from demo_instances — run: supabase db push (migration 128)`
+          : `column missing in demo_instances — run: supabase db push (migration 128)`;
         break;
       }
       case "23502":
@@ -257,5 +288,6 @@ function normalizeDemoRow(row: any): DemoInstance {
     page_images:      (row.page_images     ?? null) as DemoImages | null,
     demo_mode:        (row.demo_mode       ?? "synthetic") as DemoInstanceMode,
     mirrored_html:    (row.mirrored_html   ?? null) as string | null,
+    scenario_slots:   (row.scenario_slots  ?? null) as Record<string, Record<string, string>> | null,
   };
 }

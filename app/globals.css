@@ -23,6 +23,11 @@
  */
 
 @import "tailwindcss";
+
+/* Exclude server-only modules that contain HTML string templates and regex
+   patterns which Tailwind's content scanner can misinterpret as class names. */
+@source not "../demo/**";
+
 @import "../design-system/theme/theme.css";
 
 /*

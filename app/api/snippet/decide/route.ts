@@ -114,13 +114,22 @@ interface DecideRequest {
     locale?:         string;
     /**
      * Mirror-demo scenario override.
-     * When present the rule engine is bypassed and a hardcoded plan is used.
-     * Only honoured when _demoMode === "mirror" to prevent misuse.
+     * When present alongside _demoMode === "mirror" the rule engine is bypassed.
      *
-     * Valid keys match the DEMO_SCENARIO_PLANS below.
+     * If _demoId is also supplied, the per-demo AI-generated scenario_slots are
+     * loaded from demo_instances and returned directly (no CMS lookup needed).
+     * Otherwise the legacy DEMO_SCENARIO_PLANS CMS fallback is used.
      */
     _demoScenario?: string;
     _demoMode?:     string;
+    /**
+     * Mirror demo instance ID.
+     * When present with _demoMode=mirror, the decide endpoint loads the
+     * AI-generated scenario_slots for this specific demo from the DB and
+     * returns slots[_demoScenario].  This replaces the generic DEMO_SCENARIO_PLANS
+     * lookup so every prospect sees their own site's personalised content.
+     */
+    _demoId?:       string;
   };
 }
 
@@ -274,6 +283,71 @@ export async function POST(request: NextRequest) {
   // ── Locale resolution ──────────────────────────────────────────────────────
   const localeRaw = typeof context.locale === "string" ? context.locale : "";
   const locale    = isSupportedLocale(localeRaw) ? localeRaw : DEFAULT_LOCALE;
+
+  // ── Mirror-demo fast path: per-demo AI-generated slots ────────────────────
+  //
+  //   When the Scenario Control Panel passes _demoMode=mirror + _demoId + _demoScenario,
+  //   load the AI-generated scenario_slots for this specific demo from the DB and
+  //   return them directly — no CMS lookup, no rule engine.
+  //
+  //   This is the primary path for mirror demos created after migration 128.
+  //   Falls through to the DEMO_SCENARIO_PLANS CMS fallback for legacy demos.
+
+  if (
+    context._demoMode  === "mirror" &&
+    typeof context._demoId       === "string" && context._demoId &&
+    typeof context._demoScenario === "string" && context._demoScenario
+  ) {
+    try {
+      const supabaseUrl  = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+      const supabaseSrvc = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+
+      if (supabaseUrl && supabaseSrvc) {
+        const sbClient = createClient(supabaseUrl, supabaseSrvc, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+
+        const { data: demoRow } = await sbClient
+          .from("demo_instances")
+          .select("scenario_slots, expires_at")
+          .eq("id", context._demoId)
+          .maybeSingle();
+
+        if (demoRow && demoRow.scenario_slots) {
+          // Validate expiry
+          if (demoRow.expires_at && new Date(demoRow.expires_at) < new Date()) {
+            return NextResponse.json(
+              { error: "Demo has expired." },
+              { status: 410, headers: CORS_HEADERS },
+            );
+          }
+
+          const scenarioSlots = demoRow.scenario_slots as Record<string, Record<string, string>>;
+          const slots: SlotMap = scenarioSlots[context._demoScenario] ?? {};
+
+          logger.debug("[snippet/decide] Mirror demo fast path", {
+            tenantId,
+            demoId:       context._demoId,
+            demoScenario: context._demoScenario,
+            slotCount:    Object.keys(slots).length,
+          });
+
+          return NextResponse.json(
+            { slots, _demo: true, _scenario: context._demoScenario },
+            { status: 200, headers: CORS_HEADERS },
+          );
+        }
+        // No scenario_slots in DB → fall through to DEMO_SCENARIO_PLANS legacy path
+      }
+    } catch (err) {
+      logger.warn("[snippet/decide] Mirror demo fast path failed — falling through", {
+        tenantId,
+        demoId: context._demoId,
+        error:  err instanceof Error ? err.message : String(err),
+      });
+      // Fall through to DEMO_SCENARIO_PLANS below
+    }
+  }
 
   // ── Mirror-demo scenario bypass ────────────────────────────────────────────
   //

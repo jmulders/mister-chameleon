@@ -1025,6 +1025,19 @@ export async function testKvkZoekenConnectionAction(): Promise<TestConnectionRes
       return authError(response.status, elapsed(start));
     }
 
+    // The KvK Zoeken API returns 404 (not 200 + empty array) when no results match.
+    // Treat this as a successful connection with zero results.
+    if (response.status === 404) {
+      return {
+        ok:        true,
+        message:   isTestKey
+          ? "✓ Connected (test key). Test environment returned no results for 'ING' — this is normal, test data is limited. A production key will search real companies."
+          : "✓ Connected. API returned no results for query 'ING'.",
+        latencyMs: elapsed(start),
+        fields:    { "Key type": isTestKey ? "Free test key" : "Production key" },
+      };
+    }
+
     if (!response.ok) {
       return networkError(`KvK API returned HTTP ${response.status}`, elapsed(start));
     }

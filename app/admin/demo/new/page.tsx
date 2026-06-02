@@ -26,8 +26,8 @@
 
 "use client";
 
-import { useState, useRef } from "react";
-import Link                 from "next/link";
+import { useState, useRef, useEffect } from "react";
+import Link                             from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -53,22 +53,71 @@ type GenerateState =
   | { status: "success"; result: GenerateResult }
   | { status: "error"; error: GenerateError };
 
+// ── Progress steps ─────────────────────────────────────────────────────────────
+
+const MIRROR_STEPS = [
+  { delay: 0,     text: "Fetching and mirroring the homepage…" },
+  { delay: 4_000, text: "Resolving assets and cleaning HTML…" },
+  { delay: 9_000, text: "Analysing key page elements with AI…" },
+  { delay: 16_000, text: "Generating 6 personalisation variants per element…" },
+  { delay: 24_000, text: "Storing demo and preparing your shareable link…" },
+];
+
+const SYNTHETIC_STEPS = [
+  { delay: 0,     text: "Fetching the prospect site…" },
+  { delay: 3_000, text: "Extracting brand signals and colour palette…" },
+  { delay: 8_000, text: "Generating personalised page content with AI…" },
+  { delay: 18_000, text: "Building 5 scenario variants…" },
+  { delay: 24_000, text: "Finalising and storing your demo…" },
+];
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function NewDemoPage() {
-  const [mode,  setMode]  = useState<DemoModeTab>("mirror");
-  const [state, setState] = useState<GenerateState>({ status: "idle" });
-  const inputRef          = useRef<HTMLInputElement>(null);
+  const [mode,       setMode]       = useState<DemoModeTab>("mirror");
+  const [state,      setState]      = useState<GenerateState>({ status: "idle" });
+  const [expiryDays, setExpiryDays] = useState<number>(7);
+  const [loadingStep, setLoadingStep] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const stepTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Clean up step timers when loading ends
+  useEffect(() => {
+    if (state.status !== "loading") {
+      stepTimers.current.forEach(clearTimeout);
+      stepTimers.current = [];
+    }
+  }, [state.status]);
+
+  // ── URL normalisation ─────────────────────────────────────────────────────
+
+  function normalizeUrl(raw: string): string {
+    const trimmed = raw.trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  }
 
   // ── Submit handler ──────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const url = inputRef.current?.value.trim() ?? "";
-    if (!url) return;
+    const rawUrl = inputRef.current?.value.trim() ?? "";
+    if (!rawUrl) return;
+
+    const url = normalizeUrl(rawUrl);
+
+    // Sync back the normalised URL into the input
+    if (inputRef.current) inputRef.current.value = url;
 
     setState({ status: "loading" });
+
+    // ── Start progress step cycle ───────────────────────────────────────────
+    const steps = mode === "mirror" ? MIRROR_STEPS : SYNTHETIC_STEPS;
+    setLoadingStep(steps[0].text);
+    stepTimers.current = steps.slice(1).map(({ delay, text }) =>
+      setTimeout(() => setLoadingStep(text), delay),
+    );
 
     try {
       const endpoint = mode === "mirror" ? "/api/demo/mirror" : "/api/demo/generate";
@@ -76,7 +125,7 @@ export default function NewDemoPage() {
       const response = await fetch(endpoint, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ url, generatedBy: "admin" }),
+        body:    JSON.stringify({ url, generatedBy: "admin", expiryDays }),
       });
 
       if (!response.ok) {
@@ -128,11 +177,19 @@ export default function NewDemoPage() {
     <div className="max-w-2xl p-8">
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Prospect Demo Generator</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Create a shareable demo showing Mister Chameleon personalisation on a prospect's site.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-neutral-900">Prospect Demo Generator</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            Create a shareable demo showing Mister Chameleon personalisation on a prospect's site.
+          </p>
+        </div>
+        <Link
+          href="/admin/demo"
+          className="shrink-0 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
+        >
+          View all demos →
+        </Link>
       </div>
 
       {/* Mode tabs */}
@@ -161,10 +218,10 @@ export default function NewDemoPage() {
             <div>
               <p className="font-medium text-neutral-800">Mirror Demo — their site, our personalisation</p>
               <p className="mt-0.5 text-neutral-500 leading-relaxed">
-                Fetches the prospect's actual homepage, resolves all assets, and injects the
-                MC snippet with a floating scenario panel. The prospect sees{" "}
+                Fetches the prospect's actual homepage, uses AI to detect 8–12 personalizable
+                elements and generate 6 unique variants per element, then injects the MC snippet
+                with a floating Scenario Control Panel. The prospect sees{" "}
                 <strong>their own site</strong> adapt in real time across 6 visitor archetypes.
-                Instantly convincing — no synthetic copy needed.
               </p>
             </div>
           </div>
@@ -190,6 +247,8 @@ export default function NewDemoPage() {
       {/* Form */}
       {(state.status === "idle" || (state.status === "error" && state.error.kind === "generic")) && (
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* URL input */}
           <div>
             <label
               htmlFor="prospect-url"
@@ -200,7 +259,7 @@ export default function NewDemoPage() {
             <input
               ref={inputRef}
               id="prospect-url"
-              type="url"
+              type="text"
               required
               autoFocus
               defaultValue=""
@@ -209,9 +268,31 @@ export default function NewDemoPage() {
             />
             <p className="mt-1 text-xs text-neutral-400">
               {mode === "mirror"
-                ? "The homepage will be fetched and instrumented server-side. Assets load from the prospect's domain."
-                : "The URL will be fetched server-side to extract brand signals and generate copy."}
+                ? "The homepage will be fetched and instrumented server-side. Assets load from the prospect's domain. https:// is added automatically."
+                : "The URL will be fetched server-side to extract brand signals. https:// is added automatically."}
             </p>
+          </div>
+
+          {/* Expiry dropdown */}
+          <div>
+            <label
+              htmlFor="expiry-days"
+              className="block text-sm font-medium text-neutral-700 mb-1.5"
+            >
+              Demo link expiry
+            </label>
+            <select
+              id="expiry-days"
+              value={expiryDays}
+              onChange={(e) => setExpiryDays(Number(e.target.value))}
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
+            >
+              <option value={1}>1 day</option>
+              <option value={3}>3 days</option>
+              <option value={7}>7 days (default)</option>
+              <option value={14}>14 days</option>
+              <option value={30}>30 days</option>
+            </select>
           </div>
 
           {state.status === "error" && state.error.kind === "generic" && (
@@ -232,18 +313,7 @@ export default function NewDemoPage() {
 
       {/* Loading */}
       {state.status === "loading" && (
-        <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
-          <p className="text-sm font-medium text-neutral-700">
-            {mode === "mirror" ? "Mirroring and instrumenting homepage…" : "Generating your demo…"}
-          </p>
-          <p className="mt-1 text-xs text-neutral-400">
-            {mode === "mirror"
-              ? "Fetching HTML, resolving assets, injecting snippet and scenario panel."
-              : "Fetching site, extracting brand signals, and writing personalised content."}
-            {" "}This usually takes 5–15 seconds.
-          </p>
-        </div>
+        <LoadingPanel mode={mode} currentStep={loadingStep} />
       )}
 
       {/* Success */}
@@ -251,6 +321,54 @@ export default function NewDemoPage() {
         <SuccessPanel result={state.result} onReset={handleReset} />
       )}
 
+    </div>
+  );
+}
+
+// ── Loading panel ─────────────────────────────────────────────────────────────
+
+function LoadingPanel({ mode, currentStep }: { mode: DemoModeTab; currentStep: string }) {
+  const steps = mode === "mirror" ? MIRROR_STEPS : SYNTHETIC_STEPS;
+
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm space-y-6">
+      {/* Spinner */}
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
+        <p className="text-sm font-medium text-neutral-700 text-center min-h-[20px]">
+          {currentStep}
+        </p>
+      </div>
+
+      {/* Step list */}
+      <ol className="space-y-2">
+        {steps.map((step, i) => {
+          const isActive  = step.text === currentStep;
+          const isDone    = steps.findIndex((s) => s.text === currentStep) > i;
+          return (
+            <li key={i} className={`flex items-center gap-2.5 text-xs ${
+              isActive  ? "text-indigo-700 font-medium" :
+              isDone    ? "text-neutral-400 line-through" :
+                          "text-neutral-400"
+            }`}>
+              <span className={`shrink-0 h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                isActive  ? "bg-indigo-100 text-indigo-700" :
+                isDone    ? "bg-neutral-100 text-neutral-400" :
+                            "bg-neutral-100 text-neutral-300"
+              }`}>
+                {isDone ? "✓" : i + 1}
+              </span>
+              {step.text}
+            </li>
+          );
+        })}
+      </ol>
+
+      <p className="text-center text-xs text-neutral-400">
+        {mode === "mirror"
+          ? "AI slot analysis usually adds 10–20 seconds. Hang tight!"
+          : "This usually takes 15–30 seconds."}
+      </p>
     </div>
   );
 }
@@ -360,6 +478,7 @@ function SuccessPanel({
   });
 
   const isMirror = result.mode === "mirror";
+  const fetchFailed = isMirror && result.fetchSucceeded === false;
 
   return (
     <div className="space-y-5">
@@ -374,15 +493,32 @@ function SuccessPanel({
             </p>
             <p className="mt-0.5 text-xs text-green-600">
               {isMirror
-                ? result.fetchSucceeded === false
-                  ? "⚠ Site fetch failed — stub page served with scenario panel active."
-                  : "Homepage mirrored with 6 scenario controls + MC snippet injected."
+                ? "Homepage mirrored with AI-powered slot injection and 6 scenario controls."
                 : "5 personalisation scenarios generated."}
               {" "}Link expires {expiresDate}.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Fetch failed warning — shown prominently when the site couldn't be fetched */}
+      {fetchFailed && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-amber-500 text-lg shrink-0">⚠</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Site could not be fetched</p>
+              <p className="mt-0.5 text-xs text-amber-700 leading-relaxed">
+                The prospect's homepage returned an error or timed out. A stub page was
+                generated instead — the Scenario Control Panel is still functional, but
+                the demo will not show the prospect's actual design. Try the{" "}
+                <span className="font-medium">Synthetic Demo</span> mode if the site is behind
+                auth or has strict bot protection.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mode badge */}
       <div className="flex items-center gap-2">
@@ -396,7 +532,7 @@ function SuccessPanel({
         </span>
         {isMirror && (
           <span className="text-xs text-neutral-500">
-            Includes floating Scenario Control Panel with 6 visitor archetypes
+            AI-detected slots · 6 personalisation scenarios
           </span>
         )}
       </div>
@@ -438,6 +574,12 @@ function SuccessPanel({
         >
           Generate another
         </button>
+        <Link
+          href="/admin/demo"
+          className="rounded-lg border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+        >
+          View all demos
+        </Link>
       </div>
 
       {/* Metadata */}
@@ -456,7 +598,7 @@ function SuccessPanel({
           </div>
           <div className="flex gap-2">
             <dt className="font-medium text-neutral-500 w-24 shrink-0">Mode</dt>
-            <dd>{isMirror ? "Mirror (live site)" : "Synthetic (AI content)"}</dd>
+            <dd>{isMirror ? "Mirror (live site + AI slots)" : "Synthetic (AI content)"}</dd>
           </div>
           <div className="flex gap-2">
             <dt className="font-medium text-neutral-500 w-24 shrink-0">Expires</dt>
