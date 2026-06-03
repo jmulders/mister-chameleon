@@ -428,7 +428,8 @@ export async function addCreditsAction(
         "admin_manual",
         session.email,              // referenceId = actor for ledger visibility
         reason,
-        categoryMap[input.adjustmentType],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryMap[input.adjustmentType] as any,
       );
 
       if (!debitResult.success) {
@@ -592,12 +593,18 @@ export async function confirmBundlePurchaseAction(
 
     // ── 3. Fetch the Stripe checkout session ─────────────────────────────────
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stripe: any = new (Stripe as any)(stripeSecretKey, {
+      apiVersion: "2025-08-27.basil",
       typescript: true,
     });
 
-    let session: Stripe.Checkout.Session;
+    // Local shape for the fields we actually use from a Checkout Session.
+    interface LocalCheckoutSession {
+      payment_status: string;
+      metadata:       Record<string, string | undefined> | null;
+    }
+    let session: LocalCheckoutSession;
     try {
       session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
     } catch (err) {

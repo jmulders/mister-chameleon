@@ -2220,9 +2220,9 @@ function DebugPanel({ tenantId, wallet, enrichmentUsageSummary, reloadAttempts, 
     const correctionAmount = Math.round((debugData.ledgerDeductions - debugData.usageEventCredits) * 100) / 100;
     setReconciling(true); setReconcileMsg(null);
     const result = await addCreditsAction(tenantId, {
-      amount:         correctionAmount,
+      amountCredits:  correctionAmount,
       adjustmentType: "adjustment",
-      note:           `Ledger reconciliation — corrects ${Math.abs(correctionAmount).toFixed(2)} cr discrepancy between usage events and ledger deductions.`,
+      reason:         `Ledger reconciliation — corrects ${Math.abs(correctionAmount).toFixed(2)} cr discrepancy between usage events and ledger deductions.`,
     });
     setReconciling(false);
     setReconcileMsg(result.ok

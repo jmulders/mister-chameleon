@@ -120,7 +120,7 @@ export async function uploadAssetAction(
 
     // ── Metadata from form ────────────────────────────────────────────────────
     const title   = (formData.get("title")   as string | null)?.trim() || null;
-    const altText = (formData.get("altText") as string | null)?.trim() || null;
+    const altText = (formData.get("altText") as string | null)?.trim() || undefined;
     const tagsRaw = (formData.get("tags")    as string | null)?.trim() || "";
     const tags    = tagsRaw
       ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)

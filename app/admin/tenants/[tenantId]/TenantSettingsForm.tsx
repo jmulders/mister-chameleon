@@ -1273,8 +1273,8 @@ export function TenantSettingsForm({
                     // SDK validation errors in the CMS factory.
                     projectId:  "",
                     dataset:    "",
-                    apiVersion: undefined,
-                    studioUrl:  undefined,
+                    apiVersion: "",
+                    studioUrl:  "",
                   },
                 }));
               }}

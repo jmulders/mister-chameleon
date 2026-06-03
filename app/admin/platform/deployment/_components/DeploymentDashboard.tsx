@@ -53,13 +53,14 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
   );
 }
 
-function CodeBlock({ children }: { children: string }) {
+function CodeBlock({ children }: { children: string | string[] }) {
+  const text = Array.isArray(children) ? children.join("") : children;
   return (
     <div className="relative group">
       <pre className="rounded-md bg-neutral-900 text-green-300 text-xs p-3 overflow-x-auto font-mono leading-relaxed">
         {children}
       </pre>
-      <CopyButton text={children} label="Copy" />
+      <CopyButton text={text} label="Copy" />
     </div>
   );
 }

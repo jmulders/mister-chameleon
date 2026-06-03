@@ -674,7 +674,7 @@ export interface PlatformStorageSettings {
    * Which provider handles new asset uploads.
    * null / undefined = auto-detect (see resolution order above).
    */
-  activeProvider?: "cloudflare_r2" | "supabase_storage" | null;
+  activeProvider?: "cloudflare_r2" | "supabase_storage" | "sanity_assets" | null;
 
   /** Cloudflare R2 provider credentials. */
   cloudflareR2?: {

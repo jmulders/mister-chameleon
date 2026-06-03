@@ -1034,7 +1034,7 @@ export async function testKvkZoekenConnectionAction(): Promise<TestConnectionRes
           ? "✓ Connected (test key). Test environment returned no results for 'ING' — this is normal, test data is limited. A production key will search real companies."
           : "✓ Connected. API returned no results for query 'ING'.",
         latencyMs: elapsed(start),
-        fields:    { "Key type": isTestKey ? "Free test key" : "Production key" },
+        fields:    [{ label: "Key type", value: isTestKey ? "Free test key" : "Production key" }],
       };
     }
 
