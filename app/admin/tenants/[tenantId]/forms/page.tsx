@@ -67,8 +67,10 @@ import { RegisteredFormsTable }        from "./_components/RegisteredFormsTable"
 import {
   EffectiveStatusSummary,
 } from "./_components/EffectiveStatusSummary";
+import { RetentionSettingsClient }     from "./_components/RetentionSettingsClient";
 import { getAllFormDefinitions }        from "@/forms";
 import { serverEnv }                   from "@/lib/env";
+import Link                            from "next/link";
 import {
   getPlatformEmailSettings,
   emailPlatformFlags,
@@ -142,6 +144,11 @@ export default async function TenantFormsPage({
   const formSettings = formSettingsResult.ok
     ? formSettingsResult.settings
     : { storeSubmissions: true, notificationRecipients: [], sendConfirmationEmails: true };
+
+  // ── Retention setting ──────────────────────────────────────────────────────
+  const retentionDays = formSettingsResult.ok
+    ? (formSettingsResult.settings.submissionRetentionDays ?? null)
+    : null;
 
   // ── Bound server actions ───────────────────────────────────────────────────
   const boundSaveTransport       = saveTenantEmailTransportAction.bind(null, tenantId);
@@ -244,18 +251,34 @@ export default async function TenantFormsPage({
       ) : null /* error already shown in section 3 above */}
 
       {/* ── 5. Registered Forms ──────────────────────────────────────────── */}
-      <RegisteredFormsTable
-        forms={formDefs.map((def) => ({
-          key:       def.key,
-          title:     def.title,
-          defStore:  def.action.storeSubmissions,
-          defNotify: def.action.notifyBackoffice,
-          defConfirm: def.action.sendConfirmation,
-        }))}
+      <div className="space-y-3">
+        <RegisteredFormsTable
+          forms={formDefs.map((def) => ({
+            key:       def.key,
+            title:     def.title,
+            defStore:  def.action.storeSubmissions,
+            defNotify: def.action.notifyBackoffice,
+            defConfirm: def.action.sendConfirmation,
+          }))}
+          tenantId={tenantId}
+          tenantStore={formSettings.storeSubmissions}
+          tenantConfirm={formSettings.sendConfirmationEmails}
+          tenantHasRecipients={tenantRecipients.length > 0 || effectiveRecipients.length > 0}
+        />
+        <div className="flex justify-end">
+          <Link
+            href={`/admin/tenants/${tenantId}/forms/submissions`}
+            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+          >
+            Bekijk inzendingen →
+          </Link>
+        </div>
+      </div>
+
+      {/* ── 6. Retention Settings (AVG) ──────────────────────────────────── */}
+      <RetentionSettingsClient
         tenantId={tenantId}
-        tenantStore={formSettings.storeSubmissions}
-        tenantConfirm={formSettings.sendConfirmationEmails}
-        tenantHasRecipients={tenantRecipients.length > 0 || effectiveRecipients.length > 0}
+        initialRetentionDays={retentionDays}
       />
 
       {/* ── Env-var transport warning (no DB config at any level) ─────────── */}

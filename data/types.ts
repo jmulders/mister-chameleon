@@ -417,7 +417,8 @@ export interface PlanExperimentAssignmentInsert {
  *     created_at  timestamptz NOT NULL DEFAULT now(),
  *     form_key    text        NOT NULL,
  *     values      jsonb       NOT NULL,
- *     session_id  uuid        NULL REFERENCES sessions(id) ON DELETE SET NULL
+ *     session_id  uuid        NULL REFERENCES sessions(id) ON DELETE SET NULL,
+ *     tenant_id   text        NULL
  *   )
  */
 export interface FormSubmissionRow {
@@ -431,6 +432,8 @@ export interface FormSubmissionRow {
   values:      Record<string, string>;
   /** FK → sessions.id — nullable; absent for submissions without a platform session. */
   session_id:  string | null;
+  /** Owning tenant slug, e.g. "workengine". Null for legacy un-scoped rows. */
+  tenant_id:   string | null;
 }
 
 export interface FormSubmissionInsert {
@@ -441,6 +444,7 @@ export interface FormSubmissionInsert {
   form_key:    string;
   values:      Record<string, string>;
   session_id?: string | null;
+  tenant_id?:  string | null;
 }
 
 // ── tenant_settings ───────────────────────────────────────────────────────────

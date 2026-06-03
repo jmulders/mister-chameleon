@@ -48,6 +48,11 @@ export interface StoreSubmissionInput {
    * Omit when unavailable — submission is written with session_id = null.
    */
   sessionId?: string | null;
+  /**
+   * Tenant slug that owns this submission.
+   * Omit (or pass null/undefined) for un-scoped / legacy submissions.
+   */
+  tenantId?:  string | null;
 }
 
 /**
@@ -86,6 +91,7 @@ export async function storeSubmission(
       formKey:   input.formKey,
       values:    input.values,
       sessionId: input.sessionId ?? null,
+      tenantId:  input.tenantId  ?? null,
     });
 
     if (!result.ok) {

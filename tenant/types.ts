@@ -190,6 +190,9 @@ export interface TenantFormSettings {
    * Must be an absolute URL or a root-relative path ("/thank-you").
    */
   successRedirectUrl?: string;
+
+  /** GDPR: delete submissions older than this many days. null = keep forever. */
+  submissionRetentionDays?: number | null;
 }
 
 /**

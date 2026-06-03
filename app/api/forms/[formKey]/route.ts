@@ -321,6 +321,7 @@ export async function POST(
           formKey:   effectiveKey,
           values:    validation.values,
           sessionId,
+          tenantId:  tenantId ?? null,
         }).then((result) => {
           if (!result.ok) {
             logger.warn("[forms] Submission storage failed", {
