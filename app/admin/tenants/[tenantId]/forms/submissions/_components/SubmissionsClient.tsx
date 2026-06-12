@@ -87,10 +87,10 @@ export function SubmissionsClient({
       startLoading(async () => {
         setStatusMsg(null);
         const params = {
-          formKey: overrides?.formKey  ?? filterFormKey  || undefined,
-          from:    overrides?.from     ?? filterFrom      || undefined,
-          to:      overrides?.to       ?? filterTo        || undefined,
-          search:  overrides?.search   ?? filterSearch    || undefined,
+          formKey: overrides?.formKey  ?? (filterFormKey || undefined),
+          from:    overrides?.from     ?? (filterFrom    || undefined),
+          to:      overrides?.to       ?? (filterTo      || undefined),
+          search:  overrides?.search   ?? (filterSearch  || undefined),
           page:    nextPage,
         };
         const result = await listFormSubmissionsAction(tenantId, params);
