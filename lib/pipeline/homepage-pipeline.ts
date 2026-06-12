@@ -40,7 +40,8 @@ import type { DecisionProvider }           from "@/decision/providers/decision-p
 import { buildDecisionContext }            from "@/decision/context/build-decision-context";
 import type { EnrichmentDebugInfo }        from "@/decision/context/build-decision-context";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { createCMSProvider, createPreviewCMSProvider } from "@/cms";
+import { createCMSProvider, createPreviewCMSProvider, createDraftStatamicProvider } from "@/cms";
+import { getDraft } from "@/lib/statamic-draft-store";
 import { composeHomepageExperience }       from "@/experience";
 import type { CmsFallbackKeys }            from "@/experience";
 import { applyConfidenceGating }           from "@/decision/apply-confidence-gating";
@@ -270,9 +271,24 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
 
   // ── CMS provider ──────────────────────────────────────────────────────────
   const { isEnabled: isPreview } = await draftMode();
-  const cmsProvider = isPreview
-    ? createPreviewCMSProvider(tenant?.cms, tenantConfig.tenantId, locale)
-    : createCMSProvider(tenant?.cms, tenantConfig.tenantId, locale);
+
+  // Statamic Live Preview draft mode: _mc_draft=TOKEN means the Antlers
+  // template serialised the current (unsaved) entry data and we should use
+  // those blocks instead of reading from disk.  Only active in development.
+  const mcDraftToken =
+    process.env.NODE_ENV === "development"
+      ? (typeof params._mc_draft === "string" ? params._mc_draft : null)
+      : null;
+  const draftEntry = mcDraftToken ? getDraft(mcDraftToken) : null;
+
+  // Use draft blocks whenever a valid token resolves — even if blocks is
+  // temporarily empty (e.g. editor cleared all blocks).  Only fall back to the
+  // regular/preview provider when no draft token was present at all.
+  const cmsProvider = draftEntry !== null
+    ? createDraftStatamicProvider(draftEntry.blocks)
+    : isPreview
+      ? createPreviewCMSProvider(tenant?.cms, tenantConfig.tenantId, locale)
+      : createCMSProvider(tenant?.cms, tenantConfig.tenantId, locale);
 
   const homePagePromise = cmsProvider.getPageBySlug("home", locale);
 
@@ -589,9 +605,9 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
 
   const journeyForGating = effectiveHistory.journey ?? emptyJourneyState();
   const defaultPlan = {
-    heroKey:  DEFAULT_HOMEPAGE_PLAN.heroKey,   // "hero_direct_brand"
-    proofKey: DEFAULT_HOMEPAGE_PLAN.proofKey,  // "proof_platform"
-    ctaKey:   DEFAULT_HOMEPAGE_PLAN.ctaKey,    // "cta_meeting"
+    heroKey:  DEFAULT_HOMEPAGE_PLAN.heroKey,   // "hero_default"
+    proofKey: DEFAULT_HOMEPAGE_PLAN.proofKey,  // "proof_default"
+    ctaKey:   DEFAULT_HOMEPAGE_PLAN.ctaKey,    // "cta_default"
   };
   const { plan: gatedPlan, gating: adaptiveGating, anySlotGated, gatingSummary } =
     (scenarioOverrides || experimentChallenger)

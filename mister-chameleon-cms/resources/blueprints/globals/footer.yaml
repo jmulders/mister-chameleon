@@ -1,0 +1,51 @@
+title: Footer
+fields:
+  -
+    handle: columns
+    field:
+      type: replicator
+      display: 'Footer Columns'
+      button_label: 'Add column'
+      sets:
+        footer_content:
+          display: 'Footer Content'
+          sets:
+            column:
+              display: Column
+              fields:
+                -
+                  handle: heading
+                  field:
+                    type: text
+                    display: Heading
+                    instructions: 'Column title shown above the links.'
+                    width: 100
+                -
+                  handle: links
+                  field:
+                    type: grid
+                    display: Links
+                    add_row: 'Add link'
+                    reorderable: true
+                    fields:
+                      -
+                        handle: label
+                        field:
+                          type: text
+                          display: Label
+                          width: 40
+                      -
+                        handle: href
+                        field:
+                          type: link
+                          display: URL
+                          instructions: 'Pick a page entry or enter a custom URL / anchor (e.g. #signup or https://…).'
+                          collections:
+                            - pages
+                          width: 55
+                      -
+                        handle: open_in_new_tab
+                        field:
+                          type: toggle
+                          display: 'New tab'
+                          width: 15

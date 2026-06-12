@@ -17,6 +17,7 @@ import {
   emailPlatformFlags,
 }                                    from "@/platform/platform-store";
 import { DeploymentDashboard }       from "./_components/DeploymentDashboard";
+import { rethrowNextInternal } from "@/lib/server-action-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -267,6 +268,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
         }
       }
     } catch (err) {
+    rethrowNextInternal(err);
       checks.push({
         id:     "db-connection",
         label:  "Database connection",

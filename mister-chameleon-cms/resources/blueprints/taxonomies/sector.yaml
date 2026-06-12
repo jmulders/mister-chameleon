@@ -1,0 +1,16 @@
+title: 'Sector'
+tabs:
+  main:
+    display: Main
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              display: Title
+              validate: required
+          - handle: description
+            field:
+              type: textarea
+              display: Description
+              instructions: 'Short description of this sector (e.g. Healthcare, Rail, Defence).'

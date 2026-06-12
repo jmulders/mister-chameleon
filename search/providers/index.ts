@@ -13,17 +13,22 @@
  *
  * ─── Resolution order ─────────────────────────────────────────────────────────
  *
- *   1. Meilisearch  — when the tenant has provider:"meilisearch" configured in
- *                     `tenant_search_settings` with a valid host + API key.
- *                     Index name: {indexPrefix}{tenantId}.
+ *   1. Explicit tenant DB config — when the tenant has an explicit provider
+ *      configured in `tenant_search_settings`, that choice takes precedence over
+ *      all environment-based auto-detection.  Supported options:
+ *        "meilisearch" — full-text index (requires host + API key in DB)
+ *        "statamic"    — flat-file reader (requires STATAMIC_CMS_PATH)
+ *        "sanity"      — Sanity GROQ    (requires SANITY_PROJECT_ID)
+ *        "inmemory"    — fixture corpus  (always available)
  *
- *   2. Sanity GROQ  — when SANITY_PROJECT_ID is set in the environment and
- *                     Meilisearch is not configured for this tenant.
- *                     Returns real CMS content; client-side term scoring.
+ *   2. Sanity GROQ  — auto-activated when SANITY_PROJECT_ID is set and no
+ *                     explicit tenant config overrides it.
  *
- *   3. InMemory     — always-available fixture-corpus fallback.
- *                     Works without any external service or env vars.
- *                     Used in local dev and CI environments.
+ *   3. Statamic FS  — auto-activated when STATAMIC_CMS_PATH is set and Sanity
+ *                     is not active.  Reads .md files from the CMS content
+ *                     directory, parses YAML frontmatter, scores in-process.
+ *
+ *   4. InMemory     — always-available fixture-corpus fallback.
  *
  * ─── Design note ──────────────────────────────────────────────────────────────
  *
@@ -50,6 +55,7 @@ import type { SearchProvider }         from "@/search";
 import { InMemorySearchProvider }      from "./in-memory-search-provider";
 import { SanitySearchProvider }        from "./sanity-search-provider";
 import { MeilisearchSearchProvider }   from "./meilisearch-search-provider";
+import { StatamicSearchProvider }      from "./statamic-search-provider";
 import { serverEnv }                   from "@/lib/env";
 import { getDb }                       from "@/data/db";
 import { decryptSecret, hasStoredSecret } from "@/lib/email-crypto";
@@ -65,17 +71,19 @@ import { logger }                      from "@/lib/logger";
  *                  Pass the active tenant slug from getActiveTenant().tenantId.
  */
 export async function getSearchProvider(tenantId?: string | null): Promise<SearchProvider> {
-  // ── 1. Meilisearch (tenant DB config) ─────────────────────────────────────
+  // ── 1. Explicit tenant DB config ─────────────────────────────────────────
   //
-  // If this tenant has Meilisearch configured in tenant_search_settings,
-  // prefer it over all other providers.
+  // Load the tenant's search settings once. When an explicit provider is stored,
+  // use it directly instead of falling through the auto-detection chain.
+  // This lets operators pin a tenant to a specific backend regardless of which
+  // environment variables happen to be set.
 
   if (tenantId) {
-    const meilisearch = await tryLoadMeilisearchProvider(tenantId);
-    if (meilisearch) return meilisearch;
+    const explicit = await tryLoadExplicitProvider(tenantId);
+    if (explicit) return explicit;
   }
 
-  // ── 2. Sanity GROQ search ─────────────────────────────────────────────────
+  // ── 2. Sanity GROQ (auto-detect) ──────────────────────────────────────────
   //
   // When SANITY_PROJECT_ID is set the platform is using Sanity as its CMS.
   // SanitySearchProvider fetches all published pages for the active tenant
@@ -85,26 +93,62 @@ export async function getSearchProvider(tenantId?: string | null): Promise<Searc
     return new SanitySearchProvider(tenantId ?? null);
   }
 
-  // ── 3. Default: in-memory provider ────────────────────────────────────────
+  // ── 3. Statamic filesystem provider (auto-detect) ─────────────────────────
+  //
+  // When STATAMIC_CMS_PATH is set, read content directly from the local CMS
+  // directory (the same path StatamicClient uses for flat-file fallback).
+  // Scans collection .md files, parses YAML frontmatter, builds correct
+  // Next.js route URLs, and scores results in-process.
+
+  const statamicCmsPath =
+    serverEnv.statamic.cmsFsPath ?? process.env.STATAMIC_CMS_PATH;
+
+  if (statamicCmsPath) {
+    return new StatamicSearchProvider(statamicCmsPath);
+  }
+
+  // ── 4. Default: in-memory provider ────────────────────────────────────────
   //
   // Works without any external service.  Suitable for local development and
   // any environment without a dedicated CMS or search backend.
+  //
+  // LOUD WARNING when a real CMS is configured: in that case this fallback
+  // means site search serves FIXTURE data instead of real content — typically
+  // a production deploy (e.g. Vercel) where STATAMIC_CMS_PATH is unavailable
+  // and Meilisearch has not been configured yet.
+
+  if (serverEnv.statamic.isConfigured) {
+    logger.warn(
+      "[search-providers] No search backend available — falling back to the in-memory FIXTURE corpus. " +
+      "Site search will NOT return real content. Configure Meilisearch for this tenant in the admin " +
+      "(/admin/tenants/{id}/search) and run a reindex, or set STATAMIC_CMS_PATH for flat-file search.",
+      { tenantId: tenantId ?? null },
+    );
+  }
 
   return new InMemorySearchProvider();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Internal: load Meilisearch provider from DB
+// Internal: load explicit provider from DB
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Attempt to load a MeilisearchSearchProvider from the tenant's DB settings.
- * Returns null when Meilisearch is not configured or the config is incomplete.
+ * Attempt to load an explicitly-configured SearchProvider from the tenant's
+ * DB settings.  Returns null when:
+ *   - The DB has no row for this tenant (fall through to auto-detect)
+ *   - `provider` is "none" (explicit "use auto-detect")
+ *   - The provider is "meilisearch" but credentials are incomplete/invalid
+ *   - The provider is "statamic" but STATAMIC_CMS_PATH is not available
+ *   - The provider is "sanity" but SANITY_PROJECT_ID is not set
+ *
  * Never throws — all errors are caught and logged.
  */
-async function tryLoadMeilisearchProvider(
+async function tryLoadExplicitProvider(
   tenantId: string,
-): Promise<MeilisearchSearchProvider | null> {
+): Promise<SearchProvider | null> {
+  let config: Record<string, unknown>;
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = (await (getDb() as any)
@@ -117,11 +161,25 @@ async function tryLoadMeilisearchProvider(
       };
 
     if (result.error || !result.data) return null;
+    config = result.data.config;
+  } catch (err) {
+    // Non-fatal: DB may not have the table yet (pre-migration)
+    const msg = String(err);
+    if (
+      !msg.toLowerCase().includes("does not exist") &&
+      !msg.toLowerCase().includes("schema cache")
+    ) {
+      logger.warn("[search-providers] Failed to load tenant search config", {
+        tenantId, error: msg,
+      });
+    }
+    return null;
+  }
 
-    const config = result.data.config;
+  const provider = config.provider as string | undefined;
 
-    if (config.provider !== "meilisearch") return null;
-
+  // ── Meilisearch ───────────────────────────────────────────────────────────
+  if (provider === "meilisearch") {
     const host = typeof config.meilisearchHost === "string" ? config.meilisearchHost.trim() : "";
     if (!host) return null;
 
@@ -138,16 +196,40 @@ async function tryLoadMeilisearchProvider(
 
     const indexPrefix = typeof config.indexPrefix === "string" ? config.indexPrefix.trim() : "";
     const indexName   = `${indexPrefix}${tenantId}`;
-
     return new MeilisearchSearchProvider({ host, apiKey, indexName });
-  } catch (err) {
-    // Non-fatal: DB may not have the table yet (pre-migration)
-    const msg = String(err);
-    if (!msg.toLowerCase().includes("does not exist") && !msg.toLowerCase().includes("schema cache")) {
-      logger.warn("[search-providers] Failed to load Meilisearch config", {
-        tenantId, error: msg,
-      });
-    }
-    return null;
   }
+
+  // ── Statamic FS ───────────────────────────────────────────────────────────
+  if (provider === "statamic") {
+    const cmsPath =
+      serverEnv.statamic.cmsFsPath ?? process.env.STATAMIC_CMS_PATH;
+    if (!cmsPath) {
+      logger.warn(
+        "[search-providers] provider='statamic' configured but STATAMIC_CMS_PATH is not set",
+        { tenantId },
+      );
+      return null;
+    }
+    return new StatamicSearchProvider(cmsPath);
+  }
+
+  // ── Sanity GROQ ───────────────────────────────────────────────────────────
+  if (provider === "sanity") {
+    if (!serverEnv.sanity.projectId) {
+      logger.warn(
+        "[search-providers] provider='sanity' configured but SANITY_PROJECT_ID is not set",
+        { tenantId },
+      );
+      return null;
+    }
+    return new SanitySearchProvider(tenantId ?? null);
+  }
+
+  // ── InMemory (explicit) ───────────────────────────────────────────────────
+  if (provider === "inmemory") {
+    return new InMemorySearchProvider();
+  }
+
+  // provider === "none" or anything else → return null to trigger auto-detect
+  return null;
 }

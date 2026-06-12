@@ -35,8 +35,9 @@ import Link from "next/link";
  */
 
 import { useState, useTransition }               from "react";
-import { seedTenantSanityAction, seedTenantStoryblokAction } from "../seed-actions";
+import { seedTenantSanityAction, seedTenantStoryblokAction, seedTenantStatamicAction } from "../seed-actions";
 import type { SeedMarketingSiteResult, SeedStoryblokSpaceResult } from "@/app/admin/platform/cms/actions";
+import type { SeedStatamicResult } from "../seed-actions";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,8 @@ export interface TenantCmsSeedPanelProps {
   // Storyblok
   hasManagementToken?: boolean;
   hasSpaceId?:         boolean;
+  // Statamic
+  hasStatamicBaseUrl?: boolean;
 }
 
 type SeedPhase = "idle" | "confirming" | "running" | "done" | "error";
@@ -380,6 +383,167 @@ function StoryblokSeedSection({
   );
 }
 
+// ── Statamic seed section ──────────────────────────────────────────────────────
+
+function StatamicSeedSection({
+  tenantId,
+  hasStatamicBaseUrl,
+}: {
+  tenantId:           string;
+  hasStatamicBaseUrl: boolean;
+}) {
+  const [phase,   setPhase]   = useState<SeedPhase>("idle");
+  const [results, setResults] = useState<SeedStatamicResult | null>(null);
+  const [errMsg,  setErrMsg]  = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleRun() {
+    setPhase("running");
+    setResults(null);
+    setErrMsg(null);
+    startTransition(async () => {
+      const res = await seedTenantStatamicAction(tenantId);
+      if (!res.ok) {
+        setErrMsg(res.error);
+        setPhase("error");
+        return;
+      }
+      setResults(res);
+      setPhase(res.failed > 0 ? "error" : "done");
+    });
+  }
+
+  return (
+    <div className="mt-5 border-t border-neutral-100 pt-4">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <p className="text-xs font-semibold text-neutral-700">Statamic content seed</p>
+        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+          Statamic
+        </span>
+      </div>
+      <p className="mb-4 text-xs text-neutral-500 leading-relaxed">
+        Creates or updates the three starter variant entries —{" "}
+        <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">hero_default</code>,{" "}
+        <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">proof_default</code>, and{" "}
+        <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">cta_default</code>{" "}
+        — in the connected Statamic site for{" "}
+        <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">{tenantId}</code>.{" "}
+        Safe to re-run — existing entries are overwritten. The Statamic server must be running and
+        reachable at the configured base URL.
+      </p>
+
+      {!hasStatamicBaseUrl && (
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+          <strong>No Statamic base URL configured.</strong>{" "}
+          Add a base URL in the tenant settings (CMS → Statamic Base URL) or in{" "}
+          <Link href="/admin/platform/integrations/cms" className="underline hover:text-amber-900">
+            Platform → CMS settings
+          </Link>{" "}
+          before seeding.
+        </div>
+      )}
+
+      {phase === "idle" && (
+        <button
+          onClick={() => setPhase("confirming")}
+          disabled={!hasStatamicBaseUrl}
+          className="rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Seed Statamic entries →
+        </button>
+      )}
+
+      {phase === "confirming" && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="mb-1 text-xs font-semibold text-amber-900">
+            ⚠️ This will create or replace the starter variant entries in your Statamic site for{" "}
+            <code className="font-mono">{tenantId}</code>.
+          </p>
+          <p className="mb-3 text-xs text-amber-800">
+            Manually edited entry content will be overwritten by the seed values.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRun}
+              disabled={isPending}
+              className="rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
+            >
+              Yes, seed entries
+            </button>
+            <button
+              onClick={() => setPhase("idle")}
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {phase === "running" && (
+        <div className="flex items-center gap-2 text-xs text-neutral-600">
+          <svg className="h-4 w-4 animate-spin text-amber-600" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+          Seeding entries… this usually takes a few seconds.
+        </div>
+      )}
+
+      {phase === "error" && errMsg && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-800">
+          <p className="font-semibold mb-1">Seed failed</p>
+          <p>{errMsg}</p>
+          <button
+            onClick={() => { setPhase("idle"); setErrMsg(null); }}
+            className="mt-2 text-[11px] text-neutral-500 underline hover:text-neutral-700"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {results && results.ok && (phase === "done" || (phase === "error" && !errMsg)) && (
+        <div className="space-y-3">
+          <div className={`rounded-md border px-3 py-2.5 text-xs font-semibold ${
+            results.failed === 0
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-amber-200 bg-amber-50 text-amber-800"
+          }`}>
+            {results.failed === 0
+              ? `✅  All ${results.seeded} variant entries seeded.`
+              : `⚠️  ${results.seeded} succeeded, ${results.failed} failed.`}
+          </div>
+          {results.results.some((r) => !r.ok) && (
+            <div className="max-h-40 overflow-y-auto rounded-md border border-neutral-200 bg-neutral-50 p-2">
+              {results.results.filter((r) => !r.ok).map((r, i) => (
+                <div key={i} className="py-1 text-[11px] text-red-700">
+                  <span className="font-mono">{r.slug}</span>
+                  {r.error && <span className="ml-2 text-red-500">— {r.error}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setPhase("idle"); setResults(null); }}
+              className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
+            >
+              Reset
+            </button>
+            <button
+              onClick={() => setPhase("confirming")}
+              className="rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors"
+            >
+              Seed again
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Root export ────────────────────────────────────────────────────────────────
 
 /**
@@ -392,9 +556,10 @@ function StoryblokSeedSection({
 export function TenantCmsSeedPanel({
   tenantId,
   cmsProvider,
-  hasWriteToken     = false,
+  hasWriteToken      = false,
   hasManagementToken = false,
-  hasSpaceId        = false,
+  hasSpaceId         = false,
+  hasStatamicBaseUrl = false,
 }: TenantCmsSeedPanelProps) {
   if (cmsProvider === "sanity") {
     return <SanitySeedSection tenantId={tenantId} hasWriteToken={hasWriteToken} />;
@@ -406,6 +571,15 @@ export function TenantCmsSeedPanel({
         tenantId={tenantId}
         hasManagementToken={hasManagementToken}
         hasSpaceId={hasSpaceId}
+      />
+    );
+  }
+
+  if (cmsProvider === "statamic") {
+    return (
+      <StatamicSeedSection
+        tenantId={tenantId}
+        hasStatamicBaseUrl={hasStatamicBaseUrl}
       />
     );
   }

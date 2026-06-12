@@ -34,6 +34,7 @@ import { getStripePlatformSettingsAction }        from "@/app/admin/platform/int
 import { getStorageSettingsAction }               from "@/app/admin/platform/integrations/storage/actions";
 import { getGoogleCalendarSettingsAction }        from "@/app/admin/platform/integrations/calendar/actions";
 import { getEnrichmentPlatformSettingsAction }   from "@/app/admin/platform/integrations/enrichment/actions";
+import { getPlatformForgeSettingsAction }         from "@/app/admin/platform/integrations/forge/actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ const BADGE_CLASSES = {
 
 export default async function IntegrationsHubPage() {
   // Fetch all integration statuses in parallel.
-  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult, calendarResult, enrichmentResult] =
+  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult, calendarResult, enrichmentResult, forgeResult] =
     await Promise.all([
       getPlatformSettingsAction(),
       getCmsPlatformSettingsAction(),
@@ -88,6 +89,7 @@ export default async function IntegrationsHubPage() {
       getStorageSettingsAction(),
       getGoogleCalendarSettingsAction(),
       getEnrichmentPlatformSettingsAction(),
+      getPlatformForgeSettingsAction(),
     ]);
 
   // Determine CMS configured state: any provider with credentials counts.
@@ -189,6 +191,13 @@ export default async function IntegrationsHubPage() {
       providers:   [{ label: "Google Calendar", variant: "blue" as const }],
       href:        "/admin/platform/integrations/calendar",
       configured:  calendarResult.ok && calendarResult.config.isConfigured,
+    },
+    {
+      name:        "Forge",
+      description: "Laravel Forge API token and deployment defaults for automated Statamic site provisioning. Configure once; deploy new client Statamic sites from each tenant's Setup page.",
+      providers:   [{ label: "Laravel Forge", variant: "orange" as const }],
+      href:        "/admin/platform/integrations/forge",
+      configured:  forgeResult.ok && forgeResult.isConfigured,
     },
   ];
 

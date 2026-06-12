@@ -1,0 +1,11 @@
+tree:
+  -
+    id: ecaadf2e-99b0-4a4c-9923-173da617a190
+    entry: privacy
+  -
+    id: 28b4bbf6-6f50-4d51-88fe-f8fd86dd7ddf
+    entry: terms
+  -
+    id: 3cb616e5-01cb-4d5d-b987-726c85f19590
+    title: Cookies
+    url: /cookies

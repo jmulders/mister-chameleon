@@ -212,6 +212,20 @@ export interface PlatformStoryblokSettings {
    * Supplements STORYBLOK_SPACE_ID env var.
    */
   spaceId?: string;
+  /**
+   * Shared webhook secret used to verify incoming Storyblok webhook calls.
+   * Must match the value configured under Settings → Webhooks in Storyblok.
+   * SERVER ONLY — must never be serialised to the client.
+   * Supplements STORYBLOK_WEBHOOK_SECRET env var.
+   */
+  webhookSecret?: string;
+  /**
+   * Default tenant ID to scope adaptive blocks synced via the Storyblok webhook.
+   * Non-secret — safe to pass to client.
+   * Supplements STORYBLOK_TENANT_ID env var.
+   * Can be overridden per-request via the ?tenantId= query param.
+   */
+  tenantId?: string;
 }
 
 /**
@@ -236,6 +250,13 @@ export interface PlatformStatamicSettings {
    * Supplements STATAMIC_API_KEY env var.
    */
   apiKey?: string;
+  /**
+   * Shared webhook secret used to verify incoming Statamic webhook calls.
+   * Must match the value set in the x-statamic-secret header configured on the webhook.
+   * SERVER ONLY — must never be serialised to the client.
+   * Supplements STATAMIC_WEBHOOK_SECRET env var.
+   */
+  webhookSecret?: string;
 }
 
 /**
@@ -710,6 +731,54 @@ export interface PlatformStorageSettings {
   };
 }
 
+/**
+ * Platform-wide Laravel Forge settings for automated Statamic site deployment.
+ *
+ * Used by `deployStatamicSiteAction` to clone `mister-chameleon-cms` onto a
+ * Forge-managed server, set environment variables, and trigger the first deploy.
+ *
+ * `apiKey` is a server-only secret — never expose it to the client.
+ * Use `forgeFlags()` for safe client-facing status.
+ */
+export interface PlatformForgeSettings {
+  /**
+   * Laravel Forge Personal API Token.
+   * SERVER ONLY — never serialised to the client.
+   * Get yours at: https://forge.laravel.com/user-profile/api
+   */
+  apiKey?: string;
+
+  /**
+   * Default Forge server ID used when no per-deployment server is specified.
+   * Non-secret — safe to expose to client.
+   */
+  defaultServerId?: number;
+
+  /**
+   * GitHub / GitLab repository that contains the Statamic starter.
+   * Format: "org/repo"  e.g. "mister-chameleon/mister-chameleon-cms"
+   * Non-secret — safe to expose to client.
+   */
+  gitRepository?: string;
+
+  /**
+   * Branch to deploy from.  Should point to a clean "starter" branch that
+   * contains the empty navigation trees, generic site_settings, and empty
+   * footer columns — NOT the main MC-specific branch.
+   * Non-secret — safe to expose to client.
+   * @default "starter"
+   */
+  gitBranch?: string;
+
+  /**
+   * PHP version to use when creating new Forge sites.
+   * E.g. "php82", "php83".
+   * Non-secret — safe to expose to client.
+   * @default "php82"
+   */
+  phpVersion?: string;
+}
+
 // ── Well-known keys ────────────────────────────────────────────────────────────
 
 const KEYS = {
@@ -731,6 +800,7 @@ const KEYS = {
   storage:         "storage",
   contentBudget:   "content_budget",
   googleCalendar:  "google-calendar",
+  forge:           "forge",
 } as const;
 
 // ── Generic read / write ───────────────────────────────────────────────────────
@@ -1051,9 +1121,10 @@ export async function savePlatformStoryblokSettings(
   patch: PlatformStoryblokSettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const normalized: Record<string, unknown> = {
-    ...(patch.region  !== undefined ? { region:  patch.region  } : {}),
-    ...(patch.version !== undefined ? { version: patch.version } : {}),
-    ...(patch.spaceId !== undefined ? { spaceId: patch.spaceId } : {}),
+    ...(patch.region   !== undefined ? { region:   patch.region   } : {}),
+    ...(patch.version  !== undefined ? { version:  patch.version  } : {}),
+    ...(patch.spaceId  !== undefined ? { spaceId:  patch.spaceId  } : {}),
+    ...(patch.tenantId !== undefined ? { tenantId: patch.tenantId } : {}),
   };
 
   if (patch.accessToken !== undefined) {
@@ -1064,17 +1135,23 @@ export async function savePlatformStoryblokSettings(
     normalized.managementToken = patch.managementToken === "" ? null : patch.managementToken;
   }
 
+  if (patch.webhookSecret !== undefined) {
+    normalized.webhookSecret = patch.webhookSecret === "" ? null : patch.webhookSecret;
+  }
+
   return writeSection<Record<string, unknown>>(KEYS.storyblok, normalized);
 }
 
 /** Safe boolean flags for the Storyblok section — suitable to pass to client components. */
 export function storyblokFlags(settings: PlatformStoryblokSettings): {
-  hasAccessToken:    boolean;
+  hasAccessToken:     boolean;
   hasManagementToken: boolean;
+  hasWebhookSecret:   boolean;
 } {
   return {
-    hasAccessToken:    Boolean(settings.accessToken),
+    hasAccessToken:     Boolean(settings.accessToken),
     hasManagementToken: Boolean(settings.managementToken),
+    hasWebhookSecret:   Boolean(settings.webhookSecret),
   };
 }
 
@@ -1106,15 +1183,21 @@ export async function savePlatformStatamicSettings(
     normalized.apiKey = patch.apiKey === "" ? null : patch.apiKey;
   }
 
+  if (patch.webhookSecret !== undefined) {
+    normalized.webhookSecret = patch.webhookSecret === "" ? null : patch.webhookSecret;
+  }
+
   return writeSection<Record<string, unknown>>(KEYS.statamic, normalized);
 }
 
 /** Safe boolean flags for the Statamic section — suitable to pass to client components. */
 export function statamicFlags(settings: PlatformStatamicSettings): {
-  hasApiKey: boolean;
+  hasApiKey:        boolean;
+  hasWebhookSecret: boolean;
 } {
   return {
-    hasApiKey: Boolean(settings.apiKey),
+    hasApiKey:        Boolean(settings.apiKey),
+    hasWebhookSecret: Boolean(settings.webhookSecret),
   };
 }
 
@@ -1928,5 +2011,53 @@ export function googleCalendarFlags(s: PlatformGoogleCalendarSettings): {
     bookingHoursStart:   s.bookingHoursStart    ?? 9,
     bookingHoursEnd:     s.bookingHoursEnd      ?? 17,
     isConfigured:        Boolean(s.serviceAccountEmail && s.serviceAccountPrivateKey && s.calendarId),
+  };
+}
+
+// ── Forge ──────────────────────────────────────────────────────────────────────
+
+/** Read the platform Forge settings (server-only — includes apiKey). */
+export async function getPlatformForgeSettings(): Promise<SettingsResult<PlatformForgeSettings>> {
+  return readSection<PlatformForgeSettings>(KEYS.forge);
+}
+
+/** Persist platform Forge settings. */
+export async function savePlatformForgeSettings(
+  patch: PlatformForgeSettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const normalized: Record<string, unknown> = {};
+
+  if (patch.defaultServerId !== undefined) normalized.defaultServerId = patch.defaultServerId || null;
+  if (patch.gitRepository   !== undefined) normalized.gitRepository   = patch.gitRepository   || null;
+  if (patch.gitBranch       !== undefined) normalized.gitBranch       = patch.gitBranch       || null;
+  if (patch.phpVersion      !== undefined) normalized.phpVersion      = patch.phpVersion      || null;
+
+  // API key: empty string = clear, undefined = leave untouched.
+  if (patch.apiKey !== undefined) {
+    normalized.apiKey = patch.apiKey === "" ? null : patch.apiKey;
+  }
+
+  return writeSection<Record<string, unknown>>(KEYS.forge, normalized);
+}
+
+/**
+ * Safe flags for client components — API key replaced with boolean.
+ * defaultServerId, gitRepository, gitBranch, phpVersion are non-secret and returned as-is.
+ */
+export function forgeFlags(s: PlatformForgeSettings): {
+  hasApiKey:        boolean;
+  defaultServerId:  number | null;
+  gitRepository:    string;
+  gitBranch:        string;
+  phpVersion:       string;
+  isConfigured:     boolean;
+} {
+  return {
+    hasApiKey:       Boolean(s.apiKey),
+    defaultServerId: s.defaultServerId ?? null,
+    gitRepository:   s.gitRepository   ?? "",
+    gitBranch:       s.gitBranch       ?? "starter",
+    phpVersion:      s.phpVersion      ?? "php82",
+    isConfigured:    Boolean(s.apiKey),
   };
 }

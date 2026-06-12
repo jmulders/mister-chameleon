@@ -70,22 +70,24 @@
  * Use these keys in ContentSource — never use CMS-specific type names.
  */
 export type CollectionKey =
-  | "articles"    // news articles / blog posts
-  | "vacancies"   // job openings / careers listings
-  | "cases"       // case studies / client highlights
-  | "news"        // short news items (alias of articles for some providers)
-  | "companies";  // company / client profiles
+  | "articles"      // news articles / blog posts
+  | "vacancies"     // job openings / careers listings
+  | "cases"         // case studies / client highlights
+  | "news"          // short news items (alias of articles for some providers)
+  | "companies"     // company / client profiles
+  | "team_members"; // team member profiles
 
 /**
  * Human-readable labels for collection keys.
  * Used in the admin UI CollectionSourcePicker.
  */
 export const COLLECTION_KEY_LABELS: Record<CollectionKey, string> = {
-  articles:  "Articles / Blog posts",
-  vacancies: "Vacancies",
-  cases:     "Case studies",
-  news:      "News items",
-  companies: "Companies",
+  articles:     "Articles / Blog posts",
+  vacancies:    "Vacancies",
+  cases:        "Case studies",
+  news:         "News items",
+  companies:    "Companies",
+  team_members: "Team members",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,10 +196,18 @@ export interface CollectionItem {
   readonly excerpt?:  string;
   /** ISO 8601 publication date, e.g. "2024-09-01" */
   readonly date?:     string;
-  readonly imageUrl?: string;
-  readonly imageAlt?: string;
-  readonly category?: string;
-  readonly tags?:     readonly string[];
+  /**
+   * Whether to display the date on the card. Defaults to `true` when absent.
+   * Set to `false` via the CMS "Show date" card toggle to hide the date for a
+   * specific item without clearing the date value itself.
+   */
+  readonly showDate?: boolean;
+  readonly imageUrl?:      string;
+  /** Image shown on card hover — optional, falls back to imageUrl when absent */
+  readonly hoverImageUrl?: string;
+  readonly imageAlt?:      string;
+  readonly category?:      string;
+  readonly tags?:          readonly string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -228,6 +238,61 @@ export function isManualSource(src: ContentSource | undefined): src is ManualCon
 export function isCollectionKey(key: string): key is CollectionKey {
   return ["articles", "vacancies", "cases", "news", "companies"].includes(key);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Listing filters (taxonomy-driven)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A single selectable value in a filter group.
+ *
+ * `value` is the taxonomy term slug / URL-safe identifier used as the URL
+ * query-param value (e.g. ?sector=saas).  `label` is the human-readable
+ * display text.  `count` is an optional item count hint.
+ */
+export interface FilterOption {
+  readonly value:  string;
+  readonly label:  string;
+  readonly count?: number;
+}
+
+/**
+ * A named group of filter options.
+ *
+ * Each group corresponds to one taxonomy (e.g. "Sector", "Location").
+ * `handle` is the taxonomy slug used to build URL query params and to
+ * identify the group across provider implementations.
+ *
+ * @example
+ * { handle: "sector", label: "Sector", options: [{ value: "saas", label: "SaaS" }] }
+ */
+export interface FilterGroup {
+  readonly handle:  string;
+  readonly label:   string;
+  readonly options: readonly FilterOption[];
+}
+
+/**
+ * All filter groups available for a given collection listing page.
+ *
+ * Returned by `CMSProvider.getListingFilters(collection)`.  An empty array
+ * means no filters are available (provider does not support this collection
+ * or the collection has no taxonomy terms yet).
+ *
+ * The FilterBar block reads this at page-render time and passes each group's
+ * options to the corresponding filter dropdown.
+ *
+ * @example
+ * const filters = await provider.getListingFilters("vacancies");
+ * // [
+ * //   { handle: "sector",          label: "Sector",         options: [...] },
+ * //   { handle: "employment_type", label: "Employment type", options: [...] },
+ * //   { handle: "location",        label: "Location",        options: [...] },
+ * // ]
+ */
+export type ListingFilters = readonly FilterGroup[];
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Re-orders a CollectionItem[] to match the editorial selectedIds order.

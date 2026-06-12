@@ -58,3 +58,11 @@ export { conversionVariantSlug, CONVERSION_VARIANTS_FOLDER } from "./conversion-
 // Notification
 export type { StoryblokNotificationContent } from "./notification-queries";
 export { notificationVariantSlug, NOTIFICATION_VARIANTS_FOLDER } from "./notification-queries";
+
+// Adaptive blocks
+export type {
+  StoryblokAdaptiveCTAItem,
+  StoryblokAdaptiveVariantContent,
+  StoryblokAdaptiveBlockContent,
+} from "./adaptive-block-queries";
+export { adaptiveBlockSlug, ADAPTIVE_BLOCKS_FOLDER } from "./adaptive-block-queries";

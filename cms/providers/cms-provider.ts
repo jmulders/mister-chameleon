@@ -50,6 +50,8 @@ import type { TenantSettings }          from "@/tenant/types";
 import type {
   CollectionContentSource,
   CollectionItem,
+  CollectionKey,
+  ListingFilters,
 }                                        from "@/page-config/collection-source";
 
 // ── Provisioning types ────────────────────────────────────────────────────────
@@ -299,6 +301,20 @@ export interface CMSProvider {
    * @returns       Normalized CollectionItem[] ready for rendering.
    */
   resolveCollection(source: CollectionContentSource): Promise<CollectionItem[]>;
+
+  /**
+   * Fetch the available filter groups for a collection listing page.
+   *
+   * Returns one FilterGroup per relevant taxonomy, each containing the
+   * published terms as FilterOption[] — ready to be passed to a FilterBar block.
+   *
+   * Providers that do not support taxonomy-driven filters return [] rather
+   * than throwing (graceful degradation — FilterBar shows no filter dropdowns).
+   *
+   * @param collection  Platform collection key, e.g. "vacancies" or "articles"
+   * @returns           Array of FilterGroup (may be empty)
+   */
+  getListingFilters(collection: CollectionKey): Promise<ListingFilters>;
 
   // ── Provider management ────────────────────────────────────────────────────
 

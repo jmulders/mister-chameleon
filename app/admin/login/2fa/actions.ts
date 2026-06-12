@@ -61,11 +61,11 @@ export async function verifyTotpAction(formData: FormData): Promise<void> {
     false,
   );
   const isSecure = process.env.NODE_ENV === "production";
-  (await cookies()).set(
-    ADMIN_TOKEN_COOKIE,
-    fullToken,
-    sessionCookieOptions(SESSION_MAX_AGE, isSecure),
-  );
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_TOKEN_COOKIE, fullToken, sessionCookieOptions(SESSION_MAX_AGE, isSecure));
+  cookieStore.set("mc_editor", "1", {
+    httpOnly: true, sameSite: "lax", path: "/", secure: isSecure, maxAge: SESSION_MAX_AGE,
+  });
 
   await touchLastLogin(session.sub);
   redirect("/admin");
@@ -103,11 +103,11 @@ export async function verifyBackupCodeAction(formData: FormData): Promise<void> 
     false,
   );
   const isSecure = process.env.NODE_ENV === "production";
-  (await cookies()).set(
-    ADMIN_TOKEN_COOKIE,
-    fullToken,
-    sessionCookieOptions(SESSION_MAX_AGE, isSecure),
-  );
+  const cookieStore2 = await cookies();
+  cookieStore2.set(ADMIN_TOKEN_COOKIE, fullToken, sessionCookieOptions(SESSION_MAX_AGE, isSecure));
+  cookieStore2.set("mc_editor", "1", {
+    httpOnly: true, sameSite: "lax", path: "/", secure: isSecure, maxAge: SESSION_MAX_AGE,
+  });
 
   await touchLastLogin(session.sub);
   redirect("/admin");

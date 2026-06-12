@@ -53,7 +53,7 @@
  *   cta_href                →  cta.href
  */
 
-import type { HeroBlockData, HeroBannerMedia, ProofBlockData, CTABlockData, FeatureBlockData, ConversionBlockData, NotificationBlockData, PageData, PageSectionData, PortableTextBlock } from "../../types";
+import type { HeroBlockData, HeroBannerMedia, ProofBlockData, CTABlockData, FeatureBlockData, ConversionBlockData, NotificationBlockData, AdaptiveVariantContent, AdaptiveBlockData, PageData, PageSectionData, PortableTextBlock } from "../../types";
 import type {
   StoryblokHeroContent,
   StoryblokHeroMedia,
@@ -63,6 +63,10 @@ import type {
   StoryblokConversionContent,
   StoryblokNotificationContent,
 } from "../../queries/storyblok";
+import type {
+  StoryblokAdaptiveVariantContent,
+  StoryblokAdaptiveBlockContent,
+} from "../../queries/storyblok/adaptive-block-queries";
 
 // ── Hero media helper ─────────────────────────────────────────────────────────
 
@@ -259,6 +263,73 @@ export function mapStoryblokNotification(content: StoryblokNotificationContent):
     position:      content.position,
     dismissible:   content.dismissible,
     autoDismissMs: autoDismissMs && autoDismissMs > 0 ? autoDismissMs : undefined,
+  };
+}
+
+// ── Adaptive block helpers ────────────────────────────────────────────────────
+
+/**
+ * Vertaalt een Storyblok AdaptiveVariantContent object naar het interne AdaptiveVariantContent type.
+ *
+ * Hergebruikt dezelfde media-mapping logica als mapStoryblokHeroMedia voor consistentie.
+ *
+ * @param raw  Het ruwe variant content object uit de Storyblok story.
+ * @returns    Een AdaptiveVariantContent klaar voor de rendering-laag.
+ */
+export function mapStoryblokAdaptiveVariantContent(raw: StoryblokAdaptiveVariantContent): AdaptiveVariantContent {
+  return {
+    title:         raw.title,
+    subtitle:      raw.subtitle,
+    tag:           raw.tag,
+    ctas:          (raw.ctas ?? []).map((c) => ({
+      label:   c.label,
+      href:    c.href,
+      variant: c.variant,
+    })),
+    layoutVariant: raw.layout_variant,
+    contentAlign:  raw.content_align,
+    media:         mapStoryblokHeroMedia({
+      media_type:     raw.media_type,
+      media_image:    raw.media_image ?? undefined,
+      video_source:   raw.video_source,
+      video_file:     raw.video_file ?? undefined,
+      video_poster:   raw.video_poster ?? undefined,
+      video_autoplay: raw.video_autoplay,
+      video_muted:    raw.video_muted,
+      video_loop:     raw.video_loop,
+      video_controls: raw.video_controls,
+      video_id:       raw.video_id,
+    }),
+  };
+}
+
+// ── Adaptive block mapper ─────────────────────────────────────────────────────
+
+/**
+ * Vertaalt een Storyblok adaptive_block story content object naar een AdaptiveBlockData.
+ *
+ * Mapping:
+ *   storyId      →  id
+ *   block_key    →  key
+ *   is_active    →  isActive
+ *   content      →  defaultVariant (via mapStoryblokAdaptiveVariantContent)
+ *
+ * StoryblokAdaptiveBlockContent extends StoryblokAdaptiveVariantContent — alle
+ * content-velden staan flat op de story zelf, dus content kan direct worden
+ * doorgegeven aan mapStoryblokAdaptiveVariantContent.
+ *
+ * @param storyId  De Storyblok story ID — wordt gebruikt als interne id.
+ * @param content  Het `content` veld van de Storyblok story.
+ * @returns        Een AdaptiveBlockData klaar voor de experience composer.
+ */
+export function mapStoryblokAdaptiveBlock(storyId: string, content: StoryblokAdaptiveBlockContent): AdaptiveBlockData {
+  return {
+    id:               storyId,
+    key:              content.block_key,
+    tenantId:         undefined,
+    isActive:         content.is_active,
+    defaultVariant:   mapStoryblokAdaptiveVariantContent(content),
+    adaptiveVariants: [],
   };
 }
 

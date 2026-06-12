@@ -61,20 +61,24 @@ interface ResultCardProps {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Formats an ISO 8601 date string (e.g. "2024-09-01") as a human-readable
- * short date ("1 Sep 2024").  Parses as a local date (year/month/day split)
- * to avoid timezone-driven day shifts from UTC midnight parsing.
+ * Formats an ISO 8601 date string (e.g. "2024-09-01") as dd-mm-yyyy
+ * (e.g. "01-09-2024"). Parses year/month/day parts directly to avoid
+ * timezone-driven day shifts from UTC midnight parsing.
  */
 function formatDate(iso: string): string {
   try {
-    const parts = iso.split("-").map(Number);
+    // Strip any time component ("2026-08-01 00:00" → "2026-08-01")
+    const datePart = iso.split(" ")[0] ?? iso;
+    const parts = datePart.split("-").map(Number);
     const year  = parts[0];
     const month = parts[1];
     const day   = parts[2];
     if (!year || !month || !day) return iso;
-    return new Intl.DateTimeFormat("en", {
-      day: "numeric", month: "short", year: "numeric",
-    }).format(new Date(year, month - 1, day));
+    return [
+      String(day).padStart(2, "0"),
+      String(month).padStart(2, "0"),
+      String(year),
+    ].join("-");
   } catch {
     return iso;
   }
@@ -175,6 +179,8 @@ interface InnerCardProps {
 }
 
 function GridCard({ item, HeadingTag }: InnerCardProps) {
+  const hasHoverImage = Boolean(item.imageUrl && item.hoverImageUrl);
+
   return (
     <article
       style={{
@@ -188,29 +194,85 @@ function GridCard({ item, HeadingTag }: InnerCardProps) {
         transition:      `box-shadow var(--transition-base), transform var(--transition-base)`,
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "var(--card-shadow)";
-        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+        const el = e.currentTarget as HTMLElement;
+        el.style.boxShadow = "var(--card-shadow)";
+        el.style.transform = "translateY(-2px)";
+        if (hasHoverImage) {
+          // Cross-fade to hover image when both imageUrl and hoverImageUrl are set
+          const defaultImg = el.querySelector<HTMLImageElement>(".card-img-default");
+          const hoverImg   = el.querySelector<HTMLImageElement>(".card-img-hover");
+          if (defaultImg) defaultImg.style.opacity = "0";
+          if (hoverImg)   hoverImg.style.opacity   = "1";
+        } else if (item.imageUrl) {
+          // Fallback zoom effect when no hover image is provided
+          const container = el.querySelector<HTMLDivElement>(".card-img-container");
+          if (container) container.style.transform = "scale(1.05)";
+        }
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "none";
-        (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+        const el = e.currentTarget as HTMLElement;
+        el.style.boxShadow = "none";
+        el.style.transform = "translateY(0)";
+        if (hasHoverImage) {
+          const defaultImg = el.querySelector<HTMLImageElement>(".card-img-default");
+          const hoverImg   = el.querySelector<HTMLImageElement>(".card-img-hover");
+          if (defaultImg) defaultImg.style.opacity = "1";
+          if (hoverImg)   hoverImg.style.opacity   = "0";
+        } else if (item.imageUrl) {
+          const container = el.querySelector<HTMLDivElement>(".card-img-container");
+          if (container) container.style.transform = "scale(1)";
+        }
       }}
     >
-      {/* Cover image */}
+      {/* Cover image — supports optional hover swap (hoverImageUrl) or zoom fallback */}
       {item.imageUrl && (
         <div
+          className="card-img-container"
           style={{
+            position:    "relative",
             aspectRatio: "16 / 9",
             overflow:    "hidden",
             flexShrink:  0,
+            transition:  "transform 0.4s ease",
           }}
         >
+          {/* Default image */}
           <img
+            className="card-img-default"
             src={item.imageUrl}
             alt={item.imageAlt ?? item.title}
             loading="lazy"
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{
+              position:   "absolute",
+              inset:       0,
+              width:       "100%",
+              height:      "100%",
+              objectFit:   "cover",
+              display:     "block",
+              opacity:     1,
+              transition:  `opacity 0.25s ease`,
+            }}
           />
+          {/* Hover image — only rendered when hoverImageUrl is present */}
+          {item.hoverImageUrl && (
+            <img
+              className="card-img-hover"
+              src={item.hoverImageUrl}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              style={{
+                position:   "absolute",
+                inset:       0,
+                width:       "100%",
+                height:      "100%",
+                objectFit:   "cover",
+                display:     "block",
+                opacity:     0,
+                transition:  `opacity 0.25s ease`,
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -254,7 +316,7 @@ function GridCard({ item, HeadingTag }: InnerCardProps) {
         )}
 
         {/* Date / meta / tags */}
-        <MetaRow date={item.date} meta={item.meta} tags={item.tags} />
+        <MetaRow date={item.showDate !== false ? item.date : undefined} meta={item.meta} tags={item.tags} />
       </div>
     </article>
   );
@@ -263,6 +325,8 @@ function GridCard({ item, HeadingTag }: InnerCardProps) {
 // ── Row layout (horizontal) ───────────────────────────────────────────────────
 
 function RowCard({ item, HeadingTag }: InnerCardProps) {
+  const hasHoverImage = Boolean(item.imageUrl && item.hoverImageUrl);
+
   return (
     <article
       style={{
@@ -275,26 +339,82 @@ function RowCard({ item, HeadingTag }: InnerCardProps) {
         padding:         "1rem",
         transition:      `box-shadow var(--transition-base)`,
       }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "var(--card-shadow)"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.boxShadow = "var(--card-shadow)";
+        if (hasHoverImage) {
+          const defaultImg = el.querySelector<HTMLImageElement>(".card-img-default");
+          const hoverImg   = el.querySelector<HTMLImageElement>(".card-img-hover");
+          if (defaultImg) defaultImg.style.opacity = "0";
+          if (hoverImg)   hoverImg.style.opacity   = "1";
+        } else if (item.imageUrl) {
+          const container = el.querySelector<HTMLDivElement>(".card-img-container");
+          if (container) container.style.transform = "scale(1.08)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.boxShadow = "none";
+        if (hasHoverImage) {
+          const defaultImg = el.querySelector<HTMLImageElement>(".card-img-default");
+          const hoverImg   = el.querySelector<HTMLImageElement>(".card-img-hover");
+          if (defaultImg) defaultImg.style.opacity = "1";
+          if (hoverImg)   hoverImg.style.opacity   = "0";
+        } else if (item.imageUrl) {
+          const container = el.querySelector<HTMLDivElement>(".card-img-container");
+          if (container) container.style.transform = "scale(1)";
+        }
+      }}
     >
-      {/* Thumbnail (fixed width) */}
+      {/* Thumbnail (fixed width) — supports optional hover swap (hoverImageUrl) or zoom fallback */}
       {item.imageUrl && (
         <div
+          className="card-img-container"
           style={{
+            position:     "relative",
             flexShrink:   0,
             width:        "7rem",
             aspectRatio:  "4 / 3",
             borderRadius: "calc(var(--card-radius) * 0.6)",
             overflow:     "hidden",
+            transition:   "transform 0.4s ease",
           }}
         >
           <img
+            className="card-img-default"
             src={item.imageUrl}
             alt={item.imageAlt ?? item.title}
             loading="lazy"
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{
+              position:   "absolute",
+              inset:       0,
+              width:       "100%",
+              height:      "100%",
+              objectFit:   "cover",
+              display:     "block",
+              opacity:     1,
+              transition:  `opacity 0.25s ease`,
+            }}
           />
+          {item.hoverImageUrl && (
+            <img
+              className="card-img-hover"
+              src={item.hoverImageUrl}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              style={{
+                position:   "absolute",
+                inset:       0,
+                width:       "100%",
+                height:      "100%",
+                objectFit:   "cover",
+                display:     "block",
+                opacity:     0,
+                transition:  `opacity 0.25s ease`,
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -337,7 +457,7 @@ function RowCard({ item, HeadingTag }: InnerCardProps) {
         )}
 
         {/* Date / meta */}
-        <MetaRow date={item.date} meta={item.meta} />
+        <MetaRow date={item.showDate !== false ? item.date : undefined} meta={item.meta} />
       </div>
     </article>
   );
@@ -359,7 +479,7 @@ function CompactCard({ item, HeadingTag }: InnerCardProps) {
       {/* Top row: category + date */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
         {item.category && <CategoryBadge category={item.category} />}
-        {item.date && (
+        {item.showDate !== false && item.date && (
           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             {formatDate(item.date)}
           </span>

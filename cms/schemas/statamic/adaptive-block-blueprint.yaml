@@ -1,0 +1,280 @@
+# Statamic Blueprint: Adaptive Block
+#
+# Installeer dit bestand op:
+#   resources/blueprints/collections/adaptive_blocks/adaptive_block.yaml
+#
+# in je Statamic installatie.
+#
+# Elke entry vertegenwoordigt één adaptive block key.
+# De content-beheerder vult de velden in per block.
+# Bij publiceren triggert Statamic de webhook → DB-sync → decision engine.
+
+title: 'Adaptive Block'
+
+tabs:
+  instellingen:
+    display: Instellingen
+    sections:
+      -
+        display: 'Block identificatie'
+        fields:
+          -
+            handle: block_key
+            field:
+              type: text
+              display: 'Block key'
+              instructions: 'Unieke sleutel, bijv. hero_google_problem. Moet overeenkomen met de platform block-key.'
+              validate:
+                - required
+              width: 50
+          -
+            handle: slot_type
+            field:
+              type: select
+              display: 'Slot type'
+              instructions: 'Bepaalt welk component de inhoud rendert.'
+              options:
+                hero: Hero
+                proof: Proof
+                cta: CTA
+                feature: Feature
+                conversion: Conversion
+                notification: Notification
+              validate:
+                - required
+              width: 50
+          -
+            handle: is_active
+            field:
+              type: toggle
+              display: 'Actief'
+              instructions: 'Zet uit om dit block tijdelijk te deactiveren.'
+              default: true
+
+  inhoud:
+    display: Inhoud
+    sections:
+      -
+        display: 'Tekst'
+        fields:
+          -
+            handle: tag
+            field:
+              type: text
+              display: 'Eyebrow'
+              instructions: 'Kort label boven de headline, bijv. "Gevonden via Google". Optioneel.'
+          -
+            handle: title
+            field:
+              type: text
+              display: 'Headline'
+              instructions: 'Primaire koptekst van het block.'
+              validate:
+                - required
+          -
+            handle: subtitle
+            field:
+              type: textarea
+              display: 'Subtitel'
+              instructions: 'Ondersteunende alinea onder de headline.'
+              validate:
+                - required
+
+  layout:
+    display: Layout
+    sections:
+      -
+        display: 'Weergave-instellingen'
+        fields:
+          -
+            handle: layout_variant
+            field:
+              type: select
+              display: 'Layout variant'
+              instructions: 'Bepaalt de structuur van het block.'
+              options:
+                hero_default:    'Default — tekst gecentreerd, geen media naast tekst'
+                hero_split:      'Split — tekst links, media rechts'
+                hero_background: 'Background — media als achtergrond, tekst eroverheen'
+                hero_banner:     'Banner — compact horizontaal blok'
+                hero_proof:      'Proof — met testimonial of logo-balk'
+              default: hero_default
+              width: 50
+          -
+            handle: content_align
+            field:
+              type: select
+              display: 'Uitlijning'
+              instructions: 'Horizontale uitlijning van tekst en CTA-knoppen.'
+              options:
+                left:   Links
+                center: Gecentreerd
+                right:  Rechts
+              default: left
+              width: 50
+
+  media:
+    display: Media
+    sections:
+      -
+        display: 'Afbeelding of video (optioneel)'
+        fields:
+          -
+            handle: media_type
+            field:
+              type: select
+              display: 'Media type'
+              options:
+                none:  Geen
+                image: Afbeelding
+                video: Video
+              default: none
+              width: 50
+
+          # ── Afbeelding ──────────────────────────────────────────────────────
+          -
+            handle: media_image
+            field:
+              type: assets
+              display: 'Afbeelding'
+              instructions: 'Selecteer een afbeelding uit de asset-library.'
+              max_files: 1
+              container: assets
+              if:
+                media_type: 'equals image'
+          -
+            handle: media_alt
+            field:
+              type: text
+              display: 'Alt-tekst'
+              instructions: 'Beschrijving voor screen readers en zoekmachines.'
+              if:
+                media_type: 'equals image'
+
+          # ── Video ───────────────────────────────────────────────────────────
+          -
+            handle: video_source
+            field:
+              type: select
+              display: 'Video bron'
+              options:
+                upload:  'Geüpload bestand'
+                youtube: YouTube
+                vimeo:   Vimeo
+              if:
+                media_type: 'equals video'
+              width: 50
+          -
+            handle: video_id
+            field:
+              type: text
+              display: 'Video ID'
+              instructions: 'YouTube of Vimeo video-ID, bijv. dQw4w9WgXcQ'
+              if:
+                media_type: 'equals video'
+                video_source: 'not_in upload'
+              width: 50
+          -
+            handle: video_file
+            field:
+              type: assets
+              display: 'Video bestand'
+              max_files: 1
+              container: assets
+              if:
+                media_type: 'equals video'
+                video_source: 'equals upload'
+          -
+            handle: video_poster
+            field:
+              type: assets
+              display: 'Poster afbeelding'
+              instructions: 'Thumbnail die zichtbaar is voordat de video start.'
+              max_files: 1
+              container: assets
+              if:
+                media_type: 'equals video'
+                video_source: 'equals upload'
+          -
+            handle: video_autoplay
+            field:
+              type: toggle
+              display: 'Automatisch afspelen'
+              default: false
+              if:
+                media_type: 'equals video'
+              width: 25
+          -
+            handle: video_muted
+            field:
+              type: toggle
+              display: 'Gedempt'
+              default: true
+              if:
+                media_type: 'equals video'
+              width: 25
+          -
+            handle: video_loop
+            field:
+              type: toggle
+              display: 'Herhalen'
+              default: false
+              if:
+                media_type: 'equals video'
+              width: 25
+          -
+            handle: video_controls
+            field:
+              type: toggle
+              display: 'Besturingselementen tonen'
+              default: false
+              if:
+                media_type: 'equals video'
+              width: 25
+
+  ctas:
+    display: "CTA's"
+    sections:
+      -
+        display: 'Call-to-action knoppen'
+        instructions: 'Voeg 0–2 knoppen toe. De eerste knop is primair, de tweede secundair.'
+        fields:
+          -
+            handle: ctas
+            field:
+              type: replicator
+              display: 'Knoppen'
+              max_sets: 2
+              sets:
+                cta:
+                  display: 'Knop'
+                  fields:
+                    -
+                      handle: label
+                      field:
+                        type: text
+                        display: 'Knoptekst'
+                        validate:
+                          - required
+                        width: 50
+                    -
+                      handle: href
+                      field:
+                        type: text
+                        display: 'URL'
+                        instructions: 'Bijv. /demo of https://example.com'
+                        validate:
+                          - required
+                        width: 50
+                    -
+                      handle: variant
+                      field:
+                        type: select
+                        display: 'Stijl'
+                        options:
+                          primary:   Primair
+                          secondary: Secundair
+                          outline:   Outline
+                          ghost:     Ghost
+                        default: primary
+                        width: 50

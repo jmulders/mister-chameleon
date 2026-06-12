@@ -21,13 +21,14 @@ import { getTenantById }    from "@/tenant/server";
 import { listDomainsForTenant } from "@/tenant/domain-store";
 import { isVercelConfigured }   from "@/lib/vercel-domains";
 import { normalizeThemeKey }    from "@/tenant";
-import { getPlatformSanitySettings } from "@/platform/platform-store";
+import { getPlatformSanitySettings, getPlatformForgeSettings, forgeFlags } from "@/platform/platform-store";
 import { TenantReadinessChecklist } from "@/components/admin/TenantReadinessChecklist";
 import { ThemePickerPanel }         from "@/components/admin/ThemePickerPanel";
 import { SiteBuilderReadiness }     from "@/components/admin/SiteBuilderReadiness";
 import { CmsCredentialsPanel }      from "@/components/admin/CmsCredentialsPanel";
 import { CreateSitePanel }          from "@/components/admin/CreateSitePanel";
 import { TenantDomainsPanel }       from "@/components/admin/TenantDomainsPanel";
+import { StatamicDeployPanel }      from "@/components/admin/StatamicDeployPanel";
 import { Text }                     from "@/components/primitives/Text";
 import type { TenantSettings } from "@/tenant/server";
 
@@ -45,10 +46,11 @@ export default async function TenantSetupPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const [tenant, initialDomains, platformSanity] = await Promise.all([
+  const [tenant, initialDomains, platformSanity, platformForge] = await Promise.all([
     getTenantById(tenantId),
     listDomainsForTenant(tenantId),
     getPlatformSanitySettings(),
+    getPlatformForgeSettings(),
   ]);
 
   if (!tenant) notFound();
@@ -62,6 +64,14 @@ export default async function TenantSetupPage({
     process.env.SANITY_API_WRITE_TOKEN ||
     process.env.SANITY_WRITE_TOKEN,
   );
+
+  // Show the Forge deploy panel when the tenant's CMS is explicitly set to Statamic.
+  // The operator first selects "statamic" as the CMS provider in tenant Settings,
+  // then comes here to deploy the Statamic site.
+  const forgeData            = platformForge.ok ? platformForge.data : null;
+  const forgeIsConfigured    = Boolean(forgeData?.apiKey);
+  const forgeDefaultServerId = forgeData ? forgeFlags(forgeData).defaultServerId : null;
+  const showDeployPanel      = tenant.cms?.provider === "statamic";
 
   const activeTheme = normalizeThemeKey(tenant.design?.theme ?? "default");
 
@@ -97,7 +107,17 @@ export default async function TenantSetupPage({
         platformWriteTokenConfigured={platformWriteTokenConfigured}
       />
 
-      {/* 5 — Provisioning / site initialisation */}
+      {/* 5a — Forge: deploy a fresh Statamic site (only for Statamic tenants) */}
+      {showDeployPanel && (
+        <StatamicDeployPanel
+          tenantId={tenantId}
+          existingBaseUrl={tenant.cms?.statamicBaseUrl ?? undefined}
+          defaultServerId={forgeDefaultServerId}
+          forgeConfigured={forgeIsConfigured}
+        />
+      )}
+
+      {/* 5b — Provisioning / site initialisation */}
       <CreateSitePanel
         tenantId={tenantId}
         siteInitializedAt={tenant.siteInitializedAt}

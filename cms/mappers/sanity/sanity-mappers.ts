@@ -78,7 +78,6 @@ import type {
   NotificationBlockData,
   AdaptiveBlockData,
   AdaptiveVariantContent,
-  AdaptiveVariantEntry,
   SiteSettingsData,
   NavigationItemData,
   MegaMenuData,
@@ -89,6 +88,8 @@ import type {
   SocialLinkData,
   HeaderCtaData,
   LocaleEntry,
+  TopBarData,
+  FooterBottomData,
   PageData,
   PageSectionData,
   CmsPageContextConfig,
@@ -365,42 +366,83 @@ export function mapSanityNotification(raw: SanityNotificationRaw): NotificationB
 // ── Adaptive hero (Content Matrix) mapper ────────────────────────────────────
 
 /**
- * Maps a raw Sanity adaptiveHero document to the CMS-agnostic AdaptiveBlockData.
+ * Vertaalt een Sanity adaptive variant content object naar het interne AdaptiveVariantContent.
  *
- * The mapper normalises:
- *   - The slug-typed `key` to a plain string
- *   - CTA arrays (may be undefined in Sanity) to empty array fallback
- *   - Optional image to flat imageUrl/imageAlt fields
+ * Media-logica:
+ *   media_type === "image"           → media: { kind: "image", url, alt }
+ *   media_type === "video" + upload  → media: { kind: "video", video: { source: "upload", ... } }
+ *   media_type === "video" + youtube → media: { kind: "video", video: { source: "youtube", videoId } }
+ *   media_type === "video" + vimeo   → media: { kind: "video", video: { source: "vimeo", videoId } }
+ *   media_type ontbreekt (oud doc)   → backwards-compat via deprecated imageUrl/imageAlt velden
  */
 function mapAdaptiveVariantContent(raw: SanityAdaptiveVariantContent): AdaptiveVariantContent {
+  // ── Media mapping ────────────────────────────────────────────────────────
+  let media: HeroBannerMedia | undefined;
+
+  if (raw.media_type === "image") {
+    const url = raw.image?.asset?.url;
+    if (url) {
+      media = { kind: "image", url, alt: raw.image?.alt ?? "" };
+    }
+  } else if (raw.media_type === "video") {
+    if (raw.video_source === "upload") {
+      const url = raw.video_file?.asset?.url;
+      if (url) {
+        media = {
+          kind:  "video",
+          video: {
+            source:   "upload",
+            url,
+            poster:   raw.video_poster?.asset?.url ?? undefined,
+            autoplay: raw.video_autoplay,
+            muted:    raw.video_muted,
+            loop:     raw.video_loop,
+            controls: raw.video_controls,
+          },
+        };
+      }
+    } else if (raw.video_source === "youtube" && raw.video_id) {
+      media = {
+        kind:  "video",
+        video: { source: "youtube", videoId: raw.video_id, autoplay: raw.video_autoplay, loop: raw.video_loop },
+      };
+    } else if (raw.video_source === "vimeo" && raw.video_id) {
+      media = {
+        kind:  "video",
+        video: { source: "vimeo", videoId: raw.video_id, autoplay: raw.video_autoplay, loop: raw.video_loop },
+      };
+    }
+  }
+
+  // Backwards-compat voor Sanity-documenten zonder media_type (aangemaakt vóór deze uitbreiding)
+  const legacyImageUrl = !raw.media_type ? (raw.image?.asset?.url ?? undefined) : undefined;
+  const legacyImageAlt = legacyImageUrl ? (raw.image?.alt ?? undefined) : undefined;
+
   return {
-    title:    raw.title,
-    subtitle: raw.subtitle,
-    tag:      raw.tag ?? undefined,
-    ctas:     (raw.ctas ?? []).map((cta) => ({
+    title:         raw.title,
+    subtitle:      raw.subtitle,
+    tag:           raw.tag ?? undefined,
+    ctas:          (raw.ctas ?? []).map((cta) => ({
       label:   cta.label,
       href:    cta.href,
       variant: cta.variant ?? undefined,
     })),
-    imageUrl: raw.image?.asset?.url ?? undefined,
-    imageAlt: raw.image?.alt        ?? undefined,
+    layoutVariant: raw.layout_variant,
+    contentAlign:  raw.content_align,
+    media,
+    imageUrl: legacyImageUrl,
+    imageAlt: legacyImageAlt,
   };
 }
 
 export function mapSanityAdaptiveHero(raw: SanityAdaptiveHeroRaw): AdaptiveBlockData {
-  const adaptiveVariants: AdaptiveVariantEntry[] = (raw.adaptiveVariants ?? []).map((v) => ({
-    variantKey: v.variantKey,
-    label:      v.label ?? undefined,
-    content:    mapAdaptiveVariantContent(v.content),
-  }));
-
   return {
     id:               raw._id,
     key:              raw.key.current,
     tenantId:         raw.tenantId ?? null,
     isActive:         raw.is_active,
     defaultVariant:   mapAdaptiveVariantContent(raw.defaultVariant),
-    adaptiveVariants,
+    adaptiveVariants: [],
   };
 }
 
@@ -550,6 +592,48 @@ export function mapSanitySiteSettings(raw: SanitySiteSettingsRaw): SiteSettingsD
     (l): LocaleEntry => ({ code: l.code, label: l.label }),
   );
 
+  // ── Top bar ──────────────────────────────────────────────────────────────
+  const topBarRaw = raw.topBar;
+  const topBar: TopBarData | null = (topBarRaw?.showSearch || topBarRaw?.showLanguageSwitcher)
+    ? {
+        showSearch:           topBarRaw.showSearch           ?? undefined,
+        showLanguageSwitcher: topBarRaw.showLanguageSwitcher ?? undefined,
+      }
+    : null;
+
+  // ── Footer bottom strip ───────────────────────────────────────────────────
+  const fbRaw = raw.footerBottom;
+  const footerBottom: FooterBottomData | null = fbRaw?.enabled
+    ? {
+        copyright:     fbRaw.copyright ?? undefined,
+        showSocial:    fbRaw.showSocial !== false,
+        links:         (fbRaw.links ?? []).map((l) => ({
+          id:          l.label,
+          label:       l.label,
+          href:        l.href ?? "#",
+          openInNewTab: l.openInNewTab ?? false,
+        })),
+        partnerLogoUrl: fbRaw.partnerLogoUrl ?? undefined,
+      }
+    : null;
+
+  // ── Layout overrides ──────────────────────────────────────────────────────
+  const validHeaderVariants  = ["minimal", "flyout", "mega", "transparent"] as const;
+  const validFooterVariants  = ["minimal", "corporate", "branding"]         as const;
+  const validFooterDensities = ["compact", "comfortable", "spacious"]       as const;
+
+  type HV = typeof validHeaderVariants[number];
+  type FV = typeof validFooterVariants[number];
+  type FD = typeof validFooterDensities[number];
+
+  const hv = raw.headerVariant as string | null | undefined;
+  const fv = raw.footerVariant as string | null | undefined;
+  const fd = raw.footerDensity as string | null | undefined;
+
+  const headerVariant: HV | null = hv && validHeaderVariants.includes(hv as HV) ? (hv as HV) : null;
+  const footerVariant: FV | null = fv && validFooterVariants.includes(fv as FV) ? (fv as FV) : null;
+  const footerDensity: FD | null = fd && validFooterDensities.includes(fd as FD) ? (fd as FD) : null;
+
   return {
     siteTitle:        raw.siteTitle,
     logo:             mapLogo(raw.logo),
@@ -566,6 +650,12 @@ export function mapSanitySiteSettings(raw: SanitySiteSettingsRaw): SiteSettingsD
     contactEmail:     raw.contactEmail ?? null,
     contactPhone:     raw.contactPhone ?? null,
     socialLinks:      socialLinks.length > 0 ? socialLinks : undefined,
+    topBar:           topBar,
+    footerBottom:     footerBottom,
+    headerVariant,
+    footerVariant,
+    footerDensity,
+    themePreset:      raw.themePreset ?? null,
   };
 }
 
@@ -610,7 +700,7 @@ function mapSanitySection(
         _type:   "textSection",
         _key:    r._key,
         variant: r.variant ?? undefined,
-        surface: (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface: (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading: r.heading ?? undefined,
         body:    r.body    ?? undefined,
       };
@@ -631,7 +721,7 @@ function mapSanitySection(
         _type:    "featureGrid",
         _key:     r._key,
         variant:  r.variant  ?? undefined,
-        surface:  (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:  (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:  r.heading  ?? undefined,
         features: (r.features ?? []).map((f) => ({
           title:       f.title,
@@ -648,7 +738,7 @@ function mapSanitySection(
         _type:        "testimonialSection",
         _key:         r._key,
         variant:      r.variant ?? undefined,
-        surface:      (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:      (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:      r.heading ?? undefined,
         testimonials: (r.testimonials ?? []).map((t) => ({
           quote:     t.quote,
@@ -666,7 +756,7 @@ function mapSanitySection(
         _type:   "faqSection",
         _key:    r._key,
         variant: r.variant  ?? undefined,
-        surface: (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface: (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading: r.heading  ?? undefined,
         items:   (r.items ?? []).map((item) => ({
           question: item.question,
@@ -681,7 +771,7 @@ function mapSanitySection(
         _type:        "ctaSection",
         _key:         r._key,
         variant:      r.variant        ?? undefined,
-        surface:      (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:      (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         title:        r.title          ?? undefined,
         description:  r.description    ?? undefined,
         // Prefer the structured cta object; keep legacy flat fields for backward compat.
@@ -699,7 +789,7 @@ function mapSanitySection(
         _type:         "listing",
         _key:          r._key,
         variant:       r.variant      ?? undefined,
-        surface:       (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:       (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:       r.heading      ?? undefined,
         maxItems:      r.maxItems     ?? undefined,
         viewAllHref:   r.viewAllHref  ?? undefined,
@@ -726,7 +816,7 @@ function mapSanitySection(
         _type:               "filterBar",
         _key:                r._key,
         variant:             r.variant             ?? undefined,
-        surface:             (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:             (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         placeholder:         r.placeholder         ?? undefined,
         showSearch:          r.showSearch          ?? undefined,
         showCategoryFilter:  r.showCategoryFilter  ?? undefined,
@@ -743,7 +833,7 @@ function mapSanitySection(
         _type:          "searchResults",
         _key:           r._key,
         variant:        r.variant       ?? undefined,
-        surface:        (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:        (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:        r.heading       ?? undefined,
         emptyMessage:   r.emptyMessage  ?? undefined,
         itemsPerPage:   r.itemsPerPage  ?? undefined,
@@ -770,7 +860,7 @@ function mapSanitySection(
         _type:          "articleMeta",
         _key:           r._key,
         variant:        r.variant       ?? undefined,
-        surface:        (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:        (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         title:          r.title         ?? undefined,
         publishedAt:    r.publishedAt   ?? undefined,
         updatedAt:      r.updatedAt     ?? undefined,
@@ -797,7 +887,7 @@ function mapSanitySection(
         _type:   "articleBody",
         _key:    r._key,
         variant: r.variant ?? undefined,
-        surface: (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface: (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         body:    r.body    ?? [],
       };
     }
@@ -808,7 +898,7 @@ function mapSanitySection(
         _type:    "relatedContent",
         _key:     r._key,
         variant:  r.variant  ?? undefined,
-        surface:  (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:  (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:  r.heading  ?? undefined,
         maxItems: r.maxItems ?? undefined,
         items: (r.items ?? []).map((item: SanityUniversalItemRaw) => ({
@@ -831,7 +921,7 @@ function mapSanitySection(
         _type:         "vacancyMeta",
         _key:          r._key,
         variant:       r.variant      ?? undefined,
-        surface:       (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:       (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         title:         r.title        ?? undefined,
         department:    r.department   ?? undefined,
         location:      r.location     ?? undefined,
@@ -851,7 +941,7 @@ function mapSanitySection(
         _type:        "applyPanel",
         _key:         r._key,
         variant:      r.variant     ?? undefined,
-        surface:      (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:      (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:      r.heading     ?? undefined,
         body:         r.body        ?? undefined,
         closingDate:  r.closingDate ?? undefined,
@@ -873,7 +963,7 @@ function mapSanitySection(
         _type:            "search",
         _key:             r._key,
         variant:          r.variant          ?? undefined,
-        surface:          (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:          (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         title:            r.title            ?? undefined,
         placeholder:      r.placeholder      ?? undefined,
         description:      r.description      ?? undefined,
@@ -894,7 +984,7 @@ function mapSanitySection(
         _type:            "logoStrip",
         _key:             r._key,
         variant:          r.variant          ?? undefined,
-        surface:          (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:          (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:          r.heading          ?? undefined,
         animationEnabled: r.animationEnabled ?? undefined,
         speed:            r.speed            ?? undefined,
@@ -920,7 +1010,7 @@ function mapSanitySection(
         _type:     "textMedia",
         _key:      r._key,
         variant:   r.variant   ?? undefined,
-        surface:   (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:   (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         eyebrow:   r.eyebrow   ?? undefined,
         heading:   r.heading   ?? undefined,
         body:      r.body      ?? undefined,
@@ -928,6 +1018,12 @@ function mapSanitySection(
         mediaUrl:  resolvedMediaUrl,
         mediaAlt:  r.mediaAlt  ?? undefined,
         caption:   r.caption   ?? undefined,
+        // ── Media background ──────────────────────────────────────────────────
+        ...(r.mediaBgType === "color"
+          ? { mediaBgType: "color" as const, mediaBgColor: r.mediaBgColor ?? undefined }
+          : r.mediaBgType === "image"
+          ? { mediaBgType: "image" as const, mediaBgImageUrl: r.mediaBgImageUrl ?? undefined }
+          : {}),
         ctas: (r.ctas ?? []).map((c, i) => ({
           _key:  c._key  ?? `tm-cta-${i}`,
           label: c.label ?? "",
@@ -942,7 +1038,7 @@ function mapSanitySection(
         _type:   "stats",
         _key:    r._key,
         variant: r.variant ?? undefined,
-        surface: (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface: (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading: r.heading ?? undefined,
         items:   (r.items ?? []).map((item: SanityUniversalItemRaw) => ({
           _key:        item._key,
@@ -961,7 +1057,7 @@ function mapSanitySection(
         _type:    "about",
         _key:     r._key,
         variant:  r.variant  ?? undefined,
-        surface:  (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:  (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:  r.heading  ?? undefined,
         body:     r.body     ?? undefined,
         imageUrl: r.imageUrl ?? undefined,
@@ -989,7 +1085,7 @@ function mapSanitySection(
         _type:    "newsList",
         _key:     r._key,
         variant:  r.variant  ?? undefined,
-        surface:  (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:  (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:  r.heading  ?? undefined,
         maxItems: r.maxItems ?? undefined,
         items: (r.items ?? []).map((item: SanityUniversalItemRaw) => ({
@@ -997,7 +1093,7 @@ function mapSanitySection(
           title:     item.title    ?? "",
           // `url` is the canonical field; fall back to `href` which is used by the
           // marketing seed builder functions (newsList items set `href`, not `url`).
-          url:       item.url || (item as Record<string, unknown>).href as string || "",
+          url:       item.url || (item as unknown as Record<string, unknown>).href as string || "",
           excerpt:   item.excerpt  ?? undefined,
           date:      item.date     ?? undefined,
           imageUrl:  item.imageUrl ?? undefined,
@@ -1012,7 +1108,7 @@ function mapSanitySection(
         _type:          "formSection",
         _key:           r._key,
         variant:        r.variant        ?? undefined,
-        surface:        (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:        (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         formKey:        r.formKey        ?? "contact",
         title:          r.title          ?? undefined,
         intro:          r.intro          ?? undefined,
@@ -1142,7 +1238,7 @@ function mapSanitySection(
         _type:   "processSteps",
         _key:    r._key,
         variant: r.variant ?? undefined,
-        surface: (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface: (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading: r.heading ?? undefined,
         steps: (r.steps ?? []).map((s) => ({
           _key:        s._key,
@@ -1159,7 +1255,7 @@ function mapSanitySection(
         _type:   "teamSection",
         _key:    r._key,
         variant: r.variant ?? undefined,
-        surface: (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface: (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading: r.heading ?? undefined,
         intro:   r.intro   ?? undefined,
         members: (r.members ?? []).map((m) => ({
@@ -1184,7 +1280,7 @@ function mapSanitySection(
         _type:      "pricingSection",
         _key:       r._key,
         variant:    r.variant    ?? undefined,
-        surface:    (r as Record<string, unknown>).surface as BlockSurface | undefined,
+        surface:    (r as unknown as Record<string, unknown>).surface as BlockSurface | undefined,
         heading:    r.heading    ?? undefined,
         subheading: r.subheading ?? undefined,
         footnote:   r.footnote   ?? undefined,

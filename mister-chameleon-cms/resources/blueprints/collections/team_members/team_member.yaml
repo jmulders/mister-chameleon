@@ -1,0 +1,160 @@
+title: Team Member
+tabs:
+  meta:
+    display: Meta
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              display: Title
+              validate: required
+          - handle: is_active
+            field:
+              type: toggle
+              display: Active
+              default: true
+          - handle: full_name
+            field:
+              type: text
+              display: Full name
+              validate: required
+          - handle: role
+            field:
+              type: text
+              display: Role
+              validate: required
+          - handle: bio
+            field:
+              type: textarea
+              display: Bio
+              instructions: Short biography shown on listing and detail pages.
+          - handle: linkedin_url
+            field:
+              type: text
+              display: LinkedIn URL
+          - handle: sort_order
+            field:
+              type: integer
+              display: Sort order
+              instructions: Lower numbers appear first in listings.
+  taxonomy:
+    display: Taxonomy
+    sections:
+      - fields:
+          - handle: sector
+            field:
+              type: terms
+              display: Sector
+              taxonomies:
+                - sector
+              instructions: Industry sector(s) this person has expertise in.
+          - handle: solution
+            field:
+              type: terms
+              display: Solution
+              taxonomies:
+                - solution
+              instructions: Mister Chameleon solution(s) this person works on.
+          - handle: location
+            field:
+              type: terms
+              display: Location
+              taxonomies:
+                - location
+              max_items: 1
+              instructions: Primary work location for this team member.
+  card:
+    display: Card
+    sections:
+      - fields:
+          - import: mrc_card_fields
+  content:
+    display: Content
+    sections:
+      - fields:
+          - handle: page_blocks
+            field:
+              type: replicator
+              display: Content blocks
+              collapse: true
+              button_label: Add block
+              instructions: Extended content blocks for the team member detail page.
+              sets:
+                text_and_media:
+                  display: Text & Media
+                  sets:
+                    text_section:
+                      display: Text section
+                      fields:
+                        - import: mrc_text_section
+                    rich_text:
+                      display: Rich text
+                      fields:
+                        - import: mrc_rich_text
+                    image:
+                      display: Text + Image
+                      fields:
+                        - import: mrc_image_block
+                    quote_block:
+                      display: Quote
+                      fields:
+                        - import: mrc_quote_block
+                conversion_and_forms:
+                  display: Conversion
+                  sets:
+                    cta_section:
+                      display: CTA section
+                      fields:
+                        - import: mrc_cta_section
+                    form_section:
+                      display: Form section
+                      fields:
+                        - import: mrc_form_section
+  seo:
+    display: SEO
+    sections:
+      - fields:
+          - handle: seo_title
+            field:
+              type: text
+              display: 'SEO title'
+              instructions: 'Page title shown in search results. Leave empty to use the entry title.'
+          - handle: seo_description
+            field:
+              type: textarea
+              display: 'SEO description'
+              instructions: 'Meta description shown in search results (max 160 chars).'
+          - handle: robots_noindex
+            field:
+              type: toggle
+              display: 'No-index'
+              default: false
+              instructions: 'Prevent search engines from indexing this page.'
+          - handle: robots_nofollow
+            field:
+              type: toggle
+              display: 'No-follow'
+              default: false
+              instructions: 'Prevent search engines from following links on this page.'
+          - handle: canonical_url
+            field:
+              type: text
+              display: 'Canonical URL'
+              instructions: 'Override the default canonical URL. Leave empty to use the page URL.'
+          - handle: og_title
+            field:
+              type: text
+              display: 'Social title'
+              instructions: 'Title shown when shared on social media. Falls back to SEO title or entry title.'
+          - handle: og_description
+            field:
+              type: textarea
+              display: 'Social description'
+              instructions: 'Description shown when shared on social media. Falls back to SEO description.'
+          - handle: og_image
+            field:
+              type: assets
+              display: 'Social image'
+              max_files: 1
+              instructions: 'Image shown when shared on social media. Recommended: 1200x630px.'

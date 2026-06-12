@@ -96,7 +96,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     category:        "media",
     allowedVariants: ["full-width", "contained"],
     dataType:        "VideoBlockData",
-    status:          "defined",
+    status:          "live",
   },
   {
     key:             "slider",
@@ -127,7 +127,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     category:        "social-proof",
     allowedVariants: ["centered", "left-border", "large"],
     dataType:        "QuoteBlockData",
-    status:          "defined",
+    status:          "live",
   },
   {
     key:             "logoStrip",
@@ -489,6 +489,7 @@ export const REGISTERED_CONTENT_BLOCK_TYPES = [
   "ctaSection",
   "formSection",
   // ── Social proof / media ───────────────────────────────────────────────────
+  "quote",
   "logoStrip",
   "stats",
   // ── Content ────────────────────────────────────────────────────────────────
@@ -522,6 +523,12 @@ export const REGISTERED_CONTENT_BLOCK_TYPES = [
   "checkoutBlock",
   // ── Map ────────────────────────────────────────────────────────────────────
   "mapBlock",
+  // ── Media ──────────────────────────────────────────────────────────────────
+  "video",
+  // ── New core blocks ────────────────────────────────────────────────────────
+  "timeline",
+  "quickLinks",
+  "contactSection",
 ] as const satisfies readonly ContentBlockType[];
 
 // ─────────────────────────────────────────────────────────────────────────────

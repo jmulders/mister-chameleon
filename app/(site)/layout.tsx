@@ -61,6 +61,7 @@
 import { draftMode } from "next/headers";
 import { Header, Footer } from "@/components/layout";
 import { PreviewBar } from "@/components/preview/PreviewBar";
+import { StatamicPreviewWatcher } from "@/components/preview/StatamicPreviewWatcher";
 import { ScenarioControlMount } from "@/components/scenario/ScenarioControlMount";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
@@ -132,6 +133,13 @@ export default async function SiteLayout({
         Only mounted when preview mode is active — invisible to public visitors.
       */}
       {isPreview && <PreviewBar />}
+      {/*
+        StatamicPreviewWatcher — polls /api/cms-version every 1.5 s and calls
+        router.refresh() when CMS content changes.  Only active in development
+        AND when the page is inside an iframe (Statamic CP Live Preview).
+        Zero-cost for regular visitors.
+      */}
+      <StatamicPreviewWatcher />
       {/*
         ScenarioControlPanel — floating debug/scenario overlay.
         Self-guards visibility: only shows in dev or when NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1

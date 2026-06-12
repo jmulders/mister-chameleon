@@ -52,12 +52,13 @@ import { CachedCMSProvider }    from "./cached-cms-provider";
 import { serverEnv }            from "@/lib/env";
 import { logger }               from "@/lib/logger";
 import type { TenantCmsSettings } from "@/tenant/types";
-import { getPlatformSanitySettings, getPlatformStoryblokSettings } from "@/platform/platform-store";
+import { getPlatformSanitySettings, getPlatformStoryblokSettings, getPlatformStatamicSettings } from "@/platform/platform-store";
 import {
   StoryblokClient,
   STORYBLOK_CDN_BASE_URLS,
   type StoryblokRegion,
 } from "./storyblok-client";
+import { StatamicClient } from "./statamic-client";
 
 /**
  * Returns the appropriate CMSProvider for the current request.
@@ -131,12 +132,30 @@ export function createCMSProvider(
       return wrap(new StoryblokProvider(), tenantId);
     }
 
-    if (preferred === "statamic" && serverEnv.statamic.isConfigured) {
-      logger.info("[CMS] Tenant override: using StatamicProvider.", {
-        apiUrl:   serverEnv.statamic.apiUrl,
-        tenantId: tenantId ?? null,
-      });
-      return wrap(new StatamicProvider(), tenantId);
+    if (preferred === "statamic") {
+      const tenantBaseUrl = tenantCms.statamicBaseUrl?.trim();
+      const platformBaseUrl = serverEnv.statamic.isConfigured ? serverEnv.statamic.apiUrl : undefined;
+      const resolvedBaseUrl = tenantBaseUrl || platformBaseUrl;
+
+      if (resolvedBaseUrl) {
+        logger.info("[CMS] Tenant override: using StatamicProvider.", {
+          baseUrl:  resolvedBaseUrl,
+          source:   tenantBaseUrl ? "tenant" : "platform-env",
+          tenantId: tenantId ?? null,
+        });
+        // Pass cmsFsPath so the file reader is available in local dev.
+        // When STATAMIC_CMS_PATH is set, the client reads YAML files directly
+        // from disk instead of going through the HTTP API — this works reliably
+        // even when the Statamic REST API is not configured for all collections.
+        //
+        // IMPORTANT: only when the URL comes from the platform env.  When the
+        // tenant has an EXPLICIT statamicBaseUrl (e.g. a customer's own remote
+        // Statamic), the file reader must stay disabled — otherwise local
+        // platform files would silently shadow the customer's remote content.
+        const cmsFsPath = tenantBaseUrl ? undefined : serverEnv.statamic.cmsFsPath;
+        const client = new StatamicClient(resolvedBaseUrl, undefined, cmsFsPath);
+        return wrap(new StatamicProvider(client), tenantId);
+      }
     }
 
     if (preferred === "platform" && tenantId) {
@@ -210,6 +229,7 @@ export function createCMSProvider(
  *   2. platform_settings DB   (/admin/platform/integrations/cms)
  *      — Sanity:    projectId + dataset required
  *      — Storyblok: accessToken required
+ *      — Statamic:  baseUrl required
  *   3. Mock (if nothing is configured)
  *
  * @param tenantCms  Optional per-tenant CMS settings (same as `createCMSProvider`).
@@ -227,10 +247,11 @@ export async function createCMSProviderAsync(
   }
 
   // Slow path: env vars are absent → check the DB for CMS credentials.
-  // Check Sanity and Storyblok in parallel (Statamic is env-only for now).
-  const [sanityDbResult, storyblokDbResult] = await Promise.all([
+  // Check Sanity, Storyblok and Statamic in parallel.
+  const [sanityDbResult, storyblokDbResult, statamicDbResult] = await Promise.all([
     getPlatformSanitySettings().catch(() => ({ ok: false as const, error: "db-error" })),
     getPlatformStoryblokSettings().catch(() => ({ ok: false as const, error: "db-error" })),
+    getPlatformStatamicSettings().catch(() => ({ ok: false as const, error: "db-error" })),
   ]);
 
   // ── Sanity DB fallback ────────────────────────────────────────────────────
@@ -272,6 +293,29 @@ export async function createCMSProviderAsync(
 
     const client = new StoryblokClient(accessToken, cdnBaseUrl, contentVersion);
     return wrap(new StoryblokProvider(client), tenantId);
+  }
+
+  // ── Statamic DB fallback ──────────────────────────────────────────────────
+  // Per-tenant statamicBaseUrl overrides the platform-level baseUrl.
+  const statamicTenantUrl = tenantCms?.statamicBaseUrl?.trim();
+  const statamicPlatformUrl = (statamicDbResult.ok && statamicDbResult.data.baseUrl)
+    ? statamicDbResult.data.baseUrl
+    : undefined;
+  const statamicResolvedUrl = statamicTenantUrl || statamicPlatformUrl;
+  const statamicApiKey = (statamicDbResult.ok ? statamicDbResult.data.apiKey : undefined) ?? undefined;
+
+  if (statamicResolvedUrl) {
+    logger.info("[CMS] Using StatamicProvider — credentials loaded from DB.", {
+      baseUrl: statamicResolvedUrl,
+      source:  statamicTenantUrl ? "tenant" : "platform_settings",
+      tenantId: tenantId ?? null,
+    });
+
+    // Pass cmsFsPath for file reader in local dev (same reasoning as sync path
+    // above) — but never when the tenant supplied an explicit remote URL.
+    const cmsFsPath = statamicTenantUrl ? undefined : serverEnv.statamic.cmsFsPath;
+    const client = new StatamicClient(statamicResolvedUrl, statamicApiKey, cmsFsPath);
+    return wrap(new StatamicProvider(client), tenantId);
   }
 
   // No env vars, no DB config → MockCMSProvider.
@@ -338,6 +382,20 @@ export function createPreviewCMSProvider(
   // Deliberately NOT wrapped with CachedCMSProvider — the in-process cache
   // must not serve stale published snapshots during preview.
   return new SanityProvider(undefined, tenantId, sanityOverrides, true, locale);
+}
+
+/**
+ * Returns a StatamicProvider pre-loaded with draft Replicator blocks from the
+ * Statamic CP Live Preview.  The provider skips the disk read and serves draft
+ * content directly, giving real-time preview before the user saves.
+ *
+ * NOT wrapped with CachedCMSProvider so every render sees the latest draft.
+ *
+ * @param blocks  The `content` replicator blocks serialised from the Antlers
+ *                template during Statamic Live Preview re-rendering.
+ */
+export function createDraftStatamicProvider(blocks: unknown[]): CMSProvider {
+  return new StatamicProvider(undefined, blocks);
 }
 
 // ── Internal helper ───────────────────────────────────────────────────────────

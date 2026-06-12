@@ -179,21 +179,23 @@ function LogoSet({
   showLabel,
   muted,
   ariaHidden = false,
+  keyPrefix  = "",
 }: {
-  logos:      readonly LogoItem[];
-  grayscale:  boolean;
-  showLabel:  boolean;
-  muted:      boolean;
+  logos:       readonly LogoItem[];
+  grayscale:   boolean;
+  showLabel:   boolean;
+  muted:       boolean;
   ariaHidden?: boolean;
+  keyPrefix?:  string;
 }) {
   return (
     <div
       className="flex flex-shrink-0 items-center"
       aria-hidden={ariaHidden || undefined}
     >
-      {logos.map((logo) => (
+      {logos.map((logo, i) => (
         <div
-          key={logo.name}
+          key={`${keyPrefix}${i}-${logo.name}`}
           className="flex items-center px-7 py-2 sm:px-9 md:px-10"
         >
           <LogoCell
@@ -222,10 +224,41 @@ export function LogoStripBlock({ data, variant: rawVariant, surface }: LogoStrip
     showLabels       = false,
   } = data;
 
-  const items     = logos ?? [];
+  const rawItems  = logos ?? [];
   const muted     = variant === "muted";
   const grayscale = grayscaleProp ?? muted;   // muted variant defaults to grayscale
   const duration  = SPEED_DURATION[speed] ?? SPEED_DURATION.slow;
+
+  // ── Marquee padding ────────────────────────────────────────────────────────
+  //
+  // The seamless marquee requires ONE set of logos to fill the viewport width.
+  // Each logo cell is ~130px + ~80px padding ≈ 210px.  At 1440px viewport that
+  // means ~7 logos per set.  When the content library has fewer items, we tile
+  // the array so a single set always exceeds the typical viewport width.
+  //
+  // However, tiling looks wrong when the brand has very few logos — seeing
+  // the same 2 logos repeated 4× is jarring.  We only enable the animated
+  // marquee (and tiling) when there are at least MIN_LOGOS_TO_ANIMATE unique
+  // logos.  Below that threshold we fall back to a static centred row, which
+  // always looks clean regardless of logo count.
+  //
+  // logo_grid (static variant) renders logos without tiling — the full count is
+  // always visible, so we leave rawItems untouched for that path.
+  const MIN_LOGOS_TO_ANIMATE = 4;   // fewer than this → static centred row
+  const MIN_LOGOS_PER_SET    = 8;   // tile up to this count for the marquee
+
+  const isMarqueeVariant  = variant !== "logo_grid";
+  const hasEnoughToScroll = rawItems.length >= MIN_LOGOS_TO_ANIMATE;
+  // effectiveAnimation respects the content author's choice but disables the
+  // marquee automatically when there are too few logos to look good scrolling.
+  const effectiveAnimation = animationEnabled && isMarqueeVariant && hasEnoughToScroll;
+
+  const items = (isMarqueeVariant && effectiveAnimation && rawItems.length > 0 && rawItems.length < MIN_LOGOS_PER_SET)
+    ? Array.from(
+        { length: Math.ceil(MIN_LOGOS_PER_SET / rawItems.length) },
+        () => rawItems,
+      ).flat()
+    : rawItems;
 
   // ── Shared section style ───────────────────────────────────────────────────
   //
@@ -307,7 +340,7 @@ export function LogoStripBlock({ data, variant: rawVariant, surface }: LogoStrip
   //   .logo-marquee-track → animation: none; flex-wrap: wrap; justify-content: center
   //   .logo-marquee-dup   → display: none
 
-  const trackStyle = animationEnabled
+  const trackStyle = effectiveAnimation
     ? ({ "--marquee-duration": duration } as React.CSSProperties)
     : undefined;
 
@@ -339,7 +372,7 @@ export function LogoStripBlock({ data, variant: rawVariant, surface }: LogoStrip
             {/* ── Marquee track ── */}
             <div
               className={
-                animationEnabled
+                effectiveAnimation
                   ? "logo-marquee-track flex items-center"
                   : "flex flex-wrap items-center justify-center"
               }
@@ -353,27 +386,20 @@ export function LogoStripBlock({ data, variant: rawVariant, surface }: LogoStrip
                 grayscale={grayscale}
                 showLabel={showLabels}
                 muted={muted}
+                keyPrefix="set1-"
               />
 
               {/* Set 2 — purely visual duplicate for seamless loop */}
-              {animationEnabled && (
-                <div
-                  className="logo-marquee-dup flex flex-shrink-0 items-center"
-                  aria-hidden="true"
-                >
-                  {items.map((logo) => (
-                    <div
-                      key={`${logo.name}-dup`}
-                      className="flex items-center px-7 py-2 sm:px-9 md:px-10"
-                    >
-                      <LogoCell
-                        logo={logo}
-                        grayscale={grayscale}
-                        showLabel={showLabels}
-                        muted={muted}
-                      />
-                    </div>
-                  ))}
+              {effectiveAnimation && (
+                <div className="logo-marquee-dup">
+                  <LogoSet
+                    logos={items}
+                    grayscale={grayscale}
+                    showLabel={showLabels}
+                    muted={muted}
+                    ariaHidden
+                    keyPrefix="dup-"
+                  />
                 </div>
               )}
             </div>

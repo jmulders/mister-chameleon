@@ -40,6 +40,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title:       page.seoTitle ?? page.title,
     description: page.seoDescription,
+    robots:      (page.robots?.noindex || page.robots?.nofollow)
+                   ? { index: !page.robots.noindex, follow: !page.robots.nofollow }
+                   : undefined,
+    alternates:  page.canonicalUrl ? { canonical: page.canonicalUrl } : undefined,
+    openGraph:   (page.ogTitle ?? page.ogDescription ?? page.ogImage)
+                   ? {
+                       title:       page.ogTitle       ?? page.seoTitle       ?? page.title,
+                       description: page.ogDescription ?? page.seoDescription,
+                       images:      page.ogImage ? [page.ogImage] : undefined,
+                     }
+                   : undefined,
   };
 }
 

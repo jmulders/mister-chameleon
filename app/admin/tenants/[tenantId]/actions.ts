@@ -8,6 +8,8 @@
 
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 import { cookies }        from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect }       from "next/navigation";
@@ -41,6 +43,8 @@ import type {
   SiteInitReport,
   CmsInitSection,
   StarterContentMode,
+  DeployStatamicResult,
+  DeployStatamicStep,
 } from "./types";
 import type { SiteIntakeData } from "@/site/types";
 
@@ -385,7 +389,8 @@ export type { ProvisionSiteResult } from "./types";
  * Routes to the correct provisioner based on the tenant's configured CMS provider:
  *   - Sanity:    calls `provisionTenant()` (Sanity-specific, uses createOrReplace)
  *   - Storyblok: calls `StoryblokProvider.provisionSite()` (Management API)
- *   - Other:     returns an error — only Sanity and Storyblok support managed provisioning
+ *   - Statamic:  calls `StatamicProvider.provisionSite()` (REST write API)
+ *   - Other:     returns an error — only Sanity, Storyblok and Statamic support managed provisioning
  *
  * On success, updates `TenantSettings.cmsProvisionedAt` so the admin page and
  * readiness checks reflect the current state without querying the CMS.
@@ -398,6 +403,7 @@ export type { ProvisionSiteResult } from "./types";
 export async function provisionSiteAction(
   tenantId: string,
 ): Promise<ProvisionSiteResult> {
+  try {
   // ── Load tenant ───────────────────────────────────────────────────────────
   const tenant = await getTenantById(tenantId);
   if (!tenant) {
@@ -413,6 +419,32 @@ export async function provisionSiteAction(
     const { StoryblokProvider } = await import("@/cms/providers/storyblok-provider");
     const provider = new StoryblokProvider();
     result = await provider.provisionSite(tenant);
+  } else if (cmsProvider === "statamic") {
+    // Resolve Statamic URL directly rather than via createCMSProviderAsync so
+    // that the platform-level DB setting is always checked regardless of which
+    // other CMS env vars happen to be set.  createCMSProviderAsync has a fast
+    // path that skips the DB when *any* env var CMS is configured, which would
+    // silently return the wrong provider (e.g. Sanity) for Statamic tenants.
+    const { StatamicProvider }          = await import("@/cms/providers/statamic-provider");
+    const { StatamicClient }            = await import("@/cms/providers/statamic-client");
+    const { getPlatformStatamicSettings } = await import("@/platform/platform-store");
+
+    const tenantUrl    = tenant.cms?.statamicBaseUrl?.trim();
+    const platformResult = await getPlatformStatamicSettings().catch(() => null);
+    const platformUrl  = platformResult?.ok ? platformResult.data.baseUrl?.trim() : undefined;
+    const resolvedUrl  = tenantUrl || platformUrl;
+
+    if (!resolvedUrl) {
+      return {
+        ok:    false,
+        error: "No Statamic base URL configured. " +
+               "Set it in the tenant's CMS settings or in Platform → CMS settings.",
+      };
+    }
+
+    const apiKey = platformResult?.ok ? (platformResult.data.apiKey ?? undefined) : undefined;
+    const client = new StatamicClient(resolvedUrl, apiKey);
+    result = await new StatamicProvider(client).provisionSite(tenant);
   } else if (cmsProvider === "sanity" || !cmsProvider) {
     result = await provisionTenant(tenant);
   } else {
@@ -453,6 +485,16 @@ export async function provisionSiteAction(
     navItemsWritten:     result.navItemsWritten,
     warnings:            [...result.warnings, ...storeWarnings],
   };
+  } catch (err) {
+    rethrowNextInternal(err);
+    // Top-level safety net — prevents unhandled exceptions from crashing the
+    // server action handler (which would cause the client to see "Failed to fetch"
+    // instead of a proper error message).
+    return {
+      ok:    false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 // ── Site initialization action ─────────────────────────────────────────────────
@@ -500,6 +542,7 @@ export async function createSiteAction(
   blueprintKey?:           string,
   intake?:                 SiteIntakeData,
   referenceUrl?:           string,
+  selectedModules?:        string[],
 ): Promise<CreateSiteResult> {
 
   const allWarnings: string[] = [];
@@ -586,6 +629,7 @@ export async function createSiteAction(
       ],
     };
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     report.designSystem = { status: "error", message: `Design system setup failed: ${msg}` };
     allWarnings.push(`Design system: ${msg}`);
@@ -595,21 +639,59 @@ export async function createSiteAction(
   //
   // Convert the selected template keys to page entries and provision all CMS
   // documents: pages, variant docs, nav items, site settings.
+  //
+  // Routes to the correct provisioner based on the tenant's configured CMS:
+  //   • Statamic → StatamicProvider.provisionSite() (with pages array)
+  //   • Sanity / default → provisionTenant() (Sanity-specific)
 
   let cmsProvisionedAt: string | undefined;
 
   try {
-    const pages = templateKeysToPageEntries(selectedTemplates, siteType);
+    const pages      = templateKeysToPageEntries(selectedTemplates, siteType);
+    const cmsProvider = working.cms?.provider ?? "sanity";
 
-    const provisionResult: ProvisionResult = await provisionTenant(
-      working,
-      /* dryRun          */ false,
-      siteType,
-      pages,
-      includeDefaultBlocks,
-      starterContentMode,
-      includeShowcasePage,
-    );
+    let provisionResult: ProvisionResult;
+
+    if (cmsProvider === "statamic") {
+      // Resolve Statamic connection — mirror the pattern from provisionSiteAction.
+      const { StatamicProvider }           = await import("@/cms/providers/statamic-provider");
+      const { StatamicClient }             = await import("@/cms/providers/statamic-client");
+      const { getPlatformStatamicSettings } = await import("@/platform/platform-store");
+
+      const tenantUrl      = working.cms?.statamicBaseUrl?.trim();
+      const platformResult = await getPlatformStatamicSettings().catch(() => null);
+      const platformUrl    = platformResult?.ok ? platformResult.data.baseUrl?.trim() : undefined;
+      const resolvedUrl    = tenantUrl || platformUrl;
+
+      if (!resolvedUrl) {
+        throw new Error(
+          "No Statamic base URL configured. " +
+          "Set it in the tenant's CMS settings or in Platform → CMS settings.",
+        );
+      }
+
+      const apiKey = platformResult?.ok ? (platformResult.data.apiKey ?? undefined) : undefined;
+      const client = new StatamicClient(resolvedUrl, apiKey);
+      provisionResult = await new StatamicProvider(client).provisionSite(working, {
+        dryRun:              false,
+        siteType,
+        pages,
+        includeDefaultBlocks,
+        starterContentMode,
+        includeShowcasePage,
+        modules:             selectedModules,
+      });
+    } else {
+      provisionResult = await provisionTenant(
+        working,
+        /* dryRun          */ false,
+        siteType,
+        pages,
+        includeDefaultBlocks,
+        starterContentMode,
+        includeShowcasePage,
+      );
+    }
 
     if (!provisionResult.ok) {
       const cmsSection: CmsInitSection = {
@@ -650,6 +732,7 @@ export async function createSiteAction(
       }
     }
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     report.cmsContent = { status: "error", message: `CMS provisioning threw: ${msg}` };
     allWarnings.push(`CMS content: ${msg}`);
@@ -702,6 +785,7 @@ export async function createSiteAction(
       details,
     };
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     report.integrations = { status: "error", message: `Integrations setup failed: ${msg}` };
     allWarnings.push(`Integrations: ${msg}`);
@@ -724,6 +808,7 @@ export async function createSiteAction(
       };
     }
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     report.domains = { status: "error", message: `Domain baseline failed: ${msg}` };
     allWarnings.push(`Domains: ${msg}`);
@@ -777,6 +862,7 @@ export async function createSiteAction(
         allWarnings.push(...siteResult.warnings.map((w) => `Blueprint: ${w}`));
       }
     } catch (err) {
+    rethrowNextInternal(err);
       const msg = err instanceof Error ? err.message : String(err);
       (report as unknown as Record<string, unknown>).blueprint = {
         status:  "error",
@@ -798,6 +884,7 @@ export async function createSiteAction(
     siteType,
     selectedTemplates,
     ...(cmsProvisionedAt ? { cmsProvisionedAt } : {}),
+    ...(selectedModules?.length ? { selectedModules } : {}),
   };
 
   const saveResult = await saveTenant(final);
@@ -830,6 +917,7 @@ export async function createSiteAction(
  *
  *   theme             → TenantDesignSettings.theme
  *   colorPrimary      → tokenOverrides.color.primary
+ *   colorPrimaryHover → tokenOverrides.color.primaryHover
  *   colorSecondary    → tokenOverrides.color.secondary
  *   colorBackground   → tokenOverrides.color.background
  *   colorForeground   → tokenOverrides.color.foreground
@@ -848,8 +936,9 @@ export async function createSiteAction(
 export interface VisualTokenFields {
   theme?:           ThemeKey;
   // color group
-  colorPrimary?:    string;
-  colorSecondary?:  string;
+  colorPrimary?:        string;
+  colorPrimaryHover?:   string;
+  colorSecondary?:      string;
   colorBackground?: string;
   colorForeground?: string;
   // typography group — base families
@@ -965,8 +1054,9 @@ export async function saveVisualTokensAction(
 
   const colorSet:   Record<string, string> = {};
   const colorClear: string[]               = [];
-  if (fields.colorPrimary    !== undefined) { if (fields.colorPrimary.trim())    colorSet.primary    = fields.colorPrimary.trim();    else colorClear.push("primary");    }
-  if (fields.colorSecondary  !== undefined) { if (fields.colorSecondary.trim())  colorSet.secondary  = fields.colorSecondary.trim();  else colorClear.push("secondary");  }
+  if (fields.colorPrimary      !== undefined) { if (fields.colorPrimary.trim())      colorSet.primary      = fields.colorPrimary.trim();      else colorClear.push("primary");      }
+  if (fields.colorPrimaryHover !== undefined) { if (fields.colorPrimaryHover.trim()) colorSet.primaryHover = fields.colorPrimaryHover.trim(); else colorClear.push("primaryHover"); }
+  if (fields.colorSecondary    !== undefined) { if (fields.colorSecondary.trim())    colorSet.secondary    = fields.colorSecondary.trim();    else colorClear.push("secondary");    }
   if (fields.colorBackground !== undefined) { if (fields.colorBackground.trim()) colorSet.background = fields.colorBackground.trim(); else colorClear.push("background"); }
   if (fields.colorForeground !== undefined) { if (fields.colorForeground.trim()) colorSet.foreground = fields.colorForeground.trim(); else colorClear.push("foreground"); }
 
@@ -1131,8 +1221,48 @@ export async function saveVisualTokensAction(
     return { ok: false, errors: [saveResult.error] };
   }
 
+  // ── Clear the mc_theme session cookie when the active preset changes ─────────
+  //
+  // The cookie locks the theme for 4 hours so that a real visitor's theme stays
+  // stable during their session.  When an admin explicitly activates a new preset
+  // the lock becomes stale — it would mask the new theme until the 4-hour TTL
+  // expires.  Clearing it forces the next site visit to pick up the new preset
+  // from the DB immediately.
+  //
+  // We also clear on headerVariant / footerVariant changes because those affect
+  // the layout structure, and a stale session cookie should never hide the change.
+  //
+  // In development we also auto-activate the mc_dev_tenant cookie for this tenant
+  // so that visiting localhost:3000 immediately uses the tenant whose design was
+  // just edited — without requiring a separate trip to /admin/tenants/[id]/debug.
+  if (fields.theme !== undefined || fields.headerVariant !== undefined || fields.footerVariant !== undefined) {
+    try {
+      const cookieStore = await cookies();
+      const { clearThemeSessionCookie } =
+        await import("@/lib/theme-session") as typeof import("@/lib/theme-session");
+      clearThemeSessionCookie(cookieStore as Parameters<typeof clearThemeSessionCookie>[0]);
+
+      // ── Dev: activate this tenant for the public site preview ────────────────
+      if (process.env.NODE_ENV === "development") {
+        cookieStore.set(DEV_TENANT_COOKIE, tenantId, {
+          path:     "/",
+          maxAge:   DEV_TENANT_COOKIE_MAX_AGE,
+          httpOnly: true,
+          sameSite: "lax",
+        });
+      }
+    } catch {
+      // Non-critical: if clearing fails the cookie expires naturally after 4 hours.
+    }
+  }
+
   revalidatePath(`/admin/tenants/${tenantId}`);
   revalidatePath("/admin/tenants");
+  // Always bust the public site's full-route cache whenever any design setting
+  // changes — theme preset, layout variant, color tokens, typography overrides,
+  // spacing, etc.  The root layout is re-rendered on the next request so CSS
+  // variables reflecting the new settings are served immediately.
+  revalidatePath("/", "layout");
 
   return { ok: true, warnings: [...warnings, ...(saveResult.warnings ?? [])] };
 }
@@ -1752,6 +1882,7 @@ export async function deleteTenantAction(tenantId: string): Promise<{ error: str
       }
     }
   } catch (err) {
+    rethrowNextInternal(err);
     // Non-fatal: log and continue — the core tenant deletion still proceeds.
     console.error("[deleteTenantAction] orphan user cleanup error:", err);
   }
@@ -1787,4 +1918,447 @@ export async function deleteTenantAction(tenantId: string): Promise<{ error: str
 
   // Unreachable, but satisfies the return type for the error branch.
   return { error: "" };
+}
+
+// ── Statamic blueprint sync ────────────────────────────────────────────────────
+
+/**
+ * Result returned by syncStatamicBlueprintAction.
+ */
+export type SyncBlueprintResult =
+  | { ok: true;  path: string; contextBlocks: number; contentBlocks: number; fieldsetsCount: number; sitesCount: number }
+  | { ok: false; error: string };
+
+/**
+ * Generate and write the Statamic `pages.yaml` blueprint for a tenant.
+ *
+ * Reads the tenant's `blocks.context` and `blocks.content` settings, runs them
+ * through the blueprint generator, and writes the YAML to:
+ *
+ *   `$STATAMIC_CMS_PATH/resources/blueprints/collections/pages/pages.yaml`
+ *
+ * ─── Requirements ─────────────────────────────────────────────────────────────
+ *
+ *   - The `STATAMIC_CMS_PATH` environment variable must be set and point to the
+ *     Statamic installation root on the file system.
+ *   - The tenant must exist and have a blocks configuration.
+ *   - The write operation is synchronous and must complete before the action
+ *     resolves — no background queue.
+ *
+ * ─── Idempotency ──────────────────────────────────────────────────────────────
+ *
+ *   Safe to call multiple times.  Each call overwrites the previous blueprint.
+ *   The Statamic CP re-reads blueprints from disk on each request, so the new
+ *   blueprint is effective immediately after this action completes.
+ *
+ * @param tenantId  The tenant whose block settings drive the blueprint.
+ */
+export async function syncStatamicBlueprintAction(
+  tenantId: string,
+): Promise<SyncBlueprintResult> {
+  try {
+    // ── 1. Resolve STATAMIC_CMS_PATH ─────────────────────────────────────────
+    const cmsFsPath = process.env.STATAMIC_CMS_PATH?.trim();
+    if (!cmsFsPath) {
+      return {
+        ok:    false,
+        error: "STATAMIC_CMS_PATH is not configured. " +
+               "Set it in your .env.local to the absolute path of the Statamic installation.",
+      };
+    }
+
+    // ── 2. Load tenant ────────────────────────────────────────────────────────
+    const tenant = await getTenantById(tenantId);
+    if (!tenant) {
+      return { ok: false, error: `Tenant "${tenantId}" not found.` };
+    }
+
+    const contextBlocks = tenant.blocks?.context ?? [];
+    const contentBlocks = tenant.blocks?.content ?? [];
+
+    // ── 3. Generate blueprint + sites YAML ───────────────────────────────────
+    const { generatePagesBlueprintYaml, generateSitesYaml } = await import(
+      "@/cms/schemas/statamic/blueprint-generator"
+    ) as typeof import("@/cms/schemas/statamic/blueprint-generator");
+
+    const yamlContent = generatePagesBlueprintYaml(contextBlocks, contentBlocks);
+    const languages   = tenant.languages ?? [];
+    const sitesYaml   = languages.length > 0 ? generateSitesYaml(languages) : null;
+
+    // ── 4. Write to disk ──────────────────────────────────────────────────────
+    const { promises: fs, existsSync } = await import("fs") as typeof import("fs");
+    const path = await import("path") as typeof import("path");
+
+    const blueprintDir  = path.join(
+      path.resolve(process.cwd(), cmsFsPath),
+      "resources",
+      "blueprints",
+      "collections",
+      "pages",
+    );
+    const blueprintPath = path.join(blueprintDir, "pages.yaml");
+
+    // Ensure the directory exists (it should already, but be safe)
+    if (!existsSync(blueprintDir)) {
+      await fs.mkdir(blueprintDir, { recursive: true });
+    }
+
+    await fs.writeFile(blueprintPath, yamlContent, "utf8");
+
+    // ── 4b. Write sites.yaml when languages are configured ────────────────────
+    let sitesCount = 0;
+    if (sitesYaml) {
+      const resourcesDir = path.join(path.resolve(process.cwd(), cmsFsPath), "resources");
+      if (!existsSync(resourcesDir)) {
+        await fs.mkdir(resourcesDir, { recursive: true });
+      }
+      await fs.writeFile(path.join(resourcesDir, "sites.yaml"), sitesYaml, "utf8");
+      sitesCount = languages.length;
+    }
+
+    // ── 5. Sync platform files (fieldsets + blueprints) ───────────────────────
+    //
+    // Copies all platform-managed files to the tenant's Statamic instance.
+    // Always overwritten — these files are platform-managed and must stay in
+    // sync with the codebase.  Three categories:
+    //   a) mrc_*.yaml fieldsets  → resources/fieldsets/
+    //   b) globals blueprints    → resources/blueprints/globals/
+    //   c) taxonomy blueprints   → resources/blueprints/taxonomies/
+    let fieldsetsCount = 0;
+
+    const platformRoot = path.resolve(
+      process.cwd(),
+      "mister-chameleon-cms",
+      "mister-chameleon-cms",
+    );
+    const absRoot = path.resolve(process.cwd(), cmsFsPath);
+
+    // ── a) mrc_* fieldsets ─────────────────────────────────────────────────
+    const platformFieldsetsDir = path.join(platformRoot, "resources", "fieldsets");
+    const tenantFieldsetsDir   = path.join(absRoot, "resources", "fieldsets");
+
+    if (existsSync(platformFieldsetsDir)) {
+      const allFiles = await fs.readdir(platformFieldsetsDir);
+      const mrcFiles = allFiles.filter((f) => f.startsWith("mrc_") && f.endsWith(".yaml"));
+
+      if (mrcFiles.length > 0) {
+        if (!existsSync(tenantFieldsetsDir)) {
+          await fs.mkdir(tenantFieldsetsDir, { recursive: true });
+        }
+        for (const filename of mrcFiles) {
+          await fs.copyFile(
+            path.join(platformFieldsetsDir, filename),
+            path.join(tenantFieldsetsDir, filename),
+          );
+        }
+        fieldsetsCount += mrcFiles.length;
+      }
+    }
+
+    // ── b) Globals blueprints ──────────────────────────────────────────────
+    const platformGlobalsBpDir = path.join(platformRoot, "resources", "blueprints", "globals");
+    const tenantGlobalsBpDir   = path.join(absRoot, "resources", "blueprints", "globals");
+
+    if (existsSync(platformGlobalsBpDir)) {
+      const allFiles = await fs.readdir(platformGlobalsBpDir);
+      const yamlFiles = allFiles.filter((f) => f.endsWith(".yaml"));
+      if (yamlFiles.length > 0) {
+        if (!existsSync(tenantGlobalsBpDir)) {
+          await fs.mkdir(tenantGlobalsBpDir, { recursive: true });
+        }
+        for (const filename of yamlFiles) {
+          await fs.copyFile(
+            path.join(platformGlobalsBpDir, filename),
+            path.join(tenantGlobalsBpDir, filename),
+          );
+        }
+        fieldsetsCount += yamlFiles.length;
+      }
+    }
+
+    // ── c) Taxonomy blueprints ─────────────────────────────────────────────
+    const platformTaxBpDir = path.join(platformRoot, "resources", "blueprints", "taxonomies");
+    const tenantTaxBpDir   = path.join(absRoot, "resources", "blueprints", "taxonomies");
+
+    if (existsSync(platformTaxBpDir)) {
+      const allFiles = await fs.readdir(platformTaxBpDir);
+      const yamlFiles = allFiles.filter((f) => f.endsWith(".yaml"));
+      if (yamlFiles.length > 0) {
+        if (!existsSync(tenantTaxBpDir)) {
+          await fs.mkdir(tenantTaxBpDir, { recursive: true });
+        }
+        for (const filename of yamlFiles) {
+          await fs.copyFile(
+            path.join(platformTaxBpDir, filename),
+            path.join(tenantTaxBpDir, filename),
+          );
+        }
+        fieldsetsCount += yamlFiles.length;
+      }
+    }
+
+    return {
+      ok:            true,
+      path:          blueprintPath,
+      contextBlocks: contextBlocks.length,
+      contentBlocks: contentBlocks.length,
+      fieldsetsCount,
+      sitesCount,
+    };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return {
+      ok:    false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+// ── Statamic Forge deployment ──────────────────────────────────────────────────
+
+/**
+ * Deploy a new Statamic site on Laravel Forge for a given tenant.
+ *
+ * Orchestrates the full end-to-end flow:
+ *   1. Create Forge site (on the platform server or the supplied override)
+ *   2. Install git repository (mister-chameleon-cms starter branch)
+ *   3. Trigger first deployment and wait for it to finish
+ *   4. Push .env (APP_URL, STATAMIC_API_ENABLED, unique API token, …)
+ *   5. Run artisan key:generate
+ *   6. Store statamicBaseUrl + writeToken in tenant settings
+ *   7. Run provisionSite to seed blueprints, navigation, and globals
+ *
+ * ─── Long-running ────────────────────────────────────────────────────────────
+ *
+ *   Forge deployments typically take 2–5 minutes.  On serverless hosts (Vercel)
+ *   the function timeout must be ≥ 300 s.  Add `export const maxDuration = 300`
+ *   to the route segment config in the page that calls this action.
+ *   In a future iteration this should be moved to a background job or webhook.
+ *
+ * @param tenantId  The tenant to deploy for.
+ * @param domain    The domain / hostname for the new Statamic site (e.g. cms.client.nl).
+ * @param serverId  Optional Forge server ID override; falls back to platform default.
+ */
+export async function deployStatamicSiteAction(
+  tenantId: string,
+  domain:   string,
+  serverId?: number,
+): Promise<DeployStatamicResult> {
+  const completedSteps: DeployStatamicStep[] = [];
+
+  function step(name: string): {
+    ok:   (msg?: string) => void;
+    warn: (msg: string) => void;
+    fail: (msg: string) => DeployStatamicResult;
+  } {
+    return {
+      ok:   (msg?: string) => completedSteps.push({ step: name, status: "ok",   message: msg }),
+      warn: (msg: string)  => completedSteps.push({ step: name, status: "warn", message: msg }),
+      fail: (msg: string): DeployStatamicResult => {
+        completedSteps.push({ step: name, status: "failed", message: msg });
+        return { ok: false, error: msg, failedStep: name, completedSteps };
+      },
+    };
+  }
+
+  try {
+    // ── 0. Load dependencies ─────────────────────────────────────────────────
+    const { ForgeClient, ForgeClientError } = await import("@/lib/forge/forge-client");
+    const { getPlatformForgeSettings }      = await import("@/platform/platform-store");
+
+    // ── 1. Load tenant ───────────────────────────────────────────────────────
+    const s1 = step("Load tenant");
+    const tenant = await getTenantById(tenantId);
+    if (!tenant) return s1.fail(`Tenant "${tenantId}" not found.`);
+    s1.ok();
+
+    // ── 2. Load Forge settings ───────────────────────────────────────────────
+    const s2 = step("Load Forge settings");
+    const forgeResult = await getPlatformForgeSettings();
+    if (!forgeResult.ok) return s2.fail(`Could not load Forge settings: ${forgeResult.error}`);
+
+    const { apiKey, defaultServerId, gitRepository, gitBranch, phpVersion } = forgeResult.data;
+    const resolvedApiKey = apiKey ?? process.env["FORGE_API_TOKEN"] ?? "";
+    if (!resolvedApiKey) return s2.fail("No Forge API token configured. Configure it at Platform → Integrations → Forge.");
+    if (!gitRepository)  return s2.fail("No git repository configured. Set it at Platform → Integrations → Forge.");
+
+    const resolvedBranch     = gitBranch  ?? "starter";
+    const resolvedPhpVersion = phpVersion ?? "php82";
+    const resolvedServerId   = serverId   ?? defaultServerId;
+    if (!resolvedServerId) return s2.fail("No Forge server ID configured. Set a default server ID at Platform → Integrations → Forge, or supply one when deploying.");
+    s2.ok(`Server ${resolvedServerId}, repo ${gitRepository}@${resolvedBranch}`);
+
+    const forge = new ForgeClient(resolvedApiKey);
+
+    // ── 3. Create Forge site ─────────────────────────────────────────────────
+    const s3 = step("Create Forge site");
+    let site;
+    try {
+      site = await forge.createSite(resolvedServerId, {
+        domain,
+        project_type: "php",
+        directory:    "/public",
+        php_version:  resolvedPhpVersion,
+      });
+      s3.ok(`Site #${site.id} created`);
+    } catch (err) {
+      return s3.fail(err instanceof ForgeClientError ? err.message : String(err));
+    }
+
+    const forgeSiteId = site.id;
+
+    // ── 4. Wait for site to be installed ────────────────────────────────────
+    const s4 = step("Wait for site installation");
+    try {
+      await forge.waitForSiteInstalled(resolvedServerId, forgeSiteId, 120_000);
+      s4.ok();
+    } catch (err) {
+      return s4.fail(err instanceof ForgeClientError ? err.message : String(err));
+    }
+
+    // ── 5. Install git repository ────────────────────────────────────────────
+    const s5 = step("Install git repository");
+    try {
+      await forge.installGit(resolvedServerId, forgeSiteId, {
+        provider:   "github",
+        repository: gitRepository,
+        branch:     resolvedBranch,
+        composer:   true,
+      });
+      s5.ok(`${gitRepository}@${resolvedBranch}`);
+    } catch (err) {
+      return s5.fail(err instanceof ForgeClientError ? err.message : String(err));
+    }
+
+    // ── 6. Trigger first deployment ──────────────────────────────────────────
+    const s6 = step("Deploy");
+    try {
+      await forge.deploy(resolvedServerId, forgeSiteId);
+      await forge.pollDeployment(resolvedServerId, forgeSiteId, 300_000);
+      s6.ok("First deployment finished");
+    } catch (err) {
+      return s6.fail(err instanceof ForgeClientError ? err.message : String(err));
+    }
+
+    // ── 7. Push .env variables ───────────────────────────────────────────────
+    const s7 = step("Configure .env");
+    const apiToken = crypto.randomUUID().replace(/-/g, "");
+    try {
+      const currentEnv = await forge.getEnv(resolvedServerId, forgeSiteId);
+      const updatedEnv = patchEnvVars(currentEnv, {
+        APP_URL:               `https://${domain}`,
+        APP_ENV:               "production",
+        STATAMIC_API_ENABLED:  "true",
+        STATAMIC_API_TOKEN:    apiToken,
+      });
+      await forge.updateEnv(resolvedServerId, forgeSiteId, updatedEnv);
+      s7.ok("APP_URL, STATAMIC_API_ENABLED, STATAMIC_API_TOKEN set");
+    } catch (err) {
+      return s7.fail(err instanceof ForgeClientError ? err.message : String(err));
+    }
+
+    // ── 8. artisan key:generate ──────────────────────────────────────────────
+    const s8 = step("Generate app key");
+    try {
+      const cmd = await forge.runCommand(resolvedServerId, forgeSiteId, "php artisan key:generate --force");
+      await forge.pollCommand(resolvedServerId, forgeSiteId, cmd.id, 60_000);
+      s8.ok();
+    } catch (err) {
+      // Non-fatal — warn rather than fail (key may already exist)
+      s8.warn(`artisan key:generate failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // ── 9. Run final deploy to pick up new .env ──────────────────────────────
+    const s9 = step("Re-deploy with new .env");
+    try {
+      await forge.deploy(resolvedServerId, forgeSiteId);
+      await forge.pollDeployment(resolvedServerId, forgeSiteId, 300_000);
+      s9.ok();
+    } catch (err) {
+      return s9.fail(err instanceof ForgeClientError ? err.message : String(err));
+    }
+
+    // ── 10. Persist Statamic URL + token in tenant settings ─────────────────
+    const s10 = step("Save tenant settings");
+    const siteUrl = `https://${domain}`;
+    try {
+      const updatedCms: TenantCmsSettings = {
+        ...tenant.cms,
+        provider:          "statamic",
+        statamicBaseUrl:   siteUrl,
+        writeToken:        apiToken,
+      };
+      const updatedTenant = { ...tenant, cms: updatedCms };
+      const saveResult    = await saveTenant(updatedTenant);
+      if (!saveResult.ok) return s10.fail(`Could not save tenant: ${saveResult.error}`);
+      s10.ok(`statamicBaseUrl = ${siteUrl}`);
+    } catch (err) {
+      return s10.fail(err instanceof Error ? err.message : String(err));
+    }
+
+    // ── 11. Run provisionSite to seed CMS structure ──────────────────────────
+    const s11 = step("Initialize CMS (provision site)");
+    try {
+      const { StatamicProvider } = await import("@/cms/providers/statamic-provider");
+      const { StatamicClient }   = await import("@/cms/providers/statamic-client");
+      const client   = new StatamicClient(siteUrl, apiToken);
+      const reloaded = await getTenantById(tenantId);
+      if (reloaded) {
+        const provResult = await new StatamicProvider(client).provisionSite(reloaded);
+        if (provResult.ok) {
+          s11.ok(`${provResult.navItemsWritten ?? 0} nav items, blueprint synced`);
+        } else {
+          s11.warn(`Provision completed with warnings: ${provResult.error}`);
+        }
+      } else {
+        s11.warn("Could not reload tenant for provision step");
+      }
+    } catch (err) {
+      // Non-fatal — the site is deployed; seeding can be re-run via Initialize site
+      s11.warn(`CMS initialization failed (re-run via Initialize site): ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    revalidatePath(`/admin/tenants/${tenantId}`);
+    revalidatePath("/admin/tenants");
+
+    return {
+      ok:            true,
+      siteUrl,
+      forgeServerId: resolvedServerId,
+      forgeSiteId,
+      steps:         completedSteps,
+      warnings:      completedSteps
+        .filter((s) => s.status === "warn")
+        .map((s) => `${s.step}: ${s.message ?? ""}`),
+    };
+
+  } catch (err) {
+    rethrowNextInternal(err);
+    return {
+      ok:             false,
+      error:          err instanceof Error ? err.message : String(err),
+      completedSteps,
+    };
+  }
+}
+
+/**
+ * Patch environment variables in a .env file string.
+ * Sets existing keys in-place and appends missing keys at the end.
+ */
+function patchEnvVars(
+  content: string,
+  vars:    Record<string, string>,
+): string {
+  let result = content;
+  for (const [key, value] of Object.entries(vars)) {
+    const regex = new RegExp(`^${key}=.*$`, "m");
+    const line  = `${key}=${value}`;
+    if (regex.test(result)) {
+      result = result.replace(regex, line);
+    } else {
+      result = result.trimEnd() + "\n" + line + "\n";
+    }
+  }
+  return result;
 }

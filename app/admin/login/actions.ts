@@ -92,6 +92,21 @@ async function loginActionInner(
 
   const isSecure = process.env.NODE_ENV === "production";
 
+  // ── mc_editor bypass cookie ─────────────────────────────────────────────────
+  //
+  // Set alongside the admin session so that the /api/snippet/decide endpoint can
+  // skip the personalisation decision engine when an admin is browsing the site.
+  // This prevents credit waste when content publishers preview content changes.
+  // The cookie is scoped to "/" (site-wide) so the snippet running on any page
+  // of the same domain reads it and gets default content without a DB round-trip.
+  const editorCookieOptions = {
+    httpOnly: true,
+    sameSite: "lax"  as const,
+    path:     "/",
+    secure:   isSecure,
+    maxAge:   SESSION_MAX_AGE,
+  };
+
   if (user.two_factor_enabled) {
     // ── 2FA required — issue a short-lived pre-auth token ──────────────────
     const preAuthToken = await signSession(sessionPayload, true /* preAuth */);
@@ -100,6 +115,8 @@ async function loginActionInner(
       preAuthToken,
       sessionCookieOptions(PRE_2FA_MAX_AGE, isSecure),
     );
+    // Don't set mc_editor yet — 2FA is still pending. It will be set by the
+    // 2FA completion action once the full session is established.
     redirect("/admin/login/2fa");
   } else {
     // ── No 2FA — issue a full session token ────────────────────────────────
@@ -112,6 +129,7 @@ async function loginActionInner(
       fullToken,
       sessionCookieOptions(SESSION_MAX_AGE, isSecure),
     );
+    (await cookies()).set("mc_editor", "1", editorCookieOptions);
     await touchLastLogin(user.id);
 
     // Validate the `next` destination to prevent open-redirect attacks.
@@ -124,6 +142,8 @@ async function loginActionInner(
 
 /** Clears the admin session cookie and redirects to the login page. */
 export async function logoutAction(): Promise<void> {
-  (await cookies()).delete(ADMIN_TOKEN_COOKIE);
+  const cookieStore = await cookies();
+  cookieStore.delete(ADMIN_TOKEN_COOKIE);
+  cookieStore.delete("mc_editor");
   redirect("/admin/login");
 }

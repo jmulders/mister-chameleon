@@ -12,6 +12,7 @@ import { buildTimeContext }      from "@/context/time";
 import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
 import { resolveThemeDecision }  from "@/decision/theme-decision";
 import { readThemeSessionCookie, writeThemeSessionCookie } from "@/lib/theme-session";
+import { DEV_TENANT_COOKIE }     from "@/tenant/dev-tenant-cookie";
 import { emptyHistory }          from "@/context/visitor-history";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { THEME_PRESETS, isThemePresetKey, type ThemePresetKey } from "@/design-system/theme/presets";
@@ -19,6 +20,7 @@ import {
   parseScenarioCookie,
   applyScenarioToDecisionContext,
 } from "@/lib/scenario/server-scenario";
+import { createCMSProvider }     from "@/cms/providers/create-cms-provider";
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 //
@@ -62,14 +64,16 @@ import {
 
 // ── CDN font URL ──────────────────────────────────────────────────────────────
 //
-// Single combined request for all 15 fixed-weight fonts (fewer HTTP round trips).
-// Adding a new fixed-weight font: append &family=Name:wght@400;700 before &display=swap.
+// Single combined request for all CDN fonts (fewer HTTP round trips).
+// Adding a new font: append &family=Name:wght@400;700 before &display=swap.
 const CDN_FONTS_URL =
   "https://fonts.googleapis.com/css2" +
   "?family=Roboto:wght@400;500;700" +
   "&family=Poppins:wght@400;500;600;700" +
   "&family=Lato:wght@400;700" +
   "&family=Cormorant+Garamond:wght@400;500;600;700" +
+  // EB Garamond: variable font but Turbopack rejects it in Next.js 16.2 — serve via CDN instead
+  "&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700" +
   "&family=Merriweather:wght@400;700" +
   "&family=Libre+Baskerville:wght@400;700" +
   "&family=PT+Serif:wght@400;700" +
@@ -81,6 +85,8 @@ const CDN_FONTS_URL =
   "&family=Archivo+Black:wght@400" +
   "&family=Abril+Fatface:wght@400" +
   "&family=IBM+Plex+Mono:wght@400;500;700" +
+  // Fira Code: variable font but Turbopack rejects it in Next.js 16.2 — serve via CDN instead
+  "&family=Fira+Code:wght@300..700" +
   "&display=swap";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -149,7 +155,18 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const tenantConfig   = await getActiveTenant();
-  const tenantSettings = await getTenantById(tenantConfig.tenantId);
+  // Fetch platform DB settings and CMS site settings in parallel.
+  // Priority order for base theme: platform DB (tenantSettings.design.theme) takes
+  // precedence over CMS (siteSettings.themePreset) so the visual editor in the admin
+  // is always the source of truth.  CMS themePreset is a fallback only.
+  //
+  // createCMSProvider(undefined, tenantId) uses env-var priority (Statamic/Storyblok/Sanity).
+  // Tenant-specific CMS overrides are handled by the Header/Footer components which
+  // normalize tenantSettings.cms first — layout.tsx runs before tenantSettings is available.
+  const [tenantSettings, cmsSettings] = await Promise.all([
+    getTenantById(tenantConfig.tenantId),
+    createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings().catch(() => null),
+  ]);
 
   // ── Contextual theme decision ─────────────────────────────────────────────────
   //
@@ -167,6 +184,27 @@ export default async function RootLayout({
 
   try {
     const [cookieStore, headersList] = await Promise.all([cookies(), headers()]);
+
+    // ── Edit-mode guard (development only) ────────────────────────────────────
+    //
+    // When mc_dev_tenant is set the admin is actively editing/previewing the
+    // site.  In this mode we skip the personalisation decision engine entirely:
+    //
+    //   1. The editor always sees the clean default experience — no contextual
+    //      theme overrides that could confuse "am I seeing the real design?".
+    //   2. No credits are consumed by credit-based decision providers (e.g. an
+    //      AI inference provider added in the future).
+    //   3. The mc_theme session cookie is NOT written — no stale lock-in.
+    //
+    // Scenario Control overrides still work when explicitly active (they have
+    // their own cookie and are applied further down in this try block).
+    // The early return here skips only the heavy rules/AI evaluation path.
+    if (process.env.NODE_ENV === "development" && cookieStore.get(DEV_TENANT_COOKIE)?.value) {
+      const _devPathname = headersList.get("x-pathname") ?? "(unknown)";
+      console.debug("[mc:theme] edit-mode — skipping personalisation pipeline", `route=${_devPathname}`);
+      // contextualThemeKey stays null → finalThemeKey = _defaultThemeKey (DB / CMS / fallback)
+    } else {
+
     const ua       = headersList.get("user-agent") ?? "";
     const timezone = tenantSettings?.timezone ?? "UTC";
 
@@ -234,7 +272,53 @@ export default async function RootLayout({
 
     const storedConfig = await loadTenantRulesConfig(tenantConfig.tenantId);
 
-    const defaultThemeKey = (tenantSettings?.design?.theme ?? "modern-saas") as ThemePresetKey;
+    // ── Default theme resolution: platform DB → CMS → hardcoded fallback ─────────
+    //
+    // Priority order:
+    //   1. tenantSettings.design.theme — platform DB (admin Design page / visual editor)
+    //      When an operator explicitly picks a style in /admin/tenants/.../design the
+    //      selection is stored in the DB and must take precedence over the CMS value.
+    //   2. cmsSettings.themePreset  — CMS fallback when no DB override is set
+    //   3. "modern-saas"             — platform default
+    const cmsThemePreset   = cmsSettings?.themePreset;
+    const defaultThemeKey  = (
+      tenantSettings?.design?.theme ??
+      (cmsThemePreset && isThemePresetKey(cmsThemePreset) ? cmsThemePreset : null) ??
+      "modern-saas"
+    ) as ThemePresetKey;
+
+    // ── Credit protection (future AI decision providers) ───────────────────────
+    //
+    // resolveThemeDecision currently uses decisionProvider: "rules" which is
+    // purely deterministic rule matching — zero API calls, zero credits.
+    //
+    // When an AI-based decision provider is added (e.g. "ai-personalisation"),
+    // it must be protected by TWO server-side checks before any credit-consuming
+    // API call is made:
+    //
+    //   1. Package gate:  tenantSettings.packageKey must include the AI feature.
+    //      → Only tenants on the right plan consume credits; others fall back to
+    //        the rules provider silently.
+    //
+    //   2. Admin session gate:  if the admin is viewing the site (detected via
+    //      the admin session cookie — validated server-side, cannot be faked by
+    //      visitors), run rule evaluation but skip the AI inference call.
+    //      This lets operators test "does rule X fire?" without burning credits.
+    //
+    // IMPORTANT: never use clientside signals (cookies set by the browser,
+    // query params, etc.) to gate credit consumption — those can be spoofed.
+    // Only the server-validated admin session is trustworthy.
+    //
+    // Pseudocode for when the AI provider arrives:
+    //
+    //   const canUseAI = isAIPackage(tenantSettings.packageKey)
+    //                    && !isAdminSession(cookieStore)   // <-- server-validated
+    //                    && hasRemainingCredits(tenantId); // <-- DB check
+    //
+    //   const effectiveProvider = canUseAI ? "ai" : "rules";
+    //   // resolveThemeDecision receives effectiveProvider and only makes the
+    //   // API call when effectiveProvider === "ai".
+
     // Pass utmCampaign separately — resolveThemeDecision uses it to decide
     // whether a campaign-priority rule should bypass an existing session lock.
     const themeTrace = resolveThemeDecision(storedConfig, effectiveThemeCtx, defaultThemeKey, sessionTheme, utmCampaign);
@@ -252,8 +336,21 @@ export default async function RootLayout({
       }
     }
 
-    // Only override when the decision engine picked a different theme
-    if (themeTrace.resolvedTheme !== (tenantSettings?.design?.theme ?? "modern-saas")) {
+    // Only override when the decision engine picked a different theme than the default
+    // AND the result is NOT from the session lock.  A session-locked theme comes from
+    // a stale mc_theme cookie — if the operator has since changed the default in the
+    // DB, the cookie might still carry the old value.  Promoting a stale session lock
+    // as contextualThemeKey would cause the old theme to win over the new DB default,
+    // which is exactly the "design page change isn't applied" bug.
+    //
+    // Session-lock suppression here is safe: writeThemeSessionCookie is called above
+    // whenever !sessionLocked, so the cookie is refreshed to the current resolved theme
+    // at the end of the very same request, fixing itself on the next load.
+    //
+    // Rule-based overrides (e.g. campaign-driven theme switches) are NOT session-locked
+    // (sessionLocked is false when a rule fires on a fresh evaluation), so they still
+    // propagate correctly.
+    if (!themeTrace.sessionLocked && themeTrace.resolvedTheme !== defaultThemeKey) {
       contextualThemeKey = themeTrace.resolvedTheme;
     }
 
@@ -289,6 +386,8 @@ export default async function RootLayout({
         ...(utmCampaign ? [`utm_campaign=${utmCampaign}`] : []),
       );
     }
+
+    } // end of else { (edit-mode guard)
   } catch {
     // Non-critical: if theme decision fails, fall back to design.theme
   }
@@ -319,12 +418,18 @@ export default async function RootLayout({
   // font vars (--font-sans/serif/mono are only emitted when a preset specifies
   // them, so a theme swap could leave the old font in place).
   //
-  // Resolution order:
+  // Resolution order (matches defaultThemeKey in the try-block above):
   //   1. contextualThemeKey — set above when a rule fires a theme override
-  //   2. tenantSettings.design.theme — the tenant's persisted preset choice
-  //   3. "modern-saas" — platform default
-  const _defaultThemeKey: ThemePresetKey =
-    (tenantSettings?.design?.theme ?? "modern-saas") as ThemePresetKey;
+  //   2. tenantSettings.design.theme — platform DB (admin Design page) takes
+  //      precedence so that the visual editor is always the source of truth.
+  //   3. cmsSettings.themePreset — CMS fallback when no DB override is set
+  //   4. "modern-saas" — platform default
+  const cmsDefaultKey    = cmsSettings?.themePreset;
+  const _defaultThemeKey: ThemePresetKey = (
+    tenantSettings?.design?.theme ??
+    (cmsDefaultKey && isThemePresetKey(cmsDefaultKey) ? cmsDefaultKey : null) ??
+    "modern-saas"
+  ) as ThemePresetKey;
   const finalThemeKey: ThemePresetKey = contextualThemeKey ?? _defaultThemeKey;
   const finalThemePreset = isThemePresetKey(finalThemeKey)
     ? THEME_PRESETS[finalThemeKey]
@@ -408,6 +513,31 @@ export default async function RootLayout({
     }
   }
   const fontRedirectCSS = fontRedirectParts.join("\n");
+
+  // ── Layer D: CMS nav typography overrides ────────────────────────────────
+  //
+  // The layout_settings Global in Statamic lets content publishers control
+  // the typographic scale of nav and footer links independently of the full
+  // theme preset.  We emit these as CSS custom properties on [data-site] so
+  // they are available to the Header and Footer components without a prop
+  // chain.  Only emit the vars that have an actual value — leave the rest as
+  // theme defaults.
+  //
+  //   --nav-link-size          header nav font-size    (layout_settings.nav_link_size)
+  //   --nav-link-weight        header nav font-weight  (layout_settings.nav_link_weight)
+  //   --nav-link-tracking      header nav letter-spacing (layout_settings.nav_link_tracking)
+  //   --nav-dropdown-item-size dropdown item font-size (layout_settings.dropdown_item_size)
+  //   --footer-nav-size        footer link font-size   (layout_settings.footer_nav_size)
+  const navTypoEntries: [string, string][] = [
+    ...(cmsSettings?.navLinkSize      ? [["--nav-link-size",          cmsSettings.navLinkSize]]      as [string, string][] : []),
+    ...(cmsSettings?.navLinkWeight    ? [["--nav-link-weight",        cmsSettings.navLinkWeight]]    as [string, string][] : []),
+    ...(cmsSettings?.navLinkTracking  ? [["--nav-link-tracking",      cmsSettings.navLinkTracking]]  as [string, string][] : []),
+    ...(cmsSettings?.dropdownItemSize ? [["--nav-dropdown-item-size", cmsSettings.dropdownItemSize]] as [string, string][] : []),
+    ...(cmsSettings?.footerNavSize    ? [["--footer-nav-size",        cmsSettings.footerNavSize]]    as [string, string][] : []),
+  ];
+  const navTypoCSS = navTypoEntries.length > 0
+    ? `${SITE_SELECTOR}{${navTypoEntries.map(([k, v]) => `${k}:${v}`).join(";")}}`
+    : "";
 
   // ── Leadinfo ──────────────────────────────────────────────────────────────
   const leadinfoSettings = tenantSettings?.leadinfo;
@@ -512,6 +642,22 @@ export default async function RootLayout({
           <style
             data-font-redirects
             dangerouslySetInnerHTML={{ __html: fontRedirectCSS }}
+          />
+        )}
+
+        {/*
+         * Layer D — CMS nav typography overrides (site-scoped).
+         *
+         * Emits --nav-link-size, --nav-link-weight, --nav-link-tracking,
+         * --nav-dropdown-item-size, and --footer-nav-size when set via the
+         * layout_settings Global in the Statamic CP.  Scoped to [data-site]
+         * so these do not affect admin or dashboard routes.  Only present
+         * when at least one value is configured (empty string → omitted).
+         */}
+        {navTypoCSS && (
+          <style
+            data-cms-nav-typo
+            dangerouslySetInnerHTML={{ __html: navTypoCSS }}
           />
         )}
       </head>

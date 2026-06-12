@@ -50,5 +50,9 @@ export { ProductOverviewBlock }    from "./ProductOverviewBlock";
 export { ProductDetailBlock }      from "./ProductDetailBlock";
 export { CartSummaryBlock }        from "./CartSummaryBlock";
 export { CheckoutBlock }           from "./CheckoutBlock";
+// quote
+export { QuoteBlock }              from "./QuoteBlock";
 // map
 export { MapBlock }                from "./MapBlock";
+// media
+export { VideoBlock }              from "./VideoBlock";

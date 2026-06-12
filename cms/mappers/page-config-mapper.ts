@@ -54,6 +54,7 @@ import type {
   ContentBlock,
   ResolvedContextSlot,
   PageConfig,
+  PageItem,
   PageSeoConfig,
   TemplateKey,
 }                                          from "@/page-config";
@@ -95,7 +96,15 @@ export function mapSectionsToContentBlocks(sections: PageSectionData[]): Content
     // Guard here so callers never need to pre-filter the raw sections array.
     if (!section || !isRegisteredBlockType(section._type)) continue;
     const block = mapSectionToContentBlock(section);
-    if (block) blocks.push(block);
+    if (block) {
+      // Forward optional anchor ID from CMS section to the content block so
+      // ContentBlockRenderer can render it as an id="" attribute on the wrapper.
+      // Cast to PageSectionBase: isRegisteredBlockType() above already filtered
+      // out ContextSlotSectionData, which is the only union member that does not
+      // extend PageSectionBase.
+      const anchorId = (section as import("../types").PageSectionBase).anchorId;
+      blocks.push(anchorId ? { ...block, anchorId } : block);
+    }
   }
   return blocks;
 }
@@ -175,36 +184,74 @@ export function mapPageDataToPageConfig(
   const slug  = pageData?.slug  ?? fallbackSlug;
   const title = pageData?.title ?? "";
 
-  // ── Context slots ─────────────────────────────────────────────────────────
-  // Caller-provided slots take precedence (decision engine path).
-  // When absent, derive from CMS contextConfig (no-engine / static page path).
-  const contextSlots: readonly ResolvedContextSlot[] = resolvedContextSlots
-    ?? (pageData ? mapContextConfigToResolvedSlots(pageData) : []);
+  const sections = pageData?.sections ?? [];
+
+  // ── Determine rendering mode ──────────────────────────────────────────────
+  // Unified mode:   sections[] contains contextSlot entries (Statamic model).
+  //                 Slots and content blocks are interleaved in authored order.
+  // Template mode:  sections[] is pure content + contextConfig has slot config
+  //                 (Sanity/Storyblok model).  Slots go before/after content.
+  const hasEmbeddedSlots = sections.some((s) => s._type === "contextSlot");
+
+  let pageItems: PageItem[];
+  let contextSlots: ResolvedContextSlot[];
+  let contentBlocks: ContentBlock[];
+
+  if (resolvedContextSlots) {
+    // ── Caller-provided slots (decision engine / Live Preview path) ────────
+    // Sections may or may not contain contextSlot entries.
+    // In either case, use the caller-provided slots (keyed by slotId).
+    const slotMap = new Map(resolvedContextSlots.map((s) => [s.slotId, s]));
+    pageItems = buildPageItemsFromSections(sections, slotMap);
+    contextSlots = resolvedContextSlots.slice();
+    contentBlocks = resolvedContextSlots.length > 0
+      ? pageItems.filter((i): i is { kind: "block"; block: ContentBlock } => i.kind === "block").map((i) => i.block)
+      : mapSectionsToContentBlocks(sections);
+  } else if (hasEmbeddedSlots) {
+    // ── Unified Statamic mode: contextSlot entries in sections[] ──────────
+    // Build pageItems in sections order.  contextSlots is derived from pageItems.
+    pageItems = buildPageItemsFromSections(sections, undefined);
+    contextSlots = pageItems
+      .filter((i): i is { kind: "slot"; slot: ResolvedContextSlot } => i.kind === "slot")
+      .map((i) => i.slot);
+    contentBlocks = pageItems
+      .filter((i): i is { kind: "block"; block: ContentBlock } => i.kind === "block")
+      .map((i) => i.block);
+  } else {
+    // ── Template mode: contextConfig-driven (Sanity / Storyblok) ─────────
+    // Derive slots from contextConfig using the template definition.
+    // Build pageItems: before-content slots → content blocks → after-content slots.
+    const derivedSlots = pageData ? mapContextConfigToResolvedSlots(pageData) : [];
+    contentBlocks = mapSectionsToContentBlocks(sections);
+    const beforeSlots = derivedSlots.filter((s) => s.position !== "after-content");
+    const afterSlots  = derivedSlots.filter((s) => s.position === "after-content");
+    pageItems = [
+      ...beforeSlots.map<PageItem>((slot) => ({ kind: "slot", slot })),
+      ...contentBlocks.map<PageItem>((block) => ({ kind: "block", block })),
+      ...afterSlots.map<PageItem>((slot)  => ({ kind: "slot", slot })),
+    ];
+    contextSlots = derivedSlots;
+  }
 
   // ── Template key ──────────────────────────────────────────────────────────
-  // Precedence:
-  //   1. Explicit CMS templateKey (when valid TemplateKey string)
-  //   2. Infer "marketing-page" from context slots (any slot present)
-  //   3. Infer "listing-page" / "detail-page" / "article-page" from sections
   const rawTemplateKey = pageData?.templateKey;
   const templateKey: PageConfig["templateKey"] =
     (rawTemplateKey && isTemplateKey(rawTemplateKey))
       ? rawTemplateKey
-      : inferTemplateKey(contextSlots, pageData?.sections);
+      : inferTemplateKey(contextSlots, sections);
 
   const seo: PageSeoConfig = {
     title:       pageData?.seoTitle       ?? undefined,
     description: pageData?.seoDescription ?? undefined,
   };
 
-  const contentBlocks = mapSectionsToContentBlocks(pageData?.sections ?? []);
-
   return {
-    pageId:        slug,
-    slug:          slug.startsWith("/") ? slug : `/${slug}`,
+    pageId:       slug,
+    slug:         slug.startsWith("/") ? slug : `/${slug}`,
     title,
     templateKey,
-    contextSlots:  [...contextSlots],
+    pageItems,
+    contextSlots,
     contentBlocks,
     seo,
   };
@@ -258,10 +305,11 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         variant:   section.variant,
         surface:   section.surface,
         data: {
-          heading: section.heading,
+          heading:  section.heading,
+          htmlBody: section.htmlBody,
           // Cast: readonly PortableTextBlock[] is widened to the mutable array
           // shape that TextSectionBlockData expects.  Safe — data is only read.
-          body:    section.body as PortableTextBlock[] | undefined,
+          body:     section.body as PortableTextBlock[] | undefined,
         },
       };
 
@@ -276,6 +324,9 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
           // Empty array fallback mirrors the CMS contract (body is always
           // present in practice; component handles empty body gracefully).
           body:     (section.body ?? []) as readonly PortableTextBlock[],
+          // htmlBody is set for Bard-sourced content (save_html:true or Live Preview).
+          // RichTextBlock renders this with dangerouslySetInnerHTML when present.
+          htmlBody: section.htmlBody,
           maxWidth: section.maxWidth,
         },
       };
@@ -293,6 +344,10 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
             description: f.description,
             icon:        f.icon,
           })),
+          // Pass the optional CTA button through to the component.
+          cta: section.cta
+            ? { label: section.cta.label, href: section.cta.href, variant: section.cta.variant }
+            : undefined,
         },
       };
 
@@ -307,7 +362,10 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
           testimonials: (section.testimonials ?? []).map((t) => ({
             quote:   t.quote,
             author:  t.author,
+            role:    t.role,
             company: t.company,
+            // Pass avatar through so all variants (default, featured-image, slider) can render photos.
+            avatar:  t.avatar,
           })),
         },
       };
@@ -338,10 +396,13 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         variant:   section.variant,
         surface:   section.surface,
         data: {
-          title:       section.title,
-          description: section.description,
-          primaryCta:  ctaLabel && ctaHref
+          title:        section.title,
+          description:  section.description,
+          primaryCta:   ctaLabel && ctaHref
             ? { label: ctaLabel, href: ctaHref }
+            : undefined,
+          secondaryCta: section.secondaryCta
+            ? { label: section.secondaryCta.label, href: section.secondaryCta.href }
             : undefined,
         },
       };
@@ -399,13 +460,20 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         variant:   section.variant,
         surface:   section.surface,
         data: {
-          eyebrow:   section.eyebrow,
-          heading:   section.heading,
-          body:      tmBody,
-          mediaType: section.mediaType,
-          mediaUrl:  section.mediaUrl,
-          mediaAlt:  section.mediaAlt,
-          caption:   section.caption,
+          eyebrow:     section.eyebrow,
+          heading:     section.heading,
+          body:        tmBody,
+          mediaType:   section.mediaType,
+          mediaUrl:    section.mediaUrl,
+          mediaAlt:    section.mediaAlt,
+          caption:     section.caption,
+          videoSource:    section.videoSource,
+          posterUrl:      section.posterUrl,
+          autoPlay:       section.autoPlay,
+          loop:           section.loop,
+          mediaBgType:    section.mediaBgType,
+          mediaBgColor:   section.mediaBgColor,
+          mediaBgImageUrl: section.mediaBgImageUrl,
           ctas: (section.ctas ?? []).map((c) => ({
             label: c.label,
             href:  c.href,
@@ -493,23 +561,39 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         surface:   section.surface,
         data: {
           heading:       section.heading,
+          intro:         section.intro,
           // Inline items — populated for manual-source blocks; empty for collection-driven
           items:         (section.items ?? []).map((item) => ({
-            id:       item.id ?? item._key,
-            title:    item.title,
-            href:     item.href,
-            excerpt:  item.excerpt,
-            date:     item.date,
-            imageUrl: item.imageUrl,
-            imageAlt: item.imageAlt,
-            category: item.category,
-            tags:     item.tags,
-            meta:     item.meta,
+            id:             item.id ?? item._key,
+            title:          item.title,
+            href:           item.href,
+            excerpt:        item.excerpt,
+            date:           item.date,
+            imageUrl:       item.imageUrl,
+            hoverImageUrl:  item.hoverImageUrl,
+            imageAlt:       item.imageAlt,
+            category:       item.category,
+            tags:           item.tags,
+            meta:           item.meta,
           })),
           maxItems:      section.maxItems,
           viewAllHref:   section.viewAllHref,
           viewAllLabel:  section.viewAllLabel,
           contentSource: mapCmsContentSource(section.contentSource),
+          // Media slides for the listing_slider variant — forwarded verbatim.
+          mediaItems: section.mediaItems?.map((slide) => ({
+            key:         slide._key,
+            mediaType:   slide.mediaType,
+            imageUrl:    slide.imageUrl,
+            alt:         slide.alt,
+            videoSource: slide.videoSource,
+            videoId:     slide.videoId,
+            vimeoId:     slide.vimeoId,
+            videoUrl:    slide.videoUrl,
+            posterUrl:   slide.posterUrl,
+            autoplay:    slide.autoplay,
+            caption:     slide.caption,
+          })),
         },
       };
 
@@ -599,14 +683,15 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
           heading:       section.heading,
           // Inline items — populated for manual-source blocks; empty for collection-driven
           items:         section.items.map((item) => ({
-            id:       item.id ?? item._key,
-            title:    item.title,
-            href:     item.href,
-            excerpt:  item.excerpt,
-            imageUrl: item.imageUrl,
-            imageAlt: item.imageAlt,
-            category: item.category,
-            date:     item.date,
+            id:             item.id ?? item._key,
+            title:          item.title,
+            href:           item.href,
+            excerpt:        item.excerpt,
+            imageUrl:       item.imageUrl,
+            hoverImageUrl:  item.hoverImageUrl,
+            imageAlt:       item.imageAlt,
+            category:       item.category,
+            date:           item.date,
           })),
           maxItems:      section.maxItems,
           contentSource: mapCmsContentSource(section.contentSource),
@@ -750,6 +835,50 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         },
       };
 
+    case "timeline":
+      return {
+        id:        section._key,
+        blockType: "timeline",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          heading:     section.heading,
+          description: section.description,
+          items: (section.items ?? []).map((item) => ({
+            id:          item._key,
+            date:        item.date,
+            title:       item.title,
+            description: item.description,
+            // Slider-variant media fields (undefined when not set — safe to spread)
+            ...(item.mediaType ? {
+              mediaType: item.mediaType,
+              mediaUrl:  item.mediaUrl,
+              posterUrl: item.posterUrl,
+              autoPlay:  item.autoPlay,
+              loop:      item.loop,
+            } : {}),
+          })),
+        },
+      };
+
+    case "contactSection":
+      return {
+        id:        section._key,
+        blockType: "contactSection",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          heading:     section.heading,
+          description: section.description,
+          address:     section.address,
+          phone:       section.phone,
+          email:       section.email,
+          hours:       section.hours,
+          mapUrl:      section.mapUrl,
+          ctas: section.ctas?.map((c) => ({ label: c.label, href: c.href })),
+        },
+      };
+
     // ── Conversion / pricing ──────────────────────────────────────────────────
 
     case "pricingSection":
@@ -826,11 +955,87 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         },
       };
 
+    case "quote":
+      return {
+        id:        section._key,
+        blockType: "quote",
+        variant:   section.variant,
+        data: {
+          quote:       section.quote,
+          attribution: section.attribution,
+          source:      section.source,
+          avatarUrl:   section.avatarUrl,
+        },
+      };
+
+    case "video": {
+      // Detect platform: prefer the mapper-resolved value, fall back to URL heuristic.
+      const vUrl = section.videoUrl;
+      const platform: "youtube" | "vimeo" | "native" =
+        section.platform ??
+        (vUrl.includes("youtube.com") || vUrl.includes("youtu.be") ? "youtube"
+         : vUrl.includes("vimeo.com") ? "vimeo"
+         : "native");
+      return {
+        id:        section._key,
+        blockType: "video",
+        variant:   section.variant,
+        data: {
+          url:       vUrl,
+          platform,
+          posterUrl: section.posterUrl,
+          caption:   section.caption,
+          autoPlay:  section.autoPlay,
+          loop:      section.loop,
+        },
+      };
+    }
+
     default:
       // TypeScript exhaustiveness: this branch is unreachable when
       // isRegisteredBlockType() is called before this function.
       return null;
   }
+}
+
+/** All valid context slot IDs. */
+const VALID_SLOT_IDS = new Set(["hero", "proof", "cta", "feature", "conversion", "notification"]);
+
+/**
+ * Build an ordered `PageItem[]` from a CMS sections array.
+ *
+ * Iterates sections in order.  For each section:
+ *   - `contextSlot` → resolve to a `ResolvedContextSlot` (from `slotMap` when
+ *     provided, or build from the section's own variantKey otherwise).
+ *     Disabled entries (enabled === false) are skipped.
+ *   - all other types → map to `ContentBlock` via `mapSectionToContentBlock()`.
+ *     Unknown block types are silently skipped.
+ *
+ * `slotMap` is provided on the caller-supplied slots path (decision engine).
+ * It is absent on the embedded-slots path (raw sections read from YAML/API).
+ */
+function buildPageItemsFromSections(
+  sections: PageSectionData[],
+  slotMap:  Map<string, ResolvedContextSlot> | undefined,
+): PageItem[] {
+  const items: PageItem[] = [];
+  for (const section of sections) {
+    if (!section) continue;
+    if (section._type === "contextSlot") {
+      if (section.enabled === false) continue;
+      if (!VALID_SLOT_IDS.has(section.slotId)) continue;
+      const slot: ResolvedContextSlot = slotMap?.get(section.slotId) ?? {
+        slotId:     section.slotId as ResolvedContextSlot["slotId"],
+        variantKey: section.variantKey ?? null,
+      };
+      items.push({ kind: "slot", slot });
+    } else {
+      if (!isRegisteredBlockType(section._type)) continue;
+      const block = mapSectionToContentBlock(section);
+      if (block) items.push({ kind: "block", block });
+    }
+  }
+  return items;
 }
 
 /**
@@ -889,5 +1094,6 @@ function inferTemplateFromSections(
  * "article-page".
  */
 function hasAnyContextSignal(config: CmsPageContextConfig): boolean {
-  return !!(config.hero || config.proof || config.cta);
+  return !!(config.hero || config.proof || config.cta ||
+            config.feature || config.conversion || config.notification);
 }

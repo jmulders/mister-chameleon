@@ -224,8 +224,22 @@ export class StoryblokProvider implements CMSProvider {
   }
 
   async getAdaptiveBlock(key: string): Promise<import("../types").AdaptiveBlockData | null> {
-    // Adaptive blocks are platform-managed (Supabase-backed), not stored in Storyblok.
-    // Delegate to the shared adaptive-blocks store.
+    // Probeer eerst de adaptive block op te halen uit de Storyblok "adaptive-blocks" folder.
+    // Falls back naar de Supabase DB wanneer de story niet bestaat.
+    try {
+      const { adaptiveBlockSlug }         = await import("../queries/storyblok/adaptive-block-queries");
+      const { mapStoryblokAdaptiveBlock }  = await import("../mappers/storyblok");
+      const slug  = adaptiveBlockSlug(key);
+      const story = await this.client.fetchStory<import("../queries/storyblok/adaptive-block-queries").StoryblokAdaptiveBlockContent>(slug);
+      if (story) {
+        if (story.content.is_active === false) return null;
+        return mapStoryblokAdaptiveBlock(String(story.id), story.content);
+      }
+    } catch {
+      // fetchStory gooit bij netwerk-/parsefouten — val terug op de DB
+    }
+
+    // DB fallback: adaptive block niet gevonden in Storyblok
     const { getAdaptiveBlockByKey } = await import("@/lib/adaptive-blocks/adaptive-blocks-store");
     return getAdaptiveBlockByKey(key, null);
   }
@@ -308,16 +322,89 @@ export class StoryblokProvider implements CMSProvider {
           }
         : null;
 
+      // ── Utility / secondary nav links ───────────────────────────────────────
+      // Support both field name conventions used across Storyblok spaces.
+      const utilityLinks = mapNavItems(
+        Array.isArray(c.utilityLinks) ? c.utilityLinks :
+        Array.isArray(c.headerUtilityItems) ? c.headerUtilityItems : [],
+      );
+
+      // ── Locales ──────────────────────────────────────────────────────────────
+      const mapLocales = (raw: unknown): import("../types").LocaleEntry[] => {
+        if (!Array.isArray(raw)) return [];
+        return raw
+          .filter((l): l is Record<string, unknown> => !!l && typeof l === "object")
+          .map((l) => ({
+            code:  String(l.code  ?? l.locale ?? ""),
+            label: String(l.label ?? l.code   ?? ""),
+          }))
+          .filter((l) => l.code);
+      };
+
+      // ── Top bar config ───────────────────────────────────────────────────────
+      const topBarRaw = c.topBar as Record<string, unknown> | null | undefined;
+      const showSearch  = topBarRaw?.showSearch === true   || c.topBarShowSearch === true;
+      const showLang    = topBarRaw?.showLanguageSwitcher === true || c.topBarShowLanguageSwitcher === true;
+      const topBar      = (showSearch || showLang)
+        ? { showSearch, showLanguageSwitcher: showLang }
+        : null;
+
+      // ── Footer bottom strip ──────────────────────────────────────────────────
+      const fbRaw = c.footerBottom as Record<string, unknown> | null | undefined;
+      const footerBottomEnabled = fbRaw?.enabled === true || c.footerBottomEnabled === true;
+      const footerBottom = footerBottomEnabled
+        ? {
+            copyright:     fbRaw?.copyright     ? String(fbRaw.copyright)     : undefined,
+            showSocial:    fbRaw?.showSocial     !== false,
+            links:         Array.isArray(fbRaw?.links)
+              ? (fbRaw.links as Record<string, unknown>[])
+                  .filter((l): l is Record<string, unknown> => !!l && typeof l === "object")
+                  .map((l) => ({
+                    id:          String(l.label ?? l._uid ?? ""),
+                    label:       String(l.label ?? ""),
+                    href:        String(l.href  ?? "#"),
+                    openInNewTab: l.openInNewTab === true,
+                  }))
+              : [],
+            partnerLogoUrl: fbRaw?.partnerLogoUrl ? String(fbRaw.partnerLogoUrl) : undefined,
+          }
+        : null;
+
+      // ── Layout overrides ─────────────────────────────────────────────────────
+      const validHeaderVariants  = ["minimal", "flyout", "mega", "transparent"] as const;
+      const validFooterVariants  = ["minimal", "corporate", "branding"]         as const;
+      const validFooterDensities = ["compact", "comfortable", "spacious"]       as const;
+
+      type HV = typeof validHeaderVariants[number];
+      type FV = typeof validFooterVariants[number];
+      type FD = typeof validFooterDensities[number];
+
+      const hv = c.headerVariant as string | undefined;
+      const fv = c.footerVariant as string | undefined;
+      const fd = c.footerDensity as string | undefined;
+
+      const headerVariant: HV | null = hv && validHeaderVariants.includes(hv as HV) ? (hv as HV) : null;
+      const footerVariant: FV | null = fv && validFooterVariants.includes(fv as FV) ? (fv as FV) : null;
+      const footerDensity: FD | null = fd && validFooterDensities.includes(fd as FD) ? (fd as FD) : null;
+
       return {
         siteTitle:        String(c.siteTitle ?? ""),
         logo,
         headerCta,
+        utilityLinks:     utilityLinks.length > 0 ? utilityLinks : undefined,
+        locales:          mapLocales(c.locales).length > 0 ? mapLocales(c.locales) : undefined,
         mainNavigation:   mapNavItems(c.mainNavigation),
         footerColumns:    mapFooterColumns(c.footerColumns),
         footerNavigation: mapNavItems(c.footerNavigation),
         contactEmail:     c.contact_email ? String(c.contact_email) : null,
         contactPhone:     c.contact_phone ? String(c.contact_phone) : null,
         socialLinks:      mapSocialLinks(c.socialLinks),
+        topBar,
+        footerBottom,
+        headerVariant,
+        footerVariant,
+        footerDensity,
+        themePreset:      c.themePreset ? String(c.themePreset) : null,
       };
     } catch (err) {
       logger.warn("[StoryblokProvider] getSiteSettings error", { error: String(err) });
@@ -443,6 +530,13 @@ export class StoryblokProvider implements CMSProvider {
     _source: import("@/page-config/collection-source").CollectionContentSource,
   ): Promise<import("@/page-config/collection-source").CollectionItem[]> {
     // TODO: Implement full Storyblok collection resolution via Content Delivery API
+    return [];
+  }
+
+  async getListingFilters(
+    _collection: import("@/page-config/collection-source").CollectionKey,
+  ): Promise<import("@/page-config/collection-source").ListingFilters> {
+    // TODO: Implement via Storyblok datasources/tags API when taxonomy datasources are created
     return [];
   }
 

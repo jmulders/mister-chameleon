@@ -112,6 +112,7 @@ interface TokenFormState {
   theme: ThemeKey;
   // color
   colorPrimary:           string;
+  colorPrimaryHover:      string;
   colorSecondary:         string;
   colorAccent:            string;
   colorBackground:        string;
@@ -951,6 +952,7 @@ function buildInitialState(design: TenantDesignSettings): TokenFormState {
     theme: safeTheme,
     // color
     colorPrimary:           ov?.color?.primary           ?? "",
+    colorPrimaryHover:      ov?.color?.primaryHover      ?? "",
     colorSecondary:         ov?.color?.secondary         ?? "",
     colorAccent:            ov?.color?.accent            ?? "",
     colorBackground:        ov?.color?.background        ?? "",
@@ -1109,6 +1111,7 @@ export function DesignTokenEditor({
       theme: newTheme,
       // Colors with a direct preset mapping
       colorPrimary:         preset.colors.primary,
+      colorPrimaryHover:    preset.colors.primaryHover,
       colorSecondary:       preset.colors.primaryHover,
       colorAccent:          preset.colors.primarySubtle,
       colorBackground:      preset.colors.bg,
@@ -1284,6 +1287,7 @@ export function DesignTokenEditor({
         // explicit overrides.
         ...(show("colors") || show("preset") ? {
           colorPrimary:           form.colorPrimary,
+          colorPrimaryHover:      form.colorPrimaryHover,
           colorSecondary:         form.colorSecondary,
           colorAccent:            form.colorAccent,
           colorBackground:        form.colorBackground,
@@ -1409,7 +1413,7 @@ export function DesignTokenEditor({
   // ── Computed indicators ────────────────────────────────────────────────────
 
   const allOverrideFields: string[] = [
-    form.colorPrimary, form.colorSecondary, form.colorAccent,
+    form.colorPrimary, form.colorPrimaryHover, form.colorSecondary, form.colorAccent,
     form.colorBackground, form.colorForeground, form.colorMuted,
     form.colorMutedForeground, form.colorBorder, form.colorRing,
     form.colorDestructive, form.colorCard, form.colorCardForeground,
@@ -1517,6 +1521,15 @@ export function DesignTokenEditor({
                 onChange={fieldOf("colorPrimary")}
                 placeholder={`${pd.colors.primary}  — preset`}
                 hint="Main brand color — buttons, links, focus rings, active states."
+                showSwatch
+                disabled={isPending}
+              />
+              <TokenInput
+                label="Primary hover"
+                value={form.colorPrimaryHover}
+                onChange={fieldOf("colorPrimaryHover")}
+                placeholder={`${pd.colors.primaryHover}  — preset`}
+                hint="Button and link hover state (--primary-hover). Defaults to one shade darker than Primary."
                 showSwatch
                 disabled={isPending}
               />

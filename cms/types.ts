@@ -52,7 +52,7 @@ export interface HeroCTAItem {
    * When absent, the component applies "primary" to position 0 and
    * "secondary" to position 1.
    */
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
 }
 
 // ── Hero / page banner media ──────────────────────────────────────────────────
@@ -454,13 +454,67 @@ export type AnyBlockData =
 /**
  * Content payload voor één variant van een adaptive block.
  * Shared across defaultVariant en elke AdaptiveVariantEntry.
+ *
+ * Velden komen overeen met HeroBlockData / ProofBlockData / etc. zodat het
+ * admin-panel dezelfde preview-component kan gebruiken voor alle slot-typen.
  */
+/**
+ * Één kaart/item binnen een multi-item adaptive variant
+ * (proof-kolom, feature-kaart, enz.).
+ *
+ * Alle velden zijn optioneel zodat hetzelfde type bruikbaar is voor zowel
+ * proof-statistieken (title + text) als feature-kaarten (title + body + imageUrl + cta).
+ */
+export interface AdaptiveVariantItem {
+  /** Koptekst van de kaart of stat-waarde, bijv. "40% hogere conversie" */
+  title?:    string;
+  /** Beschrijvende tekst onder de koptekst */
+  text?:     string;
+  /**
+   * Langere body-tekst (alias voor `text`; wordt gebruikt bij feature-kaarten).
+   * Eén van `text` of `body` mag aanwezig zijn.
+   */
+  body?:     string;
+  /** Optionele afbeelding (URL) bovenaan de kaart */
+  imageUrl?: string;
+  /** CTA-label voor de kaart (bijv. "Meer lezen") */
+  cta?:      string;
+  /** CTA-link voor de kaart */
+  ctaHref?:  string;
+}
+
 export interface AdaptiveVariantContent {
+  /** Primaire headline */
   title:     string;
+  /** Ondersteunende alinea onder de headline */
   subtitle:  string;
+  /** Eyebrow-label boven de headline */
   tag?:      string;
+  /** 0–2 CTA-knoppen */
   ctas?:     HeroCTAItem[];
+  /**
+   * Layout-variant sleutel, bijv. "hero_split", "hero_background", "hero_default".
+   * Bepaalt de positie van media t.o.v. tekst.
+   */
+  layoutVariant?: string;
+  /**
+   * Horizontale uitlijning van tekst + CTA's.
+   * Alleen van toepassing op de hero_background layout.
+   */
+  contentAlign?: "left" | "center" | "right";
+  /**
+   * Optionele media-bijlage — afbeelding of video.
+   * Afwezig = tekst-only block.
+   */
+  media?: HeroBannerMedia;
+  /**
+   * Inhoud-items voor multi-kolom slots (proof, feature).
+   * Typisch 3 items; elk item beschrijft één kaart/kolom.
+   */
+  items?: AdaptiveVariantItem[];
+  /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageUrl?:  string;
+  /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageAlt?:  string;
 }
 
@@ -593,8 +647,31 @@ export interface NavigationItemData {
   href: string;
   /** Optional short description for mega-menu / flyout rich entries */
   description?: string;
+  /** Optional card thumbnail URL — shown in mega-menu feature columns when set */
+  imageUrl?: string;
+  /**
+   * When explicitly set to `false`, the card thumbnail is hidden in the mega menu
+   * feature column even when `imageUrl` is present on child items.
+   * Absent (undefined) is treated as `true` — images are shown by default.
+   * Configured via the `mega_show_image` field on the Statamic nav tree item.
+   */
+  megaShowImage?: boolean;
+  /**
+   * When explicitly set to `false`, the excerpt / description text is hidden in
+   * the mega menu feature column even when child items carry a `description`.
+   * Absent (undefined) is treated as `true` — descriptions are shown by default.
+   * Configured via the `mega_show_description` field on the Statamic nav tree item.
+   */
+  megaShowDescription?: boolean;
   /** When true the link should open in a new browser tab */
   openInNewTab?: boolean;
+  /**
+   * Per-page header variant override.
+   * When set, the header renders with this structural variant when the visitor
+   * is on the page this nav item links to.  If absent, the site-wide default
+   * from SiteSettingsData.headerVariant (or the theme family default) is used.
+   */
+  headerVariant?: string | null;
   /** Optional nested child links — supports two levels (dropdown + mega-menu) */
   children?: NavigationItemData[];
   /**
@@ -644,6 +721,18 @@ export interface SocialLinkData {
   label: string;
   /** Full absolute URL of the social profile */
   url: string;
+  /**
+   * Platform identifier used to pick a built-in SVG icon.
+   * Supported values: facebook | instagram | linkedin | twitter | youtube |
+   * tiktok | pinterest | github | mastodon | threads | bluesky
+   * When absent the label text is rendered instead of an icon.
+   */
+  platform?: string;
+  /**
+   * When false, this link is hidden in the UI.
+   * Defaults to true (visible) when absent.
+   */
+  enabled?: boolean;
 }
 
 /**
@@ -655,9 +744,86 @@ export interface HeaderCtaData {
   /** Destination URL — relative or absolute */
   href: string;
   /** Visual button style */
-  style?: "primary" | "outline" | "ghost";
+  style?: "primary" | "secondary" | "outline" | "ghost";
   /** When true opens in a new browser tab */
   openInNewTab?: boolean;
+}
+
+/**
+ * A single entry in the header section-tabs strip.
+ *
+ * Used exclusively by the header_triband layout variant.
+ * The top band renders one tab per entry — clicking navigates to the target site section.
+ * Active state is determined client-side by matching href against the current pathname.
+ */
+export interface SectionTabData {
+  /** Display label for the tab, e.g. "Website" or "Werken bij" */
+  label:        string;
+  /** Target URL, e.g. "/" or "/werken-bij" */
+  href:         string;
+  /** When true the tab opens in a new browser tab */
+  openInNewTab?: boolean;
+  /**
+   * Statamic navigation handle for the main nav shown in band 3 while this
+   * section is active.  When absent, the default "main_nav" tree is used.
+   * E.g. "main_nav", "jobs_nav", "news_nav".
+   */
+  navHandle?: string;
+}
+
+/**
+ * Configuration for the header utility bar / top bar shown above or alongside
+ * the main navigation (search, cart, language selector, utility links, CTA).
+ *
+ * All fields are optional and default to hidden/disabled when absent.
+ * The top bar is hidden entirely when no items are active.
+ */
+export interface TopBarData {
+  /** Show a search icon that links to the search page */
+  showSearch?: boolean;
+  /** Destination for the search icon (default: /search) */
+  searchHref?: string;
+  /** Show a shopping cart icon */
+  showCart?: boolean;
+  /** Destination for the cart icon (default: /cart) */
+  cartHref?: string;
+  /** Show the locale/language selector dropdown */
+  showLanguageSwitcher?: boolean;
+  /**
+   * Extra navigation links shown in the top bar (utility links).
+   * Rendered right-to-left, before any icons.
+   */
+  links?: NavigationItemData[];
+  /**
+   * Optional standalone CTA button in the top bar.
+   * Separate from the main header CTA (which appears in the nav row).
+   */
+  cta?: {
+    label: string;
+    href: string;
+    openInNewTab?: boolean;
+    style?: "primary" | "secondary" | "outline" | "ghost";
+  } | null;
+}
+
+/**
+ * Data for the slim strip shown at the very bottom of the footer.
+ * Typically contains copyright text, social icon links, legal links,
+ * and an optional partner/powered-by logo on the right.
+ */
+export interface FooterBottomData {
+  /** Copyright or attribution text, e.g. "© 2025 Mister Chameleon BV" */
+  copyright?: string;
+  /** Show social media icon buttons in the bottom strip */
+  showSocial?: boolean;
+  /** Legal / utility links (Privacy policy, Terms, Cookie settings, …) */
+  links?: NavigationItemData[];
+  /** Optional partner or "Powered by" logo URL */
+  partnerLogoUrl?: string;
+  /** Accessible alt text for the partner logo */
+  partnerLogoAlt?: string;
+  /** Makes the partner logo a clickable link */
+  partnerHref?: string;
 }
 
 /**
@@ -668,6 +834,30 @@ export interface LocaleEntry {
   code: string;
   /** Human-readable display label, e.g. "English" */
   label: string;
+  /**
+   * When false, this locale is not shown in the language switcher.
+   * Corresponds to Statamic's "Custom Attribute" showSite on the site config.
+   * Defaults to true (visible) when absent.
+   */
+  showInSwitcher?: boolean;
+}
+
+/**
+ * Physical address data displayed in the footer (contact block).
+ */
+export interface AddressData {
+  /** Street name and number, e.g. "Molenweg 10" */
+  street?: string;
+  /** City name, e.g. "Voorthuizen" */
+  city?: string;
+  /** Postal/ZIP code, e.g. "3781 VD" */
+  zipCode?: string;
+  /** Country name or code, e.g. "Netherlands" */
+  country?: string;
+  /** General contact phone number */
+  phone?: string;
+  /** General contact email (may differ from contactEmail on SiteSettingsData) */
+  email?: string;
 }
 
 /**
@@ -701,7 +891,88 @@ export interface SiteSettingsData {
   footerNavigation:NavigationItemData[];
   contactEmail?:   string | null;
   contactPhone?:   string | null;
+  /**
+   * Physical address for display in the footer contact section.
+   * When absent the address block is not rendered.
+   */
+  address?:        AddressData | null;
+  /** Social media profile links; disabled entries (enabled: false) are filtered out by components. */
   socialLinks?:    SocialLinkData[];
+  /**
+   * CMS-specified base theme preset key.
+   * When set, this becomes the tenant's default theme — overriding the
+   * platform DB value (tenantSettings.design.theme).  The platform adaptive
+   * rules (resolveThemeDecision) can still override it per visitor segment.
+   *
+   * Matches a ThemePresetKey from design-system/theme/presets.ts.
+   * Example: "dark-ai", "corporate-blue", "modern-saas".
+   */
+  themePreset?:    string | null;
+  // ── Header utility bar ─────────────────────────────────────────────────────
+  /**
+   * Optional configuration for the header utility bar (search, language
+   * selector).  The CTA button is always controlled via `headerCta`.
+   * When absent, utility bar items default to hidden.
+   */
+  topBar?:         TopBarData | null;
+  /**
+   * Section tabs for the header_triband layout variant.
+   *
+   * Each entry renders as a tab in the slim top band of the triband header.
+   * Populated from the inline `section_tabs` grid in the Statamic
+   * "Layout Settings" global (Globals → Layout Settings in the CP).
+   * When absent or empty, the top band is not rendered.
+   */
+  sectionTabs?:    SectionTabData[] | null;
+  /**
+   * Pre-fetched navigation trees for each unique nav handle referenced by the
+   * section tabs.  Keyed by nav handle (e.g. "main_nav", "jobs_nav").
+   *
+   * The Header passes this map to the TriBandNav client component so it can
+   * switch the band-3 navigation instantly on tab change, without a server round-trip.
+   * Absent when no section tabs are configured, or all tabs use the default nav.
+   */
+  sectionTabNavs?: Record<string, NavigationItemData[]> | null;
+  // ── Footer bottom strip ───────────────────────────────────────────────────
+  /**
+   * Optional slim strip at the very bottom of the footer.
+   * When absent the footer bottom strip is not rendered.
+   */
+  footerBottom?:   FooterBottomData | null;
+  // ── Layout overrides ──────────────────────────────────────────────────────
+  /**
+   * CMS-level header layout variant.
+   * Acts as a fallback: the platform admin value takes precedence when set.
+   * When neither is set, the active theme family's default applies.
+   * Configurable via the Statamic "Layout Settings" global.
+   */
+  headerVariant?:  "minimal" | "flyout" | "mega" | "transparent" | "triband" | null;
+  /**
+   * CMS-level footer layout variant fallback.
+   * Configurable via the Statamic "Layout Settings" global.
+   */
+  footerVariant?:  "minimal" | "corporate" | "branding" | null;
+  /**
+   * CMS-level footer density fallback.
+   * Configurable via the Statamic "Layout Settings" global.
+   */
+  footerDensity?:  "compact" | "comfortable" | "spacious" | null;
+
+  // ── Navigation typography (CMS-level fallbacks) ──────────────────────────
+  // These map to CSS custom properties via resolve-theme.ts and are applied as
+  // a lower-priority layer in app/layout.tsx, below any platform-admin token
+  // overrides.  All configurable via the Statamic "Layout Settings" global.
+
+  /** CSS font-size for header nav links, e.g. "0.875rem". Maps to --nav-link-size. */
+  navLinkSize?:         string | null;
+  /** CSS font-weight for header nav links, e.g. "500". Maps to --nav-link-weight. */
+  navLinkWeight?:       string | null;
+  /** CSS letter-spacing for header nav links, e.g. "0.02em". Maps to --nav-link-tracking. */
+  navLinkTracking?:     string | null;
+  /** CSS font-size for dropdown/mega-menu items. Maps to --nav-dropdown-item-size. */
+  dropdownItemSize?:    string | null;
+  /** CSS font-size for footer navigation links. Maps to --footer-nav-size. */
+  footerNavSize?:       string | null;
 }
 
 // ── Portable Text ─────────────────────────────────────────────────────────────
@@ -771,6 +1042,12 @@ export interface PageSectionBase {
   variant?: string;
   /** Optional per-block background surface override. */
   surface?: BlockSurface;
+  /**
+   * Optional anchor ID for in-page navigation.
+   * Renders as the `id` attribute on the block's wrapper element,
+   * allowing direct linking via `/page#anchor-id` in CTAs.
+   */
+  anchorId?: string;
 }
 
 // ── Page section data types ───────────────────────────────────────────────────
@@ -780,6 +1057,11 @@ export interface TextSectionData extends PageSectionBase {
   heading?: string;
   /** Portable Text body — render with PortableTextRenderer */
   body?: PortableTextBlock[];
+  /**
+   * HTML body — set when the Statamic `body` textarea contains HTML markup.
+   * When present, takes precedence over `body` (rendered with dangerouslySetInnerHTML).
+   */
+  htmlBody?: string;
 }
 
 export interface FeatureItemData {
@@ -791,7 +1073,7 @@ export interface FeatureItemData {
 export interface FeatureGridCtaData {
   label:    string;
   href:     string;
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
 }
 
 export interface FeatureGridData extends PageSectionBase {
@@ -802,11 +1084,12 @@ export interface FeatureGridData extends PageSectionBase {
 }
 
 export interface TestimonialItemData {
-  quote:      string;
-  author:     string;
-  role?:      string;
-  company?:   string;
-  avatarUrl?: string;
+  quote:    string;
+  author:   string;
+  role?:    string;
+  company?: string;
+  /** Resolved absolute URL of the author's avatar image (from the CMS asset pipeline). */
+  avatar?:  string;
 }
 
 export interface TestimonialSectionData extends PageSectionBase {
@@ -843,6 +1126,8 @@ export interface CtaSectionData extends PageSectionBase {
   buttonLabel?: string;
   /** @deprecated Use `cta.href`. Present on documents not yet re-saved in Studio. */
   buttonHref?: string;
+  /** Optional second CTA button (e.g. "Learn more" next to a primary "Get started"). */
+  secondaryCta?: { label: string; href: string };
 }
 
 /**
@@ -892,7 +1177,8 @@ export type CmsCollectionKey =
   | "vacancies"
   | "cases"
   | "news"
-  | "companies";
+  | "companies"
+  | "team_members";
 
 /** Collection selection mode authored in the CMS. */
 export type CmsCollectionMode = "recent" | "specific";
@@ -931,23 +1217,50 @@ export type CmsContentSource =
 /** A single item within a CMS listing or search-results section */
 export interface CmsListingItem {
   /** CMS portable identifier (_key from Sanity, or any stable id) */
-  _key:      string;
+  _key:           string;
   /** Stable platform id; falls back to _key when absent */
-  id?:       string;
-  title:     string;
-  href:      string;
-  excerpt?:  string;
-  date?:     string;
-  imageUrl?: string;
-  imageAlt?: string;
-  category?: string;
-  tags?:     string[];
-  meta?:     { label: string; value: string }[];
+  id?:            string;
+  title:          string;
+  href:           string;
+  excerpt?:       string;
+  date?:          string;
+  imageUrl?:      string;
+  /** Image shown on card hover — optional, falls back to imageUrl when absent */
+  hoverImageUrl?: string;
+  imageAlt?:      string;
+  category?:      string;
+  tags?:          string[];
+  meta?:          { label: string; value: string }[];
+}
+
+/**
+ * A single slide in a listing_slider block.
+ * Either an image (media_type = "image") or a hosted/uploaded video
+ * (media_type = "video").
+ */
+export interface CmsSliderMediaItem {
+  /** Stable key from the Statamic replicator row. */
+  _key:        string;
+  mediaType:   "image" | "video";
+  // ── Image ─────────────────────────────────────────────────────────────────
+  imageUrl?:   string;
+  alt?:        string;
+  // ── Video ─────────────────────────────────────────────────────────────────
+  videoSource?: "youtube" | "vimeo" | "upload";
+  videoId?:    string;   // YouTube video ID or full watch URL
+  vimeoId?:    string;   // Vimeo video ID or full vimeo.com URL
+  videoUrl?:   string;   // Asset library URL for uploaded videos
+  posterUrl?:  string;   // Poster/placeholder image
+  autoplay?:   boolean;
+  // ── Shared ─────────────────────────────────────────────────────────────────
+  caption?:    string;
 }
 
 export interface ListingSectionData extends PageSectionBase {
   _type:          "listing";
   heading?:       string;
+  /** Optional intro text shown below the heading. May contain HTML. */
+  intro?:         string;
   items?:         CmsListingItem[];
   maxItems?:      number;
   viewAllHref?:   string;
@@ -957,6 +1270,11 @@ export interface ListingSectionData extends PageSectionBase {
    * When set to a CmsCollectionSource, the block fetches items at render time.
    */
   contentSource?: CmsContentSource;
+  /**
+   * Media slides for the listing_slider variant.
+   * Only populated when variant === "listing_slider".
+   */
+  mediaItems?:    CmsSliderMediaItem[];
 }
 
 /** A single option in a CMS filter control */
@@ -1017,15 +1335,17 @@ export interface ArticleBodyData extends PageSectionBase {
 
 /** A single related content teaser within a CMS relatedContent section */
 export interface CmsRelatedItem {
-  _key:      string;
-  id?:       string;
-  title:     string;
-  href:      string;
-  excerpt?:  string;
-  imageUrl?: string;
-  imageAlt?: string;
-  category?: string;
-  date?:     string;
+  _key:           string;
+  id?:            string;
+  title:          string;
+  href:           string;
+  excerpt?:       string;
+  imageUrl?:      string;
+  /** Image shown on card hover — optional, falls back to imageUrl when absent */
+  hoverImageUrl?: string;
+  imageAlt?:      string;
+  category?:      string;
+  date?:          string;
 }
 
 export interface RelatedContentData extends PageSectionBase {
@@ -1117,6 +1437,32 @@ export interface LogoStripSectionData extends PageSectionBase {
   showLabels?:       boolean;
 }
 
+// ── Video ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Standalone video section — a full-width or contained video embed.
+ *
+ * `videoUrl` is the normalised embed URL:
+ *   YouTube  → https://www.youtube.com/embed/<id>
+ *   Vimeo    → https://player.vimeo.com/video/<id>
+ *   native   → direct URL to an mp4/webm file
+ *
+ * The Statamic `video_url` field accepts bare YouTube IDs (e.g. "uER64JbBd7M"),
+ * full watch URLs, embed URLs, or Vimeo URLs; normalisation happens in the
+ * Statamic mapper so downstream consumers always receive an embed URL.
+ */
+export interface VideoSectionData extends PageSectionBase {
+  _type:      "video";
+  videoUrl:   string;
+  /** Resolved platform — set by the mapper; "native" for uploaded video files. */
+  platform?:  "youtube" | "vimeo" | "native";
+  title?:     string;
+  posterUrl?: string;
+  caption?:   string;
+  autoPlay?:  boolean;
+  loop?:      boolean;
+}
+
 // ── TextMedia ─────────────────────────────────────────────────────────────────
 
 /** A CTA button inside a textMedia section */
@@ -1129,20 +1475,45 @@ export interface CmsTextMediaCta {
 /**
  * Editorial text + media (image or video) split block.
  * Layout variants: text_media_right (default) | text_media_left | text_media_stacked
+ *
+ * Video source handling:
+ *   "youtube" / "vimeo" — mediaUrl is the normalised embed URL; rendered as iframe
+ *   "upload"            — mediaUrl is the asset CDN/storage URL; rendered as <video>
+ *   undefined / "image" — mediaUrl is an image CDN URL; rendered as <img>
  */
 export interface TextMediaSectionData extends PageSectionBase {
-  _type:      "textMedia";
-  eyebrow?:   string;
-  heading?:   string;
+  _type:       "textMedia";
+  eyebrow?:    string;
+  heading?:    string;
   /** Plain-text body copy (stored as `type:"text"` in Sanity schema) */
-  body?:      string;
-  ctas?:      CmsTextMediaCta[];
+  body?:       string;
+  ctas?:       CmsTextMediaCta[];
   /** "image" or "video" — determines how mediaUrl is rendered */
-  mediaType?: "image" | "video";
-  /** Primary media URL: image CDN URL or YouTube embed URL */
-  mediaUrl?:  string;
-  mediaAlt?:  string;
-  caption?:   string;
+  mediaType?:  "image" | "video";
+  /** Primary media URL: image CDN URL, YouTube/Vimeo embed URL, or uploaded video URL */
+  mediaUrl?:   string;
+  mediaAlt?:   string;
+  caption?:    string;
+  /** For video: how the source was specified ("youtube" | "vimeo" | "upload") */
+  videoSource?: "youtube" | "vimeo" | "upload";
+  /** Poster/placeholder image shown before video playback starts */
+  posterUrl?:  string;
+  /** Start playing automatically on page load (audio muted when true) */
+  autoPlay?:   boolean;
+  /** Loop the video continuously */
+  loop?:       boolean;
+  /**
+   * Optional background layer rendered behind the main media asset.
+   *   "color" — solid colour fill (see mediaBgColor)
+   *   "image" — decorative image / pattern (see mediaBgImageUrl)
+   * Omit (or "none") for no background (default).
+   * Primarily intended for use with transparent PNGs.
+   */
+  mediaBgType?:     "color" | "image";
+  /** CSS colour value (hex, rgb, hsl, …) — used when mediaBgType = "color" */
+  mediaBgColor?:    string;
+  /** Background image URL — used when mediaBgType = "image" */
+  mediaBgImageUrl?: string;
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
@@ -1262,6 +1633,58 @@ export interface ProcessStepsSectionData extends PageSectionBase {
   steps?:   CmsProcessStep[];
 }
 
+// ── Timeline ──────────────────────────────────────────────────────────────────
+
+export interface CmsTimelineItem {
+  /** Stable CMS-assigned key; used for React `key` props */
+  _key:         string;
+  /** Year or date label, e.g. "2023", "March 2025" */
+  date?:        string;
+  /** Milestone title */
+  title:        string;
+  /** Optional supporting copy */
+  description?: string;
+
+  // ── Slider-variant media (optional — ignored by non-slider layouts) ─────────
+  /** "image" | "video_file" | "youtube" | "vimeo" */
+  mediaType?:   "image" | "video_file" | "youtube" | "vimeo";
+  /** Resolved image URL, video-file URL, or embed URL (YouTube/Vimeo player) */
+  mediaUrl?:    string;
+  /** Poster/thumbnail URL for video items */
+  posterUrl?:   string;
+  autoPlay?:    boolean;
+  loop?:        boolean;
+}
+
+export interface TimelineSectionData extends PageSectionBase {
+  _type:        "timeline";
+  heading?:     string;
+  description?: string;
+  items:        CmsTimelineItem[];
+}
+
+// ── ContactSection ────────────────────────────────────────────────────────────
+
+/** A CTA button row inside a contact section */
+export interface CmsContactSectionCta {
+  label: string;
+  href:  string;
+}
+
+export interface ContactSectionSectionData extends PageSectionBase {
+  _type:        "contactSection";
+  heading?:     string;
+  description?: string;
+  address?:     string;
+  phone?:       string;
+  email?:       string;
+  /** Business hours string, e.g. "Mon–Fri 09:00–17:00" */
+  hours?:       string;
+  /** Google Maps or similar embed URL */
+  mapUrl?:      string;
+  ctas?:        CmsContactSectionCta[];
+}
+
 export interface RecruiterPanelSectionData extends PageSectionBase {
   _type:      "recruiterPanel";
   heading?:   string;
@@ -1284,6 +1707,15 @@ export interface RichTextSectionData extends PageSectionBase {
   _type:   "richText";
   /** Portable Text body — render with PortableTextRenderer */
   body?:   PortableTextBlock[];
+  /**
+   * HTML body — set when the CMS Bard field is configured with `save_html: true`
+   * (on-disk HTML string) or when Live Preview sends ProseMirror nodes (which the
+   * mapper converts to HTML before storing here).
+   *
+   * Takes precedence over `body` in the rendering component: when present, the
+   * component renders via `dangerouslySetInnerHTML` instead of PortableText.
+   */
+  htmlBody?: string;
   /**
    * Max-width constraint for the content column.
    *   narrow  — ~65ch reading-width column
@@ -1452,6 +1884,18 @@ export interface CheckoutBlockCmsData extends PageSectionBase {
   planId?:         string;
 }
 
+// ── Quote ─────────────────────────────────────────────────────────────────────
+
+export interface QuoteSectionData extends PageSectionBase {
+  _type:        "quote";
+  quote:        string;
+  attribution?: string;
+  /** Company, publication, or role of the attributed person */
+  source?:      string;
+  /** URL of the attributed person's photo — resolved by the CMS asset pipeline */
+  avatarUrl?:   string;
+}
+
 // ── MapBlock ──────────────────────────────────────────────────────────────────
 
 export interface MapBlockCmsData extends PageSectionBase {
@@ -1465,6 +1909,40 @@ export interface MapBlockCmsData extends PageSectionBase {
   embedUrl?: string;
 }
 
+// ── Context slot section ──────────────────────────────────────────────────────
+
+/**
+ * A context slot entry embedded in a page's `sections[]` array.
+ *
+ * Used by the Statamic CMS provider when context_slot blocks appear inside
+ * the `page_blocks` Replicator alongside regular content blocks.  The mapper
+ * converts each `context_slot` Replicator block into a `ContextSlotSectionData`
+ * entry so that the ordering information (which slot appears where relative to
+ * content blocks) is preserved in `PageData.sections[]`.
+ *
+ * `mapPageDataToPageConfig()` converts these entries back to
+ * `ResolvedContextSlot` items when building `pageConfig.pageItems`.
+ *
+ * Providers that do not embed context slots in content (Sanity, Storyblok) do
+ * not produce this section type — they use `PageData.contextConfig` instead and
+ * the mapper places slots at their template-defined before/after positions.
+ */
+export interface ContextSlotSectionData {
+  /** Discriminator — always "contextSlot" */
+  _type:        "contextSlot";
+  /** CMS-assigned stable key for this block instance (used for React key props) */
+  _key:         string;
+  /**
+   * Which adaptive slot this entry represents.
+   * Matches ContextSlotId: "hero" | "proof" | "cta" | "feature" | "conversion" | "notification"
+   */
+  slotId:       string;
+  /** Fallback variant key to use when no decision-engine key is selected */
+  variantKey?:  string;
+  /** When false the slot is disabled; defaults to true (active) when absent */
+  enabled?:     boolean;
+}
+
 // ── Discriminated union ───────────────────────────────────────────────────────
 
 /** Discriminated union of all supported page section types */
@@ -1476,8 +1954,11 @@ export type PageSectionData =
   | FaqSectionData
   | CtaSectionData
   | FormSectionData
+  // quote
+  | QuoteSectionData
   // social proof / media
   | LogoStripSectionData
+  | VideoSectionData
   | TextMediaSectionData
   | StatsSectionData
   // content
@@ -1485,6 +1966,7 @@ export type PageSectionData =
   | NewsListSectionData
   | ContentSectionData
   | TeamSectionData
+  | ContactSectionSectionData
   // listing / detail
   | ListingSectionData
   | FilterBarSectionData
@@ -1496,6 +1978,7 @@ export type PageSectionData =
   | ApplyPanelData
   // search
   | SearchSectionData
+  | TimelineSectionData
   // careers / W6
   | ProcessStepsSectionData
   | RecruiterPanelSectionData
@@ -1507,7 +1990,9 @@ export type PageSectionData =
   // cart / checkout
   | CartSummaryCmsData
   | CheckoutBlockCmsData
-  | MapBlockCmsData;
+  | MapBlockCmsData
+  // context slot placeholder (Statamic unified page_blocks model)
+  | ContextSlotSectionData;
 
 // ── Company (standalone document) ────────────────────────────────────────────
 
@@ -1754,13 +2239,21 @@ export interface CmsContextSlotConfig {
 /**
  * CMS-level context configuration keyed by context slot ID.
  *
- * Maps each named context slot (hero, proof, cta) to its advisory config.
+ * Maps each named context slot to its advisory config.
  * Slots absent from this map carry no CMS-level constraints.
+ *
+ * Statamic pages typically do NOT populate this field — they embed
+ * `ContextSlotSectionData` entries directly in `sections[]` instead,
+ * preserving the editor-authored position of each slot relative to content.
+ * This field is primarily used by Sanity and Storyblok providers.
  */
 export interface CmsPageContextConfig {
-  readonly hero?:  CmsContextSlotConfig;
-  readonly proof?: CmsContextSlotConfig;
-  readonly cta?:   CmsContextSlotConfig;
+  readonly hero?:         CmsContextSlotConfig;
+  readonly proof?:        CmsContextSlotConfig;
+  readonly cta?:          CmsContextSlotConfig;
+  readonly feature?:      CmsContextSlotConfig;
+  readonly conversion?:   CmsContextSlotConfig;
+  readonly notification?: CmsContextSlotConfig;
 }
 
 /**
@@ -1780,6 +2273,16 @@ export interface PageData {
   seoTitle?: string;
   /** Per-page SEO meta description override */
   seoDescription?: string;
+  /** SEO robots directives — no-index and/or no-follow flags */
+  robots?: { noindex?: boolean; nofollow?: boolean };
+  /** Canonical URL override (absolute or root-relative) */
+  canonicalUrl?: string;
+  /** Open Graph / social title */
+  ogTitle?: string;
+  /** Open Graph / social description */
+  ogDescription?: string;
+  /** Open Graph / social image absolute URL */
+  ogImage?: string;
   /**
    * Interest-profile keywords for this page.
    *

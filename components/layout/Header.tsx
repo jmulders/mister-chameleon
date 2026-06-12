@@ -9,6 +9,7 @@
  *   header_default   — logo left, nav links right (sticky) — default
  *   header_centered  — logo centred above nav; nav links below the logo
  *   header_cta       — logo left, nav centre, primary CTA button pinned right
+ *   header_triband   — three stacked bands: section tabs / logo+search / main nav
  *
  * ─── Architecture ─────────────────────────────────────────────────────────────
  *
@@ -50,7 +51,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
@@ -59,6 +60,9 @@ import { Container } from "@/components/primitives";
 import { NavBar, UtilityBar } from "./NavBar";
 import { HeaderShell } from "./HeaderShell";
 import { CartIconButton } from "./CartIconButton";
+import { SearchBar } from "./SearchBar";
+import { SectionTabs } from "./SectionTabs";
+import { TriBandNav } from "./TriBandNav";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { HeaderLayoutVariant } from "@/page-config/block-variants";
 import {
@@ -71,15 +75,6 @@ import type { HeaderCtaData, LocaleEntry, NavigationItemData } from "@/cms/types
 import { parseScenarioCookie } from "@/lib/scenario/server-scenario";
 
 // ── Locale fallback ────────────────────────────────────────────────────────────
-// Always show all three supported locales in the language switcher.
-// The CMS locales array takes precedence when it has 2+ entries; otherwise we
-// fall back to this hard-coded set so the switcher works even before the seed
-// has been re-run with the latest locale data.
-const FALLBACK_LOCALES: LocaleEntry[] = [
-  { code: "en", label: "English" },
-  { code: "nl", label: "Nederlands" },
-  { code: "de", label: "Deutsch" },
-];
 
 export interface HeaderProps {
   /**
@@ -91,7 +86,11 @@ export interface HeaderProps {
 }
 
 export async function Header({ variant: rawVariant }: HeaderProps = {}) {
-  const layout = resolveContextBlockVariant("header", rawVariant) as HeaderLayoutVariant;
+  // `layout` starts from the explicit `variant` prop (if any) but may be
+  // overridden by the CMS layout_settings global (Layer 1.5) or the tenant DB
+  // design setting (Layer 2) further below.  Declared as `let` so those layers
+  // can promote it to e.g. "header_triband" when the CMS selects that variant.
+  let layout = resolveContextBlockVariant("header", rawVariant) as HeaderLayoutVariant;
 
   // Resolve the active tenant so the CMS query is scoped to the right project
   // and the siteTitle falls back to the tenant's own name when CMS settings
@@ -118,6 +117,10 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   let navDensity: NavDensity    = "comfortable";
   let headerStyle: HeaderStyle  = "light";
 
+  // ── Locale (read early so it's available for the settings fetch below) ──────
+  const cookieStore = await cookies();
+  const locale      = cookieStore.get("locale")?.value ?? "en";
+
   // Layer 1 — family default
   const familyKey = activeTenant.theme?.featuredFamilyKey;
   if (familyKey && isFeaturedFamilyKey(familyKey)) {
@@ -127,9 +130,44 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
     headerStyle = structural.header.style;
   }
 
+  // Fetch site settings (CMS) — needed for Layer 1.5 layout override and all
+  // site identity / navigation data further below.  We fetch early so the
+  // headerVariant fallback is available before Layer 2 overrides it.
+  const tenantSettings = await getTenantById(activeTenant.tenantId);
+  const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
+  const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings(locale);
+
+  // Layer 1.5 — CMS-level layout override (fallback between family default and
+  // tenant DB).  Applied only when the CMS entry has an explicit value and the
+  // tenant DB has NOT set one.  The tenant DB (Layer 2) will override this below.
+  if (settings?.headerVariant && !tenantSettings?.design.headerVariant) {
+    const hv = settings.headerVariant;
+    if (hv === "minimal") {
+      navVariant  = "flyout";
+      navDensity  = "compact";
+      headerStyle = "light";
+    } else if (hv === "flyout") {
+      navVariant  = "flyout";
+      navDensity  = "comfortable";
+      headerStyle = "light";
+    } else if (hv === "mega") {
+      navVariant  = "mega";
+      navDensity  = "compact";
+      headerStyle = "light";
+    } else if (hv === "transparent") {
+      navVariant  = "flyout";
+      navDensity  = "comfortable";
+      headerStyle = "transparent";
+    } else if (hv === "triband") {
+      // Triband is a structural layout change — switch the layout variant.
+      // navVariant / navDensity / headerStyle remain at the family default
+      // (they are used for band 3 / mobile nav inside the triband layout).
+      layout = "header_triband";
+    }
+  }
+
   // Layer 2 — tenant-level structural override from the DB-stored design settings.
   // getTenantById() is Next.js-request-memoised so this adds no extra I/O cost.
-  const tenantSettings = await getTenantById(activeTenant.tenantId);
   if (tenantSettings?.design.headerVariant) {
     const hv = tenantSettings.design.headerVariant;
     if (hv === "minimal") {
@@ -148,14 +186,21 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
       navVariant  = "flyout";
       navDensity  = "comfortable";
       headerStyle = "transparent";
+    } else if (hv === "triband") {
+      layout = "header_triband";
     }
   }
 
-  // ── Locale ────────────────────────────────────────────────────────────────
-  // Read the active locale from the request cookie set by middleware.
-  // Defaults to "en" when no cookie is present (first visit, or unsupported locale).
-  const cookieStore = await cookies();
-  const locale = cookieStore.get("locale")?.value ?? "en";
+  // ── Final: CMS triband always wins (structural layout override) ──────────────
+  //
+  // The triband variant is a full structural change (3 bands).  It should
+  // activate whenever the CMS Globals → Layout Settings selects it, even if
+  // the tenant DB already has a nav-style variant set (flyout / mega / etc.).
+  // Layer 1.5 is skipped when tenantSettings.design.headerVariant is set, so
+  // we check unconditionally here as a safety net.
+  if (settings?.headerVariant === "triband") {
+    layout = "header_triband";
+  }
 
   // ── Scenario-aware header CTA override ───────────────────────────────────────
   //
@@ -202,12 +247,9 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
 
   const scenarioCta = resolveScenarioHeaderCta(scenarioKey);
 
-  // Fetch settings — null if the CMS document doesn't exist yet or the
-  // provider returns an error. Fallbacks are applied field-by-field below.
-  // Use the tenant's configured CMS provider (not env-priority fallback) so
-  // tenants on Storyblok get their Storyblok site-settings, not Sanity's.
-  const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
-  const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings(locale);
+  // `settings` was already fetched above (Layer 1.5 layout) — reuse it here.
+  // The `createCMSProvider` call is request-memoised via the platform cache so
+  // this is effectively a no-op: we just dereference the already-resolved value.
 
   const siteTitle       = settings?.siteTitle ?? activeTenant.name;
   // Fallback chain: CMS logo → public/logo.svg → text title.
@@ -217,11 +259,50 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   const logoAlt         = settings?.logo?.alt ?? siteTitle;
   // Scenario CTA takes precedence over the CMS default when a demo scenario is active.
   const headerCta       = scenarioCta ?? ((settings?.headerCta ?? null) as HeaderCtaData | null);
-  const utilityItems    = (settings?.utilityLinks ?? []) as NavigationItemData[];
-  // Use CMS locales when the document already has 2+ entries; otherwise fall
-  // back to the hard-coded set so the switcher is always functional.
+
+  const topBar          = settings?.topBar ?? null;
+  const sectionTabs     = settings?.sectionTabs ?? null;
+  // Pre-fetched per-section nav trees.  Empty object when none are configured.
+  const sectionTabNavs  = settings?.sectionTabNavs ?? {};
+
+  // Build top bar utility items in display order: top-bar nav links → legacy
+  // utilityLinks → search icon → cart icon.  The label conventions "Search" and
+  // "Cart" are detected by UtilityBar to swap the text for the matching SVG icon.
+  let utilityItems: NavigationItemData[] = [
+    ...(topBar?.links      ?? []),
+    ...(settings?.utilityLinks ?? []),
+  ] as NavigationItemData[];
+
+  if (topBar?.showSearch) {
+    const searchItem: NavigationItemData = {
+      id:    "search",
+      label: "Search",
+      href:  topBar.searchHref ?? "/search",
+    };
+    utilityItems = [...utilityItems, searchItem];
+  }
+
+  if (topBar?.showCart) {
+    const cartItem: NavigationItemData = {
+      id:    "cart",
+      label: "Cart",
+      href:  topBar.cartHref ?? "/cart",
+    };
+    utilityItems = [...utilityItems, cartItem];
+  }
+
+  // Top-bar CTA — separate from the main nav CTA (headerCta).
+  // topBar.cta is the slim top-strip button; headerCta drives the nav-row layout.
+  const topBarCta = (topBar?.cta as HeaderCtaData | null | undefined) ?? null;
+
+  // Only show locales that have showInSwitcher !== false (driven by Statamic
+  // Sites "showSite" Custom Attribute). If fewer than 2 such locales exist,
+  // hide the switcher entirely — there is nothing to switch to.
   const cmsLocales      = (settings?.locales ?? []) as LocaleEntry[];
-  const locales         = cmsLocales.length >= 2 ? cmsLocales : FALLBACK_LOCALES;
+  const switcherLocales = cmsLocales.filter((l) => l.showInSwitcher !== false);
+  const allLocales      = switcherLocales.length >= 2 ? switcherLocales : [];
+  // If the CMS top bar explicitly disables the language switcher, pass no locales.
+  const locales         = topBar?.showLanguageSwitcher === false ? [] : allLocales;
 
   // Navigation fallback chain:
   //   1. CMS mainNavigation (Sanity) — non-empty when CMS has been provisioned.
@@ -233,23 +314,75 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
     ? cmsNav
     : await getSiteNavigation(activeTenant.tenantId);
 
+  // Layer 3 — per-page nav-item header variant override.
+  //
+  // When the CMS content publisher sets a header_variant on a specific nav item,
+  // that value takes highest precedence over all other layers.  This lets the
+  // homepage use a transparent header while inner pages use the site default.
+  //
+  // ─── Two-tier implementation ──────────────────────────────────────────────
+  //
+  //   Server (here):  handles `headerStyle = "transparent"` which requires a
+  //     CSS class on HeaderShell — a server component.  Also sets navVariant /
+  //     navDensity for the INITIAL page load (hard refresh / direct URL).
+  //
+  //   Client (NavBar): handles navVariant / navDensity changes on CLIENT-SIDE
+  //     navigation.  The Header lives in a Next.js layout and layouts are NOT
+  //     re-rendered on SPA navigation, so the server-side read of `x-pathname`
+  //     only fires once.  NavBar uses usePathname() to re-evaluate on every
+  //     route change.  See NavBar.tsx — "Per-page nav variant override".
+  const requestHeaders = await headers();
+  const pathname = requestHeaders.get("x-pathname") ?? "/";
+  const pageNavItem = mainNavigation.find((item) => item.href === pathname);
+  if (pageNavItem?.headerVariant) {
+    const hv = pageNavItem.headerVariant;
+    if (hv === "minimal") {
+      navVariant  = "flyout";
+      navDensity  = "compact";
+      headerStyle = "light";
+    } else if (hv === "flyout") {
+      navVariant  = "flyout";
+      navDensity  = "comfortable";
+      headerStyle = "light";
+    } else if (hv === "mega") {
+      navVariant  = "mega";
+      navDensity  = "compact";
+      headerStyle = "light";
+    } else if (hv === "transparent") {
+      navVariant  = "flyout";
+      navDensity  = "comfortable";
+      headerStyle = "transparent";
+    }
+  }
+
   // ── Utility bar — top row ────────────────────────────────────────────────
   // Rendered in HeaderShell's collapsible top strip (collapses on scroll).
   // Placed in a right-aligned strip with a subtle separator from the main nav.
-  const utilityBarNode = (
-    <div className="flex justify-end border-b border-[var(--header-border,var(--border))] py-1">
+  //
+  // Only rendered when topBar is non-null (i.e. at least one top-bar feature
+  // is enabled in the CMS globals).  HeaderShell gates on `utilityBar` being
+  // defined — passing undefined suppresses the bar and its border entirely.
+  // NOTE: The outer div must NOT be a flex container (no "flex justify-end").
+  // The Container inside uses "mx-auto w-full max-w-6xl" to centre itself as a
+  // block element — exactly the same centering the main nav row uses.  Adding
+  // "flex justify-end" on the parent creates a flex formatting context where the
+  // Container behaves as a flex item; its auto-margin centering can drift and the
+  // two rows no longer share the same horizontal alignment.  Right-aligning the
+  // utility items is handled by the inner "flex justify-end" div inside Container.
+  const utilityBarNode = topBar != null ? (
+    <div className="border-b border-[var(--header-border,var(--border))] py-1">
       <Container>
         <div className="flex justify-end">
           <UtilityBar
             utilityItems={utilityItems}
-            headerCta={headerCta}
+            headerCta={topBarCta}
             locales={locales}
             currentLocale={locale}
           />
         </div>
       </Container>
     </div>
-  );
+  ) : undefined;
 
   // ── Shared brand element ──────────────────────────────────────────────────
 
@@ -257,7 +390,7 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
     <Link
       href="/"
       aria-label={`${siteTitle} — go to homepage`}
-      className="shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4 rounded-sm"
+      className="shrink-0 flex items-center focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4 rounded-sm"
     >
       {/*
        * next/image — automatic WebP conversion, intrinsic size enforcement,
@@ -278,6 +411,118 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
       />
     </Link>
   );
+
+  // ── header_triband ─────────────────────────────────────────────────────────
+  //
+  // Three horizontal bands stacked inside a single sticky header shell:
+  //
+  //   Band 1 — slim top strip (hidden on mobile):
+  //     Left:  section tabs  (e.g. "Website" / "Werken bij")
+  //     Right: quick links   (from topBar.links)
+  //
+  //   Band 2 — identity row:
+  //     Left:   logo
+  //     Center: search bar  (full text input; submits to searchHref?q=)
+  //     Right:  language switcher + CTA button
+  //
+  //   Band 3 — main navigation:
+  //     Full-width horizontal NavBar (same navVariant / navDensity as other layouts)
+  //
+  //   Mobile: bands 1+2 collapse to logo-left / hamburger-right; band 3 opens
+  //   via the existing MobileNav (part of NavBar).
+  //
+  // Data sources:
+  //   sectionTabs   — from settings.sectionTabs  (section_tabs grid in layout_settings global)
+  //   quickLinks    — from topBar.links           (top_bar nav tree)
+  //   searchHref    — from topBar.searchHref      (defaults to "/search")
+
+  if (layout === "header_triband") {
+    const quickLinks  = topBar?.links ?? [];
+    const searchHref  = topBar?.searchHref ?? "/search";
+
+    // Language switch + CTA — reuse UtilityBar but without the quicklinks
+    // (those live in band 1 instead).  Pass an empty utilityItems array.
+    const tribandUtility = (
+      <UtilityBar
+        utilityItems={[]}
+        headerCta={headerCta}
+        locales={locales}
+        currentLocale={locale}
+      />
+    );
+
+    return (
+      <HeaderShell headerStyle={headerStyle} noBandPadding={true}>
+        {/* ── Band 1: section tabs + quick links ───────────────────── */}
+        {sectionTabs && sectionTabs.length > 0 && (
+          <div
+            className="hidden md:block border-b border-[var(--header-border,var(--border))] px-4"
+            style={{ backgroundColor: "var(--header-topband-bg, var(--bg-subtle, var(--bg)))" }}
+          >
+            <Container>
+              <SectionTabs tabs={sectionTabs} quickLinks={quickLinks} />
+            </Container>
+          </div>
+        )}
+
+        {/* ── Band 2: logo + search + lang + CTA ───────────────────── */}
+        <div className="border-b border-[var(--header-border,var(--border))]">
+          <Container>
+            <div className="flex items-center gap-4 py-3">
+
+              {/* Logo — left */}
+              {BrandLink}
+
+              {/* Search bar — grows to fill center space (hidden on mobile) */}
+              <div className="hidden md:flex flex-1 justify-center px-4">
+                <SearchBar
+                  searchHref={searchHref}
+                  placeholder="Zoek op de site…"
+                  className="w-full max-w-md"
+                />
+              </div>
+
+              {/* Lang switch + CTA — right */}
+              <div className="hidden md:flex items-center gap-2 shrink-0 ml-auto">
+                {tribandUtility}
+              </div>
+
+              {/* Mobile: hamburger only — the desktop nav lives in band 3 */}
+              <div className="flex md:hidden items-center gap-2 ml-auto">
+                <TriBandNav
+                  tabs={sectionTabs ?? []}
+                  navsByHandle={sectionTabNavs}
+                  defaultNav={mainNavigation}
+                  navVariant={navVariant}
+                  navDensity={navDensity}
+                  navFamily={familyKey ?? null}
+                  mode="mobile-only"
+                />
+              </div>
+
+            </div>
+          </Container>
+        </div>
+
+        {/* ── Band 3: main navigation — desktop only ───────────────── */}
+        <div className="hidden md:block">
+          <Container>
+            <div className="flex items-center pt-4 pb-3">
+              <TriBandNav
+                tabs={sectionTabs ?? []}
+                navsByHandle={sectionTabNavs}
+                defaultNav={mainNavigation}
+                navVariant={navVariant}
+                navDensity={navDensity}
+                navFamily={familyKey ?? null}
+                mode="desktop-only"
+              />
+            </div>
+          </Container>
+        </div>
+      </HeaderShell>
+    );
+  }
 
   // ── header_centered ────────────────────────────────────────────────────────
   //
@@ -367,13 +612,6 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
           {BrandLink}
 
           {/* ── Navigation ────────────────────────────────────────────────── */}
-          {/*
-           * NavBar receives the resolved items array and the family-driven
-           * nav variant.  If mainNavigation is empty it renders null so the
-           * header degrades to brand-only without layout breakage.
-           * Utility bar (search, login, language, CTA) is now rendered in the
-           * collapsible top strip via HeaderShell's utilityBar prop.
-           */}
           <div className="flex items-center gap-2">
             <NavBar items={mainNavigation} navVariant={navVariant} navDensity={navDensity} navFamily={familyKey ?? null} />
             <CartIconButton />

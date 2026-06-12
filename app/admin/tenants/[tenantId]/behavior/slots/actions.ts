@@ -33,10 +33,13 @@ import type {
 
 // ── Key prefix guards ─────────────────────────────────────────────────────────
 
-const SLOT_KEY_PREFIXES: Record<"hero" | "proof" | "cta", string> = {
-  hero:  "hero_",
-  proof: "proof_",
-  cta:   "cta_",
+const SLOT_KEY_PREFIXES: Record<"hero" | "proof" | "cta" | "feature" | "conversion" | "notification", string> = {
+  hero:         "hero_",
+  proof:        "proof_",
+  cta:          "cta_",
+  feature:      "feature_",
+  conversion:   "conversion_",
+  notification: "notification_",
 };
 
 // ── Public action — load ──────────────────────────────────────────────────────
@@ -55,9 +58,12 @@ export async function getSlotModesAction(
 // ── Public action — save ──────────────────────────────────────────────────────
 
 export interface SaveSlotModesInput {
-  hero:  SlotModeFormValue;
-  proof: SlotModeFormValue;
-  cta:   SlotModeFormValue;
+  hero:         SlotModeFormValue;
+  proof:        SlotModeFormValue;
+  cta:          SlotModeFormValue;
+  feature:      SlotModeFormValue;
+  conversion:   SlotModeFormValue;
+  notification: SlotModeFormValue;
 }
 
 export interface SlotModeFormValue {
@@ -87,7 +93,7 @@ export async function saveSlotModesAction(
   // ── Validate ──────────────────────────────────────────────────────────────
   const VALID_MODES: TenantSlotMode[] = ["static", "rules-only", "ai-assisted"];
 
-  for (const [slotId, value] of Object.entries(input) as Array<["hero" | "proof" | "cta", SlotModeFormValue]>) {
+  for (const [slotId, value] of Object.entries(input) as Array<["hero" | "proof" | "cta" | "feature" | "conversion" | "notification", SlotModeFormValue]>) {
     if (!VALID_MODES.includes(value.mode)) {
       return { ok: false, error: `Invalid mode "${value.mode}" for slot "${slotId}".` };
     }
@@ -124,9 +130,12 @@ export async function saveSlotModesAction(
   });
 
   const adaptiveSlots: TenantAdaptiveSlotSettings = {
-    hero:  buildSlotConfig(input.hero),
-    proof: buildSlotConfig(input.proof),
-    cta:   buildSlotConfig(input.cta),
+    hero:         buildSlotConfig(input.hero),
+    proof:        buildSlotConfig(input.proof),
+    cta:          buildSlotConfig(input.cta),
+    feature:      buildSlotConfig(input.feature),
+    conversion:   buildSlotConfig(input.conversion),
+    notification: buildSlotConfig(input.notification),
   };
 
   // ── Write back ────────────────────────────────────────────────────────────

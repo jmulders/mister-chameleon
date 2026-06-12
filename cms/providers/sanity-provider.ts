@@ -609,6 +609,13 @@ export class SanityProvider implements CMSProvider {
     }
   }
 
+  async getListingFilters(
+    _collection: import("@/page-config/collection-source").CollectionKey,
+  ): Promise<import("@/page-config/collection-source").ListingFilters> {
+    // TODO: Implement via Sanity GROQ reference queries when taxonomy schemas are added
+    return [];
+  }
+
   // ── Provider management ───────────────────────────────────────────────────
 
   /**

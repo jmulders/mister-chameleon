@@ -54,7 +54,7 @@ import type { TemplateKey, ContextSlotId, ContextSlotPosition } from "./types";
  * the context slot editor.  Using null avoids hard-coding slot vocabulary keys
  * into presets.
  */
-interface PresetContextSlot {
+export interface PresetContextSlot {
   readonly slotId:     ContextSlotId;
   readonly variantKey: string | null;
   readonly position:   ContextSlotPosition;
@@ -70,7 +70,7 @@ interface PresetContextSlot {
  * variant should reference a canonical key from block-variant-register.ts.
  * Omit to let the renderer use its own default.
  */
-interface PresetBlock {
+export interface PresetBlock {
   readonly blockType: string;
   readonly variant?:  string;
 }
@@ -121,7 +121,7 @@ export const PAGE_PRESETS: readonly PagePreset[] = [
     blocks: [
       { blockType: "featureGrid",        variant: "feature_grid_3up"      },
       { blockType: "logoStrip",          variant: "default"               },
-      { blockType: "about",              variant: "media_right"            },
+      { blockType: "image",              variant: "text_media_right"       },
       { blockType: "stats",              variant: "default"               },
       { blockType: "testimonialSection", variant: "testimonial_grid"       },
       { blockType: "newsList",           variant: "default"               },
@@ -167,8 +167,8 @@ export const PAGE_PRESETS: readonly PagePreset[] = [
     ],
     blocks: [
       { blockType: "textSection",        variant: "text_lead"            },
-      { blockType: "about",              variant: "media_right"          },
-      { blockType: "about",              variant: "media_left"           },
+      { blockType: "image",              variant: "text_media_right"     },
+      { blockType: "image",              variant: "text_media_left"      },
       { blockType: "stats",              variant: "compact"              },
       { blockType: "testimonialSection", variant: "testimonial_highlight" },
       { blockType: "ctaSection",         variant: "cta_card"             },
@@ -184,7 +184,7 @@ export const PAGE_PRESETS: readonly PagePreset[] = [
       { slotId: "hero", variantKey: null, position: "before-content" },
     ],
     blocks: [
-      { blockType: "about",       variant: "media_right" },
+      { blockType: "image",       variant: "text_media_right" },
       { blockType: "formSection", variant: "form_split"  },
     ],
   },
@@ -491,11 +491,11 @@ export const PAGE_PRESETS: readonly PagePreset[] = [
       // Lead intro copy — one-sentence value proposition
       { blockType: "textSection",  variant: "text_lead"             },
       // Feature detail: text left, screenshot right
-      { blockType: "about",        variant: "media_right"           },
+      { blockType: "image",        variant: "text_media_right"      },
       // Feature detail: screenshot left, text right
-      { blockType: "about",        variant: "media_left"            },
+      { blockType: "image",        variant: "text_media_left"       },
       // Feature detail: text left, screenshot right
-      { blockType: "about",        variant: "media_right"           },
+      { blockType: "image",        variant: "text_media_right"      },
       // Overview card grid — all features at a glance
       { blockType: "featureGrid",  variant: "feature_grid_3up"      },
       // Social proof bar
@@ -570,9 +570,9 @@ export const PAGE_PRESETS: readonly PagePreset[] = [
       // Mission / founding story text
       { blockType: "textSection",  variant: "text_lead"         },
       // Story section: text left, image right
-      { blockType: "about",        variant: "media_right"       },
+      { blockType: "image",        variant: "text_media_right"  },
       // Story section: image left, text right
-      { blockType: "about",        variant: "media_left"        },
+      { blockType: "image",        variant: "text_media_left"   },
       // Company metrics — founded, team size, countries
       { blockType: "stats",        variant: "default"           },
       // Team spotlight (3–4 people)
@@ -592,7 +592,7 @@ export const PAGE_PRESETS: readonly PagePreset[] = [
     ],
     blocks: [
       // Company info + map split
-      { blockType: "about",        variant: "media_right"  },
+      { blockType: "image",        variant: "text_media_right" },
       // Contact form
       { blockType: "formSection",  variant: "form_split"   },
     ],

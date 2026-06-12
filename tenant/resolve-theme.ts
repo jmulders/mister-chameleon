@@ -214,6 +214,7 @@ function toKebabCase(key: string): string {
  */
 const COLOR_CSS_VARS: Record<string, string[]> = {
   primary:               ["--primary", "--ring", "--text-brand"],
+  primaryHover:          ["--primary-hover"],
   secondary:             ["--secondary"],
   accent:                ["--accent"],
   background:            ["--background"],

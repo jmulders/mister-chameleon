@@ -72,6 +72,12 @@ export interface HeaderShellProps {
    *   transparent — no bg initially; floats over the hero; solidifies on scroll
    */
   headerStyle?: HeaderStyle;
+  /**
+   * When true, suppresses the shell's own `py-5` / `py-2` padding.
+   * Use for multi-band layouts (e.g. header_triband) where each band controls
+   * its own vertical spacing so the shell's outer padding would be additive.
+   */
+  noBandPadding?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,7 +91,7 @@ export interface HeaderShellProps {
  * between the "tall" (at-top) and "compact" (scrolled) states via Tailwind
  * utility classes.  All layout / content is provided via `children`.
  */
-export function HeaderShell({ children, utilityBar, headerStyle = "light" }: HeaderShellProps) {
+export function HeaderShell({ children, utilityBar, headerStyle = "light", noBandPadding = false }: HeaderShellProps) {
   const [scrolled, setScrolled] = useState(false);
   const rafRef = useRef<number | null>(null);
 
@@ -171,18 +177,25 @@ export function HeaderShell({ children, utilityBar, headerStyle = "light" }: Hea
 
         // ── Padding (controls header height) ─────────────────────────────
         //
-        // At top of page:    py-5 = 20px top + 20px bottom (~72px total)
-        // After scrolling:   py-2 =  8px top +  8px bottom (~56px total)
+        // Single-row layouts (noBandPadding=false, default):
+        //   At top of page:  py-5 = 20px top + 20px bottom (~72px total)
+        //   After scrolling: py-2 =  8px top +  8px bottom (~56px total)
+        //
+        // Multi-band layouts (noBandPadding=true, e.g. header_triband):
+        //   py-0 — each band manages its own vertical spacing so the shell
+        //   must not add extra space before band 1 or after the last band.
         //
         // `padding` is intentionally excluded from the transition list.
         // Animating padding forces a layout recalc on every frame, which —
         // combined with backdrop-filter — was the primary cause of flickering.
-        // The shadow, background-color, border-color, and color transitions
-        // remain to keep the scroll-state change visually smooth.
         "transition-[box-shadow,background-color,backdrop-filter,border-color,color] duration-250 ease-in-out",
-        scrolled
-          ? "py-2 shadow-[0_1px_8px_rgba(0,0,0,0.08)]"
-          : "py-5 shadow-none",
+        noBandPadding
+          ? scrolled
+            ? "shadow-[0_1px_8px_rgba(0,0,0,0.08)]"
+            : "shadow-none"
+          : scrolled
+            ? "py-2 shadow-[0_1px_8px_rgba(0,0,0,0.08)]"
+            : "py-5 shadow-none",
       )}
     >
       {/* ── Utility bar — collapses on scroll ─────────────────────────── */}

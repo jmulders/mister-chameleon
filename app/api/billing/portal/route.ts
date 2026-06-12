@@ -30,6 +30,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient }              from "@supabase/supabase-js";
 import { createBillingPortalSession } from "@/billing/stripe";
+import { rethrowNextInternal } from "@/lib/server-action-guard";
 import {
   getRequiredAdminSession,
   canAccessTenant,
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const portalUrl = await createBillingPortalSession(stripeCustomerId, returnUrl, flow);
     return NextResponse.json({ url: portalUrl });
   } catch (err) {
+    rethrowNextInternal(err);
     console.error("[billing/portal] Stripe error:", err);
     return NextResponse.json(
       { error: (err as Error).message },

@@ -1,0 +1,378 @@
+title: 'Site Settings'
+fields:
+
+  # ── Identity ──────────────────────────────────────────────────────────────────
+  -
+    handle: site_name
+    field:
+      type: text
+      display: 'Site Name'
+      required: true
+  -
+    handle: site_tagline
+    field:
+      type: text
+      display: 'Site Tagline'
+
+  # ── Logo ──────────────────────────────────────────────────────────────────────
+  -
+    handle: logo
+    field:
+      type: assets
+      display: 'Logo'
+      instructions: 'Primary logo used on light backgrounds. Upload an SVG, PNG, or WebP file.'
+      max_files: 1
+      container: assets
+      restrict: false
+      allowed_extensions:
+        - svg
+        - png
+        - jpg
+        - jpeg
+        - webp
+  -
+    handle: logo_alt
+    field:
+      type: text
+      display: 'Logo Alt Text'
+      instructions: 'Accessible alt text for the logo. Falls back to Site Name when empty.'
+  -
+    handle: logo_dark
+    field:
+      type: assets
+      display: 'Logo — Dark Variant'
+      instructions: 'Optional logo variant optimised for dark backgrounds (dark header, dark footer). Falls back to the primary Logo when empty.'
+      max_files: 1
+      container: assets
+      restrict: false
+      allowed_extensions:
+        - svg
+        - png
+        - jpg
+        - jpeg
+        - webp
+  -
+    handle: logo_dark_alt
+    field:
+      type: text
+      display: 'Logo Dark Alt Text'
+
+  # ── Address ───────────────────────────────────────────────────────────────────
+  -
+    handle: address_street
+    field:
+      type: text
+      display: 'Street Address'
+      instructions: 'Street name and number, e.g. Molenweg 10'
+  -
+    handle: address_city
+    field:
+      type: text
+      display: 'City'
+      width: 50
+  -
+    handle: address_zip
+    field:
+      type: text
+      display: 'Postal / ZIP Code'
+      width: 50
+  -
+    handle: address_country
+    field:
+      type: text
+      display: 'Country'
+      width: 50
+
+  # ── Contact ───────────────────────────────────────────────────────────────────
+  -
+    handle: contact_email
+    field:
+      type: text
+      display: 'Contact Email'
+      instructions: 'General contact address shown in the footer.'
+      width: 50
+  -
+    handle: contact_phone
+    field:
+      type: text
+      display: 'Contact Phone'
+      instructions: 'General contact phone shown in the footer.'
+      width: 50
+  -
+    handle: support_email
+    field:
+      type: text
+      display: 'Support Email'
+      instructions: 'Support-specific address (not shown in the footer by default).'
+      width: 50
+
+  # ── Social Media ──────────────────────────────────────────────────────────────
+  # Each row: platform identifier (for icon), URL, and Active toggle.
+  # Only rows with Active enabled appear on the site.
+  -
+    handle: social_media
+    field:
+      type: grid
+      display: 'Social Media'
+      instructions: 'Add one row per social profile. Only active rows are shown on the site.'
+      mode: table
+      add_row: 'Add platform'
+      fields:
+        -
+          handle: platform
+          field:
+            type: select
+            display: 'Platform'
+            width: 25
+            options:
+              facebook: 'Facebook'
+              instagram: 'Instagram'
+              linkedin: 'LinkedIn'
+              twitter: 'Twitter / X'
+              youtube: 'YouTube'
+              tiktok: 'TikTok'
+              pinterest: 'Pinterest'
+              github: 'GitHub'
+              mastodon: 'Mastodon'
+              threads: 'Threads'
+              bluesky: 'Bluesky'
+        -
+          handle: url
+          field:
+            type: text
+            display: 'URL'
+            width: 55
+        -
+          handle: enabled
+          field:
+            type: toggle
+            display: 'Active'
+            default: true
+            width: 20
+
+  # ── Top Bar ───────────────────────────────────────────────────────────────────
+  # The top bar is the slim strip above (or part of) the header.
+  # It is hidden entirely when none of the items below are active.
+  # Items are right-aligned: links → search → cart → language switch → CTA.
+  -
+    handle: top_bar_show_search
+    field:
+      type: toggle
+      display: 'Show Search icon'
+      instructions: 'Shows a magnifier icon that links to the search page.'
+      width: 25
+  -
+    handle: top_bar_search_href
+    field:
+      type: link
+      display: 'Search page URL'
+      instructions: 'Leave empty to use the default /search path. Pick a page or enter a custom URL.'
+      collections:
+        - pages
+      width: 75
+  -
+    handle: top_bar_show_cart
+    field:
+      type: toggle
+      display: 'Show Cart icon'
+      instructions: 'Shows a shopping-cart icon that links to the cart or checkout page.'
+      width: 25
+  -
+    handle: top_bar_cart_href
+    field:
+      type: link
+      display: 'Cart page URL'
+      instructions: 'Leave empty to use the default /cart path. Pick a page or enter a custom URL.'
+      collections:
+        - pages
+      width: 75
+  -
+    handle: top_bar_show_language_switcher
+    field:
+      type: toggle
+      display: 'Show language switch'
+      instructions: 'Shows the language/locale dropdown. Automatically hidden when only one language is active.'
+      width: 25
+  -
+    handle: top_bar_cta_enabled
+    field:
+      type: toggle
+      display: 'Show top-bar CTA'
+      instructions: 'Enable a small CTA button in the top bar (separate from the main header CTA).'
+      width: 25
+  -
+    handle: top_bar_cta_label
+    field:
+      type: text
+      display: 'CTA Label'
+      width: 25
+  -
+    handle: top_bar_cta_href
+    field:
+      type: link
+      display: 'CTA URL'
+      instructions: 'Pick a page entry or enter a custom URL / anchor (e.g. #signup).'
+      collections:
+        - pages
+      width: 50
+  -
+    handle: top_bar_cta_open_in_new_tab
+    field:
+      type: toggle
+      display: 'Open in new tab'
+      width: 25
+
+  # ── Header CTA ────────────────────────────────────────────────────────────────
+  # The primary CTA shown in the main navigation row.
+  -
+    handle: primary_cta_label
+    field:
+      type: text
+      display: 'Header CTA Label'
+      instructions: 'Primary action button shown in the site header navigation row.'
+      width: 33
+  -
+    handle: primary_cta_href
+    field:
+      type: link
+      display: 'Header CTA URL / Anchor'
+      instructions: 'Pick a page entry or enter a custom URL / anchor (e.g. #signup).'
+      collections:
+        - pages
+      width: 42
+  -
+    handle: primary_cta_style
+    field:
+      type: select
+      display: 'CTA Button Style'
+      instructions: 'Visual variant for the header CTA button.'
+      width: 25
+      options:
+        primary:   'Primary'
+        secondary: 'Secondary'
+        outline:   'Outline'
+        ghost:     'Ghost'
+      default: primary
+
+  # ── Language switcher ─────────────────────────────────────────────────────────
+  # Ordered list of locales shown in the language dropdown.
+  # Used only when Top Bar → Show language switch is enabled.
+  # Tip: for Statamic multi-site setups the list is derived automatically from
+  # resources/sites.yaml; this grid acts as an override / single-site fallback.
+  -
+    handle: locales
+    field:
+      type: grid
+      display: 'Language Switcher Locales'
+      instructions: 'Ordered list of supported languages. Leave empty to derive from Statamic multi-site config.'
+      mode: table
+      add_row: 'Add language'
+      fields:
+        -
+          handle: code
+          field:
+            type: text
+            display: 'Code'
+            instructions: 'ISO 639-1 code, e.g. nl, en, de'
+            width: 30
+        -
+          handle: label
+          field:
+            type: text
+            display: 'Label'
+            instructions: 'Human-readable label, e.g. Nederlands'
+            width: 70
+
+  # ── Footer Bottom ─────────────────────────────────────────────────────────────
+  # The slim strip at the very bottom of the footer (copyright, legal links, maker logo).
+  -
+    handle: footer_bottom_enabled
+    field:
+      type: toggle
+      display: 'Enable footer bottom strip'
+      instructions: 'Show the copyright / legal links bar at the very bottom of the footer.'
+      default: true
+      width: 50
+  -
+    handle: footer_bottom_copyright
+    field:
+      type: text
+      display: 'Copyright text'
+      instructions: 'Leave empty to auto-generate: © 2025 Site Name'
+  -
+    handle: footer_bottom_show_social
+    field:
+      type: toggle
+      display: 'Show social icons in bottom strip'
+      default: true
+      width: 50
+  -
+    handle: maker_logo
+    field:
+      type: assets
+      display: 'Maker logo (footer bottom right)'
+      instructions: 'Optional "Made by" or partner logo shown in the bottom-right of the footer strip. Leave empty to omit.'
+      max_files: 1
+      container: assets
+      restrict: false
+      allowed_extensions:
+        - svg
+        - png
+        - webp
+  -
+    handle: maker_logo_alt
+    field:
+      type: text
+      display: 'Maker logo alt text'
+      width: 50
+  -
+    handle: maker_logo_href
+    field:
+      type: link
+      display: 'Maker logo link URL'
+      instructions: 'Wraps the maker logo in a link. Pick a page or enter an external URL (e.g. https://mooimerk.nl).'
+      collections:
+        - pages
+      width: 50
+
+  # ── Links ─────────────────────────────────────────────────────────────────────
+  -
+    handle: docs_url
+    field:
+      type: link
+      display: 'Documentation URL'
+      instructions: 'External link to the documentation site.'
+  -
+    handle: status_url
+    field:
+      type: link
+      display: 'Status Page URL'
+      instructions: 'External link to the status / uptime page.'
+
+  # ── Theme ─────────────────────────────────────────────────────────────────────
+  -
+    handle: theme_preset
+    field:
+      type: select
+      display: 'Theme Preset'
+      instructions: 'Base visual theme for this site. The platform adaptive rules can still override this per visitor segment.'
+      options:
+        corporate-blue: 'Corporate Blue'
+        modern-green: 'Modern Green'
+        minimal-neutral: 'Minimal Neutral'
+        bold-dark: 'Bold Dark'
+        tech-indigo: 'Tech Indigo'
+        warm-professional: 'Warm Professional'
+        modern-saas: 'Modern SaaS'
+        corporate-clean: 'Corporate Clean'
+        bold-marketing: 'Bold Marketing'
+        startup-energy: 'Startup Energy'
+        dark-ai: 'Dark AI'
+        dark-contrast: 'Dark Contrast'
+        premium-luxury: 'Premium Luxury'
+        premium-editorial: 'Premium Editorial'
+        careers-human: 'Careers Human'
+        recruitment-energy: 'Recruitment Energy'
+        clean-corporate: 'Clean Corporate'
+        structured-saas: 'Structured SaaS'
+      placeholder: 'Select a theme preset'

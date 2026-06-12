@@ -142,6 +142,14 @@ export interface StatamicEnvConfig {
   /** Optional Bearer token for protected APIs */
   readonly apiKey: string | undefined;
   /**
+   * Optional path to the Statamic CMS content directory on the local filesystem.
+   * When set, StatamicClient falls back to reading flat YAML files when the HTTP
+   * API is unavailable (e.g. local dev with PHP routing issues).
+   * Relative paths are resolved from process.cwd() (Next.js project root).
+   * Example: "./mister-chameleon-cms"
+   */
+  readonly cmsFsPath: string | undefined;
+  /**
    * True when STATAMIC_API_URL is set.
    * False when absent — MockCMSProvider is used instead.
    */
@@ -475,6 +483,7 @@ const getStatamicConfig = once((): StatamicEnvConfig => {
     return {
       apiUrl: "",
       apiKey: undefined,
+      cmsFsPath: undefined,
       isConfigured: false,
     };
   }
@@ -483,6 +492,7 @@ const getStatamicConfig = once((): StatamicEnvConfig => {
   return {
     apiUrl,
     apiKey: process.env.STATAMIC_API_KEY || undefined,
+    cmsFsPath: process.env.STATAMIC_CMS_PATH || undefined,
     isConfigured: true,
   };
 });

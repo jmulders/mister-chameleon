@@ -33,6 +33,7 @@ import {
 } from "@/lib/admin-auth/authorization";
 import { getAssets, getAssetTags } from "@/lib/assets/tenant-assets";
 import { AssetLibraryClient }      from "./_components/AssetLibraryClient";
+import { rethrowNextInternal } from "@/lib/server-action-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,7 @@ export default async function TenantAssetsPage({ params }: PageProps) {
       getAssetTags(client, tenantId),
     ]);
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
 
     // 42P01 = relation does not exist (PostgreSQL)

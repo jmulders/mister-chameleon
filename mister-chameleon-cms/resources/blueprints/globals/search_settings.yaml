@@ -1,0 +1,19 @@
+title: 'Search Settings'
+fields:
+  # ── Searchable collections ───────────────────────────────────────────────────
+  #
+  # Drives the site-wide search (/search → /api/search → StatamicSearchProvider).
+  # The provider reads this global at query time and only scans the collections
+  # selected here.  When this global is absent or empty the platform falls back
+  # to its built-in default: pages, blog, vacancies.
+  #
+  # URL building: the result URL prefix is derived from each collection's own
+  # `route` setting (content/collections/{handle}.yaml), so no extra config is
+  # needed when adding a collection.
+  -
+    handle: searchable_collections
+    field:
+      type: collections
+      display: 'Doorzoekbare collecties'
+      instructions: 'Selecteer welke collecties worden meegenomen in de zoekfunctie op de site. Leeg = standaard (Pagina''s, Artikelen, Vacatures).'
+      mode: select

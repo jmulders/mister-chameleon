@@ -21,7 +21,7 @@
  */
 
 import { useState, useTransition }    from "react";
-import type { SafeSearchConfig, SearchSettingsFormInput } from "../actions";
+import type { SafeSearchConfig, SearchSettingsFormInput, SearchProviderOption } from "../actions";
 
 interface Props {
   tenantId:     string;
@@ -33,6 +33,49 @@ interface Props {
   >;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider options definition
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PROVIDER_OPTIONS: Array<{
+  value: SearchProviderOption;
+  label: string;
+  hint:  string;
+}> = [
+  {
+    value: "none",
+    label: "Auto-detect (recommended)",
+    hint:  "Platform picks the best available backend: Statamic FS → Sanity GROQ → In-memory. " +
+           "Use this unless you need to pin a specific provider.",
+  },
+  {
+    value: "statamic",
+    label: "Statamic FS",
+    hint:  "Reads content directly from the CMS files on disk. " +
+           "Requires STATAMIC_CMS_PATH to be configured on the server. " +
+           "Fast; no external service needed.",
+  },
+  {
+    value: "sanity",
+    label: "Sanity GROQ",
+    hint:  "Fetches published documents from the Sanity Content Lake via GROQ. " +
+           "Requires SANITY_PROJECT_ID to be configured on the server.",
+  },
+  {
+    value: "inmemory",
+    label: "In-memory (fixture corpus)",
+    hint:  "Searches a built-in fixture dataset — always available. " +
+           "Useful for demos, staging, or QA environments where real CMS data is not needed.",
+  },
+  {
+    value: "meilisearch",
+    label: "Meilisearch",
+    hint:  "Full-text index with relevance ranking, highlights, and faceting. " +
+           "Recommended for large sites or when advanced search features are required. " +
+           "Requires a Meilisearch instance URL and API key (configured below).",
+  },
+];
+
 export function TenantSearchSettingsClient({
   tenantId,
   initialConfig,
@@ -40,7 +83,7 @@ export function TenantSearchSettingsClient({
   reindexAction,
 }: Props) {
   // ── Form state ────────────────────────────────────────────────────────────
-  const [provider, setProvider]       = useState<"none" | "meilisearch">(initialConfig.provider);
+  const [provider, setProvider]       = useState<SearchProviderOption>(initialConfig.provider);
   const [host, setHost]               = useState(initialConfig.meilisearchHost);
   const [indexPrefix, setIndexPrefix] = useState(initialConfig.indexPrefix);
 
@@ -130,6 +173,7 @@ export function TenantSearchSettingsClient({
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const isMeilisearch = provider === "meilisearch";
+
   const indexName     = `${indexPrefix}${tenantId}`;
   const canReindex    = isMeilisearch && !!host.trim() && hasApiKey && reindexState !== "indexing";
 
@@ -141,24 +185,40 @@ export function TenantSearchSettingsClient({
       <section style={sectionStyle}>
         <h3 style={sectionHeadingStyle}>Search provider</h3>
         <p style={descStyle}>
-          Select the search engine for this tenant. "Platform default" uses Sanity GROQ-based
-          search (suitable for smaller sites). Meilisearch provides full-text indexing with
-          relevance ranking, highlights, and faceting.
+          Select the search engine for this tenant. Choose <strong>Auto-detect</strong> to let
+          the platform pick the best available backend, or pin to a specific provider.
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" }}>
-          {(["none", "meilisearch"] as const).map((p) => (
-            <label key={p} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginTop: "0.875rem" }}>
+          {PROVIDER_OPTIONS.map(({ value, label, hint }) => (
+            <label
+              key={value}
+              style={{
+                display:       "flex",
+                alignItems:    "flex-start",
+                gap:           "0.625rem",
+                cursor:        "pointer",
+                padding:       "0.625rem 0.75rem",
+                borderRadius:  "6px",
+                border:        `1px solid ${provider === value ? "var(--primary, #6366f1)" : "#e5e7eb"}`,
+                background:    provider === value ? "var(--primary-subtle, #eef2ff)" : "#fff",
+                transition:    "border-color 0.1s, background 0.1s",
+              }}
+            >
               <input
                 type="radio"
                 name="provider"
-                value={p}
-                checked={provider === p}
-                onChange={() => { setProvider(p); markDirty(); }}
+                value={value}
+                checked={provider === value}
+                onChange={() => { setProvider(value); markDirty(); }}
+                style={{ marginTop: "2px", flexShrink: 0 }}
               />
-              <span style={{ fontWeight: 500 }}>
-                {p === "none" ? "Platform default (Sanity GROQ / InMemory)" : "Meilisearch"}
-              </span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{label}</div>
+                <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginTop: "2px", lineHeight: 1.5 }}>
+                  {hint}
+                </div>
+              </div>
             </label>
           ))}
         </div>

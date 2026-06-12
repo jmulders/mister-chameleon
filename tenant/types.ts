@@ -893,8 +893,8 @@ export interface TenantAdaptiveSlotConfig {
  *
  * ─── Default (when absent) ───────────────────────────────────────────────────
  *
- *   When this field is absent from TenantSettings, all three core slots default
- *   to "ai-assisted" mode — identical to the behaviour before Phase 1 was
+ *   When this field is absent from TenantSettings, all six slots default to
+ *   "ai-assisted" mode — identical to the behaviour before Phase 1 was
  *   introduced.  No migration is required for existing tenants.
  *
  * ─── Relationship to TenantAiSettings ────────────────────────────────────────
@@ -903,11 +903,20 @@ export interface TenantAdaptiveSlotConfig {
  *   AI layer runs at all.  TenantAdaptiveSlotSettings configures per-slot
  *   behaviour WITHIN the AI layer.  When AI is disabled, slot modes have no
  *   effect (all slots use the rules plan regardless).
+ *
+ * ─── Required vs optional slots ──────────────────────────────────────────────
+ *
+ *   hero / proof / cta are required slots present on every page.
+ *   feature / conversion / notification are optional slots; when absent from
+ *   the page layout they are ignored by the decision engine.
  */
 export interface TenantAdaptiveSlotSettings {
-  readonly hero?:  TenantAdaptiveSlotConfig;
-  readonly proof?: TenantAdaptiveSlotConfig;
-  readonly cta?:   TenantAdaptiveSlotConfig;
+  readonly hero?:         TenantAdaptiveSlotConfig;
+  readonly proof?:        TenantAdaptiveSlotConfig;
+  readonly cta?:          TenantAdaptiveSlotConfig;
+  readonly feature?:      TenantAdaptiveSlotConfig;
+  readonly conversion?:   TenantAdaptiveSlotConfig;
+  readonly notification?: TenantAdaptiveSlotConfig;
 }
 
 // ── AI Policy settings (Phase 3 — unified governance) ────────────────────────
@@ -2080,6 +2089,34 @@ export interface TenantSearchSettings {
  *     Contains no secrets (writeToken is the sole exception — it's a
  *     per-tenant CMS write credential, not a copy of the platform secret).
  */
+
+// ── Language configuration ────────────────────────────────────────────────────
+
+/**
+ * A single language (= Statamic "site") configured for a tenant.
+ *
+ * ─── Statamic mapping ────────────────────────────────────────────────────────
+ *   code      → site handle key in resources/sites.yaml (e.g. "nl", "en-gb")
+ *   locale    → PHP/ICU locale string (e.g. "nl_NL", "en_GB")
+ *   name      → human-readable label shown in the language switcher
+ *   isDefault → true for exactly one language; its URL is "/" (root), all
+ *               others are "/{code}"
+ *   enabled   → maps to the Statamic custom attribute showSite: 'true'|'false'
+ *               — the site is defined and translatable, but only publicly
+ *               visible when enabled.  Allows staging a new language without
+ *               going live.
+ *
+ * When `languages` is absent or empty the platform treats the site as
+ * mono-lingual and uses the detected locale from the CMS filesystem.
+ */
+export interface TenantLanguageConfig {
+  readonly code:      string;   // "nl", "en-gb", "de" — site handle + URL slug
+  readonly locale:    string;   // "nl_NL", "en_GB", "de_DE" — PHP locale
+  readonly name:      string;   // "Nederlands", "English", "Deutsch"
+  readonly isDefault: boolean;  // exactly one language should be true; url: /
+  readonly enabled:   boolean;  // showSite attribute; false = staged but not live
+}
+
 export interface TenantSettings {
   readonly tenantId:          string;
 
@@ -2143,6 +2180,22 @@ export interface TenantSettings {
    * @example "Europe/Amsterdam", "America/Chicago", "Asia/Tokyo"
    */
   readonly timezone?: string;
+
+  /**
+   * Ordered list of languages (Statamic sites) configured for this tenant.
+   *
+   * When absent or empty the platform treats the site as mono-lingual and
+   * falls back to the locale detected from the CMS filesystem.
+   *
+   * Exactly one entry must have `isDefault: true` — its URL is the root path
+   * ("/").  All other entries use "/{code}" as the URL prefix.
+   *
+   * `enabled: false` stages a language (it is translatable in the CP) but
+   * hides it from public site navigation via the Statamic `showSite` attribute.
+   *
+   * Managed via the Languages panel in the tenant admin settings.
+   */
+  readonly languages?: readonly TenantLanguageConfig[];
 
   readonly packageKey:        PackageKey;
   readonly features:          TenantFeatures;
@@ -2310,6 +2363,17 @@ export interface TenantSettings {
   readonly selectedTemplates?: readonly TemplateCatalogKey[];
 
   /**
+   * Functionality modules selected by the operator during site initialisation
+   * (wizard step 3 — "Functionaliteiten").
+   *
+   * Values are FunctionalityModuleKey strings from @/page-config.  Stored as
+   * plain strings here to avoid a circular import.  In phase 1 these are
+   * informational and stored for reporting; future phases can use them to gate
+   * block rendering or pre-wire integrations.
+   */
+  readonly selectedModules?: readonly string[];
+
+  /**
    * Meilisearch (or future search provider) settings for this tenant.
    *
    * When absent or `provider: "none"`, the platform falls back to the
@@ -2436,6 +2500,40 @@ export interface TenantSettings {
    * Configure via /admin/tenants/[tenantId]/snippet.
    */
   readonly snippet?: TenantSnippetSettings;
+
+  /**
+   * Asset storage override for this tenant.
+   *
+   * When set, the specified provider is used instead of the platform-wide
+   * default for all asset uploads by this tenant.  The actual provider
+   * credentials (R2 keys, Supabase token, Sanity write token) remain stored
+   * at the platform level — only the active provider selection is per-tenant.
+   *
+   * Resolution order:
+   *   1. tenant.storage.activeProvider  (this field)
+   *   2. platform_settings.storage.activeProvider  (platform default)
+   *   3. Auto-detection from env vars
+   *   4. "supabase_storage" (last resort)
+   *
+   * Configure via /admin/tenants/[tenantId]/storage.
+   */
+  readonly storage?: TenantStorageSettings;
+}
+
+// ── Storage settings ───────────────────────────────────────────────────────────
+
+/**
+ * Per-tenant asset storage configuration.
+ *
+ * Overrides the platform-wide active provider for this tenant's asset uploads.
+ * All provider credentials remain at platform level.
+ */
+export interface TenantStorageSettings {
+  /**
+   * Override the active storage provider for this tenant.
+   * null or absent = use platform default.
+   */
+  activeProvider?: "cloudflare_r2" | "supabase_storage" | "sanity_assets" | null;
 }
 
 // ── Snippet settings ───────────────────────────────────────────────────────────

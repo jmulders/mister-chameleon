@@ -1,0 +1,16 @@
+title: 'Location'
+tabs:
+  main:
+    display: Main
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              display: Title
+              validate: required
+          - handle: description
+            field:
+              type: textarea
+              display: Description
+              instructions: 'City, region or remote arrangement (e.g. Amsterdam, Remote – EU).'

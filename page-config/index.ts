@@ -95,6 +95,7 @@ export type {
 
   // ── Listing / detail block data types ────────────────────────────────────────
   ListingItem,
+  SliderMediaItem,
   ListingBlockData,
   ArticleBodyBlockData,
   ArticleAuthor,
@@ -187,6 +188,9 @@ export type {
 
   // Context slot
   ResolvedContextSlot,
+
+  // Unified page item (slot or block)
+  PageItem,
 
   // Page
   PageSeoConfig,
@@ -337,6 +341,21 @@ export {
   resolvePresetKey,
   templateKeysToPageEntries,
 } from "./template-catalog";
+
+// ── Functionality modules ─────────────────────────────────────────────────────
+
+export type {
+  FunctionalityModuleKey,
+  FunctionalityModule,
+} from "./functionality-modules";
+
+export {
+  FUNCTIONALITY_MODULES,
+  FUNCTIONALITY_MODULE_MAP,
+  getFunctionalityModule,
+  getModulesForSiteType,
+  getBlocksEnabledByModules,
+} from "./functionality-modules";
 
 // ── Template registry ─────────────────────────────────────────────────────────
 

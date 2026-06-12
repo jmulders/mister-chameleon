@@ -1,0 +1,43 @@
+title: Feature
+fields:
+  -
+    handle: title
+    field:
+      type: text
+      display: Title
+      required: true
+  -
+    handle: handle
+    field:
+      type: text
+      display: Handle
+      instructions: 'Unique identifier, e.g. snippet or no_cookies'
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+  -
+    handle: icon
+    field:
+      type: text
+      display: Icon
+      instructions: 'Lucide icon name, e.g. zap, shield, users'
+  -
+    handle: headline
+    field:
+      type: text
+      display: Headline
+      required: true
+  -
+    handle: body
+    field:
+      type: textarea
+      display: Body
+  -
+    handle: badge
+    field:
+      type: text
+      display: Badge
+      instructions: 'Optional badge label, e.g. New, Pro'

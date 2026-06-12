@@ -5,7 +5,8 @@
  *
  * Client component for the Adaptive Slot Mode admin page.
  *
- * Shows three slot configuration panels — hero, proof, cta — each with:
+ * Shows all six slot configuration panels — hero, proof, cta, feature,
+ * conversion, notification — each with:
  *   • Mode radio group: AI-assisted | Rules only | Static
  *   • Static key input (visible only when mode === "static")
  *
@@ -19,12 +20,15 @@ import {
   HERO_VARIANT_KEYS,
   PROOF_VARIANT_KEYS,
   CTA_VARIANT_KEYS,
+  FEATURE_VARIANT_KEYS,
+  CONVERSION_VARIANT_KEYS,
+  NOTIFICATION_VARIANT_KEYS,
 } from "@/decision/types";
 
 // ── Slot metadata ─────────────────────────────────────────────────────────────
 
 interface SlotMeta {
-  id:          "hero" | "proof" | "cta";
+  id:          "hero" | "proof" | "cta" | "feature" | "conversion" | "notification";
   label:       string;
   description: string;
   keys:        readonly string[];
@@ -48,6 +52,24 @@ const SLOT_META: SlotMeta[] = [
     label:       "CTA",
     description: "Call-to-action section — nurture, product-led, or sales-led.",
     keys:        CTA_VARIANT_KEYS,
+  },
+  {
+    id:          "feature",
+    label:       "Feature",
+    description: "Adaptive feature highlights or benefit grid — adapts messaging by visitor intent.",
+    keys:        FEATURE_VARIANT_KEYS,
+  },
+  {
+    id:          "conversion",
+    label:       "Conversion",
+    description: "Adaptive conversion section — signup form, demo request, or contact form.",
+    keys:        CONVERSION_VARIANT_KEYS,
+  },
+  {
+    id:          "notification",
+    label:       "Notification",
+    description: "Adaptive overlay notification — toast or banner shown above the page layout.",
+    keys:        NOTIFICATION_VARIANT_KEYS,
   },
 ];
 
@@ -73,12 +95,19 @@ const MODE_OPTIONS: Array<{ value: TenantSlotMode; label: string; hint: string }
 
 function buildDefault(saved: TenantAdaptiveSlotSettings | null): SaveSlotModesInput {
   const slotDefault = (
-    slotId: "hero" | "proof" | "cta",
+    slotId: "hero" | "proof" | "cta" | "feature" | "conversion" | "notification",
   ): SlotModeFormValue => ({
     mode:      saved?.[slotId]?.mode      ?? "ai-assisted",
     staticKey: saved?.[slotId]?.staticKey ?? "",
   });
-  return { hero: slotDefault("hero"), proof: slotDefault("proof"), cta: slotDefault("cta") };
+  return {
+    hero:         slotDefault("hero"),
+    proof:        slotDefault("proof"),
+    cta:          slotDefault("cta"),
+    feature:      slotDefault("feature"),
+    conversion:   slotDefault("conversion"),
+    notification: slotDefault("notification"),
+  };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -96,7 +125,7 @@ export function SlotModesClient({
   const [isPending,  startTransition] = useTransition();
 
   const updateSlot = (
-    slotId: "hero" | "proof" | "cta",
+    slotId: "hero" | "proof" | "cta" | "feature" | "conversion" | "notification",
     patch:  Partial<SlotModeFormValue>,
   ) => setForm((prev) => ({ ...prev, [slotId]: { ...prev[slotId], ...patch } }));
 

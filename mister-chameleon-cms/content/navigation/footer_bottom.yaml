@@ -1,0 +1,15 @@
+title: 'Footer Bottom'
+sites:
+  - nl
+collections:
+  - pages
+tree:
+  -
+    entry: privacy
+    title: Privacybeleid
+  -
+    entry: terms
+    title: Algemene voorwaarden
+  -
+    title: Cookies
+    url: /cookies

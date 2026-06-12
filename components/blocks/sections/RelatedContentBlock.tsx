@@ -56,14 +56,15 @@ interface RelatedContentBlockProps {
  */
 function toListingItem(item: RelatedItem): ListingItem {
   return {
-    id:       item.id,
-    title:    item.title,
-    href:     item.href,
-    excerpt:  item.excerpt,
-    imageUrl: item.imageUrl,
-    imageAlt: item.imageAlt,
-    category: item.category,
-    date:     item.date,
+    id:             item.id,
+    title:          item.title,
+    href:           item.href,
+    excerpt:        item.excerpt,
+    imageUrl:       item.imageUrl,
+    hoverImageUrl:  item.hoverImageUrl,
+    imageAlt:       item.imageAlt,
+    category:       item.category,
+    date:           item.date,
     // tags and meta are not present on RelatedItem
   };
 }

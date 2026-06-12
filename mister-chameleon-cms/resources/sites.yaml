@@ -1,0 +1,12 @@
+nl:
+  name: Nederlands
+  locale: nl_NL
+  url: /
+  attributes:
+    showSite: 'true'
+en-gb:
+  name: English
+  locale: en_GB
+  url: /en-gb
+  attributes:
+    showSite: 'true'

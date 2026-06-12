@@ -1,0 +1,70 @@
+tagline: 'Website personalisation that runs server-side, respects privacy, and ships in an afternoon.'
+columns:
+  -
+    type: column
+    heading: Product
+    links:
+      -
+        label: Features
+        href: /features
+      -
+        label: Pricing
+        href: /pricing
+      -
+        label: Integrations
+        href: /integrations
+      -
+        label: Changelog
+        href: /changelog
+      -
+        label: Roadmap
+        href: /roadmap
+  -
+    type: column
+    heading: Company
+    links:
+      -
+        label: About
+        href: /about
+      -
+        label: Customer Stories
+        href: /cases
+      -
+        label: Blog
+        href: /blog
+      -
+        label: Careers
+        href: /careers
+  -
+    type: column
+    heading: Support
+    links:
+      -
+        label: Documentation
+        href: 'https://docs.mister-chameleon.io'
+      -
+        label: Contact
+        href: /contact
+      -
+        label: Status
+        href: 'https://status.mister-chameleon.io'
+      -
+        label: Community
+        href: 'https://community.mister-chameleon.io'
+  -
+    type: column
+    heading: Legal
+    links:
+      -
+        label: Privacy Policy
+        href: /privacy
+      -
+        label: Terms of Service
+        href: /terms
+      -
+        label: Cookie Policy
+        href: /cookies
+      -
+        label: DPA
+        href: /dpa
+copyright: '© 2025 Mister Chameleon B.V. — KVK 12345678'

@@ -52,7 +52,14 @@ import {
   getRegistryByCategory,
   getDefaultSelectedTemplates,
   SLOT_CONTRACT_REGISTRY,
+  FUNCTIONALITY_MODULES,
+  getModulesForSiteType,
+  getTemplateCatalogEntry,
+  resolvePresetKey,
+  getPreset,
+  getBlockDisplayName,
 } from "@/page-config";
+import type { FunctionalityModuleKey } from "@/page-config";
 import { createSiteAction }  from "@/app/admin/tenants/[tenantId]/actions";
 import type {
   CreateSiteResult,
@@ -95,6 +102,7 @@ const SITE_TYPE_ICON: Record<SiteType, string> = {
   content:     "📰",
   shop:        "🛍️",
   saas:        "🚀",
+  startup:     "⚡",
 };
 
 /** Human-readable labels for each report section key. */
@@ -199,6 +207,10 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
     () => getRecommendedKeys("saas"),
   );
 
+  const [selectedModules, setSelectedModules] = useState<Set<FunctionalityModuleKey>>(
+    () => new Set(),
+  );
+
   const [includeDefaultBlocks, setIncludeDefaultBlocks] = useState<boolean>(true);
   const [starterContentMode, setStarterContentMode]     = useState<StarterContentMode>("fill");
   const [includeShowcasePage, setIncludeShowcasePage]   = useState<boolean>(false);
@@ -211,9 +223,10 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
 
   const isReinit = initializedAt !== null && result === null;
 
-  // When the resolved site type changes, reset template selection.
+  // When the resolved site type changes, reset template selection and clear modules.
   useEffect(() => {
     setSelectedTemplates(getRecommendedKeys(selectedType));
+    setSelectedModules(new Set());
     setResult(null);
   }, [selectedType]);
 
@@ -256,6 +269,9 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
         includeShowcasePage,
         themeKey,
         blueprintKey,
+        undefined,          // intake
+        undefined,          // referenceUrl
+        [...selectedModules],
       );
       setResult(res);
       if (res.ok) {
@@ -311,7 +327,7 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
               Re-running re-applies design system and integration defaults.  By default,{" "}
               <strong className="font-semibold text-amber-800">existing CMS content is preserved</strong>{" "}
               — only missing pages will be created.  To reset content already in the CMS,
-              choose <em>Overwrite existing</em> in Step 3 below.  API keys, token overrides,
+              choose <em>Overwrite existing</em> in Step 4 below.  API keys, token overrides,
               and primary domain are never affected.
             </p>
           </div>
@@ -515,6 +531,7 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
                     isChecked={selectedTemplates.includes(entry.catalogKey)}
                     isPending={isPending}
                     onToggle={() => handleTemplateToggle(entry.catalogKey, entry)}
+                    selectedType={selectedType}
                   />
                 ))}
               </div>
@@ -539,6 +556,7 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
                       isChecked={selectedTemplates.includes(entry.catalogKey)}
                       isPending={isPending}
                       onToggle={() => handleTemplateToggle(entry.catalogKey, entry)}
+                      selectedType={selectedType}
                     />
                   ))}
                 </div>
@@ -547,10 +565,81 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
           </div>
         </div>
 
-        {/* ── Step 3: Starter content options ────────────────────────────── */}
+        {/* ── Step 3: Functionality modules ──────────────────────────────── */}
         <div className="mb-5">
           <p className="mb-2 text-xs font-medium text-neutral-600">
-            3 — Starter content
+            3 — Functionality modules
+          </p>
+          <p className="mb-2 text-[11px] text-neutral-400">
+            Enable optional feature areas. Each module adds specific content blocks and may
+            require an external integration (shown as a chip on the card).
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {getModulesForSiteType(selectedType).map((mod) => {
+              const isOn = selectedModules.has(mod.key);
+              return (
+                <button
+                  key={mod.key}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => {
+                    setSelectedModules((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(mod.key)) next.delete(mod.key);
+                      else next.add(mod.key);
+                      return next;
+                    });
+                  }}
+                  className={[
+                    "relative flex flex-col rounded-lg border-2 p-3 text-left transition-colors",
+                    isOn
+                      ? "border-brand-400 bg-brand-50 shadow-sm"
+                      : "border-neutral-200 bg-white hover:border-neutral-300",
+                    isPending ? "pointer-events-none opacity-60" : "",
+                  ].join(" ")}
+                >
+                  {isOn && (
+                    <span className="absolute top-2 right-2 text-[10px] font-bold text-brand-500">
+                      ✓
+                    </span>
+                  )}
+                  <span className={[
+                    "text-xs font-semibold leading-tight",
+                    isOn ? "text-brand-700" : "text-neutral-800",
+                  ].join(" ")}>
+                    {mod.label}
+                  </span>
+                  <p className="mt-1 text-[10px] leading-snug text-neutral-500">
+                    {mod.description}
+                  </p>
+                  {mod.requiredIntegrations && mod.requiredIntegrations.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {mod.requiredIntegrations.map((int) => (
+                        <span
+                          key={int}
+                          className="inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-px text-[9px] font-medium text-neutral-500 leading-none"
+                        >
+                          {int.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {selectedModules.size > 0 && (
+            <p className="mt-1.5 text-[10px] text-neutral-400">
+              {selectedModules.size} module{selectedModules.size !== 1 ? "s" : ""} selected —{" "}
+              {[...selectedModules].join(", ")}
+            </p>
+          )}
+        </div>
+
+        {/* ── Step 4: Starter content options ────────────────────────────── */}
+        <div className="mb-5">
+          <p className="mb-2 text-xs font-medium text-neutral-600">
+            4 — Starter content
           </p>
           <p className="mb-2 text-[11px] text-neutral-400">
             By default, pages are set up with layouts and placeholder copy ready to edit in the CMS.
@@ -737,14 +826,62 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
 
 // ── TemplateCard ──────────────────────────────────────────────────────────────
 
-interface TemplateCardProps {
-  entry:     TemplateRegistryEntry;
-  isChecked: boolean;
-  isPending: boolean;
-  onToggle:  () => void;
+// ── Anatomy helpers ───────────────────────────────────────────────────────────
+
+type AnatomyItem =
+  | { kind: "slot-before"; label: string }
+  | { kind: "slot-after";  label: string }
+  | { kind: "block";       label: string; variant?: string };
+
+function buildAnatomy(entry: TemplateRegistryEntry, siteType: SiteType): AnatomyItem[] {
+  const catalogEntry = getTemplateCatalogEntry(entry.catalogKey);
+  if (!catalogEntry) return [];
+  const presetKey = resolvePresetKey(catalogEntry, siteType);
+  const preset    = getPreset(presetKey);
+  if (!preset)    return [];
+
+  const slotRegistry = SLOT_CONTRACT_REGISTRY as Record<string, { label: string }>;
+
+  return [
+    ...preset.contextSlots
+      .filter((s) => s.position === "before-content")
+      .map((s) => ({
+        kind:  "slot-before" as const,
+        label: slotRegistry[s.slotId]?.label ?? s.slotId,
+      })),
+    ...preset.blocks.map((b) => ({
+      kind:    "block" as const,
+      label:   getBlockDisplayName(b.blockType),
+      variant: b.variant,
+    })),
+    ...preset.contextSlots
+      .filter((s) => s.position === "after-content")
+      .map((s) => ({
+        kind:  "slot-after" as const,
+        label: slotRegistry[s.slotId]?.label ?? s.slotId,
+      })),
+  ];
 }
 
-function TemplateCard({ entry, isChecked, isPending, onToggle }: TemplateCardProps) {
+// ── TemplateCard ──────────────────────────────────────────────────────────────
+
+interface TemplateCardProps {
+  entry:        TemplateRegistryEntry;
+  isChecked:    boolean;
+  isPending:    boolean;
+  onToggle:     () => void;
+  selectedType: SiteType;
+}
+
+function TemplateCard({ entry, isChecked, isPending, onToggle, selectedType }: TemplateCardProps) {
+  const [anatomyOpen, setAnatomyOpen] = useState(false);
+
+  const anatomy       = buildAnatomy(entry, selectedType);
+  const PREVIEW_COUNT = 5;
+  const overflow      = anatomy.length > PREVIEW_COUNT;
+  const visible       = overflow && !anatomyOpen ? anatomy.slice(0, PREVIEW_COUNT) : anatomy;
+  const hiddenCount   = anatomy.length - PREVIEW_COUNT;
+
   return (
     <label
       className={[
@@ -787,22 +924,65 @@ function TemplateCard({ entry, isChecked, isPending, onToggle }: TemplateCardPro
           {slugDisplay(entry.defaultSlug)}
         </code>
 
-        {entry.slots.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-0.5">
-            {entry.slots.map((slotKey) => (
-              <span
-                key={slotKey}
-                className="inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-px text-[9px] font-medium text-neutral-500 leading-none"
-              >
-                {SLOT_CONTRACT_REGISTRY[slotKey].label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <p className="mt-0.5 text-[10px] leading-snug text-neutral-500">
+        <p className="text-[10px] leading-snug text-neutral-500">
           {entry.description}
         </p>
+
+        {/* ── Page anatomy ──────────────────────────────────────────── */}
+        {anatomy.length > 0 && (
+          <div className="mt-1.5 border-t border-neutral-100 pt-1.5">
+            <p className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-neutral-300">
+              Structure
+            </p>
+            <div className="space-y-0.5">
+              {visible.map((item, idx) => {
+                if (item.kind === "slot-before") {
+                  return (
+                    <div key={idx} className="flex items-center gap-1">
+                      <span className="shrink-0 text-[8px] text-violet-400">⬡</span>
+                      <span className="inline-flex items-center rounded-sm bg-violet-50 border border-violet-100 px-1 py-px text-[9px] font-medium text-violet-600 leading-none">
+                        {item.label}
+                      </span>
+                      <span className="text-[8px] text-neutral-300">adaptive</span>
+                    </div>
+                  );
+                }
+                if (item.kind === "slot-after") {
+                  return (
+                    <div key={idx} className="flex items-center gap-1">
+                      <span className="shrink-0 text-[8px] text-amber-400">⬡</span>
+                      <span className="inline-flex items-center rounded-sm bg-amber-50 border border-amber-100 px-1 py-px text-[9px] font-medium text-amber-600 leading-none">
+                        {item.label}
+                      </span>
+                      <span className="text-[8px] text-neutral-300">adaptive</span>
+                    </div>
+                  );
+                }
+                // block
+                return (
+                  <div key={idx} className="flex items-center gap-1">
+                    <span className="shrink-0 text-[8px] text-neutral-300">—</span>
+                    <span className="text-[9px] text-neutral-600 leading-none">{item.label}</span>
+                    {item.variant && (
+                      <span className="text-[8px] text-neutral-300 leading-none">
+                        · {item.variant.replace(/_/g, " ")}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {overflow && (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAnatomyOpen((v) => !v); }}
+                className="mt-1 text-[9px] text-neutral-400 hover:text-neutral-600 underline underline-offset-2 transition-colors"
+              >
+                {anatomyOpen ? "Show less ↑" : `+${hiddenCount} more ↓`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </label>
   );

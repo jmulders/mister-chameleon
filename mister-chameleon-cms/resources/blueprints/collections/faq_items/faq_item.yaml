@@ -1,0 +1,42 @@
+title: FAQ Item
+fields:
+  -
+    handle: title
+    field:
+      type: text
+      display: Title
+      required: true
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+  -
+    handle: question
+    field:
+      type: text
+      display: Question
+      required: true
+  -
+    handle: answer
+    field:
+      type: textarea
+      display: Answer
+      required: true
+  -
+    handle: category
+    field:
+      type: select
+      display: Category
+      options:
+        general: General
+        technical: Technical
+        pricing: Pricing
+        gdpr: GDPR
+      default: general
+  -
+    handle: sort_order
+    field:
+      type: integer
+      display: Sort Order

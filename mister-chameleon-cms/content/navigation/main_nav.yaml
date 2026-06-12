@@ -1,0 +1,21 @@
+title: 'Main Navigation'
+sites:
+  - nl
+collections:
+  - pages
+tree:
+  -
+    entry: features
+    title: Features
+  -
+    entry: pricing
+    title: Prijzen
+  -
+    entry: cases
+    title: Cases
+  -
+    entry: about
+    title: 'Over ons'
+  -
+    entry: contact
+    title: Contact

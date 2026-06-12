@@ -107,14 +107,17 @@ export default async function IntegrationsCmsPage() {
             region:              storyblokResult.region,
             version:             storyblokResult.version,
             spaceId:             storyblokResult.spaceId,
+            tenantId:            storyblokResult.tenantId,
             hasAccessToken:      storyblokResult.hasAccessToken,
             hasManagementToken:  storyblokResult.hasManagementToken,
+            hasWebhookSecret:    storyblokResult.hasWebhookSecret,
             updatedAt:           storyblokResult.updatedAt,
           }}
           statamic={{
-            baseUrl:   statamicResult.baseUrl,
-            hasApiKey: statamicResult.hasApiKey,
-            updatedAt: statamicResult.updatedAt,
+            baseUrl:          statamicResult.baseUrl,
+            hasApiKey:        statamicResult.hasApiKey,
+            hasWebhookSecret: statamicResult.hasWebhookSecret,
+            updatedAt:        statamicResult.updatedAt,
           }}
         />
       )}

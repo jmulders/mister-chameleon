@@ -1,0 +1,12 @@
+title: 'Footer Bottom'
+sections:
+  main:
+    display: Main
+    fields:
+      -
+        handle: open_in_new_tab
+        field:
+          type: toggle
+          display: 'Open in new tab'
+          instructions: 'Open this link in a new browser tab.'
+          width: 25

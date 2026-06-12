@@ -1,0 +1,82 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: variant
+    field:
+      type: select
+      display: Variant
+      default: team_grid
+      options:
+        team_grid: 'Grid (3-column cards)'
+        team_compact: 'Compact (avatar + name + role inline)'
+  -
+    handle: heading
+    field:
+      type: text
+      display: Heading
+  -
+    handle: intro
+    field:
+      type: textarea
+      display: Intro
+      instructions: 'Optional introductory paragraph shown above the team grid.'
+  -
+    handle: members
+    field:
+      type: grid
+      display: Teamleden
+      add_row: 'Add member'
+      fields:
+        -
+          handle: name
+          field:
+            type: text
+            display: Name
+        -
+          handle: role
+          field:
+            type: text
+            display: Role
+        -
+          handle: bio
+          field:
+            type: textarea
+            display: Bio
+        -
+          handle: image
+          field:
+            type: assets
+            display: Photo
+            max_files: 1
+        -
+          handle: profile_href
+          field:
+            type: text
+            display: 'Profile Link'
+            instructions: 'Optional URL to the member''s profile page or LinkedIn.'
+        -
+          handle: socials
+          field:
+            type: group
+            display: Socials
+            fields:
+              -
+                handle: linkedin
+                field:
+                  type: text
+                  display: LinkedIn URL
+              -
+                handle: twitter
+                field:
+                  type: text
+                  display: Twitter / X URL
+              -
+                handle: github
+                field:
+                  type: text
+                  display: GitHub URL

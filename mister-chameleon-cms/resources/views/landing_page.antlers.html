@@ -1,0 +1,139 @@
+{{#
+    landing_page.antlers.html — Live Preview for pages with template = "landing_page".
+
+    Identical behaviour to default.antlers.html: serialises the current (unsaved)
+    Statamic entry fields into a JSON payload, POSTs them to the Next.js draft API,
+    shows the real website rather than a placeholder template.
+
+    ─── Two contexts ────────────────────────────────────────────────────────────
+
+    1. CP Live Preview iframe (window.self !== window.top)
+       This page is loaded inside the Statamic CP Live Preview panel.
+       It serialises the current (unsaved) field values, POSTs them to the
+       Next.js draft API (/api/statamic-draft), and then embeds the Next.js
+       site in a nested iframe using the returned short-lived token.
+
+    2. Direct browser visit (window.self === window.top)
+       Someone opened localhost:8000/{slug} directly in a tab, or used the
+       "Pop out" button in the CP.  In this case we redirect immediately to
+       the real Next.js site at localhost:3000/{slug} so they see the actual
+       published page, not the Antlers preview bridge.
+
+    ─── Post-save auto-refresh ──────────────────────────────────────────────────
+       StatamicPreviewWatcher (in the nested Next.js page) polls /api/cms-version
+       and hard-navigates on change.
+
+    ─── Unified page_blocks ─────────────────────────────────────────────────────
+       page_blocks is a single Replicator containing both context_slot blocks and
+       free content blocks as siblings in authored order. Position in the array is
+       the render position — no dedicated top-level slot fields needed.
+#}}
+<style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    body > div { position: fixed !important; inset: 0 !important; padding: 0 !important; margin: 0 !important; max-width: none !important; width: 100% !important; height: 100% !important; display: block !important; }
+</style>
+
+{{# Embed draft data as a JSON script tag — safer than inline JS literal. #}}
+<script type="application/json" id="mc-draft-data">
+{
+    "collection": "pages",
+    "slug": {{ slug | to_json }},
+    "title": {{ title | to_json }},
+    "seoDescription": {{ seo_description | to_json }},
+    "pageBlocks": {{ page_blocks | to_json }}
+}
+</script>
+
+<iframe
+    id="mc-preview"
+    src="about:blank"
+    style="display: block; width: 100%; height: 100%; border: none;"
+    title="{{ title }} — Next.js preview"
+></iframe>
+
+<script>
+(function () {
+    var dataEl = document.getElementById('mc-draft-data');
+    var draftPayload = null;
+    try {
+        draftPayload = JSON.parse(dataEl ? dataEl.textContent : 'null');
+    } catch (e) {}
+
+    var nextjsBase  = 'http://localhost:3000';
+    var slug        = (draftPayload && draftPayload.slug) ? draftPayload.slug : '';
+    var fallbackSrc = nextjsBase + '/' + slug;
+
+    // ── Direct visit / Pop-out detection ────────────────────────────────────
+    // When this page is the top-level window (not inside the CP Live Preview
+    // iframe), redirect immediately to the real Next.js site.
+    // Inside the CP panel, window.self !== window.top, so we skip this.
+    if (window.self === window.top) {
+        window.location.replace(fallbackSrc);
+        return;
+    }
+
+    // ── CP Live Preview iframe path ──────────────────────────────────────────
+    function loadFallback() {
+        var el = document.getElementById('mc-preview');
+        if (el && el.src === 'about:blank') el.src = fallbackSrc;
+    }
+
+    // ── loadPreview — POST payload to Next.js draft API and navigate iframe ───
+    function loadPreview(payload) {
+        if (!payload) { loadFallback(); return; }
+        fetch(nextjsBase + '/api/statamic-draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (resp) {
+            var el = document.getElementById('mc-preview');
+            if (!el) return;
+            var pageSlug = payload.slug || '';
+            if (resp && resp.token) {
+                el.src = nextjsBase + '/' + pageSlug + '?_mc_draft=' + resp.token;
+            } else {
+                el.src = nextjsBase + '/' + pageSlug;
+            }
+        })
+        .catch(function () { loadFallback(); });
+    }
+
+    // ── Statamic Live Preview postMessage handler ─────────────────────────────
+    // Statamic v5+ sends entry data to the preview frame via postMessage on
+    // every field change. This handler fires for ALL field changes — including
+    // context_slot block toggles and variant_key updates inside page_blocks.
+    // We handle several message formats used across Statamic versions.
+    window.addEventListener('message', function (event) {
+        var msg = event.data;
+        if (!msg || typeof msg !== 'object') return;
+
+        // Normalise the message to the inner entry-data object.
+        // Statamic v5+:  { type: 'statamic:live-preview', data: { ... } }
+        // Older formats: { values: { ... } }  |  { entry: { ... } }
+        var entry = null;
+        if (msg.type === 'statamic:live-preview' && msg.data && typeof msg.data === 'object') {
+            entry = msg.data;
+        } else if (msg.values && typeof msg.values === 'object') {
+            entry = msg.values;
+        } else if (msg.entry && typeof msg.entry === 'object') {
+            entry = msg.entry;
+        }
+        if (!entry) return;
+
+        // Build payload from postMessage entry, falling back to baked-in draft data
+        // for fields not included in this particular message.
+        loadPreview({
+            collection:     'pages',
+            slug:           entry.slug              !== undefined ? entry.slug              : slug,
+            title:          entry.title             !== undefined ? entry.title             : (draftPayload ? draftPayload.title          : ''),
+            seoDescription: entry.seo_description   !== undefined ? entry.seo_description   : (draftPayload ? draftPayload.seoDescription : null),
+            pageBlocks:     Array.isArray(entry.page_blocks)     ? entry.page_blocks        : (draftPayload ? draftPayload.pageBlocks     : []),
+        });
+    });
+
+    // Initial load from baked-in draft data.
+    loadPreview(draftPayload);
+}());
+</script>

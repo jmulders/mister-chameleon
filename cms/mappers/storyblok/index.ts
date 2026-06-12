@@ -16,6 +16,8 @@ export {
   mapStoryblokFeature,
   mapStoryblokConversion,
   mapStoryblokNotification,
+  mapStoryblokAdaptiveVariantContent,
+  mapStoryblokAdaptiveBlock,
   mapStoryblokPage,
 } from "./storyblok-mappers";
 

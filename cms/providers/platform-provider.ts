@@ -218,6 +218,12 @@ export class PlatformCMSProvider implements CMSProvider {
     return [];
   }
 
+  async getListingFilters(
+    _collection: import("@/page-config/collection-source").CollectionKey,
+  ): Promise<import("@/page-config/collection-source").ListingFilters> {
+    return [];
+  }
+
   // ── Provider management ─────────────────────────────────────────────────────
 
   /**

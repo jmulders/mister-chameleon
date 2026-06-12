@@ -1,0 +1,105 @@
+title: Pricing Plan
+fields:
+  -
+    handle: title
+    field:
+      type: text
+      display: Title
+      required: true
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+  -
+    handle: plan_key
+    field:
+      type: text
+      display: Plan Key
+      instructions: 'Identifier used in code: starter, growth, or pro'
+      required: true
+  -
+    handle: display_name
+    field:
+      type: text
+      display: Display Name
+      required: true
+  -
+    handle: tagline
+    field:
+      type: text
+      display: Tagline
+  -
+    handle: price_monthly
+    field:
+      type: integer
+      display: Monthly Price (EUR)
+  -
+    handle: price_annual
+    field:
+      type: integer
+      display: Annual Price / month (EUR)
+  -
+    handle: currency
+    field:
+      type: text
+      display: Currency
+      default: EUR
+  -
+    handle: is_popular
+    field:
+      type: toggle
+      display: Mark as Popular
+      default: false
+  -
+    handle: cta_label
+    field:
+      type: text
+      display: CTA Label
+  -
+    handle: cta_href
+    field:
+      type: text
+      display: CTA URL / Anchor
+  -
+    handle: features
+    field:
+      type: replicator
+      display: Feature List
+      sets:
+        feature:
+          display: Feature
+          fields:
+            -
+              handle: label
+              field:
+                type: text
+                display: Label
+            -
+              handle: included
+              field:
+                type: toggle
+                display: Included
+                default: true
+  -
+    handle: limits
+    field:
+      type: group
+      display: Limits
+      fields:
+        -
+          handle: tenants
+          field:
+            type: integer
+            display: Tenants / Websites
+        -
+          handle: pageviews_monthly
+          field:
+            type: integer
+            display: Personalised Pageviews / Month
+        -
+          handle: experiments
+          field:
+            type: integer
+            display: Active Experiments (0 = unlimited)

@@ -1,0 +1,16 @@
+title: Artikelen
+sites:
+  - nl
+  - en-gb
+  - de
+route: 'blog/{slug}'
+taxonomies:
+  - article_type
+  - sector
+  - theme
+template: collection_entry
+propagate: true
+dated: true
+date_behavior:
+  past: public
+  future: private

@@ -36,8 +36,9 @@ import {
   testCmsStoryblokConnectionAction,
   testCmsStoryblokManagementAction,
   saveCmsStatamicSettingsAction,
+  testCmsStatamicConnectionAction,
 } from "@/app/admin/platform/cms/actions";
-import type { TestConnectionResult, StoryblokTestConnectionResult, StoryblokManagementTestResult } from "@/app/admin/platform/cms/actions";
+import type { TestConnectionResult, StoryblokTestConnectionResult, StoryblokManagementTestResult, StatamicTestConnectionResult } from "@/app/admin/platform/cms/actions";
 
 // ── Shared field primitives ────────────────────────────────────────────────────
 
@@ -459,6 +460,36 @@ function StoryblokManagementTestBanner({ result }: { result: StoryblokManagement
   );
 }
 
+// ── Statamic test result banner ────────────────────────────────────────────────
+
+function StatamicTestResultBanner({ result }: { result: StatamicTestConnectionResult | null }) {
+  if (!result) return null;
+
+  if (result.ok) {
+    return (
+      <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+        <p className="text-xs font-semibold text-green-800">Connection test passed</p>
+        <p className="mt-0.5 text-xs text-green-700">{result.message}</p>
+        <p className="mt-1.5 text-[11px] text-green-600">
+          URL: <span className="font-mono">{result.baseUrl}</span>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+      <p className="text-xs font-semibold text-red-800">Connection test failed</p>
+      <p className="mt-0.5 text-xs text-red-700">{result.error}</p>
+      {result.hint && (
+        <p className="mt-1.5 text-[11px] text-red-600">
+          <span className="font-semibold">Fix: </span>{result.hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Storyblok section ──────────────────────────────────────────────────────────
 
 const STORYBLOK_REGIONS = [
@@ -480,24 +511,31 @@ function StoryblokSection({
   initialRegion,
   initialVersion,
   initialSpaceId,
+  initialTenantId,
   initialHasAccessToken,
   initialHasManagementToken,
+  initialHasWebhookSecret,
   initialUpdatedAt,
 }: {
   initialRegion:              string;
   initialVersion:             string;
   initialSpaceId:             string;
+  initialTenantId:            string;
   initialHasAccessToken:      boolean;
   initialHasManagementToken:  boolean;
+  initialHasWebhookSecret:    boolean;
   initialUpdatedAt:           string | null;
 }) {
   const [region,           setRegion]           = useState(initialRegion);
   const [version,          setVersion]          = useState(initialVersion);
   const [spaceId,          setSpaceId]          = useState(initialSpaceId);
+  const [tenantId,         setTenantId]         = useState(initialTenantId);
   const [accessToken,      setAccessToken]      = useState("");
   const [managementToken,  setManagementToken]  = useState("");
+  const [webhookSecret,    setWebhookSecret]    = useState("");
   const [hasToken,         setHasToken]         = useState(initialHasAccessToken);
   const [hasMgmtToken,     setHasMgmtToken]     = useState(initialHasManagementToken);
+  const [hasWebhookSec,    setHasWebhookSec]    = useState(initialHasWebhookSecret);
   const [updatedAt,        setUpdatedAt]        = useState<string | null>(initialUpdatedAt);
   const [saveState,        setSaveState]        = useState<SaveState>({ mode: "idle" });
   const [testResult,       setTestResult]       = useState<StoryblokTestConnectionResult | null>(null);
@@ -513,14 +551,18 @@ function StoryblokSection({
         region,
         version,
         spaceId,
+        tenantId,
         accessToken:     accessToken     || undefined,
         managementToken: managementToken || undefined,
+        webhookSecret:   webhookSecret   || undefined,
       });
       if (result.ok) {
-        if (accessToken)     setHasToken(true);
+        if (accessToken)   setHasToken(true);
         if (managementToken) setHasMgmtToken(true);
+        if (webhookSecret) setHasWebhookSec(true);
         setAccessToken("");
         setManagementToken("");
+        setWebhookSecret("");
         setUpdatedAt(new Date().toISOString());
         setSaveState({ mode: "success" });
       } else {
@@ -634,6 +676,43 @@ function StoryblokSection({
         </div>
       </div>
 
+      {/* ── Webhook credentials ── */}
+      <div className="mt-5 border-t border-neutral-100 pt-4">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+          Webhook
+        </p>
+        <p className="mb-4 text-xs text-neutral-500">
+          Required for the adaptive blocks sync webhook{" "}
+          <span className="font-mono text-[11px]">POST /api/webhooks/cms/storyblok</span>.
+          Configure a matching secret under{" "}
+          <span className="font-mono text-[11px]">Settings → Webhooks</span> in Storyblok.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <FieldLabel note="Takes priority over STORYBLOK_WEBHOOK_SECRET env var when set.">
+              Webhook secret
+            </FieldLabel>
+            <SecretInput
+              value={webhookSecret}
+              onChange={setWebhookSecret}
+              hasExisting={hasWebhookSec}
+              placeholder="Shared webhook secret..."
+            />
+          </div>
+          <div>
+            <FieldLabel note="Takes priority over STORYBLOK_TENANT_ID env var when set.">
+              Default tenant ID
+            </FieldLabel>
+            <TextInput
+              value={tenantId}
+              onChange={setTenantId}
+              placeholder="e.g. my-tenant"
+              hint="Tenant scope for adaptive blocks synced via the webhook. Can be overridden per-request with ?tenantId= query param."
+            />
+          </div>
+        </div>
+      </div>
+
       <SaveFooter
         state={saveState}
         onSave={handleSave}
@@ -679,34 +758,54 @@ function StoryblokSection({
 function StatamicSection({
   initialBaseUrl,
   initialHasApiKey,
+  initialHasWebhookSecret,
   initialUpdatedAt,
 }: {
-  initialBaseUrl:   string;
-  initialHasApiKey: boolean;
-  initialUpdatedAt: string | null;
+  initialBaseUrl:          string;
+  initialHasApiKey:        boolean;
+  initialHasWebhookSecret: boolean;
+  initialUpdatedAt:        string | null;
 }) {
-  const [baseUrl,   setBaseUrl]   = useState(initialBaseUrl);
-  const [apiKey,    setApiKey]    = useState("");
-  const [hasKey,    setHasKey]    = useState(initialHasApiKey);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(initialUpdatedAt);
-  const [saveState, setSaveState] = useState<SaveState>({ mode: "idle" });
-  const [isPending, startTransition] = useTransition();
+  const [baseUrl,       setBaseUrl]       = useState(initialBaseUrl);
+  const [apiKey,        setApiKey]        = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [hasKey,        setHasKey]        = useState(initialHasApiKey);
+  const [hasWebhookSec, setHasWebhookSec] = useState(initialHasWebhookSecret);
+  const [updatedAt,     setUpdatedAt]     = useState<string | null>(initialUpdatedAt);
+  const [saveState,     setSaveState]     = useState<SaveState>({ mode: "idle" });
+  const [testResult,    setTestResult]    = useState<StatamicTestConnectionResult | null>(null);
+  const [isPending,     startTransition]     = useTransition();
+  const [isTesting,     startTestTransition] = useTransition();
 
   function handleSave() {
     startTransition(async () => {
       setSaveState({ mode: "saving" });
       const result = await saveCmsStatamicSettingsAction({
         baseUrl,
-        apiKey: apiKey || undefined,
+        apiKey:        apiKey        || undefined,
+        webhookSecret: webhookSecret || undefined,
       });
       if (result.ok) {
-        if (apiKey) setHasKey(true);
+        if (apiKey)        setHasKey(true);
+        if (webhookSecret) setHasWebhookSec(true);
         setApiKey("");
+        setWebhookSecret("");
         setUpdatedAt(new Date().toISOString());
         setSaveState({ mode: "success" });
       } else {
         setSaveState({ mode: "error", message: result.error });
       }
+    });
+  }
+
+  function handleTest() {
+    startTestTransition(async () => {
+      setTestResult(null);
+      const result = await testCmsStatamicConnectionAction({
+        baseUrl: baseUrl || undefined,
+        apiKey:  apiKey  || undefined,
+      });
+      setTestResult(result);
     });
   }
 
@@ -746,12 +845,52 @@ function StatamicSection({
         </div>
       </div>
 
+      {/* ── Webhook credentials ── */}
+      <div className="mt-5 border-t border-neutral-100 pt-4">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+          Webhook
+        </p>
+        <p className="mb-4 text-xs text-neutral-500">
+          Required for the adaptive blocks sync webhook{" "}
+          <span className="font-mono text-[11px]">POST /api/webhooks/cms/statamic</span>.
+          Configure a matching secret in Statamic under{" "}
+          <span className="font-mono text-[11px]">Utilities → Webhooks → Headers: x-statamic-secret</span>.
+        </p>
+        <div>
+          <FieldLabel note="Takes priority over STATAMIC_WEBHOOK_SECRET env var when set.">
+            Webhook secret
+          </FieldLabel>
+          <SecretInput
+            value={webhookSecret}
+            onChange={setWebhookSecret}
+            hasExisting={hasWebhookSec}
+            placeholder="Shared webhook secret..."
+          />
+        </div>
+      </div>
+
       <SaveFooter
         state={saveState}
         onSave={handleSave}
         onDismiss={() => setSaveState({ mode: "idle" })}
         isPending={isPending}
       />
+
+      {/* ── Test connection ── */}
+      <div className="mt-5 border-t border-neutral-100 pt-4">
+        <p className="mb-3 text-xs text-neutral-500">
+          Test that the base URL can reach the Statamic REST API.
+          Uses the current form values — you can test credentials before saving.
+        </p>
+        <button
+          onClick={handleTest}
+          disabled={isTesting}
+          className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:border-neutral-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isTesting ? "Testing…" : "Test connection"}
+        </button>
+        <StatamicTestResultBanner result={testResult} />
+      </div>
     </ProviderCard>
   );
 }
@@ -770,15 +909,18 @@ export interface CmsPlatformClientProps {
     region:              string;
     version:             string;
     spaceId:             string;
+    tenantId:            string;
     hasAccessToken:      boolean;
     hasManagementToken:  boolean;
+    hasWebhookSecret:    boolean;
     updatedAt:           string | null;
   };
   /** Statamic provider props */
   statamic: {
-    baseUrl:   string;
-    hasApiKey: boolean;
-    updatedAt: string | null;
+    baseUrl:          string;
+    hasApiKey:        boolean;
+    hasWebhookSecret: boolean;
+    updatedAt:        string | null;
   };
 }
 
@@ -812,14 +954,17 @@ export function CmsPlatformClient({
         initialRegion={storyblok.region}
         initialVersion={storyblok.version}
         initialSpaceId={storyblok.spaceId}
+        initialTenantId={storyblok.tenantId}
         initialHasAccessToken={storyblok.hasAccessToken}
         initialHasManagementToken={storyblok.hasManagementToken}
+        initialHasWebhookSecret={storyblok.hasWebhookSecret}
         initialUpdatedAt={storyblok.updatedAt}
       />
 
       <StatamicSection
         initialBaseUrl={statamic.baseUrl}
         initialHasApiKey={statamic.hasApiKey}
+        initialHasWebhookSecret={statamic.hasWebhookSecret}
         initialUpdatedAt={statamic.updatedAt}
       />
 

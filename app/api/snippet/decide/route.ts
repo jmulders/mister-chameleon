@@ -156,6 +156,26 @@ type SlotMap = Record<string, string>;
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // ── Editor bypass ──────────────────────────────────────────────────────────
+  //
+  // When a platform admin is browsing the site (e.g. from the Statamic CP
+  // live preview or by opening the live URL while logged into the admin panel),
+  // skip the decision engine entirely and return empty slots.
+  //
+  // The `mc_editor` httpOnly cookie is set on successful admin login and cleared
+  // on logout (app/admin/login/actions.ts).  Since the admin panel and the
+  // public site share the same domain, this cookie is present on same-domain
+  // requests — including snippet calls from the live preview iframe.
+  //
+  // This prevents credits from being consumed for preview page loads where
+  // no real personalisation decision is needed.
+  if (request.cookies.get("mc_editor")?.value === "1") {
+    return NextResponse.json(
+      { slots: {}, _editorMode: true },
+      { status: 200, headers: CORS_HEADERS },
+    );
+  }
+
   // ── Parse body ─────────────────────────────────────────────────────────────
   let body: unknown;
   try {

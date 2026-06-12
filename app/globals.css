@@ -242,3 +242,152 @@
     display: none;
   }
 }
+
+/*
+ * ── Rich-text body (Bard / HTML content) ─────────────────────────────────────
+ *
+ * Applied to the wrapper div in RichTextBlock when rendering HTML body content
+ * via dangerouslySetInnerHTML.  Styles all standard HTML elements produced by
+ * Statamic's Bard editor (save_html: true) using the active design tokens.
+ *
+ * This replaces the Tailwind Typography (`prose`) plugin which is not installed.
+ */
+.mc-rich-text {
+  color: var(--text);
+  line-height: 1.75;
+  font-size: 1rem;
+}
+
+.mc-rich-text h1,
+.mc-rich-text h2,
+.mc-rich-text h3,
+.mc-rich-text h4,
+.mc-rich-text h5,
+.mc-rich-text h6 {
+  font-family: var(--font-heading, inherit);
+  font-weight: var(--font-heading-weight, 700);
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.mc-rich-text h1 { font-size: 2rem;    margin-top: 2rem;   margin-bottom: 0.75rem; }
+.mc-rich-text h2 { font-size: 1.5rem;  margin-top: 1.75rem; margin-bottom: 0.6rem; }
+.mc-rich-text h3 { font-size: 1.25rem; margin-top: 1.5rem;  margin-bottom: 0.5rem; }
+.mc-rich-text h4 { font-size: 1.1rem;  margin-top: 1.25rem; margin-bottom: 0.4rem; }
+.mc-rich-text h5,
+.mc-rich-text h6 { font-size: 1rem;    margin-top: 1rem;    margin-bottom: 0.35rem; }
+
+.mc-rich-text p {
+  margin-bottom: 1rem;
+  color: var(--text-muted, var(--text));
+}
+
+.mc-rich-text a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.mc-rich-text a:hover { opacity: 0.8; }
+
+.mc-rich-text strong { font-weight: 700; color: var(--text); }
+.mc-rich-text em     { font-style: italic; }
+.mc-rich-text u      { text-decoration: underline; text-underline-offset: 2px; }
+.mc-rich-text s      { text-decoration: line-through; }
+
+.mc-rich-text ul,
+.mc-rich-text ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+  color: var(--text-muted, var(--text));
+}
+.mc-rich-text ul { list-style-type: disc; }
+.mc-rich-text ol { list-style-type: decimal; }
+.mc-rich-text li { margin-bottom: 0.35rem; }
+
+.mc-rich-text blockquote {
+  border-left: 4px solid var(--primary);
+  margin: 1.5rem 0;
+  padding: 0.5rem 1rem;
+  font-style: italic;
+  color: var(--text-muted, var(--text));
+}
+
+.mc-rich-text code {
+  background: var(--bg-subtle);
+  color: var(--text);
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+  font-size: 0.875em;
+  font-family: var(--font-code, monospace);
+}
+
+.mc-rich-text pre {
+  background: var(--bg-subtle);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+.mc-rich-text pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.mc-rich-text hr {
+  border: none;
+  border-top: 1px solid var(--border, var(--bg-subtle));
+  margin: 2rem 0;
+}
+
+/* Remove top margin from first element */
+.mc-rich-text > *:first-child { margin-top: 0; }
+/* Remove bottom margin from last element */
+.mc-rich-text > *:last-child  { margin-bottom: 0; }
+
+/* Images */
+.mc-rich-text img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1.25rem 0;
+  display: block;
+}
+
+/* Tables */
+.mc-rich-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9375rem;
+  overflow-x: auto;
+  display: block;
+}
+
+.mc-rich-text thead {
+  background: var(--bg-subtle);
+}
+
+.mc-rich-text th,
+.mc-rich-text td {
+  padding: 0.6rem 0.875rem;
+  text-align: left;
+  border: 1px solid var(--border, var(--bg-subtle));
+  vertical-align: top;
+}
+
+.mc-rich-text th {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.mc-rich-text td {
+  color: var(--text-muted, var(--text));
+}
+
+.mc-rich-text tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--bg-subtle) 40%, transparent);
+}

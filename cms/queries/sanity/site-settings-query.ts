@@ -155,6 +155,29 @@ export interface SanityLogoRaw {
 
 // ── Full site settings raw type ───────────────────────────────────────────────
 
+// ── Top bar raw type ──────────────────────────────────────────────────────────
+
+export interface SanityTopBarRaw {
+  showSearch?:           boolean | null;
+  showLanguageSwitcher?: boolean | null;
+}
+
+// ── Footer bottom raw types ───────────────────────────────────────────────────
+
+export interface SanityFooterBottomLinkRaw {
+  label:        string;
+  href?:        string | null;
+  openInNewTab?: boolean | null;
+}
+
+export interface SanityFooterBottomRaw {
+  enabled?:       boolean | null;
+  copyright?:     string  | null;
+  showSocial?:    boolean | null;
+  links?:         SanityFooterBottomLinkRaw[] | null;
+  partnerLogoUrl?: string | null;
+}
+
 /**
  * Shape of the data returned by SITE_SETTINGS_QUERY.
  * Field names match the Sanity schema exactly; the mapper translates
@@ -174,6 +197,13 @@ export interface SanitySiteSettingsRaw {
   contactEmail?:       string | null;
   contactPhone?:       string | null;
   socialLinks?:        SanitySocialLinkRaw[] | null;
+  // ── Layout / personality overrides ─────────────────────────────────────────
+  topBar?:             SanityTopBarRaw    | null;
+  footerBottom?:       SanityFooterBottomRaw | null;
+  headerVariant?:      string | null;
+  footerVariant?:      string | null;
+  footerDensity?:      string | null;
+  themePreset?:        string | null;
 }
 
 // ── GROQ projection fragments ─────────────────────────────────────────────────
@@ -384,6 +414,35 @@ export const SITE_SETTINGS_QUERY = `
     "socialLinks": socialLinks[] {
       label,
       url
-    }
+    },
+    "topBar": topBar {
+      showSearch,
+      showLanguageSwitcher
+    },
+    "footerBottom": footerBottom {
+      enabled,
+      copyright,
+      showSocial,
+      "links": links[] {
+        label,
+        openInNewTab,
+        "href": coalesce(
+          select(
+            linkType == "internal" => "/" + internalPage->slug.current,
+            linkType == "external" => externalUrl
+          ),
+          href,
+          "#"
+        )
+      },
+      "partnerLogoUrl": coalesce(
+        partnerLogo.asset->url + "?w=160&fit=max&q=85&auto=format",
+        partnerLogoUrl
+      )
+    },
+    headerVariant,
+    footerVariant,
+    footerDensity,
+    themePreset
   }
 `;

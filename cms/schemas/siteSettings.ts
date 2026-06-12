@@ -390,6 +390,133 @@ export default defineType({
       validation: (Rule) => Rule.max(40),
     }),
 
+    // ── Top bar / utility strip ───────────────────────────────────────────────
+    defineField({
+      name:        "topBar",
+      title:       "Top Utility Bar",
+      type:        "object",
+      description: "Optional utility strip shown above the main navigation.",
+      fields: [
+        defineField({
+          name:         "showSearch",
+          title:        "Show Search",
+          type:         "boolean",
+          initialValue: false,
+          description:  "Show a search icon in the utility bar.",
+        }),
+        defineField({
+          name:         "showLanguageSwitcher",
+          title:        "Show Language Switcher",
+          type:         "boolean",
+          initialValue: true,
+          description:  "Show the locale/language selector dropdown.",
+        }),
+      ],
+    }),
+
+    // ── Footer bottom strip ───────────────────────────────────────────────────
+    defineField({
+      name:        "footerBottom",
+      title:       "Footer Bottom Strip",
+      type:        "object",
+      description: "Optional slim strip at the very bottom of the footer — copyright, social icons, legal links.",
+      fields: [
+        defineField({
+          name:         "enabled",
+          title:        "Enable Footer Bottom Strip",
+          type:         "boolean",
+          initialValue: false,
+        }),
+        defineField({
+          name:  "copyright",
+          title: "Copyright Text",
+          type:  "string",
+          description: 'E.g. "© 2025 Mister Chameleon BV". Leave blank to auto-generate.',
+        }),
+        defineField({
+          name:         "showSocial",
+          title:        "Show Social Icons",
+          type:         "boolean",
+          initialValue: true,
+        }),
+        defineField({
+          name:  "links",
+          title: "Legal / Utility Links",
+          type:  "array",
+          description: "Privacy Policy, Terms of Service, Cookie Settings, …",
+          of: [
+            defineArrayMember({
+              type:  "object",
+              name:  "footerBottomLink",
+              fields: [
+                defineField({ name: "label", title: "Label", type: "string",
+                  validation: (Rule) => Rule.required() }),
+                defineField({ name: "href", title: "URL", type: "string",
+                  validation: (Rule) => Rule.required() }),
+                defineField({ name: "openInNewTab", title: "Open in new tab", type: "boolean",
+                  initialValue: false }),
+              ],
+              preview: { select: { title: "label", subtitle: "href" } },
+            }),
+          ],
+        }),
+        defineField({
+          name:  "partnerLogoUrl",
+          title: "Partner / Powered-by Logo URL",
+          type:  "url",
+          description: "Optional logo shown on the right of the bottom strip.",
+        }),
+      ],
+    }),
+
+    // ── Layout overrides ──────────────────────────────────────────────────────
+    defineField({
+      name:        "headerVariant",
+      title:       "Header Variant",
+      type:        "string",
+      description: "Override the site-wide header layout. Leave blank to use the theme family default.",
+      options: {
+        list: [
+          { title: "Minimal — compact logo + horizontal nav", value: "minimal" },
+          { title: "Flyout — logo + nav with dropdown menus",  value: "flyout" },
+          { title: "Mega — logo + full-width mega-menu",        value: "mega" },
+          { title: "Transparent — overlays the hero section",  value: "transparent" },
+        ],
+      },
+    }),
+    defineField({
+      name:        "footerVariant",
+      title:       "Footer Variant",
+      type:        "string",
+      description: "Override the site-wide footer layout. Leave blank to use the theme family default.",
+      options: {
+        list: [
+          { title: "Corporate — multi-column + brand",  value: "corporate" },
+          { title: "Branding — centred brand-first",    value: "branding"  },
+          { title: "Minimal — single-row brand + links", value: "minimal"  },
+        ],
+      },
+    }),
+    defineField({
+      name:        "footerDensity",
+      title:       "Footer Density",
+      type:        "string",
+      description: "Vertical spacing of the footer sections.",
+      options: {
+        list: [
+          { title: "Compact",     value: "compact" },
+          { title: "Comfortable", value: "comfortable" },
+          { title: "Spacious",    value: "spacious" },
+        ],
+      },
+    }),
+    defineField({
+      name:        "themePreset",
+      title:       "Theme Preset",
+      type:        "string",
+      description: "Optional theme preset key used to load a colour palette from the platform registry.",
+    }),
+
     // ── Social links ──────────────────────────────────────────────────────────
     defineField({
       name:  "socialLinks",

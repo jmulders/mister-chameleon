@@ -27,18 +27,24 @@
 
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { normalizeTenant } from "@/tenant/normalize";
 import {
   FEATURED_FAMILY_CONFIGS,
   isFeaturedFamilyKey,
 } from "@/design-system/theme/theme-families.config";
-import { FooterCorporate } from "./footer/FooterCorporate";
-import { FooterBranding }  from "./footer/FooterBranding";
-import { FooterMinimal }   from "./footer/FooterMinimal";
+import { FooterCorporate }   from "./footer/FooterCorporate";
+import { FooterBranding }    from "./footer/FooterBranding";
+import { FooterMinimal }     from "./footer/FooterMinimal";
+import { FooterBottomStrip } from "./footer/FooterBottomStrip";
 
 export async function Footer() {
   const activeTenant = await getActiveTenant();
 
-  const settings = await createCMSProvider(undefined, activeTenant.tenantId).getSiteSettings();
+  // Resolve tenant settings first so we can pass the CMS preference to the
+  // provider factory — same pattern as Header.tsx.
+  const tenantSettings = await getTenantById(activeTenant.tenantId);
+  const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
+  const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings();
 
   const siteTitle    = settings?.siteTitle        ?? activeTenant.name;
   const logoUrl      = settings?.logo?.url        ?? null;
@@ -47,6 +53,7 @@ export async function Footer() {
   const footerCols   = settings?.footerColumns;
   const contactEmail = settings?.contactEmail     ?? null;
   const contactPhone = settings?.contactPhone     ?? null;
+  const address      = settings?.address          ?? null;
   const socialLinks  = settings?.socialLinks;
   const year         = new Date().getFullYear();
 
@@ -70,8 +77,16 @@ export async function Footer() {
     footerDensity = structural.footer.density;
   }
 
+  // Layer 1.5 — CMS-level fallback (applied before tenant DB so DB takes precedence).
+  // Only applies when the CMS entry has an explicit value and the tenant DB has not.
+  if (settings?.footerVariant && !tenantSettings?.design.footerVariant) {
+    footerVariant = settings.footerVariant;
+  }
+  if (settings?.footerDensity && !tenantSettings?.design.footerDensity) {
+    footerDensity = settings.footerDensity;
+  }
+
   // Layer 2 — tenant-level override from DB-stored design settings.
-  const tenantSettings = await getTenantById(activeTenant.tenantId);
   if (tenantSettings?.design.footerVariant) {
     footerVariant = tenantSettings.design.footerVariant;
   }
@@ -79,45 +94,72 @@ export async function Footer() {
     footerDensity = tenantSettings.design.footerDensity;
   }
 
+  // ── Footer bottom strip ───────────────────────────────────────────────────
+  const footerBottom = settings?.footerBottom ?? null;
+
   // ── Dispatch ──────────────────────────────────────────────────────────────
+  //
+  // When the corporate variant is active, social links already appear in the
+  // brand row of FooterCorporate.  Pass them to FooterBottomStrip only for
+  // variants that don't render social icons themselves (branding, minimal).
+  const bottomStripSocial = footerVariant === "corporate" ? undefined : socialLinks;
+
+  const bottomStrip = footerBottom ? (
+    <FooterBottomStrip
+      data={footerBottom}
+      socialLinks={bottomStripSocial}
+      year={year}
+    />
+  ) : null;
+
   if (footerVariant === "branding") {
     return (
-      <FooterBranding
-        siteTitle={siteTitle}
-        logoUrl={logoUrl}
-        logoAlt={logoAlt}
-        footerNav={footerNav}
-        socialLinks={socialLinks}
-        year={year}
-        density={footerDensity}
-      />
+      <>
+        <FooterBranding
+          siteTitle={siteTitle}
+          logoUrl={logoUrl}
+          logoAlt={logoAlt}
+          footerNav={footerNav}
+          socialLinks={socialLinks}
+          year={year}
+          density={footerDensity}
+        />
+        {bottomStrip}
+      </>
     );
   }
   if (footerVariant === "minimal") {
     return (
-      <FooterMinimal
-        siteTitle={siteTitle}
-        logoUrl={logoUrl}
-        logoAlt={logoAlt}
-        footerNav={footerNav}
-        year={year}
-        density={footerDensity}
-      />
+      <>
+        <FooterMinimal
+          siteTitle={siteTitle}
+          logoUrl={logoUrl}
+          logoAlt={logoAlt}
+          footerNav={footerNav}
+          year={year}
+          density={footerDensity}
+        />
+        {bottomStrip}
+      </>
     );
   }
   // "corporate" is the default
   return (
-    <FooterCorporate
-      siteTitle={siteTitle}
-      logoUrl={logoUrl}
-      logoAlt={logoAlt}
-      footerNav={footerNav}
-      footerColumns={footerCols}
-      contactEmail={contactEmail}
-      contactPhone={contactPhone}
-      socialLinks={socialLinks}
-      year={year}
-      density={footerDensity}
-    />
+    <>
+      <FooterCorporate
+        siteTitle={siteTitle}
+        logoUrl={logoUrl}
+        logoAlt={logoAlt}
+        footerNav={footerNav}
+        footerColumns={footerCols}
+        contactEmail={contactEmail}
+        contactPhone={contactPhone}
+        address={address}
+        socialLinks={socialLinks}
+        year={year}
+        density={footerDensity}
+      />
+      {bottomStrip}
+    </>
   );
 }

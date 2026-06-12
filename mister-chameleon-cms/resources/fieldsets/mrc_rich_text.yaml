@@ -1,0 +1,44 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: max_width
+    field:
+      type: select
+      display: Width
+      default: default
+      options:
+        narrow: 'Narrow (reading width)'
+        default: 'Default'
+        wide: 'Full width'
+  -
+    handle: body
+    field:
+      type: bard
+      display: Body
+      instructions: 'Full rich-text editor. Supports headings, bold, italic, lists, links, and inline HTML.'
+      container: assets
+      toolbar:
+        - heading
+        - bold
+        - italic
+        - unorderedlist
+        - orderedlist
+        - removeformat
+        - link
+        - image
+        - table
+        - blockquote
+        - code
+        - horizontalrule
+      heading_levels:
+        - 1
+        - 2
+        - 3
+        - 4
+      buttons_below_content: false
+      save_html: true

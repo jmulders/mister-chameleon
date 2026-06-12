@@ -212,3 +212,20 @@ export const NoHeading: Story = {
     variant: "default",
   },
 };
+
+export const WithHoverImages: Story = {
+  name: "Grid — hover image swap (hover a card to see it)",
+  args: {
+    data: {
+      heading:      "Hover each card to see the swap",
+      items: blogItems.slice(0, 3).map((item, i) => ({
+        ...item,
+        // Use a different picsum seed for the hover state so the cross-fade
+        // is clearly visible. In production this comes from overview_image_hover
+        // in the Statamic CMS (or the equivalent field in other CMS providers).
+        hoverImageUrl: `https://picsum.photos/seed/hover${i + 1}/800/450`,
+      })),
+    },
+    variant: "default",
+  },
+};

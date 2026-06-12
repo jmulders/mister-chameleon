@@ -35,6 +35,8 @@
 
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 import { createClient }               from "@sanity/client";
 import { revalidatePath }             from "next/cache";
 import { getRequiredAdminSession }    from "@/lib/admin-auth/authorization";
@@ -290,6 +292,7 @@ export async function testCmsPlatformConnectionAction(input: {
   try {
     await client.fetch<number>("count(*[false])");
   } catch (err) {
+    rethrowNextInternal(err);
     const { error, hint } = parseSanityError(err);
     return {
       ok:    false,
@@ -320,6 +323,7 @@ export async function testCmsPlatformConnectionAction(input: {
       _type: "sanity.connectionTest",
     });
   } catch (err) {
+    rethrowNextInternal(err);
     const { error, hint } = parseSanityError(err);
     return {
       ok:    false,
@@ -362,8 +366,10 @@ export async function getCmsStoryblokSettingsAction(): Promise<
       region:             string;
       version:            string;
       spaceId:            string;
+      tenantId:           string;
       hasAccessToken:     boolean;
       hasManagementToken: boolean;
+      hasWebhookSecret:   boolean;
       updatedAt:          string | null;
     }
   | { ok: false; error: string }
@@ -375,11 +381,13 @@ export async function getCmsStoryblokSettingsAction(): Promise<
 
   return {
     ok:                 true,
-    region:             result.data.region  ?? "",
-    version:            result.data.version ?? "",
-    spaceId:            result.data.spaceId ?? "",
+    region:             result.data.region   ?? "",
+    version:            result.data.version  ?? "",
+    spaceId:            result.data.spaceId  ?? "",
+    tenantId:           result.data.tenantId ?? "",
     hasAccessToken:     flags.hasAccessToken,
     hasManagementToken: flags.hasManagementToken,
+    hasWebhookSecret:   flags.hasWebhookSecret,
     updatedAt:          result.updatedAt,
   };
 }
@@ -396,30 +404,43 @@ export async function saveCmsStoryblokSettingsAction(input: {
   region:           string;
   version:          string;
   spaceId:          string;
+  tenantId:         string;
   accessToken?:     string;
   managementToken?: string;
+  webhookSecret?:   string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const region          = typeof input.region   === "string" ? input.region.trim()   : "";
   const version         = typeof input.version  === "string" ? input.version.trim()  : "";
   const spaceId         = typeof input.spaceId  === "string" ? input.spaceId.trim().replace(/^#\s*/, "") : "";
+  const tenantId        = typeof input.tenantId === "string" ? input.tenantId.trim() : "";
   const accessToken     = input.accessToken !== undefined
     ? (typeof input.accessToken === "string" ? input.accessToken.trim() : "")
     : undefined;
   const managementToken = input.managementToken !== undefined
     ? (typeof input.managementToken === "string" ? input.managementToken.trim() : "")
     : undefined;
+  const webhookSecret   = input.webhookSecret !== undefined
+    ? (typeof input.webhookSecret === "string" ? input.webhookSecret.trim() : "")
+    : undefined;
 
   if (region.length > 512)      return { ok: false, error: "Region must be 512 characters or fewer." };
   if (version.length > 512)     return { ok: false, error: "Version must be 512 characters or fewer." };
   if (spaceId.length > 64)      return { ok: false, error: "Space ID must be 64 characters or fewer." };
+  if (tenantId.length > 256)    return { ok: false, error: "Tenant ID must be 256 characters or fewer." };
   if (accessToken !== undefined && accessToken.length > 512) {
     return { ok: false, error: "Access token must be 512 characters or fewer." };
   }
   if (managementToken !== undefined && managementToken.length > 512) {
     return { ok: false, error: "Management token must be 512 characters or fewer." };
   }
+  if (webhookSecret !== undefined && webhookSecret.length > 512) {
+    return { ok: false, error: "Webhook secret must be 512 characters or fewer." };
+  }
 
-  const result = await savePlatformStoryblokSettings({ region, version, spaceId, accessToken, managementToken });
+  const result = await savePlatformStoryblokSettings({
+    region, version, spaceId, tenantId,
+    accessToken, managementToken, webhookSecret,
+  });
   if (!result.ok) return result;
 
   revalidatePath("/admin/platform/integrations/cms");
@@ -580,10 +601,11 @@ export async function testCmsStoryblokManagementAction(input: {
  */
 export async function getCmsStatamicSettingsAction(): Promise<
   | {
-      ok:        true;
-      baseUrl:   string;
-      hasApiKey: boolean;
-      updatedAt: string | null;
+      ok:               true;
+      baseUrl:          string;
+      hasApiKey:        boolean;
+      hasWebhookSecret: boolean;
+      updatedAt:        string | null;
     }
   | { ok: false; error: string }
 > {
@@ -593,10 +615,11 @@ export async function getCmsStatamicSettingsAction(): Promise<
   const flags = statamicFlags(result.data);
 
   return {
-    ok:        true,
-    baseUrl:   result.data.baseUrl ?? "",
-    hasApiKey: flags.hasApiKey,
-    updatedAt: result.updatedAt,
+    ok:               true,
+    baseUrl:          result.data.baseUrl ?? "",
+    hasApiKey:        flags.hasApiKey,
+    hasWebhookSecret: flags.hasWebhookSecret,
+    updatedAt:        result.updatedAt,
   };
 }
 
@@ -609,24 +632,108 @@ export async function getCmsStatamicSettingsAction(): Promise<
  *   - Omitted / undefined        → existing key is left unchanged
  */
 export async function saveCmsStatamicSettingsAction(input: {
-  baseUrl:  string;
-  apiKey?:  string;
+  baseUrl:        string;
+  apiKey?:        string;
+  webhookSecret?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const baseUrl = typeof input.baseUrl === "string" ? input.baseUrl.trim() : "";
-  const apiKey  = input.apiKey !== undefined
+  const baseUrl       = typeof input.baseUrl === "string" ? input.baseUrl.trim() : "";
+  const apiKey        = input.apiKey !== undefined
     ? (typeof input.apiKey === "string" ? input.apiKey.trim() : "")
+    : undefined;
+  const webhookSecret = input.webhookSecret !== undefined
+    ? (typeof input.webhookSecret === "string" ? input.webhookSecret.trim() : "")
     : undefined;
 
   if (baseUrl.length > 512) return { ok: false, error: "Base URL must be 512 characters or fewer." };
   if (apiKey !== undefined && apiKey.length > 512) {
     return { ok: false, error: "API key must be 512 characters or fewer." };
   }
+  if (webhookSecret !== undefined && webhookSecret.length > 512) {
+    return { ok: false, error: "Webhook secret must be 512 characters or fewer." };
+  }
 
-  const result = await savePlatformStatamicSettings({ baseUrl, apiKey });
+  const result = await savePlatformStatamicSettings({ baseUrl, apiKey, webhookSecret });
   if (!result.ok) return result;
 
   revalidatePath("/admin/platform/integrations/cms");
   return { ok: true };
+}
+
+// ── Statamic connection test ───────────────────────────────────────────────────
+
+/** Result returned to the client after a Statamic connection test. */
+export type StatamicTestConnectionResult =
+  | { ok: true;  message: string; baseUrl: string; entriesFound: number }
+  | { ok: false; error: string; hint?: string };
+
+/**
+ * Test Statamic REST API connectivity.
+ *
+ * Fetches `GET /api/collections/hero_variants/entries?limit=1` using the
+ * provided (or stored) credentials. Any HTTP 2xx response is treated as
+ * success — even an empty data array means the API is reachable.
+ *
+ * Accepts optional form values so operators can test credentials before saving.
+ */
+export async function testCmsStatamicConnectionAction(input: {
+  baseUrl?: string;
+  apiKey?:  string;
+}): Promise<StatamicTestConnectionResult> {
+  await getRequiredAdminSession();
+
+  // Resolve: form input → DB → env var
+  let baseUrl = input.baseUrl?.trim() ?? "";
+  let apiKey  = input.apiKey?.trim()  ?? "";
+
+  if (!baseUrl || !apiKey) {
+    const stored = await getPlatformStatamicSettings().catch(() => null);
+    if (stored?.ok) {
+      if (!baseUrl) baseUrl = stored.data.baseUrl ?? "";
+      if (!apiKey)  apiKey  = stored.data.apiKey  ?? "";
+    }
+  }
+
+  // Fallback to env vars
+  if (!baseUrl) baseUrl = process.env.STATAMIC_API_URL  ?? "";
+  if (!apiKey)  apiKey  = process.env.STATAMIC_API_KEY  ?? "";
+
+  if (!baseUrl) {
+    return {
+      ok:    false,
+      error: "No Statamic base URL configured.",
+      hint:  "Enter the base URL above and save, or set STATAMIC_API_URL in your .env.local.",
+    };
+  }
+
+  try {
+    const { StatamicClient } = await import("@/cms/providers/statamic-client");
+    const client = new StatamicClient(baseUrl, apiKey || undefined);
+    // Fetch hero_variants as a lightweight connectivity probe
+    const entry = await client.fetchEntry<{ key?: string }>("hero_variants", "__probe__");
+    // null means 404 (no such key) — that's fine, the API is reachable
+    const entriesFound = entry === null ? 0 : 1;
+    return {
+      ok:           true,
+      message:      "Connected to Statamic REST API successfully.",
+      baseUrl,
+      entriesFound,
+    };
+  } catch (err) {
+    rethrowNextInternal(err);
+    const msg      = err instanceof Error ? err.message : String(err);
+    const msgLower = msg.toLowerCase();
+    let hint: string | undefined;
+    if (msgLower.includes("401") || msgLower.includes("unauthorized")) {
+      hint = "The API key is invalid or missing. Check the Bearer token.";
+    } else if (msgLower.includes("403") || msgLower.includes("forbidden")) {
+      hint = "Access forbidden — ensure the API is enabled in Statamic (STATAMIC_API_ENABLED=true).";
+    } else if (msgLower.includes("enotfound") || msgLower.includes("network") || msgLower.includes("fetch")) {
+      hint = "Could not reach the Statamic server. Check the base URL and make sure the server is running.";
+    } else if (msgLower.includes("pro") || msgLower.includes("license")) {
+      hint = "Statamic Pro license required for the built-in REST API. Use a custom route as documented.";
+    }
+    return { ok: false, error: msg, hint };
+  }
 }
 
 // ── Marketing site seed ────────────────────────────────────────────────────────
@@ -763,6 +870,7 @@ export async function seedMarketingSiteAction(): Promise<SeedMarketingSiteResult
       await client.createOrReplace(doc as Parameters<typeof client.createOrReplace>[0]);
       results.push({ id, slug, ok: true });
     } catch (err) {
+    rethrowNextInternal(err);
       results.push({
         id,
         slug,
@@ -1018,6 +1126,7 @@ export async function seedStoryblokSpaceAction(): Promise<SeedStoryblokSpaceResu
     casesFolderId        = await client.ensureFolder("Cases",                 "cases");
     newsFolderId         = await client.ensureFolder("News",                  "news");
   } catch (err) {
+    rethrowNextInternal(err);
     return {
       ok:    false,
       error: `Failed to create variant folders: ${err instanceof Error ? err.message : String(err)}`,
@@ -1806,6 +1915,7 @@ export async function seedStoryblokSpaceAction(): Promise<SeedStoryblokSpaceResu
       });
       results.push({ id: story.id, slug: story.fullSlug, ok: true });
     } catch (err) {
+    rethrowNextInternal(err);
       results.push({
         id:    story.id,
         slug:  story.fullSlug,
@@ -2312,6 +2422,7 @@ export async function seedStoryblokSpaceAction(): Promise<SeedStoryblokSpaceResu
       });
       results.push({ id: page.id, slug: page.slug, ok: true });
     } catch (err) {
+    rethrowNextInternal(err);
       results.push({
         id:    page.id,
         slug:  page.slug,
@@ -2519,6 +2630,7 @@ export async function seedStoryblokSpaceAction(): Promise<SeedStoryblokSpaceResu
       });
       results.push({ id: entity.id, slug: entity.fullSlug, ok: true });
     } catch (err) {
+    rethrowNextInternal(err);
       results.push({
         id:    entity.id,
         slug:  entity.fullSlug,

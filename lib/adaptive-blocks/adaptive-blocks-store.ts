@@ -121,6 +121,36 @@ export async function getAdaptiveBlockByKey(
 }
 
 /**
+ * List all platform-wide adaptive blocks (tenant_id IS NULL).
+ *
+ * Used by the platform-level Adaptive Blocks Catalog page
+ * (/admin/platform/blocks) to show the full set of default blocks
+ * available to every tenant.
+ */
+export async function listPlatformBlocks(): Promise<AdaptiveBlockData[]> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+
+    const { data, error } = asMany<AdaptiveBlockRow>(
+      await db
+        .from("adaptive_blocks")
+        .select("*")
+        .is("tenant_id", null)
+        .order("key"),
+    );
+
+    if (error || !data) return [];
+    return data.map(rowToAdaptiveBlock);
+  } catch (err) {
+    logger.warn("[AdaptiveBlocksStore] listPlatformBlocks error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return [];
+  }
+}
+
+/**
  * List all adaptive blocks for a given tenant (and optionally platform-wide).
  *
  * Used by the AdaptiveBlocksPanel admin component.

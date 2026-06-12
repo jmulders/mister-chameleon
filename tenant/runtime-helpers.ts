@@ -317,7 +317,11 @@ export function filterSectionsByTenant<T extends { _type: string }>(
 
   const allowed = getEnabledContentTypes(tenant);
   if (allowed === null) return valid;
-  return valid.filter((s) => allowed.has(s._type as ContentBlockKey));
+  // "contextSlot" sections are structural slot anchors, not content blocks.
+  // They must always pass through regardless of the tenant's content-type
+  // allowlist so that buildHomepagePageConfig can detect hasEmbeddedSlots
+  // and preserve the authored CMS ordering of context slots vs content blocks.
+  return valid.filter((s) => s._type === "contextSlot" || allowed.has(s._type as ContentBlockKey));
 }
 
 // ── Feature flag helpers ──────────────────────────────────────────────────────

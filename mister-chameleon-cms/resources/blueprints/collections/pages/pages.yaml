@@ -1,0 +1,191 @@
+title: Page
+tabs:
+  meta:
+    display: Meta
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              display: Title
+              validate: required
+          - handle: meta_keywords
+            field:
+              type: text
+              display: Meta Keywords
+              instructions: Comma-separated intent keywords for interest scoring.
+          - handle: template
+            field:
+              type: select
+              display: Template
+              instructions: Determines the page layout in Next.js.
+              options:
+                home: Home (marketing + personalisation)
+                marketing_page: Marketing Page
+                landing_page: Landing Page
+                article_page: Article Page
+                listing_page: Listing Page
+                detail_page: Detail Page
+              default: marketing_page
+  card:
+    display: Card
+    sections:
+      - fields:
+          - import: mrc_card_fields
+  content:
+    display: Page Content
+    sections:
+      - instructions: Build the page by placing content around the fixed Context Slots. Context Slots are anchor points for personalised blocks — editors can only change the default variant key and toggle them on/off. Add, reorder, toggle, and delete content blocks freely.
+        fields:
+          - handle: page_blocks
+            field:
+              type: replicator
+              display: Page Blocks
+              collapse: true
+              button_label: Add content block
+              sets:
+                context_slots:
+                  display: Context Slots
+                  sets:
+                    context_slot:
+                      display: Context Slot
+                      fields:
+                        - import: mrc_context_slot
+                text_and_media:
+                  display: Text & Media
+                  sets:
+                    text_section:
+                      display: Text Section
+                      fields:
+                        - import: mrc_text_section
+                    rich_text:
+                      display: Rich Text
+                      fields:
+                        - import: mrc_rich_text
+                    image:
+                      display: Text + Media
+                      fields:
+                        - import: mrc_image_block
+                    video:
+                      display: Video
+                      fields:
+                        - import: mrc_video_block
+                    quote_block:
+                      display: Quote
+                      fields:
+                        - import: mrc_quote_block
+                social_proof:
+                  display: Social Proof
+                  sets:
+                    testimonial_section:
+                      display: Testimonials
+                      fields:
+                        - import: mrc_testimonial_section
+                    logo_strip:
+                      display: Logo Strip
+                      fields:
+                        - import: mrc_logo_strip
+                    stats:
+                      display: Stats
+                      fields:
+                        - import: mrc_stats_block
+                features_and_faq:
+                  display: Features & FAQ
+                  sets:
+                    feature_grid:
+                      display: Feature Grid
+                      fields:
+                        - import: mrc_feature_grid
+                    faq_section:
+                      display: FAQ Section
+                      fields:
+                        - import: mrc_faq_section
+                    team_section:
+                      display: Team Section
+                      fields:
+                        - import: mrc_team_section
+                    process_steps:
+                      display: Process Steps
+                      fields:
+                        - import: mrc_process_steps
+                    timeline:
+                      display: Timeline
+                      fields:
+                        - import: mrc_timeline_block
+                conversion_and_forms:
+                  display: Conversion & Forms
+                  sets:
+                    cta_section:
+                      display: CTA Section
+                      fields:
+                        - import: mrc_cta_section
+                    form_section:
+                      display: Form Section
+                      fields:
+                        - import: mrc_form_section
+                    contact_section:
+                      display: Contact Section
+                      fields:
+                        - import: mrc_contact_section
+                listings:
+                  display: Listings
+                  sets:
+                    collection_listing:
+                      display: Collection Listing
+                      fields:
+                        - import: mrc_collection_listing
+                    listing:
+                      display: Media Slider / Listing
+                      fields:
+                        - import: mrc_listing_block
+                    related_content:
+                      display: Related Content
+                      fields:
+                        - import: mrc_related_content
+  seo:
+    display: SEO
+    sections:
+      - fields:
+          - handle: seo_title
+            field:
+              type: text
+              display: 'SEO title'
+              instructions: 'Page title shown in search results. Leave empty to use the entry title.'
+          - handle: seo_description
+            field:
+              type: textarea
+              display: 'SEO description'
+              instructions: 'Meta description shown in search results (max 160 chars).'
+          - handle: robots_noindex
+            field:
+              type: toggle
+              display: 'No-index'
+              default: false
+              instructions: 'Prevent search engines from indexing this page.'
+          - handle: robots_nofollow
+            field:
+              type: toggle
+              display: 'No-follow'
+              default: false
+              instructions: 'Prevent search engines from following links on this page.'
+          - handle: canonical_url
+            field:
+              type: text
+              display: 'Canonical URL'
+              instructions: 'Override the default canonical URL. Leave empty to use the page URL.'
+          - handle: og_title
+            field:
+              type: text
+              display: 'Social title'
+              instructions: 'Title shown when shared on social media. Falls back to SEO title or entry title.'
+          - handle: og_description
+            field:
+              type: textarea
+              display: 'Social description'
+              instructions: 'Description shown when shared on social media. Falls back to SEO description.'
+          - handle: og_image
+            field:
+              type: assets
+              display: 'Social image'
+              max_files: 1
+              instructions: 'Image shown when shared on social media. Recommended: 1200x630px.'

@@ -37,6 +37,7 @@ import { BILLING_PLANS, getResolvedPlanStripePriceId } from "@/billing/plans";
 import { createCheckoutSession, createPlanChangeCheckout } from "@/billing/stripe";
 import { syncPackageKeyFromPlan }                            from "@/billing/subscriptions";
 import { getStripeClient }                                   from "@/billing/stripe-config";
+import { rethrowNextInternal } from "@/lib/server-action-guard";
 import {
   getRequiredAdminSession,
   canAccessTenant,
@@ -274,6 +275,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       return NextResponse.json({ ok: true, effectiveNextPeriod: false });
     } catch (err) {
+    rethrowNextInternal(err);
       console.error("[billing/change-plan] Stripe error:", err);
       return NextResponse.json(
         { error: (err as Error).message },
@@ -350,6 +352,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
         return NextResponse.json({ url: checkoutUrl });
       } catch (err) {
+    rethrowNextInternal(err);
         console.error("[billing/change-plan] Plan-change Checkout error:", err);
         // Roll back pending_plan on checkout creation failure.
         await client
@@ -387,6 +390,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ url: checkoutUrl });
   } catch (err) {
+    rethrowNextInternal(err);
     console.error("[billing/change-plan] Stripe Checkout error:", err);
     return NextResponse.json(
       { error: (err as Error).message },

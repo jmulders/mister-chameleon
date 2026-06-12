@@ -37,11 +37,11 @@
  */
 
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { NavigationItemData, HeaderCtaData, LocaleEntry } from "@/cms/types";
 import { NavFlyout }    from "./nav/NavFlyout";
-import { NavMega }      from "./nav/NavMega";
 import { NavMegaRich }  from "./nav/NavMegaRich";
 import type { MegaMenuStyle } from "./nav/NavMegaRich";
 import { NavGrid }     from "./nav/NavGrid";
@@ -102,6 +102,26 @@ function SearchIcon() {
   );
 }
 
+function CartIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type NavVariant = "flyout" | "mega" | "grid" | "content";
@@ -124,6 +144,15 @@ interface NavBarProps {
    *   anything else     → NavMegaRich megaStyle="default" (clean-corporate look)
    */
   navFamily?:     string | null;
+  /**
+   * Render mode — used by multi-band layouts (header_triband) to split
+   * desktop and mobile nav into separate DOM positions.
+   *
+   *   "all"          — render both desktop nav + mobile hamburger (default)
+   *   "desktop-only" — render only the desktop nav component; omit MobileNav
+   *   "mobile-only"  — render only the MobileNav hamburger; omit desktop nav
+   */
+  mode?:          "all" | "desktop-only" | "mobile-only";
 }
 
 // ── Locale flag map ────────────────────────────────────────────────────────────
@@ -193,8 +222,8 @@ export function UtilityBar({
   if (!hasUtility && !hasCta && !hasLocales) return null;
 
   // Active locale: use cookie value if provided and found in the list; else first in list.
-  const currentLocale = (currentLocaleCode && locales.find((l) => l.code === currentLocaleCode))
-    ?? locales[0];
+  const foundLocale   = currentLocaleCode ? locales.find((l) => l.code === currentLocaleCode) : undefined;
+  const currentLocale = (foundLocale ?? locales[0]) as LocaleEntry;
 
   return (
     <div className="hidden md:flex items-center gap-1">
@@ -202,19 +231,22 @@ export function UtilityBar({
       {/* Utility links */}
       {hasUtility && (
         <nav aria-label="Utility navigation" className="flex items-center gap-0.5">
-          {utilityItems.map((item) => {
+          {utilityItems.map((item, i) => {
             const isSearch = item.label.toLowerCase() === "search";
+            const isCart   = item.label.toLowerCase() === "cart";
+            const isIcon   = isSearch || isCart;
             return (
               <Link
-                key={item.id}
+                // Fallback to href+index — some CMS API responses omit item ids.
+                key={item.id || `${item.href}-${i}`}
                 href={item.href}
                 target={item.openInNewTab ? "_blank" : undefined}
                 rel={item.openInNewTab ? "noopener noreferrer" : undefined}
-                aria-label={isSearch ? "Search" : undefined}
-                title={isSearch ? "Search" : undefined}
+                aria-label={isSearch ? "Search" : isCart ? "Shopping cart" : undefined}
+                title={isSearch ? "Search" : isCart ? "Shopping cart" : undefined}
                 className={cn(
                   "rounded-md py-1.5 text-sm transition-colors duration-150",
-                  isSearch ? "px-2" : "px-3",
+                  isIcon ? "px-2" : "px-3",
                   "text-[var(--nav-link,var(--header-fg,var(--text-muted)))]",
                   "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))]",
                   "hover:text-[var(--nav-link-hover,var(--text-brand))]",
@@ -222,7 +254,7 @@ export function UtilityBar({
                 )}
                 style={{ fontWeight: "var(--nav-link-weight, 500)" } as React.CSSProperties}
               >
-                {isSearch ? <SearchIcon /> : item.label}
+                {isSearch ? <SearchIcon /> : isCart ? <CartIcon /> : item.label}
               </Link>
             );
           })}
@@ -530,21 +562,12 @@ function resolveMegaStyle(navFamily: string | null | undefined): MegaMenuStyle {
 }
 
 /**
- * Check whether any item in the nav has a mega menu configured.
- * When true, NavMegaRich is used instead of the legacy NavMega.
- */
-function hasMegaMenuItems(items: NavigationItemData[]): boolean {
-  return items.some((item) => Boolean(item.megaMenu?.columns?.length));
-}
-
-/**
  * Primary navigation bar. Renders desktop + mobile layouts.
  * Returns null (no DOM output) when items is empty.
  *
  * The desktop component is chosen from navVariant:
  *   "flyout"  → NavFlyout    (vertical list; editorial/luxury)
  *   "mega"    → NavMegaRich  (rich column mega menu; corporate / AI / SaaS)
- *              — falls back to NavMega when no megaMenu.columns are configured
  *   "grid"    → NavGrid      (tile grid; portfolio)
  *   "content" → NavContent   (featured + list; marketing)
  */
@@ -553,33 +576,71 @@ export function NavBar({
   navVariant   = "flyout",
   navDensity   = "comfortable",
   navFamily    = null,
+  mode         = "all",
 }: NavBarProps) {
+  // ── Per-page nav variant override (client-side) ────────────────────────────
+  //
+  // The server resolves navVariant from tenant settings + theme family, but the
+  // Header is in a layout and layouts are NOT re-rendered on client-side
+  // navigation.  So we re-apply the per-item override here in the client
+  // component using usePathname() — this runs on every route change.
+  //
+  // The server's Layer 3 logic (in Header.tsx) handles the initial page load
+  // and `headerStyle` (transparent) which requires a server-side CSS class.
+  // This client-side layer handles navVariant changes during SPA navigation.
+  //
+  // NOTE: hook must be called unconditionally (React Rules of Hooks) — the
+  // early-return for empty items is intentionally placed AFTER the hook.
+  const pathname = usePathname();
+  const pageNavItem = items.find((item) => item.href === pathname);
+
   if (items.length === 0) return null;
+  let effectiveVariant: NavVariant = navVariant;
+  let effectiveDensity: NavDensity = navDensity;
+  if (pageNavItem?.headerVariant) {
+    const hv = pageNavItem.headerVariant;
+    if (hv === "minimal") {
+      effectiveVariant = "flyout";
+      effectiveDensity = "compact";
+    } else if (hv === "flyout") {
+      effectiveVariant = "flyout";
+      effectiveDensity = "comfortable";
+    } else if (hv === "mega") {
+      effectiveVariant = "mega";
+      effectiveDensity = "compact";
+    } else if (hv === "grid") {
+      effectiveVariant = "grid";
+    } else if (hv === "content") {
+      effectiveVariant = "content";
+    }
+    // "transparent" only affects headerStyle (server-side CSS class); no navVariant change
+  }
 
   const megaStyle = resolveMegaStyle(navFamily);
 
   // ── Desktop nav — dispatch to the family-appropriate pattern ────────────────
   let DesktopNavComponent: React.ReactNode;
-  switch (navVariant) {
+  switch (effectiveVariant) {
     case "mega":
-      // Use NavMegaRich when any item has megaMenu.columns configured.
-      // Fall back to the legacy NavMega when no rich column data is present —
-      // this ensures backward compatibility with existing navigationItem documents.
-      DesktopNavComponent = hasMegaMenuItems(items)
-        ? <NavMegaRich items={items} density={navDensity} megaStyle={megaStyle} />
-        : <NavMega     items={items} density={navDensity} />;
+      // Always use NavMegaRich — it handles both schema-driven column menus
+      // (megaMenu.columns) and legacy children-based menus via its built-in
+      // LegacyChildrenPanel which renders a richer Brons-style feature layout.
+      DesktopNavComponent = <NavMegaRich items={items} density={effectiveDensity} megaStyle={megaStyle} />;
       break;
     case "grid":
-      DesktopNavComponent = <NavGrid    items={items} density={navDensity} />;
+      DesktopNavComponent = <NavGrid    items={items} density={effectiveDensity} />;
       break;
     case "content":
-      DesktopNavComponent = <NavContent items={items} density={navDensity} />;
+      DesktopNavComponent = <NavContent items={items} density={effectiveDensity} />;
       break;
     case "flyout":
     default:
-      DesktopNavComponent = <NavFlyout  items={items} density={navDensity} />;
+      DesktopNavComponent = <NavFlyout  items={items} density={effectiveDensity} />;
       break;
   }
+
+  if (mode === "desktop-only") return <>{DesktopNavComponent}</>;
+  if (mode === "mobile-only")  return <MobileNav items={items} />;
 
   return (
     <>

@@ -7,8 +7,6 @@
  * no cross-tenant data access is possible.
  */
 
-export const runtime = "nodejs";
-
 import { createClient }          from "@supabase/supabase-js";
 import { cookies }               from "next/headers";
 import { revalidatePath }        from "next/cache";

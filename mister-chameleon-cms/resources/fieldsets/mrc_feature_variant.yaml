@@ -1,0 +1,59 @@
+fields:
+  -
+    handle: key
+    field:
+      type: text
+      display: Key
+      instructions: 'Unique identifier (e.g. feature_default, feature_saas).'
+      validate: required
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+      instructions: 'Inactive variants are ignored by the personalisation engine.'
+  -
+    handle: layout_variant
+    field:
+      type: select
+      display: 'Layout Variant'
+      options:
+        feature_grid: 'Grid (compact icon + title)'
+        feature_highlights: 'Highlights (alternating rows)'
+        feature_comparison: 'Comparison (side-by-side table)'
+      default: feature_grid
+  -
+    handle: title
+    field:
+      type: text
+      display: 'Section Heading'
+      validate: required
+  -
+    handle: subtitle
+    field:
+      type: textarea
+      display: Subtitle
+  -
+    handle: items
+    field:
+      type: grid
+      display: 'Feature Items'
+      add_row: 'Add feature'
+      fields:
+        -
+          handle: title
+          field:
+            type: text
+            display: Title
+        -
+          handle: body
+          field:
+            type: textarea
+            display: Body
+        -
+          handle: icon
+          field:
+            type: text
+            display: Icon
+            instructions: 'Lucide icon name (e.g. zap, shield, users).'

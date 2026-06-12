@@ -1,5 +1,7 @@
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 /**
  * app/admin/platform/deployment/actions.ts
  *
@@ -43,6 +45,7 @@ export async function seedEnrichmentPricingAction(): Promise<ActionResult> {
     revalidatePath("/admin/platform/deployment");
     return { ok: true, detail: "All enrichment pricing rows reset to defaults." };
   } catch (err) {
+    rethrowNextInternal(err);
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -116,6 +119,7 @@ export async function seedPlatformVariantsAction(): Promise<ActionResult> {
       detail: `${success} platform variant documents seeded successfully.`,
     };
   } catch (err) {
+    rethrowNextInternal(err);
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -138,6 +142,7 @@ export async function checkDeploymentStatusAction(): Promise<ActionResult> {
     revalidatePath("/admin/platform/deployment");
     return { ok: true, detail: "Status refreshed." };
   } catch (err) {
+    rethrowNextInternal(err);
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }

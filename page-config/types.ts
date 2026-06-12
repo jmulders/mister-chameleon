@@ -53,6 +53,7 @@ import type { BlockSurface }                               from "@/lib/surface";
 import type { ContextBlockKey, ContentBlockKey }          from "@/tenant";
 import type { PortableTextBlock, HeroBlockData,
               ProofBlockData, CTABlockData,
+              FeatureBlockData,
               NotificationBlockData,
               ConversionBlockData }                        from "@/cms/types";
 import type { ContentSource }                              from "./collection-source";
@@ -334,6 +335,11 @@ export interface TextSectionBlockData {
   readonly heading?:   string;
   readonly body?:      readonly PortableTextBlock[];
   readonly alignment?: "left" | "center" | "right";
+  /**
+   * HTML body — set when the Statamic textarea body contains HTML markup.
+   * When present, takes precedence over `body` (rendered with dangerouslySetInnerHTML).
+   */
+  readonly htmlBody?:  string;
 }
 
 // ── FeatureGrid ───────────────────────────────────────────────────────────────
@@ -375,6 +381,7 @@ export interface FeatureGridBlockData {
 export interface TestimonialItem {
   readonly quote:    string;
   readonly author:   string;
+  readonly role?:    string;
   readonly company?: string;
   /** URL of the author's avatar image, resolved by the CMS asset pipeline */
   readonly avatar?:  string;
@@ -430,6 +437,12 @@ export interface FaqSectionBlockData {
  */
 export interface RichTextBlockData {
   readonly body:      readonly PortableTextBlock[];
+  /**
+   * HTML body from Bard (save_html: true) or converted from ProseMirror
+   * (Live Preview).  When present, the component renders this via
+   * dangerouslySetInnerHTML instead of the PortableText renderer.
+   */
+  readonly htmlBody?: string;
   readonly maxWidth?: "narrow" | "default" | "wide";
 }
 
@@ -613,7 +626,7 @@ export interface SliderBlockData {
 export interface BlockCTA {
   readonly label:    string;
   readonly href:     string;
-  readonly variant?: "primary" | "secondary" | "outline" | "ghost";
+  readonly variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
 }
 
 // ── About ─────────────────────────────────────────────────────────────────────
@@ -800,19 +813,23 @@ export interface FormBlockData {
  */
 export interface ListingItem {
   /** Stable, CMS-assigned identifier; used for React `key` props */
-  readonly id:        string;
-  readonly title:     string;
+  readonly id:             string;
+  readonly title:          string;
   /** Absolute or root-relative URL for the item's detail page */
-  readonly href:      string;
-  readonly excerpt?:  string;
+  readonly href:           string;
+  readonly excerpt?:       string;
   /** ISO 8601 date string, e.g. "2024-09-01" */
-  readonly date?:     string;
-  readonly imageUrl?: string;
-  readonly imageAlt?: string;
-  readonly category?: string;
-  readonly tags?:     readonly string[];
+  readonly date?:          string;
+  /** Whether to display the date on the card. Defaults to `true` when absent. */
+  readonly showDate?:      boolean;
+  readonly imageUrl?:      string;
+  /** Image shown on card hover — optional, falls back to imageUrl when absent */
+  readonly hoverImageUrl?: string;
+  readonly imageAlt?:      string;
+  readonly category?:      string;
+  readonly tags?:          readonly string[];
   /** Flexible key-value pairs for type-specific metadata */
-  readonly meta?:     readonly { readonly label: string; readonly value: string }[];
+  readonly meta?:          readonly { readonly label: string; readonly value: string }[];
 }
 
 /**
@@ -832,8 +849,32 @@ export interface ListingItem {
  *   request time via CMSProvider.resolveCollection() rather than rendering the
  *   static `items` array.  Absent / { source: "manual" } = manual mode (default).
  */
+/**
+ * A single slide in the listing_slider variant.
+ * Mirrors CmsSliderMediaItem from cms/types but uses page-config naming
+ * conventions (readonly, no CMS-specific prefixes).
+ */
+export interface SliderMediaItem {
+  readonly key:         string;
+  readonly mediaType:   "image" | "video";
+  // ── Image ───────────────────────────────────────────────────────────────
+  readonly imageUrl?:   string;
+  readonly alt?:        string;
+  // ── Video ───────────────────────────────────────────────────────────────
+  readonly videoSource?: "youtube" | "vimeo" | "upload";
+  readonly videoId?:    string;
+  readonly vimeoId?:    string;
+  readonly videoUrl?:   string;
+  readonly posterUrl?:  string;
+  readonly autoplay?:   boolean;
+  // ── Shared ──────────────────────────────────────────────────────────────
+  readonly caption?:    string;
+}
+
 export interface ListingBlockData {
   readonly heading?:       string;
+  /** Optional intro text shown below the heading. May contain HTML from Statamic textarea. */
+  readonly intro?:         string;
   readonly items:          readonly ListingItem[];
   readonly maxItems?:      number;
   readonly viewAllHref?:   string;
@@ -843,6 +884,11 @@ export interface ListingBlockData {
    * @see ContentSource in @/page-config/collection-source
    */
   readonly contentSource?: ContentSource;
+  /**
+   * Media slides for the listing_slider variant.
+   * Only populated when variant === "listing_slider".
+   */
+  readonly mediaItems?:    readonly SliderMediaItem[];
 }
 
 // ── ArticleBody ───────────────────────────────────────────────────────────────
@@ -928,15 +974,17 @@ export interface ArticleMetaBlockData {
  * and listing data can evolve independently.
  */
 export interface RelatedItem {
-  readonly id:        string;
-  readonly title:     string;
-  readonly href:      string;
-  readonly excerpt?:  string;
-  readonly imageUrl?: string;
-  readonly imageAlt?: string;
-  readonly category?: string;
+  readonly id:             string;
+  readonly title:          string;
+  readonly href:           string;
+  readonly excerpt?:       string;
+  readonly imageUrl?:      string;
+  /** Image shown on card hover — optional, falls back to imageUrl when absent */
+  readonly hoverImageUrl?: string;
+  readonly imageAlt?:      string;
+  readonly category?:      string;
   /** ISO 8601 */
-  readonly date?:     string;
+  readonly date?:          string;
 }
 
 /**
@@ -1360,6 +1408,16 @@ export interface TimelineItem {
   readonly icon?:       string;
   /** Optional link for items that expand to a detail page */
   readonly href?:       string;
+
+  // ── Slider-variant media (optional — ignored by non-slider layouts) ─────────
+  /** "image" | "video_file" | "youtube" | "vimeo" */
+  readonly mediaType?:  "image" | "video_file" | "youtube" | "vimeo";
+  /** Resolved image URL, video-file URL, or embed URL (YouTube/Vimeo player) */
+  readonly mediaUrl?:   string;
+  /** Poster/thumbnail URL for video items */
+  readonly posterUrl?:  string;
+  readonly autoPlay?:   boolean;
+  readonly loop?:       boolean;
 }
 
 /**
@@ -1431,21 +1489,44 @@ export interface QuickLinksBlockData {
  *   text_media_stacked — media above, text below (full-width)
  */
 export interface TextMediaBlockData {
-  readonly eyebrow?:   string;
-  readonly heading?:   string;
-  readonly body?:      readonly PortableTextBlock[];
-  readonly ctas?:      readonly BlockCTA[];
-  /** Primary media URL — image CDN URL or video embed/source URL */
-  readonly mediaUrl?:  string;
-  readonly mediaAlt?:  string;
+  readonly eyebrow?:     string;
+  readonly heading?:     string;
+  readonly body?:        readonly PortableTextBlock[];
+  readonly ctas?:        readonly BlockCTA[];
+  /** Primary media URL — image CDN URL, YouTube/Vimeo embed URL, or uploaded video URL */
+  readonly mediaUrl?:    string;
+  readonly mediaAlt?:    string;
   /** Caption rendered below the media element */
-  readonly caption?:   string;
+  readonly caption?:     string;
   /**
    * Type of the media asset.
    *   "image" — render as an <img> (default)
-   *   "video" — render as an embedded or native video player
+   *   "video" — render as an embedded iframe (YouTube/Vimeo) or native <video> (upload)
    */
-  readonly mediaType?: "image" | "video";
+  readonly mediaType?:   "image" | "video";
+  /**
+   * For video: how the URL was authored.
+   *   "youtube" | "vimeo" — mediaUrl is an embed URL; render as 16:9 iframe
+   *   "upload"            — mediaUrl is a direct video file; render as <video>
+   */
+  readonly videoSource?: "youtube" | "vimeo" | "upload";
+  /** Poster image shown before playback (used by <video> and as fallback image for embeds) */
+  readonly posterUrl?:   string;
+  /** Autoplay on page load (audio muted when true) */
+  readonly autoPlay?:    boolean;
+  /** Loop the video continuously */
+  readonly loop?:        boolean;
+  /**
+   * Optional background layer rendered behind the main media asset.
+   *   "color" — solid colour fill  (see mediaBgColor)
+   *   "image" — decorative image / pattern  (see mediaBgImageUrl)
+   * Omit for no background (default).  Primarily useful with transparent PNGs.
+   */
+  readonly mediaBgType?:     "color" | "image";
+  /** CSS colour value (hex, rgb, hsl …) — used when mediaBgType = "color" */
+  readonly mediaBgColor?:    string;
+  /** Background image URL — used when mediaBgType = "image" */
+  readonly mediaBgImageUrl?: string;
 }
 
 // ── ContactSection ────────────────────────────────────────────────────────────
@@ -1538,9 +1619,15 @@ export interface PricingSectionBlockData {
  *              block type or its data shape — it is purely presentational.
  */
 interface ContentBlockBase {
-  readonly id:       string;
-  readonly variant?: string;
-  readonly surface?: BlockSurface;
+  readonly id:        string;
+  readonly variant?:  string;
+  readonly surface?:  BlockSurface;
+  /**
+   * Optional anchor ID for in-page navigation.
+   * Renders as the `id` attribute on the block's wrapper element,
+   * enabling direct linking via `/page#anchor-id` in CTAs.
+   */
+  readonly anchorId?: string;
 }
 
 // ── Existing live blocks ──────────────────────────────────────────────────────
@@ -1847,8 +1934,17 @@ export interface ResolvedContextSlot {
    * Null means this slot is inactive for the current request.
    */
   readonly variantKey: string | null;
-  /** Structural position inherited from the template's ContextSlotSpec */
-  readonly position:   ContextSlotPosition;
+  /**
+   * Structural position relative to content blocks.
+   *
+   * Used by the template-based rendering path (Sanity, Storyblok) where slots
+   * are placed before or after the content blocks array.  Optional because the
+   * unified `pageItems` rendering path (Statamic) derives position from array
+   * order instead — slots appear at their authored position in the blocks array.
+   *
+   * When absent the renderer uses the slot's position in `pageItems` directly.
+   */
+  readonly position?:  ContextSlotPosition;
   /**
    * Optional layout/structural variant for the context block component.
    *
@@ -1865,6 +1961,40 @@ export interface ResolvedContextSlot {
    */
   readonly layoutVariant?: string;
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PAGE ITEM  (unified rendering unit)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * A single rendering unit in a page's unified item sequence.
+ *
+ * `PageItem` is the discriminated union of context slots and content blocks
+ * as they appear in the ordered `pageItems` array on `PageConfig`.
+ *
+ * ─── Motivation ───────────────────────────────────────────────────────────────
+ *
+ *   The classic `before-content / after-content` model forces all context slots
+ *   into two fixed positions (top and bottom of the content area).  `PageItem`
+ *   replaces that model with a single ordered array where slots and blocks can
+ *   appear at any position — enabling editors to place a CTA slot between two
+ *   content blocks, or a proof slot after an introductory text section.
+ *
+ * ─── Rendering ────────────────────────────────────────────────────────────────
+ *
+ *   `TemplateRenderer` iterates `pageConfig.pageItems` in order.
+ *   Each item is rendered as either a `ContextSlotRenderer` or a
+ *   `ContentBlockRenderer` depending on its `kind` discriminant.
+ *
+ * ─── Notification overlay ─────────────────────────────────────────────────────
+ *
+ *   Notification slots are rendered outside the `pageItems` loop as a
+ *   full-page overlay.  They are still included in `contextSlots` for the
+ *   decision engine but do not appear as `PageItem` entries.
+ */
+export type PageItem =
+  | { readonly kind: "slot";  readonly slot:  ResolvedContextSlot }
+  | { readonly kind: "block"; readonly block: ContentBlock };
 
 // ═════════════════════════════════════════════════════════════════════════════
 // PAGE SEO
@@ -1957,22 +2087,44 @@ export interface PageConfig {
   readonly templateKey:    TemplateKey;
 
   /**
-   * Adaptive context slots for this page, with variant keys resolved.
+   * Unified ordered rendering sequence — the primary rendering source.
    *
-   * Each slot corresponds to a ContextSlotSpec in the matching
-   * TemplateDefinition.  Slots with variantKey === null are inactive and
-   * must not be rendered.
+   * An ordered array of `PageItem` entries (each either a context slot or a
+   * content block) reflecting the exact sequence authored in the CMS.  Slots
+   * and blocks can be freely interleaved: a proof slot may appear between two
+   * text sections, a CTA slot may appear mid-page, etc.
    *
-   * Render order within a position group follows array order.
+   * `TemplateRenderer` iterates this array in order.  Notification slots are
+   * excluded (rendered as overlays) and must be retrieved from `contextSlots`.
+   *
+   * ─── When populated ───────────────────────────────────────────────────────
+   *
+   *   Statamic pages use the unified model: `pageItems` is built directly from
+   *   the `page_blocks` Replicator array in authoring order.
+   *
+   *   For CMS providers that separate slots from content (Sanity, Storyblok),
+   *   `pageItems` is built by placing before-content slots first, then content
+   *   blocks, then after-content slots — preserving backward compatibility.
+   */
+  readonly pageItems:      readonly PageItem[];
+
+  /**
+   * Flat list of all active context slots on this page.
+   *
+   * Derived from `pageItems` + any notification slots.  Used by:
+   *   - The decision engine to update each slot's `variantKey`.
+   *   - `TemplateRenderer` to fetch slot content in parallel before rendering.
+   *
+   * Do not use this array for rendering order — use `pageItems` instead.
    */
   readonly contextSlots:   readonly ResolvedContextSlot[];
 
   /**
    * Ordered array of CMS-driven content blocks.
    *
-   * Rendered between the "before-content" and "after-content" context slots.
-   * The array order is the render order — do not sort or reorder at render time.
-   * Blocks are reorderable in the CMS; the order is part of the page content.
+   * @deprecated Prefer `pageItems` for rendering.  Kept for backward compat
+   * with callers that read `contentBlocks` directly (e.g. entity page assemblers).
+   * Derived from `pageItems` — same data, content-only view.
    */
   readonly contentBlocks:  readonly ContentBlock[];
 
@@ -2147,6 +2299,8 @@ export interface ContextSlotData {
   readonly proof?:        ProofBlockData;
   /** CTA slot content + decision-engine variant key for analytics attribution */
   readonly cta?:          CTABlockData   & { readonly ctaKey?: string };
+  /** Feature grid slot content */
+  readonly feature?:      FeatureBlockData;
   /**
    * Conversion section content (headline + CTAs, optional booking embed).
    * When present, a ConversionBlock is rendered at the after-content position.

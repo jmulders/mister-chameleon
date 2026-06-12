@@ -1,0 +1,146 @@
+title: Vacancy
+tabs:
+  meta:
+    display: Meta
+    sections:
+      - fields:
+          - handle: title
+            field:
+              type: text
+              display: Job title
+              validate: required
+          - handle: date
+            field:
+              type: date
+              display: Publication date
+              instructions: Date this vacancy will be published. Also used on the content calendar.
+              time_enabled: true
+              time_seconds_enabled: false
+          - handle: closing_date
+            field:
+              type: date
+              display: Closing date
+              instructions: Application deadline. Vacancy is automatically hidden from listings after this date.
+  taxonomy:
+    display: Taxonomy
+    sections:
+      - fields:
+          - handle: employment_type
+            field:
+              type: terms
+              display: Employment type
+              taxonomies:
+                - employment_type
+              max_items: 1
+              instructions: Type of contract or work arrangement (e.g. Full-time, Freelance).
+          - handle: location
+            field:
+              type: terms
+              display: Location
+              taxonomies:
+                - location
+              instructions: Office location(s) or remote arrangement.
+          - handle: education_level
+            field:
+              type: terms
+              display: Education level
+              taxonomies:
+                - education_level
+              max_items: 1
+              instructions: Minimum education level required for this role.
+          - handle: sector
+            field:
+              type: terms
+              display: Sector
+              taxonomies:
+                - sector
+              instructions: Industry sector(s) this vacancy belongs to.
+  card:
+    display: Card
+    sections:
+      - fields:
+          - import: mrc_card_fields
+  content:
+    display: Content
+    sections:
+      - fields:
+          - handle: page_blocks
+            field:
+              type: replicator
+              display: Content blocks
+              collapse: true
+              button_label: Add block
+              sets:
+                text_and_media:
+                  display: Text & Media
+                  sets:
+                    text_section:
+                      display: Text section
+                      fields:
+                        - import: mrc_text_section
+                    rich_text:
+                      display: Rich text
+                      fields:
+                        - import: mrc_rich_text
+                    image:
+                      display: Text + Image
+                      fields:
+                        - import: mrc_image_block
+                conversion_and_forms:
+                  display: Conversion
+                  sets:
+                    cta_section:
+                      display: CTA section
+                      fields:
+                        - import: mrc_cta_section
+                    form_section:
+                      display: Form section
+                      fields:
+                        - import: mrc_form_section
+  seo:
+    display: SEO
+    sections:
+      - fields:
+          - handle: seo_title
+            field:
+              type: text
+              display: 'SEO title'
+              instructions: 'Page title shown in search results. Leave empty to use the entry title.'
+          - handle: seo_description
+            field:
+              type: textarea
+              display: 'SEO description'
+              instructions: 'Meta description shown in search results (max 160 chars).'
+          - handle: robots_noindex
+            field:
+              type: toggle
+              display: 'No-index'
+              default: false
+              instructions: 'Prevent search engines from indexing this page.'
+          - handle: robots_nofollow
+            field:
+              type: toggle
+              display: 'No-follow'
+              default: false
+              instructions: 'Prevent search engines from following links on this page.'
+          - handle: canonical_url
+            field:
+              type: text
+              display: 'Canonical URL'
+              instructions: 'Override the default canonical URL. Leave empty to use the page URL.'
+          - handle: og_title
+            field:
+              type: text
+              display: 'Social title'
+              instructions: 'Title shown when shared on social media. Falls back to SEO title or entry title.'
+          - handle: og_description
+            field:
+              type: textarea
+              display: 'Social description'
+              instructions: 'Description shown when shared on social media. Falls back to SEO description.'
+          - handle: og_image
+            field:
+              type: assets
+              display: 'Social image'
+              max_files: 1
+              instructions: 'Image shown when shared on social media. Recommended: 1200x630px.'

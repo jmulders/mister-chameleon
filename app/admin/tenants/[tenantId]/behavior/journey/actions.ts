@@ -1,5 +1,7 @@
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 /**
  * Journey Insight Admin — Server Actions
  *
@@ -163,6 +165,7 @@ export async function fetchRecentJourneySessionsAction(
       };
     });
   } catch (err) {
+    rethrowNextInternal(err);
     logger.error("[journey-insight/actions] fetchRecentJourneySessions failed", {
       tenantId,
       error: err instanceof Error ? err.message : String(err),
@@ -262,6 +265,7 @@ export async function fetchSessionJourneyAction(
 
     return { sessionId, journey, events: recentEvents, crmIdentity, sequenceDetection };
   } catch (err) {
+    rethrowNextInternal(err);
     logger.error("[journey-insight/actions] fetchSessionJourney failed", {
       tenantId,
       sessionId,

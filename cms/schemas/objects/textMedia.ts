@@ -125,6 +125,38 @@ export default defineType({
       hidden: ({ parent }) => (parent as { mediaType?: string } | undefined)?.mediaType !== "video",
     }),
 
+    // ── Media background (image-only) ─────────────────────────────────────────
+    // Lets the editor place a colour or pattern behind the main image.
+    // Intended for transparent PNGs that need visual depth or brand context.
+    defineField({
+      name: "mediaBgType",
+      title: "Media Background",
+      type: "string",
+      description: "Optional background layer behind the image. Leave unset for no background.",
+      options: {
+        list: [
+          { title: "None (default)",            value: "none"  },
+          { title: "Solid colour",              value: "color" },
+          { title: "Background image / pattern", value: "image" },
+        ],
+      },
+      hidden: ({ parent }) => (parent as { mediaType?: string } | undefined)?.mediaType === "video",
+    }),
+    defineField({
+      name: "mediaBgColor",
+      title: "Background Colour",
+      type: "string",
+      description: "CSS colour value (e.g. #f0f4ff or rgb(240,244,255)). Used when Background = Solid colour.",
+      hidden: ({ parent }) => (parent as { mediaBgType?: string } | undefined)?.mediaBgType !== "color",
+    }),
+    defineField({
+      name: "mediaBgImage",
+      title: "Background Image",
+      type: "image",
+      description: "Pattern or texture shown behind the main media asset.",
+      hidden: ({ parent }) => (parent as { mediaBgType?: string } | undefined)?.mediaBgType !== "image",
+    }),
+
     // ── Caption ────────────────────────────────────────────────────────────────
     defineField({
       name: "caption",

@@ -35,13 +35,13 @@
  *   the --font-* var as the raw font-stack string, which the browser resolves
  *   using the CDN-loaded @font-face declarations.
  *
- *   Fixed-weight fonts served via CDN (not next/font):
+ *   Fonts served via CDN (not next/font):
  *     Sans:    Roboto, Poppins, Lato
- *     Serif:   Cormorant Garamond, Merriweather, Libre Baskerville,
- *              PT Serif, Crimson Text, Arvo
+ *     Serif:   Cormorant Garamond, EB Garamond (Turbopack regression in 16.2),
+ *              Merriweather, Libre Baskerville, PT Serif, Crimson Text, Arvo
  *     Display: Barlow Condensed, Bebas Neue, Anton, Archivo Black,
  *              Abril Fatface
- *     Mono:    IBM Plex Mono
+ *     Mono:    IBM Plex Mono, Fira Code (Turbopack regression in 16.2)
  *
  * ─── How this wires into the token system ────────────────────────────────────
  *
@@ -117,7 +117,7 @@ import {
   Lora,
   Source_Serif_4,
   // Cormorant_Garamond → CDN (fixed-weight)
-  EB_Garamond,
+  // EB_Garamond       → CDN (Turbopack incompatible even as variable font)
   // Merriweather      → CDN (fixed-weight)
   // Libre_Baskerville → CDN (fixed-weight)
   // PT_Serif          → CDN (fixed-weight)
@@ -132,7 +132,7 @@ import {
   // Abril_Fatface    → CDN (fixed-weight)
   // ── Monospace ─────────────────────────────────────────────────────────────
   JetBrains_Mono,
-  Fira_Code,
+  // Fira_Code     → CDN (Turbopack incompatible even as variable font)
   Source_Code_Pro,
   // IBM_Plex_Mono → CDN (fixed-weight)
   Roboto_Mono,
@@ -329,12 +329,8 @@ const sourceSerif4 = Source_Serif_4({
   display:  "swap",
 });
 
-/** EB Garamond — classic Garamond revival; variable weight. */
-const ebGaramond = EB_Garamond({
-  subsets:  ["latin"],
-  variable: "--font-eb-garamond",
-  display:  "swap",
-});
+// EB Garamond is served via CDN (see app/layout.tsx) — Turbopack rejects its
+// virtual CSS module even in variable-font mode (Next.js 16.2.6 regression).
 
 // ── Display ───────────────────────────────────────────────────────────────────
 // NOTE: Barlow Condensed, Bebas Neue, Anton, Archivo Black, Abril Fatface
@@ -357,12 +353,9 @@ const jetbrainsMono = JetBrains_Mono({
   display:  "swap",
 });
 
-/** Fira Code — ligature-rich programming font; variable weight. */
-const firaCode = Fira_Code({
-  subsets:  ["latin"],
-  variable: "--font-fira-code",
-  display:  "swap",
-});
+// Fira Code is served via CDN (see app/layout.tsx) — Turbopack rejects its
+// virtual CSS module even in variable-font mode (Next.js 16.2.6 regression,
+// same as EB Garamond).
 
 /** Source Code Pro — Adobe's clean mono; variable weight. */
 const sourceCodePro = Source_Code_Pro({
@@ -433,13 +426,13 @@ export const GOOGLE_FONT_MAP: Readonly<Record<string, GoogleFontEntry>> = {
   "playfair display":     { cssVar: "--font-playfair-display"  },
   "lora":                 { cssVar: "--font-lora"              },
   "source serif 4":       { cssVar: "--font-source-serif-4"    },
-  "eb garamond":          { cssVar: "--font-eb-garamond"       },
+  // "eb garamond" → CDN only; raw font-stack resolves via @font-face in layout.tsx
   // display (variable-weight only; Barlow Condensed, Bebas Neue, Anton,
   //   Archivo Black, Abril Fatface are CDN)
   "oswald":               { cssVar: "--font-oswald"            },
   // monospace (variable-weight only; IBM Plex Mono is CDN)
   "jetbrains mono":       { cssVar: "--font-jetbrains-mono"    },
-  "fira code":            { cssVar: "--font-fira-code"         },
+  // "fira code" → CDN only; raw font-stack resolves via @font-face in layout.tsx
   "source code pro":      { cssVar: "--font-source-code-pro"   },
   "roboto mono":          { cssVar: "--font-roboto-mono"       },
 } as const;
@@ -488,12 +481,12 @@ export const ALL_FONT_VARIABLES: string = [
   playfairDisplay.variable,
   lora.variable,
   sourceSerif4.variable,
-  ebGaramond.variable,
+  // ebGaramond → CDN; no .variable entry needed
   // display
   oswald.variable,
   // monospace
   jetbrainsMono.variable,
-  firaCode.variable,
+  // firaCode → CDN; no .variable entry needed
   sourceCodePro.variable,
   robotoMono.variable,
 ].join(" ");

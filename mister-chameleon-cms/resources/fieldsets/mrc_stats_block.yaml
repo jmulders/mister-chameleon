@@ -1,0 +1,52 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: variant
+    field:
+      type: select
+      display: Variant
+      default: default
+      options:
+        default: Default
+        compact: Compact
+        dark: Dark
+  -
+    handle: heading
+    field:
+      type: text
+      display: Heading
+  -
+    handle: items
+    field:
+      type: grid
+      display: Stats
+      add_row: 'Add stat'
+      fields:
+        -
+          handle: prefix
+          field:
+            type: text
+            display: Prefix
+            instructions: 'Optional symbol before the value, e.g. "€" or "~".'
+        -
+          handle: value
+          field:
+            type: text
+            display: Value
+            instructions: 'e.g. "250+", "3x", "< 1 day"'
+        -
+          handle: suffix
+          field:
+            type: text
+            display: Suffix
+            instructions: 'Optional symbol after the value, e.g. "%" or "+".'
+        -
+          handle: label
+          field:
+            type: text
+            display: Label

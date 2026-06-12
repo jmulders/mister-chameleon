@@ -157,6 +157,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
     { label: "Email",      href: `${INTEGRATIONS_PREFIX}/email`,      activePrefix: `${INTEGRATIONS_PREFIX}/email`,      note: "Resend" },
     { label: "Stripe",     href: `${INTEGRATIONS_PREFIX}/stripe`,     activePrefix: `${INTEGRATIONS_PREFIX}/stripe`,     note: "Payments" },
     { label: "Storage",    href: `${INTEGRATIONS_PREFIX}/storage`,    activePrefix: `${INTEGRATIONS_PREFIX}/storage`,    note: "Assets" },
+    { label: "Forge",      href: `${INTEGRATIONS_PREFIX}/forge`,      activePrefix: `${INTEGRATIONS_PREFIX}/forge`,      note: "Deploy" },
   ];
 
   const monitoringItems = [
@@ -177,6 +178,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
   ];
 
   const platformDefaultItems = [
+    { label: "Adaptive blocks",    href: "/admin/platform/blocks",    activePrefix: "/admin/platform/blocks",    icon: icons.layers,  note: "Catalog" },
     { label: "Variant defaults",   href: "/admin/platform/variants",  activePrefix: "/admin/platform/variants",  icon: icons.layers },
     { label: "Interest defaults",  href: "/admin/interest-profiles",  activePrefix: "/admin/interest-profiles",  icon: icons.layers },
   ];

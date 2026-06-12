@@ -337,8 +337,8 @@ export const HOMEPAGE_RULES: readonly HomepageRule[] = [
  * all receive this brand-led experience.
  */
 export const DEFAULT_HOMEPAGE_PLAN: ExperiencePlan = {
-  heroKey: "hero_direct_brand",
-  proofKey: "proof_platform",
-  ctaKey: "cta_meeting",
+  heroKey: "hero_default",
+  proofKey: "proof_default",
+  ctaKey: "cta_default",
   reason: "Default/direct traffic gets brand-led experience.",
 } as const;

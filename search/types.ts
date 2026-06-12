@@ -263,6 +263,15 @@ export interface SearchResult {
   readonly meta?:       readonly SearchResultMeta[];
   readonly highlights?: readonly SearchHighlight[];
   readonly score?:      number;
+  /**
+   * Source collection handle (e.g. "case_studies").  Optional — set by
+   * providers that know the originating CMS collection.  Callers may use
+   * this to build per-collection filter UIs; when absent, fall back to
+   * grouping by `type`.
+   */
+  readonly collection?:      string;
+  /** Human-readable label for `collection` (e.g. "Case Studies"). */
+  readonly collectionLabel?: string;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

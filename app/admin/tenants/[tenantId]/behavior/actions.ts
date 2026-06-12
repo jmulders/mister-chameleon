@@ -1,5 +1,7 @@
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 /**
  * Behavior Admin — Server Actions
  *
@@ -456,6 +458,7 @@ export async function checkScoringRuleDependenciesAction(
     const dependentRules = await findDependentRules(tenantId, behavioralScoringMatcher());
     return { ok: true, dependentRules };
   } catch (err) {
+    rethrowNextInternal(err);
     return { ok: false, error: err instanceof Error ? err.message : "Dependency check failed." };
   }
 }

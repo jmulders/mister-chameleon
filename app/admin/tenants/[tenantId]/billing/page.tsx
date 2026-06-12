@@ -69,6 +69,7 @@ import { checkSessionSoftCap, getSessionCreditLedger } from "@/billing/plan-enfo
 import type { SessionCapResult, SessionCreditLedgerEntry } from "@/billing/plan-enforcement";
 import { SESSION_CREDIT_BUNDLES } from "@/billing/plans";
 import type { SessionCreditBundle } from "@/billing/plans";
+import { rethrowNextInternal } from "@/lib/server-action-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -375,6 +376,7 @@ export default async function TenantBillingPage({
   try {
     walletState = await getWalletState(client, tenantId);
   } catch (err) {
+    rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.error(
       `[billing/page] getWalletState failed — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
@@ -464,6 +466,7 @@ export default async function TenantBillingPage({
           : 0,
       };
     } catch (err) {
+    rethrowNextInternal(err);
       const e = serializeError(err) as Record<string, unknown>;
       console.error(
         `[billing/page] getUsageEventSummary failed — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
@@ -496,6 +499,7 @@ export default async function TenantBillingPage({
     ledgerHasNext = raw.length > LEDGER_PAGE_SIZE;
     walletLedger  = raw.slice(0, LEDGER_PAGE_SIZE);
   } catch (err) {
+    rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
       `[billing/page] getWalletLedger error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
@@ -518,6 +522,7 @@ export default async function TenantBillingPage({
       0,
     );
   } catch (err) {
+    rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
       `[billing/page] getWalletBreakdown error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
@@ -531,6 +536,7 @@ export default async function TenantBillingPage({
   try {
     reloadAttempts = await getRecentReloadAttempts(client, tenantId, 15);
   } catch (err) {
+    rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
       `[billing/page] getRecentReloadAttempts error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
@@ -564,6 +570,7 @@ export default async function TenantBillingPage({
   try {
     webhookEvents = await getRecentWebhookEvents(client, tenantId, 20);
   } catch (err) {
+    rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
       `[billing/page] getRecentWebhookEvents error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
@@ -588,6 +595,7 @@ export default async function TenantBillingPage({
       getSessionCreditLedger(tenantId, 50),
     ]);
   } catch (err) {
+    rethrowNextInternal(err);
     console.warn("[billing/page] session data fetch failed:", err);
   }
 

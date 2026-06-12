@@ -23,6 +23,8 @@
  *                         content (default)
  *   timeline_compact    — tight single-column list with inline dates
  *   timeline_milestones — bold date cards in a grid (suitable for company history)
+ *   timeline_slider     — full-width history slider: media left, title+text right,
+ *                         horizontal navigation bar at the bottom
  */
 
 import { defineArrayMember, defineField, defineType } from "sanity";
@@ -44,6 +46,7 @@ export default defineType({
           { title: "Vertical — dot markers, alternating content (default)", value: "timeline_vertical"   },
           { title: "Compact — tight list with inline dates",                value: "timeline_compact"    },
           { title: "Milestones — bold date cards in a grid",                value: "timeline_milestones" },
+          { title: "Slider — media left, title+text right, bottom nav bar", value: "timeline_slider"     },
         ],
       },
       initialValue: "timeline_vertical",
@@ -99,6 +102,67 @@ export default defineType({
               type: "text",
               rows: 3,
               description: "Optional supporting copy for this milestone.",
+            }),
+
+            // ── Slider-variant media ───────────────────────────────────────
+            defineField({
+              name: "mediaType",
+              title: "Media Type",
+              type: "string",
+              description: "Used by the Slider variant. Leave unset for text-only entries.",
+              options: {
+                list: [
+                  { title: "Image",                value: "image"      },
+                  { title: "Video (uploaded file)", value: "video_file" },
+                  { title: "YouTube",              value: "youtube"    },
+                  { title: "Vimeo",                value: "vimeo"      },
+                ],
+              },
+              hidden: ({ parent }) => !parent?.mediaType && false, // always visible in Sanity Studio
+            }),
+            defineField({
+              name: "mediaAsset",
+              title: "Image or Video File",
+              type: "image",
+              description: "Used when Media Type is 'image' or 'video_file'.",
+              hidden: ({ parent }) => !["image", "video_file"].includes(parent?.mediaType ?? ""),
+            }),
+            defineField({
+              name: "videoId",
+              title: "YouTube ID or URL",
+              type: "string",
+              description: "Bare 11-character ID, full YouTube URL, youtu.be link, or embed URL.",
+              hidden: ({ parent }) => parent?.mediaType !== "youtube",
+            }),
+            defineField({
+              name: "vimeoId",
+              title: "Vimeo ID or URL",
+              type: "string",
+              description: "Numeric Vimeo ID or full vimeo.com URL.",
+              hidden: ({ parent }) => parent?.mediaType !== "vimeo",
+            }),
+            defineField({
+              name: "videoPlaceholder",
+              title: "Video Placeholder Image",
+              type: "image",
+              description: "Poster frame shown before the video plays.",
+              hidden: ({ parent }) => !["video_file", "youtube", "vimeo"].includes(parent?.mediaType ?? ""),
+            }),
+            defineField({
+              name: "videoAutoplay",
+              title: "Autoplay",
+              type: "boolean",
+              description: "Start playing automatically (muted).",
+              initialValue: false,
+              hidden: ({ parent }) => !["video_file", "youtube", "vimeo"].includes(parent?.mediaType ?? ""),
+            }),
+            defineField({
+              name: "videoLoop",
+              title: "Loop",
+              type: "boolean",
+              description: "Loop the video continuously.",
+              initialValue: false,
+              hidden: ({ parent }) => !["video_file", "youtube", "vimeo"].includes(parent?.mediaType ?? ""),
             }),
           ],
           preview: {

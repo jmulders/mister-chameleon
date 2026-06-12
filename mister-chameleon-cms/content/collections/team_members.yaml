@@ -1,0 +1,9 @@
+title: Team
+sites:
+  - nl
+route: 'team/{slug}'
+taxonomies:
+  - sector
+  - solution
+  - location
+template: collection_entry

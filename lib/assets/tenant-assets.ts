@@ -29,7 +29,8 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getActiveStorageAdapter } from "./storage-adapter";
+// Note: storage adapter is imported dynamically inside uploadToStorage to allow
+// per-tenant override selection without circular imports at module load time.
 
 // ── Types ───────────────────────────────────────────────────────────────────────
 
@@ -346,6 +347,7 @@ export async function deleteAsset(
   //    For R2/Supabase, we use the regular storagePath.
   if (asset.storageBackend) {
     try {
+      const { getActiveStorageAdapter } = await import("./storage-adapter");
       const adapter = await getActiveStorageAdapter();
       // Sanity assets: use the sanityAssetId (= Sanity _id) as the deletion key.
       // All other providers: use the regular storagePath (object key).
@@ -392,7 +394,10 @@ export async function uploadToStorage(
   tenantId: string,
   file:     { name: string; type: string; bytes: ArrayBuffer },
 ): Promise<{ storagePath: string; publicUrl: string; storageBackend: string; providerBucket: string }> {
-  const adapter = await getActiveStorageAdapter();
+  // Use per-tenant storage override when configured, otherwise fall back to
+  // platform-level provider selection.
+  const { getActiveStorageAdapterForTenant } = await import("./storage-adapter");
+  const adapter = await getActiveStorageAdapterForTenant(tenantId);
 
   const result = await adapter.upload({
     tenantId,

@@ -33,7 +33,7 @@ interface RichTextBlockProps {
 }
 
 export function RichTextBlock({ data, variant: rawVariant }: RichTextBlockProps) {
-  const { body, maxWidth } = data;
+  const { body, htmlBody, maxWidth } = data;
 
   // Resolve variant: the block's own maxWidth field takes priority over the
   // variant prop, letting CMS authors set width per-instance rather than relying
@@ -48,6 +48,28 @@ export function RichTextBlock({ data, variant: rawVariant }: RichTextBlockProps)
     resolvedWidth === "wide"   ? "lg" :
     "md";
 
+  // ── HTML body (Bard save_html:true or ProseMirror-converted) ─────────────────
+  //
+  // htmlBody takes precedence over the PortableText `body` array.  It is set
+  // for all Bard-sourced content — both on-disk HTML strings and the ProseMirror
+  // node arrays that the Statamic CP sends during Live Preview.
+
+  if (htmlBody) {
+    return (
+      <Section spacing="md">
+        <Container size={containerSize}>
+          {/* eslint-disable-next-line react/no-danger */}
+          <div
+            className="mc-rich-text"
+            dangerouslySetInnerHTML={{ __html: htmlBody }}
+          />
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── Portable Text fallback ────────────────────────────────────────────────────
+
   if (!body || body.length === 0) return null;
 
   return (
@@ -55,7 +77,7 @@ export function RichTextBlock({ data, variant: rawVariant }: RichTextBlockProps)
       <Container size={containerSize}>
         <PortableTextRenderer
           blocks={body as PortableTextBlock[]}
-          className="prose prose-neutral max-w-none"
+          className="mc-rich-text"
         />
       </Container>
     </Section>

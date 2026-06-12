@@ -388,9 +388,9 @@ const FEATURES_DATA = {
   ],
   cta: { label: "Bekijk alle diensten", href: "#" },
 };
-const LOGOS_DATA = {
+const LOGOS_DATA: import("@/page-config").LogoStripBlockData = {
   heading: "Vertrouwd door",
-  logos: [] as unknown[],
+  logos: [],
   animationEnabled: true,
   grayscale: true,
 };

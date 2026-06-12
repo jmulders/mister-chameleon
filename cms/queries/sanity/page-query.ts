@@ -387,6 +387,12 @@ export interface SanityTextMediaSectionRaw {
   videoUrl?:  string;
   caption?:   string;
   ctas?:      SanityTextMediaCtaRaw[];
+  /** Background type for the media panel — "color" | "image" | "none" */
+  mediaBgType?:     string;
+  /** CSS colour value — used when mediaBgType = "color" */
+  mediaBgColor?:    string;
+  /** Resolved background image URL — used when mediaBgType = "image" */
+  mediaBgImageUrl?: string;
 }
 
 // ── Team section raw type ──────────────────────────────────────────────────────

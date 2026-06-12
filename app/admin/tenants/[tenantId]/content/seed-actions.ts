@@ -34,11 +34,36 @@
 
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
 import {
   seedMarketingSiteAction,
   seedStoryblokSpaceAction,
 } from "@/app/admin/platform/cms/actions";
+
+// ── Statamic seed result type ──────────────────────────────────────────────────
+
+/**
+ * Result returned by `seedTenantStatamicAction`.
+ *
+ * Unlike the Sanity/Storyblok equivalents (which re-use the platform-level
+ * action types), Statamic provisioning is wholly per-tenant: this type lives
+ * here rather than in the platform actions file.
+ */
+export type SeedStatamicResult =
+  | {
+      ok:      true;
+      seeded:  number;
+      failed:  number;
+      results: Array<{
+        collection: string;
+        slug:       string;
+        ok:         boolean;
+        error?:     string;
+      }>;
+    }
+  | { ok: false; error: string };
 
 // ── Sanity ─────────────────────────────────────────────────────────────────────
 
@@ -88,6 +113,67 @@ export async function seedTenantStoryblokAction(tenantId: string) {
   }
 
   return result;
+}
+
+// ── Statamic ───────────────────────────────────────────────────────────────────
+
+/**
+ * Seed (or re-seed) the Statamic site for the given tenant.
+ *
+ * Calls `StatamicProvider.provisionSite()` which POSTs starter entries
+ * to the three variant collections via the custom write route in routes/api.php.
+ * Idempotent — existing entries are overwritten, not duplicated.
+ *
+ * The base URL is resolved from the tenant's CMS settings (statamicBaseUrl)
+ * or the platform-level Statamic settings if the tenant override is absent.
+ * The Statamic server must be running and reachable.
+ */
+export async function seedTenantStatamicAction(
+  tenantId: string,
+): Promise<SeedStatamicResult> {
+  await getRequiredAdminSession();
+
+  const { getTenantById }          = await import("@/tenant/server");
+  const { normalizeTenant }        = await import("@/tenant/normalize");
+  const { createCMSProviderAsync } = await import("@/cms/providers/create-cms-provider");
+
+  const rawTenant = await getTenantById(tenantId);
+  if (!rawTenant) {
+    return { ok: false, error: "Tenant not found" };
+  }
+
+  const tenant   = normalizeTenant(rawTenant);
+  const provider = await createCMSProviderAsync(tenant.cms, tenantId);
+
+  const provision = await provider.provisionSite(tenant);
+
+  if (!provision.ok) {
+    return { ok: false, error: provision.error };
+  }
+
+  // Map documentIds (slugs) back to per-entry results for UI display.
+  const results = provision.documentIds.map((id) => ({
+    collection: "variant",
+    slug:       id,
+    ok:         true as const,
+  }));
+
+  // Append warning-level entries that partially failed.
+  const warningResults = (provision.warnings ?? []).map((w) => ({
+    collection: "variant",
+    slug:       w.match(/"(.+?)" in/)?.[1] ?? "unknown",
+    ok:         false as const,
+    error:      w,
+  }));
+
+  const allResults = [...results, ...warningResults];
+
+  return {
+    ok:     true,
+    seeded: results.length,
+    failed: warningResults.length,
+    results: allResults,
+  };
 }
 
 // ── Navigation reset ───────────────────────────────────────────────────────────
@@ -186,6 +272,7 @@ export async function resetTenantNavAction(
     return { ok: true, count: written.length, source: "pages" };
 
   } catch (err) {
+    rethrowNextInternal(err);
     return {
       ok:     false,
       count:  0,

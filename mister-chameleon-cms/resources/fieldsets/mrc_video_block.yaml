@@ -1,0 +1,23 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: title
+    field:
+      type: text
+      display: Title
+  -
+    handle: video_url
+    field:
+      type: text
+      display: 'Video URL'
+      instructions: 'YouTube ID (e.g. uER64JbBd7M), full YouTube URL, Vimeo URL, or direct video file URL. Bare YouTube IDs are automatically converted to embed URLs.'
+  -
+    handle: thumbnail
+    field:
+      type: text
+      display: 'Thumbnail URL'

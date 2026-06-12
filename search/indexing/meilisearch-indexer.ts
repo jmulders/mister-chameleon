@@ -1,14 +1,28 @@
 /**
  * Meilisearch Indexer
  *
- * Fetches all publishable content from Sanity for a given tenant and
+ * Fetches all publishable content from the active CMS for a given tenant and
  * pushes it into a single Meilisearch index.
+ *
+ * ─── Content source resolution ────────────────────────────────────────────────
+ *
+ *   1. Statamic flat files — when STATAMIC_CMS_PATH is set, entries are
+ *      collected via collectStatamicSearchEntries() (the same corpus walker
+ *      the StatamicSearchProvider uses).  This honours the CMS "Search
+ *      Settings" global (searchable_collections), so editors control what
+ *      gets indexed.
+ *   2. Statamic REST API — when STATAMIC_API_URL is set but no local files
+ *      are available (e.g. running on Vercel), entries are fetched from the
+ *      remote Statamic Content API.  The "Search Settings" global is read
+ *      via /api/globals/search_settings (enable the globals resource in
+ *      config/statamic/api.php on the Statamic host).
+ *   3. Sanity GROQ — otherwise, per-content-type GROQ queries.
  *
  * ─── Architecture ─────────────────────────────────────────────────────────────
  *
  *   reindexTenantSearchAction (admin server action)
- *        ↓  indexTenant(config, sanityClient)
- *   fetchAllContent(client, tenantId)   ← GROQ queries per content type
+ *        ↓  indexTenant(config, tenantId)
+ *   collectStatamicSearchEntries() | GROQ queries   ← content source (see above)
  *        ↓  documents[]
  *   batchAddDocuments(host, key, index, docs)
  *        ↓  PUT /indexes/{index}/documents
@@ -51,8 +65,11 @@
 
 import "server-only";
 
-import { logger }               from "@/lib/logger";
-import { createSanityClient }   from "@/cms/providers/sanity-client";
+import { logger }                        from "@/lib/logger";
+import { createSanityClient }            from "@/cms/providers/sanity-client";
+import { createStatamicClient, StatamicClient } from "@/cms/providers/statamic-client";
+import { collectStatamicSearchEntries }  from "@/search/providers/statamic-search-provider";
+import { serverEnv }                     from "@/lib/env";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -84,6 +101,10 @@ interface IndexedDocument {
   imageAlt?:   string;
   tags?:       string[];
   publishedAt?: string;
+  /** Source CMS collection handle (Statamic source only), e.g. "case_studies". */
+  collection?:      string;
+  /** Display label for `collection`, e.g. "Case Studies". */
+  collectionLabel?: string;
 }
 
 // Batch size for Meilisearch bulk document adds
@@ -195,10 +216,20 @@ interface SanityRawDoc {
 export async function indexTenant(
   config:   IndexerConfig,
   tenantId: string | null,
+  options?: {
+    /**
+     * Explicit Statamic base URL for this tenant (tenant.cms.statamicBaseUrl).
+     * When set, content is ALWAYS fetched from this remote API — local files
+     * (STATAMIC_CMS_PATH) are ignored so a customer's own CMS is indexed,
+     * never the platform's local content.
+     */
+    statamicBaseUrl?: string;
+  },
 ): Promise<IndexResult> {
   const indexedAt = new Date().toISOString();
   let docCount    = 0;
   let errorCount  = 0;
+  const tenantStatamicUrl = options?.statamicBaseUrl?.trim() || undefined;
 
   // ── 1. Configure index settings ─────────────────────────────────────────
   try {
@@ -212,7 +243,102 @@ export async function indexTenant(
     errorCount++;
   }
 
-  // ── 2. Fetch content from Sanity ─────────────────────────────────────────
+  // ── 2a. Statamic flat-file source ────────────────────────────────────────
+  //
+  // When STATAMIC_CMS_PATH is set the platform runs on Statamic — collect
+  // entries from the content files via the shared corpus walker.  This
+  // honours the CMS "Search Settings" global, so the set of indexed
+  // collections matches what the FS provider would search.
+  //
+  // Skipped when the tenant has an explicit statamicBaseUrl — their remote
+  // CMS must be indexed, not the local platform files.
+  const statamicCmsPath = tenantStatamicUrl
+    ? undefined
+    : (serverEnv.statamic.cmsFsPath ?? process.env.STATAMIC_CMS_PATH);
+
+  if (statamicCmsPath) {
+    const documents: IndexedDocument[] = [];
+
+    try {
+      for (const entry of collectStatamicSearchEntries(statamicCmsPath)) {
+        documents.push({
+          id:              entry.id,
+          contentType:     entry.type,
+          title:           entry.title,
+          slug:            entry.url,
+          excerpt:         entry.excerpt || undefined,
+          collection:      entry.collection,
+          collectionLabel: entry.collectionLabel,
+        });
+      }
+    } catch (err) {
+      logger.error("[meilisearch-indexer] Failed to collect Statamic entries", {
+        cmsPath: statamicCmsPath,
+        error:   String(err),
+      });
+      errorCount++;
+    }
+
+    if (documents.length > 0) {
+      try {
+        await batchAddDocuments(config, documents);
+        docCount = documents.length;
+      } catch (err) {
+        logger.error("[meilisearch-indexer] Failed to push documents", {
+          index:    config.indexName,
+          docCount: documents.length,
+          error:    String(err),
+        });
+        errorCount++;
+      }
+    }
+
+    logger.info("[meilisearch-indexer] Reindex complete (Statamic source)", {
+      index: config.indexName,
+      docCount,
+      errorCount,
+      indexedAt,
+    });
+
+    return { docCount, errorCount, indexedAt };
+  }
+
+  // ── 2b. Statamic REST API source ─────────────────────────────────────────
+  //
+  // No local files (e.g. running on Vercel) but a remote Statamic instance is
+  // configured — fetch entries via the Content API.  Honours the CMS "Search
+  // Settings" global when the globals API resource is enabled.
+  // A tenant-specific base URL (customer CMS) takes precedence over the
+  // platform-level STATAMIC_API_URL.
+  if (tenantStatamicUrl || serverEnv.statamic.isConfigured) {
+    const { documents, fetchErrors } = await collectStatamicApiDocuments(tenantStatamicUrl);
+    errorCount += fetchErrors;
+
+    if (documents.length > 0) {
+      try {
+        await batchAddDocuments(config, documents);
+        docCount = documents.length;
+      } catch (err) {
+        logger.error("[meilisearch-indexer] Failed to push documents", {
+          index:    config.indexName,
+          docCount: documents.length,
+          error:    String(err),
+        });
+        errorCount++;
+      }
+    }
+
+    logger.info("[meilisearch-indexer] Reindex complete (Statamic API source)", {
+      index: config.indexName,
+      docCount,
+      errorCount,
+      indexedAt,
+    });
+
+    return { docCount, errorCount, indexedAt };
+  }
+
+  // ── 2c. Fetch content from Sanity ────────────────────────────────────────
   const client = createSanityClient();
   const params = { tenantId: tenantId ?? null };
 
@@ -294,6 +420,115 @@ export async function indexTenant(
   });
 
   return { docCount, errorCount, indexedAt };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Statamic REST API source
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Mirror of the FS walker's defaults — used when the global is unreadable. */
+const DEFAULT_SEARCHABLE_HANDLES = ["pages", "blog", "vacancies"];
+
+function apiTypeForHandle(handle: string): IndexedDocument["contentType"] {
+  if (handle === "blog")      return "post";
+  if (handle === "vacancies") return "vacancy";
+  return "page";
+}
+
+/** "case_studies" → "Case Studies" — display label for the filter sidebar. */
+function prettifyHandle(handle: string): string {
+  return handle
+    .split(/[_-]/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * Collect indexable documents from the remote Statamic Content API.
+ *
+ * Searchable collections come from the "Search Settings" global
+ * (/api/globals/search_settings → searchable_collections); when that
+ * resource is not exposed the built-in defaults are used.  Per-collection
+ * fetch failures are counted but never abort the run.
+ */
+async function collectStatamicApiDocuments(baseUrlOverride?: string): Promise<{
+  documents:   IndexedDocument[];
+  fetchErrors: number;
+}> {
+  // Tenant-specific URL → dedicated client WITHOUT the local file reader
+  // (a customer's remote CMS must never be shadowed by local files).
+  const client = baseUrlOverride
+    ? new StatamicClient(baseUrlOverride, undefined)
+    : createStatamicClient();
+  let fetchErrors = 0;
+
+  // ── Searchable collections from the CMS global ───────────────────────────
+  let handles = DEFAULT_SEARCHABLE_HANDLES;
+  try {
+    const global = await client.fetchGlobal<{ searchable_collections?: unknown }>(
+      "search_settings",
+    );
+    const list = global?.searchable_collections;
+    if (Array.isArray(list)) {
+      const clean = list.filter(
+        (h): h is string => typeof h === "string" && h.trim() !== "",
+      );
+      if (clean.length > 0) handles = clean;
+    }
+  } catch (err) {
+    logger.warn(
+      "[meilisearch-indexer] Could not read search_settings global via API — using default collections",
+      { error: String(err) },
+    );
+  }
+
+  // ── Fetch entries per collection ─────────────────────────────────────────
+  interface ApiEntry {
+    id?:              string;
+    slug?:            string;
+    title?:           string;
+    url?:             string;
+    permalink?:       string;
+    excerpt?:         string;
+    seo_description?: string;
+  }
+
+  const documents: IndexedDocument[] = [];
+
+  for (const handle of handles) {
+    let entries: ApiEntry[];
+    try {
+      entries = (await client.fetchAll<ApiEntry>(handle, 500)) as ApiEntry[];
+    } catch (err) {
+      logger.warn("[meilisearch-indexer] Failed to fetch collection via API", {
+        collection: handle,
+        error:      String(err),
+      });
+      fetchErrors++;
+      continue;
+    }
+
+    for (const e of entries) {
+      const slugUrl =
+        (typeof e.url === "string" && e.url) ||
+        (typeof e.slug === "string" && e.slug ? `/${e.slug}` : "/");
+
+      // Skip the special "home" page (same rule as the FS walker)
+      if (handle === "pages" && (e.slug === "home" || slugUrl === "/")) continue;
+
+      documents.push({
+        id:              String(e.id ?? `${handle}/${e.slug ?? slugUrl}`),
+        contentType:     apiTypeForHandle(handle),
+        title:           e.title?.trim() || (e.slug ?? "Untitled"),
+        slug:            slugUrl,
+        excerpt:         (e.excerpt ?? e.seo_description ?? "").trim() || undefined,
+        collection:      handle,
+        collectionLabel: prettifyHandle(handle),
+      });
+    }
+  }
+
+  return { documents, fetchErrors };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

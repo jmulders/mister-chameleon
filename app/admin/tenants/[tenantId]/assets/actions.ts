@@ -1,5 +1,7 @@
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 /**
  * Asset Library Server Actions
  *
@@ -165,6 +167,7 @@ export async function uploadAssetAction(
 
     return { success: true, assetId: asset.id, publicUrl: asset.publicUrl };
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[uploadAssetAction] error:", msg);
     return { success: false, error: msg };
@@ -191,6 +194,7 @@ export async function updateAssetMetaAction(
     revalidatePath(`/admin/tenants/${tenantId}/assets`);
     return { success: true };
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[updateAssetMetaAction] error:", msg);
     return { success: false, error: msg };
@@ -216,6 +220,7 @@ export async function deleteAssetAction(
     revalidatePath(`/admin/tenants/${tenantId}/assets`);
     return { success: true };
   } catch (err) {
+    rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[deleteAssetAction] error:", msg);
     return { success: false, error: msg };

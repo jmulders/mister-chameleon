@@ -231,6 +231,12 @@ export class CachedCMSProvider implements CMSProvider {
     return this.inner.resolveCollection(source);
   }
 
+  getListingFilters(
+    collection: import("@/page-config/collection-source").CollectionKey,
+  ): Promise<import("@/page-config/collection-source").ListingFilters> {
+    return this.inner.getListingFilters(collection);
+  }
+
   provisionSite(
     tenant:   TenantSettings,
     options?: {

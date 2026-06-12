@@ -1,0 +1,82 @@
+fields:
+  # ── Heading & intro ────────────────────────────────────────────────────────
+  - handle: heading
+    field:
+      type: text
+      display: Heading
+      instructions: Optional heading shown above the grid. Leave blank to omit.
+
+  - handle: intro
+    field:
+      type: textarea
+      display: Intro text
+      instructions: Optional short intro shown below the heading.
+
+  # ── Source collection ──────────────────────────────────────────────────────
+  - handle: collection
+    field:
+      type: select
+      display: Collection
+      instructions: Which content collection to pull items from.
+      validate: required
+      options:
+        blog: Artikelen
+        vacancies: Vacatures
+        case_studies: Cases
+        team_members: Team
+
+  # ── Display style ──────────────────────────────────────────────────────────
+  - handle: variant
+    field:
+      type: select
+      display: Display style
+      options:
+        listing_cards: Card grid (3-up)
+        listing_list: List view
+        listing_featured: 'Featured + grid (first item large)'
+      default: listing_cards
+
+  # ── Sort ───────────────────────────────────────────────────────────────────
+  - handle: sort_by
+    field:
+      type: select
+      display: Sort by
+      options:
+        date: Publication date
+        title: Title (A–Z)
+        sort_order: Custom sort order (field on entry)
+      default: date
+
+  - handle: sort_direction
+    field:
+      type: select
+      display: Direction
+      options:
+        desc: 'Descending (newest / Z → A)'
+        asc: 'Ascending (oldest / A → Z)'
+      default: desc
+
+  # ── Pagination ─────────────────────────────────────────────────────────────
+  - handle: limit
+    field:
+      type: integer
+      display: Items per page
+      instructions: 'Leave blank (or 0) to show all items without pagination.'
+      default: 12
+
+  # ── Pinned entries ─────────────────────────────────────────────────────────
+  - handle: pinned_entries
+    field:
+      type: entries
+      display: Pinned items (shown first)
+      instructions: >
+        Entries placed here are always shown at the top of the grid, in the
+        order you arrange them. Use this to highlight important content
+        (e.g. a featured case study or an urgent vacancy).
+      collections:
+        - blog
+        - vacancies
+        - case_studies
+        - team_members
+      max_items: 6
+      mode: default

@@ -1,0 +1,77 @@
+fields:
+  -
+    handle: key
+    field:
+      type: text
+      display: Key
+      instructions: 'Unique identifier (e.g. conversion_default, conversion_demo).'
+      validate: required
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+      instructions: 'Inactive variants are ignored by the personalisation engine.'
+  -
+    handle: layout_variant
+    field:
+      type: select
+      display: 'Layout Variant'
+      options:
+        default: 'Default (headline + CTA)'
+        signup: 'Signup (with email form)'
+        demo: 'Demo request'
+        contact: 'Contact form'
+      default: default
+  -
+    handle: title
+    field:
+      type: text
+      display: Headline
+      validate: required
+  -
+    handle: text
+    field:
+      type: textarea
+      display: 'Supporting Copy'
+  -
+    handle: ctas
+    field:
+      type: grid
+      display: CTAs
+      add_row: 'Add CTA'
+      max_rows: 2
+      fields:
+        -
+          handle: label
+          field:
+            type: text
+            display: Label
+        -
+          handle: href
+          field:
+            type: text
+            display: URL
+        -
+          handle: variant
+          field:
+            type: select
+            display: Style
+            options:
+              primary: Primary
+              secondary: Secondary
+              outline: Outline
+            default: primary
+  -
+    handle: form_key
+    field:
+      type: text
+      display: 'Form Key'
+      instructions: 'Platform form key (e.g. hubspot-demo). Leave blank for standard CTA.'
+  -
+    handle: urgency_label
+    field:
+      type: text
+      display: 'Urgency Label'
+      instructions: 'e.g. "No credit card required".'

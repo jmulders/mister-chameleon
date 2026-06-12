@@ -33,6 +33,19 @@ const R2_SDK_STUB = (() => {
 const nextConfig = {
   reactStrictMode: true,
 
+  // ── Server Actions ──────────────────────────────────────────────────────────
+  //
+  // The default body size limit for Server Actions is 1 MB.  Asset uploads via
+  // the picker modal send file bytes directly in the FormData payload, so we
+  // raise the limit to match the 10 MB per-file cap enforced in
+  // upload-for-picker-action.ts.  The +1 MB headroom covers multipart framing
+  // and any additional form fields (tenantId, altText).
+  //
+  // In Next.js 15+ this is a top-level key (moved out of `experimental`).
+  serverActions: {
+    bodySizeLimit: "11mb",
+  },
+
   // ── Optional Node.js-only packages ─────────────────────────────────────────
   //
   // `serverExternalPackages` tells Next.js / Turbopack to treat these packages
@@ -128,18 +141,73 @@ const nextConfig = {
     minimumCacheTTL: 604800,
   },
 
-  async headers() {
+  // ── Statamic asset proxy ───────────────────────────────────────────────────
+  //
+  // Rich-text blocks in Statamic store images as `statamic://asset::` protocol
+  // URLs, which the mapper converts to root-relative `/assets/:path` paths.
+  //
+  // Routing strategy:
+  //
+  //   When STATAMIC_CMS_PATH is set (file-based / local dev mode):
+  //     → app/assets/[...path]/route.ts handles the request.
+  //       It reads the file directly from disk — no PHP server required.
+  //       The rewrite must be SKIPPED in this case because Next.js processes
+  //       "afterFiles" rewrites BEFORE App Router dynamic routes.  A rewrite
+  //       that points to a PHP server that isn't running would return 502 and
+  //       the App Router route would never be reached.
+  //
+  //   When only STATAMIC_API_URL is set (HTTP-only / production mode):
+  //     → This rewrite proxies `/assets/:path*` → STATAMIC_API_URL/assets/:path*.
+  //       The App Router route is unreachable because the rewrite fires first,
+  //       but in production the PHP server is expected to be running.
+  //
+  async rewrites() {
+    // Skip when running in file-based mode — app/assets/[...path]/route.ts
+    // serves assets directly from disk, no proxy needed.
+    if (process.env.STATAMIC_CMS_PATH) return [];
+
+    const statamicBase = (process.env.STATAMIC_API_URL ?? "").replace(/\/$/, "");
+    if (!statamicBase) return [];
     return [
       {
-        // All routes: common security headers.
-        // X-Frame-Options is set to SAMEORIGIN (not DENY) so that the
-        // /preview/theme/[presetKey] pages can be embedded in same-origin
-        // iframes (e.g. the onboarding wizard at /admin/onboarding).
-        // Cross-origin framing is still blocked by SAMEORIGIN.
+        source:      "/assets/:path*",
+        destination: `${statamicBase}/assets/:path*`,
+      },
+    ];
+  },
+
+  async headers() {
+    // In development the Statamic CP (localhost:8000) embeds Next.js pages in
+    // Live Preview iframes.  Because the two servers run on different ports they
+    // are considered cross-origin, so X-Frame-Options: SAMEORIGIN would block
+    // the iframe.  We therefore use the more granular CSP frame-ancestors
+    // directive in dev that allows localhost:8000 explicitly, and omit
+    // X-Frame-Options (frame-ancestors takes precedence in modern browsers, but
+    // having both with conflicting values causes confusing behaviour).
+    //
+    // In production framing is restricted to the same origin only, keeping the
+    // existing security posture.  X-Frame-Options is kept alongside frame-ancestors
+    // for compatibility with older proxies/CDNs that still read the legacy header.
+    const isDev = process.env.NODE_ENV === "development";
+
+    return [
+      {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // frame-ancestors controls which origins may embed this page.
+          // Dev:  allow same-origin (admin theme previews) + Statamic CP on :8000.
+          // Prod: allow same-origin only.
+          {
+            key: "Content-Security-Policy",
+            value: isDev
+              ? "frame-ancestors 'self' http://localhost:8000"
+              : "frame-ancestors 'self'",
+          },
+          // Keep X-Frame-Options in production for CDN/proxy compatibility.
+          // Omit in dev — when present alongside CSP frame-ancestors some older
+          // browsers apply the more restrictive of the two, which would block :8000.
+          ...(isDev ? [] : [{ key: "X-Frame-Options", value: "SAMEORIGIN" }]),
           { key: "X-XSS-Protection", value: "1; mode=block" },
           {
             key: "Referrer-Policy",

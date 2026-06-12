@@ -107,6 +107,8 @@ interface MeilisearchHit {
   excerpt?:     string;
   imageUrl?:    string;
   imageAlt?:    string;
+  collection?:      string;
+  collectionLabel?: string;
   /** Present when attributesToHighlight is set */
   _formatted?: {
     title?:   string;
@@ -155,7 +157,7 @@ export class MeilisearchSearchProvider implements SearchProvider {
       highlightPostTag:       "</mark>",
       attributesToRetrieve: [
         "id", "contentType", "title", "slug", "excerpt",
-        "imageUrl", "imageAlt",
+        "imageUrl", "imageAlt", "collection", "collectionLabel",
       ],
     };
 
@@ -212,7 +214,9 @@ export class MeilisearchSearchProvider implements SearchProvider {
         image:   hit.imageUrl
           ? { src: hit.imageUrl, alt: hit.imageAlt ?? "" }
           : undefined,
-        highlights: highlights.length > 0 ? highlights : undefined,
+        highlights:      highlights.length > 0 ? highlights : undefined,
+        collection:      hit.collection      ?? undefined,
+        collectionLabel: hit.collectionLabel ?? undefined,
       };
     });
 

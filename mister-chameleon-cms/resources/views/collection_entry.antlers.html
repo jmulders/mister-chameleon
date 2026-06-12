@@ -1,0 +1,69 @@
+{{#
+    collection_entry.antlers.html — Headless preview bridge for collection entries.
+
+    Works for any collection (blog, vacancies, case_studies, team_members, …).
+    Uses {{ uri }} — the full path Statamic assigns via the collection route —
+    rather than {{ slug }} alone, so the redirect always points to the correct
+    Next.js URL regardless of route nesting.
+
+    ─── Two contexts ────────────────────────────────────────────────────────────
+
+    1. Direct browser visit (window.self === window.top)
+       Redirect immediately to the corresponding Next.js page.
+
+    2. CP Live Preview iframe (window.self !== window.top)
+       Load the published Next.js page inside an iframe so the editor can see
+       a live preview while editing the entry.
+
+    ─── Note on draft previews ──────────────────────────────────────────────────
+       For full draft-token support (showing unsaved changes in the preview),
+       wire up a collection-specific draft API endpoint in Next.js and call it
+       here instead of loading the published URL directly.
+#}}
+<style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    iframe { display: block; width: 100%; height: 100%; border: none; position: fixed; inset: 0; }
+</style>
+
+<script type="application/json" id="mc-entry-data">
+{
+    "collection": {{ collection:handle | to_json }},
+    "uri":        {{ uri | to_json }},
+    "slug":       {{ slug | to_json }},
+    "title":      {{ title | to_json }}
+}
+</script>
+
+<iframe id="mc-preview" src="about:blank" title="{{ title }} — Next.js preview"></iframe>
+
+<script>
+(function () {
+    var nextjsBase = 'http://localhost:3000';
+
+    var dataEl = document.getElementById('mc-entry-data');
+    var entry  = null;
+    try { entry = JSON.parse(dataEl ? dataEl.textContent : 'null'); } catch (e) {}
+
+    var uri         = (entry && entry.uri)  ? entry.uri  : '/';
+    var fallbackSrc = nextjsBase + uri;
+
+    // ── Direct visit → redirect to published Next.js URL ────────────────────
+    if (window.self === window.top) {
+        window.location.replace(fallbackSrc);
+        return;
+    }
+
+    // ── CP Live Preview iframe → show the published page in an iframe ────────
+    var iframe = document.getElementById('mc-preview');
+    iframe.src = fallbackSrc;
+
+    // Reload the iframe when the editor saves / triggers a preview refresh.
+    window.addEventListener('message', function (event) {
+        var msg = event.data;
+        if (!msg || typeof msg !== 'object') return;
+        if (msg.type === 'statamic:live-preview' || msg.values || msg.entry) {
+            iframe.src = fallbackSrc;
+        }
+    });
+}());
+</script>

@@ -43,3 +43,6 @@ backups/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Statamic CMS heeft een eigen repo (deployt naar Laravel Cloud)
+/mister-chameleon-cms/mister-chameleon-cms/

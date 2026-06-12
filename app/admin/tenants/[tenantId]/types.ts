@@ -89,6 +89,7 @@ export interface VisualTokenFields {
 
   // ── color group ─────────────────────────────────────────────────────────────
   colorPrimary?:           string;  // → color.primary
+  colorPrimaryHover?:      string;  // → color.primaryHover (--primary-hover, button & link hover)
   colorSecondary?:         string;  // → color.secondary
   colorAccent?:            string;  // → color.accent
   colorBackground?:        string;  // → color.background
@@ -322,3 +323,42 @@ export type CreateSiteResult =
       warnings: string[];
     }
   | { ok: false; error: string };
+
+// ── Statamic Forge deployment ─────────────────────────────────────────────────
+
+/** Single step in a Forge deployment run. */
+export interface DeployStatamicStep {
+  step:     string;
+  status:   "ok" | "warn" | "skipped" | "failed";
+  message?: string;
+}
+
+/**
+ * Result type for deployStatamicSiteAction.
+ *
+ *   ok: true  — all steps completed successfully.
+ *     siteUrl      — the URL of the deployed Statamic site.
+ *     forgeServerId / forgeSiteId — Forge references for future management.
+ *     steps        — per-step log for admin feedback.
+ *     warnings     — non-fatal notes.
+ *
+ *   ok: false — action failed at some step.
+ *     error          — description of what failed.
+ *     failedStep     — name of the step that failed.
+ *     completedSteps — steps that DID complete before the failure.
+ */
+export type DeployStatamicResult =
+  | {
+      ok:            true;
+      siteUrl:       string;
+      forgeServerId: number;
+      forgeSiteId:   number;
+      steps:         DeployStatamicStep[];
+      warnings:      string[];
+    }
+  | {
+      ok:             false;
+      error:          string;
+      failedStep?:    string;
+      completedSteps: DeployStatamicStep[];
+    };

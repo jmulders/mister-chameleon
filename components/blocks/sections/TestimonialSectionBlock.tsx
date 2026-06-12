@@ -450,20 +450,30 @@ export function TestimonialSectionBlock({
                     {testimonial.quote}
                   </Text>
 
-                  {/* Attribution */}
-                  <Stack gap={0}>
-                    <Text
-                      variant="body-sm"
-                      style={{ fontWeight: "var(--font-subheading-weight)" }}
-                    >
-                      {testimonial.author}
-                    </Text>
-                    {testimonial.company && (
-                      <Text variant="caption" color="subtle">
-                        {testimonial.company}
-                      </Text>
+                  {/* Attribution — avatar + name/role/company */}
+                  <div className="flex items-center gap-3">
+                    {testimonial.avatar && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={testimonial.avatar}
+                        alt={testimonial.author}
+                        className="h-10 w-10 shrink-0 rounded-full object-cover"
+                      />
                     )}
-                  </Stack>
+                    <Stack gap={0}>
+                      <Text
+                        variant="body-sm"
+                        style={{ fontWeight: "var(--font-subheading-weight)" }}
+                      >
+                        {testimonial.author}
+                      </Text>
+                      {(testimonial.role || testimonial.company) && (
+                        <Text variant="caption" color="subtle">
+                          {[testimonial.role, testimonial.company].filter(Boolean).join(" · ")}
+                        </Text>
+                      )}
+                    </Stack>
+                  </div>
                 </Stack>
               ))}
             </Grid>

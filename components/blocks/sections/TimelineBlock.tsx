@@ -37,6 +37,7 @@ import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { TimelineVariant } from "@/page-config/block-variants";
 import type { TimelineBlockData, TimelineItem } from "@/page-config";
 import { resolveSurface, type BlockSurface } from "@/lib/surface";
+import { TimelineSlider }    from "./TimelineSlider";
 
 interface TimelineBlockProps {
   data:     TimelineBlockData;
@@ -183,6 +184,50 @@ function MilestoneItem({ item }: { item: TimelineItem }) {
 export function TimelineBlock({ data, variant: rawVariant, surface }: TimelineBlockProps) {
   const variant = resolveBlockVariant("timeline", rawVariant) as TimelineVariant;
   const { heading, description, items } = data;
+
+  // ── Empty state (development / live preview only) ────────────────────────────
+  //
+  // When no items, heading, or description have been configured yet, the block
+  // would render as invisible whitespace — unhelpful when editing in the CP live
+  // preview.  Show a dashed placeholder in development so the editor can see the
+  // block's position and know content still needs to be added.
+  //
+  // In production the block is simply suppressed (returns null).
+  if (items.length === 0 && !heading && !description) {
+    if (process.env.NODE_ENV === "development") {
+      return (
+        <Section spacing="md" style={{ background: "var(--section-subtle-bg, #f8f9fa)" }}>
+          <Container size="md">
+            <div
+              style={{
+                border: "2px dashed var(--card-border, #d0d5dd)",
+                borderRadius: "0.75rem",
+                padding: "1.5rem",
+                textAlign: "center",
+                color: "var(--text-muted, #6b7280)",
+                fontSize: "0.875rem",
+                lineHeight: "1.5",
+              }}
+            >
+              <strong style={{ display: "block", marginBottom: "0.25rem" }}>Timeline</strong>
+              Voeg milestones toe in de editor
+            </div>
+          </Container>
+        </Section>
+      );
+    }
+    return null;
+  }
+
+  // ── timeline_slider ──────────────────────────────────────────────────────────
+  if (variant === "timeline_slider") {
+    return (
+      <TimelineSlider
+        data={data}
+        surface={resolveSurface(surface) ?? undefined}
+      />
+    );
+  }
 
   // ── timeline_compact ────────────────────────────────────────────────────────
   if (variant === "timeline_compact") {

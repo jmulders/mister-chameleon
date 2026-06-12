@@ -53,13 +53,15 @@
  */
 
 import { cookies } from "next/headers";
-import type { PageConfig, ContextSlotData, ContextSlotId, ResolvedContextSlot } from "@/page-config";
+import type { PageConfig, ContextSlotData, ContextSlotId, ResolvedContextSlot, PageItem } from "@/page-config";
+import type { CMSProvider } from "@/cms";
 import { createCMSProvider } from "@/cms";
 import { HeroBlock }          from "@/components/blocks/HeroBlock";
 import { ProofBlock }         from "@/components/blocks/ProofBlock";
 import { CTABlock }           from "@/components/blocks/CTABlock";
 import { ConversionBlock }    from "@/components/blocks/ConversionBlock";
 import { NotificationBlock }  from "@/components/blocks/NotificationBlock";
+import { FeatureGridBlock }   from "@/components/blocks/sections/FeatureGridBlock";
 import { mapHeroBlockData } from "@/cms/mappers/content-mappers";
 import { ContentBlockRenderer } from "./ContentBlockRenderer";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -149,13 +151,34 @@ function ContextSlotRenderer({ slotId, contextData, layoutVariant, tokenContext 
       return (
         <CTABlock
           title={t(contextData.cta.title) ?? contextData.cta.title}
-          text={t(contextData.cta.text)}
+          text={t(contextData.cta.text) ?? contextData.cta.text}
           cta={contextData.cta.cta}
           ctaKey={contextData.cta.ctaKey}
           layoutVariant={contextData.cta.layoutVariant}
           {...layoutOverride}
         />
       );
+
+    case "feature": {
+      if (!contextData.feature) return null;
+      // Adapt FeatureBlockData (CMS shape: title/body/icon) →
+      //       FeatureGridBlockData (component shape: heading/features[]/description)
+      const featureData = {
+        heading:  contextData.feature.title,
+        features: contextData.feature.items.map((item) => ({
+          title:       item.title,
+          description: item.body,
+          icon:        item.icon,
+        })),
+      };
+      return (
+        <FeatureGridBlock
+          data={featureData}
+          variant={contextData.feature.layoutVariant ?? "feature_grid_3up"}
+          {...layoutOverride}
+        />
+      );
+    }
 
     case "conversion":
       if (!contextData.conversion) return null;
@@ -215,37 +238,45 @@ interface TemplateRendererProps {
    *   enrichment fields available without running the full enrichment pipeline).
    */
   tokenContext?: TokenContext;
+  /**
+   * Optional pre-configured CMS provider for context-slot content fetching.
+   *
+   * When provided, TemplateRenderer uses this provider instead of calling
+   * createCMSProvider() internally.  Pass `createDraftStatamicProvider(blocks)`
+   * from the Statamic CP Live Preview path so variant lookups are served from
+   * the draft+home.md block catalog without hitting the Statamic HTTP API.
+   *
+   * When absent, the standard createCMSProvider() factory is used (default).
+   */
+  cmsProvider?: CMSProvider;
 }
 
 /**
  * Generic slot-based page renderer.
  *
- * Renders the page as three ordered sections:
- *   1. Context slots positioned "before-content" (e.g. hero, proof)
- *   2. Content blocks in their CMS-defined order (reorderable by editors)
- *   3. Context slots positioned "after-content" (e.g. closing cta)
+ * Renders the page as a single ordered sequence of `pageItems` — an array
+ * where context slots and content blocks can be freely interleaved at
+ * any position.  The order is determined entirely by the CMS author.
  *
- * Inactive slots (variantKey === null or absent contextData) are skipped.
- * Empty content block arrays are silently skipped.
+ * ─── Rendering rules ──────────────────────────────────────────────────────────
+ *
+ *   - Notification slots are rendered once as a full-page overlay, outside
+ *     the `pageItems` loop.
+ *   - Context slots with variantKey === null are skipped (inactive).
+ *   - Unknown block types are silently skipped (forward-compatible).
  *
  * This component is a React Server Component — no "use client" directive,
  * no hooks, no client-side state.
  */
-export async function TemplateRenderer({ pageConfig, contextData, tokenContext }: TemplateRendererProps) {
+export async function TemplateRenderer({ pageConfig, contextData, tokenContext, cmsProvider }: TemplateRendererProps) {
   // ── Resolve context data ──────────────────────────────────────────────────
   //
   // Engine path:    contextData is pre-fetched by the caller; use it directly.
   // No-engine path: contextData is absent; fetch from CMS using variantKeys.
+  //                 When cmsProvider is supplied (e.g. draft preview), it is
+  //                 used in place of the default createCMSProvider() factory.
   const effectiveContextData: ContextSlotData = contextData
-    ?? await fetchContextDataFromSlots(pageConfig.contextSlots);
-
-  // Partition context slots by position once — both groups preserve array order.
-  const beforeSlots = pageConfig.contextSlots.filter(
-    (s) => s.position === "before-content" && s.variantKey !== null,
-  );
-  const afterSlots = pageConfig.contextSlots.filter(
-    (s) => s.position === "after-content" && s.variantKey !== null,
-  );
+    ?? await fetchContextDataFromSlots(pageConfig.contextSlots, cmsProvider);
 
   return (
     <>
@@ -262,32 +293,26 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext }
         />
       )}
 
-      {/* ── Before-content context slots (hero, proof, …) ─────────────────── */}
-      {beforeSlots.map((slot) => (
-        <ContextSlotRenderer
-          key={slot.slotId}
-          slotId={slot.slotId}
-          contextData={effectiveContextData}
-          layoutVariant={slot.layoutVariant}
-          tokenContext={tokenContext}
-        />
-      ))}
-
-      {/* ── Content blocks (CMS-authored, reorderable) ────────────────────── */}
-      {pageConfig.contentBlocks.map((block) => (
-        <ContentBlockRenderer key={block.id} block={block} />
-      ))}
-
-      {/* ── After-content context slots (cta, …) ─────────────────────────── */}
-      {afterSlots.map((slot) => (
-        <ContextSlotRenderer
-          key={slot.slotId}
-          slotId={slot.slotId}
-          contextData={effectiveContextData}
-          layoutVariant={slot.layoutVariant}
-          tokenContext={tokenContext}
-        />
-      ))}
+      {/* ── Unified page items: slots and blocks in authored order ─────────── */}
+      {pageConfig.pageItems.map((item: PageItem) => {
+        if (item.kind === "slot") {
+          const { slot } = item;
+          if (slot.variantKey === null) return null;
+          // Notification is rendered as an overlay above — skip inline.
+          if (slot.slotId === "notification") return null;
+          return (
+            <ContextSlotRenderer
+              key={slot.slotId}
+              slotId={slot.slotId}
+              contextData={effectiveContextData}
+              layoutVariant={slot.layoutVariant}
+              tokenContext={tokenContext}
+            />
+          );
+        }
+        // item.kind === "block"
+        return <ContentBlockRenderer key={item.block.id} block={item.block} />;
+      })}
     </>
   );
 }
@@ -318,6 +343,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext }
  */
 async function fetchContextDataFromSlots(
   slots: readonly ResolvedContextSlot[],
+  providerOverride?: CMSProvider,
 ): Promise<ContextSlotData> {
   const activeSlots = slots.filter((s) => s.variantKey !== null);
   if (activeSlots.length === 0) return {};
@@ -329,7 +355,10 @@ async function fetchContextDataFromSlots(
   const { tenantId } = await getActiveTenant();
   const tenant       = tenantId ? await getTenantById(tenantId) : null;
 
-  const cms = createCMSProvider(tenant?.cms, tenantId, locale);
+  // When a provider override is supplied (e.g. createDraftStatamicProvider from
+  // the Live Preview path), use it directly — skips the factory and the
+  // CachedCMSProvider wrapper so draft content is always fresh.
+  const cms = providerOverride ?? createCMSProvider(tenant?.cms, tenantId, locale);
 
   // Fetch all active slots in parallel — no waterfall.
   const partials = await Promise.all(
@@ -361,6 +390,14 @@ async function fetchContextDataFromSlots(
         case "cta": {
           const data = await cms.getCTAVariant(key);
           return data ? { cta: { ...data, ctaKey: key } } : {};
+        }
+        case "feature": {
+          const data = await cms.getFeatureVariant(key);
+          return data ? { feature: data } : {};
+        }
+        case "conversion": {
+          const data = await cms.getConversionVariant(key);
+          return data ? { conversion: data } : {};
         }
         case "notification": {
           const data = await cms.getNotificationVariant(key);

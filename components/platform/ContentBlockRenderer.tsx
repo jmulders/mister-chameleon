@@ -69,10 +69,12 @@ import {
   CartSummaryBlock,
   CheckoutBlock,
   TextMediaBlock,
+  QuoteBlock,
   MapBlock,
   TimelineBlock,
   QuickLinksBlock,
   ContactSectionBlock,
+  VideoBlock,
 } from "@/components/blocks/sections";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,9 +89,28 @@ interface ContentBlockRendererProps {
  * Switches on `block.blockType` (the platform discriminator) to select the
  * component and pass `{ data: block.data, variant: block.variant }`.
  *
+ * When `block.anchorId` is set, wraps the output in a `<div id="…">` so that
+ * CTAs can deep-link to any block via `/page#anchor-id`.  `scrollMarginTop`
+ * is set to the CSS custom property `--header-height` (with a 4 rem fallback)
+ * so the anchor target clears a sticky header.
+ *
  * Unknown block types return null — forward-compatible with registry growth.
  */
 export function ContentBlockRenderer({ block }: ContentBlockRendererProps) {
+  const rendered = renderContentBlock(block);
+  if (!rendered) return null;
+  if (!block.anchorId) return rendered;
+  return (
+    <div
+      id={block.anchorId}
+      style={{ scrollMarginTop: "var(--header-height, 4rem)" }}
+    >
+      {rendered}
+    </div>
+  );
+}
+
+function renderContentBlock(block: ContentBlock) {
   switch (block.blockType) {
 
     // ── text ──────────────────────────────────────────────────────────────────
@@ -206,6 +227,11 @@ export function ContentBlockRenderer({ block }: ContentBlockRendererProps) {
     case "checkoutBlock":
       return <CheckoutBlock data={block.data} variant={block.variant} />;
 
+    // ── quote ─────────────────────────────────────────────────────────────────
+
+    case "quote":
+      return <QuoteBlock data={block.data} variant={block.variant} />;
+
     // ── map ───────────────────────────────────────────────────────────────────
 
     case "mapBlock":
@@ -225,6 +251,11 @@ export function ContentBlockRenderer({ block }: ContentBlockRendererProps) {
 
     case "contactSection":
       return <ContactSectionBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    // ── media ─────────────────────────────────────────────────────────────────
+
+    case "video":
+      return <VideoBlock data={block.data} variant={block.variant} />;
 
     // ── defined (not yet implemented) ─────────────────────────────────────────
     //

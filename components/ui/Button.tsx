@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
  *  secondary → light brand tint background    ← secondary action
  *  outline   → border only, transparent fill  ← tertiary / ghost-ish
  *  ghost     → no background or border        ← low-emphasis actions
+ *  link      → plain text with hover underline ← inline link treatment
  *
  * Sizes:
  *  sm  → compact (forms, toolbars)
@@ -29,7 +30,7 @@ import { cn } from "@/lib/utils";
  *  defaults (brand-indigo palette) when no override is in effect.
  */
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "link";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -70,9 +71,11 @@ const variantClasses: Record<ButtonVariant, string> = {
     // Dedicated --btn-secondary-* tokens so secondary button surface can diverge
     // from badge/link accent colour when a preset needs it.  Emitted as concrete
     // hex by tenantThemeToCSS() — never falls through to the :root purple chain.
-    "bg-[var(--btn-secondary-bg)]",
-    "text-[var(--btn-secondary-text)]",
-    "hover:bg-[var(--btn-secondary-hover-bg)] hover:opacity-90",
+    // Fallbacks ensure the button renders visibly even when a tenant hasn't set
+    // these tokens yet (light slate background, brand colour text).
+    "bg-[var(--btn-secondary-bg,var(--muted,#f1f5f9))]",
+    "text-[var(--btn-secondary-text,var(--primary,#4338ca))]",
+    "hover:bg-[var(--btn-secondary-hover-bg,var(--muted-hover,#e2e8f0))] hover:opacity-90",
     "active:opacity-80",
   ].join(" "),
 
@@ -86,6 +89,14 @@ const variantClasses: Record<ButtonVariant, string> = {
     "bg-transparent text-neutral-600",
     "hover:bg-neutral-100 hover:text-neutral-900",
     "active:bg-neutral-200",
+  ].join(" "),
+
+  link: [
+    // Pure text-link treatment — no background, no border, no padding.
+    // sizeClasses are intentionally skipped for this variant (see className below).
+    "bg-transparent",
+    "text-[var(--btn-link-text,var(--primary))]",
+    "underline-offset-4 hover:underline",
   ].join(" "),
 };
 
@@ -156,8 +167,9 @@ export function Button({
         "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
         "select-none whitespace-nowrap",
         // Variant + size
+        // "link" variant is a plain text link — no fixed height, padding, or radius.
         variantClasses[variant],
-        sizeClasses[size],
+        variant !== "link" && sizeClasses[size],
         // States
         isDisabled && "opacity-50 cursor-not-allowed pointer-events-none",
         className,

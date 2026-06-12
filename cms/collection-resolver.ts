@@ -50,7 +50,9 @@ import type { NewsListBlockData,
               RelatedContentBlockData,
               NewsItem,
               ListingItem,
-              RelatedItem }           from "@/page-config/types";
+              RelatedItem,
+              ContentBlock,
+              PageConfig }            from "@/page-config/types";
 import {
   isCollectionSource,
   sortBySelectedIds,
@@ -139,15 +141,17 @@ export async function resolveListingItems(
 
   // CollectionItem is structurally compatible with ListingItem
   return ordered.map((item): ListingItem => ({
-    id:       item.id,
-    title:    item.title,
-    href:     item.href,
-    excerpt:  item.excerpt,
-    date:     item.date,
-    imageUrl: item.imageUrl,
-    imageAlt: item.imageAlt,
-    category: item.category,
-    tags:     item.tags,
+    id:             item.id,
+    title:          item.title,
+    href:           item.href,
+    excerpt:        item.excerpt,
+    date:           item.date,
+    showDate:       item.showDate,
+    imageUrl:       item.imageUrl,
+    hoverImageUrl:  item.hoverImageUrl,
+    imageAlt:       item.imageAlt,
+    category:       item.category,
+    tags:           item.tags,
   }));
 }
 
@@ -183,14 +187,15 @@ export async function resolveRelatedContentItems(
     : raw;
 
   return ordered.map((item): RelatedItem => ({
-    id:       item.id,
-    title:    item.title,
-    href:     item.href,
-    excerpt:  item.excerpt,
-    imageUrl: item.imageUrl,
-    imageAlt: item.imageAlt,
-    category: item.category,
-    date:     item.date,
+    id:             item.id,
+    title:          item.title,
+    href:           item.href,
+    excerpt:        item.excerpt,
+    imageUrl:       item.imageUrl,
+    hoverImageUrl:  item.hoverImageUrl,
+    imageAlt:       item.imageAlt,
+    category:       item.category,
+    date:           item.date,
   }));
 }
 
@@ -239,4 +244,70 @@ export async function resolveAllCollectionBlocks(
   );
 
   return { newsItems, listingItems, relatedItems };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PageConfig-level resolution
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve all collection-driven blocks in a PageConfig and return a new
+ * PageConfig with the resolved items merged in.
+ *
+ * This is the single call-site entry point for page components.  After the
+ * CMS mapper produces a PageConfig (with `items: []` for collection-sourced
+ * blocks), call this function to populate those blocks before rendering.
+ *
+ * Blocks whose `contentSource` is absent or `{ source: "manual" }` are
+ * left untouched — their existing static items are preserved as-is.
+ *
+ * @example
+ * // In app/[slug]/page.tsx, after resolveSlugPageConfig():
+ * const collectionProvider = draftCmsProvider ?? createCMSProvider(tenant?.cms, tenantId);
+ * const finalPageConfig = await resolvePageConfigItems(collectionProvider, resolvedPageConfig);
+ *
+ * @param provider   Active CMSProvider instance for this request
+ * @param pageConfig PageConfig produced by the CMS mapper
+ * @returns          New PageConfig with collection-sourced block items populated
+ */
+export async function resolvePageConfigItems(
+  provider:   CMSProvider,
+  pageConfig: PageConfig,
+): Promise<PageConfig> {
+  const resolved = await resolveAllCollectionBlocks(provider, pageConfig.contentBlocks);
+
+  const hasResolved =
+    Object.keys(resolved.listingItems).length > 0 ||
+    Object.keys(resolved.newsItems).length > 0    ||
+    Object.keys(resolved.relatedItems).length > 0;
+
+  // Fast path: nothing to patch — return the original config unchanged
+  if (!hasResolved) return pageConfig;
+
+  // Patch a single ContentBlock in-place (spread is safe; `as ContentBlock`
+  // because TypeScript can't re-narrow the discriminated union after spread)
+  const patchBlock = (b: ContentBlock): ContentBlock => {
+    if (b.blockType === "listing" && resolved.listingItems[b.id]) {
+      return { ...b, data: { ...b.data, items: resolved.listingItems[b.id] } } as ContentBlock;
+    }
+    if (b.blockType === "newsList" && resolved.newsItems[b.id]) {
+      return { ...b, data: { ...b.data, items: resolved.newsItems[b.id] } } as ContentBlock;
+    }
+    if (b.blockType === "relatedContent" && resolved.relatedItems[b.id]) {
+      return { ...b, data: { ...b.data, items: resolved.relatedItems[b.id] } } as ContentBlock;
+    }
+    return b;
+  };
+
+  return {
+    ...pageConfig,
+    // pageItems is the primary rendering source — patch blocks here first
+    pageItems: pageConfig.pageItems.map((item) =>
+      item.kind === "block"
+        ? { kind: "block" as const, block: patchBlock(item.block) }
+        : item,
+    ),
+    // contentBlocks is a derived view of pageItems; keep in sync
+    contentBlocks: pageConfig.contentBlocks.map(patchBlock),
+  } as PageConfig;
 }

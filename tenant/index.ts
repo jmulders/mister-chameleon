@@ -72,6 +72,7 @@ export type {
   TenantTokenOverrides,
   TenantDesignSettings,
   TenantSettings,
+  TenantLanguageConfig,
   TemplateCatalogKey,
 } from "./types";
 

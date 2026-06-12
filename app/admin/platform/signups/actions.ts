@@ -1,5 +1,7 @@
 "use server";
 
+import { rethrowNextInternal } from "@/lib/server-action-guard";
+
 /**
  * app/admin/platform/signups/actions.ts
  *
@@ -188,6 +190,7 @@ export async function retryEmailAction(
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true };
   } catch (err) {
+    rethrowNextInternal(err);
     return { ok: false, error: (err as Error).message };
   }
 }

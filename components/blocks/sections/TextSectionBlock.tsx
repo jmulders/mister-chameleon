@@ -44,7 +44,7 @@ interface TextSectionBlockProps {
 
 export function TextSectionBlock({ data, variant: rawVariant, surface }: TextSectionBlockProps) {
   const resolved = resolveBlockVariant("textSection", rawVariant) as TextSectionVariant;
-  const { heading, body } = data;
+  const { heading, body, htmlBody } = data;
 
   // Normalise canonical spec names → implementation identifiers.
   // text_single → default | text_lead → centered
@@ -79,14 +79,19 @@ export function TextSectionBlock({ data, variant: rawVariant, surface }: TextSec
             )}
 
             {/* Body column — wider */}
-            {body && body.length > 0 && (
+            {htmlBody ? (
+              <div
+                className="flex-1 min-w-0 prose prose-neutral max-w-none"
+                dangerouslySetInnerHTML={{ __html: htmlBody }}
+              />
+            ) : body && body.length > 0 ? (
               <div className="flex-1 min-w-0">
                 <PortableTextRenderer
                   blocks={body as PortableTextBlock[]}
                   className="prose-neutral max-w-none"
                 />
               </div>
-            )}
+            ) : null}
           </div>
         </Container>
       </Section>
@@ -114,7 +119,12 @@ export function TextSectionBlock({ data, variant: rawVariant, surface }: TextSec
             </Text>
           )}
 
-          {body && body.length > 0 && (
+          {htmlBody ? (
+            <div
+              className={`prose prose-neutral max-w-none${isCentered ? " text-center" : ""}`}
+              dangerouslySetInnerHTML={{ __html: htmlBody }}
+            />
+          ) : body && body.length > 0 ? (
             <div className={isCentered ? "text-center" : undefined}>
               <PortableTextRenderer
                 // Cast: readonly PortableTextBlock[] → PortableTextBlock[]
@@ -123,7 +133,7 @@ export function TextSectionBlock({ data, variant: rawVariant, surface }: TextSec
                 className={isCentered ? "prose-neutral mx-auto" : "prose-neutral max-w-none"}
               />
             </div>
-          )}
+          ) : null}
         </Stack>
       </Container>
     </Section>

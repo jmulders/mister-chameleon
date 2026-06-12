@@ -35,7 +35,7 @@ import { PlatformVariantsClient }   from "./_components/PlatformVariantsClient";
 import { AdaptiveBlocksPanel }      from "./_components/AdaptiveBlocksPanel";
 import { listPlatformVariantsAction } from "./actions";
 import { listAdaptiveBlocksAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
-import { getPlatformStoryblokSettings, storyblokFlags } from "@/platform/platform-store";
+import { getPlatformStoryblokSettings, storyblokFlags, getPlatformStatamicSettings } from "@/platform/platform-store";
 import type { TestConnectionResult } from "@/cms/providers/cms-provider";
 import type { CMSProviderName, TenantSettings } from "@/tenant/types";
 
@@ -145,10 +145,11 @@ export default async function TenantContentPage({
 }) {
   const { tenantId } = await params;
 
-  const [rawTenant, pages, storyblokPlatform] = await Promise.all([
+  const [rawTenant, pages, storyblokPlatform, statamicPlatform] = await Promise.all([
     getTenantById(tenantId),
     getPagesByTenant(tenantId),
     getPlatformStoryblokSettings().catch(() => null),
+    getPlatformStatamicSettings().catch(() => null),
   ]);
 
   if (!rawTenant) notFound();
@@ -177,6 +178,13 @@ export default async function TenantContentPage({
   const sbFlags             = storyblokPlatform?.ok ? storyblokFlags(storyblokPlatform.data) : null;
   const hasManagementToken  = sbFlags?.hasManagementToken ?? false;
   const hasSpaceId          = !!(storyblokPlatform?.ok && storyblokPlatform.data.spaceId?.trim());
+
+  // Statamic: base URL comes from the tenant override first, then the platform setting.
+  const tenantStatamicUrl   = tenant.cms?.statamicBaseUrl?.trim();
+  const platformStatamicUrl = (statamicPlatform?.ok && statamicPlatform.data.baseUrl?.trim())
+    ? statamicPlatform.data.baseUrl.trim()
+    : undefined;
+  const hasStatamicBaseUrl  = Boolean(tenantStatamicUrl || platformStatamicUrl);
 
   // Strip secrets before passing to client components.
   const safeTenant: TenantSettings = {
@@ -522,6 +530,7 @@ export default async function TenantContentPage({
           hasWriteToken={hasCmsWriteToken}
           hasManagementToken={hasManagementToken}
           hasSpaceId={hasSpaceId}
+          hasStatamicBaseUrl={hasStatamicBaseUrl}
         />
       </div>
 

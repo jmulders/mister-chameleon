@@ -378,13 +378,35 @@ function buildSupabaseAdapter(
       const ext    = input.fileName.split(".").pop()?.toLowerCase() ?? "bin";
       const key    = `${input.tenantId}/${crypto.randomUUID()}.${ext}`;
 
-      const { error } = await client.storage
-        .from(bucketName)
-        .upload(key, Buffer.from(input.bytes), {
-          contentType:    input.mimeType,
-          cacheControl:   "public, max-age=31536000, immutable",
-          upsert:         false,
+      const doUpload = () =>
+        client.storage
+          .from(bucketName)
+          .upload(key, Buffer.from(input.bytes), {
+            contentType:  input.mimeType,
+            cacheControl: "public, max-age=31536000, immutable",
+            upsert:       false,
+          });
+
+      let { error } = await doUpload();
+
+      // Supabase buckets may be configured with an image-only MIME type allow-list.
+      // When a video (or any non-image) upload is rejected for that reason, lift the
+      // restriction by clearing allowedMimeTypes (our API route already validates
+      // types before this point) and retry once.
+      if (error && /mime type.*not supported/i.test(error.message)) {
+        const { error: updateError } = await client.storage.updateBucket(bucketName, {
+          allowedMimeTypes: [],   // empty = allow all; our route-level guard is sufficient
         });
+        if (updateError) {
+          throw new Error(
+            `Supabase Storage upload failed: ${error.message}. ` +
+            `Also could not update bucket MIME-type config: ${updateError.message}. ` +
+            `Go to Supabase → Storage → ${bucketName} → Edit and clear the allowed MIME types list.`,
+          );
+        }
+        // Retry with the relaxed bucket config.
+        ({ error } = await doUpload());
+      }
 
       if (error) {
         throw new Error(`Supabase Storage upload failed: ${error.message}`);
@@ -737,6 +759,44 @@ function buildSanityAdapter(): StorageAdapter {
       }
     },
   };
+}
+
+// ── Tenant-aware adapter (checks per-tenant override first) ──────────────────
+
+/**
+ * Returns the active storage adapter for a specific tenant.
+ *
+ * Resolution order:
+ *   1. tenant_settings[tenantId].storage.activeProvider  (per-tenant override)
+ *   2. platform_settings.storage.activeProvider          (platform default)
+ *   3. Auto-detection from env vars
+ *   4. "supabase_storage"                                (last resort)
+ *
+ * Provider credentials always come from platform_settings — only the
+ * active provider selection can be overridden per tenant.
+ */
+export async function getActiveStorageAdapterForTenant(
+  tenantId: string,
+): Promise<StorageAdapter> {
+  // Lazy import to avoid circular dependency at module load time.
+  const { getTenantById } = await import("@/tenant/tenant-store");
+
+  const tenant = await getTenantById(tenantId);
+  const tenantProvider = tenant?.storage?.activeProvider ?? null;
+
+  if (
+    tenantProvider === "cloudflare_r2" ||
+    tenantProvider === "supabase_storage" ||
+    tenantProvider === "sanity_assets"
+  ) {
+    // Tenant overrides the active provider — but still uses platform credentials.
+    const storageResult = await getPlatformStorageSettings();
+    const storageCfg    = storageResult.ok ? storageResult.data : {};
+    return buildAdapterForProvider(tenantProvider, storageCfg);
+  }
+
+  // No tenant override: fall back to platform-level selection.
+  return getActiveStorageAdapter();
 }
 
 // ── Public factory for testing specific providers ──────────────────────────────

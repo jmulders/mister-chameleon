@@ -1,0 +1,51 @@
+fields:
+  -
+    handle: key
+    field:
+      type: text
+      display: Key
+      instructions: 'Unique identifier (e.g. cta_default, cta_trial).'
+      validate: required
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+      instructions: 'Inactive variants are ignored by the personalisation engine.'
+  -
+    handle: title
+    field:
+      type: text
+      display: Headline
+  -
+    handle: text
+    field:
+      type: textarea
+      display: 'Main Text'
+  -
+    handle: subtext
+    field:
+      type: text
+      display: Subtext
+      instructions: 'Small reassurance line beneath the CTA button.'
+  -
+    handle: cta_label
+    field:
+      type: text
+      display: 'Primary CTA Label'
+  -
+    handle: cta_href
+    field:
+      type: text
+      display: 'Primary CTA URL'
+  -
+    handle: secondary_label
+    field:
+      type: text
+      display: 'Secondary CTA Label'
+  -
+    handle: secondary_href
+    field:
+      type: text
+      display: 'Secondary CTA URL'

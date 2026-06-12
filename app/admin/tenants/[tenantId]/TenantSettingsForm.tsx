@@ -44,7 +44,7 @@ import { getPackageDefinition, getPackageOption, isValidPackageKey } from "@/ten
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Text } from "@/components/primitives/Text";
-import { saveTenantAction } from "./actions";
+import { saveTenantAction, syncStatamicBlueprintAction } from "./actions";
 import type {
   TenantSettings,
   PackageKey,
@@ -54,6 +54,7 @@ import type {
   ContentBlockKey,
   TenantAiSettings,
   TenantAiProviderName,
+  TenantLanguageConfig,
 } from "@/tenant";
 import { THEME_CATALOG } from "@/design-system/theme/presets";
 import { BlockCatalogue }  from "./_components/BlockCatalogue";
@@ -62,6 +63,19 @@ import { BlockCatalogue }  from "./_components/BlockCatalogue";
 
 type AiMode      = TenantAiSettings["mode"];
 type CmsProvider = "sanity" | "storyblok" | "statamic" | "mock" | "platform";
+
+// ── Language form item ────────────────────────────────────────────────────────
+//
+// Mutable mirror of TenantLanguageConfig — same fields, all strings so they
+// map naturally to controlled <input> elements.
+
+interface LanguageFormItem {
+  code:      string;   // "nl", "en-gb", "de"
+  locale:    string;   // "nl_NL", "en_GB", "de_DE"
+  name:      string;   // "Nederlands", "English", "Deutsch"
+  isDefault: boolean;
+  enabled:   boolean;
+}
 
 // ── Provider slot state ────────────────────────────────────────────────────────
 //
@@ -100,11 +114,12 @@ interface FormState {
     shadowProvider:      ProviderSlotState;
   };
   cms: {
-    provider:   CmsProvider;
-    projectId:  string;
-    dataset:    string;
-    apiVersion: string;
-    studioUrl:  string;
+    provider:        CmsProvider;
+    projectId:       string;
+    dataset:         string;
+    apiVersion:      string;
+    studioUrl:       string;
+    statamicBaseUrl: string;
   };
   design: {
     theme:        ThemeKey;
@@ -120,6 +135,7 @@ interface FormState {
     context: ContextBlockKey[];
     content: ContentBlockKey[];
   };
+  languages: LanguageFormItem[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -322,6 +338,33 @@ const CONTENT_BLOCK_DISPLAY: Record<ContentBlockKey, string> = {
   mapBlock:           "Map",
 };
 
+// ── Language presets ──────────────────────────────────────────────────────────
+//
+// Common languages available via the "Add language" dropdown.
+// Each preset provides sensible defaults for code, locale, and name.
+
+interface LanguagePreset {
+  code:   string;
+  locale: string;
+  name:   string;
+}
+
+const LANGUAGE_PRESETS: readonly LanguagePreset[] = [
+  { code: "nl",    locale: "nl_NL", name: "Nederlands"  },
+  { code: "en-gb", locale: "en_GB", name: "English"     },
+  { code: "en-us", locale: "en_US", name: "English (US)" },
+  { code: "de",    locale: "de_DE", name: "Deutsch"     },
+  { code: "fr",    locale: "fr_FR", name: "Français"    },
+  { code: "es",    locale: "es_ES", name: "Español"     },
+  { code: "it",    locale: "it_IT", name: "Italiano"    },
+  { code: "pt",    locale: "pt_PT", name: "Português"   },
+  { code: "pl",    locale: "pl_PL", name: "Polski"      },
+  { code: "da",    locale: "da_DK", name: "Dansk"       },
+  { code: "sv",    locale: "sv_SE", name: "Svenska"     },
+  { code: "nb",    locale: "nb_NO", name: "Norsk"       },
+  { code: "fi",    locale: "fi_FI", name: "Suomi"       },
+];
+
 // ── Package diff helpers ──────────────────────────────────────────────────────
 //
 // Used by PackageSummaryStrip (always shown) and PackageChangeDiff (shown only
@@ -468,11 +511,12 @@ function initFormState(tenant: TenantSettings): FormState {
       },
     },
     cms: {
-      provider:   (tenant.cms?.provider ?? "mock") as CmsProvider,
-      projectId:  tenant.cms?.projectId  ?? "",
-      dataset:    tenant.cms?.dataset    ?? "",
-      apiVersion: tenant.cms?.apiVersion ?? "",
-      studioUrl:  tenant.cms?.studioUrl  ?? "",
+      provider:        (tenant.cms?.provider ?? "mock") as CmsProvider,
+      projectId:       tenant.cms?.projectId       ?? "",
+      dataset:         tenant.cms?.dataset         ?? "",
+      apiVersion:      tenant.cms?.apiVersion      ?? "",
+      studioUrl:       tenant.cms?.studioUrl       ?? "",
+      statamicBaseUrl: tenant.cms?.statamicBaseUrl ?? "",
     },
     design: {
       theme:        tenant.design?.theme        ?? "default",
@@ -488,6 +532,13 @@ function initFormState(tenant: TenantSettings): FormState {
       context: [...(tenant.blocks?.context ?? [])],
       content: [...(tenant.blocks?.content ?? [])],
     },
+    languages: (tenant.languages ?? []).map((l) => ({
+      code:      l.code,
+      locale:    l.locale,
+      name:      l.name,
+      isDefault: l.isDefault,
+      enabled:   l.enabled,
+    })),
   };
 }
 
@@ -557,16 +608,28 @@ function formStateToSettings(tenantId: string, form: FormState): TenantSettings 
     },
     cms: {
       provider: form.cms.provider,
-      ...(form.cms.projectId.trim()  ? { projectId:  form.cms.projectId.trim() }  : {}),
-      ...(form.cms.dataset.trim()    ? { dataset:    form.cms.dataset.trim() }    : {}),
-      ...(form.cms.apiVersion.trim() ? { apiVersion: form.cms.apiVersion.trim() } : {}),
-      ...(form.cms.studioUrl.trim()  ? { studioUrl:  form.cms.studioUrl.trim() }  : {}),
+      ...(form.cms.projectId.trim()       ? { projectId:       form.cms.projectId.trim() }       : {}),
+      ...(form.cms.dataset.trim()         ? { dataset:         form.cms.dataset.trim() }         : {}),
+      ...(form.cms.apiVersion.trim()      ? { apiVersion:      form.cms.apiVersion.trim() }      : {}),
+      ...(form.cms.studioUrl.trim()       ? { studioUrl:       form.cms.studioUrl.trim() }       : {}),
+      ...(form.cms.statamicBaseUrl.trim() ? { statamicBaseUrl: form.cms.statamicBaseUrl.trim() } : {}),
     },
     design: {
       theme: form.design.theme,
       ...(form.design.primaryColor.trim() ? { primaryColor: form.design.primaryColor.trim() } : {}),
       ...(form.design.primaryFont.trim()  ? { primaryFont:  form.design.primaryFont.trim() }  : {}),
     },
+    ...(form.languages.length > 0
+      ? {
+          languages: form.languages.map((l): TenantLanguageConfig => ({
+            code:      l.code.trim(),
+            locale:    l.locale.trim(),
+            name:      l.name.trim(),
+            isDefault: l.isDefault,
+            enabled:   l.enabled,
+          })),
+        }
+      : {}),
   };
 }
 
@@ -912,6 +975,10 @@ export function TenantSettingsForm({
   const [form, setForm] = useState<FormState>(() => initFormState(tenant));
   const [isPending, startTransition] = useTransition();
   const [saveResult, setSaveResult] = useState<{ ok: boolean; message: string; warnings?: string[] } | null>(null);
+
+  // Blueprint sync state (Statamic only)
+  const [isSyncingBlueprint, startSyncTransition] = useTransition();
+  const [syncBlueprintResult, setSyncBlueprintResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Derived — recomputed on every render from the current packageKey.
   const pkgDef = getPackageDefinition(form.packageKey);
@@ -1395,8 +1462,242 @@ export function TenantSettingsForm({
                   </Field>
                 </div>
               )}
+
+              {/* Statamic-specific optional fields */}
+              {form.cms.provider === "statamic" && (
+                <Field
+                  label="Base URL"
+                  hint="Optional — overrides the platform-level Statamic base URL for this tenant"
+                >
+                  <input
+                    type="url"
+                    value={form.cms.statamicBaseUrl ?? ""}
+                    placeholder="Leave blank to use platform default"
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, cms: { ...f.cms, statamicBaseUrl: e.target.value } }))
+                    }
+                    className={inputCls}
+                  />
+                </Field>
+              )}
             </>
           )}
+        </div>
+      </SectionCard>
+
+      {/* ── Languages ─────────────────────────────────────────────────────── */}
+      <SectionCard
+        title="Languages"
+        hint="Configure the languages for this tenant. Multi-lingual support requires Statamic — the language list is used to generate resources/sites.yaml on sync."
+      >
+        <div className="space-y-4">
+          {/* Validation warning */}
+          {form.languages.length > 0 &&
+            form.languages.filter((l) => l.isDefault).length !== 1 && (
+              <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                {form.languages.filter((l) => l.isDefault).length === 0
+                  ? "No default language set — exactly one language must be marked as default."
+                  : "Multiple default languages — exactly one language must be marked as default."}
+              </p>
+            )}
+
+          {/* Language rows */}
+          {form.languages.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              No languages configured. Add a language below to enable multi-lingual support.
+            </p>
+          ) : (
+            <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200">
+              {form.languages.map((lang, idx) => (
+                <div
+                  key={idx}
+                  className="flex flex-wrap items-center gap-3 px-4 py-3"
+                >
+                  {/* Code */}
+                  <div className="flex w-24 flex-col gap-0.5">
+                    <label className="text-xs font-medium text-neutral-500">Code</label>
+                    <input
+                      type="text"
+                      value={lang.code}
+                      placeholder="nl"
+                      onChange={(e) =>
+                        setForm((f) => {
+                          const langs = [...f.languages];
+                          langs[idx] = { ...langs[idx], code: e.target.value };
+                          return { ...f, languages: langs };
+                        })
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+
+                  {/* Locale */}
+                  <div className="flex w-28 flex-col gap-0.5">
+                    <label className="text-xs font-medium text-neutral-500">Locale</label>
+                    <input
+                      type="text"
+                      value={lang.locale}
+                      placeholder="nl_NL"
+                      onChange={(e) =>
+                        setForm((f) => {
+                          const langs = [...f.languages];
+                          langs[idx] = { ...langs[idx], locale: e.target.value };
+                          return { ...f, languages: langs };
+                        })
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+
+                  {/* Name */}
+                  <div className="flex min-w-32 flex-1 flex-col gap-0.5">
+                    <label className="text-xs font-medium text-neutral-500">Name</label>
+                    <input
+                      type="text"
+                      value={lang.name}
+                      placeholder="Nederlands"
+                      onChange={(e) =>
+                        setForm((f) => {
+                          const langs = [...f.languages];
+                          langs[idx] = { ...langs[idx], name: e.target.value };
+                          return { ...f, languages: langs };
+                        })
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+
+                  {/* Default toggle */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <label className="text-xs font-medium text-neutral-500">Default</label>
+                    <button
+                      type="button"
+                      title={lang.isDefault ? "Default language" : "Set as default"}
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          languages: f.languages.map((l, i) => ({
+                            ...l,
+                            isDefault: i === idx,
+                          })),
+                        }))
+                      }
+                      className={cn(
+                        "h-7 rounded-full px-2.5 text-xs font-medium transition-colors",
+                        lang.isDefault
+                          ? "bg-brand-100 text-brand-700 ring-1 ring-brand-300"
+                          : "bg-neutral-100 text-neutral-400 hover:bg-neutral-200",
+                      )}
+                    >
+                      {lang.isDefault ? "Default" : "Set default"}
+                    </button>
+                  </div>
+
+                  {/* Enabled toggle */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <label className="text-xs font-medium text-neutral-500">Visible</label>
+                    <button
+                      type="button"
+                      title={lang.enabled ? "Publicly visible (showSite: true)" : "Staged — not publicly visible (showSite: false)"}
+                      onClick={() =>
+                        setForm((f) => {
+                          const langs = [...f.languages];
+                          langs[idx] = { ...langs[idx], enabled: !langs[idx].enabled };
+                          return { ...f, languages: langs };
+                        })
+                      }
+                      className={cn(
+                        "h-7 rounded-full px-2.5 text-xs font-medium transition-colors",
+                        lang.enabled
+                          ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300"
+                          : "bg-neutral-100 text-neutral-400 hover:bg-neutral-200",
+                      )}
+                    >
+                      {lang.enabled ? "Live" : "Staged"}
+                    </button>
+                  </div>
+
+                  {/* Remove */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <label className="text-xs font-medium text-neutral-500 opacity-0">Remove</label>
+                    <button
+                      type="button"
+                      title={lang.isDefault ? "Cannot remove the default language" : "Remove language"}
+                      disabled={lang.isDefault}
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          languages: f.languages.filter((_, i) => i !== idx),
+                        }))
+                      }
+                      className="h-7 rounded px-2 text-xs text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add language */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-neutral-600">Add:</span>
+            <select
+              value=""
+              onChange={(e) => {
+                const preset = LANGUAGE_PRESETS.find((p) => p.code === e.target.value);
+                if (!preset) return;
+                const alreadyAdded = form.languages.some((l) => l.code === preset.code);
+                if (alreadyAdded) return;
+                const isFirstLanguage = form.languages.length === 0;
+                setForm((f) => ({
+                  ...f,
+                  languages: [
+                    ...f.languages,
+                    {
+                      code:      preset.code,
+                      locale:    preset.locale,
+                      name:      preset.name,
+                      isDefault: isFirstLanguage,
+                      enabled:   true,
+                    },
+                  ],
+                }));
+              }}
+              className={cn(selectCls, "w-auto")}
+            >
+              <option value="">— Select language preset —</option>
+              {LANGUAGE_PRESETS.filter(
+                (p) => !form.languages.some((l) => l.code === p.code),
+              ).map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.name} ({p.code})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  languages: [
+                    ...f.languages,
+                    {
+                      code:      "",
+                      locale:    "",
+                      name:      "",
+                      isDefault: f.languages.length === 0,
+                      enabled:   true,
+                    },
+                  ],
+                }))
+              }
+              className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 transition-colors hover:bg-neutral-50"
+            >
+              + Custom language
+            </button>
+          </div>
         </div>
       </SectionCard>
 
@@ -1491,6 +1792,56 @@ export function TenantSettingsForm({
           }
           contentBlockHints={CONTENT_BLOCK_HINTS}
         />
+
+        {/* Statamic Blueprint Sync — only visible when the tenant uses Statamic */}
+        {form.cms.provider === "statamic" && (
+          <div className="mt-5 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-neutral-800">Sync Statamic blueprint</p>
+                <p className="mt-0.5 text-xs text-neutral-500 max-w-sm">
+                  Regenerates <code className="font-mono text-[11px]">pages.yaml</code> from the
+                  block settings above. The Statamic CP will immediately show only the enabled tabs
+                  and content sets. Requires <code className="font-mono text-[11px]">STATAMIC_CMS_PATH</code> to be configured.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={isSyncingBlueprint || isPending}
+                onClick={() => {
+                  setSyncBlueprintResult(null);
+                  startSyncTransition(async () => {
+                    const result = await syncStatamicBlueprintAction(tenant.tenantId);
+                    if (result.ok) {
+                      setSyncBlueprintResult({
+                        ok:      true,
+                        message: `Blueprint + platform files synced — ${result.contextBlocks} context slot${result.contextBlocks !== 1 ? "s" : ""}, ${result.contentBlocks} content block${result.contentBlocks !== 1 ? "s" : ""}, ${result.fieldsetsCount} platform file${result.fieldsetsCount !== 1 ? "s" : ""}${result.sitesCount > 0 ? `, ${result.sitesCount} site${result.sitesCount !== 1 ? "s" : ""} in sites.yaml` : ""}.`,
+                      });
+                    } else {
+                      setSyncBlueprintResult({ ok: false, message: result.error });
+                    }
+                  });
+                }}
+                className={cn(
+                  "shrink-0 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700",
+                  "hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
+                {isSyncingBlueprint ? "Syncing…" : "Sync blueprint + fieldsets"}
+              </button>
+            </div>
+
+            {syncBlueprintResult && (
+              <p className={cn(
+                "mt-2 text-xs",
+                syncBlueprintResult.ok ? "text-success-600" : "text-error-600",
+              )}>
+                {syncBlueprintResult.ok ? "✓ " : "⚠ "}{syncBlueprintResult.message}
+              </p>
+            )}
+          </div>
+        )}
       </SectionCard>
 
       {/* ── Features ──────────────────────────────────────────────────────── */}

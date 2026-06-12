@@ -1,0 +1,17 @@
+title: Vacatures
+sites:
+  - nl
+  - en-gb
+  - de
+route: 'vacancies/{slug}'
+taxonomies:
+  - employment_type
+  - location
+  - education_level
+  - sector
+template: collection_entry
+propagate: true
+dated: true
+date_behavior:
+  past: public
+  future: public

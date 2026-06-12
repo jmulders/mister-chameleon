@@ -1,0 +1,15 @@
+title: Cases
+sites:
+  - nl
+  - en-gb
+  - de
+template: default
+route: 'cases/{slug}'
+taxonomies:
+  - sector
+  - theme
+  - solution
+dated: true
+date_behavior:
+  past: public
+  future: private

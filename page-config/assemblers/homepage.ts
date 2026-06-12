@@ -49,6 +49,7 @@ import type { PageSectionData }         from "@/cms/types";
 import type { HomepageExperience }      from "@/experience/types";
 import type {
   PageConfig,
+  PageItem,
   ResolvedContextSlot,
   ContextSlotData,
   ContextSlotId,
@@ -165,11 +166,53 @@ export function buildHomepagePageConfig(
   // a single mapping path.  Unknown _type values are silently skipped.
   const contentBlocks = mapSectionsToContentBlocks(filteredSections);
 
-  // ── 3. Build PageConfig ────────────────────────────────────────────────────
+  // ── 3. Build pageItems ────────────────────────────────────────────────────
   //
-  // title and seo fields are sourced from the CMS page document when available,
-  // falling back to static defaults so the page always renders cleanly even
-  // before the "home" document is seeded in Sanity.
+  // Unified Statamic mode (filteredSections contains contextSlot entries):
+  //   Walk filteredSections in authored order so content blocks appear exactly
+  //   where the CMS editor placed them relative to context slots.
+  //   Example: hero → image block → proof → cta renders in that order on the page.
+  //
+  // Classic template mode (no embedded context slots):
+  //   Sanity / Storyblok layout — before-content slots → content blocks →
+  //   after-content slots.  Slots come from MARKETING_PAGE_TEMPLATE positions.
+  const hasEmbeddedSlots = filteredSections.some((s) => s._type === "contextSlot");
+
+  let pageItems: PageItem[];
+
+  if (hasEmbeddedSlots) {
+    // Fast lookups: slotId → resolved slot, block id → content block.
+    // slotMap keys are typed as string (not ContextSlotId) so that section.slotId
+    // (typed as string in ContextSlotSectionData) can be used directly as a lookup
+    // key without a cast.
+    const slotMap  = new Map<string, ResolvedContextSlot>(contextSlots.map((s) => [s.slotId, s]));
+    const blockMap = new Map(contentBlocks.map((b) => [b.id, b]));
+
+    pageItems = [];
+    for (const section of filteredSections) {
+      if (!section) continue;
+      if (section._type === "contextSlot") {
+        if (section.enabled === false) continue;
+        const slot = slotMap.get(section.slotId);
+        if (slot) pageItems.push({ kind: "slot", slot });
+      } else {
+        const block = blockMap.get(section._key);
+        if (block) pageItems.push({ kind: "block", block });
+      }
+    }
+  } else {
+    // Classic template-mode layout.
+    pageItems = [
+      ...contextSlots
+        .filter((s) => s.position === "before-content")
+        .map((slot): PageItem => ({ kind: "slot", slot })),
+      ...contentBlocks.map((block): PageItem => ({ kind: "block", block })),
+      ...contextSlots
+        .filter((s) => s.position === "after-content")
+        .map((slot): PageItem => ({ kind: "slot", slot })),
+    ];
+  }
+
   const pageConfig: PageConfig = {
     pageId:        "homepage",
     slug:          "/",
@@ -177,6 +220,7 @@ export function buildHomepagePageConfig(
     templateKey:   "marketing-page",
     contextSlots,
     contentBlocks,
+    pageItems,
     seo: {
       title:       pageMeta?.seoTitle,
       description: pageMeta?.seoDescription,

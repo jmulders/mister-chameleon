@@ -1,37 +1,38 @@
 /**
- * AdaptiveBlocksPanel
+ * AdaptiveBlocksPanel — Tenant-level adaptive blocks manager
  *
- * Admin UI for managing "Content Matrix" adaptive blocks on the tenant content page.
- * An adaptive block contains one defaultVariant (SEO-safe fallback) and N
- * adaptiveVariants (personalised versions selected by the rule engine).
+ * Shows every platform-wide adaptive block organised by slot type.  For each
+ * block the panel shows:
  *
- * ─── Features ─────────────────────────────────────────────────────────────────
+ *   • Platform source row (title/subtitle/variant count preview)
+ *   • Tenant activation status — "platform default" / "tenant active" / "disabled"
+ *   • Toggle active/inactive for this tenant (activateBlockForTenantAction)
+ *   • Customise — opens inline editor to create/edit a tenant-specific override
+ *   • Revert to platform — deletes the tenant override row
+ *   • Content preview cards for default + adaptive variants
  *
- *   • Block list — all adaptive blocks for this tenant (+ platform-wide)
- *   • Expand to edit — click any block to open its inline editor
- *   • Create new — button to add a new block
- *   • Delete — with confirmation step
- *   • Variant manager — add/remove/edit adaptive variants inline
- *   • Token preview — shows supported {{tokens}} for reference
+ * Slot navigation is via tab buttons at the top (hero, proof, cta, feature,
+ * conversion, notification).
  *
  * ─── Token reference ──────────────────────────────────────────────────────────
- *
  *   Supported in adaptive variants (NOT in defaultVariant):
- *     {{company_name}}, {{company_short}}, {{location}}, {{city}},
- *     {{region}}, {{industry}}, {{first_name}}, {{source}}
+ *   {{company_name}}, {{company_short}}, {{location}}, {{city}},
+ *   {{region}}, {{industry}}, {{first_name}}, {{source}}
  */
 
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useMemo } from "react";
 import type { AdaptiveBlockData, AdaptiveVariantContent, AdaptiveVariantEntry } from "@/cms/types";
+import { ADAPTIVE_SLOT_REGISTRY } from "@/decision/types";
 import {
   listAdaptiveBlocksAction,
   upsertAdaptiveBlockAction,
   deleteAdaptiveBlockAction,
+  activateBlockForTenantAction,
 } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Style tokens ──────────────────────────────────────────────────────────────
 
 const inputCls = [
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2",
@@ -43,17 +44,17 @@ const labelCls = "block text-xs font-medium text-neutral-600 mb-1";
 
 const btnPrimary = [
   "inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5",
-  "text-xs font-semibold text-white hover:bg-brand-700 transition-colors",
+  "text-xs font-semibold text-white hover:bg-brand-700 transition-colors disabled:opacity-50",
 ].join(" ");
 
 const btnSecondary = [
   "inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-3 py-1.5",
-  "text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors",
+  "text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors disabled:opacity-50",
 ].join(" ");
 
 const btnDanger = [
   "inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5",
-  "text-xs font-medium text-red-700 hover:bg-red-100 transition-colors",
+  "text-xs font-medium text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50",
 ].join(" ");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -61,18 +62,50 @@ const btnDanger = [
 function emptyContent(): AdaptiveVariantContent {
   return { title: "", subtitle: "", tag: "", ctas: [], imageUrl: undefined, imageAlt: undefined };
 }
-
 function emptyVariant(): AdaptiveVariantEntry {
   return { variantKey: "", label: "", content: emptyContent() };
 }
+function preview(text: string | undefined | null, max = 80): string {
+  if (!text) return "—";
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
 
-// ── Variant content form ──────────────────────────────────────────────────────
+/** Given a slot's known blocks + all blocks loaded for this tenant, return the
+ *  de-duplicated key list that should appear in this slot's section.
+ *  We show every key that has at least one row (platform or tenant).
+ */
+function slotBlockPairs(
+  keyPrefix: string,
+  blocks:    AdaptiveBlockData[],
+  tenantId:  string,
+): Array<{ key: string; platform: AdaptiveBlockData | null; tenant: AdaptiveBlockData | null }> {
+  const slotBlocks = blocks.filter((b) => b.key.startsWith(keyPrefix));
+
+  // Build map: key → { platform, tenant }
+  const byKey = new Map<
+    string,
+    { platform: AdaptiveBlockData | null; tenant: AdaptiveBlockData | null }
+  >();
+
+  for (const b of slotBlocks) {
+    const entry = byKey.get(b.key) ?? { platform: null, tenant: null };
+    if (b.tenantId === null) entry.platform = b;
+    else if (b.tenantId === tenantId) entry.tenant = b;
+    byKey.set(b.key, entry);
+  }
+
+  return Array.from(byKey.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, pair]) => ({ key, ...pair }));
+}
+
+// ── VariantContentForm ────────────────────────────────────────────────────────
 
 interface VariantContentFormProps {
   value:       AdaptiveVariantContent;
   onChange:    (v: AdaptiveVariantContent) => void;
   showTokens?: boolean;
-  prefix:      string; // for aria/htmlFor uniqueness
+  prefix:      string;
 }
 
 function VariantContentForm({ value, onChange, showTokens = false, prefix }: VariantContentFormProps) {
@@ -87,15 +120,12 @@ function VariantContentForm({ value, onChange, showTokens = false, prefix }: Var
 
   return (
     <div className="space-y-3">
-
-      {showTokens && (
+      {showTokens ? (
         <div className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <span className="font-semibold">Tokens:</span>{" "}
           {["{{company_name}}", "{{company_short}}", "{{location}}", "{{city}}", "{{region}}", "{{industry}}", "{{first_name}}", "{{source}}"].join(" · ")}
         </div>
-      )}
-
-      {!showTokens && (
+      ) : (
         <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
           SEO fallback — do <strong>not</strong> use tokens here.
         </div>
@@ -160,7 +190,7 @@ function VariantContentForm({ value, onChange, showTokens = false, prefix }: Var
   );
 }
 
-// ── Adaptive variant row editor ───────────────────────────────────────────────
+// ── VariantRow ────────────────────────────────────────────────────────────────
 
 interface VariantRowProps {
   variant:   AdaptiveVariantEntry;
@@ -180,9 +210,9 @@ function VariantRow({ variant, index, onChange, onRemove }: VariantRowProps) {
           className="flex items-center gap-2 text-left flex-1 min-w-0"
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="text-xs font-mono font-semibold text-neutral-700 truncate">
+          <code className="text-xs font-mono font-semibold text-brand-700 truncate">
             {variant.variantKey || `variant-${index + 1}`}
-          </span>
+          </code>
           {variant.label && (
             <span className="text-xs text-neutral-400 truncate">{variant.label}</span>
           )}
@@ -207,7 +237,7 @@ function VariantRow({ variant, index, onChange, onRemove }: VariantRowProps) {
                 className={inputCls}
                 value={variant.variantKey}
                 onChange={(e) => onChange({ ...variant, variantKey: e.target.value })}
-                placeholder="e.g. hero_roi, hero_linkedin_vision"
+                placeholder="e.g. hero_roi"
                 required
               />
             </div>
@@ -221,7 +251,6 @@ function VariantRow({ variant, index, onChange, onRemove }: VariantRowProps) {
               />
             </div>
           </div>
-
           <VariantContentForm
             prefix={`av-${index}`}
             value={variant.content}
@@ -234,43 +263,44 @@ function VariantRow({ variant, index, onChange, onRemove }: VariantRowProps) {
   );
 }
 
-// ── Block editor form ─────────────────────────────────────────────────────────
+// ── BlockEditor ───────────────────────────────────────────────────────────────
 
 interface BlockEditorProps {
-  initial:     AdaptiveBlockData | null; // null = create new
+  initial:     AdaptiveBlockData | null;
   tenantId:    string;
+  prefillKey?: string;
   onSave:      () => void;
   onCancel:    () => void;
 }
 
-function BlockEditor({ initial, tenantId, onSave, onCancel }: BlockEditorProps) {
-  const [key,             setKey]             = useState(initial?.key ?? "");
-  const [isActive,        setIsActive]        = useState(initial?.isActive ?? true);
-  const [defaultVariant,  setDefaultVariant]  = useState<AdaptiveVariantContent>(
+function BlockEditor({ initial, tenantId, prefillKey, onSave, onCancel }: BlockEditorProps) {
+  const [key,            setKey]            = useState(initial?.key ?? prefillKey ?? "");
+  const [isActive,       setIsActive]       = useState(initial?.isActive ?? true);
+  const [defaultVariant, setDefaultVariant] = useState<AdaptiveVariantContent>(
     initial?.defaultVariant ?? emptyContent(),
   );
-  const [variants,        setVariants]        = useState<AdaptiveVariantEntry[]>(
+  const [variants,       setVariants]       = useState<AdaptiveVariantEntry[]>(
     initial?.adaptiveVariants ?? [],
   );
-  const [error,           setError]           = useState<string | null>(null);
-  const [isPending,       startTransition]    = useTransition();
+  const [error,          setError]          = useState<string | null>(null);
+  const [isPending,      startTransition]   = useTransition();
 
-  const addVariant = () => setVariants((v) => [...v, emptyVariant()]);
+  const addVariant  = () => setVariants((v) => [...v, emptyVariant()]);
   const removeVariant = (idx: number) => setVariants((v) => v.filter((_, i) => i !== idx));
   const updateVariant = (idx: number, v: AdaptiveVariantEntry) =>
     setVariants((arr) => arr.map((x, i) => (i === idx ? v : x)));
 
   const handleSave = () => {
-    if (!key.trim()) { setError("Block key is required."); return; }
-    if (!defaultVariant.title.trim()) { setError("Default variant title is required."); return; }
-    if (!defaultVariant.subtitle.trim()) { setError("Default variant subtitle is required."); return; }
+    if (!key.trim())                    { setError("Block key is required."); return; }
+    if (!defaultVariant.title.trim())   { setError("Default variant title is required."); return; }
+    if (!defaultVariant.subtitle.trim()){ setError("Default variant subtitle is required."); return; }
 
     startTransition(async () => {
       const result = await upsertAdaptiveBlockAction(
         {
           id:               initial?.id,
           key:              key.trim(),
-          tenantId:         tenantId,
+          tenantId,
           isActive,
           defaultVariant:   {
             ...defaultVariant,
@@ -287,31 +317,27 @@ function BlockEditor({ initial, tenantId, onSave, onCancel }: BlockEditorProps) 
         `/admin/tenants/${tenantId}/content`,
       );
 
-      if (result.ok) {
-        setError(null);
-        onSave();
-      } else {
-        setError(result.error);
-      }
+      if (result.ok) { setError(null); onSave(); }
+      else            { setError(result.error); }
     });
   };
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-5 space-y-6">
+    <div className="rounded-xl border border-brand-200 bg-white p-5 space-y-6 shadow-sm">
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-neutral-900">
-          {initial ? `Edit block: ${initial.key}` : "New adaptive block"}
+          {initial ? `Edit override: ${initial.key}` : "New tenant block"}
         </h3>
-        <label className="flex items-center gap-2 text-xs text-neutral-600">
+        <label className="flex items-center gap-2 text-xs text-neutral-600 cursor-pointer">
           <input
             type="checkbox"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
             className="h-4 w-4 rounded border-neutral-300"
           />
-          Active
+          Active for this tenant
         </label>
       </div>
 
@@ -326,25 +352,22 @@ function BlockEditor({ initial, tenantId, onSave, onCancel }: BlockEditorProps) 
           disabled={Boolean(initial)}
         />
         <p className="mt-1 text-xs text-neutral-400">
-          Used in <code className="font-mono">getAdaptiveBlock(key)</code> calls. Cannot be changed after creation.
+          Used in <code className="font-mono">getAdaptiveBlock(key)</code>. Cannot change after creation.
         </p>
       </div>
 
       {/* Default variant */}
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-neutral-700">Default variant (SEO fallback)</h4>
-        <VariantContentForm
-          prefix="dv"
-          value={defaultVariant}
-          onChange={setDefaultVariant}
-          showTokens={false}
-        />
+        <h4 className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+          Default variant (SEO fallback)
+        </h4>
+        <VariantContentForm prefix="dv" value={defaultVariant} onChange={setDefaultVariant} showTokens={false} />
       </div>
 
       {/* Adaptive variants */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-xs font-semibold text-neutral-700">
+          <h4 className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">
             Adaptive variants ({variants.length})
           </h4>
           <button type="button" onClick={addVariant} className={btnSecondary}>
@@ -353,8 +376,8 @@ function BlockEditor({ initial, tenantId, onSave, onCancel }: BlockEditorProps) 
         </div>
 
         {variants.length === 0 && (
-          <p className="text-xs text-neutral-400 py-2">
-            No adaptive variants yet. Add a variant to personalise the hero for specific segments.
+          <p className="text-xs text-neutral-400 py-2 italic">
+            No adaptive variants yet — add a variant to personalise this block for specific segments.
           </p>
         )}
 
@@ -369,14 +392,12 @@ function BlockEditor({ initial, tenantId, onSave, onCancel }: BlockEditorProps) 
         ))}
       </div>
 
-      {/* Error */}
       {error && (
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {error}
         </p>
       )}
 
-      {/* Actions */}
       <div className="flex items-center gap-2 pt-2 border-t border-neutral-100">
         <button type="button" onClick={handleSave} disabled={isPending} className={btnPrimary}>
           {isPending ? "Saving…" : "Save block"}
@@ -389,108 +410,363 @@ function BlockEditor({ initial, tenantId, onSave, onCancel }: BlockEditorProps) 
   );
 }
 
-// ── Block row ─────────────────────────────────────────────────────────────────
+// ── VariantPreviewCard ────────────────────────────────────────────────────────
 
-interface BlockRowProps {
-  block:      AdaptiveBlockData;
-  tenantId:   string;
-  onEdited:   () => void;
-  onDeleted:  () => void;
+function VariantPreviewCard({
+  content,
+  variantKey,
+  label,
+}: {
+  content:     AdaptiveVariantContent;
+  variantKey?: string;
+  label?:      string | null;
+}) {
+  return (
+    <div className="rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2.5 space-y-1">
+      {variantKey && (
+        <div className="flex items-center gap-2">
+          <code className="text-[10px] font-mono text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">
+            {variantKey}
+          </code>
+          {label && <span className="text-[10px] text-neutral-400">{label}</span>}
+        </div>
+      )}
+      <div className="space-y-0.5">
+        {content.tag && (
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+            {content.tag}
+          </p>
+        )}
+        <p className="text-xs font-semibold text-neutral-800 leading-snug">
+          {preview(content.title, 80)}
+        </p>
+        {content.subtitle && (
+          <p className="text-[11px] text-neutral-500 leading-snug">
+            {preview(content.subtitle, 100)}
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function BlockRow({ block, tenantId, onEdited, onDeleted }: BlockRowProps) {
+// ── BlockStatusCard ───────────────────────────────────────────────────────────
+
+interface BlockStatusCardProps {
+  blockKey:   string;
+  platform:   AdaptiveBlockData | null;
+  tenant:     AdaptiveBlockData | null;
+  tenantId:   string;
+  slotPrefix: string;
+  onRefresh:  () => void;
+}
+
+function BlockStatusCard({
+  blockKey, platform, tenant, tenantId, slotPrefix, onRefresh,
+}: BlockStatusCardProps) {
   const [editing,    setEditing]    = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [expanded,   setExpanded]   = useState(false);
   const [isPending,  startTransition] = useTransition();
 
-  const handleDelete = () => {
+  // The "effective" block — tenant override takes precedence, else platform
+  const effective = tenant ?? platform;
+
+  // Determine display status
+  const statusLabel = tenant
+    ? tenant.isActive
+      ? "Tenant active"
+      : "Tenant disabled"
+    : platform?.isActive
+      ? "Platform default"
+      : "Platform inactive";
+
+  const statusCls = tenant
+    ? tenant.isActive
+      ? "bg-green-50 text-green-700 ring-green-200"
+      : "bg-red-50 text-red-700 ring-red-200"
+    : platform?.isActive
+      ? "bg-blue-50 text-blue-700 ring-blue-200"
+      : "bg-neutral-100 text-neutral-500 ring-neutral-200";
+
+  // Toggle active (creates/updates tenant row)
+  const handleToggleActive = (nextActive: boolean) => {
     startTransition(async () => {
-      const result = await deleteAdaptiveBlockAction(
-        block.id,
+      await activateBlockForTenantAction(
+        blockKey,
+        tenantId,
+        nextActive,
         `/admin/tenants/${tenantId}/content`,
       );
-      if (result.ok) { onDeleted(); }
+      onRefresh();
     });
   };
 
-  if (editing) {
+  // Revert to platform (delete tenant row)
+  const handleRevert = () => {
+    if (!tenant) return;
+    startTransition(async () => {
+      await deleteAdaptiveBlockAction(tenant.id, `/admin/tenants/${tenantId}/content`);
+      setConfirming(false);
+      onRefresh();
+    });
+  };
+
+  if (editing && effective) {
     return (
       <BlockEditor
-        initial={block}
+        initial={tenant ?? { ...platform!, id: "", tenantId }}
         tenantId={tenantId}
-        onSave={() => { setEditing(false); onEdited(); }}
+        onSave={() => { setEditing(false); onRefresh(); }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
+
+  // "Customise from scratch" for a key that has no rows at all
+  if (editing && !effective) {
+    return (
+      <BlockEditor
+        initial={null}
+        tenantId={tenantId}
+        prefillKey={blockKey}
+        onSave={() => { setEditing(false); onRefresh(); }}
         onCancel={() => setEditing(false)}
       />
     );
   }
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-neutral-900">{block.key}</span>
-            <span className={[
-              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-              block.isActive
-                ? "bg-green-50 text-green-700 ring-1 ring-green-200"
-                : "bg-neutral-100 text-neutral-500 ring-1 ring-neutral-200",
-            ].join(" ")}>
-              {block.isActive ? "active" : "inactive"}
+    <div className={[
+      "rounded-xl border bg-white overflow-hidden transition-shadow",
+      tenant ? "border-brand-200 shadow-sm" : "border-neutral-200",
+    ].join(" ")}>
+
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-neutral-100 bg-neutral-50">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center flex-wrap gap-2">
+            <code className="text-xs font-mono font-semibold text-neutral-800">{blockKey}</code>
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${statusCls}`}>
+              {statusLabel}
             </span>
-            {block.tenantId === null && (
-              <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-600 ring-1 ring-brand-200">
-                platform
+            {effective && (
+              <span className="text-[10px] text-neutral-400">
+                {effective.adaptiveVariants.length} adaptive variant{effective.adaptiveVariants.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-neutral-500 truncate">
-            {block.defaultVariant.title}
-          </p>
-          <p className="mt-0.5 text-[10px] text-neutral-400">
-            {block.adaptiveVariants.length} variant{block.adaptiveVariants.length !== 1 ? "s" : ""}
-          </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+
+          {/* Active toggle */}
+          {effective && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => handleToggleActive(!(tenant?.isActive ?? platform?.isActive))}
+              className={[
+                "inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50",
+                (tenant?.isActive ?? platform?.isActive)
+                  ? "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                  : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100",
+              ].join(" ")}
+            >
+              {isPending ? "…" : (tenant?.isActive ?? platform?.isActive) ? "Deactivate" : "Activate"}
+            </button>
+          )}
+
+          {/* Customise / Edit */}
           <button
             type="button"
             onClick={() => setEditing(true)}
             className={btnSecondary}
           >
-            Edit
+            {tenant ? "Edit" : "Customise"}
           </button>
 
-          {!confirming ? (
+          {/* Expand preview */}
+          {effective && (
             <button
               type="button"
-              onClick={() => setConfirming(true)}
-              className={btnDanger}
+              onClick={() => setExpanded((e) => !e)}
+              className={btnSecondary}
+              aria-label={expanded ? "Collapse" : "Expand preview"}
             >
-              Delete
+              {expanded ? "▲" : "▼"}
             </button>
-          ) : (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-neutral-600">Sure?</span>
+          )}
+
+          {/* Revert to platform */}
+          {tenant && (
+            confirming ? (
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-neutral-500">Revert?</span>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={handleRevert}
+                  className={btnDanger}
+                >
+                  {isPending ? "…" : "Yes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className={btnSecondary}
+                >
+                  No
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                onClick={handleDelete}
-                disabled={isPending}
+                onClick={() => setConfirming(true)}
                 className={btnDanger}
+                title="Delete tenant override and revert to platform default"
               >
-                {isPending ? "…" : "Yes"}
+                Revert
               </button>
-              <button
-                type="button"
-                onClick={() => setConfirming(false)}
-                className={btnSecondary}
-              >
-                No
-              </button>
-            </div>
+            )
           )}
         </div>
       </div>
+
+      {/* Content preview (collapsible) */}
+      {expanded && effective && (
+        <div className="px-4 py-3 space-y-3">
+          {/* Default variant */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+              Default variant (SEO fallback)
+            </p>
+            <VariantPreviewCard content={effective.defaultVariant} />
+          </div>
+
+          {/* Adaptive variants */}
+          {effective.adaptiveVariants.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                Adaptive variants
+              </p>
+              <div className="space-y-1.5">
+                {effective.adaptiveVariants.map((v, i) => (
+                  <VariantPreviewCard
+                    key={i}
+                    content={v.content}
+                    variantKey={v.variantKey}
+                    label={v.label}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Platform vs tenant note */}
+          {tenant && platform && (
+            <p className="text-[10px] text-neutral-400 italic">
+              Showing tenant override. Platform default has {platform.adaptiveVariants.length} variant{platform.adaptiveVariants.length !== 1 ? "s" : ""}.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Empty state — no rows at all */}
+      {!effective && !editing && (
+        <div className="px-4 py-4 text-center">
+          <p className="text-xs text-neutral-500">No block defined yet.</p>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="mt-2 text-xs text-brand-600 hover:underline"
+          >
+            Create a tenant block for this key
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SlotSection ───────────────────────────────────────────────────────────────
+
+interface SlotSectionProps {
+  slotId:     string;
+  keyPrefix:  string;
+  blocks:     AdaptiveBlockData[];
+  tenantId:   string;
+  onRefresh:  () => void;
+  onNewBlock: (prefixKey: string) => void;
+}
+
+function SlotSection({ slotId, keyPrefix, blocks, tenantId, onRefresh, onNewBlock }: SlotSectionProps) {
+  const pairs = slotBlockPairs(keyPrefix, blocks, tenantId);
+
+  const slotColors: Record<string, string> = {
+    hero:         "bg-brand-50 text-brand-700 ring-brand-200",
+    proof:        "bg-teal-50 text-teal-700 ring-teal-200",
+    cta:          "bg-amber-50 text-amber-700 ring-amber-200",
+    feature:      "bg-purple-50 text-purple-700 ring-purple-200",
+    conversion:   "bg-green-50 text-green-700 ring-green-200",
+    notification: "bg-red-50 text-red-700 ring-red-200",
+  };
+
+  const tenantCount  = pairs.filter((p) => p.tenant).length;
+  const activeCount  = pairs.filter((p) => (p.tenant ?? p.platform)?.isActive).length;
+
+  return (
+    <div className="space-y-3">
+      {/* Slot meta */}
+      <div className="flex items-center gap-2 text-xs text-neutral-400 pb-1 border-b border-neutral-100">
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${slotColors[slotId] ?? "bg-neutral-100 text-neutral-600 ring-neutral-200"}`}>
+          {pairs.length} block{pairs.length !== 1 ? "s" : ""}
+        </span>
+        {tenantCount > 0 && (
+          <span>{tenantCount} tenant override{tenantCount !== 1 ? "s" : ""}</span>
+        )}
+        <span>·</span>
+        <span>{activeCount} active</span>
+      </div>
+
+      {pairs.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-neutral-200 px-6 py-6 text-center">
+          <p className="text-xs text-neutral-500">
+            No platform blocks defined for this slot yet.
+          </p>
+          <p className="mt-0.5 text-[11px] text-neutral-400">
+            Go to the{" "}
+            <a href="/admin/platform/blocks" className="underline hover:text-neutral-600">
+              platform blocks catalog
+            </a>{" "}
+            to create them.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {pairs.map((pair) => (
+            <BlockStatusCard
+              key={pair.key}
+              blockKey={pair.key}
+              platform={pair.platform}
+              tenant={pair.tenant}
+              tenantId={tenantId}
+              slotPrefix={keyPrefix}
+              onRefresh={onRefresh}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Add custom block for this slot */}
+      <button
+        type="button"
+        onClick={() => onNewBlock(keyPrefix)}
+        className="text-xs text-neutral-400 hover:text-brand-600 transition-colors mt-1"
+      >
+        + Add custom {slotId} block for this tenant
+      </button>
     </div>
   );
 }
@@ -503,9 +779,10 @@ interface AdaptiveBlocksPanelProps {
 }
 
 export function AdaptiveBlocksPanel({ tenantId, initialBlocks }: AdaptiveBlocksPanelProps) {
-  const [blocks,   setBlocks]   = useState<AdaptiveBlockData[]>(initialBlocks);
-  const [creating, setCreating] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [blocks,       setBlocks]       = useState<AdaptiveBlockData[]>(initialBlocks);
+  const [activeSlot,   setActiveSlot]   = useState<string>(ADAPTIVE_SLOT_REGISTRY[0].id);
+  const [creatingFor,  setCreatingFor]  = useState<string | null>(null); // key prefix for new block
+  const [isPending,    startTransition] = useTransition();
 
   const refresh = useCallback(() => {
     startTransition(async () => {
@@ -514,55 +791,96 @@ export function AdaptiveBlocksPanel({ tenantId, initialBlocks }: AdaptiveBlocksP
     });
   }, [tenantId]);
 
+  // Per-slot counts for tab badges
+  const slotCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const slot of ADAPTIVE_SLOT_REGISTRY) {
+      const slotBlocks = blocks.filter((b) => b.key.startsWith(slot.keyPrefix));
+      // Deduplicate by key
+      const keys = new Set(slotBlocks.map((b) => b.key));
+      counts[slot.id] = keys.size;
+    }
+    return counts;
+  }, [blocks]);
+
+  const currentSlot = ADAPTIVE_SLOT_REGISTRY.find((s) => s.id === activeSlot)!;
+
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">Adaptive blocks</h2>
-          <p className="mt-0.5 text-xs text-neutral-500">
-            Content Matrix documents — one block, many personalised variants.
-            Used by the <code className="font-mono">ChameleonHero</code> component.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          disabled={creating || isPending}
-          className={btnPrimary}
-        >
-          + New block
-        </button>
+    <section className="space-y-5">
+
+      {/* Panel header */}
+      <div>
+        <h2 className="text-sm font-semibold text-neutral-900">Adaptive blocks</h2>
+        <p className="mt-0.5 text-xs text-neutral-500 max-w-2xl">
+          Platform blocks personalise content for different visitor segments using tokens like{" "}
+          <code className="font-mono text-[11px]">{"{{company_name}}"}</code> and{" "}
+          <code className="font-mono text-[11px]">{"{{industry}}"}</code>.
+          You can activate platform defaults as-is, or customise them with tenant-specific content and variants.
+        </p>
       </div>
 
-      {creating && (
+      {/* Slot tabs */}
+      <div className="flex items-end gap-0 border-b border-neutral-200 overflow-x-auto">
+        {ADAPTIVE_SLOT_REGISTRY.map((slot) => {
+          const count   = slotCounts[slot.id] ?? 0;
+          const isActive = slot.id === activeSlot;
+          return (
+            <button
+              key={slot.id}
+              type="button"
+              onClick={() => setActiveSlot(slot.id)}
+              className={[
+                "flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors",
+                isActive
+                  ? "border-brand-600 text-brand-700"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300",
+              ].join(" ")}
+            >
+              {slot.label}
+              {count > 0 && (
+                <span className={[
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  isActive
+                    ? "bg-brand-100 text-brand-700"
+                    : "bg-neutral-100 text-neutral-500",
+                ].join(" ")}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Slot description */}
+      <div className="rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2">
+        <p className="text-xs text-neutral-600">{currentSlot.description}</p>
+      </div>
+
+      {/* New block inline editor (triggered by "Add custom" button) */}
+      {creatingFor !== null && (
         <BlockEditor
           initial={null}
           tenantId={tenantId}
-          onSave={() => { setCreating(false); refresh(); }}
-          onCancel={() => setCreating(false)}
+          prefillKey={creatingFor}
+          onSave={() => { setCreatingFor(null); refresh(); }}
+          onCancel={() => setCreatingFor(null)}
         />
       )}
 
-      {blocks.length === 0 && !creating && (
-        <div className="rounded-lg border border-dashed border-neutral-200 px-6 py-8 text-center">
-          <p className="text-sm text-neutral-500">No adaptive blocks yet.</p>
-          <p className="mt-1 text-xs text-neutral-400">
-            Create a block to start personalising your hero section for different visitor segments.
-          </p>
-        </div>
-      )}
+      {/* Slot content */}
+      <SlotSection
+        slotId={currentSlot.id}
+        keyPrefix={currentSlot.keyPrefix}
+        blocks={blocks}
+        tenantId={tenantId}
+        onRefresh={refresh}
+        onNewBlock={(prefix) => setCreatingFor(prefix)}
+      />
 
-      <div className="space-y-3">
-        {blocks.map((block) => (
-          <BlockRow
-            key={block.id}
-            block={block}
-            tenantId={tenantId}
-            onEdited={refresh}
-            onDeleted={refresh}
-          />
-        ))}
-      </div>
+      {isPending && (
+        <p className="text-xs text-neutral-400 animate-pulse">Refreshing…</p>
+      )}
     </section>
   );
 }

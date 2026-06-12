@@ -33,6 +33,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient }              from "@supabase/supabase-js";
 import { BILLING_PLANS, getResolvedPlanStripePriceId } from "@/billing/plans";
 import { createCheckoutSession }     from "@/billing/stripe";
+import { rethrowNextInternal } from "@/lib/server-action-guard";
 import {
   getRequiredAdminSession,
   canAccessTenant,
@@ -162,6 +163,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ url: checkoutUrl });
   } catch (err) {
+    rethrowNextInternal(err);
     console.error("[billing/create-checkout] Stripe error:", err);
     return NextResponse.json(
       { error: (err as Error).message },

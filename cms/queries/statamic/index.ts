@@ -29,3 +29,39 @@ export { PROOF_VARIANTS_COLLECTION } from "./proof-queries";
 // CTA
 export type { StatamicCTAEntry } from "./cta-queries";
 export { CTA_VARIANTS_COLLECTION } from "./cta-queries";
+
+// Site settings
+export type {
+  StatamicSiteSettingsEntry,
+  StatamicNavItem,
+  StatamicFooterColumn,
+  StatamicSocialLink,
+  StatamicLocaleEntry,
+  StatamicSiteEntry,
+} from "./site-settings-queries";
+export { SITE_SETTINGS_COLLECTION, SITE_SETTINGS_KEY } from "./site-settings-queries";
+
+// Pages + Replicator block types
+export type {
+  StatamicPageEntry,
+  StatamicPageReplicatorBlock,
+  StatamicHeroReplicatorSet,
+  StatamicProofReplicatorSet,
+  StatamicCTAReplicatorSet,
+  StatamicHeroReplicatorCTA,
+  StatamicFeatureReplicatorSet,
+  StatamicFeatureReplicatorItem,
+  StatamicConversionReplicatorSet,
+  StatamicReplicatorCTA,
+} from "./page-queries";
+export { PAGES_COLLECTION } from "./page-queries";
+
+// Adaptive blocks
+export type {
+  StatamicAdaptiveCTAItem,
+  StatamicAdaptiveVariantContent,
+  StatamicAdaptiveVariantEntry,
+  StatamicAdaptiveBlockEntry,
+  StatamicAdaptiveBlockReplicatorSet,
+} from "./adaptive-block-queries";
+export { ADAPTIVE_BLOCKS_COLLECTION } from "./adaptive-block-queries";

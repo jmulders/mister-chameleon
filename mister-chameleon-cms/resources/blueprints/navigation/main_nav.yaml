@@ -1,0 +1,39 @@
+title: 'Main Navigation'
+sections:
+  main:
+    display: Main
+    fields:
+      -
+        handle: header_variant
+        field:
+          type: select
+          display: 'Header Variant'
+          instructions: 'Override the header style when this page is active. Leave empty to use the site-wide default.'
+          options:
+            minimal: 'Minimal — compact logo + horizontal nav'
+            flyout: 'Flyout — logo + nav with dropdown menus'
+            mega: 'Mega — logo + full-width mega-menu'
+            transparent: 'Transparent — overlays the hero section'
+            triband: 'Triband — section tabs / logo+search / main nav (3 rows)'
+          clearable: true
+          placeholder: 'Site default'
+          width: 50
+  mega_menu:
+    display: 'Mega Menu'
+    fields:
+      -
+        handle: mega_show_image
+        field:
+          type: toggle
+          display: 'Afbeelding tonen'
+          instructions: 'Toont de card thumbnail (overview image) van elke subpagina als afbeelding in het mega menu. Alleen van toepassing wanneer dit item een mega menu heeft.'
+          default: true
+          width: 50
+      -
+        handle: mega_show_description
+        field:
+          type: toggle
+          display: 'Beschrijving tonen'
+          instructions: 'Toont de excerpt / beschrijving van elke subpagina als tekst in het mega menu. Alleen van toepassing wanneer dit item een mega menu heeft.'
+          default: true
+          width: 50

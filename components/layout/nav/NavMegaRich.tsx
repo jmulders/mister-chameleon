@@ -72,7 +72,7 @@
  *   This component is "use client" only for open/close state and pointer events.
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useLayoutEffect } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type {
@@ -538,6 +538,17 @@ function MegaPanel({
   density:   "compact" | "comfortable";
   megaStyle: MegaMenuStyle;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    el.style.transform = "";
+    const rect     = el.getBoundingClientRect();
+    const overflow = rect.right - (window.innerWidth - 8);
+    if (overflow > 0) el.style.transform = `translateX(${-overflow}px)`;
+  });
+
   const visibleColumns = megaMenu.columns.filter((c) => c.items.length > 0);
   if (visibleColumns.length === 0) return null;
 
@@ -555,6 +566,7 @@ function MegaPanel({
 
   return (
     <div
+      ref={panelRef}
       role="menu"
       className={cn(
         "absolute left-0 top-full z-50 mt-px",
@@ -729,58 +741,118 @@ function RichMegaItem({ item, density, megaStyle }: RichMegaItemProps) {
 
 // ── Legacy children fallback panel ────────────────────────────────────────────
 //
-// Renders the existing simple grid for items that have `children` but no
-// `megaMenu.columns` configuration.  Backward-compatible with all existing
-// navigationItem documents.
+// Renders a feature-column layout for items that have `children` but no
+// `megaMenu.columns` configuration.  The parent item label is intentionally
+// NOT repeated here (it is already visible as the nav trigger above the panel).
+//
+// Layout:
+//   ┌────────────┬────────────┬────────────┐
+//   │  Child 1   │  Child 2   │  Child 3   │
+//   │  (title)   │  (title)   │  (title)   │
+//   │  desc …    │  desc …    │  desc …    │
+//   │  ›         │  ›         │  ›         │
+//   └────────────┴────────────┴────────────┘
 
 function LegacyChildrenPanel({
   item,
   s,
-  density,
 }: {
   item:    NavigationItemData;
   s:       ReturnType<typeof getStyle>;
   density: "compact" | "comfortable";
 }) {
-  const childPy = density === "compact" ? "py-1.5" : "py-2";
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Overflow correction — runs synchronously before paint so there's no flash.
+  // The panel is only mounted when the menu is open (conditional render in
+  // RichMegaItem), so [] runs exactly once per open: on the initial mount.
+  // If the panel's right edge would exceed the viewport, shift it left by the
+  // overflow amount so it stays fully visible.
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect     = el.getBoundingClientRect();
+    const overflow = rect.right - (window.innerWidth - 8); // 8px breathing room
+    if (overflow > 0) el.style.transform = `translateX(${-overflow}px)`;
+  }, []);
+
+  const children = item.children ?? [];
+  if (children.length === 0) return null;
+
+  // Respect per-item show/hide flags — absent (undefined) defaults to true.
+  const showImages       = item.megaShowImage       !== false;
+  const showDescriptions = item.megaShowDescription !== false;
+
+  const hasAnyDesc  = showDescriptions && children.some((c) => c.description);
+  const hasAnyImage = showImages       && children.some((c) => c.imageUrl);
+
+  // Panel width: per-column width × count, capped at 920px
+  const colW   = hasAnyImage ? 220 : hasAnyDesc ? 230 : 200;
+  const panelW = Math.min(children.length * colW, 920);
 
   return (
     <div
+      ref={panelRef}
       role="menu"
       className={cn(
         "absolute left-0 top-full z-50 mt-px",
-        "w-[480px] max-w-[90vw]",
-        "rounded-lg",
+        "max-w-[90vw] overflow-hidden rounded-xl",
         s.panel,
-        "p-4",
       )}
+      style={{ width: panelW }}
     >
-      <div
-        className="grid gap-x-6 gap-y-0.5"
-        style={{
-          gridTemplateColumns: `repeat(${Math.min(Math.ceil((item.children?.length ?? 0) / 4), 3)}, 1fr)`,
-        }}
-      >
-        {item.children?.map((child) => (
-          <Link
-            key={child.id}
-            href={child.href}
-            role="menuitem"
-            target={child.openInNewTab ? "_blank" : undefined}
-            rel={child.openInNewTab ? "noopener noreferrer" : undefined}
-            style={{ fontSize: "var(--nav-dropdown-item-size, 0.875rem)" }}
-            className={cn(
-              "block rounded-md px-3",
-              childPy,
-              "font-medium",
-              s.linkText,
-              s.linkHover,
-              "transition-colors duration-100",
-            )}
-          >
-            {child.label}
-          </Link>
-        ))}
+      {/* ── Feature columns — one per child, separated by hairline dividers ── */}
+      <div className="flex divide-x divide-[var(--nav-dropdown-border,var(--border))]">
+          {children.map((child) => (
+            <Link
+              key={child.id}
+              href={child.href}
+              role="menuitem"
+              target={child.openInNewTab ? "_blank" : undefined}
+              rel={child.openInNewTab ? "noopener noreferrer" : undefined}
+              className={cn(
+                "group flex flex-col gap-1.5 p-5 flex-1 min-w-0",
+                "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-1",
+              )}
+            >
+              {/* Thumbnail — only when enabled and overview_image is set on the page */}
+              {showImages && child.imageUrl && (
+                <div className="relative aspect-video w-full rounded-md overflow-hidden mb-1 bg-[var(--bg-subtle,#f1f5f9)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={child.imageUrl}
+                    alt=""
+                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                  />
+                </div>
+              )}
+              <span
+                className={cn(
+                  "font-semibold text-sm leading-snug",
+                  "text-[var(--nav-dropdown-text,var(--text))]",
+                  "group-hover:text-[var(--nav-dropdown-link-hover-text,var(--text-brand))]",
+                  "transition-colors duration-100",
+                )}
+              >
+                {child.label}
+              </span>
+              {showDescriptions && child.description && (
+                <span className={cn("text-xs leading-relaxed line-clamp-3", s.linkDesc)}>
+                  {child.description}
+                </span>
+              )}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "mt-1 text-xs font-semibold",
+                  "text-[var(--text-brand)]",
+                  "group-hover:underline transition-colors duration-100",
+                )}
+              >
+                Ontdekken ›
+              </span>
+            </Link>
+          ))}
       </div>
     </div>
   );

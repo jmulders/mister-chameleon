@@ -1,0 +1,115 @@
+title: 'Layout Settings'
+fields:
+  # ── Layout Variants ──────────────────────────────────────────────────────────
+  -
+    handle: header_variant
+    field:
+      type: select
+      display: 'Header Variant'
+      instructions: 'Structural layout of the site header. Leave empty to use the theme family default.'
+      options:
+        minimal: 'Minimal — compact logo + horizontal nav'
+        flyout: 'Flyout — logo + nav with dropdown menus'
+        mega: 'Mega — logo + full-width mega-menu'
+        transparent: 'Transparent — overlays the hero section'
+        triband: 'Triband — section tabs / logo+search / main nav (3 rows)'
+      clearable: true
+      placeholder: 'Theme family default'
+  -
+    handle: footer_variant
+    field:
+      type: select
+      display: 'Footer Variant'
+      instructions: 'Structural layout of the site footer.'
+      options:
+        minimal: 'Minimal — single-row copyright strip'
+        corporate: 'Corporate — multi-column links grid'
+        branding: 'Branding — centred logo + wide copyright strip'
+      clearable: true
+      placeholder: 'Theme family default'
+  -
+    handle: footer_density
+    field:
+      type: select
+      display: 'Footer Density'
+      instructions: 'Vertical spacing inside the footer.'
+      options:
+        compact: Compact
+        comfortable: Comfortable
+        spacious: Spacious
+      clearable: true
+      placeholder: 'Theme family default'
+  # ── Navigation Typography ────────────────────────────────────────────────────
+  -
+    handle: nav_link_size
+    field:
+      type: text
+      display: 'Nav Link Size'
+      instructions: 'CSS font-size for header navigation links, e.g. 0.875rem or 14px. Leave empty for theme default.'
+      placeholder: '0.875rem'
+  -
+    handle: nav_link_weight
+    field:
+      type: text
+      display: 'Nav Link Weight'
+      instructions: 'CSS font-weight for header navigation links, e.g. 500 or bold. Leave empty for theme default.'
+      placeholder: '500'
+  -
+    handle: nav_link_tracking
+    field:
+      type: text
+      display: 'Nav Link Tracking'
+      instructions: 'CSS letter-spacing for header navigation links, e.g. 0.02em. Leave empty for theme default.'
+      placeholder: '0em'
+  -
+    handle: dropdown_item_size
+    field:
+      type: text
+      display: 'Dropdown Item Size'
+      instructions: 'CSS font-size for dropdown/mega-menu items. Leave empty for theme default.'
+      placeholder: '0.875rem'
+  -
+    handle: footer_nav_size
+    field:
+      type: text
+      display: 'Footer Nav Size'
+      instructions: 'CSS font-size for footer navigation links. Leave empty for theme default.'
+      placeholder: '0.875rem'
+  # ── Triband — Section Tabs ───────────────────────────────────────────────────
+  -
+    handle: section_tabs
+    field:
+      type: grid
+      display: 'Section Tabs'
+      instructions: 'Tab links shown in the slim top band of the triband header. Each row is one tab.'
+      if:
+        header_variant: 'equals triband'
+      add_row: 'Add Tab'
+      fields:
+        -
+          handle: label
+          field:
+            type: text
+            display: 'Label'
+            instructions: 'Tab display text, e.g. "Website" or "Werken bij".'
+            required: true
+        -
+          handle: href
+          field:
+            type: link
+            display: 'URL'
+            instructions: 'Target URL for this tab. Pick an entry or type a path.'
+            required: true
+        -
+          handle: nav_handle
+          field:
+            type: select
+            display: 'Navigation'
+            instructions: 'Navigation tree to show in the main nav bar when this section is active. Leave empty to use the default main_nav. Add a new option here when you create a new navigation in CP → Navigation.'
+            options:
+              main_nav: 'Main Navigation (default)'
+              top_bar: 'Top Bar'
+              footer_bottom: 'Footer Navigation'
+            clearable: true
+            taggable: true
+            placeholder: 'main_nav (default)'

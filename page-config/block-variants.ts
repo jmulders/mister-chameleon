@@ -127,8 +127,12 @@ export type CtaLayoutVariant =
  *   header_default   — logo left, nav links right (sticky)
  *   header_centered  — centered logo, nav arranged symmetrically
  *   header_cta       — logo left, nav center, primary CTA button pinned right
+ *   header_triband   — three horizontal bands:
+ *                        band 1: section tabs (left) + quick links (right)
+ *                        band 2: logo (left) + search bar + lang switch + CTA (right)
+ *                        band 3: main navigation items (full width)
  */
-export type HeaderLayoutVariant = "header_default" | "header_centered" | "header_cta";
+export type HeaderLayoutVariant = "header_default" | "header_centered" | "header_cta" | "header_triband";
 
 // ── Context variant sets (for resolver) ───────────────────────────────────────
 
@@ -136,7 +140,7 @@ const CONTEXT_VARIANT_SETS: Record<string, readonly string[]> = {
   hero:   ["hero_default",  "hero_split",   "hero_proof",  "hero_background", "hero_minimal_dark", "hero_split_clean", "hero_dark_split", "hero_editorial", "hero_page_banner"] satisfies readonly HeroLayoutVariant[],
   proof:  ["proof_stats",   "proof_logos",  "proof_quotes"]                   satisfies readonly ProofLayoutVariant[],
   cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact"] satisfies readonly CtaLayoutVariant[],
-  header: ["header_default","header_centered","header_cta"]                   satisfies readonly HeaderLayoutVariant[],
+  header: ["header_default","header_centered","header_cta","header_triband"]  satisfies readonly HeaderLayoutVariant[],
 };
 
 // ── Context variant defaults ───────────────────────────────────────────────────
@@ -462,8 +466,9 @@ export type TeamSectionVariant = "team_grid" | "team_compact";
  *   timeline_vertical   — stacked vertical timeline with line + alternating content (default)
  *   timeline_compact    — tight single-column list; lower vertical footprint
  *   timeline_milestones — icon + date emphasis; suitable for company history
+ *   timeline_slider     — full-width slider: media left, title+text right, bottom nav bar
  */
-export type TimelineVariant = "timeline_vertical" | "timeline_compact" | "timeline_milestones";
+export type TimelineVariant = "timeline_vertical" | "timeline_compact" | "timeline_milestones" | "timeline_slider";
 
 /**
  * Variant for quickLinks blocks.
@@ -599,7 +604,7 @@ const BLOCK_VARIANT_SETS: Partial<Record<ContentBlockType, readonly string[]>> =
   teamSection:    ["team_grid", "team_compact"]         satisfies readonly TeamSectionVariant[],
 
   // ── New core blocks ───────────────────────────────────────────────────────────
-  timeline:       ["timeline_vertical", "timeline_compact", "timeline_milestones"] satisfies readonly TimelineVariant[],
+  timeline:       ["timeline_vertical", "timeline_compact", "timeline_milestones", "timeline_slider"] satisfies readonly TimelineVariant[],
   quickLinks:     ["quicklinks_grid", "quicklinks_list", "quicklinks_compact"]     satisfies readonly QuickLinksVariant[],
   textMedia:      ["text_media_right", "text_media_left", "text_media_stacked"]    satisfies readonly TextMediaVariant[],
   contactSection: ["contact_default", "contact_split", "contact_minimal"]          satisfies readonly ContactSectionVariant[],

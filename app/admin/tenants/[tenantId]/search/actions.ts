@@ -51,10 +51,26 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * All available search providers.
+ *
+ *   none       — Platform auto-detection: Statamic FS → Sanity GROQ → InMemory
+ *   statamic   — Force Statamic FS (requires STATAMIC_CMS_PATH env var)
+ *   sanity     — Force Sanity GROQ  (requires SANITY_PROJECT_ID env var)
+ *   inmemory   — Force in-memory fixture corpus (always available; for testing)
+ *   meilisearch— Full-text index with relevance ranking + facets
+ */
+export type SearchProviderOption =
+  | "none"
+  | "statamic"
+  | "sanity"
+  | "inmemory"
+  | "meilisearch";
+
+/**
  * Search settings returned to the client — secrets replaced with boolean flags.
  */
 export interface SafeSearchConfig {
-  provider:        "none" | "meilisearch";
+  provider:        SearchProviderOption;
   meilisearchHost: string;
   indexPrefix:     string;
   hasApiKey:       boolean;
@@ -67,7 +83,7 @@ export interface SafeSearchConfig {
  * `meilisearchApiKey` is empty string = "keep existing key".
  */
 export interface SearchSettingsFormInput {
-  provider:          "none" | "meilisearch";
+  provider:          SearchProviderOption;
   meilisearchHost:   string;
   indexPrefix:       string;
   meilisearchApiKey: string;   // empty = preserve existing
@@ -127,8 +143,11 @@ export async function saveTenantSearchSettingsAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
-  const provider: "none" | "meilisearch" =
-    input.provider === "meilisearch" ? "meilisearch" : "none";
+  const VALID_PROVIDERS: SearchProviderOption[] = [
+    "none", "statamic", "sanity", "inmemory", "meilisearch",
+  ];
+  const provider: SearchProviderOption =
+    VALID_PROVIDERS.includes(input.provider) ? input.provider : "none";
 
   try {
     // Load existing row to preserve the stored API key when input is empty
@@ -244,10 +263,33 @@ export async function reindexTenantSearchAction(tenantId: string): Promise<
   const indexPrefix = typeof rawConfig.indexPrefix === "string" ? rawConfig.indexPrefix.trim() : "";
   const indexName   = `${indexPrefix}${tenantId}`;
 
+  // ── Resolve tenant CMS URL ───────────────────────────────────────────────
+  //
+  // When the tenant has an explicit statamicBaseUrl (customer-owned CMS),
+  // the indexer must fetch content from THAT instance — never from the
+  // platform's local files or platform-level STATAMIC_API_URL.
+  let tenantStatamicBaseUrl: string | undefined;
+  try {
+    const { getTenantById }   = await import("@/tenant/server");
+    const { normalizeTenant } = await import("@/tenant/normalize");
+    const rawTenant = await getTenantById(tenantId);
+    if (rawTenant) {
+      tenantStatamicBaseUrl = normalizeTenant(rawTenant).cms?.statamicBaseUrl?.trim() || undefined;
+    }
+  } catch (err) {
+    logger.warn("[search-actions] Could not resolve tenant CMS settings for reindex", {
+      tenantId, error: String(err),
+    });
+  }
+
   // ── Run indexer ──────────────────────────────────────────────────────────
   let indexResult: { docCount: number; errorCount: number; indexedAt: string };
   try {
-    indexResult = await indexTenant({ host, apiKey, indexName }, tenantId);
+    indexResult = await indexTenant(
+      { host, apiKey, indexName },
+      tenantId,
+      { statamicBaseUrl: tenantStatamicBaseUrl },
+    );
   } catch (err) {
     logger.error("[search-actions] Reindex failed", { tenantId, error: String(err) });
     return { ok: false, error: `Reindex failed: ${String(err)}` };
@@ -318,8 +360,11 @@ function defaultSafeConfig(): SafeSearchConfig {
 }
 
 function toSafeConfig(raw: Record<string, unknown>): SafeSearchConfig {
-  const provider: "none" | "meilisearch" =
-    raw.provider === "meilisearch" ? "meilisearch" : "none";
+  const VALID: SearchProviderOption[] = ["none", "statamic", "sanity", "inmemory", "meilisearch"];
+  const provider: SearchProviderOption =
+    VALID.includes(raw.provider as SearchProviderOption)
+      ? (raw.provider as SearchProviderOption)
+      : "none";
 
   const lastIndexStats =
     raw.lastIndexStats &&

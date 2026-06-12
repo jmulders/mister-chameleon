@@ -45,8 +45,9 @@ import { Text }                from "@/components/primitives/Text";
 import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { ListingVariant } from "@/page-config/block-variants";
 import type { ListingBlockData } from "@/page-config";
-import { ResultCard }          from "@/components/blocks/listing/ResultCard";
-import { ViewAllLink }        from "@/components/blocks/listing/ViewAllLink";
+import { ResultCard }    from "@/components/blocks/listing/ResultCard";
+import { ViewAllLink }   from "@/components/blocks/listing/ViewAllLink";
+import { MediaSlider }   from "@/components/blocks/listing/MediaSlider";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -60,7 +61,63 @@ interface ListingBlockProps {
 export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
   const variant = resolveBlockVariant("listing", rawVariant) as ListingVariant;
 
-  const { heading, viewAllHref, viewAllLabel } = data;
+  const { heading, intro, viewAllHref, viewAllLabel } = data;
+
+  // ── listing_slider variant ──────────────────────────────────────────────────
+  //
+  // Horizontally scrolling CSS-snap media carousel.
+  // Each slide is an image or a hosted/uploaded video authored in the CMS
+  // via the `media_items` replicator field.
+  //
+  // NOTE: This variant uses `data.mediaItems`, NOT `data.items`.  The early
+  // `items.length === 0` guard below must NOT apply here.
+
+  if (variant === "listing_slider") {
+    const slides = data.mediaItems ? [...data.mediaItems] : [];
+
+    return (
+      <Section spacing="lg">
+        <Container size="lg">
+          {slides.length > 0 ? (
+            <MediaSlider slides={slides} heading={heading} />
+          ) : (
+            /* Empty state so the block is visible in the CP live preview */
+            <Stack gap={8}>
+              {heading && (
+                <Text
+                  variant="h2"
+                  style={{
+                    color:      "var(--text)",
+                    fontFamily: "var(--font-heading)",
+                    fontWeight: "var(--font-heading-weight)",
+                  }}
+                >
+                  {heading}
+                </Text>
+              )}
+              {intro && (
+                <div
+                  className="text-base leading-relaxed"
+                  style={{ color: "var(--text-muted)" }}
+                  dangerouslySetInnerHTML={{ __html: intro }}
+                />
+              )}
+              <div
+                className="flex items-center justify-center rounded-xl border-2 border-dashed py-16"
+                style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+              >
+                <span className="text-sm opacity-60">Add slides in the CMS to see the slider</span>
+              </div>
+            </Stack>
+          )}
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── All other variants — content listing items ─────────────────────────────
+  //
+  // Respect maxItems cap when set and bail when the list is empty.
 
   // Respect maxItems cap when set
   const items = data.maxItems
@@ -68,50 +125,6 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
     : data.items;
 
   if (items.length === 0) return null;
-
-  // ── listing_slider variant ──────────────────────────────────────────────────
-  //
-  // Horizontally scrolling CSS-snap card carousel.
-  // Cards are fixed-width so a partial next card peeks at the trailing edge —
-  // providing a natural affordance for horizontal scrolling.
-
-  if (variant === "listing_slider") {
-    return (
-      <Section spacing="lg">
-        <Container size="lg">
-          <Stack gap={8}>
-            {(heading || viewAllHref) && (
-              <div className="flex items-center justify-between gap-4">
-                {heading && (
-                  <Text
-                    variant="h2"
-                    style={{
-                      color:      "var(--text)",
-                      fontFamily: "var(--font-heading)",
-                      fontWeight: "var(--font-heading-weight)",
-                    }}
-                  >
-                    {heading}
-                  </Text>
-                )}
-                {viewAllHref && <ViewAllLink href={viewAllHref} label={viewAllLabel} />}
-              </div>
-            )}
-            <div
-              className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {items.map((item, i) => (
-                <div key={item.id ?? i} className="min-w-72 flex-shrink-0 snap-start sm:min-w-80">
-                  <ResultCard item={item} layout="card" headingLevel={3} />
-                </div>
-              ))}
-            </div>
-          </Stack>
-        </Container>
-      </Section>
-    );
-  }
 
   // ── compact variant ─────────────────────────────────────────────────────────
   //
@@ -134,6 +147,13 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
               >
                 {heading}
               </Text>
+            )}
+            {intro && (
+              <div
+                className="text-base leading-relaxed"
+                style={{ color: "var(--text-muted)" }}
+                dangerouslySetInnerHTML={{ __html: intro }}
+              />
             )}
 
             <div>
@@ -173,6 +193,13 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
                 {heading}
               </Text>
             )}
+            {intro && (
+              <div
+                className="text-base leading-relaxed"
+                style={{ color: "var(--text-muted)" }}
+                dangerouslySetInnerHTML={{ __html: intro }}
+              />
+            )}
 
             <Stack gap={4}>
               {items.map((item, i) => (
@@ -205,17 +232,28 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
     >
       <Container size="xl">
         <Stack gap={10}>
-          {heading && (
-            <Text
-              variant="h2"
-              style={{
-                color:      "var(--text)",
-                fontFamily: "var(--font-heading)",
-                fontWeight: "var(--font-heading-weight)",
-              }}
-            >
-              {heading}
-            </Text>
+          {(heading || intro) && (
+            <Stack gap={3}>
+              {heading && (
+                <Text
+                  variant="h2"
+                  style={{
+                    color:      "var(--text)",
+                    fontFamily: "var(--font-heading)",
+                    fontWeight: "var(--font-heading-weight)",
+                  }}
+                >
+                  {heading}
+                </Text>
+              )}
+              {intro && (
+                <div
+                  className="text-base leading-relaxed"
+                  style={{ color: "var(--text-muted)" }}
+                  dangerouslySetInnerHTML={{ __html: intro }}
+                />
+              )}
+            </Stack>
           )}
 
           <Grid cols={3} gap="lg">
@@ -232,4 +270,5 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
     </Section>
   );
 }
+
 

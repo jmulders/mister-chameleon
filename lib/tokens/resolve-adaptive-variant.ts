@@ -39,9 +39,10 @@
  * ─── Mapping to HeroBlockData ─────────────────────────────────────────────────
  *
  *   Use `adaptiveVariantToHeroBlockData()` to convert the resolved content into
- *   a HeroBlockData so it can be passed directly to <HeroBlock>.  This mapping
- *   is intentionally lossy: adaptive variants support a subset of HeroBlockData
- *   fields (no layoutVariant, no contentAlign).
+ *   a HeroBlockData so it can be passed directly to <HeroBlock>.  The mapping
+ *   passes through `layoutVariant`, `contentAlign`, `media`, `ctas`, `tag`,
+ *   `title`, and `subtitle`.  The deprecated `imageUrl` / `imageAlt` fields are
+ *   supported as a legacy fallback for CMS documents predating task #99.
  *
  * ─── isDefault flag ───────────────────────────────────────────────────────────
  *
@@ -173,23 +174,32 @@ function applyTokensToVariant(
  *
  * Mapping notes:
  *   - `id` is set to `blockKey` for analytics attribution.
- *   - `layoutVariant` is absent — the HeroBlock falls back to its default
- *     layout ("hero_default").  Override at the call site when needed.
- *   - `imageUrl` / `imageAlt` map to `media` (kind: "image").
+ *   - `layoutVariant` and `contentAlign` pass through from the adaptive variant;
+ *     HeroBlock falls back to "hero_default" when absent.
+ *   - `media` prefers the new HeroBannerMedia union field; falls back to the
+ *     deprecated `imageUrl` / `imageAlt` pair for old CMS documents that
+ *     predate the media enrichment (task #99).
  *   - `ctas` passes through unchanged; both types share the HeroCTAItem shape.
  */
 export function adaptiveVariantToHeroBlockData(
   content:  AdaptiveVariantContent,
   blockKey: string,
 ): HeroBlockData {
-  return {
-    id:       blockKey,
-    title:    content.title,
-    subtitle: content.subtitle,
-    tag:      content.tag,
-    ctas:     (content.ctas ?? []) as readonly HeroCTAItem[],
-    media:    content.imageUrl
+  // Prefer new media union; fall back to deprecated imageUrl for legacy documents.
+  const media: HeroBlockData["media"] =
+    content.media ??
+    (content.imageUrl
       ? { kind: "image", url: content.imageUrl, alt: content.imageAlt ?? "" }
-      : undefined,
+      : undefined);
+
+  return {
+    id:            blockKey,
+    title:         content.title,
+    subtitle:      content.subtitle,
+    tag:           content.tag,
+    ctas:          (content.ctas ?? []) as readonly HeroCTAItem[],
+    layoutVariant: content.layoutVariant,
+    contentAlign:  content.contentAlign,
+    media,
   };
 }

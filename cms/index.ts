@@ -87,7 +87,7 @@ export type {
 export type { CMSProvider, ProvisionResult, TestConnectionResult } from "./providers/cms-provider";
 export { MockCMSProvider } from "./providers/mock-provider";
 export { SanityProvider } from "./providers/sanity-provider";
-export { createCMSProvider, createPreviewCMSProvider } from "./providers/create-cms-provider";
+export { createCMSProvider, createPreviewCMSProvider, createDraftStatamicProvider } from "./providers/create-cms-provider";
 
 // Mappers (content-layer)
 export {

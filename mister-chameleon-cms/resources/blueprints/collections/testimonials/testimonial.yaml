@@ -1,0 +1,50 @@
+title: Testimonial
+fields:
+  -
+    handle: title
+    field:
+      type: text
+      display: Title
+      required: true
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+  -
+    handle: quote
+    field:
+      type: textarea
+      display: Quote
+      required: true
+  -
+    handle: author_name
+    field:
+      type: text
+      display: Author Name
+      required: true
+  -
+    handle: author_title
+    field:
+      type: text
+      display: Author Title
+  -
+    handle: author_company
+    field:
+      type: text
+      display: Author Company
+  -
+    handle: avatar_url
+    field:
+      type: text
+      display: Avatar URL
+      instructions: 'Optional URL to author headshot image'
+  -
+    handle: rating
+    field:
+      type: integer
+      display: Rating
+      min: 1
+      max: 5
+      default: 5

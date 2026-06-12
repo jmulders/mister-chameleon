@@ -6,9 +6,20 @@
  *
  * ─── Mapper functions ──────────────────────────────────────────────────────
  *
- *   mapStatamicHero(entry)   — StatamicHeroEntry → HeroBlockData
- *   mapStatamicProof(entry)  — StatamicProofEntry → ProofBlockData
- *   mapStatamicCTA(entry)    — StatamicCTAEntry → CTABlockData
+ *   mapStatamicHero(entry)         — StatamicHeroEntry → HeroBlockData
+ *   mapStatamicProof(entry)        — StatamicProofEntry → ProofBlockData
+ *   mapStatamicCTA(entry)          — StatamicCTAEntry → CTABlockData
+ *   mapStatamicFeature(block)      — StatamicFeatureReplicatorSet → FeatureBlockData
+ *   mapStatamicConversion(block)   — StatamicConversionReplicatorSet → ConversionBlockData
  */
 
-export { mapStatamicHero, mapStatamicProof, mapStatamicCTA } from "./statamic-mappers";
+export {
+  mapStatamicHero,
+  mapStatamicProof,
+  mapStatamicCTA,
+  mapStatamicFeature,
+  mapStatamicConversion,
+  mapStatamicAdaptiveVariantContent,
+  mapStatamicAdaptiveBlock,
+  mapStatamicPageBlocksToSections,
+} from "./statamic-mappers";
