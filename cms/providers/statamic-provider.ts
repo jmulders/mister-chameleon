@@ -1183,11 +1183,22 @@ export class StatamicProvider implements CMSProvider {
         }
       }
 
-      const entry = await this.client.fetchEntryBySlug<StatamicPageEntry>(
-        PAGES_COLLECTION,
-        slug,
-      );
-      if (!entry) return null;
+      // In Live Preview draft mode the injected `_draftPageBlocks` carry the
+      // current (unsaved) content, so the page can be rendered entirely from
+      // them. The live entry fetch is then only a best-effort source of
+      // metadata (title, template, seo) — it must NOT abort rendering when it
+      // fails (e.g. the default API client has no reachable base URL in this
+      // context). Outside draft mode, a missing entry is a genuine 404.
+      const isDraftMode = this._draftPageBlocks !== undefined;
+
+      const fetchedEntry = await this.client
+        .fetchEntryBySlug<StatamicPageEntry>(PAGES_COLLECTION, slug)
+        .catch(() => null);
+
+      if (!fetchedEntry && !isDraftMode) return null;
+
+      const entry: StatamicPageEntry =
+        fetchedEntry ?? ({ id: slug, title: slug } as StatamicPageEntry);
 
       // Normalise optional meta_keywords: accept both comma-separated string
       // and YAML array.
