@@ -1,70 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDraft } from "@/lib/statamic-draft-store";
-import { createDraftStatamicProvider } from "@/cms";
+import { createCMSProvider, createDraftStatamicProvider } from "@/cms";
+import { getActiveTenant, getTenantById } from "@/tenant/server";
 
 /**
- * TEMPORARY diagnostic endpoint for Live Preview debugging.
- *
+ * TEMPORARY diagnostic endpoint for Live Preview / tenant-resolution debugging.
  * GET /api/mc-draft-debug?token=XXX
- *
- * Returns which Supabase project the production runtime actually uses, whether
- * getDraft() resolves the token at runtime, and the raw query param — so we can
- * pinpoint why ?_mc_draft= isn't applied. Safe (read-only, booleans only).
- * REMOVE after the live-preview issue is resolved.
+ * Safe (read-only). REMOVE after the issue is resolved.
  */
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token") ?? "";
+  const out: Record<string, unknown> = {};
 
-  let supabaseHost: string | null = null;
+  // ── Supabase / draft store ────────────────────────────────────────────────
   try {
-    supabaseHost = new URL(
+    out.supabaseHost = new URL(
       process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "",
     ).host;
-  } catch {
-    supabaseHost = null;
-  }
+  } catch { out.supabaseHost = null; }
 
-  let found = false;
-  let blockCount = -1;
-  let error: string | null = null;
-  let pageSections = -1;
-  let pageTitle: string | null = null;
-  let providerError: string | null = null;
   try {
     const entry = await getDraft(token);
-    found = entry !== null;
-    blockCount = Array.isArray(entry?.blocks) ? entry!.blocks.length : -1;
-
+    out.getDraftFound = entry !== null;
+    out.blockCount = Array.isArray(entry?.blocks) ? entry!.blocks.length : -1;
     if (entry) {
-      try {
-        const provider = createDraftStatamicProvider(entry.blocks);
-        const page = await provider.getPageBySlug("home", "nl");
-        pageSections = Array.isArray(page?.sections) ? page!.sections.length : -1;
-        pageTitle = page?.title ?? null;
-      } catch (pe) {
-        providerError = String(pe);
-      }
+      const p = createDraftStatamicProvider(entry.blocks);
+      const page = await p.getPageBySlug("home", "nl");
+      out.draftPageSections = Array.isArray(page?.sections) ? page!.sections.length : -1;
     }
-  } catch (e) {
-    error = String(e);
-  }
+  } catch (e) { out.draftError = String(e); }
 
-  return NextResponse.json(
-    {
-      receivedToken: token,
-      supabaseHost,
-      serviceKeyPresent: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      getDraftFound: found,
-      blockCount,
-      pageSections,
-      pageTitle,
-      providerError,
-      error,
-      nodeEnv: process.env.NODE_ENV,
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  // ── Tenant + CMS provider resolution (the live homepage path) ─────────────
+  try {
+    const tc = await getActiveTenant();
+    out.tenantId = tc.tenantId;
+    out.staticCmsProvider = (tc as { cmsProvider?: string }).cmsProvider ?? null;
+
+    const t = await getTenantById(tc.tenantId);
+    out.dbTenantFound = t !== null;
+    out.dbCms = (t as { cms?: unknown } | null)?.cms ?? null;
+
+    const provider = createCMSProvider(
+      (t as { cms?: never } | null)?.cms,
+      tc.tenantId,
+      "nl",
+    );
+    out.providerClass = provider.constructor?.name ?? null;
+
+    const home = await provider.getPageBySlug("home", "nl");
+    out.homeTitle = home?.title ?? null;
+    out.homeSections = Array.isArray(home?.sections) ? home!.sections.length : -1;
+  } catch (e) { out.tenantError = String(e); }
+
+  // ── Env presence (no values) ──────────────────────────────────────────────
+  out.env = {
+    SANITY_PROJECT_ID: !!process.env.SANITY_PROJECT_ID,
+    STATAMIC_API_URL: !!process.env.STATAMIC_API_URL,
+    STORYBLOK_ACCESS_TOKEN: !!process.env.STORYBLOK_ACCESS_TOKEN,
+  };
+
+  return NextResponse.json(out, { headers: { "Cache-Control": "no-store" } });
 }
