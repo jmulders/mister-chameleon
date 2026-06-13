@@ -161,10 +161,10 @@ export default async function ContactPage({ searchParams }: PageProps) {
   // When the Antlers template POSTs page_blocks to /api/statamic-draft and
   // loads the iframe with ?_mc_draft=TOKEN, render the unsaved draft so every
   // CP change (add/toggle/reorder blocks) is visible live.
-  if (process.env.NODE_ENV === "development") {
+  {
     const sp         = await searchParams;
     const draftToken = typeof sp._mc_draft === "string" ? sp._mc_draft : null;
-    const draftEntry = draftToken ? getDraft(draftToken) : null;
+    const draftEntry = draftToken ? await getDraft(draftToken) : null;
 
     if (draftEntry) {
       type RawBlock = Record<string, unknown>;

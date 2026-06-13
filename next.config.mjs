@@ -190,24 +190,31 @@ const nextConfig = {
     // for compatibility with older proxies/CDNs that still read the legacy header.
     const isDev = process.env.NODE_ENV === "development";
 
+    // The Statamic CP embeds Next.js pages in Live Preview iframes. The CP runs
+    // on a different origin (dev: localhost:8000; prod: the managed Ploi Cloud
+    // host *.ploi.it, or a custom STATAMIC_CP_ORIGIN such as cms.example.nl), so
+    // frame-ancestors must list those origins for the iframe to load.
+    //   - Dev:  localhost:8000
+    //   - Prod: https://*.ploi.it  + optional STATAMIC_CP_ORIGIN
+    const cpOrigin   = process.env.STATAMIC_CP_ORIGIN; // e.g. https://cms.misterchameleon.nl
+    const frameAllow = isDev
+      ? "frame-ancestors 'self' http://localhost:8000"
+      : `frame-ancestors 'self' https://*.ploi.it${cpOrigin ? ` ${cpOrigin}` : ""}`;
+
     return [
       {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           // frame-ancestors controls which origins may embed this page.
-          // Dev:  allow same-origin (admin theme previews) + Statamic CP on :8000.
-          // Prod: allow same-origin only.
           {
             key: "Content-Security-Policy",
-            value: isDev
-              ? "frame-ancestors 'self' http://localhost:8000"
-              : "frame-ancestors 'self'",
+            value: frameAllow,
           },
-          // Keep X-Frame-Options in production for CDN/proxy compatibility.
-          // Omit in dev — when present alongside CSP frame-ancestors some older
-          // browsers apply the more restrictive of the two, which would block :8000.
-          ...(isDev ? [] : [{ key: "X-Frame-Options", value: "SAMEORIGIN" }]),
+          // X-Frame-Options cannot express cross-origin allow-lists (ALLOW-FROM is
+          // deprecated and SAMEORIGIN would block the CP). Modern browsers enforce
+          // CSP frame-ancestors instead, so we omit X-Frame-Options entirely now
+          // that the CP (cross-origin) must be able to embed preview pages.
           { key: "X-XSS-Protection", value: "1; mode=block" },
           {
             key: "Referrer-Policy",

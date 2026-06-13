@@ -35,10 +35,31 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Light origin gate for the (otherwise unauthenticated) draft write endpoint.
+ *
+ * Allowed: localhost (dev), any *.ploi.it host (the managed CP), and an explicit
+ * STATAMIC_CP_ORIGIN when configured (e.g. https://cms.misterchameleon.nl).
+ * Requests with no Origin header (server-to-server) are allowed.
+ */
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return true;
+  try {
+    const host = new URL(origin).host;
+    if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;
+    if (host.endsWith(".ploi.it")) return true;
+    const configured = process.env.STATAMIC_CP_ORIGIN;
+    if (configured && origin === configured) return true;
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV !== "development") {
+  if (!isAllowedOrigin(req.headers.get("origin"))) {
     return NextResponse.json(
-      { error: "Draft preview only available in development" },
+      { error: "Origin not allowed" },
       { status: 403, headers: CORS_HEADERS },
     );
   }
@@ -76,6 +97,6 @@ export async function POST(req: NextRequest) {
     seoDescription: typeof body.seoDescription === "string" ? body.seoDescription : undefined,
   };
 
-  const token = storeDraft(entry);
+  const token = await storeDraft(entry);
   return NextResponse.json({ token }, { headers: CORS_HEADERS });
 }

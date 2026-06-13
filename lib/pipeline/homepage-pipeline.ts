@@ -274,12 +274,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
 
   // Statamic Live Preview draft mode: _mc_draft=TOKEN means the Antlers
   // template serialised the current (unsaved) entry data and we should use
-  // those blocks instead of reading from disk.  Only active in development.
-  const mcDraftToken =
-    process.env.NODE_ENV === "development"
-      ? (typeof params._mc_draft === "string" ? params._mc_draft : null)
-      : null;
-  const draftEntry = mcDraftToken ? getDraft(mcDraftToken) : null;
+  // those blocks instead of reading from disk.  Works in production via the
+  // Supabase-backed draft store; only queried when a token is present.
+  const mcDraftToken = typeof params._mc_draft === "string" ? params._mc_draft : null;
+  const draftEntry = mcDraftToken ? await getDraft(mcDraftToken) : null;
 
   // Use draft blocks whenever a valid token resolves — even if blocks is
   // temporarily empty (e.g. editor cleared all blocks).  Only fall back to the
