@@ -276,7 +276,12 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // template serialised the current (unsaved) entry data and we should use
   // those blocks instead of reading from disk.  Works in production via the
   // Supabase-backed draft store; only queried when a token is present.
-  const mcDraftToken = typeof params._mc_draft === "string" ? params._mc_draft : null;
+  // Accept both `_mc_draft` (legacy) and `mcdraft` (no leading underscore).
+  // Some CDN/infra layers strip query params beginning with "_", so the
+  // underscore-free alias is the reliable one for the Live Preview iframe.
+  const mcDraftToken =
+    typeof params._mc_draft === "string" ? params._mc_draft :
+    typeof params.mcdraft   === "string" ? params.mcdraft   : null;
   const draftEntry = mcDraftToken ? await getDraft(mcDraftToken) : null;
 
   // Use draft blocks whenever a valid token resolves — even if blocks is
