@@ -28,6 +28,14 @@ import { buildTokenContextFromInput }      from "@/lib/tokens/parse-tokens";
 import { serverEnv }                       from "@/lib/env";
 import { StatamicClient }                  from "@/cms/providers/statamic-client";
 
+// ── Rendering mode ────────────────────────────────────────────────────────────
+//
+// force-dynamic: the homepage personalises per request (visitor context, A/B
+// experiments) AND must honour the ?_mc_draft=TOKEN Live Preview query param.
+// Without this, Vercel may serve a CDN-cached HTML for "/" that ignores the
+// query string, so Live Preview drafts (and per-visitor variants) never render.
+export const dynamic = "force-dynamic";
+
 // ── Statamic content types for homepage sections ──────────────────────────────
 
 interface StatamicFeatureEntry {
