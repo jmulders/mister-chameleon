@@ -163,7 +163,9 @@ export default async function ContactPage({ searchParams }: PageProps) {
   // CP change (add/toggle/reorder blocks) is visible live.
   {
     const sp         = await searchParams;
-    const draftToken = typeof sp._mc_draft === "string" ? sp._mc_draft : null;
+    const draftToken =
+      typeof sp._mc_draft === "string" ? sp._mc_draft :
+      typeof sp.mcdraft   === "string" ? sp.mcdraft   : null;
     const draftEntry = draftToken ? await getDraft(draftToken) : null;
 
     if (draftEntry) {

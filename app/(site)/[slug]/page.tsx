@@ -220,7 +220,9 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   // Works in production too — the draft store is Supabase-backed and only
   // queried when an _mc_draft token is actually present in the URL.
   {
-    const token = typeof sp._mc_draft === "string" ? sp._mc_draft : null;
+    const token =
+      typeof sp._mc_draft === "string" ? sp._mc_draft :
+      typeof sp.mcdraft   === "string" ? sp.mcdraft   : null;
     if (token) {
       const draft = await getDraft(token);
       if (draft) return { title: draft.title ?? slug, description: draft.seoDescription };
@@ -280,7 +282,9 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   //   We read the token here and use the draft data instead of fetching from
   //   Statamic — this ensures newly-created or unpublished entries always
   //   render correctly in the CP Live Preview without requiring a Save first.
-  const mcDraftToken = typeof sp._mc_draft === "string" ? sp._mc_draft : null;
+  const mcDraftToken =
+    typeof sp._mc_draft === "string" ? sp._mc_draft :
+    typeof sp.mcdraft   === "string" ? sp.mcdraft   : null;
   const draftEntry = mcDraftToken ? await getDraft(mcDraftToken) : null;
 
   // Fetch page + tenant settings in parallel — both are needed before rendering.
