@@ -128,6 +128,18 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
         tokenContext={tokenContext ?? undefined}
         cmsProvider={draftProvider}
       />
+      {/*
+        Tell the Live Preview bridge (parent window) that this preview has
+        rendered, so it can swap the double-buffered iframe immediately —
+        without waiting for the full `load` event, which slow sub-resources
+        (autoplay YouTube embeds) can delay by several seconds.
+      */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "try{if(window.parent!==window)window.parent.postMessage({name:'mc-preview-ready'},'*');}catch(e){}",
+        }}
+      />
     </main>
   );
 }
