@@ -138,14 +138,36 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
     <main>
       <TemplateRenderer pageConfig={pageConfig} cmsProvider={draftProvider} />
       {/*
-        Tell the Live Preview bridge (parent window) that this preview has
-        rendered, so it can hide the loading text immediately — without waiting
-        for the full `load` event that slow sub-resources (YouTube) delay.
+        Headless Live Preview client glue:
+          1. Signal the parent (Statamic CP) that the preview has rendered.
+          2. Listen for Statamic's `statamic.preview.updated` message (sent on
+             every edit when the preview target uses refresh:false). Each message
+             carries a fresh token for the current UNSAVED state, so we reload
+             this page with it — giving true live, pre-save preview. Debounced so
+             rapid edits collapse into one reload.
       */}
       <script
         dangerouslySetInnerHTML={{
-          __html:
-            "try{if(window.parent!==window)window.parent.postMessage({name:'mc-preview-ready'},'*');}catch(e){}",
+          __html: `(function(){
+            try{ if(window.parent!==window) window.parent.postMessage({name:'mc-preview-ready'},'*'); }catch(e){}
+            var pending=null, timer=null;
+            window.addEventListener('message', function(e){
+              var m=e.data; if(!m||typeof m!=='object') return;
+              if(m.name==='statamic.preview.updated' || m.type==='statamic.preview.updated'){
+                var t=m.token||(m.data&&m.data.token); if(!t) return;
+                pending=t; if(timer) clearTimeout(timer);
+                timer=setTimeout(function(){
+                  try{
+                    var u=new URL(window.location.href);
+                    if(u.searchParams.get('token')!==pending){
+                      u.searchParams.set('token',pending);
+                      window.location.replace(u.toString());
+                    }
+                  }catch(err){}
+                }, 400);
+              }
+            });
+          })();`,
         }}
       />
     </main>
