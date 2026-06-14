@@ -234,6 +234,10 @@ const nextConfig = {
         source: "/mc-preview",
         headers: [
           { key: "Cache-Control", value: "no-store, max-age=0, must-revalidate" },
+          // Statamic's Live Preview hot-reload FETCHES this URL from the CP
+          // origin (cross-origin) to refresh the iframe on each edit. Without
+          // CORS that fetch is blocked and the preview never updates pre-save.
+          { key: "Access-Control-Allow-Origin", value: "*" },
         ],
       },
     ];
