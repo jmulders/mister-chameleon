@@ -226,6 +226,16 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // The Statamic CP Live Preview iframe reloads /mc-preview with a fresh
+        // token on every edit. Make sure neither the browser nor any CDN serves
+        // a cached render, otherwise the iframe keeps showing an earlier token's
+        // (stale) content while the editor expects their latest unsaved change.
+        source: "/mc-preview",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0, must-revalidate" },
+        ],
+      },
     ];
   },
 
