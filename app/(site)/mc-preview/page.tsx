@@ -18,7 +18,6 @@ import { cookies } from "next/headers";
 import { createDraftStatamicProvider } from "@/cms";
 import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
 import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
-import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { getDraft } from "@/lib/statamic-draft-store";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
@@ -82,12 +81,18 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
     };
   }
 
-  const pageConfig      = mapPageDataToPageConfig(page);
-  const finalPageConfig = await resolvePageConfigItems(draftProvider, pageConfig);
+  const pageConfig = mapPageDataToPageConfig(page);
+
+  // NOTE: we intentionally do NOT call resolvePageConfigItems() here. That
+  // hydrates collection-driven blocks (listing / related_content / team) by
+  // firing one Statamic API call per block — several round-trips that make the
+  // preview too slow to settle inside the nested CP iframe. For a fast editor
+  // preview we render the structure directly; those few collection blocks show
+  // empty. TemplateRenderer still receives the draft provider for context slots.
 
   return (
     <main>
-      <TemplateRenderer pageConfig={finalPageConfig} cmsProvider={draftProvider} />
+      <TemplateRenderer pageConfig={pageConfig} cmsProvider={draftProvider} />
       {/*
         Tell the Live Preview bridge (parent window) that this preview has
         rendered, so it can hide the loading text immediately — without waiting
