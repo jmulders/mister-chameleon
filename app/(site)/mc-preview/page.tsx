@@ -106,9 +106,26 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   const locale = cookieLocale && isSupportedLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
 
   const slug   = draftEntry.slug || "home";
-  const blocks = (draftEntry.blocks ?? []) as Array<Record<string, unknown>>;
 
-  const draftProvider = createDraftStatamicProvider(draftEntry.blocks ?? []);
+  // Disable video autoplay in the preview. Autoplaying YouTube embeds reload on
+  // every preview refresh, flooding the console and slowing the iframe down for
+  // no benefit to the editor.
+  const stripAutoplay = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(stripAutoplay);
+    if (value && typeof value === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        out[k] = k === "autoplay" || k === "video_autoplay" ? false : stripAutoplay(v);
+      }
+      return out;
+    }
+    return value;
+  };
+  const rawBlocks = (draftEntry.blocks ?? []) as unknown[];
+  const safeBlocks = stripAutoplay(rawBlocks) as unknown[];
+  const blocks = safeBlocks as Array<Record<string, unknown>>;
+
+  const draftProvider = createDraftStatamicProvider(safeBlocks);
 
   let page: PageData | null = await draftProvider.getPageBySlug(slug, locale);
   if (!page) {
