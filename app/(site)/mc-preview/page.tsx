@@ -19,7 +19,8 @@ import { createDraftStatamicProvider } from "@/cms";
 import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
 import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
-import { getDraft } from "@/lib/statamic-draft-store";
+import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
+import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import type { PageData, CmsPageContextConfig } from "@/cms/types";
 
@@ -43,11 +44,54 @@ function buildContextConfig(blocks: Array<Record<string, unknown>>) {
 
 export default async function McPreviewPage({ searchParams }: PageProps) {
   const sp = await searchParams;
-  const token =
+  const mcdraftToken =
     typeof sp.mcdraft === "string" ? sp.mcdraft :
     typeof sp._mc_draft === "string" ? sp._mc_draft : null;
+  // Statamic's native Live Preview appends ?live-preview=ID&token=TOKEN.
+  const statamicToken = typeof sp.token === "string" ? sp.token : null;
 
-  const draftEntry = token ? await getDraft(token) : null;
+  let draftEntry: StatamicDraftEntry | null = mcdraftToken ? await getDraft(mcdraftToken) : null;
+
+  // Direct (no-bridge) flow: the Statamic CP loads this page itself with the
+  // native token. We fetch the current UNSAVED entry server-side from the
+  // Statamic /mc-live-preview-data endpoint (server-to-server → no CORS), so the
+  // CP renders the preview in a single iframe without any bridge/nesting.
+  if (!draftEntry && statamicToken) {
+    try {
+      // Use the tenant's configured Statamic base URL (the live Ploi host where
+      // the /mc-live-preview-data route lives) — NOT env STATAMIC_API_URL, which
+      // may point at an older deployment.
+      const { tenantId } = await getActiveTenant();
+      const tenant = await getTenantById(tenantId ?? "");
+      const rawBase =
+        (tenant as { cms?: { statamicBaseUrl?: string } } | null)?.cms?.statamicBaseUrl ??
+        process.env.STATAMIC_API_URL ?? "";
+      const base = rawBase.replace(/\/api\/?$/, "").replace(/\/$/, "");
+      if (base) {
+        const res = await fetch(
+          `${base}/mc-live-preview-data?token=${encodeURIComponent(statamicToken)}`,
+          { cache: "no-store" },
+        );
+        if (res.ok) {
+          const d = (await res.json()) as {
+            collection?: string; slug?: string; title?: string;
+            seoDescription?: string; pageBlocks?: unknown[]; error?: string;
+          };
+          if (!d.error) {
+            draftEntry = {
+              collection: d.collection ?? "pages",
+              slug: d.slug ?? "home",
+              title: d.title,
+              seoDescription: d.seoDescription,
+              blocks: Array.isArray(d.pageBlocks) ? d.pageBlocks : [],
+            };
+          }
+        }
+      }
+    } catch {
+      // fall through to the empty state below
+    }
+  }
 
   if (!draftEntry) {
     return (
