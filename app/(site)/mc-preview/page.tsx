@@ -4,28 +4,23 @@
  * Renders a Statamic CP Live Preview draft (?mcdraft=TOKEN). The Statamic
  * bridge refreshes this iframe on every edit/reorder.
  *
- * It uses the draft blocks for page STRUCTURE (so reordering/toggling is
- * reflected live) and runs the LIGHTWEIGHT decision pipeline
- * (resolveSlugPageConfig — rules + experiments + AI on the session, no
- * enrichment) for slot CONTENT. This matches what the live page renders, so
- * context-slot pages (features, about, …) preview with real variant content
- * instead of empty slots — those variant keys only resolve through the engine.
- *
- * It deliberately skips the heavy homepage personalisation pipeline, analytics,
- * billing and homepage-only collection sections, so each refresh stays light.
+ * Intentionally LIGHTWEIGHT: it maps the draft blocks straight to sections and
+ * renders them, WITHOUT the personalisation decision engine (rules / experiments
+ * / AI), without enrichment, analytics or billing. That keeps each refresh fast
+ * and avoids burning platform/AI budget on preview renders. Context slots show
+ * their CMS-authored fallback variant; full per-visitor variant resolution is a
+ * runtime concern for the live site, not the editor preview.
  */
 
 export const dynamic = "force-dynamic";
 
-import { headers, cookies } from "next/headers";
+import { cookies } from "next/headers";
 import { createDraftStatamicProvider } from "@/cms";
 import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
 import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
 import { resolvePageConfigItems } from "@/cms/collection-resolver";
-import { resolveSlugPageConfig } from "@/lib/cms-page-decision";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { getDraft } from "@/lib/statamic-draft-store";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import type { PageData, CmsPageContextConfig } from "@/cms/types";
 
@@ -63,7 +58,6 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
     );
   }
 
-  const headerStore = await headers();
   const c = await cookies();
   const cookieLocale = c.get(LOCALE_COOKIE)?.value;
   const locale = cookieLocale && isSupportedLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
@@ -73,7 +67,6 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
 
   const draftProvider = createDraftStatamicProvider(draftEntry.blocks ?? []);
 
-  // Page structure from the draft (preferred mapper, then a direct fallback).
   let page: PageData | null = await draftProvider.getPageBySlug(slug, locale);
   if (!page) {
     const ctx = buildContextConfig(blocks);
@@ -89,50 +82,16 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
     };
   }
 
-  const pageConfig = mapPageDataToPageConfig(page);
-
-  // Resolve slot variants through the lightweight decision engine so context
-  // slots render the same content as the live page (variant keys like
-  // hero_features only resolve via the engine, not as raw CMS entries).
-  const { tenantId } = await getActiveTenant();
-  const tenant       = await getTenantById(tenantId ?? "");
-  const request      = new Request(
-    `http://${headerStore.get("host") ?? "localhost"}/${slug}`,
-    { headers: headerStore },
-  );
-
-  let resolvedPageConfig = pageConfig;
-  let tokenContext = undefined as Awaited<ReturnType<typeof resolveSlugPageConfig>>["tokenContext"];
-  try {
-    const res = await resolveSlugPageConfig(
-      request,
-      headerStore.get("cookie"),
-      slug,
-      pageConfig,
-      tenant,
-      tenantId ?? "",
-    );
-    resolvedPageConfig = res.pageConfig;
-    tokenContext = res.tokenContext;
-  } catch {
-    // On any engine error, fall back to the unresolved config (slots use their
-    // fallback variant keys) rather than failing the preview.
-  }
-
-  const finalPageConfig = await resolvePageConfigItems(draftProvider, resolvedPageConfig);
+  const pageConfig      = mapPageDataToPageConfig(page);
+  const finalPageConfig = await resolvePageConfigItems(draftProvider, pageConfig);
 
   return (
     <main>
-      <TemplateRenderer
-        pageConfig={finalPageConfig}
-        tokenContext={tokenContext ?? undefined}
-        cmsProvider={draftProvider}
-      />
+      <TemplateRenderer pageConfig={finalPageConfig} cmsProvider={draftProvider} />
       {/*
         Tell the Live Preview bridge (parent window) that this preview has
-        rendered, so it can swap the double-buffered iframe immediately —
-        without waiting for the full `load` event, which slow sub-resources
-        (autoplay YouTube embeds) can delay by several seconds.
+        rendered, so it can hide the loading text immediately — without waiting
+        for the full `load` event that slow sub-resources (YouTube) delay.
       */}
       <script
         dangerouslySetInnerHTML={{
