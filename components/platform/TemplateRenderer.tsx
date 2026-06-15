@@ -294,15 +294,17 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
       )}
 
       {/* ── Unified page items: slots and blocks in authored order ─────────── */}
-      {pageConfig.pageItems.map((item: PageItem) => {
+      {pageConfig.pageItems.map((item: PageItem, index: number) => {
         if (item.kind === "slot") {
           const { slot } = item;
           if (slot.variantKey === null) return null;
           // Notification is rendered as an overlay above — skip inline.
           if (slot.slotId === "notification") return null;
+          // Key includes the authored index so a page with two slots of the
+          // same type (e.g. two "hero" slots) never collides on slotId alone.
           return (
             <ContextSlotRenderer
-              key={slot.slotId}
+              key={`slot-${index}-${slot.slotId}`}
               slotId={slot.slotId}
               contextData={effectiveContextData}
               layoutVariant={slot.layoutVariant}
@@ -311,7 +313,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
           );
         }
         // item.kind === "block"
-        return <ContentBlockRenderer key={item.block.id} block={item.block} />;
+        return <ContentBlockRenderer key={`block-${index}-${item.block.id}`} block={item.block} />;
       })}
     </>
   );
