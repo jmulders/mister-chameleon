@@ -18,6 +18,7 @@ import { cookies } from "next/headers";
 import { createDraftStatamicProvider } from "@/cms";
 import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
 import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
+import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -144,16 +145,21 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
 
   const pageConfig = mapPageDataToPageConfig(page);
 
-  // NOTE: we intentionally do NOT call resolvePageConfigItems() here. That
-  // hydrates collection-driven blocks (listing / related_content / team) by
-  // firing one Statamic API call per block — several round-trips that make the
-  // preview too slow to settle inside the nested CP iframe. For a fast editor
-  // preview we render the structure directly; those few collection blocks show
-  // empty. TemplateRenderer still receives the draft provider for context slots.
+  // Resolve collection-driven blocks (listing / related_content / collection
+  // listing) to real entries so the preview shows actual linked content —
+  // this is rendered through the real Next.js components and proxied
+  // same-origin by the CMS, so fidelity matters more than a few extra calls.
+  // Wrapped so a CMS-API hiccup degrades to unresolved blocks instead of a 500.
+  let finalPageConfig = pageConfig;
+  try {
+    finalPageConfig = await resolvePageConfigItems(draftProvider, pageConfig);
+  } catch {
+    finalPageConfig = pageConfig;
+  }
 
   return (
     <main>
-      <TemplateRenderer pageConfig={pageConfig} cmsProvider={draftProvider} />
+      <TemplateRenderer pageConfig={finalPageConfig} cmsProvider={draftProvider} />
       {/*
         Headless Live Preview client glue:
           1. Signal the parent (Statamic CP) that the preview has rendered.
