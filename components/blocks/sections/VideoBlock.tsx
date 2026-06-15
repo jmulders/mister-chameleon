@@ -32,6 +32,40 @@ interface VideoBlockProps {
   variant?: string;
 }
 
+/**
+ * Append autoplay/loop params to a YouTube/Vimeo embed URL.
+ *
+ * Embeds ignore the `autoPlay`/`loop` flags unless they are passed as query
+ * params. Autoplay is only honoured by browsers when the player is muted, so we
+ * force mute whenever autoplay is requested. YouTube loop additionally requires
+ * `playlist=<videoId>` (a single-video playlist) to actually repeat.
+ */
+function buildEmbedSrc(
+  url: string,
+  platform: VideoBlockData["platform"],
+  autoPlay?: boolean,
+  loop?: boolean,
+): string {
+  if (!autoPlay && !loop) return url;
+  try {
+    const u = new URL(url);
+    if (platform === "youtube") {
+      if (autoPlay) { u.searchParams.set("autoplay", "1"); u.searchParams.set("mute", "1"); }
+      if (loop) {
+        u.searchParams.set("loop", "1");
+        const id = u.pathname.split("/").pop();
+        if (id) u.searchParams.set("playlist", id);
+      }
+    } else if (platform === "vimeo") {
+      if (autoPlay) { u.searchParams.set("autoplay", "1"); u.searchParams.set("muted", "1"); }
+      if (loop) u.searchParams.set("loop", "1");
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function VideoBlock({ data, variant }: VideoBlockProps) {
   const isFullWidth = variant === "full-width";
 
@@ -89,7 +123,7 @@ export function VideoBlock({ data, variant }: VideoBlockProps) {
           }}
         >
           <iframe
-            src={data.url}
+            src={buildEmbedSrc(data.url, data.platform, data.autoPlay, data.loop)}
             title={data.caption ?? "Video"}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen

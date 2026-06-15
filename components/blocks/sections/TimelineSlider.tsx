@@ -136,6 +136,11 @@ function SliderMedia({ mediaType, mediaUrl, posterUrl, autoPlay, loop, alt }: Sl
     mute: "1",
     rel:  "0",
   });
+  // YouTube only honours loop when a single-video playlist is supplied.
+  if (loop && mediaType === "youtube") {
+    const id = mediaUrl.split("?")[0].split("/").pop();
+    if (id) params.set("playlist", id);
+  }
   const src = `${mediaUrl}${mediaUrl.includes("?") ? "&" : "?"}${params.toString()}`;
 
   return (

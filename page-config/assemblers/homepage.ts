@@ -249,6 +249,12 @@ export function buildHomepagePageConfig(
     // gating here by stored tenant config adds friction without value and
     // can cause the block to silently disappear when the DB config is stale.
     conversion: experience.conversion ?? undefined,
+    // Feature block — extended slot, same pattern as conversion: not gated by
+    // enabledContextBlocks; renders whenever the experience resolved feature
+    // content (plan.featureKey + a CMS document). Previously omitted here, so a
+    // feature context slot never rendered on the homepage engine path even when
+    // the variant existed — the no-engine path (other pages) did handle it.
+    feature: experience.feature ?? undefined,
     // Notification is an overlay — enabled when the experience resolved one.
     // It is not gated by enabledContextBlocks (which governs inline sections).
     notification: experience.notification ?? undefined,
