@@ -151,6 +151,10 @@ function SliderMedia({ mediaType, mediaUrl, posterUrl, autoPlay, loop, alt }: Sl
 
   return (
     <iframe
+      // Remount on src change so the embed reloads (and autoplay re-fires) when
+      // navigating between slides — a plain src swap on a reused iframe doesn't
+      // reliably re-trigger autoplay.
+      key={src}
       src={src}
       title={alt ?? "Video"}
       allow="autoplay; fullscreen"

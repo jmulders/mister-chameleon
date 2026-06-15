@@ -193,8 +193,20 @@ export function buildHomepagePageConfig(
       if (!section) continue;
       if (section._type === "contextSlot") {
         if (section.enabled === false) continue;
-        const slot = slotMap.get(section.slotId);
-        if (slot) pageItems.push({ kind: "slot", slot });
+        // In Statamic embedded mode the editor places context slots directly in
+        // page_blocks, so render whatever slot the editor added — not only the
+        // slots the marketing preset lists (hero/proof/cta). Extended slots
+        // (feature/conversion/notification) live only in contextData and are not
+        // in slotMap, so fall back to a minimal resolved slot. The renderer
+        // skips any slot whose contextData entry is empty, so pushing it is safe.
+        const slot =
+          slotMap.get(section.slotId) ?? {
+            slotId:     section.slotId as ContextSlotId,
+            position:   "before-content" as const,
+            variantKey: resolveVariantKey(experience, section.slotId),
+            ...slotLayoutVariant(experience, section.slotId as ContextSlotId),
+          };
+        pageItems.push({ kind: "slot", slot });
       } else {
         const block = blockMap.get(section._key);
         if (block) pageItems.push({ kind: "block", block });
