@@ -1,0 +1,74 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: variant
+    field:
+      type: select
+      display: Variant
+      default: faq_default
+      options:
+        faq_default: Default
+        faq_split: Split
+  -
+    handle: heading
+    field:
+      type: text
+      display: Heading
+  -
+    handle: source_mode
+    field:
+      type: select
+      display: Source
+      default: manual
+      instructions: 'How to populate the FAQ items in this block.'
+      options:
+        manual: 'Enter items directly'
+        by_category: 'From collection — all items in a category'
+        select_items: 'From collection — pick specific items'
+  -
+    handle: items
+    field:
+      type: grid
+      display: 'FAQ Items'
+      add_row: 'Add question'
+      if:
+        source_mode: manual
+      fields:
+        -
+          handle: question
+          field:
+            type: text
+            display: Question
+        -
+          handle: answer
+          field:
+            type: textarea
+            display: Answer
+  -
+    handle: faq_category
+    field:
+      type: select
+      display: Category
+      instructions: 'Show all active FAQ items from this category, ordered by their Sort Order.'
+      options:
+        general: General
+        technical: Technical
+        pricing: Pricing
+        gdpr: GDPR
+      if:
+        source_mode: by_category
+  -
+    handle: faq_selected_items
+    field:
+      type: entries
+      display: 'FAQ items'
+      collections:
+        - faq_items
+      instructions: 'Pick specific FAQ items from the collection. Items appear in the order you select them here.'
+      if:
+        source_mode: select_items

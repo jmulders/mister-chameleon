@@ -1,0 +1,115 @@
+fields:
+  -
+    handle: key
+    field:
+      type: text
+      display: Key
+      instructions: 'Unique identifier (e.g. hero_default, hero_saas_founder). Must match the variant key used by the personalisation engine.'
+      validate: required
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+      instructions: 'Inactive variants are ignored by the personalisation engine.'
+  -
+    handle: layout_variant
+    field:
+      type: select
+      display: 'Layout Variant'
+      options:
+        default: Default
+        hero_split: Split
+        hero_proof: 'With Proof Bar'
+        hero_background: Background
+        hero_minimal_dark: 'Minimal Dark'
+        hero_split_clean: 'Split Clean'
+        hero_dark_split: 'Dark Split'
+        hero_editorial: Editorial
+      default: default
+  -
+    handle: content_align
+    field:
+      type: select
+      display: 'Content Align'
+      options:
+        left: Left
+        center: Center
+        right: Right
+      default: left
+  -
+    handle: tag
+    field:
+      type: text
+      display: Tag
+      instructions: 'Small eyebrow badge above the headline (optional).'
+  -
+    handle: title
+    field:
+      type: text
+      display: Headline
+      instructions: 'Primary H1 headline shown to the visitor.'
+      validate: required
+  -
+    handle: subtitle
+    field:
+      type: textarea
+      display: Subtitle
+      instructions: 'Supporting paragraph beneath the headline.'
+  -
+    handle: ctas
+    field:
+      type: grid
+      display: CTAs
+      add_row: 'Add CTA'
+      max_rows: 2
+      fields:
+        -
+          handle: label
+          field:
+            type: text
+            display: Label
+        -
+          handle: href
+          field:
+            type: text
+            display: URL
+        -
+          handle: variant
+          field:
+            type: select
+            display: Style
+            options:
+              primary: Primary
+              secondary: Secondary
+              outline: Outline
+              ghost: Ghost
+            default: primary
+  -
+    handle: media
+    field:
+      type: group
+      display: Media
+      fields:
+        -
+          handle: media_type
+          field:
+            type: select
+            display: 'Media Type'
+            options:
+              none: None
+              image: Image
+              video: Video
+            default: none
+        -
+          handle: media_image
+          field:
+            type: text
+            display: 'Image URL'
+            instructions: 'Absolute URL or relative path.'
+        -
+          handle: media_alt
+          field:
+            type: text
+            display: 'Image Alt Text'

@@ -1,0 +1,38 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: variant
+    field:
+      type: select
+      display: Variant
+      default: quote-card
+      options:
+        quote-card: 'Card'
+        quote-minimal: 'Minimal'
+  -
+    handle: quote
+    field:
+      type: textarea
+      display: Quote
+  -
+    handle: author
+    field:
+      type: text
+      display: 'Author / Attribution'
+  -
+    handle: role
+    field:
+      type: text
+      display: 'Role & Company'
+  -
+    handle: avatar
+    field:
+      type: assets
+      display: Avatar
+      max_files: 1
+      instructions: 'Optional profile photo shown next to the attribution.'

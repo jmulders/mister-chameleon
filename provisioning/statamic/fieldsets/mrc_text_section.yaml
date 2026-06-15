@@ -1,0 +1,28 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: variant
+    field:
+      type: select
+      display: Variant
+      default: text_single
+      options:
+        text_single: 'Single column'
+        text_split: 'Split (two columns)'
+        text_lead: 'Lead paragraph'
+  -
+    handle: heading
+    field:
+      type: text
+      display: Heading
+  -
+    handle: body
+    field:
+      type: textarea
+      display: Body
+      instructions: 'HTML is allowed.'

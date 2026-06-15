@@ -33,6 +33,17 @@ const R2_SDK_STUB = (() => {
 const nextConfig = {
   reactStrictMode: true,
 
+  // ── Provisioning fieldsets — file tracing ───────────────────────────────────
+  //
+  // The provisioning manifest route reads the canonical content-block fieldsets
+  // (provisioning/statamic/fieldsets/*.yaml) from disk at request time. Next.js
+  // only bundles files it can statically see being imported, so these data
+  // files must be explicitly traced into the serverless function — otherwise
+  // fs.readdirSync returns ENOENT on Vercel and the mrc_* fieldsets are omitted.
+  outputFileTracingIncludes: {
+    "/api/v1/provision/manifest": ["./provisioning/statamic/fieldsets/**/*"],
+  },
+
   // ── Server Actions ──────────────────────────────────────────────────────────
   //
   // The default body size limit for Server Actions is 1 MB.  Asset uploads via

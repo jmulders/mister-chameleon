@@ -1,0 +1,28 @@
+fields:
+  -
+    handle: slot_type
+    field:
+      type: select
+      display: 'Slot Type'
+      instructions: 'Fixed by the template — identifies which adaptive slot this is. Do not change.'
+      options:
+        hero: 'Hero'
+        proof: 'Social Proof'
+        cta: 'Call to Action'
+        feature: 'Features'
+        conversion: 'Conversion'
+        notification: 'Notification'
+      validate: required
+  -
+    handle: variant_key
+    field:
+      type: text
+      display: 'Default Variant'
+      instructions: 'Variant key shown when no personalisation rule matches (e.g. hero_default). The platform may override this at runtime.'
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+      instructions: 'Inactive slots are skipped entirely — visitors see nothing in this position.'

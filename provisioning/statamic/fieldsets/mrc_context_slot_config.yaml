@@ -1,0 +1,14 @@
+fields:
+  -
+    handle: is_active
+    field:
+      type: toggle
+      display: Active
+      default: true
+      instructions: 'Inactive slots are skipped entirely — visitors see nothing in this position.'
+  -
+    handle: variant_key
+    field:
+      type: text
+      display: Default Variant Key
+      instructions: 'Variant key shown when no personalisation rule matches (e.g. hero_default). The platform may override this at runtime.'

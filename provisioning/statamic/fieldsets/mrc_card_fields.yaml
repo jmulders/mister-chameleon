@@ -1,0 +1,24 @@
+fields:
+  - handle: overview_image
+    field:
+      type: assets
+      display: 'Overview image'
+      max_files: 1
+      instructions: 'Card thumbnail shown in listings, related content, and search results (default / inactive state).'
+  - handle: overview_image_hover
+    field:
+      type: assets
+      display: 'Hover image'
+      max_files: 1
+      instructions: 'Swapped in when someone hovers over the card. Optional — works great with a GIF or an action screenshot.'
+  - handle: detail_image
+    field:
+      type: assets
+      display: 'Detail image'
+      max_files: 1
+      instructions: 'Full-width hero image on the detail page. Falls back to overview image when absent.'
+  - handle: excerpt
+    field:
+      type: textarea
+      display: Excerpt
+      instructions: 'Short description (≤ 160 chars) shown below the title in card-based listings and related content blocks.'

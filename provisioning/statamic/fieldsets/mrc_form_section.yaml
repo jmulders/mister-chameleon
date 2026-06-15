@@ -1,0 +1,33 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: variant
+    field:
+      type: select
+      display: Variant
+      default: form_inline
+      options:
+        form_inline: 'Inline (full-width)'
+        form_split: 'Split (text left, form right)'
+        form_panel: 'Panel (card style)'
+  -
+    handle: heading
+    field:
+      type: text
+      display: Title
+  -
+    handle: subtitle
+    field:
+      type: textarea
+      display: Description
+  -
+    handle: form
+    field:
+      type: form
+      display: Form
+      instructions: 'Select the form to embed. Forms are managed in Tools → Forms.'

@@ -8,6 +8,8 @@
  * CMS stays in lockstep with the platform.
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import { SLOT_DEFINITIONS, DEFINITIONS_VERSION, type SlotDef, type SlotFieldDef } from "@/provisioning/definitions";
 import { generateTokensCss, type TokenOverrides } from "@/provisioning/tokens-css";
 
@@ -131,6 +133,38 @@ ${SLOT_DEFINITIONS.map(renderField).join("\n\n")}
 `;
 }
 
+/**
+ * Content-block fieldsets (the `mrc_*` family) live as canonical YAML files in
+ * provisioning/statamic/fieldsets/. They are shipped to the tenant verbatim —
+ * the platform owns them, `mc:sync` writes them into resources/fieldsets/, and
+ * the site's blueprints import them. Editing the YAML here and re-syncing rolls
+ * the change out everywhere, exactly like the context-slot artifacts above.
+ *
+ * The directory is bundled into the serverless function via
+ * `outputFileTracingIncludes` in next.config.mjs. Read lazily + cached so the
+ * disk hit happens at most once per warm instance.
+ */
+const CONTENT_FIELDSETS_DIR = path.join(process.cwd(), "provisioning", "statamic", "fieldsets");
+let _contentFieldsetCache: ProvisionArtifact[] | null = null;
+
+function readContentFieldsets(): ProvisionArtifact[] {
+  if (_contentFieldsetCache) return _contentFieldsetCache;
+  let files: string[] = [];
+  try {
+    files = fs.readdirSync(CONTENT_FIELDSETS_DIR).filter((f) => f.endsWith(".yaml"));
+  } catch {
+    // Directory missing (e.g. tracing not applied) — degrade gracefully to the
+    // context-slot artifacts rather than failing the whole manifest.
+    return [];
+  }
+  files.sort();
+  _contentFieldsetCache = files.map((name) => ({
+    path: `resources/fieldsets/${name}`,
+    contents: fs.readFileSync(path.join(CONTENT_FIELDSETS_DIR, name), "utf8"),
+  }));
+  return _contentFieldsetCache;
+}
+
 /** Produce the full Statamic provisioning manifest for a tenant. */
 export function generateStatamicManifest(tokenOverrides: TokenOverrides = {}): ProvisionManifest {
   return {
@@ -149,6 +183,8 @@ export function generateStatamicManifest(tokenOverrides: TokenOverrides = {}): P
         path: "resources/css/mister-chameleon-tokens.css",
         contents: generateTokensCss(tokenOverrides),
       },
+      // Content-block fieldsets (mrc_*) — shipped verbatim from the platform.
+      ...readContentFieldsets(),
     ],
   };
 }

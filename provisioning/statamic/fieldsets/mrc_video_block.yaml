@@ -1,0 +1,86 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''contact'' → /page#contact. No spaces or special characters.'
+  -
+    handle: title
+    field:
+      type: text
+      display: Title
+  # ── Video source ──────────────────────────────────────────────────────────────
+  -
+    handle: video_source
+    field:
+      type: select
+      display: 'Video Source'
+      default: youtube
+      options:
+        youtube: 'YouTube'
+        vimeo: 'Vimeo'
+        upload: 'Upload (asset library)'
+  -
+    handle: video_id
+    field:
+      type: text
+      display: 'YouTube ID or URL'
+      instructions: 'Paste a YouTube ID (e.g. uER64JbBd7M) or the full YouTube watch / share URL.'
+      if:
+        video_source: youtube
+  -
+    handle: vimeo_id
+    field:
+      type: text
+      display: 'Vimeo ID or URL'
+      instructions: 'Paste a Vimeo video ID (e.g. 76979871) or the full vimeo.com URL.'
+      if:
+        video_source: vimeo
+  -
+    handle: video_file
+    field:
+      type: assets
+      display: 'Video File'
+      max_files: 1
+      instructions: 'Upload an mp4 or webm video file from the asset library.'
+      if:
+        video_source: upload
+  # ── Video options ─────────────────────────────────────────────────────────────
+  -
+    handle: video_poster
+    field:
+      type: assets
+      display: 'Poster / Placeholder Image'
+      max_files: 1
+      instructions: 'Shown before the video plays. Tip: use the same aspect ratio as your video.'
+  -
+    handle: video_autoplay
+    field:
+      type: toggle
+      display: Autoplay
+      instructions: 'Play automatically on page load. Audio is muted when autoplay is on.'
+      default: false
+  -
+    handle: video_loop
+    field:
+      type: toggle
+      display: Loop
+      instructions: 'Repeat the video continuously.'
+      default: false
+  # ── Layout ────────────────────────────────────────────────────────────────────
+  -
+    handle: caption
+    field:
+      type: text
+      display: Caption
+      instructions: 'Optional text shown below the video.'
+  -
+    handle: variant
+    field:
+      type: select
+      display: 'Layout Variant'
+      default: contained
+      options:
+        contained: 'Contained (max-width, centred)'
+        full-width: 'Full width (edge-to-edge)'
