@@ -91,6 +91,7 @@ import {
   mapStatamicConversion,
   mapStatamicPageBlocksToSections,
 } from "../mappers/statamic";
+import { isContextSlotBlockType } from "../mappers/statamic/context-slot-block";
 import { StatamicClient, createStatamicClient } from "./statamic-client";
 import { logger } from "@/lib/logger";
 import type { ProvisionResult, TestConnectionResult } from "./cms-provider";
@@ -128,7 +129,7 @@ function flattenPageVariants(data: Record<string, unknown>): StatamicPageReplica
   // (they have no variant content and should not be in the variant catalog).
   const fromPageBlocks = Array.isArray(data["page_blocks"])
     ? ((data["page_blocks"] as Array<{ type: string } & Record<string, unknown>>)
-        .filter((b) => b.type !== "context_slot") as unknown as StatamicPageReplicatorBlock[])
+        .filter((b) => !isContextSlotBlockType(b.type)) as unknown as StatamicPageReplicatorBlock[])
     : [];
 
   // Legacy typed arrays (kept for backward compat)

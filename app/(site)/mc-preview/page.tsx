@@ -18,6 +18,7 @@ import { cookies } from "next/headers";
 import { createDraftStatamicProvider } from "@/cms";
 import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
 import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
+import { isContextSlotBlockType } from "@/cms/mappers/statamic/context-slot-block";
 import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
@@ -33,7 +34,7 @@ type PageProps = {
 function buildContextConfig(blocks: Array<Record<string, unknown>>) {
   const cfg: Record<string, { fallbackVariantKey: string }> = {};
   for (const b of blocks) {
-    if (b.type === "context_slot" && b.is_active !== false && b.enabled !== false) {
+    if (isContextSlotBlockType(b.type) && b.is_active !== false && b.enabled !== false) {
       const slot = b.slot_type as string | undefined;
       if (slot === "hero" || slot === "proof" || slot === "cta") {
         cfg[slot] = { fallbackVariantKey: (b.variant_key as string) ?? `${slot}_default` };

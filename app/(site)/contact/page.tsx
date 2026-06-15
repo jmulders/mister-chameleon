@@ -36,6 +36,7 @@ import { ContactForm } from "@/components/contact/ContactForm";
 import { getDraft }    from "@/lib/statamic-draft-store";
 import type { PageData, CmsPageContextConfig } from "@/cms/types";
 import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
+import { isContextSlotBlockType } from "@/cms/mappers/statamic/context-slot-block";
 import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -88,7 +89,7 @@ function readContactPageFromDisk(): PageData | null {
     const contextConfigObj: Record<string, { fallbackVariantKey: string }> = {};
     for (const block of pageBlocks) {
       if (
-        block.type === "context_slot" &&
+        isContextSlotBlockType(block.type) &&
         block.is_active !== false &&
         block.enabled !== false
       ) {

@@ -90,6 +90,7 @@ import type {
   StatamicAdaptiveVariantContent,
   StatamicAdaptiveBlockEntry,
 } from "../../queries/statamic/adaptive-block-queries";
+import { isContextSlotBlockType } from "./context-slot-block";
 
 // ── Hero media helper ───────────────────────────────────────────────────────
 
@@ -803,7 +804,7 @@ export function mapStatamicPageBlocksToSections(
     // In the unified page_blocks model, context_slot blocks appear alongside
     // content blocks in authored order.  Map them to ContextSlotSectionData
     // so the ordering information is preserved in sections[].
-    if (blockType === "context_slot") {
+    if (isContextSlotBlockType(blockType)) {
       // Respect the enabled toggle.
       if (block.enabled === false) continue;
       // PHP `false` or integer `0` mean "off"; treat absent as active.
