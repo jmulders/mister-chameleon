@@ -127,7 +127,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // /api/* request we check a per-minute counter in Supabase before anything
   // else.  Fails open on any infra error so legitimate traffic is never blocked
   // due to a transient DB issue.
-  if (pathname.startsWith("/api/")) {
+  // /api/statamic-draft is internal Live Preview infrastructure, called
+  // server-side (in bursts) by the CMS render-proxy. Exempt it from public
+  // rate limiting so the editor preview is never 429'd.
+  if (pathname.startsWith("/api/") && pathname !== "/api/statamic-draft") {
     const endpoint  = endpointFromPath(pathname);
     const clientIp  = extractClientIp(request.headers);
     const rl        = await checkRateLimit(endpoint, clientIp);
