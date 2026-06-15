@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Statamic CMS heeft een eigen repo (deployt naar Laravel Cloud)
 /mister-chameleon-cms/mister-chameleon-cms/
+
+# Standalone addon — has its own git repo
+/mister-chameleon-statamic
