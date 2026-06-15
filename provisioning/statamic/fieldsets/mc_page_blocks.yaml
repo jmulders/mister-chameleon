@@ -1,0 +1,116 @@
+title: 'Mister Chameleon — Page Blocks'
+# Managed by the Mister Chameleon platform. Do not edit by hand — run
+# `php please mc:sync` to refresh. Imported by the tenant's pages blueprint:
+#   content tab → sections → fields → - import: mc_page_blocks
+#
+# This is the single source of truth for the content-block palette: which
+# blocks exist and how they are grouped. Each set imports a `mrc_*` fieldset
+# (also platform-managed), so changing the palette here rolls out to every
+# tenant on their next sync.
+fields:
+  -
+    handle: page_blocks
+    field:
+      type: replicator
+      display: 'Page Blocks'
+      collapse: true
+      button_label: 'Add content block'
+      sets:
+        context_slots:
+          display: Context Slots
+          sets:
+            context_slot:
+              display: Context Slot
+              fields:
+                - import: mrc_context_slot
+        text_and_media:
+          display: Text & Media
+          sets:
+            text_section:
+              display: Text Section
+              fields:
+                - import: mrc_text_section
+            rich_text:
+              display: Rich Text
+              fields:
+                - import: mrc_rich_text
+            image:
+              display: Text + Media
+              fields:
+                - import: mrc_image_block
+            video:
+              display: Video
+              fields:
+                - import: mrc_video_block
+            quote_block:
+              display: Quote
+              fields:
+                - import: mrc_quote_block
+        social_proof:
+          display: Social Proof
+          sets:
+            testimonial_section:
+              display: Testimonials
+              fields:
+                - import: mrc_testimonial_section
+            logo_strip:
+              display: Logo Strip
+              fields:
+                - import: mrc_logo_strip
+            stats:
+              display: Stats
+              fields:
+                - import: mrc_stats_block
+        features_and_faq:
+          display: Features & FAQ
+          sets:
+            feature_grid:
+              display: Feature Grid
+              fields:
+                - import: mrc_feature_grid
+            faq_section:
+              display: FAQ Section
+              fields:
+                - import: mrc_faq_section
+            team_section:
+              display: Team Section
+              fields:
+                - import: mrc_team_section
+            process_steps:
+              display: Process Steps
+              fields:
+                - import: mrc_process_steps
+            timeline:
+              display: Timeline
+              fields:
+                - import: mrc_timeline_block
+        conversion_and_forms:
+          display: Conversion & Forms
+          sets:
+            cta_section:
+              display: CTA Section
+              fields:
+                - import: mrc_cta_section
+            form_section:
+              display: Form Section
+              fields:
+                - import: mrc_form_section
+            contact_section:
+              display: Contact Section
+              fields:
+                - import: mrc_contact_section
+        listings:
+          display: Listings
+          sets:
+            collection_listing:
+              display: Collection Listing
+              fields:
+                - import: mrc_collection_listing
+            listing:
+              display: Media Slider / Listing
+              fields:
+                - import: mrc_listing_block
+            related_content:
+              display: Related Content
+              fields:
+                - import: mrc_related_content

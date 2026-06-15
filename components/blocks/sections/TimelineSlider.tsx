@@ -129,19 +129,25 @@ function SliderMedia({ mediaType, mediaUrl, posterUrl, autoPlay, loop, alt }: Sl
     );
   }
 
-  // YouTube or Vimeo embed
-  const params = new URLSearchParams({
-    ...(autoPlay ? { autoplay: "1" } : {}),
-    ...(loop     ? { loop: "1" }     : {}),
-    mute: "1",
-    rel:  "0",
-  });
-  // YouTube only honours loop when a single-video playlist is supplied.
-  if (loop && mediaType === "youtube") {
-    const id = mediaUrl.split("?")[0].split("/").pop();
-    if (id) params.set("playlist", id);
+  // YouTube or Vimeo embed. Browsers only honour autoplay when the player is
+  // muted, and the mute param name differs per platform (YouTube: `mute`,
+  // Vimeo: `muted`). YouTube additionally needs `playlist=<id>` (a single-video
+  // playlist) to actually loop. Mirrors the proven VideoBlock embed logic.
+  const u = new URL(mediaUrl);
+  u.searchParams.set("rel", "0");
+  if (mediaType === "vimeo") {
+    if (autoPlay) { u.searchParams.set("autoplay", "1"); u.searchParams.set("muted", "1"); }
+    if (loop) u.searchParams.set("loop", "1");
+  } else {
+    // youtube
+    if (autoPlay) { u.searchParams.set("autoplay", "1"); u.searchParams.set("mute", "1"); }
+    if (loop) {
+      u.searchParams.set("loop", "1");
+      const id = u.pathname.split("/").pop();
+      if (id) u.searchParams.set("playlist", id);
+    }
   }
-  const src = `${mediaUrl}${mediaUrl.includes("?") ? "&" : "?"}${params.toString()}`;
+  const src = u.toString();
 
   return (
     <iframe
