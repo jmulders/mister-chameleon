@@ -907,9 +907,12 @@ export class StatamicProvider implements CMSProvider {
       // file-reader path before the file is populated) we fall through to the
       // site_settings values already read above.
       type LayoutSettingsGlobal = {
-        header_variant?:    string;
-        footer_variant?:    string;
-        footer_density?:    string;
+        // Select fields arrive as objects ({ value, label, key }) over the HTTP
+        // API and as plain strings via the file reader — typed loosely + read
+        // through `selectValue()` below.
+        header_variant?:    unknown;
+        footer_variant?:    unknown;
+        footer_density?:    unknown;
         nav_link_size?:     string;
         nav_link_weight?:   string;
         nav_link_tracking?: string;
@@ -929,17 +932,24 @@ export class StatamicProvider implements CMSProvider {
       }
 
       // Read layout variant from layout_settings global (sole source now that the
-      // site_settings collection entry is gone).
+      // site_settings collection entry is gone). Statamic `select` fields come
+      // back as `{ value, label, key }` over the HTTP API but as a plain string
+      // via the file reader — normalise to the string value either way.
+      const selectValue = (v: unknown): string =>
+        typeof v === "string" ? v
+        : (v && typeof v === "object" && typeof (v as { value?: unknown }).value === "string")
+          ? (v as { value: string }).value
+          : "";
       const effectiveHeaderVariant: HV | null = (() => {
-        const v = layoutGlobal?.header_variant ?? "";
+        const v = selectValue(layoutGlobal?.header_variant);
         return v && validHeaderVariants.includes(v as HV) ? (v as HV) : headerVariant;
       })();
       const effectiveFooterVariant: FV | null = (() => {
-        const v = layoutGlobal?.footer_variant ?? "";
+        const v = selectValue(layoutGlobal?.footer_variant);
         return v && validFooterVariants.includes(v as FV) ? (v as FV) : footerVariant;
       })();
       const effectiveFooterDensity: FD | null = (() => {
-        const v = layoutGlobal?.footer_density ?? "";
+        const v = selectValue(layoutGlobal?.footer_density);
         return v && validFooterDensities.includes(v as FD) ? (v as FD) : footerDensity;
       })();
 
