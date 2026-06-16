@@ -1076,27 +1076,40 @@ export class StatamicProvider implements CMSProvider {
       //
       // The `href` field in each link is now `type: link`, so it may contain an
       // "entry::uuid" reference.  Resolve all link fields in parallel before mapping.
+      // The `href` link field arrives as a STRING for plain URLs/anchors, but as
+      // an OBJECT ({ url, permalink, … }) for entry references over the HTTP API.
+      // Normalise to a plain string before resolving/rendering — otherwise the
+      // object stringifies to "[object Object]" in the rendered footer link.
+      type FooterLink = { label?: string; href?: unknown; open_in_new_tab?: boolean };
       type FooterGlobal = {
-        columns?: Array<{
-          heading?: string;
-          links?: Array<{ label?: string; href?: string; open_in_new_tab?: boolean }>;
-        }>;
+        columns?: Array<{ heading?: string; links?: FooterLink[] }>;
+      };
+      const rawHref = (l: FooterLink): string | undefined => {
+        const h = l.href;
+        if (typeof h === "string") return h;
+        if (h && typeof h === "object") {
+          const o = h as { url?: string; permalink?: string };
+          return o.url ?? o.permalink ?? undefined;
+        }
+        return undefined;
       };
       let footerColumns: import("../types").FooterColumnData[] = [];
       try {
         const footerGlobal = await this.client.fetchGlobal<FooterGlobal>("footer");
         if (footerGlobal?.columns && footerGlobal.columns.length > 0) {
-          // Collect all raw href values and resolve in one parallel batch.
+          // Collect all normalised href values and resolve in one parallel batch.
+          // resolveLink handles "entry::uuid" strings in file mode; over HTTP the
+          // API already resolved the ref into the object's `url`, so it's a no-op.
           const allLinks = footerGlobal.columns.flatMap((col) => col.links ?? []);
           const resolvedHrefs = await Promise.all(
-            allLinks.map((l) => this.client.resolveLink(l.href)),
+            allLinks.map((l) => this.client.resolveLink(rawHref(l))),
           );
           let idx = 0;
           footerColumns = footerGlobal.columns.map((col) => ({
             title: col.heading ?? undefined,
             links: (col.links ?? []).map((l) => ({
               label:        String(l.label ?? ""),
-              href:         resolvedHrefs[idx++] ?? String(l.href ?? "#"),
+              href:         resolvedHrefs[idx++] ?? rawHref(l) ?? "#",
               openInNewTab: l.open_in_new_tab === true,
             })),
           }));
