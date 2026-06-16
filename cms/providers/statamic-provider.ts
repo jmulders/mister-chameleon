@@ -934,12 +934,7 @@ export class StatamicProvider implements CMSProvider {
       // Read layout variant from layout_settings global (sole source now that the
       // site_settings collection entry is gone). Statamic `select` fields come
       // back as `{ value, label, key }` over the HTTP API but as a plain string
-      // via the file reader — normalise to the string value either way.
-      const selectValue = (v: unknown): string =>
-        typeof v === "string" ? v
-        : (v && typeof v === "object" && typeof (v as { value?: unknown }).value === "string")
-          ? (v as { value: string }).value
-          : "";
+      // via the file reader — `selectValue()` (declared above) normalises both.
       const effectiveHeaderVariant: HV | null = (() => {
         const v = selectValue(layoutGlobal?.header_variant);
         return v && validHeaderVariants.includes(v as HV) ? (v as HV) : headerVariant;
@@ -1273,15 +1268,29 @@ export class StatamicProvider implements CMSProvider {
       // UUIDs).  The mapper expects full Entry objects with id, title, url,
       // overview_image, and excerpt.  We build a lookup map from all pages and
       // replace each string entry with a fully-resolved object before mapping.
-      const hasStringEntries = (pageBlocks as Array<Record<string, unknown>>).some(
+      // Enrichment is needed when manual `entries` lack `overview_image`. That's
+      // true both for the file-reader path (entries are bare slug/UUID strings)
+      // AND the HTTP API (entries are entry-reference objects { id, title, url }
+      // that omit the image fields). In both cases we look up the full page and
+      // inject overview_image / hover so the cards show their thumbnail.
+      const isRelated = (b: Record<string, unknown>) =>
+        b["type"] === "related_content" &&
+        b["source_mode"] !== "automatic" &&
+        Array.isArray(b["entries"]);
+      const slugFromUrl = (u: unknown): string | undefined =>
+        typeof u === "string" && u ? (u.replace(/^\//, "").split("/").pop() || undefined) : undefined;
+
+      const needsEnrichment = (pageBlocks as Array<Record<string, unknown>>).some(
         (b) =>
-          b["type"] === "related_content" &&
-          b["source_mode"] !== "automatic" &&
-          Array.isArray(b["entries"]) &&
-          (b["entries"] as unknown[]).some((e) => typeof e === "string"),
+          isRelated(b) &&
+          (b["entries"] as unknown[]).some(
+            (e) =>
+              typeof e === "string" ||
+              (!!e && typeof e === "object" && (e as Record<string, unknown>)["overview_image"] == null),
+          ),
       );
 
-      if (hasStringEntries) {
+      if (needsEnrichment) {
         try {
           const allPages = await this.client.fetchAll<Record<string, unknown>>(PAGES_COLLECTION);
           const bySlug = new Map<string, Record<string, unknown>>();
@@ -1292,29 +1301,42 @@ export class StatamicProvider implements CMSProvider {
           }
 
           pageBlocks = (pageBlocks as Array<Record<string, unknown>>).map((b) => {
-            if (
-              b["type"] !== "related_content" ||
-              b["source_mode"] === "automatic" ||
-              !Array.isArray(b["entries"])
-            ) return b;
+            if (!isRelated(b)) return b;
 
             const enrichedEntries = (b["entries"] as unknown[]).map((e) => {
-              if (typeof e !== "string") return e;
-              const page = bySlug.get(e) ?? byId.get(e);
-              if (!page) return e;
-              const pageSlug = typeof page["slug"] === "string" ? page["slug"] : "";
-              return {
-                id:             page["id"]             ?? pageSlug,
-                slug:           pageSlug,
-                title:          page["title"]           ?? pageSlug,
-                url:            pageSlug === "home" ? "/" : `/${pageSlug}`,
-                overview_image: page["overview_image"] ?? null,
-                // Hover-swap image for ResultCard — without this the live site
-                // (file-reader path) never shows the hover effect, while Live
-                // Preview (full CP entry objects) does.
-                overview_image_hover: page["overview_image_hover"] ?? null,
-                excerpt:        page["excerpt"]        ?? null,
-              };
+              // ── File-reader path: entry is a bare slug / UUID string ──────────
+              if (typeof e === "string") {
+                const page = bySlug.get(e) ?? byId.get(e);
+                if (!page) return e;
+                const pageSlug = typeof page["slug"] === "string" ? page["slug"] : "";
+                return {
+                  id:                   page["id"] ?? pageSlug,
+                  slug:                 pageSlug,
+                  title:                page["title"] ?? pageSlug,
+                  url:                  pageSlug === "home" ? "/" : `/${pageSlug}`,
+                  overview_image:       page["overview_image"] ?? null,
+                  overview_image_hover: page["overview_image_hover"] ?? null,
+                  excerpt:              page["excerpt"] ?? null,
+                };
+              }
+              // ── HTTP API path: entry is a reference object; if it already has
+              //    an overview_image keep it, otherwise look up the full page and
+              //    inject the image fields (without losing the ref's own data). ──
+              if (e && typeof e === "object") {
+                const obj = e as Record<string, unknown>;
+                if (obj["overview_image"] != null) return e;
+                const id   = typeof obj["id"] === "string" ? obj["id"] : undefined;
+                const slug = slugFromUrl(obj["url"]) ?? slugFromUrl(obj["permalink"]);
+                const page = (id ? byId.get(id) : undefined) ?? (slug ? bySlug.get(slug) : undefined);
+                if (!page) return e;
+                return {
+                  ...obj,
+                  overview_image:       page["overview_image"] ?? null,
+                  overview_image_hover: page["overview_image_hover"] ?? null,
+                  excerpt:              obj["excerpt"] ?? page["excerpt"] ?? null,
+                };
+              }
+              return e;
             });
             return { ...b, entries: enrichedEntries };
           });
