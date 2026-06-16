@@ -28,7 +28,10 @@
 import { CONTEXT_DEFINITIONS, CONTEXT_FAMILIES } from "@/context/library";
 import { ContextLibraryClient }                  from "./_components/ContextLibraryClient";
 
-export const dynamic = "force-static";
+// Admin pages render per-request (they read the active tenant from the DB via
+// the admin layout). force-static would prerender this at build time, which
+// requires Supabase env vars at build and breaks the build when they're absent.
+export const dynamic = "force-dynamic";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
