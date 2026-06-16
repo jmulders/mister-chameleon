@@ -42,6 +42,8 @@
 import "server-only";
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag }             from "next/cache";
+import { STATAMIC_CACHE_TAG }        from "@/cms/providers/statamic-client";
 import { logger }                    from "@/lib/logger";
 import { rethrowNextInternal }       from "@/lib/server-action-guard";
 import { mapStatamicAdaptiveBlock }  from "@/cms/mappers/statamic";
@@ -102,6 +104,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const { event, collection, entries, tenant_id } = body;
+
+  // ── Paginacache invalideren ───────────────────────────────────────────────
+  // Elke entry-save/publish (welke collection dan ook) maakt de Statamic-content
+  // in de Next.js fetch-cache stale, zodat een wijziging direct zichtbaar is i.p.v.
+  // pas na de TTL. Dit maakt het veilig om STATAMIC_REVALIDATE_SECONDS te verhogen
+  // voor minder Ploi-round-trips zonder verlies van versheid.
+  try {
+    revalidateTag(STATAMIC_CACHE_TAG);
+  } catch {
+    // Non-fatal — revalidation mag de webhook-afhandeling nooit breken.
+  }
 
   // Alleen adaptive_blocks collection verwerken
   if (collection !== ADAPTIVE_BLOCKS_COLLECTION) {

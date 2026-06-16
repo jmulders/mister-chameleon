@@ -380,8 +380,13 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     hubspotAccessToken:          (platformCrm as { accessToken?: string }).accessToken || undefined,
     enableHubSpot:               pipelineEnabled("hubspot",
                                    tenant?.crm?.useCrmEnrichment ?? false),
+    // Only run GA4 history when it's enabled AND fully credentialed. Without a
+    // service account + property ID the GA4 query has nothing to authenticate
+    // with and stalls until it times out (~4s) on every request — so gate it on
+    // the credentials being present to avoid that dead weight in the hot path.
     enableGa4History:            pipelineEnabled("ga4",
-                                   tenant?.ga4?.history?.enabled ?? false),
+                                   tenant?.ga4?.history?.enabled ?? false)
+                                 && !!ga4ServiceAccount && !!ga4PropertyId,
     ga4PropertyId,
     ga4ServiceAccount:           ga4ServiceAccount ?? undefined,
     ga4VisitorIdDimension,
