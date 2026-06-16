@@ -150,10 +150,12 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   if (storedTenant) {
     const configFromRegistry = resolveTenantById(storedTenant.tenantId);
     if (configFromRegistry) return configFromRegistry;
-    // Tenant is in the store but not in the static registry — this means it
-    // was onboarded via admin but not yet backed by a TenantConfig.  Fall
-    // through to FALLBACK_TENANT rather than erroring; the operator should
-    // add the tenant config to resolve-tenant.ts to fully activate routing.
+    // Tenant is in the store but not in the static registry (admin-onboarded).
+    // Build its runtime config from the stored settings so its domain is fully
+    // served on production without needing a code entry in resolve-tenant.ts.
+    // This is what makes domain → tenant assignment switchable purely from the
+    // DB / admin UI (tenant_domains), with no code deploy.
+    return buildTenantConfigFromSettings(storedTenant);
   }
 
   // ── 4. Fallback ──────────────────────────────────────────────────────────
