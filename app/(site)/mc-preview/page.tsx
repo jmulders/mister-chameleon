@@ -21,6 +21,7 @@ import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
 import { isContextSlotBlockType } from "@/cms/mappers/statamic/context-slot-block";
 import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
+import { Header, Footer } from "@/components/layout";
 import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
@@ -159,7 +160,11 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main>
+    <>
+      {/* Render the real site chrome (header/nav + footer) around the content so
+          the Live Preview mirrors the full live page, not just the blocks. */}
+      <Header />
+      <main>
       <TemplateRenderer pageConfig={finalPageConfig} cmsProvider={draftProvider} />
       {/*
         Headless Live Preview client glue:
@@ -194,6 +199,8 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
           })();`,
         }}
       />
-    </main>
+      </main>
+      <Footer />
+    </>
   );
 }

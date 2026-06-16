@@ -915,8 +915,10 @@ export class StatamicProvider implements CMSProvider {
         nav_link_tracking?: string;
         dropdown_item_size?: string;
         footer_nav_size?:   string;
-        /** Inline section-tabs grid (replaces the legacy section_tabs nav tree). */
-        section_tabs?: Array<{ label?: string; href?: string; nav_handle?: string }>;
+        /** Inline section-tabs grid (replaces the legacy section_tabs nav tree).
+         *  Over the HTTP API `href` is a link object and `nav_handle` a select
+         *  object, so they're typed loosely and normalised at read time. */
+        section_tabs?: Array<{ label?: string; href?: unknown; nav_handle?: unknown }>;
       };
 
       let layoutGlobal: LayoutSettingsGlobal | null = null;
@@ -952,17 +954,35 @@ export class StatamicProvider implements CMSProvider {
       let sectionTabs: import("../types").SectionTabData[] | null = null;
       const inlineTabRows = layoutGlobal?.section_tabs;
       if (Array.isArray(inlineTabRows) && inlineTabRows.length > 0) {
-        const resolvedTabs = await Promise.all(
-          inlineTabRows
-            .filter((row) => row.label && row.href)
-            .map(async (row) => ({
-              label:        row.label!,
-              href:         (await this.client.resolveLink(row.href)) ?? row.href!,
+        // Over the HTTP API `href` arrives as a link object ({ url, … }) and
+        // `nav_handle` as a select object ({ value, … }); normalise both to
+        // plain strings, otherwise tabs render "[object Object]" links and their
+        // per-section nav fails to resolve (or the tab is dropped entirely).
+        const tabHref = (h: unknown): string | undefined =>
+          typeof h === "string" ? h
+          : (h && typeof h === "object")
+            ? ((h as { url?: string; permalink?: string }).url ?? (h as { permalink?: string }).permalink)
+            : undefined;
+        const tabHandle = (h: unknown): string | undefined =>
+          typeof h === "string" ? h
+          : (h && typeof h === "object" && typeof (h as { value?: string }).value === "string")
+            ? (h as { value?: string }).value
+            : undefined;
+        const resolvedTabs = (await Promise.all(
+          inlineTabRows.map(async (row) => {
+            const label = typeof row.label === "string" ? row.label : "";
+            const href  = tabHref(row.href);
+            if (!label || !href) return null;
+            const navHandle = tabHandle(row.nav_handle);
+            return {
+              label,
+              href:         (await this.client.resolveLink(href)) ?? href,
               openInNewTab: false,
-              // nav_handle is optional — absent means "use the default main_nav".
-              ...(row.nav_handle ? { navHandle: row.nav_handle } : {}),
-            })),
-        );
+              // nav_handle absent means "use the default main_nav".
+              ...(navHandle ? { navHandle } : {}),
+            };
+          }),
+        )).filter((t): t is import("../types").SectionTabData => t !== null);
         if (resolvedTabs.length > 0) sectionTabs = resolvedTabs;
       } else {
         // Legacy fallback: section_tabs navigation tree (no per-section nav support).
