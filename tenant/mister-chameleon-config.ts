@@ -79,17 +79,20 @@ export const MISTER_CHAMELEON_TENANT: TenantConfig = {
   // ── Providers ───────────────────────────────────────────────────────────────
   //
   // cmsProvider mirrors the priority order in cms/providers/create-cms-provider.ts:
-  //   1. Sanity     — SANITY_PROJECT_ID is set
-  //   2. Storyblok  — STORYBLOK_ACCESS_TOKEN is set (and Sanity is not)
-  //   3. Mock       — fallback when nothing is configured
+  //   1. Statamic   — STATAMIC_API_URL or STATAMIC_CMS_PATH is set
+  //   2. Sanity     — SANITY_PROJECT_ID is set (and Statamic is not)
+  //   3. Storyblok  — STORYBLOK_ACCESS_TOKEN is set (and neither above)
+  //   4. Mock       — fallback when nothing is configured
   //
   // decisionProvider is "rules" — the only implemented provider today.
   // When AI providers are added, update DecisionProviderName and switch here.
-  cmsProvider: process.env.SANITY_PROJECT_ID
-    ? "sanity"
-    : process.env.STORYBLOK_ACCESS_TOKEN
-      ? "storyblok"
-      : "mock",
+  cmsProvider: (process.env.STATAMIC_API_URL || process.env.STATAMIC_CMS_PATH)
+    ? "statamic"
+    : process.env.SANITY_PROJECT_ID
+      ? "sanity"
+      : process.env.STORYBLOK_ACCESS_TOKEN
+        ? "storyblok"
+        : "mock",
   decisionProvider: "rules",
 
   // ── Features ────────────────────────────────────────────────────────────────
