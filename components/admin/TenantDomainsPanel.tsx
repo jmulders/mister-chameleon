@@ -506,38 +506,40 @@ export function TenantDomainsPanel({
         {/* ── DNS setup tip ────────────────────────────────────────────── */}
         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600">
           <p className="mb-1.5 font-medium text-neutral-700">
-            DNS — een domein aan dit platform koppelen
+            DNS — connecting a domain to this platform
           </p>
           <ol className="ml-4 list-decimal space-y-1">
-            <li>Voeg het domein hierboven toe en sla op.</li>
+            <li>Add the domain above and save.</li>
             <li>
-              Zet bij je DNS-provider (bijv. Strato, TransIP, Cloudflare):
+              At your DNS provider (e.g. Strato, TransIP, Cloudflare), add the
+              record Vercel shows for the domain:
               <ul className="ml-4 mt-1 list-disc space-y-0.5">
                 <li>
-                  <span className="font-medium">Subdomein</span> (bijv.{" "}
+                  <span className="font-medium">Subdomain</span> (e.g.{" "}
                   <code className="font-mono">www</code>,{" "}
                   <code className="font-mono">app</code>,{" "}
-                  <code className="font-mono">klant</code>): een{" "}
-                  <span className="font-medium">CNAME</span> →{" "}
-                  <code className="font-mono">cname.vercel-dns-0.com</code>
+                  <code className="font-mono">client</code>): a{" "}
+                  <span className="font-medium">CNAME</span> to the value Vercel
+                  gives — typically{" "}
+                  <code className="font-mono">cname.vercel-dns-0.com</code>.
                 </li>
                 <li>
-                  <span className="font-medium">Hoofddomein / apex</span> (bijv.{" "}
-                  <code className="font-mono">voorbeeld.nl</code>): een{" "}
-                  <span className="font-medium">A-record</span> →{" "}
+                  <span className="font-medium">Root / apex domain</span> (e.g.{" "}
+                  <code className="font-mono">example.com</code>): an{" "}
+                  <span className="font-medium">A record</span> to{" "}
                   <code className="font-mono">76.76.21.21</code>{" "}
-                  (een apex mag geen CNAME hebben)
+                  (an apex can&apos;t use a CNAME).
                 </li>
               </ul>
             </li>
             <li>
-              Verwijder oude/conflicterende records voor diezelfde naam (max. één
-              record per naam), en klik daarna <strong>Check</strong> om te verifiëren.
+              Remove any old/conflicting records for the same name (one record per
+              name), then click <strong>Check</strong> to verify.
             </li>
           </ol>
           <p className="mt-1.5 text-neutral-400">
-            De exacte waarden staan in Vercel → Project → Domains en kunnen per
-            domein afwijken — neem die over als ze verschillen.
+            Vercel shows the exact records under Project → Domains; they can differ
+            per domain, so use those when they do.
           </p>
         </div>
 

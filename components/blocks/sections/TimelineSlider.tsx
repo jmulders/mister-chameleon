@@ -314,6 +314,7 @@ export function TimelineSlider({ data, surface }: TimelineSliderProps) {
               display:        "flex",
               alignItems:     "center",
               gap:            "1rem",
+              position:       "relative",
             }}
           >
             {/* Prev button */}
@@ -395,19 +396,23 @@ export function TimelineSlider({ data, surface }: TimelineSliderProps) {
                 );
               })}
 
-              {/* Progress track (behind the buttons) */}
-              <div
-                style={{
-                  position:       "absolute",
-                  bottom:         "1.5rem",
-                  left:           "4.5rem",
-                  right:          "4.5rem",
-                  height:         "1px",
-                  background:     "var(--card-border, rgba(255,255,255,0.15))",
-                  pointerEvents:  "none",
-                }}
-              />
             </div>
+
+            {/* Progress track — spans the full nav row, inset to clear the arrows.
+                Lives directly under the position:relative row so it stays anchored
+                here instead of escaping to a higher ancestor (which made it bleed
+                over the hero), and is outside the overflow:auto markers div. */}
+            <div
+              style={{
+                position:       "absolute",
+                bottom:         "1.5rem",
+                left:           "4.5rem",
+                right:          "4.5rem",
+                height:         "1px",
+                background:     "var(--card-border, rgba(255,255,255,0.15))",
+                pointerEvents:  "none",
+              }}
+            />
 
             {/* Next button */}
             <button
