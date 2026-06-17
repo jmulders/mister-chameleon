@@ -75,6 +75,21 @@ import {
   setCmsSlug,
 } from "@/cache/cms-cache";
 
+// ── Last-known-good site settings ─────────────────────────────────────────────
+//
+// Site settings (header nav, top bar, section tabs, CTAs) drive the whole
+// chrome of the page. If the CMS is briefly unreachable the inner provider
+// returns null, and without a safety net the page falls back to the generic
+// platform default — which is what caused the same URL to flip between the real
+// site and a "Home / Services / Landing / Components" default depending on which
+// serverless instance served the request.
+//
+// To prevent that we keep the last successful SiteSettings per tenant+locale for
+// the lifetime of this server instance. On a CMS hiccup we serve that instead of
+// null, and we never write the null into the normal cache (which would poison it
+// for the whole TTL). The map only grows by tenant×locale, so it stays tiny.
+const lastGoodSiteSettings = new Map<string, SiteSettingsData>();
+
 // ── Decorator ─────────────────────────────────────────────────────────────────
 
 /**
@@ -169,11 +184,23 @@ export class CachedCMSProvider implements CMSProvider {
   async getSiteSettings(locale = "en"): Promise<SiteSettingsData | null> {
     // Cache key includes locale so different language variants are cached independently.
     const cacheKey = `siteSettings:${locale}`;
+    const lgKey    = `${this.tenantId ?? "_"}:${cacheKey}`;
     const cached = getCmsSingleton<SiteSettingsData | null>(this.tenantId, cacheKey);
     if (cached !== null) return cached;
+
     const value = await this.inner.getSiteSettings(locale);
-    setCmsSingleton(this.tenantId, cacheKey, value);
-    return value;
+
+    if (value) {
+      // Success → cache normally and remember it as the last-known-good.
+      setCmsSingleton(this.tenantId, cacheKey, value);
+      lastGoodSiteSettings.set(lgKey, value);
+      return value;
+    }
+
+    // Inner returned null → transient CMS outage. Do NOT cache the null (that
+    // would poison the TTL and pin this instance to the default config). Serve
+    // the last-known-good settings if we have any, so the chrome stays correct.
+    return lastGoodSiteSettings.get(lgKey) ?? null;
   }
 
   // ── Page fetch (cached by slug + locale) ────────────────────────────────
