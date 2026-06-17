@@ -91,6 +91,13 @@ export interface HeaderShellProps {
  * between the "tall" (at-top) and "compact" (scrolled) states via Tailwind
  * utility classes.  All layout / content is provided via `children`.
  */
+// Hysteresis thresholds (px). The header collapses once scrolled past
+// COLLAPSE_AT and only re-expands after scrolling back above EXPAND_AT. The gap
+// between them is a dead-band that stops the collapse/expand from flickering at
+// a single boundary.
+const COLLAPSE_AT = 80;
+const EXPAND_AT = 16;
+
 export function HeaderShell({ children, utilityBar, headerStyle = "light", noBandPadding = false }: HeaderShellProps) {
   const [scrolled, setScrolled] = useState(false);
   const rafRef = useRef<number | null>(null);
@@ -98,14 +105,24 @@ export function HeaderShell({ children, utilityBar, headerStyle = "light", noBan
   useEffect(() => {
     // Determine the initial scroll position on mount so that server-side
     // rendering and client hydration stay in sync (page may load mid-scroll).
-    setScrolled(window.scrollY > 24);
+    setScrolled(window.scrollY > COLLAPSE_AT);
 
     const onScroll = () => {
       // Throttle state updates to one per animation frame — prevents
       // unnecessary re-renders during fast/continuous scrolling.
       if (rafRef.current !== null) return;
       rafRef.current = requestAnimationFrame(() => {
-        setScrolled(window.scrollY > 24);
+        const y = window.scrollY;
+        // Hysteresis: collapse only above COLLAPSE_AT, expand only below
+        // EXPAND_AT. The dead-band between the two thresholds prevents the
+        // header from oscillating (flickering) at a single boundary — when it
+        // collapses the layout shifts up slightly, which previously could push
+        // the scroll position back across one shared threshold and flip-flop.
+        setScrolled((prev) => {
+          if (!prev && y > COLLAPSE_AT) return true;
+          if (prev && y < EXPAND_AT) return false;
+          return prev;
+        });
         rafRef.current = null;
       });
     };
