@@ -503,6 +503,44 @@ export function TenantDomainsPanel({
           </p>
         )}
 
+        {/* ── DNS setup tip ────────────────────────────────────────────── */}
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600">
+          <p className="mb-1.5 font-medium text-neutral-700">
+            DNS — een domein aan dit platform koppelen
+          </p>
+          <ol className="ml-4 list-decimal space-y-1">
+            <li>Voeg het domein hierboven toe en sla op.</li>
+            <li>
+              Zet bij je DNS-provider (bijv. Strato, TransIP, Cloudflare):
+              <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                <li>
+                  <span className="font-medium">Subdomein</span> (bijv.{" "}
+                  <code className="font-mono">www</code>,{" "}
+                  <code className="font-mono">app</code>,{" "}
+                  <code className="font-mono">klant</code>): een{" "}
+                  <span className="font-medium">CNAME</span> →{" "}
+                  <code className="font-mono">cname.vercel-dns-0.com</code>
+                </li>
+                <li>
+                  <span className="font-medium">Hoofddomein / apex</span> (bijv.{" "}
+                  <code className="font-mono">voorbeeld.nl</code>): een{" "}
+                  <span className="font-medium">A-record</span> →{" "}
+                  <code className="font-mono">76.76.21.21</code>{" "}
+                  (een apex mag geen CNAME hebben)
+                </li>
+              </ul>
+            </li>
+            <li>
+              Verwijder oude/conflicterende records voor diezelfde naam (max. één
+              record per naam), en klik daarna <strong>Check</strong> om te verifiëren.
+            </li>
+          </ol>
+          <p className="mt-1.5 text-neutral-400">
+            De exacte waarden staan in Vercel → Project → Domains en kunnen per
+            domein afwijken — neem die over als ze verschillen.
+          </p>
+        </div>
+
         {/* ── Dev hint ─────────────────────────────────────────────────── */}
         <p className="border-t border-neutral-100 pt-3 text-xs text-neutral-400">
           <span className="font-medium text-neutral-500">Dev:</span>{" "}
