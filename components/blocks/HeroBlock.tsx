@@ -888,20 +888,6 @@ export function HeroBlock({
         style={{ background: "var(--hero-dark-bg, #0a0a0f)" }}
         className="relative overflow-hidden"
       >
-        {/* Narrow horizontal glow bar beneath the badge */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-1/3 flex justify-center"
-        >
-          <div
-            className="h-px w-48 blur-sm"
-            style={{
-              background: "var(--primary)",
-              boxShadow:  "0 0 24px 6px var(--primary)",
-              opacity:    0.7,
-            }}
-          />
-        </div>
         {/* Very subtle wide glow behind heading area */}
         <div
           aria-hidden
