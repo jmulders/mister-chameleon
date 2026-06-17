@@ -21,7 +21,6 @@ import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
 import { isContextSlotBlockType } from "@/cms/mappers/statamic/context-slot-block";
 import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
-import { Header, Footer } from "@/components/layout";
 import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
@@ -53,6 +52,23 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   // Statamic's native Live Preview appends ?live-preview=ID&token=TOKEN.
   const statamicToken = typeof sp.token === "string" ? sp.token : null;
 
+  // Resolve the tenant's configured Statamic base URL once, up front. It is used
+  // both to fetch the unsaved draft data AND to build the draft provider's client,
+  // so context-slot variant content is fetched from the SAME Statamic host — NOT
+  // env STATAMIC_API_URL, which may point at an older deployment and would leave
+  // context slots empty in the preview.
+  let base = "";
+  try {
+    const { tenantId } = await getActiveTenant();
+    const tenant = await getTenantById(tenantId ?? "");
+    const rawBase =
+      (tenant as { cms?: { statamicBaseUrl?: string } } | null)?.cms?.statamicBaseUrl ??
+      process.env.STATAMIC_API_URL ?? "";
+    base = rawBase.replace(/\/api\/?$/, "").replace(/\/$/, "");
+  } catch {
+    // Non-fatal — base stays empty; the provider falls back to env config.
+  }
+
   let draftEntry: StatamicDraftEntry | null = mcdraftToken ? await getDraft(mcdraftToken) : null;
 
   // Direct (no-bridge) flow: the Statamic CP loads this page itself with the
@@ -61,15 +77,6 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   // CP renders the preview in a single iframe without any bridge/nesting.
   if (!draftEntry && statamicToken) {
     try {
-      // Use the tenant's configured Statamic base URL (the live Ploi host where
-      // the /mc-live-preview-data route lives) — NOT env STATAMIC_API_URL, which
-      // may point at an older deployment.
-      const { tenantId } = await getActiveTenant();
-      const tenant = await getTenantById(tenantId ?? "");
-      const rawBase =
-        (tenant as { cms?: { statamicBaseUrl?: string } } | null)?.cms?.statamicBaseUrl ??
-        process.env.STATAMIC_API_URL ?? "";
-      const base = rawBase.replace(/\/api\/?$/, "").replace(/\/$/, "");
       if (base) {
         const res = await fetch(
           `${base}/mc-live-preview-data?token=${encodeURIComponent(statamicToken)}`,
@@ -128,7 +135,7 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   const safeBlocks = stripAutoplay(rawBlocks) as unknown[];
   const blocks = safeBlocks as Array<Record<string, unknown>>;
 
-  const draftProvider = createDraftStatamicProvider(safeBlocks);
+  const draftProvider = createDraftStatamicProvider(safeBlocks, base);
 
   let page: PageData | null = await draftProvider.getPageBySlug(slug, locale);
   if (!page) {
@@ -160,11 +167,11 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   }
 
   return (
-    <>
-      {/* Render the real site chrome (header/nav + footer) around the content so
-          the Live Preview mirrors the full live page, not just the blocks. */}
-      <Header />
-      <main>
+    // The surrounding (site) layout already renders the site chrome (Header,
+    // Footer), the tenant-theme anchor (data-site) and CartProvider, so the
+    // preview only needs to render the page body. Rendering our own Header/Footer
+    // here duplicated the whole header + footer in the Live Preview iframe.
+    <main>
       <TemplateRenderer pageConfig={finalPageConfig} cmsProvider={draftProvider} />
       {/*
         Headless Live Preview client glue:
@@ -200,7 +207,5 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
         }}
       />
       </main>
-      <Footer />
-    </>
   );
 }

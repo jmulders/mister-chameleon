@@ -391,11 +391,23 @@ export function createPreviewCMSProvider(
  *
  * NOT wrapped with CachedCMSProvider so every render sees the latest draft.
  *
- * @param blocks  The `content` replicator blocks serialised from the Antlers
- *                template during Statamic Live Preview re-rendering.
+ * @param blocks   The `content` replicator blocks serialised from the Antlers
+ *                 template during Statamic Live Preview re-rendering.
+ * @param baseUrl  Optional Statamic base URL (the tenant's configured host). When
+ *                 given, variant content is fetched from that host instead of env
+ *                 STATAMIC_API_URL.
  */
-export function createDraftStatamicProvider(blocks: unknown[]): CMSProvider {
-  return new StatamicProvider(undefined, blocks);
+export function createDraftStatamicProvider(blocks: unknown[], baseUrl?: string): CMSProvider {
+  // Context slots only carry a variant_key anchor; the actual hero/feature/cta/
+  // proof/conversion content lives in separate Statamic entries that must be
+  // fetched. Point the client at the SAME Statamic that served the draft so that
+  // resolution succeeds — env STATAMIC_API_URL may target an older/different
+  // deployment, which would leave context slots empty in the preview.
+  const trimmed = baseUrl?.replace(/\/api\/?$/, "").replace(/\/$/, "");
+  const client = trimmed
+    ? new StatamicClient(trimmed, serverEnv.statamic.apiKey)
+    : undefined;
+  return new StatamicProvider(client, blocks);
 }
 
 // ── Internal helper ───────────────────────────────────────────────────────────
