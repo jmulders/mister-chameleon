@@ -17,6 +17,8 @@ import {
   emailPlatformFlags,
 }                                    from "@/platform/platform-store";
 import { DeploymentDashboard }       from "./_components/DeploymentDashboard";
+import { CmsDeployCard }             from "./_components/CmsDeployCard";
+import { getPlatformDeploySettings } from "@/platform/platform-store";
 import { rethrowNextInternal } from "@/lib/server-action-guard";
 
 export const dynamic = "force-dynamic";
@@ -537,6 +539,9 @@ export default async function DeploymentPage() {
 
   const data = await collectDeploymentData();
 
+  const deploy = await getPlatformDeploySettings();
+  const cmsHookConfigured = deploy.ok && Boolean(deploy.data.cmsDeployHookUrl);
+
   return (
     <div className="max-w-4xl p-8">
       <div className="mb-6">
@@ -548,6 +553,8 @@ export default async function DeploymentPage() {
       </div>
 
       <DeploymentDashboard data={data} />
+
+      <CmsDeployCard configured={cmsHookConfigured} />
     </div>
   );
 }

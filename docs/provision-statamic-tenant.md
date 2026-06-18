@@ -46,8 +46,25 @@ php please cache:clear
 php please stache:refresh
 ```
 
-On boot, the log line `Fetching build manifest from … ` must **write the
+A ready-to-use `deploy.sh` ships in the CMS repo — paste it into Ploi's deploy
+script. On boot, the log line `Fetching build manifest from … ` must **write the
 fieldsets** (not `Platform returned HTTP 501`).
+
+Once configured, you can also trigger this deploy from the platform admin:
+**Admin → Platform → Deployment → "Deploy CMS now"** (paste the Ploi deploy
+webhook URL there once, in the same card).
+
+## 2b. Seed the standard pages
+For a brand-new instance, copy the clean starter pages so the CP has valid,
+typed content from the start:
+
+```bash
+cp -R seed/content/. content/
+php please cache:clear && php please stache:refresh
+```
+
+`seed/` contains `home.md` (the standard context slots + the global variant
+catalogue) and `contact.md`. See `seed/README.md` for adding more pages.
 
 ## 3. Wire tenant ↔ Statamic on the platform
 - DB `tenant_settings.settings.cms.statamicBaseUrl` = the Statamic host.

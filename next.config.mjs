@@ -42,6 +42,9 @@ const nextConfig = {
   // fs.readdirSync returns ENOENT on Vercel and the mrc_* fieldsets are omitted.
   outputFileTracingIncludes: {
     "/api/v1/provision/manifest": ["./provisioning/statamic/fieldsets/**/*"],
+    // The admin docs viewer reads docs/*.md at runtime — bundle them so the
+    // serverless function can find them on Vercel.
+    "/admin/platform/docs/**": ["./docs/**/*.md"],
   },
 
   // ── Server Actions ──────────────────────────────────────────────────────────

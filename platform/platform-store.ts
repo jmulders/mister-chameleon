@@ -801,6 +801,7 @@ const KEYS = {
   contentBudget:   "content_budget",
   googleCalendar:  "google-calendar",
   forge:           "forge",
+  deploy:          "deploy",
 } as const;
 
 // ── Generic read / write ───────────────────────────────────────────────────────
@@ -1056,6 +1057,36 @@ export function vercelFlags(settings: PlatformVercelSettings): {
     hasApiToken: Boolean(settings.apiToken),
     hasTeamId:   Boolean(settings.teamId),
   };
+}
+
+// ── Deploy (CMS / Ploi deploy webhook) ──────────────────────────────────────────
+
+/**
+ * One-click deploy settings.
+ *
+ * `cmsDeployHookUrl` is a Ploi deploy webhook URL (Ploi → Application → Settings →
+ * Deploy Webhook). POSTing to it triggers the configured deploy script on the
+ * Statamic instance (git pull + composer install + `php please mc:sync` + cache
+ * clear). It is a capability URL (a secret) — server-only, never sent to client.
+ */
+export interface PlatformDeploySettings {
+  cmsDeployHookUrl?: string;
+}
+
+/** Read the platform deploy settings (server-only — includes the hook URL). */
+export async function getPlatformDeploySettings(): Promise<SettingsResult<PlatformDeploySettings>> {
+  return readSection<PlatformDeploySettings>(KEYS.deploy);
+}
+
+/** Persist platform deploy settings. Empty string clears the URL; undefined leaves it. */
+export async function savePlatformDeploySettings(
+  patch: PlatformDeploySettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const normalized: Record<string, unknown> = {};
+  if (patch.cmsDeployHookUrl !== undefined) {
+    normalized.cmsDeployHookUrl = patch.cmsDeployHookUrl === "" ? null : patch.cmsDeployHookUrl;
+  }
+  return writeSection<Record<string, unknown>>(KEYS.deploy, normalized);
 }
 
 // ── CRM ────────────────────────────────────────────────────────────────────────

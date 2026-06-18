@@ -174,6 +174,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
     { label: "Billing",     href: "/admin/platform/billing",     activePrefix: "/admin/platform/billing",     icon: icons.billing,    note: "Plans" },
     { label: "CMS",         href: "/admin/platform/cms",         activePrefix: "/admin/platform/cms",         icon: icons.cms,        note: "Seed" },
     { label: "Deployment",  href: "/admin/platform/deployment",  activePrefix: "/admin/platform/deployment",  icon: icons.deployment },
+    { label: "Docs",        href: "/admin/platform/docs",        activePrefix: "/admin/platform/docs",        icon: icons.cms,        note: "Runbooks" },
     { label: "System",      href: "/admin/platform/system",      activePrefix: "/admin/platform/system",      icon: icons.system,     note: "Backup" },
   ];
 
