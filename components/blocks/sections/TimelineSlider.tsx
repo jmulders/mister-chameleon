@@ -401,11 +401,14 @@ export function TimelineSlider({ data, surface }: TimelineSliderProps) {
             {/* Progress track — spans the full nav row, inset to clear the arrows.
                 Lives directly under the position:relative row so it stays anchored
                 here instead of escaping to a higher ancestor (which made it bleed
-                over the hero), and is outside the overflow:auto markers div. */}
+                over the hero), and is outside the overflow:auto markers div.
+                bottom is aligned with the year-marker baseline (the active accent
+                underline sits at the buttons' bottom) so the line runs UNDER the
+                year labels, not through them. */}
             <div
               style={{
                 position:       "absolute",
-                bottom:         "1.5rem",
+                bottom:         "0.5rem",
                 left:           "4.5rem",
                 right:          "4.5rem",
                 height:         "1px",
