@@ -2518,6 +2518,17 @@ export interface TenantSettings {
    * Configure via /admin/tenants/[tenantId]/storage.
    */
   readonly storage?: TenantStorageSettings;
+
+  /**
+   * Per-tenant deploy settings (Statamic tenants only).
+   *
+   * `cmsDeployHookUrl` is this tenant's Ploi deploy webhook — each Statamic
+   * instance has its own. Used by the "Deploy CMS" button on the tenant setup
+   * page to trigger git pull + composer install + `php please mc:sync`.
+   *
+   * Configure via /admin/tenants/[tenantId]/setup.
+   */
+  readonly deploy?: TenantDeploySettings;
 }
 
 // ── Storage settings ───────────────────────────────────────────────────────────
@@ -2543,6 +2554,16 @@ export interface TenantStorageSettings {
  *
  * See TenantSettings.snippet for full documentation.
  */
+export interface TenantDeploySettings {
+  /**
+   * Ploi deploy webhook URL for this tenant's Statamic instance.
+   * A capability URL (a secret) — server-only, never sent to the client.
+   * POSTing to it runs the instance's deploy script (git pull + composer install
+   * + `php please mc:sync` + cache clear).
+   */
+  cmsDeployHookUrl?: string;
+}
+
 export interface TenantSnippetSettings {
   /**
    * Whether the snippet integration is enabled for this tenant.

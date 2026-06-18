@@ -29,6 +29,7 @@ import { CmsCredentialsPanel }      from "@/components/admin/CmsCredentialsPanel
 import { CreateSitePanel }          from "@/components/admin/CreateSitePanel";
 import { TenantDomainsPanel }       from "@/components/admin/TenantDomainsPanel";
 import { StatamicDeployPanel }      from "@/components/admin/StatamicDeployPanel";
+import { TenantCmsDeployCard }      from "@/components/admin/TenantCmsDeployCard";
 import { Text }                     from "@/components/primitives/Text";
 import type { TenantSettings } from "@/tenant/server";
 
@@ -114,6 +115,14 @@ export default async function TenantSetupPage({
           existingBaseUrl={tenant.cms?.statamicBaseUrl ?? undefined}
           defaultServerId={forgeDefaultServerId}
           forgeConfigured={forgeIsConfigured}
+        />
+      )}
+
+      {/* 5a-bis — One-click redeploy of this tenant's Statamic instance (Ploi) */}
+      {showDeployPanel && (
+        <TenantCmsDeployCard
+          tenantId={tenantId}
+          configured={Boolean(tenant.deploy?.cmsDeployHookUrl)}
         />
       )}
 

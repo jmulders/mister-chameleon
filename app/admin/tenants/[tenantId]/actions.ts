@@ -2362,3 +2362,62 @@ function patchEnvVars(
   }
   return result;
 }
+
+// ── Per-tenant CMS deploy (Statamic / Ploi webhook) ───────────────────────────
+
+/**
+ * Save this tenant's Ploi deploy webhook URL. Empty string clears it.
+ * Each Statamic instance has its own webhook, so this is stored per tenant.
+ */
+export async function saveTenantDeployHookAction(
+  tenantId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string; detail?: string }> {
+  await getRequiredAdminSession();
+  try {
+    const url = String(formData.get("cmsDeployHookUrl") ?? "").trim();
+    if (url && !/^https:\/\/.+/i.test(url)) {
+      return { ok: false, error: "Enter a valid https:// deploy webhook URL (or leave empty to clear)." };
+    }
+    const tenant = await getTenantById(tenantId);
+    if (!tenant) return { ok: false, error: `Tenant '${tenantId}' not found.` };
+
+    const next: TenantSettings = {
+      ...tenant,
+      deploy: { ...tenant.deploy, cmsDeployHookUrl: url || undefined },
+    };
+    const result = await saveTenant(next);
+    if (!result.ok) return { ok: false, error: result.error };
+    revalidatePath(`/admin/tenants/${tenantId}/setup`);
+    return { ok: true, detail: url ? "Deploy webhook saved." : "Deploy webhook cleared." };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Trigger a redeploy of this tenant's Statamic instance via its Ploi deploy
+ * webhook (git pull + composer install + `php please mc:sync` + cache clear).
+ */
+export async function triggerTenantCmsDeployAction(
+  tenantId: string,
+): Promise<{ ok: boolean; error?: string; detail?: string }> {
+  await getRequiredAdminSession();
+  try {
+    const tenant = await getTenantById(tenantId);
+    const url = tenant?.deploy?.cmsDeployHookUrl?.trim();
+    if (!url) {
+      return { ok: false, error: "No deploy webhook configured for this tenant. Add the Ploi deploy webhook URL first." };
+    }
+    const res = await fetch(url, { method: "POST", cache: "no-store" });
+    if (!res.ok) return { ok: false, error: `Deploy webhook returned HTTP ${res.status}.` };
+    return {
+      ok: true,
+      detail: "CMS deploy triggered on Ploi (git pull + composer install + php please mc:sync). Give it a minute.",
+    };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
