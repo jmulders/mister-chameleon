@@ -1332,11 +1332,20 @@ export function mapStatamicPageBlocksToSections(
       }
 
       case "form_section": {
-        // `form` (Statamic form fieldtype) stores the selected form's handle.
-        // Backward-compat fallback: also read the old `form_key` plain-text field.
+        // `form` (Statamic form fieldtype) stores the selected form, but its shape
+        // varies: a plain handle string ("appointment"), an ARRAY of handles
+        // (["appointment"] — how the CP actually saves it), or an augmented object
+        // ({ handle, title, ... }), possibly wrapped in an array. We normalise all
+        // of these to the handle. Backward-compat fallback: the old `form_key`.
         // `heading` → title, `subtitle` → intro (display copy above the form).
+        const formRaw = block.form as unknown;
+        const formCandidate = Array.isArray(formRaw) ? formRaw[0] : formRaw;
         const formKey =
-          (typeof block.form === "string" ? block.form : null) ??
+          (typeof formCandidate === "string" ? formCandidate : null) ??
+          (formCandidate && typeof formCandidate === "object" &&
+           typeof (formCandidate as { handle?: unknown }).handle === "string"
+            ? (formCandidate as { handle: string }).handle
+            : null) ??
           (typeof block.form_key === "string" ? block.form_key : "");
         if (!formKey) break; // can't render a form without a key
 
