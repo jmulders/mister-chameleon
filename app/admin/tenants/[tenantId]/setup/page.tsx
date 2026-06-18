@@ -30,6 +30,7 @@ import { CreateSitePanel }          from "@/components/admin/CreateSitePanel";
 import { TenantDomainsPanel }       from "@/components/admin/TenantDomainsPanel";
 import { StatamicDeployPanel }      from "@/components/admin/StatamicDeployPanel";
 import { TenantCmsDeployCard }      from "@/components/admin/TenantCmsDeployCard";
+import { StatamicSetupGuide }       from "@/components/admin/StatamicSetupGuide";
 import { Text }                     from "@/components/primitives/Text";
 import type { TenantSettings } from "@/tenant/server";
 
@@ -107,6 +108,14 @@ export default async function TenantSetupPage({
         cmsProvider={tenant.cms?.provider ?? "mock"}
         platformWriteTokenConfigured={platformWriteTokenConfigured}
       />
+
+      {/* 5 — Statamic instance setup guide (only for Statamic tenants) */}
+      {showDeployPanel && (
+        <StatamicSetupGuide
+          tenantId={tenantId}
+          siteKey={tenant.snippet?.siteKey}
+        />
+      )}
 
       {/* 5a — Forge: deploy a fresh Statamic site (only for Statamic tenants) */}
       {showDeployPanel && (
