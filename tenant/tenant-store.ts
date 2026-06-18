@@ -71,6 +71,7 @@ import { DESIGN_PRESETS }        from "./design-theme";
 import { getDb, isNetworkError } from "@/data/db";
 import { getDomainByHostname }   from "./domain-store";
 import { logger }                from "@/lib/logger";
+import { generateSiteKey }       from "@/lib/snippet/generate-site-key";
 
 // ── Typed query helpers ───────────────────────────────────────────────────────
 //
@@ -799,6 +800,23 @@ export async function createTenant(
     return {
       ok:    false,
       error: `Tenant '${enforced.tenantId}' already exists. Use saveTenant() to update it.`,
+    };
+  }
+
+  // ── Ensure a snippet site key exists ──────────────────────────────────────
+  //
+  // The platform identifies tenants by their public site key. Most importantly
+  // the Statamic provisioning manifest (/api/v1/provision/manifest) authenticates
+  // by it — a tenant created WITHOUT a key returns 501 there, which fails
+  // `php please mc:sync` and leaves the CMS without its generated fieldsets
+  // (which in turn corrupts content and breaks the site). Generating the key at
+  // creation time means it can never be forgotten during onboarding. Operators
+  // can still regenerate it from Admin → Tenant → Snippet.
+  if (!enforced.snippet?.siteKey) {
+    enforced.snippet = {
+      ...enforced.snippet,
+      siteKey:            generateSiteKey(),
+      siteKeyGeneratedAt: new Date().toISOString(),
     };
   }
 
