@@ -27,8 +27,8 @@ export function TenantFinalizeCard({ tenantId, currentBaseUrl }: { tenantId: str
       <h2 className="text-sm font-semibold text-neutral-900">Finalize: wire host + domain</h2>
       <p className="mt-1 text-xs text-neutral-500">
         Run this after the Ploi app exists. Sets <code className="font-mono">statamicBaseUrl</code>,
-        maps the domain, and points the repo&apos;s <code className="font-mono">sites.yaml</code> at it.
-        Then follow the DNS + Ploi steps it prints.
+        maps the domain, points the repo&apos;s <code className="font-mono">sites.yaml</code> at it, and
+        registers the domain in <strong>Vercel</strong>. Then set the DNS records + Ploi env it prints.
       </p>
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">

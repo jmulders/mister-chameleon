@@ -2587,6 +2587,7 @@ export async function finalizeTenantProvisioningAction(
     const { bareHost, provisioningSlug, updateRepoSitesYaml } = await import("@/lib/provisioning/cms-provisioner");
     const { addDomain } = await import("@/tenant/domain-store");
     const { getPlatformGithubSettings, githubFlags, resolveGithubToken } = await import("@/platform/platform-store");
+    const { isVercelConfigured, addVercelDomain } = await import("@/lib/vercel-domains");
 
     const host = bareHost(input.ploiHost);
     const apex = bareHost(input.domain).replace(/^www\./i, "");
@@ -2606,11 +2607,26 @@ export async function finalizeTenantProvisioningAction(
     const saved = await saveTenant(next);
     steps.push({ label: "Set statamicBaseUrl", ok: saved.ok, note: saved.ok ? baseUrl : (saved.error ?? "failed") });
 
-    // 2 — domains (idempotent: "already registered" counts as success)
+    // 2 — domains: map in our DB (host → tenant) AND register on Vercel.
+    const vercelConfigured = isVercelConfigured();
+    const vercelDns: { type: string; name: string; value: string }[] = [];
     for (const [d, primary] of [[www, true], [apex, false]] as [string, boolean][]) {
       const r = await addDomain(tenantId, d, { isPrimary: primary, status: "active" });
       const already = !r.ok && /already registered for this tenant/i.test(r.error ?? "");
       steps.push({ label: `Map domain ${d}`, ok: r.ok || already, note: r.ok ? "added" : (already ? "already mapped" : (r.error ?? "failed")) });
+
+      if (vercelConfigured) {
+        const v = await addVercelDomain(d);
+        if (v.ok) {
+          steps.push({ label: `Vercel domain ${d}`, ok: true, note: v.alreadyVerified ? "added (verified)" : "added — DNS pending" });
+          // Vercel returns the authoritative DNS records to set at the registrar.
+          for (const rec of v.verification ?? []) {
+            if (rec?.type && rec?.value) vercelDns.push({ type: rec.type, name: rec.domain ?? d, value: rec.value });
+          }
+        } else {
+          steps.push({ label: `Vercel domain ${d}`, ok: false, note: v.error });
+        }
+      }
     }
 
     // 3 — sites.yaml (best-effort, needs GitHub token + per-tenant repo)
@@ -2635,9 +2651,12 @@ export async function finalizeTenantProvisioningAction(
         ? `Wired ${tenantId} → ${baseUrl} and ${www}. Now add the domain in Vercel, set DNS, set the Ploi env, then redeploy both.`
         : "Finished with some warnings — see steps below.",
       steps,
+      // Routing records (apex A + www CNAME) plus any Vercel ownership-verification
+      // TXT records returned when the domain was registered.
       dns: [
         { type: "A",     name: apex,  value: "76.76.21.21" },
         { type: "CNAME", name: "www", value: "cname.vercel-dns-0.com" },
+        ...vercelDns,
       ],
       ploiEnv: [
         { key: "APP_URL",                 value: baseUrl },
