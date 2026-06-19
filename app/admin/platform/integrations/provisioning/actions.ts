@@ -109,7 +109,8 @@ export async function testPloiConnectionAction(): Promise<
   if (!token) return { ok: false, error: "No Ploi Cloud token configured (and no PLOI_CLOUD_TOKEN env)." };
   try {
     // A GET against the apply endpoint or any authed endpoint verifies the token.
-    const res = await fetch("https://api.ploi.cloud/api/v1/infrastructure/apply?dry_run=true", {
+    const ploiBase = process.env["PLOI_CLOUD_API_BASE"] ?? "https://ploi.cloud/api/v1";
+    const res = await fetch(`${ploiBase}/infrastructure/apply?dry_run=true`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/yaml", Accept: "application/json", "User-Agent": "mc-provisioner" },
       body: "apiVersion: v1\nkind: Infrastructure\nmetadata:\n  name: __conn_test__\n",

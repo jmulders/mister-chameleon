@@ -27,7 +27,10 @@
 import "server-only";
 
 const GITHUB_API = "https://api.github.com";
-const PLOI_API   = "https://api.ploi.cloud/api/v1";
+// Ploi Cloud API base. NB: the IaC doc page shows "api.ploi.cloud" but that host
+// does not resolve ("fetch failed"); the authoritative auth doc + live resolution
+// use ploi.cloud/api/v1. Override via PLOI_CLOUD_API_BASE if Ploi changes it.
+const PLOI_API   = process.env["PLOI_CLOUD_API_BASE"] ?? "https://ploi.cloud/api/v1";
 
 export interface ProvisionResult {
   ok:      boolean;
