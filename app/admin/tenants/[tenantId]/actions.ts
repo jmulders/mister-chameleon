@@ -2550,3 +2550,97 @@ export async function provisionTenantCmsAction(
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Finalize provisioning: wire the tenant to its freshly-created Statamic
+ * instance + public domain (the part that can only happen once the Ploi host is
+ * assigned and the operator has chosen a domain).
+ *
+ *   1. tenant.cms.statamicBaseUrl = https://<ploiHost>   (where content is fetched)
+ *   2. tenant_domains rows for <apex> + www.<apex>        (host → tenant resolution)
+ *   3. best-effort: point the repo's sites.yaml primary site at the domain
+ *
+ * Returns the exact DNS records + Ploi env values the operator still has to set
+ * (Vercel domain add + DNS + Ploi env can't be done from here).
+ */
+export async function finalizeTenantProvisioningAction(
+  tenantId: string,
+  input: { ploiHost: string; domain: string },
+): Promise<{
+  ok: boolean;
+  error?: string;
+  detail?: string;
+  steps?: { label: string; ok: boolean; note: string }[];
+  dns?: { type: string; name: string; value: string }[];
+  ploiEnv?: { key: string; value: string }[];
+}> {
+  await getRequiredAdminSession();
+  try {
+    const tenant = await getTenantById(tenantId);
+    if (!tenant) return { ok: false, error: `Tenant '${tenantId}' not found.` };
+
+    const { bareHost, provisioningSlug, updateRepoSitesYaml } = await import("@/lib/provisioning/cms-provisioner");
+    const { addDomain } = await import("@/tenant/domain-store");
+    const { getPlatformGithubSettings, githubFlags, resolveGithubToken } = await import("@/platform/platform-store");
+
+    const host = bareHost(input.ploiHost);
+    const apex = bareHost(input.domain).replace(/^www\./i, "");
+    if (!host) return { ok: false, error: "Ploi host is required." };
+    if (!apex || !apex.includes(".")) return { ok: false, error: "Enter a valid domain, e.g. steunles.nl." };
+
+    const baseUrl     = `https://${host}`;
+    const www         = `www.${apex}`;
+    const primaryUrl  = `https://${www}`;
+    const steps: { label: string; ok: boolean; note: string }[] = [];
+
+    // 1 — statamicBaseUrl
+    const next: TenantSettings = {
+      ...tenant,
+      cms: { ...tenant.cms, statamicBaseUrl: baseUrl } as TenantCmsSettings,
+    };
+    const saved = await saveTenant(next);
+    steps.push({ label: "Set statamicBaseUrl", ok: saved.ok, note: saved.ok ? baseUrl : (saved.error ?? "failed") });
+
+    // 2 — domains (idempotent: "already registered" counts as success)
+    for (const [d, primary] of [[www, true], [apex, false]] as [string, boolean][]) {
+      const r = await addDomain(tenantId, d, { isPrimary: primary, status: "active" });
+      const already = !r.ok && /already registered for this tenant/i.test(r.error ?? "");
+      steps.push({ label: `Map domain ${d}`, ok: r.ok || already, note: r.ok ? "added" : (already ? "already mapped" : (r.error ?? "failed")) });
+    }
+
+    // 3 — sites.yaml (best-effort, needs GitHub token + per-tenant repo)
+    const ghRes = await getPlatformGithubSettings();
+    if (ghRes.ok) {
+      const gh    = githubFlags(ghRes.data);
+      const token = resolveGithubToken(ghRes.data);
+      const repo  = `${gh.templateRepo}-${provisioningSlug(tenantId)}`;
+      if (token) {
+        const sy = await updateRepoSitesYaml({ token, owner: gh.repoOwner, repo, primarySiteUrl: primaryUrl });
+        steps.push({ label: "Update repo sites.yaml", ok: sy.ok, note: sy.message });
+      } else {
+        steps.push({ label: "Update repo sites.yaml", ok: false, note: "skipped — no GitHub token configured" });
+      }
+    }
+
+    revalidatePath(`/admin/tenants/${tenantId}/setup`);
+    const allOk = steps.every((s) => s.ok);
+    return {
+      ok: allOk,
+      detail: allOk
+        ? `Wired ${tenantId} → ${baseUrl} and ${www}. Now add the domain in Vercel, set DNS, set the Ploi env, then redeploy both.`
+        : "Finished with some warnings — see steps below.",
+      steps,
+      dns: [
+        { type: "A",     name: apex,  value: "76.76.21.21" },
+        { type: "CNAME", name: "www", value: "cname.vercel-dns-0.com" },
+      ],
+      ploiEnv: [
+        { key: "APP_URL",                 value: baseUrl },
+        { key: "MC_PREVIEW_FRONTEND_URL", value: primaryUrl },
+      ],
+    };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}

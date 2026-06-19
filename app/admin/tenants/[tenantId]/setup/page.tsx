@@ -32,6 +32,7 @@ import { StatamicDeployPanel }      from "@/components/admin/StatamicDeployPanel
 import { TenantCmsDeployCard }      from "@/components/admin/TenantCmsDeployCard";
 import { StatamicSetupGuide }       from "@/components/admin/StatamicSetupGuide";
 import { TenantProvisionCard }       from "@/components/admin/TenantProvisionCard";
+import { TenantFinalizeCard }         from "@/components/admin/TenantFinalizeCard";
 import { Text }                     from "@/components/primitives/Text";
 import type { TenantSettings } from "@/tenant/server";
 
@@ -112,6 +113,14 @@ export default async function TenantSetupPage({
 
       {/* 5 — One-click automated provisioning (repo + Ploi app) */}
       {showDeployPanel && <TenantProvisionCard tenantId={tenantId} />}
+
+      {/* 5 — Finalize: wire statamicBaseUrl + domain + sites.yaml */}
+      {showDeployPanel && (
+        <TenantFinalizeCard
+          tenantId={tenantId}
+          currentBaseUrl={tenant.cms?.statamicBaseUrl ?? undefined}
+        />
+      )}
 
       {/* 5 — Statamic instance setup guide (only for Statamic tenants) */}
       {showDeployPanel && (

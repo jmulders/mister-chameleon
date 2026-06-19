@@ -43,16 +43,16 @@ export function StatamicSetupGuide({
   }
 
   const steps = [
-    <>Create a <strong>per-tenant copy</strong> of the template repo{" "}
-      <code className="rounded bg-neutral-100 px-1 font-mono text-xs">{templateRepo}</code>{" "}
-      (GitHub → “Use this template”). Each tenant needs its own repo so content &amp; Git Sync don&apos;t collide.</>,
-    <>In Ploi, create an application (framework: <strong>Statamic</strong>) pointing at that per-tenant repo.</>,
-    <>Paste the env vars below into the Ploi app (the siteKey is already filled in for this tenant).</>,
-    <>Set the Ploi <strong>deploy script</strong> to run <code className="rounded bg-neutral-100 px-1 font-mono text-xs">php please mc:sync</code> + cache clear — the repo ships a ready-to-use <code className="rounded bg-neutral-100 px-1 font-mono text-xs">deploy.sh</code>.</>,
-    <>Seed the starter pages: <code className="rounded bg-neutral-100 px-1 font-mono text-xs">cp -R seed/content/. content/</code> (see <code className="font-mono text-xs">seed/README.md</code>).</>,
-    <>Set this tenant&apos;s <strong>CMS base URL</strong> to the Ploi app host (CMS credentials panel below / Forge deploy panel).</>,
-    <>Paste the Ploi <strong>deploy webhook</strong> into the “Deploy CMS” card below, then hit <strong>Deploy CMS now</strong>.</>,
-    <>Map the tenant&apos;s domain (Domains panel below) + DNS, then redeploy the platform on Vercel.</>,
+    <><strong>Provision</strong> (card above → “Provision repo + Ploi app”): generates the per-tenant
+      repo from the template <code className="rounded bg-neutral-100 px-1 font-mono text-xs">{templateRepo}</code>{" "}
+      (full copy, incl. committed fieldsets) and creates the Ploi Cloud app. No <code className="rounded bg-neutral-100 px-1 font-mono text-xs">mc:sync</code> — fieldsets bake into the image.</>,
+    <>In Ploi, open the new app and copy its <strong>host</strong> (e.g. <code className="font-mono text-xs">…ams1-t.preview.ploi.it</code>). Wait until the first deploy is healthy.</>,
+    <><strong>Finalize</strong> (card above → enter the Ploi host + this tenant&apos;s domain): sets{" "}
+      <code className="rounded bg-neutral-100 px-1 font-mono text-xs">statamicBaseUrl</code>, maps the domain, and points the repo&apos;s <code className="rounded bg-neutral-100 px-1 font-mono text-xs">sites.yaml</code> at it.</>,
+    <>Add the domain in <strong>Vercel</strong> (platform project → Domains) and set the <strong>DNS</strong> records that the Finalize card prints (A on the apex, CNAME on www).</>,
+    <>Set the two <strong>Ploi env</strong> vars the Finalize card prints (<code className="font-mono text-xs">APP_URL</code> + <code className="font-mono text-xs">MC_PREVIEW_FRONTEND_URL</code>) on the app, then <strong>redeploy the Ploi app</strong>.</>,
+    <><strong>Redeploy the platform on Vercel</strong> so the cached tenant config picks up the new host + domain.</>,
+    <>Smoke test: open <code className="font-mono text-xs">https://www.&lt;domain&gt;</code> → real nav + content (no fallback); CP <code className="font-mono text-xs">/cp</code> opens; Live Preview &amp; “Visit URL” target the tenant&apos;s own domain.</>,
   ];
 
   return (

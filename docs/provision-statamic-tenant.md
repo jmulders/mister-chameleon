@@ -24,8 +24,27 @@ Setup → "Provision CMS instance (automated)"**:
    work — and **no Node.js, no `mc:sync`**.
 
 Configure the tokens once in **Admin → Platform → Integrations → Provisioning**
-(GitHub PAT + Ploi Cloud API token + team). After provisioning, set `APP_URL` to
-the assigned Ploi host and map the public domain.
+(GitHub PAT + Ploi Cloud API token + team).
+
+### Step-by-step in the platform (Statamic tenant)
+
+1. **Create the tenant** (cms.provider = `statamic`). The siteKey auto-generates.
+2. **Setup → "Provision repo + Ploi app"** → Fase 1 + Fase 2 run (repo from
+   template + Ploi Cloud app). Use **Dry run** first to preview.
+3. In **Ploi**, open the new app, wait for the first deploy to go healthy, and
+   copy its **host** (`…ams1-t.preview.ploi.it`).
+4. **Setup → "Finalize wiring"** → enter that Ploi host + the tenant's domain.
+   This writes `cms.statamicBaseUrl`, the `tenant_domains` rows, and points the
+   repo's `sites.yaml` at the domain — then prints the exact DNS records + the
+   two Ploi env vars to set.
+5. **Vercel** → add the domain to the platform project. **DNS** (registrar) →
+   the A (apex `76.76.21.21`) + CNAME (`www` → `cname.vercel-dns-0.com`) records
+   the Finalize card printed (Vercel's panel is authoritative; add any TXT it asks).
+6. **Ploi** → set `APP_URL` + `MC_PREVIEW_FRONTEND_URL` (printed by Finalize) on
+   the app → **redeploy the Ploi app**.
+7. **Redeploy the platform on Vercel** so the cached tenant config refreshes.
+8. Smoke test: `https://www.<domain>` shows real content; `/cp` opens; Live
+   Preview + "Visit URL" target the tenant's own domain.
 
 > **Ploi Cloud specifics that bit us (now baked in):** the build context copies
 > `composer.json` *before* the rest of the app, so `php please …` cannot run as a

@@ -284,6 +284,75 @@ export async function applyPloiInfrastructure(opts: {
   };
 }
 
+// ── sites.yaml: point the primary site at the tenant's own domain ────────────────
+
+/**
+ * Best-effort update of `resources/sites.yaml` in a per-tenant repo so the
+ * primary (nl) site URL points at the tenant's own public domain instead of the
+ * template default (www.misterchameleon.nl). Uses the GitHub Contents API
+ * (GET to read the sha + content, PUT to commit). Non-fatal: returns
+ * `changed:false` if the file/pattern isn't found.
+ */
+export async function updateRepoSitesYaml(opts: {
+  token: string;
+  owner: string;
+  repo: string;
+  primarySiteUrl: string;   // e.g. "https://www.steunles.nl"
+  branch?: string;
+}): Promise<{ ok: boolean; message: string; changed?: boolean }> {
+  const { token, owner, repo, primarySiteUrl, branch = "main" } = opts;
+  if (!token) return { ok: false, message: "GitHub token is not configured." };
+
+  const headers = {
+    Authorization:          `Bearer ${token}`,
+    Accept:                 "application/vnd.github+json",
+    "Content-Type":         "application/json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent":           "mister-chameleon-provisioner",
+  };
+  const path = "resources/sites.yaml";
+  const url  = `${GITHUB_API}/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`;
+
+  const getRes = await fetch(url, { headers, cache: "no-store" });
+  if (!getRes.ok) {
+    return { ok: true, changed: false, message: `sites.yaml not read (HTTP ${getRes.status}); skipped.` };
+  }
+  const file = await getRes.json().catch(() => ({})) as { content?: string; sha?: string };
+  if (!file.content || !file.sha) return { ok: true, changed: false, message: "sites.yaml empty; skipped." };
+
+  const current = Buffer.from(file.content, "base64").toString("utf8");
+  // Replace the template default URL wherever it appears as a site `url:`.
+  const updated = current.replace(
+    /url:\s*['"]?https?:\/\/(www\.)?misterchameleon\.nl['"]?/g,
+    `url: '${primarySiteUrl}'`,
+  );
+  if (updated === current) {
+    return { ok: true, changed: false, message: "sites.yaml already points elsewhere; no change." };
+  }
+
+  const putRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
+    method: "PUT",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify({
+      message: `chore(sites): point primary site at ${primarySiteUrl}`,
+      content: Buffer.from(updated, "utf8").toString("base64"),
+      sha:     file.sha,
+      branch,
+    }),
+  });
+  if (!putRes.ok) {
+    const b = await putRes.json().catch(() => ({})) as { message?: string };
+    return { ok: false, message: b.message ?? `Failed to commit sites.yaml (HTTP ${putRes.status}).` };
+  }
+  return { ok: true, changed: true, message: `sites.yaml updated → ${primarySiteUrl}.` };
+}
+
+/** Strip protocol/path from a host string → bare hostname. */
+export function bareHost(input: string): string {
+  return input.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/\/$/, "");
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────────
 
 /** Slugify a tenant name/id into a safe repo/app suffix. */
