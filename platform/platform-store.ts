@@ -779,6 +779,55 @@ export interface PlatformForgeSettings {
   phpVersion?: string;
 }
 
+/**
+ * GitHub provisioning settings — used to auto-generate per-tenant CMS repos
+ * from the template repository (Fase 1).
+ */
+export interface PlatformGithubSettings {
+  /**
+   * GitHub Personal Access Token (classic `repo` scope, or fine-grained with
+   * "Administration: read+write" + "Contents: read+write" on the target owner).
+   * SERVER ONLY — never serialised to the client. Falls back to env GITHUB_TOKEN.
+   */
+  token?: string;
+
+  /** Owner (user/org) the template lives under, e.g. "jmulders". Non-secret. */
+  templateOwner?: string;
+
+  /** Template repository name, e.g. "mister-chameleon-cms". Non-secret. */
+  templateRepo?: string;
+
+  /**
+   * Owner (user/org) under which new per-tenant repos are created.
+   * Defaults to templateOwner. Non-secret.
+   */
+  repoOwner?: string;
+
+  /** Whether generated repos are private. Non-secret. @default true */
+  privateRepos?: boolean;
+}
+
+/**
+ * Ploi Cloud provisioning settings — used to auto-create the per-tenant
+ * application via the Infrastructure-as-Code API (Fase 2).
+ */
+export interface PlatformPloiSettings {
+  /**
+   * Ploi Cloud API token (Bearer). SERVER ONLY — never serialised to the client.
+   * Generate at: ploi.cloud dashboard → API tokens. Falls back to env PLOI_CLOUD_TOKEN.
+   */
+  apiToken?: string;
+
+  /** Ploi Cloud team ID or name the apps belong to. Non-secret. */
+  team?: string;
+
+  /** PHP version for new apps, e.g. "8.4". Non-secret. @default "8.4" */
+  phpVersion?: string;
+
+  /** Platform host that serves the provisioning manifest. Non-secret. */
+  platformApiUrl?: string;
+}
+
 // ── Well-known keys ────────────────────────────────────────────────────────────
 
 const KEYS = {
@@ -801,6 +850,8 @@ const KEYS = {
   contentBudget:   "content_budget",
   googleCalendar:  "google-calendar",
   forge:           "forge",
+  github:          "github",
+  ploi:            "ploi",
 } as const;
 
 // ── Generic read / write ───────────────────────────────────────────────────────
@@ -2059,5 +2110,96 @@ export function forgeFlags(s: PlatformForgeSettings): {
     gitBranch:       s.gitBranch       ?? "starter",
     phpVersion:      s.phpVersion      ?? "php82",
     isConfigured:    Boolean(s.apiKey),
+  };
+}
+
+// ── GitHub (repo provisioning) ───────────────────────────────────────────────────
+
+/** Read the platform GitHub settings (server-only — includes token). */
+export async function getPlatformGithubSettings(): Promise<SettingsResult<PlatformGithubSettings>> {
+  return readSection<PlatformGithubSettings>(KEYS.github);
+}
+
+/** Persist platform GitHub settings. */
+export async function savePlatformGithubSettings(
+  patch: PlatformGithubSettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const normalized: Record<string, unknown> = {};
+  if (patch.templateOwner !== undefined) normalized.templateOwner = patch.templateOwner || null;
+  if (patch.templateRepo  !== undefined) normalized.templateRepo  = patch.templateRepo  || null;
+  if (patch.repoOwner     !== undefined) normalized.repoOwner     = patch.repoOwner     || null;
+  if (patch.privateRepos  !== undefined) normalized.privateRepos  = patch.privateRepos;
+  // Token: empty string = clear, undefined = leave untouched.
+  if (patch.token !== undefined) normalized.token = patch.token === "" ? null : patch.token;
+  return writeSection<Record<string, unknown>>(KEYS.github, normalized);
+}
+
+/**
+ * Resolve the effective GitHub token: stored value first, then env GITHUB_TOKEN.
+ * Server-only.
+ */
+export function resolveGithubToken(s: PlatformGithubSettings): string {
+  return s.token ?? process.env["GITHUB_TOKEN"] ?? "";
+}
+
+/** Safe flags for client components — token replaced with boolean. */
+export function githubFlags(s: PlatformGithubSettings): {
+  hasToken:      boolean;
+  templateOwner: string;
+  templateRepo:  string;
+  repoOwner:     string;
+  privateRepos:  boolean;
+  isConfigured:  boolean;
+} {
+  const templateOwner = s.templateOwner ?? "jmulders";
+  return {
+    hasToken:      Boolean(s.token) || Boolean(process.env["GITHUB_TOKEN"]),
+    templateOwner,
+    templateRepo:  s.templateRepo ?? "mister-chameleon-cms",
+    repoOwner:     s.repoOwner    ?? templateOwner,
+    privateRepos:  s.privateRepos ?? true,
+    isConfigured:  Boolean(s.token) || Boolean(process.env["GITHUB_TOKEN"]),
+  };
+}
+
+// ── Ploi Cloud (app provisioning) ────────────────────────────────────────────────
+
+/** Read the platform Ploi Cloud settings (server-only — includes apiToken). */
+export async function getPlatformPloiSettings(): Promise<SettingsResult<PlatformPloiSettings>> {
+  return readSection<PlatformPloiSettings>(KEYS.ploi);
+}
+
+/** Persist platform Ploi Cloud settings. */
+export async function savePlatformPloiSettings(
+  patch: PlatformPloiSettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const normalized: Record<string, unknown> = {};
+  if (patch.team           !== undefined) normalized.team           = patch.team           || null;
+  if (patch.phpVersion     !== undefined) normalized.phpVersion     = patch.phpVersion     || null;
+  if (patch.platformApiUrl !== undefined) normalized.platformApiUrl = patch.platformApiUrl || null;
+  if (patch.apiToken !== undefined) normalized.apiToken = patch.apiToken === "" ? null : patch.apiToken;
+  return writeSection<Record<string, unknown>>(KEYS.ploi, normalized);
+}
+
+/** Resolve the effective Ploi token: stored value first, then env PLOI_CLOUD_TOKEN. */
+export function resolvePloiToken(s: PlatformPloiSettings): string {
+  return s.apiToken ?? process.env["PLOI_CLOUD_TOKEN"] ?? "";
+}
+
+/** Safe flags for client components — token replaced with boolean. */
+export function ploiFlags(s: PlatformPloiSettings): {
+  hasToken:       boolean;
+  team:           string;
+  phpVersion:     string;
+  platformApiUrl: string;
+  isConfigured:   boolean;
+} {
+  const hasToken = Boolean(s.apiToken) || Boolean(process.env["PLOI_CLOUD_TOKEN"]);
+  return {
+    hasToken,
+    team:           s.team           ?? "",
+    phpVersion:     s.phpVersion     ?? "8.4",
+    platformApiUrl: s.platformApiUrl ?? "https://www.misterchameleon.nl",
+    isConfigured:   hasToken,
   };
 }

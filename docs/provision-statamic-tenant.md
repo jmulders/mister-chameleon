@@ -9,6 +9,36 @@ For the *why* (architecture, auth, slot resolution) see
 
 ---
 
+## 0a. Automated path (recommended)
+
+Most of the steps below are now **one click**. On **Admin → Tenants → [tenant] →
+Setup → "Provision CMS instance (automated)"**:
+
+1. **Fase 1** generates a per-tenant GitHub repo *from the template* (a full copy,
+   incl. the committed platform fieldsets) via the GitHub template API — no more
+   empty/partial repos (which caused `public/index.php` to be missing → the app
+   404'ing on everything).
+2. **Fase 2** creates the Ploi Cloud application via the Infrastructure-as-Code
+   API, pointing at that repo, with the env secrets, `composer install` build
+   command, `/cp/auth/login` health check and PHP extensions that are known to
+   work — and **no Node.js, no `mc:sync`**.
+
+Configure the tokens once in **Admin → Platform → Integrations → Provisioning**
+(GitHub PAT + Ploi Cloud API token + team). After provisioning, set `APP_URL` to
+the assigned Ploi host and map the public domain.
+
+> **Ploi Cloud specifics that bit us (now baked in):** the build context copies
+> `composer.json` *before* the rest of the app, so `php please …` cannot run as a
+> Build command; init-container commands run in a separate, ephemeral container
+> (their file writes don't reach the main container). That's why the fieldsets
+> are **committed into the repo** instead of generated at deploy. Health check
+> must be `/cp/auth/login` (not `/up` — Statamic's frontend catch-all + the
+> absolute multisite URL make `/up` 404 on the kube-probe host).
+
+The manual steps below remain valid as a fallback / reference.
+
+---
+
 ## 0. Prerequisites
 - Platform deployed (Vercel) — it serves the provisioning manifest at
   `/api/v1/provision/manifest`.

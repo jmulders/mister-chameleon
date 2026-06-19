@@ -31,6 +31,7 @@ import { TenantDomainsPanel }       from "@/components/admin/TenantDomainsPanel"
 import { StatamicDeployPanel }      from "@/components/admin/StatamicDeployPanel";
 import { TenantCmsDeployCard }      from "@/components/admin/TenantCmsDeployCard";
 import { StatamicSetupGuide }       from "@/components/admin/StatamicSetupGuide";
+import { TenantProvisionCard }       from "@/components/admin/TenantProvisionCard";
 import { Text }                     from "@/components/primitives/Text";
 import type { TenantSettings } from "@/tenant/server";
 
@@ -108,6 +109,9 @@ export default async function TenantSetupPage({
         cmsProvider={tenant.cms?.provider ?? "mock"}
         platformWriteTokenConfigured={platformWriteTokenConfigured}
       />
+
+      {/* 5 — One-click automated provisioning (repo + Ploi app) */}
+      {showDeployPanel && <TenantProvisionCard tenantId={tenantId} />}
 
       {/* 5 — Statamic instance setup guide (only for Statamic tenants) */}
       {showDeployPanel && (

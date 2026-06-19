@@ -2421,3 +2421,132 @@ export async function triggerTenantCmsDeployAction(
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Provision a brand-new Statamic CMS instance for this tenant, fully automated:
+ *   Fase 1 — generate a per-tenant GitHub repo from the template (complete copy,
+ *            incl. committed fieldsets), then
+ *   Fase 2 — create the Ploi Cloud application (IaC apply) pointing at that repo.
+ *
+ * Requires a GitHub token (platform GitHub settings or env GITHUB_TOKEN) and a
+ * Ploi Cloud API token (platform Ploi settings or env PLOI_CLOUD_TOKEN).
+ *
+ * `dryRun` (Ploi side) lets the operator preview without creating the app; the
+ * GitHub repo is still generated (it's the prerequisite and is idempotent).
+ */
+export async function provisionTenantCmsAction(
+  tenantId: string,
+  opts?: { dryRun?: boolean; domain?: string },
+): Promise<{
+  ok: boolean;
+  error?: string;
+  detail?: string;
+  repoUrl?: string;
+  appName?: string;
+  changes?: string[];
+}> {
+  await getRequiredAdminSession();
+  try {
+    const tenant = await getTenantById(tenantId);
+    if (!tenant) return { ok: false, error: `Tenant '${tenantId}' not found.` };
+
+    const siteKey = tenant.snippet?.siteKey;
+    if (!siteKey) {
+      return { ok: false, error: "Tenant has no siteKey yet — generate one on the Snippet tab first." };
+    }
+
+    const {
+      getPlatformGithubSettings, githubFlags, resolveGithubToken,
+      getPlatformPloiSettings, ploiFlags, resolvePloiToken,
+    } = await import("@/platform/platform-store");
+    const {
+      generateRepoFromTemplate, buildStatamicInfraYaml, applyPloiInfrastructure, provisioningSlug,
+    } = await import("@/lib/provisioning/cms-provisioner");
+
+    const ghResult = await getPlatformGithubSettings();
+    if (!ghResult.ok) return { ok: false, error: ghResult.error };
+    const ploiResult = await getPlatformPloiSettings();
+    if (!ploiResult.ok) return { ok: false, error: ploiResult.error };
+
+    const gh    = githubFlags(ghResult.data);
+    const ploi  = ploiFlags(ploiResult.data);
+    const ghTok = resolveGithubToken(ghResult.data);
+    const ploiTok = resolvePloiToken(ploiResult.data);
+
+    if (!ghTok)   return { ok: false, error: "No GitHub token configured. Add one in Platform → Integrations → Provisioning (or env GITHUB_TOKEN)." };
+    if (!ploi.team) return { ok: false, error: "No Ploi Cloud team configured. Set it in Platform → Integrations → Provisioning." };
+    if (!ploiTok) return { ok: false, error: "No Ploi Cloud API token configured. Add one in Platform → Integrations → Provisioning (or env PLOI_CLOUD_TOKEN)." };
+
+    const slug     = provisioningSlug(tenantId);
+    const repoName = `${gh.templateRepo}-${slug}`;
+    const appName  = `mc-cms-${slug}`;
+
+    // ── Fase 1: generate the per-tenant repo from the template ──
+    const repo = await generateRepoFromTemplate({
+      token:         ghTok,
+      templateOwner: gh.templateOwner,
+      templateRepo:  gh.templateRepo,
+      owner:         gh.repoOwner,
+      name:          repoName,
+      privateRepo:   gh.privateRepos,
+      description:   `Mister Chameleon CMS — tenant ${tenantId}`,
+    });
+    if (!repo.ok) return { ok: false, error: `Fase 1 (repo): ${repo.message}` };
+
+    // ── Fase 2: create the Ploi Cloud application ──
+    const { randomBytes } = await import("crypto");
+    const appKey = `base64:${randomBytes(32).toString("base64")}`;
+    const platformUrl = ploi.platformApiUrl || "https://www.misterchameleon.nl";
+
+    const yaml = buildStatamicInfraYaml({
+      appName,
+      team:       ploi.team,
+      repoUrl:    repo.htmlUrl ?? `https://github.com/${gh.repoOwner}/${repoName}`,
+      repoOwner:  gh.repoOwner,
+      repoName,
+      branch:     "main",
+      phpVersion: ploi.phpVersion,
+      domain:     opts?.domain,
+      secrets: [
+        { key: "APP_ENV",   value: "production" },
+        { key: "APP_DEBUG", value: "false" },
+        { key: "APP_KEY",   value: appKey },
+        { key: "APP_URL",   value: platformUrl },
+        { key: "STATAMIC_API_ENABLED", value: "true" },
+        { key: "STATAMIC_PRO_ENABLED", value: "true" },
+        { key: "MISTER_CHAMELEON_API_URL",    value: platformUrl },
+        { key: "MISTER_CHAMELEON_TENANT_KEY", value: siteKey },
+        { key: "MC_PREVIEW_FRONTEND_URL",     value: platformUrl },
+      ],
+    });
+
+    const applied = await applyPloiInfrastructure({
+      token:      ploiTok,
+      yaml,
+      dryRun:     opts?.dryRun ?? false,
+      autoDeploy: true,
+    });
+    if (!applied.ok) {
+      return {
+        ok: false,
+        error: `Fase 2 (Ploi): ${applied.message}`,
+        detail: `Repo is ready: ${repo.fullName}. Fix the Ploi error and retry — repo creation is idempotent.`,
+        repoUrl: repo.htmlUrl,
+      };
+    }
+
+    revalidatePath(`/admin/tenants/${tenantId}/setup`);
+    return {
+      ok: true,
+      detail: opts?.dryRun
+        ? `Repo ${repo.fullName} ready. Ploi dry-run OK (no app created).`
+        : `Repo ${repo.fullName} ${repo.alreadyExisted ? "reused" : "created"}; Ploi app '${appName}' applied. Set APP_URL to the Ploi host once assigned, then deploy.`,
+      repoUrl: repo.htmlUrl,
+      appName,
+      changes: applied.changes,
+    };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}

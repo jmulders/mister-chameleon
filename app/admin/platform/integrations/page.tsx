@@ -35,6 +35,7 @@ import { getStorageSettingsAction }               from "@/app/admin/platform/int
 import { getGoogleCalendarSettingsAction }        from "@/app/admin/platform/integrations/calendar/actions";
 import { getEnrichmentPlatformSettingsAction }   from "@/app/admin/platform/integrations/enrichment/actions";
 import { getPlatformForgeSettingsAction }         from "@/app/admin/platform/integrations/forge/actions";
+import { getProvisioningSettingsAction }          from "@/app/admin/platform/integrations/provisioning/actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,7 +78,7 @@ const BADGE_CLASSES = {
 
 export default async function IntegrationsHubPage() {
   // Fetch all integration statuses in parallel.
-  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult, calendarResult, enrichmentResult, forgeResult] =
+  const [platformResult, sanityResult, storyblokResult, statamicResult, crmResult, emailResult, stripeResult, storageResult, calendarResult, enrichmentResult, forgeResult, provisioningResult] =
     await Promise.all([
       getPlatformSettingsAction(),
       getCmsPlatformSettingsAction(),
@@ -90,6 +91,7 @@ export default async function IntegrationsHubPage() {
       getGoogleCalendarSettingsAction(),
       getEnrichmentPlatformSettingsAction(),
       getPlatformForgeSettingsAction(),
+      getProvisioningSettingsAction(),
     ]);
 
   // Determine CMS configured state: any provider with credentials counts.
@@ -198,6 +200,13 @@ export default async function IntegrationsHubPage() {
       providers:   [{ label: "Laravel Forge", variant: "orange" as const }],
       href:        "/admin/platform/integrations/forge",
       configured:  forgeResult.ok && forgeResult.isConfigured,
+    },
+    {
+      name:        "Provisioning",
+      description: "GitHub + Ploi Cloud credentials to auto-create a new tenant's CMS repo (from the template) and Ploi Cloud application in one click from the tenant's Setup page.",
+      providers:   [{ label: "GitHub", variant: "neutral" as const }, { label: "Ploi Cloud", variant: "blue" as const }],
+      href:        "/admin/platform/integrations/provisioning",
+      configured:  provisioningResult.ok && provisioningResult.github.isConfigured && provisioningResult.ploi.isConfigured,
     },
   ];
 
