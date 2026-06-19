@@ -240,6 +240,8 @@ export async function addDomain(
       .from("tenant_domains")
       .insert({
         tenant_id:           tenantId,
+        // `domain` is a NOT NULL column; it mirrors the normalised hostname.
+        domain:              hostname,
         hostname,
         is_primary:          opts.isPrimary          ?? false,
         status:              opts.status             ?? "active",
