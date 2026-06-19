@@ -206,19 +206,26 @@ export function CmsCredentialsPanel({
       {/* ── Statamic ──────────────────────────────────────────────────────── */}
       {cmsProvider === "statamic" && (
         <InfoPanel>
-          Statamic credentials (API URL and token) are configured via environment
-          variables{" "}
-          <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_URL</code>
-          {" "}and{" "}
-          <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_TOKEN</code>
-          {" "}or in{" "}
-          <Link
-            href="/admin/platform/cms"
-            className="font-medium text-indigo-600 hover:underline"
-          >
-            Platform → CMS settings
-          </Link>
-          . No per-tenant credential is stored here.
+          This tenant&apos;s Statamic instance is determined by its{" "}
+          <strong>CMS base URL</strong>{" "}
+          (<code className="rounded bg-neutral-100 px-1 font-mono">statamicBaseUrl</code>) —
+          the tenant&apos;s own Ploi host — set by the <strong>Provision / Finalize</strong>{" "}
+          step on this Setup page. That is the per-tenant connection.
+          <span className="mt-2 block text-neutral-500">
+            No API token is needed: instances run with{" "}
+            <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_ENABLED=true</code>
+            {" "}(public read-only API). The global{" "}
+            <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_URL</code>/
+            <code className="rounded bg-neutral-100 px-1 font-mono">STATAMIC_API_TOKEN</code>
+            {" "}env vars and{" "}
+            <Link
+              href="/admin/platform/cms"
+              className="font-medium text-indigo-600 hover:underline"
+            >
+              Platform → CMS settings
+            </Link>
+            {" "}are only a fallback used when a tenant has no own base URL.
+          </span>
         </InfoPanel>
       )}
 
