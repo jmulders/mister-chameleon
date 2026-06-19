@@ -2249,10 +2249,13 @@ export async function deployStatamicSiteAction(
         APP_URL:               `https://${domain}`,
         APP_ENV:               "production",
         STATAMIC_API_ENABLED:  "true",
+        // Statamic navigations + structures are a Pro feature. Without this the
+        // /api/navs/{handle}/tree endpoint 404s → the site renders no navigation.
+        STATAMIC_PRO_ENABLED:  "true",
         STATAMIC_API_TOKEN:    apiToken,
       });
       await forge.updateEnv(resolvedServerId, forgeSiteId, updatedEnv);
-      s7.ok("APP_URL, STATAMIC_API_ENABLED, STATAMIC_API_TOKEN set");
+      s7.ok("APP_URL, STATAMIC_API_ENABLED, STATAMIC_PRO_ENABLED, STATAMIC_API_TOKEN set");
     } catch (err) {
       return s7.fail(err instanceof ForgeClientError ? err.message : String(err));
     }
@@ -2513,6 +2516,8 @@ export async function provisionTenantCmsAction(
         { key: "APP_KEY",   value: appKey },
         { key: "APP_URL",   value: platformUrl },
         { key: "STATAMIC_API_ENABLED", value: "true" },
+        // Pro is REQUIRED: navigations are a Statamic Pro feature. Without it the
+        // /api/navs/{handle}/tree endpoint 404s and the site renders no nav.
         { key: "STATAMIC_PRO_ENABLED", value: "true" },
         { key: "MISTER_CHAMELEON_API_URL",    value: platformUrl },
         { key: "MISTER_CHAMELEON_TENANT_KEY", value: siteKey },

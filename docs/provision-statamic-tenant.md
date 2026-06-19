@@ -157,6 +157,12 @@ curl "https://<statamic-host>/api/navs/main_nav/tree"
 - **`mc:sync` not in the deploy script** → same fieldset corruption.
 - **`STATAMIC_API_ENABLED=false`** → the REST API is off → the platform fetches
   nothing → fallback everywhere.
+- **`STATAMIC_PRO_ENABLED` not set** → navigations are a Statamic **Pro** feature,
+  so `/api/navs/{handle}/tree` returns **404** → content renders but the site has
+  **no navigation** (collections/entries still work, which masks the cause). The
+  automated provisioning sets `STATAMIC_PRO_ENABLED=true`; for manual Ploi apps,
+  add it to the env. After enabling, `php please config:clear && stache:refresh`
+  and redeploy the platform (the empty nav may be cached by Next.js).
 - **`platform_settings.statamic.baseUrl = http://127.0.0.1:8000`** (a leaked dev
   value) → fetches go to localhost on prod → fail → fallback nav. Set it to the
   host. (The per-tenant `statamicBaseUrl` overrides it, but never leave it wrong.)
