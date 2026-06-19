@@ -504,6 +504,8 @@ export class StatamicProvider implements CMSProvider {
       const entry = await this.client.fetchEntry<import("../queries/statamic/adaptive-block-queries").StatamicAdaptiveBlockEntry>(
         ADAPTIVE_BLOCKS_COLLECTION,
         key,
+        // adaptive_blocks entries are keyed by the `block_key` field, not `key`.
+        "block_key",
       );
       if (entry) {
         if (entry.is_active === false) return null;

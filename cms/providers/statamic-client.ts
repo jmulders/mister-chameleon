@@ -665,8 +665,9 @@ export class StatamicClient {
   async fetchEntry<TEntry>(
     collection: string,
     key: string,
+    filterField: string = "key",
   ): Promise<StatamicEntry<TEntry> | null> {
-    const url = `${this.baseUrl}/api/collections/${collection}/entries?filter[key:is]=${encodeURIComponent(key)}&limit=1`;
+    const url = `${this.baseUrl}/api/collections/${collection}/entries?filter[${filterField}:is]=${encodeURIComponent(key)}&limit=1`;
 
     const headers: Record<string, string> = {
       "Accept": "application/json",
