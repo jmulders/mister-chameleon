@@ -27,12 +27,16 @@ export function StatamicSetupGuide({
   const [copied, setCopied] = useState(false);
 
   const envBlock = [
+    "# Tenant-specific — set to THIS tenant's own hosts (Finalize fills these in):",
     "APP_URL=https://<your-ploi-app-host>",
-    "STATAMIC_API_ENABLED=true",
-    "STATAMIC_PRO_ENABLED=true",
+    "MC_PREVIEW_FRONTEND_URL=https://www.<your-tenant-domain>",
+    "",
+    "# Platform-wide — same for every tenant (do NOT use the tenant domain here):",
     `MISTER_CHAMELEON_API_URL=${platformApiUrl}`,
     `MISTER_CHAMELEON_TENANT_KEY=${siteKey ?? "<generate on the Snippet tab>"}`,
-    `MC_PREVIEW_FRONTEND_URL=${platformApiUrl}`,
+    "",
+    "STATAMIC_API_ENABLED=true",
+    "STATAMIC_PRO_ENABLED=true",
   ].join("\n");
 
   function copyEnv() {
