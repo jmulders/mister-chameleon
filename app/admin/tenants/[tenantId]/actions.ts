@@ -2522,6 +2522,19 @@ export async function provisionTenantCmsAction(
         { key: "MISTER_CHAMELEON_API_URL",    value: platformUrl },
         { key: "MISTER_CHAMELEON_TENANT_KEY", value: siteKey },
         { key: "MC_PREVIEW_FRONTEND_URL",     value: platformUrl },
+        // Parity with the working tenant — these were previously set by hand:
+        { key: "CP_ENABLED",            value: "true" },
+        { key: "SESSION_DRIVER",        value: "file" },
+        { key: "MISTER_CHAMELEON_MODE", value: "edge" },
+        // Statamic Git integration — persists CP content edits back to the repo
+        // (the container filesystem is ephemeral, so without this, edits are lost
+        // on redeploy). NOTE: STATAMIC_GIT_PUSH=true also needs a deploy key with
+        // write access on the per-tenant repo — that key is set up separately in
+        // Ploi/GitHub and cannot be injected as a secret here.
+        { key: "STATAMIC_GIT_ENABLED",        value: "true" },
+        { key: "STATAMIC_GIT_AUTOMATIC",      value: "true" },
+        { key: "STATAMIC_GIT_PUSH",           value: "true" },
+        { key: "STATAMIC_GIT_DISPATCH_DELAY", value: "5" },
       ],
     });
 
