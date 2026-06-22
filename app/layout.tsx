@@ -93,8 +93,12 @@ const CDN_FONTS_URL =
 
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getActiveTenant();
+  // Default site title = the tenant's own display name (settable in admin),
+  // NOT the active theme's name. Pages with their own generateMetadata (slug,
+  // blog, etc.) override this with their CMS SEO title; the homepage inherits
+  // this default. Falling back to the theme name only when a tenant has no name.
   return {
-    title:       tenant.theme.meta.name,
+    title:       tenant.name || tenant.theme.meta.name,
     description: tenant.theme.meta.tagline,
     icons: tenant.theme.meta.faviconPath
       ? { icon: tenant.theme.meta.faviconPath }

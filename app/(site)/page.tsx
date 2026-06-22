@@ -27,6 +27,12 @@ import { runHomepagePipeline }             from "@/lib/pipeline/homepage-pipelin
 import { buildTokenContextFromInput }      from "@/lib/tokens/parse-tokens";
 import { serverEnv }                       from "@/lib/env";
 import { StatamicClient }                  from "@/cms/providers/statamic-client";
+import { cache }                           from "react";
+import { cookies }                         from "next/headers";
+import type { Metadata }                   from "next";
+import { getActiveTenant, getTenantById }  from "@/tenant/server";
+import { createCMSProvider }               from "@/cms";
+import { LOCALE_COOKIE, isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 
 // ── Rendering mode ────────────────────────────────────────────────────────────
 //
@@ -35,6 +41,34 @@ import { StatamicClient }                  from "@/cms/providers/statamic-client
 // Without this, Vercel may serve a CDN-cached HTML for "/" that ignores the
 // query string, so Live Preview drafts (and per-visitor variants) never render.
 export const dynamic = "force-dynamic";
+
+// ── Metadata ──────────────────────────────────────────────────────────────────
+//
+// The homepage <title> comes from the CMS "home" page's SEO title (settable per
+// page), falling back to the page title, then the tenant's display name. This
+// overrides the root-layout default so the tab no longer shows the active theme
+// name. Wrapped in React.cache so a repeated call within the same render is free.
+
+const getHomePageForMeta = cache(
+  async (tenantId: string | null, locale: string) => {
+    const tenant = await getTenantById(tenantId ?? "");
+    return createCMSProvider(tenant?.cms, tenantId, locale).getPageBySlug("home", locale);
+  },
+);
+
+export async function generateMetadata(): Promise<Metadata> {
+  const tenant      = await getActiveTenant();
+  const cookieStore = await cookies();
+  const localeRaw   = cookieStore.get(LOCALE_COOKIE)?.value ?? "";
+  const locale      = isSupportedLocale(localeRaw) ? localeRaw : DEFAULT_LOCALE;
+
+  const home = await getHomePageForMeta(tenant.tenantId, locale).catch(() => null);
+
+  return {
+    title: home?.seoTitle ?? home?.title ?? tenant.name,
+    ...(home?.seoDescription ? { description: home.seoDescription } : {}),
+  };
+}
 
 // ── Statamic content types for homepage sections ──────────────────────────────
 
