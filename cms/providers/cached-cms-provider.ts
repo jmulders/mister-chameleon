@@ -202,18 +202,23 @@ export class CachedCMSProvider implements CMSProvider {
     //
     // An in-process Map can't fix this: each cold lambda starts empty.  We wrap
     // a COMPLETENESS-GATED fetch in Next's persistent, cross-instance data cache
-    // so that once any instance produces a complete result it is shared with all
-    // others.  The inner fn THROWS unless the result is complete (good nav AND a
-    // resolved header variant), so a degraded result is never persisted.
+    // so that once any instance produces a good result it is shared with all
+    // others.  "Good" = a non-empty main navigation.
+    //
+    // NOTE: we deliberately do NOT also require a resolved headerVariant here.
+    // Not every tenant sets a header variant (e.g. a tenant on the default
+    // header), so requiring it made their settings ALWAYS look "incomplete" —
+    // the persistent cache then never stored them, and on a cold serverless
+    // instance the page fell through to the live (possibly sleeping) CMS
+    // instance and rendered NO navigation at all. Gating on nav only keeps the
+    // empty-nav protection without starving header-variant-less tenants.
     const fetchComplete = unstable_cache(
       async (): Promise<SiteSettingsData> => {
         const v = await this.inner.getSiteSettings(locale);
-        const complete = Boolean(
-          v &&
-          Array.isArray(v.mainNavigation) && v.mainNavigation.length > 0 &&
-          v.headerVariant,
+        const navOk = Boolean(
+          v && Array.isArray(v.mainNavigation) && v.mainNavigation.length > 0,
         );
-        if (!complete) throw new Error("[cached-cms] site settings incomplete (transient)");
+        if (!navOk) throw new Error("[cached-cms] site settings have no navigation (transient)");
         return v as SiteSettingsData;
       },
       ["site-settings-complete", this.tenantId ?? "_", locale],
