@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storeDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
+import { getAllTenants } from "@/tenant/server";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/statamic-draft
@@ -38,18 +40,21 @@ export async function OPTIONS() {
 /**
  * Light origin gate for the (otherwise unauthenticated) draft write endpoint.
  *
- * Allowed: localhost (dev), any *.ploi.it host (the managed CP), and any origin
- * listed in STATAMIC_CP_ORIGIN. That var may hold MULTIPLE custom CP origins
- * (one per tenant CMS domain), space- or comma-separated — mirroring how
- * next.config.mjs parses it for frame-ancestors, e.g.
- *   "https://cms.misterchameleon.nl https://cms.steunles.nl"
- * We must therefore test MEMBERSHIP, not equality with the whole string (an
- * exact `origin === configured` match never succeeds once the var lists >1
- * origin, which silently 403s the draft POST and breaks Live Preview).
+ * Allowed origins, in order of preference:
+ *   1. localhost / 127.0.0.1            — local dev
+ *   2. any *.ploi.it host               — the managed CP preview hosts
+ *   3. any registered tenant's CMS host — DERIVED from the tenant store's
+ *      cms.statamicBaseUrl, so adding a tenant in the admin AUTOMATICALLY
+ *      trusts its CP origin. No Vercel env edit needed per new tenant — this
+ *      is what keeps Live Preview working across future deploys without manual
+ *      upkeep (the previous failure mode).
+ *   4. any origin listed in STATAMIC_CP_ORIGIN — explicit override / escape
+ *      hatch. May hold MULTIPLE origins, space- or comma-separated (mirrors how
+ *      next.config.mjs parses it for frame-ancestors). Tested by MEMBERSHIP,
+ *      never equality with the whole string.
  * Requests with no Origin header (server-to-server) are allowed.
  */
-function isAllowedOrigin(origin: string | null): boolean {
-  if (!origin) return true;
+function staticAllowedOrigin(origin: string): boolean {
   try {
     const host = new URL(origin).host;
     if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;
@@ -64,8 +69,37 @@ function isAllowedOrigin(origin: string | null): boolean {
   return false;
 }
 
+/** Scheme+host origin of a tenant's Statamic base URL, e.g. https://cms.x.nl. */
+function originOf(url: string | undefined | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return null;
+  }
+}
+
+async function isAllowedOrigin(origin: string | null): Promise<boolean> {
+  if (!origin) return true;
+  if (staticAllowedOrigin(origin)) return true;
+
+  // Self-maintaining check: trust any origin that matches a registered tenant's
+  // configured Statamic CMS host. Best-effort — a store hiccup must not break a
+  // request that the static rules already would have allowed (handled above).
+  try {
+    const tenants = await getAllTenants();
+    for (const t of tenants) {
+      if (originOf(t.cms?.statamicBaseUrl) === origin) return true;
+    }
+  } catch (err) {
+    logger.warn("[statamic-draft] tenant origin check failed", { error: String(err) });
+  }
+  return false;
+}
+
 export async function POST(req: NextRequest) {
-  if (!isAllowedOrigin(req.headers.get("origin"))) {
+  if (!(await isAllowedOrigin(req.headers.get("origin")))) {
     return NextResponse.json(
       { error: "Origin not allowed" },
       { status: 403, headers: CORS_HEADERS },

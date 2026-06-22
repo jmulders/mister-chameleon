@@ -40,11 +40,17 @@ Configure the tokens once in **Admin → Platform → Integrations → Provision
 5. **Vercel** → add the domain to the platform project. **DNS** (registrar) →
    the A (apex `76.76.21.21`) + CNAME (`www` → `cname.vercel-dns-0.com`) records
    the Finalize card printed (Vercel's panel is authoritative; add any TXT it asks).
-6. **Ploi** → set `APP_URL` + `MC_PREVIEW_FRONTEND_URL` (printed by Finalize) on
-   the app → **redeploy the Ploi app**.
-7. **Redeploy the platform on Vercel** so the cached tenant config refreshes.
+6. **Ploi** → set `APP_URL`, `MC_PREVIEW_FRONTEND_URL` and `STATAMIC_SITE_URL`
+   (all = the tenant's public frontend, e.g. `https://www.steunles.nl`) on the
+   app, add the `sed` line to **Init container commands** (see § 2) →
+   **redeploy the Ploi app**.
+7. **Vercel** → add this tenant's CP origin to `STATAMIC_CP_ORIGIN`
+   (run `npx tsx scripts/print-cp-origins.ts` for the exact value — see § 5b),
+   then **redeploy the platform** so the cached tenant config + frame-ancestors
+   CSP refresh.
 8. Smoke test: `https://www.<domain>` shows real content; `/cp` opens; Live
-   Preview + "Visit URL" target the tenant's own domain.
+   Preview renders the draft (POST `/api/statamic-draft` → 200, no "token
+   verlopen"); "Visit URL" + permalinks target the tenant's own domain.
 
 > **Ploi Cloud specifics that bit us (now baked in):** the build context copies
 > `composer.json` *before* the rest of the app, so `php please …` cannot run as a
@@ -83,21 +89,24 @@ New Ploi app from the `mister-chameleon-cms` repo. Set these **env vars**
 | `STATAMIC_PRO_ENABLED` | `true` |
 | `MISTER_CHAMELEON_API_URL` | the platform: `https://www.misterchameleon.nl` (serves the manifest) |
 | `MISTER_CHAMELEON_TENANT_KEY` | the tenant siteKey from step 1 |
-| `MC_PREVIEW_FRONTEND_URL` | the platform: `https://www.misterchameleon.nl` |
+| `MC_PREVIEW_FRONTEND_URL` | the tenant's **public frontend**, e.g. `https://www.steunles.nl` (Live Preview iframes this host) |
+| `STATAMIC_SITE_URL` | the tenant's **public frontend**, e.g. `https://www.steunles.nl` — rewrites `resources/sites.yaml` so permalinks / "Visit URL" / `og:url` point at this tenant (see § 2) |
 
-**Deploy script** (Ploi), after `git pull` + `composer install` — see
-[`DEPLOY.md`](https://github.com/jmulders/mister-chameleon-cms/blob/main/DEPLOY.md)
-in the CMS repo:
+**Build / deploy commands (Ploi Cloud).** Ploi Cloud does **not** run the repo's
+`deploy.sh` — it uses the UI fields. `mc:sync` is intentionally gone (the
+fieldsets are committed in the repo; fetching the manifest on every deploy hung
+the build). Set:
+
+- **Build commands:** `composer install --no-interaction --optimize-autoloader --no-dev`
+- **Init container commands** (in this order — the `sed` MUST precede
+  `stache:refresh`, which bakes permalinks from `sites.yaml`):
 
 ```bash
-php please mc:sync        # fetches the manifest → writes the platform fieldsets
+if [ -n "${STATAMIC_SITE_URL:-}" ]; then sed -i "s#https://www.misterchameleon.nl#${STATAMIC_SITE_URL}#g" resources/sites.yaml; fi
 php please cache:clear
 php please stache:refresh
+php artisan optimize:clear
 ```
-
-A ready-to-use `deploy.sh` ships in the CMS repo — paste it into Ploi's deploy
-script. On boot, the log line `Fetching build manifest from … ` must **write the
-fieldsets** (not `Platform returned HTTP 501`).
 
 Once configured, you can also trigger this deploy from the admin:
 **Admin → Tenants → [tenant] → Setup → "Deploy CMS now"** (paste this tenant's
@@ -133,6 +142,38 @@ catalogue) and `contact.md`. See `seed/README.md` for adding more pages.
 After any env/DB change, **redeploy** so the cached tenant config is refreshed
 (in-memory caches otherwise keep the old host).
 
+## 5b. Live Preview wiring (platform side — must-set every instance)
+
+Live Preview embeds a platform page in an iframe inside the tenant's Statamic CP,
+so the platform must (a) **allow** that CP origin to embed it and (b) **accept**
+the draft POST from it. Two mechanisms, one self-maintaining, one not:
+
+- **Draft POST (`/api/statamic-draft`) — self-maintaining.** The endpoint trusts
+  any origin matching a registered tenant's `cms.statamicBaseUrl` host (plus
+  `*.ploi.it` and `STATAMIC_CP_ORIGIN`). So once step 3 sets `statamicBaseUrl`,
+  the draft POST works with **no extra config**. Nothing to do here per tenant.
+- **frame-ancestors CSP (`next.config.mjs`) — env-driven, build-time.** A CSP
+  header can't read the DB, so every CP origin that may embed the preview must be
+  listed in Vercel env **`STATAMIC_CP_ORIGIN`** — space/comma-separated, scheme +
+  host, **no trailing slash**:
+
+  ```
+  STATAMIC_CP_ORIGIN=https://cms.misterchameleon.nl https://cms.steunles.nl
+  ```
+
+  Generate the exact value (so you never hand-assemble it) with:
+
+  ```bash
+  npx tsx scripts/print-cp-origins.ts
+  ```
+
+  Paste its output into Vercel → Settings → Environment Variables, then redeploy
+  the platform. **If you skip this, the new tenant's Live Preview iframe is
+  blocked** ("refused to connect") even though everything else works.
+
+> The CP origin = the host of `cms.statamicBaseUrl` (e.g. `https://cms.x.nl`),
+> i.e. where the CP runs — not the public frontend.
+
 ## 6. Smoke test
 ```bash
 # 1. Manifest resolves the tenant by siteKey → statamic (200, not 501)
@@ -166,6 +207,20 @@ curl "https://<statamic-host>/api/navs/main_nav/tree"
 - **`platform_settings.statamic.baseUrl = http://127.0.0.1:8000`** (a leaked dev
   value) → fetches go to localhost on prod → fail → fallback nav. Set it to the
   host. (The per-tenant `statamicBaseUrl` overrides it, but never leave it wrong.)
+- **Live Preview "token is verlopen"** → the draft POST to `/api/statamic-draft`
+  was **403'd**. Historic cause: the origin check did an *exact* string match on
+  `STATAMIC_CP_ORIGIN`, which never matched once that var listed >1 origin. Now
+  the endpoint trusts any registered tenant's `cms.statamicBaseUrl` host (self-
+  maintaining) and tests `STATAMIC_CP_ORIGIN` by membership. If it recurs, check
+  the POST in DevTools → Network is **200**, and that the CP host is reachable as
+  a tenant `statamicBaseUrl`.
+- **Live Preview iframe "refused to connect"** → the CP origin isn't in the
+  frame-ancestors CSP. Add it to Vercel `STATAMIC_CP_ORIGIN`
+  (`npx tsx scripts/print-cp-origins.ts`) and redeploy the platform (§ 5b).
+- **Permalinks / "Visit URL" point at `www.misterchameleon.nl` on another
+  tenant** → the `sed` rewrite of `sites.yaml` didn't run. On Ploi Cloud it must
+  be an **Init container command** (the repo `deploy.sh` is not executed there),
+  placed **before** `stache:refresh`, with `STATAMIC_SITE_URL` set (§ 2).
 - **Ploi host migration** (e.g. `ams1` → `ams1-t`): update `APP_URL` (Ploi),
   `STATAMIC_API_URL` (Vercel), and both `cms.statamicBaseUrl` (tenant) +
   `statamic.baseUrl` (platform_settings) in the DB, then redeploy the platform.
