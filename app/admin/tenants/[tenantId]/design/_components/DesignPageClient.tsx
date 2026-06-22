@@ -27,6 +27,7 @@
 
 import { useState, useTransition } from "react";
 import { ThemeGallery }         from "./ThemeGallery";
+import { PresetGallery }        from "./PresetGallery";
 import { ThemeRulesEditor }     from "./ThemeRulesEditor";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
@@ -47,7 +48,7 @@ import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.con
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DesignTab = "style" | "layout" | "switching" | "typography" | "advanced";
+type DesignTab = "style" | "presets" | "layout" | "switching" | "typography" | "advanced";
 
 interface TabDef {
   id:          DesignTab;
@@ -60,6 +61,11 @@ const TABS: readonly TabDef[] = [
     id:          "style",
     label:       "Style",
     description: "Choose a theme family and preset",
+  },
+  {
+    id:          "presets",
+    label:       "Presets",
+    description: "Apply a curated design preset in one click",
   },
   {
     id:          "layout",
@@ -536,6 +542,15 @@ export function DesignPageClient({
       {/* ── Style ──────────────────────────────────────────────────────────── */}
       <TabPanel id="style" active={activeTab}>
         <ThemeGallery tenantId={tenantId} activeTheme={activeTheme} />
+      </TabPanel>
+
+      {/* ── Presets ─────────────────────────────────────────────────────────── */}
+      <TabPanel id="presets" active={activeTab}>
+        <TabSectionHeader
+          title="Design presets"
+          description="Apply a curated, ready-made look in one click — colours, typography, buttons, radius, and header are all set together. Fine-tune afterwards in the Advanced or Typography tab."
+        />
+        <PresetGallery tenantId={tenantId} design={design} />
       </TabPanel>
 
       {/* ── Layout ──────────────────────────────────────────────────────────── */}

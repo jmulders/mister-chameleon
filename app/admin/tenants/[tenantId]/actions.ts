@@ -325,6 +325,48 @@ export async function applyDesignTokensAction(
   };
 }
 
+// ── Design preset gallery action ───────────────────────────────────────────────
+
+/**
+ * Applies a curated design preset (from DESIGN_PRESET_GALLERY) to a tenant.
+ *
+ * A preset is a COMPLETE look, so this replaces `design.tokenOverrides` wholesale
+ * (rather than merging) and sets `design.theme = preset.baseTheme`. It also turns
+ * on `typographyOverrideEnabled` so the preset's heading/body fonts actually
+ * render (resolve-theme.ts gates typography behind that flag).
+ *
+ * The preset data is trusted, in-repo content — no upload validator needed; the
+ * authoritative structural validation still runs inside saveTenant().
+ */
+export async function applyDesignPresetAction(
+  tenantId: string,
+  presetId: string,
+): Promise<{ ok: true; presetId: string } | { ok: false; error: string }> {
+  const { getDesignPreset } = await import("@/tenant/design-presets-gallery");
+  const preset = getDesignPreset(presetId);
+  if (!preset) return { ok: false, error: `Unknown preset "${presetId}".` };
+
+  const current = await getTenantById(tenantId);
+  if (!current) return { ok: false, error: `Tenant "${tenantId}" not found.` };
+
+  const updatedDesign: TenantDesignSettings = {
+    ...current.design,
+    theme:                     preset.baseTheme,
+    tokenOverrides:            preset.tokenOverrides,
+    typographyOverrideEnabled: true,
+  };
+
+  const saveResult = await saveTenant({ ...current, design: updatedDesign });
+  if (!saveResult.ok) return { ok: false, error: saveResult.error };
+
+  // Re-render the public site (token vars are injected at the [data-site] layer)
+  // plus the admin views.
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/tenants");
+  revalidatePath(`/admin/tenants/${tenantId}`);
+  return { ok: true, presetId };
+}
+
 // ── CMS credentials action ────────────────────────────────────────────────────
 
 /**
