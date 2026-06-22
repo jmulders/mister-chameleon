@@ -87,6 +87,20 @@ export function TenantFinalizeCard({ tenantId, currentBaseUrl }: { tenantId: str
               <pre className="mt-1 overflow-x-auto rounded bg-neutral-900 p-2 text-green-300">{result.ploiEnv.map((e) => `${e.key}=${e.value}`).join("\n")}</pre>
             </div>
           )}
+
+          {result.manualSteps && result.manualSteps.length > 0 && (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2">
+              <p className="font-semibold text-amber-900">Manual steps (need GitHub/Ploi access + DNS):</p>
+              <ol className="mt-1 list-decimal space-y-1.5 pl-5 text-amber-900 marker:text-amber-500">
+                {result.manualSteps.map((s, i) => (
+                  <li key={i}>
+                    <span className="font-medium">{s.label}</span>
+                    <span className="block text-amber-800">{s.detail}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
       )}
     </section>
