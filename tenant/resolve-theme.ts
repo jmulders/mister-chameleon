@@ -230,6 +230,12 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   cardForeground:        ["--card-foreground"],
   popover:               ["--popover"],
   popoverForeground:     ["--popover-foreground"],
+  // ── Design-preset additions ────────────────────────────────────────────────
+  // onPrimary = text/icon colour on a filled primary surface (buttons).
+  onPrimary:             ["--primary-foreground", "--btn-text"],
+  link:                  ["--link"],
+  success:               ["--success"],
+  danger:                ["--danger", "--destructive"],
 };
 
 /**
@@ -255,6 +261,19 @@ const TYPOGRAPHY_CSS_VARS: Record<string, string> = {
   fontBody:       "--font-body",
   fontUI:         "--font-ui",
   fontCode:       "--font-code",
+  // ── Design-preset additions ────────────────────────────────────────────────
+  scaleRatio:        "--type-scale-ratio",
+  // Reuse the existing consumer var so heading weight renders with no CSS change.
+  headingWeight:     "--font-heading-weight",
+  navWeight:         "--nav-link-weight",
+  letterSpacing:     "--letter-spacing",
+  headingTransform:  "--heading-transform",
+  eyebrowTransform:  "--eyebrow-transform",
+  navTransform:      "--nav-link-transform",
+  navTracking:       "--nav-link-tracking",
+  linkUnderline:     "--link-underline",
+  headingLineHeight: "--heading-line-height",
+  bodyLineHeight:    "--line-height-base",
 };
 
 /**
@@ -287,6 +306,57 @@ const LAYOUT_CSS_VARS: Record<string, string> = {
   navLinkTracking:     "--nav-link-tracking",
   navDropdownItemSize: "--nav-dropdown-item-size",
   footerNavSize:       "--footer-nav-size",
+  // ── Design-preset additions ────────────────────────────────────────────────
+  headerStyle:   "--header-style",
+  navWeight:     "--nav-link-weight",
+  navTracking:   "--nav-link-tracking",
+  navTransform:  "--nav-link-transform",
+  navHover:      "--nav-link-hover-style",
+  footerStyle:   "--footer-style",
+};
+
+/**
+ * Direct CSS var mappings for the design-preset token groups.
+ * Keys not listed fall back to `--{group}-{kebab-key}`.
+ */
+const GRID_CSS_VARS: Record<string, string> = {
+  columns:      "--grid-columns",
+  gutter:       "--grid-gutter",
+  contentWidth: "--content-width",
+};
+
+const RESPONSIVE_CSS_VARS: Record<string, string> = {
+  sectionDesktop: "--section-py-desktop",
+  sectionTablet:  "--section-py-tablet",
+  sectionMobile:  "--section-py-mobile",
+};
+
+const ELEVATION_CSS_VARS: Record<string, string> = {
+  mode:       "--elevation-mode",
+  cardShadow: "--card-shadow",
+};
+
+const FOCUS_CSS_VARS: Record<string, string> = {
+  ringWidth: "--focus-ring-width",
+  ringColor: "--focus-ring-color",
+};
+
+/**
+ * Button per-variant + geometry tokens. These map onto the existing --btn-*
+ * custom properties already consumed by Button.tsx / theme.css.
+ */
+const BUTTON_CSS_VARS: Record<string, string> = {
+  primaryFill:    "--btn-bg",
+  primaryHover:   "--btn-hover-bg",
+  primaryText:    "--btn-text",
+  radius:         "--btn-radius",
+  paddingX:       "--btn-px",
+  paddingY:       "--btn-py",
+  weight:         "--btn-font-weight",
+  transform:      "--btn-text-transform",
+  tracking:       "--btn-tracking",
+  shadow:         "--btn-shadow",
+  secondaryStyle: "--btn-secondary-style",
 };
 
 /**
@@ -337,6 +407,28 @@ function resolveGroupVars(
       case "layout": {
         const cssVar = LAYOUT_CSS_VARS[key];
         vars[cssVar ?? `--layout-${kebab}`] = value;
+        break;
+      }
+
+      // ── Design-preset token groups ──────────────────────────────────────────
+      case "grid": {
+        vars[GRID_CSS_VARS[key] ?? `--grid-${kebab}`] = value;
+        break;
+      }
+      case "responsive": {
+        vars[RESPONSIVE_CSS_VARS[key] ?? `--responsive-${kebab}`] = value;
+        break;
+      }
+      case "elevation": {
+        vars[ELEVATION_CSS_VARS[key] ?? `--elevation-${kebab}`] = value;
+        break;
+      }
+      case "focus": {
+        vars[FOCUS_CSS_VARS[key] ?? `--focus-${kebab}`] = value;
+        break;
+      }
+      case "button": {
+        vars[BUTTON_CSS_VARS[key] ?? `--button-${kebab}`] = value;
         break;
       }
     }
@@ -451,6 +543,8 @@ export function resolveThemeForTenant(
     const GROUPS = [
       "color", "typography", "radius", "spacing",
       "border", "shadow", "motion", "component", "layout",
+      // Design-preset token groups
+      "grid", "responsive", "elevation", "focus", "button",
     ] as const;
 
     for (const group of GROUPS) {
