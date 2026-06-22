@@ -53,6 +53,7 @@
 
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import type {
   TenantSettings,
   PackageKey,
@@ -629,6 +630,88 @@ export async function getTenantByDomain(hostname: string): Promise<TenantSetting
     if (t.additionalDomains?.some((d) => d.toLowerCase().trim() === normalised)) return true;
     return false;
   }) ?? null;
+}
+
+// ── Render-path resilient cached reads ────────────────────────────────────────
+//
+// PROBLEM (nav/header flip-flop on refresh):
+//   `www.misterchameleon.nl` is not in the static TENANT_REGISTRY, so EVERY
+//   public request resolves its tenant via getTenantByDomain() — two Supabase
+//   reads (tenant_domains + tenant_settings).  If either read transiently
+//   returns null/errors on a COLD serverless instance, getActiveTenant() falls
+//   back to FALLBACK_TENANT (mister-chameleon — a DIFFERENT site with a
+//   different nav).  An in-process Map can't help: each cold lambda starts
+//   empty, so refreshes that land on different instances flip between the real
+//   nav and the fallback nav.
+//
+// FIX:
+//   Wrap the lookups in Next's `unstable_cache` — a PERSISTENT, cross-instance
+//   data cache (Vercel Data Cache).  Once ANY instance resolves the host/tenant,
+//   the result is shared with every other instance for `revalidate` seconds, so
+//   cold instances serve the correct tenant WITHOUT hitting the DB.  We cache
+//   ONLY successful resolutions: the inner fn throws on a miss so a transient
+//   null is never persisted (a cached null would pin the wrong fallback).
+//
+//   These variants are for the PUBLIC RENDER PATH ONLY (Header, Footer,
+//   getActiveTenant, homepage pipeline).  Admin/write paths keep using the
+//   uncached getTenantById/getTenantByDomain so edits are reflected immediately.
+//
+//   `revalidate` is intentionally short so design/CMS changes still propagate to
+//   the public site within ~2 min without a deploy.
+
+const TENANT_RENDER_CACHE_REVALIDATE_SECONDS = 120;
+export const TENANT_RENDER_CACHE_TAG = "tenant-render-cache";
+
+const cachedTenantByDomainHit = unstable_cache(
+  async (hostname: string): Promise<TenantSettings> => {
+    const tenant = await getTenantByDomain(hostname);
+    // Throw on miss so unstable_cache does NOT persist a null (which would pin
+    // the wrong fallback tenant for the whole revalidate window).
+    if (!tenant) throw new Error(`[tenant-store] no tenant for host "${hostname}"`);
+    return tenant;
+  },
+  ["tenant-by-domain-render"],
+  { revalidate: TENANT_RENDER_CACHE_REVALIDATE_SECONDS, tags: [TENANT_RENDER_CACHE_TAG] },
+);
+
+const cachedTenantByIdHit = unstable_cache(
+  async (tenantId: string): Promise<TenantSettings> => {
+    const tenant = await getTenantById(tenantId);
+    if (!tenant) throw new Error(`[tenant-store] no tenant settings for id "${tenantId}"`);
+    return tenant;
+  },
+  ["tenant-by-id-render"],
+  { revalidate: TENANT_RENDER_CACHE_REVALIDATE_SECONDS, tags: [TENANT_RENDER_CACHE_TAG] },
+);
+
+/**
+ * Resilient, cross-instance-cached domain → tenant lookup for the public render
+ * path.  Returns the cached tenant (shared across serverless instances) and
+ * degrades to null only on a genuine, sustained miss — never persisting a
+ * transient null.  Use this in getActiveTenant() instead of getTenantByDomain()
+ * so cold instances stop flipping the site to the fallback tenant.
+ */
+export async function getTenantByDomainCached(hostname: string): Promise<TenantSettings | null> {
+  try {
+    return await cachedTenantByDomainHit(hostname.toLowerCase().trim());
+  } catch {
+    // Genuine miss (or transient error) — let the caller apply its own
+    // last-known-good / fallback logic.
+    return null;
+  }
+}
+
+/**
+ * Resilient, cross-instance-cached id → tenant settings lookup for the public
+ * render path (Header / Footer / pipeline).  Keeps the CMS provider pointed at
+ * the right tenant config even when the DB transiently misses on a cold start.
+ */
+export async function getTenantByIdCached(tenantId: string): Promise<TenantSettings | null> {
+  try {
+    return await cachedTenantByIdHit(tenantId);
+  } catch {
+    return null;
+  }
 }
 
 /**

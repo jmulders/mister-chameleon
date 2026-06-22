@@ -53,7 +53,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantByIdCached } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
 import { getSiteNavigation }  from "@/site/navigation-store";
 import { Container } from "@/components/primitives";
@@ -133,7 +133,7 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   // Fetch site settings (CMS) — needed for Layer 1.5 layout override and all
   // site identity / navigation data further below.  We fetch early so the
   // headerVariant fallback is available before Layer 2 overrides it.
-  const tenantSettings = await getTenantById(activeTenant.tenantId);
+  const tenantSettings = await getTenantByIdCached(activeTenant.tenantId);
   const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
   const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings(locale);
 

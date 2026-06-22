@@ -26,7 +26,7 @@
  */
 
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantByIdCached } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
 import {
   FEATURED_FAMILY_CONFIGS,
@@ -39,10 +39,11 @@ import { FooterBottomStrip } from "./footer/FooterBottomStrip";
 
 export async function Footer() {
   const activeTenant = await getActiveTenant();
+  // (cached resilient tenant lookup — see Header.tsx / tenant-store.ts)
 
   // Resolve tenant settings first so we can pass the CMS preference to the
   // provider factory — same pattern as Header.tsx.
-  const tenantSettings = await getTenantById(activeTenant.tenantId);
+  const tenantSettings = await getTenantByIdCached(activeTenant.tenantId);
   const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
   const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings();
 

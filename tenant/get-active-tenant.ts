@@ -78,7 +78,7 @@
 
 import { headers, cookies }  from "next/headers";
 import { resolveTenant, resolveTenantOrNull, resolveTenantById } from "./resolve-tenant";
-import { getTenantByDomain, getTenantById }  from "./tenant-store";
+import { getTenantByDomainCached, getTenantById }  from "./tenant-store";
 import { DEV_TENANT_COOKIE }  from "./dev-tenant-cookie";
 import { buildTenantConfigFromSettings } from "./build-tenant-config";
 import type { TenantConfig }  from "./types";
@@ -161,7 +161,11 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   // If a settings match is found, we use the stored tenantId to look up the
   // TenantConfig (so the full runtime config is returned, not just settings).
   const hostKey = host.toLowerCase();
-  const storedTenant = await getTenantByDomain(host);
+  // Resilient cross-instance cached lookup: once any instance resolves this host
+  // the result is shared via Next's persistent data cache, so cold instances no
+  // longer fall back to FALLBACK_TENANT on a transient DB miss (the nav/header
+  // flip-flop).  Returns null only on a genuine, sustained miss.
+  const storedTenant = await getTenantByDomainCached(host);
   if (storedTenant) {
     // Tenant is in the store but not in the static registry (admin-onboarded).
     // Build its runtime config from the stored settings so its domain is fully
