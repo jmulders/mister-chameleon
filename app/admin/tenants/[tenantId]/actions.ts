@@ -319,6 +319,9 @@ export async function applyDesignTokensAction(
     ...(hasAnyOverride ? { tokenOverrides: newTokenOverrides } : {}),
     // Typography overrides only render when this flag is on (resolve-theme.ts).
     ...(typography ? { typographyOverrideEnabled: true } : {}),
+    // A "custom" look (Builder / preset) clears any curated Style family so the
+    // family's personality doesn't linger and mix with the tokens.
+    ...(theme === "custom" ? { selectedStyleFamily: undefined } : {}),
   };
 
   // ── Persist ────────────────────────────────────────────────────────────────
@@ -371,6 +374,10 @@ export async function applyDesignPresetAction(
     theme:                     preset.baseTheme,
     tokenOverrides:            preset.tokenOverrides,
     typographyOverrideEnabled: true,
+    // Clear any curated Style family so the preset is the single source of truth
+    // — otherwise the family's personality (typography/structure) lingers and
+    // mixes with the preset tokens.
+    selectedStyleFamily:       undefined,
   };
 
   const saveResult = await saveTenant({ ...current, design: updatedDesign });
