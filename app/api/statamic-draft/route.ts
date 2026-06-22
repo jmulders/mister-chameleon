@@ -38,8 +38,14 @@ export async function OPTIONS() {
 /**
  * Light origin gate for the (otherwise unauthenticated) draft write endpoint.
  *
- * Allowed: localhost (dev), any *.ploi.it host (the managed CP), and an explicit
- * STATAMIC_CP_ORIGIN when configured (e.g. https://cms.misterchameleon.nl).
+ * Allowed: localhost (dev), any *.ploi.it host (the managed CP), and any origin
+ * listed in STATAMIC_CP_ORIGIN. That var may hold MULTIPLE custom CP origins
+ * (one per tenant CMS domain), space- or comma-separated — mirroring how
+ * next.config.mjs parses it for frame-ancestors, e.g.
+ *   "https://cms.misterchameleon.nl https://cms.steunles.nl"
+ * We must therefore test MEMBERSHIP, not equality with the whole string (an
+ * exact `origin === configured` match never succeeds once the var lists >1
+ * origin, which silently 403s the draft POST and breaks Live Preview).
  * Requests with no Origin header (server-to-server) are allowed.
  */
 function isAllowedOrigin(origin: string | null): boolean {
@@ -48,8 +54,10 @@ function isAllowedOrigin(origin: string | null): boolean {
     const host = new URL(origin).host;
     if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;
     if (host.endsWith(".ploi.it")) return true;
-    const configured = process.env.STATAMIC_CP_ORIGIN;
-    if (configured && origin === configured) return true;
+    const configured = (process.env.STATAMIC_CP_ORIGIN ?? "")
+      .split(/[\s,]+/)
+      .filter(Boolean);
+    if (configured.includes(origin)) return true;
   } catch {
     return false;
   }
