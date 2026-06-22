@@ -398,7 +398,17 @@ function resolveGroupVars(
         break;
       }
 
-      case "spacing":   vars[`--spacing-${kebab}`]   = value; break;
+      case "spacing": {
+        // Section-rhythm tokens get dedicated vars consumed by Section/Container;
+        // everything else uses the generic --spacing-{kebab} convention.
+        const special: Record<string, string> = {
+          sectionPadding: "--section-py",
+          container:      "--container",
+          align:          "--content-align",
+        };
+        vars[special[key] ?? `--spacing-${kebab}`] = value;
+        break;
+      }
       case "border":    vars[`--border-${kebab}`]     = value; break;
       case "shadow":    vars[`--shadow-${kebab}`]     = value; break;
       case "motion":    vars[`--motion-${kebab}`]     = value; break;
