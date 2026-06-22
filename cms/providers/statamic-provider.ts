@@ -645,6 +645,15 @@ export class StatamicProvider implements CMSProvider {
         // Bare filename (no leading / and no protocol) → prefix with /assets/ so
         // the Next.js asset proxy route serves it correctly.
         if (!raw.startsWith("/") && !raw.startsWith("http")) raw = `/assets/${raw}`;
+        // Absolutise root-relative asset paths against THIS tenant's own Statamic
+        // host. The frontend's `/assets/*` proxy rewrite points at a single
+        // build-time host (STATAMIC_API_URL), so on a second tenant a bare
+        // `/assets/…` would 404 (it lives on the tenant's own cms.* host, e.g.
+        // cms.steunles.nl, not on the frontend origin). Logos render via a plain
+        // <img>, so a cross-origin absolute URL needs no next/image remotePattern.
+        if (raw.startsWith("/") && this.client.assetBaseUrl) {
+          raw = `${this.client.assetBaseUrl}${raw}`;
+        }
         return raw;
       };
 

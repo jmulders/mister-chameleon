@@ -655,6 +655,22 @@ export class StatamicClient {
   }
 
   /**
+   * Origin (scheme+host) of this Statamic install — used to absolutise asset
+   * URLs (logos) so they load from the tenant's OWN CMS host. The frontend's
+   * `/assets/*` proxy rewrite targets a single, build-time `STATAMIC_API_URL`,
+   * so on a SECOND tenant (e.g. www.steunles.nl) a root-relative `/assets/…`
+   * would resolve against the wrong CMS. Empty string in file-based / no-base
+   * mode, where assets are served same-origin and must stay root-relative.
+   */
+  get assetBaseUrl(): string {
+    try {
+      return this.baseUrl ? new URL(this.baseUrl).origin : "";
+    } catch {
+      return "";
+    }
+  }
+
+  /**
    * Fetch a single entry from a collection by its key.
    *
    * @param collection  The collection handle, e.g. "hero_variants"

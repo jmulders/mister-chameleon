@@ -49,7 +49,6 @@
  *   revalidateTag("sanity").
  */
 
-import Image from "next/image";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
@@ -386,49 +385,31 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
 
   // ── Shared brand element ──────────────────────────────────────────────────
   //
-  // SVG logos are served via a plain <img>, NOT next/image. next/image routes
-  // through the optimization API, which REFUSES to serve SVG unless the global
-  // `dangerouslyAllowSVG` flag is enabled — so a tenant uploading an SVG logo in
-  // the CMS globals would otherwise get a broken (400) image. SVGs are vector,
-  // so there is no optimization to gain anyway. Raster logos (PNG/JPG/WebP) keep
-  // next/image for srcset + format conversion.
-  const isSvgLogo = /\.svg(\?|#|$)/i.test(logoUrl) || logoUrl.startsWith("data:image/svg");
-
+  // The logo is rendered with a plain <img>, NOT next/image, for two reasons:
+  //   1. SVG — next/image's optimizer REFUSES to serve SVG unless the global
+  //      `dangerouslyAllowSVG` flag is on, so an SVG logo uploaded in the CMS
+  //      globals would break (400). SVGs are vector — nothing to optimize.
+  //   2. Multi-tenant — logo URLs are now ABSOLUTE to the tenant's own CMS host
+  //      (e.g. https://cms.steunles.nl/assets/…), because the frontend's
+  //      `/assets` proxy only targets a single build-time host. next/image would
+  //      reject those cross-origin hosts unless each is added to remotePatterns;
+  //      a plain <img> has no such restriction. The footer logo already does this.
+  // The /logo.svg public fallback (same-origin) also renders fine as a plain img.
   const BrandLink = (
     <Link
       href="/"
       aria-label={`${siteTitle} — go to homepage`}
       className="shrink-0 flex items-center focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4 rounded-sm"
     >
-      {isSvgLogo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={logoUrl}
-          alt={logoAlt}
-          width={280}
-          height={90}
-          className="h-14 w-auto object-contain"
-          style={{ width: "auto", height: "3.5rem" }}
-        />
-      ) : (
-        /*
-         * next/image — automatic WebP conversion, intrinsic size enforcement,
-         * and lazy loading (eager here since the logo is above the fold).
-         * width/height set to the 2× retina budget for a 32 px display height;
-         * actual render size is controlled by the className h-11 (44 px).
-         * The Sanity CDN URL already has ?w=160&auto=format baked in by GROQ.
-         * Fallback: /logo.svg served from public/ when CMS is not yet seeded.
-         */
-        <Image
-          src={logoUrl}
-          alt={logoAlt}
-          width={280}
-          height={90}
-          priority
-          className="h-14 w-auto object-contain"
-          style={{ width: "auto", height: "3.5rem" }}
-        />
-      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={logoUrl}
+        alt={logoAlt}
+        width={280}
+        height={90}
+        className="h-14 w-auto object-contain"
+        style={{ width: "auto", height: "3.5rem" }}
+      />
     </Link>
   );
 
