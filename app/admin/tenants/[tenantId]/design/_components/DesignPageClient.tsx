@@ -28,6 +28,7 @@
 import { useState, useTransition } from "react";
 import { ThemeGallery }         from "./ThemeGallery";
 import { PresetGallery }        from "./PresetGallery";
+import { PresetBuilder }        from "./PresetBuilder";
 import { ThemeRulesEditor }     from "./ThemeRulesEditor";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
@@ -48,7 +49,7 @@ import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.con
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DesignTab = "style" | "presets" | "layout" | "switching" | "typography" | "advanced";
+type DesignTab = "style" | "presets" | "builder" | "layout" | "switching" | "typography" | "advanced";
 
 interface TabDef {
   id:          DesignTab;
@@ -66,6 +67,11 @@ const TABS: readonly TabDef[] = [
     id:          "presets",
     label:       "Presets",
     description: "Apply a curated design preset in one click",
+  },
+  {
+    id:          "builder",
+    label:       "Builder",
+    description: "Compose a custom preset with a live preview",
   },
   {
     id:          "layout",
@@ -551,6 +557,15 @@ export function DesignPageClient({
           description="Apply a curated, ready-made look in one click — colours, typography, buttons, radius, and header are all set together. Fine-tune afterwards in the Advanced or Typography tab."
         />
         <PresetGallery tenantId={tenantId} design={design} />
+      </TabPanel>
+
+      {/* ── Builder ─────────────────────────────────────────────────────────── */}
+      <TabPanel id="builder" active={activeTab}>
+        <TabSectionHeader
+          title="Preset builder"
+          description="Compose a custom look with colour pickers and selectors. The preview updates live; Save writes the tokens to this tenant (theme = custom)."
+        />
+        <PresetBuilder tenantId={tenantId} design={design} />
       </TabPanel>
 
       {/* ── Layout ──────────────────────────────────────────────────────────── */}

@@ -276,6 +276,12 @@ export async function applyDesignTokensAction(
     shadow,
     motion,
     component,
+    layout,
+    grid,
+    responsive,
+    elevation,
+    focus,
+    button,
   } = tokens;
 
   const existingOverrides: TenantTokenOverrides = current.design.tokenOverrides ?? {};
@@ -295,6 +301,13 @@ export async function applyDesignTokensAction(
     ...(shadow     ? { shadow:     { ...existingOverrides.shadow,     ...shadow     } } : {}),
     ...(motion     ? { motion:     { ...existingOverrides.motion,     ...motion     } } : {}),
     ...(component  ? { component:  { ...existingOverrides.component,  ...component  } } : {}),
+    // Structural chrome + design-preset token groups (previously dropped here).
+    ...(layout     ? { layout:     { ...existingOverrides.layout,     ...layout     } } : {}),
+    ...(grid       ? { grid:       { ...existingOverrides.grid,       ...grid       } } : {}),
+    ...(responsive ? { responsive: { ...existingOverrides.responsive, ...responsive } } : {}),
+    ...(elevation  ? { elevation:  { ...existingOverrides.elevation,  ...elevation  } } : {}),
+    ...(focus      ? { focus:      { ...existingOverrides.focus,      ...focus      } } : {}),
+    ...(button     ? { button:     { ...existingOverrides.button,     ...button     } } : {}),
   };
   const hasAnyOverride = Object.keys(newTokenOverrides).length > 0;
 
@@ -304,6 +317,8 @@ export async function applyDesignTokensAction(
     ...(primaryColor !== undefined ? { primaryColor } : {}),
     ...(primaryFont  !== undefined ? { primaryFont }  : {}),
     ...(hasAnyOverride ? { tokenOverrides: newTokenOverrides } : {}),
+    // Typography overrides only render when this flag is on (resolve-theme.ts).
+    ...(typography ? { typographyOverrideEnabled: true } : {}),
   };
 
   // ── Persist ────────────────────────────────────────────────────────────────
@@ -314,6 +329,8 @@ export async function applyDesignTokensAction(
     return { ok: false, errors: [saveResult.error] };
   }
 
+  // Re-render the public tenant site so the new tokens take effect.
+  revalidatePath("/", "layout");
   revalidatePath("/admin/tenants");
   revalidatePath(`/admin/tenants/${tenantId}`);
 

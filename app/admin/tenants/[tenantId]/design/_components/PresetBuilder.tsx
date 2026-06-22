@@ -1,0 +1,240 @@
+/**
+ * PresetBuilder
+ *
+ * Compose a custom design preset with friendly controls + a live preview, then
+ * save it to the tenant. Saving routes through applyDesignTokensAction (grouped
+ * format) so the upload validator runs (per-key allowlist + injection guard).
+ */
+
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
+import { applyDesignTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
+import type { TenantDesignSettings } from "@/tenant/types";
+
+interface Props {
+  tenantId: string;
+  design:   TenantDesignSettings;
+}
+
+type Groups = {
+  color:      Record<string, string>;
+  typography: Record<string, string>;
+  radius:     Record<string, string>;
+  shadow:     Record<string, string>;
+  button:     Record<string, string>;
+  layout:     Record<string, string>;
+};
+
+const FONTS: [string, string][] = [
+  ["'Inter', system-ui, sans-serif", "Inter"],
+  ["'Manrope', system-ui, sans-serif", "Manrope"],
+  ["'DM Sans', system-ui, sans-serif", "DM Sans"],
+  ["'Space Grotesk', system-ui, sans-serif", "Space Grotesk"],
+  ["'Cormorant Garamond', Georgia, serif", "Cormorant (serif)"],
+  ["'Oswald', sans-serif", "Oswald (caps)"],
+];
+
+const SEED = DESIGN_PRESET_GALLERY[0];
+
+function seedFrom(presetId: string): Groups {
+  const p = DESIGN_PRESET_GALLERY.find((x) => x.id === presetId) ?? SEED;
+  const t = p.tokenOverrides as Record<string, Record<string, string> | undefined>;
+  return {
+    color:      { ...t.color },
+    typography: { ...t.typography },
+    radius:     { ...t.radius },
+    shadow:     { ...t.shadow },
+    button:     { ...t.button },
+    layout:     { ...t.layout },
+  };
+}
+
+function contrastText(hex: string): string {
+  try {
+    let h = hex.replace("#", "");
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#15151a" : "#ffffff";
+  } catch { return "#ffffff"; }
+}
+
+const COLOR_FIELDS: [string, string][] = [
+  ["primary", "Primair"], ["secondary", "Secundair"], ["accent", "Accent"],
+  ["background", "Achtergrond"], ["foreground", "Tekst"], ["card", "Kaart"],
+  ["border", "Rand"], ["mutedForeground", "Subtiele tekst"],
+];
+
+const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, color: "#334155", margin: "0 0 4px" };
+const sel: React.CSSProperties = { width: "100%", fontSize: 13, padding: "7px 9px", border: "1px solid #e6e8ec", borderRadius: 8, background: "#fff" };
+const sub: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#94a3b8", margin: "16px 0 8px" };
+
+export function PresetBuilder({ tenantId }: Props) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [base, setBase] = useState<string>(SEED.id);
+  const [g, setG] = useState<Groups>(() => seedFrom(SEED.id));
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  function set(group: keyof Groups, key: string, value: string) {
+    setG((prev) => ({ ...prev, [group]: { ...prev[group], [key]: value } }));
+  }
+  function pickBase(id: string) { setBase(id); setG(seedFrom(id)); setMsg(null); }
+
+  // Header style derived control (light/dark/transparent) → layout colors.
+  function setHeader(style: string) {
+    const c = g.color;
+    if (style === "light")       setG((p) => ({ ...p, layout: { ...p.layout, headerBg: c.background, headerFg: c.foreground, headerBorder: c.border } }));
+    else if (style === "dark")   setG((p) => ({ ...p, layout: { ...p.layout, headerBg: c.foreground, headerFg: c.background, headerBorder: c.foreground } }));
+    else                          setG((p) => ({ ...p, layout: { ...p.layout, headerBg: "transparent", headerFg: c.foreground, headerBorder: "transparent" } }));
+  }
+
+  const onPrimary = g.color.onPrimary || contrastText(g.color.primary || "#4f46e5");
+
+  const preview = useMemo(() => {
+    const c = g.color, ty = g.typography, r = g.radius, l = g.layout, b = g.button;
+    const radInt = r.interactive || "8px", radCard = r.card || "12px";
+    const hT = (ty.headingTransform || "none") as React.CSSProperties["textTransform"];
+    return (
+      <div style={{ background: c.background, color: c.foreground, fontFamily: ty.fontBody, borderRadius: 10, overflow: "hidden", border: "1px solid #e6e8ec" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: l.headerBg || c.background, color: l.headerFg || c.foreground, borderBottom: `1px solid ${l.headerBorder || c.border}` }}>
+          <span style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, textTransform: hT, letterSpacing: ty.letterSpacing, fontSize: 15 }}>Mijn merk</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 11, opacity: .9 }}><span>Features</span><span>Prijzen</span><span>Cases</span></span>
+          <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "5px 10px", fontSize: 11, fontWeight: 600 }}>Start</span>
+        </div>
+        <div style={{ padding: "22px 20px" }}>
+          <span style={{ display: "inline-block", background: c.accent, color: c.primary, borderRadius: 999, padding: "3px 9px", fontSize: 10, fontWeight: 700, marginBottom: 10 }}>PERSONALISATIE</span>
+          <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, textTransform: hT, letterSpacing: ty.letterSpacing, fontSize: 28, lineHeight: 1.1, marginBottom: 8 }}>Jouw site past zich aan</div>
+          <div style={{ color: c.mutedForeground, fontSize: 13, marginBottom: 16, maxWidth: "44ch" }}>Dezelfde blokken, een totaal andere look &amp; feel — puur via design-tokens.</div>
+          <div style={{ display: "flex", gap: 9, marginBottom: 18 }}>
+            <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: Number(b.weight) || 600, textTransform: (b.transform || "none") as React.CSSProperties["textTransform"], letterSpacing: b.tracking, boxShadow: b.shadow }}>Bekijk demo</span>
+            <span style={{ background: "transparent", color: c.foreground, border: `1px solid ${c.border}`, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>Outline</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {["34% meer leads", "Privacy-vriendelijk"].map((tt) => (
+              <div key={tt} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: radCard, boxShadow: g.shadow.md, padding: "13px 14px" }}>
+                <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, fontSize: 14, marginBottom: 3 }}>{tt}</div>
+                <div style={{ color: c.mutedForeground, fontSize: 12 }}>Gemiddeld na 90 dagen.</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }, [g, onPrimary]);
+
+  function save() {
+    setMsg(null);
+    const payload = {
+      theme: "custom",
+      color: { ...g.color, onPrimary },
+      typography: g.typography,
+      radius: g.radius,
+      shadow: g.shadow,
+      button: g.button,
+      layout: g.layout,
+    };
+    startTransition(async () => {
+      const r = await applyDesignTokensAction(tenantId, payload);
+      if (r.ok) { setMsg({ text: "Opgeslagen ✓ — bekijk de publieke site.", ok: true }); router.refresh(); }
+      else setMsg({ text: r.errors.join(" "), ok: false });
+    });
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,340px) minmax(0,1fr)", gap: 20, alignItems: "start" }}>
+      {/* Controls */}
+      <div style={{ border: "1px solid #e6e8ec", borderRadius: 12, padding: 16, background: "#fff" }}>
+        <div style={{ marginBottom: 8 }}>
+          <label style={lbl}>Begin vanaf</label>
+          <select style={sel} value={base} onChange={(e) => pickBase(e.target.value)}>
+            {DESIGN_PRESET_GALLERY.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
+        <div style={sub}>Kleuren</div>
+        {COLOR_FIELDS.map(([k, label]) => (
+          <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+            <input type="color" value={/^#([0-9a-f]{6})$/i.test(g.color[k] || "") ? g.color[k] : "#000000"} onChange={(e) => set("color", k, e.target.value)} style={{ width: 34, height: 30, padding: 0, border: "1px solid #e6e8ec", borderRadius: 6 }} />
+            <span style={{ fontSize: 12.5, color: "#334155", flex: 1 }}>{label}</span>
+            <input type="text" value={g.color[k] || ""} onChange={(e) => set("color", k, e.target.value)} style={{ width: 92, fontSize: 11, fontFamily: "monospace", padding: "5px 7px", border: "1px solid #e6e8ec", borderRadius: 6 }} />
+          </div>
+        ))}
+
+        <div style={sub}>Typografie</div>
+        <label style={lbl}>Heading-font</label>
+        <select style={sel} value={g.typography.fontHeading || FONTS[0][0]} onChange={(e) => set("typography", "fontHeading", e.target.value)}>
+          {FONTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+        </select>
+        <label style={{ ...lbl, marginTop: 9 }}>Body-font</label>
+        <select style={sel} value={g.typography.fontBody || FONTS[0][0]} onChange={(e) => set("typography", "fontBody", e.target.value)}>
+          {FONTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+        </select>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 9 }}>
+          <div>
+            <label style={lbl}>Heading-gewicht</label>
+            <select style={sel} value={g.typography.headingWeight || "700"} onChange={(e) => set("typography", "headingWeight", e.target.value)}>
+              {["500", "600", "700", "800"].map((w) => <option key={w} value={w}>{w}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Hoofdletters</label>
+            <select style={sel} value={g.typography.headingTransform || "none"} onChange={(e) => set("typography", "headingTransform", e.target.value)}>
+              <option value="none">Aa</option><option value="uppercase">AA</option><option value="capitalize">Aa-begin</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={sub}>Vorm &amp; knoppen</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+          <div>
+            <label style={lbl}>Knop-radius</label>
+            <select style={sel} value={g.radius.interactive || "8px"} onChange={(e) => set("radius", "interactive", e.target.value)}>
+              {["0px", "4px", "8px", "16px", "9999px"].map((v) => <option key={v} value={v}>{v === "9999px" ? "pill" : v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Kaart-radius</label>
+            <select style={sel} value={g.radius.card || "12px"} onChange={(e) => set("radius", "card", e.target.value)}>
+              {["0px", "6px", "12px", "20px"].map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Knop-gewicht</label>
+            <select style={sel} value={g.button.weight || "600"} onChange={(e) => set("button", "weight", e.target.value)}>
+              {["500", "600", "700"].map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Knop-hoofdletters</label>
+            <select style={sel} value={g.button.transform || "none"} onChange={(e) => set("button", "transform", e.target.value)}>
+              <option value="none">Aa</option><option value="uppercase">AA</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={sub}>Header</div>
+        <select style={sel} onChange={(e) => setHeader(e.target.value)} defaultValue="">
+          <option value="" disabled>Kies header-stijl…</option>
+          <option value="light">Licht</option><option value="dark">Donker</option><option value="transparent">Transparant</option>
+        </select>
+
+        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <button type="button" onClick={save} disabled={pending}
+            style={{ fontSize: 13, fontWeight: 600, padding: "9px 16px", borderRadius: 9, border: "1px solid #4f46e5", background: "#4f46e5", color: "#fff", cursor: pending ? "wait" : "pointer" }}>
+            {pending ? "Opslaan…" : "Opslaan op tenant"}
+          </button>
+          {msg && <span style={{ fontSize: 12, color: msg.ok ? "#16a34a" : "#b91c1c" }}>{msg.text}</span>}
+        </div>
+      </div>
+
+      {/* Live preview */}
+      <div>
+        <div style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 8px" }}>Live preview</div>
+        {preview}
+      </div>
+    </div>
+  );
+}
