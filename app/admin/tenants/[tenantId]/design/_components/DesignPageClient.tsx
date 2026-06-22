@@ -27,7 +27,6 @@
 
 import { useState, useTransition } from "react";
 import { ThemeGallery }         from "./ThemeGallery";
-import { PresetGallery }        from "./PresetGallery";
 import { PresetBuilder }        from "./PresetBuilder";
 import { ThemeRulesEditor }     from "./ThemeRulesEditor";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
@@ -49,7 +48,7 @@ import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.con
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DesignTab = "style" | "presets" | "builder" | "layout" | "switching" | "typography" | "advanced";
+type DesignTab = "presets" | "builder" | "layout" | "switching" | "typography" | "advanced";
 
 interface TabDef {
   id:          DesignTab;
@@ -59,14 +58,9 @@ interface TabDef {
 
 const TABS: readonly TabDef[] = [
   {
-    id:          "style",
-    label:       "Style",
-    description: "Choose a theme family and preset",
-  },
-  {
     id:          "presets",
     label:       "Presets",
-    description: "Apply a curated design preset in one click",
+    description: "Pick a curated design preset (contextual-rule compatible)",
   },
   {
     id:          "builder",
@@ -528,7 +522,7 @@ export function DesignPageClient({
   rulesConfig,
   defaultTheme,
 }: DesignPageClientProps) {
-  const [activeTab, setActiveTab] = useState<DesignTab>("style");
+  const [activeTab, setActiveTab] = useState<DesignTab>("presets");
 
   // ── Typography override state ─────────────────────────────────────────────
   //
@@ -545,18 +539,13 @@ export function DesignPageClient({
     <div>
       <TabBar active={activeTab} onChange={setActiveTab} />
 
-      {/* ── Style ──────────────────────────────────────────────────────────── */}
-      <TabPanel id="style" active={activeTab}>
-        <ThemeGallery tenantId={tenantId} activeTheme={activeTheme} />
-      </TabPanel>
-
-      {/* ── Presets ─────────────────────────────────────────────────────────── */}
+      {/* ── Presets (curated themes — contextual-rule compatible) ───────────── */}
       <TabPanel id="presets" active={activeTab}>
         <TabSectionHeader
           title="Design presets"
-          description="Apply a curated, ready-made look in one click — colours, typography, buttons, radius, and header are all set together. Fine-tune afterwards in the Advanced or Typography tab."
+          description="Pick a ready-made look. Each preset is a curated theme, so it also works with the Automatic-switching contextual rules. For a fully custom look, use the Builder tab."
         />
-        <PresetGallery tenantId={tenantId} design={design} />
+        <ThemeGallery tenantId={tenantId} activeTheme={activeTheme} />
       </TabPanel>
 
       {/* ── Builder ─────────────────────────────────────────────────────────── */}
