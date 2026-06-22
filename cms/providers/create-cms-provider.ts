@@ -154,7 +154,7 @@ export function createCMSProvider(
         // platform files would silently shadow the customer's remote content.
         const cmsFsPath = tenantBaseUrl ? undefined : serverEnv.statamic.cmsFsPath;
         const client = new StatamicClient(resolvedBaseUrl, undefined, cmsFsPath);
-        return wrap(new StatamicProvider(client), tenantId);
+        return wrap(new StatamicProvider(client, undefined, tenantId), tenantId);
       }
     }
 
@@ -210,7 +210,7 @@ export function createCMSProvider(
     logger.info("[CMS] Using StatamicProvider.", {
       apiUrl: serverEnv.statamic.apiUrl,
     });
-    return wrap(new StatamicProvider(), tenantId);
+    return wrap(new StatamicProvider(undefined, undefined, tenantId), tenantId);
   }
 
   // ── Mock (fallback) ────────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ export async function createCMSProviderAsync(
     // above) — but never when the tenant supplied an explicit remote URL.
     const cmsFsPath = statamicTenantUrl ? undefined : serverEnv.statamic.cmsFsPath;
     const client = new StatamicClient(statamicResolvedUrl, statamicApiKey, cmsFsPath);
-    return wrap(new StatamicProvider(client), tenantId);
+    return wrap(new StatamicProvider(client, undefined, tenantId), tenantId);
   }
 
   // No env vars, no DB config → MockCMSProvider.

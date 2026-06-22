@@ -248,8 +248,17 @@ export class StatamicProvider implements CMSProvider {
    *                    fallbackVariantKey resolution always succeeds without a DB
    *                    round-trip.
    */
-  constructor(client?: StatamicClient, draftBlocks?: unknown[]) {
+  /**
+   * The tenant this provider serves.  Required for adaptive_blocks lookups so
+   * the tenant-specific customization (admin → Tenant → Blocks, stored in the
+   * platform DB) is returned rather than the platform-wide default row.
+   * Undefined/null falls back to the platform-wide row.
+   */
+  private readonly tenantId: string | null;
+
+  constructor(client?: StatamicClient, draftBlocks?: unknown[], tenantId?: string | null) {
     this.client = client ?? createStatamicClient();
+    this.tenantId = tenantId ?? null;
     if (draftBlocks !== undefined) {
       // Store raw draft blocks for getPageBySlug so the live CP ordering is
       // used for page structure, not the stale on-disk page_blocks.
@@ -269,7 +278,16 @@ export class StatamicProvider implements CMSProvider {
   // ── CMSProvider interface ──────────────────────────────────────────────
 
   async getHeroVariant(key: string): Promise<HeroBlockData | null> {
-    // Primary: search Replicator blocks on the home page (legacy typed arrays)
+    // Platform-DB customization wins.  When an ACTIVE adaptive_blocks entry
+    // exists for this key + tenant (edited in admin → Tenant → Blocks), it
+    // overrides the Statamic home.md variant catalog.  Previously the home.md
+    // `hero_variant` shadowed the DB, so saved customizations never showed on
+    // the live site.  Keys without a DB row (hero_features, hero_pricing, …)
+    // return null here and fall through to the replicator catalog below.
+    const adaptive = this.adaptiveToHero(await this.getAdaptiveBlock(key));
+    if (adaptive) return adaptive;
+
+    // Fallback: search Replicator blocks on the home page (Statamic home.md).
     const content = await this.getHomePageContent();
     const block = content.find(
       (b): b is StatamicHeroReplicatorSet =>
@@ -290,12 +308,15 @@ export class StatamicProvider implements CMSProvider {
       } as StatamicHeroEntry);
     }
 
-    // Fallback (new architecture): look up from adaptive_blocks catalog
-    logger.debug(`[StatamicProvider] hero variant not in Replicator, trying adaptive blocks: ${key}`);
-    return this.adaptiveToHero(await this.getAdaptiveBlock(key));
+    logger.debug(`[StatamicProvider] hero variant not found in DB or Replicator: ${key}`);
+    return null;
   }
 
   async getProofVariant(key: string): Promise<ProofBlockData | null> {
+    // Platform-DB customization wins (see getHeroVariant for rationale).
+    const adaptive = this.adaptiveToProof(await this.getAdaptiveBlock(key));
+    if (adaptive) return adaptive;
+
     const content = await this.getHomePageContent();
     const block = content.find(
       (b): b is StatamicProofReplicatorSet =>
@@ -315,11 +336,15 @@ export class StatamicProvider implements CMSProvider {
       } as StatamicProofEntry);
     }
 
-    logger.debug(`[StatamicProvider] proof variant not in Replicator, trying adaptive blocks: ${key}`);
-    return this.adaptiveToProof(await this.getAdaptiveBlock(key));
+    logger.debug(`[StatamicProvider] proof variant not found in DB or Replicator: ${key}`);
+    return null;
   }
 
   async getCTAVariant(key: string): Promise<CTABlockData | null> {
+    // Platform-DB customization wins (see getHeroVariant for rationale).
+    const adaptive = this.adaptiveToCTA(await this.getAdaptiveBlock(key));
+    if (adaptive) return adaptive;
+
     const content = await this.getHomePageContent();
     const block = content.find(
       (b): b is StatamicCTAReplicatorSet =>
@@ -342,11 +367,15 @@ export class StatamicProvider implements CMSProvider {
       } as StatamicCTAEntry);
     }
 
-    logger.debug(`[StatamicProvider] CTA variant not in Replicator, trying adaptive blocks: ${key}`);
-    return this.adaptiveToCTA(await this.getAdaptiveBlock(key));
+    logger.debug(`[StatamicProvider] CTA variant not found in DB or Replicator: ${key}`);
+    return null;
   }
 
   async getFeatureVariant(key: string): Promise<FeatureBlockData | null> {
+    // Platform-DB customization wins (see getHeroVariant for rationale).
+    const adaptive = this.adaptiveToFeature(await this.getAdaptiveBlock(key));
+    if (adaptive) return adaptive;
+
     const content = await this.getHomePageContent();
     const block = content.find(
       (b): b is StatamicFeatureReplicatorSet =>
@@ -356,11 +385,14 @@ export class StatamicProvider implements CMSProvider {
       if (block.is_active === false || block.enabled === false) return null;
       return mapStatamicFeature({ ...block, is_active: true });
     }
-    logger.debug(`[StatamicProvider] feature variant not in Replicator, trying adaptive blocks: ${key}`);
-    return this.adaptiveToFeature(await this.getAdaptiveBlock(key));
+    return null;
   }
 
   async getConversionVariant(key: string): Promise<ConversionBlockData | null> {
+    // Platform-DB customization wins (see getHeroVariant for rationale).
+    const adaptive = this.adaptiveToConversion(await this.getAdaptiveBlock(key));
+    if (adaptive) return adaptive;
+
     const content = await this.getHomePageContent();
     const block = content.find(
       (b): b is StatamicConversionReplicatorSet =>
@@ -370,8 +402,7 @@ export class StatamicProvider implements CMSProvider {
       if (block.is_active === false || block.enabled === false) return null;
       return mapStatamicConversion({ ...block, is_active: true });
     }
-    logger.debug(`[StatamicProvider] conversion variant not in Replicator, trying adaptive blocks: ${key}`);
-    return this.adaptiveToConversion(await this.getAdaptiveBlock(key));
+    return null;
   }
 
   // ── Adaptive-to-typed-block adapters ─────────────────────────────────────────
@@ -496,28 +527,17 @@ export class StatamicProvider implements CMSProvider {
   }
 
   async getAdaptiveBlock(key: string): Promise<import("../types").AdaptiveBlockData | null> {
-    // Probeer eerst de adaptive_blocks Statamic collection op te halen.
-    // Falls back naar de Supabase DB wanneer de entry niet bestaat.
-    try {
-      const { ADAPTIVE_BLOCKS_COLLECTION } = await import("../queries/statamic/adaptive-block-queries");
-      const { mapStatamicAdaptiveBlock }    = await import("../mappers/statamic");
-      const entry = await this.client.fetchEntry<import("../queries/statamic/adaptive-block-queries").StatamicAdaptiveBlockEntry>(
-        ADAPTIVE_BLOCKS_COLLECTION,
-        key,
-        // adaptive_blocks entries are keyed by the `block_key` field, not `key`.
-        "block_key",
-      );
-      if (entry) {
-        if (entry.is_active === false) return null;
-        return mapStatamicAdaptiveBlock(entry);
-      }
-    } catch {
-      // fetchEntry gooit bij netwerk-/parsefouten — val terug op de DB
-    }
-
-    // DB fallback: adaptive block niet gevonden in Statamic
+    // Adaptive block customizations live exclusively in the platform DB.
+    // (The per-tenant Statamic `adaptive_blocks` collection was intentionally
+    // removed — customizations are edited via admin → Tenant → Blocks.)  We go
+    // straight to the DB, scoped to THIS tenant, so the tenant-specific row is
+    // returned (falling back to the platform-wide row when none exists).
+    //
+    // Reading DB-first also avoids firing extra requests at the Statamic
+    // instance on every slot lookup — important because that instance can be
+    // slow to cold-start, and those requests would add latency / flakiness.
     const { getAdaptiveBlockByKey } = await import("@/lib/adaptive-blocks/adaptive-blocks-store");
-    return getAdaptiveBlockByKey(key, null);
+    return getAdaptiveBlockByKey(key, this.tenantId);
   }
 
   async getSiteSettings(_locale = "en"): Promise<SiteSettingsData | null> {
