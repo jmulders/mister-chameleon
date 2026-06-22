@@ -2528,13 +2528,17 @@ export async function provisionTenantCmsAction(
         { key: "MISTER_CHAMELEON_MODE", value: "edge" },
         // Statamic Git integration — persists CP content edits back to the repo
         // (the container filesystem is ephemeral, so without this, edits are lost
-        // on redeploy). NOTE: STATAMIC_GIT_PUSH=true also needs a deploy key with
-        // write access on the per-tenant repo — that key is set up separately in
-        // Ploi/GitHub and cannot be injected as a secret here.
+        // on redeploy — this is what caused a CP site-URL edit to silently diverge
+        // from the repo).  The committer identity is set here so commits are valid;
+        // STATAMIC_GIT_PUSH=true ALSO needs a deploy key with WRITE access on the
+        // per-tenant repo, which must be set up in Ploi/GitHub (it cannot be safely
+        // injected as a secret here). The Finalize step prints that checklist.
         { key: "STATAMIC_GIT_ENABLED",        value: "true" },
         { key: "STATAMIC_GIT_AUTOMATIC",      value: "true" },
         { key: "STATAMIC_GIT_PUSH",           value: "true" },
         { key: "STATAMIC_GIT_DISPATCH_DELAY", value: "5" },
+        { key: "STATAMIC_GIT_USER_NAME",      value: `Mister Chameleon CMS (${tenantId})` },
+        { key: "STATAMIC_GIT_USER_EMAIL",     value: `cms+${tenantId}@misterchameleon.nl` },
       ],
     });
 
@@ -2591,6 +2595,7 @@ export async function finalizeTenantProvisioningAction(
   steps?: { label: string; ok: boolean; note: string }[];
   dns?: { type: string; name: string; value: string }[];
   ploiEnv?: { key: string; value: string }[];
+  manualSteps?: { label: string; detail: string }[];
 }> {
   await getRequiredAdminSession();
   try {
@@ -2674,6 +2679,29 @@ export async function finalizeTenantProvisioningAction(
       ploiEnv: [
         { key: "APP_URL",                 value: baseUrl },
         { key: "MC_PREVIEW_FRONTEND_URL", value: primaryUrl },
+      ],
+      // Two things that CANNOT be automated from here (they need GitHub/Ploi
+      // credentials + registrar DNS) but are required to avoid the two failure
+      // modes we hit in production. Surfaced as an explicit operator checklist.
+      manualSteps: [
+        {
+          label: "Use a STABLE CMS domain (not the *.preview.ploi.it host)",
+          detail:
+            `Preview hosts sleep and cold-start, which made the public nav flip between ` +
+            `the real site and a fallback. Add a domain like cms.${apex} to the Ploi app ` +
+            `(A-record → the IP Ploi shows under Domains), wait for SSL, then re-run Finalize ` +
+            `with that host so statamicBaseUrl = https://cms.${apex}.`,
+        },
+        {
+          label: "Add a WRITE deploy key so STATAMIC_GIT_PUSH actually pushes",
+          detail:
+            `STATAMIC_GIT_PUSH=true + the committer identity are set automatically, but the ` +
+            `container still needs a deploy key with write access or CP edits commit locally ` +
+            `and are LOST on the next redeploy (this is what made a CP site-URL edit silently ` +
+            `diverge from the repo). In Ploi, add the app's deploy key to ` +
+            `github.com/${ghRes.ok ? githubFlags(ghRes.data).repoOwner : "<owner>"}/${(ghRes.ok ? `${githubFlags(ghRes.data).templateRepo}-` : "")}${provisioningSlug(tenantId)} ` +
+            `→ Settings → Deploy keys, with "Allow write access" checked.`,
+        },
       ],
     };
   } catch (err) {
