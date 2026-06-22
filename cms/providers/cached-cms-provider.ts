@@ -49,6 +49,7 @@
  *   entries without disturbing other tenants.
  */
 
+import { unstable_cache } from "next/cache";
 import type { CMSProvider, ProvisionResult, StarterContentMode, TestConnectionResult } from "./cms-provider";
 import type {
   HeroBlockData,
@@ -188,29 +189,56 @@ export class CachedCMSProvider implements CMSProvider {
     const cached = getCmsSingleton<SiteSettingsData | null>(this.tenantId, cacheKey);
     if (cached !== null) return cached;
 
-    const value = await this.inner.getSiteSettings(locale);
+    // ── Cross-instance persistent cache (the real flip-flop fix) ──────────────
+    //
+    // getSiteSettings() fans out to MANY independent sub-fetches against the CMS
+    // (main_nav, top_bar, footer, section_tabs, the layout_settings global that
+    // carries the HEADER VARIANT, etc.).  On a cold serverless instance any one
+    // of them can transiently fail, producing a DEGRADED result — e.g. the
+    // main_nav is present (so the old "navOk" guard passed) but the header
+    // variant / section tabs are missing because the layout_settings global
+    // fetch failed.  That degraded result rendered a DIFFERENT header than the
+    // complete one → the "different navigation on refresh" the user sees.
+    //
+    // An in-process Map can't fix this: each cold lambda starts empty.  We wrap
+    // a COMPLETENESS-GATED fetch in Next's persistent, cross-instance data cache
+    // so that once any instance produces a complete result it is shared with all
+    // others.  The inner fn THROWS unless the result is complete (good nav AND a
+    // resolved header variant), so a degraded result is never persisted.
+    const fetchComplete = unstable_cache(
+      async (): Promise<SiteSettingsData> => {
+        const v = await this.inner.getSiteSettings(locale);
+        const complete = Boolean(
+          v &&
+          Array.isArray(v.mainNavigation) && v.mainNavigation.length > 0 &&
+          v.headerVariant,
+        );
+        if (!complete) throw new Error("[cached-cms] site settings incomplete (transient)");
+        return v as SiteSettingsData;
+      },
+      ["site-settings-complete", this.tenantId ?? "_", locale],
+      { revalidate: 120, tags: ["site-settings"] },
+    );
 
-    // A non-null result with an EMPTY main navigation is almost always a
-    // transient nav fetch failure (e.g. the instance's nav API momentarily 404s
-    // or returns [] during a cold start / Stache rebuild / scaling). Treat it
-    // like an outage: don't let it overwrite a good last-known-good nav — that
-    // is exactly what causes the "flickering / fallback nav" on refresh.
-    const prev    = lastGoodSiteSettings.get(lgKey);
-    const navOk   = Boolean(value && Array.isArray(value.mainNavigation) && value.mainNavigation.length > 0);
-    const prevNav = Boolean(prev && Array.isArray(prev.mainNavigation) && prev.mainNavigation.length > 0);
+    try {
+      const good = await fetchComplete();
+      setCmsSingleton(this.tenantId, cacheKey, good);
+      lastGoodSiteSettings.set(lgKey, good);
+      return good;
+    } catch {
+      // The live result was incomplete (or a sub-fetch failed).  Serve the
+      // richest last-known-good we have so the chrome (header + nav) stays
+      // stable instead of flipping to a degraded variant.
+      const prev = lastGoodSiteSettings.get(lgKey);
+      if (prev) return prev;
 
-    if (value && (navOk || !prevNav)) {
-      // Good nav, OR we have never seen a good nav (don't get stuck): cache it
-      // and remember as last-known-good.
-      setCmsSingleton(this.tenantId, cacheKey, value);
-      lastGoodSiteSettings.set(lgKey, value);
-      return value;
+      // No last-known-good yet (truly cold).  Fall back to a raw fetch so the
+      // page still renders the best available chrome rather than nothing — but
+      // do NOT poison the singleton cache with a possibly-degraded result.
+      const raw = await this.inner.getSiteSettings(locale);
+      if (raw) lastGoodSiteSettings.set(lgKey, raw);
+      return raw ?? null;
     }
-
-    // Either the inner returned null, OR it returned settings with an empty nav
-    // while we DO have a previous good nav. Do NOT cache this transient result.
-    // Serve the last-known-good so the chrome (header nav) stays correct.
-    return prev ?? value ?? null;
   }
 
   // ── Page fetch (cached by slug + locale) ────────────────────────────────
