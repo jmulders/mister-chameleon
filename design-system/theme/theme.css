@@ -444,3 +444,21 @@
 [data-theme] {
   /* Placeholder — individual experience themes extend this selector */
 }
+
+/* ── 5. Design-preset token consumers (tenant sites only) ────── */
+/*
+ * Wires the design-preset typography tokens that have no existing consumer.
+ * Scoped to [data-site] so admin/dashboard chrome is never affected, and wrapped
+ * in :where() so its specificity is effectively zero — a theme family's own
+ * heading rules always win. Every value falls back to its CSS-initial, so an
+ * unset token changes nothing (no risk to curated themes).
+ *
+ *   --heading-transform    ← typography.headingTransform
+ *   --letter-spacing       ← typography.letterSpacing
+ *   --heading-line-height  ← typography.headingLineHeight
+ */
+[data-site] :where(h1, h2, h3, h4, h5, h6) {
+  text-transform: var(--heading-transform, none);
+  letter-spacing: var(--letter-spacing, normal);
+  line-height: var(--heading-line-height, normal);
+}

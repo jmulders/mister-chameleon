@@ -162,9 +162,12 @@ export function Button({
         // Fallback (600) matches the --btn-font-weight default in theme.css.
         "[font-weight:var(--btn-font-weight,600)]",
         "[text-transform:var(--btn-text-transform,none)]",
+        // Letter-spacing from the button token group (default: normal — no change).
+        "[letter-spacing:var(--btn-tracking,normal)]",
         "transition-colors duration-150 cursor-pointer",
-        // Focus ring — uses --ring CSS var (overridden by tenant preset)
-        "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
+        // Focus ring — width + colour from the focus token group; fall back to the
+        // previous behaviour (2px, --ring) when those tokens are not set.
+        "focus-visible:outline-[length:var(--focus-ring-width,2px)] focus-visible:outline-[color:var(--focus-ring-color,var(--ring))] focus-visible:outline-offset-2",
         "select-none whitespace-nowrap",
         // Variant + size
         // "link" variant is a plain text link — no fixed height, padding, or radius.
