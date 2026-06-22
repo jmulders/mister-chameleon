@@ -210,10 +210,18 @@ const nextConfig = {
     // frame-ancestors must list those origins for the iframe to load.
     //   - Dev:  localhost:8000
     //   - Prod: https://*.ploi.it  + optional STATAMIC_CP_ORIGIN
-    const cpOrigin   = process.env.STATAMIC_CP_ORIGIN; // e.g. https://cms.misterchameleon.nl
+    // STATAMIC_CP_ORIGIN may list MULTIPLE custom CP origins (one per tenant CMS
+    // domain), space- or comma-separated, e.g.
+    //   "https://cms.misterchameleon.nl https://cms.steunles.nl"
+    // Each must appear in frame-ancestors or that CP's Live Preview iframe is
+    // blocked ("refused to connect"). *.ploi.it covers the managed preview hosts.
+    const cpOrigins  = (process.env.STATAMIC_CP_ORIGIN ?? "")
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .join(" ");
     const frameAllow = isDev
       ? "frame-ancestors 'self' http://localhost:8000"
-      : `frame-ancestors 'self' https://*.ploi.it${cpOrigin ? ` ${cpOrigin}` : ""}`;
+      : `frame-ancestors 'self' https://*.ploi.it${cpOrigins ? ` ${cpOrigins}` : ""}`;
 
     return [
       {
