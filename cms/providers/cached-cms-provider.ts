@@ -221,7 +221,11 @@ export class CachedCMSProvider implements CMSProvider {
         if (!navOk) throw new Error("[cached-cms] site settings have no navigation (transient)");
         return v as SiteSettingsData;
       },
-      ["site-settings-complete", this.tenantId ?? "_", locale],
+      // NOTE: the key suffix (-v2) is a CACHE VERSION. Bump it whenever the
+      // SHAPE of the cached site-settings changes (e.g. logo URLs switching from
+      // root-relative to absolute), so a deploy bypasses the stale cross-deploy
+      // Data Cache entry immediately instead of waiting out `revalidate`.
+      ["site-settings-complete-v2", this.tenantId ?? "_", locale],
       { revalidate: 120, tags: ["site-settings"] },
     );
 

@@ -640,7 +640,12 @@ export class StatamicProvider implements CMSProvider {
         if (!first) return null;
         let raw: string | null = null;
         if (typeof first === "string") raw = first || null;
-        else raw = first.url ?? first.permalink ?? null;
+        // Prefer `permalink` — the HTTP API returns it as the ABSOLUTE asset URL
+        // on this tenant's own CMS host (e.g. https://cms.steunles.nl/assets/…),
+        // whereas `url` is root-relative (/assets/…) and would resolve against
+        // the frontend origin, which only proxies /assets to a single build-time
+        // host → 404 on a second tenant. Fall back to url (+ absolutise below).
+        else raw = first.permalink ?? first.url ?? null;
         if (!raw) return null;
         // Bare filename (no leading / and no protocol) → prefix with /assets/ so
         // the Next.js asset proxy route serves it correctly.
