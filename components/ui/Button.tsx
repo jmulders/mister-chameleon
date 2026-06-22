@@ -164,7 +164,9 @@ export function Button({
         "[text-transform:var(--btn-text-transform,none)]",
         // Letter-spacing from the button token group (default: normal — no change).
         "[letter-spacing:var(--btn-tracking,normal)]",
-        "transition-colors duration-150 cursor-pointer",
+        "transition-[color,background-color,box-shadow,transform] duration-150 cursor-pointer",
+        // Hover lift from the motion token group (default: 0px — no movement).
+        "hover:[transform:translateY(var(--motion-hover-lift,0px))]",
         // Focus ring — width + colour from the focus token group; fall back to the
         // previous behaviour (2px, --ring) when those tokens are not set.
         "focus-visible:outline-[length:var(--focus-ring-width,2px)] focus-visible:outline-[color:var(--focus-ring-color,var(--ring))] focus-visible:outline-offset-2",
