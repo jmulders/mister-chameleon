@@ -56,7 +56,10 @@ export function SearchBar({
       inputRef.current?.focus();
       return;
     }
-    router.push(`${searchHref}?q=${encodeURIComponent(q)}`);
+    // Guard: a non-string / empty href (e.g. an unwrapped CMS link object) would
+    // stringify to "[object Object]" and 404. Fall back to the canonical path.
+    const base = typeof searchHref === "string" && searchHref ? searchHref : "/search";
+    router.push(`${base}?q=${encodeURIComponent(q)}`);
   }
 
   return (

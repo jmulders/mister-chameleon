@@ -1014,13 +1014,30 @@ export class StatamicClient {
   /**
    * Resolve a Statamic link-field value to a plain URL string.
    *
-   * Handles "entry::uuid" references by looking up the pages collection on
-   * the filesystem.  Plain URLs and anchors are returned unchanged.
-   * Only works when STATAMIC_CMS_PATH is set; returns the raw value otherwise
-   * (the HTTP API already resolves entry refs in its response payload).
+   * The `link` fieldtype is returned in TWO shapes depending on the source:
+   *   - HTTP Content API → an OBJECT, e.g. { url: "/pricing", permalink, … } for
+   *     a resolved link, or { url: null } for an empty/optional link.
+   *   - File reader (STATAMIC_CMS_PATH) → a raw STRING ("entry::uuid", "/path",
+   *     "#anchor").
+   *
+   * We normalise both to a string URL (or null). This is critical: an unwrapped
+   * object would stringify to "[object Object]" when interpolated into an href
+   * (e.g. the header search box → router.push(`${searchHref}?q=…`) → a /[object
+   * Object] 404). For the object shape we prefer the root-relative `url` over the
+   * absolute `permalink` so links stay same-origin.
    */
-  async resolveLink(value: string | null | undefined): Promise<string | null> {
+  async resolveLink(value: unknown): Promise<string | null> {
     if (!value) return null;
+
+    // HTTP API object shape — unwrap to a string URL (null when the link is empty).
+    if (typeof value === "object") {
+      const obj = value as { url?: unknown; permalink?: unknown };
+      if (typeof obj.url === "string" && obj.url) return obj.url;
+      if (typeof obj.permalink === "string" && obj.permalink) return obj.permalink;
+      return null;
+    }
+
+    if (typeof value !== "string") return null;
     if (!this.fileReader) return value; // HTTP API already resolves entry refs
     return this.fileReader.resolveLink(value);
   }
