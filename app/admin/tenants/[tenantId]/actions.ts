@@ -1071,6 +1071,14 @@ export interface VisualTokenFields {
    * typography is visible immediately without a manual reset step.
    */
   typographyOverrideEnabled?: boolean;
+  /**
+   * When `true`, ALL existing tokenOverrides are cleared (set to undefined) on
+   * save, regardless of any per-field sets above.  Used by the Style tab so that
+   * activating a curated theme family fully replaces any design-preset / Builder
+   * tokens — keeping curated "Style" and token "Presets" mutually exclusive (one
+   * source of truth) instead of layering on top of each other.
+   */
+  clearTokenOverrides?: boolean;
 }
 
 export type SaveVisualTokensResult =
@@ -1270,7 +1278,9 @@ export async function saveVisualTokensAction(
     ...(fields.footerDensity       !== undefined ? { footerDensity:       (fields.footerDensity as FooterDensity) || undefined } : {}),
     ...(fields.selectedStyleFamily       !== undefined ? { selectedStyleFamily:       fields.selectedStyleFamily || undefined }                                              : {}),
     ...(fields.typographyOverrideEnabled !== undefined ? { typographyOverrideEnabled: fields.typographyOverrideEnabled }                                                    : {}),
-    tokenOverrides: finalOverrides,
+    // clearTokenOverrides wipes all design-preset/Builder tokens so a curated
+    // Style fully replaces them (mutually exclusive with the Presets tab).
+    tokenOverrides: fields.clearTokenOverrides ? undefined : finalOverrides,
   };
 
   const updated: TenantSettings = { ...current, design: updatedDesign };

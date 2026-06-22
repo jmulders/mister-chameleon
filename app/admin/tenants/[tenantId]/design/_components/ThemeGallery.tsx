@@ -916,6 +916,9 @@ export function ThemeGallery({ tenantId, activeTheme }: ThemeGalleryProps) {
         // applied cleanly without being masked by stale font overrides from the
         // previous family.  The operator can re-enable it in Design → Typography.
         typographyOverrideEnabled: false,
+        // Wipe any design-preset / Builder tokens so the curated family is the
+        // single source of truth — Style and Presets are mutually exclusive.
+        clearTokenOverrides: true,
         ...(featuredFamily ? { selectedStyleFamily: featuredFamily } : { selectedStyleFamily: "" }),
       });
       if (result.ok) {
