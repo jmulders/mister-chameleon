@@ -1789,6 +1789,51 @@ export interface TenantTokenOverrides {
    * Unknown keys fall back to `--layout-{kebab-key}`.
    */
   readonly layout?: Readonly<Record<string, string>>;
+
+  /**
+   * Grid / content-structure tokens.
+   *   columns      → --grid-columns      (card grids: "2" | "3" | "4")
+   *   gutter       → --grid-gutter        (gap between grid items)
+   *   contentWidth → --content-width      (max content measure)
+   * Unknown keys fall back to `--grid-{kebab-key}`.
+   */
+  readonly grid?: Readonly<Record<string, string>>;
+
+  /**
+   * Responsive section-rhythm tokens (per breakpoint vertical section padding).
+   *   sectionDesktop → --section-py-desktop
+   *   sectionTablet  → --section-py-tablet
+   *   sectionMobile  → --section-py-mobile
+   * Consumed by the section shell via @media rules in theme.css.
+   */
+  readonly responsive?: Readonly<Record<string, string>>;
+
+  /**
+   * Elevation tokens.
+   *   mode       → --elevation-mode ("flat" | "elevated"; advisory)
+   *   cardShadow → --card-shadow
+   * Unknown keys fall back to `--elevation-{kebab-key}`.
+   */
+  readonly elevation?: Readonly<Record<string, string>>;
+
+  /**
+   * Focus-ring tokens (accessibility).
+   *   ringWidth → --focus-ring-width
+   *   ringColor → --ring
+   * Unknown keys fall back to `--focus-{kebab-key}`.
+   */
+  readonly focus?: Readonly<Record<string, string>>;
+
+  /**
+   * Button per-variant + geometry tokens. Most map onto existing --btn-* vars.
+   *   primaryFill → --btn-bg, primaryHover → --btn-hover-bg, primaryText → --btn-text,
+   *   radius → --btn-radius, paddingX → --btn-px, paddingY → --btn-py,
+   *   weight → --btn-font-weight, transform → --btn-text-transform,
+   *   tracking → --btn-tracking, shadow → --btn-shadow,
+   *   secondaryStyle → --btn-secondary-style.
+   * Unknown keys fall back to `--button-{kebab-key}`.
+   */
+  readonly button?: Readonly<Record<string, string>>;
 }
 
 // ── Custom font types ──────────────────────────────────────────────────────────

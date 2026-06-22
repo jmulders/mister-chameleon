@@ -120,6 +120,12 @@ export interface DesignTokenUploadInput {
   // layout: header/footer shell colors + navigation typography overrides.
   // Maps to --header-*, --footer-*, --nav-link-* CSS custom properties.
   layout?:     Record<string, string>;
+  // Design-preset token groups (Builder / Gallery).
+  grid?:       Record<string, string>;
+  responsive?: Record<string, string>;
+  elevation?:  Record<string, string>;
+  focus?:      Record<string, string>;
+  button?:     Record<string, string>;
 }
 
 // ── Token key definitions ──────────────────────────────────────────────────────
@@ -155,6 +161,12 @@ export const GROUPED_TOKEN_GROUPS = [
   // layout: structural chrome layer — header/footer shell colors and
   // navigation typography.  Maps to LAYOUT_CSS_VARS in resolve-theme.ts.
   "layout",
+  // Design-preset token groups (Builder / Gallery).
+  "grid",
+  "responsive",
+  "elevation",
+  "focus",
+  "button",
 ] as const;
 
 export type GroupedTokenGroup = (typeof GROUPED_TOKEN_GROUPS)[number];
@@ -176,6 +188,8 @@ export const GROUP_TOKEN_KEYS: Record<GroupedTokenGroup, readonly string[]> = {
     "destructive", "destructiveForeground",
     "card", "cardForeground",
     "popover", "popoverForeground",
+    // Design-preset additions
+    "primaryHover", "onPrimary", "link", "success", "danger",
   ],
   typography: [
     // Base font families
@@ -185,13 +199,22 @@ export const GROUP_TOKEN_KEYS: Record<GroupedTokenGroup, readonly string[]> = {
     // Usage-role mappings
     "fontHeading", "fontBody", "fontUI", "fontCode",
     "fontHeadingSource",
+    // Design-preset additions
+    "scaleRatio", "headingWeight", "navWeight",
+    "letterSpacing", "headingTransform", "eyebrowTransform",
+    "navTransform", "navTracking", "linkUnderline",
+    "headingLineHeight", "bodyLineHeight",
   ],
   radius: [
     "interactive", "card", "popover",
     "sm", "md", "lg", "full",
+    // Design-preset additions
+    "button", "input",
   ],
   spacing: [
     "base", "xs", "sm", "md", "lg", "xl", "2xl",
+    // Design-preset additions
+    "sectionPadding", "container", "align",
   ],
   border: [
     "width", "widthSm", "widthLg", "color",
@@ -202,6 +225,8 @@ export const GROUP_TOKEN_KEYS: Record<GroupedTokenGroup, readonly string[]> = {
   motion: [
     "durationFast", "durationBase", "durationSlow",
     "easingDefault", "easingIn", "easingOut", "easingInOut",
+    // Design-preset additions
+    "hoverLift", "cardHoverShadow", "speed", "revealOnScroll",
   ],
   component: [
     "buttonRadius", "buttonPaddingX", "buttonPaddingY",
@@ -230,6 +255,31 @@ export const GROUP_TOKEN_KEYS: Record<GroupedTokenGroup, readonly string[]> = {
     "navLinkTracking",
     "navDropdownItemSize",
     "footerNavSize",
+    // Design-preset additions
+    "headerStyle",
+    "navWeight",
+    "navTracking",
+    "navTransform",
+    "navHover",
+    "footerStyle",
+  ],
+  // ── Design-preset token groups ───────────────────────────────────────────
+  grid: [
+    "columns", "gutter", "contentWidth",
+  ],
+  responsive: [
+    "sectionDesktop", "sectionTablet", "sectionMobile",
+  ],
+  elevation: [
+    "mode", "cardShadow",
+  ],
+  focus: [
+    "ringWidth", "ringColor",
+  ],
+  button: [
+    "primaryFill", "primaryHover", "primaryText",
+    "secondaryStyle", "radius", "paddingX", "paddingY",
+    "weight", "transform", "tracking", "shadow",
   ],
 } as const;
 
@@ -401,6 +451,7 @@ const GROUP_VALUE_TYPES: Record<GroupedTokenGroup, Partial<Record<string, CssVal
     destructive: "color", destructiveForeground: "color",
     card: "color", cardForeground: "color",
     popover: "color", popoverForeground: "color",
+    primaryHover: "color", onPrimary: "color", link: "color", success: "color", danger: "color",
   },
   typography: {
     // Base families
@@ -422,10 +473,12 @@ const GROUP_VALUE_TYPES: Record<GroupedTokenGroup, Partial<Record<string, CssVal
   radius: {
     interactive: "length", card: "length", popover: "length",
     sm: "length", md: "length", lg: "length", full: "length",
+    button: "length", input: "length",
   },
   spacing: {
     base: "length", xs: "length", sm: "length", md: "length",
     lg: "length", xl: "length", "2xl": "length",
+    sectionPadding: "length", container: "length", // align → string (default)
   },
   border: {
     width: "length", widthSm: "length", widthLg: "length",
@@ -465,6 +518,25 @@ const GROUP_VALUE_TYPES: Record<GroupedTokenGroup, Partial<Record<string, CssVal
     navLinkTracking:     "string",
     navDropdownItemSize: "length",
     footerNavSize:       "length",
+    // headerStyle / navWeight / navTracking / navTransform / navHover / footerStyle → string (default)
+  },
+  // ── Design-preset token groups ───────────────────────────────────────────
+  grid: {
+    gutter: "length", contentWidth: "length", // columns → string (default)
+  },
+  responsive: {
+    sectionDesktop: "length", sectionTablet: "length", sectionMobile: "length",
+  },
+  elevation: {
+    cardShadow: "string", // mode → string (default)
+  },
+  focus: {
+    ringWidth: "length", ringColor: "color",
+  },
+  button: {
+    primaryFill: "color", primaryHover: "color", primaryText: "color",
+    radius: "length", paddingX: "length", paddingY: "length",
+    // secondaryStyle / weight / transform / tracking / shadow → string (default)
   },
 };
 

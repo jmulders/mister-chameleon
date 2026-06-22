@@ -366,6 +366,9 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
           // These map to --header-*, --footer-*, --nav-link-* CSS custom properties
           // via LAYOUT_CSS_VARS in resolve-theme.ts.
           "layout",
+          // Design-preset token groups (Builder / Gallery). Each maps to CSS vars
+          // in resolve-theme.ts; the per-key allowlist lives in design-token-validator.ts.
+          "grid", "responsive", "elevation", "focus", "button",
         ] as const;
         for (const group of GROUPED_OVERRIDE_KEYS) {
           if (to[group] === undefined) continue;
