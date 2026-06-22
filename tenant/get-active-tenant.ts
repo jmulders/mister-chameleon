@@ -83,6 +83,20 @@ import { DEV_TENANT_COOKIE }  from "./dev-tenant-cookie";
 import { buildTenantConfigFromSettings } from "./build-tenant-config";
 import type { TenantConfig }  from "./types";
 
+// Module-level last-known-good host → tenant resolution cache.
+//
+// `www.misterchameleon.nl` (and every admin-provisioned custom domain) is NOT in
+// the static TENANT_REGISTRY, so it resolves via the async store lookup (step 3)
+// on every request. When that lookup TRANSIENTLY returns null (cold start, a DB
+// hiccup, a momentary cache miss), step 4 falls back to FALLBACK_TENANT
+// (mister-chameleon) — a DIFFERENT tenant with different content/nav. That is
+// exactly what makes the header/nav "flip-flop" between tenants on refresh.
+//
+// Once a host has resolved to a real store-based tenant we pin it here, so a
+// later transient store miss serves the correct tenant instead of the fallback.
+// The map only grows by distinct host, so it stays tiny.
+const lastGoodTenantByHost = new Map<string, TenantConfig>();
+
 /**
  * Returns the TenantConfig for the current request.
  *
@@ -146,17 +160,27 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   // store and matches primaryDomain / additionalDomains against the host.
   // If a settings match is found, we use the stored tenantId to look up the
   // TenantConfig (so the full runtime config is returned, not just settings).
+  const hostKey = host.toLowerCase();
   const storedTenant = await getTenantByDomain(host);
   if (storedTenant) {
-    const configFromRegistry = resolveTenantById(storedTenant.tenantId);
-    if (configFromRegistry) return configFromRegistry;
     // Tenant is in the store but not in the static registry (admin-onboarded).
     // Build its runtime config from the stored settings so its domain is fully
     // served on production without needing a code entry in resolve-tenant.ts.
     // This is what makes domain → tenant assignment switchable purely from the
     // DB / admin UI (tenant_domains), with no code deploy.
-    return buildTenantConfigFromSettings(storedTenant);
+    const config = resolveTenantById(storedTenant.tenantId)
+      ?? buildTenantConfigFromSettings(storedTenant);
+    lastGoodTenantByHost.set(hostKey, config); // pin as last-known-good for this host
+    return config;
   }
+
+  // ── 3b. Transient store miss → serve the last-known-good for this host ────
+  // The store lookup returned null. If this host has resolved to a real tenant
+  // before, that mapping is stable (domains don't silently change), so this is
+  // almost certainly a transient outage — serve the pinned tenant rather than
+  // flipping the whole site to FALLBACK_TENANT (the nav/header flip-flop).
+  const lastGood = lastGoodTenantByHost.get(hostKey);
+  if (lastGood) return lastGood;
 
   // ── 4. Fallback ──────────────────────────────────────────────────────────
   return resolveTenant(host); // returns FALLBACK_TENANT for unknown hosts
