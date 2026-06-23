@@ -171,6 +171,10 @@ function extractGradients(css: string, html: string): string[] {
   const add = (raw: string) => {
     const v = raw.trim().replace(/\s+/g, " ").replace(/!important$/i, "").trim();
     if (!v || !GRADIENT_FN.test(v) || /[;{}<>\\]/.test(v) || v.length > 400) return;
+    // Drop gradients whose colour stops are CSS variables (e.g. Tailwind's
+    // `var(--tw-gradient-stops)`): we can't supply those vars, so the gradient
+    // would render empty. Keep only fully-literal gradients.
+    if (/var\(/i.test(v)) return;
     counts.set(v, (counts.get(v) ?? 0) + 1);
   };
   // Any declaration value (property: value;) that contains a gradient function.
@@ -181,12 +185,8 @@ function extractGradients(css: string, html: string): string[] {
       if (GRADIENT_FN.test(decl)) add(decl.split(":").slice(1).join(":"));
     }
   }
-  return [...counts.entries()]
-    .sort((a, b) =>
-      (Number(a[0].includes("var(")) - Number(b[0].includes("var("))) ||
-      (b[1] - a[1]),
-    )
-    .map((e) => e[0]);
+  // Most frequent first (a repeated gradient is likely the main brand one).
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]);
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────────
@@ -220,20 +220,27 @@ export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractRe
     }
   }
 
-  // Colour-frequency fallback for the essentials.
-  if (!color.background || !color.foreground || !color.primary) {
+  // Colour-frequency enrichment — fills the palette from the page's hex usage so
+  // the result is richer than just the few semantic CSS vars a site exposes
+  // (especially Tailwind sites, which barely use semantic colour variables).
+  {
     const counts = new Map<string, number>();
     for (const m of css.matchAll(/#[0-9a-f]{6}\b/gi)) {
       const hex = m[0].toLowerCase(); counts.set(hex, (counts.get(hex) ?? 0) + 1);
     }
     const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]);
-    const lum = (hex: string) => {
-      const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-      return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    };
-    if (!color.background) { const c = sorted.find((h) => lum(h) > 0.85); if (c) { color.background = c; notes.push("Achtergrond geschat uit kleur-frequentie."); } }
-    if (!color.foreground) { const c = sorted.find((h) => lum(h) < 0.25); if (c) { color.foreground = c; notes.push("Tekstkleur geschat uit kleur-frequentie."); } }
-    if (!color.primary)    { const c = sorted.find((h) => { const l = lum(h); return l > 0.2 && l < 0.75; }); if (c) { color.primary = c; notes.push("Primair geschat uit kleur-frequentie."); } }
+    const rgb    = (hex: string) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)] as const;
+    const lum    = (hex: string) => { const [r, g, b] = rgb(hex); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
+    const chroma = (hex: string) => { const [r, g, b] = rgb(hex); return (Math.max(r, g, b) - Math.min(r, g, b)) / 255; };
+
+    if (!color.background) { const c = sorted.find((h) => lum(h) > 0.9); if (c) { color.background = c; notes.push("Achtergrond geschat uit kleur-frequentie."); } }
+    if (!color.foreground) { const c = sorted.find((h) => lum(h) < 0.28 && chroma(h) < 0.4); if (c) { color.foreground = c; notes.push("Tekstkleur geschat uit kleur-frequentie."); } }
+    if (!color.primary)    { const c = sorted.find((h) => chroma(h) > 0.25 && lum(h) > 0.15 && lum(h) < 0.82); if (c) { color.primary = c; notes.push("Primair geschat uit kleur-frequentie."); } }
+    if (!color.accent)     { const c = sorted.find((h) => chroma(h) > 0.3 && h !== color.primary); if (c) color.accent = c; }
+    if (!color.secondary)  { const c = sorted.find((h) => chroma(h) > 0.2 && h !== color.primary && h !== color.accent); if (c) color.secondary = c; }
+    if (!color.border)     { const c = sorted.find((h) => { const l = lum(h); return l > 0.78 && l < 0.96 && chroma(h) < 0.08; }); if (c) color.border = c; }
+    if (!color.muted)      { const c = sorted.find((h) => lum(h) > 0.93 && chroma(h) < 0.06 && h !== color.background); if (c) color.muted = c; }
+    if (!color.card && color.background) color.card = color.background;
   }
 
   // ── Gradients ──────────────────────────────────────────────────────────────
@@ -250,6 +257,9 @@ export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractRe
   const body    = fontFromVars(props, /font-?(sans|body|base|text|family)?$/) ?? fontFromSelector(css, /(^|\s|,)(body|html)(\s|,|\.|:|$)/i);
   if (heading) typography.fontHeading = heading;
   if (body)    typography.fontBody    = body;
+  // Fall back the heading font to the body font so headings aren't left unstyled
+  // (many sites use one family for both).
+  if (typography.fontBody && !typography.fontHeading) typography.fontHeading = typography.fontBody;
 
   // ── Radius + shadow ──────────────────────────────────────────────────────────
   const radius: Record<string, string> = {};

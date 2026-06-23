@@ -112,15 +112,19 @@ Once configured, you can also trigger this deploy from the admin:
 **Admin → Tenants → [tenant] → Setup → "Deploy CMS now"** (paste this tenant's
 Ploi deploy webhook URL there once — each Statamic instance has its own).
 
-## 2b. Seed the standard pages
-For a brand-new instance, copy the clean starter pages so the CP has valid,
-typed content from the start, then populate the placeholder images:
+## 2b. Seed the standard pages (fresh instances only)
+Use the **guarded** seed step — it copies the neutral starter pages ONLY when
+`content/` is empty, so it can never overwrite an existing tenant's content. Safe
+to run on every deploy (no-op once content exists); wire it into the Ploi Init
+container commands:
 
 ```bash
-cp -R seed/content/. content/
-bash seed/download-placeholders.sh
+bash seed/seed-if-empty.sh        # seeds pages if empty + downloads placeholders
 php please cache:clear && php please stache:refresh
 ```
+
+> Do NOT run a raw `cp -R seed/content/. content/` on a live instance — that
+> overwrites existing pages. The guarded script exists precisely to prevent this.
 
 `seed/` contains neutral placeholder pages: `home.md` (context slots + the global
 variant catalogue), `showcase.md` (`/showcase`, noindex — one of every component
