@@ -56,8 +56,10 @@ import { InMemorySearchProvider }      from "./in-memory-search-provider";
 import { SanitySearchProvider }        from "./sanity-search-provider";
 import { MeilisearchSearchProvider }   from "./meilisearch-search-provider";
 import { StatamicSearchProvider }      from "./statamic-search-provider";
+import { StatamicHttpSearchProvider }  from "./statamic-http-search-provider";
 import { serverEnv }                   from "@/lib/env";
 import { getDb }                       from "@/data/db";
+import { getTenantById }               from "@/tenant/server";
 import { decryptSecret, hasStoredSecret } from "@/lib/email-crypto";
 import { logger }                      from "@/lib/logger";
 
@@ -81,6 +83,34 @@ export async function getSearchProvider(tenantId?: string | null): Promise<Searc
   if (tenantId) {
     const explicit = await tryLoadExplicitProvider(tenantId);
     if (explicit) return explicit;
+  }
+
+  // ── 1.5 Statamic tenant over HTTP (production default for Statamic) ────────
+  //
+  // A Statamic tenant must search its OWN remote CMS — not the platform Sanity
+  // (step 2) and not the in-memory fixtures (step 4). This provider queries the
+  // tenant's Statamic Content API directly, so production search returns REAL
+  // content (e.g. /team/team-lisa) without a Meilisearch index. Gated on the
+  // tenant being Statamic so Sanity tenants still fall through to step 2.
+  try {
+    const tenant = tenantId ? await getTenantById(tenantId) : null;
+    const isStatamic =
+      tenant?.cms?.provider === "statamic" ||
+      (!tenant && serverEnv.statamic.isConfigured);
+    const base =
+      tenant?.cms?.statamicBaseUrl?.trim() ||
+      (serverEnv.statamic.isConfigured ? serverEnv.statamic.apiUrl : "");
+    if (isStatamic && base) {
+      return new StatamicHttpSearchProvider({
+        baseUrl: base,
+        apiKey:  serverEnv.statamic.apiKey,
+      });
+    }
+  } catch (err) {
+    logger.warn("[search-providers] Statamic HTTP provider init failed — falling through", {
+      tenantId: tenantId ?? null,
+      error:    String(err),
+    });
   }
 
   // ── 2. Sanity GROQ (auto-detect) ──────────────────────────────────────────
