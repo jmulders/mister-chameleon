@@ -31,7 +31,6 @@ import { PresetBuilder }        from "./PresetBuilder";
 import { ThemeRulesEditor }     from "./ThemeRulesEditor";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
-import { DesignTokenUpload }    from "@/components/admin/DesignTokenUpload";
 import { saveVisualTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { ThemePresetKey }    from "@/design-system/theme/presets";
 import type { StoredRulesConfig } from "@/decision/rules/stored-rule";
@@ -641,7 +640,6 @@ export function DesignPageClient({
           visibleSections={["preset", "colors", "radius", "spacing", "borders", "shadows", "motion", "components", "json"]}
           hideHeader
         />
-        <DesignTokenUpload tenantId={tenantId} currentDesign={design} />
       </TabPanel>
     </div>
   );

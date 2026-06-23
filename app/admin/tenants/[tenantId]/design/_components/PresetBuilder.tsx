@@ -184,16 +184,16 @@ export function PresetBuilder({ tenantId }: Props) {
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <label style={lbl}>Of importeer een preset-JSON</label>
+          <label style={lbl}>Of importeer een preset-JSON (ook Figma / DTCG)</label>
           <input
             type="file"
-            accept="application/json,.json"
+            accept="application/json,.json,.tokens.json"
             disabled={pending}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImportFile(f); e.target.value = ""; }}
             style={{ fontSize: 12, width: "100%" }}
           />
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-            Past de preset direct toe op deze tenant (vervangt de huidige tokens).
+            Onze preset-JSON of een Figma/Tokens-Studio-export — wordt als complete look toegepast (vervangt de huidige tokens).
           </div>
         </div>
 
