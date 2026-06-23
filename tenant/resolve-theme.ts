@@ -236,6 +236,11 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   link:                  ["--link"],
   success:               ["--success"],
   danger:                ["--danger", "--destructive"],
+  // Gradients — full CSS gradient strings exposed as custom properties for use
+  // in hero/section backgrounds and custom CSS (var(--gradient)).
+  gradient:              ["--gradient"],
+  gradientHero:          ["--gradient-hero"],
+  gradientAccent:        ["--gradient-accent"],
 };
 
 /**

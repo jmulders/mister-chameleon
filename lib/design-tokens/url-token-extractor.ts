@@ -158,6 +158,37 @@ function firstShadow(css: string): string | null {
   return v && v.toLowerCase() !== "none" ? v : null;
 }
 
+const GRADIENT_FN = /\b(?:linear|radial|conic|repeating-linear|repeating-radial)-gradient\(/i;
+
+/**
+ * Collect CSS gradients from stylesheet declarations, custom properties, AND
+ * inline `style="…"` attributes in the HTML, ordered by preference (literal
+ * gradients before var()-based ones, then by frequency). A `[^;{}]+` capture
+ * keeps nested parens (rgba(), var()) intact.
+ */
+function extractGradients(css: string, html: string): string[] {
+  const counts = new Map<string, number>();
+  const add = (raw: string) => {
+    const v = raw.trim().replace(/\s+/g, " ").replace(/!important$/i, "").trim();
+    if (!v || !GRADIENT_FN.test(v) || /[;{}<>\\]/.test(v) || v.length > 400) return;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  };
+  // Any declaration value (property: value;) that contains a gradient function.
+  for (const m of css.matchAll(/:\s*([^;{}]+)/g)) if (GRADIENT_FN.test(m[1])) add(m[1]);
+  // Inline element styles in the HTML.
+  for (const m of html.matchAll(/style\s*=\s*"([^"]*)"/gi)) {
+    for (const decl of m[1].split(";")) {
+      if (GRADIENT_FN.test(decl)) add(decl.split(":").slice(1).join(":"));
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) =>
+      (Number(a[0].includes("var(")) - Number(b[0].includes("var("))) ||
+      (b[1] - a[1]),
+    )
+    .map((e) => e[0]);
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────────
 
 export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractResult> {
@@ -203,6 +234,14 @@ export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractRe
     if (!color.background) { const c = sorted.find((h) => lum(h) > 0.85); if (c) { color.background = c; notes.push("Achtergrond geschat uit kleur-frequentie."); } }
     if (!color.foreground) { const c = sorted.find((h) => lum(h) < 0.25); if (c) { color.foreground = c; notes.push("Tekstkleur geschat uit kleur-frequentie."); } }
     if (!color.primary)    { const c = sorted.find((h) => { const l = lum(h); return l > 0.2 && l < 0.75; }); if (c) { color.primary = c; notes.push("Primair geschat uit kleur-frequentie."); } }
+  }
+
+  // ── Gradients ──────────────────────────────────────────────────────────────
+  const gradients = extractGradients(css, html);
+  if (gradients[0]) {
+    color.gradient = gradients[0];
+    notes.push("Gradient gevonden (→ --gradient).");
+    if (gradients[1] && gradients[1] !== gradients[0]) color.gradientHero = gradients[1];
   }
 
   // ── Typography ───────────────────────────────────────────────────────────────

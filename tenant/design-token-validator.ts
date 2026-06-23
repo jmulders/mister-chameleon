@@ -191,6 +191,9 @@ export const GROUP_TOKEN_KEYS: Record<GroupedTokenGroup, readonly string[]> = {
     "popover", "popoverForeground",
     // Design-preset additions
     "primaryHover", "onPrimary", "link", "success", "danger",
+    // Gradients — full CSS gradient strings (validated as "string" → injection
+    // guard only, since no fixed type fits linear/radial/conic-gradient()).
+    "gradient", "gradientHero", "gradientAccent",
   ],
   typography: [
     // Base font families
