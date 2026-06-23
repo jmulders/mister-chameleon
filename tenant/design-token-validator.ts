@@ -84,6 +84,7 @@
 
 import type { ThemeKey } from "./types";
 import { DESIGN_PRESETS }  from "./design-theme";
+import { looksLikeDtcg, convertDtcgToGroupedTokens } from "./dtcg-token-adapter";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -582,7 +583,29 @@ export function validateDesignTokenUpload(raw: unknown): DesignTokenValidationRe
     return { ok: false, errors: ["Token file must be a JSON object (not an array or primitive)."] };
   }
 
-  const input = raw as Record<string, unknown>;
+  // ── DTCG / Tokens Studio (Figma) auto-conversion ────────────────────────────
+  // Accept a raw Design Tokens (DTCG) / Tokens Studio export anywhere a token
+  // upload is accepted: detect it and convert to the grouped format up front, so
+  // EVERY import path (Builder, Advanced editor, …) handles Figma exports the
+  // same way — no per-surface wiring.
+  let source = raw as Record<string, unknown>;
+  if (looksLikeDtcg(raw)) {
+    const conv = convertDtcgToGroupedTokens(raw);
+    if (conv.mapped === 0) {
+      return { ok: false, errors: ["No recognisable design tokens found in this DTCG / Figma export."] };
+    }
+    source = conv.tokens as Record<string, unknown>;
+    warnings.push(...conv.warnings);
+  }
+
+  // Ignore common metadata keys so our exported preset files (which carry a
+  // `meta` + `swatch` block) and DTCG files (`$schema`/`$description`) import
+  // cleanly instead of failing the unknown-key check below.
+  const META_KEYS = new Set(["meta", "swatch", "$schema", "$description", "$type", "$value"]);
+  const input: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(source)) {
+    if (!META_KEYS.has(k)) input[k] = v;
+  }
 
   // ── Format detection ────────────────────────────────────────────────────────
   // Determine whether this is the legacy flat format or the grouped format,
