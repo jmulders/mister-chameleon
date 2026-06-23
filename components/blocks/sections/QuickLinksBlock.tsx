@@ -117,7 +117,7 @@ function ListRow({ link }: { link: QuickLinkItem }) {
       {/* Chevron */}
       <svg
         aria-hidden="true"
-        className="h-4 w-4 shrink-0 text-neutral-400 transition-transform group-hover:translate-x-0.5"
+        className="h-4 w-4 shrink-0 text-[var(--muted-foreground)] transition-transform group-hover:translate-x-0.5"
         fill="none"
         stroke="currentColor"
         strokeWidth={2}

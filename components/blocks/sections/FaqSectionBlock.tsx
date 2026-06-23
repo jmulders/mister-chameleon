@@ -94,14 +94,14 @@ export function FaqSectionBlock({ data, variant: rawVariant, surface }: FaqSecti
                 <Accordion gap={2}>
                   {left.map((faq, index) => (
                     <AccordionItem key={`${faq.question}-${index}`} title={faq.question}>
-                      <p className="leading-relaxed text-neutral-700">{faq.answer}</p>
+                      <p className="leading-relaxed text-[var(--muted-foreground)]">{faq.answer}</p>
                     </AccordionItem>
                   ))}
                 </Accordion>
                 <Accordion gap={2}>
                   {right.map((faq, index) => (
                     <AccordionItem key={`${faq.question}-${index + mid}`} title={faq.question}>
-                      <p className="leading-relaxed text-neutral-700">{faq.answer}</p>
+                      <p className="leading-relaxed text-[var(--muted-foreground)]">{faq.answer}</p>
                     </AccordionItem>
                   ))}
                 </Accordion>
@@ -139,7 +139,7 @@ export function FaqSectionBlock({ data, variant: rawVariant, surface }: FaqSecti
             <Accordion gap={2}>
               {faqs.map((faq, index) => (
                 <AccordionItem key={`${faq.question}-${index}`} title={faq.question}>
-                  <p className="leading-relaxed text-neutral-700">{faq.answer}</p>
+                  <p className="leading-relaxed text-[var(--muted-foreground)]">{faq.answer}</p>
                 </AccordionItem>
               ))}
             </Accordion>

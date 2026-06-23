@@ -94,7 +94,7 @@ export function QuoteBlock({ data, variant }: QuoteBlockProps) {
           </span>
 
           <blockquote className="relative">
-            <p className="text-xl font-medium italic leading-relaxed text-neutral-800">
+            <p className="text-xl font-medium italic leading-relaxed text-[var(--foreground)]">
               &ldquo;{data.quote}&rdquo;
             </p>
 
@@ -110,7 +110,7 @@ export function QuoteBlock({ data, variant }: QuoteBlockProps) {
                 )}
                 <div>
                   {data.attribution && (
-                    <p className="font-semibold text-neutral-900">{data.attribution}</p>
+                    <p className="font-semibold text-[var(--foreground)]">{data.attribution}</p>
                   )}
                   {data.source && (
                     <p className="text-sm" style={{ color: "var(--text-muted, #6b7280)" }}>
