@@ -1,0 +1,52 @@
+{
+  "$description": "Voorbeeld DTCG / Tokens Studio export (zoals Figma Variables / de Tokens Studio-plugin genereren). Importeer dit in Tenant → Design → Builder → 'Of importeer een preset-JSON'. De adapter zet het om naar onze token-groepen. Aliases ({color.brand.500}) en geneste groepen worden ondersteund.",
+  "color": {
+    "brand": {
+      "500": { "$type": "color", "$value": "#6d28d9" },
+      "600": { "$type": "color", "$value": "#5b21b6" }
+    },
+    "primary":          { "$type": "color", "$value": "{color.brand.500}" },
+    "primary-hover":    { "$type": "color", "$value": "{color.brand.600}" },
+    "on-primary":       { "$type": "color", "$value": "#ffffff" },
+    "secondary":        { "$type": "color", "$value": "#ec4899" },
+    "accent":           { "$type": "color", "$value": "#f5f3ff" },
+    "background":       { "$type": "color", "$value": "#ffffff" },
+    "text":             { "$type": "color", "$value": "#1e1b4b" },
+    "text-muted":       { "$type": "color", "$value": "#6d28d9" },
+    "border":           { "$type": "color", "$value": "#ede9fe" },
+    "card":             { "$type": "color", "$value": "#ffffff" },
+    "success":          { "$type": "color", "$value": "#059669" },
+    "danger":           { "$type": "color", "$value": "#dc2626" }
+  },
+  "font": {
+    "family": {
+      "heading": { "$type": "fontFamily", "$value": ["Space Grotesk", "system-ui", "sans-serif"] },
+      "body":    { "$type": "fontFamily", "$value": ["Inter", "system-ui", "sans-serif"] }
+    },
+    "weight": {
+      "heading": { "$type": "fontWeight", "$value": "bold" }
+    },
+    "size": {
+      "base": { "$type": "dimension", "$value": { "value": 16, "unit": "px" } }
+    },
+    "letterSpacing": {
+      "heading": { "$type": "dimension", "$value": "-0.02em" }
+    }
+  },
+  "radius": {
+    "interactive": { "$type": "dimension", "$value": { "value": 14, "unit": "px" } },
+    "card":        { "$type": "dimension", "$value": { "value": 20, "unit": "px" } }
+  },
+  "shadow": {
+    "md": {
+      "$type": "shadow",
+      "$value": {
+        "color": "rgba(124,58,237,0.18)",
+        "offsetX": "0px",
+        "offsetY": "12px",
+        "blur": "30px",
+        "spread": "0px"
+      }
+    }
+  }
+}

@@ -428,16 +428,34 @@ export async function importDesignPresetAction(
   }
   const obj = parsed as Record<string, unknown>;
 
-  // Read ONLY known token-upload keys; ignore meta / swatch / anything else.
-  const KNOWN_KEYS = [
-    "theme", "primaryColor", "primaryFont",
-    "radiusInteractive", "radiusCard", "radiusPopover",
-    "color", "typography", "radius", "spacing", "border", "shadow",
-    "motion", "component", "layout", "grid", "responsive", "elevation",
-    "focus", "button",
-  ] as const;
-  const payload: Record<string, unknown> = {};
-  for (const k of KNOWN_KEYS) if (obj[k] !== undefined) payload[k] = obj[k];
+  // Accept TWO input shapes:
+  //   1. Our grouped token-upload shape ({ theme?, color, typography, … }).
+  //   2. A DTCG / Tokens Studio export (Figma Variables, Tokens Studio plugin) —
+  //      detected and converted to (1) via the adapter. Conversion is best-effort
+  //      (token names vary), so unmapped tokens surface as warnings.
+  const importWarnings: string[] = [];
+  let payload: Record<string, unknown>;
+
+  const { looksLikeDtcg, convertDtcgToGroupedTokens } = await import("@/tenant/dtcg-token-adapter");
+  if (looksLikeDtcg(parsed)) {
+    const converted = convertDtcgToGroupedTokens(parsed);
+    if (converted.mapped === 0) {
+      return { ok: false, errors: ["Geen herkenbare design-tokens in dit DTCG/Figma-bestand."] };
+    }
+    payload = converted.tokens;
+    importWarnings.push(...converted.warnings);
+  } else {
+    // Read ONLY known token-upload keys; ignore meta / swatch / anything else.
+    const KNOWN_KEYS = [
+      "theme", "primaryColor", "primaryFont",
+      "radiusInteractive", "radiusCard", "radiusPopover",
+      "color", "typography", "radius", "spacing", "border", "shadow",
+      "motion", "component", "layout", "grid", "responsive", "elevation",
+      "focus", "button",
+    ] as const;
+    payload = {};
+    for (const k of KNOWN_KEYS) if (obj[k] !== undefined) payload[k] = obj[k];
+  }
 
   const validation = validateDesignTokenUpload(payload);
   if (!validation.ok) return { ok: false, errors: validation.errors };
@@ -485,7 +503,12 @@ export async function importDesignPresetAction(
   const meta = obj.meta as Record<string, unknown> | undefined;
   const name = meta && typeof meta.name === "string" ? meta.name : undefined;
 
-  return { ok: true, name, appliedKeys: validation.appliedKeys, warnings: validation.warnings };
+  return {
+    ok: true,
+    name,
+    appliedKeys: validation.appliedKeys,
+    warnings: [...importWarnings, ...validation.warnings],
+  };
 }
 
 // ── CMS credentials action ────────────────────────────────────────────────────
