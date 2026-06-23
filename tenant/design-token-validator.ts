@@ -387,12 +387,16 @@ function validateCssLength(
   const trimmed  = value.trim();
   const lengthRe = /^(\d+(\.\d+)?)(px|rem|em|%|vw|vh|vmin|vmax|dvh|dvw|ch|ex)$/;
   const cssGlobals = /^(inherit|initial|unset|revert|revert-layer)$/i;
-  if (trimmed === "0" || lengthRe.test(trimmed) || cssGlobals.test(trimmed)) {
+  // CSS math functions — clamp()/calc()/min()/max() are legitimate length values
+  // (e.g. responsive section padding). Their content is already injection-guarded
+  // above (no ; { } < > \), so we only need to match the function wrapper.
+  const mathFn = /^(clamp|calc|min|max)\s*\(.*\)$/i;
+  if (trimmed === "0" || lengthRe.test(trimmed) || cssGlobals.test(trimmed) || mathFn.test(trimmed)) {
     return { ok: true };
   }
   return {
     ok:     false,
-    reason: `"${trimmed}" is not a recognised CSS length. Expected formats: "4px", "0.5rem", "2em", "10%", or "0".`,
+    reason: `"${trimmed}" is not a recognised CSS length. Expected formats: "4px", "0.5rem", "2em", "10%", "clamp(…)", or "0".`,
   };
 }
 

@@ -26,6 +26,10 @@ type Groups = {
   shadow:     Record<string, string>;
   button:     Record<string, string>;
   layout:     Record<string, string>;
+  spacing:    Record<string, string>;
+  border:     Record<string, string>;
+  motion:     Record<string, string>;
+  focus:      Record<string, string>;
 };
 
 const FONTS: [string, string][] = [
@@ -49,8 +53,25 @@ function seedFrom(presetId: string): Groups {
     shadow:     { ...t.shadow },
     button:     { ...t.button },
     layout:     { ...t.layout },
+    spacing:    { ...t.spacing },
+    border:     { ...t.border },
+    motion:     { ...t.motion },
+    focus:      { ...t.focus },
   };
 }
+
+// ── Option tables for the extended controls ───────────────────────────────────
+const SECTION_PADDING: [string, string][] = [
+  ["clamp(28px,4vw,48px)", "Compact"],
+  ["clamp(40px,6vw,80px)", "Normaal"],
+  ["clamp(64px,9vw,128px)", "Ruim"],
+];
+const CONTAINER_WIDTH: [string, string][] = [
+  ["64rem", "Smal"], ["72rem", "Normaal"], ["80rem", "Breed"], ["100%", "Volledig"],
+];
+const BORDER_WIDTH: [string, string][] = [["0px", "Geen"], ["1px", "Dun"], ["2px", "Normaal"], ["3px", "Dik"]];
+const HOVER_LIFT: [string, string][]  = [["0px", "Geen"], ["-2px", "Subtiel"], ["-4px", "Sterk"]];
+const RING_WIDTH: [string, string][]  = [["1px", "Dun"], ["2px", "Normaal"], ["3px", "Dik"]];
 
 function contrastText(hex: string): string {
   try {
@@ -110,11 +131,11 @@ export function PresetBuilder({ tenantId }: Props) {
           <div style={{ color: c.mutedForeground, fontSize: 13, marginBottom: 16, maxWidth: "44ch" }}>Dezelfde blokken, een totaal andere look &amp; feel — puur via design-tokens.</div>
           <div style={{ display: "flex", gap: 9, marginBottom: 18 }}>
             <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: Number(b.weight) || 600, textTransform: (b.transform || "none") as React.CSSProperties["textTransform"], letterSpacing: b.tracking, boxShadow: b.shadow }}>Bekijk demo</span>
-            <span style={{ background: "transparent", color: c.foreground, border: `1px solid ${c.border}`, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>Outline</span>
+            <span style={{ background: "transparent", color: c.foreground, border: `${g.border.width || "1px"} solid ${c.border}`, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>Outline</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {["34% meer leads", "Privacy-vriendelijk"].map((tt) => (
-              <div key={tt} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: radCard, boxShadow: g.shadow.md, padding: "13px 14px" }}>
+              <div key={tt} style={{ background: c.card, border: `${g.border.width || "1px"} solid ${c.border}`, borderRadius: radCard, boxShadow: g.shadow.md, padding: "13px 14px" }}>
                 <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, fontSize: 14, marginBottom: 3 }}>{tt}</div>
                 <div style={{ color: c.mutedForeground, fontSize: 12 }}>Gemiddeld na 90 dagen.</div>
               </div>
@@ -182,6 +203,10 @@ export function PresetBuilder({ tenantId }: Props) {
       shadow: g.shadow,
       button: g.button,
       layout: g.layout,
+      spacing: g.spacing,
+      border: g.border,
+      motion: g.motion,
+      focus: g.focus,
     };
     startTransition(async () => {
       const r = await applyDesignTokensAction(tenantId, payload);
@@ -281,6 +306,59 @@ export function PresetBuilder({ tenantId }: Props) {
           <option value="" disabled>Kies header-stijl…</option>
           <option value="light">Licht</option><option value="dark">Donker</option><option value="transparent">Transparant</option>
         </select>
+
+        <div style={sub}>Ruimte &amp; secties</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+          <div>
+            <label style={lbl}>Sectie-ruimte</label>
+            <select style={sel} value={g.spacing.sectionPadding || SECTION_PADDING[1][0]} onChange={(e) => set("spacing", "sectionPadding", e.target.value)}>
+              {SECTION_PADDING.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Content-breedte</label>
+            <select style={sel} value={g.spacing.container || CONTAINER_WIDTH[1][0]} onChange={(e) => set("spacing", "container", e.target.value)}>
+              {CONTAINER_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Uitlijning</label>
+            <select style={sel} value={g.spacing.align || "left"} onChange={(e) => set("spacing", "align", e.target.value)}>
+              <option value="left">Links</option><option value="center">Gecentreerd</option>
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Rand-dikte</label>
+            <select style={sel} value={g.border.width || "1px"} onChange={(e) => set("border", "width", e.target.value)}>
+              {BORDER_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={sub}>Interactie &amp; focus</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+          <div>
+            <label style={lbl}>Hover-lift (knoppen)</label>
+            <select style={sel} value={g.motion.hoverLift || "0px"} onChange={(e) => set("motion", "hoverLift", e.target.value)}>
+              {HOVER_LIFT.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Focus-ring dikte</label>
+            <select style={sel} value={g.focus.ringWidth || "2px"} onChange={(e) => set("focus", "ringWidth", e.target.value)}>
+              {RING_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+          </div>
+          <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ ...lbl, margin: 0 }}>Focus-ring kleur</label>
+            <input
+              type="color"
+              value={/^#([0-9a-f]{6})$/i.test(g.focus.ringColor || "") ? g.focus.ringColor : (g.color.primary || "#4f46e5")}
+              onChange={(e) => set("focus", "ringColor", e.target.value)}
+              style={{ width: 34, height: 30, padding: 0, border: "1px solid #e6e8ec", borderRadius: 6 }}
+            />
+          </div>
+        </div>
 
         <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
           <button type="button" onClick={save} disabled={pending}
