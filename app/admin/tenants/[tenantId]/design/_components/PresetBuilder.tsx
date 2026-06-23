@@ -129,17 +129,35 @@ export function PresetBuilder({ tenantId }: Props) {
     setMsg(null);
     const text = await file.text();
     // Seed the builder + preview from the file so the result is visible at once.
-    // The server action re-validates authoritatively before persisting.
+    // Only seed from a FLAT string map per group — a DTCG / Figma export nests
+    // values ({ "$value": … }), which would corrupt the field state and crash
+    // the render. For those, we skip the optimistic seed and let the server
+    // action apply the converted tokens (the public site still updates).
+    const flat = (v: unknown): Record<string, string> | null => {
+      if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+      const out: Record<string, string> = {};
+      for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+        if (typeof val !== "string") return null;
+        out[k] = val;
+      }
+      return out;
+    };
     try {
-      const o = JSON.parse(text) as Partial<Record<keyof Groups, Record<string, string>>>;
-      setG((prev) => ({
-        color:      o.color      ? { ...prev.color,      ...o.color }      : prev.color,
-        typography: o.typography ? { ...prev.typography, ...o.typography } : prev.typography,
-        radius:     o.radius     ? { ...prev.radius,     ...o.radius }     : prev.radius,
-        shadow:     o.shadow     ? { ...prev.shadow,     ...o.shadow }     : prev.shadow,
-        button:     o.button     ? { ...prev.button,     ...o.button }     : prev.button,
-        layout:     o.layout     ? { ...prev.layout,     ...o.layout }     : prev.layout,
-      }));
+      const o = JSON.parse(text) as Record<string, unknown>;
+      setG((prev) => {
+        const merge = (cur: Record<string, string>, next: unknown) => {
+          const f = flat(next);
+          return f ? { ...cur, ...f } : cur;
+        };
+        return {
+          color:      merge(prev.color,      o.color),
+          typography: merge(prev.typography, o.typography),
+          radius:     merge(prev.radius,     o.radius),
+          shadow:     merge(prev.shadow,     o.shadow),
+          button:     merge(prev.button,     o.button),
+          layout:     merge(prev.layout,     o.layout),
+        };
+      });
     } catch {
       // Non-fatal — the server action returns the precise JSON error below.
     }

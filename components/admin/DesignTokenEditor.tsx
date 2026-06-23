@@ -1149,13 +1149,18 @@ export function DesignTokenEditor({
           setImportSuccess(null);
           return;
         }
-        const input = raw as DesignTokenUploadInput;
-        const validation = validateDesignTokenUpload(input);
+        const validation = validateDesignTokenUpload(raw);
         if (!validation.ok) {
           setImportError(validation.errors.join(" · "));
           setImportSuccess(null);
           return;
         }
+        // Read from the VALIDATED + normalised tokens — NOT the raw file. For a
+        // DTCG / Figma export the raw `color`/`typography` are nested
+        // ({ "$value": … }); validation.tokens is the flat, converted grouped
+        // shape. Reading raw here would put objects into string fields and crash
+        // the render.
+        const input: DesignTokenUploadInput = validation.tokens;
 
         // Merge validated token values into form state.
         const updates: Partial<TokenFormState> = {};

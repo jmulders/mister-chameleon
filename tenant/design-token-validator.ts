@@ -589,13 +589,23 @@ export function validateDesignTokenUpload(raw: unknown): DesignTokenValidationRe
   // EVERY import path (Builder, Advanced editor, …) handles Figma exports the
   // same way — no per-surface wiring.
   let source = raw as Record<string, unknown>;
-  if (looksLikeDtcg(raw)) {
-    const conv = convertDtcgToGroupedTokens(raw);
-    if (conv.mapped === 0) {
-      return { ok: false, errors: ["No recognisable design tokens found in this DTCG / Figma export."] };
+  let isDtcg = false;
+  try {
+    isDtcg = looksLikeDtcg(raw);
+  } catch {
+    isDtcg = false;
+  }
+  if (isDtcg) {
+    try {
+      const conv = convertDtcgToGroupedTokens(raw);
+      if (conv.mapped === 0) {
+        return { ok: false, errors: ["No recognisable design tokens found in this DTCG / Figma export."] };
+      }
+      source = conv.tokens as Record<string, unknown>;
+      warnings.push(...conv.warnings);
+    } catch (err) {
+      return { ok: false, errors: [`Could not read this DTCG / Figma export: ${String(err)}`] };
     }
-    source = conv.tokens as Record<string, unknown>;
-    warnings.push(...conv.warnings);
   }
 
   // Ignore common metadata keys so our exported preset files (which carry a
