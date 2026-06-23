@@ -33,7 +33,6 @@ import {
 } from "@/lib/admin-auth/authorization";
 import { TenantSettingsForm }  from "../TenantSettingsForm";
 import { DeleteTenantPanel }   from "../_components/DeleteTenantPanel";
-import { Text }                from "@/components/primitives/Text";
 import type { TenantSettings } from "@/tenant/server";
 import { getEffectivePlan }    from "@/billing/plan-enforcement";
 
@@ -104,7 +103,9 @@ export default async function TenantSettingsPage({
         <h1 className="text-xl font-semibold text-neutral-900">Settings</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Configure this tenant&apos;s identity, CMS connection, AI providers,
-          feature flags, and block-level options.
+          feature flags, and the <strong>plan-gated block entitlements</strong>
+          {" "}(which block types this package allows — distinct from the
+          Adaptive blocks catalogue under Personalisatie).
         </p>
       </div>
 

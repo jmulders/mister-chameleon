@@ -50,9 +50,18 @@ async function fetchText(url: string, timeoutMs: number, maxBytes: number): Prom
     const res = await fetch(url, {
       signal:   ctrl.signal,
       redirect: "follow",
+      // Browser-like headers: many sites return an empty / blocked body to a
+      // plain bot User-Agent. Looking like a real browser gets the actual HTML
+      // (and its linked stylesheets) on UA-gated sites — without a full headless
+      // render. Truly client-rendered-only sites still need a real browser.
       headers: {
-        "User-Agent": "MisterChameleon-TokenExtractor/1.0 (+admin design tool)",
-        "Accept":     "text/html,text/css,*/*",
+        "User-Agent":      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,text/css,*/*;q=0.8",
+        "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
+        "Sec-Fetch-Dest":  "document",
+        "Sec-Fetch-Mode":  "navigate",
+        "Sec-Fetch-Site":  "none",
+        "Upgrade-Insecure-Requests": "1",
       },
     });
     if (!res.ok) return "";
@@ -205,7 +214,18 @@ export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractRe
   if (!html) return { ok: false, error: "Kon de pagina niet ophalen (timeout of geblokkeerd)." };
 
   const css = await collectCss(html, url);
-  if (!css.trim()) return { ok: false, error: "Geen CSS gevonden op deze pagina." };
+  if (!css.trim()) {
+    // No stylesheets in the served HTML — almost always a client-rendered SPA
+    // shell (styles injected by JS after load), which a non-browser fetch can't
+    // see. Be explicit so the operator knows it's not a parsing failure.
+    const looksSpa = /<div[^>]+id=["'](root|app|__next|__nuxt)["']/i.test(html) || /__NEXT_DATA__|window\.__NUXT__/.test(html);
+    return {
+      ok: false,
+      error: looksSpa
+        ? "Deze pagina lijkt client-side gerenderd (JS bouwt de stijl pas in de browser). De statische CSS is leeg — gebruik een pagina die zijn CSS direct serveert, of plak de tokens handmatig."
+        : "Geen CSS gevonden op deze pagina.",
+    };
+  }
 
   const props = customProps(css);
   notes.push(props.size > 0 ? `${props.size} CSS-variabelen gevonden.` : "Geen CSS-variabelen — kleur-frequentie gebruikt als fallback.");
