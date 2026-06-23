@@ -77,6 +77,7 @@ interface CmsLink {
 function getCmsAdminLink(
   provider: CMSProviderName,
   projectId?: string,
+  statamicBaseUrl?: string,
 ): CmsLink | null {
   switch (provider) {
     case "sanity":
@@ -88,11 +89,12 @@ function getCmsAdminLink(
       };
     case "storyblok":
       return { label: "Open CMS", href: "https://app.storyblok.com/" };
-    case "statamic":
-      // Statamic is self-hosted; we can't construct a generic URL.
-      // The platform store may have the base URL, but fetching that here would
-      // add latency. The Overview page has provisioning controls instead.
-      return null;
+    case "statamic": {
+      // Statamic is self-hosted — build the Control Panel URL from the tenant's
+      // configured base URL (resolved by the caller). Without it we can't link.
+      const base = statamicBaseUrl?.trim().replace(/\/api\/?$/, "").replace(/\/$/, "");
+      return base ? { label: "Open CMS", href: `${base}/cp` } : null;
+    }
     case "platform":
       // Platform CMS is edited directly on this page — no external link.
       return null;
@@ -207,7 +209,7 @@ export default async function TenantContentPage({
 
   // ── Derived values ─────────────────────────────────────────────────────────
   const cmsProvider  = tenant.cms?.provider ?? "mock";
-  const cmsLink      = getCmsAdminLink(cmsProvider, tenant.cms?.projectId);
+  const cmsLink      = getCmsAdminLink(cmsProvider, tenant.cms?.projectId, tenantStatamicUrl ?? platformStatamicUrl);
   const provisionedAt = tenant.cmsProvisionedAt
     ? formatDate(tenant.cmsProvisionedAt)
     : null;
@@ -215,7 +217,6 @@ export default async function TenantContentPage({
   // Normalise "home" → "" so that a page stored as "home" (the DB convention
   // for the root URL, enforced by migration 20240101000023) satisfies the
   // REQUIRED_SLUGS check for "" which represents "/".
-  console.log("[content/page] pages for", tenantId, "→", pages.map((p) => ({ id: p.id, slug: p.slug })));
   const existingSlugs = new Set(
     pages.map((p) => (p.slug === "home" ? "" : (p.slug ?? ""))),
   );
