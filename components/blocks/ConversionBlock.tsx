@@ -38,12 +38,12 @@ function BookingEmbed({ data }: { data: ConversionBlockData }) {
   const t = getBookDemoTranslations("en");
 
   return (
-    <section className="py-20 px-4 bg-gray-50">
+    <section className="py-20 px-4 bg-[var(--muted)]">
       <div className="mx-auto max-w-2xl mb-10 text-center">
-        <h2 className="text-3xl font-bold text-gray-900 tracking-tight mb-3">
+        <h2 className="text-3xl font-bold text-[var(--foreground)] tracking-tight mb-3">
           {data.title}
         </h2>
-        <p className="text-lg text-gray-500 leading-relaxed">{data.text}</p>
+        <p className="text-lg text-[var(--muted-foreground)] leading-relaxed">{data.text}</p>
         {data.urgencyLabel && (
           <p className="mt-2 text-sm font-medium text-[var(--primary)]">
             {data.urgencyLabel}
@@ -60,10 +60,10 @@ function BookingEmbed({ data }: { data: ConversionBlockData }) {
 
 function StandardConversion({ data }: { data: ConversionBlockData }) {
   return (
-    <section className="py-20 px-4 bg-gray-900 text-white">
+    <section className="py-20 px-4 bg-[var(--foreground)] text-[var(--background)]">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-3xl font-bold tracking-tight mb-4">{data.title}</h2>
-        <p className="text-lg text-white/70 leading-relaxed mb-8">{data.text}</p>
+        <p className="text-lg text-[var(--background)]/70 leading-relaxed mb-8">{data.text}</p>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           {data.ctas.map((cta, i) => (
