@@ -106,6 +106,18 @@ const ICONS = {
       <line x1="1" y1="10" x2="23" y2="10"/>
     </Svg>
   ),
+  design: (
+    <Svg>
+      <path d="M12 2a7 7 0 0 0 0 14 3 3 0 0 1 0 6 10 10 0 1 1 0-20z"/>
+      <circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/>
+    </Svg>
+  ),
+  personalization: (
+    <Svg>
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+    </Svg>
+  ),
 };
 
 export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
@@ -124,40 +136,48 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
       items:  [],   // no secondary row — single page
     },
     {
-      key:    "configure",
-      label:  "Configure",
-      href:   `${base}/setup`,
-      prefix: `${base}/setup|${base}/design|${base}/settings|${base}/forms`,
-      icon:   ICONS.configure,
-      items: [
-        { label: "Setup",    href: `${base}/setup`,    activePrefix: `${base}/setup` },
-        { label: "Design",   href: `${base}/design`,   activePrefix: `${base}/design` },
-        { label: "Settings", href: `${base}/settings`, activePrefix: `${base}/settings` },
-        { label: "Forms",    href: `${base}/forms`,    activePrefix: `${base}/forms` },
-      ],
+      key:    "design",
+      label:  "Design",
+      href:   `${base}/design`,
+      prefix: `${base}/design`,
+      icon:   ICONS.design,
+      items:  [],   // the Design page has its own in-page tabs (presets/builder/…)
     },
     {
       key:    "content",
       label:  "Content",
       href:   `${base}/content`,
-      prefix: `${base}/content|${base}/ai|${base}/rules|${base}/experiments|${base}/behavior/slots|${base}/behavior/ai-policy|${base}/behavior/field-fill|${base}/blueprints|${base}/variants|${base}/blocks`,
+      prefix: `${base}/content|${base}/pages|${base}/blueprints|${base}/forms|${base}/assets`,
       icon:   ICONS.content,
       items: [
-        { label: "CMS",         href: `${base}/content`,              activePrefix: `${base}/content` },
-        { label: "Blocks",      href: `${base}/blocks`,               activePrefix: `${base}/blocks` },
-        { label: "AI",          href: `${base}/ai`,                   activePrefix: `${base}/ai`,     exact: true },
-        { label: "Rules",       href: `${base}/rules`,                activePrefix: `${base}/rules` },
-        { label: "Variants",    href: `${base}/variants`,             activePrefix: `${base}/variants` },
-        { label: "Experiments", href: `${base}/experiments`,          activePrefix: `${base}/experiments` },
-        { label: "Slots",       href: `${base}/behavior/slots`,       activePrefix: `${base}/behavior/slots` },
-        { label: "Blueprints",  href: `${base}/blueprints`,           activePrefix: `${base}/blueprints` },
+        { label: "CMS",        href: `${base}/content`,    activePrefix: `${base}/content` },
+        { label: "Pagina's",   href: `${base}/pages`,      activePrefix: `${base}/pages` },
+        { label: "Blueprints", href: `${base}/blueprints`, activePrefix: `${base}/blueprints` },
+        { label: "Forms",      href: `${base}/forms`,      activePrefix: `${base}/forms` },
+        { label: "Assets",     href: `${base}/assets`,     activePrefix: `${base}/assets` },
+      ],
+    },
+    {
+      key:    "personalization",
+      label:  "Personalisatie",
+      href:   `${base}/behavior/slots`,
+      prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill|${base}/theme-switching`,
+      icon:   ICONS.personalization,
+      items: [
+        { label: "Slots",           href: `${base}/behavior/slots`, activePrefix: `${base}/behavior/slots` },
+        { label: "Variants",        href: `${base}/variants`,       activePrefix: `${base}/variants` },
+        { label: "Adaptive blocks", href: `${base}/blocks`,         activePrefix: `${base}/blocks` },
+        { label: "Regels",          href: `${base}/rules`,          activePrefix: `${base}/rules` },
+        { label: "Experiments",     href: `${base}/experiments`,    activePrefix: `${base}/experiments` },
+        { label: "AI",              href: `${base}/ai`,             activePrefix: `${base}/ai`, exact: true },
+        { label: "Thema-switching", href: `${base}/theme-switching`, activePrefix: `${base}/theme-switching` },
       ],
     },
     {
       key:    "audience",
       label:  "Audience",
       href:   `${base}/interest-profiles`,
-      prefix: `${base}/interest-profiles|${base}/audience-segments|${base}/behavior/journey|${base}/behavior/context|${base}/behavior`,
+      prefix: `${base}/interest-profiles|${base}/audience-segments|${base}/behavior/journey|${base}/behavior`,
       icon:   ICONS.audience,
       items: [
         { label: "Interests", href: `${base}/interest-profiles`,    activePrefix: `${base}/interest-profiles` },
@@ -170,14 +190,13 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
       key:    "platform",
       label:  "Platform",
       href:   `${base}/integrations`,
-      prefix: `${base}/integrations|${base}/assets|${base}/debug|${base}/search|${base}/snippet|${base}/storage`,
+      prefix: `${base}/integrations|${base}/snippet|${base}/search|${base}/storage|${base}/debug`,
       icon:   ICONS.platform,
       items: [
         { label: "Integrations", href: `${base}/integrations`,          activePrefix: `${base}/integrations`, exact: true },
         { label: "Pipeline",     href: `${base}/integrations/pipeline`, activePrefix: `${base}/integrations/pipeline` },
         { label: "Snippet",      href: `${base}/snippet`,               activePrefix: `${base}/snippet`, exact: true },
         { label: "Search",       href: `${base}/search`,                activePrefix: `${base}/search` },
-        { label: "Assets",       href: `${base}/assets`,                activePrefix: `${base}/assets` },
         { label: "Storage",      href: `${base}/storage`,               activePrefix: `${base}/storage` },
         { label: "Debug",        href: `${base}/debug`,                 activePrefix: `${base}/debug` },
       ],
@@ -185,12 +204,14 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
     {
       key:    "admin",
       label:  "Admin",
-      href:   `${base}/billing`,
-      prefix: `${base}/billing|${base}/users`,
+      href:   `${base}/setup`,
+      prefix: `${base}/setup|${base}/settings|${base}/billing|${base}/users`,
       icon:   ICONS.admin,
       items: [
-        { label: "Billing", href: `${base}/billing`, activePrefix: `${base}/billing` },
-        { label: "Users",   href: `${base}/users`,   activePrefix: `${base}/users` },
+        { label: "Setup",    href: `${base}/setup`,    activePrefix: `${base}/setup` },
+        { label: "Settings", href: `${base}/settings`, activePrefix: `${base}/settings` },
+        { label: "Billing",  href: `${base}/billing`,  activePrefix: `${base}/billing` },
+        { label: "Users",    href: `${base}/users`,    activePrefix: `${base}/users` },
       ],
     },
   ];

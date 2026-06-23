@@ -1,13 +1,17 @@
 /**
  * DesignPageClient
  *
- * Client-side tab shell for the tenant design page.  Splits what was previously
- * a single long scrollable page into four focused tabs:
+ * Client-side tab shell for the tenant design page.  Splits the design system
+ * into focused tabs:
  *
- *   Style              — stepped family → preset → live preview flow (default)
- *   Automatic switching — contextual rule → theme mappings
- *   Typography          — font stack, role mapping, and sizing controls
- *   Advanced            — full token editor (colors, radius, spacing, …) + JSON
+ *   Presets    — curated themes (contextual-rule compatible)
+ *   Builder    — compose a custom look with a live preview
+ *   Layout     — header / footer structural variants
+ *   Typography — font stacks, role mapping, and sizing controls
+ *   Advanced   — full token editor (colors, radius, spacing, …) + JSON import
+ *
+ * Theme switching by rule now lives at Personalisatie → Thema-switching
+ * (/theme-switching), not as a Design tab.
  *
  * The server component (page.tsx) fetches all required data and passes it down
  * here; this component owns only the tab selection state.
@@ -28,12 +32,9 @@
 import { useState, useTransition } from "react";
 import { ThemeGallery }         from "./ThemeGallery";
 import { PresetBuilder }        from "./PresetBuilder";
-import { ThemeRulesEditor }     from "./ThemeRulesEditor";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
 import { saveVisualTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
-import type { ThemePresetKey }    from "@/design-system/theme/presets";
-import type { StoredRulesConfig } from "@/decision/rules/stored-rule";
 import type { TenantDesignSettings, ThemeKey } from "@/tenant/types";
 import {
   getFeaturedFamilyForPreset,
@@ -47,7 +48,7 @@ import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.con
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DesignTab = "presets" | "builder" | "layout" | "switching" | "typography" | "advanced";
+type DesignTab = "presets" | "builder" | "layout" | "typography" | "advanced";
 
 interface TabDef {
   id:          DesignTab;
@@ -72,11 +73,6 @@ const TABS: readonly TabDef[] = [
     description: "Header and footer structural variants",
   },
   {
-    id:          "switching",
-    label:       "Automatic switching",
-    description: "Apply different themes based on rules",
-  },
-  {
     id:          "typography",
     label:       "Typography",
     description: "Fonts, sizes, and line height",
@@ -92,8 +88,6 @@ export interface DesignPageClientProps {
   tenantId:     string;
   activeTheme?: ThemeKey | null;
   design:       TenantDesignSettings;
-  rulesConfig:  StoredRulesConfig | undefined;
-  defaultTheme: ThemePresetKey;
 }
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
@@ -518,8 +512,6 @@ export function DesignPageClient({
   tenantId,
   activeTheme,
   design,
-  rulesConfig,
-  defaultTheme,
 }: DesignPageClientProps) {
   const [activeTab, setActiveTab] = useState<DesignTab>("presets");
 
@@ -563,19 +555,6 @@ export function DesignPageClient({
           description="Choose the structural shape of the header and footer. Separate from color tokens — color overrides live in the Advanced tab."
         />
         <LayoutVariantEditor tenantId={tenantId} design={design} />
-      </TabPanel>
-
-      {/* ── Automatic switching ─────────────────────────────────────────────── */}
-      <TabPanel id="switching" active={activeTab}>
-        <TabSectionHeader
-          title="Automatic switching"
-          description="Map decision rules to themes. When a rule fires, visitors see the paired theme for the duration of their session."
-        />
-        <ThemeRulesEditor
-          tenantId={tenantId}
-          rulesConfig={rulesConfig}
-          defaultTheme={defaultTheme}
-        />
       </TabPanel>
 
       {/* ── Typography ──────────────────────────────────────────────────────── */}

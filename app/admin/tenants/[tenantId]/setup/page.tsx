@@ -5,7 +5,7 @@
  * must complete before a tenant site goes live:
  *
  *   1. TenantReadinessChecklist  — full item-by-item checklist
- *   2. ThemePickerPanel          — quick-start theme selection (all presets)
+ *   2. Design link               — theme + tokens now live in the Design section
  *   3. SiteBuilderReadiness      — page-system infrastructure gates
  *   4. CmsCredentialsPanel       — write token for CMS provisioner (secret-safe)
  *   5. CreateSitePanel           — first-time bootstrap / re-initialise
@@ -20,10 +20,9 @@ import { notFound }         from "next/navigation";
 import { getTenantById }    from "@/tenant/server";
 import { listDomainsForTenant } from "@/tenant/domain-store";
 import { isVercelConfigured }   from "@/lib/vercel-domains";
-import { normalizeThemeKey }    from "@/tenant";
+import Link                      from "next/link";
 import { getPlatformSanitySettings, getPlatformForgeSettings, forgeFlags } from "@/platform/platform-store";
 import { TenantReadinessChecklist } from "@/components/admin/TenantReadinessChecklist";
-import { ThemePickerPanel }         from "@/components/admin/ThemePickerPanel";
 import { SiteBuilderReadiness }     from "@/components/admin/SiteBuilderReadiness";
 import { CmsCredentialsPanel }      from "@/components/admin/CmsCredentialsPanel";
 import { CreateSitePanel }          from "@/components/admin/CreateSitePanel";
@@ -33,7 +32,6 @@ import { TenantCmsDeployCard }      from "@/components/admin/TenantCmsDeployCard
 import { StatamicSetupGuide }       from "@/components/admin/StatamicSetupGuide";
 import { TenantProvisionCard }       from "@/components/admin/TenantProvisionCard";
 import { TenantFinalizeCard }         from "@/components/admin/TenantFinalizeCard";
-import { Text }                     from "@/components/primitives/Text";
 import type { TenantSettings } from "@/tenant/server";
 
 // ── Secret masking ────────────────────────────────────────────────────────────
@@ -77,8 +75,6 @@ export default async function TenantSetupPage({
   const forgeDefaultServerId = forgeData ? forgeFlags(forgeData).defaultServerId : null;
   const showDeployPanel      = tenant.cms?.provider === "statamic";
 
-  const activeTheme = normalizeThemeKey(tenant.design?.theme ?? "default");
-
   return (
     <div className="p-8 max-w-3xl">
 
@@ -94,11 +90,19 @@ export default async function TenantSetupPage({
       {/* 1 — Readiness checklist */}
       <TenantReadinessChecklist tenant={tenant} className="mb-8" />
 
-      {/* 2 — Theme picker */}
-      <ThemePickerPanel
-        tenantId={tenantId}
-        activeTheme={activeTheme}
-      />
+      {/* 2 — Theme & design (lives in the Design section) */}
+      <Link
+        href={`/admin/tenants/${tenantId}/design`}
+        className="mb-8 flex items-center justify-between gap-4 rounded-xl border border-neutral-200 bg-white px-5 py-4 transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
+      >
+        <div>
+          <p className="text-sm font-semibold text-neutral-900">Thema &amp; design</p>
+          <p className="mt-0.5 text-xs text-neutral-500">
+            Kies een preset of bouw een eigen look in de Design-sectie — presets, builder, typografie en tokens.
+          </p>
+        </div>
+        <span className="shrink-0 text-sm font-medium text-indigo-600">Open Design →</span>
+      </Link>
 
       {/* 3 — Site-builder infrastructure gates */}
       <SiteBuilderReadiness tenant={tenant} className="mb-8 mt-8" />
