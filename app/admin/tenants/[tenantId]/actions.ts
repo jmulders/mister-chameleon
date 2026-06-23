@@ -21,6 +21,7 @@ import {
 }                         from "@/lib/admin-auth/authorization";
 import { DEV_TENANT_COOKIE, DEV_TENANT_COOKIE_MAX_AGE } from "@/tenant/dev-tenant-cookie";
 import { validateDesignTokenUpload } from "@/tenant/design-token-validator";
+import { logger } from "@/lib/logger";
 import { provisionTenant }           from "@/cms/seed/tenant-provisioner";
 import { getPackageDefinition, isValidPackageKey } from "@/tenant";
 import { templateKeysToPageEntries }  from "@/page-config";
@@ -2633,7 +2634,7 @@ export async function provisionTenantCmsAction(
       getPlatformPloiSettings, ploiFlags, resolvePloiToken,
     } = await import("@/platform/platform-store");
     const {
-      generateRepoFromTemplate, buildStatamicInfraYaml, applyPloiInfrastructure, provisioningSlug,
+      generateRepoFromTemplate, seedNeutralPagesIntoRepo, buildStatamicInfraYaml, applyPloiInfrastructure, provisioningSlug,
     } = await import("@/lib/provisioning/cms-provisioner");
 
     const ghResult = await getPlatformGithubSettings();
@@ -2665,6 +2666,21 @@ export async function provisionTenantCmsAction(
       description:   `Mister Chameleon CMS — tenant ${tenantId}`,
     });
     if (!repo.ok) return { ok: false, error: `Fase 1 (repo): ${repo.message}` };
+
+    // ── Fase 1b: seed neutral placeholder pages into the FRESH repo only ──
+    // A generated repo is a copy of the template, including its (possibly live)
+    // content/. Overwrite the new repo's pages with the neutral seed so the
+    // tenant rolls out brand-free. Skipped when the repo already existed, so an
+    // existing tenant's content is never touched. Best-effort + non-fatal.
+    if (!repo.alreadyExisted) {
+      const seedResult = await seedNeutralPagesIntoRepo({
+        token: ghTok,
+        owner: gh.repoOwner,
+        name:  repoName,
+        branch: "main",
+      });
+      logger.info("[provision] neutral page seed", { tenantId, repo: repoName, ...seedResult });
+    }
 
     // ── Fase 2: create the Ploi Cloud application ──
     const { randomBytes } = await import("crypto");

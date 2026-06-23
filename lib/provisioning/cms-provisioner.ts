@@ -137,6 +137,104 @@ export async function generateRepoFromTemplate(
   };
 }
 
+// ── Fase 1b: seed neutral placeholder pages into a freshly-generated repo ─────────
+
+export interface SeedRepoInput {
+  token:   string;
+  owner:   string;
+  name:    string;
+  branch?: string;   // default "main"
+}
+
+export interface SeedRepoResult {
+  ok:      boolean;
+  message: string;
+  seeded:  string[];
+}
+
+const SEED_PAGES_DIR    = "seed/content/collections/pages/nl";
+const CONTENT_PAGES_DIR = "content/collections/pages/nl";
+
+/**
+ * Copy the template's neutral starter pages (seed/content/.../nl/*.md) into the
+ * NEW repo's content/ via the GitHub Contents API, so a freshly-provisioned
+ * tenant rolls out with neutral placeholder content — NOT a copy of whatever
+ * live content currently sits in the template repo.
+ *
+ * Only ever call this for a repo that was JUST generated (never one that already
+ * existed), so it can never overwrite an existing tenant's content. Globals
+ * (logo, site settings) are intentionally left untouched. Best-effort + non-fatal.
+ */
+export async function seedNeutralPagesIntoRepo(input: SeedRepoInput): Promise<SeedRepoResult> {
+  const { token, owner, name } = input;
+  const branch = input.branch ?? "main";
+  if (!token || !owner || !name) return { ok: false, message: "owner/name/token required", seeded: [] };
+
+  const headers = {
+    Authorization:          `Bearer ${token}`,
+    Accept:                 "application/vnd.github+json",
+    "Content-Type":         "application/json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent":           "mister-chameleon-provisioner",
+  };
+  const contents = (path: string) => `${GITHUB_API}/repos/${owner}/${name}/contents/${path}`;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // GitHub populates a generated repo asynchronously — retry the seed listing a
+  // few times before giving up.
+  let listing: Array<{ name: string; path: string; type: string }> | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(`${contents(SEED_PAGES_DIR)}?ref=${branch}`, { headers, cache: "no-store" });
+      if (res.ok) { listing = await res.json() as Array<{ name: string; path: string; type: string }>; break; }
+    } catch { /* retry */ }
+    await sleep(2500);
+  }
+  if (!Array.isArray(listing)) {
+    return { ok: false, message: `Seed pages not found in ${owner}/${name} — left template content as-is.`, seeded: [] };
+  }
+
+  const mdFiles = listing.filter((f) => f.type === "file" && f.name.endsWith(".md"));
+  const seeded: string[] = [];
+
+  for (const file of mdFiles) {
+    try {
+      // Read the seed file's (base64) content.
+      const seedRes = await fetch(`${contents(file.path)}?ref=${branch}`, { headers, cache: "no-store" });
+      if (!seedRes.ok) continue;
+      const seedJson = await seedRes.json() as { content?: string };
+      const contentB64 = (seedJson.content ?? "").replace(/\s+/g, "");
+      if (!contentB64) continue;
+
+      // If a content/ page already exists (copied from the template), we need its
+      // sha to overwrite it; otherwise it's a fresh create.
+      const destPath = `${CONTENT_PAGES_DIR}/${file.name}`;
+      let existingSha: string | undefined;
+      const existRes = await fetch(`${contents(destPath)}?ref=${branch}`, { headers, cache: "no-store" });
+      if (existRes.ok) existingSha = ((await existRes.json()) as { sha?: string }).sha;
+
+      const putRes = await fetch(contents(destPath), {
+        method: "PUT",
+        headers,
+        cache:  "no-store",
+        body: JSON.stringify({
+          message: `seed: neutral placeholder ${file.name}`,
+          content: contentB64,
+          branch,
+          ...(existingSha ? { sha: existingSha } : {}),
+        }),
+      });
+      if (putRes.ok) seeded.push(file.name);
+    } catch { /* non-fatal per file */ }
+  }
+
+  return {
+    ok:      seeded.length > 0,
+    message: seeded.length ? `Seeded neutral pages: ${seeded.join(", ")}.` : "No pages seeded.",
+    seeded,
+  };
+}
+
 // ── Fase 2: Ploi Cloud Infrastructure-as-Code ────────────────────────────────────
 
 export interface PloiSecret { key: string; value: string }
