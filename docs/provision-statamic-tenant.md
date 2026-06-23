@@ -114,15 +114,23 @@ Ploi deploy webhook URL there once — each Statamic instance has its own).
 
 ## 2b. Seed the standard pages
 For a brand-new instance, copy the clean starter pages so the CP has valid,
-typed content from the start:
+typed content from the start, then populate the placeholder images:
 
 ```bash
 cp -R seed/content/. content/
+bash seed/download-placeholders.sh
 php please cache:clear && php please stache:refresh
 ```
 
-`seed/` contains `home.md` (the standard context slots + the global variant
-catalogue) and `contact.md`. See `seed/README.md` for adding more pages.
+`seed/` contains neutral placeholder pages: `home.md` (context slots + the global
+variant catalogue), `showcase.md` (`/showcase`, noindex — one of every component
+block), and `contact.md`. Content is descriptive headings + Lorem-Ipsum body so a
+fresh tenant rolls out brand-free but presentable.
+
+`download-placeholders.sh` fills the image references (`placeholder-*.jpg`) from
+Unsplash (`UNSPLASH_ACCESS_KEY`) or Lorem Picsum (no key). It is idempotent +
+non-fatal — add it to the Ploi **Init container commands** so placeholders are
+present on every deploy. See `seed/README.md`.
 
 ## 3. Wire tenant ↔ Statamic on the platform
 - DB `tenant_settings.settings.cms.statamicBaseUrl` = the Statamic host.
