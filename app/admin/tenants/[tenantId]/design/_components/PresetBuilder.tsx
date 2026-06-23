@@ -11,7 +11,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
-import { applyDesignTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
+import { applyDesignTokensAction, importDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { TenantDesignSettings } from "@/tenant/types";
 
 interface Props {
@@ -125,6 +125,35 @@ export function PresetBuilder({ tenantId }: Props) {
     );
   }, [g, onPrimary]);
 
+  async function onImportFile(file: File) {
+    setMsg(null);
+    const text = await file.text();
+    // Seed the builder + preview from the file so the result is visible at once.
+    // The server action re-validates authoritatively before persisting.
+    try {
+      const o = JSON.parse(text) as Partial<Record<keyof Groups, Record<string, string>>>;
+      setG((prev) => ({
+        color:      o.color      ? { ...prev.color,      ...o.color }      : prev.color,
+        typography: o.typography ? { ...prev.typography, ...o.typography } : prev.typography,
+        radius:     o.radius     ? { ...prev.radius,     ...o.radius }     : prev.radius,
+        shadow:     o.shadow     ? { ...prev.shadow,     ...o.shadow }     : prev.shadow,
+        button:     o.button     ? { ...prev.button,     ...o.button }     : prev.button,
+        layout:     o.layout     ? { ...prev.layout,     ...o.layout }     : prev.layout,
+      }));
+    } catch {
+      // Non-fatal — the server action returns the precise JSON error below.
+    }
+    startTransition(async () => {
+      const r = await importDesignPresetAction(tenantId, text);
+      if (r.ok) {
+        setMsg({ text: `Geïmporteerd${r.name ? `: ${r.name}` : ""} ✓ — opgeslagen op tenant.`, ok: true });
+        router.refresh();
+      } else {
+        setMsg({ text: r.errors.join(" "), ok: false });
+      }
+    });
+  }
+
   function save() {
     setMsg(null);
     const payload = {
@@ -152,6 +181,20 @@ export function PresetBuilder({ tenantId }: Props) {
           <select style={sel} value={base} onChange={(e) => pickBase(e.target.value)}>
             {DESIGN_PRESET_GALLERY.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <label style={lbl}>Of importeer een preset-JSON</label>
+          <input
+            type="file"
+            accept="application/json,.json"
+            disabled={pending}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImportFile(f); e.target.value = ""; }}
+            style={{ fontSize: 12, width: "100%" }}
+          />
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+            Past de preset direct toe op deze tenant (vervangt de huidige tokens).
+          </div>
         </div>
 
         <div style={sub}>Kleuren</div>

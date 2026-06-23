@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "minimal-mono",
+    "name": "Minimal Mono",
+    "description": "Pure structure, no colour. Zinc monochrome, near-zero radius, thin lines, whitespace."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#18181b",
+    "primaryHover": "#000000",
+    "secondary": "#71717a",
+    "accent": "#f4f4f5",
+    "background": "#ffffff",
+    "foreground": "#18181b",
+    "muted": "#fafafa",
+    "mutedForeground": "#a1a1aa",
+    "border": "#e4e4e7",
+    "card": "#ffffff",
+    "cardForeground": "#18181b",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Inter', system-ui, sans-serif",
+    "fontBody": "'Inter', system-ui, sans-serif",
+    "baseFontSize": "15px",
+    "headingWeight": "600",
+    "letterSpacing": "-.01em",
+    "headingTransform": "none"
+  },
+  "radius": {
+    "interactive": "2px",
+    "card": "2px"
+  },
+  "shadow": {
+    "md": "none"
+  },
+  "component": {
+    "buttonPaddingX": "1rem",
+    "buttonPaddingY": ".55rem"
+  },
+  "layout": {
+    "headerBg": "#ffffff",
+    "headerFg": "#18181b",
+    "headerBorder": "#e4e4e7",
+    "navLinkWeight": "500",
+    "navLinkTracking": "0"
+  },
+  "swatch": {
+    "primary": "#18181b",
+    "background": "#ffffff",
+    "foreground": "#18181b",
+    "accent": "#f4f4f5"
+  }
+}

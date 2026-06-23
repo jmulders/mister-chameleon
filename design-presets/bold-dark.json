@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "bold-dark",
+    "name": "Bold Dark",
+    "description": "High-energy launches. Near-black canvas, amber accent, glow, balanced radius."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#f59e0b",
+    "primaryHover": "#d97706",
+    "secondary": "#a78bfa",
+    "accent": "#1c1917",
+    "background": "#0a0a0f",
+    "foreground": "#f4f4f5",
+    "muted": "#15151f",
+    "mutedForeground": "#a1a1aa",
+    "border": "#27272a",
+    "card": "#15151f",
+    "cardForeground": "#f4f4f5",
+    "onPrimary": "#1c1917"
+  },
+  "typography": {
+    "fontHeading": "'Space Grotesk', system-ui, sans-serif",
+    "fontBody": "'Inter', system-ui, sans-serif",
+    "baseFontSize": "16px",
+    "headingWeight": "700",
+    "letterSpacing": "-.01em",
+    "headingTransform": "none"
+  },
+  "radius": {
+    "interactive": "10px",
+    "card": "14px"
+  },
+  "shadow": {
+    "md": "0 0 40px rgba(245,158,11,.25)"
+  },
+  "component": {
+    "buttonPaddingX": "1.2rem",
+    "buttonPaddingY": ".66rem"
+  },
+  "layout": {
+    "headerBg": "#0a0a0f",
+    "headerFg": "#f4f4f5",
+    "headerBorder": "#27272a",
+    "navLinkWeight": "600",
+    "navLinkTracking": "0"
+  },
+  "swatch": {
+    "primary": "#f59e0b",
+    "background": "#0a0a0f",
+    "foreground": "#f4f4f5",
+    "accent": "#1c1917"
+  }
+}

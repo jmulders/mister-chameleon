@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "corporate-navy",
+    "name": "Corporate Navy",
+    "description": "Trust & authority for professional services. Navy blue, sharp corners, DM Sans."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#1e3a8a",
+    "primaryHover": "#1e40af",
+    "secondary": "#2563eb",
+    "accent": "#eff6ff",
+    "background": "#ffffff",
+    "foreground": "#0f172a",
+    "muted": "#f1f5f9",
+    "mutedForeground": "#475569",
+    "border": "#dbe2ea",
+    "card": "#ffffff",
+    "cardForeground": "#0f172a",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'DM Sans', system-ui, sans-serif",
+    "fontBody": "'DM Sans', system-ui, sans-serif",
+    "baseFontSize": "16px",
+    "headingWeight": "700",
+    "letterSpacing": "-.01em",
+    "headingTransform": "none"
+  },
+  "radius": {
+    "interactive": "4px",
+    "card": "6px"
+  },
+  "shadow": {
+    "md": "0 4px 14px rgba(15,23,42,.08)"
+  },
+  "component": {
+    "buttonPaddingX": "1.15rem",
+    "buttonPaddingY": ".64rem"
+  },
+  "layout": {
+    "headerBg": "#1e3a8a",
+    "headerFg": "#ffffff",
+    "headerBorder": "#1e3a8a",
+    "navLinkWeight": "600",
+    "navLinkTracking": "0"
+  },
+  "swatch": {
+    "primary": "#1e3a8a",
+    "background": "#ffffff",
+    "foreground": "#0f172a",
+    "accent": "#eff6ff"
+  }
+}

@@ -391,6 +391,103 @@ export async function applyDesignPresetAction(
   return { ok: true, presetId };
 }
 
+// ── Import a design preset from raw JSON (Builder "Importeer JSON") ─────────────
+
+export type ImportPresetResult =
+  | { ok: true; name?: string; appliedKeys: string[]; warnings: string[] }
+  | { ok: false; errors: string[] };
+
+/**
+ * Imports a design preset from a raw JSON string (pasted or uploaded in the
+ * admin Design Builder) and applies it to a tenant as a COMPLETE look.
+ *
+ * The JSON is the grouped design-token UPLOAD format: `theme` + token groups
+ * (color / typography / radius / …) at the top level. An optional `meta` and
+ * `swatch` block (as in the exported preset files) is ignored — only known
+ * token groups are read — so the human-readable files import cleanly.
+ *
+ * Validation is the SAME authoritative `validateDesignTokenUpload` used by the
+ * token-upload path (CSS-injection guard, allowlisted keys, theme check).
+ *
+ * Unlike applyDesignTokensAction (which MERGES), this REPLACES
+ * `design.tokenOverrides` wholesale — a preset is a complete look, matching the
+ * gallery's applyDesignPresetAction behaviour.
+ */
+export async function importDesignPresetAction(
+  tenantId: string,
+  rawJson: string,
+): Promise<ImportPresetResult> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return { ok: false, errors: ["Ongeldige JSON — kon het bestand niet lezen."] };
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, errors: ["JSON moet een object zijn met token-groepen (color, typography, …)."] };
+  }
+  const obj = parsed as Record<string, unknown>;
+
+  // Read ONLY known token-upload keys; ignore meta / swatch / anything else.
+  const KNOWN_KEYS = [
+    "theme", "primaryColor", "primaryFont",
+    "radiusInteractive", "radiusCard", "radiusPopover",
+    "color", "typography", "radius", "spacing", "border", "shadow",
+    "motion", "component", "layout", "grid", "responsive", "elevation",
+    "focus", "button",
+  ] as const;
+  const payload: Record<string, unknown> = {};
+  for (const k of KNOWN_KEYS) if (obj[k] !== undefined) payload[k] = obj[k];
+
+  const validation = validateDesignTokenUpload(payload);
+  if (!validation.ok) return { ok: false, errors: validation.errors };
+
+  const current = await getTenantById(tenantId);
+  if (!current) return { ok: false, errors: [`Tenant "${tenantId}" niet gevonden.`] };
+
+  // Build tokenOverrides from the validated groups (REPLACE, not merge).
+  const t = validation.tokens;
+  const overrides: TenantTokenOverrides = {
+    ...(t.radiusInteractive !== undefined ? { radiusInteractive: t.radiusInteractive } : {}),
+    ...(t.radiusCard        !== undefined ? { radiusCard:        t.radiusCard }        : {}),
+    ...(t.radiusPopover     !== undefined ? { radiusPopover:     t.radiusPopover }     : {}),
+    ...(t.color      ? { color:      { ...t.color }      } : {}),
+    ...(t.typography ? { typography: { ...t.typography } } : {}),
+    ...(t.radius     ? { radius:     { ...t.radius }     } : {}),
+    ...(t.spacing    ? { spacing:    { ...t.spacing }    } : {}),
+    ...(t.border     ? { border:     { ...t.border }     } : {}),
+    ...(t.shadow     ? { shadow:     { ...t.shadow }     } : {}),
+    ...(t.motion     ? { motion:     { ...t.motion }     } : {}),
+    ...(t.component  ? { component:  { ...t.component }  } : {}),
+    ...(t.layout     ? { layout:     { ...t.layout }     } : {}),
+    ...(t.grid       ? { grid:       { ...t.grid }       } : {}),
+    ...(t.responsive ? { responsive: { ...t.responsive } } : {}),
+    ...(t.elevation  ? { elevation:  { ...t.elevation }  } : {}),
+    ...(t.focus      ? { focus:      { ...t.focus }      } : {}),
+    ...(t.button     ? { button:     { ...t.button }     } : {}),
+  };
+
+  const updatedDesign: TenantDesignSettings = {
+    ...current.design,
+    theme:                     t.theme ?? "custom",
+    tokenOverrides:            overrides,
+    typographyOverrideEnabled: true,
+    selectedStyleFamily:       undefined,
+  };
+
+  const saveResult = await saveTenant({ ...current, design: updatedDesign });
+  if (!saveResult.ok) return { ok: false, errors: [saveResult.error] };
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/tenants");
+  revalidatePath(`/admin/tenants/${tenantId}`);
+
+  const meta = obj.meta as Record<string, unknown> | undefined;
+  const name = meta && typeof meta.name === "string" ? meta.name : undefined;
+
+  return { ok: true, name, appliedKeys: validation.appliedKeys, warnings: validation.warnings };
+}
+
 // ── CMS credentials action ────────────────────────────────────────────────────
 
 /**

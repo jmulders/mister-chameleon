@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "indigo-saas",
+    "name": "Indigo SaaS",
+    "description": "Clean, modern, product-led SaaS. Indigo on white, Inter, balanced corners."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#4f46e5",
+    "primaryHover": "#4338ca",
+    "secondary": "#06b6d4",
+    "accent": "#eef2ff",
+    "background": "#ffffff",
+    "foreground": "#0f172a",
+    "muted": "#f1f5f9",
+    "mutedForeground": "#64748b",
+    "border": "#e2e8f0",
+    "card": "#ffffff",
+    "cardForeground": "#0f172a",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Inter', system-ui, sans-serif",
+    "fontBody": "'Inter', system-ui, sans-serif",
+    "baseFontSize": "16px",
+    "headingWeight": "700",
+    "letterSpacing": "0",
+    "headingTransform": "none"
+  },
+  "radius": {
+    "interactive": "8px",
+    "card": "12px"
+  },
+  "shadow": {
+    "md": "0 6px 18px rgba(2,6,23,.08)"
+  },
+  "component": {
+    "buttonPaddingX": "1.1rem",
+    "buttonPaddingY": ".62rem"
+  },
+  "layout": {
+    "headerBg": "#ffffff",
+    "headerFg": "#0f172a",
+    "headerBorder": "#e2e8f0",
+    "navLinkWeight": "600",
+    "navLinkTracking": "0"
+  },
+  "swatch": {
+    "primary": "#4f46e5",
+    "background": "#ffffff",
+    "foreground": "#0f172a",
+    "accent": "#eef2ff"
+  }
+}

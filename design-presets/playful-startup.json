@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "playful-startup",
+    "name": "Playful Startup",
+    "description": "Consumer apps & EdTech. Vivid violet + pink, big soft corners, expressive Space Grotesk."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#7c3aed",
+    "primaryHover": "#6d28d9",
+    "secondary": "#ec4899",
+    "accent": "#f5f3ff",
+    "background": "#ffffff",
+    "foreground": "#1e1b4b",
+    "muted": "#faf5ff",
+    "mutedForeground": "#6d28d9",
+    "border": "#ede9fe",
+    "card": "#ffffff",
+    "cardForeground": "#1e1b4b",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Space Grotesk', system-ui, sans-serif",
+    "fontBody": "'Inter', system-ui, sans-serif",
+    "baseFontSize": "16px",
+    "headingWeight": "700",
+    "letterSpacing": "-.02em",
+    "headingTransform": "none"
+  },
+  "radius": {
+    "interactive": "18px",
+    "card": "22px"
+  },
+  "shadow": {
+    "md": "0 12px 30px rgba(124,58,237,.18)"
+  },
+  "component": {
+    "buttonPaddingX": "1.35rem",
+    "buttonPaddingY": ".72rem"
+  },
+  "layout": {
+    "headerBg": "#ffffff",
+    "headerFg": "#1e1b4b",
+    "headerBorder": "#ede9fe",
+    "navLinkWeight": "600",
+    "navLinkTracking": "0"
+  },
+  "swatch": {
+    "primary": "#7c3aed",
+    "background": "#ffffff",
+    "foreground": "#1e1b4b",
+    "accent": "#f5f3ff"
+  }
+}

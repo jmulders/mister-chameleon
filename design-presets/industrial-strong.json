@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "industrial-strong",
+    "name": "Industrial Strong",
+    "description": "Manufacturing & logistics. Red on stone, UPPERCASE headings, zero radius, hard borders."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#dc2626",
+    "primaryHover": "#b91c1c",
+    "secondary": "#1c1917",
+    "accent": "#f5f3ef",
+    "background": "#f5f3ef",
+    "foreground": "#1c1917",
+    "muted": "#e7e2da",
+    "mutedForeground": "#57534e",
+    "border": "#1c1917",
+    "card": "#ffffff",
+    "cardForeground": "#1c1917",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Oswald', 'Arial Narrow', sans-serif",
+    "fontBody": "'Inter', system-ui, sans-serif",
+    "baseFontSize": "16px",
+    "headingWeight": "700",
+    "letterSpacing": ".04em",
+    "headingTransform": "uppercase"
+  },
+  "radius": {
+    "interactive": "0px",
+    "card": "0px"
+  },
+  "shadow": {
+    "md": "4px 4px 0 #1c1917"
+  },
+  "component": {
+    "buttonPaddingX": "1.25rem",
+    "buttonPaddingY": ".7rem"
+  },
+  "layout": {
+    "headerBg": "#1c1917",
+    "headerFg": "#f5f3ef",
+    "headerBorder": "#1c1917",
+    "navLinkWeight": "700",
+    "navLinkTracking": ".08em",
+    "navTransform": "uppercase"
+  },
+  "swatch": {
+    "primary": "#dc2626",
+    "background": "#f5f3ef",
+    "foreground": "#1c1917",
+    "accent": "#f5f3ef"
+  }
+}

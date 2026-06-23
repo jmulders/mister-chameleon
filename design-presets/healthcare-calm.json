@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "healthcare-calm",
+    "name": "Healthcare Calm",
+    "description": "Healthcare & wellness. Cyan on sky-blue, soft rounded corners, airy and light."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#0891b2",
+    "primaryHover": "#0e7490",
+    "secondary": "#34d399",
+    "accent": "#ecfeff",
+    "background": "#f0f9ff",
+    "foreground": "#0c4a6e",
+    "muted": "#e0f2fe",
+    "mutedForeground": "#0369a1",
+    "border": "#bae6fd",
+    "card": "#ffffff",
+    "cardForeground": "#0c4a6e",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Manrope', system-ui, sans-serif",
+    "fontBody": "'Manrope', system-ui, sans-serif",
+    "baseFontSize": "16px",
+    "headingWeight": "700",
+    "letterSpacing": "0",
+    "headingTransform": "none"
+  },
+  "radius": {
+    "interactive": "16px",
+    "card": "20px"
+  },
+  "shadow": {
+    "md": "0 8px 24px rgba(8,145,178,.12)"
+  },
+  "component": {
+    "buttonPaddingX": "1.3rem",
+    "buttonPaddingY": ".7rem"
+  },
+  "layout": {
+    "headerBg": "#ffffff",
+    "headerFg": "#0c4a6e",
+    "headerBorder": "#bae6fd",
+    "navLinkWeight": "600",
+    "navLinkTracking": "0"
+  },
+  "swatch": {
+    "primary": "#0891b2",
+    "background": "#f0f9ff",
+    "foreground": "#0c4a6e",
+    "accent": "#ecfeff"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "editorial-serif",
+    "name": "Editorial Serif",
+    "description": "High-end editorial. Warm cream, ink text, Cormorant serif headings, hairline rules."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#1f2937",
+    "primaryHover": "#111827",
+    "secondary": "#9ca3af",
+    "accent": "#f3efe7",
+    "background": "#faf6ef",
+    "foreground": "#2b2620",
+    "muted": "#f1ece2",
+    "mutedForeground": "#7c7363",
+    "border": "#e3dccf",
+    "card": "#fffdf8",
+    "cardForeground": "#2b2620",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Cormorant Garamond', Georgia, serif",
+    "fontBody": "'Inter', system-ui, sans-serif",
+    "baseFontSize": "17px",
+    "headingWeight": "600",
+    "letterSpacing": "0",
+    "headingTransform": "none",
+    "headingLineHeight": "1.15"
+  },
+  "radius": {
+    "interactive": "2px",
+    "card": "2px"
+  },
+  "shadow": {
+    "md": "0 1px 0 rgba(43,38,32,.06)"
+  },
+  "component": {
+    "buttonPaddingX": "1.3rem",
+    "buttonPaddingY": ".7rem"
+  },
+  "layout": {
+    "headerBg": "#faf6ef",
+    "headerFg": "#2b2620",
+    "headerBorder": "#e3dccf",
+    "navLinkWeight": "500",
+    "navLinkTracking": ".02em"
+  },
+  "swatch": {
+    "primary": "#1f2937",
+    "background": "#faf6ef",
+    "foreground": "#2b2620",
+    "accent": "#f3efe7"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "modern-green",
+    "name": "Modern Green",
+    "description": "Growth & sustainability. Emerald, fresh and friendly, Manrope, balanced radius."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#059669",
+    "primaryHover": "#047857",
+    "secondary": "#34d399",
+    "accent": "#ecfdf5",
+    "background": "#ffffff",
+    "foreground": "#052e16",
+    "muted": "#f0fdf4",
+    "mutedForeground": "#15803d",
+    "border": "#d1fae5",
+    "card": "#ffffff",
+    "cardForeground": "#052e16",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Manrope', system-ui, sans-serif",
+    "fontBody": "'Manrope', system-ui, sans-serif",
+    "baseFontSize": "16px",
+    "headingWeight": "800",
+    "letterSpacing": "-.01em",
+    "headingTransform": "none"
+  },
+  "radius": {
+    "interactive": "10px",
+    "card": "14px"
+  },
+  "shadow": {
+    "md": "0 8px 22px rgba(5,150,105,.14)"
+  },
+  "component": {
+    "buttonPaddingX": "1.2rem",
+    "buttonPaddingY": ".66rem"
+  },
+  "layout": {
+    "headerBg": "#ffffff",
+    "headerFg": "#052e16",
+    "headerBorder": "#d1fae5",
+    "navLinkWeight": "700",
+    "navLinkTracking": "0"
+  },
+  "swatch": {
+    "primary": "#059669",
+    "background": "#ffffff",
+    "foreground": "#052e16",
+    "accent": "#ecfdf5"
+  }
+}

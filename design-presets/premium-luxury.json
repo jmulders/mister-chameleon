@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "schema": "mister-chameleon-design-preset@1",
+    "id": "premium-luxury",
+    "name": "Premium Luxury",
+    "description": "Prestige brands. Deep gold on warm cream, refined serif headings, pill buttons."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#a87c2a",
+    "primaryHover": "#8c6420",
+    "secondary": "#2d2a24",
+    "accent": "#f7f1e3",
+    "background": "#fbf8f1",
+    "foreground": "#2d2a24",
+    "muted": "#f2ebdc",
+    "mutedForeground": "#8a8170",
+    "border": "#e6dcc6",
+    "card": "#fffdf7",
+    "cardForeground": "#2d2a24",
+    "onPrimary": "#ffffff"
+  },
+  "typography": {
+    "fontHeading": "'Cormorant Garamond', Georgia, serif",
+    "fontBody": "'Manrope', system-ui, sans-serif",
+    "baseFontSize": "17px",
+    "headingWeight": "600",
+    "letterSpacing": ".01em",
+    "headingTransform": "none",
+    "headingLineHeight": "1.15"
+  },
+  "radius": {
+    "interactive": "9999px",
+    "card": "10px"
+  },
+  "shadow": {
+    "md": "0 10px 30px rgba(45,42,36,.10)"
+  },
+  "component": {
+    "buttonPaddingX": "1.5rem",
+    "buttonPaddingY": ".72rem"
+  },
+  "layout": {
+    "headerBg": "#fbf8f1",
+    "headerFg": "#2d2a24",
+    "headerBorder": "#e6dcc6",
+    "navLinkWeight": "500",
+    "navLinkTracking": ".06em"
+  },
+  "swatch": {
+    "primary": "#a87c2a",
+    "background": "#fbf8f1",
+    "foreground": "#2d2a24",
+    "accent": "#f7f1e3"
+  }
+}
