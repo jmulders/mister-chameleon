@@ -53,7 +53,7 @@
 
 import "server-only";
 
-import { unstable_cache } from "next/cache";
+import { unstable_cache, revalidateTag } from "next/cache";
 import type {
   TenantSettings,
   PackageKey,
@@ -840,6 +840,19 @@ export async function saveTenant(
 
   if (error) {
     return { ok: false, error: `[tenant-store] saveTenant DB error: ${error.message}` };
+  }
+
+  // Bust the persistent tenant cache so the public site (which reads the tenant
+  // via getTenantByDomainCached / getTenantByIdCached — both tagged with
+  // TENANT_RENDER_CACHE_TAG) reflects this write IMMEDIATELY instead of waiting
+  // out the 120s revalidate window. Without this, admin Design / Settings edits
+  // appear "not applied" for up to two minutes. Wrapped because revalidateTag is
+  // only valid inside a request scope (server action / route handler) — calls
+  // from scripts must not throw.
+  try {
+    revalidateTag(TENANT_RENDER_CACHE_TAG);
+  } catch {
+    // Outside a request scope (e.g. a CLI script) — safe to ignore.
   }
 
   return {
