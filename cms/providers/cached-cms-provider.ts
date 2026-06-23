@@ -50,6 +50,7 @@
  */
 
 import { unstable_cache } from "next/cache";
+import { readPersistedSiteSettings, persistSiteSettings } from "./site-settings-cache-store";
 import type { CMSProvider, ProvisionResult, StarterContentMode, TestConnectionResult } from "./cms-provider";
 import type {
   HeroBlockData,
@@ -233,17 +234,29 @@ export class CachedCMSProvider implements CMSProvider {
       const good = await fetchComplete();
       setCmsSingleton(this.tenantId, cacheKey, good);
       lastGoodSiteSettings.set(lgKey, good);
+      // Durably persist the COMPLETE result so cold lambdas, cache-key bumps and
+      // a slow/restarting CMS still have a real fallback. Fire-and-forget — it
+      // must never block or fail the render.
+      void persistSiteSettings(this.tenantId, locale, good);
       return good;
     } catch {
       // The live result was incomplete (or a sub-fetch failed).  Serve the
       // richest last-known-good we have so the chrome (header + nav) stays
       // stable instead of flipping to a degraded variant.
+
+      // 1. In-memory last-known-good (warm lambda).
       const prev = lastGoodSiteSettings.get(lgKey);
       if (prev) return prev;
 
-      // No last-known-good yet (truly cold).  Fall back to a raw fetch so the
-      // page still renders the best available chrome rather than nothing — but
-      // do NOT poison the singleton cache with a possibly-degraded result.
+      // 2. Durable DB last-known-good — survives cold lambdas, cache resets and a
+      //    slow/restarting CMS. THIS is what stops the nav/logo from flipping to
+      //    the Statamic starter defaults.
+      const persisted = await readPersistedSiteSettings(this.tenantId, locale);
+      if (persisted) { lastGoodSiteSettings.set(lgKey, persisted); return persisted; }
+
+      // 3. Truly nothing cached yet.  Fall back to a raw fetch so the page still
+      //    renders the best available chrome rather than nothing — but do NOT
+      //    poison the singleton cache with a possibly-degraded result.
       const raw = await this.inner.getSiteSettings(locale);
       if (raw) lastGoodSiteSettings.set(lgKey, raw);
       return raw ?? null;
