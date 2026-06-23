@@ -182,6 +182,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
     { label: "Adaptive blocks",    href: "/admin/platform/blocks",    activePrefix: "/admin/platform/blocks",    icon: icons.layers,  note: "Catalog" },
     { label: "Variant defaults",   href: "/admin/platform/variants",  activePrefix: "/admin/platform/variants",  icon: icons.layers },
     { label: "Interest defaults",  href: "/admin/interest-profiles",  activePrefix: "/admin/interest-profiles",  icon: icons.layers },
+    { label: "Token extractor",    href: "/admin/platform/token-extractor", activePrefix: "/admin/platform/token-extractor", icon: icons.layers, note: "URL → tokens" },
   ];
 
   // ── NavLink component ───────────────────────────────────────────────────────
