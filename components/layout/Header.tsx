@@ -58,6 +58,7 @@ import { getSiteNavigation }  from "@/site/navigation-store";
 import { Container } from "@/components/primitives";
 import { NavBar, UtilityBar } from "./NavBar";
 import { HeaderShell } from "./HeaderShell";
+import { chromeIsDark } from "./chrome-bg";
 import { CartIconButton } from "./CartIconButton";
 import { SearchBar } from "./SearchBar";
 import { SectionTabs } from "./SectionTabs";
@@ -72,23 +73,6 @@ import type { NavVariant, NavDensity } from "./NavBar";
 import type { HeaderStyle } from "./HeaderShell";
 import type { HeaderCtaData, LocaleEntry, NavigationItemData } from "@/cms/types";
 import { parseScenarioCookie } from "@/lib/scenario/server-scenario";
-
-// ── Dark-header detection (logo variant selection) ──────────────────────────────
-//
-// Returns true when a hex colour is visually dark (relative luminance < 0.5).
-// Used to pick the dark-background logo variant when the header background token
-// is dark — so the brand mark stays legible on a dark/custom header WITHOUT any
-// per-preset logo wiring. Non-hex values (transparent, gradients) → not dark.
-function isDarkHex(hex?: string | null): boolean {
-  if (!hex) return false;
-  let h = hex.trim().replace("#", "");
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-  if (!/^[0-9a-fA-F]{6}$/.test(h)) return false;
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
-}
 
 // ── Locale fallback ────────────────────────────────────────────────────────────
 
@@ -275,8 +259,7 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   // "Dark" is derived from the headerBg design token's luminance (the same token
   // each preset sets), so a dark custom header automatically swaps to the light
   // logo. Falls back to the default logo when no dark variant exists.
-  const headerBgToken   = tenantSettings?.design?.tokenOverrides?.layout?.headerBg;
-  const useDarkLogo     = isDarkHex(headerBgToken) && Boolean(settings?.logoDark?.url);
+  const useDarkLogo     = chromeIsDark(tenantSettings, "header") && Boolean(settings?.logoDark?.url);
   const logoUrl         = (useDarkLogo ? settings?.logoDark?.url : settings?.logo?.url) ?? "/logo.svg";
   const logoAlt         = (useDarkLogo ? settings?.logoDark?.alt : settings?.logo?.alt) ?? siteTitle;
   // Scenario CTA takes precedence over the CMS default when a demo scenario is active.

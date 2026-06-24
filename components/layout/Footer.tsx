@@ -32,6 +32,7 @@ import {
   FEATURED_FAMILY_CONFIGS,
   isFeaturedFamilyKey,
 } from "@/design-system/theme/theme-families.config";
+import { chromeIsDark }      from "./chrome-bg";
 import { FooterCorporate }   from "./footer/FooterCorporate";
 import { FooterBranding }    from "./footer/FooterBranding";
 import { FooterMinimal }     from "./footer/FooterMinimal";
@@ -48,8 +49,11 @@ export async function Footer() {
   const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings();
 
   const siteTitle    = settings?.siteTitle        ?? activeTenant.name;
-  const logoUrl      = settings?.logo?.url        ?? null;
-  const logoAlt      = settings?.logo?.alt        ?? siteTitle;
+  // Dark footer → use the dark-background logo variant when configured. "Dark"
+  // is derived from the effective footerBg (token override or theme preset).
+  const useDarkLogo  = chromeIsDark(tenantSettings, "footer") && Boolean(settings?.logoDark?.url);
+  const logoUrl      = (useDarkLogo ? settings?.logoDark?.url : settings?.logo?.url) ?? null;
+  const logoAlt      = (useDarkLogo ? settings?.logoDark?.alt : settings?.logo?.alt) ?? siteTitle;
   const footerNav    = settings?.footerNavigation ?? [];
   const footerCols   = settings?.footerColumns;
   const contactEmail = settings?.contactEmail     ?? null;
