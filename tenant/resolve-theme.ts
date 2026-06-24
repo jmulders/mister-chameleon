@@ -590,6 +590,16 @@ export function resolveThemeForTenant(
       vars["--section-hero-bg"]  = heroGradient;
       vars["--hero-dark-bg"]     = heroGradient;
     }
+
+    // When a preset overrides the header foreground, the top-level nav links must
+    // follow it too. Layer A (tenantThemeToCSS) pins --nav-link DIRECTLY from the
+    // BASE theme's headerFg, which beats theme.css's `--nav-link: var(--header-fg)`
+    // cascade — so an overridden white headerFg would otherwise leave the nav
+    // links on the base (dark) colour, invisible on a dark custom header.
+    const headerFgOverride = (to.layout as Readonly<Record<string, string>> | undefined)?.headerFg;
+    if (headerFgOverride) {
+      vars["--nav-link"] = headerFgOverride;
+    }
   }
 
   return { key, vars };
