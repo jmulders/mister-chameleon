@@ -92,6 +92,24 @@ import {
 // for the whole TTL). The map only grows by tenant×locale, so it stays tiny.
 const lastGoodSiteSettings = new Map<string, SiteSettingsData>();
 
+/**
+ * True when site settings carry the Statamic STARTER-template navigation
+ * (Home / Services / Landing / About Us / Contact / Components). A freshly-cloned
+ * or not-yet-synced Statamic instance serves this default instead of the tenant's
+ * real nav. It passes a naive "non-empty" check but is NOT the configured
+ * navigation, so serving it makes the header flip between the real nav and the
+ * starter default on refresh. The "landing" + "components" label pair is unique
+ * to the starter and won't occur in a real configured navigation, so we use it as
+ * the rejection signature — applied both when accepting a fresh fetch AND when
+ * reading any cached/persisted value (the old gate let it poison the DB cache).
+ */
+function isStarterNav(settings: SiteSettingsData | null | undefined): boolean {
+  const labels = (settings?.mainNavigation ?? []).map(
+    (n) => (n?.label ?? "").toLowerCase().trim(),
+  );
+  return labels.includes("landing") && labels.includes("components");
+}
+
 // ── Decorator ─────────────────────────────────────────────────────────────────
 
 /**
@@ -216,17 +234,25 @@ export class CachedCMSProvider implements CMSProvider {
     const fetchComplete = unstable_cache(
       async (): Promise<SiteSettingsData> => {
         const v = await this.inner.getSiteSettings(locale);
-        const navOk = Boolean(
+        const hasNav = Boolean(
           v && Array.isArray(v.mainNavigation) && v.mainNavigation.length > 0,
         );
-        if (!navOk) throw new Error("[cached-cms] site settings have no navigation (transient)");
+        const starter = isStarterNav(v);
+        if (!hasNav || starter) {
+          throw new Error(
+            starter
+              ? "[cached-cms] site settings returned the Statamic starter nav (degraded)"
+              : "[cached-cms] site settings have no navigation (transient)",
+          );
+        }
         return v as SiteSettingsData;
       },
-      // NOTE: the key suffix (-v2) is a CACHE VERSION. Bump it whenever the
-      // SHAPE of the cached site-settings changes (e.g. logo URLs switching from
-      // root-relative to absolute), so a deploy bypasses the stale cross-deploy
-      // Data Cache entry immediately instead of waiting out `revalidate`.
-      ["site-settings-complete-v2", this.tenantId ?? "_", locale],
+      // NOTE: the key suffix (-v3) is a CACHE VERSION. Bump it whenever the
+      // SHAPE or the completeness rule of the cached site-settings changes (e.g.
+      // logo URLs switching to absolute, or the starter-nav rejection added in
+      // v3), so a deploy bypasses the stale cross-deploy Data Cache entry
+      // immediately instead of waiting out `revalidate`.
+      ["site-settings-complete-v3", this.tenantId ?? "_", locale],
       { revalidate: 120, tags: ["site-settings"] },
     );
 
@@ -244,21 +270,26 @@ export class CachedCMSProvider implements CMSProvider {
       // richest last-known-good we have so the chrome (header + nav) stays
       // stable instead of flipping to a degraded variant.
 
-      // 1. In-memory last-known-good (warm lambda).
+      // 1. In-memory last-known-good (warm lambda). Skip a starter-nav value —
+      //    an older build may have cached it before the rejection existed.
       const prev = lastGoodSiteSettings.get(lgKey);
-      if (prev) return prev;
+      if (prev && !isStarterNav(prev)) return prev;
 
       // 2. Durable DB last-known-good — survives cold lambdas, cache resets and a
       //    slow/restarting CMS. THIS is what stops the nav/logo from flipping to
-      //    the Statamic starter defaults.
+      //    the Statamic starter defaults. Reject a poisoned (starter) row so a
+      //    previously-persisted starter nav is never served.
       const persisted = await readPersistedSiteSettings(this.tenantId, locale);
-      if (persisted) { lastGoodSiteSettings.set(lgKey, persisted); return persisted; }
+      if (persisted && !isStarterNav(persisted)) {
+        lastGoodSiteSettings.set(lgKey, persisted);
+        return persisted;
+      }
 
-      // 3. Truly nothing cached yet.  Fall back to a raw fetch so the page still
-      //    renders the best available chrome rather than nothing — but do NOT
-      //    poison the singleton cache with a possibly-degraded result.
+      // 3. Truly nothing good cached yet.  Fall back to a raw fetch so the page
+      //    still renders SOME chrome rather than nothing — but do NOT cache it
+      //    (it may be the degraded starter result).
       const raw = await this.inner.getSiteSettings(locale);
-      if (raw) lastGoodSiteSettings.set(lgKey, raw);
+      if (raw && !isStarterNav(raw)) lastGoodSiteSettings.set(lgKey, raw);
       return raw ?? null;
     }
   }

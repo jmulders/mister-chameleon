@@ -9,7 +9,7 @@
   "color": {
     "primary": "#7c3aed",
     "primaryHover": "#6d28d9",
-    "secondary": "#c79a2e",
+    "secondary": "#d4af37",
     "accent": "#fdf3d7",
     "background": "#faf5ff",
     "foreground": "#2e1065",
@@ -59,7 +59,7 @@
   "layout": {
     "headerBg": "#2e1065",
     "headerFg": "#ffffff",
-    "headerBorder": "#c79a2e",
+    "headerBorder": "#d4af37",
     "navLinkWeight": "600",
     "navLinkTracking": "0"
   },
@@ -71,6 +71,6 @@
     "primary": "#7c3aed",
     "background": "#faf5ff",
     "foreground": "#2e1065",
-    "accent": "#c79a2e"
+    "accent": "#d4af37"
   }
 }

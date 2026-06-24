@@ -218,7 +218,7 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   // --bg-subtle, not the canonical --primary/--foreground/… names). Without
   // these aliases a custom token override only reached a few elements (the
   // header) while buttons, cards and section backgrounds kept the base theme.
-  primary:               ["--primary", "--ring", "--text-brand", "--btn-bg"],
+  primary:               ["--primary", "--ring", "--text-brand", "--btn-bg", "--section-cta-bg"],
   primaryHover:          ["--primary-hover", "--primary-active", "--btn-hover-bg", "--btn-active-bg"],
   secondary:             ["--secondary"],
   accent:                ["--accent"],
