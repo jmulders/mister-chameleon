@@ -65,6 +65,7 @@
 
 import { MISTER_CHAMELEON_TENANT } from "./mister-chameleon-config";
 import { WORKENGINE_TENANT }       from "./workengine-config";
+import { STATAMIC_TENANT, ANOTHER_STATAMIC_TENANT } from "./production-tenants";
 // ── Additional tenant imports ──────────────────────────────────────────────────
 // Uncomment when the client's hostname is live and CMS credentials are ready.
 // import { ACME_GROWTH_TENANT } from "./templates/acme-growth-config";
@@ -104,6 +105,14 @@ const TENANT_REGISTRY: Readonly<Record<string, TenantConfig>> = {
   // ── Mister Chameleon — local development ───────────────────────────────────
   localhost: MISTER_CHAMELEON_TENANT,
   "localhost:3000": MISTER_CHAMELEON_TENANT,
+
+  // ── Mister Chameleon NL site (Statamic tenant) — pinned so it never flips ──
+  "misterchameleon.nl":         STATAMIC_TENANT,
+  "www.misterchameleon.nl":     STATAMIC_TENANT,
+
+  // ── Steunles (Statamic tenant) — pinned so it never flips ──────────────────
+  "steunles.nl":                ANOTHER_STATAMIC_TENANT,
+  "www.steunles.nl":            ANOTHER_STATAMIC_TENANT,
 
   // ── WorkEngine ─────────────────────────────────────────────────────────────
   "workengine.io":              WORKENGINE_TENANT,
