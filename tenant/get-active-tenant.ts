@@ -79,6 +79,7 @@
 import { headers, cookies }  from "next/headers";
 import { resolveTenant, resolveTenantOrNull, resolveTenantById } from "./resolve-tenant";
 import { getTenantByDomainCached, getTenantById }  from "./tenant-store";
+import { readPersistedHostTenant, persistHostTenant } from "./host-resolution-cache-store";
 import { DEV_TENANT_COOKIE }  from "./dev-tenant-cookie";
 import { buildTenantConfigFromSettings } from "./build-tenant-config";
 import type { TenantConfig }  from "./types";
@@ -175,6 +176,10 @@ export async function getActiveTenant(): Promise<TenantConfig> {
     const config = resolveTenantById(storedTenant.tenantId)
       ?? buildTenantConfigFromSettings(storedTenant);
     lastGoodTenantByHost.set(hostKey, config); // pin as last-known-good for this host
+    // Durably persist the host → settings mapping so cold lambdas and Data-Cache
+    // resets (revalidateTag on every tenant save) still resolve the correct
+    // tenant instead of flipping to FALLBACK_TENANT. Fire-and-forget.
+    void persistHostTenant(hostKey, storedTenant);
     return config;
   }
 
@@ -185,6 +190,19 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   // flipping the whole site to FALLBACK_TENANT (the nav/header flip-flop).
   const lastGood = lastGoodTenantByHost.get(hostKey);
   if (lastGood) return lastGood;
+
+  // ── 3c. Durable DB last-known-good — survives cold lambdas & cache resets ──
+  // The in-memory pin is empty on a freshly-started serverless instance (e.g.
+  // right after a deploy), so without this a cold instance + transient store
+  // miss would flip the whole site to FALLBACK_TENANT. The persisted host →
+  // settings mapping is stable and always correct.
+  const persisted = await readPersistedHostTenant(hostKey);
+  if (persisted) {
+    const config = resolveTenantById(persisted.tenantId)
+      ?? buildTenantConfigFromSettings(persisted);
+    lastGoodTenantByHost.set(hostKey, config);
+    return config;
+  }
 
   // ── 4. Fallback ──────────────────────────────────────────────────────────
   return resolveTenant(host); // returns FALLBACK_TENANT for unknown hosts
