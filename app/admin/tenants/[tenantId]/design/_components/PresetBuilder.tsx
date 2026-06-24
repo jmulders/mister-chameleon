@@ -186,8 +186,11 @@ export function PresetBuilder({ tenantId }: Props) {
       try {
         const r = await importDesignPresetAction(tenantId, text);
         if (r.ok) {
-          setMsg({ text: `Geïmporteerd${r.name ? `: ${r.name}` : ""} ✓ — opgeslagen op tenant.`, ok: true });
-          router.refresh();
+          // Deliberately NOT calling router.refresh(): re-rendering this admin
+          // page right after a full token replace has triggered an edge-case
+          // crash. The tokens are saved; the operator views the public site to
+          // see them. (router stays imported for future use.)
+          setMsg({ text: `Geïmporteerd${r.name ? `: ${r.name}` : ""} ✓ — opgeslagen. Open de publieke site om het te zien.`, ok: true });
         } else {
           setMsg({ text: r.errors.join(" "), ok: false });
         }
