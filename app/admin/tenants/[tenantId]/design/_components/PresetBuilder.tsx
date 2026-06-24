@@ -131,11 +131,11 @@ export function PresetBuilder({ tenantId }: Props) {
           <div style={{ color: c.mutedForeground, fontSize: 13, marginBottom: 16, maxWidth: "44ch" }}>Dezelfde blokken, een totaal andere look &amp; feel — puur via design-tokens.</div>
           <div style={{ display: "flex", gap: 9, marginBottom: 18 }}>
             <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: Number(b.weight) || 600, textTransform: (b.transform || "none") as React.CSSProperties["textTransform"], letterSpacing: b.tracking, boxShadow: b.shadow }}>Bekijk demo</span>
-            <span style={{ background: "transparent", color: c.foreground, border: `${g.border.width || "1px"} solid ${c.border}`, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>Outline</span>
+            <span style={{ background: "transparent", color: c.foreground, border: `${g.border?.width || "1px"} solid ${c.border}`, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>Outline</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {["34% meer leads", "Privacy-vriendelijk"].map((tt) => (
-              <div key={tt} style={{ background: c.card, border: `${g.border.width || "1px"} solid ${c.border}`, borderRadius: radCard, boxShadow: g.shadow.md, padding: "13px 14px" }}>
+              <div key={tt} style={{ background: c.card, border: `${g.border?.width || "1px"} solid ${c.border}`, borderRadius: radCard, boxShadow: g.shadow.md, padding: "13px 14px" }}>
                 <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, fontSize: 14, marginBottom: 3 }}>{tt}</div>
                 <div style={{ color: c.mutedForeground, fontSize: 12 }}>Gemiddeld na 90 dagen.</div>
               </div>
@@ -170,6 +170,9 @@ export function PresetBuilder({ tenantId }: Props) {
           const f = flat(next);
           return f ? { ...cur, ...f } : cur;
         };
+        // IMPORTANT: return EVERY group. Omitting a group (e.g. border) drops it
+        // from state → the live-preview useMemo reads `g.border.width` on
+        // undefined and crashes the page ("Cannot read properties of undefined").
         return {
           color:      merge(prev.color,      o.color),
           typography: merge(prev.typography, o.typography),
@@ -177,6 +180,10 @@ export function PresetBuilder({ tenantId }: Props) {
           shadow:     merge(prev.shadow,     o.shadow),
           button:     merge(prev.button,     o.button),
           layout:     merge(prev.layout,     o.layout),
+          spacing:    merge(prev.spacing,    o.spacing),
+          border:     merge(prev.border,     o.border),
+          motion:     merge(prev.motion,     o.motion),
+          focus:      merge(prev.focus,      o.focus),
         };
       });
     } catch {
