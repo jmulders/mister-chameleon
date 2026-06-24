@@ -219,6 +219,25 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
       focus: { ringWidth: "3px", ringColor: "#7c3aed" },
     },
   },
+  {
+    id: "aurora-purple-gold",
+    name: "Aurora Purple Gold",
+    description: "Aurora Purple with a complementary gold accent — soft-gold eyebrow badge + gold secondary, a thin gold rule under the dark header. Purple + gold = classic premium.",
+    baseTheme: "custom",
+    swatch: { primary: "#7c3aed", background: "#faf5ff", foreground: "#2e1065", accent: "#c79a2e" },
+    tokenOverrides: {
+      color: { primary: "#7c3aed", primaryHover: "#6d28d9", secondary: "#c79a2e", accent: "#fdf3d7", background: "#faf5ff", foreground: "#2e1065", muted: "#f3e8ff", mutedForeground: "#6d28d9", border: "#e9d5ff", card: "#ffffff", cardForeground: "#2e1065", onPrimary: "#ffffff", link: "#9333ea", success: "#10b981", danger: "#e11d48", gradient: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)", gradientHero: "linear-gradient(180deg, #1a0533 0%, #4c1d95 52%, #7c3aed 100%)" },
+      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none", headingLineHeight: "1.08" },
+      radius: { interactive: "14px", card: "18px" },
+      shadow: { md: "0 14px 36px rgba(124,58,237,.20)" },
+      border: { width: "1px" },
+      spacing: { sectionPadding: "clamp(60px,9vw,144px)", container: "74rem", align: "center" },
+      component: { buttonPaddingX: "1.3rem", buttonPaddingY: ".7rem" },
+      motion: { hoverLift: "-4px" },
+      layout: { headerBg: "#2e1065", headerFg: "#ffffff", headerBorder: "#c79a2e", navLinkWeight: "600", navLinkTracking: "0" },
+      focus: { ringWidth: "3px", ringColor: "#7c3aed" },
+    },
+  },
 ] as const;
 
 /** Look up a preset by id. */
