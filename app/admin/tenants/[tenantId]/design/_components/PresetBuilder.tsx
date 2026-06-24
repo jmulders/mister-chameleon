@@ -63,15 +63,15 @@ function seedFrom(presetId: string): Groups {
 // ── Option tables for the extended controls ───────────────────────────────────
 const SECTION_PADDING: [string, string][] = [
   ["clamp(28px,4vw,48px)", "Compact"],
-  ["clamp(40px,6vw,80px)", "Normaal"],
-  ["clamp(64px,9vw,128px)", "Ruim"],
+  ["clamp(40px,6vw,80px)", "Normal"],
+  ["clamp(64px,9vw,128px)", "Spacious"],
 ];
 const CONTAINER_WIDTH: [string, string][] = [
-  ["64rem", "Smal"], ["72rem", "Normaal"], ["80rem", "Breed"], ["100%", "Volledig"],
+  ["64rem", "Narrow"], ["72rem", "Normal"], ["80rem", "Wide"], ["100%", "Full"],
 ];
-const BORDER_WIDTH: [string, string][] = [["0px", "Geen"], ["1px", "Dun"], ["2px", "Normaal"], ["3px", "Dik"]];
-const HOVER_LIFT: [string, string][]  = [["0px", "Geen"], ["-2px", "Subtiel"], ["-4px", "Sterk"]];
-const RING_WIDTH: [string, string][]  = [["1px", "Dun"], ["2px", "Normaal"], ["3px", "Dik"]];
+const BORDER_WIDTH: [string, string][] = [["0px", "None"], ["1px", "Thin"], ["2px", "Normal"], ["3px", "Thick"]];
+const HOVER_LIFT: [string, string][]  = [["0px", "None"], ["-2px", "Subtle"], ["-4px", "Strong"]];
+const RING_WIDTH: [string, string][]  = [["1px", "Thin"], ["2px", "Normal"], ["3px", "Thick"]];
 
 function contrastText(hex: string): string {
   try {
@@ -83,9 +83,9 @@ function contrastText(hex: string): string {
 }
 
 const COLOR_FIELDS: [string, string][] = [
-  ["primary", "Primair"], ["secondary", "Secundair"], ["accent", "Accent"],
-  ["background", "Achtergrond"], ["foreground", "Tekst"], ["card", "Kaart"],
-  ["border", "Rand"], ["mutedForeground", "Subtiele tekst"],
+  ["primary", "Primary"], ["secondary", "Secondary"], ["accent", "Accent"],
+  ["background", "Background"], ["foreground", "Text"], ["card", "Card"],
+  ["border", "Border"], ["mutedForeground", "Muted text"],
 ];
 
 const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, color: "#334155", margin: "0 0 4px" };
@@ -121,23 +121,23 @@ export function PresetBuilder({ tenantId }: Props) {
     return (
       <div style={{ background: c.background, color: c.foreground, fontFamily: ty.fontBody, borderRadius: 10, overflow: "hidden", border: "1px solid #e6e8ec" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: l.headerBg || c.background, color: l.headerFg || c.foreground, borderBottom: `1px solid ${l.headerBorder || c.border}` }}>
-          <span style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, textTransform: hT, letterSpacing: ty.letterSpacing, fontSize: 15 }}>Mijn merk</span>
-          <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 11, opacity: .9 }}><span>Features</span><span>Prijzen</span><span>Cases</span></span>
+          <span style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, textTransform: hT, letterSpacing: ty.letterSpacing, fontSize: 15 }}>My brand</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 11, opacity: .9 }}><span>Features</span><span>Pricing</span><span>Cases</span></span>
           <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "5px 10px", fontSize: 11, fontWeight: 600 }}>Start</span>
         </div>
         <div style={{ padding: "22px 20px" }}>
-          <span style={{ display: "inline-block", background: c.accent, color: c.primary, borderRadius: 999, padding: "3px 9px", fontSize: 10, fontWeight: 700, marginBottom: 10 }}>PERSONALISATIE</span>
-          <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, textTransform: hT, letterSpacing: ty.letterSpacing, fontSize: 28, lineHeight: 1.1, marginBottom: 8 }}>Jouw site past zich aan</div>
-          <div style={{ color: c.mutedForeground, fontSize: 13, marginBottom: 16, maxWidth: "44ch" }}>Dezelfde blokken, een totaal andere look &amp; feel — puur via design-tokens.</div>
+          <span style={{ display: "inline-block", background: c.accent, color: c.primary, borderRadius: 999, padding: "3px 9px", fontSize: 10, fontWeight: 700, marginBottom: 10 }}>PERSONALIZATION</span>
+          <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, textTransform: hT, letterSpacing: ty.letterSpacing, fontSize: 28, lineHeight: 1.1, marginBottom: 8 }}>Your site adapts</div>
+          <div style={{ color: c.mutedForeground, fontSize: 13, marginBottom: 16, maxWidth: "44ch" }}>The same blocks, a totally different look &amp; feel — purely via design tokens.</div>
           <div style={{ display: "flex", gap: 9, marginBottom: 18 }}>
-            <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: Number(b.weight) || 600, textTransform: (b.transform || "none") as React.CSSProperties["textTransform"], letterSpacing: b.tracking, boxShadow: b.shadow }}>Bekijk demo</span>
+            <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: Number(b.weight) || 600, textTransform: (b.transform || "none") as React.CSSProperties["textTransform"], letterSpacing: b.tracking, boxShadow: b.shadow }}>View demo</span>
             <span style={{ background: "transparent", color: c.foreground, border: `${g.border?.width || "1px"} solid ${c.border}`, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>Outline</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {["34% meer leads", "Privacy-vriendelijk"].map((tt) => (
+            {["34% more leads", "Privacy-friendly"].map((tt) => (
               <div key={tt} style={{ background: c.card, border: `${g.border?.width || "1px"} solid ${c.border}`, borderRadius: radCard, boxShadow: g.shadow.md, padding: "13px 14px" }}>
                 <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, fontSize: 14, marginBottom: 3 }}>{tt}</div>
-                <div style={{ color: c.mutedForeground, fontSize: 12 }}>Gemiddeld na 90 dagen.</div>
+                <div style={{ color: c.mutedForeground, fontSize: 12 }}>Average after 90 days.</div>
               </div>
             ))}
           </div>
@@ -197,7 +197,7 @@ export function PresetBuilder({ tenantId }: Props) {
           // page right after a full token replace has triggered an edge-case
           // crash. The tokens are saved; the operator views the public site to
           // see them. (router stays imported for future use.)
-          setMsg({ text: `Geïmporteerd${r.name ? `: ${r.name}` : ""} ✓ — opgeslagen. Open de publieke site om het te zien.`, ok: true });
+          setMsg({ text: `Imported${r.name ? `: ${r.name}` : ""} ✓ — saved. Open the public site to see it.`, ok: true });
         } else {
           setMsg({ text: r.errors.join(" "), ok: false });
         }
@@ -206,7 +206,7 @@ export function PresetBuilder({ tenantId }: Props) {
         // server-action reference after a redeploy — the POST 404s. Surface the
         // fix instead of letting it crash to a raw 404 page.
         setMsg({
-          text: "Import mislukt — waarschijnlijk een verlopen sessie na een nieuwe deploy. Ververs de pagina (⌘/Ctrl-Shift-R) en probeer opnieuw.",
+          text: "Import failed — likely an expired session after a new deploy. Refresh the page (⌘/Ctrl-Shift-R) and try again.",
           ok: false,
         });
       }
@@ -230,7 +230,7 @@ export function PresetBuilder({ tenantId }: Props) {
     };
     startTransition(async () => {
       const r = await applyDesignTokensAction(tenantId, payload);
-      if (r.ok) { setMsg({ text: "Opgeslagen ✓ — bekijk de publieke site.", ok: true }); router.refresh(); }
+      if (r.ok) { setMsg({ text: "Saved ✓ — view the public site.", ok: true }); router.refresh(); }
       else setMsg({ text: r.errors.join(" "), ok: false });
     });
   }
@@ -240,14 +240,14 @@ export function PresetBuilder({ tenantId }: Props) {
       {/* Controls */}
       <div style={{ border: "1px solid #e6e8ec", borderRadius: 12, padding: 16, background: "#fff" }}>
         <div style={{ marginBottom: 8 }}>
-          <label style={lbl}>Begin vanaf</label>
+          <label style={lbl}>Start from</label>
           <select style={sel} value={base} onChange={(e) => pickBase(e.target.value)}>
             {DESIGN_PRESET_GALLERY.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <label style={lbl}>Of importeer een preset-JSON (ook Figma / DTCG)</label>
+          <label style={lbl}>Or import a preset JSON (Figma / DTCG too)</label>
           <label
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,
@@ -256,7 +256,7 @@ export function PresetBuilder({ tenantId }: Props) {
               cursor: pending ? "wait" : "pointer", opacity: pending ? 0.6 : 1,
             }}
           >
-            <span aria-hidden="true">📂</span> Kies preset-JSON…
+            <span aria-hidden="true">📂</span> Choose preset JSON…
             <input
               type="file"
               accept=".json,application/json"
@@ -266,15 +266,15 @@ export function PresetBuilder({ tenantId }: Props) {
             />
           </label>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-            Onze preset-JSON of een Figma/Tokens-Studio-export — wordt als complete look toegepast (vervangt de huidige tokens).
+            Our preset JSON or a Figma/Tokens Studio export — applied as a complete look (replaces the current tokens).
           </div>
-          {pending && <div style={{ fontSize: 11, color: "#6366f1", marginTop: 4 }}>Bezig met importeren…</div>}
+          {pending && <div style={{ fontSize: 11, color: "#6366f1", marginTop: 4 }}>Importing…</div>}
           {msg && (
             <div style={{ fontSize: 11, color: msg.ok ? "#16a34a" : "#b91c1c", marginTop: 4 }}>{msg.text}</div>
           )}
         </div>
 
-        <div style={sub}>Kleuren</div>
+        <div style={sub}>Colors</div>
         {COLOR_FIELDS.map(([k, label]) => (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
             <input type="color" value={/^#([0-9a-f]{6})$/i.test(g.color[k] || "") ? g.color[k] : "#000000"} onChange={(e) => set("color", k, e.target.value)} style={{ width: 34, height: 30, padding: 0, border: "1px solid #e6e8ec", borderRadius: 6 }} />
@@ -283,52 +283,52 @@ export function PresetBuilder({ tenantId }: Props) {
           </div>
         ))}
 
-        <div style={sub}>Typografie</div>
-        <label style={lbl}>Heading-font</label>
+        <div style={sub}>Typography</div>
+        <label style={lbl}>Heading font</label>
         <select style={sel} value={g.typography.fontHeading || FONTS[0][0]} onChange={(e) => set("typography", "fontHeading", e.target.value)}>
           {FONTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
         </select>
-        <label style={{ ...lbl, marginTop: 9 }}>Body-font</label>
+        <label style={{ ...lbl, marginTop: 9 }}>Body font</label>
         <select style={sel} value={g.typography.fontBody || FONTS[0][0]} onChange={(e) => set("typography", "fontBody", e.target.value)}>
           {FONTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
         </select>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 9 }}>
           <div>
-            <label style={lbl}>Heading-gewicht</label>
+            <label style={lbl}>Heading weight</label>
             <select style={sel} value={g.typography.headingWeight || "700"} onChange={(e) => set("typography", "headingWeight", e.target.value)}>
               {["500", "600", "700", "800"].map((w) => <option key={w} value={w}>{w}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Hoofdletters</label>
+            <label style={lbl}>Letter case</label>
             <select style={sel} value={g.typography.headingTransform || "none"} onChange={(e) => set("typography", "headingTransform", e.target.value)}>
-              <option value="none">Aa</option><option value="uppercase">AA</option><option value="capitalize">Aa-begin</option>
+              <option value="none">Aa</option><option value="uppercase">AA</option><option value="capitalize">Title case</option>
             </select>
           </div>
         </div>
 
-        <div style={sub}>Vorm &amp; knoppen</div>
+        <div style={sub}>Shape &amp; buttons</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
           <div>
-            <label style={lbl}>Knop-radius</label>
+            <label style={lbl}>Button radius</label>
             <select style={sel} value={g.radius.interactive || "8px"} onChange={(e) => set("radius", "interactive", e.target.value)}>
               {["0px", "4px", "8px", "16px", "9999px"].map((v) => <option key={v} value={v}>{v === "9999px" ? "pill" : v}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Kaart-radius</label>
+            <label style={lbl}>Card radius</label>
             <select style={sel} value={g.radius.card || "12px"} onChange={(e) => set("radius", "card", e.target.value)}>
               {["0px", "6px", "12px", "20px"].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Knop-gewicht</label>
+            <label style={lbl}>Button weight</label>
             <select style={sel} value={g.button.weight || "600"} onChange={(e) => set("button", "weight", e.target.value)}>
               {["500", "600", "700"].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Knop-hoofdletters</label>
+            <label style={lbl}>Button case</label>
             <select style={sel} value={g.button.transform || "none"} onChange={(e) => set("button", "transform", e.target.value)}>
               <option value="none">Aa</option><option value="uppercase">AA</option>
             </select>
@@ -337,54 +337,54 @@ export function PresetBuilder({ tenantId }: Props) {
 
         <div style={sub}>Header</div>
         <select style={sel} onChange={(e) => setHeader(e.target.value)} defaultValue="">
-          <option value="" disabled>Kies header-stijl…</option>
-          <option value="light">Licht</option><option value="dark">Donker</option><option value="transparent">Transparant</option>
+          <option value="" disabled>Choose header style…</option>
+          <option value="light">Light</option><option value="dark">Dark</option><option value="transparent">Transparent</option>
         </select>
 
-        <div style={sub}>Ruimte &amp; secties</div>
+        <div style={sub}>Spacing &amp; sections</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
           <div>
-            <label style={lbl}>Sectie-ruimte</label>
+            <label style={lbl}>Section spacing</label>
             <select style={sel} value={g.spacing.sectionPadding || SECTION_PADDING[1][0]} onChange={(e) => set("spacing", "sectionPadding", e.target.value)}>
               {SECTION_PADDING.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Content-breedte</label>
+            <label style={lbl}>Content width</label>
             <select style={sel} value={g.spacing.container || CONTAINER_WIDTH[1][0]} onChange={(e) => set("spacing", "container", e.target.value)}>
               {CONTAINER_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Uitlijning</label>
+            <label style={lbl}>Alignment</label>
             <select style={sel} value={g.spacing.align || "left"} onChange={(e) => set("spacing", "align", e.target.value)}>
-              <option value="left">Links</option><option value="center">Gecentreerd</option>
+              <option value="left">Left</option><option value="center">Centered</option>
             </select>
           </div>
           <div>
-            <label style={lbl}>Rand-dikte</label>
+            <label style={lbl}>Border width</label>
             <select style={sel} value={g.border.width || "1px"} onChange={(e) => set("border", "width", e.target.value)}>
               {BORDER_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
         </div>
 
-        <div style={sub}>Interactie &amp; focus</div>
+        <div style={sub}>Interaction &amp; focus</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
           <div>
-            <label style={lbl}>Hover-lift (knoppen)</label>
+            <label style={lbl}>Hover lift (buttons)</label>
             <select style={sel} value={g.motion.hoverLift || "0px"} onChange={(e) => set("motion", "hoverLift", e.target.value)}>
               {HOVER_LIFT.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Focus-ring dikte</label>
+            <label style={lbl}>Focus ring width</label>
             <select style={sel} value={g.focus.ringWidth || "2px"} onChange={(e) => set("focus", "ringWidth", e.target.value)}>
               {RING_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ ...lbl, margin: 0 }}>Focus-ring kleur</label>
+            <label style={{ ...lbl, margin: 0 }}>Focus ring color</label>
             <input
               type="color"
               value={/^#([0-9a-f]{6})$/i.test(g.focus.ringColor || "") ? g.focus.ringColor : (g.color.primary || "#4f46e5")}
@@ -394,10 +394,10 @@ export function PresetBuilder({ tenantId }: Props) {
           </div>
         </div>
 
-        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
           <button type="button" onClick={save} disabled={pending}
             style={{ fontSize: 13, fontWeight: 600, padding: "9px 16px", borderRadius: 9, border: "1px solid #4f46e5", background: "#4f46e5", color: "#fff", cursor: pending ? "wait" : "pointer" }}>
-            {pending ? "Opslaan…" : "Opslaan op tenant"}
+            {pending ? "Saving…" : "Save to tenant"}
           </button>
           {msg && <span style={{ fontSize: 12, color: msg.ok ? "#16a34a" : "#b91c1c" }}>{msg.text}</span>}
         </div>
