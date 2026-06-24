@@ -429,61 +429,70 @@ export async function importDesignPresetAction(
   }
   const obj = parsed as Record<string, unknown>;
 
-  // validateDesignTokenUpload accepts our grouped format, auto-converts a DTCG /
-  // Tokens Studio (Figma) export, and ignores metadata keys (meta, swatch,
-  // $schema). So the parsed file can be handed to it as-is.
-  const validation = validateDesignTokenUpload(parsed);
-  if (!validation.ok) return { ok: false, errors: validation.errors };
+  // Everything below is wrapped so the action NEVER throws — a thrown server
+  // action surfaces to the client as an unhandled error and crashes the page to
+  // the "This page couldn't load" boundary. We always return a structured result
+  // instead, so the UI can show a message.
+  try {
+    // validateDesignTokenUpload accepts our grouped format, auto-converts a DTCG
+    // / Tokens Studio (Figma) export, and ignores metadata keys (meta, swatch,
+    // $schema). So the parsed file can be handed to it as-is.
+    const validation = validateDesignTokenUpload(parsed);
+    if (!validation.ok) return { ok: false, errors: validation.errors };
 
-  const current = await getTenantById(tenantId);
-  if (!current) return { ok: false, errors: [`Tenant "${tenantId}" niet gevonden.`] };
+    const current = await getTenantById(tenantId);
+    if (!current) return { ok: false, errors: [`Tenant "${tenantId}" niet gevonden.`] };
 
-  // Build tokenOverrides from the validated groups (REPLACE, not merge).
-  const t = validation.tokens;
-  const overrides: TenantTokenOverrides = {
-    ...(t.radiusInteractive !== undefined ? { radiusInteractive: t.radiusInteractive } : {}),
-    ...(t.radiusCard        !== undefined ? { radiusCard:        t.radiusCard }        : {}),
-    ...(t.radiusPopover     !== undefined ? { radiusPopover:     t.radiusPopover }     : {}),
-    ...(t.color      ? { color:      { ...t.color }      } : {}),
-    ...(t.typography ? { typography: { ...t.typography } } : {}),
-    ...(t.radius     ? { radius:     { ...t.radius }     } : {}),
-    ...(t.spacing    ? { spacing:    { ...t.spacing }    } : {}),
-    ...(t.border     ? { border:     { ...t.border }     } : {}),
-    ...(t.shadow     ? { shadow:     { ...t.shadow }     } : {}),
-    ...(t.motion     ? { motion:     { ...t.motion }     } : {}),
-    ...(t.component  ? { component:  { ...t.component }  } : {}),
-    ...(t.layout     ? { layout:     { ...t.layout }     } : {}),
-    ...(t.grid       ? { grid:       { ...t.grid }       } : {}),
-    ...(t.responsive ? { responsive: { ...t.responsive } } : {}),
-    ...(t.elevation  ? { elevation:  { ...t.elevation }  } : {}),
-    ...(t.focus      ? { focus:      { ...t.focus }      } : {}),
-    ...(t.button     ? { button:     { ...t.button }     } : {}),
-  };
+    // Build tokenOverrides from the validated groups (REPLACE, not merge).
+    const t = validation.tokens;
+    const overrides: TenantTokenOverrides = {
+      ...(t.radiusInteractive !== undefined ? { radiusInteractive: t.radiusInteractive } : {}),
+      ...(t.radiusCard        !== undefined ? { radiusCard:        t.radiusCard }        : {}),
+      ...(t.radiusPopover     !== undefined ? { radiusPopover:     t.radiusPopover }     : {}),
+      ...(t.color      ? { color:      { ...t.color }      } : {}),
+      ...(t.typography ? { typography: { ...t.typography } } : {}),
+      ...(t.radius     ? { radius:     { ...t.radius }     } : {}),
+      ...(t.spacing    ? { spacing:    { ...t.spacing }    } : {}),
+      ...(t.border     ? { border:     { ...t.border }     } : {}),
+      ...(t.shadow     ? { shadow:     { ...t.shadow }     } : {}),
+      ...(t.motion     ? { motion:     { ...t.motion }     } : {}),
+      ...(t.component  ? { component:  { ...t.component }  } : {}),
+      ...(t.layout     ? { layout:     { ...t.layout }     } : {}),
+      ...(t.grid       ? { grid:       { ...t.grid }       } : {}),
+      ...(t.responsive ? { responsive: { ...t.responsive } } : {}),
+      ...(t.elevation  ? { elevation:  { ...t.elevation }  } : {}),
+      ...(t.focus      ? { focus:      { ...t.focus }      } : {}),
+      ...(t.button     ? { button:     { ...t.button }     } : {}),
+    };
 
-  const updatedDesign: TenantDesignSettings = {
-    ...current.design,
-    theme:                     t.theme ?? "custom",
-    tokenOverrides:            overrides,
-    typographyOverrideEnabled: true,
-    selectedStyleFamily:       undefined,
-  };
+    const updatedDesign: TenantDesignSettings = {
+      ...current.design,
+      theme:                     t.theme ?? "custom",
+      tokenOverrides:            overrides,
+      typographyOverrideEnabled: true,
+      selectedStyleFamily:       undefined,
+    };
 
-  const saveResult = await saveTenant({ ...current, design: updatedDesign });
-  if (!saveResult.ok) return { ok: false, errors: [saveResult.error] };
+    const saveResult = await saveTenant({ ...current, design: updatedDesign });
+    if (!saveResult.ok) return { ok: false, errors: [saveResult.error] };
 
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/tenants");
-  revalidatePath(`/admin/tenants/${tenantId}`);
+    revalidatePath("/", "layout");
+    revalidatePath("/admin/tenants");
+    revalidatePath(`/admin/tenants/${tenantId}`);
 
-  const meta = obj.meta as Record<string, unknown> | undefined;
-  const name = meta && typeof meta.name === "string" ? meta.name : undefined;
+    const meta = obj.meta as Record<string, unknown> | undefined;
+    const name = meta && typeof meta.name === "string" ? meta.name : undefined;
 
-  return {
-    ok: true,
-    name,
-    appliedKeys: validation.appliedKeys,
-    warnings: validation.warnings,
-  };
+    return {
+      ok: true,
+      name,
+      appliedKeys: validation.appliedKeys,
+      warnings: validation.warnings,
+    };
+  } catch (err) {
+    logger.error("[importDesignPreset] unexpected error", { tenantId, error: String(err) });
+    return { ok: false, errors: [`Import mislukt: ${err instanceof Error ? err.message : "onbekende fout"}`] };
+  }
 }
 
 // ── CMS credentials action ────────────────────────────────────────────────────
