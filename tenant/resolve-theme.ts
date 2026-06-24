@@ -223,7 +223,7 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   secondary:             ["--secondary"],
   accent:                ["--accent"],
   background:            ["--background", "--bg", "--text-inverse", "--ring-offset", "--hero-light-bg"],
-  foreground:            ["--foreground", "--text", "--proof-quote-color", "--bg-inverse", "--section-hero-bg", "--hero-dark-bg"],
+  foreground:            ["--foreground", "--text", "--proof-quote-color", "--bg-inverse", "--section-hero-bg", "--hero-bg", "--hero-dark-bg"],
   muted:                 ["--muted", "--bg-subtle", "--section-subtle-bg", "--primary-subtle"],
   mutedForeground:       ["--muted-foreground", "--text-muted", "--text-subtle"],
   border:                ["--border", "--border-strong", "--card-border", "--section-subtle-border", "--proof-card-border"],
