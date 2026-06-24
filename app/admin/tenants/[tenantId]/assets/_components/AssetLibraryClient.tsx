@@ -39,6 +39,7 @@ import {
   updateAssetMetaAction,
   deleteAssetAction,
 } from "../actions";
+import { directUploadAsset, DIRECT_UPLOAD_THRESHOLD } from "./direct-upload";
 
 // ── Props ───────────────────────────────────────────────────────────────────────
 
@@ -101,17 +102,23 @@ export function AssetLibraryClient({
       setUploading(true);
       setUploadError(null);
 
-      // Upload files sequentially to avoid overwhelming the server
+      // Upload files sequentially to avoid overwhelming the server.
+      // Large files / video bypass the ~4.5 MB Server-Action cap by uploading
+      // straight to storage via a signed URL; small images use the plain action.
       for (const file of files) {
-        const fd = new FormData();
-        fd.append("file",     file);
-        fd.append("tenantId", tenantId);
-        fd.append("title",    file.name.replace(/\.[^/.]+$/, "")); // strip extension as default title
-
+        const title = file.name.replace(/\.[^/.]+$/, ""); // strip extension as default title
         try {
-          const result = await uploadAssetAction(fd);
-          if (!result.success) {
-            setUploadError(result.error ?? "Upload failed");
+          const useDirect = file.size >= DIRECT_UPLOAD_THRESHOLD || file.type.startsWith("video/");
+          if (useDirect) {
+            const result = await directUploadAsset({ tenantId, file, title });
+            if (!result.success) setUploadError(result.error ?? "Upload failed");
+          } else {
+            const fd = new FormData();
+            fd.append("file",     file);
+            fd.append("tenantId", tenantId);
+            fd.append("title",    title);
+            const result = await uploadAssetAction(fd);
+            if (!result.success) setUploadError(result.error ?? "Upload failed");
           }
         } catch (err) {
           setUploadError(err instanceof Error ? err.message : "Upload failed");

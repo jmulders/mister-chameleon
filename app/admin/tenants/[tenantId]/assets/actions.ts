@@ -35,6 +35,7 @@ import {
   deleteAsset,
   type UpdateAssetInput,
 } from "@/lib/assets/tenant-assets";
+import { getActiveStorageAdapterForTenant } from "@/lib/assets/storage-adapter";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -182,6 +183,122 @@ export async function uploadAssetAction(
     rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[uploadAssetAction] error:", msg);
+    return { success: false, error: msg };
+  }
+}
+
+// ── Direct-to-storage upload (large files / video) ─────────────────────────────
+//
+// The Server Action above (uploadAssetAction) streams the file THROUGH a
+// serverless function, which Vercel caps at ~4.5 MB. To support large videos we
+// instead hand the browser a short-lived Supabase Storage SIGNED UPLOAD URL and
+// let it PUT the bytes straight to storage — bypassing the function entirely.
+// The browser then calls registerUploadedAssetAction (tiny metadata payload) to
+// create the tenant_assets row. Only implemented for the Supabase backend.
+
+const DIRECT_MAX_FILE_SIZE = 200 * 1024 * 1024; // 200 MB (matches the bucket limit)
+const ASSET_BUCKET         = "tenant-assets";
+
+export interface CreateUploadUrlResult {
+  success:   boolean;
+  bucket?:   string;
+  path?:     string;
+  token?:    string;
+  publicUrl?: string;
+  error?:    string;
+}
+
+/** Step 1 — issue a signed upload URL the browser can PUT directly to. */
+export async function createAssetUploadUrlAction(input: {
+  tenantId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+}): Promise<CreateUploadUrlResult> {
+  try {
+    const session = await getRequiredAdminSession();
+    const { tenantId, fileName, mimeType, fileSize } = input;
+    if (!tenantId) return { success: false, error: "tenantId is required" };
+    await assertTenantAccess(session, tenantId);
+
+    if (!ALLOWED_MIMES.has(mimeType)) {
+      return { success: false, error: `File type "${mimeType}" is not allowed.` };
+    }
+    if (fileSize > DIRECT_MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error:   `File too large (${(fileSize / 1024 / 1024).toFixed(1)} MB). Maximum is 200 MB.`,
+      };
+    }
+
+    // Direct upload is implemented for Supabase Storage only.
+    const adapter = await getActiveStorageAdapterForTenant(tenantId);
+    if (adapter.provider !== "supabase_storage") {
+      return {
+        success: false,
+        error:   "Direct upload requires the Supabase Storage backend. Use the standard uploader for files up to 4 MB.",
+      };
+    }
+
+    const ext    = fileName.split(".").pop()?.toLowerCase() ?? "bin";
+    const path   = `${tenantId}/${crypto.randomUUID()}.${ext}`;
+    const client = makeServiceClient();
+
+    const { data, error } = await client.storage
+      .from(ASSET_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      return { success: false, error: `Could not create upload URL: ${error?.message ?? "unknown"}` };
+    }
+
+    const { data: urlData } = client.storage.from(ASSET_BUCKET).getPublicUrl(path);
+    return { success: true, bucket: ASSET_BUCKET, path, token: data.token, publicUrl: urlData.publicUrl };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Step 3 — register the directly-uploaded object as a tenant asset. */
+export async function registerUploadedAssetAction(input: {
+  tenantId:    string;
+  storagePath: string;
+  publicUrl:   string;
+  fileName:    string;
+  fileSize:    number;
+  mimeType:    string;
+  title?:      string | null;
+  altText?:    string | null;
+  tags?:       string[];
+}): Promise<UploadAssetResult> {
+  try {
+    const session = await getRequiredAdminSession();
+    if (!input.tenantId) return { success: false, error: "tenantId is required" };
+    await assertTenantAccess(session, input.tenantId);
+
+    const client = makeServiceClient();
+    const asset  = await createAsset(client, {
+      tenantId:       input.tenantId,
+      storagePath:    input.storagePath,
+      publicUrl:      input.publicUrl,
+      fileName:       input.fileName,
+      fileSize:       input.fileSize,
+      mimeType:       input.mimeType,
+      title:          input.title ?? input.fileName,
+      altText:        input.altText ?? undefined,
+      tags:           input.tags ?? [],
+      uploadedBy:     session.email ?? "admin",
+      storageBackend: "supabase_storage",
+      providerBucket: ASSET_BUCKET,
+      assetType:      input.mimeType.startsWith("video/") ? "video" : "image",
+    });
+
+    revalidatePath(`/admin/tenants/${input.tenantId}/assets`);
+    return { success: true, assetId: asset.id, publicUrl: asset.publicUrl };
+  } catch (err) {
+    rethrowNextInternal(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[registerUploadedAssetAction] error:", msg);
     return { success: false, error: msg };
   }
 }
