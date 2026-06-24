@@ -385,7 +385,9 @@ function validateCssLength(
     };
   }
   const trimmed  = value.trim();
-  const lengthRe = /^(\d+(\.\d+)?)(px|rem|em|%|vw|vh|vmin|vmax|dvh|dvw|ch|ex)$/;
+  // Accept leading-zero-optional decimals too (".7rem" is valid CSS, not just
+  // "0.7rem"), so design-preset / Figma values with a bare decimal don't fail.
+  const lengthRe = /^(\d*\.?\d+)(px|rem|em|%|vw|vh|vmin|vmax|dvh|dvw|ch|ex)$/;
   const cssGlobals = /^(inherit|initial|unset|revert|revert-layer)$/i;
   // CSS math functions — clamp()/calc()/min()/max() are legitimate length values
   // (e.g. responsive section padding). Their content is already injection-guarded
