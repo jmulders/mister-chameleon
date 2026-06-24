@@ -38,14 +38,26 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const MAX_FILE_SIZE   = 10 * 1024 * 1024; // 10 MB
+// Vercel caps a serverless-function request body at ~4.5 MB, and this upload
+// runs through a Server Action (= serverless function). The Next.js
+// `serverActions.bodySizeLimit` can't raise that platform cap, so anything
+// larger is rejected by Vercel BEFORE this action runs. We cap below 4.5 MB so
+// the user gets a clear message instead of an opaque 413. Larger videos need the
+// direct-to-storage (signed-URL) upload path.
+const MAX_FILE_SIZE   = 4 * 1024 * 1024; // 4 MB (under Vercel's ~4.5 MB body cap)
 const ALLOWED_MIMES   = new Set([
+  // Images
   "image/jpeg",
   "image/jpg",
   "image/png",
   "image/webp",
   "image/gif",
   "image/svg+xml",
+  // Video (short / compressed clips — see the 4 MB note above)
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  "video/quicktime",
 ]);
 
 // ── Action result types ────────────────────────────────────────────────────────
@@ -109,14 +121,14 @@ export async function uploadAssetAction(
     if (file.size > MAX_FILE_SIZE) {
       return {
         success: false,
-        error:   `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 10 MB.`,
+        error:   `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 4 MB through this uploader (Vercel body limit). For larger videos, use a direct-to-storage upload.`,
       };
     }
 
     if (!ALLOWED_MIMES.has(file.type)) {
       return {
         success: false,
-        error:   `File type "${file.type}" is not allowed. Accepted: JPEG, PNG, WebP, GIF, SVG.`,
+        error:   `File type "${file.type}" is not allowed. Accepted: JPEG, PNG, WebP, GIF, SVG, MP4, WebM, OGG, MOV.`,
       };
     }
 

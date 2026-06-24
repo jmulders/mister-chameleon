@@ -226,7 +226,7 @@ export function AssetLibraryClient({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml,video/mp4,video/webm,video/ogg,video/quicktime"
           className="hidden"
           onChange={handleFileSelect}
         />
