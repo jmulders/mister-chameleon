@@ -220,7 +220,7 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   // header) while buttons, cards and section backgrounds kept the base theme.
   primary:               ["--primary", "--ring", "--text-brand", "--btn-bg", "--section-cta-bg"],
   primaryHover:          ["--primary-hover", "--primary-active", "--btn-hover-bg", "--btn-active-bg"],
-  secondary:             ["--secondary"],
+  secondary:             ["--secondary", "--nav-link-hover"],
   accent:                ["--accent"],
   background:            ["--background", "--bg", "--text-inverse", "--ring-offset", "--hero-light-bg"],
   foreground:            ["--foreground", "--text", "--proof-quote-color", "--bg-inverse", "--section-hero-bg", "--hero-bg", "--hero-dark-bg"],
