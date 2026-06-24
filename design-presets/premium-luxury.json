@@ -18,7 +18,11 @@
     "border": "#e6dcc6",
     "card": "#fffdf7",
     "cardForeground": "#2d2a24",
-    "onPrimary": "#ffffff"
+    "onPrimary": "#ffffff",
+    "link": "#2d2a24",
+    "success": "#16a34a",
+    "danger": "#dc2626",
+    "gradient": "linear-gradient(135deg, #a87c2a 0%, #2d2a24 100%)"
   },
   "typography": {
     "fontHeading": "'Cormorant Garamond', Georgia, serif",
@@ -27,7 +31,7 @@
     "headingWeight": "600",
     "letterSpacing": ".01em",
     "headingTransform": "none",
-    "headingLineHeight": "1.15"
+    "headingLineHeight": "1.1"
   },
   "radius": {
     "interactive": "9999px",
@@ -36,9 +40,20 @@
   "shadow": {
     "md": "0 10px 30px rgba(45,42,36,.10)"
   },
+  "border": {
+    "width": "1px"
+  },
+  "spacing": {
+    "sectionPadding": "clamp(64px,9vw,140px)",
+    "container": "64rem",
+    "align": "center"
+  },
   "component": {
     "buttonPaddingX": "1.5rem",
     "buttonPaddingY": ".72rem"
+  },
+  "motion": {
+    "hoverLift": "-3px"
   },
   "layout": {
     "headerBg": "#fbf8f1",
@@ -46,6 +61,10 @@
     "headerBorder": "#e6dcc6",
     "navLinkWeight": "500",
     "navLinkTracking": ".06em"
+  },
+  "focus": {
+    "ringWidth": "2px",
+    "ringColor": "#a87c2a"
   },
   "swatch": {
     "primary": "#a87c2a",

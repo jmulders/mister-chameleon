@@ -10,16 +10,24 @@ aan.
 
 Het grouped design-token *upload*-formaat: `theme` + token-groepen op top-niveau.
 
+Elke preset is **compleet**: alle token-groepen zijn ingevuld zodat een import
+de hele render-pijplijn raakt (hero, kaarten, secties, knoppen, focus-ring,
+gradient, spacing/motion), niet alleen kleur + radius.
+
 ```jsonc
 {
   "meta":   { "schema": "mister-chameleon-design-preset@1", "id": "...", "name": "...", "description": "..." },
   "theme":  "custom",
-  "color":      { "primary": "#…", "background": "#…", … },
-  "typography": { "fontHeading": "…", "fontBody": "…", … },
+  "color":      { "primary": "#…", "background": "#…", "foreground": "#…", "card": "#…", "muted": "#…", "border": "#…", "link": "#…", "success": "#…", "danger": "#…", "gradient": "linear-gradient(…)", … },
+  "typography": { "fontHeading": "…", "fontBody": "…", "baseFontSize": "16px", "headingWeight": "700", "letterSpacing": "…", "headingTransform": "none", "headingLineHeight": "1.1" },
   "radius":     { "interactive": "8px", "card": "12px" },
   "shadow":     { "md": "…" },
+  "border":     { "width": "1px" },
+  "spacing":    { "sectionPadding": "clamp(56px,8vw,120px)", "container": "72rem", "align": "center" },
   "component":  { "buttonPaddingX": "…", "buttonPaddingY": "…" },
-  "layout":     { "headerBg": "#…", "headerFg": "#…", … },
+  "motion":     { "hoverLift": "-3px" },
+  "layout":     { "headerBg": "#…", "headerFg": "#…", "headerBorder": "#…", "navLinkWeight": "600", "navLinkTracking": "0" },
+  "focus":      { "ringWidth": "3px", "ringColor": "#…" },
   "swatch":     { "primary": "#…", … }
 }
 ```

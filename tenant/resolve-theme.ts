@@ -578,6 +578,18 @@ export function resolveThemeForTenant(
         resolveGroupVars(group, groupOverrides, vars);
       }
     }
+
+    // ── Hero gradient (applied last so it wins over the solid foreground→hero
+    // mapping above). When a preset supplies color.gradientHero, the hero
+    // section background becomes that gradient instead of a flat colour.
+    // `background: var(--hero-bg)` accepts a full gradient string, so no
+    // component change is needed.
+    const heroGradient = (to.color as Readonly<Record<string, string>> | undefined)?.gradientHero;
+    if (heroGradient) {
+      vars["--hero-bg"]          = heroGradient;
+      vars["--section-hero-bg"]  = heroGradient;
+      vars["--hero-dark-bg"]     = heroGradient;
+    }
   }
 
   return { key, vars };
