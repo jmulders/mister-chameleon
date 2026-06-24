@@ -183,12 +183,22 @@ export function PresetBuilder({ tenantId }: Props) {
       // Non-fatal — the server action returns the precise JSON error below.
     }
     startTransition(async () => {
-      const r = await importDesignPresetAction(tenantId, text);
-      if (r.ok) {
-        setMsg({ text: `Geïmporteerd${r.name ? `: ${r.name}` : ""} ✓ — opgeslagen op tenant.`, ok: true });
-        router.refresh();
-      } else {
-        setMsg({ text: r.errors.join(" "), ok: false });
+      try {
+        const r = await importDesignPresetAction(tenantId, text);
+        if (r.ok) {
+          setMsg({ text: `Geïmporteerd${r.name ? `: ${r.name}` : ""} ✓ — opgeslagen op tenant.`, ok: true });
+          router.refresh();
+        } else {
+          setMsg({ text: r.errors.join(" "), ok: false });
+        }
+      } catch {
+        // A thrown error here (vs an {ok:false} result) is almost always a stale
+        // server-action reference after a redeploy — the POST 404s. Surface the
+        // fix instead of letting it crash to a raw 404 page.
+        setMsg({
+          text: "Import mislukt — waarschijnlijk een verlopen sessie na een nieuwe deploy. Ververs de pagina (⌘/Ctrl-Shift-R) en probeer opnieuw.",
+          ok: false,
+        });
       }
     });
   }
