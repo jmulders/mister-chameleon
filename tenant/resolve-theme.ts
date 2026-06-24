@@ -213,20 +213,25 @@ function toKebabCase(key: string): string {
  * behaviour (--primary, --ring, --text-brand).
  */
 const COLOR_CSS_VARS: Record<string, string[]> = {
-  primary:               ["--primary", "--ring", "--text-brand"],
-  primaryHover:          ["--primary-hover"],
+  // Each token also writes the COMPONENT-facing var names (the blocks read
+  // --btn-bg / --text / --bg / --card-bg / --card-border / --text-muted /
+  // --bg-subtle, not the canonical --primary/--foreground/… names). Without
+  // these aliases a custom token override only reached a few elements (the
+  // header) while buttons, cards and section backgrounds kept the base theme.
+  primary:               ["--primary", "--ring", "--text-brand", "--btn-bg"],
+  primaryHover:          ["--primary-hover", "--btn-hover-bg", "--btn-active-bg"],
   secondary:             ["--secondary"],
   accent:                ["--accent"],
-  background:            ["--background"],
-  foreground:            ["--foreground"],
-  muted:                 ["--muted"],
-  mutedForeground:       ["--muted-foreground"],
-  border:                ["--border"],
+  background:            ["--background", "--bg"],
+  foreground:            ["--foreground", "--text"],
+  muted:                 ["--muted", "--bg-subtle", "--section-subtle-bg"],
+  mutedForeground:       ["--muted-foreground", "--text-muted", "--text-subtle"],
+  border:                ["--border", "--card-border", "--section-subtle-border"],
   input:                 ["--input"],
   ring:                  ["--ring"],
   destructive:           ["--destructive"],
   destructiveForeground: ["--destructive-foreground"],
-  card:                  ["--card"],
+  card:                  ["--card", "--card-bg"],
   cardForeground:        ["--card-foreground"],
   popover:               ["--popover"],
   popoverForeground:     ["--popover-foreground"],
