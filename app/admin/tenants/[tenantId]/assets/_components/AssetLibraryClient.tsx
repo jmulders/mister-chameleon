@@ -431,13 +431,27 @@ function AssetCard({
   onEdit:     () => void;
   onDelete:   () => void;
 }) {
-  const isSvg = asset.mimeType === "image/svg+xml";
+  const isSvg   = asset.mimeType === "image/svg+xml";
+  const isVideo = asset.assetType === "video" || asset.mimeType?.startsWith("video/") === true;
 
   return (
     <div className="group relative overflow-hidden rounded-xl border border-neutral-200 bg-white transition-shadow hover:shadow-md">
       {/* Thumbnail */}
-      <div className="relative aspect-square bg-neutral-50 overflow-hidden">
-        {isSvg ? (
+      <div className="relative aspect-square bg-neutral-900 overflow-hidden">
+        {isVideo ? (
+          <>
+            <video
+              src={asset.publicUrl}
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+            />
+            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white">▶</span>
+            </span>
+          </>
+        ) : isSvg ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={asset.publicUrl}
@@ -627,7 +641,14 @@ function AssetRow({
   onSaveMeta:   (input: { title: string; altText: string; tags: string[] }) => void;
   onCancelEdit: () => void;
 }) {
-  const isSvg = asset.mimeType === "image/svg+xml";
+  const isSvg   = asset.mimeType === "image/svg+xml";
+  const isVideo = asset.assetType === "video" || asset.mimeType?.startsWith("video/") === true;
+  const thumb   = isVideo
+    ? <video src={asset.publicUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+    : isSvg
+      // eslint-disable-next-line @next/next/no-img-element
+      ? <img src={asset.publicUrl} alt="" className="h-full w-full object-contain p-0.5" />
+      : <Image src={asset.publicUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />;
 
   // Edit state (only active when isEditing)
   const [title,   setTitle]   = useState(asset.title   ?? "");
@@ -647,12 +668,7 @@ function AssetRow({
       <tr className="bg-brand-50">
         <td className="px-4 py-3">
           <div className="relative h-10 w-10 overflow-hidden rounded bg-neutral-100">
-            {isSvg ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={asset.publicUrl} alt="" className="h-full w-full object-contain p-0.5" />
-            ) : (
-              <Image src={asset.publicUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />
-            )}
+            {thumb}
           </div>
         </td>
         <td className="px-4 py-3">
@@ -711,12 +727,7 @@ function AssetRow({
       {/* Thumbnail */}
       <td className="px-4 py-3">
         <div className="relative h-10 w-10 overflow-hidden rounded bg-neutral-100">
-          {isSvg ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={asset.publicUrl} alt="" className="h-full w-full object-contain p-0.5" />
-          ) : (
-            <Image src={asset.publicUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />
-          )}
+          {thumb}
         </div>
       </td>
 

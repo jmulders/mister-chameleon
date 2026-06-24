@@ -546,12 +546,16 @@ export function AssetPickerModal({
                   )}
                   {externalUrl && !isVideo && (
                     <div className="relative w-full max-w-xs aspect-video rounded bg-neutral-100 overflow-hidden">
-                      <Image
+                      {/* External URLs can be ANY domain, so next/image's domain
+                          allowlist would block the preview. A plain <img> shows
+                          any reachable URL (the public site also renders these
+                          via <img>). Note: some hosts block hot-linking, in which
+                          case the image won't load anywhere, not just here. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={externalUrl}
                         alt="Preview"
-                        fill
-                        className="object-contain"
-                        sizes="320px"
+                        className="absolute inset-0 h-full w-full object-contain"
                       />
                     </div>
                   )}
