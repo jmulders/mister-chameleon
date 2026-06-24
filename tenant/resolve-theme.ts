@@ -219,14 +219,14 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   // these aliases a custom token override only reached a few elements (the
   // header) while buttons, cards and section backgrounds kept the base theme.
   primary:               ["--primary", "--ring", "--text-brand", "--btn-bg"],
-  primaryHover:          ["--primary-hover", "--btn-hover-bg", "--btn-active-bg"],
+  primaryHover:          ["--primary-hover", "--primary-active", "--btn-hover-bg", "--btn-active-bg"],
   secondary:             ["--secondary"],
   accent:                ["--accent"],
   background:            ["--background", "--bg"],
   foreground:            ["--foreground", "--text", "--proof-quote-color"],
   muted:                 ["--muted", "--bg-subtle", "--section-subtle-bg", "--primary-subtle"],
   mutedForeground:       ["--muted-foreground", "--text-muted", "--text-subtle"],
-  border:                ["--border", "--card-border", "--section-subtle-border", "--proof-card-border"],
+  border:                ["--border", "--border-strong", "--card-border", "--section-subtle-border", "--proof-card-border"],
   input:                 ["--input"],
   ring:                  ["--ring"],
   destructive:           ["--destructive"],
@@ -237,7 +237,7 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   popoverForeground:     ["--popover-foreground"],
   // ── Design-preset additions ────────────────────────────────────────────────
   // onPrimary = text/icon colour on a filled primary surface (buttons).
-  onPrimary:             ["--primary-foreground", "--btn-text"],
+  onPrimary:             ["--primary-foreground", "--btn-text", "--primary-text", "--btn-primary-text"],
   link:                  ["--link"],
   success:               ["--success"],
   danger:                ["--danger", "--destructive"],
