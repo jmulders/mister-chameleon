@@ -205,9 +205,9 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     name: "Aurora Purple",
     description: "Purple brand with a hero gradient fading from deep purple to bright violet. Space Grotesk headings, soft corners, purple glow.",
     baseTheme: "custom",
-    swatch: { primary: "#7c3aed", background: "#faf5ff", foreground: "#2e1065", accent: "#c026d3" },
+    swatch: { primary: "#7c3aed", background: "#faf5ff", foreground: "#2e1065", accent: "#d946ef" },
     tokenOverrides: {
-      color: { primary: "#7c3aed", primaryHover: "#6d28d9", secondary: "#c026d3", accent: "#f5f3ff", background: "#faf5ff", foreground: "#2e1065", muted: "#f3e8ff", mutedForeground: "#7c3aed", border: "#e9d5ff", card: "#ffffff", cardForeground: "#2e1065", onPrimary: "#ffffff", link: "#7c3aed", success: "#16a34a", danger: "#dc2626", gradient: "linear-gradient(135deg, #7c3aed 0%, #c026d3 100%)", gradientHero: "linear-gradient(180deg, #1a0533 0%, #3b0764 55%, #7c3aed 100%)" },
+      color: { primary: "#7c3aed", primaryHover: "#6d28d9", secondary: "#d946ef", accent: "#f3e8ff", background: "#faf5ff", foreground: "#2e1065", muted: "#f3e8ff", mutedForeground: "#6d28d9", border: "#e9d5ff", card: "#ffffff", cardForeground: "#2e1065", onPrimary: "#ffffff", link: "#9333ea", success: "#10b981", danger: "#e11d48", gradient: "linear-gradient(135deg, #7c3aed 0%, #d946ef 100%)", gradientHero: "linear-gradient(180deg, #1a0533 0%, #4c1d95 52%, #7c3aed 100%)" },
       typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none", headingLineHeight: "1.08" },
       radius: { interactive: "14px", card: "18px" },
       shadow: { md: "0 14px 36px rgba(124,58,237,.20)" },

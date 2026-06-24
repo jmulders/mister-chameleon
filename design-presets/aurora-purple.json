@@ -3,27 +3,27 @@
     "schema": "mister-chameleon-design-preset@1",
     "id": "aurora-purple",
     "name": "Aurora Purple",
-    "description": "Paarse merkstijl met een hero-gradient die van diep donkerpaars naar helder violet verloopt. Space Grotesk koppen, zachte ronde hoeken, paarse glow."
+    "description": "Paarse merkstijl met een hero-gradient die van diep donkerpaars naar helder violet verloopt. Cohesief violet → orchidee palet, Space Grotesk koppen, zachte ronde hoeken, paarse glow."
   },
   "theme": "custom",
   "color": {
     "primary": "#7c3aed",
     "primaryHover": "#6d28d9",
-    "secondary": "#c026d3",
-    "accent": "#f5f3ff",
+    "secondary": "#d946ef",
+    "accent": "#f3e8ff",
     "background": "#faf5ff",
     "foreground": "#2e1065",
     "muted": "#f3e8ff",
-    "mutedForeground": "#7c3aed",
+    "mutedForeground": "#6d28d9",
     "border": "#e9d5ff",
     "card": "#ffffff",
     "cardForeground": "#2e1065",
     "onPrimary": "#ffffff",
-    "link": "#7c3aed",
-    "success": "#16a34a",
-    "danger": "#dc2626",
-    "gradient": "linear-gradient(135deg, #7c3aed 0%, #c026d3 100%)",
-    "gradientHero": "linear-gradient(180deg, #1a0533 0%, #3b0764 55%, #7c3aed 100%)"
+    "link": "#9333ea",
+    "success": "#10b981",
+    "danger": "#e11d48",
+    "gradient": "linear-gradient(135deg, #7c3aed 0%, #d946ef 100%)",
+    "gradientHero": "linear-gradient(180deg, #1a0533 0%, #4c1d95 52%, #7c3aed 100%)"
   },
   "typography": {
     "fontHeading": "'Space Grotesk', system-ui, sans-serif",
@@ -71,6 +71,6 @@
     "primary": "#7c3aed",
     "background": "#faf5ff",
     "foreground": "#2e1065",
-    "accent": "#c026d3"
+    "accent": "#d946ef"
   }
 }
