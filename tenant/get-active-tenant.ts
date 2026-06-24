@@ -78,7 +78,7 @@
 
 import { headers, cookies }  from "next/headers";
 import { resolveTenant, resolveTenantOrNull, resolveTenantById } from "./resolve-tenant";
-import { getTenantByDomainCached, getTenantById }  from "./tenant-store";
+import { getTenantByDomainCached, getTenantByIdCached, getTenantById }  from "./tenant-store";
 import { readPersistedHostTenant, persistHostTenant } from "./host-resolution-cache-store";
 import { DEV_TENANT_COOKIE }  from "./dev-tenant-cookie";
 import { buildTenantConfigFromSettings } from "./build-tenant-config";
@@ -97,6 +97,22 @@ import type { TenantConfig }  from "./types";
 // later transient store miss serves the correct tenant instead of the fallback.
 // The map only grows by distinct host, so it stays tiny.
 const lastGoodTenantByHost = new Map<string, TenantConfig>();
+
+// Known production hosts → tenantId.  These are NOT in the static TENANT_REGISTRY
+// (their TenantConfig lives in the DB, not in code), so they normally resolve via
+// the async store path — which can transiently miss on a cold instance right
+// after a deploy and flip the whole site to FALLBACK_TENANT (mister-chameleon).
+//
+// This map lets such a miss resolve DETERMINISTICALLY: we already know the
+// hostname maps to a specific tenantId, so we re-derive its config from the
+// durable id-cache instead of falling back to a different tenant's content.
+// The mapping is stable; add a host here when a production domain goes live.
+const KNOWN_HOST_TENANT_IDS: Readonly<Record<string, string>> = {
+  "misterchameleon.nl":     "statamic",
+  "www.misterchameleon.nl": "statamic",
+  "steunles.nl":            "another-statamic",
+  "www.steunles.nl":        "another-statamic",
+};
 
 /**
  * Returns the TenantConfig for the current request.
@@ -202,6 +218,25 @@ export async function getActiveTenant(): Promise<TenantConfig> {
       ?? buildTenantConfigFromSettings(persisted);
     lastGoodTenantByHost.set(hostKey, config);
     return config;
+  }
+
+  // ── 3d. Known production host → deterministic id-based resolution ──────────
+  // For a hard-coded production domain we KNOW the tenantId, so a transient
+  // domain-lookup miss must never flip it to FALLBACK_TENANT. Re-derive the
+  // config from the durable id-cache (separate cache key from the domain lookup,
+  // so it survives when the domain path is cold). Only if even the direct DB
+  // read fails do we fall through — which is an extreme, total-outage case.
+  const knownTenantId = KNOWN_HOST_TENANT_IDS[hostKey];
+  if (knownTenantId) {
+    const settings = (await getTenantByIdCached(knownTenantId))
+      ?? (await getTenantById(knownTenantId));
+    if (settings) {
+      const config = resolveTenantById(knownTenantId)
+        ?? buildTenantConfigFromSettings(settings);
+      lastGoodTenantByHost.set(hostKey, config);
+      void persistHostTenant(hostKey, settings);
+      return config;
+    }
   }
 
   // ── 4. Fallback ──────────────────────────────────────────────────────────
