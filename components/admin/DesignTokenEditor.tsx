@@ -1185,13 +1185,18 @@ export function DesignTokenEditor({
         }
         if (input.typography) {
           const t = input.typography as Record<string, string>;
-          if (t.fontSans)       updates.fontSans       = t.fontSans;
-          if (t.fontMono)       updates.fontMono       = t.fontMono;
-          if (t.fontSerif)      updates.fontSerif      = t.fontSerif;
+          // Imported font stacks are arbitrary (e.g. "'Oswald', 'Arial Narrow',
+          // sans-serif") and rarely match a google/system picker option exactly,
+          // so the constrained pickers would coerce them away. Setting the source
+          // to "custom" routes the value through the free-text path, preserving
+          // the imported stack verbatim on save.
+          if (t.fontSans)       { updates.fontSans = t.fontSans; updates.fontSansSource = "custom"; }
+          if (t.fontMono)       { updates.fontMono = t.fontMono; updates.fontMonoSource = "custom"; }
+          if (t.fontSerif)      { updates.fontSerif = t.fontSerif; updates.fontSerifSource = "custom"; }
           if (t.baseFontSize)   updates.baseFontSize   = t.baseFontSize;
           if (t.lineHeightBase) updates.lineHeightBase = t.lineHeightBase;
           // Font role mappings
-          if (t.fontHeading) updates.fontHeading = t.fontHeading;
+          if (t.fontHeading) { updates.fontHeading = t.fontHeading; updates.fontHeadingSource = "custom"; }
           if (t.fontBody)    updates.fontBody    = t.fontBody;
           if (t.fontUI)      updates.fontUI      = t.fontUI;
           if (t.fontCode)    updates.fontCode    = t.fontCode;

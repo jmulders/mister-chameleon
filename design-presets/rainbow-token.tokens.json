@@ -1,0 +1,69 @@
+{
+  "$schema": "mister-chameleon-design-preset@1",
+  "meta": {
+    "id": "rainbow-token",
+    "name": "Rainbow Token (test)",
+    "description": "Bewust extreem afwijkend om te verifiëren dat tokens overal doorkomen: regenboogkleuren, pill-vormen, dikke randen, roze glow, condensed-caps koppen + serif body, ruime secties."
+  },
+  "theme": "custom",
+  "color": {
+    "primary": "#ff0066",
+    "primaryHover": "#cc0052",
+    "onPrimary": "#ffffff",
+    "secondary": "#00c2ff",
+    "accent": "#ffd500",
+    "background": "#fff0f5",
+    "foreground": "#2d0a4e",
+    "muted": "#e0ffe8",
+    "mutedForeground": "#7a00cc",
+    "border": "#ff8a00",
+    "card": "#faffd1",
+    "cardForeground": "#003a66",
+    "link": "#00b300",
+    "success": "#22c55e",
+    "danger": "#ef4444",
+    "gradient": "linear-gradient(90deg,#ff0066,#ff8a00,#ffd500,#22c55e,#00c2ff,#7a00cc)"
+  },
+  "typography": {
+    "fontHeading": "'Oswald', 'Arial Narrow', sans-serif",
+    "fontBody": "'Cormorant Garamond', Georgia, serif",
+    "baseFontSize": "18px",
+    "headingWeight": "800",
+    "letterSpacing": "0.06em",
+    "headingTransform": "uppercase",
+    "headingLineHeight": "1.05"
+  },
+  "radius": {
+    "interactive": "9999px",
+    "card": "28px"
+  },
+  "shadow": {
+    "md": "0 10px 40px rgba(255,0,102,0.35)"
+  },
+  "border": {
+    "width": "3px"
+  },
+  "spacing": {
+    "sectionPadding": "clamp(64px,9vw,140px)",
+    "container": "80rem",
+    "align": "center"
+  },
+  "component": {
+    "buttonPaddingX": "1.8rem",
+    "buttonPaddingY": "0.95rem"
+  },
+  "motion": {
+    "hoverLift": "-6px"
+  },
+  "layout": {
+    "headerBg": "#ff0066",
+    "headerFg": "#ffffff",
+    "headerBorder": "#ffd500",
+    "navLinkWeight": "800",
+    "navLinkTracking": "0.08em"
+  },
+  "focus": {
+    "ringWidth": "4px",
+    "ringColor": "#00c2ff"
+  }
+}

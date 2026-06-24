@@ -230,7 +230,7 @@ export function PresetBuilder({ tenantId }: Props) {
           <label style={lbl}>Of importeer een preset-JSON (ook Figma / DTCG)</label>
           <input
             type="file"
-            accept="application/json,.json,.tokens.json"
+            accept=".json,application/json"
             disabled={pending}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImportFile(f); e.target.value = ""; }}
             style={{ fontSize: 12, width: "100%" }}
@@ -238,6 +238,10 @@ export function PresetBuilder({ tenantId }: Props) {
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
             Onze preset-JSON of een Figma/Tokens-Studio-export — wordt als complete look toegepast (vervangt de huidige tokens).
           </div>
+          {pending && <div style={{ fontSize: 11, color: "#6366f1", marginTop: 4 }}>Bezig met importeren…</div>}
+          {msg && (
+            <div style={{ fontSize: 11, color: msg.ok ? "#16a34a" : "#b91c1c", marginTop: 4 }}>{msg.text}</div>
+          )}
         </div>
 
         <div style={sub}>Kleuren</div>
