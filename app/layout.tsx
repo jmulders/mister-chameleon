@@ -66,28 +66,55 @@ import { createCMSProvider }     from "@/cms/providers/create-cms-provider";
 //
 // Single combined request for all CDN fonts (fewer HTTP round trips).
 // Adding a new font: append &family=Name:wght@400;700 before &display=swap.
-const CDN_FONTS_URL =
-  "https://fonts.googleapis.com/css2" +
-  "?family=Roboto:wght@400;500;700" +
-  "&family=Poppins:wght@400;500;600;700" +
-  "&family=Lato:wght@400;700" +
-  "&family=Cormorant+Garamond:wght@400;500;600;700" +
-  // EB Garamond: variable font but Turbopack rejects it in Next.js 16.2 — serve via CDN instead
-  "&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700" +
-  "&family=Merriweather:wght@400;700" +
-  "&family=Libre+Baskerville:wght@400;700" +
-  "&family=PT+Serif:wght@400;700" +
-  "&family=Crimson+Text:wght@400;600;700" +
-  "&family=Arvo:wght@400;700" +
-  "&family=Barlow+Condensed:wght@400;500;600;700" +
-  "&family=Bebas+Neue:wght@400" +
-  "&family=Anton:wght@400" +
-  "&family=Archivo+Black:wght@400" +
-  "&family=Abril+Fatface:wght@400" +
-  "&family=IBM+Plex+Mono:wght@400;500;700" +
-  // Fira Code: variable font but Turbopack rejects it in Next.js 16.2 — serve via CDN instead
-  "&family=Fira+Code:wght@300..700" +
-  "&display=swap";
+// Family → Google Fonts weight spec. We previously loaded a render-blocking
+// stylesheet for ALL of these on every page; now we load ONLY the families the
+// current tenant's resolved theme actually references (usually 1–3), and skip the
+// request entirely for tenants that use only self-hosted (next/font) families.
+// Missing a family degrades gracefully via font-display:swap (system fallback).
+const CDN_FONT_REGISTRY: Readonly<Record<string, string>> = {
+  "Roboto":             "wght@400;500;700",
+  "Poppins":            "wght@400;500;600;700",
+  "Lato":               "wght@400;700",
+  "Cormorant Garamond": "wght@400;500;600;700",
+  "EB Garamond":        "ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700",
+  "Merriweather":       "wght@400;700",
+  "Libre Baskerville":  "wght@400;700",
+  "PT Serif":           "wght@400;700",
+  "Crimson Text":       "wght@400;600;700",
+  "Arvo":               "wght@400;700",
+  "Barlow Condensed":   "wght@400;500;600;700",
+  "Bebas Neue":         "wght@400",
+  "Anton":              "wght@400",
+  "Archivo Black":      "wght@400",
+  "Abril Fatface":      "wght@400",
+  "IBM Plex Mono":      "wght@400;500;700",
+  "Fira Code":          "wght@300..700",
+};
+
+/** Extract the CDN font families referenced across the given resolved-CSS blocks. */
+function neededCdnFamilies(...cssBlocks: string[]): string[] {
+  const found = new Set<string>();
+  for (const css of cssBlocks) {
+    if (!css) continue;
+    const re = /--font[a-z-]*\s*:\s*([^;}\n]+)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(css)) !== null) {
+      const quoted = m[1].match(/['"]([^'"]+)['"]/);
+      const family = (quoted ? quoted[1] : m[1].split(",")[0]).trim();
+      if (CDN_FONT_REGISTRY[family]) found.add(family);
+    }
+  }
+  return [...found];
+}
+
+/** Build one combined Google Fonts URL for the given families, or "" when none. */
+function buildCdnFontUrl(families: string[]): string {
+  if (families.length === 0) return "";
+  const parts = families
+    .map((f) => `family=${f.replace(/ /g, "+")}:${CDN_FONT_REGISTRY[f]}`)
+    .join("&");
+  return `https://fonts.googleapis.com/css2?${parts}&display=swap`;
+}
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -518,6 +545,11 @@ export default async function RootLayout({
   }
   const fontRedirectCSS = fontRedirectParts.join("\n");
 
+  // Per-request font subset: only the CDN families this tenant's resolved theme
+  // actually uses (extracted from the emitted base + override CSS). Empty string
+  // means the tenant uses only self-hosted fonts → no Google Fonts request at all.
+  const cdnFontUrl = buildCdnFontUrl(neededCdnFamilies(cssVarBlock, tokenOverrideCSS));
+
   // ── Layer D: CMS nav typography overrides ────────────────────────────────
   //
   // The layout_settings Global in Statamic lets content publishers control
@@ -587,17 +619,21 @@ export default async function RootLayout({
          * Google Fonts servers before the stylesheet is requested, reducing
          * font display latency by ~100–200 ms on first load.
          */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
         {/*
-         * The CDN stylesheet defines @font-face for 15 fixed-weight fonts that
-         * cannot be loaded via next/font/google in Next.js 16 + Turbopack.
-         * display=swap ensures text renders immediately in the fallback font
-         * and swaps once the font file is downloaded.
+         * CDN fonts — emitted ONLY when this tenant's resolved theme actually
+         * uses one or more fixed-weight families that can't load via next/font.
+         * Tenants on self-hosted fonts get no Google Fonts request at all, and
+         * others load only their 1–3 families instead of the full library.
+         * display=swap renders text immediately in the fallback, then swaps.
          */}
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link rel="stylesheet" href={CDN_FONTS_URL} />
+        {cdnFontUrl && (
+          <>
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+            <link rel="stylesheet" href={cdnFontUrl} />
+          </>
+        )}
 
         {/*
          * Layer A — Tenant base theme (site-scoped).
