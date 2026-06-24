@@ -596,9 +596,16 @@ export function resolveThemeForTenant(
     // BASE theme's headerFg, which beats theme.css's `--nav-link: var(--header-fg)`
     // cascade — so an overridden white headerFg would otherwise leave the nav
     // links on the base (dark) colour, invisible on a dark custom header.
-    const headerFgOverride = (to.layout as Readonly<Record<string, string>> | undefined)?.headerFg;
-    if (headerFgOverride) {
-      vars["--nav-link"] = headerFgOverride;
+    const layoutOv = to.layout as Readonly<Record<string, string>> | undefined;
+    if (layoutOv?.headerFg) {
+      vars["--nav-link"] = layoutOv.headerFg;
+    }
+    // Keep the SCROLLED header consistent with the solid header colour. Without
+    // this, --header-bg-scrolled defaults to near-white, so a dark custom header
+    // (dark headerBg + white headerFg) turns white-on-white after scrolling and
+    // the nav becomes invisible. An explicit headerBgScrolled still wins.
+    if (layoutOv?.headerBg && !layoutOv.headerBgScrolled) {
+      vars["--header-bg-scrolled"] = layoutOv.headerBg;
     }
   }
 
