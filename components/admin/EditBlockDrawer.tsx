@@ -658,10 +658,13 @@ export function EditBlockDrawer({
           source:   "upload",
           url:      videoUrl,
           ...(videoPoster  ? { poster:   videoPoster }  : {}),
-          ...(videoAutoplay ? { autoplay: true }        : {}),
-          ...(videoLoop     ? { loop:     true }        : {}),
-          ...(videoMuted    ? { muted:    true }        : {}),
-          ...(videoControls ? { controls: true }        : {}),
+          // Always persist the booleans (including false) — a conditional spread
+          // dropped `false`, so an OFF toggle reverted to its `?? true` default on
+          // reload (e.g. Controls kept turning itself back on).
+          autoplay: videoAutoplay,
+          loop:     videoLoop,
+          muted:    videoMuted,
+          controls: videoControls,
         };
         return { kind: "video", video: vid } satisfies HeroBannerVideo;
       }
