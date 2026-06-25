@@ -27,7 +27,7 @@ import { runHomepagePipeline }             from "@/lib/pipeline/homepage-pipelin
 import { buildTokenContextFromInput }      from "@/lib/tokens/parse-tokens";
 import { serverEnv }                       from "@/lib/env";
 import { StatamicClient }                  from "@/cms/providers/statamic-client";
-import { cache }                           from "react";
+import { cache, Suspense }                 from "react";
 import { cookies }                         from "next/headers";
 import type { Metadata }                   from "next";
 import { getActiveTenant, getTenantById }  from "@/tenant/server";
@@ -212,6 +212,24 @@ type PageProps = {
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
 
+  // Stream the personalised body so the tenant shell (nav / header / footer from
+  // the layout) flushes to the browser immediately while the pipeline + CMS
+  // section fetches resolve and stream in. The page stays dynamic; only the
+  // paint order changes. (Improves FCP — the hero stays the LCP and still waits
+  // on the pipeline, as the variant is chosen per visitor.)
+  return (
+    <Suspense fallback={<HomeSkeleton />}>
+      <HomeBody params={params} />
+    </Suspense>
+  );
+}
+
+/** Placeholder shown while <HomeBody> streams — reserves space for the shell. */
+function HomeSkeleton() {
+  return <div className="min-h-[60vh]" aria-hidden="true" />;
+}
+
+async function HomeBody({ params }: { params: Record<string, string | string[] | undefined> }) {
   // Run the personalisation pipeline and the Statamic section fetch in parallel
   // so the total page latency is max(pipeline, CMS) rather than their sum.
   const [result, { features, testimonials }] = await Promise.all([
