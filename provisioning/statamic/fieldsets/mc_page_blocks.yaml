@@ -7,6 +7,12 @@ title: 'Mister Chameleon — Page Blocks'
 # blocks exist and how they are grouped. Each set imports a `mrc_*` fieldset
 # (also platform-managed), so changing the palette here rolls out to every
 # tenant on their next sync.
+#
+# Set previews: each leaf set carries `icon`, `instructions` and `image`. The
+# `image` resolves to `assets::set-previews/<file>` (see config/statamic/
+# assets.php -> set_preview_images). The PNGs ship in the CMS template repo at
+# public/assets/set-previews/. New tenants inherit them from the template;
+# existing tenants need the PNGs added to their own public/assets/set-previews/.
 fields:
   -
     handle: page_blocks
@@ -21,6 +27,9 @@ fields:
           sets:
             context_slot:
               display: Context Slot
+              icon: sparkles
+              instructions: 'Personalised slot — hero, proof or CTA that adapts per visitor.'
+              image: context_slot.png
               fields:
                 - import: mrc_context_slot
         text_and_media:
@@ -28,22 +37,37 @@ fields:
           sets:
             text_section:
               display: Text Section
+              icon: text
+              instructions: 'Heading and rich text in a contained column.'
+              image: text_section.png
               fields:
                 - import: mrc_text_section
             rich_text:
               display: Rich Text
+              icon: pencil
+              instructions: 'Free-form rich-text content.'
+              image: rich_text.png
               fields:
                 - import: mrc_rich_text
             image:
               display: Text + Media
+              icon: image
+              instructions: 'Text alongside an image or video.'
+              image: image.png
               fields:
                 - import: mrc_image_block
             video:
               display: Video
+              icon: video
+              instructions: 'Embedded or self-hosted video.'
+              image: video.png
               fields:
                 - import: mrc_video_block
             quote_block:
               display: Quote
+              icon: quote
+              instructions: 'Highlighted pull-quote.'
+              image: quote_block.png
               fields:
                 - import: mrc_quote_block
         social_proof:
@@ -51,14 +75,23 @@ fields:
           sets:
             testimonial_section:
               display: Testimonials
+              icon: comment
+              instructions: 'Customer testimonials and reviews.'
+              image: testimonial_section.png
               fields:
                 - import: mrc_testimonial_section
             logo_strip:
               display: Logo Strip
+              icon: image
+              instructions: 'A row of customer or partner logos.'
+              image: logo_strip.png
               fields:
                 - import: mrc_logo_strip
             stats:
               display: Stats
+              icon: chart-bar
+              instructions: 'Key metrics shown as number tiles.'
+              image: stats.png
               fields:
                 - import: mrc_stats_block
         features_and_faq:
@@ -66,22 +99,37 @@ fields:
           sets:
             feature_grid:
               display: Feature Grid
+              icon: grid
+              instructions: 'A grid of features with icons.'
+              image: feature_grid.png
               fields:
                 - import: mrc_feature_grid
             faq_section:
               display: FAQ Section
+              icon: help
+              instructions: 'Expandable question-and-answer list.'
+              image: faq_section.png
               fields:
                 - import: mrc_faq_section
             team_section:
               display: Team Section
+              icon: users
+              instructions: 'Team members with photos.'
+              image: team_section.png
               fields:
                 - import: mrc_team_section
             process_steps:
               display: Process Steps
+              icon: list-ol
+              instructions: 'A numbered step-by-step process.'
+              image: process_steps.png
               fields:
                 - import: mrc_process_steps
             timeline:
               display: Timeline
+              icon: time
+              instructions: 'A chronological timeline of events.'
+              image: timeline.png
               fields:
                 - import: mrc_timeline_block
         conversion_and_forms:
@@ -89,14 +137,23 @@ fields:
           sets:
             cta_section:
               display: CTA Section
+              icon: megaphone
+              instructions: 'Call-to-action banner with buttons.'
+              image: cta_section.png
               fields:
                 - import: mrc_cta_section
             form_section:
               display: Form Section
+              icon: form
+              instructions: 'A lead or contact form.'
+              image: form_section.png
               fields:
                 - import: mrc_form_section
             contact_section:
               display: Contact Section
+              icon: mail
+              instructions: 'Contact details next to a form.'
+              image: contact_section.png
               fields:
                 - import: mrc_contact_section
         listings:
@@ -104,13 +161,22 @@ fields:
           sets:
             collection_listing:
               display: Collection Listing
+              icon: list-ul
+              instructions: 'Auto-listed entries from a collection.'
+              image: collection_listing.png
               fields:
                 - import: mrc_collection_listing
             listing:
               display: Media Slider / Listing
+              icon: images
+              instructions: 'A media slider / manual listing.'
+              image: listing.png
               fields:
                 - import: mrc_listing_block
             related_content:
               display: Related Content
+              icon: link
+              instructions: 'Related articles or pages.'
+              image: related_content.png
               fields:
                 - import: mrc_related_content

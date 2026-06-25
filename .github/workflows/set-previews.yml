@@ -1,0 +1,68 @@
+name: Set previews
+
+# Regenerates the Statamic set-picker preview images from Storybook and opens a
+# PR against the CMS template repo. Same filenames as before, so the blueprint
+# (mc_page_blocks.yaml) never needs to change.
+#
+# Setup (one-time):
+#   1. Set `CMS_REPO` below to your CMS template repo slug (owner/name).
+#   2. Add a repo secret `CMS_REPO_TOKEN` — a PAT (or fine-grained token) with
+#      contents:write + pull-requests:write on the CMS template repo.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - "components/blocks/**"
+      - "scripts/generate-set-previews.mjs"
+      - ".github/workflows/set-previews.yml"
+
+env:
+  CMS_REPO: OWNER/mister-chameleon-cms        # <-- set me
+  PREVIEW_DIR: public/assets/set-previews
+
+jobs:
+  previews:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout platform (Storybook)
+        uses: actions/checkout@v4
+
+      - name: Checkout CMS template
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.CMS_REPO }}
+          token: ${{ secrets.CMS_REPO_TOKEN }}
+          path: cms-template
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright + sharp
+        run: |
+          npm i -D playwright sharp
+          npx playwright install --with-deps chromium
+
+      - name: Build Storybook
+        run: npm run build-storybook
+
+      - name: Render previews
+        env:
+          OUT_DIR: ${{ github.workspace }}/cms-template/${{ env.PREVIEW_DIR }}
+        run: node scripts/generate-set-previews.mjs
+
+      - name: Open PR on CMS template
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.CMS_REPO_TOKEN }}
+          path: cms-template
+          commit-message: "chore(assets): refresh set-picker previews from Storybook"
+          branch: chore/set-previews
+          title: "Refresh set-picker previews"
+          body: "Auto-generated from Storybook by the platform's set-previews workflow."
+          add-paths: ${{ env.PREVIEW_DIR }}/*.png
