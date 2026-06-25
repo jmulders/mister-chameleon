@@ -59,7 +59,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { cache }     from "react";
+import { cache, Suspense } from "react";
 import { notFound }  from "next/navigation";
 import { draftMode, cookies, headers } from "next/headers";
 import type { Metadata } from "next";
@@ -294,7 +294,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   // FAQ collection sources (by_category / select_items) are correctly resolved in
   // the CP Live Preview.  If the page does not exist on disk yet (new / unpublished
   // entry) getPageBySlug returns null and we fall back to the simple builder.
-  let [page, tenant] = await Promise.all([
+  const [initialPage, tenant] = await Promise.all([
     draftEntry !== null
       ? (async () => {
           const draftProvider = createDraftStatamicProvider(draftEntry.blocks ?? []);
@@ -304,6 +304,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
       : getPageData(slug, preview, tenantId, locale),
     getTenantById(tenantId ?? ""),
   ]);
+  let page = initialPage;
 
   // ── Dev-only Statamic filesystem fallback ─────────────────────────────────
   //
@@ -401,10 +402,53 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   // on the Statamic HTTP API being available or the CachedCMSProvider being
   // pre-warmed.  This eliminates a potential "no hero content" failure when the
   // toggle-ON refresh lands before the API responds.
+  // ── Stream the heavy content body ──────────────────────────────────────────
+  //
+  // The collection-driven CMS fetches + per-slot content fetches are the
+  // heaviest per-request work on this route. Rendering them inside <Suspense>
+  // lets the tenant shell (nav / header / footer from the layout) flush to the
+  // browser immediately while this content resolves and streams in. The page
+  // stays dynamic; only the paint order changes.
+  return (
+    <main>
+      <Suspense fallback={<SlugPageSkeleton />}>
+        <SlugPageBody
+          resolvedPageConfig={resolvedPageConfig}
+          tokenContext={tokenContext}
+          draftEntry={draftEntry}
+          tenant={tenant}
+          tenantId={tenantId}
+        />
+      </Suspense>
+    </main>
+  );
+}
+
+/**
+ * Personalised page body — streamed via <Suspense> from CmsPage.
+ *
+ * Holds the heaviest per-request work (collection resolution + the per-slot CMS
+ * fetches inside TemplateRenderer) so the parent can flush the tenant shell
+ * before this resolves. Renders identically to before — only the timing of when
+ * the browser receives it changes.
+ */
+async function SlugPageBody({
+  resolvedPageConfig,
+  tokenContext,
+  draftEntry,
+  tenant,
+  tenantId,
+}: {
+  resolvedPageConfig: ReturnType<typeof mapPageDataToPageConfig>;
+  tokenContext:       SlugPageConfigResult["tokenContext"];
+  draftEntry:         StatamicDraftEntry | null;
+  tenant:             Awaited<ReturnType<typeof getTenantById>>;
+  tenantId:           string | null;
+}) {
+  // When previewing a Live Preview draft, reuse a draft-aware provider so both
+  // collection resolution and slot fetching read from the draft block catalog.
   const draftCmsProvider =
-    draftEntry !== null
-      ? createDraftStatamicProvider(draftEntry.blocks)
-      : undefined;
+    draftEntry !== null ? createDraftStatamicProvider(draftEntry.blocks) : undefined;
 
   // ── Resolve collection-driven content blocks ──────────────────────────────
   //
@@ -413,19 +457,22 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   // items: [].  resolvePageConfigItems calls the CMS provider for each such
   // block and returns a new PageConfig with those arrays populated, so
   // TemplateRenderer receives fully-hydrated blocks ready to render.
-  //
-  // Reuse the draft provider when one exists — it covers the case where the
-  // listing page itself is being previewed in the Statamic CP.
   const collectionProvider = draftCmsProvider ?? createCMSProvider(tenant?.cms, tenantId);
   const finalPageConfig    = await resolvePageConfigItems(collectionProvider, resolvedPageConfig);
 
   return (
-    <main>
-      <TemplateRenderer
-        pageConfig={finalPageConfig}
-        tokenContext={tokenContext ?? undefined}
-        cmsProvider={draftCmsProvider}
-      />
-    </main>
+    <TemplateRenderer
+      pageConfig={finalPageConfig}
+      tokenContext={tokenContext ?? undefined}
+      cmsProvider={draftCmsProvider}
+    />
   );
+}
+
+/**
+ * Lightweight placeholder shown while <SlugPageBody> streams. Reserves vertical
+ * space so the shell doesn't collapse before the content arrives.
+ */
+function SlugPageSkeleton() {
+  return <div className="min-h-[60vh]" aria-hidden="true" />;
 }
