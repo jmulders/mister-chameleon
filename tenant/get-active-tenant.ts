@@ -80,7 +80,7 @@ import { headers, cookies }  from "next/headers";
 import { resolveTenant, resolveTenantOrNull, resolveTenantById } from "./resolve-tenant";
 import { getTenantByDomainCached, getTenantByIdCached, getTenantById }  from "./tenant-store";
 import { readPersistedHostTenant, persistHostTenant } from "./host-resolution-cache-store";
-import { DEV_TENANT_COOKIE }  from "./dev-tenant-cookie";
+import { DEV_TENANT_COOKIE, isTenantOverrideEnabled }  from "./dev-tenant-cookie";
 import { buildTenantConfigFromSettings } from "./build-tenant-config";
 import type { TenantConfig }  from "./types";
 
@@ -131,12 +131,13 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   const h    = await headers();
   const host = h.get("host") ?? "";
 
-  // ── 0. Dev header override ───────────────────────────────────────────────
-  // In development, the middleware injects x-tenant-override from the ?tenant=
-  // query param.  This takes priority over the persistent cookie so that a
-  // single URL can temporarily select any tenant without mutating cookie state.
-  // Dead-code-eliminated in production (NODE_ENV is a compile-time constant).
-  if (process.env.NODE_ENV === "development") {
+  // ── 0. Dev / preview header override ─────────────────────────────────────
+  // In dev and on Vercel preview/staging, the proxy injects x-tenant-override
+  // from the ?tenant= query param. This takes priority over the persistent
+  // cookie so that a single URL can temporarily select any tenant without
+  // mutating cookie state. Never active in production (host-based only) — see
+  // isTenantOverrideEnabled().
+  if (isTenantOverrideEnabled()) {
     const headerOverride = h.get("x-tenant-override")?.trim();
     if (headerOverride) {
       const override = resolveTenantById(headerOverride);
@@ -148,11 +149,12 @@ export async function getActiveTenant(): Promise<TenantConfig> {
     }
   }
 
-  // ── 1. Dev cookie override ───────────────────────────────────────────────
-  // In development, check the mc_dev_tenant cookie before host resolution so
-  // the override set from /admin/tenants/[id] persists without ?tenant= in URLs.
-  // Dead-code-eliminated in production (NODE_ENV is a compile-time constant).
-  if (process.env.NODE_ENV === "development") {
+  // ── 1. Dev / preview cookie override ─────────────────────────────────────
+  // In dev and on Vercel preview/staging, check the mc_dev_tenant cookie before
+  // host resolution so an override set via ?tenant= persists without carrying
+  // the query param in every URL. Never active in production — see
+  // isTenantOverrideEnabled().
+  if (isTenantOverrideEnabled()) {
     const c           = await cookies();
     const devTenantId = c.get(DEV_TENANT_COOKIE)?.value?.trim();
     if (devTenantId) {

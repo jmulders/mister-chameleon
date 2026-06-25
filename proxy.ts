@@ -94,6 +94,7 @@ import {
 import {
   DEV_TENANT_COOKIE,
   DEV_TENANT_COOKIE_MAX_AGE,
+  isTenantOverrideEnabled,
 } from "@/tenant/dev-tenant-cookie";
 
 // ── Admin route helpers ───────────────────────────────────────────────────────
@@ -246,14 +247,18 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     if (value) requestHeaders.set(header, value);
   }
 
-  // ── Dev tenant override ─────────────────────────────────────────────────────
+  // ── Dev / preview tenant override ───────────────────────────────────────────
   //
   // When ?tenant=<id> is present, inject it as x-tenant-override so the current
   // request resolves immediately.  Also write mc_dev_tenant cookie onto the
   // response so the override persists across all subsequent navigations without
   // carrying the query param in every link.
+  //
+  // Active in local dev AND on Vercel preview/staging (never production) — see
+  // isTenantOverrideEnabled(). Lets a staging deploy be pointed at any real
+  // tenant for testing.
   let devTenantCookieToSet: string | null = null;
-  if (process.env.NODE_ENV === "development") {
+  if (isTenantOverrideEnabled()) {
     const tenantParam = request.nextUrl.searchParams.get("tenant")?.trim();
     if (tenantParam) {
       requestHeaders.set("x-tenant-override", tenantParam);
