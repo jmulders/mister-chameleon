@@ -116,6 +116,48 @@ const CONTENT_GROUP_META: Record<ContentGroup, { display: string; order: number 
   listings:             { display: 'Listings',           order: 4 },
 };
 
+// ── Set-picker presentation (Statamic v6 set previews) ──────────────────────────
+//
+// Per content set: an `icon` + one-line `instructions` + a preview `image`
+// (filename in the `assets` container's `set-previews/` folder, configured via
+// statamic.assets.set_preview_images). In the CP set-picker, editors see the
+// icon and — on hover — a screenshot of what the block looks like. The preview
+// images ship in the CMS template repo (public/assets/set-previews/<setKey>.png)
+// so every newly-provisioned tenant inherits them. Falls back to the icon when
+// an image is missing.
+const SET_PRESENTATION: Record<string, { icon: string; instructions: string }> = {
+  context_slot:        { icon: 'sparkles',     instructions: 'Personalised slot — hero, proof or CTA that adapts per visitor.' },
+  text_section:        { icon: 'text',         instructions: 'Heading and rich text in a contained column.' },
+  rich_text:           { icon: 'pencil',       instructions: 'Free-form rich-text content.' },
+  image:               { icon: 'image',        instructions: 'Text alongside an image or video.' },
+  video:               { icon: 'video',        instructions: 'Embedded or self-hosted video.' },
+  quote_block:         { icon: 'quote',        instructions: 'Highlighted pull-quote.' },
+  testimonial_section: { icon: 'comment',      instructions: 'Customer testimonials and reviews.' },
+  logo_strip:          { icon: 'image',        instructions: 'A row of customer or partner logos.' },
+  stats:               { icon: 'chart-bar',    instructions: 'Key metrics shown as number tiles.' },
+  feature_grid:        { icon: 'grid',         instructions: 'A grid of features with icons.' },
+  faq_section:         { icon: 'help',         instructions: 'Expandable question-and-answer list.' },
+  team_section:        { icon: 'users',        instructions: 'Team members with photos.' },
+  process_steps:       { icon: 'list-ol',      instructions: 'A numbered step-by-step process.' },
+  timeline:            { icon: 'time',         instructions: 'A chronological timeline of events.' },
+  cta_section:         { icon: 'megaphone',    instructions: 'Call-to-action banner with buttons.' },
+  form_section:        { icon: 'form',         instructions: 'A lead or contact form.' },
+  contact_section:     { icon: 'mail',         instructions: 'Contact details next to a form.' },
+  collection_listing:  { icon: 'list-ul',      instructions: 'Auto-listed entries from a collection.' },
+  listing:             { icon: 'images',       instructions: 'A media slider / manual listing.' },
+  related_content:     { icon: 'link',         instructions: 'Related articles or pages.' },
+};
+
+/** Build the set-picker presentation keys (icon / instructions / image) for a set. */
+function setPresentation(setKey: string): YamlObject {
+  const p = SET_PRESENTATION[setKey];
+  return {
+    ...(p?.icon         ? { icon: p.icon }                 : {}),
+    ...(p?.instructions ? { instructions: p.instructions } : {}),
+    image: `${setKey}.png`,
+  };
+}
+
 // ── Meta tab ───────────────────────────────────────────────────────────────────
 
 function buildMetaTab(): YamlObject {
@@ -297,6 +339,7 @@ function buildPageContentTab(
       sets: {
         context_slot: {
           display: 'Context Slot',
+          ...setPresentation('context_slot'),
           fields: [{ import: 'context_slot' }],
         },
       },
@@ -328,6 +371,7 @@ function buildPageContentTab(
     for (const setDef of groupSets[group]!) {
       (groupObj.sets as YamlObject)[setDef.setKey] = {
         display: setDef.display,
+        ...setPresentation(setDef.setKey),
         fields:  [{ import: setDef.fieldsetName }],
       };
     }
