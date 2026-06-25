@@ -1,4 +1,5 @@
 import type React from "react";
+import Image from "next/image";
 import { Container } from "@/components/primitives/Container";
 import { Section } from "@/components/primitives/Section";
 import { Stack } from "@/components/primitives/Stack";
@@ -202,16 +203,65 @@ function HeroCTARow({
  * The container sizing/aspect-ratio is handled by the parent layout; this
  * component fills whatever space it is given (h-full w-full).
  */
+/**
+ * Whether a hero image URL should pass through Next's image optimizer.
+ *
+ * Root-relative tenant assets (`/assets/…`, proxied to the tenant's CMS) and our
+ * allowlisted CDNs (Sanity, Cloudflare R2) are optimized — Next serves
+ * correctly-sized AVIF/WebP variants. Any other absolute URL is served as-is
+ * (`unoptimized`) so an un-allowlisted host can never throw at runtime.
+ */
+function heroImageOptimizable(src: string): boolean {
+  return src.startsWith("/") || /(?:cdn\.sanity\.io|\.r2\.dev)/.test(src);
+}
+
+/**
+ * next/image wrapper for hero media. Uses `fill` (hero dimensions are
+ * container-driven) inside a positioned wrapper, marks the image `priority`
+ * (the hero is the LCP element, so it preloads with fetchpriority="high"), and
+ * falls back to `unoptimized` for non-allowlisted hosts.
+ */
+function HeroImage({
+  src,
+  alt,
+  sizes,
+  wrapperClassName,
+  imageClassName = "object-cover",
+  ariaHidden = false,
+}: {
+  src: string;
+  alt: string;
+  sizes: string;
+  wrapperClassName: string;
+  imageClassName?: string;
+  ariaHidden?: boolean;
+}) {
+  return (
+    <div className={wrapperClassName}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        priority
+        quality={80}
+        unoptimized={!heroImageOptimizable(src)}
+        aria-hidden={ariaHidden || undefined}
+        className={imageClassName}
+      />
+    </div>
+  );
+}
+
 function HeroMediaContent({ media }: { media: HeroBannerMedia }) {
   // ── Image ──────────────────────────────────────────────────────────────────
   if (media.kind === "image") {
     return (
-      <img
+      <HeroImage
         src={media.url}
         alt={media.alt}
-        className="h-full w-full object-cover"
-        loading="lazy"
-        decoding="async"
+        sizes="(min-width: 1024px) 50vw, 100vw"
+        wrapperClassName="relative h-full w-full"
       />
     );
   }
@@ -359,13 +409,13 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
   // ── Image ──────────────────────────────────────────────────────────────────
   if (media.kind === "image") {
     return (
-      <img
+      <HeroImage
         src={media.url}
         alt=""            // decorative background — hidden from assistive tech
-        aria-hidden
-        className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-        loading="eager"   // above-the-fold — don't lazy-load the hero bg
-        decoding="async"
+        ariaHidden
+        sizes="100vw"
+        wrapperClassName="absolute inset-0 pointer-events-none"
+        imageClassName="object-cover"
       />
     );
   }
