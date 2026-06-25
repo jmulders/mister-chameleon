@@ -206,13 +206,16 @@ function HeroCTARow({
 /**
  * Whether a hero image URL should pass through Next's image optimizer.
  *
- * Root-relative tenant assets (`/assets/…`, proxied to the tenant's CMS) and our
- * allowlisted CDNs (Sanity, Cloudflare R2) are optimized — Next serves
- * correctly-sized AVIF/WebP variants. Any other absolute URL is served as-is
- * (`unoptimized`) so an un-allowlisted host can never throw at runtime.
+ * Only our allowlisted CDNs (Sanity, Cloudflare R2) are optimized — Next serves
+ * correctly-sized AVIF/WebP variants. Everything else — including root-relative
+ * `/assets/…` paths that are proxied to the tenant's own Statamic CMS — is
+ * served as-is (`unoptimized`). That keeps the Statamic path on the exact same
+ * network route as the original <img> (a direct request through the /assets
+ * proxy, no optimizer fetch), so this change can never break a Statamic tenant's
+ * hero. Statamic-side optimization can follow later via a Glide image loader.
  */
 function heroImageOptimizable(src: string): boolean {
-  return src.startsWith("/") || /(?:cdn\.sanity\.io|\.r2\.dev)/.test(src);
+  return /(?:cdn\.sanity\.io|\.r2\.dev)/.test(src);
 }
 
 /**
