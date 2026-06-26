@@ -98,9 +98,16 @@ const TENANT_REGISTRY: Readonly<Record<string, TenantConfig>> = {
   "misterchameleon.com": MISTER_CHAMELEON_TENANT,
   "www.misterchameleon.com": MISTER_CHAMELEON_TENANT,
 
-  // ── Mister Chameleon — staging / preview ───────────────────────────────────
-  // Uncomment and update when a staging domain is provisioned:
-  // "staging.misterchameleon.com": MISTER_CHAMELEON_TENANT,
+  // ── Staging hosts (frontend `develop` → Vercel staging) ────────────────────
+  // These are INERT until the matching DNS records + a staging deployment exist
+  // — a registered host that receives no traffic has no effect. On the staging
+  // deployment, STATAMIC_API_URL points at the *staging* CMS, so these same
+  // tenant configs resolve against staging data (the CMS base is env-driven, not
+  // hard-coded in the config). Provision DNS + the staging app, then they go
+  // live with no further code change. See docs/cms-pipeline.md.
+  "staging.misterchameleon.nl":  STATAMIC_TENANT,
+  "staging.misterchameleon.com": MISTER_CHAMELEON_TENANT,
+  "staging.steunles.nl":         ANOTHER_STATAMIC_TENANT,
 
   // ── Mister Chameleon — local development ───────────────────────────────────
   localhost: MISTER_CHAMELEON_TENANT,
