@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { HeroBannerMedia } from "@/cms/types";
+import { Text } from "@/components/primitives/Text";
 
 export interface HeroCarouselSlide {
   heading?:    string;
@@ -99,14 +100,34 @@ export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: Her
         }}
       >
         {slide.heading && (
-          <h1 style={{ margin: 0, fontSize: "clamp(2rem, 5vw, 3.5rem)", fontWeight: 800, lineHeight: 1.05, fontFamily: "var(--font-heading)" }}>
+          // Match HeroBlock's headline exactly: display variant (responsive size +
+          // heading tracking/transform profile) + the tenant hero-title tokens, so
+          // carousel typography inherits the active design preset like every other
+          // hero. Previously this used a hard-coded clamp()/weight/font and ignored
+          // the design tokens — hence the mismatched size, colour, and font.
+          <Text
+            variant="display"
+            align="center"
+            balance
+            className="whitespace-pre-line"
+            style={{
+              color:      "var(--hero-title-color)",
+              fontFamily: "var(--block-heading-font-family, var(--font-heading))",
+              fontWeight: "var(--block-heading-font-weight, var(--font-heading-weight))",
+            }}
+          >
             {slide.heading}
-          </h1>
+          </Text>
         )}
         {slide.subheading && (
-          <p style={{ margin: 0, fontSize: "clamp(1rem, 2vw, 1.35rem)", opacity: 0.92, maxWidth: 680 }}>
+          <Text
+            variant="body"
+            align="center"
+            className="text-lg"
+            style={{ color: "var(--hero-subtitle-color)", maxWidth: 680 }}
+          >
             {slide.subheading}
-          </p>
+          </Text>
         )}
         <SlideMedia slide={slide} eager={index === 0} />
         {slide.ctaLabel && slide.ctaUrl && (
