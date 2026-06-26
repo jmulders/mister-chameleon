@@ -489,6 +489,14 @@ export interface TenantConfig {
   canonicalHostname: string;
 
   /**
+   * Default content locale for this tenant, used when the visitor has no
+   * `locale` cookie. A Dutch tenant should set "nl" so a first-time visitor
+   * (and the CMS site-settings fetch) read NL content instead of the global
+   * "en" fallback. One of "en" | "nl" | "de"; absent → DEFAULT_LOCALE ("en").
+   */
+  defaultLocale?: string;
+
+  /**
    * Which CMS backend this tenant uses.
    * Consumed by createCMSProvider() (integration: see resolve-tenant.ts).
    */

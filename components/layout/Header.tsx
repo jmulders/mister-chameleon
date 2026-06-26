@@ -51,6 +51,7 @@
 
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
+import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
 import { getActiveTenant, getTenantByIdCached } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
@@ -118,8 +119,20 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   let headerStyle: HeaderStyle  = "light";
 
   // ── Locale (read early so it's available for the settings fetch below) ──────
+  //
+  // Precedence: the visitor's `locale` cookie wins; otherwise fall back to the
+  // tenant's own default locale (e.g. "nl" for a Dutch tenant) before the global
+  // DEFAULT_LOCALE ("en"). Without this, a first-time visitor (no cookie) reads
+  // the EN site-settings — so a header variant changed only on the NL site never
+  // shows. The tenant default fixes that at the source.
   const cookieStore = await cookies();
-  const locale      = cookieStore.get("locale")?.value ?? "en";
+  const localeCookie = cookieStore.get("locale")?.value;
+  const locale =
+    localeCookie && isSupportedLocale(localeCookie)
+      ? localeCookie
+      : isSupportedLocale(activeTenant.defaultLocale ?? "")
+        ? (activeTenant.defaultLocale as string)
+        : DEFAULT_LOCALE;
 
   // Layer 1 — family default
   const familyKey = activeTenant.theme?.featuredFamilyKey;

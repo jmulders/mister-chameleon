@@ -42,6 +42,7 @@ export const STATAMIC_TENANT: TenantConfig = {
   decisionProvider:  "rules",
   features:          { ...sharedFeatures },
   theme:             MISTER_CHAMELEON_THEME,
+  defaultLocale:     "nl",
 };
 
 /** steunles.nl — Statamic flat-file CMS tenant. */
@@ -53,4 +54,5 @@ export const ANOTHER_STATAMIC_TENANT: TenantConfig = {
   decisionProvider:  "rules",
   features:          { ...sharedFeatures },
   theme:             MISTER_CHAMELEON_THEME,
+  defaultLocale:     "nl",
 };
