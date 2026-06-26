@@ -529,6 +529,20 @@ export interface TenantConfig {
   // ── Platform extension fields (all optional — backward-compatible) ──────────
 
   /**
+   * CMS connection overrides for this tenant.
+   *
+   * `statamicBaseUrl` is the ABSOLUTE base URL of the tenant's Statamic CMS
+   * (e.g. "https://cms.misterchameleon.nl"). The Live Preview path uses it to
+   * resolve DRAFT asset references to the correct per-tenant CMS host, so images
+   * load regardless of which frontend host renders the preview and without
+   * depending on the global `STATAMIC_API_URL` env var. When absent, callers
+   * fall back to `STATAMIC_API_URL`.
+   */
+  cms?: {
+    readonly statamicBaseUrl?: string;
+  };
+
+  /**
    * Contact form and n8n orchestration settings.
    *
    * When absent, the contact form is enabled and uses N8N_CONTACT_WEBHOOK_URL.

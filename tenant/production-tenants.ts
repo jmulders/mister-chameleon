@@ -43,6 +43,7 @@ export const STATAMIC_TENANT: TenantConfig = {
   features:          { ...sharedFeatures },
   theme:             MISTER_CHAMELEON_THEME,
   defaultLocale:     "nl",
+  cms:               { statamicBaseUrl: "https://cms.misterchameleon.nl" },
 };
 
 /** steunles.nl — Statamic flat-file CMS tenant. */
@@ -55,4 +56,5 @@ export const ANOTHER_STATAMIC_TENANT: TenantConfig = {
   features:          { ...sharedFeatures },
   theme:             MISTER_CHAMELEON_THEME,
   defaultLocale:     "nl",
+  cms:               { statamicBaseUrl: "https://cms.steunles.nl" },
 };
