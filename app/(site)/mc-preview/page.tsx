@@ -23,6 +23,7 @@ import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { resolveTenantById } from "@/tenant/resolve-tenant";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import type { PageData, CmsPageContextConfig } from "@/cms/types";
 
@@ -60,9 +61,21 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   let base = "";
   try {
     const { tenantId } = await getActiveTenant();
-    const tenant = await getTenantById(tenantId ?? "");
+    // Resolve the CMS base PER TENANT. Order matters and is multi-tenant-safe:
+    //   1. Static tenant registry — synchronous, always present, and each tenant
+    //      pins its own `cms.statamicBaseUrl` (cms.misterchameleon.nl / cms.steunles.nl).
+    //   2. DB tenant settings — fallback for DB-only tenants.
+    //   3. STATAMIC_API_URL env — LAST resort only. It is shared across every
+    //      tenant on this deployment, so it must never be the primary source —
+    //      otherwise one tenant's preview resolves assets against another tenant's
+    //      (or an old Ploi preview) CMS host.
+    const staticBase = resolveTenantById(tenantId ?? "")?.cms?.statamicBaseUrl;
+    const dbBase = staticBase
+      ? undefined
+      : (await getTenantById(tenantId ?? "")) as { cms?: { statamicBaseUrl?: string } } | null;
     const rawBase =
-      (tenant as { cms?: { statamicBaseUrl?: string } } | null)?.cms?.statamicBaseUrl ??
+      staticBase ??
+      dbBase?.cms?.statamicBaseUrl ??
       process.env.STATAMIC_API_URL ?? "";
     base = rawBase.replace(/\/api\/?$/, "").replace(/\/$/, "");
   } catch {
