@@ -201,5 +201,8 @@ export function adaptiveVariantToHeroBlockData(
     layoutVariant: content.layoutVariant,
     contentAlign:  content.contentAlign,
     media,
+    // Carousel slides — only meaningful for layoutVariant === "hero_carousel";
+    // HeroBlock ignores them for every other layout.
+    ...(content.slides?.length ? { slides: content.slides } : {}),
   };
 }

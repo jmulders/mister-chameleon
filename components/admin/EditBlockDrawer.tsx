@@ -22,6 +22,7 @@ import type {
   AdaptiveBlockData,
   AdaptiveVariantContent,
   AdaptiveVariantItem,
+  HeroSlideData,
   HeroBannerImage,
   HeroBannerVideo,
   HeroBannerVideoUpload,
@@ -52,6 +53,7 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "hero_split_clean",  label: "Split clean" },
     { value: "hero_dark_split",   label: "Dark split" },
     { value: "hero_editorial",    label: "Editorial" },
+    { value: "hero_carousel",     label: "Carousel" },
   ],
   proof: [
     { value: "proof_stats",   label: "Stats" },
@@ -627,6 +629,14 @@ export function EditBlockDrawer({
     block.defaultVariant.items ?? [],
   );
 
+  // ── Slides (hero_carousel) ─────────────────────────────────────────────────
+  // Each slide is an independent hero (heading/subheading/media/CTA). Only
+  // surfaced + persisted when the hero layout is "hero_carousel".
+
+  const [slides, setSlides] = useState<HeroSlideData[]>(
+    block.defaultVariant.slides ?? [],
+  );
+
   // ── Async ──────────────────────────────────────────────────────────────────
 
   const [error, setError]       = useState<string | null>(null);
@@ -646,6 +656,16 @@ export function EditBlockDrawer({
   }
   function handleItemRemove(idx: number) {
     setItems((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function handleSlideChange(idx: number, field: keyof HeroSlideData, value: string) {
+    setSlides((prev) => prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s)));
+  }
+  function handleSlideRemove(idx: number) {
+    setSlides((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function handleSlideAdd() {
+    setSlides((prev) => [...prev, {}]);
   }
 
   function buildMedia(): HeroBannerMedia | undefined {
@@ -704,6 +724,10 @@ export function EditBlockDrawer({
         ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant })) } : {}),
         ...(media         ? { media }                             : {}),
         ...(items.length  ? { items }                             : {}),
+        // Persist slides only for the carousel layout — keeps other layouts'
+        // payloads clean and avoids stale slide data lingering after a layout
+        // switch away from the carousel.
+        ...(layoutVariant === "hero_carousel" && slides.length ? { slides } : {}),
       };
 
       const savePath =
@@ -872,6 +896,112 @@ export function EditBlockDrawer({
               </div>
             </div>
           </fieldset>
+
+          {/* ── Slides (carousel) ───────────────────────────────────────── */}
+          {layoutVariant === "hero_carousel" && (
+            <fieldset className="space-y-3 rounded-lg border border-brand-100 bg-brand-50/40 p-3">
+              <div className="flex items-center justify-between">
+                <legend className="text-[11px] font-semibold uppercase tracking-wider text-brand-500">
+                  Carousel slides
+                </legend>
+                <button
+                  type="button"
+                  onClick={handleSlideAdd}
+                  className="text-[11px] font-medium text-brand-600 hover:text-brand-800 transition-colors"
+                >
+                  + Add slide
+                </button>
+              </div>
+              <p className="text-[11px] text-neutral-500">
+                Each slide is shown in turn (autoplay + arrows + dots). The main
+                Title/Subtitle/Media fields above are used as a fallback when no
+                slides are added.
+              </p>
+              {slides.length === 0 && (
+                <p className="text-xs text-neutral-400 italic">No slides yet — add at least two.</p>
+              )}
+              {slides.map((slide, idx) => (
+                <div key={idx} className="rounded-lg border border-neutral-200 bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-neutral-500">Slide {idx + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSlideRemove(idx)}
+                      className="text-[10px] text-neutral-400 hover:text-red-500 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Heading</label>
+                      <input
+                        type="text"
+                        value={slide.heading ?? ""}
+                        onChange={(e) => handleSlideChange(idx, "heading", e.target.value)}
+                        placeholder="Slide headline"
+                        className={SMALL_INPUT_CLS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Subheading</label>
+                      <input
+                        type="text"
+                        value={slide.subheading ?? ""}
+                        onChange={(e) => handleSlideChange(idx, "subheading", e.target.value)}
+                        placeholder="Supporting line"
+                        className={SMALL_INPUT_CLS}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Image URL</label>
+                      <input
+                        type="text"
+                        value={slide.mediaUrl ?? ""}
+                        onChange={(e) => handleSlideChange(idx, "mediaUrl", e.target.value)}
+                        placeholder="https://…"
+                        className={SMALL_INPUT_CLS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Image alt</label>
+                      <input
+                        type="text"
+                        value={slide.mediaAlt ?? ""}
+                        onChange={(e) => handleSlideChange(idx, "mediaAlt", e.target.value)}
+                        placeholder="Describe the image"
+                        className={SMALL_INPUT_CLS}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">CTA label</label>
+                      <input
+                        type="text"
+                        value={slide.ctaLabel ?? ""}
+                        onChange={(e) => handleSlideChange(idx, "ctaLabel", e.target.value)}
+                        placeholder="Learn more"
+                        className={SMALL_INPUT_CLS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">CTA URL</label>
+                      <input
+                        type="text"
+                        value={slide.ctaUrl ?? ""}
+                        onChange={(e) => handleSlideChange(idx, "ctaUrl", e.target.value)}
+                        placeholder="/contact"
+                        className={SMALL_INPUT_CLS}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </fieldset>
+          )}
 
           {/* ── Media ───────────────────────────────────────────────────── */}
           <fieldset className="space-y-4">

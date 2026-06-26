@@ -528,6 +528,12 @@ export interface AdaptiveVariantContent {
    * Typisch 3 items; elk item beschrijft één kaart/kolom.
    */
   items?: AdaptiveVariantItem[];
+  /**
+   * Slides voor de `hero_carousel` layout-variant — elke slide is een losse hero
+   * (kop + subkop + optionele media + CTA). Alleen relevant wanneer
+   * `layoutVariant === "hero_carousel"`; genegeerd op elke andere variant.
+   */
+  slides?: HeroSlideData[];
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageUrl?:  string;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
