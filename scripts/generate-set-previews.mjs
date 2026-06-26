@@ -41,7 +41,7 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 const STORYBOOK_STATIC = path.resolve(REPO_ROOT, process.env.STORYBOOK_STATIC || "storybook-static");
 const OUT_DIR = path.resolve(
   REPO_ROOT,
-  process.env.OUT_DIR || "../mister-chameleon-cms-app/public/assets/set-previews",
+  process.env.OUT_DIR || "../mister-chameleon-cms-app/public/set-previews",
 );
 
 // Final preview size (matches the schematic mockups).
