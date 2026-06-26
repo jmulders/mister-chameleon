@@ -622,6 +622,67 @@ function MegaCta({ cta }: { cta: MegaMenuCtaData }) {
   );
 }
 
+// ── Simple dropdown panel ──────────────────────────────────────────────────────
+//
+// Compact vertical list of the item's child links. Used when a nav item's
+// `dropdownStyle` is "simple" — a plain dropdown instead of the rich mega panel.
+
+function SimpleDropdownPanel({
+  item,
+  s,
+}: {
+  item: NavigationItemData;
+  s:    ReturnType<typeof getStyle>;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect     = el.getBoundingClientRect();
+    const overflow = rect.right - (window.innerWidth - 8);
+    if (overflow > 0) el.style.transform = `translateX(${-overflow}px)`;
+  }, []);
+
+  const children = item.children ?? [];
+  if (children.length === 0) return null;
+
+  return (
+    <div
+      ref={panelRef}
+      role="menu"
+      className={cn("absolute left-0 top-full z-50 mt-px rounded-xl p-2", s.panel)}
+      style={{ width: 256 }}
+    >
+      <ul className="flex flex-col">
+        {children.map((child) => (
+          <li key={child.id}>
+            <Link
+              href={child.href}
+              role="menuitem"
+              target={child.openInNewTab ? "_blank" : undefined}
+              rel={child.openInNewTab ? "noopener noreferrer" : undefined}
+              className={cn(
+                "group block rounded-md px-3 py-2 text-sm",
+                s.linkText,
+                s.linkHover,
+                "transition-colors duration-100",
+                "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-1",
+              )}
+            >
+              <span className="font-medium leading-snug">{child.label}</span>
+              {child.description && (
+                <span className={cn("block mt-0.5 text-[11px] leading-snug", s.linkDesc)}>
+                  {child.description}
+                </span>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ── Mega panel ────────────────────────────────────────────────────────────────
 
 function MegaPanel({
@@ -831,7 +892,10 @@ function RichMegaItem({ item, density, megaStyle }: RichMegaItemProps) {
             className="absolute left-0 top-full z-40 h-1 w-full"
           />
 
-          {hasMegaMenu && item.megaMenu ? (
+          {item.dropdownStyle === "simple" ? (
+            // Per-item "simple" style — a compact dropdown list, not a mega panel.
+            <SimpleDropdownPanel item={item} s={s} />
+          ) : hasMegaMenu && item.megaMenu ? (
             // Rich column mega menu
             <MegaPanel
               megaMenu={item.megaMenu}
@@ -840,7 +904,7 @@ function RichMegaItem({ item, density, megaStyle }: RichMegaItemProps) {
               megaStyle={megaStyle}
             />
           ) : (
-            // Legacy simple children grid (backward compat)
+            // Legacy children mega panel (feature columns + optional CTA)
             <LegacyChildrenPanel
               item={item}
               s={s}

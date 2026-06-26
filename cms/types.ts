@@ -765,6 +765,13 @@ export interface NavigationItemData {
    * (For rich column menus the equivalent `megaMenu.cta` is also honoured.)
    */
   megaCta?: MegaMenuCtaData | null;
+  /**
+   * How this item's dropdown renders when it has sub-items:
+   *   "mega"   — wide feature columns + optional CTA (the rich mega menu).
+   *   "simple" — a compact vertical dropdown list of the child links.
+   * Absent → defaults to "mega" (the rich panel). Set per nav item in the CMS.
+   */
+  dropdownStyle?: "mega" | "simple" | null;
 }
 
 /**

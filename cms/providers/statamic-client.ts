@@ -115,6 +115,12 @@ export interface StatamicNavTreeItem {
    */
   showMegaDescription?: boolean;
   /**
+   * How this item's dropdown renders: "mega" (rich feature columns + CTA) or
+   * "simple" (compact dropdown list). Sourced from the `dropdown_style` field.
+   * Absent = "mega" (default).
+   */
+  dropdownStyle?: "mega" | "simple";
+  /**
    * Nested child items.  Used for multi-level nav trees such as the
    * footer_main navigation where top-level items are column headings and
    * their children are the column links.
@@ -435,6 +441,11 @@ class StatamicFileReader {
             ? (itemData["mega_show_description"] as boolean)
             : undefined;
 
+        const dropdownStyle: "mega" | "simple" | undefined =
+          itemData["dropdown_style"] === "simple" ? "simple"
+            : itemData["dropdown_style"] === "mega" ? "mega"
+            : undefined;
+
         // Mega-menu CTA — built from the mega_cta_* fields when a position plus
         // the required heading + url are present. The image field (assets) is an
         // array of filenames (or a bare string); take the first.
@@ -445,7 +456,12 @@ class StatamicFileReader {
             typeof itemData[k] === "string" && (itemData[k] as string).trim()
               ? (itemData[k] as string).trim() : undefined;
           const heading = str("mega_cta_heading");
-          const url     = str("mega_cta_url");
+          // The link field stores either a URL/path or an "entry::<id>" ref.
+          // Resolve entry refs to a uri via the entryMap built above.
+          const rawUrl = str("mega_cta_url");
+          const url = rawUrl && rawUrl.startsWith("entry::")
+            ? entryMap.get(rawUrl.replace(/^entry::/, "").trim())?.uri
+            : rawUrl;
           if (!heading || !url) return undefined;
           const img  = itemData["mega_cta_image"];
           const file = Array.isArray(img) ? img[0] : img;
@@ -476,6 +492,7 @@ class StatamicFileReader {
           ...(page?.imageFile  ? { imageFile: page.imageFile } : {}),
           ...(showMegaImage !== undefined       ? { showMegaImage }       : {}),
           ...(showMegaDescription !== undefined ? { showMegaDescription } : {}),
+          ...(dropdownStyle ? { dropdownStyle } : {}),
           ...(megaCta ? { megaCta } : {}),
           ...(children.length > 0 ? { children }              : {}),
         };
@@ -985,6 +1002,10 @@ export class StatamicClient {
         typeof field("mega_show_image") === "boolean" ? (field("mega_show_image") as boolean) : undefined;
       const apiShowMegaDescription: boolean | undefined =
         typeof field("mega_show_description") === "boolean" ? (field("mega_show_description") as boolean) : undefined;
+      const apiDropdownStyle: "mega" | "simple" | undefined =
+        field("dropdown_style") === "simple" ? "simple"
+          : field("dropdown_style") === "mega" ? "mega"
+          : undefined;
 
       // Mega-menu CTA — from the mega_cta_* fields. The image (assets) field may
       // come back as a string, an array, or an asset object (url/permalink).
@@ -996,7 +1017,16 @@ export class StatamicClient {
           return typeof v === "string" && v.trim() ? v.trim() : undefined;
         };
         const heading = str("mega_cta_heading");
-        const url     = str("mega_cta_url");
+        // The link field is augmented by the Content API to a resolved URL
+        // string, but defensively also accept a { url } object shape.
+        const rawUrl = field("mega_cta_url");
+        const url =
+          typeof rawUrl === "string" && rawUrl.trim()
+            ? rawUrl.trim()
+            : rawUrl && typeof rawUrl === "object"
+              && typeof (rawUrl as Record<string, unknown>)["url"] === "string"
+              ? ((rawUrl as Record<string, unknown>)["url"] as string)
+              : undefined;
         if (!heading || !url) return undefined;
         const raw   = field("mega_cta_image");
         const first = Array.isArray(raw) ? raw[0] : raw;
@@ -1028,6 +1058,7 @@ export class StatamicClient {
         ...(apiExcerpt ? { excerpt: apiExcerpt } : {}),
         ...(apiShowMegaImage !== undefined       ? { showMegaImage: apiShowMegaImage }             : {}),
         ...(apiShowMegaDescription !== undefined ? { showMegaDescription: apiShowMegaDescription } : {}),
+        ...(apiDropdownStyle ? { dropdownStyle: apiDropdownStyle } : {}),
         ...(apiMegaCta ? { megaCta: apiMegaCta } : {}),
         ...(children.length > 0 ? { children } : {}),
       };

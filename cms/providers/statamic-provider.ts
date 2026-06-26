@@ -1112,6 +1112,7 @@ export class StatamicProvider implements CMSProvider {
             imageUrl?: string;
             megaShowImage?: boolean;
             megaShowDescription?: boolean;
+            dropdownStyle?: "mega" | "simple";
             megaCta?: import("../types").MegaMenuCtaData;
             children?: NavItemData[];
           };
@@ -1127,6 +1128,7 @@ export class StatamicProvider implements CMSProvider {
             ...(item.imageFile  ? { imageUrl: `${cmsBaseUrl}/assets/${item.imageFile}` }           : {}),
             ...(item.showMegaImage !== undefined       ? { megaShowImage: item.showMegaImage }             : {}),
             ...(item.showMegaDescription !== undefined ? { megaShowDescription: item.showMegaDescription } : {}),
+            ...(item.dropdownStyle ? { dropdownStyle: item.dropdownStyle } : {}),
             ...(item.megaCta
               ? { megaCta: {
                   position: item.megaCta.position,
