@@ -71,6 +71,8 @@ export function mapHeroBlockData(data: HeroBlockData): HeroBlockProps {
     ...(data.proofItems   !== undefined ? { proofItems:   data.proofItems   } : {}),
     // Pass media through unchanged — the component handles all rendering.
     ...(data.media        !== undefined ? { media:        data.media        } : {}),
+    // Pass carousel slides through — required for layoutVariant "hero_carousel".
+    ...(data.slides       !== undefined ? { slides:       data.slides       } : {}),
   };
 }
 
