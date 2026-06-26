@@ -81,6 +81,7 @@ import type {
   MegaMenuColumnData,
   MegaMenuLinkItemData,
   MegaMenuMediaItemData,
+  MegaMenuCtaData,
 } from "@/cms/types";
 import { useMenuState } from "./useMenuState";
 
@@ -525,6 +526,102 @@ function MegaColumn({
   );
 }
 
+// ── CTA block ─────────────────────────────────────────────────────────────────
+
+function ArrowRight({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={cn("size-4 shrink-0", className)}>
+      <path d="M4 10h12M11 5l5 5-5 5" />
+    </svg>
+  );
+}
+
+/**
+ * Promotional CTA inside a mega menu.
+ *
+ *   variant "card" — used for position "left" / "right": vertical card with an
+ *                    optional image on top and a brand-coloured text block beneath.
+ *   variant "bar"  — used for position "bottom": full-width horizontal bar.
+ *
+ * Colours come from theme tokens (--primary / --primary-text), never hardcoded.
+ */
+function MegaCta({ cta }: { cta: MegaMenuCtaData }) {
+  const isBar = cta.position === "bottom";
+
+  const brandBlock =
+    "bg-[var(--primary,var(--btn-bg,#1a2b88))] text-[var(--primary-text,#ffffff)]";
+
+  const arrowOrLabel = (
+    <span className="inline-flex items-center gap-1.5 font-semibold text-sm">
+      {cta.ctaLabel ? <span>{cta.ctaLabel}</span> : null}
+      <span className="inline-flex size-7 items-center justify-center rounded-md bg-[var(--primary-text,#ffffff)]/15 transition-colors group-hover:bg-[var(--primary-text,#ffffff)]/25">
+        <ArrowRight />
+      </span>
+    </span>
+  );
+
+  if (isBar) {
+    // ── Full-width bar (position: bottom) ────────────────────────────────────
+    return (
+      <Link
+        href={cta.href}
+        target={cta.openInNewTab ? "_blank" : undefined}
+        rel={cta.openInNewTab ? "noopener noreferrer" : undefined}
+        className={cn(
+          "group flex items-center gap-4 rounded-lg p-4",
+          brandBlock,
+          "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
+        )}
+      >
+        {cta.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cta.imageUrl}
+            alt={cta.imageAlt ?? ""}
+            className="h-14 w-20 shrink-0 rounded-md object-cover"
+          />
+        )}
+        <div className="flex min-w-0 flex-col">
+          <span className="font-bold leading-snug">{cta.heading}</span>
+          {cta.text && <span className="text-sm leading-snug opacity-90">{cta.text}</span>}
+        </div>
+        <span className="ml-auto">{arrowOrLabel}</span>
+      </Link>
+    );
+  }
+
+  // ── Vertical card (position: left / right) ─────────────────────────────────
+  return (
+    <Link
+      href={cta.href}
+      target={cta.openInNewTab ? "_blank" : undefined}
+      rel={cta.openInNewTab ? "noopener noreferrer" : undefined}
+      className={cn(
+        "group flex w-[260px] shrink-0 flex-col overflow-hidden rounded-lg",
+        "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
+      )}
+    >
+      {cta.imageUrl && (
+        <div className="relative aspect-[16/9] w-full overflow-hidden bg-[var(--bg-subtle,#f1f5f9)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={cta.imageUrl}
+            alt={cta.imageAlt ?? ""}
+            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+          />
+        </div>
+      )}
+      <div className={cn("flex flex-1 flex-col gap-1.5 p-4", brandBlock)}>
+        <span className="font-bold leading-snug">{cta.heading}</span>
+        {cta.text && <span className="text-sm leading-snug opacity-90">{cta.text}</span>}
+        <span className="mt-auto pt-3">{arrowOrLabel}</span>
+      </div>
+    </Link>
+  );
+}
+
 // ── Mega panel ────────────────────────────────────────────────────────────────
 
 function MegaPanel({
@@ -550,7 +647,10 @@ function MegaPanel({
   });
 
   const visibleColumns = megaMenu.columns.filter((c) => c.items.length > 0);
-  if (visibleColumns.length === 0) return null;
+  const cta       = megaMenu.cta ?? null;
+  const sideCta   = cta && (cta.position === "left" || cta.position === "right") ? cta : null;
+  const bottomCta = cta && cta.position === "bottom" ? cta : null;
+  if (visibleColumns.length === 0 && !cta) return null;
 
   // Panel width scales with column count, capped to avoid over-stretching.
   // dark-ai gets wider columns (media-forward); structured-saas tighter.
@@ -559,10 +659,12 @@ function MegaPanel({
     megaStyle === "structured-saas" ? 180 :
     210;
 
-  const panelWidth = Math.min(
+  const colsWidth = Math.min(
     visibleColumns.length * colWidth,
     megaStyle === "dark-ai" ? 800 : 720,
   );
+  // A side CTA card (~260px) plus its gap widens the panel.
+  const panelWidth = colsWidth + (sideCta ? 280 : 0);
 
   return (
     <div
@@ -576,25 +678,37 @@ function MegaPanel({
       )}
       style={{ width: panelWidth }}
     >
-      <div
-        className={cn(
-          "grid",
-          s.colGap,
-        )}
-        style={{
-          gridTemplateColumns: `repeat(${visibleColumns.length}, 1fr)`,
-        }}
-      >
-        {visibleColumns.map((col, idx) => (
-          <MegaColumn
-            key={col._key}
-            column={col}
-            s={s}
-            density={density}
-            megaStyle={megaStyle}
-            showSeparator={(s.colSeparator as boolean) && idx > 0}
-          />
-        ))}
+      <div className="flex flex-col gap-4">
+        {/* Columns row — with an optional CTA card on the left or right. */}
+        <div className="flex items-stretch gap-5">
+          {sideCta?.position === "left" && <MegaCta cta={sideCta} />}
+
+          {visibleColumns.length > 0 && (
+            <div
+              className={cn("grid", s.colGap)}
+              style={{
+                width:               colsWidth,
+                gridTemplateColumns: `repeat(${visibleColumns.length}, 1fr)`,
+              }}
+            >
+              {visibleColumns.map((col, idx) => (
+                <MegaColumn
+                  key={col._key}
+                  column={col}
+                  s={s}
+                  density={density}
+                  megaStyle={megaStyle}
+                  showSeparator={(s.colSeparator as boolean) && idx > 0}
+                />
+              ))}
+            </div>
+          )}
+
+          {sideCta?.position === "right" && <MegaCta cta={sideCta} />}
+        </div>
+
+        {/* Full-width CTA bar under the columns. */}
+        {bottomCta && <MegaCta cta={bottomCta} />}
       </div>
     </div>
   );
@@ -786,9 +900,15 @@ function LegacyChildrenPanel({
   const hasAnyDesc  = showDescriptions && children.some((c) => c.description);
   const hasAnyImage = showImages       && children.some((c) => c.imageUrl);
 
-  // Panel width: per-column width × count, capped at 920px
-  const colW   = hasAnyImage ? 220 : hasAnyDesc ? 230 : 200;
-  const panelW = Math.min(children.length * colW, 920);
+  // Optional promotional CTA (path-independent — lives on the nav item itself).
+  const cta       = item.megaCta ?? null;
+  const sideCta   = cta && (cta.position === "left" || cta.position === "right") ? cta : null;
+  const bottomCta = cta && cta.position === "bottom" ? cta : null;
+
+  // Panel width: per-column width × count, capped at 920px (+ a side CTA card).
+  const colW      = hasAnyImage ? 220 : hasAnyDesc ? 230 : 200;
+  const childrenW = Math.min(children.length * colW, 920);
+  const panelW    = childrenW + (sideCta ? 280 : 0);
 
   return (
     <div
@@ -798,11 +918,19 @@ function LegacyChildrenPanel({
         "absolute left-0 top-full z-50 mt-px",
         "max-w-[90vw] overflow-hidden rounded-xl",
         s.panel,
+        cta && "p-3",
       )}
       style={{ width: panelW }}
     >
+     <div className="flex flex-col gap-3">
+      {/* Columns row — with an optional CTA card on the left or right. */}
+      <div className="flex items-stretch gap-3">
+        {sideCta?.position === "left" && <MegaCta cta={sideCta} />}
       {/* ── Feature columns — one per child, separated by hairline dividers ── */}
-      <div className="flex divide-x divide-[var(--nav-dropdown-border,var(--border))]">
+      <div
+        className="flex flex-1 divide-x divide-[var(--nav-dropdown-border,var(--border))]"
+        style={{ width: childrenW }}
+      >
           {children.map((child) => (
             <Link
               key={child.id}
@@ -854,6 +982,12 @@ function LegacyChildrenPanel({
             </Link>
           ))}
       </div>
+        {sideCta?.position === "right" && <MegaCta cta={sideCta} />}
+      </div>
+
+      {/* Full-width CTA bar under the columns. */}
+      {bottomCta && <MegaCta cta={bottomCta} />}
+     </div>
     </div>
   );
 }

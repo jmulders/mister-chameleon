@@ -667,6 +667,42 @@ export interface MegaMenuColumnData {
 export interface MegaMenuData {
   /** Ordered array of column definitions. Displayed left-to-right. */
   columns: MegaMenuColumnData[];
+  /**
+   * Optional promotional CTA block shown alongside or below the columns.
+   * Renders as an image + heading + supporting text + link (arrow or label).
+   * Absent/null → no CTA.
+   */
+  cta?: MegaMenuCtaData | null;
+}
+
+/**
+ * A promotional call-to-action block inside a mega menu.
+ *
+ * Placement:
+ *   "left"  / "right"  — a card beside the columns (image on top, brand-coloured
+ *                        text block beneath, arrow/label at the bottom).
+ *   "bottom"           — a full-width bar under the columns (image left, text,
+ *                        arrow/label right).
+ */
+export interface MegaMenuCtaData {
+  /** Sanity _key / stable key for list rendering. */
+  _key?:        string;
+  /** Where the CTA sits relative to the columns. "bottom" = full-width bar. */
+  position:     "left" | "right" | "bottom";
+  /** Bold heading line (e.g. "Keuzehulp"). */
+  heading:      string;
+  /** Optional supporting text under the heading. */
+  text?:        string | null;
+  /** Optional image / illustration URL. */
+  imageUrl?:    string | null;
+  /** Alt text for the image. */
+  imageAlt?:    string | null;
+  /** Destination URL (internal path or external URL). */
+  href:         string;
+  /** Optional button label. When absent, only an arrow is shown. */
+  ctaLabel?:    string | null;
+  /** Open the link in a new browser tab. */
+  openInNewTab?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -722,6 +758,13 @@ export interface NavigationItemData {
    * and rich media blocks.
    */
   megaMenu?: MegaMenuData | null;
+  /**
+   * Optional promotional CTA shown inside this item's mega menu — works for
+   * BOTH the rich column mega menu and the legacy `children` mega menu. Renders
+   * as a card on the left/right of the panel, or a full-width bar below it.
+   * (For rich column menus the equivalent `megaMenu.cta` is also honoured.)
+   */
+  megaCta?: MegaMenuCtaData | null;
 }
 
 /**
