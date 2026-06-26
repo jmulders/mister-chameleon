@@ -642,7 +642,7 @@ function bardBodyToHtml(body: unknown): string | undefined {
     //
     //   statamic://asset::{container}::{path}  →  /assets/{path}
     //   src="/assets/img.jpg"                  →  unchanged (already root-relative)
-    let html = trimmed.replace(/statamic:\/\/asset::[^:]+::([^"'\s>]+)/g, "/assets/$1");
+    const html = trimmed.replace(/statamic:\/\/asset::[^:]+::([^"'\s>]+)/g, "/assets/$1");
     return html;
   }
 
@@ -728,6 +728,22 @@ export function mapStatamicPageBlocksToSections(
   // STATAMIC_API_URL so images load cross-port in the preview iframe.
   const statamicBase = (process.env.STATAMIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
+  // Root-relative asset paths (/assets/…) are served on whatever host the page
+  // runs on: the live frontend proxies /assets → CMS via Next rewrites, and the
+  // Statamic Live Preview is served *from the CMS host itself* (so /assets is the
+  // CMS directly). Keeping them root-relative in production is therefore both
+  // host-agnostic and multi-tenant-safe.
+  //
+  // ONLY in local dev (frontend :3000, Statamic :8000 — different origins, no
+  // shared proxy) do we prefix the absolute STATAMIC_API_URL so the image still
+  // loads cross-port. Previously the absolute prefix was applied in production
+  // too, so any DRAFT asset (bare filename, no API permalink — e.g. testimonial
+  // avatars, logo strips, text-media images in the Live Preview) resolved to
+  // `${STATAMIC_API_URL}/assets/…`; when that env var was unset it defaulted to
+  // localhost:8000 and every draft-only image 404'd in the preview.
+  const isDev = process.env.NODE_ENV !== "production";
+  const hostFor = (rootRelative: string): string => (isDev ? `${statamicBase}${rootRelative}` : rootRelative);
+
   function resolveAssetUrl(raw: unknown): string | undefined {
     if (!raw) return undefined;
 
@@ -739,7 +755,7 @@ export function mapStatamicPageBlocksToSections(
       // `url` may be root-relative like "/assets/img.jpg"
       if (typeof obj.url === "string" && obj.url) {
         const u = obj.url;
-        return u.startsWith("/") ? `${statamicBase}${u}` : u;
+        return u.startsWith("/") ? hostFor(u) : u;
       }
       return undefined;
     }
@@ -751,18 +767,18 @@ export function mapStatamicPageBlocksToSections(
 
     // Plain string — three sub-cases:
     //   1. Already absolute (http/https)  → return as-is
-    //   2. Root-relative (/assets/…)      → prefix with statamicBase
+    //   2. Root-relative (/assets/…)      → host-agnostic in prod, prefixed in dev
     //   3. Bare filename (file-reader path, e.g. "hero.webp" or "folder/img.jpg")
     //      The Statamic assets disk serves files from /assets/, so a bare name
-    //      stored in YAML by StatamicFileReader maps to <base>/assets/<name>.
+    //      stored in YAML by StatamicFileReader maps to /assets/<name>.
     if (typeof raw === "string" && raw) {
       if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-      if (raw.startsWith("/")) return `${statamicBase}${raw}`;
+      if (raw.startsWith("/")) return hostFor(raw);
       // Strip Statamic asset handle prefix if present ("assets::img.jpg" → "img.jpg").
       // Statamic stores asset references as "<container>::<path>" internally; the
       // REST API / to_json sometimes surfaces this raw handle instead of a URL.
       const assetPath = raw.includes("::") ? raw.split("::").slice(1).join("::") : raw;
-      return `${statamicBase}/assets/${assetPath}`;
+      return hostFor(`/assets/${assetPath}`);
     }
 
     return undefined;
