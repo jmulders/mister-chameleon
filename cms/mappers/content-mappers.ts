@@ -73,6 +73,8 @@ export function mapHeroBlockData(data: HeroBlockData): HeroBlockProps {
     ...(data.media        !== undefined ? { media:        data.media        } : {}),
     // Pass carousel slides through — required for layoutVariant "hero_carousel".
     ...(data.slides       !== undefined ? { slides:       data.slides       } : {}),
+    // Pass the carousel autoplay toggle through (boolean — keep even when false).
+    ...(data.carouselAutoplay !== undefined ? { carouselAutoplay: data.carouselAutoplay } : {}),
   };
 }
 

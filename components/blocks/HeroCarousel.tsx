@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import type { HeroBannerMedia } from "@/cms/types";
+import type { HeroBannerMedia, HeroBannerVideoUpload } from "@/cms/types";
 import { Text } from "@/components/primitives/Text";
 
 export interface HeroCarouselSlide {
@@ -215,18 +215,7 @@ function SlideMedia({ slide, eager }: { slide: HeroCarouselSlide; eager: boolean
 
   // ── Uploaded / self-hosted video ─────────────────────────────────────────
   if (video.source === "upload") {
-    return (
-      <video
-        src={video.url}
-        poster={video.poster}
-        muted={video.muted ?? video.autoplay ?? false}
-        autoPlay={video.autoplay ?? false}
-        loop={video.loop ?? false}
-        controls={video.controls ?? false}
-        playsInline
-        style={{ ...boxStyle, maxHeight: 380, objectFit: "contain" }}
-      />
-    );
+    return <UploadVideo video={video} boxStyle={boxStyle} />;
   }
 
   // ── YouTube / Vimeo embeds (16:9) ────────────────────────────────────────
@@ -266,6 +255,42 @@ function SlideMedia({ slide, eager }: { slide: HeroCarouselSlide; eager: boolean
         style={innerStyle}
       />
     </div>
+  );
+}
+
+/**
+ * Uploaded-video slide media.
+ *
+ * Desktop autoplay reliability: React assigns `muted` unreliably (it's a DOM
+ * property, not an attribute, and SSR markup can omit it), so the browser's
+ * autoplay policy may see an "unmuted" video and block playback. We therefore
+ * force `el.muted = true` and call `play()` from an effect once mounted — the
+ * robust cross-browser pattern for muted hero-video autoplay.
+ */
+function UploadVideo({ video, boxStyle }: { video: HeroBannerVideoUpload; boxStyle: CSSProperties }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const autoplay = video.autoplay ?? false;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !autoplay) return;
+    el.muted = true; // required for autoplay; set the property explicitly
+    const p = el.play();
+    if (p && typeof p.catch === "function") p.catch(() => { /* autoplay blocked — leave paused */ });
+  }, [autoplay]);
+
+  return (
+    <video
+      ref={ref}
+      src={video.url}
+      poster={video.poster}
+      muted={video.muted ?? autoplay}
+      autoPlay={autoplay}
+      loop={video.loop ?? false}
+      controls={video.controls ?? false}
+      playsInline
+      style={{ ...boxStyle, maxHeight: 380, objectFit: "contain" }}
+    />
   );
 }
 

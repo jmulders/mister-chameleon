@@ -204,5 +204,7 @@ export function adaptiveVariantToHeroBlockData(
     // Carousel slides — only meaningful for layoutVariant === "hero_carousel";
     // HeroBlock ignores them for every other layout.
     ...(content.slides?.length ? { slides: content.slides } : {}),
+    // Carousel autoplay toggle (boolean — pass through even when false).
+    ...(content.carouselAutoplay !== undefined ? { carouselAutoplay: content.carouselAutoplay } : {}),
   };
 }

@@ -429,6 +429,8 @@ export class StatamicProvider implements CMSProvider {
       // Without this the homepage hero received the carousel layout but no
       // slides, so HeroBlock silently fell back to the default hero.
       ...(c.slides?.length ? { slides: c.slides } : {}),
+      // Carousel autoplay toggle (boolean — pass through even when false).
+      ...(c.carouselAutoplay !== undefined ? { carouselAutoplay: c.carouselAutoplay } : {}),
     };
   }
 

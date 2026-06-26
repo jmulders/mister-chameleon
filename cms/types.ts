@@ -225,6 +225,12 @@ export interface HeroBlockData {
    * `layoutVariant === "hero_carousel"`; ignored on every other variant.
    */
   slides?: readonly HeroSlideData[];
+  /**
+   * Carousel auto-advance toggle. When true (or absent — the default) the
+   * `hero_carousel` rotates slides automatically; when false the visitor steps
+   * through with the arrows/dots. Only meaningful for `hero_carousel`.
+   */
+  carouselAutoplay?: boolean;
 }
 
 /** A single slide within a `hero_carousel` hero. */
@@ -542,6 +548,11 @@ export interface AdaptiveVariantContent {
    * `layoutVariant === "hero_carousel"`; genegeerd op elke andere variant.
    */
   slides?: HeroSlideData[];
+  /**
+   * Carousel auto-advance toggle (default true). Only relevant when
+   * `layoutVariant === "hero_carousel"`.
+   */
+  carouselAutoplay?: boolean;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageUrl?:  string;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */

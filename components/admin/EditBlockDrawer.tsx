@@ -780,6 +780,11 @@ export function EditBlockDrawer({
   const [slides, setSlides] = useState<HeroSlideData[]>(
     block.defaultVariant.slides ?? [],
   );
+  // Carousel auto-advance toggle (default on). Visitor steps through manually
+  // when off. Only persisted for the hero_carousel layout.
+  const [carouselAutoplay, setCarouselAutoplay] = useState(
+    block.defaultVariant.carouselAutoplay ?? true,
+  );
 
   // ── Async ──────────────────────────────────────────────────────────────────
 
@@ -880,6 +885,7 @@ export function EditBlockDrawer({
         // payloads clean and avoids stale slide data lingering after a layout
         // switch away from the carousel.
         ...(layoutVariant === "hero_carousel" && slides.length ? { slides } : {}),
+        ...(layoutVariant === "hero_carousel" ? { carouselAutoplay } : {}),
       };
 
       const savePath =
@@ -1065,10 +1071,18 @@ export function EditBlockDrawer({
                 </button>
               </div>
               <p className="text-[11px] text-neutral-500">
-                Each slide is shown in turn (autoplay + arrows + dots). The main
+                Each slide is shown in turn (arrows + dots). The main
                 Title/Subtitle/Media fields above are used as a fallback when no
                 slides are added.
               </p>
+              <div className="rounded-lg border border-neutral-100 bg-white px-4 py-2.5">
+                <Toggle
+                  label="Autoplay slides"
+                  hint="off = visitor steps through manually"
+                  value={carouselAutoplay}
+                  onChange={setCarouselAutoplay}
+                />
+              </div>
               {slides.length === 0 && (
                 <p className="text-xs text-neutral-400 italic">No slides yet — add at least two.</p>
               )}

@@ -160,6 +160,11 @@ export interface HeroBlockProps {
    * single-slide layouts below.
    */
   slides?: readonly HeroSlideData[];
+  /**
+   * Carousel auto-advance toggle (default true). When false the carousel does
+   * not rotate on its own — the visitor steps through with the arrows/dots.
+   */
+  carouselAutoplay?: boolean;
 }
 
 // ── CTA row helper ────────────────────────────────────────────────────────────
@@ -557,6 +562,7 @@ export function HeroBlock({
   proofItems,
   media,
   slides,
+  carouselAutoplay,
 }: HeroBlockProps) {
   const layout = resolveContextBlockVariant("hero", rawLayout) as HeroLayoutVariant;
 
@@ -566,7 +572,12 @@ export function HeroBlock({
   // optional media, CTA). Falls through to the single-slide layouts below when
   // no slides are authored, so an empty carousel never renders a blank hero.
   if (layout === "hero_carousel" && slides && slides.length > 0) {
-    return <HeroCarousel slides={slides.map((s) => ({ ...s }))} />;
+    return (
+      <HeroCarousel
+        slides={slides.map((s) => ({ ...s }))}
+        autoplay={carouselAutoplay ?? true}
+      />
+    );
   }
 
   // ── hero_background ──────────────────────────────────────────────────────────
