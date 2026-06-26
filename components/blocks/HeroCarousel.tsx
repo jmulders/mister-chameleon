@@ -20,11 +20,16 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import type { HeroBannerMedia } from "@/cms/types";
 
 export interface HeroCarouselSlide {
   heading?:    string;
   subheading?: string;
+  /** Image (asset/URL) or video (upload/YouTube/Vimeo) — same union as the hero. */
+  media?:      HeroBannerMedia;
+  /** @deprecated legacy image-only field; superseded by `media`. */
   mediaUrl?:   string;
+  /** @deprecated legacy image-only field; superseded by `media`. */
   mediaAlt?:   string;
   ctaLabel?:   string;
   ctaUrl?:     string;
@@ -103,15 +108,7 @@ export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: Her
             {slide.subheading}
           </p>
         )}
-        {slide.mediaUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={slide.mediaUrl}
-            alt={slide.mediaAlt ?? ""}
-            loading={index === 0 ? "eager" : "lazy"}
-            style={{ maxWidth: "min(680px, 80%)", maxHeight: 360, objectFit: "contain", marginTop: 8 }}
-          />
-        )}
+        <SlideMedia slide={slide} eager={index === 0} />
         {slide.ctaLabel && slide.ctaUrl && (
           <a
             href={slide.ctaUrl}
@@ -163,6 +160,91 @@ export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: Her
 
       <style>{`@keyframes mc-hero-fade { from { opacity: 0 } to { opacity: 1 } }`}</style>
     </section>
+  );
+}
+
+/**
+ * Renders a slide's media — image (asset/URL), uploaded video, or a YouTube /
+ * Vimeo embed. Falls back to the deprecated `mediaUrl` image field for legacy
+ * slides. Sizing is contained (centred, max ~680px) to fit the carousel layout.
+ */
+function SlideMedia({ slide, eager }: { slide: HeroCarouselSlide; eager: boolean }) {
+  const media: HeroBannerMedia | undefined =
+    slide.media ??
+    (slide.mediaUrl ? { kind: "image", url: slide.mediaUrl, alt: slide.mediaAlt ?? "" } : undefined);
+
+  if (!media) return null;
+
+  const boxStyle: CSSProperties = { width: "min(680px, 80%)", marginTop: 8 };
+
+  // ── Image ────────────────────────────────────────────────────────────────
+  if (media.kind === "image") {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={media.url}
+        alt={media.alt ?? ""}
+        loading={eager ? "eager" : "lazy"}
+        style={{ ...boxStyle, maxHeight: 360, objectFit: "contain" }}
+      />
+    );
+  }
+
+  const { video } = media;
+
+  // ── Uploaded / self-hosted video ─────────────────────────────────────────
+  if (video.source === "upload") {
+    return (
+      <video
+        src={video.url}
+        poster={video.poster}
+        muted={video.muted ?? video.autoplay ?? false}
+        autoPlay={video.autoplay ?? false}
+        loop={video.loop ?? false}
+        controls={video.controls ?? false}
+        playsInline
+        style={{ ...boxStyle, maxHeight: 380, objectFit: "contain" }}
+      />
+    );
+  }
+
+  // ── YouTube / Vimeo embeds (16:9) ────────────────────────────────────────
+  const frameStyle: CSSProperties = { ...boxStyle, position: "relative", aspectRatio: "16 / 9" };
+  const innerStyle: CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 };
+
+  if (video.source === "youtube") {
+    const params = new URLSearchParams({ rel: "0", modestbranding: "1" });
+    if (video.autoplay) { params.set("autoplay", "1"); params.set("mute", "1"); }
+    if (video.loop)     { params.set("loop", "1"); params.set("playlist", video.videoId); }
+    return (
+      <div style={frameStyle}>
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${video.videoId}?${params}`}
+          title="YouTube video player"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          loading="lazy"
+          style={innerStyle}
+        />
+      </div>
+    );
+  }
+
+  // vimeo
+  const params = new URLSearchParams({ dnt: "1" });
+  if (video.autoplay) { params.set("autoplay", "1"); params.set("muted", "1"); }
+  if (video.loop)     { params.set("loop", "1"); }
+  return (
+    <div style={frameStyle}>
+      <iframe
+        src={`https://player.vimeo.com/video/${video.videoId}?${params}`}
+        title="Vimeo video player"
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+        loading="lazy"
+        style={innerStyle}
+      />
+    </div>
   );
 }
 

@@ -231,10 +231,18 @@ export interface HeroBlockData {
 export interface HeroSlideData {
   heading?:    string;
   subheading?: string;
-  mediaUrl?:   string;
-  mediaAlt?:   string;
+  /**
+   * Optional media for the slide — image (asset library or URL) or video
+   * (uploaded asset, YouTube, or Vimeo) with the usual autoplay/loop/muted/
+   * poster options. Same union as the main hero media.
+   */
+  media?:      HeroBannerMedia;
   ctaLabel?:   string;
   ctaUrl?:     string;
+  /** @deprecated Gebruik media: { kind: "image", url, alt } */
+  mediaUrl?:   string;
+  /** @deprecated Gebruik media: { kind: "image", url, alt } */
+  mediaAlt?:   string;
 }
 
 // ── Proof block ───────────────────────────────────────────────────────────────

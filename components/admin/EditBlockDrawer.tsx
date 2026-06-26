@@ -13,7 +13,7 @@
  *              vimeo    : video ID + autoplay/loop
  */
 
-import { useState, useTransition }              from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { upsertAdaptiveBlockAction }             from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import { loadAssetsForPickerAction }             from "@/lib/assets/asset-picker-action";
 import { uploadForPickerClient }                 from "@/lib/assets/upload-for-picker-client";
@@ -392,6 +392,150 @@ function VideoOptions({
   );
 }
 
+// ── Sub-component: per-slide media editor ──────────────────────────────────────
+
+/**
+ * Self-contained media editor for a single carousel slide. Reuses ImagePicker
+ * and VideoOptions, manages its own form state initialised from the incoming
+ * `media`, and emits an assembled HeroBannerMedia (or undefined) via `onChange`
+ * whenever anything changes. Gives each slide the SAME media capabilities as the
+ * main hero block: image (asset library / URL) or video (upload / YouTube /
+ * Vimeo) with autoplay / loop / muted / poster.
+ */
+function SlideMediaEditor({
+  tenantId,
+  media,
+  onChange,
+}: {
+  tenantId: string;
+  media:    HeroBannerMedia | undefined;
+  onChange: (m: HeroBannerMedia | undefined) => void;
+}) {
+  const initImg = media?.kind === "image" ? media : undefined;
+  const initVid = media?.kind === "video" ? media.video : undefined;
+
+  const [mediaType, setMediaType]     = useState<"none" | "image" | "video">(media?.kind ?? "none");
+  const [imageUrl, setImageUrl]       = useState(initImg?.url ?? "");
+  const [imageAlt, setImageAlt]       = useState(initImg?.alt ?? "");
+  const [videoSource, setVideoSource] = useState<VideoSource>(initVid?.source ?? "upload");
+  const [videoUrl, setVideoUrl]       = useState(initVid?.source === "upload" ? initVid.url : "");
+  const [videoPoster, setVideoPoster] = useState(initVid?.source === "upload" ? (initVid.poster ?? "") : "");
+  const [videoId, setVideoId]         = useState(
+    initVid?.source === "youtube" || initVid?.source === "vimeo" ? initVid.videoId : "",
+  );
+  const [autoplay, setAutoplay]       = useState(initVid?.autoplay ?? false);
+  const [loop, setLoop]               = useState(initVid?.loop ?? false);
+  const [muted, setMuted]             = useState(initVid?.source === "upload" ? (initVid.muted ?? true) : true);
+  const [controls, setControls]       = useState(initVid?.source === "upload" ? (initVid.controls ?? true) : true);
+
+  // The parent passes a fresh onChange closure each render; keep it in a ref so
+  // the emit effect depends only on the actual media values (no feedback loop).
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+
+  useEffect(() => {
+    let next: HeroBannerMedia | undefined;
+    if (mediaType === "image" && imageUrl) {
+      next = { kind: "image", url: imageUrl, alt: imageAlt } satisfies HeroBannerImage;
+    } else if (mediaType === "video") {
+      if (videoSource === "upload" && videoUrl) {
+        next = {
+          kind: "video",
+          video: {
+            source: "upload",
+            url:    videoUrl,
+            ...(videoPoster ? { poster: videoPoster } : {}),
+            autoplay,
+            loop,
+            muted,
+            controls,
+          } satisfies HeroBannerVideoUpload,
+        };
+      } else if (videoSource === "youtube" && videoId) {
+        next = {
+          kind: "video",
+          video: { source: "youtube", videoId, ...(autoplay ? { autoplay: true } : {}), ...(loop ? { loop: true } : {}) } satisfies HeroBannerVideoYouTube,
+        };
+      } else if (videoSource === "vimeo" && videoId) {
+        next = {
+          kind: "video",
+          video: { source: "vimeo", videoId, ...(autoplay ? { autoplay: true } : {}), ...(loop ? { loop: true } : {}) } satisfies HeroBannerVideoVimeo,
+        };
+      }
+    }
+    onChangeRef.current(next);
+  }, [mediaType, imageUrl, imageAlt, videoSource, videoUrl, videoPoster, videoId, autoplay, loop, muted, controls]);
+
+  return (
+    <div className="space-y-3">
+      {/* Type selector */}
+      <div className="flex gap-2">
+        {(["none", "image", "video"] as const).map((t) => (
+          <button key={t} type="button" onClick={() => setMediaType(t)} className={TOGGLE_BTN(mediaType === t)}>
+            {t === "none" ? "None" : t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {mediaType === "image" && (
+        <ImagePicker
+          tenantId={tenantId}
+          url={imageUrl}
+          alt={imageAlt}
+          onUrlChange={setImageUrl}
+          onAltChange={setImageAlt}
+        />
+      )}
+
+      {mediaType === "video" && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-700 mb-1.5">Video source</label>
+            <div className="flex gap-1.5">
+              {(["upload", "youtube", "vimeo"] as const).map((src) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => setVideoSource(src)}
+                  className={[
+                    "rounded-md border px-3 py-1 text-xs font-medium transition-colors",
+                    videoSource === src
+                      ? "border-neutral-800 bg-neutral-800 text-white"
+                      : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400",
+                  ].join(" ")}
+                >
+                  {src === "upload" ? "Upload" : src.charAt(0).toUpperCase() + src.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <VideoOptions
+            source={videoSource}
+            tenantId={tenantId}
+            videoUrl={videoUrl}
+            videoPoster={videoPoster}
+            videoId={videoId}
+            autoplay={autoplay}
+            loop={loop}
+            muted={muted}
+            controls={controls}
+            onVideoUrl={setVideoUrl}
+            onVideoPoster={setVideoPoster}
+            onVideoId={setVideoId}
+            onAutoplay={setAutoplay}
+            onLoop={setLoop}
+            onMuted={setMuted}
+            onControls={setControls}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sub-component: CTA row ─────────────────────────────────────────────────────
 
 function CtaRow({
@@ -666,6 +810,14 @@ export function EditBlockDrawer({
   }
   function handleSlideAdd() {
     setSlides((prev) => [...prev, {}]);
+  }
+  function handleSlideMediaChange(idx: number, slideMedia: HeroBannerMedia | undefined) {
+    // Setting structured media supersedes the legacy flat mediaUrl/mediaAlt.
+    setSlides((prev) =>
+      prev.map((s, i) =>
+        i === idx ? { ...s, media: slideMedia, mediaUrl: undefined, mediaAlt: undefined } : s,
+      ),
+    );
   }
 
   function buildMedia(): HeroBannerMedia | undefined {
@@ -954,27 +1106,13 @@ export function EditBlockDrawer({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Image URL</label>
-                      <input
-                        type="text"
-                        value={slide.mediaUrl ?? ""}
-                        onChange={(e) => handleSlideChange(idx, "mediaUrl", e.target.value)}
-                        placeholder="https://…"
-                        className={SMALL_INPUT_CLS}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Image alt</label>
-                      <input
-                        type="text"
-                        value={slide.mediaAlt ?? ""}
-                        onChange={(e) => handleSlideChange(idx, "mediaAlt", e.target.value)}
-                        placeholder="Describe the image"
-                        className={SMALL_INPUT_CLS}
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-500 mb-1">Media (image or video)</label>
+                    <SlideMediaEditor
+                      tenantId={tenantId}
+                      media={slide.media}
+                      onChange={(m) => handleSlideMediaChange(idx, m)}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
