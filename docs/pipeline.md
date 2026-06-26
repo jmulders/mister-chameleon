@@ -2,6 +2,40 @@
 
 Complete guide for the development, staging, and production pipeline.
 
+> **Scope:** this document covers the **Next.js frontend** (→ Vercel). The
+> **Statamic CMS** (→ Ploi) has a *separate, much thinner* deploy flow — see
+> [`cms-pipeline.md`](./cms-pipeline.md). Most production incidents so far have
+> come from CMS config drift, not the frontend pipeline.
+
+---
+
+## Current state & gaps (June 2026)
+
+The pipeline *machinery* below (CI, staging, production, rollback, hotfix) is in
+place and correctly wired. Before a developer relies on the `dev → staging →
+production` route, close these gaps:
+
+| Gap | Status | Action |
+|-----|--------|--------|
+| **`develop` is stale** | ~194 commits / ~1 month behind `main` | Reset it: `git checkout develop && git reset --hard origin/main && git push --force-with-lease origin develop` (the few develop-only commits are superseded CI tweaks). |
+| **Work goes straight to `main`** | Intentional fast-path; CI test/tsc gate still runs on main | Fine for speed. To *require* the `develop → main` route, enable branch protection (PR + status checks) on both branches. |
+| **Staging domain not provisioned** | `staging.misterchameleon.com` not live; the staging tenant host is commented out in `tenant/resolve-tenant.ts` | Provision the domain + uncomment the host when staging is needed. |
+| **GitHub secrets / environments** | Required for staging/production deploys to actually run | Verify in *Settings → Secrets* and *Settings → Environments* (see the secrets list below). |
+| **CMS has no staging + no CI** | Manual push + Ploi "Deploy now"; config via per-app env vars (drift-prone) | See [`cms-pipeline.md`](./cms-pipeline.md) for the deploy flow and a CMS-staging plan. |
+
+### Required GitHub secrets (frontend)
+
+`ci.yml` / `staging.yml` / `production.yml` reference these — all must exist:
+
+```
+VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID
+SUPABASE_ACCESS_TOKEN, ADMIN_SESSION_SECRET
+TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY, TEST_SUPABASE_SERVICE_ROLE_KEY
+STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, STAGING_SUPABASE_SERVICE_ROLE_KEY,
+  STAGING_DB_PASSWORD, STAGING_SUPABASE_PROJECT_ID
+PRODUCTION_DB_PASSWORD, PRODUCTION_SUPABASE_PROJECT_ID
+```
+
 ---
 
 ## Environment Setup
