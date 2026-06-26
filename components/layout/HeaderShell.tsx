@@ -212,7 +212,7 @@ export function HeaderShell({ children, utilityBar, headerStyle = "light", noBan
             : "shadow-none"
           : scrolled
             ? "py-2 shadow-[0_1px_8px_rgba(0,0,0,0.08)]"
-            : "py-5 shadow-none",
+            : "py-6 shadow-none",
       )}
     >
       {/* ── Utility bar — collapses on scroll ─────────────────────────── */}
