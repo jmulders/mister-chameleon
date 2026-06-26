@@ -425,6 +425,10 @@ export class StatamicProvider implements CMSProvider {
       tag:          c.tag,
       media:        c.media,
       contentAlign: c.contentAlign,
+      // Carousel slides — required for layoutVariant === "hero_carousel".
+      // Without this the homepage hero received the carousel layout but no
+      // slides, so HeroBlock silently fell back to the default hero.
+      ...(c.slides?.length ? { slides: c.slides } : {}),
     };
   }
 
