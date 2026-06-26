@@ -261,6 +261,7 @@ const PRO_CONTENT_BLOCKS: readonly ContentBlockKey[] = [
   "quickLinks",
   "textMedia",
   "contactSection",
+  "floatingContact",
   // ── Listing / detail ──────────────────────────────────────────────────────
   "listing",
   "articleBody",
