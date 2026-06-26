@@ -139,7 +139,7 @@ const VALID_CONTENT_BLOCKS   = new Set<ContentBlockKey>([
   // search
   "search",
   // conversion
-  "ctaSection",
+  "ctaSection", "floatingContact",
   // conversion / pricing
   "pricingSection",
   // forms
