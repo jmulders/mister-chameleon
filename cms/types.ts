@@ -219,6 +219,22 @@ export interface HeroBlockData {
    * so existing documents continue to work without any content migration.
    */
   proofItems?: readonly { metric: string; label: string }[];
+  /**
+   * Slides for the `hero_carousel` layout variant — each slide is an independent
+   * hero (heading + subheading + optional media + CTA). Only meaningful when
+   * `layoutVariant === "hero_carousel"`; ignored on every other variant.
+   */
+  slides?: readonly HeroSlideData[];
+}
+
+/** A single slide within a `hero_carousel` hero. */
+export interface HeroSlideData {
+  heading?:    string;
+  subheading?: string;
+  mediaUrl?:   string;
+  mediaAlt?:   string;
+  ctaLabel?:   string;
+  ctaUrl?:     string;
 }
 
 // ── Proof block ───────────────────────────────────────────────────────────────
@@ -1896,6 +1912,23 @@ export interface QuoteSectionData extends PageSectionBase {
   avatarUrl?:   string;
 }
 
+// ── Floating Contact ──────────────────────────────────────────────────────────
+
+/**
+ * CMS data for a floating contact rail — sticky phone / e-mail / WhatsApp
+ * buttons pinned to the side of the viewport. Placed as a content block but
+ * rendered as a `position: fixed` overlay (see components/blocks/
+ * FloatingContactBlock.tsx). Renders nothing when no channel is set.
+ */
+export interface FloatingContactSectionData extends PageSectionBase {
+  _type:     "floatingContact";
+  phone?:    string;
+  email?:    string;
+  whatsapp?: string;
+  /** Which side of the viewport the rail is pinned to (default "right"). */
+  side?:     "right" | "left";
+}
+
 // ── MapBlock ──────────────────────────────────────────────────────────────────
 
 export interface MapBlockCmsData extends PageSectionBase {
@@ -1967,6 +2000,7 @@ export type PageSectionData =
   | ContentSectionData
   | TeamSectionData
   | ContactSectionSectionData
+  | FloatingContactSectionData
   // listing / detail
   | ListingSectionData
   | FilterBarSectionData

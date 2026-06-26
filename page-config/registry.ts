@@ -392,6 +392,14 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     dataType:        "ContactSectionBlockData",
     status:          "live",
   },
+  {
+    key:             "floatingContact",
+    displayName:     "Floating contact",
+    category:        "conversion",
+    allowedVariants: ["default"],
+    dataType:        "FloatingContactBlockData",
+    status:          "live",
+  },
 
   // ── Commerce / product ─────────────────────────────────────────────────────
 
@@ -529,6 +537,7 @@ export const REGISTERED_CONTENT_BLOCK_TYPES = [
   "timeline",
   "quickLinks",
   "contactSection",
+  "floatingContact",
 ] as const satisfies readonly ContentBlockType[];
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -156,6 +156,13 @@ fields:
               image: contact_section.png
               fields:
                 - import: mrc_contact_section
+            floating_contact:
+              display: Floating Contact
+              icon: phone
+              instructions: 'Sticky phone / e-mail / WhatsApp buttons on the side of the screen.'
+              image: floating_contact.png
+              fields:
+                - import: mrc_floating_contact
         listings:
           display: Listings
           sets:

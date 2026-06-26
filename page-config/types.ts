@@ -1559,6 +1559,17 @@ export interface ContactSectionBlockData {
   readonly ctas?:         readonly BlockCTA[];
 }
 
+// ── FloatingContact ───────────────────────────────────────────────────────────
+
+/** Data for the floating contact rail (phone / e-mail / WhatsApp). */
+export interface FloatingContactBlockData {
+  readonly phone?:    string;
+  readonly email?:    string;
+  readonly whatsapp?: string;
+  /** Side of the viewport the rail is pinned to (default "right"). */
+  readonly side?:     "right" | "left";
+}
+
 // ── PricingSection ────────────────────────────────────────────────────────────
 
 /**
@@ -1808,6 +1819,11 @@ export interface ContactSectionBlock extends ContentBlockBase {
   readonly data:      ContactSectionBlockData;
 }
 
+export interface FloatingContactBlock extends ContentBlockBase {
+  readonly blockType: "floatingContact";
+  readonly data:      FloatingContactBlockData;
+}
+
 // ── Commerce / product block interfaces ───────────────────────────────────────
 
 export interface ProductOverviewBlock extends ContentBlockBase {
@@ -1902,6 +1918,7 @@ export type ContentBlock =
   | QuickLinksBlock
   | TextMediaBlock
   | ContactSectionBlock
+  | FloatingContactBlock
   // commerce / product
   | ProductOverviewBlock
   | ProductDetailBlock

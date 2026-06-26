@@ -69,6 +69,7 @@ import type {
   FaqSectionData,
   TimelineSectionData, CmsTimelineItem,
   ContactSectionSectionData,
+  FloatingContactSectionData,
   CtaSectionData,
   CmsTextMediaCta,
   FormSectionData,
@@ -147,6 +148,22 @@ function mapStatamicHeroMedia(raw: StatamicHeroMedia | null | undefined): HeroBa
  * @param entry  The entry object from StatamicClient.fetchEntry().
  * @returns      A HeroBlockData ready for the experience composer.
  */
+/** Map the optional `slides` grid (hero_carousel layout) → HeroSlideData[]. */
+function mapStatamicHeroSlides(raw: unknown): HeroBlockData["slides"] {
+  if (!Array.isArray(raw)) return undefined;
+  const slides = raw
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
+    .map((s) => ({
+      heading:    typeof s.heading     === "string" ? s.heading     : undefined,
+      subheading: typeof s.subheading  === "string" ? s.subheading  : undefined,
+      mediaUrl:   typeof s.media_image === "string" ? s.media_image : undefined,
+      mediaAlt:   typeof s.media_alt   === "string" ? s.media_alt   : undefined,
+      ctaLabel:   typeof s.cta_label   === "string" ? s.cta_label   : undefined,
+      ctaUrl:     typeof s.cta_url      === "string" ? s.cta_url     : undefined,
+    }));
+  return slides.length > 0 ? slides : undefined;
+}
+
 export function mapStatamicHero(entry: StatamicHeroEntry): HeroBlockData {
   // Prefer the new ctas array; fall back to the legacy flat fields for
   // entries authored before the ctas field was added to the blueprint.
@@ -170,6 +187,7 @@ export function mapStatamicHero(entry: StatamicHeroEntry): HeroBlockData {
     ctas,
     tag:           entry.tag,
     media:         mapStatamicHeroMedia(entry.media),
+    slides:        mapStatamicHeroSlides((entry as { slides?: unknown }).slides),
   };
 }
 
@@ -1326,6 +1344,21 @@ export function mapStatamicPageBlocksToSections(
               label: c.label as string,
               href:  c.href  as string,
             })),
+        };
+        sections.push(section);
+        break;
+      }
+
+      case "floating_contact": {
+        const side = extractString(block.side);
+        const section: FloatingContactSectionData = {
+          _key:     key,
+          _type:    "floatingContact",
+          variant:  extractString(block.variant),
+          phone:    typeof block.phone    === "string" ? block.phone    : undefined,
+          email:    typeof block.email    === "string" ? block.email    : undefined,
+          whatsapp: typeof block.whatsapp === "string" ? block.whatsapp : undefined,
+          side:     side === "left" || side === "right" ? side : undefined,
         };
         sections.push(section);
         break;

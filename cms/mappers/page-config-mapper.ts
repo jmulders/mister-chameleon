@@ -879,6 +879,20 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         },
       };
 
+    case "floatingContact":
+      return {
+        id:        section._key,
+        blockType: "floatingContact",
+        variant:   section.variant,
+        surface:   section.surface,
+        data: {
+          phone:    section.phone,
+          email:    section.email,
+          whatsapp: section.whatsapp,
+          side:     section.side,
+        },
+      };
+
     // ── Conversion / pricing ──────────────────────────────────────────────────
 
     case "pricingSection":

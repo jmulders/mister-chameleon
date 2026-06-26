@@ -811,6 +811,7 @@ export type ContentBlockKey =
   | "quickLinks"
   | "textMedia"
   | "contactSection"
+  | "floatingContact"
   // commerce / product blocks
   | "productOverview"
   | "productDetail"

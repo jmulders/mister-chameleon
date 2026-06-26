@@ -76,6 +76,7 @@ import {
   ContactSectionBlock,
   VideoBlock,
 } from "@/components/blocks/sections";
+import { FloatingContactBlock } from "@/components/blocks/FloatingContactBlock";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -251,6 +252,9 @@ function renderContentBlock(block: ContentBlock) {
 
     case "contactSection":
       return <ContactSectionBlock data={block.data} variant={block.variant} surface={block.surface} />;
+
+    case "floatingContact":
+      return <FloatingContactBlock data={block.data} />;
 
     // ── media ─────────────────────────────────────────────────────────────────
 

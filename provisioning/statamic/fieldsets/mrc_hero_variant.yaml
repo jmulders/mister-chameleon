@@ -27,6 +27,7 @@ fields:
         hero_split_clean: 'Split Clean'
         hero_dark_split: 'Dark Split'
         hero_editorial: Editorial
+        hero_carousel: 'Carousel (multiple slides)'
       default: default
   -
     handle: content_align
@@ -113,3 +114,41 @@ fields:
           field:
             type: text
             display: 'Image Alt Text'
+  -
+    handle: slides
+    field:
+      type: grid
+      display: 'Carousel Slides'
+      instructions: 'Only used when Layout Variant is "Carousel". Each row is one slide.'
+      add_row: 'Add slide'
+      fields:
+        -
+          handle: heading
+          field:
+            type: text
+            display: Heading
+        -
+          handle: subheading
+          field:
+            type: textarea
+            display: Subheading
+        -
+          handle: media_image
+          field:
+            type: text
+            display: 'Image URL'
+        -
+          handle: media_alt
+          field:
+            type: text
+            display: 'Image Alt'
+        -
+          handle: cta_label
+          field:
+            type: text
+            display: 'CTA Label'
+        -
+          handle: cta_url
+          field:
+            type: text
+            display: 'CTA URL'

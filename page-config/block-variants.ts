@@ -92,7 +92,8 @@ import type { ContentBlockType } from "./types";
 export type HeroLayoutVariant =
   | "hero_default" | "hero_split" | "hero_proof" | "hero_background"
   | "hero_minimal_dark" | "hero_split_clean"
-  | "hero_dark_split" | "hero_editorial" | "hero_page_banner";
+  | "hero_dark_split" | "hero_editorial" | "hero_page_banner"
+  | "hero_carousel";
 
 /**
  * Layout variant for the Proof context slot block.
@@ -137,7 +138,7 @@ export type HeaderLayoutVariant = "header_default" | "header_centered" | "header
 // ── Context variant sets (for resolver) ───────────────────────────────────────
 
 const CONTEXT_VARIANT_SETS: Record<string, readonly string[]> = {
-  hero:   ["hero_default",  "hero_split",   "hero_proof",  "hero_background", "hero_minimal_dark", "hero_split_clean", "hero_dark_split", "hero_editorial", "hero_page_banner"] satisfies readonly HeroLayoutVariant[],
+  hero:   ["hero_default",  "hero_split",   "hero_proof",  "hero_background", "hero_minimal_dark", "hero_split_clean", "hero_dark_split", "hero_editorial", "hero_page_banner", "hero_carousel"] satisfies readonly HeroLayoutVariant[],
   proof:  ["proof_stats",   "proof_logos",  "proof_quotes"]                   satisfies readonly ProofLayoutVariant[],
   cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact"] satisfies readonly CtaLayoutVariant[],
   header: ["header_default","header_centered","header_cta","header_triband"]  satisfies readonly HeaderLayoutVariant[],

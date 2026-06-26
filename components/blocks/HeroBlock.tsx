@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/Badge";
 import { TrackedCTAButton } from "@/components/tracking/TrackedCTAButton";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { HeroLayoutVariant } from "@/page-config/block-variants";
-import type { HeroBannerMedia } from "@/cms/types";
+import type { HeroBannerMedia, HeroSlideData } from "@/cms/types";
+import { HeroCarousel } from "@/components/blocks/HeroCarousel";
 
 /**
  * HeroBlock
@@ -152,6 +153,13 @@ export interface HeroBlockProps {
    *   hero_background  → media fills the full section background with a tint overlay
    */
   media?: HeroBannerMedia;
+  /**
+   * Slides for the `hero_carousel` layout variant. When `layoutVariant ===
+   * "hero_carousel"` and at least one slide is present, the hero renders as a
+   * rotating carousel (see components/blocks/HeroCarousel.tsx) instead of the
+   * single-slide layouts below.
+   */
+  slides?: readonly HeroSlideData[];
 }
 
 // ── CTA row helper ────────────────────────────────────────────────────────────
@@ -548,8 +556,18 @@ export function HeroBlock({
   contentAlign = "center",
   proofItems,
   media,
+  slides,
 }: HeroBlockProps) {
   const layout = resolveContextBlockVariant("hero", rawLayout) as HeroLayoutVariant;
+
+  // ── hero_carousel ────────────────────────────────────────────────────────────
+  //
+  // Rotating multi-slide hero. Each slide is independent (heading, subheading,
+  // optional media, CTA). Falls through to the single-slide layouts below when
+  // no slides are authored, so an empty carousel never renders a blank hero.
+  if (layout === "hero_carousel" && slides && slides.length > 0) {
+    return <HeroCarousel slides={slides.map((s) => ({ ...s }))} />;
+  }
 
   // ── hero_background ──────────────────────────────────────────────────────────
   //

@@ -1,0 +1,33 @@
+title: 'Mister Chameleon — Floating Contact'
+# Managed by the Mister Chameleon platform. Sticky phone / e-mail / WhatsApp
+# rail pinned to the side of the viewport. Renders nothing when no channel is
+# filled in. Imported by the `floating_contact` set in mc_page_blocks.yaml.
+fields:
+  -
+    handle: phone
+    field:
+      type: text
+      display: Phone
+      instructions: 'Shown as a tel: link. Leave empty to hide the phone button.'
+  -
+    handle: email
+    field:
+      type: text
+      display: Email
+      instructions: 'Shown as a mailto: link. Leave empty to hide the e-mail button.'
+  -
+    handle: whatsapp
+    field:
+      type: text
+      display: WhatsApp
+      instructions: 'Number in any format (e.g. +31 6 1234 5678). Opens wa.me. Leave empty to hide.'
+  -
+    handle: side
+    field:
+      type: select
+      display: Side
+      default: right
+      instructions: 'Which side of the screen the buttons are pinned to.'
+      options:
+        right: 'Right'
+        left: 'Left'
