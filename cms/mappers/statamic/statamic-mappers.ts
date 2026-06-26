@@ -709,6 +709,14 @@ function bardBodyToHtml(body: unknown): string | undefined {
  */
 export function mapStatamicPageBlocksToSections(
   blocks: Array<Record<string, unknown>>,
+  /**
+   * Absolute base URL of the tenant's Statamic CMS (e.g.
+   * "https://cms.misterchameleon.nl"). Passed by the Live Preview path so
+   * bare/relative draft asset references resolve to the CORRECT per-tenant CMS
+   * host. Falls back to STATAMIC_API_URL when omitted (saved paths get absolute
+   * permalinks from the REST API and don't need it).
+   */
+  statamicBaseUrl?: string,
 ): PageSectionData[] {
   const sections: PageSectionData[] = [];
 
@@ -726,23 +734,14 @@ export function mapStatamicPageBlocksToSections(
   // Strategy: prefer `permalink` (absolute), fall back to `url` (relative),
   // then handle plain strings / arrays.  Prefix any root-relative URL with
   // STATAMIC_API_URL so images load cross-port in the preview iframe.
-  const statamicBase = (process.env.STATAMIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
-
-  // Root-relative asset paths (/assets/…) are served on whatever host the page
-  // runs on: the live frontend proxies /assets → CMS via Next rewrites, and the
-  // Statamic Live Preview is served *from the CMS host itself* (so /assets is the
-  // CMS directly). Keeping them root-relative in production is therefore both
-  // host-agnostic and multi-tenant-safe.
-  //
-  // ONLY in local dev (frontend :3000, Statamic :8000 — different origins, no
-  // shared proxy) do we prefix the absolute STATAMIC_API_URL so the image still
-  // loads cross-port. Previously the absolute prefix was applied in production
-  // too, so any DRAFT asset (bare filename, no API permalink — e.g. testimonial
-  // avatars, logo strips, text-media images in the Live Preview) resolved to
-  // `${STATAMIC_API_URL}/assets/…`; when that env var was unset it defaulted to
-  // localhost:8000 and every draft-only image 404'd in the preview.
-  const isDev = process.env.NODE_ENV !== "production";
-  const hostFor = (rootRelative: string): string => (isDev ? `${statamicBase}${rootRelative}` : rootRelative);
+  // Absolute base for resolving asset references — MUST be the CMS host.
+  // Prefer the per-tenant base passed by the caller (the Live Preview path),
+  // then the global env, then localhost for dev. Assets have to be absolute to
+  // the CMS: the frontend host does NOT proxy /assets (www.misterchameleon.nl/
+  // assets/x → 404), and the Live Preview can render on a *different* host than
+  // the CMS — only an absolute CMS URL (https://cms.misterchameleon.nl/assets/x)
+  // resolves in every context (live page, [slug] draft, and Live Preview).
+  const statamicBase = (statamicBaseUrl ?? process.env.STATAMIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
   function resolveAssetUrl(raw: unknown): string | undefined {
     if (!raw) return undefined;
@@ -755,7 +754,7 @@ export function mapStatamicPageBlocksToSections(
       // `url` may be root-relative like "/assets/img.jpg"
       if (typeof obj.url === "string" && obj.url) {
         const u = obj.url;
-        return u.startsWith("/") ? hostFor(u) : u;
+        return u.startsWith("/") ? `${statamicBase}${u}` : u;
       }
       return undefined;
     }
@@ -773,12 +772,12 @@ export function mapStatamicPageBlocksToSections(
     //      stored in YAML by StatamicFileReader maps to /assets/<name>.
     if (typeof raw === "string" && raw) {
       if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-      if (raw.startsWith("/")) return hostFor(raw);
+      if (raw.startsWith("/")) return `${statamicBase}${raw}`;
       // Strip Statamic asset handle prefix if present ("assets::img.jpg" → "img.jpg").
       // Statamic stores asset references as "<container>::<path>" internally; the
       // REST API / to_json sometimes surfaces this raw handle instead of a URL.
       const assetPath = raw.includes("::") ? raw.split("::").slice(1).join("::") : raw;
-      return hostFor(`/assets/${assetPath}`);
+      return `${statamicBase}/assets/${assetPath}`;
     }
 
     return undefined;

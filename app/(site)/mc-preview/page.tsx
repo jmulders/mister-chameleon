@@ -146,7 +146,7 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
       title:          draftEntry.title ?? slug,
       slug,
       seoDescription: draftEntry.seoDescription,
-      sections:       mapStatamicPageBlocksToSections(blocks),
+      sections:       mapStatamicPageBlocksToSections(blocks, base || undefined),
       templateKey:    hasSlots ? "marketing-page" : "article-page",
       contextConfig:  hasSlots ? (ctx as CmsPageContextConfig) : undefined,
     };
