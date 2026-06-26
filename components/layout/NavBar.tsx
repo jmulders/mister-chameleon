@@ -599,21 +599,46 @@ export function NavBar({
   let effectiveDensity: NavDensity = navDensity;
   if (pageNavItem?.headerVariant) {
     const hv = pageNavItem.headerVariant;
-    if (hv === "minimal") {
+    // Consolidated variants (mega menus are content-driven via the upgrade below).
+    if (hv === "standard") {
+      effectiveVariant = "flyout";
+      effectiveDensity = "comfortable";
+    } else if (hv === "compact") {
+      effectiveVariant = "flyout";
+      effectiveDensity = "compact";
+    } else if (hv === "grid") {
+      effectiveVariant = "grid";
+    } else if (hv === "content") {
+      effectiveVariant = "content";
+    // Backward-compat (pre-consolidation keys).
+    } else if (hv === "minimal") {
       effectiveVariant = "flyout";
       effectiveDensity = "compact";
     } else if (hv === "flyout") {
       effectiveVariant = "flyout";
       effectiveDensity = "comfortable";
     } else if (hv === "mega") {
-      effectiveVariant = "mega";
+      effectiveVariant = "flyout";
       effectiveDensity = "compact";
-    } else if (hv === "grid") {
-      effectiveVariant = "grid";
-    } else if (hv === "content") {
-      effectiveVariant = "content";
     }
     // "transparent" only affects headerStyle (server-side CSS class); no navVariant change
+  }
+
+  // ── Decouple mega menus from the header variant ─────────────────────────────
+  // Mega menus are CONTENT-DRIVEN: whenever a nav item has dropdown content
+  // (rich columns, a CTA, or child links) the rich mega nav (NavMegaRich) renders
+  // — regardless of the chosen header variant. The variant then only controls the
+  // look (density / background / structure), NOT whether mega menus appear.
+  // Without this, picking e.g. "minimal" silently hid mega menus configured per
+  // nav item (the flyout pattern has no mega panel). grid/content stay opt-in.
+  const hasDropdownContent = items.some(
+    (it) =>
+      Boolean(it.megaMenu?.columns?.length) ||
+      Boolean(it.megaCta) ||
+      Boolean(it.children?.length),
+  );
+  if (hasDropdownContent && effectiveVariant === "flyout") {
+    effectiveVariant = "mega";
   }
 
   const megaStyle = resolveMegaStyle(navFamily);

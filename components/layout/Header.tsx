@@ -155,16 +155,15 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   // tenant DB has NOT set one.  The tenant DB (Layer 2) will override this below.
   if (settings?.headerVariant && !tenantSettings?.design.headerVariant) {
     const hv = settings.headerVariant;
-    if (hv === "minimal") {
-      navVariant  = "flyout";
-      navDensity  = "compact";
-      headerStyle = "light";
-    } else if (hv === "flyout") {
+    // ── Consolidated variants ──────────────────────────────────────────────
+    // Mega menus are content-driven (see NavBar), so these control only the
+    // look — density / background / structure — never whether menus are rich.
+    if (hv === "standard") {
       navVariant  = "flyout";
       navDensity  = "comfortable";
       headerStyle = "light";
-    } else if (hv === "mega") {
-      navVariant  = "mega";
+    } else if (hv === "compact") {
+      navVariant  = "flyout";
       navDensity  = "compact";
       headerStyle = "light";
     } else if (hv === "transparent") {
@@ -176,14 +175,8 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
       // navVariant / navDensity / headerStyle remain at the family default
       // (they are used for band 3 / mobile nav inside the triband layout).
       layout = "header_triband";
-    }
-  }
-
-  // Layer 2 — tenant-level structural override from the DB-stored design settings.
-  // getTenantById() is Next.js-request-memoised so this adds no extra I/O cost.
-  if (tenantSettings?.design.headerVariant) {
-    const hv = tenantSettings.design.headerVariant;
-    if (hv === "minimal") {
+    // ── Backward-compat (pre-consolidation keys) ───────────────────────────
+    } else if (hv === "minimal") {
       navVariant  = "flyout";
       navDensity  = "compact";
       headerStyle = "light";
@@ -192,7 +185,23 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
       navDensity  = "comfortable";
       headerStyle = "light";
     } else if (hv === "mega") {
-      navVariant  = "mega";
+      navVariant  = "flyout";
+      navDensity  = "compact";
+      headerStyle = "light";
+    }
+  }
+
+  // Layer 2 — tenant-level structural override from the DB-stored design settings.
+  // getTenantById() is Next.js-request-memoised so this adds no extra I/O cost.
+  if (tenantSettings?.design.headerVariant) {
+    const hv = tenantSettings.design.headerVariant;
+    // Consolidated variants (mega menus are content-driven — see NavBar).
+    if (hv === "standard") {
+      navVariant  = "flyout";
+      navDensity  = "comfortable";
+      headerStyle = "light";
+    } else if (hv === "compact") {
+      navVariant  = "flyout";
       navDensity  = "compact";
       headerStyle = "light";
     } else if (hv === "transparent") {
@@ -201,6 +210,19 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
       headerStyle = "transparent";
     } else if (hv === "triband") {
       layout = "header_triband";
+    // Backward-compat (pre-consolidation keys).
+    } else if (hv === "minimal") {
+      navVariant  = "flyout";
+      navDensity  = "compact";
+      headerStyle = "light";
+    } else if (hv === "flyout") {
+      navVariant  = "flyout";
+      navDensity  = "comfortable";
+      headerStyle = "light";
+    } else if (hv === "mega") {
+      navVariant  = "flyout";
+      navDensity  = "compact";
+      headerStyle = "light";
     }
   }
 
