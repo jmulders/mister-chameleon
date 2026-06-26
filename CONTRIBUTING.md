@@ -28,7 +28,8 @@ hotfix/<name>   (branch from main, for urgent prod fixes)
   (lint + `tsc --noEmit` + tests + build) still runs on every push to `main`, so
   it can't deploy broken code. Use the `develop → main` route for risky,
   multi-file, or migration-bearing changes.
-- Keep `develop` in sync with `main` so it stays a usable base.
+- Keep `develop` in sync with `main` so it stays a usable base — run the
+  [develop-sync runbook](./docs/develop-sync.md) periodically.
 
 ## Before you push
 
