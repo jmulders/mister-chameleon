@@ -1112,6 +1112,7 @@ export class StatamicProvider implements CMSProvider {
             imageUrl?: string;
             megaShowImage?: boolean;
             megaShowDescription?: boolean;
+            megaCta?: import("../types").MegaMenuCtaData;
             children?: NavItemData[];
           };
           // Assets are served at {cmsBaseUrl}/assets/{filename} in Statamic.
@@ -1126,6 +1127,21 @@ export class StatamicProvider implements CMSProvider {
             ...(item.imageFile  ? { imageUrl: `${cmsBaseUrl}/assets/${item.imageFile}` }           : {}),
             ...(item.showMegaImage !== undefined       ? { megaShowImage: item.showMegaImage }             : {}),
             ...(item.showMegaDescription !== undefined ? { megaShowDescription: item.showMegaDescription } : {}),
+            ...(item.megaCta
+              ? { megaCta: {
+                  position: item.megaCta.position,
+                  heading:  item.megaCta.heading,
+                  href:     item.megaCta.url,
+                  ...(item.megaCta.text  ? { text: item.megaCta.text }      : {}),
+                  ...(item.megaCta.label ? { ctaLabel: item.megaCta.label } : {}),
+                  ...(item.megaCta.newTab ? { openInNewTab: true }          : {}),
+                  ...(item.megaCta.imageFile
+                    ? { imageUrl: /^https?:\/\//.test(item.megaCta.imageFile)
+                        ? item.megaCta.imageFile
+                        : `${cmsBaseUrl}/assets/${item.megaCta.imageFile}` }
+                    : {}),
+                } }
+              : {}),
             ...(item.children && item.children.length > 0
               ? { children: item.children.map(mapNavItem) }
               : {}),

@@ -120,6 +120,20 @@ export interface StatamicNavTreeItem {
    * their children are the column links.
    */
   children?:      StatamicNavTreeItem[];
+  /**
+   * Promotional CTA block for this item's mega menu, parsed from the
+   * `mega_cta_*` blueprint fields (position, heading, text, image, link, label).
+   * Absent when no CTA position is set.
+   */
+  megaCta?: {
+    position:   "left" | "right" | "bottom";
+    heading:    string;
+    text?:      string;
+    imageFile?: string;
+    url:        string;
+    label?:     string;
+    newTab?:    boolean;
+  };
 }
 
 /** Wrapper object returned by the GET /api/collections/{collection}/entries endpoint */
@@ -421,6 +435,31 @@ class StatamicFileReader {
             ? (itemData["mega_show_description"] as boolean)
             : undefined;
 
+        // Mega-menu CTA — built from the mega_cta_* fields when a position plus
+        // the required heading + url are present. The image field (assets) is an
+        // array of filenames (or a bare string); take the first.
+        const megaCta = ((): StatamicNavTreeItem["megaCta"] | undefined => {
+          const pos = itemData["mega_cta_position"];
+          if (pos !== "left" && pos !== "right" && pos !== "bottom") return undefined;
+          const str = (k: string) =>
+            typeof itemData[k] === "string" && (itemData[k] as string).trim()
+              ? (itemData[k] as string).trim() : undefined;
+          const heading = str("mega_cta_heading");
+          const url     = str("mega_cta_url");
+          if (!heading || !url) return undefined;
+          const img  = itemData["mega_cta_image"];
+          const file = Array.isArray(img) ? img[0] : img;
+          return {
+            position: pos,
+            heading,
+            url,
+            ...(str("mega_cta_text")  ? { text:  str("mega_cta_text")  } : {}),
+            ...(str("mega_cta_label") ? { label: str("mega_cta_label") } : {}),
+            ...(typeof file === "string" && file ? { imageFile: file } : {}),
+            ...(itemData["mega_cta_new_tab"] === true ? { newTab: true } : {}),
+          };
+        })();
+
         if (!title && url === "#") return null; // skip empty items
 
         const rawChildren = Array.isArray(item["children"]) ? (item["children"] as Record<string, unknown>[]) : [];
@@ -437,6 +476,7 @@ class StatamicFileReader {
           ...(page?.imageFile  ? { imageFile: page.imageFile } : {}),
           ...(showMegaImage !== undefined       ? { showMegaImage }       : {}),
           ...(showMegaDescription !== undefined ? { showMegaDescription } : {}),
+          ...(megaCta ? { megaCta } : {}),
           ...(children.length > 0 ? { children }              : {}),
         };
       };
@@ -945,6 +985,39 @@ export class StatamicClient {
         typeof field("mega_show_image") === "boolean" ? (field("mega_show_image") as boolean) : undefined;
       const apiShowMegaDescription: boolean | undefined =
         typeof field("mega_show_description") === "boolean" ? (field("mega_show_description") as boolean) : undefined;
+
+      // Mega-menu CTA — from the mega_cta_* fields. The image (assets) field may
+      // come back as a string, an array, or an asset object (url/permalink).
+      const apiMegaCta = ((): StatamicNavTreeItem["megaCta"] | undefined => {
+        const pos = field("mega_cta_position");
+        if (pos !== "left" && pos !== "right" && pos !== "bottom") return undefined;
+        const str = (k: string) => {
+          const v = field(k);
+          return typeof v === "string" && v.trim() ? v.trim() : undefined;
+        };
+        const heading = str("mega_cta_heading");
+        const url     = str("mega_cta_url");
+        if (!heading || !url) return undefined;
+        const raw   = field("mega_cta_image");
+        const first = Array.isArray(raw) ? raw[0] : raw;
+        let imageFile: string | undefined;
+        if (typeof first === "string" && first) imageFile = first;
+        else if (first && typeof first === "object") {
+          const o = first as Record<string, unknown>;
+          const cand = o["permalink"] ?? o["url"] ?? o["basename"] ?? o["path"];
+          if (typeof cand === "string" && cand) imageFile = cand;
+        }
+        return {
+          position: pos,
+          heading,
+          url,
+          ...(str("mega_cta_text")  ? { text:  str("mega_cta_text")  } : {}),
+          ...(str("mega_cta_label") ? { label: str("mega_cta_label") } : {}),
+          ...(imageFile ? { imageFile } : {}),
+          ...(field("mega_cta_new_tab") === true ? { newTab: true } : {}),
+        };
+      })();
+
       return {
         id:             String(field("id") ?? field("url") ?? ""),
         title:          String(field("title") ?? ""),
@@ -955,6 +1028,7 @@ export class StatamicClient {
         ...(apiExcerpt ? { excerpt: apiExcerpt } : {}),
         ...(apiShowMegaImage !== undefined       ? { showMegaImage: apiShowMegaImage }             : {}),
         ...(apiShowMegaDescription !== undefined ? { showMegaDescription: apiShowMegaDescription } : {}),
+        ...(apiMegaCta ? { megaCta: apiMegaCta } : {}),
         ...(children.length > 0 ? { children } : {}),
       };
     };
