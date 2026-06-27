@@ -1002,15 +1002,29 @@ export class StatamicClient {
         typeof field("mega_show_image") === "boolean" ? (field("mega_show_image") as boolean) : undefined;
       const apiShowMegaDescription: boolean | undefined =
         typeof field("mega_show_description") === "boolean" ? (field("mega_show_description") as boolean) : undefined;
+      // Select fields arrive as { value, label, key } objects from the REST API.
+      const dropdownStyleRaw = field("dropdown_style");
+      const dropdownStyleVal: unknown = typeof dropdownStyleRaw === "string"
+        ? dropdownStyleRaw
+        : dropdownStyleRaw && typeof dropdownStyleRaw === "object"
+          ? (dropdownStyleRaw as Record<string, unknown>)["value"]
+          : undefined;
       const apiDropdownStyle: "mega" | "simple" | undefined =
-        field("dropdown_style") === "simple" ? "simple"
-          : field("dropdown_style") === "mega" ? "mega"
+        dropdownStyleVal === "simple" ? "simple"
+          : dropdownStyleVal === "mega" ? "mega"
           : undefined;
 
       // Mega-menu CTA — from the mega_cta_* fields. The image (assets) field may
       // come back as a string, an array, or an asset object (url/permalink).
       const apiMegaCta = ((): StatamicNavTreeItem["megaCta"] | undefined => {
-        const pos = field("mega_cta_position");
+        // The REST API serialises select fields as { value, label, key } objects
+        // rather than a bare string, so unwrap to the underlying value.
+        const posRaw = field("mega_cta_position");
+        const pos: unknown = typeof posRaw === "string"
+          ? posRaw
+          : posRaw && typeof posRaw === "object"
+            ? (posRaw as Record<string, unknown>)["value"]
+            : undefined;
         if (pos !== "left" && pos !== "right" && pos !== "bottom") return undefined;
         const str = (k: string) => {
           const v = field(k);
