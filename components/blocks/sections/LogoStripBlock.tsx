@@ -40,8 +40,10 @@
  *   --text-subtle            Label / heading text colour
  */
 
+import Image         from "next/image";
 import { Container } from "@/components/primitives/Container";
 import { Section }   from "@/components/primitives/Section";
+import { isOptimizableImageUrl } from "@/lib/image-hosts";
 import { Text }      from "@/components/primitives/Text";
 import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { LogoStripVariant } from "@/page-config/block-variants";
@@ -112,17 +114,32 @@ function LogoCell({
   // ── Visual: image or name fallback ────────────────────────────────────────
   const visual = logo.src ? (
     <div className="flex flex-col items-center gap-1.5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={logo.src}
-        alt={logo.name}
-        width={130}
-        height={32}
-        className="h-8 w-auto max-w-[130px] object-contain"
-        style={{ filter: logoFilter, transition: "filter 0.2s ease" }}
-        loading="lazy"
-        decoding="async"
-      />
+      {isOptimizableImageUrl(logo.src) ? (
+        // next/image resizes CMS-hosted logos to the display size + AVIF/WebP.
+        <Image
+          src={logo.src}
+          alt={logo.name}
+          width={130}
+          height={32}
+          className="h-8 w-auto max-w-[130px] object-contain"
+          style={{ filter: logoFilter, transition: "filter 0.2s ease" }}
+          loading="lazy"
+        />
+      ) : (
+        // Non-allowlisted host (other tenant CMS / external URL) — plain img so
+        // next/image never throws on an unconfigured remote host.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logo.src}
+          alt={logo.name}
+          width={130}
+          height={32}
+          className="h-8 w-auto max-w-[130px] object-contain"
+          style={{ filter: logoFilter, transition: "filter 0.2s ease" }}
+          loading="lazy"
+          decoding="async"
+        />
+      )}
       {showLabel && (
         <span
           className="text-[10px] font-medium leading-none tracking-wide"
