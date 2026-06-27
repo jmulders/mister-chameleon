@@ -1126,6 +1126,7 @@ export class StatamicProvider implements CMSProvider {
             openInNewTab: boolean; headerVariant: string | null;
             description?: string;
             imageUrl?: string;
+            imageUrlHover?: string;
             megaShowImage?: boolean;
             megaShowDescription?: boolean;
             dropdownStyle?: "mega" | "simple";
@@ -1134,6 +1135,13 @@ export class StatamicProvider implements CMSProvider {
           };
           // Assets are served at {cmsBaseUrl}/assets/{filename} in Statamic.
           const cmsBaseUrl = (process.env.STATAMIC_API_URL ?? "").replace(/\/$/, "");
+          // The file reader yields a bare filename; the REST API yields an
+          // absolute permalink or a root-relative "/assets/..." path. Resolve all
+          // three to an absolute URL.
+          const assetUrl = (f: string): string =>
+            /^https?:\/\//.test(f) ? f
+              : f.startsWith("/")  ? `${cmsBaseUrl}${f}`
+              : `${cmsBaseUrl}/assets/${f}`;
           const mapNavItem = (item: import("./statamic-client").StatamicNavTreeItem): NavItemData => ({
             id:            item.id,
             label:         item.title,
@@ -1141,7 +1149,8 @@ export class StatamicProvider implements CMSProvider {
             openInNewTab:  false,
             headerVariant: item.header_variant ?? null,
             ...(item.excerpt    ? { description: item.excerpt }                                    : {}),
-            ...(item.imageFile  ? { imageUrl: `${cmsBaseUrl}/assets/${item.imageFile}` }           : {}),
+            ...(item.imageFile      ? { imageUrl: assetUrl(item.imageFile) }           : {}),
+            ...(item.imageFileHover ? { imageUrlHover: assetUrl(item.imageFileHover) } : {}),
             ...(item.showMegaImage !== undefined       ? { megaShowImage: item.showMegaImage }             : {}),
             ...(item.showMegaDescription !== undefined ? { megaShowDescription: item.showMegaDescription } : {}),
             ...(item.dropdownStyle ? { dropdownStyle: item.dropdownStyle } : {}),

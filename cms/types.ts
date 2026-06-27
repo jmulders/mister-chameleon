@@ -734,6 +734,8 @@ export interface NavigationItemData {
   description?: string;
   /** Optional card thumbnail URL — shown in mega-menu feature columns when set */
   imageUrl?: string;
+  /** Optional hover thumbnail URL — cross-faded in when the card is hovered */
+  imageUrlHover?: string;
   /**
    * When explicitly set to `false`, the card thumbnail is hidden in the mega menu
    * feature column even when `imageUrl` is present on child items.

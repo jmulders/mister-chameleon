@@ -1016,6 +1016,16 @@ function LegacyChildrenPanel({
                     alt=""
                     className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
                   />
+                  {/* Hover image (overview_image_hover) — cross-fades in on hover. */}
+                  {child.imageUrlHover && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={child.imageUrlHover}
+                      alt=""
+                      aria-hidden
+                      className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                    />
+                  )}
                 </div>
               )}
               <span

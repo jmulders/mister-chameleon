@@ -98,6 +98,8 @@ export interface StatamicNavTreeItem {
   excerpt?:       string;
   /** overview_image filename — used to build the card thumbnail URL */
   imageFile?:     string;
+  /** overview_image_hover filename — swapped in on hover in the mega menu card */
+  imageFileHover?: string;
   /** Value of the `header_variant` blueprint field, or null when unset. */
   header_variant: string | null;
   /**
@@ -382,7 +384,7 @@ class StatamicFileReader {
       // NOT the filename).  We need to resolve them to get title and uri.
       // findCollectionFiles includes both flat and locale-subdir entries so
       // this works correctly in Statamic v5 multisite setups.
-      const entryMap = new Map<string, { title: string; uri: string; excerpt?: string; imageFile?: string }>();
+      const entryMap = new Map<string, { title: string; uri: string; excerpt?: string; imageFile?: string; imageFileHover?: string }>();
 
       for (const { filePath: filePath2, slug } of this.findCollectionFiles("pages")) {
         try {
@@ -401,7 +403,10 @@ class StatamicFileReader {
           const imageFile = typeof fmData["overview_image"] === "string" && fmData["overview_image"].trim()
             ? fmData["overview_image"].trim()
             : undefined;
-          entryMap.set(id, { title, uri, excerpt, imageFile });
+          const imageFileHover = typeof fmData["overview_image_hover"] === "string" && fmData["overview_image_hover"].trim()
+            ? fmData["overview_image_hover"].trim()
+            : undefined;
+          entryMap.set(id, { title, uri, excerpt, imageFile, imageFileHover });
         } catch {
           // Non-fatal — skip unreadable page file
         }
@@ -490,6 +495,7 @@ class StatamicFileReader {
           header_variant: hv,
           ...(page?.excerpt    ? { excerpt:   page.excerpt   } : {}),
           ...(page?.imageFile  ? { imageFile: page.imageFile } : {}),
+          ...(page?.imageFileHover ? { imageFileHover: page.imageFileHover } : {}),
           ...(showMegaImage !== undefined       ? { showMegaImage }       : {}),
           ...(showMegaDescription !== undefined ? { showMegaDescription } : {}),
           ...(dropdownStyle ? { dropdownStyle } : {}),
@@ -1062,6 +1068,23 @@ export class StatamicClient {
         };
       })();
 
+      // Card thumbnail + hover image from the child page's overview_image(_hover).
+      // The assets field may arrive as a string, an array, or an augmented asset
+      // object ({ url, permalink, basename, path }).
+      const apiAssetUrl = (key: string): string | undefined => {
+        const raw   = field(key);
+        const first = Array.isArray(raw) ? raw[0] : raw;
+        if (typeof first === "string" && first) return first;
+        if (first && typeof first === "object") {
+          const o    = first as Record<string, unknown>;
+          const cand = o["permalink"] ?? o["url"] ?? o["basename"] ?? o["path"];
+          if (typeof cand === "string" && cand) return cand;
+        }
+        return undefined;
+      };
+      const apiImageFile      = apiAssetUrl("overview_image");
+      const apiImageFileHover = apiAssetUrl("overview_image_hover");
+
       return {
         id:             String(field("id") ?? field("url") ?? ""),
         title:          String(field("title") ?? ""),
@@ -1070,6 +1093,8 @@ export class StatamicClient {
           ? ((field("header_variant") as string) || null)
           : null,
         ...(apiExcerpt ? { excerpt: apiExcerpt } : {}),
+        ...(apiImageFile      ? { imageFile: apiImageFile }           : {}),
+        ...(apiImageFileHover ? { imageFileHover: apiImageFileHover } : {}),
         ...(apiShowMegaImage !== undefined       ? { showMegaImage: apiShowMegaImage }             : {}),
         ...(apiShowMegaDescription !== undefined ? { showMegaDescription: apiShowMegaDescription } : {}),
         ...(apiDropdownStyle ? { dropdownStyle: apiDropdownStyle } : {}),
