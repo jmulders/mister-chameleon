@@ -449,6 +449,44 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
         await evaluateAudienceSegments(postScenarioInput, tenantConfig.tenantId),
       ) as typeof postScenarioInput;
 
+  // ── AI variant candidates from admin adaptive blocks ──────────────────────
+  //
+  // Populate input.variantCandidates so admin-authored adaptive variants with
+  // complete decision metadata become aiReady and AI-selectable (merged with the
+  // platform registry). Purely additive: this field was previously never set, so
+  // on any failure — or when no block carries authored metadata — it stays
+  // undefined and the AI falls back to platform-only candidates (prior behaviour,
+  // no regression). Only runs when an AI provider is actually active.
+  if (
+    decisionProvider instanceof AiDecisionProvider ||
+    decisionProvider instanceof ShadowAiDecisionProvider
+  ) {
+    try {
+      const [
+        { listAdaptiveBlocks },
+        { resolveVariantCandidates },
+        { adaptiveBlocksToResolveInput, hasAnyDecisionMeta },
+      ] = await Promise.all([
+        import("@/lib/adaptive-blocks/adaptive-blocks-store"),
+        import("@/ai/resolve-variant-candidates"),
+        import("@/ai/adaptive-blocks-candidates"),
+      ]);
+
+      const blocks       = await listAdaptiveBlocks(tenantConfig.tenantId, true);
+      const resolveInput = adaptiveBlocksToResolveInput(blocks);
+
+      if (hasAnyDecisionMeta(resolveInput)) {
+        (input as { variantCandidates?: import("@/ai/variant-meta").SlotCandidates }).variantCandidates =
+          resolveVariantCandidates(resolveInput);
+      }
+    } catch (err) {
+      logger.warn("[pipeline] variant candidate resolution failed; using platform-only", {
+        tenantId: tenantConfig.tenantId,
+        err:      err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   // ── CMS home page ─────────────────────────────────────────────────────────
   const homePage = await homePagePromise;
 
