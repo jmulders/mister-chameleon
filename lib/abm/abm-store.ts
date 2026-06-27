@@ -44,7 +44,16 @@ export interface AbmLead {
   status:       AbmLeadStatus;
   expiresAt:    string | null;
   firstSeenAt:  string | null;
+  lastSeenAt:   string | null;
   visitCount:   number;
+}
+
+/** A single recorded visit (one /go arrival). */
+export interface AbmLeadVisit {
+  id:        string;
+  leadId:    string;
+  path:      string;
+  visitedAt: string;
 }
 
 // ── Mapping ──────────────────────────────────────────────────────────────────
@@ -61,6 +70,7 @@ function mapRow(row: Record<string, unknown>): AbmLead {
     status:      ((row.status as AbmLeadStatus) ?? "active"),
     expiresAt:   (row.expires_at as string | null) ?? null,
     firstSeenAt: (row.first_seen_at as string | null) ?? null,
+    lastSeenAt:  (row.last_seen_at as string | null) ?? null,
     visitCount:  Number(row.visit_count ?? 0),
   };
 }
@@ -188,25 +198,108 @@ export async function upsertAbmLead(input: AbmLeadInput): Promise<AbmLead | null
   }
 }
 
-/** Record a visit: bump visit_count and set first_seen_at if unset. Fire-and-forget safe. */
-export async function recordAbmVisit(id: string): Promise<void> {
+/**
+ * Record a visit: bump visit_count, set first_seen_at if unset, refresh
+ * last_seen_at, and append a row to the per-lead visit log. Fire-and-forget safe.
+ */
+export async function recordAbmVisit(id: string, path = "/"): Promise<void> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = getDb() as any;
-    const { data } = await db.from("abm_leads").select("visit_count, first_seen_at").eq("id", id).maybeSingle();
-    const nextCount = Number(data?.visit_count ?? 0) + 1;
+    const now = new Date().toISOString();
+    const { data } = await db
+      .from("abm_leads")
+      .select("tenant_id, visit_count, first_seen_at")
+      .eq("id", id)
+      .maybeSingle();
+    if (!data) return;
+    const nextCount = Number(data.visit_count ?? 0) + 1;
     await db
       .from("abm_leads")
       .update({
         visit_count:   nextCount,
-        first_seen_at: data?.first_seen_at ?? new Date().toISOString(),
-        updated_at:    new Date().toISOString(),
+        first_seen_at: data.first_seen_at ?? now,
+        last_seen_at:  now,
+        updated_at:    now,
       })
       .eq("id", id);
+    // Append to the activity log (best-effort; never blocks the redirect).
+    await db.from("abm_lead_visits").insert({
+      lead_id:    id,
+      tenant_id:  String(data.tenant_id),
+      path:       path || "/",
+      visited_at: now,
+    });
   } catch (err) {
     logger.warn("[abm-store] recordAbmVisit failed", {
       id, err: err instanceof Error ? err.message : String(err),
     });
+  }
+}
+
+/** List recent visits for a lead (admin), newest first. */
+export async function listAbmLeadVisits(leadId: string, limit = 25): Promise<AbmLeadVisit[]> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("abm_lead_visits")
+      .select("id, lead_id, path, visited_at")
+      .eq("lead_id", leadId)
+      .order("visited_at", { ascending: false })
+      .limit(limit);
+    if (error || !data) return [];
+    return (data as Record<string, unknown>[]).map((r) => ({
+      id:        String(r.id),
+      leadId:    String(r.lead_id),
+      path:      String(r.path ?? "/"),
+      visitedAt: String(r.visited_at),
+    }));
+  } catch (err) {
+    logger.warn("[abm-store] listAbmLeadVisits failed", {
+      leadId, err: err instanceof Error ? err.message : String(err),
+    });
+    return [];
+  }
+}
+
+// ── ABM tenant settings (outbound webhook) ──────────────────────────────────────
+
+/** Fetch the tenant's outbound webhook URL (or null when unset). */
+export async function getAbmWebhookUrl(tenantId: string): Promise<string | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("abm_settings")
+      .select("webhook_url")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const url = (data.webhook_url as string | null) ?? null;
+    return url && url.trim() ? url.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Upsert the tenant's outbound webhook URL (admin). Pass null/empty to clear. */
+export async function setAbmWebhookUrl(tenantId: string, webhookUrl: string | null): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { error } = await db
+      .from("abm_settings")
+      .upsert(
+        { tenant_id: tenantId, webhook_url: webhookUrl?.trim() || null, updated_at: new Date().toISOString() },
+        { onConflict: "tenant_id" },
+      );
+    return !error;
+  } catch (err) {
+    logger.warn("[abm-store] setAbmWebhookUrl failed", {
+      tenantId, err: err instanceof Error ? err.message : String(err),
+    });
+    return false;
   }
 }
 

@@ -6,8 +6,20 @@ import {
   deleteAbmLeadAction,
   importAbmLeadsCsvAction,
   listAbmLeadsAction,
+  listAbmLeadVisitsAction,
+  saveAbmWebhookUrlAction,
 } from "../actions";
-import type { AbmLead, AbmLeadStatus } from "@/lib/abm/abm-store";
+import type { AbmLead, AbmLeadStatus, AbmLeadVisit } from "@/lib/abm/abm-store";
+
+/** Compact local date-time label, e.g. "28 Jun, 14:02". */
+function fmtWhen(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString(undefined, {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
 
 const INPUT =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
@@ -45,11 +57,13 @@ export function AbmClient({
   initialLeads,
   baseUrl,
   segments,
+  initialWebhookUrl,
 }: {
-  tenantId:     string;
-  initialLeads: AbmLead[];
-  baseUrl:      string;
-  segments:     SegmentOption[];
+  tenantId:          string;
+  initialLeads:      AbmLead[];
+  baseUrl:           string;
+  segments:          SegmentOption[];
+  initialWebhookUrl: string;
 }) {
   const [leads, setLeads]   = useState<AbmLead[]>(initialLeads);
   const [form, setForm]     = useState<FormState>(EMPTY);
@@ -58,7 +72,36 @@ export function AbmClient({
   const [msg, setMsg]       = useState<string | null>(null);
   const [pending, start]    = useTransition();
 
+  // Outbound webhook settings.
+  const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
+  const [webhookMsg, setWebhookMsg] = useState<string | null>(null);
+
+  // Per-lead visit timeline (lazy-loaded on expand; only one lead at a time).
+  const [expandedId, setExpandedId]     = useState<string | null>(null);
+  const [visits, setVisits]             = useState<AbmLeadVisit[]>([]);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  async function toggleExpand(leadId: string) {
+    if (expandedId === leadId) { setExpandedId(null); return; }
+    setExpandedId(leadId);
+    setVisits([]);
+    setVisitsLoading(true);
+    try {
+      const rows = await listAbmLeadVisitsAction(leadId);
+      setVisits(rows);
+    } finally {
+      setVisitsLoading(false);
+    }
+  }
+
+  function saveWebhook() {
+    start(async () => {
+      const res = await saveAbmWebhookUrlAction(tenantId, webhookUrl);
+      setWebhookMsg(res.ok ? "Saved." : res.error);
+    });
+  }
 
   function linkFor(lead: AbmLead): string {
     return `${baseUrl}/go/${lead.identifier}`;
@@ -196,6 +239,25 @@ export function AbmClient({
         </div>
       </section>
 
+      {/* ── Outbound webhook ───────────────────────────────────────── */}
+      <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-neutral-900">Outbound webhook <span className="text-neutral-400 font-normal">(optional)</span></h2>
+        <p className="text-xs text-neutral-500">
+          When a known lead arrives via their link, POST a JSON visit event to this URL —
+          wire it to a HubSpot workflow, Slack, Zapier/n8n, or your own endpoint. Leave empty to disable.
+        </p>
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <label className={LABEL}>Webhook URL</label>
+            <input className={INPUT} value={webhookUrl} onChange={(e) => { setWebhookUrl(e.target.value); setWebhookMsg(null); }} placeholder="https://hooks.example.com/abm" />
+          </div>
+          <button onClick={saveWebhook} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
+            {pending ? "Saving…" : "Save webhook"}
+          </button>
+        </div>
+        {webhookMsg && <span className="text-xs text-neutral-500">{webhookMsg}</span>}
+      </section>
+
       {/* ── Leads ──────────────────────────────────────────────────── */}
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-neutral-900">Leads ({leads.length})</h2>
@@ -204,21 +266,52 @@ export function AbmClient({
         ) : (
           <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200">
             {leads.map((lead) => (
-              <div key={lead.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-neutral-900 truncate">
-                    {lead.profile.name || lead.profile.firstName || lead.identifier}
-                    {lead.profile.company && <span className="text-neutral-400"> · {lead.profile.company}</span>}
+              <div key={lead.id} className="px-4 py-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleExpand(lead.id)}
+                    className="w-4 shrink-0 text-neutral-400 hover:text-neutral-700"
+                    aria-label={expandedId === lead.id ? "Collapse activity" : "Show activity"}
+                  >
+                    {expandedId === lead.id ? "▾" : "▸"}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-neutral-900 truncate">
+                      {lead.profile.name || lead.profile.firstName || lead.identifier}
+                      {lead.profile.company && <span className="text-neutral-400"> · {lead.profile.company}</span>}
+                    </div>
+                    <div className="text-xs text-neutral-500 truncate">
+                      <span className="font-mono">{linkFor(lead)}</span> → {lead.targetPath}
+                      {lead.status !== "active" && <span className="ml-2 rounded bg-amber-50 px-1.5 text-amber-700">{lead.status}</span>}
+                      <span className="ml-2">{lead.visitCount} visit{lead.visitCount === 1 ? "" : "s"}</span>
+                      {lead.lastSeenAt
+                        ? <span className="ml-2">· last seen {fmtWhen(lead.lastSeenAt)}</span>
+                        : <span className="ml-2 text-neutral-400">· not visited yet</span>}
+                    </div>
                   </div>
-                  <div className="text-xs text-neutral-500 truncate">
-                    <span className="font-mono">{linkFor(lead)}</span> → {lead.targetPath}
-                    {lead.status !== "active" && <span className="ml-2 rounded bg-amber-50 px-1.5 text-amber-700">{lead.status}</span>}
-                    <span className="ml-2">{lead.visitCount} visit{lead.visitCount === 1 ? "" : "s"}</span>
-                  </div>
+                  <button onClick={() => navigator.clipboard?.writeText(linkFor(lead))} className="text-xs text-neutral-500 hover:text-neutral-900">Copy link</button>
+                  <button onClick={() => edit(lead)} className="text-xs text-neutral-500 hover:text-neutral-900">Edit</button>
+                  <button onClick={() => remove(lead.id)} disabled={pending} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">Delete</button>
                 </div>
-                <button onClick={() => navigator.clipboard?.writeText(linkFor(lead))} className="text-xs text-neutral-500 hover:text-neutral-900">Copy link</button>
-                <button onClick={() => edit(lead)} className="text-xs text-neutral-500 hover:text-neutral-900">Edit</button>
-                <button onClick={() => remove(lead.id)} disabled={pending} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">Delete</button>
+
+                {expandedId === lead.id && (
+                  <div className="mt-2 ml-7 border-l border-neutral-100 pl-3">
+                    {visitsLoading ? (
+                      <p className="text-xs text-neutral-400 py-1">Loading activity…</p>
+                    ) : visits.length === 0 ? (
+                      <p className="text-xs text-neutral-400 py-1">No visits recorded yet.</p>
+                    ) : (
+                      <ul className="py-1 space-y-1">
+                        {visits.map((v) => (
+                          <li key={v.id} className="text-xs text-neutral-600 flex justify-between gap-3">
+                            <span className="font-mono truncate">{v.path}</span>
+                            <span className="shrink-0 text-neutral-400">{fmtWhen(v.visitedAt)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

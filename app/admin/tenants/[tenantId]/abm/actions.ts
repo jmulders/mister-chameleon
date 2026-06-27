@@ -14,9 +14,13 @@ import {
   listAbmLeads,
   upsertAbmLead,
   deleteAbmLead,
+  listAbmLeadVisits,
+  getAbmWebhookUrl,
+  setAbmWebhookUrl,
   type AbmLead,
   type AbmLeadProfile,
   type AbmLeadStatus,
+  type AbmLeadVisit,
 }                                  from "@/lib/abm/abm-store";
 
 /** Short, URL-safe, unguessable identifier (~8 chars). */
@@ -29,6 +33,34 @@ function genIdentifier(): string {
 export async function listAbmLeadsAction(tenantId: string): Promise<AbmLead[]> {
   await getRequiredAdminSession();
   return listAbmLeads(tenantId);
+}
+
+/** Recent visit timeline for a single lead (lazy-loaded when a row is expanded). */
+export async function listAbmLeadVisitsAction(leadId: string): Promise<AbmLeadVisit[]> {
+  await getRequiredAdminSession();
+  return listAbmLeadVisits(leadId);
+}
+
+// ── Settings (outbound webhook) ─────────────────────────────────────────────────
+
+export async function getAbmWebhookUrlAction(tenantId: string): Promise<string | null> {
+  await getRequiredAdminSession();
+  return getAbmWebhookUrl(tenantId);
+}
+
+export async function saveAbmWebhookUrlAction(
+  tenantId: string,
+  webhookUrl: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const trimmed = webhookUrl.trim();
+  if (trimmed && !/^https:\/\//i.test(trimmed)) {
+    return { ok: false, error: "Webhook URL must start with https://." };
+  }
+  const ok = await setAbmWebhookUrl(tenantId, trimmed || null);
+  if (!ok) return { ok: false, error: "Save failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  return { ok: true };
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────

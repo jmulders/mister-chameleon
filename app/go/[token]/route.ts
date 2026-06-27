@@ -14,9 +14,10 @@
  * See docs/abm-personalized-urls.md.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getActiveTenant }           from "@/tenant/get-active-tenant";
 import { getAbmLeadByHandle, recordAbmVisit } from "@/lib/abm/abm-store";
+import { fireAbmVisitWebhook }        from "@/lib/abm/abm-webhook";
 
 export const runtime = "nodejs";
 
@@ -53,8 +54,13 @@ export async function GET(
     maxAge:   COOKIE_MAX_AGE,
   });
 
-  // Fire-and-forget visit tracking — never blocks the redirect.
-  void recordAbmVisit(lead.id);
+  // After the redirect is sent: record the visit (with the landing path) and
+  // fan out the optional outbound webhook. Runs post-response via after() so it
+  // never blocks the redirect, yet still executes reliably on the platform.
+  after(async () => {
+    await recordAbmVisit(lead.id, target);
+    await fireAbmVisitWebhook(lead, target);
+  });
 
   return res;
 }
