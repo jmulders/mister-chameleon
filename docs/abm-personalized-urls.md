@@ -5,10 +5,10 @@ Sales Navigator) to a personalized link; the platform instantly redirects them t
 the real page while loading their profile, so the decision engine personalizes
 for a *known* person instead of an inferred one.
 
-> Example: lead Jasper is sent to `/go/ax93` (or a vanity `/aanbodvoorjasper`).
-> The platform recognises the identifier, stamps Jasper's identity into the
+> Example: lead John is sent to `/go/ax93` (or a vanity `/offer-for-john`).
+> The platform recognises the identifier, stamps John's identity into the
 > session, redirects to the target page, and the hero/proof/CTA personalize for
-> Jasper's company + role from the first paint.
+> John's company + role from the first paint.
 
 ## 1. Why it fits this platform
 
@@ -27,7 +27,7 @@ Two options, with a trade-off:
 | Option | Pro | Con |
 | --- | --- | --- |
 | **Opaque token** — `/go/ax93z` or `?ld=ax93z` (recommended) | No collision with real routes; the token is not itself personal data; safe if leaked | Less "pretty" in outreach |
-| **Vanity path** — `/aanbodvoorjasper` | Natural in outreach | Must be caught *before* the 404; collision risk with real pages; the path itself is personal data |
+| **Vanity path** — `/offer-for-john` | Natural in outreach | Must be caught *before* the 404; collision risk with real pages; the path itself is personal data |
 
 **Recommendation:** opaque token (short, unguessable), shown with a friendly label
 in your outreach copy. Support an optional vanity alias per lead for the cases

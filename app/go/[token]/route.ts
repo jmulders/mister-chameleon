@@ -8,7 +8,7 @@
  *
  * Fail-open: unknown / paused / expired handles silently redirect to "/" — never
  * a 404 or an error that reveals the mechanism. Vanity paths (e.g.
- * /aanbodvoorjasper) reach here too: the (site)/[slug] route detects a vanity
+ * /offer-for-john) reach here too: the (site)/[slug] route detects a vanity
  * match on a page miss and forwards to /go/{identifier}.
  *
  * See docs/abm-personalized-urls.md.

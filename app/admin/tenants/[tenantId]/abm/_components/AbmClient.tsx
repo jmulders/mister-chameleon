@@ -126,8 +126,8 @@ export function AbmClient({
           {form.id ? "Edit lead" : "Add a lead"}
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={LABEL}>First name</label><input className={INPUT} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Jasper" /></div>
-          <div><label className={LABEL}>Full name</label><input className={INPUT} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Jasper Mulders" /></div>
+          <div><label className={LABEL}>First name</label><input className={INPUT} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="John" /></div>
+          <div><label className={LABEL}>Full name</label><input className={INPUT} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="John Doe" /></div>
           <div><label className={LABEL}>Company</label><input className={INPUT} value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Acme BV" /></div>
           <div><label className={LABEL}>Role</label><input className={INPUT} value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Head of Growth" /></div>
           <div><label className={LABEL}>Industry</label><input className={INPUT} value={form.industry} onChange={(e) => set("industry", e.target.value)} placeholder="Logistics" /></div>
@@ -137,7 +137,7 @@ export function AbmClient({
 
         <div className="grid grid-cols-2 gap-3">
           <div><label className={LABEL}>Target page</label><input className={INPUT} value={form.targetPath} onChange={(e) => set("targetPath", e.target.value)} placeholder="/pricing" /></div>
-          <div><label className={LABEL}>Vanity path <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.vanityPath} onChange={(e) => set("vanityPath", e.target.value)} placeholder="/aanbodvoorjasper" /></div>
+          <div><label className={LABEL}>Vanity path <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.vanityPath} onChange={(e) => set("vanityPath", e.target.value)} placeholder="/offer-for-john" /></div>
           <div><label className={LABEL}>Audience segment <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.segmentHint} onChange={(e) => set("segmentHint", e.target.value)} placeholder="high-intent-enterprise" /></div>
           <div>
             <label className={LABEL}>Status</label>
@@ -165,7 +165,7 @@ export function AbmClient({
           Paste a CSV export. Common columns (First name, Last name, Company, Title,
           Industry, Company size, Profile URL) are auto-detected; a link is generated per row.
         </p>
-        <textarea className={`${INPUT} font-mono text-xs`} rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder="First Name,Last Name,Company,Title&#10;Jasper,Mulders,Acme BV,Head of Growth" />
+        <textarea className={`${INPUT} font-mono text-xs`} rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={"First Name,Last Name,Company,Title\nJohn,Doe,Acme BV,Head of Growth"} />
         <div className="flex items-end gap-3">
           <div className="flex-1"><label className={LABEL}>Target page for all imported leads</label><input className={INPUT} value={importTarget} onChange={(e) => setImportTarget(e.target.value)} placeholder="/pricing" /></div>
           <button onClick={runImport} disabled={pending || !csv.trim()} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">

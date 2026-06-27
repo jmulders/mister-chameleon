@@ -335,7 +335,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   }
 
   if (!page) {
-    // ABM personalized URL — a vanity path (e.g. /aanbodvoorjasper) bound to a
+    // ABM personalized URL — a vanity path (e.g. /offer-for-john) bound to a
     // lead. Forward to /go/{identifier}, which stamps the mc_lead cookie and
     // redirects to the lead's target page. Only runs on a genuine page miss, so
     // it adds no cost to normal traffic. Unknown slugs fall through to notFound().

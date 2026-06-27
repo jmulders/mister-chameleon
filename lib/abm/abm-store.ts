@@ -17,7 +17,7 @@ import { logger } from "@/lib/logger";
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface AbmLeadProfile {
-  /** Used for a named greeting, e.g. "Hi Jasper". */
+  /** Used for a named greeting, e.g. "Hi John". */
   firstName?:   string;
   /** Full name. */
   name?:        string;

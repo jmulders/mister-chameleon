@@ -31,3 +31,7 @@ CREATE TABLE IF NOT EXISTS abm_leads (
 -- Redirect-path lookups: by opaque identifier and by vanity alias, per tenant.
 CREATE INDEX IF NOT EXISTS abm_leads_tenant_identifier_idx ON abm_leads (tenant_id, identifier);
 CREATE INDEX IF NOT EXISTS abm_leads_tenant_vanity_idx     ON abm_leads (tenant_id, vanity_path);
+
+-- Service-role only: RLS on, no policies (same pattern as statamic_drafts). The
+-- service-role client (getDb) bypasses RLS; anon/authenticated have no access.
+ALTER TABLE abm_leads ENABLE ROW LEVEL SECURITY;
