@@ -2225,6 +2225,12 @@ export interface NewsArticleData {
   tags?:            string[];
   /** Short teaser text used in listing cards; falls back to first body paragraph */
   excerpt?:         string;
+  /**
+   * Interest keywords (first-party behavioural signals) for interest-profile
+   * scoring. Emitted as <meta name="keywords"> by the detail route so the
+   * PageTracker can read them on visit. NOT SEO meta keywords.
+   */
+  metaKeywords?:    string[];
   /** Only published documents are returned by default queries */
   isPublished:      boolean;
 }
@@ -2311,6 +2317,11 @@ export interface VacancyData {
   processSteps?:  ProcessStepData[];
   /** Recruiter responsible for this vacancy */
   recruiter?:     RecruiterData;
+  /**
+   * Interest keywords (first-party behavioural signals) for interest-profile
+   * scoring. Emitted as <meta name="keywords"> by the detail route. NOT SEO.
+   */
+  metaKeywords?:  string[];
   /** Only published documents are returned by default queries */
   isPublished:    boolean;
 }

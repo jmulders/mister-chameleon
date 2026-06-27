@@ -40,6 +40,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title:       page.seoTitle ?? page.title,
     description: page.seoDescription,
+    // Interest keywords → <meta name="keywords"> for the PageTracker (behavioural).
+    keywords:    page.metaKeywords,
     robots:      (page.robots?.noindex || page.robots?.nofollow)
                    ? { index: !page.robots.noindex, follow: !page.robots.nofollow }
                    : undefined,

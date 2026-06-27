@@ -124,6 +124,22 @@ import type { TenantSettings } from "@/tenant/types";
  * Order: page_blocks first, then legacy typed arrays.
  * Deduplication is not performed — callers use find() which stops at first match.
  */
+/**
+ * Normalise a Statamic `meta_keywords` value into a clean string array.
+ *
+ * Accepts the `tags` fieldtype (already an array) OR a legacy comma-separated
+ * string (the field used to be a text field). Returns undefined when empty so
+ * the value is omitted from the entity object.
+ */
+function normalizeMetaKeywords(raw: unknown): string[] | undefined {
+  if (!raw) return undefined;
+  const arr = Array.isArray(raw)
+    ? raw.filter((k): k is string => typeof k === "string")
+    : String(raw).split(",").map((k) => k.trim());
+  const cleaned = arr.map((k) => k.trim()).filter(Boolean);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
 function flattenPageVariants(data: Record<string, unknown>): StatamicPageReplicatorBlock[] {
   // Current + legacy: read from page_blocks, always filter out context_slot items
   // (they have no variant content and should not be in the variant catalog).
@@ -1495,6 +1511,7 @@ export class StatamicProvider implements CMSProvider {
         excerpt?: string;
         overview_image?: Array<{ url?: string; permalink?: string } | string> | string;
         tags?: unknown[];
+        meta_keywords?: string[] | string;
       };
       const entry = await this.client.fetchEntryBySlug<BlogEntry>("blog", slug);
       if (!entry) return null;
@@ -1509,6 +1526,7 @@ export class StatamicProvider implements CMSProvider {
         tags:        Array.isArray(entry.tags)
                        ? entry.tags.filter((t): t is string => typeof t === "string")
                        : undefined,
+        metaKeywords: normalizeMetaKeywords(entry.meta_keywords),
         isPublished: true,
       };
     } catch {
@@ -1674,6 +1692,7 @@ export class StatamicProvider implements CMSProvider {
     try {
       type CollEntry = {
         title?:            string;
+        meta_keywords?:    string[] | string;
         // SEO fields (from mrc_seo_fields fieldset)
         seo_title?:        string;
         seo_description?:  string;
@@ -1747,6 +1766,7 @@ export class StatamicProvider implements CMSProvider {
         id:             entry.id ?? entrySlug,
         title:          entry.title ?? entrySlug,
         slug:           fullPath,
+        metaKeywords:   normalizeMetaKeywords(entry.meta_keywords),
         seoTitle:       typeof entry.seo_title       === "string" ? entry.seo_title       : undefined,
         seoDescription: typeof entry.seo_description === "string" ? entry.seo_description : undefined,
         robots:         hasRobots
@@ -1781,6 +1801,7 @@ export class StatamicProvider implements CMSProvider {
         contract_type?: string;
         excerpt?: string;
         overview_image?: Array<{ url?: string; permalink?: string } | string> | string;
+        meta_keywords?: string[] | string;
       };
       const entry = await this.client.fetchEntryBySlug<VacancyEntry>("vacancies", slug);
       if (!entry) return null;
@@ -1791,6 +1812,7 @@ export class StatamicProvider implements CMSProvider {
         location:     entry.location    ?? undefined,
         contractType: this.mapContractType(entry.contract_type),
         closingDate:  entry.closing_date ? String(entry.closing_date) : undefined,
+        metaKeywords: normalizeMetaKeywords(entry.meta_keywords),
         isPublished:  true,
       };
     } catch {
