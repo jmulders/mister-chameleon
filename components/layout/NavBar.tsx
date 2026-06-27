@@ -37,7 +37,6 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { NavigationItemData, HeaderCtaData, LocaleEntry } from "@/cms/types";
@@ -578,51 +577,12 @@ export function NavBar({
   navFamily    = null,
   mode         = "all",
 }: NavBarProps) {
-  // ── Per-page nav variant override (client-side) ────────────────────────────
-  //
-  // The server resolves navVariant from tenant settings + theme family, but the
-  // Header is in a layout and layouts are NOT re-rendered on client-side
-  // navigation.  So we re-apply the per-item override here in the client
-  // component using usePathname() — this runs on every route change.
-  //
-  // The server's Layer 3 logic (in Header.tsx) handles the initial page load
-  // and `headerStyle` (transparent) which requires a server-side CSS class.
-  // This client-side layer handles navVariant changes during SPA navigation.
-  //
-  // NOTE: hook must be called unconditionally (React Rules of Hooks) — the
-  // early-return for empty items is intentionally placed AFTER the hook.
-  const pathname = usePathname();
-  const pageNavItem = items.find((item) => item.href === pathname);
-
+  // The per-page header-variant override was removed — that authoring field no
+  // longer exists. Mega menus are content-driven (see below) and the header
+  // style is configured site-wide, so there is nothing to override per item.
   if (items.length === 0) return null;
   let effectiveVariant: NavVariant = navVariant;
-  let effectiveDensity: NavDensity = navDensity;
-  if (pageNavItem?.headerVariant) {
-    const hv = pageNavItem.headerVariant;
-    // Consolidated variants (mega menus are content-driven via the upgrade below).
-    if (hv === "standard") {
-      effectiveVariant = "flyout";
-      effectiveDensity = "comfortable";
-    } else if (hv === "compact") {
-      effectiveVariant = "flyout";
-      effectiveDensity = "compact";
-    } else if (hv === "grid") {
-      effectiveVariant = "grid";
-    } else if (hv === "content") {
-      effectiveVariant = "content";
-    // Backward-compat (pre-consolidation keys).
-    } else if (hv === "minimal") {
-      effectiveVariant = "flyout";
-      effectiveDensity = "compact";
-    } else if (hv === "flyout") {
-      effectiveVariant = "flyout";
-      effectiveDensity = "comfortable";
-    } else if (hv === "mega") {
-      effectiveVariant = "flyout";
-      effectiveDensity = "compact";
-    }
-    // "transparent" only affects headerStyle (server-side CSS class); no navVariant change
-  }
+  const effectiveDensity: NavDensity = navDensity;
 
   // ── Decouple mega menus from the header variant ─────────────────────────────
   // Mega menus are CONTENT-DRIVEN: whenever a nav item has dropdown content
