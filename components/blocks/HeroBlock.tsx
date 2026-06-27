@@ -10,6 +10,7 @@ import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { HeroLayoutVariant } from "@/page-config/block-variants";
 import type { HeroBannerMedia, HeroSlideData } from "@/cms/types";
 import { HeroCarousel } from "@/components/blocks/HeroCarousel";
+import { HeroBackgroundEmbed } from "@/components/blocks/HeroBackgroundEmbed";
 
 /**
  * HeroBlock
@@ -459,42 +460,13 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
     );
   }
 
-  // ── YouTube / Vimeo iframe — full-coverage approach ────────────────────────
+  // ── YouTube / Vimeo iframe — full-coverage, deferred ───────────────────────
   //
-  // Iframes can't use object-fit; instead we use the "viewport cover" trick:
-  //   • Size: at least 100vw wide AND 56.25vw tall (= 100vw × 9/16).
-  //           When the viewport is taller than 56.25vw we flip and use
-  //           177.78vh wide (= 100vh × 16/9).
-  //   • Position: absolute, centred via translate(-50%, -50%).
-  // This guarantees the 16:9 iframe covers the container at any aspect ratio.
-  const iframeWrapperStyle: React.CSSProperties = {
-    position:  "absolute",
-    top:       "50%",
-    left:      "50%",
-    transform: "translate(-50%, -50%)",
-    // Cover the container at 16:9 without letterboxing.
-    //
-    // The trick requires cross-axis scaling:
-    //   • width  must be ≥ container width  AND ≥ container height × (16/9)
-    //   • height must be ≥ container height AND ≥ container width  × (9/16)
-    //
-    // Using 100%/100% for both terms is wrong — % in a width calc resolves
-    // against the container WIDTH and in a height calc against the container
-    // HEIGHT, so both terms end up on the same axis and the wrapper grows
-    // only in one direction (producing black bars on the other).
-    //
-    // Using vh/vw gives the correct cross-axis reference:
-    //   • width:  be at least container-wide, or wide enough to fill the
-    //             viewport height at 16:9 (prevents bars when the hero is
-    //             taller or narrower than 16:9).
-    //   • height: be at least container-tall, or tall enough to fill the
-    //             viewport width at 9:16 (prevents bars on ultrawide).
-    width:     "max(100%, calc(100vh * (16 / 9)))",
-    height:    "max(100%, calc(100vw * (9 / 16)))",
-    pointerEvents: "none",
-    zIndex:    0,
-  };
-
+  // The iframe is rendered by <HeroBackgroundEmbed>, a client component that
+  // paints a poster image immediately and only mounts the (~800 KiB) player
+  // iframe after first paint + when in view. This keeps muted autoplay working
+  // while removing the third-party JS from the critical path (better LCP/FCP).
+  // The cover-trick sizing lives inside that component.
   if (video.source === "youtube") {
     const params = new URLSearchParams({
       rel:             "0",
@@ -506,15 +478,12 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
       controls:        "0",
     });
     return (
-      <div style={iframeWrapperStyle} aria-hidden>
-        <iframe
-          src={`https://www.youtube-nocookie.com/embed/${video.videoId}?${params}`}
-          title=""
-          allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          className="h-full w-full border-0"
-          loading="eager"
-        />
-      </div>
+      <HeroBackgroundEmbed
+        src={`https://www.youtube-nocookie.com/embed/${video.videoId}?${params}`}
+        // hqdefault always exists (maxresdefault 404s for some videos).
+        poster={`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`}
+        allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      />
     );
   }
 
@@ -524,15 +493,10 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
       dnt:        "1",   // do-not-track
     });
     return (
-      <div style={iframeWrapperStyle} aria-hidden>
-        <iframe
-          src={`https://player.vimeo.com/video/${video.videoId}?${params}`}
-          title=""
-          allow="autoplay; fullscreen; picture-in-picture"
-          className="h-full w-full border-0"
-          loading="eager"
-        />
-      </div>
+      <HeroBackgroundEmbed
+        src={`https://player.vimeo.com/video/${video.videoId}?${params}`}
+        allow="autoplay; fullscreen; picture-in-picture"
+      />
     );
   }
 
