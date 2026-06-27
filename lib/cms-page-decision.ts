@@ -73,7 +73,11 @@ import { loadTenantRulesConfig }   from "@/decision/rules/load-tenant-rules";
 import type { StoredRulesConfig }  from "@/decision/rules/stored-rule"; // used by _fileRulesConfig
 import { fetchVariantCatalogue }   from "@/decision/rules/fetch-variant-catalogue";
 import { buildDecisionContext }    from "@/decision/context/build-decision-context";
-import { applyKnownLead }          from "@/lib/abm/apply-known-lead";
+import {
+  resolveActiveKnownLead,
+  injectKnownLeadContext,
+  forceKnownLeadSegment,
+} from "@/lib/abm/apply-known-lead";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
 import { AiDecisionProvider }      from "@/decision/providers/ai-decision-provider";
@@ -342,8 +346,30 @@ export async function resolveSlugPageConfig(
       ? applyScenarioToDecisionContext(rawInput, scenarioOverrides)
       : rawInput;
 
+    // ── ABM known-lead — phase 1: firmographics BEFORE segment evaluation ─────
+    // A lead's personalized URL can target any page (e.g. /pricing), so fold the
+    // lead into this page's context too. Inject firmographics first so segments
+    // defined on them auto-match. Fail-open: any error → normal personalization.
+    const leadCookie = (request.headers.get("cookie") ?? "")
+      .split(";").map((c) => c.trim())
+      .find((c) => c.startsWith("mc_lead="))
+      ?.slice("mc_lead=".length);
+    let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
+    try {
+      abmLead = await resolveActiveKnownLead(leadCookie ? decodeURIComponent(leadCookie) : undefined);
+      if (abmLead) {
+        injectKnownLeadContext(
+          postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
+          abmLead,
+        );
+      }
+    } catch {
+      // ignore — normal personalization continues
+    }
+
     // ── Audience segment evaluation ───────────────────────────────────────────
-    // Same pattern as homepage-pipeline: run after all overrides are applied.
+    // Same pattern as homepage-pipeline: run after all overrides + known-lead
+    // firmographics are applied.
     // Skip DB evaluation when the scenario has explicitly set audienceSegmentIds.
     const input = scenarioOverrides?.audienceSegmentIds !== undefined
       ? postScenarioInput
@@ -352,19 +378,18 @@ export async function resolveSlugPageConfig(
           await evaluateAudienceSegments(postScenarioInput, tenantId),
         ) as typeof postScenarioInput;
 
-    // ── ABM known-lead injection (covers non-homepage target pages) ───────────
-    // A lead's personalized URL can target any page (e.g. /pricing), so fold the
-    // lead into this page's context too — same helper as the homepage pipeline.
-    // Fail-open: any error leaves normal personalization intact.
-    try {
-      const cookieHeader = request.headers.get("cookie") ?? "";
-      const leadCookie = cookieHeader
-        .split(";").map((c) => c.trim())
-        .find((c) => c.startsWith("mc_lead="))
-        ?.slice("mc_lead=".length);
-      await applyKnownLead(input, leadCookie ? decodeURIComponent(leadCookie) : undefined);
-    } catch {
-      // ignore — normal personalization continues
+    // ── ABM known-lead — phase 2: force the explicitly-linked segment ─────────
+    // After applyAudienceSegments (which replaces the id set), fold in the lead's
+    // explicit segment_hint on top of any auto-matched segments. Fail-open.
+    if (abmLead) {
+      try {
+        forceKnownLeadSegment(
+          input as unknown as import("@/decision/decision-context").DecisionContext,
+          abmLead,
+        );
+      } catch {
+        // ignore — normal personalization continues
+      }
     }
 
     // ── Get experience plan from decision engine ───────────────────────────────

@@ -59,7 +59,11 @@ import {
 } from "@/lib/scenario/server-scenario";
 import { evaluateAudienceSegments } from "@/audience-segments/evaluate";
 import { applyAudienceSegments }    from "@/decision/decision-context";
-import { applyKnownLead }           from "@/lib/abm/apply-known-lead";
+import {
+  resolveActiveKnownLead,
+  injectKnownLeadContext,
+  forceKnownLeadSegment,
+} from "@/lib/abm/apply-known-lead";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -434,11 +438,33 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     ? applyScenarioToDecisionContext(rawInput, scenarioOverrides)
     : rawInput;
 
+  // ── ABM known-lead — phase 1: firmographics BEFORE segment evaluation ─────
+  //
+  // Resolve the lead referenced by the mc_lead cookie (set by /go/{token}) and
+  // load its firmographics (companyName / companyIndustry / companySize /
+  // targetAccountMatched) into the enrichment context, plus attach the knownLead
+  // identity. Doing this BEFORE evaluateAudienceSegments lets segments defined on
+  // firmographics auto-match the known account. Fail-open: any error → no-op.
+  let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
+  try {
+    abmLead = await resolveActiveKnownLead(cookieStore.get("mc_lead")?.value);
+    if (abmLead) {
+      injectKnownLeadContext(
+        postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
+        abmLead,
+      );
+    }
+  } catch (err) {
+    logger.warn("[pipeline] ABM known-lead context injection failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   // ── Audience segment evaluation ───────────────────────────────────────────
   //
-  // Must run AFTER all scenario overrides so that segment criteria are
-  // evaluated against the fully-patched context (correct interest scores,
-  // enrichment, journey state, etc.).
+  // Must run AFTER all scenario overrides + known-lead firmographics so that
+  // segment criteria are evaluated against the fully-patched context (correct
+  // interest scores, enrichment, journey state, etc.).
   //
   // When the scenario explicitly overrides audienceSegmentIds, skip the DB
   // evaluation entirely — the override value is already baked in by
@@ -488,19 +514,22 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     }
   }
 
-  // ── ABM known-lead injection ──────────────────────────────────────────────
+  // ── ABM known-lead — phase 2: force the explicitly-linked segment ─────────
   //
-  // When the visitor arrived via a personalized URL (the /go/{token} handler set
-  // the `mc_lead` cookie), pull the lead and: (a) fold its `segment_hint` into
-  // audienceSegmentIds so the existing segment→variant path personalizes for the
-  // known account, and (b) attach a `knownLead` block for the AI / named greeting.
-  // Fail-open: any error or no cookie → no-op, normal personalization.
-  try {
-    await applyKnownLead(input, cookieStore.get("mc_lead")?.value);
-  } catch (err) {
-    logger.warn("[pipeline] ABM known-lead injection failed", {
-      err: err instanceof Error ? err.message : String(err),
-    });
+  // applyAudienceSegments above REPLACES audienceSegmentIds, so the lead's
+  // explicit `segment_hint` is folded in here (after evaluation) on top of any
+  // segments that auto-matched on the injected firmographics. Fail-open.
+  if (abmLead) {
+    try {
+      forceKnownLeadSegment(
+        input as unknown as import("@/decision/decision-context").DecisionContext,
+        abmLead,
+      );
+    } catch (err) {
+      logger.warn("[pipeline] ABM known-lead segment force failed", {
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // ── CMS home page ─────────────────────────────────────────────────────────

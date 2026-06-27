@@ -35,14 +35,21 @@ const EMPTY: FormState = {
   linkedinUrl: "", targetPath: "/", vanityPath: "", segmentHint: "", status: "active",
 };
 
+export interface SegmentOption {
+  key:   string;
+  label: string;
+}
+
 export function AbmClient({
   tenantId,
   initialLeads,
   baseUrl,
+  segments,
 }: {
   tenantId:     string;
   initialLeads: AbmLead[];
   baseUrl:      string;
+  segments:     SegmentOption[];
 }) {
   const [leads, setLeads]   = useState<AbmLead[]>(initialLeads);
   const [form, setForm]     = useState<FormState>(EMPTY);
@@ -142,7 +149,18 @@ export function AbmClient({
         <div className="grid grid-cols-2 gap-3">
           <div><label className={LABEL}>Target page</label><input className={INPUT} value={form.targetPath} onChange={(e) => set("targetPath", e.target.value)} placeholder="/pricing" /></div>
           <div><label className={LABEL}>Vanity path <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.vanityPath} onChange={(e) => set("vanityPath", e.target.value)} placeholder="/offer-for-john" /></div>
-          <div><label className={LABEL}>Audience segment <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.segmentHint} onChange={(e) => set("segmentHint", e.target.value)} placeholder="high-intent-enterprise" /></div>
+          <div>
+            <label className={LABEL}>Audience segment <span className="text-neutral-400">(optional)</span></label>
+            <select className={INPUT} value={form.segmentHint} onChange={(e) => set("segmentHint", e.target.value)}>
+              <option value="">— None —</option>
+              {segments.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
+              {form.segmentHint && !segments.some((s) => s.key === form.segmentHint) && (
+                <option value={form.segmentHint}>{form.segmentHint} (not in list)</option>
+              )}
+            </select>
+          </div>
           <div>
             <label className={LABEL}>Status</label>
             <select className={INPUT} value={form.status} onChange={(e) => set("status", e.target.value as AbmLeadStatus)}>

@@ -9,6 +9,7 @@
 import Link                  from "next/link";
 import { getTenantById }     from "@/tenant/server";
 import { listAbmLeadsAction } from "./actions";
+import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
 import { AbmClient }         from "./_components/AbmClient";
 
 export default async function AbmPage({
@@ -18,10 +19,16 @@ export default async function AbmPage({
 }) {
   const { tenantId } = await params;
 
-  const [leads, tenant] = await Promise.all([
+  const [leads, tenant, segmentsResult] = await Promise.all([
     listAbmLeadsAction(tenantId),
     getTenantById(tenantId),
+    listAudienceSegmentsAction(tenantId),
   ]);
+
+  // Only offer active segments in the lead form's dropdown.
+  const segments = (segmentsResult.ok ? segmentsResult.data : [])
+    .filter((s) => s.isActive)
+    .map((s) => ({ key: s.key, label: s.label }));
 
   // Base for the outreach link. Falls back to a relative path when no primary
   // domain is configured yet.
@@ -47,7 +54,7 @@ export default async function AbmPage({
         </p>
       </div>
 
-      <AbmClient tenantId={tenantId} initialLeads={leads} baseUrl={baseUrl} />
+      <AbmClient tenantId={tenantId} initialLeads={leads} baseUrl={baseUrl} segments={segments} />
     </div>
   );
 }
