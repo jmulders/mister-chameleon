@@ -60,7 +60,8 @@
 export const dynamic = "force-dynamic";
 
 import { cache }     from "react";
-import { notFound }  from "next/navigation";
+import { notFound, redirect }  from "next/navigation";
+import { getAbmLeadByHandle }   from "@/lib/abm/abm-store";
 import { draftMode, cookies, headers } from "next/headers";
 import type { Metadata } from "next";
 import { createCMSProvider, createPreviewCMSProvider, createDraftStatamicProvider } from "@/cms";
@@ -294,7 +295,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   // FAQ collection sources (by_category / select_items) are correctly resolved in
   // the CP Live Preview.  If the page does not exist on disk yet (new / unpublished
   // entry) getPageBySlug returns null and we fall back to the simple builder.
-  let [page, tenant] = await Promise.all([
+  const [resolvedPage, tenant] = await Promise.all([
     draftEntry !== null
       ? (async () => {
           const draftProvider = createDraftStatamicProvider(draftEntry.blocks ?? []);
@@ -304,6 +305,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
       : getPageData(slug, preview, tenantId, locale),
     getTenantById(tenantId ?? ""),
   ]);
+  let page = resolvedPage;
 
   // ── Dev-only Statamic filesystem fallback ─────────────────────────────────
   //
@@ -333,6 +335,16 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   }
 
   if (!page) {
+    // ABM personalized URL — a vanity path (e.g. /aanbodvoorjasper) bound to a
+    // lead. Forward to /go/{identifier}, which stamps the mc_lead cookie and
+    // redirects to the lead's target page. Only runs on a genuine page miss, so
+    // it adds no cost to normal traffic. Unknown slugs fall through to notFound().
+    if (!preview) {
+      const lead = await getAbmLeadByHandle(tenantId, slug);
+      if (lead) {
+        redirect(`/go/${encodeURIComponent(lead.identifier)}`);
+      }
+    }
     notFound();
   }
 

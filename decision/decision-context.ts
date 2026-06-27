@@ -77,6 +77,21 @@ import type { InterestScore, InterestContextVars } from "@/interest-profiles/typ
  * All optional fields default to `null` in buildDecisionContext(); no field
  * is ever `undefined` after the builder runs.
  */
+/**
+ * Deterministic, named identity resolved from an ABM personalized URL.
+ * All profile fields are optional (whatever the lead record carried); the
+ * `confidence` marks this as an exact, not inferred, identity.
+ */
+export interface KnownLeadContext {
+  firstName?:   string;
+  name?:        string;
+  company?:     string;
+  role?:        string;
+  industry?:    string;
+  companySize?: string;
+  confidence:   "exact";
+}
+
 export interface DecisionContext extends RuleEvaluationContext {
   /**
    * Tenant subscription tier.
@@ -110,6 +125,16 @@ export interface DecisionContext extends RuleEvaluationContext {
    * Default: `{}` (empty partial — no enrichment available or pipeline skipped).
    */
   enrichment: Partial<EnrichmentOutput>;
+
+  /**
+   * Deterministic identity from an ABM personalized URL (lead link). Present
+   * only when the visitor arrived via /go/{token} or a vanity path bound to a
+   * lead (the `mc_lead` cookie). The highest-confidence identity signal — rules
+   * and the AI may personalize for this named account, and the lead's
+   * `segment_hint` is folded into `audienceSegmentIds`.
+   * See docs/abm-personalized-urls.md.
+   */
+  knownLead?: KnownLeadContext;
 
   /**
    * Client / device context — UA-parsed server fields + browser-collected signals.
