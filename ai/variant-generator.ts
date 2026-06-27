@@ -20,6 +20,14 @@ import type {
 
 export type GeneratorSlot = "hero" | "proof" | "cta";
 
+/**
+ * Max variants per slot per tenant. The generator warns near it and saving is
+ * blocked at it — keeps the candidate set (and the rule surface) from sprawling.
+ * Lives here (not in the "use server" actions file, which may only export async
+ * functions).
+ */
+export const MAX_VARIANTS_PER_SLOT = 8;
+
 export interface VariantBrief {
   slot:         GeneratorSlot;
   /** Free-text audience, or filled from a segment / ABM lead profile. */

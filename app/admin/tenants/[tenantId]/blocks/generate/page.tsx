@@ -8,7 +8,7 @@
 
 import Link               from "next/link";
 import { GenerateClient } from "./_components/GenerateClient";
-import { MAX_VARIANTS_PER_SLOT } from "./actions";
+import { MAX_VARIANTS_PER_SLOT } from "@/ai/variant-generator";
 
 export default async function GenerateVariantPage({
   params,

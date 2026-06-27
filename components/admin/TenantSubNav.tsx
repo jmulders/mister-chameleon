@@ -151,7 +151,7 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
       icon:   ICONS.content,
       items: [
         { label: "CMS",        href: `${base}/content`,    activePrefix: `${base}/content` },
-        { label: "Pagina's",   href: `${base}/pages`,      activePrefix: `${base}/pages` },
+        { label: "Pages",      href: `${base}/pages`,      activePrefix: `${base}/pages` },
         { label: "Blueprints", href: `${base}/blueprints`, activePrefix: `${base}/blueprints` },
         { label: "Forms",      href: `${base}/forms`,      activePrefix: `${base}/forms` },
         { label: "Assets",     href: `${base}/assets`,     activePrefix: `${base}/assets` },
@@ -159,7 +159,7 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
     },
     {
       key:    "personalization",
-      label:  "Personalisatie",
+      label:  "Personalization",
       href:   `${base}/behavior/slots`,
       prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill|${base}/theme-switching`,
       icon:   ICONS.personalization,
@@ -167,10 +167,10 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
         { label: "Slots",           href: `${base}/behavior/slots`, activePrefix: `${base}/behavior/slots` },
         { label: "Variants",        href: `${base}/variants`,       activePrefix: `${base}/variants` },
         { label: "Adaptive blocks", href: `${base}/blocks`,         activePrefix: `${base}/blocks` },
-        { label: "Regels",          href: `${base}/rules`,          activePrefix: `${base}/rules` },
+        { label: "Rules",           href: `${base}/rules`,          activePrefix: `${base}/rules` },
         { label: "Experiments",     href: `${base}/experiments`,    activePrefix: `${base}/experiments` },
         { label: "AI",              href: `${base}/ai`,             activePrefix: `${base}/ai`, exact: true },
-        { label: "Thema-switching", href: `${base}/theme-switching`, activePrefix: `${base}/theme-switching` },
+        { label: "Theme switching", href: `${base}/theme-switching`, activePrefix: `${base}/theme-switching` },
       ],
     },
     {

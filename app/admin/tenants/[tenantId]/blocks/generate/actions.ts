@@ -15,14 +15,12 @@ import { listAdaptiveBlocks }      from "@/lib/adaptive-blocks/adaptive-blocks-s
 import { upsertAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import {
   generateVariant,
+  MAX_VARIANTS_PER_SLOT,
   type VariantBrief,
   type GeneratedVariant,
   type GeneratorSlot,
 }                                  from "@/ai/variant-generator";
 import type { AdaptiveVariantContent } from "@/cms/types";
-
-/** Max ACTIVE-or-not variants per slot per tenant. Beyond this, archive/replace. */
-export const MAX_VARIANTS_PER_SLOT = 8;
 
 async function countForSlot(tenantId: string, slot: GeneratorSlot): Promise<number> {
   const blocks = await listAdaptiveBlocks(tenantId, false); // tenant-only, exclude platform
