@@ -27,6 +27,7 @@
  *   --font-subheading-weight  Author name font weight
  */
 
+import Image from "next/image";
 import { Container } from "@/components/primitives/Container";
 import { Section } from "@/components/primitives/Section";
 import { Grid } from "@/components/primitives/Grid";
@@ -165,9 +166,11 @@ export function TestimonialSectionBlock({
                 {/* Author photo */}
                 {featured.avatar && (
                   <div className="shrink-0">
-                    <img
+                    <Image
                       src={featured.avatar}
                       alt={featured.author}
+                      width={128}
+                      height={128}
                       className="h-24 w-24 rounded-full object-cover lg:h-32 lg:w-32"
                     />
                   </div>
@@ -453,10 +456,11 @@ export function TestimonialSectionBlock({
                   {/* Attribution — avatar + name/role/company */}
                   <div className="flex items-center gap-3">
                     {testimonial.avatar && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={testimonial.avatar}
                         alt={testimonial.author}
+                        width={40}
+                        height={40}
                         className="h-10 w-10 shrink-0 rounded-full object-cover"
                       />
                     )}

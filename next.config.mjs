@@ -123,6 +123,15 @@ const nextConfig = {
         // /images/{projectId}/{dataset}/{id}-{hash}.{ext}
         pathname: "/**",
       },
+      // ── Statamic CMS assets (per-tenant) ──────────────────────────────────────
+      //
+      // Tenant CMS instances serve assets at https://cms.<tenant>/assets/*.
+      // Authors frequently upload full-resolution images (e.g. a 2012×2012 photo
+      // shown as a 70px avatar), so routing them through next/image to resize +
+      // serve AVIF/WebP is a major payload + LCP win.  Add new tenant CMS hosts
+      // here as they go live.
+      { protocol: "https", hostname: "cms.misterchameleon.nl", pathname: "/assets/**" },
+      { protocol: "https", hostname: "cms.steunles.nl",        pathname: "/assets/**" },
       // ── Cloudflare R2 ───────────────────────────────────────────────────────
       //
       // Allow next/image to serve assets from the configured R2 public URL.
