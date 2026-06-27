@@ -20,6 +20,7 @@
 
 import "server-only";
 import { getGoogleAccessToken } from "./auth";
+import { resolveCalendarConfig } from "./config";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -59,12 +60,14 @@ export interface BookingError {
  */
 export async function createDemoBooking(
   details: BookingDetails,
+  tenantId?: string,
 ): Promise<BookingResult | BookingError> {
-  const calendarId = process.env.GOOGLE_CALENDAR_ID;
-  const timezone   = process.env.DEMO_BOOKING_TIMEZONE ?? "Europe/Amsterdam";
+  // Resolve which calendar to book into (per-tenant → platform → env). Auth is
+  // always the shared platform service account.
+  const { calendarId, timezone } = await resolveCalendarConfig(tenantId);
 
   if (!calendarId) {
-    return { ok: false, error: "GOOGLE_CALENDAR_ID is not configured." };
+    return { ok: false, error: "No booking calendar is configured." };
   }
 
   const { startDateTime, endDateTime } = buildEventTimes(

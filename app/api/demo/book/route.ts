@@ -36,6 +36,8 @@ import { createDemoBooking }          from "@/lib/google-calendar/booking";
 import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
 import { logger }                     from "@/lib/logger";
 import { serverEnv }                  from "@/lib/env";
+import { getActiveTenant }            from "@/tenant/get-active-tenant";
+import { resolveCalendarConfig }      from "@/lib/google-calendar/config";
 
 export const runtime = "nodejs";
 
@@ -64,13 +66,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   logger.info("[demo/book] Booking request received", { date, time, email });
 
+  // Resolve the active tenant so per-tenant calendars are honoured (the booking
+  // lib falls back to the platform calendar when the tenant has none).
+  let tenantId: string | undefined;
+  try {
+    tenantId = (await getActiveTenant()).tenantId;
+  } catch {
+    tenantId = undefined;
+  }
+
   // ── Create Google Calendar event ─────────────────────────────────────────
   const bookingResult = await createDemoBooking({
     date, time, name, email,
     ...(company ? { company } : {}),
     ...(phone   ? { phone   } : {}),
     ...(message ? { message } : {}),
-  });
+  }, tenantId);
 
   if (!bookingResult.ok) {
     logger.error("[demo/book] Calendar booking failed", { error: bookingResult.error });
@@ -96,7 +107,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── Send confirmation + backoffice emails ────────────────────────────────
   const transport = resolveTransportConfig();
   const from      = serverEnv.email.fromAddress ?? "Mister Chameleon <hello@misterchameleon.nl>";
-  const timezone  = process.env.DEMO_BOOKING_TIMEZONE ?? "Europe/Amsterdam";
+  const timezone  = (await resolveCalendarConfig(tenantId)).timezone;
 
   logger.info("[demo/book] Email transport", { type: transport.type, from });
 

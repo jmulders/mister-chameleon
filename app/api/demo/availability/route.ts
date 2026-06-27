@@ -19,8 +19,18 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAvailableSlots }         from "@/lib/google-calendar/availability";
+import { getActiveTenant }           from "@/tenant/get-active-tenant";
 
 export const runtime = "nodejs";
+
+/** Resolve the active tenant id from the request host (platform fallback on failure). */
+async function activeTenantId(): Promise<string | undefined> {
+  try {
+    return (await getActiveTenant()).tenantId;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
@@ -53,7 +63,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const result = await getAvailableSlots(date);
+  const result = await getAvailableSlots(date, await activeTenantId());
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 500 });

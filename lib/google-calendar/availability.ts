@@ -27,6 +27,7 @@
 
 import "server-only";
 import { getGoogleAccessToken } from "./auth";
+import { resolveCalendarConfig } from "./config";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
@@ -36,30 +37,7 @@ const FREEBUSY_URL   = "https://www.googleapis.com/calendar/v3/freeBusy";
 const SLOT_DURATION  = 30; // minutes
 const MIN_ADVANCE_MS = 2 * 60 * 60 * 1000; // 2 hours minimum advance booking
 
-async function getConfig() {
-  // Resolution order: platform_settings DB → env vars → hardcoded defaults
-  try {
-    const { getPlatformGoogleCalendarSettings } = await import("@/platform/platform-store");
-    const result = await getPlatformGoogleCalendarSettings();
-    if (result.ok && result.data.calendarId) {
-      return {
-        calendarId:  result.data.calendarId,
-        timezone:    result.data.bookingTimezone  ?? process.env.DEMO_BOOKING_TIMEZONE ?? "Europe/Amsterdam",
-        hoursStart:  result.data.bookingHoursStart ?? parseInt(process.env.DEMO_BOOKING_HOURS_START ?? "9",  10),
-        hoursEnd:    result.data.bookingHoursEnd   ?? parseInt(process.env.DEMO_BOOKING_HOURS_END   ?? "17", 10),
-      };
-    }
-  } catch {
-    // DB unavailable — fall through to env vars
-  }
-
-  return {
-    calendarId:  process.env.GOOGLE_CALENDAR_ID ?? "",
-    timezone:    process.env.DEMO_BOOKING_TIMEZONE ?? "Europe/Amsterdam",
-    hoursStart:  parseInt(process.env.DEMO_BOOKING_HOURS_START ?? "9",  10),
-    hoursEnd:    parseInt(process.env.DEMO_BOOKING_HOURS_END   ?? "17", 10),
-  };
-}
+// Config resolution (per-tenant → platform → env) lives in ./config.ts.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
@@ -84,8 +62,9 @@ export interface AvailabilityError {
  */
 export async function getAvailableSlots(
   date: string,
+  tenantId?: string,
 ): Promise<AvailabilityResult | AvailabilityError> {
-  const { calendarId, timezone, hoursStart, hoursEnd } = await getConfig();
+  const { calendarId, timezone, hoursStart, hoursEnd } = await resolveCalendarConfig(tenantId);
 
   // ── Validate date format ───────────────────────────────────────────────────
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {

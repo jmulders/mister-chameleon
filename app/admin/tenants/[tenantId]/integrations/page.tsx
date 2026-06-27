@@ -218,6 +218,17 @@ export default async function TenantIntegrationsPage({
           . This page controls what is active and configured for this tenant only.
         </div>
 
+        {/* Calendar booking — dedicated sub-page */}
+        <Link
+          href={`/admin/tenants/${tenantId}/integrations/calendar`}
+          className="block rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
+        >
+          <span className="text-sm font-medium text-neutral-900">Calendar booking →</span>
+          <span className="block text-xs text-neutral-500">
+            Let visitors book appointments into this tenant&apos;s own Google Calendar.
+          </span>
+        </Link>
+
         {/* Full integrations client */}
         <TenantIntegrationsClient
           tenantId={tenantId}

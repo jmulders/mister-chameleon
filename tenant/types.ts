@@ -2185,6 +2185,29 @@ export interface TenantLanguageConfig {
   readonly enabled:   boolean;  // showSite attribute; false = staged but not live
 }
 
+/**
+ * Per-tenant Google Calendar booking configuration.
+ *
+ * No secrets live here — authentication uses the shared platform service
+ * account. The tenant only points at a calendar and sets working hours.
+ */
+export interface TenantCalendarSettings {
+  /** When true, this tenant's booking endpoints use the calendar below. */
+  readonly enabled?: boolean;
+  /**
+   * Google Calendar ID to book into / check availability for. Usually the
+   * mailbox address of the calendar. The calendar must be shared (with write
+   * access) with the platform service-account email.
+   */
+  readonly calendarId?: string;
+  /** IANA timezone for slot generation. Default: "Europe/Amsterdam". */
+  readonly bookingTimezone?: string;
+  /** First bookable hour, inclusive (24h). Default: 9. */
+  readonly bookingHoursStart?: number;
+  /** Last hour, exclusive (24h). Default: 17 (last slot 16:30). */
+  readonly bookingHoursEnd?: number;
+}
+
 export interface TenantSettings {
   readonly tenantId:          string;
 
@@ -2347,6 +2370,19 @@ export interface TenantSettings {
    * browser-facing component props.
    */
   readonly leadinfo?: TenantLeadinfoSettings;
+
+  /**
+   * Per-tenant Google Calendar demo/appointment booking.
+   *
+   * Authentication uses the SHARED platform service account (configured under
+   * Platform → Integrations → Calendar). The tenant only supplies which calendar
+   * to book into plus its working hours, and shares that calendar with the
+   * platform service-account email. When absent or `enabled !== true`, the
+   * booking endpoints fall back to the platform-level calendar.
+   *
+   * Configure via the Calendar tab under the tenant's Integrations workspace.
+   */
+  readonly calendar?: TenantCalendarSettings;
 
   /**
    * Tenant-level privacy policy.
