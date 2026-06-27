@@ -53,11 +53,16 @@ export async function saveAbmLeadAction(
   const target = input.targetPath.trim() || "/";
   if (!target.startsWith("/")) return { ok: false, error: "Target page must start with /." };
 
+  // Normalize the vanity path to always carry a leading slash, so the [slug]
+  // route (which looks it up as `/${slug}`) matches regardless of how it was typed.
+  const vanityRaw  = input.vanityPath?.trim();
+  const vanityPath = vanityRaw ? (vanityRaw.startsWith("/") ? vanityRaw : `/${vanityRaw}`) : null;
+
   const lead = await upsertAbmLead({
     id:          input.id,
     tenantId,
     identifier:  input.identifier?.trim() || genIdentifier(),
-    vanityPath:  input.vanityPath?.trim() || null,
+    vanityPath,
     targetPath:  target,
     profile:     input.profile,
     segmentHint: input.segmentHint?.trim() || null,

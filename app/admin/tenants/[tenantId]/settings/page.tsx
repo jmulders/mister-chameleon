@@ -105,7 +105,7 @@ export default async function TenantSettingsPage({
           Configure this tenant&apos;s identity, CMS connection, AI providers,
           feature flags, and the <strong>plan-gated block entitlements</strong>
           {" "}(which block types this package allows — distinct from the
-          Adaptive blocks catalogue under Personalisatie).
+          Adaptive blocks catalogue under Personalization).
         </p>
       </div>
 

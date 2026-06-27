@@ -43,7 +43,7 @@ export default async function TenantDesignPage({
         <h1 className="text-xl font-semibold text-neutral-900">Design</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Choose a theme and fine-tune its tokens. Theme switching by rule now
-          lives under Personalisatie → Thema-switching.
+          lives under Personalization → Theme switching.
         </p>
       </div>
 

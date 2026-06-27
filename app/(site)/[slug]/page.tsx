@@ -340,7 +340,12 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
     // redirects to the lead's target page. Only runs on a genuine page miss, so
     // it adds no cost to normal traffic. Unknown slugs fall through to notFound().
     if (!preview) {
-      const lead = await getAbmLeadByHandle(tenantId, slug);
+      // Vanity paths are stored with a leading slash (e.g. "/offer-for-john"),
+      // but the [slug] param is bare ("offer-for-john"). Match the canonical
+      // form first, then fall back to the bare slug for any legacy rows.
+      const lead =
+        (await getAbmLeadByHandle(tenantId, `/${slug}`)) ??
+        (await getAbmLeadByHandle(tenantId, slug));
       if (lead) {
         redirect(`/go/${encodeURIComponent(lead.identifier)}`);
       }
