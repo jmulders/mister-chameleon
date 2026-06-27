@@ -59,6 +59,7 @@ import {
 } from "@/lib/scenario/server-scenario";
 import { evaluateAudienceSegments } from "@/audience-segments/evaluate";
 import { applyAudienceSegments }    from "@/decision/decision-context";
+import { applyKnownLead }           from "@/lib/abm/apply-known-lead";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -495,28 +496,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // known account, and (b) attach a `knownLead` block for the AI / named greeting.
   // Fail-open: any error or no cookie → no-op, normal personalization.
   try {
-    const leadId = cookieStore.get("mc_lead")?.value;
-    if (leadId) {
-      const { getAbmLeadById } = await import("@/lib/abm/abm-store");
-      const lead = await getAbmLeadById(leadId);
-      if (lead && lead.status === "active") {
-        if (lead.segmentHint) {
-          const ids = (input.audienceSegmentIds ?? "")
-            .split(",").map((s) => s.trim()).filter(Boolean);
-          if (!ids.includes(lead.segmentHint)) ids.push(lead.segmentHint);
-          (input as { audienceSegmentIds: string | null }).audienceSegmentIds = ids.join(",") || null;
-        }
-        (input as { knownLead?: import("@/decision/decision-context").KnownLeadContext }).knownLead = {
-          firstName:   lead.profile.firstName,
-          name:        lead.profile.name,
-          company:     lead.profile.company,
-          role:        lead.profile.role,
-          industry:    lead.profile.industry,
-          companySize: lead.profile.companySize,
-          confidence:  "exact",
-        };
-      }
-    }
+    await applyKnownLead(input, cookieStore.get("mc_lead")?.value);
   } catch (err) {
     logger.warn("[pipeline] ABM known-lead injection failed", {
       err: err instanceof Error ? err.message : String(err),

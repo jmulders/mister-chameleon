@@ -510,6 +510,21 @@ export function buildUserPrompt(input: EnrichedDecisionInput): string {
     }
   }
 
+  // ── Known lead (ABM personalized URL) — exact, named identity ──────────────
+  // The highest-confidence signal: the visitor was sent a personalized link, so
+  // we know exactly who they are. Prioritise this over reverse-IP inference.
+  const lead = (input as { knownLead?: import("@/decision/decision-context").KnownLeadContext }).knownLead;
+  if (lead && (lead.company || lead.name || lead.role)) {
+    lines.push("");
+    lines.push("KNOWN LEAD (account-based — exact identity; prioritise over inferred signals):");
+    if (lead.firstName)   lines.push(`  First name (use for a personal greeting): ${lead.firstName}`);
+    if (lead.name)        lines.push(`  Name:     ${lead.name}`);
+    if (lead.company)     lines.push(`  Company:  ${lead.company}`);
+    if (lead.role)        lines.push(`  Role:     ${lead.role}`);
+    if (lead.industry)    lines.push(`  Industry: ${lead.industry}`);
+    if (lead.companySize) lines.push(`  Size:     ${lead.companySize}`);
+  }
+
   // ── Enrichment: geo ────────────────────────────────────────────────────────
   const e = input.enrichment ?? {};
   const city    = (e as Record<string, unknown>)["currentCity"]    ?? (e as Record<string, unknown>)["city"]    ?? null;

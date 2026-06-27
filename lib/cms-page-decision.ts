@@ -73,6 +73,7 @@ import { loadTenantRulesConfig }   from "@/decision/rules/load-tenant-rules";
 import type { StoredRulesConfig }  from "@/decision/rules/stored-rule"; // used by _fileRulesConfig
 import { fetchVariantCatalogue }   from "@/decision/rules/fetch-variant-catalogue";
 import { buildDecisionContext }    from "@/decision/context/build-decision-context";
+import { applyKnownLead }          from "@/lib/abm/apply-known-lead";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
 import { AiDecisionProvider }      from "@/decision/providers/ai-decision-provider";
@@ -350,6 +351,21 @@ export async function resolveSlugPageConfig(
           postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
           await evaluateAudienceSegments(postScenarioInput, tenantId),
         ) as typeof postScenarioInput;
+
+    // ── ABM known-lead injection (covers non-homepage target pages) ───────────
+    // A lead's personalized URL can target any page (e.g. /pricing), so fold the
+    // lead into this page's context too — same helper as the homepage pipeline.
+    // Fail-open: any error leaves normal personalization intact.
+    try {
+      const cookieHeader = request.headers.get("cookie") ?? "";
+      const leadCookie = cookieHeader
+        .split(";").map((c) => c.trim())
+        .find((c) => c.startsWith("mc_lead="))
+        ?.slice("mc_lead=".length);
+      await applyKnownLead(input, leadCookie ? decodeURIComponent(leadCookie) : undefined);
+    } catch {
+      // ignore — normal personalization continues
+    }
 
     // ── Get experience plan from decision engine ───────────────────────────────
     //

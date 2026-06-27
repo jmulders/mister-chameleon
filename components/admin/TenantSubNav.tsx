@@ -177,11 +177,12 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
       key:    "audience",
       label:  "Audience",
       href:   `${base}/interest-profiles`,
-      prefix: `${base}/interest-profiles|${base}/audience-segments|${base}/behavior/journey|${base}/behavior`,
+      prefix: `${base}/interest-profiles|${base}/audience-segments|${base}/behavior/journey|${base}/behavior|${base}/abm`,
       icon:   ICONS.audience,
       items: [
         { label: "Interests", href: `${base}/interest-profiles`,    activePrefix: `${base}/interest-profiles` },
         { label: "Segments",  href: `${base}/audience-segments`,    activePrefix: `${base}/audience-segments` },
+        { label: "ABM",       href: `${base}/abm`,                  activePrefix: `${base}/abm` },
         { label: "Journey",   href: `${base}/behavior/journey`,     activePrefix: `${base}/behavior/journey` },
         { label: "Scoring",   href: `${base}/behavior`,             activePrefix: `${base}/behavior`,         exact: true },
       ],
