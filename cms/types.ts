@@ -553,6 +553,14 @@ export interface AdaptiveVariantContent {
    * `layoutVariant === "hero_carousel"`.
    */
   carouselAutoplay?: boolean;
+  /**
+   * AI / Decision metadata — structured signals the AI uses to decide whether
+   * to show this variant to a visitor. Authored in the admin (EditBlockDrawer)
+   * instead of the CMS. Readiness (aiReady) is derived from completeness of the
+   * required fields; an incomplete block is still usable as a manual/rule-based
+   * fallback. Absent = not yet described.
+   */
+  decisionMeta?: Partial<import("@/ai/variant-meta").VariantDecisionMeta>;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageUrl?:  string;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */

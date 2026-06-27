@@ -30,6 +30,20 @@ import type {
   HeroBannerVideoVimeo,
   HeroBannerMedia,
 } from "@/cms/types";
+import type {
+  VariantDecisionMeta,
+  IntentLevel,
+  FunnelStage,
+  VisitorSource,
+  VariantTone,
+} from "@/ai/variant-meta";
+
+// ── AI / Decision option lists ──────────────────────────────────────────────────
+
+const INTENT_LEVELS:  IntentLevel[]   = ["awareness", "consideration", "decision"];
+const FUNNEL_STAGES:  FunnelStage[]   = ["awareness", "consideration", "decision", "retention"];
+const VISITOR_SOURCES: VisitorSource[] = ["google", "linkedin", "direct", "unknown"];
+const VARIANT_TONES:  VariantTone[]   = ["educational", "inspiring", "direct", "persuasive", "credibility", "urgency"];
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -786,6 +800,25 @@ export function EditBlockDrawer({
     block.defaultVariant.carouselAutoplay ?? true,
   );
 
+  // ── AI / Decision metadata ────────────────────────────────────────────────
+  // Structured signals the AI uses to decide whether to show this variant.
+  // Stored as a Partial — incomplete metadata is allowed (the variant is then
+  // a manual/rule-based fallback; aiReady is derived from completeness).
+  const [decisionMeta, setDecisionMeta] = useState<Partial<VariantDecisionMeta>>(
+    block.defaultVariant.decisionMeta ?? {},
+  );
+  function setDM(patch: Partial<VariantDecisionMeta>) {
+    setDecisionMeta((m) => ({ ...m, ...patch }));
+  }
+  function toggleArrayValue<T>(arr: readonly T[] | undefined, val: T): T[] {
+    const set = new Set(arr ?? []);
+    if (set.has(val)) set.delete(val); else set.add(val);
+    return [...set];
+  }
+  function csvToArray(s: string): string[] {
+    return s.split(",").map((x) => x.trim()).filter(Boolean);
+  }
+
   // ── Async ──────────────────────────────────────────────────────────────────
 
   const [error, setError]       = useState<string | null>(null);
@@ -886,6 +919,7 @@ export function EditBlockDrawer({
         // switch away from the carousel.
         ...(layoutVariant === "hero_carousel" && slides.length ? { slides } : {}),
         ...(layoutVariant === "hero_carousel" ? { carouselAutoplay } : {}),
+        ...(Object.keys(decisionMeta).length ? { decisionMeta } : {}),
       };
 
       const savePath =
@@ -1288,6 +1322,151 @@ export function EditBlockDrawer({
               ))}
             </fieldset>
           )}
+
+          {/* ── AI / Decision metadata ──────────────────────────────────────── */}
+          <fieldset className="space-y-3 rounded-lg border border-neutral-200 p-4">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              AI / Decision
+            </legend>
+            <p className="text-xs text-neutral-500">
+              Structured signals the AI uses to decide whether to show this variant. Complete all
+              fields to make it AI-selectable; an incomplete block still works as a manual/rule-based
+              fallback.
+            </p>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">Decision label</label>
+              <input
+                type="text"
+                value={decisionMeta.decisionLabel ?? ""}
+                onChange={(e) => setDM({ decisionLabel: e.target.value })}
+                placeholder="Google — Problem Aware"
+                className={INPUT_CLS}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">Decision summary</label>
+              <textarea
+                value={decisionMeta.decisionSummary ?? ""}
+                onChange={(e) => setDM({ decisionSummary: e.target.value })}
+                rows={2}
+                placeholder="One sentence: what this variant communicates and why a visitor should see it."
+                className={`${INPUT_CLS} resize-none`}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">Intended audience</label>
+              <input
+                type="text"
+                value={decisionMeta.intendedAudience ?? ""}
+                onChange={(e) => setDM({ intendedAudience: e.target.value })}
+                placeholder="First-time visitors from Google with no role context"
+                className={INPUT_CLS}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">Intent level</label>
+                <select
+                  value={decisionMeta.intentLevel ?? ""}
+                  onChange={(e) => setDM({ intentLevel: (e.target.value || undefined) as IntentLevel | undefined })}
+                  className={INPUT_CLS}
+                >
+                  <option value="">—</option>
+                  {INTENT_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">Tone</label>
+                <select
+                  value={decisionMeta.tone ?? ""}
+                  onChange={(e) => setDM({ tone: (e.target.value || undefined) as VariantTone | undefined })}
+                  className={INPUT_CLS}
+                >
+                  <option value="">—</option>
+                  {VARIANT_TONES.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">Funnel stages</label>
+              <div className="flex flex-wrap gap-2">
+                {FUNNEL_STAGES.map((s) => {
+                  const on = decisionMeta.funnelStages?.includes(s) ?? false;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setDM({ funnelStages: toggleArrayValue(decisionMeta.funnelStages, s) })}
+                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${on ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-neutral-200 text-neutral-600 hover:border-neutral-300"}`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">Best for sources</label>
+              <div className="flex flex-wrap gap-2">
+                {VISITOR_SOURCES.map((s) => {
+                  const on = decisionMeta.bestForSources?.includes(s) ?? false;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setDM({ bestForSources: toggleArrayValue(decisionMeta.bestForSources, s) })}
+                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${on ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-neutral-200 text-neutral-600 hover:border-neutral-300"}`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">Primary goal</label>
+              <input
+                type="text"
+                value={decisionMeta.primaryGoal ?? ""}
+                onChange={(e) => setDM({ primaryGoal: e.target.value })}
+                placeholder="Book a demo"
+                className={INPUT_CLS}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">
+                Supporting goals <span className="font-normal text-neutral-400">(comma-separated, optional)</span>
+              </label>
+              <input
+                type="text"
+                value={(decisionMeta.supportingGoals ?? []).join(", ")}
+                onChange={(e) => setDM({ supportingGoals: csvToArray(e.target.value) })}
+                placeholder="Newsletter signup, Watch demo video"
+                className={INPUT_CLS}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">
+                Exclusions <span className="font-normal text-neutral-400">(comma-separated, optional)</span>
+              </label>
+              <input
+                type="text"
+                value={(decisionMeta.exclusions ?? []).join(", ")}
+                onChange={(e) => setDM({ exclusions: csvToArray(e.target.value) })}
+                placeholder="Returning customers, Logged-in users"
+                className={INPUT_CLS}
+              />
+            </div>
+          </fieldset>
 
           {error && (
             <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
