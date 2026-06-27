@@ -15,6 +15,7 @@ const LABEL = "block text-xs font-medium text-neutral-600 mb-1";
 
 interface FormState {
   id?:          string;
+  identifier:   string;
   firstName:    string;
   name:         string;
   company:      string;
@@ -29,6 +30,7 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
+  identifier: "",
   firstName: "", name: "", company: "", role: "", industry: "", companySize: "",
   linkedinUrl: "", targetPath: "/", vanityPath: "", segmentHint: "", status: "active",
 };
@@ -58,6 +60,7 @@ export function AbmClient({
   function edit(lead: AbmLead) {
     setForm({
       id:          lead.id,
+      identifier:  lead.identifier,
       firstName:   lead.profile.firstName   ?? "",
       name:        lead.profile.name        ?? "",
       company:     lead.profile.company     ?? "",
@@ -77,6 +80,7 @@ export function AbmClient({
     start(async () => {
       const res = await saveAbmLeadAction(tenantId, {
         id:          form.id,
+        identifier:  form.identifier || undefined,
         targetPath:  form.targetPath,
         vanityPath:  form.vanityPath,
         segmentHint: form.segmentHint,
