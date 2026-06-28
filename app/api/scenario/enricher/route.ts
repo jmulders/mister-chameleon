@@ -43,8 +43,21 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   ENRICHER_BY_KEY,
   getAllMockOutput,
-  type EnricherKey,
 } from "@/lib/scenario/enricher-registry";
+import { buildCompanyCrmChain }   from "@/enrichment";
+import { runStagedPipeline }      from "@/enrichment/staged-pipeline";
+import type { EnricherInput }     from "@/enrichment/types";
+import { getActiveTenant }        from "@/tenant/get-active-tenant";
+import { parseLeadinfoCookie, leadinfoToEnrichment, LEADINFO_COOKIE } from "@/context/leadinfo-context";
+import {
+  getPlatformEnrichmentSettings,
+  getPlatformOpenKvKSettings,
+  getPlatformReverseGeocodeSettings,
+  getPlatformWeatherSettings,
+  getPlatformMaxMindSettings,
+} from "@/platform/platform-store";
+
+export const runtime = "nodejs";
 
 // ── Guard: only available in dev/preview/scenario-enabled environments ────────
 
@@ -149,29 +162,78 @@ export async function POST(request: NextRequest) {
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
            ?? request.headers.get("x-real-ip")
-           ?? "127.0.0.1";
+           ?? null;
 
-  // For now, live mode gracefully falls back to mock with a clear note.
-  // When a specific enricher's live client is wired up here, remove the fallback.
-  const liveNotImplemented = true; // will be removed per-enricher as live clients are added
+  try {
+    const tenantId = await getActiveTenant().then((t) => t.tenantId).catch(() => null);
+    const isDev = process.env.NODE_ENV !== "production";
 
-  if (liveNotImplemented) {
-    await new Promise((r) => setTimeout(r, 100 + Math.random() * 150));
+    // ── Leadinfo: read the mc_li cookie (not an API enricher here) ────────────
+    if (enricherKey === "leadinfo") {
+      const li = parseLeadinfoCookie(request.cookies.get(LEADINFO_COOKIE)?.value ?? null);
+      const out = li ? (leadinfoToEnrichment(li) as Record<string, unknown>) : {};
+      return NextResponse.json({ enricherKey, output: out, durationMs: Date.now() - startMs, mockMode: false });
+    }
 
+    // ── Run the real staged enrichment chain (geo → weather chaining included) ─
+    const [enr, okvk, rgeo, weather, mm] = await Promise.all([
+      getPlatformEnrichmentSettings(),
+      getPlatformOpenKvKSettings(),
+      getPlatformReverseGeocodeSettings(),
+      getPlatformWeatherSettings(),
+      getPlatformMaxMindSettings(),
+    ]);
+    const enrD     = (enr.ok     ? enr.data     : {}) as Record<string, string | undefined>;
+    const okvkD    = (okvk.ok    ? okvk.data    : {}) as Record<string, unknown>;
+    const rgeoD    = (rgeo.ok    ? rgeo.data    : {}) as Record<string, unknown>;
+    const weatherD = (weather.ok ? weather.data : {}) as Record<string, unknown>;
+    const mmD      = (mm.ok      ? mm.data      : {}) as Record<string, string | undefined>;
+
+    const chain = buildCompanyCrmChain({
+      ipinfoToken:       enrD.ipinfoToken || undefined,
+      maxmindWebService: mmD.accountId && mmD.licenseKey
+                           ? { accountId: mmD.accountId, licenseKey: mmD.licenseKey } : undefined,
+      enableReverseGeocode:        Boolean(rgeoD.enabled),
+      reverseGeocodeLocationIqKey: (rgeoD.locationIqApiKey as string) || undefined,
+      enableWeather:               Boolean(weatherD.enabled),
+      enableOpenKvK:               true,
+      openKvKMode:                 okvkD.mode as "off" | "nl-only" | "always" | undefined,
+      openKvKMatchingStrategy:     okvkD.matchingStrategy as "networkOrg" | "companyName" | "networkDomain" | undefined,
+      openKvKConfidenceThreshold:  okvkD.confidenceThreshold as number | undefined,
+      ovioApiKey:                  enrD.ovioApiKey || undefined,
+      kvkApiKey:                   enrD.kvkApiKey  || undefined,
+      isDev,
+    });
+
+    const input: EnricherInput = {
+      ip,
+      effectiveIp: ip,
+      tenantId,
+      sessionId:   sessionId ?? null,
+      email:       null,
+      utm:         { campaign: null, source: null, medium: null, term: null, content: null },
+    };
+
+    const { output } = await runStagedPipeline(chain, input, { timeoutMs: 4500 });
+
+    // Filter to the requested enricher's fields (full output for "all").
+    const result = enricherKey === "all"
+      ? output
+      : Object.fromEntries(
+          Object.entries(output).filter(([k]) => definition.outputFields.includes(k)),
+        );
+
+    return NextResponse.json({ enricherKey, output: result, durationMs: Date.now() - startMs, mockMode: false });
+  } catch (err) {
+    // Fail-safe: fall back to mock so the panel never breaks.
     return NextResponse.json({
       enricherKey,
       output:    definition.mockOutput,
       durationMs: Date.now() - startMs,
-      mockMode:  false,          // requested live but fell back
-      note:      `Live ${definition.label} not yet wired — returning mock. IP detected: ${ip}`,
+      mockMode:  false,
+      error:     err instanceof Error ? err.message : String(err),
     });
   }
-
-  // Unreachable for now — placeholder for live enricher execution.
-  return NextResponse.json(
-    { error: "Live enricher execution not implemented for this key." },
-    { status: 501 },
-  );
 }
 
 // GET is not supported — return a helpful error.
