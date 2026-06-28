@@ -550,6 +550,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
         enrichmentTrace:   capturedDebugInfo?.enrichmentTrace,
         scenarioOverrides: scenarioOverrides ?? null,
         rawCtx:            scenarioOverrides ? rawInput : undefined,
+        forcedSegment:     abmLead?.segmentHint ?? null,
       })
     : null;
 

@@ -51,6 +51,7 @@ import {
 } from "@/context/library";
 import type { ThemeDecisionTrace } from "@/decision/theme-decision";
 import type { ScoringDebugPayload } from "@/lib/journey/types";
+import type { KnownLeadContext } from "@/decision/decision-context";
 
 // ── Public types ───────────────────────────────────────────────────────────────
 
@@ -132,6 +133,19 @@ export interface FullContextSnapshot {
    * Callers pass it via options.scoringDebug.
    */
   scoringDebug?: ScoringDebugPayload;
+  /**
+   * Deterministic ABM identity, present only when the visitor arrived via a
+   * personalized URL (the `mc_lead` cookie resolved to an active lead). Surfaces
+   * the known account at a glance in the debug overlay, alongside the segment it
+   * forced (see `forcedSegment`). Absent for anonymous traffic.
+   */
+  knownLead?: KnownLeadContext;
+  /**
+   * The audience-segment key the known lead forced into `audienceSegmentIds`
+   * (the lead's `segment_hint`). Null when the lead had no linked segment.
+   * Only present when `knownLead` is present.
+   */
+  forcedSegment?: string | null;
 }
 
 // Re-export for consumers that import from this module.
@@ -219,6 +233,11 @@ export function buildFullContextSnapshot(
      * Callers attach it from the DeriveResult returned by deriveBehaviorState().
      */
     scoringDebug?: ScoringDebugPayload;
+    /**
+     * The audience-segment key forced by the known ABM lead (its `segment_hint`),
+     * surfaced next to the `knownLead` badge. Pass the resolved lead's segment.
+     */
+    forcedSegment?: string | null;
   },
 ): FullContextSnapshot {
   const bySource: Partial<Record<ContextVarSource, FullContextEntry[]>> = {};
@@ -366,6 +385,10 @@ export function buildFullContextSnapshot(
     ? matchContextDefinitions(ctx)
     : undefined;
 
+  // Surface the deterministic ABM identity (present only when the mc_lead cookie
+  // resolved to an active lead), so the debug overlay shows the known account.
+  const knownLead = (ctx as unknown as { knownLead?: KnownLeadContext }).knownLead;
+
   return {
     bySource,
     totalResolved,
@@ -373,6 +396,7 @@ export function buildFullContextSnapshot(
     matchedContexts,
     ...(options?.themeDecision ? { themeDecision: options.themeDecision } : {}),
     ...(options?.scoringDebug  ? { scoringDebug:  options.scoringDebug  } : {}),
+    ...(knownLead ? { knownLead, forcedSegment: options?.forcedSegment ?? null } : {}),
   };
 }
 
