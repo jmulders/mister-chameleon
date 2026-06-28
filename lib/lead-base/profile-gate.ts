@@ -118,13 +118,26 @@ export function gateProfileWrite(
     if (candidate.interests)   patch.interests  = candidate.interests;
   }
 
-  // Firmographic snapshot — only with enrichment consent. Company-by-IP is
-  // firmographic (not personal data), but we still respect the category.
-  if (consent.enrichment) {
+  // Company firmographics.
+  //
+  // Two sources, two lawful bases:
+  //  • IP-derived (a "recognised" visitor) → respects `enrichment` consent.
+  //  • First-party (a "known" ABM lead — `abmLeadId` set) → the tenant's own CRM
+  //    record about their own named contact, who self-identified by clicking the
+  //    personalized link they were sent. That's first-party processing under
+  //    legitimate interest, not third-party enrichment, so the visitor's cookie
+  //    consent does not gate it. (Coarse geo below stays enrichment-gated — it is
+  //    always IP-derived.)
+  const abmFirstParty = !!candidate.abmLeadId;
+  if (consent.enrichment || abmFirstParty) {
     if (candidate.companyName     !== undefined) patch.companyName     = candidate.companyName;
     if (candidate.companyDomain   !== undefined) patch.companyDomain   = candidate.companyDomain;
     if (candidate.companySize     !== undefined) patch.companySize     = candidate.companySize;
     if (candidate.companyIndustry !== undefined) patch.companyIndustry = candidate.companyIndustry;
+  }
+
+  // Coarse geo snapshot — IP-derived, so always requires enrichment consent.
+  if (consent.enrichment) {
     if (candidate.geoCountry      !== undefined) patch.geoCountry      = candidate.geoCountry;
     if (candidate.geoRegion       !== undefined) patch.geoRegion       = candidate.geoRegion;
   }
