@@ -380,8 +380,12 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     kvkApiKey:                   (platformEnrichment as { kvkApiKey?: string }).kvkApiKey || undefined,
     ovioApiKey:                  (platformEnrichment as { ovioApiKey?: string }).ovioApiKey || undefined,
     leadinfoApiKey:              (platformEnrichment as { leadinfoApiKey?: string }).leadinfoApiKey || undefined,
-    enableLeadinfo:              pipelineEnabled("leadinfo",
-                                   tenant?.leadinfo?.enabled ?? false),
+    // Leadinfo has NO public real-time identify API (it works via the ping.js
+    // tracking script → dashboard, not a server call). The server-side Leadinfo
+    // enricher targeted a non-existent endpoint and could never produce data, so
+    // it is permanently disabled. `tenant.leadinfo.enabled` now only drives the
+    // client-side ping.js (LeadinfoProvider) for dashboard tracking.
+    enableLeadinfo:              false,
     hubspotAccessToken:          (platformCrm as { accessToken?: string }).accessToken || undefined,
     enableHubSpot:               pipelineEnabled("hubspot",
                                    tenant?.crm?.useCrmEnrichment ?? false),
