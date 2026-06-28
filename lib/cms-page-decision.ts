@@ -78,6 +78,8 @@ import {
   injectKnownLeadContext,
   forceKnownLeadSegment,
 } from "@/lib/abm/apply-known-lead";
+import { recordVisitorProfile }      from "@/lib/lead-base/record-visitor-profile";
+import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
 import { AiDecisionProvider }      from "@/decision/providers/ai-decision-provider";
@@ -391,6 +393,20 @@ export async function resolveSlugPageConfig(
         // ignore — normal personalization continues
       }
     }
+
+    // ── Lead Base — persist the profile on non-homepage pages too ─────────────
+    // Same recorder as the homepage pipeline; runs post-response, fail-open. Keeps
+    // the profile fresh (last seen, behaviour, segments) and links named leads on
+    // any page with adaptive slots. See docs/lead-base-design.md.
+    after(async () => {
+      await recordVisitorProfile({
+        tenantId,
+        visitorKey:   sessionId,
+        cookieHeader,
+        ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
+        abmLeadId:    abmLead?.id ?? null,
+      });
+    });
 
     // ── Get experience plan from decision engine ───────────────────────────────
     //

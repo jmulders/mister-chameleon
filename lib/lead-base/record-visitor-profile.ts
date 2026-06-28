@@ -15,6 +15,7 @@ import type { DecisionContext } from "@/decision/decision-context";
 import { resolveConsent }       from "@/lib/consent/server-consent";
 import { gateProfileWrite, type ProfileCandidate, type IdentityLevel, type ProfileStatus } from "./profile-gate";
 import { upsertVisitorProfile } from "./visitor-profiles-store";
+import { fireProfileWebhook, isNewlyQualified } from "./profile-webhook";
 import { logger }               from "@/lib/logger";
 
 function mapStatus(funnel: string | null, known: boolean, customer: boolean): ProfileStatus {
@@ -67,7 +68,13 @@ export async function recordVisitorProfile(args: {
     };
 
     const patch = gateProfileWrite(candidate, consent);
-    await upsertVisitorProfile(patch);
+    const result = await upsertVisitorProfile(patch);
+
+    // CRM sync — push to the tenant webhook only on an upward qualification
+    // (became known / MQL / SQL / customer), so normal page views never spam it.
+    if (result && isNewlyQualified(result)) {
+      await fireProfileWebhook(patch, result);
+    }
   } catch (err) {
     logger.warn("[lead-base] recordVisitorProfile failed", {
       err: err instanceof Error ? err.message : String(err),

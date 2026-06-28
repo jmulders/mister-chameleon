@@ -66,13 +66,21 @@ function mapRow(row: Record<string, unknown>): VisitorProfile {
 
 // ── Upsert (per request) ───────────────────────────────────────────────────────
 
+/** What an upsert changed — lets callers detect upward qualification. */
+export interface ProfileUpsertResult {
+  prevLevel:  IdentityLevel | null;
+  level:      IdentityLevel;
+  prevStatus: ProfileStatus | null;
+  status:     ProfileStatus;
+}
+
 /**
  * Upsert a gated profile patch. Bumps visit_count + last_seen_at, sets
  * first_seen_at on first sight, and refreshes the retention TTL. Only the columns
  * present in the patch are written — denied field-groups are never overwritten.
- * Fire-and-forget safe.
+ * Returns the level/status transition (or null on failure). Fire-and-forget safe.
  */
-export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<void> {
+export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<ProfileUpsertResult | null> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = getDb() as any;
@@ -80,7 +88,7 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<vo
 
     const { data: existing } = await db
       .from("visitor_profiles")
-      .select("visit_count, first_seen_at")
+      .select("visit_count, first_seen_at, identity_level, status")
       .eq("tenant_id", patch.tenantId)
       .eq("visitor_key", patch.visitorKey)
       .maybeSingle();
@@ -111,10 +119,18 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<vo
     };
 
     await db.from("visitor_profiles").upsert(row, { onConflict: "tenant_id,visitor_key" });
+
+    return {
+      prevLevel:  (existing?.identity_level as IdentityLevel | undefined) ?? null,
+      level:      patch.identityLevel,
+      prevStatus: (existing?.status as ProfileStatus | undefined) ?? null,
+      status:     patch.status,
+    };
   } catch (err) {
     logger.warn("[lead-base] upsertVisitorProfile failed", {
       err: err instanceof Error ? err.message : String(err),
     });
+    return null;
   }
 }
 
