@@ -16,7 +16,14 @@ import type { TenantSettings } from "@/tenant/types";
 import { resolveActiveKnownLead } from "@/lib/abm/apply-known-lead";
 import { KnownLeadBadge } from "@/components/blocks/KnownLeadBadge";
 
-export async function AbmKnownLeadDebugBadge({ tenant }: { tenant: TenantSettings | null }) {
+export async function AbmKnownLeadDebugBadge({
+  tenant,
+  hasSlots,
+}: {
+  tenant:   TenantSettings | null;
+  /** Whether this page has adaptive slots (i.e. the decision pipeline ran). */
+  hasSlots: boolean;
+}) {
   // Same gate as the homepage debug overlay.
   const debugOn = tenant?.debug?.showDebugOverlay === true && tenant.debug.debugLevel !== "off";
   if (!debugOn) return null;
@@ -37,6 +44,7 @@ export async function AbmKnownLeadDebugBadge({ tenant }: { tenant: TenantSetting
         confidence: "exact",
       }}
       forcedSegment={lead.segmentHint}
+      injected={hasSlots}
     />
   );
 }

@@ -439,7 +439,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
 
   return (
     <main>
-      <AbmKnownLeadDebugBadge tenant={tenant} />
+      <AbmKnownLeadDebugBadge tenant={tenant} hasSlots={finalPageConfig.contextSlots.length > 0} />
       <TemplateRenderer
         pageConfig={finalPageConfig}
         tokenContext={tokenContext ?? undefined}

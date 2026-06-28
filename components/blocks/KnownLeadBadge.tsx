@@ -16,9 +16,16 @@ import type { KnownLeadContext } from "@/decision/decision-context";
 export function KnownLeadBadge({
   lead,
   forcedSegment,
+  injected = true,
 }: {
   lead:          KnownLeadContext;
   forcedSegment: string | null;
+  /**
+   * Whether the decision pipeline actually ran on this page (i.e. the page has
+   * adaptive slots). When false, the lead is recognized but nothing is
+   * personalized here — the note reflects that honestly.
+   */
+  injected?:     boolean;
 }) {
   const chips: Array<{ label: string; value: string }> = [
     ...(lead.name
@@ -59,7 +66,9 @@ export function KnownLeadBadge({
           ? <code style={{ background: "#fff", border: "1px solid #c7d2fe", borderRadius: 3, padding: "0 4px" }}>{forcedSegment}</code>
           : <span style={{ color: "#818cf8", fontStyle: "italic" }}>none linked</span>}
         <span style={{ marginLeft: 10, color: "#6366f1", fontStyle: "italic" }}>
-          Firmographics loaded into enrichment (companyName / companyIndustry / companySize / targetAccountMatched).
+          {injected
+            ? "Firmographics loaded into enrichment (companyName / companyIndustry / companySize / targetAccountMatched); rules + segments evaluated against them."
+            : "No adaptive slots on this page — lead recognized, but no personalization runs here. Add adaptive slots to personalize this page."}
         </span>
       </div>
     </div>
