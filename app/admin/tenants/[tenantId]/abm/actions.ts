@@ -142,7 +142,25 @@ export interface ImportResult {
   errors:  string[];
 }
 
-function splitCsvLine(line: string): string[] {
+/**
+ * Detect the column delimiter from the header line: comma, semicolon (NL/EU
+ * Excel) or tab (pasted from a spreadsheet). Picks whichever occurs most outside
+ * quotes; defaults to comma.
+ */
+function detectDelimiter(headerLine: string): string {
+  const candidates = [",", ";", "\t"] as const;
+  const counts: Record<string, number> = { ",": 0, ";": 0, "\t": 0 };
+  let inQuotes = false;
+  for (const ch of headerLine) {
+    if (ch === '"') inQuotes = !inQuotes;
+    else if (!inQuotes && (ch === "," || ch === ";" || ch === "\t")) counts[ch]++;
+  }
+  let best = ",";
+  for (const d of candidates) if (counts[d] > counts[best]) best = d;
+  return best;
+}
+
+function splitCsvLine(line: string, delim: string): string[] {
   const out: string[] = [];
   let cur = "";
   let inQuotes = false;
@@ -153,7 +171,7 @@ function splitCsvLine(line: string): string[] {
         if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false;
       } else cur += c;
     } else if (c === '"') inQuotes = true;
-    else if (c === ",") { out.push(cur); cur = ""; }
+    else if (c === delim) { out.push(cur); cur = ""; }
     else cur += c;
   }
   out.push(cur);
@@ -163,9 +181,10 @@ function splitCsvLine(line: string): string[] {
 function parseCsv(text: string): Record<string, string>[] {
   const lines = text.replace(/^﻿/, "").trim().split(/\r?\n/);
   if (lines.length < 2) return [];
-  const headers = splitCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+  const delim   = detectDelimiter(lines[0]);
+  const headers = splitCsvLine(lines[0], delim).map((h) => h.trim().toLowerCase());
   return lines.slice(1).filter((l) => l.trim()).map((line) => {
-    const cells = splitCsvLine(line);
+    const cells = splitCsvLine(line, delim);
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = (cells[i] ?? "").trim(); });
     return row;
