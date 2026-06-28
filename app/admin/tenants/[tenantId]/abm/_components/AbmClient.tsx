@@ -239,10 +239,12 @@ export function AbmClient({
 
       {/* ── Import ─────────────────────────────────────────────────── */}
       <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
-        <h2 className="text-sm font-semibold text-neutral-900">Import from Sales Navigator (CSV)</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">Import leads (CSV)</h2>
         <p className="text-xs text-neutral-500">
-          Paste a CSV export. Common columns (First name, Last name, Company, Title,
-          Industry, Company size, Profile URL) are auto-detected; a link is generated per row.
+          Paste any CSV with these columns: First name, Last name, Company, Title,
+          Industry, Company size, Profile URL. Columns are auto-detected (a Sales
+          Navigator export works, but any CSV with these columns does too); a link
+          is generated per row.
         </p>
         <textarea className={`${INPUT} font-mono text-xs`} rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={"First Name,Last Name,Company,Title\nJohn,Doe,Acme BV,Head of Growth"} />
         <div className="flex items-end gap-3">
