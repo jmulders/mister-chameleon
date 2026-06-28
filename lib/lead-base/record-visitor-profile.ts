@@ -16,6 +16,8 @@ import { resolveConsent }       from "@/lib/consent/server-consent";
 import { gateProfileWrite, type ProfileCandidate, type IdentityLevel, type ProfileStatus } from "./profile-gate";
 import { upsertVisitorProfile } from "./visitor-profiles-store";
 import { fireProfileWebhook, isNewlyQualified } from "./profile-webhook";
+import { syncCompanyToHubspot } from "./hubspot-sync";
+import { getAbmHubspotToken }   from "@/lib/abm/abm-store";
 import { logger }               from "@/lib/logger";
 
 function mapStatus(funnel: string | null, known: boolean, customer: boolean): ProfileStatus {
@@ -70,10 +72,22 @@ export async function recordVisitorProfile(args: {
     const patch = gateProfileWrite(candidate, consent);
     const result = await upsertVisitorProfile(patch);
 
-    // CRM sync — push to the tenant webhook only on an upward qualification
-    // (became known / MQL / SQL / customer), so normal page views never spam it.
+    // CRM sync — only on an upward qualification (became known / MQL / SQL /
+    // customer), so normal page views never spam the CRM.
     if (result && isNewlyQualified(result)) {
       await fireProfileWebhook(patch, result);
+
+      // Native HubSpot Company upsert (by domain) when a token is configured.
+      if (patch.companyDomain) {
+        const token = await getAbmHubspotToken(args.tenantId);
+        if (token) {
+          await syncCompanyToHubspot(token, {
+            name:     patch.companyName ?? null,
+            domain:   patch.companyDomain,
+            industry: patch.companyIndustry ?? null,
+          });
+        }
+      }
     }
   } catch (err) {
     logger.warn("[lead-base] recordVisitorProfile failed", {

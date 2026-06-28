@@ -17,6 +17,8 @@ import {
   listAbmLeadVisits,
   getAbmWebhookUrl,
   setAbmWebhookUrl,
+  getAbmHubspotToken,
+  setAbmHubspotToken,
   type AbmLead,
   type AbmLeadProfile,
   type AbmLeadStatus,
@@ -58,6 +60,22 @@ export async function saveAbmWebhookUrlAction(
     return { ok: false, error: "Webhook URL must start with https://." };
   }
   const ok = await setAbmWebhookUrl(tenantId, trimmed || null);
+  if (!ok) return { ok: false, error: "Save failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  return { ok: true };
+}
+
+export async function getAbmHubspotTokenAction(tenantId: string): Promise<string | null> {
+  await getRequiredAdminSession();
+  return getAbmHubspotToken(tenantId);
+}
+
+export async function saveAbmHubspotTokenAction(
+  tenantId: string,
+  token:    string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const ok = await setAbmHubspotToken(tenantId, token.trim() || null);
   if (!ok) return { ok: false, error: "Save failed." };
   revalidatePath(`/admin/tenants/${tenantId}/abm`);
   return { ok: true };

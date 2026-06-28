@@ -8,6 +8,7 @@ import {
   listAbmLeadsAction,
   listAbmLeadVisitsAction,
   saveAbmWebhookUrlAction,
+  saveAbmHubspotTokenAction,
 } from "../actions";
 import type { AbmLead, AbmLeadStatus, AbmLeadVisit } from "@/lib/abm/abm-store";
 
@@ -58,12 +59,14 @@ export function AbmClient({
   baseUrl,
   segments,
   initialWebhookUrl,
+  initialHubspotToken,
 }: {
-  tenantId:          string;
-  initialLeads:      AbmLead[];
-  baseUrl:           string;
-  segments:          SegmentOption[];
-  initialWebhookUrl: string;
+  tenantId:            string;
+  initialLeads:        AbmLead[];
+  baseUrl:             string;
+  segments:            SegmentOption[];
+  initialWebhookUrl:   string;
+  initialHubspotToken: string;
 }) {
   const [leads, setLeads]   = useState<AbmLead[]>(initialLeads);
   const [form, setForm]     = useState<FormState>(EMPTY);
@@ -75,6 +78,10 @@ export function AbmClient({
   // Outbound webhook settings.
   const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
   const [webhookMsg, setWebhookMsg] = useState<string | null>(null);
+
+  // HubSpot CRM-sync token.
+  const [hubspotToken, setHubspotToken] = useState(initialHubspotToken);
+  const [hubspotMsg, setHubspotMsg]     = useState<string | null>(null);
 
   // Per-lead visit timeline (lazy-loaded on expand; only one lead at a time).
   const [expandedId, setExpandedId]     = useState<string | null>(null);
@@ -100,6 +107,13 @@ export function AbmClient({
     start(async () => {
       const res = await saveAbmWebhookUrlAction(tenantId, webhookUrl);
       setWebhookMsg(res.ok ? "Saved." : res.error);
+    });
+  }
+
+  function saveHubspot() {
+    start(async () => {
+      const res = await saveAbmHubspotTokenAction(tenantId, hubspotToken);
+      setHubspotMsg(res.ok ? "Saved." : res.error);
     });
   }
 
@@ -256,6 +270,27 @@ export function AbmClient({
           </button>
         </div>
         {webhookMsg && <span className="text-xs text-neutral-500">{webhookMsg}</span>}
+      </section>
+
+      {/* ── HubSpot CRM sync ────────────────────────────────────────── */}
+      <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-neutral-900">HubSpot CRM sync <span className="text-neutral-400 font-normal">(optional)</span></h2>
+        <p className="text-xs text-neutral-500">
+          When a lead qualifies (recognised company → known / MQL / SQL), its account is
+          upserted as a HubSpot <strong>Company</strong> (deduped by domain). Works on free
+          HubSpot: create a private app with the <code className="font-mono">crm.objects.companies.write</code> scope
+          and paste its token. Leave empty to disable.
+        </p>
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <label className={LABEL}>HubSpot private-app token</label>
+            <input type="password" className={INPUT} value={hubspotToken} onChange={(e) => { setHubspotToken(e.target.value); setHubspotMsg(null); }} placeholder="pat-eu1-…" />
+          </div>
+          <button onClick={saveHubspot} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
+            {pending ? "Saving…" : "Save token"}
+          </button>
+        </div>
+        {hubspotMsg && <span className="text-xs text-neutral-500">{hubspotMsg}</span>}
       </section>
 
       {/* ── Leads ──────────────────────────────────────────────────── */}
