@@ -1,8 +1,11 @@
 /**
- * IPinfo Lite — Network / ISP Enrichment Provider
+ * IPinfo — Network / ISP + IP-to-Company Enrichment Provider
  *
  * Provides Autonomous System (ASN), organization, and network domain data
- * for a visitor IP address using the IPinfo API.
+ * for a visitor IP address using the IPinfo API. On a Business / custom IPinfo
+ * plan the same response also carries a `company` object (firmographic name +
+ * domain), which is mapped into the company* fields. On the free / Lite tier the
+ * company object is absent and only the network fields are returned.
  *
  * ─── API ──────────────────────────────────────────────────────────────────────
  *
@@ -71,6 +74,19 @@ interface IpInfoResponse {
    * City-level precision (same accuracy as MaxMind GeoLite2-City).
    */
   loc?:      string;
+  /**
+   * Firmographic company object — present ONLY on IPinfo Business / custom plans
+   * (the "IP to Company" data tier). Absent on the free / Lite tier.
+   * See https://ipinfo.io/products/ip-company-api
+   */
+  company?: {
+    /** Organization name behind the IP, e.g. "Acme Corp". */
+    name?:   string;
+    /** Primary company domain, e.g. "acme.com". */
+    domain?: string;
+    /** Classification: "business" | "isp" | "hosting" | "education". */
+    type?:   string;
+  };
 }
 
 // ── Helper: parse ASN org field ───────────────────────────────────────────────
@@ -219,6 +235,21 @@ export class IpInfoProvider {
         networkOrg:    orgName,
         networkDomain: domain,
       };
+
+      // ── IP-to-Company (Business plan) ─────────────────────────────────────
+      // On a Business/custom IPinfo token the response carries a `company`
+      // object with the real firmographic name + domain (international, not the
+      // ISP/network org). Map it into the company* fields personalization uses.
+      // On Lite/free tokens `company` is absent → this is a no-op. Only counts
+      // genuine business matches (skip "isp"/"hosting" — that's the network, not
+      // the visitor's employer).
+      const liCompany = data.company;
+      if (liCompany && (liCompany.name || liCompany.domain) && liCompany.type !== "isp" && liCompany.type !== "hosting") {
+        if (liCompany.name)   result.companyName   = liCompany.name;
+        if (liCompany.domain) result.companyDomain = liCompany.domain;
+        result.companyMatchSource     = "ipinfo";
+        result.companyMatchConfidence = 0.8;
+      }
 
       // Provide geo fallback when MaxMind has not already filled these fields.
       // The staged pipeline merge strategy preserves non-null earlier values, so
