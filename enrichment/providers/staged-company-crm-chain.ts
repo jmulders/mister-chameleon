@@ -85,6 +85,7 @@ import type { StagedEnricher, EnricherInput, EnrichmentOutput } from "../types";
 import { createIpClassificationEnricher, createCloudDetectionEnricher } from "../ip-utils";
 import { createGa4HistoryEnricher }              from "./ga4-history";
 import { createMaxMindGeoEnricher }            from "./geo";
+import { createMaxMindWebServiceStagedEnricher } from "./maxmind-webservice";
 import { createIpInfoStagedEnricher }          from "./ipinfo";
 import { createReverseGeocodeStagedEnricher }  from "./reverse-geocode";
 import type { ReverseGeocodeOptions }          from "./reverse-geocode";
@@ -118,6 +119,13 @@ export interface CompanyCrmChainOptions {
    * When absent, the MaxMind stage is omitted from the chain.
    */
   maxmindDbPath?: string;
+
+  /**
+   * MaxMind GeoLite2 web-service credentials (account ID + license key). When
+   * present, a hosted geo lookup runs — no local .mmdb needed, so it works on
+   * serverless / Vercel. Omitted when absent.
+   */
+  maxmindWebService?: { accountId: string; licenseKey: string };
 
   // ── Stage 2: IPinfo Lite ──────────────────────────────────────────────────
   /**
@@ -343,6 +351,7 @@ export function buildCompanyCrmChain(
 ): StagedEnricher[] {
   const {
     maxmindDbPath,
+    maxmindWebService,
     ipinfoToken,
     enableReverseGeocode       = false,
     reverseGeocodeLocationIqKey,
@@ -394,6 +403,23 @@ export function buildCompanyCrmChain(
       enricher: async (input: EnricherInput, _accumulated: Partial<EnrichmentOutput>) => {
         return geoLabeled.enricher(input);
       },
+    });
+  }
+
+  // ── Stage 1b: MaxMind GeoLite2 web service  (wave 1) ─────────────────────
+  //
+  // Hosted geo lookup using the platform license — no local .mmdb required, so
+  // this is the geo source that actually runs on serverless / Vercel. Only needs
+  // input.effectiveIp. Merge preserves any value a prior stage already set.
+  if (maxmindWebService?.accountId && maxmindWebService?.licenseKey) {
+    stages.push({
+      ...createMaxMindWebServiceStagedEnricher({
+        accountId:  maxmindWebService.accountId,
+        licenseKey: maxmindWebService.licenseKey,
+        isDev,
+      }),
+      stageKey: "maxmind",
+      wave:     1,
     });
   }
 

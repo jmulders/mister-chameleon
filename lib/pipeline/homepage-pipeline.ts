@@ -96,6 +96,7 @@ import {
   getPlatformWeatherSettings,
   getPlatformGa4HistorySettings,
   getPlatformHolidaySettings,
+  getPlatformMaxMindSettings,
 } from "@/platform/platform-store";
 import { buildHomepagePageConfig }         from "@/page-config/assemblers/homepage";
 import {
@@ -188,6 +189,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     getPlatformWeatherSettings(),
     getPlatformGa4HistorySettings(),
     getPlatformHolidaySettings(),
+    getPlatformMaxMindSettings(),
   ] as const);
 
   const pipelineStagesPromise = getTenantPipelineStages(tenantConfig.tenantId);
@@ -313,6 +315,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       platformWeatherResult,
       platformGa4HistoryResult,
       platformHolidayResult,
+      platformMaxMindResult,
     ],
     tenantPipelineStages,
   ] = await Promise.all([historyPromise, platformSettingsPromise, pipelineStagesPromise]);
@@ -338,6 +341,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const platformWeather        = platformWeatherResult.ok        ? platformWeatherResult.data        : {};
   const platformGa4History     = platformGa4HistoryResult.ok     ? platformGa4HistoryResult.data     : {};
   const platformHolidays       = platformHolidayResult.ok        ? platformHolidayResult.data        : {};
+  const platformMaxMind        = platformMaxMindResult.ok        ? platformMaxMindResult.data        : {};
 
   // ── GA4 credential resolution ─────────────────────────────────────────────
   const ga4ServiceAccount =
@@ -364,8 +368,14 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       30)) * 60_000;
 
   // ── Staged enrichment pipeline ────────────────────────────────────────────
+  const _mmAccountId  = (platformMaxMind as { accountId?: string }).accountId?.trim();
+  const _mmLicenseKey = (platformMaxMind as { licenseKey?: string }).licenseKey?.trim();
+
   const stagedEnrichers = buildCompanyCrmChain({
     maxmindDbPath:               process.env.MAXMIND_DB_PATH?.trim() || undefined,
+    maxmindWebService:           _mmAccountId && _mmLicenseKey
+                                   ? { accountId: _mmAccountId, licenseKey: _mmLicenseKey }
+                                   : undefined,
     ipinfoToken:                 (platformEnrichment as { ipinfoToken?: string }).ipinfoToken || undefined,
     enableReverseGeocode:        pipelineEnabled("reverse-geo",
                                    (platformReverseGeocode as { enabled?: boolean }).enabled ?? false),
