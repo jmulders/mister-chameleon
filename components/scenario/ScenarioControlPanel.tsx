@@ -2280,9 +2280,12 @@ export function ScenarioControlPanel() {
         error?: string;
       };
 
-      // Store the enricher output as an enrichmentPatch override.
-      // This gets merged into ctx.enrichment in Pass 2 after Apply.
-      patchScenarioOverride({ enrichmentPatch: data.output });
+      // Merge the enricher output INTO the existing enrichmentPatch (don't
+      // replace it) — so running IP/Geo and then Weather accumulates both sets of
+      // fields, instead of the later run wiping the earlier ones. "Restore Real"
+      // clears the patch when you want to start fresh.
+      const currentPatch = (getScenarioState().overrides.enrichmentPatch ?? {}) as Record<string, unknown>;
+      patchScenarioOverride({ enrichmentPatch: { ...currentPatch, ...data.output } });
 
       setEnricherStatuses((prev) => ({
         ...prev,
