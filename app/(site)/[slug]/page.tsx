@@ -70,6 +70,7 @@ import { TemplateRenderer }          from "@/components/platform/TemplateRendere
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import { resolveSlugPageConfig }     from "@/lib/cms-page-decision";
+import { AbmKnownLeadDebugBadge }    from "@/components/blocks/AbmKnownLeadDebugBadge";
 import type { SlugPageConfigResult } from "@/lib/cms-page-decision";
 import { resolvePageConfigItems }    from "@/cms/collection-resolver";
 import { getDraft }                  from "@/lib/statamic-draft-store";
@@ -438,6 +439,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
 
   return (
     <main>
+      <AbmKnownLeadDebugBadge tenant={tenant} />
       <TemplateRenderer
         pageConfig={finalPageConfig}
         tokenContext={tokenContext ?? undefined}

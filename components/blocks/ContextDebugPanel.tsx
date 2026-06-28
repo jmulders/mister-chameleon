@@ -37,7 +37,7 @@ import { SOURCE_DISPLAY_ORDER, formatContextValue } from "@/context/debug-snapsh
 import type { ContextVarSource }                 from "@/context/registry";
 import type { EnrichmentFieldTrace }             from "@/enrichment/types";
 import type { ScenarioOverrides }                from "@/components/scenario/scenario-store";
-import type { KnownLeadContext }                 from "@/decision/decision-context";
+import { KnownLeadBadge }                        from "@/components/blocks/KnownLeadBadge";
 import { CONTEXT_FAMILIES }                      from "@/context/library";
 import type { ContextMatch }                     from "@/context/library";
 import type { ThemeDecisionTrace }               from "@/decision/theme-decision";
@@ -249,58 +249,6 @@ function ScenarioOverrideSummary({ overrides }: { overrides: ScenarioOverrides }
   );
 }
 
-// ── ABM known-lead section ─────────────────────────────────────────────────────
-
-/**
- * Always-visible badge shown when the visitor arrived via a personalized URL
- * (the mc_lead cookie resolved to an active lead). Surfaces the deterministic
- * identity + the segment it forced, so it's clear at a glance what the redirect
- * injected — which the Scenario Control panel (a manual override) does not show.
- */
-function KnownLeadSection({ lead, forcedSegment }: { lead: KnownLeadContext; forcedSegment: string | null }) {
-  const chips: Array<{ label: string; value: string }> = [
-    ...(lead.name        ? [{ label: "Name",     value: lead.name }]        : (lead.firstName ? [{ label: "Name", value: lead.firstName }] : [])),
-    ...(lead.company     ? [{ label: "Company",  value: lead.company }]     : []),
-    ...(lead.role        ? [{ label: "Role",     value: lead.role }]        : []),
-    ...(lead.industry    ? [{ label: "Industry", value: lead.industry }]    : []),
-    ...(lead.companySize ? [{ label: "Size",     value: lead.companySize }] : []),
-  ];
-  return (
-    <div style={{
-      margin:       "0.75rem 0",
-      border:       "1px solid #c7d2fe",
-      borderRadius: "6px",
-      background:   "#eef2ff",
-      padding:      "0.6rem 0.75rem",
-      fontFamily:   "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
-      fontSize:     "12px",
-    }}>
-      <div style={{ fontWeight: 700, color: "#3730a3", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-        🎯 ABM — Known lead
-        <span style={{ background: "#4338ca", color: "#fff", borderRadius: 3, padding: "0 5px", fontSize: 10, letterSpacing: "0.05em" }}>
-          {lead.confidence}
-        </span>
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 8px" }}>
-        {chips.map((c) => (
-          <span key={c.label} style={{ background: "#fff", border: "1px solid #c7d2fe", borderRadius: 3, padding: "1px 6px", color: "#3730a3" }}>
-            <span style={{ color: "#6366f1" }}>{c.label}:</span> {c.value}
-          </span>
-        ))}
-      </div>
-      <div style={{ marginTop: 8, fontSize: 11, color: "#4338ca" }}>
-        Forced segment:{" "}
-        {forcedSegment
-          ? <code style={{ background: "#fff", border: "1px solid #c7d2fe", borderRadius: 3, padding: "0 4px" }}>{forcedSegment}</code>
-          : <span style={{ color: "#818cf8", fontStyle: "italic" }}>none linked</span>}
-        <span style={{ marginLeft: 10, color: "#6366f1", fontStyle: "italic" }}>
-          Firmographics loaded into enrichment (companyName / companyIndustry / companySize / targetAccountMatched).
-        </span>
-      </div>
-    </div>
-  );
-}
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugPanelProps) {
@@ -317,7 +265,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
   return (
     <>
       {/* ABM known-lead identity — always visible at the top when present */}
-      {knownLead && <KnownLeadSection lead={knownLead} forcedSegment={forcedSegment ?? null} />}
+      {knownLead && <KnownLeadBadge lead={knownLead} forcedSegment={forcedSegment ?? null} />}
 
       {/* Scenario override summary — rendered outside the <details> so it's always visible */}
       {scenarioOverrides && <ScenarioOverrideSummary overrides={scenarioOverrides} />}
