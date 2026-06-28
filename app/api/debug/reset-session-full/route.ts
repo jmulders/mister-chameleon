@@ -63,7 +63,12 @@ import { flushAllProviderCaches }         from "@/enrichment/flush-debug";
 
 function isResetAllowed(): boolean {
   if (process.env.NODE_ENV !== "production") return true;
-  return process.env.ENABLE_DEBUG_RESET === "true";
+  if (process.env.ENABLE_DEBUG_RESET === "true") return true;
+  // The full wipe is a Scenario Control action — allow it wherever the panel is
+  // enabled, so it actually clears the httpOnly cookies (mc_lead, mc_session_id,
+  // mc_li) on preview/demo deploys. Same gate as the panel itself.
+  if (process.env.NEXT_PUBLIC_SHOW_SCENARIO_PANEL === "1") return true;
+  return false;
 }
 
 // ── Cookie helpers ─────────────────────────────────────────────────────────────
@@ -149,6 +154,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     "mc_scenario",
     "mc_tz",
     "mc_attr",
+    "mc_lead",     // ABM known-lead (httpOnly) — drives the known-lead indicator
+    "mc_consent",  // consent — a brand-new visitor has not responded yet
   ];
   for (const name of KNOWN_PLATFORM_COOKIES) {
     if (!allCookieNames.includes(name)) {
