@@ -55,8 +55,9 @@ export interface LeadinfoProviderProps {
 // Leadinfo's global command queue function shape.
 type LeadinfoFn = ((...args: unknown[]) => void) & { q?: unknown[][]; t?: string };
 
-// Module-level guard so React 18 strict-mode double-mounts don't inject twice.
+// Module-level guards so React 18 strict-mode double-mounts don't inject/tap twice.
 let injected = false;
+let dlTapped = false;
 
 const DL_SENT_FLAG = "mc_li_dl_sent";
 
@@ -131,21 +132,23 @@ export function LeadinfoProvider({ siteToken }: LeadinfoProviderProps): null {
       injected = true;
     }
 
-    // ── Opportunistic dataLayer reader ────────────────────────────────────────
-    // Poll the dataLayer (non-invasive — we never wrap GTM's push) for ~20s and
-    // forward any Leadinfo company push to enrichment. Only does something when
-    // the paid Leadinfo dataLayer feature is active.
-    let idx = 0;
-    const scan = () => {
-      const dl = w.dataLayer;
-      if (!Array.isArray(dl)) return;
-      for (; idx < dl.length; idx++) handleDataLayerEntry(dl[idx]);
-    };
-    scan();
-    const interval = window.setInterval(scan, 1500);
-    const stop = window.setTimeout(() => window.clearInterval(interval), 20000);
+    // ── dataLayer reader ──────────────────────────────────────────────────────
+    // The Leadinfo dataLayer push can land at any time (it fires after window-load
+    // + a jQuery load + the async identify call), so a time-boxed poll is fragile.
+    // Instead we (1) scan whatever is already in the dataLayer, and (2) tap into
+    // dataLayer.push to catch every future entry the instant it's pushed. The tap
+    // always calls through to the original, so GTM is unaffected.
+    const dl = (w.dataLayer = w.dataLayer || []);
+    for (const entry of dl) handleDataLayerEntry(entry);
 
-    return () => { window.clearInterval(interval); window.clearTimeout(stop); };
+    if (!dlTapped && typeof dl.push === "function") {
+      dlTapped = true;
+      const origPush = dl.push.bind(dl);
+      dl.push = (...args: unknown[]) => {
+        try { args.forEach(handleDataLayerEntry); } catch { /* never break GTM */ }
+        return origPush(...args);
+      };
+    }
   }, [siteToken]);
 
   return null;
