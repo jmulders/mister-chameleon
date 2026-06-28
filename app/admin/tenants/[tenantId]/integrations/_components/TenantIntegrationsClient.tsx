@@ -114,6 +114,11 @@ export interface TenantIntegrationsClientProps {
     storeInContext:  boolean;
   };
 
+  // ── Google Tag Manager ─────────────────────────────────────────────────────
+  gtm: {
+    containerId: string;
+  };
+
   // ── GA4 ───────────────────────────────────────────────────────────────────
   ga4: {
     tracking: {
@@ -573,6 +578,7 @@ export function TenantIntegrationsClient({
   enrichment:  initialEnrichment,
   domains:     initialDomains,
   leadinfo:    initialLeadinfo,
+  gtm:         initialGtm,
   ga4:         initialGa4,
   platformCmsAvailable,
   platformCrmAvailable,
@@ -615,6 +621,9 @@ export function TenantIntegrationsClient({
   const [liPushToDataLayer,  setLiPushToDataLayer]  = useState(initialLeadinfo.pushToDataLayer);
   const [liStoreInContext,   setLiStoreInContext]   = useState(initialLeadinfo.storeInContext);
   const [liTestState,        setLiTestState]        = useState<LeadinfoTestState>({ mode: "idle" });
+
+  // ── GTM state ──────────────────────────────────────────────────────────────
+  const [gtmContainerId,     setGtmContainerId]     = useState(initialGtm.containerId);
 
   // ── Domains state ──────────────────────────────────────────────────────────
   const [vercelProjectId,    setVercelProjectId]    = useState(initialDomains.vercelProjectId);
@@ -704,6 +713,9 @@ export function TenantIntegrationsClient({
           siteToken:       liSiteToken.trim() || undefined,
           pushToDataLayer: liPushToDataLayer,
           storeInContext:  liStoreInContext,
+        },
+        gtm: {
+          containerId: gtmContainerId.trim() || undefined,
         },
         ga4: {
           tracking: {
@@ -1462,6 +1474,20 @@ export function TenantIntegrationsClient({
             </div>
           </div>
         )}
+      </SectionCard>
+
+      {/* ─────────────────────────── GTM ─────────────────────────────── */}
+      <SectionCard
+        title="Google Tag Manager"
+        description="Per-tenant GTM container. When set, the GTM snippet is loaded on the site, which establishes window.dataLayer — required for GTM tags and any dataLayer-based integration (e.g. Leadinfo's dataLayer push). Leave empty to disable."
+      >
+        <TextField
+          label="Container ID"
+          hint="Format GTM-XXXXXXX (found in your GTM workspace). An invalid value is ignored."
+          value={gtmContainerId}
+          onChange={setGtmContainerId}
+          placeholder="GTM-ABC1234"
+        />
       </SectionCard>
 
       {/* ─────────────────────────── GA4 ─────────────────────────────── */}

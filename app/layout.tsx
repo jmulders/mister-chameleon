@@ -582,6 +582,13 @@ export default async function RootLayout({
     typeof leadinfoSettings.siteToken === "string" &&
     leadinfoSettings.siteToken.length > 0;
 
+  // ── Google Tag Manager ─────────────────────────────────────────────────────
+  // Per-tenant container. Validated against the GTM-XXXX format before rendering
+  // (the value goes into an inline script), so a bad value is simply ignored.
+  // Rendering GTM establishes window.dataLayer for tags + dataLayer integrations.
+  const _gtmRaw = tenantSettings?.gtm?.containerId?.trim();
+  const gtmContainerId = _gtmRaw && /^GTM-[A-Z0-9]+$/i.test(_gtmRaw) ? _gtmRaw : null;
+
   // ── Consent banner ────────────────────────────────────────────────────────
   const privacySettings  = tenantSettings?.privacy;
   // headers() is a cached store lookup — safe to call again outside the try block.
@@ -700,8 +707,32 @@ export default async function RootLayout({
             dangerouslySetInnerHTML={{ __html: navTypoCSS }}
           />
         )}
+
+        {/* Google Tag Manager (per-tenant) — establishes window.dataLayer. */}
+        {gtmContainerId && (
+          <script
+            id="gtm-base"
+            dangerouslySetInnerHTML={{
+              __html:
+                `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':` +
+                `new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],` +
+                `j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;` +
+                `j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;` +
+                `f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmContainerId}');`,
+            }}
+          />
+        )}
       </head>
       <body className="antialiased">
+        {gtmContainerId && (
+          <noscript
+            dangerouslySetInnerHTML={{
+              __html:
+                `<iframe src="https://www.googletagmanager.com/ns.html?id=${gtmContainerId}" ` +
+                `height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
+            }}
+          />
+        )}
         {children}
         {leadinfoEnabled && (
           <LeadinfoProvider

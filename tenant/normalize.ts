@@ -80,6 +80,9 @@ export function normalizeTenant(raw: TenantSettings): TenantSettings {
           },
         }
       : {}),
+    ...(r.gtm !== undefined
+      ? { gtm: { containerId: r.gtm.containerId } }
+      : {}),
     design: {
       ...r.design,
       theme: r.design?.theme ?? "default",

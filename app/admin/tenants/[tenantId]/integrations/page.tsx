@@ -166,6 +166,10 @@ export default async function TenantIntegrationsPage({
     storeInContext:  tenant.leadinfo?.storeInContext    ?? true,
   };
 
+  const gtmProp = {
+    containerId: tenant.gtm?.containerId ?? "",
+  };
+
   // ── GA4 — strip server-only secrets before crossing the boundary ───────────
   //
   //   apiSecret and serviceAccountJson are SERVER ONLY — they must never be
@@ -238,6 +242,7 @@ export default async function TenantIntegrationsPage({
           enrichment={enrichmentProp}
           domains={domainsProp}
           leadinfo={leadinfoProp}
+          gtm={gtmProp}
           ga4={ga4Prop}
           platformCmsAvailable={platformCmsAvailable}
           platformCrmAvailable={platformCrmAvailable}

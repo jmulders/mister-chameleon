@@ -103,6 +103,10 @@ export interface TenantIntegrationsPayload {
     pushToDataLayer?: boolean;
     storeInContext?:  boolean;
   };
+  /** Google Tag Manager container ID, e.g. "GTM-ABC1234". */
+  gtm?: {
+    containerId?: string;
+  };
   /**
    * GA4 integration settings — tracking (event send) and Analytics History.
    *
@@ -264,6 +268,9 @@ export async function saveTenantIntegrationsAction(
     domains:    payload.domains,
     ...(leadinfo !== undefined ? { leadinfo } : {}),
     ...(ga4      !== undefined ? { ga4      } : {}),
+    ...(payload.gtm !== undefined
+      ? { gtm: { containerId: payload.gtm.containerId?.trim() || undefined } }
+      : (stored.gtm ? { gtm: stored.gtm } : {})),
   };
 
   const result = await saveTenant(updated);

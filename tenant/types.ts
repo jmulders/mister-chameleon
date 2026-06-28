@@ -1580,6 +1580,19 @@ export interface TenantLeadinfoSettings {
   readonly storeInContext?: boolean;
 }
 
+// ── GTM (Google Tag Manager) settings ──────────────────────────────────────────
+
+export interface TenantGtmSettings {
+  /**
+   * GTM container ID, e.g. "GTM-ABC1234". When set, the GTM snippet is rendered
+   * in the site's <head> + <body>, which establishes window.dataLayer — enabling
+   * GTM tags (and any dataLayer-based integration, e.g. Leadinfo's dataLayer push).
+   * Validated against /^GTM-[A-Z0-9]+$/i before rendering (it goes into an inline
+   * script), so an invalid value is simply ignored.
+   */
+  readonly containerId?: string;
+}
+
 // ── CMS settings ──────────────────────────────────────────────────────────────
 
 /**
@@ -2370,6 +2383,9 @@ export interface TenantSettings {
    * browser-facing component props.
    */
   readonly leadinfo?: TenantLeadinfoSettings;
+
+  /** Google Tag Manager container — establishes window.dataLayer when set. */
+  readonly gtm?: TenantGtmSettings;
 
   /**
    * Per-tenant Google Calendar demo/appointment booking.
