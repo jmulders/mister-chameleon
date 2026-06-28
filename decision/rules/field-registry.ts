@@ -343,6 +343,17 @@ export type RuleFieldKey =
   | "companyIndustry"
   | "companySize"
   | "companyMatchConfidence"
+  // Enrichment — Leadinfo (firmographics via the Leadinfo dataLayer)
+  | "leadinfoMatched"
+  | "leadinfoCompanyName"
+  | "leadinfoCompanyDomain"
+  | "leadinfoCompanyCountry"
+  | "leadinfoCocNumber"
+  | "leadinfoBranchCode"
+  | "leadinfoBranchCodeSic87"
+  | "leadinfoSalesVolume"
+  | "leadinfoEmployees"
+  | "leadinfoEmployeesTotal"
   // Enrichment — Ads attribution
   | "adCampaign"
   | "adAdGroup"
@@ -822,6 +833,88 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "number",
     operators:   OPS_NUMBER,
     resolve:     (ctx) => ctx.enrichment?.companyMatchConfidence ?? null,
+  },
+
+  // ── Enrichment — Leadinfo ─────────────────────────────────────────────────────
+  leadinfoMatched: {
+    label:       "Leadinfo matched",
+    description: "True when Leadinfo identified a company for this visitor (via the dataLayer).",
+    group:       "enrichment",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoMatched ?? null,
+  },
+  leadinfoCompanyName: {
+    label:       "Leadinfo company name",
+    description: "Company name from Leadinfo, e.g. \"Steets B.V.\".",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoCompanyName ?? null,
+  },
+  leadinfoCompanyDomain: {
+    label:       "Leadinfo company domain",
+    description: "Primary domain from Leadinfo, e.g. \"steets.nl\".",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoCompanyDomain ?? null,
+  },
+  leadinfoCompanyCountry: {
+    label:       "Leadinfo company country",
+    description: "ISO country code from Leadinfo, e.g. \"NL\".",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoCompanyCountry ?? null,
+  },
+  leadinfoCocNumber: {
+    label:       "Leadinfo KvK number",
+    description: "Dutch Chamber of Commerce (KvK) number from Leadinfo.",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoCocNumber ?? null,
+  },
+  leadinfoBranchCode: {
+    label:       "Leadinfo SBI code",
+    description: "Industry branch code from Leadinfo (SBI for NL).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoBranchCode ?? null,
+  },
+  leadinfoBranchCodeSic87: {
+    label:       "Leadinfo SIC-87 code",
+    description: "SIC-87 industry branch code from Leadinfo (international).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoBranchCodeSic87 ?? null,
+  },
+  leadinfoSalesVolume: {
+    label:       "Leadinfo sales volume",
+    description: "Annual sales volume from Leadinfo (raw value or bucket).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoSalesVolume ?? null,
+  },
+  leadinfoEmployees: {
+    label:       "Leadinfo employees (bucket)",
+    description: "Employee size bucket from Leadinfo, e.g. \"11-50\".",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoEmployees ?? null,
+  },
+  leadinfoEmployeesTotal: {
+    label:       "Leadinfo employees (count)",
+    description: "Total employee count from Leadinfo.",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.leadinfoEmployeesTotal ?? null,
   },
 
   // ── Enrichment — Ads attribution ──────────────────────────────────────────────

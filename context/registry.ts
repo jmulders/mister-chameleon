@@ -832,6 +832,68 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
     exampleValue:     "51-200",
   },
 
+  // ── Enrichment — Leadinfo (firmographics via the Leadinfo dataLayer) ─────────
+  {
+    key: "leadinfoMatched", label: "Leadinfo matched",
+    description: "True when Leadinfo identified a company for this visitor (via the dataLayer).",
+    type: "boolean", source: "enrichment", operators: OPS_BOOLEAN,
+    availableToRules: true, availableToAI: true, exampleValue: true,
+  },
+  {
+    key: "leadinfoCompanyName", label: "Leadinfo company name",
+    description: "Company name from Leadinfo, e.g. \"Steets B.V.\".",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "Steets B.V.",
+  },
+  {
+    key: "leadinfoCompanyDomain", label: "Leadinfo company domain",
+    description: "Primary domain from Leadinfo, e.g. \"steets.nl\".",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "steets.nl",
+  },
+  {
+    key: "leadinfoCompanyCountry", label: "Leadinfo company country",
+    description: "ISO country code from Leadinfo, e.g. \"NL\".",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "NL",
+  },
+  {
+    key: "leadinfoCocNumber", label: "Leadinfo KvK number",
+    description: "Dutch Chamber of Commerce (KvK) number from Leadinfo.",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "32094701",
+  },
+  {
+    key: "leadinfoBranchCode", label: "Leadinfo SBI code",
+    description: "Industry branch code from Leadinfo (SBI for NL).",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "7311",
+  },
+  {
+    key: "leadinfoBranchCodeSic87", label: "Leadinfo SIC-87 code",
+    description: "SIC-87 industry branch code from Leadinfo (international).",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "73110",
+  },
+  {
+    key: "leadinfoSalesVolume", label: "Leadinfo sales volume",
+    description: "Annual sales volume from Leadinfo (raw value or bucket).",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "378106",
+  },
+  {
+    key: "leadinfoEmployees", label: "Leadinfo employees (bucket)",
+    description: "Employee size bucket from Leadinfo, e.g. \"11-50\".",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "11-50",
+  },
+  {
+    key: "leadinfoEmployeesTotal", label: "Leadinfo employees (count)",
+    description: "Total employee count from Leadinfo.",
+    type: "number", source: "enrichment", operators: OPS_NUMBER,
+    availableToRules: true, availableToAI: true, exampleValue: 52,
+  },
+
   {
     key:              "companyMatchConfidence",
     label:            "Company match confidence",
