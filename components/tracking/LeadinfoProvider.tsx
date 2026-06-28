@@ -65,6 +65,20 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
+/** Coerce a string OR number to a trimmed string (Leadinfo pushes some as numbers). */
+function strAny(v: unknown): string | null {
+  if (typeof v === "string") return v.trim() || null;
+  if (typeof v === "number" && isFinite(v)) return String(v);
+  return null;
+}
+
+/** Coerce a string OR number to a number, or null. */
+function numAny(v: unknown): number | null {
+  if (typeof v === "number" && isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() && !Number.isNaN(Number(v))) return Number(v);
+  return null;
+}
+
 /**
  * Inspect one dataLayer entry for Leadinfo company fields (the OPTIONAL paid
  * dataLayer feature pushes e.g. { company_name, company_city, ... }). When found,
@@ -81,11 +95,19 @@ function handleDataLayerEntry(entry: unknown): void {
   try { if (sessionStorage.getItem(DL_SENT_FLAG)) return; } catch { /* ignore */ }
 
   const payload = {
-    matched:        true,
-    companyName:    name,
-    companyDomain:  str(e.company_domain)  ?? str(e.companyDomain)  ?? str(nested.domain),
-    companyCity:    str(e.company_city)    ?? str(e.companyCity)    ?? str(nested.city),
-    companyCountry: str(e.company_country) ?? str(e.companyCountry) ?? str(nested.country),
+    matched:         true,
+    companyName:     name,
+    companyId:       strAny(e.company_id),
+    companyDomain:   str(e.company_domain)  ?? str(e.companyDomain)  ?? str(nested.domain),
+    companyCity:     str(e.company_city)    ?? str(e.companyCity)    ?? str(nested.city),
+    companyCountry:  str(e.company_country) ?? str(e.companyCountry) ?? str(nested.country),
+    // Richer Leadinfo fields (KvK, SBI, omzet, werknemers). Numbers are coerced.
+    cocNumber:       strAny(e.company_coc_number),
+    branchCode:      strAny(e.company_branch_code),
+    branchCodeSic87: strAny(e.company_branch_code_sic87),
+    employees:       strAny(e.company_employees),
+    employeesTotal:  numAny(e.company_employees_total),
+    salesVolume:     strAny(e.company_sales_volume),
   };
 
   void fetch("/api/enrichment/leadinfo", {
