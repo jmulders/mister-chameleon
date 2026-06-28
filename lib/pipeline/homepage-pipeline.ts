@@ -31,6 +31,7 @@
 import "server-only";
 
 import { headers, cookies, draftMode }     from "next/headers";
+import { after }                            from "next/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import { fetchVisitorHistory }             from "@/context/fetch-visitor-history";
 import { RulesDecisionProvider, ExperimentDecisionProvider } from "@/decision";
@@ -64,6 +65,7 @@ import {
   injectKnownLeadContext,
   forceKnownLeadSegment,
 } from "@/lib/abm/apply-known-lead";
+import { recordVisitorProfile }            from "@/lib/lead-base/record-visitor-profile";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -535,6 +537,21 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       });
     }
   }
+
+  // ── Lead Base — persist the visitor profile (post-response, fail-open) ─────
+  //
+  // Stores the GDPR-gated output of the engines into visitor_profiles, keyed on
+  // mc_session_id (the shared GA4 visitor id). Runs via after() so it never
+  // blocks render. See docs/lead-base-design.md.
+  after(async () => {
+    await recordVisitorProfile({
+      tenantId:     tenantConfig.tenantId,
+      visitorKey:   sessionId,
+      cookieHeader,
+      ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
+      abmLeadId:    abmLead?.id ?? null,
+    });
+  });
 
   // ── CMS home page ─────────────────────────────────────────────────────────
   const homePage = await homePagePromise;
