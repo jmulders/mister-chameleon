@@ -22,6 +22,15 @@ const TIMEOUT_MS = 2500;
 const QUALIFYING_LEVELS:   IdentityLevel[] = ["known", "customer"];
 const QUALIFYING_STATUSES: ProfileStatus[] = ["mql", "sql", "customer"];
 
+/**
+ * True when the platform first identified the company behind a visitor
+ * (anonymous → recognised). Only the enrichment-driven "recognised" level counts;
+ * ABM named leads jump straight to "known" and are not billed as recognition.
+ */
+export function isNewlyRecognised(t: ProfileUpsertResult): boolean {
+  return t.level === "recognised" && (t.prevLevel === null || t.prevLevel === "anonymous");
+}
+
 /** True when this upsert crossed a qualification threshold (not already past it). */
 export function isNewlyQualified(t: ProfileUpsertResult): boolean {
   const levelCrossed =
@@ -33,13 +42,14 @@ export function isNewlyQualified(t: ProfileUpsertResult): boolean {
   return levelCrossed || statusCrossed;
 }
 
+/** Returns true when a webhook target was configured and the POST was attempted. */
 export async function fireProfileWebhook(
   patch:      GatedProfilePatch,
   transition: ProfileUpsertResult,
-): Promise<void> {
+): Promise<boolean> {
   try {
     const url = await getAbmWebhookUrl(patch.tenantId);
-    if (!url) return;
+    if (!url) return false;
 
     const payload = {
       event:      "lead.qualified",
@@ -81,9 +91,11 @@ export async function fireProfileWebhook(
     } finally {
       clearTimeout(timer);
     }
+    return true;
   } catch (err) {
     logger.warn("[lead-base] fireProfileWebhook failed", {
       err: err instanceof Error ? err.message : String(err),
     });
+    return false;
   }
 }

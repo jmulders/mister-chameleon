@@ -15,8 +15,9 @@ import type { DecisionContext } from "@/decision/decision-context";
 import { resolveConsent }       from "@/lib/consent/server-consent";
 import { gateProfileWrite, type ProfileCandidate, type IdentityLevel, type ProfileStatus } from "./profile-gate";
 import { upsertVisitorProfile } from "./visitor-profiles-store";
-import { fireProfileWebhook, isNewlyQualified } from "./profile-webhook";
+import { fireProfileWebhook, isNewlyQualified, isNewlyRecognised } from "./profile-webhook";
 import { syncCompanyToHubspot } from "./hubspot-sync";
+import { billLeadCredit }       from "./bill-lead-credit";
 import { getAbmHubspotToken }   from "@/lib/abm/abm-store";
 import { logger }               from "@/lib/logger";
 
@@ -72,9 +73,18 @@ export async function recordVisitorProfile(args: {
     const patch = gateProfileWrite(candidate, consent);
     const result = await upsertVisitorProfile(patch);
 
-    // CRM sync — only on an upward qualification (became known / MQL / SQL /
-    // customer), so normal page views never spam the CRM.
-    if (result && isNewlyQualified(result)) {
+    if (!result) return;
+
+    // Billing — 1 credit when the platform first identifies the company behind a
+    // visitor (recognition). This is the enrichment value moment; ABM named leads
+    // (your own data) jump straight to "known" and are not charged here.
+    if (isNewlyRecognised(result)) {
+      await billLeadCredit(args.tenantId, args.visitorKey);
+    }
+
+    // CRM sync (unbilled) — only on an upward qualification (became known / MQL /
+    // SQL / customer), so normal page views never spam the CRM.
+    if (isNewlyQualified(result)) {
       await fireProfileWebhook(patch, result);
 
       // Native HubSpot Company upsert (by domain) when a token is configured.
