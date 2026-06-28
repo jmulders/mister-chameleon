@@ -449,6 +449,79 @@ function ResetSection({
   );
 }
 
+// ── Known-lead indicator (ABM) ─────────────────────────────────────────────────
+//
+// Read-only. Reads the deterministic identity injected by the lead link (the
+// httpOnly mc_lead cookie, resolved server-side via /api/abm/known-lead). This is
+// NOT a manual override — it shows what the redirect injects live, so it sits
+// apart from the editable override sections below.
+
+interface KnownLeadData {
+  knownLead: {
+    firstName:   string | null;
+    name:        string | null;
+    company:     string | null;
+    role:        string | null;
+    industry:    string | null;
+    companySize: string | null;
+  } | null;
+  forcedSegment: string | null;
+}
+
+function KnownLeadIndicator() {
+  const [data, setData] = useState<KnownLeadData | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/abm/known-lead", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: KnownLeadData) => { if (alive) setData(d); })
+      .catch(() => { /* fail-open: indicator simply doesn't render */ });
+    return () => { alive = false; };
+  }, []);
+
+  const kl = data?.knownLead;
+  if (!kl) return null;
+
+  const chips: Array<{ label: string; value: string }> = [
+    ...(kl.name ? [{ label: "Name", value: kl.name }] : (kl.firstName ? [{ label: "Name", value: kl.firstName }] : [])),
+    ...(kl.company     ? [{ label: "Company",  value: kl.company }]     : []),
+    ...(kl.role        ? [{ label: "Role",     value: kl.role }]        : []),
+    ...(kl.industry    ? [{ label: "Industry", value: kl.industry }]    : []),
+    ...(kl.companySize ? [{ label: "Size",     value: kl.companySize }] : []),
+  ];
+
+  return (
+    <div style={{
+      background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 6,
+      padding: "8px 10px", marginBottom: 8,
+    }}>
+      <div style={{ fontWeight: 700, color: "#3730a3", fontSize: 11, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+        🎯 Known lead actief
+        <span style={{ background: "#4338ca", color: "#fff", borderRadius: 3, padding: "0 5px", fontSize: 9, fontWeight: 600 }}>
+          auto via lead-link
+        </span>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 6px", marginBottom: 6 }}>
+        {chips.map((c) => (
+          <span key={c.label} style={{ background: "#fff", border: "1px solid #c7d2fe", borderRadius: 3, padding: "1px 5px", fontSize: 10, color: "#3730a3" }}>
+            <span style={{ color: "#6366f1" }}>{c.label}:</span> {c.value}
+          </span>
+        ))}
+      </div>
+      <div style={{ fontSize: 10, color: "#4338ca" }}>
+        Forced segment:{" "}
+        {data?.forcedSegment
+          ? <code style={{ background: "#fff", border: "1px solid #c7d2fe", borderRadius: 3, padding: "0 4px" }}>{data.forcedSegment}</code>
+          : <span style={{ color: "#818cf8", fontStyle: "italic" }}>none linked</span>}
+        <span style={{ display: "block", marginTop: 3, color: "#6366f1", fontStyle: "italic" }}>
+          Injected server-side from the lead link — not a manual override.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ── Effective Summary strip ───────────────────────────────────────────────────
 
 function EffectiveSummary({ journey, overrides }: {
@@ -801,6 +874,9 @@ function ContextTab({
         onRestore={onRestore}
         onToggleAutoApply={onToggleAutoApply}
       />
+
+      {/* ── ABM known-lead (read-only, live from the lead link) ───────────── */}
+      <KnownLeadIndicator />
 
       {/* ── Effective Summary ─────────────────────────────────────────────── */}
       <EffectiveSummary journey={journey} overrides={overrides} />
