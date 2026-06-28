@@ -1,0 +1,26 @@
+import{n as e}from"./chunk-vNrZSFDR.js";import{M as t}from"./iframe-BPplKtwB.js";import{n,t as r}from"./Container-Dm6GW6eo.js";import{n as i,t as a}from"./block-variants-Ci_fdGtY.js";import{n as o,t as s}from"./PortableTextRenderer-CfV_W9A9.js";function c({data:e,variant:t}){return(0,l.jsx)(`div`,{style:{paddingBlock:`3rem`},children:(0,l.jsx)(r,{size:i(`articleBody`,t)===`wide`?`lg`:`md`,children:(0,l.jsxs)(`article`,{style:{color:`var(--text)`,fontSize:`1.0625rem`,lineHeight:`1.8`,fontFamily:`var(--font-body, inherit)`},children:[(0,l.jsx)(s,{blocks:[...e.body]}),e.footnotes&&e.footnotes.length>0&&(0,l.jsxs)(`footer`,{style:{marginTop:`3rem`,paddingTop:`1.5rem`,borderTop:`1px solid var(--card-border)`},children:[(0,l.jsx)(`h2`,{style:{fontSize:`0.875rem`,fontWeight:600,color:`var(--text-muted)`,margin:`0 0 0.75rem 0`,textTransform:`uppercase`,letterSpacing:`0.05em`},children:`Notes`}),(0,l.jsx)(`ol`,{style:{margin:0,padding:`0 0 0 1.25rem`},children:e.footnotes.map((e,t)=>(0,l.jsx)(`li`,{id:`footnote-${t+1}`,style:{fontSize:`0.875rem`,color:`var(--text-muted)`,lineHeight:`1.6`,marginBottom:`0.375rem`},children:e},t))})]})]})})})}var l,u=e((()=>{l=t(),n(),a(),o(),c.__docgenInfo={description:``,methods:[],displayName:`ArticleBodyBlock`,props:{data:{required:!0,tsType:{name:`ArticleBodyBlockData`},description:``},variant:{required:!1,tsType:{name:`string`},description:``}}}})),d,f,p,m,h,g;e((()=>{u(),d=[{_type:`block`,_key:`b1`,style:`normal`,markDefs:[],children:[{_type:`span`,_key:`s1`,text:`Modern web platforms require a thoughtful approach to content architecture. When you separate presentation logic from content structure, you gain the flexibility to evolve your design system without disrupting editorial workflows.`,marks:[]}]},{_type:`block`,_key:`b2`,style:`h2`,markDefs:[],children:[{_type:`span`,_key:`s2`,text:`The role of structured content`,marks:[]}]},{_type:`block`,_key:`b3`,style:`normal`,markDefs:[],children:[{_type:`span`,_key:`s3`,text:`Structured content means every field has a `,marks:[]},{_type:`span`,_key:`s4`,text:`purpose and a schema`,marks:[`strong`]},{_type:`span`,_key:`s5`,text:`. Rather than a single blob of HTML, you store title, summary, body, tags, and author as discrete typed fields. This unlocks multi-channel distribution, AI enrichment, and consistent rendering across contexts.`,marks:[]}]},{_type:`block`,_key:`b4`,style:`blockquote`,markDefs:[],children:[{_type:`span`,_key:`s6`,text:`Content is the product. Everything else is the delivery mechanism.`,marks:[]}]},{_type:`block`,_key:`b5`,style:`h3`,markDefs:[],children:[{_type:`span`,_key:`s7`,text:`Practical implementation tips`,marks:[]}]},{_type:`block`,_key:`b6`,style:`normal`,markDefs:[],children:[{_type:`span`,_key:`s8`,text:`Start with your most-queried content type and model it in isolation. Resist the urge to create a universal mega-schema. A `,marks:[]},{_type:`span`,_key:`s9`,text:`focused schema`,marks:[`em`]},{_type:`span`,_key:`s10`,text:` that covers 80 % of real use-cases ships faster and is easier to maintain than one that tries to anticipate every edge case upfront.`,marks:[]}]}],f={title:`Blocks/Sections/ArticleBody`,component:c,tags:[`autodocs`],parameters:{layout:`fullscreen`,docs:{description:{component:`Primary long-form reading body for blog posts, vacancy descriptions, and documentation pages. Renders Portable Text with optional footnotes.`}}}},p={name:`default — narrow prose column (~70ch)`,args:{data:{body:d},variant:`default`}},m={name:`wide — full content-column width`,args:{data:{body:d},variant:`wide`}},h={name:`default + footnotes`,args:{data:{body:d,footnotes:[`Content as a Service (CaaS) is a delivery model where a CMS provides content via API to any front-end.`,`Portable Text is an open specification for rich text authored and stored as structured data.`,`Multi-channel distribution means the same structured content can be rendered in web, mobile, email, and voice interfaces.`]},variant:`default`}},p.parameters={...p.parameters,docs:{...p.parameters?.docs,source:{originalSource:`{
+  name: "default — narrow prose column (~70ch)",
+  args: {
+    data: {
+      body: mockBody
+    },
+    variant: "default"
+  }
+}`,...p.parameters?.docs?.source}}},m.parameters={...m.parameters,docs:{...m.parameters?.docs,source:{originalSource:`{
+  name: "wide — full content-column width",
+  args: {
+    data: {
+      body: mockBody
+    },
+    variant: "wide"
+  }
+}`,...m.parameters?.docs?.source}}},h.parameters={...h.parameters,docs:{...h.parameters?.docs,source:{originalSource:`{
+  name: "default + footnotes",
+  args: {
+    data: {
+      body: mockBody,
+      footnotes: ["Content as a Service (CaaS) is a delivery model where a CMS provides content via API to any front-end.", "Portable Text is an open specification for rich text authored and stored as structured data.", "Multi-channel distribution means the same structured content can be rendered in web, mobile, email, and voice interfaces."]
+    },
+    variant: "default"
+  }
+}`,...h.parameters?.docs?.source}}},g=[`Default`,`Wide`,`WithFootnotes`]}))();export{p as Default,m as Wide,h as WithFootnotes,g as __namedExportsOrder,f as default};

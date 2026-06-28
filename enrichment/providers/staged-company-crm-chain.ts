@@ -540,16 +540,24 @@ export function buildCompanyCrmChain(
     !enableOpenKvK ? "off" : (openKvKMode ?? "nl-only");
 
   if (effectiveOpenKvKMode !== "off") {
+    const okvkStage = createOpenKvKStagedEnricher({
+      isDev,
+      mode:                effectiveOpenKvKMode,
+      ...(ovioApiKey                 !== undefined ? { apiKey:              ovioApiKey                } : {}),
+      ...(openKvKConfidenceThreshold !== undefined ? { confidenceThreshold: openKvKConfidenceThreshold } : {}),
+      ...(openKvKMatchingStrategy    !== undefined ? { matchingStrategy:    openKvKMatchingStrategy    } : {}),
+    });
+    const okvkOrigShouldRun = okvkStage.shouldRun;
     stages.push({
-      ...createOpenKvKStagedEnricher({
-        isDev,
-        mode:                effectiveOpenKvKMode,
-        ...(ovioApiKey                 !== undefined ? { apiKey:              ovioApiKey                } : {}),
-        ...(openKvKConfidenceThreshold !== undefined ? { confidenceThreshold: openKvKConfidenceThreshold } : {}),
-        ...(openKvKMatchingStrategy    !== undefined ? { matchingStrategy:    openKvKMatchingStrategy    } : {}),
-      }),
+      ...okvkStage,
       stageKey: "openkvk",
       wave:     2,
+      // Skip the (separate) KvK API call when the company is already known —
+      // e.g. seeded from a recognised visitor's stored firmographics. Otherwise
+      // respect the provider's own gating (NL-only, not a cloud IP, …).
+      shouldRun: (input, accumulated) =>
+        !accumulated.companyName &&
+        (okvkOrigShouldRun ? okvkOrigShouldRun(input, accumulated) : true),
     });
   }
 

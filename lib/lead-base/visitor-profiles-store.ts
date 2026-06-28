@@ -116,6 +116,10 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<Pr
       ...(patch.geoCountry      !== undefined ? { geo_country:      patch.geoCountry }      : {}),
       ...(patch.geoRegion       !== undefined ? { geo_region:       patch.geoRegion }       : {}),
       ...(patch.abmLeadId       !== undefined ? { abm_lead_id:      patch.abmLeadId }       : {}),
+      // Stamp the firmographics' freshness whenever a company field is (re)written.
+      ...((patch.companyName !== undefined || patch.companyDomain !== undefined ||
+           patch.companyIndustry !== undefined || patch.companySize !== undefined)
+            ? { firmographics_at: now } : {}),
     };
 
     await db.from("visitor_profiles").upsert(row, { onConflict: "tenant_id,visitor_key" });
@@ -130,6 +134,55 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<Pr
     logger.warn("[lead-base] upsertVisitorProfile failed", {
       err: err instanceof Error ? err.message : String(err),
     });
+    return null;
+  }
+}
+
+// ── Firmographics reuse (skip stable enrichment for known visitors) ─────────────
+
+/** The stable company fields, as EnrichmentOutput keys (ready to seed the chain). */
+export interface KnownFirmographics {
+  companyName?:     string;
+  companyDomain?:   string;
+  companyIndustry?: string;
+  companySize?:     string;
+}
+
+/**
+ * Return the cached firmographics for a visitor IF they are still fresh (written
+ * within `freshnessDays`). Returns null when there's no profile, no company data,
+ * or the data is stale (so the company-identification stages re-run to refresh).
+ * Cheap single indexed lookup; used to seed the enrichment + skip company stages.
+ */
+export async function getKnownFirmographics(
+  tenantId:     string,
+  visitorKey:   string,
+  freshnessDays: number,
+): Promise<KnownFirmographics | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("visitor_profiles")
+      .select("company_name, company_domain, company_industry, company_size, firmographics_at")
+      .eq("tenant_id", tenantId)
+      .eq("visitor_key", visitorKey)
+      .maybeSingle();
+    if (error || !data) return null;
+
+    const at = data.firmographics_at ? new Date(String(data.firmographics_at)).getTime() : 0;
+    if (!at) return null;
+    const ageMs = Date.now() - at;
+    if (ageMs > freshnessDays * 24 * 60 * 60 * 1000) return null; // stale → refresh
+
+    const out: KnownFirmographics = {
+      ...(data.company_name     ? { companyName:     String(data.company_name) }     : {}),
+      ...(data.company_domain   ? { companyDomain:   String(data.company_domain) }   : {}),
+      ...(data.company_industry ? { companyIndustry: String(data.company_industry) } : {}),
+      ...(data.company_size     ? { companySize:     String(data.company_size) }     : {}),
+    };
+    return Object.keys(out).length > 0 ? out : null;
+  } catch {
     return null;
   }
 }

@@ -66,6 +66,7 @@ import {
   forceKnownLeadSegment,
 } from "@/lib/abm/apply-known-lead";
 import { recordVisitorProfile }            from "@/lib/lead-base/record-visitor-profile";
+import { getKnownFirmographics }           from "@/lib/lead-base/visitor-profiles-store";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -431,6 +432,22 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     return createSupabaseClient(url, key, { auth: { persistSession: false } });
   })();
 
+  // ── Firmographics reuse — skip stable company enrichment for known visitors ─
+  //
+  // When this visitor already has fresh firmographics (written within the
+  // tenant's freshness window, default 30 days), seed them so the
+  // company-identification stages (OpenKvK, …) skip via their shouldRun gate.
+  // That saves the external lookups and avoids re-charging recognition, while
+  // volatile enrichment (current geo, weather) still runs every visit. Stale or
+  // absent → null → full enrichment runs and refreshes the firmographics.
+  const seedFirmographics = sessionId
+    ? await getKnownFirmographics(
+        tenantConfig.tenantId,
+        sessionId,
+        tenant?.enrichment?.firmographicFreshnessDays ?? 30,
+      )
+    : null;
+
   // ── Decision context ──────────────────────────────────────────────────────
   let debugInfo: EnrichmentDebugInfo | null = null;
 
@@ -445,6 +462,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     ipOverride:        tenant?.enrichment?.testIpAddress  ?? null,
     sessionId,
     stagedEnrichers,
+    ...(seedFirmographics ? { seedEnrichment: seedFirmographics } : {}),
     timezone:          tenant?.timezone ?? null,
     billingClient,
   });

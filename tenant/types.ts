@@ -1306,6 +1306,15 @@ export interface TenantEnrichmentSettings {
    * is applied even when `testIpEnabled` is true.
    */
   readonly testIpAddress?: string;
+
+  /**
+   * How many days a recognised visitor's firmographics (company name / domain /
+   * industry / size) stay "fresh". Within this window, the company-identification
+   * stages are SKIPPED for that visitor and the stored data is reused; after it,
+   * they re-run once to refresh. Volatile enrichment (current geo, weather) always
+   * runs. Default: 30.
+   */
+  readonly firmographicFreshnessDays?: number;
 }
 
 // ── Domains settings ──────────────────────────────────────────────────────────

@@ -1,0 +1,1 @@
+import{n as e}from"./chunk-vNrZSFDR.js";function t(e){switch(e){case`default`:return`var(--bg)`;case`subtle`:return`var(--section-subtle-bg)`;case`emphasis`:return`color-mix(in srgb, var(--primary) 8%, var(--bg))`;case`strong`:return`var(--primary)`;case`inverse`:return`var(--section-inverse-bg, #0f172a)`;default:return}}var n=e((()=>{}));export{t as n,n as t};

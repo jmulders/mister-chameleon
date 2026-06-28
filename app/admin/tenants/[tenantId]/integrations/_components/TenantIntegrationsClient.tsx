@@ -95,6 +95,8 @@ export interface TenantIntegrationsClientProps {
     // Test IP override — persisted per tenant for QA and geo-targeting verification
     testIpEnabled?:          boolean;
     testIpAddress?:          string;
+    // How long a recognised visitor's firmographics stay "fresh" (days).
+    firmographicFreshnessDays?: number;
   };
   platformEnrichmentAvailable: boolean;  // MaxMind key at platform level
 
@@ -614,6 +616,7 @@ export function TenantIntegrationsClient({
   const [useSeasonalEvents,   setUseSeasonalEvents]   = useState(initialEnrichment.useSeasonalEvents   ?? false);
   const [testIpEnabled,       setTestIpEnabled]       = useState(initialEnrichment.testIpEnabled       ?? false);
   const [testIpAddress,       setTestIpAddress]       = useState(initialEnrichment.testIpAddress       ?? "");
+  const [firmoFreshnessDays,  setFirmoFreshnessDays]  = useState(String(initialEnrichment.firmographicFreshnessDays ?? 30));
 
   // ── Leadinfo state ─────────────────────────────────────────────────────────
   const [liEnabled,          setLiEnabled]          = useState(initialLeadinfo.enabled);
@@ -704,6 +707,8 @@ export function TenantIntegrationsClient({
           // Test IP override
           testIpEnabled,
           testIpAddress:          testIpAddress.trim() || undefined,
+          // Firmographics freshness window (days); clamp to a sane 1–365, default 30.
+          firmographicFreshnessDays: Math.min(365, Math.max(1, parseInt(firmoFreshnessDays, 10) || 30)),
         },
         domains: {
           vercelProjectId: vercelProjectId || undefined,
@@ -1215,6 +1220,30 @@ export function TenantIntegrationsClient({
             disabled={!enrichmentEnabled}
             label="Use seasonal event detection"
             description="Detects public holidays (via Nager.Date) and business events (black-friday, cyber-monday) for the visitor's country and populates the seasonalEvent context variable. Enable the holiday provider in Platform → Integrations → Enrichment first."
+          />
+        </div>
+
+        {/* ── Firmographics freshness ─────────────────────────────────────── */}
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <label htmlFor="firmo-freshness" className="block text-sm font-medium text-slate-800">
+            Firmographics freshness (days)
+          </label>
+          <p className="mt-1 text-xs text-slate-500">
+            How long a recognised visitor&apos;s company data (name, domain, industry,
+            size) is reused before re-checking. Within this window the company lookups
+            (KvK, CRM) are skipped on repeat visits — saving calls and recognition
+            credits — while current location and weather still refresh every visit.
+            Default 30.
+          </p>
+          <input
+            id="firmo-freshness"
+            type="number"
+            min={1}
+            max={365}
+            value={firmoFreshnessDays}
+            onChange={(e) => setFirmoFreshnessDays(e.target.value)}
+            disabled={!enrichmentEnabled}
+            className="mt-2 w-28 rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
           />
         </div>
 

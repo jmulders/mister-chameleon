@@ -19,7 +19,8 @@ const TIMEOUT_MS = 4000;
 
 export interface HubspotCompanyInput {
   name?:     string | null;
-  domain:    string;   // required — the dedup key
+  /** Preferred dedup key. When absent, we fall back to deduping by name. */
+  domain?:   string | null;
   industry?: string | null;
 }
 
@@ -43,13 +44,13 @@ async function hsFetch(token: string, url: string, init: RequestInit): Promise<R
   }
 }
 
-/** Find an existing HubSpot company id by domain, or null. */
-async function findByDomain(token: string, domain: string): Promise<string | null> {
+/** Find an existing HubSpot company id by an exact property match, or null. */
+async function findBy(token: string, propertyName: string, value: string): Promise<string | null> {
   const res = await hsFetch(token, `${BASE}/search`, {
     method: "POST",
     body: JSON.stringify({
-      filterGroups: [{ filters: [{ propertyName: "domain", operator: "EQ", value: domain }] }],
-      properties: ["domain"],
+      filterGroups: [{ filters: [{ propertyName, operator: "EQ", value }] }],
+      properties: [propertyName],
       limit: 1,
     }),
   });
@@ -66,13 +67,19 @@ export async function syncCompanyToHubspot(
   company: HubspotCompanyInput,
 ): Promise<{ ok: boolean; companyId?: string; error?: string }> {
   try {
-    if (!company.domain) return { ok: false, error: "No domain — cannot dedup a HubSpot company." };
+    if (!company.domain && !company.name) {
+      return { ok: false, error: "No domain or name — nothing to upsert." };
+    }
 
-    const properties: Record<string, string> = { domain: company.domain };
+    const properties: Record<string, string> = {};
+    if (company.domain)   properties.domain   = company.domain;
     if (company.name)     properties.name     = company.name;
     if (company.industry) properties.industry = company.industry;
 
-    const existingId = await findByDomain(token, company.domain);
+    // Dedup by domain when available (most reliable); otherwise by exact name.
+    const existingId = company.domain
+      ? await findBy(token, "domain", company.domain)
+      : await findBy(token, "name", company.name!);
 
     const res = existingId
       ? await hsFetch(token, `${BASE}/${existingId}`, { method: "PATCH", body: JSON.stringify({ properties }) })

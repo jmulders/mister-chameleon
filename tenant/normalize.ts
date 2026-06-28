@@ -66,6 +66,8 @@ export function normalizeTenant(raw: TenantSettings): TenantSettings {
       ...(r.enrichment?.testIpAddress !== undefined
         ? { testIpAddress: r.enrichment.testIpAddress }
         : {}),
+      // Firmographics freshness window (days) — default 30.
+      firmographicFreshnessDays: r.enrichment?.firmographicFreshnessDays ?? 30,
     },
     domains: {
       ...r.domains,

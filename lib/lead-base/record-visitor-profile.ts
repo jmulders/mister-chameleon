@@ -87,13 +87,13 @@ export async function recordVisitorProfile(args: {
     if (isNewlyQualified(result)) {
       await fireProfileWebhook(patch, result);
 
-      // Native HubSpot Company upsert (by domain) when a token is configured.
-      if (patch.companyDomain) {
+      // Native HubSpot Company upsert — by domain when known, else by name.
+      if (patch.companyDomain || patch.companyName) {
         const token = await getAbmHubspotToken(args.tenantId);
         if (token) {
           await syncCompanyToHubspot(token, {
-            name:     patch.companyName ?? null,
-            domain:   patch.companyDomain,
+            name:     patch.companyName   ?? null,
+            domain:   patch.companyDomain ?? null,
             industry: patch.companyIndustry ?? null,
           });
         }

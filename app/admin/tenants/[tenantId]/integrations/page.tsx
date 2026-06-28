@@ -146,6 +146,7 @@ export default async function TenantIntegrationsPage({
     useSeasonalEvents:      tenant.enrichment?.useSeasonalEvents      ?? false,
     testIpEnabled:          tenant.enrichment?.testIpEnabled          ?? false,
     testIpAddress:          tenant.enrichment?.testIpAddress          ?? "",
+    firmographicFreshnessDays: tenant.enrichment?.firmographicFreshnessDays ?? 30,
   };
 
   const domainsProp = {

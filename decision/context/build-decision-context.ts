@@ -240,6 +240,15 @@ export interface BuildDecisionContextParams {
   stagedEnrichers?: StagedEnricher[];
 
   /**
+   * Pre-known enrichment fields to seed the staged pipeline with (as
+   * `initialAccumulated`). Used to reuse a recognised visitor's stable
+   * firmographics (company name / domain / industry / size) so the
+   * company-identification stages can skip via their `shouldRun` gate. Volatile
+   * stages (geo, weather) still run. Merged on top of the CDN-header geo pre-pass.
+   */
+  seedEnrichment?: Partial<EnrichmentOutput>;
+
+  /**
    * IANA timezone string for the active tenant, e.g. "Europe/Amsterdam".
    *
    * Used to derive time-based context variables (currentHour, dayOfWeek,
@@ -441,6 +450,7 @@ export async function buildDecisionContext(
     companyProvider     = new StubCompanyProvider(),
     ipCompanyCrmEnricher,
     stagedEnrichers,
+    seedEnrichment,
     timezone            = null,
     sessionId           = null,
     ipOverride          = null,
@@ -680,7 +690,7 @@ export async function buildDecisionContext(
               enricherInput,
               {
                 timeoutMs:          4_000,
-                initialAccumulated: headerGeoResult,
+                initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
               },
             );
             setSessionEnrichment(sessionId, freshResult.output, ip, tenantId);
@@ -912,7 +922,7 @@ export async function buildDecisionContext(
       enricherInput,
       {
         timeoutMs:          4_000,
-        initialAccumulated: headerGeoResult,
+        initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
         logger: ({ label, timedOut, error }) => {
           logger.warn("[decision-context] staged enricher issue", { label, timedOut, error });
         },
