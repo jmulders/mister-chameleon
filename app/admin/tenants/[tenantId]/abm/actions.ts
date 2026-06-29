@@ -17,6 +17,8 @@ import {
   listAbmLeadVisits,
   getAbmWebhookUrl,
   setAbmWebhookUrl,
+  getAbmWebhookSecret,
+  setAbmWebhookSecret,
   getAbmHubspotToken,
   setAbmHubspotToken,
   type AbmLead,
@@ -64,6 +66,34 @@ export async function saveAbmWebhookUrlAction(
   if (!ok) return { ok: false, error: "Save failed." };
   revalidatePath(`/admin/tenants/${tenantId}/abm`);
   return { ok: true };
+}
+
+export async function getAbmWebhookSecretAction(tenantId: string): Promise<string | null> {
+  await getRequiredAdminSession();
+  return getAbmWebhookSecret(tenantId);
+}
+
+export async function saveAbmWebhookSecretAction(
+  tenantId: string,
+  secret:   string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const ok = await setAbmWebhookSecret(tenantId, secret.trim() || null);
+  if (!ok) return { ok: false, error: "Save failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  return { ok: true };
+}
+
+/** Generate a strong random signing secret, store it, and return it for display. */
+export async function generateAbmWebhookSecretAction(
+  tenantId: string,
+): Promise<{ ok: true; secret: string } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const secret = `whsec_${randomBytes(32).toString("base64url")}`;
+  const ok = await setAbmWebhookSecret(tenantId, secret);
+  if (!ok) return { ok: false, error: "Save failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  return { ok: true, secret };
 }
 
 export async function getAbmHubspotTokenAction(tenantId: string): Promise<string | null> {

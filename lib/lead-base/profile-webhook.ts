@@ -12,7 +12,8 @@
 
 import "server-only";
 
-import { getAbmWebhookUrl }       from "@/lib/abm/abm-store";
+import { createHmac }             from "node:crypto";
+import { getAbmWebhookUrl, getAbmWebhookSecret } from "@/lib/abm/abm-store";
 import { logger }                 from "@/lib/logger";
 import type { GatedProfilePatch, IdentityLevel, ProfileStatus } from "./profile-gate";
 import type { ProfileUpsertResult } from "./visitor-profiles-store";
@@ -76,13 +77,29 @@ export async function fireProfileWebhook(
       },
     };
 
+    const body = JSON.stringify(payload);
+
+    // Optional HMAC-SHA256 signature so the receiver can verify authenticity and
+    // reject replays. Signed value is `${timestamp}.${rawBody}` (Stripe/Slack style).
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      "user-agent":   "MisterChameleon-LeadBase/1.0",
+    };
+    const secret = await getAbmWebhookSecret(patch.tenantId);
+    if (secret) {
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+      const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+      headers["x-mc-timestamp"] = timestamp;
+      headers["x-mc-signature"] = `sha256=${signature}`;
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         method:  "POST",
-        headers: { "content-type": "application/json", "user-agent": "MisterChameleon-LeadBase/1.0" },
-        body:    JSON.stringify(payload),
+        headers,
+        body,
         signal:  controller.signal,
       });
       if (!res.ok) {

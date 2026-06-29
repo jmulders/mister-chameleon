@@ -321,6 +321,44 @@ export async function setAbmHubspotToken(tenantId: string, token: string | null)
   }
 }
 
+/** Fetch the tenant's webhook signing secret (or null when unset). */
+export async function getAbmWebhookSecret(tenantId: string): Promise<string | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("abm_settings")
+      .select("webhook_secret")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const secret = (data.webhook_secret as string | null) ?? null;
+    return secret && secret.trim() ? secret.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Upsert the tenant's webhook signing secret (admin). Pass null/empty to clear. */
+export async function setAbmWebhookSecret(tenantId: string, secret: string | null): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { error } = await db
+      .from("abm_settings")
+      .upsert(
+        { tenant_id: tenantId, webhook_secret: secret?.trim() || null, updated_at: new Date().toISOString() },
+        { onConflict: "tenant_id" },
+      );
+    return !error;
+  } catch (err) {
+    logger.warn("[abm-store] setAbmWebhookSecret failed", {
+      tenantId, err: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
 /** Upsert the tenant's outbound webhook URL (admin). Pass null/empty to clear. */
 export async function setAbmWebhookUrl(tenantId: string, webhookUrl: string | null): Promise<boolean> {
   try {

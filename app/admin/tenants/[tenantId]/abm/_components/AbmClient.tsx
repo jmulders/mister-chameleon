@@ -10,6 +10,8 @@ import {
   saveAbmWebhookUrlAction,
   saveAbmHubspotTokenAction,
   testAbmHubspotSyncAction,
+  saveAbmWebhookSecretAction,
+  generateAbmWebhookSecretAction,
 } from "../actions";
 import type { AbmLead, AbmLeadStatus, AbmLeadVisit } from "@/lib/abm/abm-store";
 
@@ -60,14 +62,16 @@ export function AbmClient({
   baseUrl,
   segments,
   initialWebhookUrl,
+  initialWebhookSecret,
   initialHubspotToken,
 }: {
-  tenantId:            string;
-  initialLeads:        AbmLead[];
-  baseUrl:             string;
-  segments:            SegmentOption[];
-  initialWebhookUrl:   string;
-  initialHubspotToken: string;
+  tenantId:             string;
+  initialLeads:         AbmLead[];
+  baseUrl:              string;
+  segments:             SegmentOption[];
+  initialWebhookUrl:    string;
+  initialWebhookSecret: string;
+  initialHubspotToken:  string;
 }) {
   const [leads, setLeads]   = useState<AbmLead[]>(initialLeads);
   const [form, setForm]     = useState<FormState>(EMPTY);
@@ -77,8 +81,10 @@ export function AbmClient({
   const [pending, start]    = useTransition();
 
   // Outbound webhook settings.
-  const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl);
-  const [webhookMsg, setWebhookMsg] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl]       = useState(initialWebhookUrl);
+  const [webhookMsg, setWebhookMsg]       = useState<string | null>(null);
+  const [webhookSecret, setWebhookSecret] = useState(initialWebhookSecret);
+  const [secretMsg, setSecretMsg]         = useState<string | null>(null);
 
   // HubSpot CRM-sync token.
   const [hubspotToken, setHubspotToken] = useState(initialHubspotToken);
@@ -108,6 +114,21 @@ export function AbmClient({
     start(async () => {
       const res = await saveAbmWebhookUrlAction(tenantId, webhookUrl);
       setWebhookMsg(res.ok ? "Saved." : res.error);
+    });
+  }
+
+  function saveSecret() {
+    start(async () => {
+      const res = await saveAbmWebhookSecretAction(tenantId, webhookSecret);
+      setSecretMsg(res.ok ? "Saved." : res.error);
+    });
+  }
+
+  function generateSecret() {
+    start(async () => {
+      const res = await generateAbmWebhookSecretAction(tenantId);
+      if (res.ok) { setWebhookSecret(res.secret); setSecretMsg("Generated + saved — copy it into your receiver."); }
+      else setSecretMsg(res.error);
     });
   }
 
@@ -285,6 +306,29 @@ export function AbmClient({
           </button>
         </div>
         {webhookMsg && <span className="text-xs text-neutral-500">{webhookMsg}</span>}
+
+        {/* Signing secret */}
+        <div className="mt-2 border-t border-neutral-100 pt-3">
+          <label className={LABEL}>Signing secret <span className="text-neutral-400 font-normal">(optional)</span></label>
+          <p className="mb-2 text-xs text-neutral-500">
+            When set, each POST is signed: header <code className="font-mono">X-MC-Signature: sha256=…</code> is
+            <code className="font-mono"> HMAC-SHA256(secret, `${"{timestamp}"}.${"{body}"}`)</code> and
+            <code className="font-mono"> X-MC-Timestamp</code> carries the unix time. Verify it in your
+            receiver to confirm authenticity and reject replays.
+          </p>
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <input className={`${INPUT} font-mono text-xs`} value={webhookSecret} onChange={(e) => { setWebhookSecret(e.target.value); setSecretMsg(null); }} placeholder="whsec_…" />
+            </div>
+            <button onClick={generateSecret} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
+              Generate
+            </button>
+            <button onClick={saveSecret} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
+              {pending ? "Saving…" : "Save secret"}
+            </button>
+          </div>
+          {secretMsg && <span className="text-xs text-neutral-500">{secretMsg}</span>}
+        </div>
       </section>
 
       {/* ── HubSpot CRM sync ────────────────────────────────────────── */}
