@@ -292,8 +292,12 @@ export function AbmClient({
       <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-neutral-900">Outbound webhook <span className="text-neutral-400 font-normal">(optional)</span></h2>
         <p className="text-xs text-neutral-500">
-          When a known lead arrives via their link, POST a JSON visit event to this URL —
-          wire it to a HubSpot workflow, Slack, Zapier/n8n, or your own endpoint. Leave empty to disable.
+          When a lead qualifies — a named lead arriving via their link, or any visitor reaching
+          MQL/SQL through the funnel — POST a JSON event to this URL. The payload carries the
+          named <code className="font-mono">person</code> (name, job title, LinkedIn) plus the
+          <code className="font-mono"> profile</code> (company, size, industry, geo, intent, funnel
+          stage, segments), so your flow (Make, n8n, Slack, your own endpoint) can use them — e.g.
+          in the body of a triggered email. Leave empty to disable.
         </p>
         <div className="flex items-end gap-3">
           <div className="flex-1">

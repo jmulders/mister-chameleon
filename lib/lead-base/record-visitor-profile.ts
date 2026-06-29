@@ -140,7 +140,7 @@ export async function recordVisitorProfile(args: {
     // Generic outbound webhook — only on an upward qualification, so normal page
     // views never spam the endpoint.
     if (isNewlyQualified(result)) {
-      await fireProfileWebhook(patch, result);
+      await fireProfileWebhook(patch, result, args.person ?? null);
     }
 
     // Native HubSpot sync — Company + Contact + a per-session "website visit" note.

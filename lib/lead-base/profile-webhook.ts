@@ -43,14 +43,27 @@ export function isNewlyQualified(t: ProfileUpsertResult): boolean {
   return levelCrossed || statusCrossed;
 }
 
+/** The named person behind a known ABM lead, included in the webhook payload. */
+export interface WebhookPerson {
+  firstName?:   string | null;
+  lastName?:    string | null;
+  jobTitle?:    string | null;
+  linkedinUrl?: string | null;
+}
+
 /** Returns true when a webhook target was configured and the POST was attempted. */
 export async function fireProfileWebhook(
   patch:      GatedProfilePatch,
   transition: ProfileUpsertResult,
+  person?:    WebhookPerson | null,
 ): Promise<boolean> {
   try {
     const url = await getAbmWebhookUrl(patch.tenantId);
     if (!url) return false;
+
+    const fullName = person && (person.firstName || person.lastName)
+      ? [person.firstName, person.lastName].filter(Boolean).join(" ")
+      : null;
 
     const payload = {
       event:      "lead.qualified",
@@ -62,6 +75,14 @@ export async function fireProfileWebhook(
         fromStatus: transition.prevStatus,
         toStatus:   transition.status,
       },
+      // The named person (present for ABM leads; null for funnel-qualified visitors).
+      person: person ? {
+        fullName,
+        firstName:   person.firstName   ?? null,
+        lastName:    person.lastName    ?? null,
+        jobTitle:    person.jobTitle    ?? null,
+        linkedinUrl: person.linkedinUrl ?? null,
+      } : null,
       profile: {
         visitorKey:      patch.visitorKey,
         identityLevel:   patch.identityLevel,
@@ -70,9 +91,12 @@ export async function fireProfileWebhook(
         companyDomain:   patch.companyDomain   ?? null,
         companySize:     patch.companySize     ?? null,
         companyIndustry: patch.companyIndustry ?? null,
+        geoCountry:      patch.geoCountry       ?? null,
+        geoRegion:       patch.geoRegion        ?? null,
         intentScore:     patch.intentScore     ?? null,
         funnelStage:     patch.funnelStage      ?? null,
         segmentIds:      patch.segmentIds       ?? [],
+        consentState:    patch.consentState,
         abmLeadId:       patch.abmLeadId        ?? null,
       },
     };
