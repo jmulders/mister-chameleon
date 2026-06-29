@@ -14,12 +14,66 @@ import "server-only";
 import type { DecisionContext } from "@/decision/decision-context";
 import { resolveConsent }       from "@/lib/consent/server-consent";
 import { gateProfileWrite, type ProfileCandidate, type IdentityLevel, type ProfileStatus } from "./profile-gate";
-import { upsertVisitorProfile } from "./visitor-profiles-store";
+import {
+  upsertVisitorProfile,
+  getProfileCrmState,
+  updateProfileCrmState,
+} from "./visitor-profiles-store";
 import { fireProfileWebhook, isNewlyQualified, isNewlyRecognised } from "./profile-webhook";
-import { syncCompanyToHubspot } from "./hubspot-sync";
+import { syncCompanyToHubspot, syncContactToHubspot, logVisitNote } from "./hubspot-sync";
 import { billLeadCredit }       from "./bill-lead-credit";
 import { getAbmHubspotToken }   from "@/lib/abm/abm-store";
 import { logger }               from "@/lib/logger";
+
+/** The named person behind a known ABM lead (first-party CRM data). */
+export interface LeadPerson {
+  firstName?:   string | null;
+  lastName?:    string | null;
+  jobTitle?:    string | null;
+  linkedinUrl?: string | null;
+}
+
+/** Map an ABM lead profile to the named person, deriving last name from full name. */
+export function abmLeadToPerson(
+  profile: { firstName?: string | null; name?: string | null; role?: string | null; linkedinUrl?: string | null } | null | undefined,
+): LeadPerson | null {
+  if (!profile) return null;
+  const firstName = profile.firstName ?? null;
+  const full      = profile.name ?? null;
+  let lastName: string | null = null;
+  if (full) {
+    if (firstName && full.toLowerCase().startsWith(firstName.toLowerCase())) {
+      lastName = full.slice(firstName.length).trim() || null;
+    } else {
+      const parts = full.trim().split(/\s+/);
+      lastName = parts.length > 1 ? parts.slice(1).join(" ") : null;
+    }
+  }
+  const person: LeadPerson = {
+    ...(firstName ? { firstName } : {}),
+    ...(lastName  ? { lastName }  : {}),
+    ...(profile.role        ? { jobTitle:    profile.role }        : {}),
+    ...(profile.linkedinUrl ? { linkedinUrl: profile.linkedinUrl } : {}),
+  };
+  return person.firstName || person.lastName ? person : null;
+}
+
+/** Parse a leading employee count out of a size label, e.g. "500-1000" → 500. */
+function parseEmployees(size: string | null | undefined): number | null {
+  if (!size) return null;
+  const m = size.replace(/[.,]/g, "").match(/\d+/);
+  return m ? Number(m[0]) : null;
+}
+
+/** Coerce a possibly-stringified revenue figure to a number. */
+function toNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  return null;
+}
 
 function mapStatus(funnel: string | null, known: boolean, customer: boolean): ProfileStatus {
   if (customer) return "customer";
@@ -37,6 +91,7 @@ export async function recordVisitorProfile(args: {
   cookieHeader: string | null;
   ctx:          DecisionContext;
   abmLeadId?:   string | null;
+  person?:      LeadPerson | null;   // named person behind a known ABM lead
 }): Promise<void> {
   try {
     const { ctx } = args;
@@ -82,25 +137,141 @@ export async function recordVisitorProfile(args: {
       await billLeadCredit(args.tenantId, args.visitorKey);
     }
 
-    // CRM sync (unbilled) — only on an upward qualification (became known / MQL /
-    // SQL / customer), so normal page views never spam the CRM.
+    // Generic outbound webhook — only on an upward qualification, so normal page
+    // views never spam the endpoint.
     if (isNewlyQualified(result)) {
       await fireProfileWebhook(patch, result);
+    }
 
-      // Native HubSpot Company upsert — by domain when known, else by name.
-      if (patch.companyDomain || patch.companyName) {
-        const token = await getAbmHubspotToken(args.tenantId);
-        if (token) {
-          await syncCompanyToHubspot(token, {
-            name:     patch.companyName   ?? null,
-            domain:   patch.companyDomain ?? null,
-            industry: patch.companyIndustry ?? null,
-          });
-        }
+    // Native HubSpot sync — Company + Contact + a per-session "website visit" note.
+    // Runs for any visit where a company is known (named ABM lead or recognised),
+    // reusing the stored HubSpot ids so repeat visits don't create duplicates.
+    if (patch.companyDomain || patch.companyName) {
+      const token = await getAbmHubspotToken(args.tenantId);
+      if (token) {
+        await syncToHubspot({
+          tenantId:   args.tenantId,
+          visitorKey: args.visitorKey,
+          token,
+          patch,
+          ctx,
+          person:     args.person ?? null,
+          newlyQualified: isNewlyQualified(result),
+        });
       }
     }
   } catch (err) {
     logger.warn("[lead-base] recordVisitorProfile failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+const SESSION_GAP_MS = 30 * 60 * 1000;
+
+/** A short HTML "website visit" note body for the HubSpot timeline. */
+function buildNoteBody(
+  patch:  ReturnType<typeof gateProfileWrite>,
+  person: LeadPerson | null,
+): string {
+  const when = new Date().toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" });
+  const who  = person && (person.firstName || person.lastName)
+    ? `${[person.firstName, person.lastName].filter(Boolean).join(" ")}${person.jobTitle ? `, ${person.jobTitle}` : ""}`
+    : "Known visitor";
+  const lines = [
+    `<strong>Website visit via personalized link</strong> — ${when}`,
+    `Contact: ${who}`,
+    patch.companyName ? `Account: ${patch.companyName}` : null,
+    patch.funnelStage ? `Funnel stage: ${patch.funnelStage}` : null,
+    typeof patch.intentScore === "number" ? `Intent score: ${patch.intentScore}` : null,
+    person?.linkedinUrl ? `LinkedIn: ${person.linkedinUrl}` : null,
+  ].filter(Boolean);
+  return lines.join("<br>");
+}
+
+/**
+ * Mirror a known lead into HubSpot: upsert the Company (firmographics) and the
+ * Contact (named person, associated to the company) once — reusing stored ids on
+ * repeat visits — then log a "website visit" note at most once per session.
+ * Entirely fail-open.
+ */
+async function syncToHubspot(a: {
+  tenantId:       string;
+  visitorKey:     string;
+  token:          string;
+  patch:          ReturnType<typeof gateProfileWrite>;
+  ctx:            DecisionContext;
+  person:         LeadPerson | null;
+  newlyQualified: boolean;
+}): Promise<void> {
+  try {
+    const crm = await getProfileCrmState(a.tenantId, a.visitorKey);
+    let companyId = crm.hubspotCompanyId;
+    let contactId = crm.hubspotContactId;
+
+    const industry  = a.patch.companyIndustry ?? null;
+    const size      = a.patch.companySize ?? null;
+    const employees = parseEmployees(size);
+    const revenue   = toNumber((a.ctx.enrichment as Record<string, unknown> | undefined)?.["leadinfoSalesVolume"]);
+
+    // Readable summary so context survives even if structured fields get rejected.
+    const description = [
+      "Source: Mister Chameleon — personalized ABM link.",
+      industry ? `Industry: ${industry}` : null,
+      size     ? `Size: ${size}`         : null,
+      a.person && (a.person.firstName || a.person.lastName)
+        ? `Contact: ${[a.person.firstName, a.person.lastName].filter(Boolean).join(" ")}${a.person.jobTitle ? ` (${a.person.jobTitle})` : ""}`
+        : null,
+      a.person?.linkedinUrl ? `LinkedIn: ${a.person.linkedinUrl}` : null,
+    ].filter(Boolean).join(" · ");
+
+    // (1) Company — create once; refresh on qualification.
+    if (!companyId || a.newlyQualified) {
+      const r = await syncCompanyToHubspot(a.token, {
+        name:              a.patch.companyName   ?? null,
+        domain:            a.patch.companyDomain ?? null,
+        industry,
+        numberOfEmployees: employees,
+        annualRevenue:     revenue,
+        description,
+      });
+      if (r.ok && r.companyId) companyId = r.companyId;
+    }
+
+    // (2) Contact — the named person, associated to the company.
+    const hasPerson = !!(a.person && (a.person.firstName || a.person.lastName));
+    if (hasPerson && (!contactId || a.newlyQualified)) {
+      const r = await syncContactToHubspot(a.token, {
+        firstName: a.person!.firstName ?? null,
+        lastName:  a.person!.lastName  ?? null,
+        jobTitle:  a.person!.jobTitle  ?? null,
+      }, companyId);
+      if (r.ok && r.contactId) contactId = r.contactId;
+    }
+
+    // (3) Website-visit note — at most once per ~30-min session.
+    const lastLogged = crm.crmVisitLoggedAt ? Date.parse(crm.crmVisitLoggedAt) : 0;
+    const sessionElapsed = Date.now() - (Number.isFinite(lastLogged) ? lastLogged : 0) > SESSION_GAP_MS;
+    if (companyId && sessionElapsed) {
+      await logVisitNote(a.token, {
+        body:        buildNoteBody(a.patch, a.person),
+        companyId,
+        contactId,
+        timestampMs: Date.now(),
+      });
+      await updateProfileCrmState(a.tenantId, a.visitorKey, {
+        ...(companyId ? { hubspotCompanyId: companyId } : {}),
+        ...(contactId ? { hubspotContactId: contactId } : {}),
+        crmVisitLoggedAt: new Date().toISOString(),
+      });
+    } else if (companyId !== crm.hubspotCompanyId || contactId !== crm.hubspotContactId) {
+      await updateProfileCrmState(a.tenantId, a.visitorKey, {
+        ...(companyId ? { hubspotCompanyId: companyId } : {}),
+        ...(contactId ? { hubspotContactId: contactId } : {}),
+      });
+    }
+  } catch (err) {
+    logger.warn("[lead-base] syncToHubspot failed", {
       err: err instanceof Error ? err.message : String(err),
     });
   }

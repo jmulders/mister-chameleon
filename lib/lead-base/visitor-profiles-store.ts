@@ -187,6 +187,62 @@ export async function getKnownFirmographics(
   }
 }
 
+// ── HubSpot sync state (reuse records + throttle visit notes) ───────────────────
+
+export interface ProfileCrmState {
+  hubspotCompanyId:  string | null;
+  hubspotContactId:  string | null;
+  crmVisitLoggedAt:  string | null;   // ISO
+}
+
+/** Read the HubSpot record ids + last visit-note time for a visitor. */
+export async function getProfileCrmState(
+  tenantId:   string,
+  visitorKey: string,
+): Promise<ProfileCrmState> {
+  const empty: ProfileCrmState = { hubspotCompanyId: null, hubspotContactId: null, crmVisitLoggedAt: null };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("visitor_profiles")
+      .select("hubspot_company_id, hubspot_contact_id, crm_visit_logged_at")
+      .eq("tenant_id", tenantId)
+      .eq("visitor_key", visitorKey)
+      .maybeSingle();
+    if (error || !data) return empty;
+    return {
+      hubspotCompanyId: data.hubspot_company_id  ?? null,
+      hubspotContactId: data.hubspot_contact_id  ?? null,
+      crmVisitLoggedAt: data.crm_visit_logged_at ?? null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/** Persist HubSpot record ids and/or the visit-note timestamp. Fail-open. */
+export async function updateProfileCrmState(
+  tenantId:   string,
+  visitorKey: string,
+  patch:      Partial<{ hubspotCompanyId: string; hubspotContactId: string; crmVisitLoggedAt: string }>,
+): Promise<void> {
+  try {
+    const row: Record<string, unknown> = {};
+    if (patch.hubspotCompanyId !== undefined) row.hubspot_company_id  = patch.hubspotCompanyId;
+    if (patch.hubspotContactId !== undefined) row.hubspot_contact_id  = patch.hubspotContactId;
+    if (patch.crmVisitLoggedAt !== undefined) row.crm_visit_logged_at = patch.crmVisitLoggedAt;
+    if (Object.keys(row).length === 0) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    await db.from("visitor_profiles").update(row).eq("tenant_id", tenantId).eq("visitor_key", visitorKey);
+  } catch (err) {
+    logger.warn("[lead-base] updateProfileCrmState failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 // ── Reads (admin — Phase 2) ────────────────────────────────────────────────────
 
 export interface VisitorProfileFilter {

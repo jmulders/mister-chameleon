@@ -78,7 +78,7 @@ import {
   injectKnownLeadContext,
   forceKnownLeadSegment,
 } from "@/lib/abm/apply-known-lead";
-import { recordVisitorProfile }      from "@/lib/lead-base/record-visitor-profile";
+import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-visitor-profile";
 import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
@@ -405,6 +405,7 @@ export async function resolveSlugPageConfig(
         cookieHeader,
         ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
         abmLeadId:    abmLead?.id ?? null,
+        person:       abmLeadToPerson(abmLead?.profile),
       });
     });
 
