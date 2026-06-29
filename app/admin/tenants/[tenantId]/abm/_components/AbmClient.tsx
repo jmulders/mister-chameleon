@@ -9,6 +9,7 @@ import {
   listAbmLeadVisitsAction,
   saveAbmWebhookUrlAction,
   saveAbmHubspotTokenAction,
+  testAbmHubspotSyncAction,
 } from "../actions";
 import type { AbmLead, AbmLeadStatus, AbmLeadVisit } from "@/lib/abm/abm-store";
 
@@ -114,6 +115,18 @@ export function AbmClient({
     start(async () => {
       const res = await saveAbmHubspotTokenAction(tenantId, hubspotToken);
       setHubspotMsg(res.ok ? "Saved." : res.error);
+    });
+  }
+
+  function testHubspot() {
+    setHubspotMsg("Testing…");
+    start(async () => {
+      const res = await testAbmHubspotSyncAction(tenantId);
+      setHubspotMsg(
+        res.ok
+          ? `✓ Verbonden — testbedrijf "Mister Chameleon — Sync Test" aangemaakt/bijgewerkt${res.companyId ? ` (id ${res.companyId})` : ""}.`
+          : `✗ ${res.error}`,
+      );
     });
   }
 
@@ -291,8 +304,11 @@ export function AbmClient({
           <button onClick={saveHubspot} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
             {pending ? "Saving…" : "Save token"}
           </button>
+          <button onClick={testHubspot} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
+            Test verbinding
+          </button>
         </div>
-        {hubspotMsg && <span className="text-xs text-neutral-500">{hubspotMsg}</span>}
+        {hubspotMsg && <span className="block break-words text-xs text-neutral-500">{hubspotMsg}</span>}
       </section>
 
       {/* ── Leads ──────────────────────────────────────────────────── */}

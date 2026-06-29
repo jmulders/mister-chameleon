@@ -24,6 +24,7 @@ import {
   type AbmLeadStatus,
   type AbmLeadVisit,
 }                                  from "@/lib/abm/abm-store";
+import { syncCompanyToHubspot }    from "@/lib/lead-base/hubspot-sync";
 
 /** Short, URL-safe, unguessable identifier (~8 chars). */
 function genIdentifier(): string {
@@ -79,6 +80,26 @@ export async function saveAbmHubspotTokenAction(
   if (!ok) return { ok: false, error: "Save failed." };
   revalidatePath(`/admin/tenants/${tenantId}/abm`);
   return { ok: true };
+}
+
+/**
+ * Live diagnostic: upsert a single, clearly-labelled "Sync Test" company in
+ * HubSpot using the stored token, and surface the exact API result (status +
+ * error body). Deduped by name, so it reuses one test company rather than
+ * creating clutter. Lets you verify the token, scopes and payload end-to-end.
+ */
+export async function testAbmHubspotSyncAction(
+  tenantId: string,
+): Promise<{ ok: true; companyId?: string } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const token = await getAbmHubspotToken(tenantId);
+  if (!token) return { ok: false, error: "Geen HubSpot-token ingesteld — sla er eerst één op." };
+
+  const result = await syncCompanyToHubspot(token, {
+    name: "Mister Chameleon — Sync Test",
+  });
+  if (result.ok) return { ok: true, ...(result.companyId ? { companyId: result.companyId } : {}) };
+  return { ok: false, error: result.error ?? "Onbekende fout." };
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────

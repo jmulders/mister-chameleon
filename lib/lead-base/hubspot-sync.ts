@@ -71,24 +71,40 @@ export async function syncCompanyToHubspot(
       return { ok: false, error: "No domain or name — nothing to upsert." };
     }
 
-    const properties: Record<string, string> = {};
-    if (company.domain)   properties.domain   = company.domain;
-    if (company.name)     properties.name     = company.name;
-    if (company.industry) properties.industry = company.industry;
+    // Safe, always-accepted properties (free-text). `industry` is intentionally
+    // NOT here: HubSpot's company `industry` is an enumeration with fixed option
+    // values (e.g. CONSTRUCTION), so free-text values get the whole write
+    // rejected with a 400. We attempt it as a bonus, then retry without it.
+    const safeProps: Record<string, string> = {};
+    if (company.domain) safeProps.domain = company.domain;
+    if (company.name)   safeProps.name   = company.name;
+
+    const tryProps: Record<string, string> = { ...safeProps };
+    if (company.industry) tryProps.industry = company.industry;
 
     // Dedup by domain when available (most reliable); otherwise by exact name.
     const existingId = company.domain
       ? await findBy(token, "domain", company.domain)
       : await findBy(token, "name", company.name!);
 
-    const res = existingId
-      ? await hsFetch(token, `${BASE}/${existingId}`, { method: "PATCH", body: JSON.stringify({ properties }) })
-      : await hsFetch(token, BASE, { method: "POST", body: JSON.stringify({ properties }) });
+    const write = (props: Record<string, string>) =>
+      existingId
+        ? hsFetch(token, `${BASE}/${existingId}`, { method: "PATCH", body: JSON.stringify({ properties: props }) })
+        : hsFetch(token, BASE, { method: "POST", body: JSON.stringify({ properties: props }) });
+
+    let res = await write(tryProps);
+
+    // Retry with only the safe properties if the bonus fields tripped validation.
+    if (res.status === 400 && company.industry) {
+      const body = await res.text().catch(() => "");
+      logger.warn("[lead-base] HubSpot 400 — retrying without industry", { body: body.slice(0, 200) });
+      res = await write(safeProps);
+    }
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      logger.warn("[lead-base] HubSpot sync non-2xx", { status: res.status, body: text.slice(0, 200) });
-      return { ok: false, error: `HubSpot API ${res.status}` };
+      logger.warn("[lead-base] HubSpot sync non-2xx", { status: res.status, body: text.slice(0, 300) });
+      return { ok: false, error: `HubSpot API ${res.status}: ${text.slice(0, 300)}` };
     }
 
     const json = (await res.json()) as { id?: string };
