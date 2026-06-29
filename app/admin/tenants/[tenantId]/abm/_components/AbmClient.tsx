@@ -276,9 +276,8 @@ export function AbmClient({
         <h2 className="text-sm font-semibold text-neutral-900">Import leads (CSV)</h2>
         <p className="text-xs text-neutral-500">
           Paste any CSV with these columns: First name, Last name, Company, Title,
-          Industry, Company size, Profile URL. Columns are auto-detected (a Sales
-          Navigator export works, but any CSV with these columns does too); a link
-          is generated per row.
+          Industry, Company size, Profile URL. Columns are auto-detected (comma,
+          semicolon, or tab-separated); a link is generated per row.
         </p>
         <textarea className={`${INPUT} font-mono text-xs`} rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={"First Name,Last Name,Company,Title\nJohn,Doe,Acme BV,Head of Growth"} />
         <div className="flex items-end gap-3">
@@ -335,9 +334,11 @@ export function AbmClient({
       <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-neutral-900">HubSpot CRM sync <span className="text-neutral-400 font-normal">(optional)</span></h2>
         <p className="text-xs text-neutral-500">
-          When a lead qualifies (recognised company → known / MQL / SQL), its account is
-          upserted as a HubSpot <strong>Company</strong> (deduped by domain). Works on free
-          HubSpot: create a private app with the <code className="font-mono">crm.objects.companies.write</code> scope
+          When a known lead arrives, its account is synced to HubSpot as a{" "}
+          <strong>Company</strong> (deduped by domain, else name) with firmographics, the named
+          person as an associated <strong>Contact</strong>, and a website-visit note on the
+          timeline. Create a private app or Service Key with CRM write scopes
+          (<code className="font-mono">companies</code> + <code className="font-mono">contacts</code>)
           and paste its token. Leave empty to disable.
         </p>
         <div className="flex items-end gap-3">
