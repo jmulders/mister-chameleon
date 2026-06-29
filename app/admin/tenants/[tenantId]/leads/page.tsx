@@ -10,8 +10,10 @@
 import Link                       from "next/link";
 import { getTenantById }          from "@/tenant/server";
 import { listLeadProfilesAction } from "./actions";
+import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction } from "../abm/actions";
 import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
 import { LeadBaseClient }         from "./_components/LeadBaseClient";
+import { LeadCrmSettings }        from "./_components/LeadCrmSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +24,13 @@ export default async function LeadBasePage({
 }) {
   const { tenantId } = await params;
 
-  const [initialProfiles, tenant, segmentsResult] = await Promise.all([
+  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken] = await Promise.all([
     listLeadProfilesAction(tenantId, {}),
     getTenantById(tenantId),
     listAudienceSegmentsAction(tenantId),
+    getAbmWebhookUrlAction(tenantId),
+    getAbmWebhookSecretAction(tenantId),
+    getAbmHubspotTokenAction(tenantId),
   ]);
 
   const segments = (segmentsResult.ok ? segmentsResult.data : [])
@@ -52,6 +57,16 @@ export default async function LeadBasePage({
       </div>
 
       <LeadBaseClient tenantId={tenantId} initialProfiles={initialProfiles} segments={segments} />
+
+      <div className="pt-2">
+        <h2 className="mb-3 text-sm font-semibold text-neutral-900">CRM &amp; outbound integrations</h2>
+        <LeadCrmSettings
+          tenantId={tenantId}
+          initialWebhookUrl={webhookUrl ?? ""}
+          initialWebhookSecret={webhookSecret ?? ""}
+          initialHubspotToken={hubspotToken ?? ""}
+        />
+      </div>
     </div>
   );
 }

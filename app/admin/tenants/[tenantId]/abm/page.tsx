@@ -8,7 +8,7 @@
 
 import Link                  from "next/link";
 import { getTenantById }     from "@/tenant/server";
-import { listAbmLeadsAction, getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction } from "./actions";
+import { listAbmLeadsAction } from "./actions";
 import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
 import { AbmClient }         from "./_components/AbmClient";
 
@@ -19,13 +19,10 @@ export default async function AbmPage({
 }) {
   const { tenantId } = await params;
 
-  const [leads, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken] = await Promise.all([
+  const [leads, tenant, segmentsResult] = await Promise.all([
     listAbmLeadsAction(tenantId),
     getTenantById(tenantId),
     listAudienceSegmentsAction(tenantId),
-    getAbmWebhookUrlAction(tenantId),
-    getAbmWebhookSecretAction(tenantId),
-    getAbmHubspotTokenAction(tenantId),
   ]);
 
   // Only offer active segments in the lead form's dropdown.
@@ -58,7 +55,7 @@ export default async function AbmPage({
         </p>
       </div>
 
-      <AbmClient tenantId={tenantId} initialLeads={leads} baseUrl={baseUrl} segments={segments} initialWebhookUrl={webhookUrl ?? ""} initialWebhookSecret={webhookSecret ?? ""} initialHubspotToken={hubspotToken ?? ""} />
+      <AbmClient tenantId={tenantId} initialLeads={leads} baseUrl={baseUrl} segments={segments} />
     </div>
   );
 }
