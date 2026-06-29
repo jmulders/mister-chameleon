@@ -182,8 +182,8 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
       items: [
         { label: "Interests", href: `${base}/interest-profiles`,    activePrefix: `${base}/interest-profiles` },
         { label: "Segments",  href: `${base}/audience-segments`,    activePrefix: `${base}/audience-segments` },
-        { label: "ABM",       href: `${base}/abm`,                  activePrefix: `${base}/abm` },
-        { label: "Lead Base", href: `${base}/leads`,                activePrefix: `${base}/leads` },
+        { label: "Target accounts", href: `${base}/abm`,            activePrefix: `${base}/abm` },
+        { label: "Leads",           href: `${base}/leads`,          activePrefix: `${base}/leads` },
         { label: "Journey",   href: `${base}/behavior/journey`,     activePrefix: `${base}/behavior/journey` },
         { label: "Scoring",   href: `${base}/behavior`,             activePrefix: `${base}/behavior`,         exact: true },
       ],

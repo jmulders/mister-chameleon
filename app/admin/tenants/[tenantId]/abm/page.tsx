@@ -46,13 +46,14 @@ export default async function AbmPage({
           ← Tenant workspace
         </Link>
         <h1 className="mt-2 text-xl font-semibold text-neutral-900">
-          ABM — Personalized URLs
+          Target accounts — Personalized URLs
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Give a lead a link (e.g. <code className="font-mono text-xs">/go/ax93z</code> or a
-          vanity path). The platform redirects them instantly to the target page and
-          personalizes for their account. Import a Sales Navigator export to create links
-          in bulk.
+          The named accounts and contacts you proactively target (outbound). Give each one a
+          link (e.g. <code className="font-mono text-xs">/go/ax93z</code> or a vanity path);
+          the platform redirects them instantly to the target page and personalizes for their
+          account. Import a CSV to create links in bulk. Visitors who actually arrive are
+          tracked in <strong>Leads</strong>.
         </p>
       </div>
 

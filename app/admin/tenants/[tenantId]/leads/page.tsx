@@ -39,14 +39,14 @@ export default async function LeadBasePage({
           href={`/admin/tenants/${tenantId}/abm`}
           className="text-xs text-neutral-500 hover:text-neutral-800"
         >
-          ← ABM
+          ← Target accounts
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-neutral-900">Lead Base</h1>
+        <h1 className="mt-2 text-xl font-semibold text-neutral-900">Leads</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Every visitor is a lead at some identity level — anonymous, recognised
-          (company), known (named), or customer. Filter, delete, and export.
-          Pseudonymous + firmographic only; named-lead PII lives in ABM. Profiles
-          are retained 90 days.
+          Every visitor who arrives, tracked at some identity level — anonymous,
+          recognised (company), known (named), or customer. Filter, delete, and export.
+          Pseudonymous + firmographic only; named-contact PII lives in Target accounts.
+          Profiles are retained 90 days.
           {tenant ? "" : " (tenant not found)"}
         </p>
       </div>
