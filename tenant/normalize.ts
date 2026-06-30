@@ -72,6 +72,16 @@ export function normalizeTenant(raw: TenantSettings): TenantSettings {
       leadScoreHotThreshold:     r.enrichment?.leadScoreHotThreshold ?? 60,
       // Personalization holdout percentage (control group) — default 0 (off).
       personalizationHoldoutPct: r.enrichment?.personalizationHoldoutPct ?? 0,
+      // Lead-score tuning — weight multipliers (default 1) + decay half-life (0 = off).
+      leadScoring: {
+        weights: {
+          level:      r.enrichment?.leadScoring?.weights?.level      ?? 1,
+          intent:     r.enrichment?.leadScoring?.weights?.intent     ?? 1,
+          recency:    r.enrichment?.leadScoring?.weights?.recency    ?? 1,
+          engagement: r.enrichment?.leadScoring?.weights?.engagement ?? 1,
+        },
+        decayHalfLifeDays: r.enrichment?.leadScoring?.decayHalfLifeDays ?? 0,
+      },
     },
     domains: {
       ...r.domains,

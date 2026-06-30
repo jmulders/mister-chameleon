@@ -1329,6 +1329,21 @@ export interface TenantEnrichmentSettings {
    * can measure true causal lift. Default: 0 (no holdout; everyone personalized).
    */
   readonly personalizationHoldoutPct?: number;
+
+  /**
+   * Lead-score tuning: per-component weight multipliers (default 1 each) and an
+   * optional time-decay half-life in days (0 = off). Lets a tenant emphasise
+   * identity vs intent vs recency vs engagement and cool old leads off.
+   */
+  readonly leadScoring?: {
+    readonly weights?: {
+      readonly level?:      number;
+      readonly intent?:     number;
+      readonly recency?:    number;
+      readonly engagement?: number;
+    };
+    readonly decayHalfLifeDays?: number;
+  };
 }
 
 // ── Domains settings ──────────────────────────────────────────────────────────

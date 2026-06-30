@@ -149,6 +149,7 @@ export default async function TenantIntegrationsPage({
     firmographicFreshnessDays: tenant.enrichment?.firmographicFreshnessDays ?? 30,
     leadScoreHotThreshold:     tenant.enrichment?.leadScoreHotThreshold ?? 60,
     personalizationHoldoutPct: tenant.enrichment?.personalizationHoldoutPct ?? 0,
+    ...(tenant.enrichment?.leadScoring ? { leadScoring: tenant.enrichment.leadScoring } : {}),
   };
 
   const domainsProp = {

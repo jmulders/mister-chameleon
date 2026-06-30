@@ -5,7 +5,7 @@ import { listLeadProfilesAction, deleteLeadProfilesAction, listVisitorEventsActi
 import type { VisitorEvent } from "@/lib/lead-base/visitor-events-store";
 import type { VisitorProfile, VisitorProfileFilter } from "@/lib/lead-base/visitor-profiles-store";
 import type { IdentityLevel, ProfileStatus } from "@/lib/lead-base/profile-gate";
-import { leadScore, scoreClass } from "@/lib/lead-base/lead-scoring";
+import { leadScore, scoreClass, type LeadScoreConfig } from "@/lib/lead-base/lead-scoring";
 
 const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
 const LABEL = "block text-xs font-medium text-neutral-600 mb-1";
@@ -114,11 +114,14 @@ export function LeadBaseClient({
   tenantId,
   initialProfiles,
   segments,
+  scoreConfig,
 }: {
   tenantId:        string;
   initialProfiles: VisitorProfile[];
   segments:        SegmentOption[];
+  scoreConfig?:    LeadScoreConfig;
 }) {
+  const score = (p: VisitorProfile) => leadScore(p, Date.now(), scoreConfig);
   const [profiles, setProfiles] = useState<VisitorProfile[]>(initialProfiles);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msg, setMsg]           = useState<string | null>(null);
@@ -142,7 +145,7 @@ export function LeadBaseClient({
   }
 
   const itemScore = (item: RenderItem) =>
-    item.type === "single" ? leadScore(item.profile) : Math.max(...item.group.members.map(leadScore));
+    item.type === "single" ? score(item.profile) : Math.max(...item.group.members.map(score));
   const renderList = buildRenderList(profiles, grouped);
   if (sortBy === "score") renderList.sort((a, b) => itemScore(b) - itemScore(a));
   const toggleExpand = (key: string) =>
@@ -220,7 +223,7 @@ export function LeadBaseClient({
             : (<>{p.companyName || <span className="text-neutral-400">—</span>}{p.companyDomain && <span className="text-neutral-400"> · {p.companyDomain}</span>}</>)}
         </td>
         <td className="px-3 py-2 text-right">
-          <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(leadScore(p))}`}>{leadScore(p)}</span>
+          <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(score(p))}`}>{score(p)}</span>
         </td>
         <td className="px-3 py-2 text-neutral-600">{p.status}</td>
         <td className="px-3 py-2 text-right text-neutral-700">{p.intentScore ?? "—"}</td>
@@ -283,7 +286,7 @@ export function LeadBaseClient({
             </button>
           </td>
           <td className="px-3 py-2 text-right">
-            <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(Math.max(...g.members.map(leadScore)))}`}>{Math.max(...g.members.map(leadScore))}</span>
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(Math.max(...g.members.map(score)))}`}>{Math.max(...g.members.map(score))}</span>
           </td>
           <td className="px-3 py-2 text-neutral-600">{a.status}</td>
           <td className="px-3 py-2 text-right text-neutral-700">{a.intent ?? "—"}</td>

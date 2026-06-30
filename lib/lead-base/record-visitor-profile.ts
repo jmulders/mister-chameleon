@@ -96,6 +96,7 @@ export async function recordVisitorProfile(args: {
   abmLeadId?:   string | null;
   person?:      LeadPerson | null;   // named person behind a known ABM lead
   personalizationGroup?: string | null;  // A/B holdout group
+  scoreConfig?: import("./lead-scoring").LeadScoreConfig;  // tenant score tuning
 }): Promise<void> {
   try {
     const { ctx } = args;
@@ -152,6 +153,7 @@ export async function recordVisitorProfile(args: {
         person:      args.person ?? null,
         intentScore: typeof intentScore === "number" ? intentScore : null,
         visitCount:  1,
+        scoreConfig: args.scoreConfig,
       });
     }
 

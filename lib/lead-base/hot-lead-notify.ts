@@ -9,7 +9,7 @@
 import "server-only";
 
 import { getAbmNotifySettings } from "@/lib/abm/abm-store";
-import { leadScore }            from "./lead-scoring";
+import { leadScore, type LeadScoreConfig } from "./lead-scoring";
 import type { LeadPerson }      from "./record-visitor-profile";
 import type { GatedProfilePatch } from "./profile-gate";
 import { logger }               from "@/lib/logger";
@@ -22,6 +22,7 @@ export async function sendHotLeadAlert(args: {
   person:      LeadPerson | null;
   intentScore: number | null;
   visitCount:  number;
+  scoreConfig?: LeadScoreConfig;
 }): Promise<void> {
   try {
     const settings = await getAbmNotifySettings(args.tenantId);
@@ -32,7 +33,7 @@ export async function sendHotLeadAlert(args: {
       intentScore:   args.intentScore,
       lastSeenAt:    new Date().toISOString(), // just qualified → most recent
       visitCount:    args.visitCount,
-    });
+    }, Date.now(), args.scoreConfig);
     if (score < settings.minScore) return;
 
     const who = args.person && (args.person.firstName || args.person.lastName)

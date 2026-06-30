@@ -34,6 +34,7 @@ import {
 import { syncCompanyToHubspot }    from "@/lib/lead-base/hubspot-sync";
 import { leadScore }               from "@/lib/lead-base/lead-scoring";
 import type { IdentityLevel }      from "@/lib/lead-base/profile-gate";
+import { getTenantById }           from "@/tenant/server";
 
 /** Short, URL-safe, unguessable identifier (~8 chars). */
 function genIdentifier(): string {
@@ -64,10 +65,12 @@ export interface AbmDashboardRow {
 /** Target accounts joined with their observed activity, hottest first. */
 export async function listAbmDashboardAction(tenantId: string): Promise<AbmDashboardRow[]> {
   await getRequiredAdminSession();
-  const [leads, activity] = await Promise.all([
+  const [leads, activity, tenant] = await Promise.all([
     listAbmLeads(tenantId),
     listAbmAccountActivity(tenantId),
+    getTenantById(tenantId),
   ]);
+  const scoreConfig = tenant?.enrichment?.leadScoring;
   const rows = leads.map((lead): AbmDashboardRow => {
     const act = activity[lead.id] ?? null;
     const score = act
@@ -76,7 +79,7 @@ export async function listAbmDashboardAction(tenantId: string): Promise<AbmDashb
           intentScore:   act.intentScore,
           lastSeenAt:    act.lastSeenAt,
           visitCount:    act.visitCount,
-        })
+        }, Date.now(), scoreConfig)
       : 0;
     return { lead, activity: act, score };
   });

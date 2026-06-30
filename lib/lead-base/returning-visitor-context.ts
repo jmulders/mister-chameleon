@@ -11,7 +11,7 @@
 import "server-only";
 
 import type { EnrichmentOutput }          from "@/enrichment/types";
-import { leadScore }                      from "./lead-scoring";
+import { leadScore, type LeadScoreConfig } from "./lead-scoring";
 import type { ReturningProfileSignals }   from "./visitor-profiles-store";
 
 const DEFAULT_HOT_THRESHOLD = 60;
@@ -26,6 +26,7 @@ export function injectReturningVisitorContext(
   ctx:          Injectable,
   signals:      ReturningProfileSignals | null,
   hotThreshold: number = DEFAULT_HOT_THRESHOLD,
+  scoreConfig?: LeadScoreConfig,
 ): void {
   if (!signals) {
     // First-ever visit: be explicit so rules can test for it.
@@ -39,7 +40,7 @@ export function injectReturningVisitorContext(
     intentScore:   signals.intentScore,
     lastSeenAt:    new Date().toISOString(),
     visitCount:    signals.visitCount,
-  });
+  }, Date.now(), scoreConfig);
 
   const isCustomer = signals.identityLevel === "customer";
   const isKnown    = isCustomer || signals.identityLevel === "known";

@@ -516,6 +516,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
       returningSignals,
       tenant?.enrichment?.leadScoreHotThreshold ?? 60,
+      tenant?.enrichment?.leadScoring,
     );
   } catch (err) {
     logger.warn("[pipeline] returning-visitor context injection failed", {
@@ -618,6 +619,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       abmLeadId:    abmLead?.id ?? null,
       person:       abmLeadToPerson(abmLead?.profile),
       personalizationGroup,
+      scoreConfig:  tenant?.enrichment?.leadScoring,
     });
     const reqUrl = new URL(request.url);
     await recordVisitorEvent({

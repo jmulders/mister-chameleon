@@ -99,6 +99,10 @@ export interface TenantIntegrationsClientProps {
     firmographicFreshnessDays?: number;
     leadScoreHotThreshold?: number;
     personalizationHoldoutPct?: number;
+    leadScoring?: {
+      weights?: { level?: number; intent?: number; recency?: number; engagement?: number };
+      decayHalfLifeDays?: number;
+    };
   };
   platformEnrichmentAvailable: boolean;  // MaxMind key at platform level
 
@@ -621,6 +625,11 @@ export function TenantIntegrationsClient({
   const [firmoFreshnessDays,  setFirmoFreshnessDays]  = useState(String(initialEnrichment.firmographicFreshnessDays ?? 30));
   const [hotThreshold,        setHotThreshold]        = useState(String(initialEnrichment.leadScoreHotThreshold ?? 60));
   const [holdoutPct,          setHoldoutPct]          = useState(String(initialEnrichment.personalizationHoldoutPct ?? 0));
+  const [wLevel,              setWLevel]              = useState(String(initialEnrichment.leadScoring?.weights?.level      ?? 1));
+  const [wIntent,             setWIntent]             = useState(String(initialEnrichment.leadScoring?.weights?.intent     ?? 1));
+  const [wRecency,            setWRecency]            = useState(String(initialEnrichment.leadScoring?.weights?.recency    ?? 1));
+  const [wEngagement,         setWEngagement]         = useState(String(initialEnrichment.leadScoring?.weights?.engagement ?? 1));
+  const [decayHalfLife,       setDecayHalfLife]       = useState(String(initialEnrichment.leadScoring?.decayHalfLifeDays   ?? 0));
 
   // ── Leadinfo state ─────────────────────────────────────────────────────────
   const [liEnabled,          setLiEnabled]          = useState(initialLeadinfo.enabled);
@@ -715,6 +724,15 @@ export function TenantIntegrationsClient({
           firmographicFreshnessDays: Math.min(365, Math.max(1, parseInt(firmoFreshnessDays, 10) || 30)),
           leadScoreHotThreshold:     Math.min(100, Math.max(0, parseInt(hotThreshold, 10) || 60)),
           personalizationHoldoutPct: Math.min(50, Math.max(0, parseInt(holdoutPct, 10) || 0)),
+          leadScoring: {
+            weights: {
+              level:      Math.min(5, Math.max(0, parseFloat(wLevel)      || 1)),
+              intent:     Math.min(5, Math.max(0, parseFloat(wIntent)     || 1)),
+              recency:    Math.min(5, Math.max(0, parseFloat(wRecency)    || 1)),
+              engagement: Math.min(5, Math.max(0, parseFloat(wEngagement) || 1)),
+            },
+            decayHalfLifeDays: Math.min(365, Math.max(0, parseInt(decayHalfLife, 10) || 0)),
+          },
         },
         domains: {
           vercelProjectId: vercelProjectId || undefined,
@@ -1295,6 +1313,37 @@ export function TenantIntegrationsClient({
             onChange={(e) => setHoldoutPct(e.target.value)}
             className="mt-2 w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
           />
+        </div>
+
+        {/* ── Lead-score tuning ───────────────────────────────────────────── */}
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="block text-sm font-medium text-slate-800">Lead-score tuning</div>
+          <p className="mt-1 text-xs text-slate-500">
+            Weight multipliers (0–5, default 1) for each score component, and an optional
+            time-decay half-life in days (0 = off; the score halves every N days as a lead cools).
+            Drives the lead score everywhere (list, segment, dashboard, alerts).
+          </p>
+          <div className="mt-2 flex flex-wrap gap-4">
+            {[
+              { label: "Identity",   value: wLevel,      set: setWLevel },
+              { label: "Intent",     value: wIntent,     set: setWIntent },
+              { label: "Recency",    value: wRecency,    set: setWRecency },
+              { label: "Engagement", value: wEngagement, set: setWEngagement },
+            ].map((f) => (
+              <label key={f.label} className="text-xs text-slate-600">
+                <span className="block">{f.label}</span>
+                <input type="number" min={0} max={5} step={0.1} value={f.value}
+                  onChange={(e) => f.set(e.target.value)}
+                  className="mt-1 w-20 rounded-md border border-slate-300 px-2 py-1 text-sm" />
+              </label>
+            ))}
+            <label className="text-xs text-slate-600">
+              <span className="block">Decay half-life (days)</span>
+              <input type="number" min={0} max={365} value={decayHalfLife}
+                onChange={(e) => setDecayHalfLife(e.target.value)}
+                className="mt-1 w-28 rounded-md border border-slate-300 px-2 py-1 text-sm" />
+            </label>
+          </div>
         </div>
 
         {/* ── Test IP override ────────────────────────────────────────────── */}

@@ -9,6 +9,7 @@ import assert           from "node:assert/strict";
 
 import { leadScore, scoreClass, type ScorableProfile } from "@/lib/lead-base/lead-scoring";
 import { assignPersonalizationGroup } from "@/lib/lead-base/holdout";
+import { parseTokens, buildTokenContextFromInput } from "@/lib/tokens/parse-tokens";
 import { gateProfileWrite, type ProfileCandidate }     from "@/lib/lead-base/profile-gate";
 import type { ConsentState } from "@/tracking/consent-types";
 
@@ -77,6 +78,24 @@ describe("assignPersonalizationGroup", () => {
     for (let i = 0; i < n; i++) if (assignPersonalizationGroup(`v-${i}`, 25) === "control") control++;
     const pct = (control / n) * 100;
     assert.ok(pct > 18 && pct < 32, `expected ~25% control, got ${pct.toFixed(1)}%`);
+  });
+});
+
+// ── merge tokens (ABM known-lead personalization) ─────────────────────────────────
+
+describe("parseTokens — known-lead personalization", () => {
+  it("resolves first_name / full_name / role / company from a known lead", () => {
+    const ctx = buildTokenContextFromInput({
+      knownLead: { firstName: "Pieter", name: "Pieter de Vries", role: "Procurement Lead", company: "Nakatomi BV" },
+    });
+    assert.strictEqual(parseTokens("Welkom terug, {{first_name}}!", ctx), "Welkom terug, Pieter!");
+    assert.strictEqual(parseTokens("{{full_name}} — {{role}} bij {{company}}", ctx), "Pieter de Vries — Procurement Lead bij Nakatomi BV");
+  });
+
+  it("falls back silently when the lead is unknown", () => {
+    const ctx = buildTokenContextFromInput({});
+    assert.strictEqual(parseTokens("Welkom{{first_name}}", ctx), "Welkom");
+    assert.strictEqual(parseTokens("Voor {{company}}", ctx), "Voor uw organisatie");
   });
 });
 

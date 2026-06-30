@@ -322,3 +322,19 @@ candidate selection in both pipelines — they get the default experience. The g
 is stored on `visitor_profiles.personalization_group`; the report adds a
 "Randomized holdout (true lift)" section comparing control vs personalized
 conversion rate head-to-head. Inert until a tenant sets a holdout %.
+
+### 8.12 Configurable scoring + merge tokens
+
+**Configurable lead score** — `tenant.enrichment.leadScoring` adds per-component
+weight multipliers (identity / intent / recency / engagement, default 1) and an
+optional time-decay half-life (`leadScore(p, now, config)` in
+`lib/lead-base/lead-scoring.ts`). Threaded through every score site (returning-
+visitor injection, ABM dashboard, Slack alert, Leads list) for one consistent,
+tunable score. Configured in Integrations → Enrichment → "Lead-score tuning".
+
+**Merge tokens** — `lib/tokens/parse-tokens.ts` already substitutes `{{company_name}}`,
+`{{location}}`, etc. in hero/proof/cta copy. Extended with `{{first_name}}`,
+`{{full_name}}`, `{{role}}`, `{{company}}` sourced from the ABM known lead (via
+`buildTokenContextFromInput(input.knownLead)`), so a personalized link can render
+"Welkom terug, {{first_name}} van {{company}}". Suppressed for the holdout control
+(no known-lead injection → silent fallbacks).

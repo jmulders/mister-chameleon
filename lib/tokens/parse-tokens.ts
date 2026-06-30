@@ -70,8 +70,14 @@ export interface TokenContext {
   /** Bedrijfstak, bijv. "Technology", "Financial Services" */
   companyIndustry?: string | null;
 
-  /** CRM-voornaam van de bezoeker */
+  /** CRM-voornaam van de bezoeker (of ABM-known-lead voornaam) */
   firstName?: string | null;
+
+  /** Volledige naam van de known lead (ABM), bijv. "Pieter de Vries" */
+  fullName?: string | null;
+
+  /** Functie/rol van de known lead (ABM), bijv. "Procurement Lead" */
+  role?: string | null;
 
   // ── Visitor context ────────────────────────────────────────────────────────
 
@@ -117,7 +123,10 @@ const FALLBACKS: Record<string, string> = {
   city:          "uw stad",
   region:        "uw regio",
   industry:      "uw sector",
+  company:       "uw organisatie",
   first_name:    "",           // stille fallback — vermijd "Beste ,"
+  full_name:     "",           // stille fallback
+  role:          "",           // stille fallback
   // Visitor context
   source:        "",           // stille fallback — "via [leeg]" laat geen spoor
   device:        "your device",
@@ -186,8 +195,20 @@ function resolveToken(token: string, ctx: TokenContext): string {
       resolved = ctx.companyIndustry;
       break;
 
+    case "company":
+      resolved = ctx.companyName;
+      break;
+
     case "first_name":
       resolved = ctx.firstName;
+      break;
+
+    case "full_name":
+      resolved = ctx.fullName;
+      break;
+
+    case "role":
+      resolved = ctx.role;
       break;
 
     case "source":
@@ -298,14 +319,25 @@ export function buildTokenContextFromInput(input: {
     companyIndustry?: string | null;
     firstName?:       string | null;
   } | null;
+  /** ABM known-lead person — the personalized merge tokens (first/full name, role). */
+  knownLead?: {
+    firstName?: string | null;
+    name?:      string | null;
+    company?:   string | null;
+    role?:      string | null;
+  } | null;
 }): TokenContext {
   const e = input.enrichment ?? {};
+  const k = input.knownLead  ?? {};
   return {
-    companyName:     e.companyName     ?? null,
+    // Prefer the named ABM lead's own data; fall back to enrichment.
+    companyName:     k.company ?? e.companyName ?? null,
     city:            e.city            ?? null,
     region:          e.region          ?? null,
     companyIndustry: e.companyIndustry ?? null,
-    firstName:       e.firstName       ?? null,
+    firstName:       k.firstName ?? e.firstName ?? null,
+    fullName:        k.name ?? null,
+    role:            k.role ?? null,
     source:          input.source      ?? null,
     device:          input.device      ?? null,
     visitType:       input.visitType   ?? null,

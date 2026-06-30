@@ -387,6 +387,7 @@ export async function resolveSlugPageConfig(
           postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
           returningSignals,
           tenant?.enrichment?.leadScoreHotThreshold ?? 60,
+          tenant?.enrichment?.leadScoring,
         );
       }
     } catch {
@@ -434,6 +435,7 @@ export async function resolveSlugPageConfig(
         abmLeadId:    abmLead?.id ?? null,
         person:       abmLeadToPerson(abmLead?.profile),
         personalizationGroup,
+        scoreConfig:  tenant?.enrichment?.leadScoring,
       });
       const reqUrl = new URL(request.url);
       await recordVisitorEvent({

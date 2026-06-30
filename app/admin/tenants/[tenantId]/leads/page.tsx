@@ -80,7 +80,7 @@ export default async function LeadBasePage({
         </div>
       )}
 
-      <LeadBaseClient tenantId={tenantId} initialProfiles={initialProfiles} segments={segments} />
+      <LeadBaseClient tenantId={tenantId} initialProfiles={initialProfiles} segments={segments} scoreConfig={tenant?.enrichment?.leadScoring} />
 
       <div className="pt-2">
         <h2 className="mb-3 text-sm font-semibold text-neutral-900">CRM &amp; outbound integrations</h2>
