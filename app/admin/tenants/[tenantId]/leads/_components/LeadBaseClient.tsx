@@ -132,6 +132,22 @@ export function LeadBaseClient({
   const [eventsOpen, setEventsOpen]       = useState<string | null>(null);
   const [events, setEvents]               = useState<VisitorEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [copiedKey, setCopiedKey]         = useState<string | null>(null);
+
+  /** Deep-link to the Journey Intelligence viewer with this session preloaded. */
+  const journeyHref = (visitorKey: string) =>
+    `/admin/tenants/${tenantId}/behavior/journey?session=${encodeURIComponent(visitorKey)}`;
+
+  /** Copy the full session ID to the clipboard with brief "Copied!" feedback. */
+  function copySession(visitorKey: string) {
+    navigator.clipboard?.writeText(visitorKey).then(
+      () => {
+        setCopiedKey(visitorKey);
+        setTimeout(() => setCopiedKey((c) => (c === visitorKey ? null : c)), 1500);
+      },
+      () => {/* clipboard blocked — ignore */},
+    );
+  }
 
   function toggleEvents(p: VisitorProfile) {
     if (eventsOpen === p.id) { setEventsOpen(null); return; }
@@ -234,8 +250,26 @@ export function LeadBaseClient({
           </button>
         </td>
         <td className="px-3 py-2 text-xs text-neutral-500">{fmtWhen(p.lastSeenAt)}</td>
-        <td className="px-3 py-2 text-right">
-          <button onClick={() => deleteIds([p.id])} disabled={pending} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">Delete</button>
+        <td className="px-3 py-2">
+          <div className="flex items-center justify-end gap-2 text-xs">
+            <a
+              href={journeyHref(p.visitorKey)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open this session in Journey Intelligence"
+              className="text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              Journey&nbsp;↗
+            </a>
+            <button
+              onClick={() => copySession(p.visitorKey)}
+              title={`Copy session ID: ${p.visitorKey}`}
+              className="text-neutral-500 hover:text-neutral-800"
+            >
+              {copiedKey === p.visitorKey ? "Copied!" : "Copy ID"}
+            </button>
+            <button onClick={() => deleteIds([p.id])} disabled={pending} className="text-red-500 hover:text-red-700 disabled:opacity-50">Delete</button>
+          </div>
         </td>
       </tr>
       {eventsOpen === p.id && (

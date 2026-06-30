@@ -2031,10 +2031,20 @@ export function JourneyInsightClient({ tenantId, initialSessions }: Props) {
   React.useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
   React.useEffect(() => { payloadRef.current    = payload;    }, [payload]);
 
-  // ── Auto-detect own session on mount ─────────────────────────────────────
-  // Call /api/journey/state which reads the httpOnly mc_session_id cookie
-  // server-side and echoes the sessionId back.  Auto-load it immediately.
+  // ── Preselect session on mount ───────────────────────────────────────────
+  // Priority 1: a ?session=<id> query param (deep-link from the Leads page or a
+  //             pasted link) — load that exact session, no live polling.
+  // Priority 2: the visitor's own session — /api/journey/state reads the
+  //             httpOnly mc_session_id cookie server-side and echoes it back.
   React.useEffect(() => {
+    const fromUrl =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("session")?.trim()
+        : null;
+    if (fromUrl) {
+      handleSelectSession(fromUrl, false);
+      return;
+    }
     fetch("/api/journey/state", { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((data: { sessionId?: string } | null) => {

@@ -142,7 +142,7 @@ export function sessionCookieOptions(
 ): {
   httpOnly: true;
   secure:   boolean;
-  sameSite: "strict";
+  sameSite: "lax";
   path:     "/";
   maxAge:   number;
 } {

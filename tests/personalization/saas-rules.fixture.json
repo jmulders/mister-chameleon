@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-06-30T00:00:00.000Z",
+  "rules": [
+    {
+      "id": "homepage.linkedin",
+      "priority": 1,
+      "label": "LinkedIn traffic",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "source",
+        "operator": "equals",
+        "value": "linkedin"
+      },
+      "plan": {
+        "heroKey": "hero_linkedin_vision",
+        "proofKey": "proof_vision",
+        "ctaKey": "cta_platform"
+      },
+      "reason": "LinkedIn referral — thought-leadership vision experience."
+    },
+    {
+      "id": "homepage.google",
+      "priority": 5,
+      "label": "Google traffic",
+      "source": "system",
+      "condition": {
+        "type": "field",
+        "field": "utmSource",
+        "operator": "equals",
+        "value": "google"
+      },
+      "plan": {
+        "heroKey": "hero_google_problem",
+        "proofKey": "proof_cases",
+        "ctaKey": "cta_guide"
+      },
+      "reason": "Google traffic — search/problem-aware experience."
+    },
+    {
+      "id": "homepage.returning_cta_clicked",
+      "priority": 7,
+      "label": "Returning visitor — CTA previously clicked",
+      "source": "system",
+      "condition": {
+        "type": "named",
+        "name": "returning_cta_clicked"
+      },
+      "plan": {
+        "heroKey": "hero_saas_intent",
+        "proofKey": "proof_saas_intent",
+        "ctaKey": "cta_saas_demo"
+      },
+      "reason": "Returning visitor who previously clicked a CTA — escalated to demo intent."
+    },
+    {
+      "id": "homepage.high_engagement",
+      "priority": 10,
+      "label": "High-engagement returning visitor (3+ page views)",
+      "source": "system",
+      "condition": {
+        "type": "named",
+        "name": "high_engagement"
+      },
+      "plan": {
+        "heroKey": "hero_saas_consideration",
+        "proofKey": "proof_saas_consideration",
+        "ctaKey": "cta_saas_demo"
+      },
+      "reason": "Highly engaged returning visitor (3+ page views) — consideration experience with demo CTA."
+    },
+    {
+      "id": "rule_saas_customer_expansion",
+      "priority": 12,
+      "label": "Customer — expansion signal (pricing revisit after conversion)",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "and",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.hasSubmittedForm",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.hasVisitedPricing",
+            "operator": "equals",
+            "value": true
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_saas_customer_onboarding",
+        "proofKey": "proof_saas_intent",
+        "ctaKey": "cta_saas_expansion",
+        "themeKey": "modern-saas"
+      },
+      "reason": "Existing customer revisiting pricing — expansion signal: onboarding hero, intent proof, upgrade CTA, modern-saas theme."
+    },
+    {
+      "id": "rule_saas_customer_onboarding",
+      "priority": 15,
+      "label": "Customer — post-conversion onboarding",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "or",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "customer"
+          },
+          {
+            "type": "field",
+            "field": "journey.hasSubmittedForm",
+            "operator": "equals",
+            "value": true
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_saas_customer_onboarding",
+        "proofKey": "proof_saas_default",
+        "ctaKey": "cta_saas_onboarding",
+        "themeKey": "corporate-trust"
+      },
+      "reason": "Confirmed customer or post-form-submit visitor — onboarding mode: welcome-back hero, default proof, onboarding CTA, corporate-trust theme."
+    },
+    {
+      "id": "rule_saas_form_dropoff",
+      "priority": 20,
+      "label": "Form drop-off — friction recovery",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "and",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.hasStartedForm",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.hasSubmittedForm",
+            "operator": "equals",
+            "value": false
+          },
+          {
+            "type": "field",
+            "field": "journey.frictionScore",
+            "operator": "greater_than_or_equal",
+            "value": 10
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_saas_consideration",
+        "proofKey": "proof_saas_reassurance",
+        "ctaKey": "cta_saas_demo"
+      },
+      "reason": "Form drop-off with friction — recovery mode: consideration hero, reassurance proof, low-pressure demo CTA."
+    },
+    {
+      "id": "rule_saas_home_trial_ready",
+      "priority": 22,
+      "label": "Trial-ready — pricing visit with strong intent",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "and",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.hasVisitedPricing",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.intentScore",
+            "operator": "greater_than_or_equal",
+            "value": 50
+          },
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "not_equals",
+            "value": "high_intent"
+          },
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "not_equals",
+            "value": "customer"
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_saas_trial",
+        "proofKey": "proof_saas_intent",
+        "ctaKey": "cta_saas_trial"
+      },
+      "reason": "Pricing visit with intent score >= 50, not yet high_intent or customer — trial-ready: trial hero, intent proof, start-trial CTA."
+    },
+    {
+      "id": "rule_saas_home_intent",
+      "priority": 25,
+      "label": "Commercial intent (stage, score, pricing, or sequence)",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "or",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "intent"
+          },
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "high_intent"
+          },
+          {
+            "type": "field",
+            "field": "journey.intentScore",
+            "operator": "greater_than_or_equal",
+            "value": 60
+          },
+          {
+            "type": "field",
+            "field": "journey.hasVisitedPricing",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.matchedSequences",
+            "operator": "contains",
+            "value": "homepage_product_pricing"
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_saas_intent",
+        "proofKey": "proof_saas_intent",
+        "ctaKey": "cta_saas_demo",
+        "themeKey": "modern-saas"
+      },
+      "reason": "Commercial intent by journey signal: intent/high_intent stage, score >= 60, pricing visit, or pricing sequence — intent hero, intent proof, demo CTA."
+    },
+    {
+      "id": "rule_saas_home_consideration",
+      "priority": 35,
+      "label": "Consideration — evaluation and product exploration",
+      "source": "blueprint",
+      "condition": {
+        "type": "group",
+        "logic": "or",
+        "conditions": [
+          {
+            "type": "field",
+            "field": "journey.funnelStage",
+            "operator": "equals",
+            "value": "consideration"
+          },
+          {
+            "type": "field",
+            "field": "journey.hasVisitedCases",
+            "operator": "equals",
+            "value": true
+          },
+          {
+            "type": "field",
+            "field": "journey.hasVisitedAbout",
+            "operator": "equals",
+            "value": true
+          }
+        ]
+      },
+      "plan": {
+        "heroKey": "hero_saas_consideration",
+        "proofKey": "proof_saas_consideration",
+        "ctaKey": "cta_saas_demo"
+      },
+      "reason": "Consideration by journey signal: consideration stage or visited cases/about — consideration hero, consideration proof, demo CTA."
+    },
+    {
+      "id": "rule_saas_home_awareness",
+      "priority": 50,
+      "label": "Awareness — new or low-signal visit",
+      "source": "blueprint",
+      "condition": {
+        "type": "field",
+        "field": "journey.funnelStage",
+        "operator": "equals",
+        "value": "awareness"
+      },
+      "plan": {
+        "heroKey": "hero_saas_default",
+        "proofKey": "proof_saas_default",
+        "ctaKey": "cta_saas_default",
+        "themeKey": "modern-saas"
+      },
+      "reason": "Awareness stage — default SaaS experience: default hero, default proof, default CTA."
+    }
+  ],
+  "defaultPlan": {
+    "heroKey": "hero_saas_default",
+    "proofKey": "proof_saas_default",
+    "ctaKey": "cta_saas_default",
+    "reason": "Default — baseline SaaS experience when no rule matches."
+  }
+}

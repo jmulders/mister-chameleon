@@ -46,7 +46,7 @@ import type { StoredRulesConfig } from "@/decision/rules/stored-rule";
  */
 export const RULES_CONFIG: StoredRulesConfig = JSON.parse(
   readFileSync(
-    join(process.cwd(), "decision", "rules", "runtime-rules.json"),
+    join(process.cwd(), "tests", "personalization", "saas-rules.fixture.json"),
     "utf8",
   ),
 ) as StoredRulesConfig;
