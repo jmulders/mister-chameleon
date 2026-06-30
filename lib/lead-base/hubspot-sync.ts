@@ -214,6 +214,22 @@ export async function syncContactToHubspot(
 }
 
 /**
+ * Archive (soft-delete → HubSpot recycling bin, restorable ~90 days) a contact.
+ * Used for GDPR erasure when a Lead Base profile is deleted. 404 = already gone.
+ */
+export async function archiveContact(token: string, contactId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await hsFetch(token, `${CONTACTS}/${contactId}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 404) {
+      return { ok: false, error: `HubSpot API ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
  * Log a "website visit" Note on the timeline, associated to the company and
  * (when known) the contact. Caller throttles to once per session.
  */

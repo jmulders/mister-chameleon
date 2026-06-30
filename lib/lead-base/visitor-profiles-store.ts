@@ -221,6 +221,26 @@ export async function getProfileCrmState(
   }
 }
 
+/** Linked HubSpot contact ids for a set of profile ids (for GDPR erasure). */
+export async function getHubspotContactIdsForProfiles(tenantId: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("visitor_profiles")
+      .select("hubspot_contact_id")
+      .eq("tenant_id", tenantId)
+      .in("id", ids);
+    if (error || !data) return [];
+    return (data as { hubspot_contact_id: string | null }[])
+      .map((r) => r.hubspot_contact_id)
+      .filter((v): v is string => !!v);
+  } catch {
+    return [];
+  }
+}
+
 /** Persist HubSpot record ids and/or the visit-note timestamp. Fail-open. */
 export async function updateProfileCrmState(
   tenantId:   string,

@@ -12,6 +12,7 @@ import { getTenantById }          from "@/tenant/server";
 import { listLeadProfilesAction } from "./actions";
 import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction } from "../abm/actions";
 import { listWebhookDeliveriesAction } from "./actions";
+import { getCreditBalance } from "@/lib/billing/billing-store";
 import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
 import { LeadBaseClient }         from "./_components/LeadBaseClient";
 import { LeadCrmSettings }        from "./_components/LeadCrmSettings";
@@ -25,7 +26,7 @@ export default async function LeadBasePage({
 }) {
   const { tenantId } = await params;
 
-  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken, deliveries] = await Promise.all([
+  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken, deliveries, creditBalance] = await Promise.all([
     listLeadProfilesAction(tenantId, {}),
     getTenantById(tenantId),
     listAudienceSegmentsAction(tenantId),
@@ -33,6 +34,7 @@ export default async function LeadBasePage({
     getAbmWebhookSecretAction(tenantId),
     getAbmHubspotTokenAction(tenantId),
     listWebhookDeliveriesAction(tenantId),
+    getCreditBalance(tenantId).catch(() => 0),
   ]);
 
   const segments = (segmentsResult.ok ? segmentsResult.data : [])
@@ -57,6 +59,17 @@ export default async function LeadBasePage({
           {tenant ? "" : " (tenant not found)"}
         </p>
       </div>
+
+      {creditBalance <= 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Your wallet balance is <strong>€0</strong>. Lead recognitions still run, but the
+          per-recognition credit isn&apos;t being billed.{" "}
+          <Link href={`/admin/tenants/${tenantId}/billing`} className="font-medium underline">
+            Fund the wallet
+          </Link>{" "}
+          to enable recognition billing.
+        </div>
+      )}
 
       <LeadBaseClient tenantId={tenantId} initialProfiles={initialProfiles} segments={segments} />
 

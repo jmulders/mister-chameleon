@@ -13,9 +13,12 @@ import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
 import {
   listVisitorProfiles,
   deleteVisitorProfiles,
+  getHubspotContactIdsForProfiles,
   type VisitorProfile,
   type VisitorProfileFilter,
 } from "@/lib/lead-base/visitor-profiles-store";
+import { archiveContact } from "@/lib/lead-base/hubspot-sync";
+import { getAbmHubspotToken } from "@/lib/abm/abm-store";
 import {
   listWebhookDeliveries,
   getWebhookDelivery,
@@ -35,10 +38,23 @@ export async function listLeadProfilesAction(
 export async function deleteLeadProfilesAction(
   tenantId: string,
   ids:      string[],
-): Promise<{ ok: boolean; deleted: number }> {
+): Promise<{ ok: boolean; deleted: number; crmArchived: number }> {
   await getRequiredAdminSession();
+
+  // GDPR erasure: archive the linked HubSpot contacts (the PII) before removing
+  // the profiles. Best-effort; the company (firmographic) is left in place.
+  let crmArchived = 0;
+  const token = await getAbmHubspotToken(tenantId);
+  if (token) {
+    const contactIds = Array.from(new Set(await getHubspotContactIdsForProfiles(tenantId, ids)));
+    for (const cid of contactIds) {
+      const r = await archiveContact(token, cid);
+      if (r.ok) crmArchived++;
+    }
+  }
+
   const deleted = await deleteVisitorProfiles(tenantId, ids);
-  return { ok: deleted > 0, deleted };
+  return { ok: deleted > 0, deleted, crmArchived };
 }
 
 // ── Webhook deliveries ──────────────────────────────────────────────────────────

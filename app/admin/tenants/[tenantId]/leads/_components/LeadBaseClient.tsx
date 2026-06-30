@@ -64,6 +64,25 @@ function aggregateGroup(g: AccountGroup) {
   return { level, status, visits, intent, lastSeen, segments };
 }
 
+/**
+ * Composite "hotness" score (0–100): identity depth + intent + recency +
+ * engagement. A quick prioritization signal for "who to act on", not a CRM score.
+ */
+function leadScore(p: VisitorProfile): number {
+  const levelPts   = ({ anonymous: 0, recognised: 18, known: 30, customer: 40 } as Record<IdentityLevel, number>)[p.identityLevel] ?? 0;
+  const intentPts  = Math.min(40, (p.intentScore ?? 0) * 0.4);
+  const ageDays    = (Date.now() - tsOf(p.lastSeenAt)) / 86_400_000;
+  const recencyPts = ageDays < 1 ? 15 : ageDays < 7 ? 9 : ageDays < 30 ? 4 : 0;
+  const engagePts  = Math.min(5, Math.max(0, p.visitCount - 1));
+  return Math.round(Math.min(100, levelPts + intentPts + recencyPts + engagePts));
+}
+
+function scoreClass(score: number): string {
+  if (score >= 60) return "bg-red-50 text-red-700";
+  if (score >= 35) return "bg-amber-50 text-amber-700";
+  return "bg-neutral-100 text-neutral-500";
+}
+
 function fmtWhen(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -123,8 +142,12 @@ export function LeadBaseClient({
   const [pending, start]        = useTransition();
   const [grouped, setGrouped]   = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy]     = useState<"score" | "recent">("score");
 
+  const itemScore = (item: RenderItem) =>
+    item.type === "single" ? leadScore(item.profile) : Math.max(...item.group.members.map(leadScore));
   const renderList = buildRenderList(profiles, grouped);
+  if (sortBy === "score") renderList.sort((a, b) => itemScore(b) - itemScore(a));
   const toggleExpand = (key: string) =>
     setExpanded((cur) => { const n = new Set(cur); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const selectMany = (ids: string[], on: boolean) =>
@@ -175,12 +198,12 @@ export function LeadBaseClient({
 
   function deleteIds(ids: string[]) {
     if (ids.length === 0) return;
-    if (!confirm(`Delete ${ids.length} profile(s)? This cannot be undone.`)) return;
+    if (!confirm(`Delete ${ids.length} profile(s)? Any linked HubSpot contact is archived (recycling bin) for GDPR erasure. This cannot be undone here.`)) return;
     start(async () => {
       const res = await deleteLeadProfilesAction(tenantId, ids);
       setProfiles((cur) => cur.filter((p) => !ids.includes(p.id)));
       setSelected(new Set());
-      setMsg(`Deleted ${res.deleted} profile(s).`);
+      setMsg(`Deleted ${res.deleted} profile(s)${res.crmArchived ? `, archived ${res.crmArchived} HubSpot contact(s)` : ""}.`);
     });
   }
 
@@ -197,6 +220,9 @@ export function LeadBaseClient({
         {indented
           ? <span className="font-mono text-xs text-neutral-400">session {p.visitorKey.slice(0, 8)}…</span>
           : (<>{p.companyName || <span className="text-neutral-400">—</span>}{p.companyDomain && <span className="text-neutral-400"> · {p.companyDomain}</span>}</>)}
+      </td>
+      <td className="px-3 py-2 text-right">
+        <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(leadScore(p))}`}>{leadScore(p)}</span>
       </td>
       <td className="px-3 py-2 text-neutral-600">{p.status}</td>
       <td className="px-3 py-2 text-right text-neutral-700">{p.intentScore ?? "—"}</td>
@@ -228,6 +254,9 @@ export function LeadBaseClient({
               {g.domain && <span className="font-normal text-neutral-400"> · {g.domain}</span>}
               <span className="ml-1 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] text-neutral-600">{g.members.length} sessions</span>
             </button>
+          </td>
+          <td className="px-3 py-2 text-right">
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(Math.max(...g.members.map(leadScore)))}`}>{Math.max(...g.members.map(leadScore))}</span>
           </td>
           <td className="px-3 py-2 text-neutral-600">{a.status}</td>
           <td className="px-3 py-2 text-right text-neutral-700">{a.intent ?? "—"}</td>
@@ -304,6 +333,13 @@ export function LeadBaseClient({
           <input type="checkbox" checked={grouped} onChange={(e) => setGrouped(e.target.checked)} />
           Group by account
         </label>
+        <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+          Sort
+          <select className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs" value={sortBy} onChange={(e) => setSortBy(e.target.value as "score" | "recent")}>
+            <option value="score">Hottest</option>
+            <option value="recent">Most recent</option>
+          </select>
+        </label>
         {selected.size > 0 && (
           <button onClick={() => deleteIds([...selected])} disabled={pending} className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50">
             Delete selected ({selected.size})
@@ -323,6 +359,7 @@ export function LeadBaseClient({
                 <th className="px-3 py-2 text-left"><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
                 <th className="px-3 py-2 text-left">Identity</th>
                 <th className="px-3 py-2 text-left">Company</th>
+                <th className="px-3 py-2 text-right">Score</th>
                 <th className="px-3 py-2 text-left">Status</th>
                 <th className="px-3 py-2 text-right">Intent</th>
                 <th className="px-3 py-2 text-left">Segments</th>
