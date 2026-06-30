@@ -271,6 +271,7 @@ export async function importAbmLeadsCsvAction(
   for (const [idx, row] of rows.entries()) {
     const firstName = pick(row, "first name", "firstname", "voornaam");
     const lastName  = pick(row, "last name", "lastname", "achternaam");
+    const email     = pick(row, "email", "e-mail", "email address", "work email", "e-mailadres");
     const company   = pick(row, "company", "company name", "bedrijf", "account name");
     const role      = pick(row, "title", "position", "job title", "role", "functie");
     const industry  = pick(row, "industry", "branche");
@@ -285,6 +286,7 @@ export async function importAbmLeadsCsvAction(
     const profile: AbmLeadProfile = {
       ...(firstName ? { firstName } : {}),
       ...(firstName || lastName ? { name: [firstName, lastName].filter(Boolean).join(" ") } : {}),
+      ...(email    ? { email }    : {}),
       ...(company  ? { company }  : {}),
       ...(role     ? { role }     : {}),
       ...(industry ? { industry } : {}),

@@ -17,6 +17,27 @@ import {
   saveAbmHubspotTokenAction,
   testAbmHubspotSyncAction,
 } from "../../abm/actions";
+import { listWebhookDeliveriesAction, replayWebhookDeliveryAction } from "../actions";
+import type { WebhookDelivery } from "@/lib/lead-base/webhook-deliveries-store";
+
+/** Loosely read the interesting bits out of a stored delivery payload. */
+function summarizePayload(payload: unknown): { company: string; person: string; toStatus: string } {
+  const p = (payload ?? {}) as {
+    profile?: { companyName?: string | null; status?: string | null };
+    person?:  { fullName?: string | null };
+    transition?: { toStatus?: string | null };
+  };
+  return {
+    company:  p.profile?.companyName ?? "—",
+    person:   p.person?.fullName ?? "—",
+    toStatus: p.transition?.toStatus ?? p.profile?.status ?? "—",
+  };
+}
+
+function fmtDeliveryTime(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
 
 const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
 const LABEL = "block text-xs font-medium text-neutral-600 mb-1";
@@ -26,13 +47,29 @@ export function LeadCrmSettings({
   initialWebhookUrl,
   initialWebhookSecret,
   initialHubspotToken,
+  initialDeliveries,
 }: {
   tenantId:             string;
   initialWebhookUrl:    string;
   initialWebhookSecret: string;
   initialHubspotToken:  string;
+  initialDeliveries:    WebhookDelivery[];
 }) {
   const [pending, start] = useTransition();
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[]>(initialDeliveries);
+  const [deliveryMsg, setDeliveryMsg] = useState<string | null>(null);
+
+  function refreshDeliveries() {
+    start(async () => { setDeliveries(await listWebhookDeliveriesAction(tenantId)); });
+  }
+  function replay(id: string) {
+    setDeliveryMsg("Replaying…");
+    start(async () => {
+      const res = await replayWebhookDeliveryAction(tenantId, id);
+      setDeliveryMsg(res.ok ? `✓ Replayed (status ${res.status ?? "—"}).` : `✗ ${res.error}`);
+      setDeliveries(await listWebhookDeliveriesAction(tenantId));
+    });
+  }
 
   const [webhookUrl, setWebhookUrl]       = useState(initialWebhookUrl);
   const [webhookMsg, setWebhookMsg]       = useState<string | null>(null);
@@ -150,6 +187,58 @@ export function LeadCrmSettings({
           </button>
         </div>
         {hubspotMsg && <span className="block break-words text-xs text-neutral-500">{hubspotMsg}</span>}
+      </section>
+
+      {/* ── Recent webhook deliveries ───────────────────────────────── */}
+      <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-neutral-900">Recent webhook deliveries</h2>
+          <button onClick={refreshDeliveries} disabled={pending} className="text-xs text-neutral-500 hover:text-neutral-800 disabled:opacity-50">Refresh</button>
+          {deliveryMsg && <span className="text-xs text-neutral-500">{deliveryMsg}</span>}
+        </div>
+        <p className="text-xs text-neutral-500">
+          The last 25 outbound webhook attempts. Each is retried up to 3× on network/5xx errors;
+          a failed one can be re-sent to the current URL with <strong>Replay</strong>.
+        </p>
+        {deliveries.length === 0 ? (
+          <p className="text-xs text-neutral-400">No deliveries yet — they appear when a lead qualifies and a webhook URL is set.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-neutral-200">
+            <table className="w-full text-xs">
+              <thead className="bg-neutral-50 text-neutral-500">
+                <tr>
+                  <th className="px-2 py-1.5 text-left">When</th>
+                  <th className="px-2 py-1.5 text-left">Company</th>
+                  <th className="px-2 py-1.5 text-left">Person</th>
+                  <th className="px-2 py-1.5 text-left">→ Status</th>
+                  <th className="px-2 py-1.5 text-left">Result</th>
+                  <th className="px-2 py-1.5"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {deliveries.map((d) => {
+                  const s = summarizePayload(d.payload);
+                  return (
+                    <tr key={d.id} className="hover:bg-neutral-50">
+                      <td className="px-2 py-1.5 text-neutral-500">{fmtDeliveryTime(d.createdAt)}</td>
+                      <td className="px-2 py-1.5 text-neutral-800">{s.company}</td>
+                      <td className="px-2 py-1.5 text-neutral-600">{s.person}</td>
+                      <td className="px-2 py-1.5 text-neutral-600">{s.toStatus}</td>
+                      <td className="px-2 py-1.5">
+                        {d.ok
+                          ? <span className="text-green-600">✓ {d.statusCode ?? "200"}</span>
+                          : <span className="text-red-600" title={d.error ?? ""}>✗ {d.statusCode ?? d.error ?? "failed"} ({d.attempts}×)</span>}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <button onClick={() => replay(d.id)} disabled={pending} className="text-xs text-neutral-500 hover:text-neutral-800 disabled:opacity-50">Replay</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

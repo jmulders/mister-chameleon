@@ -14,6 +14,7 @@ import "server-only";
 
 import { createHmac }             from "node:crypto";
 import { getAbmWebhookUrl, getAbmWebhookSecret } from "@/lib/abm/abm-store";
+import { recordWebhookDelivery }  from "./webhook-deliveries-store";
 import { logger }                 from "@/lib/logger";
 import type { GatedProfilePatch, IdentityLevel, ProfileStatus } from "./profile-gate";
 import type { ProfileUpsertResult } from "./visitor-profiles-store";
@@ -47,6 +48,7 @@ export function isNewlyQualified(t: ProfileUpsertResult): boolean {
 export interface WebhookPerson {
   firstName?:   string | null;
   lastName?:    string | null;
+  email?:       string | null;
   jobTitle?:    string | null;
   linkedinUrl?: string | null;
 }
@@ -80,6 +82,7 @@ export async function fireProfileWebhook(
         fullName,
         firstName:   person.firstName   ?? null,
         lastName:    person.lastName    ?? null,
+        email:       person.email       ?? null,
         jobTitle:    person.jobTitle    ?? null,
         linkedinUrl: person.linkedinUrl ?? null,
       } : null,
@@ -101,37 +104,7 @@ export async function fireProfileWebhook(
       },
     };
 
-    const body = JSON.stringify(payload);
-
-    // Optional HMAC-SHA256 signature so the receiver can verify authenticity and
-    // reject replays. Signed value is `${timestamp}.${rawBody}` (Stripe/Slack style).
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-      "user-agent":   "MisterChameleon-LeadBase/1.0",
-    };
-    const secret = await getAbmWebhookSecret(patch.tenantId);
-    if (secret) {
-      const timestamp = Math.floor(Date.now() / 1000).toString();
-      const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
-      headers["x-mc-timestamp"] = timestamp;
-      headers["x-mc-signature"] = `sha256=${signature}`;
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try {
-      const res = await fetch(url, {
-        method:  "POST",
-        headers,
-        body,
-        signal:  controller.signal,
-      });
-      if (!res.ok) {
-        logger.warn("[lead-base] profile webhook non-2xx", { tenantId: patch.tenantId, status: res.status });
-      }
-    } finally {
-      clearTimeout(timer);
-    }
+    await deliverAndLog(patch.tenantId, url, payload.event, payload);
     return true;
   } catch (err) {
     logger.warn("[lead-base] fireProfileWebhook failed", {
@@ -139,4 +112,86 @@ export async function fireProfileWebhook(
     });
     return false;
   }
+}
+
+// ── Delivery (retry + signing + logging) ────────────────────────────────────────
+
+const RETRY_DELAYS_MS = [0, 600, 1800]; // 3 attempts, exponential-ish backoff
+
+function sleep(ms: number): Promise<void> { return new Promise((r) => setTimeout(r, ms)); }
+
+export interface DeliveryResult {
+  ok:         boolean;
+  statusCode: number | null;
+  attempts:   number;
+  error:      string | null;
+}
+
+/**
+ * POST a (optionally signed) body with bounded retries. Retries on network
+ * errors, timeouts, 5xx and 429; stops immediately on other 4xx (a client/config
+ * error that won't fix itself). Signs once with a single timestamp per call.
+ */
+async function deliverWebhook(url: string, secret: string | null, body: string): Promise<DeliveryResult> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "user-agent":   "MisterChameleon-LeadBase/1.0",
+  };
+  if (secret) {
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+    headers["x-mc-timestamp"] = timestamp;
+    headers["x-mc-signature"] = `sha256=${signature}`;
+  }
+
+  let attempts = 0;
+  let statusCode: number | null = null;
+  let error: string | null = null;
+
+  for (let i = 0; i < RETRY_DELAYS_MS.length; i++) {
+    if (RETRY_DELAYS_MS[i]) await sleep(RETRY_DELAYS_MS[i]);
+    attempts++;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { method: "POST", headers, body, signal: controller.signal });
+      statusCode = res.status;
+      if (res.ok) return { ok: true, statusCode, attempts, error: null };
+      if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+        return { ok: false, statusCode, attempts, error: `HTTP ${res.status}` };
+      }
+      error = `HTTP ${res.status}`;
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return { ok: false, statusCode, attempts, error };
+}
+
+/**
+ * Sign + deliver (with retry) and persist the outcome to the deliveries log.
+ * Used by the live qualification path and by admin replay. Fail-open.
+ */
+export async function deliverAndLog(
+  tenantId: string,
+  url:      string,
+  event:    string,
+  payload:  unknown,
+): Promise<DeliveryResult> {
+  const body   = JSON.stringify(payload);
+  const secret = await getAbmWebhookSecret(tenantId);
+  const result = await deliverWebhook(url, secret, body);
+  if (!result.ok) {
+    logger.warn("[lead-base] webhook delivery failed", {
+      tenantId, status: result.statusCode, attempts: result.attempts, error: result.error,
+    });
+  }
+  await recordWebhookDelivery({
+    tenantId, event, targetUrl: url,
+    ok: result.ok, statusCode: result.statusCode, attempts: result.attempts, error: result.error,
+    payload,
+  });
+  return result;
 }

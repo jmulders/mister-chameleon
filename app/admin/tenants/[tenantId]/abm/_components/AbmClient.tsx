@@ -29,6 +29,7 @@ interface FormState {
   identifier:   string;
   firstName:    string;
   name:         string;
+  email:        string;
   company:      string;
   role:         string;
   industry:     string;
@@ -42,7 +43,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   identifier: "",
-  firstName: "", name: "", company: "", role: "", industry: "", companySize: "",
+  firstName: "", name: "", email: "", company: "", role: "", industry: "", companySize: "",
   linkedinUrl: "", targetPath: "/", vanityPath: "", segmentHint: "", status: "active",
 };
 
@@ -99,6 +100,7 @@ export function AbmClient({
       identifier:  lead.identifier,
       firstName:   lead.profile.firstName   ?? "",
       name:        lead.profile.name        ?? "",
+      email:       lead.profile.email       ?? "",
       company:     lead.profile.company     ?? "",
       role:        lead.profile.role        ?? "",
       industry:    lead.profile.industry    ?? "",
@@ -124,6 +126,7 @@ export function AbmClient({
         profile: {
           ...(form.firstName   ? { firstName:   form.firstName }   : {}),
           ...(form.name        ? { name:        form.name }        : {}),
+          ...(form.email       ? { email:       form.email }       : {}),
           ...(form.company     ? { company:     form.company }     : {}),
           ...(form.role        ? { role:        form.role }        : {}),
           ...(form.industry    ? { industry:    form.industry }    : {}),
@@ -168,6 +171,7 @@ export function AbmClient({
         <div className="grid grid-cols-2 gap-3">
           <div><label className={LABEL}>First name</label><input className={INPUT} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="John" /></div>
           <div><label className={LABEL}>Full name</label><input className={INPUT} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="John Doe" /></div>
+          <div><label className={LABEL}>Email <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="john@acme.com" /></div>
           <div><label className={LABEL}>Company</label><input className={INPUT} value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Acme BV" /></div>
           <div><label className={LABEL}>Role</label><input className={INPUT} value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Head of Growth" /></div>
           <div><label className={LABEL}>Industry</label><input className={INPUT} value={form.industry} onChange={(e) => set("industry", e.target.value)} placeholder="Logistics" /></div>
@@ -213,9 +217,10 @@ export function AbmClient({
       <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-neutral-900">Import leads (CSV)</h2>
         <p className="text-xs text-neutral-500">
-          Paste any CSV with these columns: First name, Last name, Company, Title,
+          Paste any CSV with these columns: First name, Last name, Email, Company, Title,
           Industry, Company size, Profile URL. Columns are auto-detected (comma,
-          semicolon, or tab-separated); a link is generated per row.
+          semicolon, or tab-separated); a link is generated per row. Email is optional
+          but recommended — it&apos;s the dedup key when syncing contacts to your CRM.
         </p>
         <textarea className={`${INPUT} font-mono text-xs`} rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={"First Name,Last Name,Company,Title\nJohn,Doe,Acme BV,Head of Growth"} />
         <div className="flex items-end gap-3">

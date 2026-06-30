@@ -38,6 +38,7 @@ export interface HubspotCompanyInput {
 export interface HubspotContactInput {
   firstName?: string | null;
   lastName?:  string | null;
+  email?:     string | null;   // canonical dedup key when present
   jobTitle?:  string | null;
 }
 
@@ -165,20 +166,28 @@ export async function syncContactToHubspot(
   companyId?: string | null,
 ): Promise<{ ok: boolean; contactId?: string; error?: string }> {
   try {
-    if (!contact.firstName && !contact.lastName) {
-      return { ok: false, error: "No name — nothing to upsert." };
+    if (!contact.firstName && !contact.lastName && !contact.email) {
+      return { ok: false, error: "No name or email — nothing to upsert." };
     }
 
     const properties: Record<string, string> = {};
+    if (contact.email)     properties.email     = contact.email;
     if (contact.firstName) properties.firstname = contact.firstName;
     if (contact.lastName)  properties.lastname  = contact.lastName;
     if (contact.jobTitle)  properties.jobtitle  = contact.jobTitle;
 
-    const nameFilters = [
-      ...(contact.firstName ? [{ propertyName: "firstname", value: contact.firstName }] : []),
-      ...(contact.lastName  ? [{ propertyName: "lastname",  value: contact.lastName  }] : []),
-    ];
-    const existingId = nameFilters.length ? await search(token, CONTACTS, nameFilters) : null;
+    // Dedup by email (HubSpot's canonical contact key) when present; otherwise by
+    // exact first+last name (best effort for email-less imports).
+    let existingId: string | null;
+    if (contact.email) {
+      existingId = await search(token, CONTACTS, [{ propertyName: "email", value: contact.email }]);
+    } else {
+      const nameFilters = [
+        ...(contact.firstName ? [{ propertyName: "firstname", value: contact.firstName }] : []),
+        ...(contact.lastName  ? [{ propertyName: "lastname",  value: contact.lastName  }] : []),
+      ];
+      existingId = nameFilters.length ? await search(token, CONTACTS, nameFilters) : null;
+    }
 
     const res = existingId
       ? await hsFetch(token, `${CONTACTS}/${existingId}`, { method: "PATCH", body: JSON.stringify({ properties }) })

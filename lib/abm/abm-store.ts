@@ -21,6 +21,8 @@ export interface AbmLeadProfile {
   firstName?:   string;
   /** Full name. */
   name?:        string;
+  /** Work email — the canonical dedup key when syncing the Contact to a CRM. */
+  email?:       string;
   company?:     string;
   role?:        string;
   industry?:    string;

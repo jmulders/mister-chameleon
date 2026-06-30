@@ -29,13 +29,14 @@ import { logger }               from "@/lib/logger";
 export interface LeadPerson {
   firstName?:   string | null;
   lastName?:    string | null;
+  email?:       string | null;
   jobTitle?:    string | null;
   linkedinUrl?: string | null;
 }
 
 /** Map an ABM lead profile to the named person, deriving last name from full name. */
 export function abmLeadToPerson(
-  profile: { firstName?: string | null; name?: string | null; role?: string | null; linkedinUrl?: string | null } | null | undefined,
+  profile: { firstName?: string | null; name?: string | null; email?: string | null; role?: string | null; linkedinUrl?: string | null } | null | undefined,
 ): LeadPerson | null {
   if (!profile) return null;
   const firstName = profile.firstName ?? null;
@@ -52,10 +53,11 @@ export function abmLeadToPerson(
   const person: LeadPerson = {
     ...(firstName ? { firstName } : {}),
     ...(lastName  ? { lastName }  : {}),
+    ...(profile.email       ? { email:       profile.email }       : {}),
     ...(profile.role        ? { jobTitle:    profile.role }        : {}),
     ...(profile.linkedinUrl ? { linkedinUrl: profile.linkedinUrl } : {}),
   };
-  return person.firstName || person.lastName ? person : null;
+  return person.firstName || person.lastName || person.email ? person : null;
 }
 
 /** Parse a leading employee count out of a size label, e.g. "500-1000" → 500. */
@@ -239,11 +241,12 @@ async function syncToHubspot(a: {
     }
 
     // (2) Contact — the named person, associated to the company.
-    const hasPerson = !!(a.person && (a.person.firstName || a.person.lastName));
+    const hasPerson = !!(a.person && (a.person.firstName || a.person.lastName || a.person.email));
     if (hasPerson && (!contactId || a.newlyQualified)) {
       const r = await syncContactToHubspot(a.token, {
         firstName: a.person!.firstName ?? null,
         lastName:  a.person!.lastName  ?? null,
+        email:     a.person!.email     ?? null,
         jobTitle:  a.person!.jobTitle  ?? null,
       }, companyId);
       if (r.ok && r.contactId) contactId = r.contactId;

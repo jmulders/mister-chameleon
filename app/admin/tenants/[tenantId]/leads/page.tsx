@@ -11,6 +11,7 @@ import Link                       from "next/link";
 import { getTenantById }          from "@/tenant/server";
 import { listLeadProfilesAction } from "./actions";
 import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction } from "../abm/actions";
+import { listWebhookDeliveriesAction } from "./actions";
 import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
 import { LeadBaseClient }         from "./_components/LeadBaseClient";
 import { LeadCrmSettings }        from "./_components/LeadCrmSettings";
@@ -24,13 +25,14 @@ export default async function LeadBasePage({
 }) {
   const { tenantId } = await params;
 
-  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken] = await Promise.all([
+  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken, deliveries] = await Promise.all([
     listLeadProfilesAction(tenantId, {}),
     getTenantById(tenantId),
     listAudienceSegmentsAction(tenantId),
     getAbmWebhookUrlAction(tenantId),
     getAbmWebhookSecretAction(tenantId),
     getAbmHubspotTokenAction(tenantId),
+    listWebhookDeliveriesAction(tenantId),
   ]);
 
   const segments = (segmentsResult.ok ? segmentsResult.data : [])
@@ -65,6 +67,7 @@ export default async function LeadBasePage({
           initialWebhookUrl={webhookUrl ?? ""}
           initialWebhookSecret={webhookSecret ?? ""}
           initialHubspotToken={hubspotToken ?? ""}
+          initialDeliveries={deliveries}
         />
       </div>
     </div>
