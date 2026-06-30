@@ -262,6 +262,15 @@ export interface BuildDecisionContextParams {
   deferSlowEnrichmentOnMiss?: boolean;
 
   /**
+   * Optional scheduler for fire-and-forget background work (the stale-refresh
+   * and deferred-enrichment cache-warm + billing runs). Request-scoped callers
+   * (the homepage pipeline) pass `after` from next/server so the background
+   * pipeline run reliably completes after the response flushes on serverless.
+   * Defaults to a bare microtask for non-request callers (tests, cms-page).
+   */
+  scheduleBackgroundWork?: (fn: () => void | Promise<void>) => void;
+
+  /**
    * IANA timezone string for the active tenant, e.g. "Europe/Amsterdam".
    *
    * Used to derive time-based context variables (currentHour, dayOfWeek,
@@ -465,6 +474,7 @@ export async function buildDecisionContext(
     stagedEnrichers,
     seedEnrichment,
     deferSlowEnrichmentOnMiss = false,
+    scheduleBackgroundWork,
     timezone            = null,
     sessionId           = null,
     ipOverride          = null,
@@ -668,6 +678,13 @@ export async function buildDecisionContext(
   let enrichmentSource: "session-cache" | "pipeline-fresh" | "headers-only" = "pipeline-fresh";
   let sessionCacheMissReason: string | null = null;
 
+  // Scheduler for fire-and-forget background work (cache-warm + billing). When a
+  // request-scoped caller passes `after` (homepage pipeline), the work reliably
+  // completes after the response flushes on serverless; otherwise fall back to a
+  // bare microtask (matches the original behaviour for tests / cms-page).
+  const runInBackground: (fn: () => void | Promise<void>) => void =
+    scheduleBackgroundWork ?? ((fn) => { void Promise.resolve().then(fn); });
+
   if (sessionId && stagedEnrichers && stagedEnrichers.length > 0) {
     const cacheResult = getSessionEnrichment(sessionId, ip, tenantId);
 
@@ -697,7 +714,7 @@ export async function buildDecisionContext(
         const _billingClientForRefresh = billingClient;
         const _tenantIdForRefresh      = tenantId;
         const _sessionIdForRefresh     = sessionId;
-        Promise.resolve().then(async () => {
+        runInBackground(async () => {
           try {
             const freshResult = await runStagedPipeline(
               stagedEnrichers,
@@ -963,7 +980,7 @@ export async function buildDecisionContext(
       const _billingClientForDefer  = billingClient;
       const _tenantIdForDefer       = tenantId;
       const _sessionIdForDefer      = sessionId;
-      Promise.resolve().then(async () => {
+      runInBackground(async () => {
         try {
           const freshResult = await runStagedPipeline(
             _enrichersForBackground,

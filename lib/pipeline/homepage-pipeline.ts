@@ -478,6 +478,9 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     sessionId,
     stagedEnrichers,
     deferSlowEnrichmentOnMiss: true,
+    // Guarantee the background cache-warm completes after the response flushes
+    // on serverless (Vercel) rather than relying on a bare microtask.
+    scheduleBackgroundWork: (fn) => after(fn),
     ...(seedFirmographics ? { seedEnrichment: seedFirmographics } : {}),
     timezone:          tenant?.timezone ?? null,
     billingClient,
