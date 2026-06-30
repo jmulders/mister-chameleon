@@ -380,6 +380,7 @@ export async function resolveSlugPageConfig(
       injectReturningVisitorContext(
         postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
         returningSignals,
+        tenant?.enrichment?.leadScoreHotThreshold ?? 60,
       );
     } catch {
       // ignore — normal personalization continues

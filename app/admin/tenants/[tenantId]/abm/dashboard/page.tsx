@@ -38,7 +38,7 @@ export default async function AbmDashboardPage({
         </p>
       </div>
 
-      <AbmDashboard rows={rows} baseUrl={baseUrl} />
+      <AbmDashboard rows={rows} baseUrl={baseUrl} hotThreshold={tenant?.enrichment?.leadScoreHotThreshold ?? 60} />
     </div>
   );
 }

@@ -147,6 +147,7 @@ export default async function TenantIntegrationsPage({
     testIpEnabled:          tenant.enrichment?.testIpEnabled          ?? false,
     testIpAddress:          tenant.enrichment?.testIpAddress          ?? "",
     firmographicFreshnessDays: tenant.enrichment?.firmographicFreshnessDays ?? 30,
+    leadScoreHotThreshold:     tenant.enrichment?.leadScoreHotThreshold ?? 60,
   };
 
   const domainsProp = {

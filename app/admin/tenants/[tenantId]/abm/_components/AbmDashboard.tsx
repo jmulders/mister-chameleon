@@ -5,10 +5,10 @@ import type { AbmDashboardRow } from "../actions";
 
 type Filter = "all" | "engaged" | "hot" | "not_visited" | "synced";
 
-const FILTERS: { key: Filter; label: string }[] = [
+const FILTERS = (hot: number): { key: Filter; label: string }[] => [
   { key: "all",         label: "All" },
   { key: "engaged",     label: "Engaged" },
-  { key: "hot",         label: "Hot (≥60)" },
+  { key: "hot",         label: `Hot (≥${hot})` },
   { key: "not_visited", label: "Not yet visited" },
   { key: "synced",      label: "Synced to CRM" },
 ];
@@ -25,10 +25,10 @@ function scoreClass(score: number): string {
   return "bg-neutral-100 text-neutral-500";
 }
 
-function matchesFilter(r: AbmDashboardRow, f: Filter): boolean {
+function matchesFilter(r: AbmDashboardRow, f: Filter, hotThreshold: number): boolean {
   switch (f) {
     case "engaged":     return !!r.activity;
-    case "hot":         return r.score >= 60;
+    case "hot":         return r.score >= hotThreshold;
     case "not_visited": return !r.activity;
     case "synced":      return !!r.activity?.hubspotSynced;
     default:            return true;
@@ -78,26 +78,26 @@ function toCsv(rows: AbmDashboardRow[], baseUrl: string): string {
   return `${header}\n${body}`;
 }
 
-export function AbmDashboard({ rows, baseUrl }: { rows: AbmDashboardRow[]; baseUrl: string }) {
+export function AbmDashboard({ rows, baseUrl, hotThreshold = 60 }: { rows: AbmDashboardRow[]; baseUrl: string; hotThreshold?: number }) {
   const [filter, setFilter] = useState<Filter>("all");
 
   const total    = rows.length;
   const engaged  = rows.filter((r) => r.activity).length;
-  const hot      = rows.filter((r) => r.score >= 60).length;
+  const hot      = rows.filter((r) => r.score >= hotThreshold).length;
   const synced   = rows.filter((r) => r.activity?.hubspotSynced).length;
-  const filtered = rows.filter((r) => matchesFilter(r, filter));
+  const filtered = rows.filter((r) => matchesFilter(r, filter, hotThreshold));
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Target accounts" value={total} />
         <Kpi label="Engaged" value={engaged} hint="visited the site" />
-        <Kpi label="Hot" value={hot} hint="score ≥ 60" />
+        <Kpi label="Hot" value={hot} hint={`score ≥ ${hotThreshold}`} />
         <Kpi label="Synced to HubSpot" value={synced} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        {FILTERS.map((f) => (
+        {FILTERS(hotThreshold).map((f) => (
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}

@@ -97,6 +97,7 @@ export interface TenantIntegrationsClientProps {
     testIpAddress?:          string;
     // How long a recognised visitor's firmographics stay "fresh" (days).
     firmographicFreshnessDays?: number;
+    leadScoreHotThreshold?: number;
   };
   platformEnrichmentAvailable: boolean;  // MaxMind key at platform level
 
@@ -617,6 +618,7 @@ export function TenantIntegrationsClient({
   const [testIpEnabled,       setTestIpEnabled]       = useState(initialEnrichment.testIpEnabled       ?? false);
   const [testIpAddress,       setTestIpAddress]       = useState(initialEnrichment.testIpAddress       ?? "");
   const [firmoFreshnessDays,  setFirmoFreshnessDays]  = useState(String(initialEnrichment.firmographicFreshnessDays ?? 30));
+  const [hotThreshold,        setHotThreshold]        = useState(String(initialEnrichment.leadScoreHotThreshold ?? 60));
 
   // ── Leadinfo state ─────────────────────────────────────────────────────────
   const [liEnabled,          setLiEnabled]          = useState(initialLeadinfo.enabled);
@@ -709,6 +711,7 @@ export function TenantIntegrationsClient({
           testIpAddress:          testIpAddress.trim() || undefined,
           // Firmographics freshness window (days); clamp to a sane 1–365, default 30.
           firmographicFreshnessDays: Math.min(365, Math.max(1, parseInt(firmoFreshnessDays, 10) || 30)),
+          leadScoreHotThreshold:     Math.min(100, Math.max(0, parseInt(hotThreshold, 10) || 60)),
         },
         domains: {
           vercelProjectId: vercelProjectId || undefined,
@@ -1244,6 +1247,28 @@ export function TenantIntegrationsClient({
             onChange={(e) => setFirmoFreshnessDays(e.target.value)}
             disabled={!enrichmentEnabled}
             className="mt-2 w-28 rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+          />
+        </div>
+
+        {/* ── Hot-lead score threshold ────────────────────────────────────── */}
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <label htmlFor="hot-threshold" className="block text-sm font-medium text-slate-800">
+            Hot-lead score threshold
+          </label>
+          <p className="mt-1 text-xs text-slate-500">
+            The lead score (0–100) at or above which a returning visitor counts as a hot
+            lead — drives the <code className="font-mono">isHotLead</code> personalization
+            signal, the &quot;Hot leads&quot; segment, and the ABM dashboard&apos;s hot
+            count/filter. Default 60.
+          </p>
+          <input
+            id="hot-threshold"
+            type="number"
+            min={0}
+            max={100}
+            value={hotThreshold}
+            onChange={(e) => setHotThreshold(e.target.value)}
+            className="mt-2 w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
           />
         </div>
 

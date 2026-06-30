@@ -8,6 +8,7 @@ import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-them
 import { ALL_FONT_VARIABLES, geistSans, geistMono, resolveGoogleFontCss } from "@/lib/fonts";
 import { LeadinfoProvider }      from "@/components/tracking/LeadinfoProvider";
 import { ConsentBanner }         from "@/components/tracking/ConsentBanner";
+import { CookiePreferences }     from "@/components/tracking/CookiePreferences";
 import { buildTimeContext }      from "@/context/time";
 import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
 import { resolveThemeDecision }  from "@/decision/theme-decision";
@@ -742,10 +743,13 @@ export default async function RootLayout({
           />
         )}
         {showConsentBanner && (
-          <ConsentBanner
-            title={privacySettings?.bannerTitle}
-            description={privacySettings?.bannerDescription}
-          />
+          <>
+            <ConsentBanner
+              title={privacySettings?.bannerTitle}
+              description={privacySettings?.bannerDescription}
+            />
+            <CookiePreferences />
+          </>
         )}
       </body>
     </html>

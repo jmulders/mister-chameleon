@@ -68,6 +68,8 @@ export function normalizeTenant(raw: TenantSettings): TenantSettings {
         : {}),
       // Firmographics freshness window (days) — default 30.
       firmographicFreshnessDays: r.enrichment?.firmographicFreshnessDays ?? 30,
+      // Hot-lead score threshold — default 60.
+      leadScoreHotThreshold:     r.enrichment?.leadScoreHotThreshold ?? 60,
     },
     domains: {
       ...r.domains,

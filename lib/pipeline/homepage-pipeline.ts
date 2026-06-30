@@ -508,6 +508,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     injectReturningVisitorContext(
       postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
       returningSignals,
+      tenant?.enrichment?.leadScoreHotThreshold ?? 60,
     );
   } catch (err) {
     logger.warn("[pipeline] returning-visitor context injection failed", {

@@ -1315,6 +1315,13 @@ export interface TenantEnrichmentSettings {
    * runs. Default: 30.
    */
   readonly firmographicFreshnessDays?: number;
+
+  /**
+   * The lead-score (0–100) at or above which a returning visitor counts as a
+   * "hot lead" — drives the `isHotLead` context variable, the Hot-leads segment,
+   * and the ABM dashboard's hot count/filter. Default: 60.
+   */
+  readonly leadScoreHotThreshold?: number;
 }
 
 // ── Domains settings ──────────────────────────────────────────────────────────
