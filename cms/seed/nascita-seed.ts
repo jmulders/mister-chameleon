@@ -171,7 +171,7 @@ function id(key: string): string {
 }
 
 /** Build a navigationItem document with a direct href (seed-data shorthand). */
-function navItem(slug: string, label: string, href: string): object {
+function navItem(slug: string, label: string, href: string): { _id: string; _type: string; [key: string]: unknown } {
   return {
     _id:         id(`nav_${slug}`),
     _type:       "navigationItem",
@@ -193,7 +193,7 @@ function navRef(slug: string, keyPrefix: string): object {
 
 // ── Seed documents ────────────────────────────────────────────────────────────
 
-export const nascitaDocuments = [
+export const nascitaDocuments: Array<{ _id: string; _type: string; [key: string]: unknown }> = [
 
   // ── Homepage page ──────────────────────────────────────────────────────────
   //
@@ -719,7 +719,7 @@ async function run() {
   const transaction = client.transaction();
 
   for (const doc of nascitaDocuments) {
-    transaction.createOrReplace(doc);
+    transaction.createOrReplace(doc as Parameters<typeof transaction.createOrReplace>[0]);
   }
 
   console.log(`Writing ${nascitaDocuments.length} documents to Sanity...`);

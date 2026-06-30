@@ -57,9 +57,8 @@ export default defineType({
         "Lowercase, no spaces (e.g. \"naam\", \"email\", \"telefoonnummer\").",
       validation: (Rule) =>
         Rule.required()
-          .regex(/^[a-z][a-zA-Z0-9_]*$/, {
-            message: "Key must start with a lowercase letter and contain only letters, digits, and underscores.",
-          }),
+          .regex(/^[a-z][a-zA-Z0-9_]*$/)
+          .error("Key must start with a lowercase letter and contain only letters, digits, and underscores."),
     }),
 
     // ── Label ──────────────────────────────────────────────────────────────────

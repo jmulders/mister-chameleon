@@ -49,7 +49,7 @@ export default defineType({
           ],
           preview: {
             select: { media: "image", title: "alt" },
-            prepare({ media, title }: { media?: unknown; title?: string }) {
+            prepare({ media, title }) {
               return { media, title: title ?? "Product image" };
             },
           },

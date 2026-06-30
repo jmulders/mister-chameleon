@@ -246,7 +246,7 @@ function createWriteClient(config: ResolvedSeedConfig) {
  *   cms/seed/marketing-site-variants.ts   — mister-chameleon tenant
  *   cms/seed/workengine-seed.ts           — workengine tenant
  */
-export const platformDocuments = [
+export const platformDocuments: Array<{ _id: string; _type: string; [key: string]: unknown }> = [
 
   // Add shared (no tenantId) variant documents here when needed.
   // Example structure:
