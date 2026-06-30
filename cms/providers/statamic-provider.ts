@@ -1454,7 +1454,7 @@ export class StatamicProvider implements CMSProvider {
           : "article-page";
 
       return {
-        id:             entry.id,
+        id:             entry.id ?? slug,
         title:          entry.title ?? slug,
         slug,
         seoDescription: entry.seo_description ?? undefined,

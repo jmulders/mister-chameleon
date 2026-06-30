@@ -884,7 +884,8 @@ export async function createTenant(
   if (!validation.ok) return validation;
 
   // ── Pass 2: package-aware normalization ───────────────────────────────────
-  const { settings: enforced, violations } = enforcePackageLimits(validation.data);
+  const { settings: enforcedInit, violations } = enforcePackageLimits(validation.data);
+  let enforced = enforcedInit;
 
   if (violations.length > 0) {
     console.warn(
@@ -913,10 +914,13 @@ export async function createTenant(
   // creation time means it can never be forgotten during onboarding. Operators
   // can still regenerate it from Admin → Tenant → Snippet.
   if (!enforced.snippet?.siteKey) {
-    enforced.snippet = {
-      ...enforced.snippet,
-      siteKey:            generateSiteKey(),
-      siteKeyGeneratedAt: new Date().toISOString(),
+    enforced = {
+      ...enforced,
+      snippet: {
+        ...enforced.snippet,
+        siteKey:            generateSiteKey(),
+        siteKeyGeneratedAt: new Date().toISOString(),
+      },
     };
   }
 

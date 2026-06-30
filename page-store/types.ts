@@ -213,7 +213,7 @@ export function fromPageConfig(
   const contextSlots: EditableContextSlot[] = config.contextSlots.map((slot) => ({
     slotId:     slot.slotId,
     variantKey: slot.variantKey,
-    position:   slot.position,
+    position:   slot.position ?? "before-content",
   }));
 
   // Cast the ContentBlock union to AnyBlock for generic field access.

@@ -211,6 +211,8 @@ export interface StatamicAdaptiveSlots {
 }
 
 export interface StatamicPageEntry {
+  /** Statamic entry id, when present in the API response. */
+  id?:              string;
   /** The page title — used in <title> and as H1 fallback */
   title:            string;
   /** SEO meta description */
