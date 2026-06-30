@@ -1122,6 +1122,11 @@ export const DESIGN_PRESETS: Record<ThemeKey, ResolvedDesignTheme> = {
   "dark-ai":            { ...DARK_CONTRAST_PRESET,  presetName: "Dark AI",           presetKey: "dark-ai" },
   "clean-corporate":    { ...CORPORATE_TRUST_PRESET, presetName: "Clean Corporate",   presetKey: "clean-corporate" },
   "structured-saas":    { ...WARM_PROFESSIONAL_PRESET, presetName: "Structured SaaS", presetKey: "structured-saas" },
+  // ── Blueprint presets (referenced by tenant/templates/*-template.ts) ───────
+  //   Alias to the closest existing base; templates layer their own brand theme.
+  "werkenbij-blueprint":     { ...CAREERS_HUMAN_PRESET,   presetName: "Werkenbij Blueprint",     presetKey: "werkenbij-blueprint" },
+  "corporate-b2b-blueprint": { ...CORPORATE_TRUST_PRESET, presetName: "Corporate B2B Blueprint", presetKey: "corporate-b2b-blueprint" },
+  "saas-blueprint":          { ...MODERN_SAAS_PRESET,     presetName: "SaaS Blueprint",          presetKey: "saas-blueprint" },
 } as const;
 
 // ── Safe preset lookup ────────────────────────────────────────────────────────

@@ -169,6 +169,9 @@ export function toPageConfig(page: EditablePage): PageConfig {
     title:        page.title,
     templateKey:  page.templateKey,
     contextSlots,
+    // DB-stored pages render via contextSlots + contentBlocks; the unified
+    // pageItems model is Statamic-only. Empty (not undefined) keeps the renderer safe.
+    pageItems:    [],
     // Safe widening cast: EditableContentBlock is structurally compatible with
     // ContentBlock at runtime — blockType and data always match.
     contentBlocks: page.contentBlocks as unknown as readonly ContentBlock[],

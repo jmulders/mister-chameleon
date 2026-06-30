@@ -54,7 +54,13 @@ export function mapHeroBlockData(data: HeroBlockData): HeroBlockProps {
   // Normalise: prefer ctas; fall back to legacy cta field.
   const ctas: HeroBlockProps["ctas"] =
     data.ctas && data.ctas.length > 0
-      ? data.ctas.map((c): HeroBlockProps["ctas"][number] => ({ label: c.label, href: c.href, ...(c.variant ? { variant: c.variant } : {}) }))
+      ? data.ctas.map((c): HeroBlockProps["ctas"][number] => ({
+          label: c.label,
+          href:  c.href,
+          // The CMS allows a "link" style the hero component doesn't render; map it
+          // to the closest supported variant ("ghost").
+          ...(c.variant ? { variant: c.variant === "link" ? "ghost" : c.variant } : {}),
+        }))
       : data.cta
         ? [{ label: data.cta.label, href: data.cta.href }]
         : [];

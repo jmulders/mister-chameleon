@@ -851,7 +851,7 @@ export async function saveTenant(
   // only valid inside a request scope (server action / route handler) — calls
   // from scripts must not throw.
   try {
-    revalidateTag(TENANT_RENDER_CACHE_TAG);
+    revalidateTag(TENANT_RENDER_CACHE_TAG, {});
   } catch {
     // Outside a request scope (e.g. a CLI script) — safe to ignore.
   }

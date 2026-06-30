@@ -1032,7 +1032,7 @@ export class StatamicProvider implements CMSProvider {
             ? (h as { value?: string }).value
             : undefined;
         const resolvedTabs = (await Promise.all(
-          inlineTabRows.map(async (row) => {
+          inlineTabRows.map(async (row): Promise<import("../types").SectionTabData | null> => {
             const label = typeof row.label === "string" ? row.label : "";
             const href  = tabHref(row.href);
             if (!label || !href) return null;

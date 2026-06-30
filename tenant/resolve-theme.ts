@@ -193,6 +193,10 @@ const PRESET_RADIUS_VARS: Record<ThemeKey, Record<string, string>> = {
   "dark-ai":            {},
   "clean-corporate":    {},
   "structured-saas":    {},
+  // Blueprint presets — radius vars come from the base preset / CURATED_THEME_VARS.
+  "werkenbij-blueprint":     {},
+  "corporate-b2b-blueprint": {},
+  "saas-blueprint":          {},
 };
 
 // ── Grouped token → CSS var mapping ──────────────────────────────────────────
