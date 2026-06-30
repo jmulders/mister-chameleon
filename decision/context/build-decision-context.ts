@@ -249,6 +249,19 @@ export interface BuildDecisionContextParams {
   seedEnrichment?: Partial<EnrichmentOutput>;
 
   /**
+   * When true, on a session-enrichment cache MISS the current render uses only
+   * the FAST partial enrichment (`{ ...headerGeoResult, ...seedEnrichment }`)
+   * and the full staged pipeline is run in the BACKGROUND to warm the session
+   * cache for the next request — keeping the slow enrichment off the critical
+   * render path (improves hero LCP).
+   *
+   * Only takes effect when a real `sessionId` is present.  Default false: the
+   * blocking pipeline runs inline exactly as before.  Opted into by the
+   * homepage pipeline only; the cms-page pipeline keeps the blocking behaviour.
+   */
+  deferSlowEnrichmentOnMiss?: boolean;
+
+  /**
    * IANA timezone string for the active tenant, e.g. "Europe/Amsterdam".
    *
    * Used to derive time-based context variables (currentHour, dayOfWeek,
@@ -451,6 +464,7 @@ export async function buildDecisionContext(
     ipCompanyCrmEnricher,
     stagedEnrichers,
     seedEnrichment,
+    deferSlowEnrichmentOnMiss = false,
     timezone            = null,
     sessionId           = null,
     ipOverride          = null,
@@ -912,135 +926,207 @@ export async function buildDecisionContext(
       }
     }
 
-    // ── Staged sequential pipeline ────────────────────────────────────────
+    // ── Deferred slow-enrichment (opt-in: homepage critical-path LCP) ─────
     //
-    // CDN header result seeds the initial accumulation so that stage 1
-    // (MaxMind) and subsequent stages can read e.g. `countryCode` already
-    // resolved from Vercel/CF headers without needing to re-fetch it.
-    const result: StagedPipelineResult = await runStagedPipeline(
-      enrichersForPipeline,
-      enricherInput,
-      {
-        timeoutMs:          4_000,
-        initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
-        logger: ({ label, timedOut, error }) => {
-          logger.warn("[decision-context] staged enricher issue", { label, timedOut, error });
-        },
-      },
-    );
+    // When `deferSlowEnrichmentOnMiss` is enabled AND we have a real session,
+    // a cache MISS must NOT block the render on the full staged pipeline.
+    // Instead the current render uses the FAST partial enrichment that is
+    // already computed (CDN header geo + any seeded firmographics), and the
+    // full pipeline runs in the BACKGROUND to warm the session cache for the
+    // next request.  This keeps the slow pipeline off the hero's render path.
+    //
+    // The background block mirrors the stale-refresh pattern above verbatim:
+    // run the same enrichers list the blocking path would use
+    // (`enrichersForPipeline`, post wallet-guard), write the session cache,
+    // fire billing, and absorb all errors.  We use a bare Promise (matching
+    // the existing stale-refresh) rather than `after()` so this stays
+    // consistent with the sibling background path and safe for any caller.
+    const useDeferredEnrichment = deferSlowEnrichmentOnMiss && Boolean(sessionId);
 
-    enrichment       = { ...headerGeoResult, ...result.output };
-    stageTrace       = result.trace;
-    enrichmentTrace  = result.enrichmentTrace;
+    if (useDeferredEnrichment && sessionId) {
+      // Render now with the FAST partial — same shape the blocking path seeds with.
+      // The full staged pipeline did NOT run for this render (it runs in the
+      // background below), so this render's enrichment is headers + seed only.
+      enrichment       = normalizeCurrentLocation({ ...headerGeoResult, ...seedEnrichment });
+      enrichmentSource = "headers-only";
 
-    // Mark pipeline-fetched fields as "miss" (pipeline ran fresh this request).
-    // Fields attributed to "geo:headers" keep "n/a" — CDN headers have no cache.
-    for (const key of Object.keys(enrichmentTrace)) {
-      const ft = (enrichmentTrace as Record<string, import("@/enrichment/types").EnrichmentFieldTrace>)[key];
-      if (ft && ft.provider !== "geo:headers") {
-        ft.cacheStatus = "miss";
+      if (isDev) {
+        logger.debug("[decision-context] deferring slow enrichment to background on cache miss", {
+          sessionId, ip, tenantId, reason: sessionCacheMissReason,
+        });
       }
-    }
-    enrichmentSource = "pipeline-fresh";
 
-    // ── Normalize current* location fields ───────────────────────────────
-    //
-    // GA4 current location is the preferred human-readable source.
-    // IP geo still ran for lat/lng and technical signals — normalizeCurrentLocation
-    // never suppresses it; it only picks the best display source.
-    enrichment = normalizeCurrentLocation(enrichment);
-
-    // ── Demo mode: pipeline ran fresh — log it ───────────────────────────────
-    if (isDemoMode()) {
-      logDemoModeActive(tenantId, sessionId, "pipeline");
-    }
-
-    // ── Enrichment billing tracking ───────────────────────────────────────────
-    //
-    // Fire-and-forget: records usage events and deducts credits for every
-    // billable live API call in the pipeline trace.  Cache hits (cacheSource
-    // === "provider-cache") and skipped stages are never billed.
-    //
-    // Errors are swallowed inside trackEnrichmentUsage — billing failures
-    // must never break the visitor-facing page response.
-    if (billingClient && tenantId) {
-      const stageTraceForBilling = result.trace;
-      const billingTenantId      = tenantId;
-      const billingSessionId     = sessionId;
-      const bc                   = billingClient;
-
-      // Count stage categories for the debug log:
-      //   billableCount     — non-skipped stages that made a live API call (will debit if success)
-      //   providerCacheHits — non-skipped stages served from provider's in-process cache (cost=0)
-      //   skippedCount      — stages the pipeline explicitly skipped (not attempted at all)
-      const billableCount     = stageTraceForBilling.filter(
-        (s) => !s.skipped && s.cacheSource !== "provider-cache",
-      ).length;
-      const providerCacheHits = stageTraceForBilling.filter(
-        (s) => !s.skipped && s.cacheSource === "provider-cache",
-      ).length;
-      const skippedCount      = stageTraceForBilling.filter((s) => s.skipped).length;
-
-      logPipelineBillingFired({
-        tenantId:         billingTenantId,
-        sessionId:        billingSessionId,
-        billableCount,
-        skippedCount,
-        walletGuarded:    false,
-        providerCacheHits,
-      });
-
-      // Use void to make the fire-and-forget intent explicit.
-      // IMPORTANT: catch {} was here before — it swallowed ALL errors including
-      // schema mismatches and RPC failures.  Now we log them so they're visible.
-      console.log("[decision-billing] firing trackEnrichmentUsage", {
-        tenantId:    billingTenantId,
-        sessionId:   billingSessionId,
-        stageCount:  stageTraceForBilling.length,
-        billable:    billableCount,
-        cacheHits:   providerCacheHits,
-        skipped:     skippedCount,
-      });
-      void (async () => {
+      // Fire-and-forget background pipeline run to warm the session cache.
+      // Errors are intentionally absorbed — the partial enrichment has already
+      // been returned for this render.
+      const _enrichersForBackground = enrichersForPipeline;
+      const _billingClientForDefer  = billingClient;
+      const _tenantIdForDefer       = tenantId;
+      const _sessionIdForDefer      = sessionId;
+      Promise.resolve().then(async () => {
         try {
-          const { trackEnrichmentUsage } = await import("@/billing/enrichment-tracker");
-          await trackEnrichmentUsage(bc, stageTraceForBilling, {
-            tenantId:  billingTenantId,
-            sessionId: billingSessionId,
-          });
+          const freshResult = await runStagedPipeline(
+            _enrichersForBackground,
+            enricherInput,
+            {
+              timeoutMs:          4_000,
+              initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
+            },
+          );
+          setSessionEnrichment(sessionId, freshResult.output, ip, tenantId);
+          if (isDev) {
+            logger.debug("[decision-context] deferred session cache warmed in background", {
+              sessionId,
+            });
+          }
+          // Fire billing for the background pipeline run.
+          if (_billingClientForDefer && _tenantIdForDefer && freshResult.trace.length > 0) {
+            const { trackEnrichmentUsage } = await import("@/billing/enrichment-tracker");
+            await trackEnrichmentUsage(_billingClientForDefer, freshResult.trace, {
+              tenantId:  _tenantIdForDefer,
+              sessionId: _sessionIdForDefer,
+            });
+          }
         } catch (err) {
-          // Never crash the render — but always log so billing failures are visible.
+          // Absorb — never let a background warm crash the process.
           console.error(
-            `[decision-billing] trackEnrichmentUsage THREW` +
-            ` | tenant=${billingTenantId ?? "?"}` +
-            ` | session=${billingSessionId ?? "none"}` +
+            `[decision-billing] deferred enrichment warm error` +
+            ` | tenant=${_tenantIdForDefer ?? "?"}` +
             ` | ${err instanceof Error ? err.message : String(err)}`,
           );
         }
-      })();
-    } else if (!billingClient) {
-      // billingClient was not provided — billing is disabled for this route.
-      // Expected: admin pages, API handlers, and preview routes opt out.
-      // Unexpected: if this appears for a visitor-facing page, the route is
-      // missing its billing client.  Check that the page creates and passes
-      // a service-role Supabase client as `billingClient`.
-      console.warn(
-        `[decision-billing] ⚠ No billingClient provided` +
-        ` | tenant=${tenantId ?? "unknown"}` +
-        ` | session=${sessionId ?? "none"}` +
-        ` | billing: DISABLED` +
-        ` | enrichment ran but NO wallet debit / usage_events will be written.` +
-        ` | If this is a visitor page, pass billingClient to buildDecisionContext.`,
+      });
+    } else {
+      // ── Staged sequential pipeline ────────────────────────────────────────
+      //
+      // CDN header result seeds the initial accumulation so that stage 1
+      // (MaxMind) and subsequent stages can read e.g. `countryCode` already
+      // resolved from Vercel/CF headers without needing to re-fetch it.
+      const result: StagedPipelineResult = await runStagedPipeline(
+        enrichersForPipeline,
+        enricherInput,
+        {
+          timeoutMs:          4_000,
+          initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
+          logger: ({ label, timedOut, error }) => {
+            logger.warn("[decision-context] staged enricher issue", { label, timedOut, error });
+          },
+        },
       );
-    }
 
-    // ── Write to session cache ────────────────────────────────────────────
-    // Store the fresh pipeline result so subsequent page views in this
-    // session can reuse it without re-running the full pipeline.
-    // The normalized current* fields are included so cache-hit paths receive
-    // them directly without needing to re-derive.
-    if (sessionId) {
-      setSessionEnrichment(sessionId, enrichment, ip, tenantId);
+      enrichment       = { ...headerGeoResult, ...result.output };
+      stageTrace       = result.trace;
+      enrichmentTrace  = result.enrichmentTrace;
+
+      // Mark pipeline-fetched fields as "miss" (pipeline ran fresh this request).
+      // Fields attributed to "geo:headers" keep "n/a" — CDN headers have no cache.
+      for (const key of Object.keys(enrichmentTrace)) {
+        const ft = (enrichmentTrace as Record<string, import("@/enrichment/types").EnrichmentFieldTrace>)[key];
+        if (ft && ft.provider !== "geo:headers") {
+          ft.cacheStatus = "miss";
+        }
+      }
+      enrichmentSource = "pipeline-fresh";
+
+      // ── Normalize current* location fields ───────────────────────────────
+      //
+      // GA4 current location is the preferred human-readable source.
+      // IP geo still ran for lat/lng and technical signals — normalizeCurrentLocation
+      // never suppresses it; it only picks the best display source.
+      enrichment = normalizeCurrentLocation(enrichment);
+
+      // ── Demo mode: pipeline ran fresh — log it ───────────────────────────────
+      if (isDemoMode()) {
+        logDemoModeActive(tenantId, sessionId, "pipeline");
+      }
+
+      // ── Enrichment billing tracking ───────────────────────────────────────────
+      //
+      // Fire-and-forget: records usage events and deducts credits for every
+      // billable live API call in the pipeline trace.  Cache hits (cacheSource
+      // === "provider-cache") and skipped stages are never billed.
+      //
+      // Errors are swallowed inside trackEnrichmentUsage — billing failures
+      // must never break the visitor-facing page response.
+      if (billingClient && tenantId) {
+        const stageTraceForBilling = result.trace;
+        const billingTenantId      = tenantId;
+        const billingSessionId     = sessionId;
+        const bc                   = billingClient;
+
+        // Count stage categories for the debug log:
+        //   billableCount     — non-skipped stages that made a live API call (will debit if success)
+        //   providerCacheHits — non-skipped stages served from provider's in-process cache (cost=0)
+        //   skippedCount      — stages the pipeline explicitly skipped (not attempted at all)
+        const billableCount     = stageTraceForBilling.filter(
+          (s) => !s.skipped && s.cacheSource !== "provider-cache",
+        ).length;
+        const providerCacheHits = stageTraceForBilling.filter(
+          (s) => !s.skipped && s.cacheSource === "provider-cache",
+        ).length;
+        const skippedCount      = stageTraceForBilling.filter((s) => s.skipped).length;
+
+        logPipelineBillingFired({
+          tenantId:         billingTenantId,
+          sessionId:        billingSessionId,
+          billableCount,
+          skippedCount,
+          walletGuarded:    false,
+          providerCacheHits,
+        });
+
+        // Use void to make the fire-and-forget intent explicit.
+        // IMPORTANT: catch {} was here before — it swallowed ALL errors including
+        // schema mismatches and RPC failures.  Now we log them so they're visible.
+        console.log("[decision-billing] firing trackEnrichmentUsage", {
+          tenantId:    billingTenantId,
+          sessionId:   billingSessionId,
+          stageCount:  stageTraceForBilling.length,
+          billable:    billableCount,
+          cacheHits:   providerCacheHits,
+          skipped:     skippedCount,
+        });
+        void (async () => {
+          try {
+            const { trackEnrichmentUsage } = await import("@/billing/enrichment-tracker");
+            await trackEnrichmentUsage(bc, stageTraceForBilling, {
+              tenantId:  billingTenantId,
+              sessionId: billingSessionId,
+            });
+          } catch (err) {
+            // Never crash the render — but always log so billing failures are visible.
+            console.error(
+              `[decision-billing] trackEnrichmentUsage THREW` +
+              ` | tenant=${billingTenantId ?? "?"}` +
+              ` | session=${billingSessionId ?? "none"}` +
+              ` | ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        })();
+      } else if (!billingClient) {
+        // billingClient was not provided — billing is disabled for this route.
+        // Expected: admin pages, API handlers, and preview routes opt out.
+        // Unexpected: if this appears for a visitor-facing page, the route is
+        // missing its billing client.  Check that the page creates and passes
+        // a service-role Supabase client as `billingClient`.
+        console.warn(
+          `[decision-billing] ⚠ No billingClient provided` +
+          ` | tenant=${tenantId ?? "unknown"}` +
+          ` | session=${sessionId ?? "none"}` +
+          ` | billing: DISABLED` +
+          ` | enrichment ran but NO wallet debit / usage_events will be written.` +
+          ` | If this is a visitor page, pass billingClient to buildDecisionContext.`,
+        );
+      }
+
+      // ── Write to session cache ────────────────────────────────────────────
+      // Store the fresh pipeline result so subsequent page views in this
+      // session can reuse it without re-running the full pipeline.
+      // The normalized current* fields are included so cache-hit paths receive
+      // them directly without needing to re-derive.
+      if (sessionId) {
+        setSessionEnrichment(sessionId, enrichment, ip, tenantId);
+      }
     }
   } else {
     // ── Legacy parallel pipeline (backward compat) ────────────────────────

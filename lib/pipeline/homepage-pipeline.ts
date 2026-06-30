@@ -477,6 +477,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     ipOverride:        tenant?.enrichment?.testIpAddress  ?? null,
     sessionId,
     stagedEnrichers,
+    deferSlowEnrichmentOnMiss: true,
     ...(seedFirmographics ? { seedEnrichment: seedFirmographics } : {}),
     timezone:          tenant?.timezone ?? null,
     billingClient,
