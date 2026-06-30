@@ -224,9 +224,17 @@ export default async function Home({ searchParams }: PageProps) {
   );
 }
 
-/** Placeholder shown while <HomeBody> streams — reserves space for the shell. */
+/**
+ * Placeholder shown while <HomeBody> streams — reserves space for the hero.
+ *
+ * Sized to ~one viewport (min-h-screen) rather than 60vh because the hero that
+ * replaces it is typically full-height: a too-short placeholder lets the footer
+ * / below-fold content paint high, then get pushed down when the real hero
+ * streams in — a large Cumulative Layout Shift. Reserving a viewport-height box
+ * keeps that content below the fold so the swap shifts nothing visible.
+ */
 function HomeSkeleton() {
-  return <div className="min-h-[60vh]" aria-hidden="true" />;
+  return <div className="min-h-screen" aria-hidden="true" />;
 }
 
 async function HomeBody({ params }: { params: Record<string, string | string[] | undefined> }) {
