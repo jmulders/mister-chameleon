@@ -251,7 +251,8 @@ export async function savePage(
 
   const normalised = saved.slug.replace(/^\//, "");
 
-  const { error } = await getDb()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+  const { error } = await (getDb() as any)
     .from("pages")
     .upsert(
       {

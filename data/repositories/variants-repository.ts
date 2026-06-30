@@ -130,7 +130,8 @@ export async function saveServedVariants(
     return { ok: false, error: "tenantId is required but was empty" };
   }
 
-  const { data, error } = await getDb()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+  const { data, error } = await (getDb() as any)
     .from("served_variants")
     .insert({
       session_id: input.sessionId,

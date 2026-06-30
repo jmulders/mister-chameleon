@@ -826,7 +826,8 @@ export async function saveTenant(
   // mirrors tenant_id and must be included explicitly because the column has
   // no DEFAULT — omitting it causes a null constraint violation on INSERT.
   // On the UPDATE (conflict) path it is idempotent: the slug doesn't change.
-  const { error } = await getDb()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+  const { error } = await (getDb() as any)
     .from("tenant_settings")
     .upsert(
       {
@@ -922,7 +923,8 @@ export async function createTenant(
   // ── Insert new row ────────────────────────────────────────────────────────
   //
   // `id` mirrors `tenant_id` — see saveTenant() for the full explanation.
-  const { error } = await getDb()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+  const { error } = await (getDb() as any)
     .from("tenant_settings")
     .insert({
       id:         enforced.tenantId,

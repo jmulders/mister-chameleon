@@ -236,7 +236,8 @@ export async function addDomain(
   // ── Insert ────────────────────────────────────────────────────────────────
   const now = new Date().toISOString();
   const { data, error } = asSingle<TenantDomainRow>(
-    await getDb()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+    await (getDb() as any)
       .from("tenant_domains")
       .insert({
         tenant_id:           tenantId,
@@ -289,7 +290,8 @@ export async function updateDomainStatus(
   } = {},
 ): Promise<DomainStoreResult<TenantDomainRow>> {
   const { data, error } = asSingle<TenantDomainRow>(
-    await getDb()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+    await (getDb() as any)
       .from("tenant_domains")
       .update({
         status,
@@ -331,7 +333,8 @@ export async function setPrimaryDomain(
   id:       string,
   tenantId: string,
 ): Promise<DomainStoreResult<TenantDomainRow>> {
-  const db  = getDb();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payloads are validated by the DB.
+  const db  = getDb() as any;
   const now = new Date().toISOString();
 
   // Step 1 — clear is_primary on every domain for this tenant.

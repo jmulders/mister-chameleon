@@ -108,7 +108,8 @@ export async function saveEvent(
     ...(input.tenantId ? { _tid: input.tenantId } : {}),
   };
 
-  const { data, error } = await getDb()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+  const { data, error } = await (getDb() as any)
     .from("events")
     .insert({
       session_id: input.sessionId,

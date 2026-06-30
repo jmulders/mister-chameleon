@@ -51,7 +51,7 @@ import {
   ENRICHMENT_TYPE_CONFIG,
 } from "./enrichment-pricing";
 import { getMonthToDateSpend, currentPeriodKey } from "./usage-summary";
-import { formatSupabaseError } from "./errors";
+import { formatSupabaseError, serializeError } from "./errors";
 import { trackUsageEvent } from "./usage-events";
 
 // Re-export for use in build-decision-context.ts

@@ -120,7 +120,8 @@ export function sessionInputFromContext(
 export async function createSession(
   input: CreateSessionInput,
 ): Promise<RepositoryResult<SessionRow>> {
-  const { data, error } = await getDb()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+  const { data, error } = await (getDb() as any)
     .from("sessions")
     .insert({
       source: input.source,
@@ -178,7 +179,8 @@ export async function upsertSession(
   // Do NOT call .select() or .single() here.
   // ignoreDuplicates (ON CONFLICT DO NOTHING) returns 0 rows when the row
   // already exists; .single() on 0 rows always throws PGRST116.
-  const { error: insertError } = await getDb()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payload is validated by the DB.
+  const { error: insertError } = await (getDb() as any)
     .from("sessions")
     .upsert(
       {
