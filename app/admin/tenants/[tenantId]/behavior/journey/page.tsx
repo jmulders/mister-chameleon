@@ -35,7 +35,7 @@ export default async function JourneyInsightPage({
             href={`/admin/tenants/${tenantId}/behavior`}
             className="text-sm text-indigo-600 hover:underline"
           >
-            ← Behavior
+            ← Scoring
           </a>
           <span className="text-neutral-300">/</span>
           <span className="text-sm text-neutral-500">Journey Intelligence</span>
