@@ -228,12 +228,16 @@ export interface CreditBalance {
 export interface UsageSummary {
   tenantId:         string;
   currentBalance:   number;
+  /** The plan's included credit quota for this period. */
+  includedCredits:  number;
   /** Credits consumed this period, capped at includedCredits (plan quota). */
   usedCredits:      number;
   /** Raw ledger debits this period — not capped; used for reconciliation. */
   deductedCredits:  number;
   /** Credits added via bundle purchases this period. */
   purchasedCredits: number;
+  /** Credits consumed beyond the plan quota this period (billable overage). */
+  overageCredits:   number;
   periodStart:      string | null;
   periodEnd:        string | null;
 }

@@ -238,7 +238,7 @@ export async function recordPersonalizedSession(
       await db.rpc("deduct_session_credit", {
         p_tenant_id: tenantId,
         p_session_id: sessionId,
-      }).then(() => null).catch(() => null);
+      }).then(() => null, () => null);
     }
 
     // ── Record in personalization_sessions (de-duplicated) ────────────────────

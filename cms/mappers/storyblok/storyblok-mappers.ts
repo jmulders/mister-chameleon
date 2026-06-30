@@ -353,6 +353,7 @@ export interface StoryblokPageContent {
   template?:         string;
   seo_title?:        string;
   seo_description?:  string;
+  meta_keywords?:    string[] | string;
   sections?:         StoryblokSectionRaw[];
 }
 

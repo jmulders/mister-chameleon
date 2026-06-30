@@ -158,7 +158,8 @@ export function getStripeClient(mode?: StripeMode): Stripe {
   if (cached) return cached;
 
   const instance = new Stripe(getStripeSecretKey(m), {
-    apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pin apiVersion across stripe-node minor type drift
+    apiVersion: "2025-08-27.basil" as any,
     typescript: true,
   });
 

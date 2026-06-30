@@ -45,7 +45,7 @@ function gt(field: RuleFieldKey, value: number): FieldCondition {
   return { type: "field", field, operator: "greater_than", value };
 }
 function exists(field: RuleFieldKey): FieldCondition {
-  return { type: "field", field, operator: "exists", value: null };
+  return { type: "field", field, operator: "exists", value: undefined };
 }
 
 export interface PresetConditionDef {

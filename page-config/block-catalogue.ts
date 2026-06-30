@@ -155,6 +155,7 @@ const DESCRIPTIONS: Record<ContentBlockKey, string> = {
   cartSummary:        "Shopping cart with line items, quantities, and order totals.",
   checkoutBlock:      "Multi-step checkout flow with payment and shipping forms.",
   mapBlock:           "Google Maps embed with office address, email, and phone contact details.",
+  floatingContact:    "Floating contact button that stays visible while scrolling, opening quick contact options.",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

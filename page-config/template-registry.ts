@@ -257,7 +257,9 @@ export type TemplateRegistryKey =
   | "case_detail"
   | "vacancy_listing"
   | "vacancy_detail"
-  | "event_page";
+  | "event_page"
+  | "event_listing"
+  | "event_detail";
 
 /**
  * Provisioning tier for a template.

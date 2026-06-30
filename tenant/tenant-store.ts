@@ -501,7 +501,7 @@ async function fetchAllTenants(): Promise<TenantSettings[]> {
   return (data ?? []).map((row) => ({
     // Spread the JSONB blob first, then override tenantId with the DB column.
     // The DB column is the true primary key and is always present and unique.
-    ...(row.settings as TenantSettings),
+    ...(row.settings as unknown as TenantSettings),
     tenantId: row.tenant_id,
   }));
 }
@@ -753,7 +753,7 @@ export async function getTenantBySiteKey(siteKey: string): Promise<TenantSetting
   if (!data) return null;
 
   return {
-    ...(data.settings as TenantSettings),
+    ...(data.settings as unknown as TenantSettings),
     tenantId: data.tenant_id,
   };
 }

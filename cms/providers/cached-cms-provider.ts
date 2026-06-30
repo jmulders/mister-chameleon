@@ -263,7 +263,7 @@ export class CachedCMSProvider implements CMSProvider {
       // Durably persist the COMPLETE result so cold lambdas, cache-key bumps and
       // a slow/restarting CMS still have a real fallback. Fire-and-forget — it
       // must never block or fail the render.
-      void persistSiteSettings(this.tenantId, locale, good);
+      void persistSiteSettings(this.tenantId ?? null, locale, good);
       return good;
     } catch {
       // The live result was incomplete (or a sub-fetch failed).  Serve the
@@ -279,7 +279,7 @@ export class CachedCMSProvider implements CMSProvider {
       //    slow/restarting CMS. THIS is what stops the nav/logo from flipping to
       //    the Statamic starter defaults. Reject a poisoned (starter) row so a
       //    previously-persisted starter nav is never served.
-      const persisted = await readPersistedSiteSettings(this.tenantId, locale);
+      const persisted = await readPersistedSiteSettings(this.tenantId ?? null, locale);
       if (persisted && !isStarterNav(persisted)) {
         lastGoodSiteSettings.set(lgKey, persisted);
         return persisted;
