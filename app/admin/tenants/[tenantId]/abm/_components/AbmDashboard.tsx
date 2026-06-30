@@ -1,4 +1,17 @@
+"use client";
+
+import { useState } from "react";
 import type { AbmDashboardRow } from "../actions";
+
+type Filter = "all" | "engaged" | "hot" | "not_visited" | "synced";
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all",         label: "All" },
+  { key: "engaged",     label: "Engaged" },
+  { key: "hot",         label: "Hot (≥60)" },
+  { key: "not_visited", label: "Not yet visited" },
+  { key: "synced",      label: "Synced to CRM" },
+];
 
 function fmtWhen(iso: string | null): string {
   if (!iso) return "—";
@@ -12,6 +25,16 @@ function scoreClass(score: number): string {
   return "bg-neutral-100 text-neutral-500";
 }
 
+function matchesFilter(r: AbmDashboardRow, f: Filter): boolean {
+  switch (f) {
+    case "engaged":     return !!r.activity;
+    case "hot":         return r.score >= 60;
+    case "not_visited": return !r.activity;
+    case "synced":      return !!r.activity?.hubspotSynced;
+    default:            return true;
+  }
+}
+
 function Kpi({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
     <div className="rounded-lg border border-neutral-200 p-4">
@@ -22,12 +45,47 @@ function Kpi({ label, value, hint }: { label: string; value: number; hint?: stri
   );
 }
 
-/** Presentational dashboard: target accounts × observed activity, hottest first. */
-export function AbmDashboard({ rows }: { rows: AbmDashboardRow[] }) {
-  const total   = rows.length;
-  const engaged = rows.filter((r) => r.activity).length;
-  const hot     = rows.filter((r) => r.score >= 60).length;
-  const synced  = rows.filter((r) => r.activity?.hubspotSynced).length;
+function triggerDownload(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+const CSV_COLS: Array<[string, (r: AbmDashboardRow, baseUrl: string) => string | number]> = [
+  ["company",       (r) => r.lead.profile.company ?? ""],
+  ["person",        (r) => r.lead.profile.name ?? r.lead.profile.firstName ?? ""],
+  ["role",          (r) => r.lead.profile.role ?? ""],
+  ["score",         (r) => r.score],
+  ["status",        (r) => r.activity?.status ?? "not_visited"],
+  ["sessions",      (r) => r.activity?.sessionCount ?? 0],
+  ["visits",        (r) => r.activity?.visitCount ?? 0],
+  ["last_seen",     (r) => r.activity?.lastSeenAt ?? ""],
+  ["segments",      (r) => (r.activity?.segmentIds ?? []).join("|")],
+  ["hubspot_synced",(r) => (r.activity?.hubspotSynced ? "yes" : "no")],
+  ["link",          (r, baseUrl) => `${baseUrl}/go/${r.lead.identifier}`],
+];
+
+function toCsv(rows: AbmDashboardRow[], baseUrl: string): string {
+  const esc = (v: string | number) => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = CSV_COLS.map(([h]) => h).join(",");
+  const body   = rows.map((r) => CSV_COLS.map(([, f]) => esc(f(r, baseUrl))).join(",")).join("\n");
+  return `${header}\n${body}`;
+}
+
+export function AbmDashboard({ rows, baseUrl }: { rows: AbmDashboardRow[]; baseUrl: string }) {
+  const [filter, setFilter] = useState<Filter>("all");
+
+  const total    = rows.length;
+  const engaged  = rows.filter((r) => r.activity).length;
+  const hot      = rows.filter((r) => r.score >= 60).length;
+  const synced   = rows.filter((r) => r.activity?.hubspotSynced).length;
+  const filtered = rows.filter((r) => matchesFilter(r, filter));
 
   return (
     <div className="space-y-5">
@@ -38,8 +96,33 @@ export function AbmDashboard({ rows }: { rows: AbmDashboardRow[] }) {
         <Kpi label="Synced to HubSpot" value={synced} />
       </div>
 
-      {rows.length === 0 ? (
-        <p className="text-sm text-neutral-500">No target accounts yet — add or import leads on the Target accounts page.</p>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`rounded-md border px-3 py-1 text-xs font-medium ${
+              filter === f.key
+                ? "border-neutral-900 bg-neutral-900 text-white"
+                : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <span className="text-xs text-neutral-500">{filtered.length} account(s)</span>
+        <div className="flex-1" />
+        <button
+          onClick={() => triggerDownload(`abm-dashboard-${Date.now()}.csv`, toCsv(filtered, baseUrl), "text/csv")}
+          disabled={filtered.length === 0}
+          className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+        >
+          Export CSV
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-neutral-500">No accounts match this filter.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-neutral-200">
           <table className="w-full text-sm">
@@ -56,7 +139,7 @@ export function AbmDashboard({ rows }: { rows: AbmDashboardRow[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {rows.map(({ lead, activity, score }) => {
+              {filtered.map(({ lead, activity, score }) => {
                 const person = lead.profile.name || lead.profile.firstName || lead.identifier;
                 return (
                   <tr key={lead.id} className="hover:bg-neutral-50">

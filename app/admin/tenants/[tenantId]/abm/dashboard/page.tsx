@@ -7,6 +7,7 @@
  */
 
 import Link from "next/link";
+import { getTenantById }          from "@/tenant/server";
 import { listAbmDashboardAction } from "../actions";
 import { AbmDashboard }           from "../_components/AbmDashboard";
 
@@ -18,7 +19,11 @@ export default async function AbmDashboardPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const rows = await listAbmDashboardAction(tenantId);
+  const [rows, tenant] = await Promise.all([
+    listAbmDashboardAction(tenantId),
+    getTenantById(tenantId),
+  ]);
+  const baseUrl = tenant?.primaryDomain ? `https://${tenant.primaryDomain}` : "";
 
   return (
     <div className="p-8 max-w-6xl space-y-5">
@@ -33,7 +38,7 @@ export default async function AbmDashboardPage({
         </p>
       </div>
 
-      <AbmDashboard rows={rows} />
+      <AbmDashboard rows={rows} baseUrl={baseUrl} />
     </div>
   );
 }
