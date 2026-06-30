@@ -165,9 +165,113 @@ Named/qualified leads also flow outbound to the CRM via the existing webhook.
    becomes named; extend the webhook to push qualified profiles to the CRM; consent
    capture wiring.
 
-## 7. Open decisions
+## 7. Open decisions (resolved)
 
-- Retention default (90 days?) and whether it's per-tenant configurable.
-- Consent source: do you have a cookie/consent banner whose state we can read, or
-  is everything legitimate-interest + pseudonymous for now?
-- CRM target for the outbound push (HubSpot via the webhook, or generic only?).
+- **Retention:** profiles default to a 90-day TTL (`expires_at`); the daily cron
+  `/api/cron/visitor-profile-purge` deletes expired rows (and now also webhook
+  delivery logs older than 30 days). Firmographics freshness is per-tenant
+  configurable (default 30 days, see §8).
+- **Consent source:** the existing `mc_consent` cookie + `resolveConsent`. Default
+  is privacy-first (all categories false) → only pseudonymous + firmographic data
+  is stored. ABM named-lead firmographics are treated as first-party (see §8).
+- **CRM target:** both — a generic signed outbound webhook **and** a native HubSpot
+  Company/Contact/Note sync.
+
+## 8. As-built (implementation notes)
+
+What actually shipped, beyond the Phase 1–3 plan above.
+
+### 8.1 Tables & columns
+
+- `visitor_profiles` — as in §3, plus: `firmographics_at` (freshness stamp),
+  `hubspot_company_id`, `hubspot_contact_id`, `crm_visit_logged_at`.
+  `visitor_key` = the `mc_session_id` cookie (an opaque first-party UUID, also the
+  GA4 visitor key); the raw IP is never stored.
+- `abm_settings` — per tenant: `webhook_url`, `webhook_secret`, `hubspot_token`.
+- `webhook_deliveries` — audit log of every outbound webhook attempt (status,
+  attempts, error, full payload) for visibility + replay; purged after 30 days.
+
+### 8.2 Firmographics reuse (skip stable enrichment for known visitors)
+
+For a recognised visitor whose company is already known and **fresh** (written
+within the tenant's `enrichment.firmographicFreshnessDays`, default 30), the
+pipeline seeds the stored firmographics into the staged enrichment as
+`initialAccumulated` and the company-identification stages (OpenKvK) skip via their
+`shouldRun` gate — saving the external lookup and avoiding a repeat recognition
+credit. Volatile enrichment (current geo, weather) still runs every visit. Stale or
+absent → full enrichment runs and refreshes. Implemented in
+`lib/lead-base/visitor-profiles-store.ts` (`getKnownFirmographics`),
+`lib/pipeline/homepage-pipeline.ts`, `decision/context/build-decision-context.ts`
+(`seedEnrichment`), and the OpenKvK `shouldRun` in the staged company chain.
+
+### 8.3 GDPR/AVG gate — first-party exemption
+
+`gateProfileWrite` (`lib/lead-base/profile-gate.ts`): behavioural → `personalization`
+consent; **company** firmographics → `enrichment` consent **OR** first-party (an ABM
+known lead, `abmLeadId` set — the tenant's own CRM contact who self-identified via
+their personalized link); coarse geo → always `enrichment` consent (IP-derived);
+raw IP never stored. Covered by `tests/lead-base/lead-base.test.ts`.
+
+### 8.4 HubSpot sync (native, first-party)
+
+`lib/lead-base/hubspot-sync.ts`, orchestrated in
+`lib/lead-base/record-visitor-profile.ts`:
+
+- **Company** — upsert deduped by domain, else name; firmographics
+  (employees parsed from the size bucket, revenue from Leadinfo, a readable
+  `description` fallback). `industry` is HubSpot's enum, so on a 400 we retry with
+  only safe properties.
+- **Contact** — the named person, deduped by **email** when present (the canonical
+  key, captured via the ABM import's Email column) else by exact name; associated
+  to the company. Created once, reused via the stored `hubspot_contact_id`.
+- **Website-visit note** — a timeline note associated to company + contact, at most
+  once per ~30-min session (gated on `crm_visit_logged_at`).
+- **GDPR erasure** — deleting a profile archives the linked HubSpot contact
+  (recycling bin, ~90 days restorable); the company is left in place.
+- An admin **Test connection** button upserts a labelled "Sync Test" company and
+  surfaces the exact HubSpot response.
+
+### 8.5 Outbound webhook
+
+Fires on **qualification** — a named ABM lead arriving (→ known) *or* any visitor
+reaching MQL/SQL through the funnel — not ABM-only. Implemented in
+`lib/lead-base/profile-webhook.ts`:
+
+- **Payload**: `event`, `transition` (from/to level+status), `person`
+  (fullName/first/last/email/jobTitle/linkedin — null for funnel-qualified leads),
+  and `profile` (company, size, industry, geo, intent, funnel stage, segments,
+  consent, abmLeadId).
+- **Signing** (optional, per-tenant `webhook_secret`): `X-MC-Timestamp` +
+  `X-MC-Signature: sha256=HMAC-SHA256(secret, "{ts}.{rawBody}")` (Stripe/Slack
+  style) so the receiver can verify authenticity and reject replays.
+- **Delivery**: up to 3 attempts with backoff; retries network/5xx/429, stops on
+  other 4xx. Every attempt is logged to `webhook_deliveries`; the admin shows the
+  last 25 with a **Replay** button (`deliverAndLog` is shared by the live path and
+  replay).
+- Settings live on the **Leads** page (CRM & outbound integrations), since the
+  trigger is Lead Base qualification rather than ABM specifically. Actions + store
+  remain shared with ABM (`abm/actions.ts`, `abm_settings`).
+
+### 8.6 Hot-lead score + admin
+
+`lib/lead-base/lead-scoring.ts` — `leadScore` (0–100) combines identity depth +
+intent + recency + engagement; the Leads list shows a colour-coded Score column and
+a "Hottest / Most recent" sort, and collapses sessions per account (`grouped`).
+A wallet-balance banner appears when the tenant's wallet is €0 (recognitions run but
+aren't billed). Unit-tested in `tests/lead-base/lead-base.test.ts`.
+
+### 8.7 Activity timeline
+
+`visitor_events` (`lib/lead-base/visitor-events-store.ts`) logs a pseudonymous
+page-visit per request (path, referrer, UTM) keyed on `visitor_key`, written
+post-response from the homepage + slug pipelines. In the Leads list, the Visits
+count expands a per-session timeline (lazy-loaded). Purged after 90 days by the
+retention cron.
+
+### 8.8 Built-in hot-lead Slack alerts
+
+`lib/lead-base/hot-lead-notify.ts` — on qualification, if the tenant set a Slack
+incoming-webhook URL (`abm_settings.notify_slack_url`) and the lead's `leadScore`
+clears their threshold (`notify_min_score`, default 60), POST a compact sales alert
+to Slack. No Make/Zapier required; fire-and-forget + fail-open. Configured in the
+Leads page's "Hot-lead Slack alerts" section.

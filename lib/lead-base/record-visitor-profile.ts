@@ -20,6 +20,7 @@ import {
   updateProfileCrmState,
 } from "./visitor-profiles-store";
 import { fireProfileWebhook, isNewlyQualified, isNewlyRecognised } from "./profile-webhook";
+import { sendHotLeadAlert }   from "./hot-lead-notify";
 import { syncCompanyToHubspot, syncContactToHubspot, logVisitNote } from "./hubspot-sync";
 import { billLeadCredit }       from "./bill-lead-credit";
 import { getAbmHubspotToken }   from "@/lib/abm/abm-store";
@@ -143,6 +144,13 @@ export async function recordVisitorProfile(args: {
     // views never spam the endpoint.
     if (isNewlyQualified(result)) {
       await fireProfileWebhook(patch, result, args.person ?? null);
+      await sendHotLeadAlert({
+        tenantId:    args.tenantId,
+        patch,
+        person:      args.person ?? null,
+        intentScore: typeof intentScore === "number" ? intentScore : null,
+        visitCount:  1,
+      });
     }
 
     // Native HubSpot sync — Company + Contact + a per-session "website visit" note.

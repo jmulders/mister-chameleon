@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { purgeExpiredVisitorProfiles } from "@/lib/lead-base/visitor-profiles-store";
 import { purgeOldWebhookDeliveries }   from "@/lib/lead-base/webhook-deliveries-store";
+import { purgeOldVisitorEvents }       from "@/lib/lead-base/visitor-events-store";
 import { logger }                      from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -38,9 +39,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const deleted = await purgeExpiredVisitorProfiles();
     const deliveriesPurged = await purgeOldWebhookDeliveries(30);
+    const eventsPurged = await purgeOldVisitorEvents(90);
     const durationMs = Date.now() - startedAt;
-    logger.info("[visitor-profile-purge] Completed", { deleted, deliveriesPurged, durationMs });
-    return NextResponse.json({ ok: true, deleted, deliveriesPurged, durationMs, runAt: new Date().toISOString() });
+    logger.info("[visitor-profile-purge] Completed", { deleted, deliveriesPurged, eventsPurged, durationMs });
+    return NextResponse.json({ ok: true, deleted, deliveriesPurged, eventsPurged, durationMs, runAt: new Date().toISOString() });
   } catch (err) {
     logger.error("[visitor-profile-purge] Unexpected error", { error: String(err) });
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });

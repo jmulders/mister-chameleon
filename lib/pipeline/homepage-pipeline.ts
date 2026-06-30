@@ -67,6 +67,7 @@ import {
 } from "@/lib/abm/apply-known-lead";
 import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-visitor-profile";
 import { getKnownFirmographics }           from "@/lib/lead-base/visitor-profiles-store";
+import { recordVisitorEvent }              from "@/lib/lead-base/visitor-events-store";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -579,6 +580,16 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
       abmLeadId:    abmLead?.id ?? null,
       person:       abmLeadToPerson(abmLead?.profile),
+    });
+    const reqUrl = new URL(request.url);
+    await recordVisitorEvent({
+      tenantId:    tenantConfig.tenantId,
+      visitorKey:  sessionId,
+      path:        "/",
+      referrer:    h.get("referer") || null,
+      utmSource:   reqUrl.searchParams.get("utm_source"),
+      utmMedium:   reqUrl.searchParams.get("utm_medium"),
+      utmCampaign: reqUrl.searchParams.get("utm_campaign"),
     });
   });
 

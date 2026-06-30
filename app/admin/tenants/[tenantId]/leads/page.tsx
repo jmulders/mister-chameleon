@@ -10,7 +10,7 @@
 import Link                       from "next/link";
 import { getTenantById }          from "@/tenant/server";
 import { listLeadProfilesAction } from "./actions";
-import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction } from "../abm/actions";
+import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction, getAbmNotifySettingsAction } from "../abm/actions";
 import { listWebhookDeliveriesAction } from "./actions";
 import { getCreditBalance } from "@/lib/billing/billing-store";
 import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
@@ -26,7 +26,7 @@ export default async function LeadBasePage({
 }) {
   const { tenantId } = await params;
 
-  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken, deliveries, creditBalance] = await Promise.all([
+  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken, deliveries, creditBalance, notify] = await Promise.all([
     listLeadProfilesAction(tenantId, {}),
     getTenantById(tenantId),
     listAudienceSegmentsAction(tenantId),
@@ -35,6 +35,7 @@ export default async function LeadBasePage({
     getAbmHubspotTokenAction(tenantId),
     listWebhookDeliveriesAction(tenantId),
     getCreditBalance(tenantId).catch(() => 0),
+    getAbmNotifySettingsAction(tenantId),
   ]);
 
   const segments = (segmentsResult.ok ? segmentsResult.data : [])
@@ -81,6 +82,7 @@ export default async function LeadBasePage({
           initialWebhookSecret={webhookSecret ?? ""}
           initialHubspotToken={hubspotToken ?? ""}
           initialDeliveries={deliveries}
+          initialNotify={notify}
         />
       </div>
     </div>

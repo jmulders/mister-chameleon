@@ -323,6 +323,52 @@ export async function setAbmHubspotToken(tenantId: string, token: string | null)
   }
 }
 
+export interface AbmNotifySettings { slackUrl: string | null; minScore: number }
+
+/** Fetch the tenant's hot-lead Slack alert settings. */
+export async function getAbmNotifySettings(tenantId: string): Promise<AbmNotifySettings> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("abm_settings")
+      .select("notify_slack_url, notify_min_score")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error || !data) return { slackUrl: null, minScore: 60 };
+    const slackUrl = (data.notify_slack_url as string | null) ?? null;
+    const minScore = typeof data.notify_min_score === "number" ? data.notify_min_score : 60;
+    return { slackUrl: slackUrl && slackUrl.trim() ? slackUrl.trim() : null, minScore };
+  } catch {
+    return { slackUrl: null, minScore: 60 };
+  }
+}
+
+/** Upsert the tenant's hot-lead Slack alert settings (admin). */
+export async function setAbmNotifySettings(tenantId: string, slackUrl: string | null, minScore: number): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { error } = await db
+      .from("abm_settings")
+      .upsert(
+        {
+          tenant_id:        tenantId,
+          notify_slack_url: slackUrl?.trim() || null,
+          notify_min_score: Math.min(100, Math.max(0, Math.round(minScore))),
+          updated_at:       new Date().toISOString(),
+        },
+        { onConflict: "tenant_id" },
+      );
+    return !error;
+  } catch (err) {
+    logger.warn("[abm-store] setAbmNotifySettings failed", {
+      tenantId, err: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
 /** Fetch the tenant's webhook signing secret (or null when unset). */
 export async function getAbmWebhookSecret(tenantId: string): Promise<string | null> {
   try {

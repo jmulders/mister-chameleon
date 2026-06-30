@@ -19,6 +19,7 @@ import {
 } from "@/lib/lead-base/visitor-profiles-store";
 import { archiveContact } from "@/lib/lead-base/hubspot-sync";
 import { getAbmHubspotToken } from "@/lib/abm/abm-store";
+import { listVisitorEvents, type VisitorEvent } from "@/lib/lead-base/visitor-events-store";
 import {
   listWebhookDeliveries,
   getWebhookDelivery,
@@ -55,6 +56,12 @@ export async function deleteLeadProfilesAction(
 
   const deleted = await deleteVisitorProfiles(tenantId, ids);
   return { ok: deleted > 0, deleted, crmArchived };
+}
+
+/** The page-visit timeline for one visitor (lazy-loaded when a row is expanded). */
+export async function listVisitorEventsAction(tenantId: string, visitorKey: string): Promise<VisitorEvent[]> {
+  await getRequiredAdminSession();
+  return listVisitorEvents(tenantId, visitorKey, 50);
 }
 
 // ── Webhook deliveries ──────────────────────────────────────────────────────────

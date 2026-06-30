@@ -16,7 +16,9 @@ import {
   generateAbmWebhookSecretAction,
   saveAbmHubspotTokenAction,
   testAbmHubspotSyncAction,
+  saveAbmNotifySettingsAction,
 } from "../../abm/actions";
+import type { AbmNotifySettings } from "@/lib/abm/abm-store";
 import { listWebhookDeliveriesAction, replayWebhookDeliveryAction } from "../actions";
 import type { WebhookDelivery } from "@/lib/lead-base/webhook-deliveries-store";
 
@@ -48,12 +50,14 @@ export function LeadCrmSettings({
   initialWebhookSecret,
   initialHubspotToken,
   initialDeliveries,
+  initialNotify,
 }: {
   tenantId:             string;
   initialWebhookUrl:    string;
   initialWebhookSecret: string;
   initialHubspotToken:  string;
   initialDeliveries:    WebhookDelivery[];
+  initialNotify:        AbmNotifySettings;
 }) {
   const [pending, start] = useTransition();
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>(initialDeliveries);
@@ -77,6 +81,16 @@ export function LeadCrmSettings({
   const [secretMsg, setSecretMsg]         = useState<string | null>(null);
   const [hubspotToken, setHubspotToken]   = useState(initialHubspotToken);
   const [hubspotMsg, setHubspotMsg]       = useState<string | null>(null);
+  const [slackUrl, setSlackUrl]           = useState(initialNotify.slackUrl ?? "");
+  const [minScore, setMinScore]           = useState(String(initialNotify.minScore));
+  const [notifyMsg, setNotifyMsg]         = useState<string | null>(null);
+
+  function saveNotify() {
+    start(async () => {
+      const res = await saveAbmNotifySettingsAction(tenantId, slackUrl, parseInt(minScore, 10) || 60);
+      setNotifyMsg(res.ok ? "Saved." : res.error);
+    });
+  }
 
   function saveWebhook() {
     start(async () => {
@@ -187,6 +201,31 @@ export function LeadCrmSettings({
           </button>
         </div>
         {hubspotMsg && <span className="block break-words text-xs text-neutral-500">{hubspotMsg}</span>}
+      </section>
+
+      {/* ── Hot-lead Slack alerts ───────────────────────────────────── */}
+      <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-neutral-900">Hot-lead Slack alerts <span className="text-neutral-400 font-normal">(optional)</span></h2>
+        <p className="text-xs text-neutral-500">
+          Get an instant Slack message when a qualifying lead clears a hot-score threshold —
+          no Make/Zapier needed. Paste a Slack{" "}
+          <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noreferrer" className="underline">incoming-webhook URL</a>{" "}
+          and set the minimum score (the same 0–100 score shown in the list).
+        </p>
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <label className={LABEL}>Slack webhook URL</label>
+            <input className={INPUT} value={slackUrl} onChange={(e) => { setSlackUrl(e.target.value); setNotifyMsg(null); }} placeholder="https://hooks.slack.com/services/…" />
+          </div>
+          <div className="w-28">
+            <label className={LABEL}>Min score</label>
+            <input type="number" min={0} max={100} className={INPUT} value={minScore} onChange={(e) => { setMinScore(e.target.value); setNotifyMsg(null); }} />
+          </div>
+          <button onClick={saveNotify} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
+            {pending ? "Saving…" : "Save"}
+          </button>
+        </div>
+        {notifyMsg && <span className="text-xs text-neutral-500">{notifyMsg}</span>}
       </section>
 
       {/* ── Recent webhook deliveries ───────────────────────────────── */}

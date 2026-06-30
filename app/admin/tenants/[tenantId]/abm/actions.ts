@@ -21,6 +21,9 @@ import {
   setAbmWebhookSecret,
   getAbmHubspotToken,
   setAbmHubspotToken,
+  getAbmNotifySettings,
+  setAbmNotifySettings,
+  type AbmNotifySettings,
   type AbmLead,
   type AbmLeadProfile,
   type AbmLeadStatus,
@@ -94,6 +97,27 @@ export async function generateAbmWebhookSecretAction(
   if (!ok) return { ok: false, error: "Save failed." };
   revalidatePath(`/admin/tenants/${tenantId}/abm`);
   return { ok: true, secret };
+}
+
+export async function getAbmNotifySettingsAction(tenantId: string): Promise<AbmNotifySettings> {
+  await getRequiredAdminSession();
+  return getAbmNotifySettings(tenantId);
+}
+
+export async function saveAbmNotifySettingsAction(
+  tenantId: string,
+  slackUrl: string,
+  minScore: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const trimmed = slackUrl.trim();
+  if (trimmed && !/^https:\/\/hooks\.slack\.com\//i.test(trimmed)) {
+    return { ok: false, error: "Enter a Slack incoming-webhook URL (https://hooks.slack.com/…)." };
+  }
+  const ok = await setAbmNotifySettings(tenantId, trimmed || null, minScore);
+  if (!ok) return { ok: false, error: "Save failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  return { ok: true };
 }
 
 export async function getAbmHubspotTokenAction(tenantId: string): Promise<string | null> {

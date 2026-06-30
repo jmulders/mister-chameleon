@@ -1,7 +1,8 @@
 "use client";
 
 import { Fragment, useState, useTransition } from "react";
-import { listLeadProfilesAction, deleteLeadProfilesAction } from "../actions";
+import { listLeadProfilesAction, deleteLeadProfilesAction, listVisitorEventsAction } from "../actions";
+import type { VisitorEvent } from "@/lib/lead-base/visitor-events-store";
 import type { VisitorProfile, VisitorProfileFilter } from "@/lib/lead-base/visitor-profiles-store";
 import type { IdentityLevel, ProfileStatus } from "@/lib/lead-base/profile-gate";
 import { leadScore, scoreClass } from "@/lib/lead-base/lead-scoring";
@@ -125,6 +126,20 @@ export function LeadBaseClient({
   const [grouped, setGrouped]   = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy]     = useState<"score" | "recent">("score");
+  const [eventsOpen, setEventsOpen]       = useState<string | null>(null);
+  const [events, setEvents]               = useState<VisitorEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+
+  function toggleEvents(p: VisitorProfile) {
+    if (eventsOpen === p.id) { setEventsOpen(null); return; }
+    setEventsOpen(p.id);
+    setEvents([]);
+    setEventsLoading(true);
+    start(async () => {
+      try { setEvents(await listVisitorEventsAction(tenantId, p.visitorKey)); }
+      finally { setEventsLoading(false); }
+    });
+  }
 
   const itemScore = (item: RenderItem) =>
     item.type === "single" ? leadScore(item.profile) : Math.max(...item.group.members.map(leadScore));
@@ -193,28 +208,58 @@ export function LeadBaseClient({
   function exportJson() { triggerDownload(`lead-base-${Date.now()}.json`, JSON.stringify(profiles, null, 2), "application/json"); }
 
   const renderProfileRow = (p: VisitorProfile, indented = false) => (
-    <tr key={p.id} className="hover:bg-neutral-50">
-      <td className={`px-3 py-2 ${indented ? "pl-8" : ""}`}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} /></td>
-      <td className="px-3 py-2">
-        <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${LEVEL_STYLE[p.identityLevel]}`}>{p.identityLevel}</span>
-      </td>
-      <td className="px-3 py-2 text-neutral-900">
-        {indented
-          ? <span className="font-mono text-xs text-neutral-400">session {p.visitorKey.slice(0, 8)}…</span>
-          : (<>{p.companyName || <span className="text-neutral-400">—</span>}{p.companyDomain && <span className="text-neutral-400"> · {p.companyDomain}</span>}</>)}
-      </td>
-      <td className="px-3 py-2 text-right">
-        <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(leadScore(p))}`}>{leadScore(p)}</span>
-      </td>
-      <td className="px-3 py-2 text-neutral-600">{p.status}</td>
-      <td className="px-3 py-2 text-right text-neutral-700">{p.intentScore ?? "—"}</td>
-      <td className="px-3 py-2 text-xs text-neutral-500 max-w-[14rem] truncate">{p.segmentIds.join(", ") || "—"}</td>
-      <td className="px-3 py-2 text-right text-neutral-600">{p.visitCount}</td>
-      <td className="px-3 py-2 text-xs text-neutral-500">{fmtWhen(p.lastSeenAt)}</td>
-      <td className="px-3 py-2 text-right">
-        <button onClick={() => deleteIds([p.id])} disabled={pending} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">Delete</button>
-      </td>
-    </tr>
+    <Fragment key={p.id}>
+      <tr className="hover:bg-neutral-50">
+        <td className={`px-3 py-2 ${indented ? "pl-8" : ""}`}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} /></td>
+        <td className="px-3 py-2">
+          <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${LEVEL_STYLE[p.identityLevel]}`}>{p.identityLevel}</span>
+        </td>
+        <td className="px-3 py-2 text-neutral-900">
+          {indented
+            ? <span className="font-mono text-xs text-neutral-400">session {p.visitorKey.slice(0, 8)}…</span>
+            : (<>{p.companyName || <span className="text-neutral-400">—</span>}{p.companyDomain && <span className="text-neutral-400"> · {p.companyDomain}</span>}</>)}
+        </td>
+        <td className="px-3 py-2 text-right">
+          <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(leadScore(p))}`}>{leadScore(p)}</span>
+        </td>
+        <td className="px-3 py-2 text-neutral-600">{p.status}</td>
+        <td className="px-3 py-2 text-right text-neutral-700">{p.intentScore ?? "—"}</td>
+        <td className="px-3 py-2 text-xs text-neutral-500 max-w-[14rem] truncate">{p.segmentIds.join(", ") || "—"}</td>
+        <td className="px-3 py-2 text-right">
+          <button onClick={() => toggleEvents(p)} className="inline-flex items-center gap-1 text-neutral-600 hover:text-neutral-900 hover:underline" title="Activity timeline">
+            <span className="text-neutral-400">{eventsOpen === p.id ? "▾" : "▸"}</span>{p.visitCount}
+          </button>
+        </td>
+        <td className="px-3 py-2 text-xs text-neutral-500">{fmtWhen(p.lastSeenAt)}</td>
+        <td className="px-3 py-2 text-right">
+          <button onClick={() => deleteIds([p.id])} disabled={pending} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">Delete</button>
+        </td>
+      </tr>
+      {eventsOpen === p.id && (
+        <tr className="bg-neutral-50/40">
+          <td colSpan={10} className="px-6 py-3">
+            {eventsLoading ? (
+              <span className="text-xs text-neutral-400">Loading timeline…</span>
+            ) : events.length === 0 ? (
+              <span className="text-xs text-neutral-400">No page events recorded for this session.</span>
+            ) : (
+              <ul className="space-y-1">
+                {events.map((e) => (
+                  <li key={e.id} className="flex items-center gap-3 text-xs">
+                    <span className="w-28 shrink-0 text-neutral-400">{fmtWhen(e.occurredAt)}</span>
+                    <span className="font-mono text-neutral-800">{e.path || "—"}</span>
+                    {(e.utmSource || e.utmCampaign) && (
+                      <span className="text-neutral-500">· utm: {[e.utmSource, e.utmMedium, e.utmCampaign].filter(Boolean).join(" / ")}</span>
+                    )}
+                    {e.referrer && <span className="truncate text-neutral-400">· ref: {e.referrer}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </td>
+        </tr>
+      )}
+    </Fragment>
   );
 
   const renderGroupRow = (g: AccountGroup) => {
