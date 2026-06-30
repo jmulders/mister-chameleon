@@ -70,6 +70,8 @@ export function normalizeTenant(raw: TenantSettings): TenantSettings {
       firmographicFreshnessDays: r.enrichment?.firmographicFreshnessDays ?? 30,
       // Hot-lead score threshold — default 60.
       leadScoreHotThreshold:     r.enrichment?.leadScoreHotThreshold ?? 60,
+      // Personalization holdout percentage (control group) — default 0 (off).
+      personalizationHoldoutPct: r.enrichment?.personalizationHoldoutPct ?? 0,
     },
     domains: {
       ...r.domains,

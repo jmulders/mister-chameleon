@@ -69,6 +69,7 @@ import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-vi
 import { getKnownFirmographics, getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
 import { recordVisitorEvent }              from "@/lib/lead-base/visitor-events-store";
 import { injectReturningVisitorContext }   from "@/lib/lead-base/returning-visitor-context";
+import { assignPersonalizationGroup }       from "@/lib/lead-base/holdout";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -456,6 +457,12 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     ? await getReturningProfileSignals(tenantConfig.tenantId, sessionId)
     : null;
 
+  // Personalization holdout — a deterministic % of visitors are the control group
+  // and get the default experience (no ABM/returning/segment/AI adaptation), so the
+  // performance report can measure true causal lift. Inert when holdout pct is 0.
+  const personalizationGroup = assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0);
+  const isControl = personalizationGroup === "control";
+
   // ── Decision context ──────────────────────────────────────────────────────
   let debugInfo: EnrichmentDebugInfo | null = null;
 
@@ -490,7 +497,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
   try {
     abmLead = await resolveActiveKnownLead(cookieStore.get("mc_lead")?.value);
-    if (abmLead) {
+    if (abmLead && !isControl) {
       injectKnownLeadContext(
         postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
         abmLead,
@@ -503,9 +510,9 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   }
 
   // Returning-visitor context — also BEFORE segment evaluation so segments/rules
-  // can target returning / hot / known leads. Fail-open.
+  // can target returning / hot / known leads. Skipped for the control group.
   try {
-    injectReturningVisitorContext(
+    if (!isControl) injectReturningVisitorContext(
       postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
       returningSignals,
       tenant?.enrichment?.leadScoreHotThreshold ?? 60,
@@ -525,7 +532,14 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // When the scenario explicitly overrides audienceSegmentIds, skip the DB
   // evaluation entirely — the override value is already baked in by
   // applyScenarioToDecisionContext above.
-  const input = scenarioOverrides?.audienceSegmentIds !== undefined
+  const input = isControl
+    // Control group: no audience segments → no segment-driven adaptation (the
+    // default experience), so we can measure the lift of the personalized group.
+    ? applyAudienceSegments(
+        postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
+        "",
+      ) as typeof postScenarioInput
+    : scenarioOverrides?.audienceSegmentIds !== undefined
     ? postScenarioInput  // already set by applyScenarioToDecisionContext
     : applyAudienceSegments(
         postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
@@ -541,8 +555,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // undefined and the AI falls back to platform-only candidates (prior behaviour,
   // no regression). Only runs when an AI provider is actually active.
   if (
-    decisionProvider instanceof AiDecisionProvider ||
-    decisionProvider instanceof ShadowAiDecisionProvider
+    !isControl && (
+      decisionProvider instanceof AiDecisionProvider ||
+      decisionProvider instanceof ShadowAiDecisionProvider
+    )
   ) {
     try {
       const [
@@ -575,7 +591,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // applyAudienceSegments above REPLACES audienceSegmentIds, so the lead's
   // explicit `segment_hint` is folded in here (after evaluation) on top of any
   // segments that auto-matched on the injected firmographics. Fail-open.
-  if (abmLead) {
+  if (abmLead && !isControl) {
     try {
       forceKnownLeadSegment(
         input as unknown as import("@/decision/decision-context").DecisionContext,
@@ -601,6 +617,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
       abmLeadId:    abmLead?.id ?? null,
       person:       abmLeadToPerson(abmLead?.profile),
+      personalizationGroup,
     });
     const reqUrl = new URL(request.url);
     await recordVisitorEvent({

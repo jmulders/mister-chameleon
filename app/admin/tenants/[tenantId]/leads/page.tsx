@@ -51,7 +51,15 @@ export default async function LeadBasePage({
         >
           ← Target accounts
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-neutral-900">Leads</h1>
+        <div className="mt-2 flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-neutral-900">Leads</h1>
+          <Link
+            href={`/admin/tenants/${tenantId}/leads/performance`}
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
+          >
+            Personalization performance →
+          </Link>
+        </div>
         <p className="mt-1 text-sm text-neutral-500">
           Every visitor who arrives, tracked at some identity level — anonymous,
           recognised (company), known (named), or customer. Filter, delete, and export.

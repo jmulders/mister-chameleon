@@ -53,6 +53,8 @@ export interface ProfileCandidate {
   // ── Identity (references — not PII) ──
   abmLeadId?:     string | null;
   identityLevel?: IdentityLevel;
+  /** A/B holdout group: 'control' | 'personalized' (pseudonymous, always allowed). */
+  personalizationGroup?: string | null;
 }
 
 /** The gated, ready-to-persist patch. Absent groups were denied by consent. */
@@ -76,6 +78,7 @@ export interface GatedProfilePatch {
   geoCountry?:      string | null;
   geoRegion?:       string | null;
   abmLeadId?:    string | null;
+  personalizationGroup?: string | null;
 }
 
 const DEFAULT_RETENTION_DAYS = 90;
@@ -108,6 +111,8 @@ export function gateProfileWrite(
     expiresAt,
     // The abm_lead_id is a reference to your own outreach data (not PII here).
     ...(candidate.abmLeadId !== undefined ? { abmLeadId: candidate.abmLeadId } : {}),
+    // A/B holdout group — pseudonymous operational flag, always written.
+    ...(candidate.personalizationGroup !== undefined ? { personalizationGroup: candidate.personalizationGroup } : {}),
   };
 
   // Behavioural summary — only with personalization consent.

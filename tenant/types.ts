@@ -1322,6 +1322,13 @@ export interface TenantEnrichmentSettings {
    * and the ABM dashboard's hot count/filter. Default: 60.
    */
   readonly leadScoreHotThreshold?: number;
+
+  /**
+   * Percentage of visitors (0–50) deterministically held out from personalization
+   * — served the default experience as a control group so the performance report
+   * can measure true causal lift. Default: 0 (no holdout; everyone personalized).
+   */
+  readonly personalizationHoldoutPct?: number;
 }
 
 // ── Domains settings ──────────────────────────────────────────────────────────

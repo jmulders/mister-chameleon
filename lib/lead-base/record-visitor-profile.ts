@@ -95,6 +95,7 @@ export async function recordVisitorProfile(args: {
   ctx:          DecisionContext;
   abmLeadId?:   string | null;
   person?:      LeadPerson | null;   // named person behind a known ABM lead
+  personalizationGroup?: string | null;  // A/B holdout group
 }): Promise<void> {
   try {
     const { ctx } = args;
@@ -126,6 +127,7 @@ export async function recordVisitorProfile(args: {
       geoCountry:      ctx.enrichment?.countryCode      ?? null,
       geoRegion:       ctx.enrichment?.region           ?? null,
       abmLeadId:       args.abmLeadId ?? null,
+      personalizationGroup: args.personalizationGroup ?? null,
     };
 
     const patch = gateProfileWrite(candidate, consent);

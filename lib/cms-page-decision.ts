@@ -82,6 +82,7 @@ import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-vi
 import { recordVisitorEvent }      from "@/lib/lead-base/visitor-events-store";
 import { getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
 import { injectReturningVisitorContext } from "@/lib/lead-base/returning-visitor-context";
+import { assignPersonalizationGroup }    from "@/lib/lead-base/holdout";
 import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
@@ -359,10 +360,14 @@ export async function resolveSlugPageConfig(
       .split(";").map((c) => c.trim())
       .find((c) => c.startsWith("mc_lead="))
       ?.slice("mc_lead=".length);
+    // Personalization holdout — control group gets the default experience.
+    const personalizationGroup = assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0);
+    const isControl = personalizationGroup === "control";
+
     let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
     try {
       abmLead = await resolveActiveKnownLead(leadCookie ? decodeURIComponent(leadCookie) : undefined);
-      if (abmLead) {
+      if (abmLead && !isControl) {
         injectKnownLeadContext(
           postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
           abmLead,
@@ -374,23 +379,28 @@ export async function resolveSlugPageConfig(
 
     // ── Returning-visitor context (close the personalization loop) ────────────
     // Load the prior stored profile and expose returning/hot/known signals before
-    // segment evaluation so rules/segments can target them. Fail-open.
+    // segment evaluation so rules/segments can target them. Skipped for control.
     try {
-      const returningSignals = await getReturningProfileSignals(tenantId, sessionId);
-      injectReturningVisitorContext(
-        postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
-        returningSignals,
-        tenant?.enrichment?.leadScoreHotThreshold ?? 60,
-      );
+      if (!isControl) {
+        const returningSignals = await getReturningProfileSignals(tenantId, sessionId);
+        injectReturningVisitorContext(
+          postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
+          returningSignals,
+          tenant?.enrichment?.leadScoreHotThreshold ?? 60,
+        );
+      }
     } catch {
       // ignore — normal personalization continues
     }
 
     // ── Audience segment evaluation ───────────────────────────────────────────
-    // Same pattern as homepage-pipeline: run after all overrides + known-lead
-    // firmographics are applied.
-    // Skip DB evaluation when the scenario has explicitly set audienceSegmentIds.
-    const input = scenarioOverrides?.audienceSegmentIds !== undefined
+    // Same pattern as homepage-pipeline; control group → no segments (default exp).
+    const input = isControl
+      ? applyAudienceSegments(
+          postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
+          "",
+        ) as typeof postScenarioInput
+      : scenarioOverrides?.audienceSegmentIds !== undefined
       ? postScenarioInput
       : applyAudienceSegments(
           postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
@@ -400,7 +410,7 @@ export async function resolveSlugPageConfig(
     // ── ABM known-lead — phase 2: force the explicitly-linked segment ─────────
     // After applyAudienceSegments (which replaces the id set), fold in the lead's
     // explicit segment_hint on top of any auto-matched segments. Fail-open.
-    if (abmLead) {
+    if (abmLead && !isControl) {
       try {
         forceKnownLeadSegment(
           input as unknown as import("@/decision/decision-context").DecisionContext,
@@ -423,6 +433,7 @@ export async function resolveSlugPageConfig(
         ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
         abmLeadId:    abmLead?.id ?? null,
         person:       abmLeadToPerson(abmLead?.profile),
+        personalizationGroup,
       });
       const reqUrl = new URL(request.url);
       await recordVisitorEvent({

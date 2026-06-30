@@ -14,8 +14,10 @@ import {
   listVisitorProfiles,
   deleteVisitorProfiles,
   getHubspotContactIdsForProfiles,
+  getPersonalizationPerformance,
   type VisitorProfile,
   type VisitorProfileFilter,
+  type PersonalizationPerformance,
 } from "@/lib/lead-base/visitor-profiles-store";
 import { archiveContact } from "@/lib/lead-base/hubspot-sync";
 import { getAbmHubspotToken } from "@/lib/abm/abm-store";
@@ -62,6 +64,13 @@ export async function deleteLeadProfilesAction(
 export async function listVisitorEventsAction(tenantId: string, visitorKey: string): Promise<VisitorEvent[]> {
   await getRequiredAdminSession();
   return listVisitorEvents(tenantId, visitorKey, 50);
+}
+
+// ── Personalization performance ──────────────────────────────────────────────────
+
+export async function getPersonalizationPerformanceAction(tenantId: string): Promise<PersonalizationPerformance> {
+  await getRequiredAdminSession();
+  return getPersonalizationPerformance(tenantId);
 }
 
 // ── Webhook deliveries ──────────────────────────────────────────────────────────

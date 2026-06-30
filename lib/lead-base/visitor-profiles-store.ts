@@ -116,6 +116,7 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<Pr
       ...(patch.geoCountry      !== undefined ? { geo_country:      patch.geoCountry }      : {}),
       ...(patch.geoRegion       !== undefined ? { geo_region:       patch.geoRegion }       : {}),
       ...(patch.abmLeadId       !== undefined ? { abm_lead_id:      patch.abmLeadId }       : {}),
+      ...(patch.personalizationGroup !== undefined ? { personalization_group: patch.personalizationGroup } : {}),
       // Stamp the firmographics' freshness whenever a company field is (re)written.
       ...((patch.companyName !== undefined || patch.companyDomain !== undefined ||
            patch.companyIndustry !== undefined || patch.companySize !== undefined)
@@ -184,6 +185,102 @@ export async function getKnownFirmographics(
     return Object.keys(out).length > 0 ? out : null;
   } catch {
     return null;
+  }
+}
+
+// ── Conversion tracking + personalization performance (close the loop) ──────────
+
+/** Mark a visitor's profile as converted (first conversion wins). Fail-open. */
+export async function markProfileConverted(tenantId: string, visitorKey: string): Promise<void> {
+  if (!visitorKey) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    await db
+      .from("visitor_profiles")
+      .update({ converted_at: new Date().toISOString() })
+      .eq("tenant_id", tenantId)
+      .eq("visitor_key", visitorKey)
+      .is("converted_at", null);
+  } catch (err) {
+    logger.warn("[lead-base] markProfileConverted failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+export interface SegmentPerformance { segmentId: string; total: number; converted: number }
+export interface GroupStat { total: number; converted: number }
+export interface PersonalizationPerformance {
+  total:        number;
+  converted:    number;
+  personalized: GroupStat;  // matched ≥1 segment (proxy)
+  baseline:     GroupStat;  // matched no segment (proxy)
+  /** Randomized A/B holdout buckets — only populated when a holdout is configured. */
+  holdout:      { control: GroupStat; personalized: GroupStat };
+  bySegment:    SegmentPerformance[];
+  sampleCapped: boolean;
+}
+
+/**
+ * Aggregate conversion performance for the personalization report: overall,
+ * personalized (matched ≥1 audience segment) vs baseline (none), and per segment.
+ * Reads up to `limit` recent profiles and tallies in memory.
+ */
+export async function getPersonalizationPerformance(tenantId: string, limit = 10_000): Promise<PersonalizationPerformance> {
+  const empty: PersonalizationPerformance = {
+    total: 0, converted: 0,
+    personalized: { total: 0, converted: 0 },
+    baseline:     { total: 0, converted: 0 },
+    holdout:      { control: { total: 0, converted: 0 }, personalized: { total: 0, converted: 0 } },
+    bySegment: [], sampleCapped: false,
+  };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("visitor_profiles")
+      .select("segment_ids, converted_at, personalization_group")
+      .eq("tenant_id", tenantId)
+      .order("last_seen_at", { ascending: false })
+      .limit(limit);
+    if (error || !data) return empty;
+
+    const rows = data as { segment_ids: string[] | null; converted_at: string | null; personalization_group: string | null }[];
+    const seg = new Map<string, { total: number; converted: number }>();
+    const acc: PersonalizationPerformance = {
+      ...empty, bySegment: [],
+      personalized: { total: 0, converted: 0 },
+      baseline:     { total: 0, converted: 0 },
+      holdout:      { control: { total: 0, converted: 0 }, personalized: { total: 0, converted: 0 } },
+    };
+
+    for (const r of rows) {
+      const converted = !!r.converted_at;
+      const segments  = Array.isArray(r.segment_ids) ? r.segment_ids : [];
+      acc.total += 1;
+      if (converted) acc.converted += 1;
+      const bucket = segments.length > 0 ? acc.personalized : acc.baseline;
+      bucket.total += 1;
+      if (converted) bucket.converted += 1;
+      // Randomized holdout buckets (only when assigned).
+      if (r.personalization_group === "control" || r.personalization_group === "personalized") {
+        const g = acc.holdout[r.personalization_group];
+        g.total += 1; if (converted) g.converted += 1;
+      }
+      for (const s of segments) {
+        const e = seg.get(s) ?? { total: 0, converted: 0 };
+        e.total += 1; if (converted) e.converted += 1;
+        seg.set(s, e);
+      }
+    }
+    acc.bySegment = Array.from(seg.entries())
+      .map(([segmentId, v]) => ({ segmentId, ...v }))
+      .sort((a, b) => b.total - a.total);
+    acc.sampleCapped = rows.length >= limit;
+    return acc;
+  } catch {
+    return empty;
   }
 }
 

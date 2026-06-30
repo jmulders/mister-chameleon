@@ -78,6 +78,7 @@ import {
 }                                       from "@/forms/spam";
 import { resolveSession }               from "@/data/session";
 import { logger }                       from "@/lib/logger";
+import { markProfileConverted }         from "@/lib/lead-base/visitor-profiles-store";
 import { getActiveTenant }              from "@/tenant/server";
 import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
 import { serverEnv }                    from "@/lib/env";
@@ -330,6 +331,12 @@ export async function POST(
             });
           }
         })
+      : Promise.resolve(),
+
+    // 6a-bis. Personalization performance — mark the visitor's profile as
+    // converted (form submission = conversion), linked by mc_session_id. Fail-open.
+    (tenantId && sessionId)
+      ? markProfileConverted(tenantId, sessionId)
       : Promise.resolve(),
 
     // 6b–c. Platform form: backoffice + confirmation ───────────────────────

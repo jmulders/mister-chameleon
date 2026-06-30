@@ -98,6 +98,7 @@ export interface TenantIntegrationsClientProps {
     // How long a recognised visitor's firmographics stay "fresh" (days).
     firmographicFreshnessDays?: number;
     leadScoreHotThreshold?: number;
+    personalizationHoldoutPct?: number;
   };
   platformEnrichmentAvailable: boolean;  // MaxMind key at platform level
 
@@ -619,6 +620,7 @@ export function TenantIntegrationsClient({
   const [testIpAddress,       setTestIpAddress]       = useState(initialEnrichment.testIpAddress       ?? "");
   const [firmoFreshnessDays,  setFirmoFreshnessDays]  = useState(String(initialEnrichment.firmographicFreshnessDays ?? 30));
   const [hotThreshold,        setHotThreshold]        = useState(String(initialEnrichment.leadScoreHotThreshold ?? 60));
+  const [holdoutPct,          setHoldoutPct]          = useState(String(initialEnrichment.personalizationHoldoutPct ?? 0));
 
   // ── Leadinfo state ─────────────────────────────────────────────────────────
   const [liEnabled,          setLiEnabled]          = useState(initialLeadinfo.enabled);
@@ -712,6 +714,7 @@ export function TenantIntegrationsClient({
           // Firmographics freshness window (days); clamp to a sane 1–365, default 30.
           firmographicFreshnessDays: Math.min(365, Math.max(1, parseInt(firmoFreshnessDays, 10) || 30)),
           leadScoreHotThreshold:     Math.min(100, Math.max(0, parseInt(hotThreshold, 10) || 60)),
+          personalizationHoldoutPct: Math.min(50, Math.max(0, parseInt(holdoutPct, 10) || 0)),
         },
         domains: {
           vercelProjectId: vercelProjectId || undefined,
@@ -1268,6 +1271,28 @@ export function TenantIntegrationsClient({
             max={100}
             value={hotThreshold}
             onChange={(e) => setHotThreshold(e.target.value)}
+            className="mt-2 w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
+          />
+        </div>
+
+        {/* ── Personalization holdout ─────────────────────────────────────── */}
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <label htmlFor="holdout-pct" className="block text-sm font-medium text-slate-800">
+            Personalization holdout (%)
+          </label>
+          <p className="mt-1 text-xs text-slate-500">
+            A control group: this % of visitors is deterministically held out and served the
+            default (non-personalized) experience, so the Leads → Personalization performance
+            report can measure the <strong>true causal lift</strong> of personalization. 0 = off
+            (everyone personalized). Max 50.
+          </p>
+          <input
+            id="holdout-pct"
+            type="number"
+            min={0}
+            max={50}
+            value={holdoutPct}
+            onChange={(e) => setHoldoutPct(e.target.value)}
             className="mt-2 w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
           />
         </div>

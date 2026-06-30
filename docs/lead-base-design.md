@@ -303,3 +303,22 @@ level/status, max intent, segments, and HubSpot-sync flag, plus the computed hot
 score. KPIs (accounts / engaged / hot / synced) sit on top; rows are sorted
 hottest-first. It turns "who are we targeting" into "which targets are actually
 engaging and how hot" — the ABM money view. Linked from the Target accounts page.
+
+### 8.11 Personalization performance (does it convert?)
+
+`visitor_profiles.converted_at` is stamped on a form submission (the conversion
+signal), linked by `visitor_key` from `/api/forms/[formKey]`. The performance
+report (`/admin/tenants/[tenantId]/leads/performance`,
+`getPersonalizationPerformance`) shows the conversion rate of **personalized**
+visitors (matched ≥1 audience segment → saw adaptive content) vs **baseline**
+(matched none), the implied lift, and conversion rate **per segment**. This is a
+proxy for impact (segment-exposure based).
+
+**Randomized holdout (true causal lift).** A per-tenant `personalizationHoldoutPct`
+(0–50, default 0 = off) deterministically buckets visitors into a `control` holdout
+(`lib/lead-base/holdout.ts`, stable FNV-1a hash of `visitor_key`). Control visitors
+skip ABM/returning injection, segment evaluation (segments forced empty) and AI
+candidate selection in both pipelines — they get the default experience. The group
+is stored on `visitor_profiles.personalization_group`; the report adds a
+"Randomized holdout (true lift)" section comparing control vs personalized
+conversion rate head-to-head. Inert until a tenant sets a holdout %.

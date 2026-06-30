@@ -8,6 +8,7 @@ import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 
 import { leadScore, scoreClass, type ScorableProfile } from "@/lib/lead-base/lead-scoring";
+import { assignPersonalizationGroup } from "@/lib/lead-base/holdout";
 import { gateProfileWrite, type ProfileCandidate }     from "@/lib/lead-base/profile-gate";
 import type { ConsentState } from "@/tracking/consent-types";
 
@@ -49,6 +50,33 @@ describe("leadScore", () => {
     assert.match(scoreClass(70), /red/);
     assert.match(scoreClass(40), /amber/);
     assert.match(scoreClass(10), /neutral/);
+  });
+});
+
+// ── assignPersonalizationGroup (holdout) ──────────────────────────────────────────
+
+describe("assignPersonalizationGroup", () => {
+  it("holdout 0 → everyone personalized", () => {
+    for (const k of ["a", "abc", "visitor-123", "xyz"]) {
+      assert.strictEqual(assignPersonalizationGroup(k, 0), "personalized");
+    }
+  });
+
+  it("is deterministic for the same visitor", () => {
+    const k = "visitor-abc-123";
+    assert.strictEqual(assignPersonalizationGroup(k, 20), assignPersonalizationGroup(k, 20));
+  });
+
+  it("empty visitor key → personalized", () => {
+    assert.strictEqual(assignPersonalizationGroup("", 50), "personalized");
+  });
+
+  it("~holdout% land in control over many visitors", () => {
+    let control = 0;
+    const n = 4000;
+    for (let i = 0; i < n; i++) if (assignPersonalizationGroup(`v-${i}`, 25) === "control") control++;
+    const pct = (control / n) * 100;
+    assert.ok(pct > 18 && pct < 32, `expected ~25% control, got ${pct.toFixed(1)}%`);
   });
 });
 
