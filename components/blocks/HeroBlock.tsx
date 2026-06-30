@@ -229,7 +229,24 @@ function HeroCTARow({
  * hero. Statamic-side optimization can follow later via a Glide image loader.
  */
 function heroImageOptimizable(src: string): boolean {
-  return /(?:cdn\.sanity\.io|\.r2\.dev)/.test(src);
+  // Return true only for hosts that next.config images.remotePatterns allows,
+  // otherwise next/image throws at runtime. The hero is the LCP element, so
+  // optimising it (mobile-sized AVIF/WebP instead of the raw multi-MB original)
+  // is the single biggest LCP win on image-led heroes.
+  //
+  //   - cdn.sanity.io + *.r2.dev          (existing)
+  //   - cms.<tenant>/assets/**            Statamic CMS asset hosts. Every Statamic
+  //                                       tenant serves assets at https://cms.<tenant>/assets/*
+  //                                       and registers that host in next.config,
+  //                                       so these are always safe to optimise.
+  //   - /assets/… (root-relative)         Same-origin Statamic asset proxy
+  //                                       (file-based / dev mode) — same-origin
+  //                                       images need no remotePattern.
+  return (
+    /(?:cdn\.sanity\.io|\.r2\.dev)/.test(src) ||
+    /\/\/cms\.[^/]+\/assets\//.test(src) ||
+    src.startsWith("/assets/")
+  );
 }
 
 /**

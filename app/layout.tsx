@@ -638,7 +638,17 @@ export default async function RootLayout({
           <>
             <link rel="preconnect" href="https://fonts.googleapis.com" />
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+            {/*
+             * Preload the font CSS at high priority so it downloads in parallel
+             * with the rest of the <head> instead of being discovered only when
+             * the parser reaches the stylesheet below. This shortens the
+             * render-blocking window — the stylesheet is already in cache when
+             * the parser hits it — without any risk of invisible text, since
+             * display=swap keeps text visible in the fallback meanwhile. A full
+             * non-render-blocking media-swap would need an inline script, which
+             * we avoid here pending CSP verification.
+             */}
+            <link rel="preload" as="style" href={cdnFontUrl} />
             <link rel="stylesheet" href={cdnFontUrl} />
           </>
         )}
