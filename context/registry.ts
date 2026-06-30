@@ -894,6 +894,62 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
     availableToRules: true, availableToAI: true, exampleValue: 52,
   },
 
+  // ── Lead Base — returning-visitor signals (close the personalization loop) ──
+  {
+    key: "isReturningVisitor", label: "Returning visitor",
+    description: "True when this visitor has a prior stored profile (visited before).",
+    type: "boolean", source: "enrichment", operators: OPS_BOOLEAN,
+    availableToRules: true, availableToAI: true, exampleValue: true,
+  },
+  {
+    key: "leadScore", label: "Lead score",
+    description: "Composite hot-lead score (0–100) from the stored profile.",
+    type: "number", source: "enrichment", operators: OPS_NUMBER,
+    availableToRules: true, availableToAI: true, exampleValue: 72,
+  },
+  {
+    key: "isHotLead", label: "Hot lead",
+    description: "True when the lead score clears the hot threshold (default 60).",
+    type: "boolean", source: "enrichment", operators: OPS_BOOLEAN,
+    availableToRules: true, availableToAI: true, exampleValue: true,
+  },
+  {
+    key: "isKnownLead", label: "Known lead",
+    description: "True when the stored profile is a named (known) lead or a customer.",
+    type: "boolean", source: "enrichment", operators: OPS_BOOLEAN,
+    availableToRules: true, availableToAI: true, exampleValue: true,
+  },
+  {
+    key: "isCustomer", label: "Customer",
+    description: "True when the stored profile is a customer.",
+    type: "boolean", source: "enrichment", operators: OPS_BOOLEAN,
+    availableToRules: true, availableToAI: true, exampleValue: false,
+  },
+  {
+    key: "returningLeadLevel", label: "Returning lead level",
+    description: "Prior identity level: anonymous | recognised | known | customer.",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "known",
+  },
+  {
+    key: "returningLeadStatus", label: "Returning lead status",
+    description: "Prior lifecycle status: visitor | engaged | mql | sql | customer | churned.",
+    type: "string", source: "enrichment", operators: OPS_STRING,
+    availableToRules: true, availableToAI: true, exampleValue: "sql",
+  },
+  {
+    key: "priorVisitCount", label: "Prior visit count",
+    description: "Number of visits recorded before this one.",
+    type: "number", source: "enrichment", operators: OPS_NUMBER,
+    availableToRules: true, availableToAI: true, exampleValue: 4,
+  },
+  {
+    key: "daysSinceLastVisit", label: "Days since last visit",
+    description: "Whole days since the visitor's previous visit.",
+    type: "number", source: "enrichment", operators: OPS_NUMBER,
+    availableToRules: true, availableToAI: true, exampleValue: 7,
+  },
+
   {
     key:              "companyMatchConfidence",
     label:            "Company match confidence",

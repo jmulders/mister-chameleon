@@ -80,6 +80,8 @@ import {
 } from "@/lib/abm/apply-known-lead";
 import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-visitor-profile";
 import { recordVisitorEvent }      from "@/lib/lead-base/visitor-events-store";
+import { getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
+import { injectReturningVisitorContext } from "@/lib/lead-base/returning-visitor-context";
 import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
@@ -366,6 +368,19 @@ export async function resolveSlugPageConfig(
           abmLead,
         );
       }
+    } catch {
+      // ignore — normal personalization continues
+    }
+
+    // ── Returning-visitor context (close the personalization loop) ────────────
+    // Load the prior stored profile and expose returning/hot/known signals before
+    // segment evaluation so rules/segments can target them. Fail-open.
+    try {
+      const returningSignals = await getReturningProfileSignals(tenantId, sessionId);
+      injectReturningVisitorContext(
+        postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
+        returningSignals,
+      );
     } catch {
       // ignore — normal personalization continues
     }

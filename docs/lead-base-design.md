@@ -275,3 +275,17 @@ incoming-webhook URL (`abm_settings.notify_slack_url`) and the lead's `leadScore
 clears their threshold (`notify_min_score`, default 60), POST a compact sales alert
 to Slack. No Make/Zapier required; fire-and-forget + fail-open. Configured in the
 Leads page's "Hot-lead Slack alerts" section.
+
+### 8.9 Closing the personalization loop (returning-visitor signals)
+
+The point of capturing profiles is to act on them on-site. Before segment/rule
+evaluation, the pipeline loads the visitor's **prior** stored profile
+(`getReturningProfileSignals`) and `injectReturningVisitorContext` writes derived
+signals onto `ctx.enrichment`: `isReturningVisitor`, `leadScore` (0–100),
+`isHotLead`, `isKnownLead`, `isCustomer`, `returningLeadLevel`,
+`returningLeadStatus`, `priorVisitCount`, `daysSinceLastVisit`. These are
+registered as context variables (`context/registry.ts`) and rule fields
+(`decision/rules/field-registry.ts`), so the existing engine can target them — a
+returning hot lead can be shown a tailored hero/CTA via a normal rule, segment or
+AI-adaptive block, with no new rendering layer. First visit → `isReturningVisitor`
+is false and the rest are null. Wired in both the homepage and slug pipelines.

@@ -187,6 +187,47 @@ export async function getKnownFirmographics(
   }
 }
 
+// ── Returning-visitor signals (close the personalization loop) ──────────────────
+
+export interface ReturningProfileSignals {
+  identityLevel: IdentityLevel;
+  status:        ProfileStatus;
+  intentScore:   number | null;
+  visitCount:    number;
+  lastSeenAt:    string | null;
+}
+
+/**
+ * The prior stored profile for a visitor (read BEFORE this request's upsert), so
+ * the pipeline can adapt content for someone we already know. Null on a first
+ * visit. Cheap single indexed lookup.
+ */
+export async function getReturningProfileSignals(
+  tenantId:   string,
+  visitorKey: string,
+): Promise<ReturningProfileSignals | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("visitor_profiles")
+      .select("identity_level, status, intent_score, visit_count, last_seen_at")
+      .eq("tenant_id", tenantId)
+      .eq("visitor_key", visitorKey)
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      identityLevel: (data.identity_level as IdentityLevel) ?? "anonymous",
+      status:        (data.status as ProfileStatus) ?? "visitor",
+      intentScore:   typeof data.intent_score === "number" ? data.intent_score : null,
+      visitCount:    typeof data.visit_count === "number" ? data.visit_count : 0,
+      lastSeenAt:    (data.last_seen_at as string | null) ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── HubSpot sync state (reuse records + throttle visit notes) ───────────────────
 
 export interface ProfileCrmState {

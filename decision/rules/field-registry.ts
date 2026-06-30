@@ -354,6 +354,16 @@ export type RuleFieldKey =
   | "leadinfoSalesVolume"
   | "leadinfoEmployees"
   | "leadinfoEmployeesTotal"
+  // Lead Base — returning-visitor signals
+  | "isReturningVisitor"
+  | "leadScore"
+  | "isHotLead"
+  | "isKnownLead"
+  | "isCustomer"
+  | "returningLeadLevel"
+  | "returningLeadStatus"
+  | "priorVisitCount"
+  | "daysSinceLastVisit"
   // Enrichment — Ads attribution
   | "adCampaign"
   | "adAdGroup"
@@ -915,6 +925,80 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "number",
     operators:   OPS_NUMBER,
     resolve:     (ctx) => ctx.enrichment?.leadinfoEmployeesTotal ?? null,
+  },
+
+  // ── Lead Base — returning-visitor signals ─────────────────────────────────────
+  isReturningVisitor: {
+    label:       "Returning visitor",
+    description: "True when this visitor has a prior stored profile (visited before).",
+    group:       "enrichment",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => ctx.enrichment?.isReturningVisitor ?? null,
+  },
+  leadScore: {
+    label:       "Lead score",
+    description: "Composite hot-lead score (0–100) from the stored profile.",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.leadScore ?? null,
+  },
+  isHotLead: {
+    label:       "Hot lead",
+    description: "True when the lead score clears the hot threshold (default 60).",
+    group:       "enrichment",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => ctx.enrichment?.isHotLead ?? null,
+  },
+  isKnownLead: {
+    label:       "Known lead",
+    description: "True when the stored profile is a named (known) lead or a customer.",
+    group:       "enrichment",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => ctx.enrichment?.isKnownLead ?? null,
+  },
+  isCustomer: {
+    label:       "Customer",
+    description: "True when the stored profile is a customer.",
+    group:       "enrichment",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => ctx.enrichment?.isCustomer ?? null,
+  },
+  returningLeadLevel: {
+    label:       "Returning lead level",
+    description: "Prior identity level: anonymous | recognised | known | customer.",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.returningLeadLevel ?? null,
+  },
+  returningLeadStatus: {
+    label:       "Returning lead status",
+    description: "Prior lifecycle status: visitor | engaged | mql | sql | customer | churned.",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.returningLeadStatus ?? null,
+  },
+  priorVisitCount: {
+    label:       "Prior visit count",
+    description: "Number of visits recorded before this one.",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.priorVisitCount ?? null,
+  },
+  daysSinceLastVisit: {
+    label:       "Days since last visit",
+    description: "Whole days since the visitor's previous visit.",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.daysSinceLastVisit ?? null,
   },
 
   // ── Enrichment — Ads attribution ──────────────────────────────────────────────

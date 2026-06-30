@@ -414,6 +414,32 @@ export interface EnrichmentOutput {
    */
   leadinfoBranchCodeSic87: string | null;
 
+  // ── Lead Base — returning-visitor signals (from the stored profile) ─────────
+  //
+  // Loaded from visitor_profiles at request time so the personalization engine
+  // (rules / segments / AI) can adapt the site for someone we already know —
+  // closing the loop between what we captured and what we show. Null/false on a
+  // first-ever visit (no prior profile yet). See docs/lead-base-design.md.
+
+  /** True when this visitor has a prior stored profile (visited before). */
+  isReturningVisitor: boolean | null;
+  /** Prior identity level: 'anonymous' | 'recognised' | 'known' | 'customer'. */
+  returningLeadLevel: string | null;
+  /** Prior lifecycle status: visitor | engaged | mql | sql | customer | churned. */
+  returningLeadStatus: string | null;
+  /** Composite hot-lead score (0–100) computed from the stored profile. */
+  leadScore: number | null;
+  /** True when leadScore clears the hot threshold (default 60). */
+  isHotLead: boolean | null;
+  /** True when the stored profile is a named (known) lead or a customer. */
+  isKnownLead: boolean | null;
+  /** True when the stored profile is a customer. */
+  isCustomer: boolean | null;
+  /** Visit count recorded before this request. */
+  priorVisitCount: number | null;
+  /** Whole days since the visitor's previous visit (null on first visit). */
+  daysSinceLastVisit: number | null;
+
   // ── Normalized current location (GA4 preferred; IP geo fallback) ───────────
   //
   // These four fields provide a single, authoritative "where is the visitor now"

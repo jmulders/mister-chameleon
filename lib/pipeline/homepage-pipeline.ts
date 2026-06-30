@@ -66,8 +66,9 @@ import {
   forceKnownLeadSegment,
 } from "@/lib/abm/apply-known-lead";
 import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-visitor-profile";
-import { getKnownFirmographics }           from "@/lib/lead-base/visitor-profiles-store";
+import { getKnownFirmographics, getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
 import { recordVisitorEvent }              from "@/lib/lead-base/visitor-events-store";
+import { injectReturningVisitorContext }   from "@/lib/lead-base/returning-visitor-context";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -449,6 +450,12 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       )
     : null;
 
+  // Returning-visitor signals — the prior stored profile, loaded so the engine
+  // can adapt content for someone we already know (closes the personalization loop).
+  const returningSignals = sessionId
+    ? await getReturningProfileSignals(tenantConfig.tenantId, sessionId)
+    : null;
+
   // ── Decision context ──────────────────────────────────────────────────────
   let debugInfo: EnrichmentDebugInfo | null = null;
 
@@ -491,6 +498,19 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     }
   } catch (err) {
     logger.warn("[pipeline] ABM known-lead context injection failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Returning-visitor context — also BEFORE segment evaluation so segments/rules
+  // can target returning / hot / known leads. Fail-open.
+  try {
+    injectReturningVisitorContext(
+      postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
+      returningSignals,
+    );
+  } catch (err) {
+    logger.warn("[pipeline] returning-visitor context injection failed", {
       err: err instanceof Error ? err.message : String(err),
     });
   }
