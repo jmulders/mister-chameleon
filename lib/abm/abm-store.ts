@@ -438,3 +438,63 @@ export async function deleteAbmLead(id: string): Promise<boolean> {
     return false;
   }
 }
+
+// ── ABM account dashboard — observed activity per target account ─────────────────
+
+export interface AbmAccountActivity {
+  sessionCount:  number;       // linked visitor_profiles (browsers/sessions)
+  visitCount:    number;       // summed page visits
+  lastSeenAt:    string | null;
+  identityLevel: string;       // highest reached
+  status:        string;       // highest reached
+  intentScore:   number | null; // max
+  segmentIds:    string[];     // union
+  hubspotSynced: boolean;      // any linked profile pushed to HubSpot
+}
+
+const LEVEL_RANK:  Record<string, number> = { anonymous: 0, recognised: 1, known: 2, customer: 3 };
+const STATUS_RANK: Record<string, number> = { visitor: 0, engaged: 1, mql: 2, sql: 3, customer: 4, churned: 0 };
+
+/**
+ * Aggregate the observed activity (from visitor_profiles) per ABM lead, so the
+ * dashboard can show which target accounts actually engaged. Keyed on abm_lead_id.
+ */
+export async function listAbmAccountActivity(tenantId: string): Promise<Record<string, AbmAccountActivity>> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("visitor_profiles")
+      .select("abm_lead_id, identity_level, status, intent_score, visit_count, last_seen_at, segment_ids, hubspot_company_id")
+      .eq("tenant_id", tenantId)
+      .not("abm_lead_id", "is", null);
+    if (error || !data) return {};
+
+    const out: Record<string, AbmAccountActivity> = {};
+    for (const r of data as Record<string, unknown>[]) {
+      const leadId = String(r.abm_lead_id);
+      const a = out[leadId] ?? (out[leadId] = {
+        sessionCount: 0, visitCount: 0, lastSeenAt: null,
+        identityLevel: "anonymous", status: "visitor", intentScore: null,
+        segmentIds: [], hubspotSynced: false,
+      });
+      a.sessionCount += 1;
+      a.visitCount   += typeof r.visit_count === "number" ? r.visit_count : 0;
+      const seen = (r.last_seen_at as string | null) ?? null;
+      if (seen && (!a.lastSeenAt || Date.parse(seen) > Date.parse(a.lastSeenAt))) a.lastSeenAt = seen;
+      const lvl = String(r.identity_level ?? "anonymous");
+      if ((LEVEL_RANK[lvl] ?? 0) > (LEVEL_RANK[a.identityLevel] ?? 0)) a.identityLevel = lvl;
+      const st = String(r.status ?? "visitor");
+      if ((STATUS_RANK[st] ?? 0) > (STATUS_RANK[a.status] ?? 0)) a.status = st;
+      if (typeof r.intent_score === "number") a.intentScore = Math.max(a.intentScore ?? 0, r.intent_score);
+      if (Array.isArray(r.segment_ids)) for (const s of r.segment_ids as string[]) if (!a.segmentIds.includes(s)) a.segmentIds.push(s);
+      if (r.hubspot_company_id) a.hubspotSynced = true;
+    }
+    return out;
+  } catch (err) {
+    logger.warn("[abm-store] listAbmAccountActivity failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return {};
+  }
+}

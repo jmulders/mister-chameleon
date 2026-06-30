@@ -242,4 +242,20 @@ export const SEED_AUDIENCE_SEGMENTS: SeedAudienceSegment[] = [
     },
   },
 
+  // ── 13. Hot leads (returning-visitor signal) ──────────────────────────────
+  {
+    key:   "hot-leads",
+    label: "Hot leads",
+    description:
+      "Returning visitors whose lead score has cleared the hot threshold (>= 60). "
+    + "Target them with conversion-focused content — e.g. a \"Book a demo\" CTA.",
+    isActive: true,
+    criteria: {
+      type:     "field",
+      field:    "isHotLead",
+      operator: "equals",
+      value:    true,
+    },
+  },
+
 ];

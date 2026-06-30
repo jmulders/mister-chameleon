@@ -23,13 +23,17 @@ import {
   setAbmHubspotToken,
   getAbmNotifySettings,
   setAbmNotifySettings,
+  listAbmAccountActivity,
   type AbmNotifySettings,
+  type AbmAccountActivity,
   type AbmLead,
   type AbmLeadProfile,
   type AbmLeadStatus,
   type AbmLeadVisit,
 }                                  from "@/lib/abm/abm-store";
 import { syncCompanyToHubspot }    from "@/lib/lead-base/hubspot-sync";
+import { leadScore }               from "@/lib/lead-base/lead-scoring";
+import type { IdentityLevel }      from "@/lib/lead-base/profile-gate";
 
 /** Short, URL-safe, unguessable identifier (~8 chars). */
 function genIdentifier(): string {
@@ -47,6 +51,36 @@ export async function listAbmLeadsAction(tenantId: string): Promise<AbmLead[]> {
 export async function listAbmLeadVisitsAction(leadId: string): Promise<AbmLeadVisit[]> {
   await getRequiredAdminSession();
   return listAbmLeadVisits(leadId);
+}
+
+// ── Account dashboard ───────────────────────────────────────────────────────────
+
+export interface AbmDashboardRow {
+  lead:     AbmLead;
+  activity: AbmAccountActivity | null;  // null = not yet observed visiting
+  score:    number;                     // 0–100 hot score (0 when no activity)
+}
+
+/** Target accounts joined with their observed activity, hottest first. */
+export async function listAbmDashboardAction(tenantId: string): Promise<AbmDashboardRow[]> {
+  await getRequiredAdminSession();
+  const [leads, activity] = await Promise.all([
+    listAbmLeads(tenantId),
+    listAbmAccountActivity(tenantId),
+  ]);
+  const rows = leads.map((lead): AbmDashboardRow => {
+    const act = activity[lead.id] ?? null;
+    const score = act
+      ? leadScore({
+          identityLevel: (act.identityLevel as IdentityLevel),
+          intentScore:   act.intentScore,
+          lastSeenAt:    act.lastSeenAt,
+          visitCount:    act.visitCount,
+        })
+      : 0;
+    return { lead, activity: act, score };
+  });
+  return rows.sort((a, b) => b.score - a.score);
 }
 
 // ── Settings (outbound webhook) ─────────────────────────────────────────────────

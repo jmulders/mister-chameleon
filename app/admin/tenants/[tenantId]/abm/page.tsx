@@ -43,9 +43,17 @@ export default async function AbmPage({
         >
           ← Tenant workspace
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-neutral-900">
-          Target accounts — Personalized URLs
-        </h1>
+        <div className="mt-2 flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-neutral-900">
+            Target accounts — Personalized URLs
+          </h1>
+          <Link
+            href={`/admin/tenants/${tenantId}/abm/dashboard`}
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
+          >
+            Account dashboard →
+          </Link>
+        </div>
         <p className="mt-1 text-sm text-neutral-500">
           The named accounts and contacts you proactively target (outbound). Give each one a
           link (e.g. <code className="font-mono text-xs">/go/ax93z</code> or a vanity path);

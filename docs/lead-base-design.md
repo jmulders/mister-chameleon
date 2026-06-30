@@ -289,3 +289,17 @@ registered as context variables (`context/registry.ts`) and rule fields
 returning hot lead can be shown a tailored hero/CTA via a normal rule, segment or
 AI-adaptive block, with no new rendering layer. First visit → `isReturningVisitor`
 is false and the rest are null. Wired in both the homepage and slug pipelines.
+
+A platform seed segment **"Hot leads"** (`isHotLead = true`) ships in
+`audience-segments/seed.ts` so new tenants can target hot returning visitors out
+of the box.
+
+### 8.10 ABM account dashboard
+
+`/admin/tenants/[tenantId]/abm/dashboard` joins each target account (`abm_leads`)
+with its observed activity (`listAbmAccountActivity` aggregates the linked
+`visitor_profiles` by `abm_lead_id`): sessions, visits, last seen, highest
+level/status, max intent, segments, and HubSpot-sync flag, plus the computed hot
+score. KPIs (accounts / engaged / hot / synced) sit on top; rows are sorted
+hottest-first. It turns "who are we targeting" into "which targets are actually
+engaging and how hot" — the ABM money view. Linked from the Target accounts page.
