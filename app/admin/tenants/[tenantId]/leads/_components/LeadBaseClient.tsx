@@ -4,6 +4,7 @@ import { Fragment, useState, useTransition } from "react";
 import { listLeadProfilesAction, deleteLeadProfilesAction } from "../actions";
 import type { VisitorProfile, VisitorProfileFilter } from "@/lib/lead-base/visitor-profiles-store";
 import type { IdentityLevel, ProfileStatus } from "@/lib/lead-base/profile-gate";
+import { leadScore, scoreClass } from "@/lib/lead-base/lead-scoring";
 
 const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
 const LABEL = "block text-xs font-medium text-neutral-600 mb-1";
@@ -62,25 +63,6 @@ function aggregateGroup(g: AccountGroup) {
   const lastSeen = g.members.reduce<string | null>((m, p) => (tsOf(p.lastSeenAt) > tsOf(m) ? p.lastSeenAt : m), null);
   const segments = Array.from(new Set(g.members.flatMap((p) => p.segmentIds)));
   return { level, status, visits, intent, lastSeen, segments };
-}
-
-/**
- * Composite "hotness" score (0–100): identity depth + intent + recency +
- * engagement. A quick prioritization signal for "who to act on", not a CRM score.
- */
-function leadScore(p: VisitorProfile): number {
-  const levelPts   = ({ anonymous: 0, recognised: 18, known: 30, customer: 40 } as Record<IdentityLevel, number>)[p.identityLevel] ?? 0;
-  const intentPts  = Math.min(40, (p.intentScore ?? 0) * 0.4);
-  const ageDays    = (Date.now() - tsOf(p.lastSeenAt)) / 86_400_000;
-  const recencyPts = ageDays < 1 ? 15 : ageDays < 7 ? 9 : ageDays < 30 ? 4 : 0;
-  const engagePts  = Math.min(5, Math.max(0, p.visitCount - 1));
-  return Math.round(Math.min(100, levelPts + intentPts + recencyPts + engagePts));
-}
-
-function scoreClass(score: number): string {
-  if (score >= 60) return "bg-red-50 text-red-700";
-  if (score >= 35) return "bg-amber-50 text-amber-700";
-  return "bg-neutral-100 text-neutral-500";
 }
 
 function fmtWhen(iso: string | null): string {

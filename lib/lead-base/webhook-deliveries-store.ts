@@ -90,6 +90,27 @@ export async function listWebhookDeliveries(tenantId: string, limit = 25): Promi
   }
 }
 
+/** Delete delivery logs older than `days`. Returns the count removed. Fail-open. */
+export async function purgeOldWebhookDeliveries(days = 30): Promise<number> {
+  try {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("webhook_deliveries")
+      .delete()
+      .lt("created_at", cutoff)
+      .select("id");
+    if (error || !data) return 0;
+    return (data as unknown[]).length;
+  } catch (err) {
+    logger.warn("[lead-base] purgeOldWebhookDeliveries failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return 0;
+  }
+}
+
 /** A single delivery (for replay). Scoped to tenant. */
 export async function getWebhookDelivery(tenantId: string, id: string): Promise<WebhookDelivery | null> {
   try {
