@@ -847,12 +847,12 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
         <button
           type="button"
           onClick={handleCreate}
-          disabled={isPending || (!selectedStarter && !manualMode)}
+          disabled={isPending || selectedTemplates.length === 0}
           className={[
             "inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium text-white shadow-xs transition-colors",
             isPending
               ? "cursor-not-allowed bg-brand-300"
-              : !selectedStarter && !manualMode
+              : selectedTemplates.length === 0
                 ? "cursor-not-allowed bg-neutral-300"
                 : isReinit
                   ? "bg-amber-500 hover:bg-amber-600 active:bg-amber-700"
@@ -870,8 +870,8 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
             </span>
           ) : isReinit ? (
             "Re-initialize site"
-          ) : !selectedStarter && !manualMode ? (
-            "Select a starter to continue"
+          ) : selectedTemplates.length === 0 ? (
+            "Select at least one page to continue"
           ) : (
             `Initialize site — ${selectedTemplates.length} page${selectedTemplates.length !== 1 ? "s" : ""}${includeDefaultBlocks ? "" : ", empty"}`
           )}

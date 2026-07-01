@@ -36,7 +36,10 @@ export type FunctionalityModuleKey =
   | "vacancy_apply"
   | "contact_forms"
   | "google_maps"
-  | "site_search";
+  | "site_search"
+  | "blog_news"
+  | "newsletter_signup"
+  | "lead_capture";
 
 /** A single opt-in platform capability module. */
 export interface FunctionalityModule {
@@ -138,6 +141,32 @@ export const FUNCTIONALITY_MODULES: readonly FunctionalityModule[] = [
     icon:              "Search",
     enabledBlocks:     ["search", "searchResults", "filterBar"],
     siteTypeRelevance: ["content", "shop"],
+  },
+  {
+    key:               "blog_news",
+    label:             "Blog & nieuws",
+    description:       "Publiceer artikelen en nieuwsberichten met overzichts- en detailpagina's.",
+    icon:              "Newspaper",
+    enabledBlocks:     ["newsList", "articleMeta", "articleBody", "relatedContent"],
+    siteTypeRelevance: [],
+  },
+  {
+    key:               "newsletter_signup",
+    label:             "Nieuwsbrief",
+    description:       "Verzamel e-mailinschrijvingen met een nieuwsbrief-aanmeldblok.",
+    icon:              "Send",
+    enabledBlocks:     ["formSection"],
+    setupNote:         "Koppel je e-mailplatform (bijv. Mailchimp) om inschrijvingen te ontvangen.",
+    siteTypeRelevance: [],
+  },
+  {
+    key:               "lead_capture",
+    label:             "Leadcapture & ABM",
+    description:       "Vang leads met formulieren en gerichte CTA's; voedt de Lead Base en ABM.",
+    icon:              "Magnet",
+    enabledBlocks:     ["formSection", "ctaSection"],
+    setupNote:         "Leads verschijnen in Leads/Target accounts; koppel optioneel je CRM.",
+    siteTypeRelevance: [],
   },
 ];
 
