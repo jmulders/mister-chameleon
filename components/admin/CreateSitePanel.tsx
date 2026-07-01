@@ -289,6 +289,23 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
       (e.recommendedFor as readonly string[]).includes(selectedType),
   );
 
+  // ── "Select all" helpers ────────────────────────────────────────────────────
+  // All pages currently offered (core + extended for this site type) and all
+  // functionality modules for this site type. Used by the "Select all" toggles
+  // so an operator can load every available page / feature in one click.
+  const allTemplateKeys: TemplateCatalogKey[] = [...coreEntries, ...extendedEntries].map(
+    (e) => e.catalogKey,
+  );
+  const allTemplatesSelected =
+    allTemplateKeys.length > 0 &&
+    allTemplateKeys.every((k) => selectedTemplates.includes(k));
+
+  const allModuleKeys: FunctionalityModuleKey[] = getModulesForSiteType(selectedType).map(
+    (m) => m.key,
+  );
+  const allModulesSelected =
+    allModuleKeys.length > 0 && allModuleKeys.every((k) => selectedModules.has(k));
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -507,9 +524,21 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
             <p className="text-xs font-medium text-neutral-600">
               2 — Select pages to include
             </p>
-            <span className="text-[11px] text-neutral-400">
-              {selectedTemplates.length} selected
-            </span>
+            <div className="flex items-baseline gap-3">
+              <button
+                type="button"
+                disabled={isPending || allTemplateKeys.length === 0}
+                onClick={() =>
+                  setSelectedTemplates(allTemplatesSelected ? [] : allTemplateKeys)
+                }
+                className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+              >
+                {allTemplatesSelected ? "Clear all" : "Select all pages"}
+              </button>
+              <span className="text-[11px] text-neutral-400">
+                {selectedTemplates.length} selected
+              </span>
+            </div>
           </div>
 
           <div className="space-y-5">
@@ -567,9 +596,21 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
 
         {/* ── Step 3: Functionality modules ──────────────────────────────── */}
         <div className="mb-5">
-          <p className="mb-2 text-xs font-medium text-neutral-600">
-            3 — Functionality modules
-          </p>
+          <div className="mb-2 flex items-baseline justify-between">
+            <p className="text-xs font-medium text-neutral-600">
+              3 — Functionality modules
+            </p>
+            <button
+              type="button"
+              disabled={isPending || allModuleKeys.length === 0}
+              onClick={() =>
+                setSelectedModules(allModulesSelected ? new Set() : new Set(allModuleKeys))
+              }
+              className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+            >
+              {allModulesSelected ? "Clear all" : "Select all functionalities"}
+            </button>
+          </div>
           <p className="mb-2 text-[11px] text-neutral-400">
             Enable optional feature areas. Each module adds specific content blocks and may
             require an external integration (shown as a chip on the card).
