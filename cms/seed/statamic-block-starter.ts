@@ -112,18 +112,21 @@ export function getBlockStarterContent(
         heading: "Wat onze klanten zeggen",
         items: [
           {
+            type:    "testimonial",
             quote:   "Eindelijk personalisatie die écht werkt. Onze conversie is in een week verdubbeld.",
             author:  "Marie van den Berg",
             role:    "Marketing Manager",
             company: "Voorbeeld B.V.",
           },
           {
+            type:    "testimonial",
             quote:   "De implementatie was verrassend eenvoudig. Binnen een dag de eerste resultaten.",
             author:  "Thomas Jansen",
             role:    "CTO",
             company: "Tech Startup",
           },
           {
+            type:    "testimonial",
             quote:   "We zien nu precies wat werkt voor welke bezoeker. Onmisbaar geworden.",
             author:  "Lisa de Vries",
             role:    "Growth Lead",
@@ -162,12 +165,12 @@ export function getBlockStarterContent(
         heading:  "Waarom kiezen voor ons",
         subtitle: "De voordelen die het verschil maken",
         items: [
-          { icon: "Zap",        title: "Snel van start",          body: "Live in één middag — geen lange implementaties." },
-          { icon: "Shield",     title: "Privacy-vriendelijk",      body: "Geen cookies, geen toestemming nodig." },
-          { icon: "TrendingUp", title: "Meetbare resultaten",      body: "Gemiddeld 3× hogere conversie." },
-          { icon: "Settings",   title: "Eenvoudig beheer",         body: "Content beheren in uw vertrouwde CMS." },
-          { icon: "Users",      title: "Persoonlijke aanpak",      body: "Elke bezoeker krijgt de meest relevante boodschap." },
-          { icon: "BarChart2",  title: "Inzicht & rapportage",     body: "Realtime inzicht in prestaties per segment." },
+          { type: "feature", icon: "Zap",        title: "Snel van start",          body: "Live in één middag — geen lange implementaties." },
+          { type: "feature", icon: "Shield",     title: "Privacy-vriendelijk",      body: "Geen cookies, geen toestemming nodig." },
+          { type: "feature", icon: "TrendingUp", title: "Meetbare resultaten",      body: "Gemiddeld 3× hogere conversie." },
+          { type: "feature", icon: "Settings",   title: "Eenvoudig beheer",         body: "Content beheren in uw vertrouwde CMS." },
+          { type: "feature", icon: "Users",      title: "Persoonlijke aanpak",      body: "Elke bezoeker krijgt de meest relevante boodschap." },
+          { type: "feature", icon: "BarChart2",  title: "Inzicht & rapportage",     body: "Realtime inzicht in prestaties per segment." },
         ],
       };
 
@@ -250,10 +253,10 @@ export function getBlockStarterContent(
       return {
         heading: "Zo werkt het",
         steps: [
-          { number: "01", title: "Snippet plaatsen",    body: "Plak de code in uw website-header. Klaar in 5 minuten." },
-          { number: "02", title: "CMS verbinden",       body: "Verbind Statamic, Storyblok of Sanity met één API-sleutel." },
-          { number: "03", title: "Varianten aanmaken",  body: "Schrijf content voor elk bezoekerssegment in uw CMS." },
-          { number: "04", title: "Resultaten meten",    body: "Bekijk de conversies per segment in het dashboard." },
+          { type: "step", number: "01", title: "Snippet plaatsen",    body: "Plak de code in uw website-header. Klaar in 5 minuten." },
+          { type: "step", number: "02", title: "CMS verbinden",       body: "Verbind Statamic, Storyblok of Sanity met één API-sleutel." },
+          { type: "step", number: "03", title: "Varianten aanmaken",  body: "Schrijf content voor elk bezoekerssegment in uw CMS." },
+          { type: "step", number: "04", title: "Resultaten meten",    body: "Bekijk de conversies per segment in het dashboard." },
         ],
       };
 
