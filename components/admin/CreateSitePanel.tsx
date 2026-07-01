@@ -198,6 +198,12 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
   // When true, the raw site-type selector is shown instead of starters.
   const [manualMode, setManualMode] = useState<boolean>(false);
 
+  // ── "Everything" mode ─────────────────────────────────────────────────────
+  // When true, the page + module lists ignore the site-type filter and show the
+  // FULL catalog — every page and every functionality across all starters — so
+  // an operator can build a starterless "kitchen sink" site in one go.
+  const [showAllOptions, setShowAllOptions] = useState<boolean>(false);
+
   // ── Resolved site type ────────────────────────────────────────────────────
   // Derived from the selected starter, or chosen directly in manual mode.
   const [selectedType, setSelectedType] = useState<SiteType>("saas");
@@ -283,16 +289,26 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
   // ── Derived display values ────────────────────────────────────────────────
 
   const coreEntries     = getRegistryByCategory("core");
-  const extendedEntries = getRegistryByCategory("extended").filter(
-    (e) =>
-      e.recommendedFor.length === 0 ||
-      (e.recommendedFor as readonly string[]).includes(selectedType),
-  );
+  // Extended pages: filtered to the site type by default, or the FULL extended
+  // catalog when "everything" mode is on (starterless — all starters combined).
+  const extendedEntries = showAllOptions
+    ? getRegistryByCategory("extended")
+    : getRegistryByCategory("extended").filter(
+        (e) =>
+          e.recommendedFor.length === 0 ||
+          (e.recommendedFor as readonly string[]).includes(selectedType),
+      );
+
+  // Functionality modules: for the site type by default, or ALL modules across
+  // every site type when "everything" mode is on.
+  const modulesToShow = showAllOptions
+    ? FUNCTIONALITY_MODULES
+    : getModulesForSiteType(selectedType);
 
   // ── "Select all" helpers ────────────────────────────────────────────────────
-  // All pages currently offered (core + extended for this site type) and all
-  // functionality modules for this site type. Used by the "Select all" toggles
-  // so an operator can load every available page / feature in one click.
+  // Derived from whatever is currently shown (type-scoped, or the full catalog
+  // in "everything" mode). The Select-all toggles pick every visible page /
+  // module in one click.
   const allTemplateKeys: TemplateCatalogKey[] = [...coreEntries, ...extendedEntries].map(
     (e) => e.catalogKey,
   );
@@ -300,9 +316,7 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
     allTemplateKeys.length > 0 &&
     allTemplateKeys.every((k) => selectedTemplates.includes(k));
 
-  const allModuleKeys: FunctionalityModuleKey[] = getModulesForSiteType(selectedType).map(
-    (m) => m.key,
-  );
+  const allModuleKeys: FunctionalityModuleKey[] = modulesToShow.map((m) => m.key);
   const allModulesSelected =
     allModuleKeys.length > 0 && allModuleKeys.every((k) => selectedModules.has(k));
 
@@ -518,6 +532,27 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
           )}
         </div>
 
+        {/* ── "Everything" mode toggle ──────────────────────────────────── */}
+        <label className="mb-4 flex cursor-pointer items-start gap-2.5 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+          <input
+            type="checkbox"
+            checked={showAllOptions}
+            disabled={isPending}
+            onChange={(e) => setShowAllOptions(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-xs font-semibold text-neutral-800">
+              Show everything (starterless)
+            </span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-neutral-500">
+              Ignore the starter/site-type filter and list <strong>every</strong> page
+              and functionality across all starters — then use “Select all” to load the
+              full set in one go.
+            </span>
+          </span>
+        </label>
+
         {/* ── Step 2: Template selection ─────────────────────────────────── */}
         <div className="mb-5">
           <div className="mb-2 flex items-baseline justify-between">
@@ -616,7 +651,7 @@ export function CreateSitePanel({ tenantId, siteInitializedAt }: CreateSitePanel
             require an external integration (shown as a chip on the card).
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {getModulesForSiteType(selectedType).map((mod) => {
+            {modulesToShow.map((mod) => {
               const isOn = selectedModules.has(mod.key);
               return (
                 <button
