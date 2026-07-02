@@ -10,15 +10,17 @@
 
 import { useState } from "react";
 import { CookieDeclaration } from "./CookieDeclaration";
+import { consentTexts } from "@/tracking/consent-i18n";
 
-export function CookiePreferences() {
+export function CookiePreferences({ locale }: { locale?: string } = {}) {
+  const t = consentTexts(locale);
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Cookie settings"
+        aria-label={t.preferences.launcher}
         style={{
           position: "fixed", bottom: "16px", left: "16px", zIndex: 9998,
           padding: "8px 12px", borderRadius: "9999px",
@@ -28,7 +30,7 @@ export function CookiePreferences() {
           fontSize: "12px", fontWeight: 500, color: "#374151", cursor: "pointer",
         }}
       >
-        Cookie settings
+        {t.preferences.launcher}
       </button>
 
       {open && (
@@ -55,16 +57,16 @@ export function CookiePreferences() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-              <strong style={{ fontSize: "16px", color: "#111827" }}>Cookie preferences</strong>
+              <strong style={{ fontSize: "16px", color: "#111827" }}>{t.preferences.title}</strong>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label={t.preferences.close}
                 style={{ border: "none", background: "transparent", fontSize: "20px", cursor: "pointer", color: "#6b7280", lineHeight: 1 }}
               >
                 ×
               </button>
             </div>
-            <CookieDeclaration />
+            <CookieDeclaration locale={locale} />
           </div>
         </div>
       )}

@@ -600,6 +600,9 @@ export default async function RootLayout({
     privacySettings?.showConsentBanner !== false &&
     !_consentPathname.startsWith("/admin");
 
+  // Visitor locale for the cookie banner / preferences copy (nl / en).
+  const consentLocale = (await cookies()).get("mc_locale")?.value;
+
   return (
     /*
      * suppressHydrationWarning on <html>
@@ -757,8 +760,9 @@ export default async function RootLayout({
             <ConsentBanner
               title={privacySettings?.bannerTitle}
               description={privacySettings?.bannerDescription}
+              locale={consentLocale}
             />
-            <CookiePreferences />
+            <CookiePreferences locale={consentLocale} />
           </>
         )}
       </body>

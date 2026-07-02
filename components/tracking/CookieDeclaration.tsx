@@ -14,14 +14,15 @@ import { useEffect, useState } from "react";
 import { getConsent, setConsent } from "@/tracking/consent-store";
 import {
   COOKIE_CATEGORY_ORDER,
-  COOKIE_CATEGORY_META,
   cookiesForCategory,
   type CookieCategory,
 } from "@/tracking/cookie-registry";
+import { consentTexts } from "@/tracking/consent-i18n";
 
 interface Prefs { analytics: boolean; personalization: boolean; enrichment: boolean }
 
-export function CookieDeclaration() {
+export function CookieDeclaration({ locale }: { locale?: string } = {}) {
+  const t = consentTexts(locale);
   const [prefs, setPrefs] = useState<Prefs>({ analytics: false, personalization: false, enrichment: false });
   const [saved, setSaved] = useState(false);
 
@@ -51,21 +52,21 @@ export function CookieDeclaration() {
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => save({ analytics: true, personalization: true, enrichment: true })}
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">
-          Accept all
+          {t.declaration.acceptAll}
         </button>
         <button onClick={() => save({ analytics: false, personalization: false, enrichment: false })}
           className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50">
-          Reject non-essential
+          {t.declaration.rejectNonEssential}
         </button>
         <button onClick={() => save()}
           className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50">
-          Save preferences
+          {t.declaration.savePreferences}
         </button>
-        {saved && <span className="text-xs text-green-600">Preferences saved.</span>}
+        {saved && <span className="text-xs text-green-600">{t.declaration.saved}</span>}
       </div>
 
       {COOKIE_CATEGORY_ORDER.map((cat) => {
-        const meta    = COOKIE_CATEGORY_META[cat];
+        const meta    = t.catMeta[cat];
         const cookies = cookiesForCategory(cat);
         const on      = value(cat);
         return (
@@ -82,7 +83,7 @@ export function CookieDeclaration() {
                   disabled={cat === "essential"}
                   onChange={(e) => setValue(cat, e.target.checked)}
                 />
-                {cat === "essential" ? "Always on" : on ? "Allowed" : "Off"}
+                {cat === "essential" ? t.declaration.alwaysOn : on ? t.declaration.allowed : t.declaration.off}
               </label>
             </div>
 
@@ -91,12 +92,12 @@ export function CookieDeclaration() {
                 <table className="w-full text-xs">
                   <thead className="text-neutral-400">
                     <tr>
-                      <th className="px-2 py-1 text-left">Cookie</th>
-                      <th className="px-2 py-1 text-left">Provider</th>
-                      <th className="px-2 py-1 text-left">Purpose</th>
-                      <th className="px-2 py-1 text-left whitespace-nowrap">Lifetime</th>
-                      <th className="px-2 py-1 text-left whitespace-nowrap">Type</th>
-                      <th className="px-2 py-1 text-left whitespace-nowrap">Domain</th>
+                      <th className="px-2 py-1 text-left">{t.declaration.cols.cookie}</th>
+                      <th className="px-2 py-1 text-left">{t.declaration.cols.provider}</th>
+                      <th className="px-2 py-1 text-left">{t.declaration.cols.purpose}</th>
+                      <th className="px-2 py-1 text-left whitespace-nowrap">{t.declaration.cols.lifetime}</th>
+                      <th className="px-2 py-1 text-left whitespace-nowrap">{t.declaration.cols.type}</th>
+                      <th className="px-2 py-1 text-left whitespace-nowrap">{t.declaration.cols.domain}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">

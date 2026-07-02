@@ -28,6 +28,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   getConsent,
   setConsent,
@@ -36,46 +37,25 @@ import {
   acceptEssentialConsent,
 } from "@/tracking/consent-store";
 import type { ConsentState } from "@/tracking/consent-types";
+import { consentTexts } from "@/tracking/consent-i18n";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 export interface ConsentBannerProps {
-  /** Override for the banner title. Defaults to platform copy. */
+  /** Override for the banner title. Defaults to localized copy. */
   title?:       string;
-  /** Override for the banner body text. Defaults to platform copy. */
+  /** Override for the banner body text. Defaults to localized copy. */
   description?: string;
+  /** Visitor locale ("nl" / "en"); resolved from mc_locale by the layout. */
+  locale?:      string;
 }
 
-// ── Default copy ──────────────────────────────────────────────────────────────
-
-const DEFAULT_TITLE       = "We value your privacy";
-const DEFAULT_DESCRIPTION =
-  "We use cookies to improve your experience, analyze traffic, and show relevant content. " +
-  "You can choose which types of cookies you allow.";
-
-// ── Category descriptions ─────────────────────────────────────────────────────
-
-const CATEGORIES = [
-  {
-    id:          "analytics" as const,
-    label:       "Analytics",
-    description: "Helps us understand how visitors interact with the site (page views, events).",
-  },
-  {
-    id:          "personalization" as const,
-    label:       "Personalization",
-    description: "Allows us to tailor content and calls-to-action to your interests and behavior.",
-  },
-  {
-    id:          "enrichment" as const,
-    label:       "Enrichment",
-    description: "Allows us to recognize your company and context to provide more relevant information.",
-  },
-] as const;
+const OPTIONAL_CATEGORIES = ["analytics", "personalization", "enrichment"] as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ConsentBanner({ title, description }: ConsentBannerProps) {
+export function ConsentBanner({ title, description, locale }: ConsentBannerProps) {
+  const t = consentTexts(locale);
   const [visible,    setVisible]    = useState(false);
   const [expanded,   setExpanded]   = useState(false);
   const [customState, setCustomState] = useState<Omit<ConsentState, "hasResponded">>({
@@ -149,12 +129,15 @@ export function ConsentBanner({ title, description }: ConsentBannerProps) {
         {/* Header row */}
         <div style={{ marginBottom: "8px" }}>
           <strong style={{ fontSize: "15px" }}>
-            {title ?? DEFAULT_TITLE}
+            {title ?? t.banner.title}
           </strong>
         </div>
 
         <p style={{ margin: "0 0 12px", color: "#374151" }}>
-          {description ?? DEFAULT_DESCRIPTION}
+          {description ?? t.banner.description}{" "}
+          <Link href="/cookies" style={{ color: "#2563eb", textDecoration: "underline", whiteSpace: "nowrap" }}>
+            {t.banner.moreLink}
+          </Link>
         </p>
 
         {/* Expanded customization panel */}
@@ -186,17 +169,17 @@ export function ConsentBanner({ title, description }: ConsentBannerProps) {
                 style={{ marginTop: "3px", flexShrink: 0 }}
               />
               <span>
-                <strong>Essential</strong>
+                <strong>{t.banner.essentialLabel}</strong>
                 <span style={{ display: "block", color: "#6b7280", fontSize: "13px" }}>
-                  Required for the site to function. Cannot be disabled.
+                  {t.banner.essentialNote}
                 </span>
               </span>
             </label>
 
             {/* Optional categories */}
-            {CATEGORIES.map((cat) => (
+            {OPTIONAL_CATEGORIES.map((id) => (
               <label
-                key={cat.id}
+                key={id}
                 style={{
                   display:       "flex",
                   alignItems:    "flex-start",
@@ -207,14 +190,14 @@ export function ConsentBanner({ title, description }: ConsentBannerProps) {
               >
                 <input
                   type="checkbox"
-                  checked={customState[cat.id]}
-                  onChange={() => toggleCategory(cat.id)}
+                  checked={customState[id]}
+                  onChange={() => toggleCategory(id)}
                   style={{ marginTop: "3px", flexShrink: 0 }}
                 />
                 <span>
-                  <strong>{cat.label}</strong>
+                  <strong>{t.catMeta[id].label}</strong>
                   <span style={{ display: "block", color: "#6b7280", fontSize: "13px" }}>
-                    {cat.description}
+                    {t.catMeta[id].description}
                   </span>
                 </span>
               </label>
@@ -244,7 +227,7 @@ export function ConsentBanner({ title, description }: ConsentBannerProps) {
               cursor:          "pointer",
             }}
           >
-            Accept all
+            {t.banner.acceptAll}
           </button>
 
           {expanded ? (
@@ -261,7 +244,7 @@ export function ConsentBanner({ title, description }: ConsentBannerProps) {
                 cursor:          "pointer",
               }}
             >
-              Save preferences
+              {t.banner.save}
             </button>
           ) : (
             <button
@@ -277,7 +260,7 @@ export function ConsentBanner({ title, description }: ConsentBannerProps) {
                 cursor:          "pointer",
               }}
             >
-              Customize
+              {t.banner.customize}
             </button>
           )}
 
@@ -295,7 +278,7 @@ export function ConsentBanner({ title, description }: ConsentBannerProps) {
               textDecoration:  "underline",
             }}
           >
-            Essential only
+            {t.banner.essentialOnly}
           </button>
         </div>
       </div>

@@ -9,7 +9,9 @@
  */
 
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { CookieDeclaration } from "@/components/tracking/CookieDeclaration";
+import { consentTexts } from "@/tracking/consent-i18n";
 
 export const metadata: Metadata = {
   title:       "Cookie policy",
@@ -17,26 +19,19 @@ export const metadata: Metadata = {
   robots:      { index: true, follow: true },
 };
 
-export default function CookiePolicyPage() {
+export default async function CookiePolicyPage() {
+  const locale = (await cookies()).get("mc_locale")?.value;
+  const t = consentTexts(locale);
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">Cookie policy</h1>
-        <p className="mt-2 text-sm text-neutral-600">
-          Below is every cookie this website may place, grouped by purpose. For each
-          cookie you can see who sets it, what it&apos;s for, how long it&apos;s kept
-          (lifetime), its type and domain. You can change your choices at any time —
-          they take effect immediately and are remembered.
-        </p>
+        <h1 className="text-2xl font-semibold text-neutral-900">{t.policyPage.heading}</h1>
+        <p className="mt-2 text-sm text-neutral-600">{t.policyPage.intro}</p>
       </header>
 
-      <CookieDeclaration />
+      <CookieDeclaration locale={locale} />
 
-      <p className="mt-8 text-xs text-neutral-400">
-        Integration cookies (Google Analytics, Leadinfo) are only set when that
-        integration is enabled for this site. Strictly-necessary cookies are always
-        active because the site cannot function without them.
-      </p>
+      <p className="mt-8 text-xs text-neutral-400">{t.policyPage.note}</p>
     </main>
   );
 }
