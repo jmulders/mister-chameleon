@@ -38,6 +38,7 @@ import type { ProvisionResult }        from "@/cms/providers/cms-provider";
 import type { SiteType }               from "@/page-config";
 import type { ThemePresetKey }         from "@/design-system/theme/presets";
 import type { BlockTokenSet }          from "@/design-system/theme/block-token-set";
+import { CURATED_TOKEN_KEYS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { isFeaturedFamilyKey }         from "@/design-system/theme/theme-families.config";
 import type {
   ProvisionSiteResult,
@@ -2920,15 +2921,6 @@ export interface SaveBlockTokenSetsResult {
   errors: string[];
 }
 
-/** Curated token field keys accepted on a block token set. Anything else is dropped. */
-const CURATED_BLOCK_TOKEN_FIELDS = [
-  "surface", "background", "text", "textMuted", "primary", "primaryText",
-  "cardBg", "cardBorder", "cardRadius", "headingFont", "headingWeight",
-  "dividerColor", "dividerWidth",
-] as const;
-
-const VALID_SURFACE_VALUES = ["default", "subtle", "emphasis", "strong", "inverse"];
-
 /**
  * Validate + persist the tenant's named block token sets.
  *
@@ -2975,10 +2967,10 @@ export async function saveBlockTokenSetsAction(
       // Strip tokens down to known fields with non-empty string values.
       const rawTokens = (set.tokens ?? {}) as Record<string, unknown>;
       const tokens: Record<string, string> = {};
-      for (const field of CURATED_BLOCK_TOKEN_FIELDS) {
+      for (const field of CURATED_TOKEN_KEYS) {
         const v = rawTokens[field];
         if (typeof v !== "string" || !v.trim()) continue;
-        if (field === "surface" && !VALID_SURFACE_VALUES.includes(v.trim())) {
+        if (field === "surface" && !(VALID_SURFACE_ROLES as readonly string[]).includes(v.trim())) {
           errors.push(`Set "${name || key}": invalid surface "${v}".`);
           continue;
         }

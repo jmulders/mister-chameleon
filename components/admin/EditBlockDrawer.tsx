@@ -38,24 +38,9 @@ import type {
   VariantTone,
 } from "@/ai/variant-meta";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
+import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 
 // ── AI / Decision option lists ──────────────────────────────────────────────────
-
-// Curated per-block token fields shown in the drawer's Design tokens section.
-const TOKEN_FIELDS: readonly { key: keyof CuratedBlockTokens; label: string; kind: "color" | "surface" | "text"; placeholder?: string }[] = [
-  { key: "surface",       label: "Surface role",    kind: "surface" },
-  { key: "background",    label: "Background",      kind: "color" },
-  { key: "text",          label: "Text",            kind: "color" },
-  { key: "textMuted",     label: "Muted text",      kind: "color" },
-  { key: "primary",       label: "Primary/accent",  kind: "color" },
-  { key: "primaryText",   label: "On-primary text", kind: "color" },
-  { key: "cardBg",        label: "Card background",  kind: "color" },
-  { key: "cardBorder",    label: "Card border",      kind: "color" },
-  { key: "cardRadius",    label: "Card radius",      kind: "text", placeholder: "12px" },
-  { key: "headingFont",   label: "Heading font",     kind: "text", placeholder: "'Poppins', sans-serif" },
-  { key: "headingWeight", label: "Heading weight",   kind: "text", placeholder: "700" },
-  { key: "dividerColor",  label: "Divider colour",   kind: "color" },
-];
 
 const INTENT_LEVELS:  IntentLevel[]   = ["awareness", "consideration", "decision"];
 const FUNNEL_STAGES:  FunnelStage[]   = ["awareness", "consideration", "decision", "retention"];
@@ -1537,45 +1522,50 @@ export function EditBlockDrawer({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              {TOKEN_FIELDS.map((f) => {
-                const raw = (tokens as Record<string, string>)[f.key] ?? "";
-                return (
-                  <label key={f.key} className="block">
-                    <span className="block text-[11px] font-medium text-neutral-600 mb-0.5">{f.label}</span>
-                    {f.kind === "surface" ? (
-                      <select value={raw} onChange={(e) => setToken(f.key, e.target.value)} className={INPUT_CLS}>
-                        {["", "default", "subtle", "emphasis", "strong", "inverse"].map((o) => (
-                          <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
-                        ))}
-                      </select>
-                    ) : f.kind === "color" ? (
-                      <span className="flex items-center gap-1.5">
-                        <input
-                          type="color"
-                          value={/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : "#ffffff"}
-                          onChange={(e) => setToken(f.key, e.target.value)}
-                          className="h-8 w-8 shrink-0 rounded border border-neutral-300 cursor-pointer p-0"
-                        />
-                        <input
-                          value={raw}
-                          onChange={(e) => setToken(f.key, e.target.value)}
-                          placeholder="#111827"
-                          className={INPUT_CLS + " font-mono"}
-                        />
-                      </span>
-                    ) : (
-                      <input
-                        value={raw}
-                        onChange={(e) => setToken(f.key, e.target.value)}
-                        placeholder={f.placeholder ?? ""}
-                        className={INPUT_CLS}
-                      />
-                    )}
-                  </label>
-                );
-              })}
-            </div>
+            {BLOCK_TOKEN_GROUPS.map((group) => (
+              <div key={group.title} className="space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{group.title}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {group.fields.map((f) => {
+                    const raw = (tokens as Record<string, string>)[f.key] ?? "";
+                    return (
+                      <label key={f.key} className="block">
+                        <span className="block text-[11px] font-medium text-neutral-600 mb-0.5">{f.label}</span>
+                        {f.kind === "surface" ? (
+                          <select value={raw} onChange={(e) => setToken(f.key, e.target.value)} className={INPUT_CLS}>
+                            {["", ...VALID_SURFACE_ROLES].map((o) => (
+                              <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
+                            ))}
+                          </select>
+                        ) : f.kind === "color" ? (
+                          <span className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : "#ffffff"}
+                              onChange={(e) => setToken(f.key, e.target.value)}
+                              className="h-8 w-8 shrink-0 rounded border border-neutral-300 cursor-pointer p-0"
+                            />
+                            <input
+                              value={raw}
+                              onChange={(e) => setToken(f.key, e.target.value)}
+                              placeholder="#111827"
+                              className={INPUT_CLS + " font-mono"}
+                            />
+                          </span>
+                        ) : (
+                          <input
+                            value={raw}
+                            onChange={(e) => setToken(f.key, e.target.value)}
+                            placeholder={f.placeholder ?? ""}
+                            className={INPUT_CLS}
+                          />
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </fieldset>
 
           {error && (

@@ -8,30 +8,24 @@
  *   site-wide: one palette for the whole tenant.
  *
  *   This module adds a SECOND, narrower scope: an individual content block or
- *   adaptive block may carry its own small set of token overrides. Because the
+ *   adaptive block may carry its own set of token overrides. Because the
  *   overrides are emitted as the SAME CSS custom properties — just on a wrapper
  *   element around one block instead of on `[data-site]` — CSS inheritance does
- *   all the work. No block component needs to change: a block that reads
- *   `var(--primary)` automatically picks up a block-scoped `--primary` when one
- *   is present, and falls back to the site value otherwise.
+ *   all the work. No block component needs to change.
  *
  * ─── The two ingredients ─────────────────────────────────────────────────────
  *
  *   1. Reusable NAMED sets  (BlockTokenSet)  — defined once per tenant, in
  *      `design.blockTokenSets`, and referenced by many blocks by `key`.
- *   2. Inline PER-BLOCK tweaks (CuratedBlockTokens) — a handful of tokens set
- *      directly on one block, layered ON TOP of the named set it references.
+ *   2. Inline PER-BLOCK tweaks (CuratedBlockTokens) — tokens set directly on one
+ *      block, layered ON TOP of the named set it references.
  *
- *   A block carries a BlockTokenRef = { tokenSet?, tokens? }. Resolution merges
- *   the named set (if any) first, then the inline tweaks (which win).
+ * ─── Data-driven field metadata ──────────────────────────────────────────────
  *
- * ─── Curated, not exhaustive ─────────────────────────────────────────────────
- *
- *   Only the meaningful, high-impact tokens are exposed per block (background /
- *   surface, text, primary/accent, card bg/border/radius, heading font/weight,
- *   section dividers). Each curated field fans out to one or more real CSS vars
- *   from tenant-theme.ts, keeping the editing surface small while still
- *   restyling everything inside the block coherently.
+ *   BLOCK_TOKEN_GROUPS is the single source of truth: it lists every settable
+ *   field, its editor kind, and the concrete CSS variable(s) it drives. The
+ *   resolver, the admin editor, the adaptive-block drawer and the server-side
+ *   validator all derive from it, so adding a token is a one-line change.
  */
 
 import type { CSSProperties } from "react";
@@ -40,115 +34,285 @@ import { type BlockSurface, resolveSurface } from "@/lib/surface";
 // ── Curated token surface ──────────────────────────────────────────────────────
 
 /**
- * The subset of design tokens that can be overridden at the block level.
- * Every field is optional — omitted fields inherit the site-wide value.
+ * The design tokens that can be overridden at the block level. Every field is
+ * optional — omitted fields inherit the site-wide value. Grouped conceptually by
+ * BLOCK_TOKEN_GROUPS below.
  */
 export interface CuratedBlockTokens {
-  /**
-   * Semantic background of the block. Choose one of the five surface roles
-   * (maps to the site palette) rather than a raw colour, mirroring BlockSurface.
-   * When set, it wins over `background`.
-   */
-  surface?: BlockSurface;
-  /** Explicit background colour for the block. Sets --bg (+ wrapper background). */
-  background?: string;
-  /** Body text colour inside the block. Sets --text / --foreground. */
-  text?: string;
-  /** Muted / secondary text colour. Sets --text-muted / --muted-foreground. */
-  textMuted?: string;
-  /** Primary / accent colour. Sets --primary, --btn-bg, --text-brand. */
-  primary?: string;
-  /** Text on primary-coloured surfaces (buttons). Sets --primary-text / --btn-text. */
-  primaryText?: string;
-  /** Card / panel background inside the block. Sets --card-bg. */
-  cardBg?: string;
-  /** Card / panel border colour. Sets --card-border. */
-  cardBorder?: string;
-  /** Card / panel corner radius (any CSS length). Sets --card-radius / --radius-card. */
-  cardRadius?: string;
-  /** Heading font-family stack. Sets --font-heading. */
-  headingFont?: string;
-  /** Heading font-weight ("400"…"800"). Sets --font-heading-weight. */
-  headingWeight?: string;
-  /** Section divider colour. Sets --block-divider-color. */
-  dividerColor?: string;
-  /** Section divider width (e.g. "1px", "2px"). Sets --block-divider-width. */
-  dividerWidth?: string;
+  // Surface & background
+  surface?:            BlockSurface;
+  background?:         string;
+  bgSubtle?:           string;
+
+  // Text
+  text?:               string;
+  textMuted?:          string;
+  textSubtle?:         string;
+  textInverse?:        string;
+
+  // Borders
+  border?:             string;
+  borderStrong?:       string;
+
+  // Primary / accent
+  primary?:            string;
+  primaryHover?:       string;
+  primaryActive?:      string;
+  primarySubtle?:      string;
+  primaryText?:        string;
+  textBrand?:          string;
+  ring?:               string;
+
+  // Buttons
+  btnBg?:              string;
+  btnText?:            string;
+  btnHoverBg?:         string;
+  btnActiveBg?:        string;
+  btnRadius?:          string;
+  btnFontWeight?:      string;
+  btnShadow?:          string;
+
+  // Cards
+  cardBg?:             string;
+  cardBorder?:         string;
+  cardRadius?:         string;
+  cardShadow?:         string;
+  cardQuote?:          string;
+
+  // Radius
+  radiusInteractive?:  string;
+  radiusPopover?:      string;
+
+  // Typography
+  headingFont?:        string;
+  headingWeight?:      string;
+  subheadingWeight?:   string;
+  fontSans?:           string;
+  fontSerif?:          string;
+  headingTracking?:    string;
+
+  // Hero
+  heroBg?:             string;
+  heroTitleColor?:     string;
+  heroSubtitleColor?:  string;
+  heroGlowColor?:      string;
+  heroGlowOpacity?:    string;
+
+  // Proof / testimonials
+  proofBg?:            string;
+  proofCardBg?:        string;
+  proofCardBorder?:    string;
+  proofQuoteColor?:    string;
+
+  // Feature grid
+  featureGridBg?:         string;
+  featureGridCardBg?:     string;
+  featureGridCardBorder?: string;
+  featureGridIconBg?:     string;
+
+  // CTA section
+  ctaBg?:              string;
+  ctaBodyText?:        string;
+
+  // Dividers
+  dividerColor?:       string;
+  dividerWidth?:       string;
+
+  // Motion
+  transitionBase?:     string;
 }
 
-/** The curated field keys, exposed for building editor UIs. */
-export const CURATED_TOKEN_KEYS = [
-  "surface",
-  "background",
-  "text",
-  "textMuted",
-  "primary",
-  "primaryText",
-  "cardBg",
-  "cardBorder",
-  "cardRadius",
-  "headingFont",
-  "headingWeight",
-  "dividerColor",
-  "dividerWidth",
-] as const satisfies readonly (keyof CuratedBlockTokens)[];
+// ── Field metadata (single source of truth) ─────────────────────────────────────
+
+export type BlockTokenFieldKind = "color" | "surface" | "text";
+
+export interface BlockTokenFieldDef {
+  key:          keyof CuratedBlockTokens;
+  label:        string;
+  kind:         BlockTokenFieldKind;
+  /** CSS custom properties this field writes. */
+  vars:         readonly string[];
+  placeholder?: string;
+  /** When true (background/surface), also paint the wrapper's backgroundColor. */
+  paintBackground?: boolean;
+}
+
+export interface BlockTokenGroup {
+  title:  string;
+  fields: readonly BlockTokenFieldDef[];
+}
+
+export const BLOCK_TOKEN_GROUPS: readonly BlockTokenGroup[] = [
+  {
+    title: "Surface & background",
+    fields: [
+      { key: "surface",    label: "Surface role", kind: "surface", vars: ["--bg"], paintBackground: true },
+      { key: "background", label: "Background",   kind: "color",   vars: ["--bg"], paintBackground: true },
+      { key: "bgSubtle",   label: "Subtle background", kind: "color", vars: ["--bg-subtle", "--section-subtle-bg"] },
+    ],
+  },
+  {
+    title: "Text",
+    fields: [
+      { key: "text",        label: "Text",        kind: "color", vars: ["--text", "--foreground", "--card-foreground", "--popover-foreground"] },
+      { key: "textMuted",   label: "Muted text",  kind: "color", vars: ["--text-muted", "--muted-foreground"] },
+      { key: "textSubtle",  label: "Subtle text", kind: "color", vars: ["--text-subtle"] },
+      { key: "textInverse", label: "Inverse text", kind: "color", vars: ["--text-inverse"] },
+    ],
+  },
+  {
+    title: "Borders",
+    fields: [
+      { key: "border",       label: "Border",        kind: "color", vars: ["--border"] },
+      { key: "borderStrong", label: "Strong border", kind: "color", vars: ["--border-strong"] },
+    ],
+  },
+  {
+    title: "Primary / accent",
+    fields: [
+      { key: "primary",       label: "Primary",        kind: "color", vars: ["--primary"] },
+      { key: "primaryHover",  label: "Primary hover",  kind: "color", vars: ["--primary-hover"] },
+      { key: "primaryActive", label: "Primary active", kind: "color", vars: ["--primary-active"] },
+      { key: "primarySubtle", label: "Primary subtle", kind: "color", vars: ["--primary-subtle", "--badge-primary-bg", "--btn-secondary-bg"] },
+      { key: "primaryText",   label: "On-primary text", kind: "color", vars: ["--primary-text"] },
+      { key: "textBrand",     label: "Brand text",     kind: "color", vars: ["--text-brand", "--badge-primary-text", "--btn-secondary-text"] },
+      { key: "ring",          label: "Focus ring",     kind: "color", vars: ["--ring"] },
+    ],
+  },
+  {
+    title: "Buttons",
+    fields: [
+      { key: "btnBg",         label: "Button bg",       kind: "color", vars: ["--btn-bg"] },
+      { key: "btnText",       label: "Button text",     kind: "color", vars: ["--btn-text"] },
+      { key: "btnHoverBg",    label: "Button hover bg", kind: "color", vars: ["--btn-hover-bg"] },
+      { key: "btnActiveBg",   label: "Button active bg", kind: "color", vars: ["--btn-active-bg"] },
+      { key: "btnRadius",     label: "Button radius",   kind: "text",  vars: ["--btn-radius"], placeholder: "8px" },
+      { key: "btnFontWeight", label: "Button weight",   kind: "text",  vars: ["--btn-font-weight"], placeholder: "600" },
+      { key: "btnShadow",     label: "Button shadow",   kind: "text",  vars: ["--btn-shadow"], placeholder: "0 1px 2px rgba(0,0,0,.05)" },
+    ],
+  },
+  {
+    title: "Cards",
+    fields: [
+      { key: "cardBg",     label: "Card bg",     kind: "color", vars: ["--card-bg"] },
+      { key: "cardBorder", label: "Card border", kind: "color", vars: ["--card-border"] },
+      { key: "cardRadius", label: "Card radius", kind: "text",  vars: ["--card-radius", "--radius-card"], placeholder: "12px" },
+      { key: "cardShadow", label: "Card shadow", kind: "text",  vars: ["--card-shadow"], placeholder: "0 1px 2px rgba(0,0,0,.05)" },
+      { key: "cardQuote",  label: "Quote accent", kind: "color", vars: ["--card-quote"] },
+    ],
+  },
+  {
+    title: "Radius",
+    fields: [
+      { key: "radiusInteractive", label: "Interactive radius", kind: "text", vars: ["--radius-interactive"], placeholder: "8px" },
+      { key: "radiusPopover",     label: "Popover radius",     kind: "text", vars: ["--radius-popover"], placeholder: "12px" },
+    ],
+  },
+  {
+    title: "Typography",
+    fields: [
+      { key: "headingFont",      label: "Heading font",   kind: "text", vars: ["--font-heading"], placeholder: "'Poppins', sans-serif" },
+      { key: "headingWeight",    label: "Heading weight", kind: "text", vars: ["--font-heading-weight"], placeholder: "700" },
+      { key: "subheadingWeight", label: "Subheading weight", kind: "text", vars: ["--font-subheading-weight"], placeholder: "600" },
+      { key: "headingTracking",  label: "Heading tracking", kind: "text", vars: ["--block-heading-tracking"], placeholder: "-0.01em" },
+      { key: "fontSans",         label: "Body font",      kind: "text", vars: ["--font-sans"], placeholder: "'Inter', system-ui, sans-serif" },
+      { key: "fontSerif",        label: "Serif font",     kind: "text", vars: ["--font-serif"], placeholder: "'Georgia', serif" },
+    ],
+  },
+  {
+    title: "Hero",
+    fields: [
+      { key: "heroBg",            label: "Hero bg",        kind: "color", vars: ["--hero-bg", "--section-hero-bg"] },
+      { key: "heroTitleColor",    label: "Hero title",     kind: "color", vars: ["--hero-title-color"] },
+      { key: "heroSubtitleColor", label: "Hero subtitle",  kind: "color", vars: ["--hero-subtitle-color"] },
+      { key: "heroGlowColor",     label: "Hero glow",      kind: "color", vars: ["--hero-glow-color"] },
+      { key: "heroGlowOpacity",   label: "Hero glow opacity", kind: "text", vars: ["--hero-glow-opacity"], placeholder: "0.2" },
+    ],
+  },
+  {
+    title: "Proof / testimonials",
+    fields: [
+      { key: "proofBg",         label: "Proof bg",         kind: "color", vars: ["--proof-bg"] },
+      { key: "proofCardBg",     label: "Proof card bg",    kind: "color", vars: ["--proof-card-bg"] },
+      { key: "proofCardBorder", label: "Proof card border", kind: "color", vars: ["--proof-card-border"] },
+      { key: "proofQuoteColor", label: "Proof quote",      kind: "color", vars: ["--proof-quote-color"] },
+    ],
+  },
+  {
+    title: "Feature grid",
+    fields: [
+      { key: "featureGridBg",         label: "Feature bg",       kind: "color", vars: ["--feature-grid-bg"] },
+      { key: "featureGridCardBg",     label: "Feature card bg",  kind: "color", vars: ["--feature-grid-card-bg"] },
+      { key: "featureGridCardBorder", label: "Feature card border", kind: "color", vars: ["--feature-grid-card-border"] },
+      { key: "featureGridIconBg",     label: "Feature icon bg",  kind: "color", vars: ["--feature-grid-icon-bg"] },
+    ],
+  },
+  {
+    title: "CTA section",
+    fields: [
+      { key: "ctaBg",       label: "CTA bg",   kind: "color", vars: ["--section-cta-bg"] },
+      { key: "ctaBodyText", label: "CTA text", kind: "color", vars: ["--section-cta-body"] },
+    ],
+  },
+  {
+    title: "Dividers & motion",
+    fields: [
+      { key: "dividerColor",   label: "Divider colour", kind: "color", vars: ["--block-divider-color"] },
+      { key: "dividerWidth",   label: "Divider width",  kind: "text",  vars: ["--block-divider-width"], placeholder: "1px" },
+      { key: "transitionBase", label: "Transition",     kind: "text",  vars: ["--transition-base"], placeholder: "150ms ease" },
+    ],
+  },
+] as const;
+
+/** Flat list of every settable field definition. */
+export const BLOCK_TOKEN_FIELDS: readonly BlockTokenFieldDef[] =
+  BLOCK_TOKEN_GROUPS.flatMap((g) => g.fields);
+
+/** Every curated field key (used by the server-side validator to strip unknowns). */
+export const CURATED_TOKEN_KEYS: readonly (keyof CuratedBlockTokens)[] =
+  BLOCK_TOKEN_FIELDS.map((f) => f.key);
+
+export const VALID_SURFACE_ROLES: readonly BlockSurface[] =
+  ["default", "subtle", "emphasis", "strong", "inverse"];
 
 // ── Named, reusable set ─────────────────────────────────────────────────────────
 
-/**
- * A named, reusable bundle of curated token overrides, stored per tenant in
- * `design.blockTokenSets`. Blocks reference it by `key`.
- */
+/** A named, reusable bundle of curated token overrides (design.blockTokenSets). */
 export interface BlockTokenSet {
-  /** Stable identifier (never shown; survives renames). */
-  id: string;
-  /** Slug used by blocks to reference this set (unique per tenant). */
-  key: string;
-  /** Human-readable name shown in the editor (e.g. "Dark section", "Highlight"). */
-  name: string;
-  /** Optional one-line description of when to use this set. */
+  id:           string;
+  key:          string;
+  name:         string;
   description?: string;
-  /** The token overrides this set applies. */
-  tokens: CuratedBlockTokens;
+  tokens:       CuratedBlockTokens;
 }
 
-/**
- * How a single block points at block-level styling: an optional named set
- * (by key) plus optional inline tweaks that layer on top of it.
- */
+/** How a block points at block-level styling: a named set + optional inline tweaks. */
 export interface BlockTokenRef {
-  /** Key of a named BlockTokenSet to apply (from design.blockTokenSets). */
   tokenSet?: string;
-  /** Inline per-block overrides, applied ON TOP of the named set. */
-  tokens?: CuratedBlockTokens;
+  tokens?:   CuratedBlockTokens;
 }
 
 // ── Resolution ──────────────────────────────────────────────────────────────────
 
 /**
- * Merge a named set (looked up by key) with inline per-block tweaks.
- * Inline tweaks win. Returns the effective curated tokens, or `undefined`
- * when the ref contributes nothing.
+ * Merge a named set (looked up by key) with inline per-block tweaks. Inline
+ * wins. Returns the effective curated tokens, or undefined when empty.
  */
 export function resolveBlockTokens(
   ref: BlockTokenRef | null | undefined,
   sets: readonly BlockTokenSet[] | null | undefined,
 ): CuratedBlockTokens | undefined {
   if (!ref) return undefined;
-
   const named =
-    ref.tokenSet && sets
-      ? sets.find((s) => s.key === ref.tokenSet)?.tokens
-      : undefined;
-
+    ref.tokenSet && sets ? sets.find((s) => s.key === ref.tokenSet)?.tokens : undefined;
   const merged: CuratedBlockTokens = { ...(named ?? {}), ...(ref.tokens ?? {}) };
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 /**
- * Map curated tokens to the concrete CSS custom properties they drive.
- * Returns a React style object whose keys are CSS variables — apply it to a
- * wrapper element and every `var(--…)` inside inherits the override.
+ * Map curated tokens to the concrete CSS custom properties they drive, using
+ * BLOCK_TOKEN_FIELDS metadata. Returns a React style object whose keys are CSS
+ * variables — apply it to a wrapper and every var(--…) inside inherits.
  */
 export function blockTokensToStyle(
   tokens: CuratedBlockTokens | null | undefined,
@@ -156,56 +320,30 @@ export function blockTokensToStyle(
   const style: Record<string, string> = {};
   if (!tokens) return style;
 
-  // Background: surface role wins over an explicit colour.
+  // Background: surface role wins over an explicit colour, and both paint the
+  // wrapper element so the block sits on the chosen surface.
   const surfaceBg = resolveSurface(tokens.surface);
   const bg = surfaceBg ?? tokens.background;
   if (bg) {
     style["--bg"] = bg;
-    // Paint the wrapper itself so the block sits on the chosen surface even
-    // if its root element doesn't reference var(--bg) directly.
     style["backgroundColor"] = bg;
   }
 
-  if (tokens.text) {
-    style["--text"] = tokens.text;
-    style["--foreground"] = tokens.text;
-    style["--card-foreground"] = tokens.text;
+  for (const field of BLOCK_TOKEN_FIELDS) {
+    if (field.key === "surface" || field.key === "background") continue; // handled above
+    const value = tokens[field.key];
+    if (typeof value !== "string" || !value.trim()) continue;
+    for (const cssVar of field.vars) style[cssVar] = value;
   }
-  if (tokens.textMuted) {
-    style["--text-muted"] = tokens.textMuted;
-    style["--muted-foreground"] = tokens.textMuted;
-  }
-  if (tokens.primary) {
-    style["--primary"] = tokens.primary;
-    style["--btn-bg"] = tokens.primary;
-    style["--text-brand"] = tokens.primary;
-  }
-  if (tokens.primaryText) {
-    style["--primary-text"] = tokens.primaryText;
-    style["--btn-text"] = tokens.primaryText;
-  }
-  if (tokens.cardBg) style["--card-bg"] = tokens.cardBg;
-  if (tokens.cardBorder) style["--card-border"] = tokens.cardBorder;
-  if (tokens.cardRadius) {
-    style["--card-radius"] = tokens.cardRadius;
-    style["--radius-card"] = tokens.cardRadius;
-  }
-  if (tokens.headingFont) style["--font-heading"] = tokens.headingFont;
-  if (tokens.headingWeight) style["--font-heading-weight"] = tokens.headingWeight;
-  if (tokens.dividerColor) style["--block-divider-color"] = tokens.dividerColor;
-  if (tokens.dividerWidth) style["--block-divider-width"] = tokens.dividerWidth;
 
   return style as CSSProperties;
 }
 
-/**
- * One-shot: resolve a block's ref against the tenant's named sets and return
- * the CSS-var style object, or `undefined` when there is nothing to apply.
- */
+/** One-shot: resolve a block's ref against named sets and return the style, or undefined. */
 export function resolveBlockTokenStyle(
   ref: BlockTokenRef | null | undefined,
   sets: readonly BlockTokenSet[] | null | undefined,
-): React.CSSProperties | undefined {
+): CSSProperties | undefined {
   const tokens = resolveBlockTokens(ref, sets);
   if (!tokens) return undefined;
   const style = blockTokensToStyle(tokens);

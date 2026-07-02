@@ -20,37 +20,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
+import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { EXAMPLE_BLOCK_TOKEN_SETS } from "@/design-system/theme/block-token-set-examples";
 import { saveBlockTokenSetsAction } from "@/app/admin/tenants/[tenantId]/actions";
 
-// ── Field definitions for the curated editor ────────────────────────────────────
-
-type FieldKind = "color" | "surface" | "text";
-
-interface FieldDef {
-  key:   keyof CuratedBlockTokens;
-  label: string;
-  kind:  FieldKind;
-  hint?: string;
-}
-
-const FIELDS: readonly FieldDef[] = [
-  { key: "surface",       label: "Surface role",   kind: "surface", hint: "Semantic background from the site palette. Wins over Background colour." },
-  { key: "background",    label: "Background",     kind: "color",   hint: "Explicit background colour (used when no surface role is set)." },
-  { key: "text",          label: "Text",          kind: "color" },
-  { key: "textMuted",     label: "Muted text",    kind: "color" },
-  { key: "primary",       label: "Primary/accent", kind: "color" },
-  { key: "primaryText",   label: "On-primary text", kind: "color" },
-  { key: "cardBg",        label: "Card background", kind: "color" },
-  { key: "cardBorder",    label: "Card border",   kind: "color" },
-  { key: "cardRadius",    label: "Card radius",   kind: "text", hint: "Any CSS length, e.g. 12px, 1rem." },
-  { key: "headingFont",   label: "Heading font",  kind: "text", hint: "Font-family stack, e.g. 'Poppins', sans-serif." },
-  { key: "headingWeight", label: "Heading weight", kind: "text", hint: "400–800." },
-  { key: "dividerColor",  label: "Divider colour", kind: "color" },
-  { key: "dividerWidth",  label: "Divider width", kind: "text", hint: "e.g. 1px, 2px." },
-] as const;
-
-const SURFACE_OPTIONS = ["", "default", "subtle", "emphasis", "strong", "inverse"] as const;
+const SURFACE_OPTIONS = ["", ...VALID_SURFACE_ROLES] as const;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 
@@ -240,52 +214,53 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
               <button type="button" onClick={() => removeSet(idx)} style={btnStyle("danger")}>Remove</button>
             </div>
 
-            {/* Token fields grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem", padding: "1rem" }}>
-              {FIELDS.map((f) => {
-                const raw = (set.tokens as Record<string, string>)[f.key] ?? "";
-                return (
-                  <label key={f.key} style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                    <span style={{ ...labelText, display: "flex", alignItems: "center", gap: "6px" }}>
-                      {f.label}
-                    </span>
+            {/* Token fields — grouped */}
+            <div style={{ padding: "0.5rem 1rem 1rem" }}>
+              {BLOCK_TOKEN_GROUPS.map((group) => (
+                <div key={group.title} style={{ marginTop: "0.75rem" }}>
+                  <p style={{ ...labelText, margin: "0.5rem 0 0.375rem", color: "#9ca3af" }}>{group.title}</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: "0.625rem" }}>
+                    {group.fields.map((f) => {
+                      const raw = (set.tokens as Record<string, string>)[f.key] ?? "";
+                      return (
+                        <label key={f.key} style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                          <span style={{ fontSize: "0.6875rem", color: "#6b7280" }}>{f.label}</span>
 
-                    {f.kind === "surface" ? (
-                      <select value={raw} onChange={(e) => updateToken(idx, f.key, e.target.value)} style={inputStyle}>
-                        {SURFACE_OPTIONS.map((o) => (
-                          <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
-                        ))}
-                      </select>
-                    ) : f.kind === "color" ? (
-                      <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
-                        <input
-                          type="color"
-                          value={isColorish(raw) ? raw : "#ffffff"}
-                          onChange={(e) => updateToken(idx, f.key, e.target.value)}
-                          style={{ width: "34px", height: "30px", padding: 0, border: "1px solid #d1d5db", borderRadius: "4px", cursor: "pointer", flexShrink: 0 }}
-                        />
-                        <input
-                          value={raw}
-                          onChange={(e) => updateToken(idx, f.key, e.target.value)}
-                          placeholder="#111827 / rgba(...)"
-                          style={{ ...inputStyle, fontFamily: "ui-monospace, monospace" }}
-                        />
-                      </div>
-                    ) : (
-                      <input
-                        value={raw}
-                        onChange={(e) => updateToken(idx, f.key, e.target.value)}
-                        placeholder={f.hint ?? ""}
-                        style={inputStyle}
-                      />
-                    )}
-
-                    {f.hint && (
-                      <span style={{ fontSize: "0.625rem", color: "#9ca3af" }}>{f.hint}</span>
-                    )}
-                  </label>
-                );
-              })}
+                          {f.kind === "surface" ? (
+                            <select value={raw} onChange={(e) => updateToken(idx, f.key, e.target.value)} style={inputStyle}>
+                              {SURFACE_OPTIONS.map((o) => (
+                                <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
+                              ))}
+                            </select>
+                          ) : f.kind === "color" ? (
+                            <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+                              <input
+                                type="color"
+                                value={isColorish(raw) ? raw : "#ffffff"}
+                                onChange={(e) => updateToken(idx, f.key, e.target.value)}
+                                style={{ width: "34px", height: "30px", padding: 0, border: "1px solid #d1d5db", borderRadius: "4px", cursor: "pointer", flexShrink: 0 }}
+                              />
+                              <input
+                                value={raw}
+                                onChange={(e) => updateToken(idx, f.key, e.target.value)}
+                                placeholder="#111827 / rgba(…)"
+                                style={{ ...inputStyle, fontFamily: "ui-monospace, monospace" }}
+                              />
+                            </div>
+                          ) : (
+                            <input
+                              value={raw}
+                              onChange={(e) => updateToken(idx, f.key, e.target.value)}
+                              placeholder={f.placeholder ?? ""}
+                              style={inputStyle}
+                            />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
