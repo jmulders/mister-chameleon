@@ -18,8 +18,14 @@ export interface CookieDef {
   provider: string;
   category: CookieCategory;
   purpose:  string;
-  /** Human-readable retention, e.g. "1 year", "Session", "24 hours". */
+  /** Human-readable retention / lifetime, e.g. "1 year", "Session", "24 hours". */
   expiry:   string;
+  /** Storage mechanism, e.g. "HTTP Cookie" or "HTML localStorage". */
+  type:     string;
+  /** Where it is set — "First-party" or a third-party host (e.g. "leadinfo.net"). */
+  domain:   string;
+  /** True when the cookie is HttpOnly (not readable by JavaScript). */
+  httpOnly?: boolean;
 }
 
 /** Category metadata for the declaration UI (label, description, consent key). */
@@ -51,29 +57,38 @@ export const COOKIE_CATEGORY_ORDER: CookieCategory[] = ["essential", "analytics"
 export const COOKIE_REGISTRY: CookieDef[] = [
   // ── Strictly necessary ──────────────────────────────────────────────────────
   { name: "mc_session_id", provider: "This site", category: "essential",
-    purpose: "First-party pseudonymous visitor id for session continuity (also the analytics visitor key).", expiry: "1 year" },
+    purpose: "First-party pseudonymous visitor id for session continuity (also the analytics visitor key).",
+    expiry: "1 year", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
   { name: "mc_consent", provider: "This site", category: "essential",
-    purpose: "Stores your cookie-consent choices so we can honour them.", expiry: "1 year" },
+    purpose: "Stores your cookie-consent choices so we can honour them.",
+    expiry: "1 year", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
   { name: "mc_locale", provider: "This site", category: "essential",
-    purpose: "Remembers your selected language.", expiry: "1 year" },
+    purpose: "Remembers your selected language.",
+    expiry: "1 year", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
 
   // ── Personalization ─────────────────────────────────────────────────────────
   { name: "mc_lead", provider: "This site", category: "personalization",
-    purpose: "Identifies you to a personalized campaign link (ABM) so the page adapts to your account.", expiry: "30 days" },
+    purpose: "Identifies you to a personalized campaign link (ABM) so the page adapts to your account.",
+    expiry: "30 days", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
 
   // ── Analytics (Google Analytics 4 via GTM, when enabled) ────────────────────
   { name: "_ga", provider: "Google Analytics", category: "analytics",
-    purpose: "Distinguishes unique visitors.", expiry: "2 years" },
+    purpose: "Distinguishes unique visitors.",
+    expiry: "2 years", type: "HTTP Cookie", domain: "First-party (Google Analytics)", httpOnly: false },
   { name: "_ga_<container>", provider: "Google Analytics", category: "analytics",
-    purpose: "Persists GA4 session state.", expiry: "2 years" },
+    purpose: "Persists GA4 session state.",
+    expiry: "2 years", type: "HTTP Cookie", domain: "First-party (Google Analytics)", httpOnly: false },
   { name: "_gid", provider: "Google Analytics", category: "analytics",
-    purpose: "Distinguishes visitors over a short window.", expiry: "24 hours" },
+    purpose: "Distinguishes visitors over a short window.",
+    expiry: "24 hours", type: "HTTP Cookie", domain: "First-party (Google Analytics)", httpOnly: false },
 
   // ── Enrichment (Leadinfo, when enabled) ─────────────────────────────────────
   { name: "mc_li", provider: "This site", category: "enrichment",
-    purpose: "Stores the company-identification result from Leadinfo for this visit.", expiry: "30 days" },
+    purpose: "Stores the company-identification result from Leadinfo for this visit.",
+    expiry: "30 days", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
   { name: "_li_id / leadinfo", provider: "Leadinfo", category: "enrichment",
-    purpose: "Leadinfo company-identification tracking.", expiry: "Varies (Leadinfo)" },
+    purpose: "Leadinfo company-identification tracking.",
+    expiry: "Varies (Leadinfo)", type: "HTTP Cookie", domain: "leadinfo.net (third-party)", httpOnly: false },
 ];
 
 /** Cookies for one category (for the declaration table). */

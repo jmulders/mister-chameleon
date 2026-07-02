@@ -94,7 +94,9 @@ export function CookieDeclaration() {
                       <th className="px-2 py-1 text-left">Cookie</th>
                       <th className="px-2 py-1 text-left">Provider</th>
                       <th className="px-2 py-1 text-left">Purpose</th>
-                      <th className="px-2 py-1 text-left">Retention</th>
+                      <th className="px-2 py-1 text-left whitespace-nowrap">Lifetime</th>
+                      <th className="px-2 py-1 text-left whitespace-nowrap">Type</th>
+                      <th className="px-2 py-1 text-left whitespace-nowrap">Domain</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
@@ -103,7 +105,11 @@ export function CookieDeclaration() {
                         <td className="px-2 py-1 font-mono text-neutral-800">{c.name}</td>
                         <td className="px-2 py-1 text-neutral-600">{c.provider}</td>
                         <td className="px-2 py-1 text-neutral-600">{c.purpose}</td>
-                        <td className="px-2 py-1 text-neutral-500">{c.expiry}</td>
+                        <td className="px-2 py-1 text-neutral-500 whitespace-nowrap">{c.expiry}</td>
+                        <td className="px-2 py-1 text-neutral-500 whitespace-nowrap">
+                          {c.type}{c.httpOnly ? " · HttpOnly" : ""}
+                        </td>
+                        <td className="px-2 py-1 text-neutral-500 whitespace-nowrap">{c.domain}</td>
                       </tr>
                     ))}
                   </tbody>
