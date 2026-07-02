@@ -33,6 +33,7 @@ import { useState, useTransition } from "react";
 import { ThemeGallery }         from "./ThemeGallery";
 import { PresetBuilder }        from "./PresetBuilder";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
+import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
 import { saveVisualTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { TenantDesignSettings, ThemeKey } from "@/tenant/types";
@@ -48,7 +49,7 @@ import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.con
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DesignTab = "presets" | "builder" | "layout" | "typography" | "advanced";
+type DesignTab = "presets" | "builder" | "layout" | "typography" | "blocks" | "advanced";
 
 interface TabDef {
   id:          DesignTab;
@@ -76,6 +77,11 @@ const TABS: readonly TabDef[] = [
     id:          "typography",
     label:       "Typography",
     description: "Fonts, sizes, and line height",
+  },
+  {
+    id:          "blocks",
+    label:       "Blocks",
+    description: "Reusable per-block token sets for content and adaptive blocks",
   },
   {
     id:          "advanced",
@@ -605,6 +611,15 @@ export function DesignPageClient({
             </p>
           </div>
         )}
+      </TabPanel>
+
+      {/* ── Blocks (per-block token sets) ───────────────────────────────────── */}
+      <TabPanel id="blocks" active={activeTab}>
+        <TabSectionHeader
+          title="Block token sets"
+          description="Define reusable, named token sets (dark section, highlight, soft cards…) and reference them per content block or adaptive slot by their key. Individual blocks can also layer inline tweaks on top. Overrides are scoped to that block only — the site-wide theme is untouched."
+        />
+        <BlockTokenSetsEditor tenantId={tenantId} initialSets={design.blockTokenSets} />
       </TabPanel>
 
       {/* ── Advanced ────────────────────────────────────────────────────────── */}

@@ -37,8 +37,25 @@ import type {
   VisitorSource,
   VariantTone,
 } from "@/ai/variant-meta";
+import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 
 // ── AI / Decision option lists ──────────────────────────────────────────────────
+
+// Curated per-block token fields shown in the drawer's Design tokens section.
+const TOKEN_FIELDS: readonly { key: keyof CuratedBlockTokens; label: string; kind: "color" | "surface" | "text"; placeholder?: string }[] = [
+  { key: "surface",       label: "Surface role",    kind: "surface" },
+  { key: "background",    label: "Background",      kind: "color" },
+  { key: "text",          label: "Text",            kind: "color" },
+  { key: "textMuted",     label: "Muted text",      kind: "color" },
+  { key: "primary",       label: "Primary/accent",  kind: "color" },
+  { key: "primaryText",   label: "On-primary text", kind: "color" },
+  { key: "cardBg",        label: "Card background",  kind: "color" },
+  { key: "cardBorder",    label: "Card border",      kind: "color" },
+  { key: "cardRadius",    label: "Card radius",      kind: "text", placeholder: "12px" },
+  { key: "headingFont",   label: "Heading font",     kind: "text", placeholder: "'Poppins', sans-serif" },
+  { key: "headingWeight", label: "Heading weight",   kind: "text", placeholder: "700" },
+  { key: "dividerColor",  label: "Divider colour",   kind: "color" },
+];
 
 const INTENT_LEVELS:  IntentLevel[]   = ["awareness", "consideration", "decision"];
 const FUNNEL_STAGES:  FunnelStage[]   = ["awareness", "consideration", "decision", "retention"];
@@ -704,6 +721,8 @@ interface EditBlockDrawerProps {
   revalidatePath?: string;
   onClose:        () => void;
   onSaved:        () => void;
+  /** Tenant's named block-token sets (design.blockTokenSets) for the picker. */
+  blockTokenSets?: readonly BlockTokenSet[];
 }
 
 export function EditBlockDrawer({
@@ -712,6 +731,7 @@ export function EditBlockDrawer({
   revalidatePath,
   onClose,
   onSaved,
+  blockTokenSets = [],
 }: EditBlockDrawerProps) {
   const slotId        = slotFromKey(block.key);
   const layoutOptions = LAYOUT_OPTIONS[slotId] ?? [];
@@ -809,6 +829,22 @@ export function EditBlockDrawer({
   );
   function setDM(patch: Partial<VariantDecisionMeta>) {
     setDecisionMeta((m) => ({ ...m, ...patch }));
+  }
+
+  // ── Block-level design tokens ──────────────────────────────────────────────
+  // A named token set (from design.blockTokenSets) applied when this block
+  // renders, plus optional inline tweaks that layer on top.
+  const [tokenSet, setTokenSet] = useState(block.defaultVariant.tokenSet ?? "");
+  const [tokens, setTokens]     = useState<CuratedBlockTokens>(
+    block.defaultVariant.tokens ?? {},
+  );
+  function setToken(field: keyof CuratedBlockTokens, value: string) {
+    setTokens((prev) => {
+      const next = { ...prev };
+      if (value.trim()) (next as Record<string, string>)[field] = value;
+      else delete (next as Record<string, string>)[field];
+      return next;
+    });
   }
   function toggleArrayValue<T>(arr: readonly T[] | undefined, val: T): T[] {
     const set = new Set(arr ?? []);
@@ -920,6 +956,8 @@ export function EditBlockDrawer({
         ...(layoutVariant === "hero_carousel" && slides.length ? { slides } : {}),
         ...(layoutVariant === "hero_carousel" ? { carouselAutoplay } : {}),
         ...(Object.keys(decisionMeta).length ? { decisionMeta } : {}),
+        ...(tokenSet ? { tokenSet } : {}),
+        ...(Object.keys(tokens).length ? { tokens } : {}),
       };
 
       const savePath =
@@ -1465,6 +1503,78 @@ export function EditBlockDrawer({
                 placeholder="Returning customers, Logged-in users"
                 className={INPUT_CLS}
               />
+            </div>
+          </fieldset>
+
+          {/* ── Block-level design tokens ─────────────────────────────────── */}
+          <fieldset className="space-y-3">
+            <legend className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              Design tokens (this block only)
+            </legend>
+            <p className="text-xs text-neutral-500 -mt-1">
+              Optionally restyle just this block. Pick a reusable token set (defined in
+              Design → Blocks) and/or set individual overrides below. Leave empty to use
+              the site theme.
+            </p>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">Token set</label>
+              <select
+                value={tokenSet}
+                onChange={(e) => setTokenSet(e.target.value)}
+                className={INPUT_CLS}
+              >
+                <option value="">— none (site theme) —</option>
+                {blockTokenSets.map((s) => (
+                  <option key={s.id} value={s.key}>{s.name} ({s.key})</option>
+                ))}
+              </select>
+              {blockTokenSets.length === 0 && (
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  No named sets yet — create them in Design → Blocks, or use the inline
+                  overrides below.
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {TOKEN_FIELDS.map((f) => {
+                const raw = (tokens as Record<string, string>)[f.key] ?? "";
+                return (
+                  <label key={f.key} className="block">
+                    <span className="block text-[11px] font-medium text-neutral-600 mb-0.5">{f.label}</span>
+                    {f.kind === "surface" ? (
+                      <select value={raw} onChange={(e) => setToken(f.key, e.target.value)} className={INPUT_CLS}>
+                        {["", "default", "subtle", "emphasis", "strong", "inverse"].map((o) => (
+                          <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
+                        ))}
+                      </select>
+                    ) : f.kind === "color" ? (
+                      <span className="flex items-center gap-1.5">
+                        <input
+                          type="color"
+                          value={/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : "#ffffff"}
+                          onChange={(e) => setToken(f.key, e.target.value)}
+                          className="h-8 w-8 shrink-0 rounded border border-neutral-300 cursor-pointer p-0"
+                        />
+                        <input
+                          value={raw}
+                          onChange={(e) => setToken(f.key, e.target.value)}
+                          placeholder="#111827"
+                          className={INPUT_CLS + " font-mono"}
+                        />
+                      </span>
+                    ) : (
+                      <input
+                        value={raw}
+                        onChange={(e) => setToken(f.key, e.target.value)}
+                        placeholder={f.placeholder ?? ""}
+                        className={INPUT_CLS}
+                      />
+                    )}
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
 

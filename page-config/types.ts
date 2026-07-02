@@ -50,6 +50,7 @@
  */
 
 import type { BlockSurface }                               from "@/lib/surface";
+import type { CuratedBlockTokens, BlockTokenRef }          from "@/design-system/theme/block-token-set";
 import type { ContextBlockKey, ContentBlockKey }          from "@/tenant";
 import type { PortableTextBlock, HeroBlockData,
               ProofBlockData, CTABlockData,
@@ -1639,6 +1640,15 @@ interface ContentBlockBase {
    * enabling direct linking via `/page#anchor-id` in CTAs.
    */
   readonly anchorId?: string;
+  /**
+   * Optional block-level design tokens. References a named token set from
+   * `design.blockTokenSets` (by key) and/or inline per-block overrides. When
+   * present, the renderer wraps this block in a scope that emits the resolved
+   * CSS custom properties, so everything inside restyles without changing the
+   * site-wide theme. See design-system/theme/block-token-set.ts.
+   */
+  readonly tokenSet?: string;
+  readonly tokens?:   CuratedBlockTokens;
 }
 
 // ── Existing live blocks ──────────────────────────────────────────────────────
@@ -1977,6 +1987,14 @@ export interface ResolvedContextSlot {
    *   header: header_default | header_centered | header_cta
    */
   readonly layoutVariant?: string;
+  /**
+   * Optional block-level design tokens for this adaptive/context slot.
+   * References a named token set from `design.blockTokenSets` (by key) and/or
+   * inline overrides. The renderer wraps the slot in a scope emitting the
+   * resolved CSS custom properties. See design-system/theme/block-token-set.ts.
+   */
+  readonly tokenSet?: string;
+  readonly tokens?:   CuratedBlockTokens;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -2311,13 +2329,13 @@ export interface CheckoutBlockData {
  */
 export interface ContextSlotData {
   /** Hero slot content + decision-engine variant key for analytics attribution */
-  readonly hero?:         HeroBlockData  & { readonly ctaKey?: string };
+  readonly hero?:         HeroBlockData  & { readonly ctaKey?: string; readonly tokenRef?: BlockTokenRef };
   /** Proof slot content */
-  readonly proof?:        ProofBlockData;
+  readonly proof?:        ProofBlockData & { readonly tokenRef?: BlockTokenRef };
   /** CTA slot content + decision-engine variant key for analytics attribution */
-  readonly cta?:          CTABlockData   & { readonly ctaKey?: string };
+  readonly cta?:          CTABlockData   & { readonly ctaKey?: string; readonly tokenRef?: BlockTokenRef };
   /** Feature grid slot content */
-  readonly feature?:      FeatureBlockData;
+  readonly feature?:      FeatureBlockData & { readonly tokenRef?: BlockTokenRef };
   /**
    * Conversion section content (headline + CTAs, optional booking embed).
    * When present, a ConversionBlock is rendered at the after-content position.

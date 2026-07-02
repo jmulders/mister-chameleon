@@ -31,6 +31,7 @@
  */
 
 import type { TenantTheme } from "@/design-system/theme/tenant-theme";
+import type { BlockTokenSet } from "@/design-system/theme/block-token-set";
 
 // Re-export so consumers can import TenantTheme from "@/tenant" directly.
 export type { TenantTheme };
@@ -2014,6 +2015,19 @@ export interface TenantDesignSettings {
    * @font-face CSS is generated from these at request time (Layer D).
    */
   readonly customFonts?:    TenantCustomFonts;
+  /**
+   * Named, reusable block-level token sets.
+   *
+   * Each set bundles a handful of curated design tokens (background/surface,
+   * text, primary/accent, card, heading, dividers) under a stable `key`.
+   * Individual content blocks and adaptive/context slots reference a set by
+   * that key (optionally layering inline tweaks on top), and the renderer emits
+   * the resolved CSS custom properties scoped to just that block — restyling it
+   * without touching the site-wide theme.
+   *
+   * See design-system/theme/block-token-set.ts for the model and resolver.
+   */
+  readonly blockTokenSets?: readonly BlockTokenSet[];
   /**
    * The Featured Theme Family that was explicitly selected in Design → Style.
    *

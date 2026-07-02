@@ -13,6 +13,7 @@
 import Link                         from "next/link";
 import { ADAPTIVE_SLOT_REGISTRY }   from "@/decision/types";
 import { listAdaptiveBlocksAction }  from "@/lib/adaptive-blocks/adaptive-blocks-actions";
+import { getTenantById }             from "@/tenant/server";
 import { TenantBlocksClient }        from "./_components/TenantBlocksClient";
 
 interface Props {
@@ -25,6 +26,10 @@ export default async function TenantBlocksPage({ params }: Props) {
   // Load both tenant-specific blocks AND platform blocks in one call
   const result = await listAdaptiveBlocksAction(tenantId, /* includePlatform */ true);
   const allBlocks = result.ok ? result.blocks : [];
+
+  // Named block-token sets — passed to the editor drawer's token-set picker.
+  const tenant = await getTenantById(tenantId);
+  const blockTokenSets = tenant?.design?.blockTokenSets ?? [];
 
   const totalCustomized = allBlocks.filter((b) => b.tenantId === tenantId).length;
 
@@ -82,6 +87,7 @@ export default async function TenantBlocksPage({ params }: Props) {
           knownKeys:   s.knownKeys,
         }))}
         allBlocks={allBlocks}
+        blockTokenSets={blockTokenSets}
       />
 
     </div>

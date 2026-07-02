@@ -102,8 +102,21 @@ export function mapSectionsToContentBlocks(sections: PageSectionData[]): Content
       // Cast to PageSectionBase: isRegisteredBlockType() above already filtered
       // out ContextSlotSectionData, which is the only union member that does not
       // extend PageSectionBase.
-      const anchorId = (section as import("../types").PageSectionBase).anchorId;
-      blocks.push(anchorId ? { ...block, anchorId } : block);
+      // Forward optional anchor ID + block-level design tokens (named set +
+      // inline tweaks) from the CMS section so ContentBlockRenderer can render
+      // the anchor and scope the block's tokens.
+      const base = section as import("../types").PageSectionBase;
+      const hasTokens = Boolean(base.tokens && Object.keys(base.tokens).length > 0);
+      if (base.anchorId || base.tokenSet || hasTokens) {
+        blocks.push({
+          ...block,
+          ...(base.anchorId ? { anchorId: base.anchorId } : {}),
+          ...(base.tokenSet ? { tokenSet: base.tokenSet } : {}),
+          ...(hasTokens ? { tokens: base.tokens } : {}),
+        } as ContentBlock);
+      } else {
+        blocks.push(block);
+      }
     }
   }
   return blocks;

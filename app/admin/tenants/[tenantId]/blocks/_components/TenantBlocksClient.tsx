@@ -17,6 +17,7 @@
 import { useState, useCallback, useTransition } from "react";
 import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
+import type { BlockTokenSet }                     from "@/design-system/theme/block-token-set";
 import { activateBlockForTenantAction }          from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import type { AdaptiveBlockData }                from "@/cms/types";
 
@@ -241,9 +242,10 @@ interface TenantBlocksClientProps {
   tenantId:   string;
   slots:      readonly SlotSpec[];
   allBlocks:  AdaptiveBlockData[];
+  blockTokenSets?: readonly BlockTokenSet[];
 }
 
-export function TenantBlocksClient({ tenantId, slots, allBlocks }: TenantBlocksClientProps) {
+export function TenantBlocksClient({ tenantId, slots, allBlocks, blockTokenSets = [] }: TenantBlocksClientProps) {
   const router          = useRouter();
   const revalidatePath  = `/admin/tenants/${tenantId}/blocks`;
   const [editing, setEditing] = useState<AdaptiveBlockData | null>(null);
@@ -278,6 +280,7 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks }: TenantBlocksC
           block={{ ...editing, tenantId }}
           tenantId={tenantId}
           revalidatePath={revalidatePath}
+          blockTokenSets={blockTokenSets}
           onClose={() => setEditing(null)}
           onSaved={handleSaved}
         />

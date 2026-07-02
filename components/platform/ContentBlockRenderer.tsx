@@ -38,6 +38,8 @@
  */
 
 import type { ContentBlock } from "@/page-config";
+import type { BlockTokenSet } from "@/design-system/theme/block-token-set";
+import { BlockThemeScope } from "./BlockThemeScope";
 import {
   TextSectionBlock,
   RichTextBlock,
@@ -82,6 +84,8 @@ import { FloatingContactBlock } from "@/components/blocks/FloatingContactBlock";
 
 interface ContentBlockRendererProps {
   block: ContentBlock;
+  /** Tenant's named block-token sets, used to resolve block-level token refs. */
+  blockTokenSets?: readonly BlockTokenSet[] | null;
 }
 
 /**
@@ -97,17 +101,28 @@ interface ContentBlockRendererProps {
  *
  * Unknown block types return null — forward-compatible with registry growth.
  */
-export function ContentBlockRenderer({ block }: ContentBlockRendererProps) {
+export function ContentBlockRenderer({ block, blockTokenSets }: ContentBlockRendererProps) {
   const rendered = renderContentBlock(block);
   if (!rendered) return null;
-  if (!block.anchorId) return rendered;
-  return (
-    <div
-      id={block.anchorId}
-      style={{ scrollMarginTop: "var(--header-height, 4rem)" }}
-    >
+
+  // Anchor wrapper (in-page linking) is applied first, then the block-token
+  // scope wraps the whole thing so scoped CSS vars cover anchor + content.
+  const withAnchor = block.anchorId ? (
+    <div id={block.anchorId} style={{ scrollMarginTop: "var(--header-height, 4rem)" }}>
       {rendered}
     </div>
+  ) : (
+    rendered
+  );
+
+  return (
+    <BlockThemeScope
+      tokenRef={{ tokenSet: block.tokenSet, tokens: block.tokens }}
+      sets={blockTokenSets}
+      scopeId={block.id}
+    >
+      {withAnchor}
+    </BlockThemeScope>
   );
 }
 

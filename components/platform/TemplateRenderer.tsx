@@ -64,6 +64,8 @@ import { NotificationBlock }  from "@/components/blocks/NotificationBlock";
 import { FeatureGridBlock }   from "@/components/blocks/sections/FeatureGridBlock";
 import { mapHeroBlockData } from "@/cms/mappers/content-mappers";
 import { ContentBlockRenderer } from "./ContentBlockRenderer";
+import { BlockThemeScope } from "./BlockThemeScope";
+import type { BlockTokenSet, BlockTokenRef, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import {
@@ -71,6 +73,26 @@ import {
   adaptiveVariantToHeroBlockData,
 } from "@/lib/tokens/resolve-adaptive-variant";
 import { parseTokens, type TokenContext } from "@/lib/tokens/parse-tokens";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLOCK-TOKEN HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build a BlockTokenRef from a resolved adaptive-variant's token fields.
+ * Returns undefined when the variant carries no block-level tokens.
+ */
+function tokenRefFromVariant(
+  content: { tokenSet?: string; tokens?: CuratedBlockTokens } | null | undefined,
+): BlockTokenRef | undefined {
+  if (!content) return undefined;
+  const hasTokens = content.tokens && Object.keys(content.tokens).length > 0;
+  if (!content.tokenSet && !hasTokens) return undefined;
+  return {
+    ...(content.tokenSet ? { tokenSet: content.tokenSet } : {}),
+    ...(hasTokens ? { tokens: content.tokens } : {}),
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTEXT SLOT RENDERER
@@ -81,6 +103,8 @@ interface ContextSlotRendererProps {
   contextData:    ContextSlotData;
   layoutVariant?: string;
   tokenContext?:  TokenContext;
+  /** Tenant's named block-token sets — used to resolve a slot's content tokenRef. */
+  blockTokenSets?: readonly BlockTokenSet[] | null;
 }
 
 /**
@@ -110,7 +134,27 @@ interface ContextSlotRendererProps {
  *   Fix: only pass the slot's layoutVariant when it is explicitly non-undefined.
  *   When absent, the CMS document value already present in the spread takes effect.
  */
-function ContextSlotRenderer({ slotId, contextData, layoutVariant, tokenContext }: ContextSlotRendererProps) {
+function ContextSlotRenderer(props: ContextSlotRendererProps) {
+  const inner = renderContextSlotInner(props);
+  if (!inner) return null;
+  // A resolved adaptive variant can carry its own block-level token ref
+  // (content.tokenRef). Wrap the slot output in a scope so its tokens restyle
+  // just this block. When absent, BlockThemeScope passes children through.
+  const { slotId, contextData } = props;
+  const entry =
+    slotId === "hero"    ? contextData.hero
+    : slotId === "proof" ? contextData.proof
+    : slotId === "cta"   ? contextData.cta
+    : slotId === "feature" ? contextData.feature
+    : undefined;
+  return (
+    <BlockThemeScope tokenRef={entry?.tokenRef} sets={props.blockTokenSets} scopeId={slotId}>
+      {inner}
+    </BlockThemeScope>
+  );
+}
+
+function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenContext }: ContextSlotRendererProps) {
   // Only override layoutVariant when the slot explicitly specifies one.
   // Passing `undefined` after a spread in JSX writes undefined into the prop
   // object and silently discards whatever the spread provided.
@@ -278,6 +322,18 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
   const effectiveContextData: ContextSlotData = contextData
     ?? await fetchContextDataFromSlots(pageConfig.contextSlots, cmsProvider);
 
+  // ── Resolve the tenant's named block-token sets once ───────────────────────
+  // Used to resolve any block/slot that references a named set by key.
+  // Resolution failures are non-fatal — blocks simply fall back to site tokens.
+  let blockTokenSets: readonly BlockTokenSet[] | undefined;
+  try {
+    const { tenantId } = await getActiveTenant();
+    const tenant = tenantId ? await getTenantById(tenantId) : null;
+    blockTokenSets = tenant?.design?.blockTokenSets;
+  } catch {
+    blockTokenSets = undefined;
+  }
+
   return (
     <>
       {/* ── Notification overlay (rendered once, outside page flow) ──────── */}
@@ -303,17 +359,30 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
           // Key includes the authored index so a page with two slots of the
           // same type (e.g. two "hero" slots) never collides on slotId alone.
           return (
-            <ContextSlotRenderer
+            <BlockThemeScope
               key={`slot-${index}-${slot.slotId}`}
-              slotId={slot.slotId}
-              contextData={effectiveContextData}
-              layoutVariant={slot.layoutVariant}
-              tokenContext={tokenContext}
-            />
+              tokenRef={{ tokenSet: slot.tokenSet, tokens: slot.tokens }}
+              sets={blockTokenSets}
+              scopeId={`${slot.slotId}-${index}`}
+            >
+              <ContextSlotRenderer
+                slotId={slot.slotId}
+                contextData={effectiveContextData}
+                layoutVariant={slot.layoutVariant}
+                tokenContext={tokenContext}
+                blockTokenSets={blockTokenSets}
+              />
+            </BlockThemeScope>
           );
         }
         // item.kind === "block"
-        return <ContentBlockRenderer key={`block-${index}-${item.block.id}`} block={item.block} />;
+        return (
+          <ContentBlockRenderer
+            key={`block-${index}-${item.block.id}`}
+            block={item.block}
+            blockTokenSets={blockTokenSets}
+          />
+        );
       })}
     </>
   );
@@ -381,7 +450,10 @@ async function fetchContextDataFromSlots(
           if (adaptive && adaptive.isActive) {
             const { content } = resolveAdaptiveVariant(adaptive);
             const heroData    = adaptiveVariantToHeroBlockData(content, adaptive.key);
-            return { hero: { ...heroData, ctaKey: key } };
+            // Carry the resolved variant's block-level tokens so the renderer
+            // can scope them to this hero. Absent tokens → no wrapper.
+            const tokenRef = tokenRefFromVariant(content);
+            return { hero: { ...heroData, ctaKey: key, ...(tokenRef ? { tokenRef } : {}) } };
           }
           return {};
         }

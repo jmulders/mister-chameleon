@@ -37,6 +37,7 @@ import type { StoredRule }             from "@/decision/rules/stored-rule";
 import type { ProvisionResult }        from "@/cms/providers/cms-provider";
 import type { SiteType }               from "@/page-config";
 import type { ThemePresetKey }         from "@/design-system/theme/presets";
+import type { BlockTokenSet }          from "@/design-system/theme/block-token-set";
 import { isFeaturedFamilyKey }         from "@/design-system/theme/theme-families.config";
 import type {
   ProvisionSiteResult,
@@ -2902,5 +2903,112 @@ export async function finalizeTenantProvisioningAction(
   } catch (err) {
     rethrowNextInternal(err);
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// BLOCK-LEVEL TOKEN SETS
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// Named, reusable bundles of curated design tokens that individual content
+// blocks and adaptive slots can reference by `key`. Stored in
+// `design.blockTokenSets`. This action REPLACES the whole array (the editor
+// always submits the full list), after validating each set's shape.
+
+export interface SaveBlockTokenSetsResult {
+  ok:     boolean;
+  errors: string[];
+}
+
+/** Curated token field keys accepted on a block token set. Anything else is dropped. */
+const CURATED_BLOCK_TOKEN_FIELDS = [
+  "surface", "background", "text", "textMuted", "primary", "primaryText",
+  "cardBg", "cardBorder", "cardRadius", "headingFont", "headingWeight",
+  "dividerColor", "dividerWidth",
+] as const;
+
+const VALID_SURFACE_VALUES = ["default", "subtle", "emphasis", "strong", "inverse"];
+
+/**
+ * Validate + persist the tenant's named block token sets.
+ *
+ * Each set needs a non-empty `key`, `name`, and `id`; keys must be unique and
+ * slug-safe. Unknown token fields are stripped so stored data stays clean.
+ * Passing an empty array clears all sets.
+ */
+export async function saveBlockTokenSetsAction(
+  tenantId: string,
+  rawSets:  unknown,
+): Promise<SaveBlockTokenSetsResult> {
+  try {
+    await getRequiredAdminSession();
+
+    const current = await getTenantById(tenantId);
+    if (!current) return { ok: false, errors: [`Tenant "${tenantId}" not found.`] };
+
+    if (!Array.isArray(rawSets)) {
+      return { ok: false, errors: ["Expected an array of token sets."] };
+    }
+
+    const errors: string[] = [];
+    const seenKeys = new Set<string>();
+    const clean: BlockTokenSet[] = [];
+
+    rawSets.forEach((raw, i) => {
+      const set = raw as Partial<BlockTokenSet> | null;
+      if (!set || typeof set !== "object") {
+        errors.push(`Set #${i + 1}: not an object.`);
+        return;
+      }
+      const name = typeof set.name === "string" ? set.name.trim() : "";
+      const key  = typeof set.key === "string"  ? set.key.trim().toLowerCase() : "";
+      if (!name) errors.push(`Set #${i + 1}: name is required.`);
+      if (!key)  errors.push(`Set #${i + 1}: key is required.`);
+      if (key && !/^[a-z0-9][a-z0-9-]*$/.test(key)) {
+        errors.push(`Set "${name || key}": key may only contain a-z, 0-9 and hyphens.`);
+      }
+      if (key && seenKeys.has(key)) {
+        errors.push(`Set "${name || key}": duplicate key "${key}".`);
+      }
+      seenKeys.add(key);
+
+      // Strip tokens down to known fields with non-empty string values.
+      const rawTokens = (set.tokens ?? {}) as Record<string, unknown>;
+      const tokens: Record<string, string> = {};
+      for (const field of CURATED_BLOCK_TOKEN_FIELDS) {
+        const v = rawTokens[field];
+        if (typeof v !== "string" || !v.trim()) continue;
+        if (field === "surface" && !VALID_SURFACE_VALUES.includes(v.trim())) {
+          errors.push(`Set "${name || key}": invalid surface "${v}".`);
+          continue;
+        }
+        tokens[field] = v.trim();
+      }
+
+      clean.push({
+        id:   typeof set.id === "string" && set.id.trim() ? set.id : `bts_${key || i}_${Date.now()}`,
+        key,
+        name,
+        ...(typeof set.description === "string" && set.description.trim()
+          ? { description: set.description.trim() }
+          : {}),
+        tokens: tokens as BlockTokenSet["tokens"],
+      });
+    });
+
+    if (errors.length > 0) return { ok: false, errors };
+
+    const updatedDesign: TenantDesignSettings = {
+      ...current.design,
+      blockTokenSets: clean.length > 0 ? clean : undefined,
+    };
+    const saveResult = await saveTenant({ ...current, design: updatedDesign });
+    if (!saveResult.ok) return { ok: false, errors: [saveResult.error] };
+
+    revalidatePath(`/admin/tenants/${tenantId}/design`);
+    return { ok: true, errors: [] };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, errors: [err instanceof Error ? err.message : String(err)] };
   }
 }

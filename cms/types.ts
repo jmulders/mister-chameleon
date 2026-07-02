@@ -171,6 +171,12 @@ export interface HeroBlockData {
   /** Unique identifier — matches the HeroVariantKey used by the decision engine */
   id: string;
   /**
+   * Optional block-level design tokens carried from a resolved adaptive
+   * variant, so the homepage/engine renderer can scope this block's styling.
+   * See design-system/theme/block-token-set.ts.
+   */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /**
    * Layout variant for the hero block (e.g. "hero_split", "hero_background").
    * Resolved via resolveContextBlockVariant("hero", layoutVariant).
    * Absent means use the page-level or tenant-level default.
@@ -275,6 +281,8 @@ export interface ProofItem {
 export interface ProofBlockData {
   /** Unique identifier — matches the ProofVariantKey */
   id: string;
+  /** Optional block-level design tokens carried from a resolved adaptive variant. */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
   /**
    * Layout variant for the proof block (e.g. "proof_logos", "proof_quotes").
    * Resolved via resolveContextBlockVariant("proof", layoutVariant).
@@ -300,6 +308,8 @@ export interface ProofBlockData {
 export interface CTABlockData {
   /** Unique identifier — matches the CTAVariantKey */
   id: string;
+  /** Optional block-level design tokens carried from a resolved adaptive variant. */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
   /**
    * Layout variant for the CTA block (e.g. "cta_split", "cta_card").
    * Resolved via resolveContextBlockVariant("cta", layoutVariant).
@@ -353,6 +363,8 @@ export interface FeatureItem {
 export interface FeatureBlockData {
   /** Unique identifier — matches the FeatureVariantKey */
   id: string;
+  /** Optional block-level design tokens carried from a resolved adaptive variant. */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
   /**
    * Layout variant for the feature block.
    * Resolved via resolveContextBlockVariant("feature", layoutVariant).
@@ -561,6 +573,14 @@ export interface AdaptiveVariantContent {
    * fallback. Absent = not yet described.
    */
   decisionMeta?: Partial<import("@/ai/variant-meta").VariantDecisionMeta>;
+  /**
+   * Block-level design tokens for this variant. References a named token set
+   * (by key, from design.blockTokenSets) applied when this variant renders, so
+   * different personalised variants can carry different styling. Optional inline
+   * `tokens` layer on top of the named set. See design-system/theme/block-token-set.ts.
+   */
+  tokenSet?:  string;
+  tokens?:    import("@/design-system/theme/block-token-set").CuratedBlockTokens;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageUrl?:  string;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
@@ -1149,6 +1169,13 @@ export interface PageSectionBase {
    * allowing direct linking via `/page#anchor-id` in CTAs.
    */
   anchorId?: string;
+  /**
+   * Optional block-level design tokens. `tokenSet` references a named set from
+   * design.blockTokenSets (by key); `tokens` are inline curated overrides. Both
+   * are forwarded verbatim to ContentBlock and scoped to this block at render.
+   */
+  tokenSet?: string;
+  tokens?:   import("@/design-system/theme/block-token-set").CuratedBlockTokens;
 }
 
 // ── Page section data types ───────────────────────────────────────────────────

@@ -429,6 +429,24 @@ export class StatamicProvider implements CMSProvider {
   // is always the case in the new page_blocks architecture where page entries
   // store only context_slot anchors, not variant content.
 
+  /**
+   * Build a BlockTokenRef from an adaptive variant's token fields, or undefined
+   * when the variant carries no block-level tokens. Spread onto the returned
+   * block data so the homepage/engine renderer can scope its styling.
+   */
+  private variantTokenRef(
+    c: { tokenSet?: string; tokens?: import("../types").AdaptiveVariantContent["tokens"] },
+  ): { tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef } {
+    const hasTokens = Boolean(c.tokens && Object.keys(c.tokens).length > 0);
+    if (!c.tokenSet && !hasTokens) return {};
+    return {
+      tokenRef: {
+        ...(c.tokenSet ? { tokenSet: c.tokenSet } : {}),
+        ...(hasTokens ? { tokens: c.tokens } : {}),
+      },
+    };
+  }
+
   private adaptiveToHero(data: AdaptiveBlockData | null): HeroBlockData | null {
     if (!data || !data.isActive) return null;
     const c = data.defaultVariant;
@@ -441,6 +459,7 @@ export class StatamicProvider implements CMSProvider {
       tag:          c.tag,
       media:        c.media,
       contentAlign: c.contentAlign,
+      ...this.variantTokenRef(c),
       // Carousel slides — required for layoutVariant === "hero_carousel".
       // Without this the homepage hero received the carousel layout but no
       // slides, so HeroBlock silently fell back to the default hero.
@@ -460,6 +479,7 @@ export class StatamicProvider implements CMSProvider {
         title: item.title ?? "",
         text:  item.text ?? item.body ?? "",
       })),
+      ...this.variantTokenRef(c),
     };
   }
 
@@ -473,6 +493,7 @@ export class StatamicProvider implements CMSProvider {
       title:        c.title,
       text:         c.subtitle,
       cta:          { label: primaryCta?.label ?? "", href: primaryCta?.href ?? "#" },
+      ...this.variantTokenRef(c),
     };
   }
 
@@ -489,6 +510,7 @@ export class StatamicProvider implements CMSProvider {
         body:  item.body ?? item.text ?? "",
         icon:  undefined,
       })),
+      ...this.variantTokenRef(c),
     };
   }
 

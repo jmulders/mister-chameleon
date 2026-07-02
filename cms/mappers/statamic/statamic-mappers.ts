@@ -1729,6 +1729,19 @@ export function mapStatamicPageBlocksToSections(
     ) {
       (lastSection as PageSectionBase).anchorId = block.anchor_id.trim();
     }
+
+    // ── Post-process: block-level token set ───────────────────────────────────
+    // Forward the authored `token_set` key (and optional inline `tokens`) onto
+    // the section so ContentBlockRenderer can scope its design tokens.
+    if (lastSection) {
+      if (typeof block.token_set === "string" && block.token_set.trim()) {
+        (lastSection as PageSectionBase).tokenSet = block.token_set.trim();
+      }
+      if (block.tokens && typeof block.tokens === "object" && !Array.isArray(block.tokens)) {
+        (lastSection as PageSectionBase).tokens =
+          block.tokens as PageSectionBase["tokens"];
+      }
+    }
   }
 
   return sections;
