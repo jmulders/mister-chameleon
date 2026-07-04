@@ -22,8 +22,10 @@ type Tokens = {
 
 export function TokenExtractorClient() {
   const [url, setUrl]         = useState("");
+  const [pages, setPages]     = useState(5);
   const [pending, start]      = useTransition();
   const [tokens, setTokens]   = useState<Tokens | null>(null);
+  const [blockTokens, setBlockTokens] = useState<Record<string, string> | null>(null);
   const [notes, setNotes]     = useState<string[]>([]);
   const [error, setError]     = useState<string | null>(null);
   const [copied, setCopied]   = useState(false);
@@ -32,11 +34,12 @@ export function TokenExtractorClient() {
   function run() {
     setError(null);
     setTokens(null);
+    setBlockTokens(null);
     setNotes([]);
     setCopied(false);
     start(async () => {
-      const r = await extractDesignTokensFromUrlAction(url.trim());
-      if (r.ok) { setTokens(r.tokens as Tokens); setNotes(r.notes); }
+      const r = await extractDesignTokensFromUrlAction(url.trim(), pages);
+      if (r.ok) { setTokens(r.tokens as Tokens); setBlockTokens(r.blockTokens); setNotes(r.notes); }
       else setError(r.error);
     });
   }
@@ -55,7 +58,7 @@ export function TokenExtractorClient() {
   // schema (see design-system/theme/block-token-set) so it can be pasted 1:1
   // into a tenant's Design → Blocks. Emitted as an array (the shape that tab imports).
   const blockJson = useMemo(() => {
-    if (!tokens) return "";
+    if (!blockTokens || Object.keys(blockTokens).length === 0) return "";
     let host = "extracted";
     try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep default */ }
     const key = host.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "extracted";
@@ -64,10 +67,10 @@ export function TokenExtractorClient() {
       key,
       name:        `${host} (extracted)`,
       description: `Extracted from ${url}`,
-      tokens:      groupedToBlockTokens(tokens),
+      tokens:      blockTokens,
     };
     return JSON.stringify([set], null, 2);
-  }, [tokens, url]);
+  }, [blockTokens, url]);
 
   function copy() {
     navigator.clipboard?.writeText(json).then(() => {
@@ -116,6 +119,16 @@ export function TokenExtractorClient() {
             placeholder="https://voorbeeld.nl"
             className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           />
+          <label className="flex shrink-0 items-center gap-1.5 text-xs text-neutral-600" title="Aantal pagina's dat wordt geanalyseerd (crawlt interne links)">
+            Pagina&apos;s
+            <select
+              value={pages}
+              onChange={(e) => setPages(Number(e.target.value))}
+              className="rounded-lg border border-neutral-300 px-2 py-2 text-sm outline-none focus:border-brand-500"
+            >
+              {[1, 3, 5, 8].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
           <button
             type="button"
             onClick={run}
@@ -126,7 +139,7 @@ export function TokenExtractorClient() {
           </button>
         </div>
         <p className="mt-2 text-xs text-neutral-400">
-          Werkt het best op sites die hun tokens als CSS-variabelen blootgeven (Tailwind/shadcn, design systems).
+          Analyseert de start-URL plus interne pagina&apos;s (crawlt links) en aggregeert de CSS voor een rijker palet. Werkt het best op sites die hun CSS direct serveren (Tailwind/shadcn, design systems).
         </p>
       </div>
 
@@ -234,34 +247,8 @@ export function TokenExtractorClient() {
   );
 }
 
-/**
- * Map the extractor's grouped tokens to the curated per-block token schema
- * (design-system/theme/block-token-set → CuratedBlockTokens). Only fields we can
- * map confidently are emitted; the rest inherit the site theme.
- */
-function groupedToBlockTokens(t: Tokens): Record<string, string> {
-  const c = t.color ?? {}, ty = t.typography ?? {}, r = t.radius ?? {}, s = t.shadow ?? {};
-  const out: Record<string, string> = {};
-  const put = (key: string, val?: string) => { if (val) out[key] = val; };
 
-  put("background",  c.background);
-  put("bgSubtle",    c.muted);
-  put("text",        c.foreground);
-  put("textMuted",   c.mutedForeground);
-  put("border",      c.border);
-  put("primary",     c.primary);
-  put("primaryHover", c.primaryHover);
-  put("primaryText", c.onPrimary);
-  put("textBrand",   c.link ?? c.accent);
-  put("cardBg",      c.card);
-  put("cardRadius",  r.card ?? r.interactive);
-  put("radiusInteractive", r.interactive);
-  put("cardShadow",  s.md);
-  put("headingFont", ty.fontHeading);
-  put("fontSans",    ty.fontBody);
-
-  return out;
-}
+// (block-token mapping now happens server-side in url-token-extractor)
 
 function TokenList({ title, entries }: { title: string; entries: Record<string, string> }) {
   const keys = Object.keys(entries);

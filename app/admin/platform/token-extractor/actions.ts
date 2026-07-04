@@ -27,10 +27,10 @@ async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string
 }
 
 export type ExtractTokensResult =
-  | { ok: true;  tokens: Record<string, unknown>; notes: string[] }
+  | { ok: true;  tokens: Record<string, unknown>; blockTokens: Record<string, string>; notes: string[]; pagesAnalyzed: number }
   | { ok: false; error: string };
 
-export async function extractDesignTokensFromUrlAction(url: string): Promise<ExtractTokensResult> {
+export async function extractDesignTokensFromUrlAction(url: string, maxPages = 5): Promise<ExtractTokensResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -38,9 +38,17 @@ export async function extractDesignTokensFromUrlAction(url: string): Promise<Ext
     return { ok: false, error: "Voer een URL in." };
   }
 
-  const { extractTokensFromUrl } = await import("@/lib/design-tokens/url-token-extractor");
-  const result = await extractTokensFromUrl(url.trim());
+  const pages = Math.min(Math.max(Math.trunc(Number(maxPages)) || 1, 1), 8);
+
+  const { extractTokensFromSite } = await import("@/lib/design-tokens/url-token-extractor");
+  const result = await extractTokensFromSite(url.trim(), pages);
   if (!result.ok) return { ok: false, error: result.error ?? "Kon geen tokens extraheren." };
 
-  return { ok: true, tokens: result.tokens ?? {}, notes: result.notes ?? [] };
+  return {
+    ok:            true,
+    tokens:        result.tokens ?? {},
+    blockTokens:   result.blockTokens ?? {},
+    notes:         result.notes ?? [],
+    pagesAnalyzed: result.pagesAnalyzed ?? 1,
+  };
 }

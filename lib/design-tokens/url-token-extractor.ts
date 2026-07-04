@@ -24,8 +24,16 @@ export interface UrlExtractResult {
   ok:      boolean;
   /** Grouped token-upload payload ({ theme, color, typography, radius, shadow }). */
   tokens?: Record<string, unknown>;
+  /**
+   * Curated per-block token map (CuratedBlockTokens shape) derived from the
+   * grouped tokens, with sensible shade derivations. Ready to drop into a
+   * BlockTokenSet for Design → Blocks.
+   */
+  blockTokens?: Record<string, string>;
   /** Human-readable notes about what was found / guessed. */
   notes?:  string[];
+  /** How many pages were fetched and analysed. */
+  pagesAnalyzed?: number;
   error?:  string;
 }
 
@@ -72,28 +80,6 @@ async function fetchText(url: string, timeoutMs: number, maxBytes: number): Prom
   } finally {
     clearTimeout(timer);
   }
-}
-
-async function collectCss(html: string, base: URL): Promise<string> {
-  let css = "";
-  for (const m of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) css += "\n" + m[1];
-
-  const hrefs: string[] = [];
-  for (const m of html.matchAll(/<link\b[^>]*>/gi)) {
-    const tag = m[0];
-    if (!/rel\s*=\s*["']?[^"'>]*stylesheet/i.test(tag)) continue;
-    const href = tag.match(/href\s*=\s*["']([^"']+)["']/i)?.[1];
-    if (href) hrefs.push(href);
-  }
-
-  const sheets = await Promise.all(
-    hrefs.slice(0, 8).map(async (h) => {
-      const abs = safeUrl(new URL(h, base).toString());
-      return abs ? fetchText(abs.toString(), 6000, 900_000) : "";
-    }),
-  );
-  css += "\n" + sheets.join("\n");
-  return css.length > 4_000_000 ? css.slice(0, 4_000_000) : css;
 }
 
 // ── Value coercion ─────────────────────────────────────────────────────────────
@@ -198,22 +184,187 @@ function extractGradients(css: string, html: string): string[] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]);
 }
 
+// ── Multi-page collection ──────────────────────────────────────────────────────
+
+/** Discover same-origin internal page links from a page's HTML (deduped, asset-free). */
+function discoverInternalLinks(html: string, base: URL, max: number): string[] {
+  if (max <= 0) return [];
+  const out = new Set<string>();
+  for (const m of html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']+)["']/gi)) {
+    let u: URL;
+    try { u = new URL(m[1], base); } catch { continue; }
+    if (u.origin !== base.origin) continue;
+    if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+    if (/\.(png|jpe?g|svg|gif|webp|avif|ico|pdf|zip|css|js|mjs|json|xml|mp4|webm|woff2?|ttf)$/i.test(u.pathname)) continue;
+    u.hash = ""; u.search = "";
+    const s = u.toString();
+    if (s === base.toString()) continue;
+    out.add(s);
+    if (out.size >= max) break;
+  }
+  return [...out];
+}
+
+/**
+ * Fetch a start page + up to (maxPages-1) internal pages and return the UNION of
+ * their CSS (inline + linked stylesheets, deduped) and HTML. More pages → more
+ * CSS variables discovered and a more representative colour-frequency palette.
+ */
+async function collectSiteCss(startUrl: URL, maxPages: number): Promise<{ css: string; html: string; pages: number }> {
+  const startHtml = await fetchText(startUrl.toString(), 8000, 1_500_000);
+  if (!startHtml) return { css: "", html: "", pages: 0 };
+
+  const pageUrls = [startUrl.toString(), ...discoverInternalLinks(startHtml, startUrl, maxPages - 1)]
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .slice(0, maxPages);
+
+  const htmls = await Promise.all(
+    pageUrls.map((p, i) => (i === 0 ? Promise.resolve(startHtml) : fetchText(p, 8000, 1_200_000))),
+  );
+
+  const sheetUrls = new Set<string>();
+  let inlineCss = "";
+  const htmlParts: string[] = [];
+  for (let i = 0; i < pageUrls.length; i++) {
+    const h = htmls[i];
+    if (!h) continue;
+    htmlParts.push(h);
+    const base = new URL(pageUrls[i]);
+    for (const m of h.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) inlineCss += "\n" + m[1];
+    for (const m of h.matchAll(/<link\b[^>]*>/gi)) {
+      const tag = m[0];
+      if (!/rel\s*=\s*["']?[^"'>]*stylesheet/i.test(tag)) continue;
+      const href = tag.match(/href\s*=\s*["']([^"']+)["']/i)?.[1];
+      if (!href) continue;
+      const abs = safeUrl(new URL(href, base).toString());
+      if (abs) sheetUrls.add(abs.toString());
+    }
+  }
+
+  const sheets = await Promise.all([...sheetUrls].slice(0, 16).map((u) => fetchText(u, 6000, 900_000)));
+  let css = inlineCss + "\n" + sheets.join("\n");
+  if (css.length > 6_000_000) css = css.slice(0, 6_000_000);
+  let html = htmlParts.join("\n");
+  if (html.length > 3_000_000) html = html.slice(0, 3_000_000);
+  return { css, html, pages: htmlParts.length };
+}
+
+// ── Colour math (hex only) — derive hover/active/subtle shades ──────────────────
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex(r: number, g: number, b: number): string {
+  const h = (x: number) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+function mix(hex: string, toward: "black" | "white", amt: number): string | undefined {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return undefined;
+  const [r, g, b] = rgb;
+  const t = toward === "black" ? 0 : 255;
+  return rgbToHex(r + (t - r) * amt, g + (t - g) * amt, b + (t - b) * amt);
+}
+const darken  = (hex: string, amt: number) => mix(hex, "black", amt);
+const lighten = (hex: string, amt: number) => mix(hex, "white", amt);
+
+// ── Grouped tokens → curated per-block tokens (with derivations) ─────────────────
+
+interface Grouped {
+  color?:      Record<string, string>;
+  typography?: Record<string, string>;
+  radius?:     Record<string, string>;
+  shadow?:     Record<string, string>;
+}
+
+function buildBlockTokens(g: Grouped): Record<string, string> {
+  const c = g.color ?? {}, ty = g.typography ?? {}, r = g.radius ?? {}, s = g.shadow ?? {};
+  const out: Record<string, string> = {};
+  const put = (k: string, v?: string) => { if (v) out[k] = v; };
+
+  const primary   = c.primary;
+  const onPrimary = c.onPrimary ?? "#ffffff";
+
+  // Backgrounds & text
+  put("background", c.background);
+  put("bgSubtle",   c.muted ?? (c.background ? darken(c.background, 0.03) : undefined));
+  put("text",       c.foreground);
+  put("textMuted",  c.mutedForeground);
+  put("textSubtle", c.mutedForeground);
+
+  // Borders
+  put("border",       c.border);
+  put("borderStrong", c.border ? darken(c.border, 0.15) : undefined);
+
+  // Primary / accent — derive shades from a hex primary
+  put("primary",       primary);
+  put("primaryHover",  c.primaryHover ?? (primary ? darken(primary, 0.12) : undefined));
+  put("primaryActive", primary ? darken(primary, 0.22) : undefined);
+  put("primarySubtle", primary ? lighten(primary, 0.86) : undefined);
+  put("primaryText",   onPrimary);
+  put("textBrand",     c.link ?? primary);
+  put("ring",          primary);
+
+  // Buttons
+  put("btnBg",       primary);
+  put("btnText",     onPrimary);
+  put("btnHoverBg",  c.primaryHover ?? (primary ? darken(primary, 0.12) : undefined));
+  put("btnActiveBg", primary ? darken(primary, 0.22) : undefined);
+
+  // Cards
+  put("cardBg",     c.card ?? c.background);
+  put("cardBorder", c.border);
+  put("cardRadius", r.card ?? r.interactive);
+  put("cardShadow", s.md);
+  put("cardQuote",  primary);
+
+  // Radius
+  put("radiusInteractive", r.interactive);
+  put("radiusPopover",     r.card ?? r.interactive);
+
+  // Typography
+  put("headingFont", ty.fontHeading);
+  put("fontSans",    ty.fontBody);
+  put("fontSerif",   ty.fontHeading && /serif/i.test(ty.fontHeading) ? ty.fontHeading : undefined);
+
+  // Hero / CTA / feature / proof
+  put("heroBg",            c.foreground && hexToRgb(c.foreground) ? c.foreground : (primary ? darken(primary, 0.55) : undefined));
+  put("heroTitleColor",    "#ffffff");
+  put("heroSubtitleColor", "rgba(255,255,255,0.75)");
+  put("heroGlowColor",     primary);
+  put("ctaBg",             primary);
+  put("ctaBodyText",       onPrimary);
+  put("featureGridBg",     c.muted ?? c.background);
+  put("featureGridCardBg", c.card ?? c.background);
+  put("proofBg",           c.background);
+  put("proofCardBg",       c.card ?? c.background);
+
+  // Dividers
+  put("dividerColor", c.border);
+
+  return out;
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────────
 
-export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractResult> {
+/**
+ * Extract a design-token set from a whole SITE: fetches the start URL plus up to
+ * (maxPages-1) internal pages and distils tokens from the union of their CSS.
+ * Returns both the grouped preset payload and a curated per-block token map.
+ */
+export async function extractTokensFromSite(rawUrl: string, maxPages = 5): Promise<UrlExtractResult> {
   const url = safeUrl(rawUrl);
   if (!url) return { ok: false, error: "Ongeldige of niet-toegestane URL (alleen publieke http/https)." };
 
-  const notes: string[] = [];
-  let html: string;
-  try {
-    html = await fetchText(url.toString(), 8000, 1_500_000);
-  } catch {
-    html = "";
-  }
+  const pageBudget = Math.min(Math.max(Math.trunc(maxPages) || 1, 1), 8);
+  const { css, html, pages } = await collectSiteCss(url, pageBudget);
+
   if (!html) return { ok: false, error: "Kon de pagina niet ophalen (timeout of geblokkeerd)." };
 
-  const css = await collectCss(html, url);
+  const notes: string[] = [];
   if (!css.trim()) {
     // No stylesheets in the served HTML — almost always a client-rendered SPA
     // shell (styles injected by JS after load), which a non-browser fetch can't
@@ -304,5 +455,13 @@ export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractRe
   if (Object.keys(radius).length)     tokens.radius     = radius;
   if (Object.keys(shadow).length)     tokens.shadow     = shadow;
 
-  return { ok: true, tokens, notes };
+  const blockTokens = buildBlockTokens({ color, typography, radius, shadow });
+  notes.unshift(`${pages} pagina('s) geanalyseerd · ${Object.keys(blockTokens).length} block-tokens afgeleid.`);
+
+  return { ok: true, tokens, blockTokens, notes, pagesAnalyzed: pages };
+}
+
+/** Single-page convenience wrapper (backward compatible). */
+export async function extractTokensFromUrl(rawUrl: string): Promise<UrlExtractResult> {
+  return extractTokensFromSite(rawUrl, 1);
 }
