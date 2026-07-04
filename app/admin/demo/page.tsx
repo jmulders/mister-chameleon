@@ -7,6 +7,7 @@
 
 import { createClient }        from "@supabase/supabase-js";
 import { listDemoInstances }   from "@/demo/store";
+import { resolvePublicBaseUrl } from "@/lib/base-url";
 import Link                    from "next/link";
 import type { DemoInstance }   from "@/demo/types";
 import { DemoCopyButton }      from "./_components/DemoCopyButton";
@@ -50,11 +51,7 @@ export default async function DemoListPage() {
     fetchError = err instanceof Error ? err.message : String(err);
   }
 
-  const baseUrl = (
-    process.env["NEXT_PUBLIC_SITE_URL"] ??
-    process.env["VERCEL_URL"] ??
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
+  const baseUrl = resolvePublicBaseUrl();
 
   const active  = demos.filter((d) => !isExpired(d));
   const expired = demos.filter((d) =>  isExpired(d));

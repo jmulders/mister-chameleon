@@ -27,6 +27,7 @@ export function TokenExtractorClient() {
   const [notes, setNotes]     = useState<string[]>([]);
   const [error, setError]     = useState<string | null>(null);
   const [copied, setCopied]   = useState(false);
+  const [copiedBlock, setCopiedBlock] = useState(false);
 
   function run() {
     setError(null);
@@ -50,10 +51,35 @@ export function TokenExtractorClient() {
     return JSON.stringify(file, null, 2);
   }, [tokens, url]);
 
+  // Block token set — maps the grouped extraction to the curated per-block token
+  // schema (see design-system/theme/block-token-set) so it can be pasted 1:1
+  // into a tenant's Design → Blocks. Emitted as an array (the shape that tab imports).
+  const blockJson = useMemo(() => {
+    if (!tokens) return "";
+    let host = "extracted";
+    try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep default */ }
+    const key = host.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "extracted";
+    const set = {
+      id:          `bts_${key}`,
+      key,
+      name:        `${host} (extracted)`,
+      description: `Extracted from ${url}`,
+      tokens:      groupedToBlockTokens(tokens),
+    };
+    return JSON.stringify([set], null, 2);
+  }, [tokens, url]);
+
   function copy() {
     navigator.clipboard?.writeText(json).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  function copyBlock() {
+    navigator.clipboard?.writeText(blockJson).then(() => {
+      setCopiedBlock(true);
+      setTimeout(() => setCopiedBlock(false), 1500);
     });
   }
 
@@ -179,10 +205,62 @@ export function TokenExtractorClient() {
               Importeer dit in een tenant via Design → Builder (&quot;Of importeer een preset-JSON&quot;) of de Advanced-tab.
             </p>
           </div>
+
+          {/* Block token set JSON — for Design → Blocks */}
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-neutral-900">Block token set</h2>
+                <p className="text-xs text-neutral-500">Voor <strong>Design → Blocks</strong> (per-block styling)</p>
+              </div>
+              <button
+                type="button"
+                onClick={copyBlock}
+                className="shrink-0 rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+              >
+                {copiedBlock ? "Gekopieerd ✓" : "Kopieer"}
+              </button>
+            </div>
+            <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-neutral-900 p-4 text-[11px] leading-relaxed text-neutral-100">
+              {blockJson}
+            </pre>
+            <p className="mt-2 text-xs text-neutral-400">
+              Plak dit in een tenant via Design → <strong>Blocks</strong> → &quot;Import / export JSON&quot;, of gebruik &quot;Upload JSON file&quot; met de download hierboven. Wijs de set daarna toe aan een block via z&apos;n key.
+            </p>
+          </div>
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * Map the extractor's grouped tokens to the curated per-block token schema
+ * (design-system/theme/block-token-set → CuratedBlockTokens). Only fields we can
+ * map confidently are emitted; the rest inherit the site theme.
+ */
+function groupedToBlockTokens(t: Tokens): Record<string, string> {
+  const c = t.color ?? {}, ty = t.typography ?? {}, r = t.radius ?? {}, s = t.shadow ?? {};
+  const out: Record<string, string> = {};
+  const put = (key: string, val?: string) => { if (val) out[key] = val; };
+
+  put("background",  c.background);
+  put("bgSubtle",    c.muted);
+  put("text",        c.foreground);
+  put("textMuted",   c.mutedForeground);
+  put("border",      c.border);
+  put("primary",     c.primary);
+  put("primaryHover", c.primaryHover);
+  put("primaryText", c.onPrimary);
+  put("textBrand",   c.link ?? c.accent);
+  put("cardBg",      c.card);
+  put("cardRadius",  r.card ?? r.interactive);
+  put("radiusInteractive", r.interactive);
+  put("cardShadow",  s.md);
+  put("headingFont", ty.fontHeading);
+  put("fontSans",    ty.fontBody);
+
+  return out;
 }
 
 function TokenList({ title, entries }: { title: string; entries: Record<string, string> }) {

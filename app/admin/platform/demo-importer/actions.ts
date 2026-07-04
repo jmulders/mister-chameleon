@@ -37,6 +37,7 @@ import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
 import { analyzeSite }      from "@/demo/analyzer";
 import { generateScenarios } from "@/demo/content-generator";
 import { listDemoInstances } from "@/demo/store";
+import { resolvePublicBaseUrl } from "@/lib/base-url";
 import type { SiteAnalysis, DemoInstance } from "@/demo/types";
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -496,7 +497,7 @@ export async function runDemoTestAction(input: {
         );
       });
 
-      const baseUrl = (process.env["NEXT_PUBLIC_SITE_URL"] ?? process.env["VERCEL_URL"] ?? "http://localhost:3000").replace(/\/$/, "");
+      const baseUrl = resolvePublicBaseUrl();
 
       return {
         ok:             true,
