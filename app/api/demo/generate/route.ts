@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ── Step 2: Generate content (parallel: scenarios + bilingual + images) ─────
 
-  const [scenarios, bilingualContent, pageImages] = await Promise.all([
+  const [scenarios, bilingualContent, pageImages, tokenResult] = await Promise.all([
     Promise.resolve(generateScenarios(analysis)),
     generateBilingualPageContent(analysis).catch((err) => {
       console.warn("[api/demo/generate] bilingual content generation failed", {
@@ -115,7 +115,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return { en: null as never, nl: null as never };
     }),
     getDemoImages(analysis.category).catch(() => null),
+    // Extract the prospect's design tokens so the demo renders on-brand.
+    import("@/lib/design-tokens/url-token-extractor")
+      .then((m) => m.extractTokensFromSite(input.url!.trim(), 3))
+      .catch(() => null),
   ]);
+
+  const blockTokens = tokenResult?.ok ? tokenResult.blockTokens ?? null : null;
 
   const { en: contentEn, nl: contentNl } = bilingualContent;
 
@@ -134,6 +140,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     demo = await createDemoInstance(client, {
       analysis,
       scenarios,
+      blockTokens,
       generatedBy:  input.generatedBy ?? auth.adminEmail,
       generationMs,
       expiryDays,

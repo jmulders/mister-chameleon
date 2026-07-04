@@ -484,9 +484,16 @@ export async function runDemoTestAction(input: {
       const generationMs           = Date.now() - start;
       const db                     = getServiceClient();
 
+      // Extract the prospect's design tokens so the demo renders on-brand.
+      // Best-effort: a failure just falls back to the platform theme.
+      const { extractTokensFromSite } = await import("@/lib/design-tokens/url-token-extractor");
+      const tokenResult = await extractTokensFromSite(url, 3).catch(() => null);
+      const blockTokens = tokenResult?.ok ? tokenResult.blockTokens ?? null : null;
+
       const demo = await createDemoInstance(db, {
         analysis,
         scenarios,
+        blockTokens,
         generatedBy:  `${auth.email} (test-panel)`,
         generationMs,
         expiryDays:   7,

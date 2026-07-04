@@ -69,6 +69,11 @@ export interface CreateDemoInput {
    * when the scenario panel passes _demoId in context.
    */
   scenarioSlots?: Record<string, Record<string, string>> | null;
+  /**
+   * Curated per-block design tokens extracted from the prospect's site, merged
+   * into brand_signals so the synthetic demo renders in their brand style.
+   */
+  blockTokens?:   Record<string, string> | null;
 }
 
 export async function createDemoInstance(
@@ -87,6 +92,7 @@ export async function createDemoInstance(
     demoMode      = "synthetic",
     mirroredHtml  = null,
     scenarioSlots = null,
+    blockTokens   = null,
   } = input;
 
   const id        = generateDemoId();
@@ -109,7 +115,10 @@ export async function createDemoInstance(
     content_en:       contentEn,
     content_nl:       contentNl,
     page_images:      pageImages,
-    brand_signals:    analysis.brandSignals ?? null,
+    brand_signals:
+      (analysis.brandSignals || blockTokens)
+        ? { ...(analysis.brandSignals ?? {}), ...(blockTokens ? { blockTokens } : {}) }
+        : null,
     demo_mode:        demoMode,
     mirrored_html:    mirroredHtml,
     scenario_slots:   scenarioSlots,

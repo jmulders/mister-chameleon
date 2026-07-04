@@ -41,6 +41,13 @@ export interface BrandSignals {
   hasBlogPage:      boolean;
   navLinks:         string[];       // detected nav link labels
   confidence:       "high" | "medium" | "low";
+  /**
+   * Curated per-block design tokens extracted from the prospect's site
+   * (CuratedBlockTokens map → CSS-var values). Applied to the synthetic demo so
+   * it renders in the prospect's brand colours/fonts/radius. Absent when
+   * extraction failed or wasn't run.
+   */
+  blockTokens?:     Record<string, string>;
 }
 
 // ── Block types — rich structured content ─────────────────────────────────────

@@ -31,6 +31,7 @@ import type {
   CareersBlock,
   CasesBlock,
 } from "@/demo/types";
+import { blockTokensToStyle, type CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -68,13 +69,21 @@ export function DemoViewer({ demo }: DemoViewerProps) {
     return () => { link.remove(); };
   }, [demo.brand_signals?.googleFontsUrl]);
 
-  const fontFamily = demo.brand_signals?.headingFont
-    ? `"${demo.brand_signals.headingFont}", system-ui, sans-serif`
-    : "system-ui, -apple-system, sans-serif";
+  // Design tokens extracted from the prospect's site (if any) — render on-brand.
+  const blockTokens = (demo.brand_signals?.blockTokens ?? undefined) as CuratedBlockTokens | undefined;
+  const tokenStyle  = blockTokensToStyle(blockTokens);
+
+  const fontFamily = blockTokens?.headingFont
+    ?? (demo.brand_signals?.headingFont
+      ? `"${demo.brand_signals.headingFont}", system-ui, sans-serif`
+      : "system-ui, -apple-system, sans-serif");
 
   const themeVars = {
-    "--demo-primary":   primary,
-    "--demo-secondary": secondary,
+    // Block-token CSS vars first (bg/text/card/etc. + wrapper backgroundColor),
+    // then the demo's own vars — preferring extracted tokens where present.
+    ...tokenStyle,
+    "--demo-primary":   blockTokens?.primary ?? primary,
+    "--demo-secondary": blockTokens?.primaryHover ?? blockTokens?.textBrand ?? secondary,
     "--demo-font":      fontFamily,
   } as React.CSSProperties;
 
