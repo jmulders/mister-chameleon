@@ -476,16 +476,25 @@ function AlertBanners({
   wallet,
   reloadAttempts,
   statusKey,
+  spendThisMonth,
 }: {
   wallet:         TenantWallet | null;
   reloadAttempts: WalletReloadAttempt[];
   statusKey:      keyof typeof WALLET_STATUS;
+  spendThisMonth: number;
 }) {
   const alerts: { icon: string; msg: string; level: "red" | "amber" }[] = [];
 
   if (statusKey === "frozen")      alerts.push({ icon: "❄", msg: ANOMALY_LABELS.WALLET_FROZEN,       level: "red"   });
   if (statusKey === "suspended")   alerts.push({ icon: "⊘", msg: ANOMALY_LABELS.WALLET_SUSPENDED,    level: "red"   });
-  if (statusKey === "empty")       alerts.push({ icon: "✕", msg: ANOMALY_LABELS.CREDITS_EXHAUSTED,   level: "red"   });
+  // An empty wallet is only a genuine "exhausted" problem when the tenant has
+  // actually consumed enrichment this month. A healthy subscribed tenant that
+  // simply never bought (optional) enrichment credits gets a neutral note, not
+  // a scary red banner — the subscription and personalised sessions are separate.
+  if (statusKey === "empty" && spendThisMonth > 0)
+    alerts.push({ icon: "✕", msg: ANOMALY_LABELS.CREDITS_EXHAUSTED, level: "red" });
+  if (statusKey === "empty" && spendThisMonth <= 0)
+    alerts.push({ icon: "○", msg: ANOMALY_LABELS.NO_ENRICHMENT_CREDITS, level: "amber" });
   if (statusKey === "low")         alerts.push({ icon: "⚠", msg: ANOMALY_LABELS.LOW_BALANCE,         level: "amber" });
   if (statusKey === "cap_reached") alerts.push({ icon: "◎", msg: ANOMALY_LABELS.MONTHLY_CAP_REACHED, level: "amber" });
   if (reloadAttempts[0]?.status === "failed")
@@ -2994,7 +3003,7 @@ export function BillingDashboard({
       <BalanceHero wallet={wallet} spendToday={spendToday} spendThisMonth={spendThisMonth} statusKey={statusKey} tenantId={tenantId} isSuperAdmin={isSuperAdmin} />
 
       {/* Alert banners */}
-      <AlertBanners wallet={wallet} reloadAttempts={reloadAttempts} statusKey={statusKey} />
+      <AlertBanners wallet={wallet} reloadAttempts={reloadAttempts} statusKey={statusKey} spendThisMonth={spendThisMonth} />
 
       {/* Purchase result banner — shown after returning from credit-bundle Checkout */}
       {buyStatus === "success" && (

@@ -281,6 +281,7 @@ export const ANOMALY_LABELS = {
   WALLET_SUSPENDED:         "Wallet suspended — enrichments paused",
   WALLET_FROZEN:            "Wallet frozen — admin action required",
   CREDITS_EXHAUSTED:        "Credits exhausted",
+  NO_ENRICHMENT_CREDITS:    "No enrichment credits — optional top-up for live enrichment",
   MONTHLY_CAP_REACHED:      "Monthly budget cap reached — fallback mode active",
   ENRICHMENT_BLOCKED:       "Enrichments blocked by budget cap",
   SIMULATED_WALLET:         "Running in Simulated Wallet mode",
