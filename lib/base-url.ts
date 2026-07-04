@@ -26,3 +26,25 @@ export function resolvePublicBaseUrl(): string {
   const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   return withScheme.replace(/\/+$/, "");
 }
+
+/**
+ * Request-aware base URL — the host the current request is being served on
+ * (the admin/deployment domain the operator is actually on). Prefer this for
+ * building demo/share links so they never point at an unrelated tenant domain
+ * (which `VERCEL_PROJECT_PRODUCTION_URL` can be in a multi-tenant project).
+ * Falls back to resolvePublicBaseUrl() outside a request context.
+ */
+export async function resolveRequestBaseUrl(): Promise<string> {
+  try {
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (host) {
+      const proto = h.get("x-forwarded-proto") ?? (/^(localhost|127\.)/.test(host) ? "http" : "https");
+      return `${proto}://${host}`.replace(/\/+$/, "");
+    }
+  } catch {
+    /* not in a request context — fall through */
+  }
+  return resolvePublicBaseUrl();
+}

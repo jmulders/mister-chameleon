@@ -86,6 +86,17 @@ export function TokenExtractorClient() {
     });
   }
 
+  function downloadBlock() {
+    const blob = new Blob([blockJson], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    let host = "tokens";
+    try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep default */ }
+    a.download = `${host}.block-token-set.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   function download() {
     const blob = new Blob([json], { type: "application/json" });
     const a = document.createElement("a");
@@ -190,10 +201,45 @@ export function TokenExtractorClient() {
             </div>
           )}
 
-          {/* Importable JSON */}
+          {/* ── 1. Block token set — for Design → Blocks (primary output) ───── */}
+          <div className="rounded-xl border-2 border-indigo-300 bg-indigo-50/50 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-neutral-900">Block token set</h2>
+                <p className="text-xs text-indigo-700">→ voor <strong>Design → Blocks</strong> (per-block styling)</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={copyBlock}
+                  className="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                  {copiedBlock ? "Gekopieerd ✓" : "Kopieer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadBlock}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+                >
+                  Download .json
+                </button>
+              </div>
+            </div>
+            <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-neutral-900 p-4 text-[11px] leading-relaxed text-neutral-100">
+              {blockJson}
+            </pre>
+            <p className="mt-2 text-xs text-neutral-500">
+              Ga naar Design → <strong>Blocks</strong> → <strong>Upload JSON file</strong> (of &quot;Import / export JSON&quot; en plakken) → <strong>Save</strong>. Wijs de set daarna toe aan een block via z&apos;n <strong>key</strong>.
+            </p>
+          </div>
+
+          {/* ── 2. Site theme preset — for Design → Builder / Advanced ──────── */}
           <div className="rounded-xl border border-neutral-200 bg-white p-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-neutral-900">Importeerbare JSON</h2>
+              <div>
+                <h2 className="text-sm font-semibold text-neutral-900">Site-thema (preset)</h2>
+                <p className="text-xs text-neutral-500">→ voor <strong>Design → Builder / Advanced</strong> (héle site)</p>
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -215,30 +261,7 @@ export function TokenExtractorClient() {
               {json}
             </pre>
             <p className="mt-2 text-xs text-neutral-400">
-              Importeer dit in een tenant via Design → Builder (&quot;Of importeer een preset-JSON&quot;) of de Advanced-tab.
-            </p>
-          </div>
-
-          {/* Block token set JSON — for Design → Blocks */}
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-neutral-900">Block token set</h2>
-                <p className="text-xs text-neutral-500">Voor <strong>Design → Blocks</strong> (per-block styling)</p>
-              </div>
-              <button
-                type="button"
-                onClick={copyBlock}
-                className="shrink-0 rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
-              >
-                {copiedBlock ? "Gekopieerd ✓" : "Kopieer"}
-              </button>
-            </div>
-            <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-neutral-900 p-4 text-[11px] leading-relaxed text-neutral-100">
-              {blockJson}
-            </pre>
-            <p className="mt-2 text-xs text-neutral-400">
-              Plak dit in een tenant via Design → <strong>Blocks</strong> → &quot;Import / export JSON&quot;, of gebruik &quot;Upload JSON file&quot; met de download hierboven. Wijs de set daarna toe aan een block via z&apos;n key.
+              Dit is een ander formaat: het stelt het <strong>site-brede thema</strong> in via Design → Builder (&quot;Of importeer een preset-JSON&quot;) of de Advanced-tab — niet voor Blocks.
             </p>
           </div>
         </div>

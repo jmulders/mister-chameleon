@@ -33,7 +33,7 @@
 
 import type { Metadata } from "next";
 import type { DemoInstance } from "@/demo/types";
-import { resolvePublicBaseUrl } from "@/lib/base-url";
+import { resolveRequestBaseUrl } from "@/lib/base-url";
 import { DemoViewer } from "./_components/DemoViewer";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ export default async function DemoPage({
   const { demoId } = await params;
 
   // Resolve the base URL for the internal API fetch (always includes a scheme).
-  const baseUrl = resolvePublicBaseUrl();
+  const baseUrl = await resolveRequestBaseUrl();
 
   const { demo, expired, notFound } = await fetchDemo(demoId, baseUrl);
 

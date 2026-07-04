@@ -13,7 +13,7 @@ import { analyzeSite }                            from "@/demo/analyzer";
 import { generateScenarios, generateBilingualPageContent } from "@/demo/content-generator";
 import { getDemoImages }                          from "@/demo/image-provider";
 import { createDemoInstance }                     from "@/demo/store";
-import { resolvePublicBaseUrl }                   from "@/lib/base-url";
+import { resolveRequestBaseUrl }                  from "@/lib/base-url";
 import type { GenerateDemoInput, GenerateDemoResponse } from "@/demo/types";
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ── Return ───────────────────────────────────────────────────────────────────
 
-  const baseUrl = resolvePublicBaseUrl();
+  const baseUrl = await resolveRequestBaseUrl();
 
   const demoUrl = `${baseUrl}/demo/${demo.id}`;
 

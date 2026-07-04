@@ -37,7 +37,7 @@ import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
 import { analyzeSite }      from "@/demo/analyzer";
 import { generateScenarios } from "@/demo/content-generator";
 import { listDemoInstances } from "@/demo/store";
-import { resolvePublicBaseUrl } from "@/lib/base-url";
+import { resolveRequestBaseUrl } from "@/lib/base-url";
 import type { SiteAnalysis, DemoInstance } from "@/demo/types";
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -497,7 +497,7 @@ export async function runDemoTestAction(input: {
         );
       });
 
-      const baseUrl = resolvePublicBaseUrl();
+      const baseUrl = await resolveRequestBaseUrl();
 
       return {
         ok:             true,
