@@ -186,10 +186,21 @@ function extractGradients(css: string, html: string): string[] {
 
 // ── Multi-page collection ──────────────────────────────────────────────────────
 
-/** Discover same-origin internal page links from a page's HTML (deduped, asset-free). */
+// High-signal marketing pages — these carry the site's main visual language.
+const PRIORITY_PATH = /(pricing|prijzen|abonnement|about|over-?ons|contact|features?|functionaliteit|product|producten|services?|diensten|solutions?|oplossing|platform|cases?|klanten|customers?|portfolio|team|werken-?bij|careers?|jobs?|vacature|demo)/i;
+// Low-signal / noisy pages — legal, auth, commerce funnel, taxonomy, deep feeds.
+const AVOID_PATH = /(privacy|terms|voorwaarden|cookie|legal|disclaimer|gdpr|avg|login|log-?in|sign-?in|sign-?up|register|registreer|account|wachtwoord|password|reset|cart|winkelmand|checkout|betalen|\/tag\/|\/tags\/|\/category\/|\/categorie\/|\/author\/|\/feed|sitemap|\.xml$|\/api\/|\/wp-)/i;
+
+/**
+ * Discover the most style-representative same-origin pages from a page's HTML.
+ * Links are scored: priority marketing paths rank first, legal/auth/funnel paths
+ * are dropped, and shallow (top-level) pages are preferred over deep ones.
+ */
 function discoverInternalLinks(html: string, base: URL, max: number): string[] {
   if (max <= 0) return [];
-  const out = new Set<string>();
+  const seen = new Set<string>();
+  const scored: { url: string; score: number; depth: number }[] = [];
+
   for (const m of html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']+)["']/gi)) {
     let u: URL;
     try { u = new URL(m[1], base); } catch { continue; }
@@ -198,11 +209,23 @@ function discoverInternalLinks(html: string, base: URL, max: number): string[] {
     if (/\.(png|jpe?g|svg|gif|webp|avif|ico|pdf|zip|css|js|mjs|json|xml|mp4|webm|woff2?|ttf)$/i.test(u.pathname)) continue;
     u.hash = ""; u.search = "";
     const s = u.toString();
-    if (s === base.toString()) continue;
-    out.add(s);
-    if (out.size >= max) break;
+    if (s === base.toString() || seen.has(s)) continue;
+    seen.add(s);
+
+    const path  = u.pathname;
+    const depth = path.split("/").filter(Boolean).length;
+    if (AVOID_PATH.test(path)) continue;            // hard-drop noisy pages
+    if (depth > 3) continue;                          // skip deep pages (blog posts etc.)
+
+    let score = -depth;                               // prefer shallow
+    if (PRIORITY_PATH.test(path)) score += 10;        // boost marketing pages
+    scored.push({ url: s, score, depth });
   }
-  return [...out];
+
+  return scored
+    .sort((a, b) => b.score - a.score || a.depth - b.depth || a.url.length - b.url.length)
+    .slice(0, max)
+    .map((x) => x.url);
 }
 
 /**
