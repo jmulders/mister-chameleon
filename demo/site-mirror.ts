@@ -225,7 +225,24 @@ function cleanHtml(html: string, baseUrl: string): string {
 // Runs AFTER resolveRelativeUrls so the URL is already absolute.
 
 function promoteLazyImages(html: string): string {
-  // Regex captures every <img ...> tag (including self-closing variants)
+  // 1) <picture><source data-srcset="REAL"> — copy a real (non-data:) lazy
+  //    srcset into the active srcset so the browser picks it without JS.
+  html = html.replace(/<source\b([^>]*)>/gi, (sourceTag, attrs) => {
+    const lazy = attrs.match(/\bdata-srcset=(['"])([^'"]+)\1/i);
+    if (!lazy) return sourceTag;
+    const lazyVal = lazy[2];
+    if (!lazyVal || /^\s*data:/i.test(lazyVal)) return sourceTag; // placeholder only
+    const existing = attrs.match(/\bsrcset=(['"])([^'"]*)\1/i);
+    const isPlaceholder =
+      !existing || existing[2].trim() === "" || /^\s*data:/i.test(existing[2]);
+    if (!isPlaceholder) return sourceTag;
+    const newAttrs = existing
+      ? attrs.replace(/\bsrcset=(['"])[^'"]*\1/i, `srcset="${lazyVal}"`)
+      : ` srcset="${lazyVal}"` + attrs;
+    return `<source${newAttrs}>`;
+  });
+
+  // 2) <img ...> — promote data-src / data-srcset / etc. to a real src.
   return html.replace(/<img\b([^>]*)>/gi, (imgTag, attrs) => {
     // Look for common lazy-load data attributes, in priority order
     const lazyMatch = attrs.match(
@@ -305,9 +322,13 @@ function resolveRelativeUrls(html: string, baseUrl: string): string {
   );
 
   // srcset attributes (comma-separated list of "url [descriptor]")
+  // NOTE: this also matches data-srcset. Leave any srcset that contains a data:
+  // URI fully untouched — base64 payloads contain commas that break naive
+  // candidate splitting (turning the base64 tail into a bogus relative URL).
   html = html.replace(
     /\bsrcset=(['"])(.*?)\1/gi,
     (_m, q, srcset) => {
+      if (/data:/i.test(srcset)) return `srcset=${q}${srcset}${q}`;
       const resolved = srcset.split(",").map((part: string) => {
         const [urlPart, ...rest] = part.trim().split(/\s+/);
         if (!urlPart) return part;
@@ -465,6 +486,8 @@ export function proxifyAssets(html: string, demoBase: string): string {
   const rewriteSrc = (tag: string): string =>
     tag.replace(/\bsrc=(['"])(https?:\/\/[^'"]+)\1/gi, (_m, q, u) => `src=${q}${prox(u)}${q}`)
        .replace(/\bsrcset=(['"])([^'"]+)\1/gi, (_m, q, ss) => {
+         // Leave data:-URI srcsets untouched (base64 commas break splitting).
+         if (/data:/i.test(ss)) return `srcset=${q}${ss}${q}`;
          const rewritten = ss.split(",").map((part: string) => {
            const seg = part.trim();
            if (!seg) return part;
