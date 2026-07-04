@@ -34,7 +34,7 @@ import { analyzeSite }                      from "@/demo/analyzer";
 import { generateScenarios }               from "@/demo/content-generator";
 import { analyzeAndGenerateSlots }         from "@/demo/ai-slot-analyzer";
 import { createDemoInstance }              from "@/demo/store";
-import { resolveRequestBaseUrl }           from "@/lib/base-url";
+import { resolveDemoBaseUrl }              from "@/lib/base-url";
 import type { DemoScenario }               from "@/demo/types";
 
 // ── Demo site key ─────────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Resolve demo site key from DB first, env var fallback
   const DEMO_SITE_KEY = await resolveDemoSiteKey();
 
-  const baseUrl = await resolveRequestBaseUrl();
+  const baseUrl = await resolveDemoBaseUrl();
 
   // ── Step 1: Mirror the site ─────────────────────────────────────────────────
 

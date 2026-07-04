@@ -7,7 +7,7 @@
 
 import { createClient }        from "@supabase/supabase-js";
 import { listDemoInstances }   from "@/demo/store";
-import { resolveRequestBaseUrl } from "@/lib/base-url";
+import { resolveDemoBaseUrl } from "@/lib/base-url";
 import Link                    from "next/link";
 import type { DemoInstance }   from "@/demo/types";
 import { DemoCopyButton }      from "./_components/DemoCopyButton";
@@ -51,7 +51,7 @@ export default async function DemoListPage() {
     fetchError = err instanceof Error ? err.message : String(err);
   }
 
-  const baseUrl = await resolveRequestBaseUrl();
+  const baseUrl = await resolveDemoBaseUrl();
 
   const active  = demos.filter((d) => !isExpired(d));
   const expired = demos.filter((d) =>  isExpired(d));

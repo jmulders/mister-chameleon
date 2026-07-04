@@ -28,6 +28,24 @@ export function resolvePublicBaseUrl(): string {
 }
 
 /**
+ * Base URL for PUBLICLY SHARED demo links (and their proxied assets).
+ *
+ * Prospects open demo links themselves, so the demo must live on a domain that
+ * is NOT behind Vercel Deployment Protection. Set `DEMO_PUBLIC_BASE_URL` to that
+ * unprotected domain (e.g. your production site or a dedicated `demo.…` subdomain)
+ * and all demo/asset URLs are built against it. When unset, falls back to the
+ * host the admin is currently on (fine for internal/logged-in viewing).
+ */
+export async function resolveDemoBaseUrl(): Promise<string> {
+  const explicit = process.env["DEMO_PUBLIC_BASE_URL"];
+  if (explicit && explicit.trim()) {
+    const withScheme = /^https?:\/\//i.test(explicit) ? explicit : `https://${explicit}`;
+    return withScheme.replace(/\/+$/, "");
+  }
+  return resolveRequestBaseUrl();
+}
+
+/**
  * Request-aware base URL — the host the current request is being served on
  * (the admin/deployment domain the operator is actually on). Prefer this for
  * building demo/share links so they never point at an unrelated tenant domain
