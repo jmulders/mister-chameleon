@@ -9,11 +9,14 @@
  * ─── CDN vs. API ─────────────────────────────────────────────────────────────
  *
  *   useCdn: true   — served from Sanity CDN (apicdn.sanity.io)
- *                    fast, eventually consistent, no token needed for public
- *   useCdn: false  — served from Sanity live API (api.sanity.io)
- *                    required when using a read token (CDN ignores tokens)
+ *                    fast, edge-cached, eventually consistent (~seconds)
+ *   useCdn: false  — served from Sanity live API (api.sanity.io, single region)
  *
- *   We switch automatically: CDN is disabled when a read token is present.
+ *   The PUBLIC client uses the CDN by default (published content only) — this is
+ *   the low-latency path for first-visit / cold-cache renders. A token is still
+ *   passed so private datasets authenticate. Override with SANITY_USE_CDN=false.
+ *   The PREVIEW client (createPreviewSanityClient) always uses the live API
+ *   because the CDN does not serve drafts.
  *
  * ─── Next.js fetch caching ───────────────────────────────────────────────────
  *
@@ -83,13 +86,29 @@ export function createSanityClient(overrides?: SanityClientOverrides): SanityCli
   const dataset    = overrides?.dataset    ?? serverEnv.sanity.dataset;
   const apiVersion = overrides?.apiVersion ?? serverEnv.sanity.apiVersion ?? "2024-01-01";
 
+  // ── CDN vs live API for the PUBLIC (published) client ─────────────────────
+  //
+  // The public client only ever reads `perspective: "published"` content, so it
+  // should be served from the global Sanity CDN (apicdn.sanity.io) — edge-cached
+  // and low-latency from Frankfurt — instead of the single-region live API
+  // (api.sanity.io, US). Modern @sanity/client serves published content from the
+  // CDN even when a token is supplied, so we keep the token for private datasets
+  // while still getting CDN speed. Drafts are handled by the separate preview
+  // client (createPreviewSanityClient), which intentionally uses the live API.
+  //
+  // This mainly speeds up the COLD path (ISR cache miss / first visit after a
+  // deploy or the revalidate window) where the fetch actually hits Sanity — the
+  // exact case behind the slow first-paint. Warm ISR hits are served from Next's
+  // data cache regardless. Override with SANITY_USE_CDN=false to force the live API.
+  const useCdn = process.env.SANITY_USE_CDN
+    ? process.env.SANITY_USE_CDN.toLowerCase() !== "false"
+    : true;
+
   return createClient({
     projectId,
     dataset,
     apiVersion,
-    // CDN is incompatible with authenticated requests — disable when a token
-    // is present so the live API is used instead.
-    useCdn: !readToken,
+    useCdn,
     token: readToken,
     // perspective: "published" excludes draft documents from all queries.
     // Switch to "previewDrafts" in a preview mode route handler.
