@@ -735,7 +735,7 @@ function RecentRunsTable({ runs: initialRuns }: { runs: RecentRunSummary[] }) {
 
 // ── 6. Test Panel ─────────────────────────────────────────────────────────────
 
-type TestMode      = "analyze" | "dry_run" | "full";
+type TestMode      = "analyze" | "dry_run" | "full" | "mirror";
 type TestPhase     = "idle" | "running" | "success" | "error";
 
 interface TestResult {
@@ -783,6 +783,39 @@ function TestPanel() {
           setPhase("success");
         } else {
           setError({ step: res.step, message: res.error });
+          setPhase("error");
+        }
+        return;
+      }
+
+      // ── Live Mirror: mirror the real site HTML+CSS and inject adaptive slots ──
+      if (mode === "mirror") {
+        try {
+          const resp = await fetch("/api/demo/mirror", {
+            method:      "POST",
+            headers:     { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body:        JSON.stringify({ url: url.trim() }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            setError({ step: "mirror", message: data?.error ?? data?.message ?? `HTTP ${resp.status}` });
+            setPhase("error");
+            return;
+          }
+          setResult({
+            fetchSucceeded: Boolean(data.fetchSucceeded),
+            title:          data.siteName ?? url.trim(),
+            category:       "mirror",
+            primaryColor:   "#6366f1",
+            scenarioCount:  0,
+            generationMs:   0,
+            demoId:         data.demoId,
+            demoUrl:        data.demoUrl,
+          });
+          setPhase("success");
+        } catch (e) {
+          setError({ step: "mirror", message: e instanceof Error ? e.message : String(e) });
           setPhase("error");
         }
         return;
@@ -860,6 +893,7 @@ function TestPanel() {
                 { value: "analyze",  label: "Analyze only",  note: "No content generation" },
                 { value: "dry_run",  label: "Dry run",       note: "Full pipeline, no DB write" },
                 { value: "full",     label: "Full generation", note: "Creates a real demo" },
+                { value: "mirror",   label: "Live Mirror",   note: "Clones the real site's look" },
               ] as { value: TestMode; label: string; note: string }[]
             ).map((opt) => (
               <button
