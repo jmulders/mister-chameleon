@@ -485,10 +485,14 @@ export async function runDemoTestAction(input: {
       const db                     = getServiceClient();
 
       // Extract the prospect's design tokens so the demo renders on-brand.
-      // Best-effort: a failure just falls back to the platform theme.
+      // Base = analyzer brand signals (always available); rich multi-page
+      // extraction merged on top. Best-effort — worst case is the platform theme.
       const { extractTokensFromSite } = await import("@/lib/design-tokens/url-token-extractor");
+      const { blockTokensFromBrandSignals } = await import("@/demo/brand-tokens");
       const tokenResult = await extractTokensFromSite(url, 3).catch(() => null);
-      const blockTokens = tokenResult?.ok ? tokenResult.blockTokens ?? null : null;
+      const extracted   = tokenResult?.ok ? (tokenResult.blockTokens ?? {}) : {};
+      const merged      = { ...blockTokensFromBrandSignals(analysis.brandSignals), ...extracted };
+      const blockTokens = Object.keys(merged).length > 0 ? merged : null;
 
       const demo = await createDemoInstance(db, {
         analysis,

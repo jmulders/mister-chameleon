@@ -121,7 +121,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       .catch(() => null),
   ]);
 
-  const blockTokens = tokenResult?.ok ? tokenResult.blockTokens ?? null : null;
+  const { blockTokensFromBrandSignals } = await import("@/demo/brand-tokens");
+  const extractedTokens = tokenResult?.ok ? (tokenResult.blockTokens ?? {}) : {};
+  const mergedTokens    = { ...blockTokensFromBrandSignals(analysis.brandSignals), ...extractedTokens };
+  const blockTokens     = Object.keys(mergedTokens).length > 0 ? mergedTokens : null;
 
   const { en: contentEn, nl: contentNl } = bilingualContent;
 

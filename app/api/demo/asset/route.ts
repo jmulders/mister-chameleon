@@ -23,8 +23,6 @@ export const dynamic  = "force-dynamic";
 
 const PRIVATE_HOST = /^(localhost$|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1$|0\.0\.0\.0$)/i;
 
-const ALLOWED_TYPE = /^(image\/|font\/|application\/font|text\/css|application\/octet-stream)/i;
-
 export async function GET(req: NextRequest): Promise<Response> {
   const raw = req.nextUrl.searchParams.get("u");
   if (!raw) return new NextResponse("Missing 'u'", { status: 400 });
@@ -45,9 +43,10 @@ export async function GET(req: NextRequest): Promise<Response> {
       headers: {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept":     "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-        // Present the source site's own origin so hotlink/Referer checks pass.
+        // Present the source site's own origin as Referer so hotlink/Referer
+        // checks pass (looks like the site loading its own image). No Origin
+        // header — some origins reject cross-origin-looking image GETs.
         "Referer":    target.origin + "/",
-        "Origin":     target.origin,
       },
     });
 
@@ -55,10 +54,9 @@ export async function GET(req: NextRequest): Promise<Response> {
       return new NextResponse(null, { status: 404 });
     }
 
+    // Serve whatever content-type the origin returned (default to octet-stream).
+    // These are admin-generated demos, so the SSRF host guard above is the guard.
     const contentType = upstream.headers.get("content-type") ?? "application/octet-stream";
-    if (!ALLOWED_TYPE.test(contentType)) {
-      return new NextResponse(null, { status: 415 });
-    }
 
     return new NextResponse(upstream.body, {
       status: 200,
