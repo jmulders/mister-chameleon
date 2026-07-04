@@ -158,6 +158,10 @@ export interface HomepagePipelineInput {
 export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const h             = await headers();
   const cookieHeader  = h.get("cookie");
+  // Keep-warm pings (from /api/cron/keep-warm) carry this header. They exist
+  // only to keep the serverless function + data caches warm, so they must never
+  // consume enrichment credits — billing is disabled for them below.
+  const isWarmup      = h.get("x-mc-warmup") === "1";
   const cookieStore   = await cookies();
   const localeRaw     = cookieStore.get(LOCALE_COOKIE)?.value ?? "";
   const locale        = isSupportedLocale(localeRaw) ? localeRaw : DEFAULT_LOCALE;
@@ -426,6 +430,8 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
 
   // ── Billing client ────────────────────────────────────────────────────────
   const billingClient = (() => {
+    // Never bill for keep-warm pings.
+    if (isWarmup) return null;
     const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
     const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
     if (!url || !key) {
