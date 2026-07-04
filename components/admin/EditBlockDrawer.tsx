@@ -831,6 +831,11 @@ export function EditBlockDrawer({
       return next;
     });
   }
+  // The named set currently referenced — used to PREVIEW its values in the
+  // fields (as placeholders + tinted swatches) so the admin visibly reflects
+  // the set. Inline `tokens` still override per field; empty fields inherit.
+  const selectedSet = tokenSet ? blockTokenSets.find((s) => s.key === tokenSet) : undefined;
+  const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v);
   function toggleArrayValue<T>(arr: readonly T[] | undefined, val: T): T[] {
     const set = new Set(arr ?? []);
     if (set.has(val)) set.delete(val); else set.add(val);
@@ -1528,36 +1533,45 @@ export function EditBlockDrawer({
                 <div className="grid grid-cols-2 gap-2">
                   {group.fields.map((f) => {
                     const raw = (tokens as Record<string, string>)[f.key] ?? "";
+                    // Value inherited from the selected named set (preview only).
+                    const setVal = (selectedSet?.tokens as Record<string, string> | undefined)?.[f.key] ?? "";
+                    const inherited = !raw && Boolean(setVal);
                     return (
                       <label key={f.key} className="block">
-                        <span className="block text-[11px] font-medium text-neutral-600 mb-0.5">{f.label}</span>
+                        <span className="block text-[11px] font-medium text-neutral-600 mb-0.5">
+                          {f.label}
+                          {inherited && <span className="ml-1 text-[10px] font-normal text-indigo-400">· from set</span>}
+                        </span>
                         {f.kind === "surface" ? (
                           <select value={raw} onChange={(e) => setToken(f.key, e.target.value)} className={INPUT_CLS}>
                             {["", ...VALID_SURFACE_ROLES].map((o) => (
-                              <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
+                              <option key={o} value={o}>
+                                {o === "" ? (setVal ? `— set: ${setVal} —` : "— none —") : o}
+                              </option>
                             ))}
                           </select>
                         ) : f.kind === "color" ? (
                           <span className="flex items-center gap-1.5">
                             <input
                               type="color"
-                              value={/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : "#ffffff"}
+                              value={isHex(raw) ? raw : isHex(setVal) ? setVal : "#ffffff"}
                               onChange={(e) => setToken(f.key, e.target.value)}
                               className="h-8 w-8 shrink-0 rounded border border-neutral-300 cursor-pointer p-0"
+                              title={inherited ? `Inherited from set: ${setVal}` : undefined}
                             />
                             <input
                               value={raw}
                               onChange={(e) => setToken(f.key, e.target.value)}
-                              placeholder="#111827"
-                              className={INPUT_CLS + " font-mono"}
+                              placeholder={setVal || "#111827"}
+                              className={INPUT_CLS + " font-mono" + (inherited ? " placeholder:text-indigo-400" : "")}
                             />
                           </span>
                         ) : (
                           <input
                             value={raw}
                             onChange={(e) => setToken(f.key, e.target.value)}
-                            placeholder={f.placeholder ?? ""}
-                            className={INPUT_CLS}
+                            placeholder={setVal || f.placeholder || ""}
+                            className={INPUT_CLS + (inherited ? " placeholder:text-indigo-400" : "")}
                           />
                         )}
                       </label>
