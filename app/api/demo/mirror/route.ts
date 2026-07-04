@@ -28,7 +28,7 @@ import { NextRequest, NextResponse }        from "next/server";
 import { cookies }                          from "next/headers";
 import { createClient }                     from "@supabase/supabase-js";
 import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
-import { mirrorSite }                       from "@/demo/site-mirror";
+import { mirrorSite, proxifyAssets }        from "@/demo/site-mirror";
 import { instrumentHtml }                   from "@/demo/slot-injector";
 import { analyzeSite }                      from "@/demo/analyzer";
 import { generateScenarios }               from "@/demo/content-generator";
@@ -243,7 +243,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ── Step 4: Instrument the HTML ─────────────────────────────────────────────
 
-  const mirroredHtml = instrumentHtml(mirrored.html, {
+  const instrumentedHtml = instrumentHtml(mirrored.html, {
     siteKey:        DEMO_SITE_KEY,
     decideBase:     baseUrl,
     siteName:       mirrored.title,
@@ -255,6 +255,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // scenario_slots DB migration is applied.
     scenarioSlots,
   });
+
+  // Route the prospect's images through our same-origin proxy so cross-origin
+  // hotlink/CORP protection on the source site doesn't blank them out.
+  const mirroredHtml = proxifyAssets(instrumentedHtml, baseUrl);
 
   const generationMs = Date.now() - startMs;
 

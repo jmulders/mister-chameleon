@@ -442,3 +442,46 @@ function buildStubHtml(url: string): string {
 function escapeAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
+
+// ── Image proxy rewriting (for Live Mirror cross-origin images) ─────────────────
+
+/**
+ * Rewrite image URLs in mirrored HTML to route through /api/demo/asset, so the
+ * prospect's images load SAME-ORIGIN — defeating hotlink/Referer/CORP blocking
+ * on the source site (which is why mirrored pages otherwise show no images).
+ *
+ * Scoped to <img>/<source> (src + srcset), <video> (poster), and inline
+ * background-image url(). Only absolute http(s) URLs are proxied.
+ *
+ * @param html      The (already URL-resolved) mirrored HTML.
+ * @param demoBase  Absolute base URL of the demo host — used to build absolute
+ *                  proxy URLs that ignore the injected <base> tag.
+ */
+export function proxifyAssets(html: string, demoBase: string): string {
+  const base   = demoBase.replace(/\/+$/, "");
+  const isHttp = (u: string) => /^https?:\/\//i.test(u.trim());
+  const prox   = (abs: string) => `${base}/api/demo/asset?u=${encodeURIComponent(abs.trim())}`;
+
+  const rewriteSrc = (tag: string): string =>
+    tag.replace(/\bsrc=(['"])(https?:\/\/[^'"]+)\1/gi, (_m, q, u) => `src=${q}${prox(u)}${q}`)
+       .replace(/\bsrcset=(['"])([^'"]+)\1/gi, (_m, q, ss) => {
+         const rewritten = ss.split(",").map((part: string) => {
+           const seg = part.trim();
+           if (!seg) return part;
+           const sp = seg.split(/\s+/);
+           if (isHttp(sp[0])) sp[0] = prox(sp[0]);
+           return sp.join(" ");
+         }).join(", ");
+         return `srcset=${q}${rewritten}${q}`;
+       });
+
+  let out = html;
+  out = out.replace(/<(?:img|source)\b[^>]*>/gi, (tag) => rewriteSrc(tag));
+  out = out.replace(/<video\b[^>]*>/gi, (tag) =>
+    tag.replace(/\bposter=(['"])(https?:\/\/[^'"]+)\1/gi, (_m, q, u) => `poster=${q}${prox(u)}${q}`),
+  );
+  out = out.replace(/background-image\s*:\s*url\((['"]?)(https?:\/\/[^'")]+)\1\)/gi,
+    (_m, q, u) => `background-image:url(${q}${prox(u)}${q})`);
+
+  return out;
+}

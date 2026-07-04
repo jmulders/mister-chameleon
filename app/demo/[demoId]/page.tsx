@@ -33,7 +33,8 @@
 
 import type { Metadata } from "next";
 import type { DemoInstance } from "@/demo/types";
-import { resolveRequestBaseUrl } from "@/lib/base-url";
+import { createClient } from "@supabase/supabase-js";
+import { getDemoById } from "@/demo/store";
 import { DemoViewer } from "./_components/DemoViewer";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -55,26 +56,31 @@ export async function generateMetadata({
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
 async function fetchDemo(
-  demoId:  string,
-  baseUrl: string,
+  demoId: string,
 ): Promise<{ demo: DemoInstance | null; expired: boolean; notFound: boolean }> {
+  // Read the demo directly from the store — NOT via an HTTP fetch to our own
+  // public URL. A self-fetch over the deployment URL fails on protected preview
+  // deployments (Vercel Deployment Protection) and is fragile with base-URL
+  // resolution, which produced spurious 404s. A direct DB read is robust.
+  const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !key) return { demo: null, expired: false, notFound: true };
+
+  const client = createClient(url, key, { auth: { persistSession: false } });
   try {
-    const response = await fetch(`${baseUrl}/api/demo/${demoId}`, {
-      cache: "no-store",   // always fresh — demo viewer must show current view_count
-    });
+    // getDemoById returns null for BOTH "not found" and "expired".
+    const demo = await getDemoById(client, demoId) as DemoInstance | null;
+    if (demo) return { demo, expired: false, notFound: false };
 
-    if (response.status === 410) {
-      return { demo: null, expired: true, notFound: false };
-    }
-    if (response.status === 404) {
-      return { demo: null, expired: false, notFound: true };
-    }
-    if (!response.ok) {
-      return { demo: null, expired: false, notFound: true };
-    }
-
-    const demo = await response.json() as DemoInstance;
-    return { demo, expired: false, notFound: false };
+    // Distinguish expired (row exists) from missing (no row).
+    const { data: raw } = await client
+      .from("demo_instances")
+      .select("id")
+      .eq("id", demoId)
+      .maybeSingle();
+    return raw
+      ? { demo: null, expired: true,  notFound: false }
+      : { demo: null, expired: false, notFound: true };
   } catch {
     return { demo: null, expired: false, notFound: true };
   }
@@ -89,10 +95,7 @@ export default async function DemoPage({
 }) {
   const { demoId } = await params;
 
-  // Resolve the base URL for the internal API fetch (always includes a scheme).
-  const baseUrl = await resolveRequestBaseUrl();
-
-  const { demo, expired, notFound } = await fetchDemo(demoId, baseUrl);
+  const { demo, expired, notFound } = await fetchDemo(demoId);
 
   // ── Expired ────────────────────────────────────────────────────────────────
 
