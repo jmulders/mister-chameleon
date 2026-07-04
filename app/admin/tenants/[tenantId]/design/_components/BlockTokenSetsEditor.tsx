@@ -95,16 +95,26 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
     });
     setMsg({ text: "Example sets added below — review and Save to persist.", ok: true });
   }
-  function importJson() {
+  function applyImportedText(text: string, source: string) {
     try {
-      const parsed = JSON.parse(jsonText);
+      const parsed = JSON.parse(text);
       if (!Array.isArray(parsed)) throw new Error("JSON must be an array of token sets.");
       setSets(parsed.map((s: BlockTokenSet) => ({ ...s, tokens: { ...(s.tokens ?? {}) } })));
       setShowJson(false);
-      setMsg({ text: "Imported — review and Save to persist.", ok: true });
+      setMsg({ text: `Imported ${parsed.length} set(s) from ${source} — review and Save to persist.`, ok: true });
     } catch (e) {
       setMsg({ text: `Import failed: ${e instanceof Error ? e.message : String(e)}`, ok: false });
     }
+  }
+  function importJson() {
+    applyImportedText(jsonText, "text");
+  }
+  function importFromFile(file: File | null | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => applyImportedText(String(reader.result ?? ""), file.name);
+    reader.onerror = () => setMsg({ text: "Could not read the file.", ok: false });
+    reader.readAsText(file);
   }
 
   function save() {
@@ -137,6 +147,15 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
         >
           {showJson ? "Hide JSON" : "Import / export JSON"}
         </button>
+        <label style={{ ...btnStyle("ghost"), display: "inline-flex", alignItems: "center" }}>
+          Upload JSON file
+          <input
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            onChange={(e) => { importFromFile(e.target.files?.[0]); e.currentTarget.value = ""; }}
+          />
+        </label>
         <div style={{ flex: 1 }} />
         <button type="button" onClick={save} disabled={pending} style={btnStyle("save", pending)}>
           {pending ? "Saving…" : "Save token sets"}
@@ -148,6 +167,17 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
           {msg.text}
         </p>
       )}
+
+      {/* How-to-apply hint — a set is only a definition until assigned to a block */}
+      <div style={{
+        marginBottom: "1rem", padding: "0.75rem 1rem", borderRadius: "0.5rem",
+        border: "1px solid #dbeafe", background: "#eff6ff", fontSize: "0.8125rem", color: "#1e40af",
+      }}>
+        <strong>Saving here only defines the sets.</strong> To actually see a set on the site,
+        assign its <strong>key</strong> to a block: content blocks via the <em>Token set</em> field
+        in the page builder, or adaptive blocks via <em>Blocks → Edit → Design tokens</em>. Nothing
+        on the site changes until a block references the key.
+      </div>
 
       {/* JSON panel */}
       {showJson && (

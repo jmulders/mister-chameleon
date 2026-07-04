@@ -385,7 +385,23 @@ function BalanceHero({
     }
   }
 
-  const status  = WALLET_STATUS[statusKey];
+  // Soften the "empty" state for a healthy tenant that simply never topped up:
+  // a 0 balance with no enrichment spend this month is not an error, so show it
+  // neutral (grey) instead of alarming red. Genuine exhaustion (spend > 0) keeps
+  // the red treatment.
+  const baseStatus = WALLET_STATUS[statusKey];
+  const softEmpty  = statusKey === "empty" && spendThisMonth <= 0;
+  const status = softEmpty
+    ? {
+        ...baseStatus,
+        label:      "No credits",
+        icon:       "○",
+        badgeBg:    "bg-neutral-100",
+        badgeText:  "text-neutral-500",
+        heroBorder: "border-neutral-200",
+        accent:     "text-neutral-400",
+      }
+    : baseStatus;
   // Prefer NUMERIC balance (migration 076/089) so sub-credit debits
   // (e.g. -0.01 credits) are reflected immediately.  balance_cents is an
   // INTEGER rounded with ROUND(), so it never changes for debit amounts < 0.5.
