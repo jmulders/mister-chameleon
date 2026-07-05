@@ -52,9 +52,12 @@ export function DemoViewer({ demo }: DemoViewerProps) {
   const richContent    = language === "nl" ? demo.content_nl : demo.content_en;
   const hasRich        = !!richContent;
 
-  // CSS theme vars
-  const primary   = demo.primary_color   ?? "#3b82f6";
-  const secondary = demo.secondary_color ?? "#1e3a8a";
+  // Design tokens extracted from the prospect's site (if any) — render on-brand.
+  const blockTokens = (demo.brand_signals?.blockTokens ?? undefined) as CuratedBlockTokens | undefined;
+
+  // CSS theme vars — prefer extracted brand tokens, fall back to detected colors.
+  const primary   = blockTokens?.primary ?? demo.primary_color ?? "#3b82f6";
+  const secondary = blockTokens?.primaryHover ?? blockTokens?.textBrand ?? demo.secondary_color ?? "#1e3a8a";
 
   // Google Fonts injection
   useEffect(() => {
@@ -69,8 +72,7 @@ export function DemoViewer({ demo }: DemoViewerProps) {
     return () => { link.remove(); };
   }, [demo.brand_signals?.googleFontsUrl]);
 
-  // Design tokens extracted from the prospect's site (if any) — render on-brand.
-  const blockTokens = (demo.brand_signals?.blockTokens ?? undefined) as CuratedBlockTokens | undefined;
+  // Map the extracted tokens onto the demo's CSS variables.
   const tokenStyle  = blockTokensToStyle(blockTokens);
 
   const fontFamily = blockTokens?.headingFont
@@ -109,7 +111,7 @@ export function DemoViewer({ demo }: DemoViewerProps) {
       />
 
       {/* ── Main content ───────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-5xl px-4 pb-20 pt-4">
+      <div className="mx-auto max-w-6xl px-4 pb-20 pt-4">
 
         {/* Browser chrome + page */}
         <div className="overflow-hidden rounded-2xl border border-neutral-200 shadow-xl bg-white">
@@ -175,7 +177,7 @@ function ControlBar({
   return (
     <div className="sticky top-0 z-50 border-b shadow-sm"
       style={{ background: secondary, borderColor: secondary }}>
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
 
         {/* Left: site info */}
         <div className="flex items-center gap-3 min-w-0">
@@ -242,7 +244,7 @@ function ScenarioBar({
 
   return (
     <div className="bg-white border-b border-neutral-200 sticky top-[49px] z-40">
-      <div className="mx-auto max-w-5xl px-4">
+      <div className="mx-auto max-w-6xl px-4">
         <div className="flex gap-1 pt-3 pb-0 overflow-x-auto scrollbar-hide">
           {scenarios.map((s) => {
             const isActive = s.id === activeId;
@@ -391,7 +393,7 @@ function RichPage({
       {content.cases && (
         <div className="relative">
           {blockLabel("case studies")}
-          <CasesSection cases={content.cases} primary={primary} />
+          <CasesSection cases={content.cases} primary={primary} secondary={secondary} />
         </div>
       )}
 
@@ -414,7 +416,7 @@ function RichPage({
       {/* CTA banner */}
       <div className="relative">
         {blockLabel("cta")}
-        <CtaSection cta={cta} secondary={secondary}
+        <CtaSection cta={cta} primary={primary} secondary={secondary}
           isPersonalized={isPersonalization}
           hasOverride={!!(override.ctaHeading || override.ctaBody)}
         />
@@ -451,25 +453,25 @@ function SiteNav({
       ].filter(Boolean) as string[];
 
   return (
-    <header className="flex items-center justify-between px-8 py-4 border-b border-neutral-100">
+    <header className="flex items-center justify-between px-8 sm:px-10 py-5 border-b border-neutral-100 bg-white/80 backdrop-blur">
       <div className="flex items-center gap-3">
         {demo.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={demo.logo_url} alt={demo.site_name}
-            className="h-8 max-w-[140px] object-contain"
+            className="h-8 max-w-[150px] object-contain"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
         ) : (
-          <span className="text-base font-bold" style={{ color: secondary }}>{demo.site_name}</span>
+          <span className="text-lg font-bold tracking-tight" style={{ color: secondary }}>{demo.site_name}</span>
         )}
       </div>
-      <nav className="hidden md:flex items-center gap-6">
+      <nav className="hidden md:flex items-center gap-8">
         {displayLinks.slice(0, 5).map((link) => (
-          <span key={link} className="text-sm text-neutral-600 cursor-pointer hover:text-neutral-900 transition-colors">
+          <span key={link} className="text-sm font-medium text-neutral-600 cursor-pointer hover:text-neutral-900 transition-colors">
             {link}
           </span>
         ))}
       </nav>
-      <button className="rounded-lg px-4 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+      <button className="rounded-full px-5 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
         style={{ background: primary }}>
         {content.hero.primaryCta}
       </button>
@@ -492,38 +494,47 @@ function HeroSection({
   const hasImage = !!hero.imageUrl;
 
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden isolate">
       {/* Background */}
       {hasImage ? (
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 -z-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={hero.imageUrl} alt={hero.imageAlt ?? ""} className="h-full w-full object-cover" />
-          <div className="absolute inset-0" style={{ background: `linear-gradient(120deg, ${secondary}e6 0%, ${primary}99 100%)` }} />
+          <div className="absolute inset-0" style={{ background: `linear-gradient(115deg, ${secondary}f2 0%, ${secondary}cc 45%, ${primary}80 100%)` }} />
         </div>
       ) : (
-        <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${secondary} 0%, ${primary} 100%)` }} />
+        <div className="absolute inset-0 -z-10" style={{ background: `linear-gradient(135deg, ${secondary} 0%, ${primary} 100%)` }} />
       )}
+      {/* Depth glows */}
+      <div aria-hidden className="pointer-events-none absolute -top-24 -right-16 h-80 w-80 rounded-full blur-3xl opacity-40 -z-10"
+        style={{ background: primary }} />
+      <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full blur-3xl opacity-25 -z-10"
+        style={{ background: `#ffffff` }} />
 
       {/* Content */}
-      <div className="relative z-10 px-8 py-20 max-w-2xl">
-        {isPersonalized && hasOverride && (
-          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs text-white font-semibold">
+      <div className="relative z-10 px-8 sm:px-14 py-24 sm:py-32 max-w-3xl">
+        {isPersonalized && hasOverride ? (
+          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-xs text-white font-semibold ring-1 ring-white/25">
             ✨ Personalised for this visitor
           </div>
+        ) : (
+          <div className="mb-5 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+            <span className="h-px w-6 bg-white/50" /> {demo.site_name}
+          </div>
         )}
-        <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.05]">
           {hero.headline}
         </h1>
-        <p className="mt-4 text-lg text-white/85 leading-relaxed">
+        <p className="mt-6 text-lg sm:text-xl text-white/85 leading-relaxed max-w-xl">
           {hero.subheadline}
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <button className="rounded-lg bg-white px-6 py-3 text-sm font-semibold shadow-lg transition-transform hover:scale-105"
+        <div className="mt-10 flex flex-wrap gap-3">
+          <button className="rounded-xl bg-white px-7 py-3.5 text-base font-semibold shadow-xl shadow-black/10 transition-transform hover:-translate-y-0.5"
             style={{ color: secondary }}>
             {hero.primaryCta}
           </button>
           {hero.secondaryCta && (
-            <button className="rounded-lg border border-white/60 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white/15">
+            <button className="rounded-xl border border-white/50 px-7 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/15">
               {hero.secondaryCta}
             </button>
           )}
@@ -542,19 +553,26 @@ function ServicesSection({
   primary:  string;
 }) {
   return (
-    <section className="bg-white px-8 py-16">
-      <div className="text-center max-w-xl mx-auto mb-12">
-        <h2 className="text-2xl font-bold text-neutral-900">{services.heading}</h2>
+    <section className="bg-white px-8 sm:px-10 py-20 sm:py-24">
+      <div className="text-center max-w-2xl mx-auto mb-14">
+        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: primary }}>
+          {services.subheading ? "Wat we doen" : "Diensten"}
+        </div>
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">{services.heading}</h2>
         {services.subheading && (
-          <p className="mt-2 text-neutral-500">{services.subheading}</p>
+          <p className="mt-3 text-lg text-neutral-500 leading-relaxed">{services.subheading}</p>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
         {services.services.map((s, i) => (
-          <div key={i} className="rounded-xl border border-neutral-100 bg-neutral-50 p-5 hover:border-neutral-200 hover:shadow-sm transition-all">
-            <div className="text-3xl mb-3">{s.icon}</div>
-            <h3 className="text-sm font-semibold text-neutral-900 mb-1.5">{s.title}</h3>
-            <p className="text-xs text-neutral-500 leading-relaxed">{s.description}</p>
+          <div key={i}
+            className="group rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-neutral-200/60">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-2xl transition-colors"
+              style={{ background: `${primary}14`, color: primary }}>
+              {s.icon}
+            </div>
+            <h3 className="text-base font-semibold text-neutral-900 mb-1.5">{s.title}</h3>
+            <p className="text-sm text-neutral-500 leading-relaxed">{s.description}</p>
           </div>
         ))}
       </div>
@@ -575,37 +593,39 @@ function ProofSection({
   hasOverride:    boolean;
 }) {
   return (
-    <section className="bg-neutral-50 px-8 py-16 border-t border-neutral-100">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-3 mb-8">
+    <section className="bg-neutral-50 px-8 sm:px-10 py-20 sm:py-24 border-t border-neutral-100">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center gap-3 mb-10">
           {isPersonalized && hasOverride && (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold text-white"
               style={{ background: primary }}>
               ✨ Personalised
             </span>
           )}
-          <h2 className="text-2xl font-bold text-neutral-900">{proof.heading}</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">{proof.heading}</h2>
         </div>
 
         {/* Metrics row */}
-        <div className="grid grid-cols-3 gap-4 mb-10">
+        <div className="grid grid-cols-3 gap-4 sm:gap-6 mb-12">
           {proof.metrics.map((m, i) => (
-            <div key={i} className="text-center p-5 rounded-xl bg-white border border-neutral-200 shadow-sm">
-              <div className="text-2xl font-bold" style={{ color: primary }}>{m.value}</div>
-              <div className="mt-1 text-xs text-neutral-500 font-medium">{m.label}</div>
+            <div key={i} className="text-center p-6 sm:p-8 rounded-2xl bg-white border border-neutral-200/70 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <div className="text-3xl sm:text-5xl font-bold tracking-tight" style={{ color: primary }}>{m.value}</div>
+              <div className="mt-2 text-xs sm:text-sm text-neutral-500 font-medium">{m.label}</div>
             </div>
           ))}
         </div>
 
         {/* Testimonial */}
         {proof.testimonial && (
-          <div className="rounded-xl bg-white border border-neutral-200 p-6 shadow-sm">
-            <blockquote className="text-neutral-700 leading-relaxed italic">
-              "{proof.testimonial.quote}"
+          <div className="relative rounded-2xl bg-white border border-neutral-200/70 p-8 sm:p-10 shadow-sm max-w-3xl">
+            <div aria-hidden className="absolute top-5 left-7 text-6xl leading-none font-serif opacity-10 select-none"
+              style={{ color: primary }}>&ldquo;</div>
+            <blockquote className="relative text-lg sm:text-xl text-neutral-800 leading-relaxed font-medium">
+              {proof.testimonial.quote}
             </blockquote>
-            <footer className="mt-4 flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                style={{ background: secondary }}>
+            <footer className="mt-6 flex items-center gap-3">
+              <div className="h-11 w-11 rounded-full flex items-center justify-center text-white text-base font-bold"
+                style={{ background: `linear-gradient(135deg, ${secondary}, ${primary})` }}>
                 {proof.testimonial.author[0]}
               </div>
               <div>
@@ -624,22 +644,26 @@ function ProofSection({
 
 // ── Cases section ──────────────────────────────────────────────────────────────
 
-function CasesSection({ cases, primary }: { cases: CasesBlock; primary: string }) {
+function CasesSection({ cases, primary, secondary }: { cases: CasesBlock; primary: string; secondary: string }) {
   return (
-    <section className="bg-white px-8 py-16 border-t border-neutral-100">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-neutral-900 mb-8">{cases.heading}</h2>
-        <div className="grid sm:grid-cols-2 gap-5">
+    <section className="bg-white px-8 sm:px-10 py-20 sm:py-24 border-t border-neutral-100">
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 mb-10">{cases.heading}</h2>
+        <div className="grid sm:grid-cols-2 gap-6">
           {cases.cases.map((c, i) => (
-            <div key={i} className="rounded-xl border border-neutral-200 p-5 hover:shadow-sm transition-shadow">
+            <div key={i}
+              className="group relative overflow-hidden rounded-2xl border border-neutral-200/70 p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-neutral-200/60">
+              <div aria-hidden className="absolute top-0 left-0 h-1 w-full" style={{ background: `linear-gradient(90deg, ${secondary}, ${primary})` }} />
               <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold text-neutral-900">{c.company}</span>
+                <span className="text-lg font-bold text-neutral-900">{c.company}</span>
                 {c.industry && (
-                  <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] text-neutral-500">{c.industry}</span>
+                  <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-500">{c.industry}</span>
                 )}
               </div>
-              <p className="text-sm text-neutral-600 mb-3">{c.description}</p>
-              <p className="text-sm font-semibold" style={{ color: primary }}>→ {c.result}</p>
+              <p className="text-sm text-neutral-600 leading-relaxed mb-4">{c.description}</p>
+              <p className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: primary }}>
+                <span className="text-base">→</span> {c.result}
+              </p>
             </div>
           ))}
         </div>
@@ -658,11 +682,11 @@ function PricingSection({
   secondary: string;
 }) {
   return (
-    <section className="bg-neutral-50 px-8 py-16 border-t border-neutral-100">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl font-bold text-neutral-900">{pricing.heading}</h2>
-          {pricing.subheading && <p className="mt-2 text-neutral-500">{pricing.subheading}</p>}
+    <section className="bg-neutral-50 px-8 sm:px-10 py-20 sm:py-24 border-t border-neutral-100">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">{pricing.heading}</h2>
+          {pricing.subheading && <p className="mt-3 text-lg text-neutral-500">{pricing.subheading}</p>}
         </div>
         <div className="grid sm:grid-cols-3 gap-5">
           {pricing.tiers.map((tier, i) => (
@@ -717,11 +741,11 @@ function CareersSection({
   secondary: string;
 }) {
   return (
-    <section className="bg-white px-8 py-16 border-t border-neutral-100">
-      <div className="max-w-4xl mx-auto">
-        <div className="grid sm:grid-cols-2 gap-10">
+    <section className="bg-white px-8 sm:px-10 py-20 sm:py-24 border-t border-neutral-100">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid sm:grid-cols-2 gap-12">
           <div>
-            <h2 className="text-2xl font-bold text-neutral-900 mb-4">{careers.heading}</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 mb-4">{careers.heading}</h2>
             <p className="text-neutral-600 leading-relaxed">{careers.body}</p>
             <button className="mt-6 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
               style={{ background: secondary }}>
@@ -748,30 +772,34 @@ function CareersSection({
 // ── CTA section ────────────────────────────────────────────────────────────────
 
 function CtaSection({
-  cta, secondary, isPersonalized, hasOverride,
+  cta, primary, secondary, isPersonalized, hasOverride,
 }: {
   cta:            CtaBlock;
+  primary:        string;
   secondary:      string;
   isPersonalized: boolean;
   hasOverride:    boolean;
 }) {
   return (
-    <section className="px-8 py-16" style={{ background: secondary }}>
-      <div className="max-w-2xl mx-auto text-center">
+    <section className="relative overflow-hidden px-8 py-24 sm:py-28 isolate"
+      style={{ background: `linear-gradient(135deg, ${secondary} 0%, ${primary} 145%)` }}>
+      <div aria-hidden className="pointer-events-none absolute -top-24 right-0 h-80 w-80 rounded-full blur-3xl opacity-30 -z-10"
+        style={{ background: "#ffffff" }} />
+      <div className="relative max-w-2xl mx-auto text-center">
         {isPersonalized && hasOverride && (
-          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs text-white font-semibold">
+          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-xs text-white font-semibold ring-1 ring-white/25">
             ✨ Personalised for this visitor
           </div>
         )}
-        <h2 className="text-2xl font-bold text-white">{cta.heading}</h2>
-        <p className="mt-3 text-white/80 leading-relaxed">{cta.body}</p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button className="rounded-lg bg-white px-7 py-3 text-sm font-semibold shadow-lg transition-transform hover:scale-105"
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">{cta.heading}</h2>
+        <p className="mt-4 text-lg text-white/85 leading-relaxed">{cta.body}</p>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <button className="rounded-xl bg-white px-8 py-3.5 text-base font-semibold shadow-xl shadow-black/10 transition-transform hover:-translate-y-0.5"
             style={{ color: secondary }}>
             {cta.primaryCta}
           </button>
           {cta.secondaryCta && (
-            <button className="rounded-lg border border-white/60 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white/15">
+            <button className="rounded-xl border border-white/50 px-7 py-3.5 text-base font-semibold text-white transition-all hover:bg-white/15">
               {cta.secondaryCta}
             </button>
           )}
@@ -795,8 +823,8 @@ function SiteFooter({
   const hasCases   = !!content.cases;
 
   return (
-    <footer className="px-8 py-8 border-t border-neutral-100 bg-white">
-      <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-4">
+    <footer className="px-8 sm:px-10 py-10 border-t border-neutral-100 bg-white">
+      <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
         <span className="font-bold text-sm" style={{ color: secondary }}>{demo.site_name}</span>
         <nav className="flex flex-wrap gap-5 text-xs text-neutral-400">
           {hasCases    && <span className="cursor-pointer hover:text-neutral-600 transition-colors">Cases</span>}
