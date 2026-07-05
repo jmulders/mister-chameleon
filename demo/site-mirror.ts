@@ -256,7 +256,9 @@ function promoteLazyImages(html: string): string {
     const lazyUrl = lazyMatch[2];
     if (!lazyUrl || lazyUrl.startsWith("data:")) return imgTag;
 
-    const existingSrc = attrs.match(/\bsrc=(['"])([^'"]*)\1/i);
+    // Match ONLY a real `src=` — not `data-src=` (the hyphen would otherwise be
+    // a word boundary, causing us to think a real src already exists).
+    const existingSrc = attrs.match(/(?<![-\w])src=(['"])([^'"]*)\1/i);
 
     // Decide whether the existing src looks like a placeholder
     const isPlaceholder =
@@ -273,7 +275,7 @@ function promoteLazyImages(html: string): string {
     if (existingSrc) {
       // Replace the placeholder src with the lazy URL
       newAttrs = attrs.replace(
-        /\bsrc=(['"])[^'"]*\1/i,
+        /(?<![-\w])src=(['"])[^'"]*\1/i,
         `src="${lazyUrl}"`,
       );
     } else {
@@ -544,22 +546,31 @@ export function fillMissingImages(html: string, category: SiteCategory): string 
   });
 
   // 2) Replace placeholder <img src> with a pooled Unsplash image; strip lazy
-  //    srcset/sizes so our src is the one the browser uses.
-  html = html.replace(/<img\b([^>]*)>/gi, (tag: string, attrs: string) => {
-    const srcM = attrs.match(/\bsrc=(['"])([^'"]*)\1/i);
+  //    srcset/sizes so our src is the one the browser uses. Every <img> also
+  //    gets an inline onerror fallback so any real image that 404s (broken
+  //    proxied asset) swaps to a pooled photo instead of a broken-image icon.
+  //    NB: `src=` detection uses a negative lookbehind so it never matches
+  //    `data-src=` (the real URL of lazy-loaded images).
+  html = html.replace(/<img\b([^>]*?)\s*\/?>/gi, (tag: string, attrs: string) => {
+    const srcM = attrs.match(/(?<![-\w])src=(['"])([^'"]*)\1/i);
     const src  = srcM?.[2] ?? "";
-    if (src && !isPlaceholder(src)) return tag; // real image — keep it
+    const fallback = nextUrl();
+    const onerr = `this.onerror=null;this.src='${fallback}'`;
 
-    const url = nextUrl();
-    let a = attrs
-      .replace(/\bsrcset=(['"])[^'"]*\1/gi, "")
-      .replace(/\bdata-srcset=(['"])[^'"]*\1/gi, "")
-      .replace(/\bsizes=(['"])[^'"]*\1/gi, "")
-      .replace(/\bloading=(['"])[^'"]*\1/gi, "");
-    a = srcM
-      ? a.replace(/\bsrc=(['"])[^'"]*\1/i, `src="${url}"`)
-      : ` src="${url}"` + a;
-    return `<img${a} loading="lazy">`;
+    let a = attrs;
+    if (!src || isPlaceholder(src)) {
+      // No usable src — inject a pooled image and drop lazy srcset/sizes.
+      a = a
+        .replace(/\bsrcset=(['"])[^'"]*\1/gi, "")
+        .replace(/\bsizes=(['"])[^'"]*\1/gi, "")
+        .replace(/\bloading=(['"])[^'"]*\1/gi, "");
+      a = srcM
+        ? a.replace(/(?<![-\w])src=(['"])[^'"]*\1/i, `src="${fallback}"`)
+        : ` src="${fallback}"` + a;
+    }
+    // Add an onerror fallback if none present.
+    if (!/\bonerror=/i.test(a)) a = ` onerror="${onerr}"` + a;
+    return `<img${a}>`;
   });
 
   return html;
