@@ -235,7 +235,9 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
       component: { buttonPaddingX: "1.3rem", buttonPaddingY: ".7rem" },
       motion: { hoverLift: "-4px" },
       layout: {
-        headerBg: "#2e1065", headerBgScrolled: "#1a0533", headerFg: "#ffffff", headerBorder: "#d4af37",
+        // No explicit headerBgScrolled — the resolver keeps the scrolled header
+        // consistent with headerBg, so text stays legible if headerBg changes.
+        headerBg: "#2e1065", headerFg: "#ffffff", headerBorder: "#d4af37",
         footerBg: "#1a0533", footerFg: "#e9d5ff", footerBorder: "#4c1d95",
         navLinkSize: "0.95rem", navLinkWeight: "600", navLinkTracking: "0", navTransform: "none",
       },

@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { EXAMPLE_BLOCK_TOKEN_SETS } from "@/design-system/theme/block-token-set-examples";
+import { detectTokenPayloadKind, wrongBoxMessage } from "@/design-system/theme/token-import-detect";
 import { saveBlockTokenSetsAction } from "@/app/admin/tenants/[tenantId]/actions";
 
 const SURFACE_OPTIONS = ["", ...VALID_SURFACE_ROLES] as const;
@@ -98,7 +99,10 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
   function applyImportedText(text: string, source: string) {
     try {
       const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) throw new Error("JSON must be an array of token sets.");
+      if (!Array.isArray(parsed)) {
+        const hint = wrongBoxMessage(detectTokenPayloadKind(parsed), "array");
+        throw new Error(hint ?? "JSON must be an array of token sets: [{ key, name, tokens }].");
+      }
       setSets(parsed.map((s: BlockTokenSet) => ({ ...s, tokens: { ...(s.tokens ?? {}) } })));
       setShowJson(false);
       setMsg({ text: `Imported ${parsed.length} set(s) from ${source} — review and Save to persist.`, ok: true });

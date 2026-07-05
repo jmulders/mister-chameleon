@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { EXAMPLE_SITE_DESIGN_TOKENS } from "@/design-system/theme/block-token-set-examples";
+import { detectTokenPayloadKind, wrongBoxMessage } from "@/design-system/theme/token-import-detect";
 import { saveDefaultTokensAction, applyDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
 
 const SURFACE_OPTIONS = ["", ...VALID_SURFACE_ROLES] as const;
@@ -90,7 +91,13 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
     try {
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("JSON must be an object of token groups (color, typography, …).");
+        const hint = wrongBoxMessage(detectTokenPayloadKind(parsed), "tokens");
+        throw new Error(hint ?? "JSON must be a single tokens object: { primary: \"#…\", … }.");
+      }
+      // Reject grouped presets pasted here (they need the preset import path).
+      const kind = detectTokenPayloadKind(parsed);
+      if (kind === "preset") {
+        throw new Error(wrongBoxMessage("preset", "tokens") ?? "This looks like a design preset — use the preset import.");
       }
       setTokens({ ...(parsed as Record<string, string>) });
       setShowJson(false);
