@@ -3,7 +3,7 @@
     "schema": "mister-chameleon-design-preset@1",
     "id": "aurora-purple-gold",
     "name": "Aurora Purple Gold",
-    "description": "Aurora Purple met een complementaire goud-accent: zacht-gouden eyebrow-badge + goud secondary, en een dun goud lijntje onder de donkere header. Paars + goud = klassiek premium."
+    "description": "Premium paars + goud. Aurora-violet primair met een complementair goud-accent: zacht-gouden eyebrow-badge, goud secondary en een dun goud lijntje onder de donkere header. Uitgebreide versie met complete chrome — donkere header (mét scrolled-variant), donkerpaarse footer met paarse rand, goud- en paarse gradients, en een volledige kleur-/typografie-/radius-/schaduw-set. Paars + goud = klassiek premium."
   },
   "theme": "custom",
   "color": {
@@ -58,10 +58,16 @@
   },
   "layout": {
     "headerBg": "#2e1065",
+    "headerBgScrolled": "#1a0533",
     "headerFg": "#ffffff",
     "headerBorder": "#d4af37",
+    "footerBg": "#1a0533",
+    "footerFg": "#e9d5ff",
+    "footerBorder": "#4c1d95",
+    "navLinkSize": "0.95rem",
     "navLinkWeight": "600",
-    "navLinkTracking": "0"
+    "navLinkTracking": "0",
+    "navTransform": "none"
   },
   "focus": {
     "ringWidth": "3px",

@@ -234,7 +234,11 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
       spacing: { sectionPadding: "clamp(60px,9vw,144px)", container: "74rem", align: "center" },
       component: { buttonPaddingX: "1.3rem", buttonPaddingY: ".7rem" },
       motion: { hoverLift: "-4px" },
-      layout: { headerBg: "#2e1065", headerFg: "#ffffff", headerBorder: "#d4af37", navLinkWeight: "600", navLinkTracking: "0" },
+      layout: {
+        headerBg: "#2e1065", headerBgScrolled: "#1a0533", headerFg: "#ffffff", headerBorder: "#d4af37",
+        footerBg: "#1a0533", footerFg: "#e9d5ff", footerBorder: "#4c1d95",
+        navLinkSize: "0.95rem", navLinkWeight: "600", navLinkTracking: "0", navTransform: "none",
+      },
       focus: { ringWidth: "3px", ringColor: "#7c3aed" },
     },
   },
