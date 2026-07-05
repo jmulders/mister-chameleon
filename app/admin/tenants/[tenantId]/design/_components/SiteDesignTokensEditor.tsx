@@ -17,6 +17,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
+import { EXAMPLE_SITE_DESIGN_TOKENS } from "@/design-system/theme/block-token-set-examples";
 import { saveDefaultTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
 
 const SURFACE_OPTIONS = ["", ...VALID_SURFACE_ROLES] as const;
@@ -55,6 +56,11 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
     if (!set) return;
     setTokens({ ...(set.tokens as Record<string, string>) });
     setMsg({ text: `Loaded tokens from "${set.name}" — review and Save to apply site-wide.`, ok: true });
+  }
+
+  function loadExample() {
+    setTokens({ ...(EXAMPLE_SITE_DESIGN_TOKENS as Record<string, string>) });
+    setMsg({ text: "Loaded “Aurora Purple Gold” — review the fields and Save to apply site-wide.", ok: true });
   }
 
   function clearAll() {
@@ -102,6 +108,7 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
     <div>
       {/* Toolbar */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem", alignItems: "center" }}>
+        <button type="button" onClick={loadExample} style={btnStyle("primary")}>✨ Load example (Aurora Purple Gold)</button>
         {tokenSets && tokenSets.length > 0 && (
           <select
             defaultValue=""
@@ -213,15 +220,16 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "0.375rem", background: "#fff", color: "#111827", width: "100%", boxSizing: "border-box",
 };
 
-function btnStyle(kind: "ghost" | "save" | "danger", disabled = false): React.CSSProperties {
+function btnStyle(kind: "primary" | "ghost" | "save" | "danger", disabled = false): React.CSSProperties {
   const base: React.CSSProperties = {
     padding: "0.375rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, borderRadius: "0.375rem",
     cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.6 : 1, transition: "all 0.12s ease",
     border: "1px solid transparent",
   };
   switch (kind) {
-    case "save":   return { ...base, background: "#2563eb", color: "#fff" };
-    case "danger": return { ...base, background: "#fff", color: "#b91c1c", border: "1px solid #fecaca" };
-    case "ghost":  return { ...base, background: "#fff", color: "#374151", border: "1px solid #d1d5db" };
+    case "primary": return { ...base, background: "#7c3aed", color: "#fff" };
+    case "save":    return { ...base, background: "#2563eb", color: "#fff" };
+    case "danger":  return { ...base, background: "#fff", color: "#b91c1c", border: "1px solid #fecaca" };
+    case "ghost":   return { ...base, background: "#fff", color: "#374151", border: "1px solid #d1d5db" };
   }
 }
