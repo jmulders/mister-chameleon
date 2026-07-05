@@ -17,6 +17,7 @@ import { notFound }  from "next/navigation";
 import Link          from "next/link";
 import { getPageById } from "@/page-store";
 import type { EditablePage } from "@/page-store";
+import { getTenantById } from "@/tenant/tenant-store";
 import { getAllBlockDefinitions, REGISTERED_CONTENT_BLOCK_TYPES } from "@/page-config";
 import { SLOT_VOCABULARY } from "@/decision/types";
 import { Badge }        from "@/components/ui/Badge";
@@ -109,6 +110,10 @@ export default async function TenantPageEditorPage({
   // Tenant-scoped lookup — returns undefined if page belongs to a different tenant.
   const page: EditablePage | undefined = await getPageById(pageId, tenantId);
   if (!page) notFound();
+
+  // Tenant's named block token sets — power the per-block "Design tokens" controls.
+  const tenant = await getTenantById(tenantId);
+  const blockTokenSets = tenant?.design?.blockTokenSets;
 
   // ── Bind tenant-scoped server actions ────────────────────────────────────────
   //
@@ -243,6 +248,7 @@ export default async function TenantPageEditorPage({
             blockDefs={blockDefs}
             onSave={boundSaveBlocks}
             tenantId={tenantId}
+            blockTokenSets={blockTokenSets}
           />
         </EditorSection>
 

@@ -44,6 +44,7 @@ import type {
   ContentBlock,
 } from "@/page-config";
 import type { ContentBlockKey } from "@/tenant/types";
+import type { CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 
 // ═════════════════════════════════════════════════════════════════════════════
 // EDITABLE CONTEXT SLOT
@@ -93,6 +94,9 @@ export interface EditableContentBlock {
   id:        string;
   blockType: ContentBlockKey;
   variant?:  string;
+  /** Per-block design tokens: a named set key and/or inline overrides. */
+  tokenSet?: string;
+  tokens?:   CuratedBlockTokens;
   // Intentionally loose-typed for editor generality.
   // The renderer narrows this via the blockType discriminant.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,6 +197,8 @@ type AnyBlock = {
   readonly id:        string;
   readonly blockType: string;
   readonly variant?:  string;
+  readonly tokenSet?: string;
+  readonly tokens?:   CuratedBlockTokens;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly data:      Record<string, any>;
 };
@@ -226,6 +232,8 @@ export function fromPageConfig(
       id:        block.id,
       blockType: block.blockType as ContentBlockKey,
       variant:   block.variant,
+      ...(block.tokenSet ? { tokenSet: block.tokenSet } : {}),
+      ...(block.tokens   ? { tokens:   block.tokens }   : {}),
       data:      block.data,
     }),
   );

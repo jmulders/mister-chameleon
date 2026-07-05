@@ -41,6 +41,11 @@ import type { EditableContentBlock }                   from "@/page-store";
 import { AssetPickerModal }                            from "@/components/admin/AssetPickerModal";
 import { loadAssetsForPickerAction }                   from "@/lib/assets/asset-picker-action";
 import type { SelectedAsset }                          from "@/components/admin/AssetPickerModal";
+import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES }     from "@/design-system/theme/block-token-set";
+import type { BlockTokenSet, CuratedBlockTokens }      from "@/design-system/theme/block-token-set";
+
+const SURFACE_OPTIONS = ["", ...VALID_SURFACE_ROLES] as const;
+function isColorish(v: string): boolean { return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim()); }
 
 // ── Serialisable block-def shape (passed from server) ─────────────────────────
 
@@ -59,6 +64,8 @@ interface BlockRow {
   variant:   string;
   rawJson:   string;
   jsonError: string | null;
+  tokenSet:  string;
+  tokens:    Record<string, string>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,6 +77,8 @@ function toRows(blocks: EditableContentBlock[]): BlockRow[] {
     variant:   b.variant ?? "",
     rawJson:   JSON.stringify(b.data ?? {}, null, 2),
     jsonError: null,
+    tokenSet:  b.tokenSet ?? "",
+    tokens:    { ...((b.tokens as Record<string, string>) ?? {}) },
   }));
 }
 
@@ -84,6 +93,10 @@ function parseRows(rows: BlockRow[]): { blocks: EditableContentBlock[]; errors: 
         id:        row.id,
         blockType: row.blockType as EditableContentBlock["blockType"],
         variant:   row.variant || undefined,
+        ...(row.tokenSet.trim() ? { tokenSet: row.tokenSet.trim() } : {}),
+        ...(Object.keys(row.tokens).length > 0
+          ? { tokens: row.tokens as unknown as CuratedBlockTokens }
+          : {}),
         data,
       });
     } catch {
@@ -358,16 +371,22 @@ function BlockEditorPanel({
   onTypeChange,
   onVariantChange,
   onJsonChange,
+  onTokenSetChange,
+  onTokenChange,
   uid,
   tenantId,
+  blockTokenSets,
 }: {
   row:            BlockRow;
   def:            BlockDefInfo | undefined;
   onTypeChange:   (type: string) => void;
   onVariantChange:(variant: string) => void;
   onJsonChange:   (raw: string) => void;
+  onTokenSetChange:(v: string) => void;
+  onTokenChange:  (field: string, value: string) => void;
   uid:            string;
   tenantId?:      string;
+  blockTokenSets?: readonly BlockTokenSet[];
 }) {
   const typeId    = `type-${uid}`;
   const variantId = `variant-${uid}`;
@@ -484,6 +503,122 @@ function BlockEditorPanel({
           Valid JSON object. Fields depend on the block type — check the block component for accepted props.
         </p>
       </div>
+
+      {/* ── Design tokens (this block only) ──────────────────────────────── */}
+      <BlockTokenControls
+        row={row}
+        blockTokenSets={blockTokenSets}
+        onTokenSetChange={onTokenSetChange}
+        onTokenChange={onTokenChange}
+      />
+    </div>
+  );
+}
+
+// ── Per-block design-token controls ───────────────────────────────────────────
+
+function BlockTokenControls({
+  row,
+  blockTokenSets,
+  onTokenSetChange,
+  onTokenChange,
+}: {
+  row:             BlockRow;
+  blockTokenSets?: readonly BlockTokenSet[];
+  onTokenSetChange:(v: string) => void;
+  onTokenChange:   (field: string, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const count = (row.tokenSet ? 1 : 0) + Object.keys(row.tokens).length;
+
+  return (
+    <div className="mt-3 rounded-md border border-neutral-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2 text-left"
+      >
+        <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+          Design tokens (this block only)
+        </span>
+        <span className="text-xs text-neutral-400">
+          {count > 0 ? `${count} set` : "inherits site defaults"} {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t border-neutral-100 px-3 pb-3 pt-2">
+          <p className="mb-2 text-[11px] text-neutral-400">
+            Optional. Leave empty to inherit the site-wide design tokens. Set a named
+            set and/or override individual values to restyle just this block.
+          </p>
+
+          {/* Named set selector */}
+          <label className="mb-3 flex flex-col gap-1">
+            <span className="text-[11px] font-medium text-neutral-500">Token set</span>
+            <select
+              value={row.tokenSet}
+              onChange={(e) => onTokenSetChange(e.target.value)}
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900"
+            >
+              <option value="">— none (inline / inherit) —</option>
+              {(blockTokenSets ?? []).map((s) => (
+                <option key={s.key} value={s.key}>{s.name || s.key}</option>
+              ))}
+            </select>
+          </label>
+
+          {/* Grouped inline overrides */}
+          {BLOCK_TOKEN_GROUPS.map((group) => (
+            <div key={group.title} className="mt-2">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{group.title}</p>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2">
+                {group.fields.map((f) => {
+                  const raw = row.tokens[f.key] ?? "";
+                  return (
+                    <label key={f.key} className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-neutral-500">{f.label}</span>
+                      {f.kind === "surface" ? (
+                        <select
+                          value={raw}
+                          onChange={(e) => onTokenChange(f.key, e.target.value)}
+                          className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs"
+                        >
+                          {SURFACE_OPTIONS.map((o) => (
+                            <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
+                          ))}
+                        </select>
+                      ) : f.kind === "color" ? (
+                        <span className="flex items-center gap-1.5">
+                          <input
+                            type="color"
+                            value={isColorish(raw) ? raw : "#ffffff"}
+                            onChange={(e) => onTokenChange(f.key, e.target.value)}
+                            className="h-7 w-8 shrink-0 cursor-pointer rounded border border-neutral-300 p-0"
+                          />
+                          <input
+                            value={raw}
+                            onChange={(e) => onTokenChange(f.key, e.target.value)}
+                            placeholder="#111827 / rgba(…)"
+                            className="w-full rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-xs"
+                          />
+                        </span>
+                      ) : (
+                        <input
+                          value={raw}
+                          onChange={(e) => onTokenChange(f.key, e.target.value)}
+                          placeholder={f.placeholder ?? ""}
+                          className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs"
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -509,9 +644,15 @@ interface ContentFlowEditorProps {
    * server component.
    */
   tenantId?: string;
+  /**
+   * The tenant's named block token sets (design.blockTokenSets). Enables the
+   * per-block "Design tokens" controls so a content block can override the
+   * site-wide defaults.
+   */
+  blockTokenSets?: readonly BlockTokenSet[];
 }
 
-export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, tenantId }: ContentFlowEditorProps) {
+export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, tenantId, blockTokenSets }: ContentFlowEditorProps) {
   const [rows,        setRows]        = useState<BlockRow[]>(() => toRows(initialBlocks));
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [addType,     setAddType]     = useState<string>(blockDefs[0]?.key ?? "");
@@ -536,6 +677,19 @@ export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, te
     }
   }
 
+  function setBlockToken(id: string, field: string, value: string) {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const tokens = { ...r.tokens };
+        if (value.trim()) tokens[field] = value;
+        else delete tokens[field];
+        return { ...r, tokens };
+      }),
+    );
+    setStatus(null);
+  }
+
   function addBlock() {
     if (!addType) return;
     const def = defMap[addType];
@@ -546,6 +700,8 @@ export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, te
       variant:   def?.allowedVariants[0] ?? "",
       rawJson:   "{}",
       jsonError: null,
+      tokenSet:  "",
+      tokens:    {},
     };
     setRows((prev) => [...prev, newRow]);
     setExpandedId(id);
@@ -733,9 +889,12 @@ export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, te
                   def={def}
                   uid={rowUid}
                   tenantId={tenantId}
+                  blockTokenSets={blockTokenSets}
                   onTypeChange={(type) => handleTypeChange(row.id, type)}
                   onVariantChange={(variant) => updateRow(row.id, { variant, jsonError: null })}
                   onJsonChange={(raw) => updateRow(row.id, { rawJson: raw, jsonError: null })}
+                  onTokenSetChange={(v) => updateRow(row.id, { tokenSet: v })}
+                  onTokenChange={(field, value) => setBlockToken(row.id, field, value)}
                 />
               )}
             </div>
