@@ -160,8 +160,9 @@ export function PresetGallery({ tenantId, design }: Props) {
         })}
       </div>
       <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 16, maxWidth: "70ch" }}>
-        Een preset zet de volledige look (kleuren, typografie, knoppen, radius, header) in één keer. Je kunt daarna in de
-        Advanced- of Typography-tab nog losse tokens bijstellen.
+        Een preset zet de volledige look in één keer: kleuren, typografie, knoppen, radius, header/footer én de
+        site-brede block-tokens die op elk content-blok en adaptieve slot doorwerken. Je kunt daarna in de
+        Blocks-, Advanced- of Typography-tab nog losse tokens bijstellen.
       </p>
     </div>
   );

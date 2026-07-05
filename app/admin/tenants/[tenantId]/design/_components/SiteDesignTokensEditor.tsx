@@ -71,10 +71,10 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
   function applyFullAurora() {
     setMsg(null);
     startTransition(async () => {
+      // applyDesignPresetAction now applies the preset chrome AND derives the
+      // matching site-wide block tokens in one atomic save.
       const presetRes = await applyDesignPresetAction(tenantId, "aurora-purple-gold");
       if (!presetRes.ok) { setMsg({ text: presetRes.error, ok: false }); return; }
-      const tokensRes = await saveDefaultTokensAction(tenantId, EXAMPLE_SITE_DESIGN_TOKENS);
-      if (!tokensRes.ok) { setMsg({ text: tokensRes.errors.join(" "), ok: false }); return; }
       setTokens({ ...(EXAMPLE_SITE_DESIGN_TOKENS as Record<string, string>) });
       setMsg({ text: "Applied ✓ — Aurora Purple Gold preset + site tokens are live.", ok: true });
       router.refresh();

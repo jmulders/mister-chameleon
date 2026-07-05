@@ -372,6 +372,16 @@ export async function applyDesignPresetAction(
   const current = await getTenantById(tenantId);
   if (!current) return { ok: false, error: `Tenant "${tenantId}" not found.` };
 
+  // A preset is a COMPLETE look — also derive the site-wide block tokens so every
+  // content block / adaptive slot inherits the preset's colours, cards, buttons
+  // and typography. Aurora Purple Gold uses its hand-tuned example; the rest are
+  // mapped generically from the preset's own token overrides.
+  const { blockTokensFromOverrides } = await import("@/design-system/theme/preset-to-block-tokens");
+  const { EXAMPLE_SITE_DESIGN_TOKENS } = await import("@/design-system/theme/block-token-set-examples");
+  const derivedTokens = presetId === "aurora-purple-gold"
+    ? EXAMPLE_SITE_DESIGN_TOKENS
+    : blockTokensFromOverrides(preset.tokenOverrides);
+
   const updatedDesign: TenantDesignSettings = {
     ...current.design,
     theme:                     preset.baseTheme,
@@ -381,6 +391,8 @@ export async function applyDesignPresetAction(
     // — otherwise the family's personality (typography/structure) lingers and
     // mixes with the preset tokens.
     selectedStyleFamily:       undefined,
+    // Site-wide block tokens derived from the preset (the complete look).
+    defaultTokens:             Object.keys(derivedTokens).length > 0 ? derivedTokens : undefined,
   };
 
   const saveResult = await saveTenant({ ...current, design: updatedDesign });
