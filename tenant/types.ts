@@ -31,7 +31,7 @@
  */
 
 import type { TenantTheme } from "@/design-system/theme/tenant-theme";
-import type { BlockTokenSet } from "@/design-system/theme/block-token-set";
+import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 
 // Re-export so consumers can import TenantTheme from "@/tenant" directly.
 export type { TenantTheme };
@@ -2028,6 +2028,17 @@ export interface TenantDesignSettings {
    * See design-system/theme/block-token-set.ts for the model and resolver.
    */
   readonly blockTokenSets?: readonly BlockTokenSet[];
+  /**
+   * Site-wide default design tokens — the central design-token system.
+   *
+   * These are emitted as CSS custom properties at the PAGE ROOT, so every
+   * content block and adaptive/context slot inherits them automatically, with
+   * no per-component assignment required. Per-block `tokenSet`/`tokens` still
+   * override this default for their own subtree (nested scope wins).
+   *
+   * Set once in Admin → Design → "Site design tokens".
+   */
+  readonly defaultTokens?: CuratedBlockTokens;
   /**
    * The Featured Theme Family that was explicitly selected in Design → Style.
    *

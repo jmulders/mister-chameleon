@@ -34,6 +34,7 @@ import { ThemeGallery }         from "./ThemeGallery";
 import { PresetBuilder }        from "./PresetBuilder";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
+import { SiteDesignTokensEditor } from "./SiteDesignTokensEditor";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
 import { saveVisualTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { TenantDesignSettings, ThemeKey } from "@/tenant/types";
@@ -613,13 +614,25 @@ export function DesignPageClient({
         )}
       </TabPanel>
 
-      {/* ── Blocks (per-block token sets) ───────────────────────────────────── */}
+      {/* ── Blocks (site default + per-block token sets) ─────────────────────── */}
       <TabPanel id="blocks" active={activeTab}>
         <TabSectionHeader
-          title="Block token sets"
-          description="Define reusable, named token sets (dark section, highlight, soft cards…) and reference them per content block or adaptive slot by their key. Individual blocks can also layer inline tweaks on top. Overrides are scoped to that block only — the site-wide theme is untouched."
+          title="Site design tokens"
+          description="Your central design system. Set colors, typography, cards, buttons and more once here — they apply automatically to every content block and adaptive slot. No per-component setup needed."
         />
-        <BlockTokenSetsEditor tenantId={tenantId} initialSets={design.blockTokenSets} />
+        <SiteDesignTokensEditor
+          tenantId={tenantId}
+          initialTokens={design.defaultTokens}
+          tokenSets={design.blockTokenSets}
+        />
+
+        <div style={{ marginTop: "2rem" }}>
+          <TabSectionHeader
+            title="Block token sets (overrides)"
+            description="Optional. Define reusable, named token sets (dark section, highlight, soft cards…) and assign them to a specific content block or adaptive slot by key when you want it to differ from the site defaults above. Scoped to that block only."
+          />
+          <BlockTokenSetsEditor tenantId={tenantId} initialSets={design.blockTokenSets} />
+        </div>
       </TabPanel>
 
       {/* ── Advanced ────────────────────────────────────────────────────────── */}

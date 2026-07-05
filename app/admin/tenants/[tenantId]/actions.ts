@@ -3004,3 +3004,53 @@ export async function saveBlockTokenSetsAction(
     return { ok: false, errors: [err instanceof Error ? err.message : String(err)] };
   }
 }
+
+/**
+ * Save the SITE-WIDE default design tokens (design.defaultTokens) — the central
+ * design-token system. These are applied at the page root so every block/slot
+ * inherits them; per-block token refs still override for their own subtree.
+ */
+export async function saveDefaultTokensAction(
+  tenantId:  string,
+  rawTokens: unknown,
+): Promise<SaveBlockTokenSetsResult> {
+  try {
+    await getRequiredAdminSession();
+
+    const current = await getTenantById(tenantId);
+    if (!current) return { ok: false, errors: [`Tenant "${tenantId}" not found.`] };
+
+    if (rawTokens === null || typeof rawTokens !== "object" || Array.isArray(rawTokens)) {
+      return { ok: false, errors: ["Expected a design-tokens object (color, typography, …)."] };
+    }
+
+    const errors: string[] = [];
+    const src = rawTokens as Record<string, unknown>;
+    const tokens: Record<string, string> = {};
+    for (const field of CURATED_TOKEN_KEYS) {
+      const v = src[field];
+      if (typeof v !== "string" || !v.trim()) continue;
+      if (field === "surface" && !(VALID_SURFACE_ROLES as readonly string[]).includes(v.trim())) {
+        errors.push(`Invalid surface "${v}".`);
+        continue;
+      }
+      tokens[field] = v.trim();
+    }
+
+    if (errors.length > 0) return { ok: false, errors };
+
+    const hasAny = Object.keys(tokens).length > 0;
+    const updatedDesign: TenantDesignSettings = {
+      ...current.design,
+      defaultTokens: hasAny ? (tokens as TenantDesignSettings["defaultTokens"]) : undefined,
+    };
+    const saveResult = await saveTenant({ ...current, design: updatedDesign });
+    if (!saveResult.ok) return { ok: false, errors: [saveResult.error] };
+
+    revalidatePath(`/admin/tenants/${tenantId}/design`);
+    return { ok: true, errors: [] };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, errors: [err instanceof Error ? err.message : String(err)] };
+  }
+}

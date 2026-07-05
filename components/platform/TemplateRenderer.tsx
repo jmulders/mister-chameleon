@@ -325,17 +325,23 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
   // ── Resolve the tenant's named block-token sets once ───────────────────────
   // Used to resolve any block/slot that references a named set by key.
   // Resolution failures are non-fatal — blocks simply fall back to site tokens.
+  // Also resolve the site-wide DEFAULT design tokens — the central token system.
+  // These are applied once at the page root below, so every block/slot inherits
+  // them; per-block token refs still override for their own subtree.
   let blockTokenSets: readonly BlockTokenSet[] | undefined;
+  let defaultTokens: CuratedBlockTokens | undefined;
   try {
     const { tenantId } = await getActiveTenant();
     const tenant = tenantId ? await getTenantById(tenantId) : null;
     blockTokenSets = tenant?.design?.blockTokenSets;
+    defaultTokens  = tenant?.design?.defaultTokens;
   } catch {
     blockTokenSets = undefined;
+    defaultTokens  = undefined;
   }
 
   return (
-    <>
+    <BlockThemeScope tokenRef={{ tokens: defaultTokens }} sets={blockTokenSets} scopeId="site-default">
       {/* ── Notification overlay (rendered once, outside page flow) ──────── */}
       {effectiveContextData.notification && (
         <NotificationBlock
@@ -384,7 +390,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
           />
         );
       })}
-    </>
+    </BlockThemeScope>
   );
 }
 
