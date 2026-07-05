@@ -28,7 +28,7 @@ import { NextRequest, NextResponse }        from "next/server";
 import { cookies }                          from "next/headers";
 import { createClient }                     from "@supabase/supabase-js";
 import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
-import { mirrorSite, proxifyAssets }        from "@/demo/site-mirror";
+import { mirrorSite, proxifyAssets, fillMissingImages } from "@/demo/site-mirror";
 import { instrumentHtml }                   from "@/demo/slot-injector";
 import { analyzeSite }                      from "@/demo/analyzer";
 import { generateScenarios }               from "@/demo/content-generator";
@@ -258,7 +258,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Route the prospect's images through our same-origin proxy so cross-origin
   // hotlink/CORP protection on the source site doesn't blank them out.
-  const mirroredHtml = proxifyAssets(instrumentedHtml, baseUrl);
+  const proxiedHtml = proxifyAssets(instrumentedHtml, baseUrl);
+
+  // Fill any remaining placeholder image slots (JS-lazy-loaded originals that
+  // aren't in the static HTML) with category-matched Unsplash photos, so the
+  // mirror looks complete instead of showing blank boxes.
+  const mirroredHtml = fillMissingImages(proxiedHtml, analysis.category);
 
   const generationMs = Date.now() - startMs;
 

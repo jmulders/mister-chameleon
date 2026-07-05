@@ -107,3 +107,44 @@ export function getHeroImageUrl(category: SiteCategory): string {
   const c = CURATED[category] ?? CURATED.general;
   return curatedUrl(c.hero, 1400, 800);
 }
+
+// ── Image pool (for filling mirrored-site placeholders) ─────────────────────────
+//
+// A larger set of stable, professional Unsplash photo IDs. Used to fill the many
+// image slots in a Live Mirror whose real (JS-injected) sources can't be
+// recovered. Category-specific hero/services/cases are prepended so the most
+// prominent slots stay on-topic; the general pool covers the rest.
+
+const GENERAL_POOL: string[] = [
+  "photo-1522071820081-009f0129c71c", // team collaborating at laptops
+  "photo-1600880292203-757bb62b4baf", // business meeting handshake
+  "photo-1497366216548-37526070297c", // modern office
+  "photo-1600607687939-ce8a6c25118c", // bright office interior
+  "photo-1531482615713-2afd69097998", // team working together
+  "photo-1552664730-d307ca884978",    // successful team meeting
+  "photo-1521737604082-b6b32d5e7996", // happy team
+  "photo-1556761175-5973dc0f32e7",    // office collaboration
+  "photo-1486312338219-ce68d2c6f44d", // professional at desk
+  "photo-1557804506-669a67965ba0",    // whiteboard strategy
+  "photo-1519389950473-47ba0277781c", // tech team laptops
+  "photo-1454165804606-c3d57bc86b40", // analytics planning
+  "photo-1573497019940-1c28c88b4f3e", // interview / conversation
+  "photo-1600880292089-90a7e086ee0c", // consulting meeting
+];
+
+/** Direct CDN URL for a pool photo, natural aspect ratio (no forced crop). */
+function poolUrl(photoId: string, width: number): string {
+  return `${UNSPLASH_CDN}/${photoId}?w=${width}&q=80&auto=format`;
+}
+
+/**
+ * Return an ordered pool of Unsplash image URLs for a category. Category
+ * hero/services/cases come first, then the general professional pool, deduped.
+ */
+export function getImagePool(category: SiteCategory, width = 1200): string[] {
+  const c   = CURATED[category] ?? CURATED.general;
+  const ids = [c.hero, c.services, c.cases, ...GENERAL_POOL];
+  const seen = new Set<string>();
+  const unique = ids.filter((id) => (seen.has(id) ? false : (seen.add(id), true)));
+  return unique.map((id) => poolUrl(id, width));
+}

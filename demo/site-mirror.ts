@@ -13,6 +13,9 @@
  * for a sales demo, not a perfect browser-accurate render.
  */
 
+import { getImagePool } from "./image-provider";
+import type { SiteCategory } from "./types";
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -507,4 +510,57 @@ export function proxifyAssets(html: string, demoBase: string): string {
     (_m, q, u) => `background-image:url(${q}${prox(u)}${q})`);
 
   return out;
+}
+
+// ── Fill missing images with Unsplash (for JS-lazy-loaded mirrors) ──────────────
+
+/**
+ * Many sites inject their real image URLs via JavaScript at runtime, so a static
+ * mirror is left with only base64 placeholders (blank/grey boxes). This pass
+ * fills those slots with category-matched Unsplash photos so the mirror looks
+ * complete and attractive — while leaving any real (already-resolved) images
+ * untouched.
+ *
+ * @param html      Near-final mirrored HTML (after proxifyAssets).
+ * @param category  Site category, used to pick on-topic imagery.
+ */
+export function fillMissingImages(html: string, category: SiteCategory): string {
+  const pool = getImagePool(category);
+  if (pool.length === 0) return html;
+  let i = 0;
+  const nextUrl = () => pool[i++ % pool.length];
+
+  const isPlaceholder = (src: string): boolean =>
+    !src.trim() ||
+    /^\s*data:/i.test(src) ||
+    /placeholder|blank|spinner|loading|1x1|pixel|transparent|spacer|empty\.(?:gif|png)/i.test(src);
+
+  // 1) Drop <source> elements whose (data:) srcset is a placeholder, so the
+  //    <img> fallback inside <picture> is what renders.
+  html = html.replace(/<source\b[^>]*>/gi, (tag) => {
+    const ss = tag.match(/\bsrcset=(['"])([^'"]*)\1/i);
+    if (ss && isPlaceholder(ss[2])) return "";
+    return tag;
+  });
+
+  // 2) Replace placeholder <img src> with a pooled Unsplash image; strip lazy
+  //    srcset/sizes so our src is the one the browser uses.
+  html = html.replace(/<img\b([^>]*)>/gi, (tag: string, attrs: string) => {
+    const srcM = attrs.match(/\bsrc=(['"])([^'"]*)\1/i);
+    const src  = srcM?.[2] ?? "";
+    if (src && !isPlaceholder(src)) return tag; // real image — keep it
+
+    const url = nextUrl();
+    let a = attrs
+      .replace(/\bsrcset=(['"])[^'"]*\1/gi, "")
+      .replace(/\bdata-srcset=(['"])[^'"]*\1/gi, "")
+      .replace(/\bsizes=(['"])[^'"]*\1/gi, "")
+      .replace(/\bloading=(['"])[^'"]*\1/gi, "");
+    a = srcM
+      ? a.replace(/\bsrc=(['"])[^'"]*\1/i, `src="${url}"`)
+      : ` src="${url}"` + a;
+    return `<img${a} loading="lazy">`;
+  });
+
+  return html;
 }
