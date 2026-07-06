@@ -135,16 +135,7 @@ export function ContentBlockRenderer({ block, blockTokenSets }: ContentBlockRend
       sets={blockTokenSets}
       scopeId={block.id}
     >
-      {/* TEMP DEBUG marker (no layout impact via display:contents) — remove after diagnosis. */}
-      <div
-        data-mc-blocktype={block.blockType}
-        data-mc-tokenset={tokenSet ?? ""}
-        data-mc-hastokens={String(!!tokens)}
-        data-mc-setcount={String(blockTokenSets ? blockTokenSets.length : 0)}
-        style={{ display: "contents" }}
-      >
-        {withAnchor}
-      </div>
+      {withAnchor}
     </BlockThemeScope>
   );
 }

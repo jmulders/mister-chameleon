@@ -1734,8 +1734,20 @@ export function mapStatamicPageBlocksToSections(
     // Forward the authored `token_set` key (and optional inline `tokens`) onto
     // the section so ContentBlockRenderer can scope its design tokens.
     if (lastSection) {
-      if (typeof block.token_set === "string" && block.token_set.trim()) {
-        (lastSection as PageSectionBase).tokenSet = block.token_set.trim();
+      // Statamic's REST API augments a `select` field into an object
+      // ({ value, label, key }) rather than a bare string. Accept both shapes:
+      // read the string directly, or pull `.value`/`.key` from the object.
+      const rawTs: unknown = block.token_set;
+      let tsKey = "";
+      if (typeof rawTs === "string") {
+        tsKey = rawTs;
+      } else if (rawTs && typeof rawTs === "object") {
+        const o = rawTs as { value?: unknown; key?: unknown };
+        if (typeof o.value === "string") tsKey = o.value;
+        else if (typeof o.key === "string") tsKey = o.key;
+      }
+      if (tsKey.trim()) {
+        (lastSection as PageSectionBase).tokenSet = tsKey.trim();
       }
       if (block.tokens && typeof block.tokens === "object" && !Array.isArray(block.tokens)) {
         (lastSection as PageSectionBase).tokens =
