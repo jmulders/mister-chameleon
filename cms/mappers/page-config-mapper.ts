@@ -1059,7 +1059,23 @@ function buildPageItemsFromSections(
     } else {
       if (!isRegisteredBlockType(section._type)) continue;
       const block = mapSectionToContentBlock(section);
-      if (block) items.push({ kind: "block", block });
+      if (block) {
+        // Carry anchor + block-level design tokens (named set + inline) from the
+        // section, exactly like mapSectionsToContentBlocks() does — otherwise
+        // per-block tokens would only work on the homepage path, not [slug] pages.
+        const base = section as import("../types").PageSectionBase;
+        const hasTokens = Boolean(base.tokens && Object.keys(base.tokens).length > 0);
+        const withTokens: ContentBlock =
+          (base.anchorId || base.tokenSet || hasTokens)
+            ? ({
+                ...block,
+                ...(base.anchorId ? { anchorId: base.anchorId } : {}),
+                ...(base.tokenSet ? { tokenSet: base.tokenSet } : {}),
+                ...(hasTokens ? { tokens: base.tokens } : {}),
+              } as ContentBlock)
+            : block;
+        items.push({ kind: "block", block: withTokens });
+      }
     }
   }
   return items;
