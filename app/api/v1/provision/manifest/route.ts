@@ -89,7 +89,10 @@ export async function GET(request: NextRequest) {
   try {
     switch (provider) {
       case "statamic": {
-        const manifest = generateStatamicManifest(overrides);
+        // Pass the tenant's named block token sets so the per-block
+        // "Design token set" field renders as a dropdown of their names.
+        const sets = (tenant.design?.blockTokenSets ?? []).map((s) => ({ key: s.key, name: s.name }));
+        const manifest = generateStatamicManifest(overrides, sets);
         return NextResponse.json(manifest, { status: 200, headers: CORS_HEADERS });
       }
 

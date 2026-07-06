@@ -165,8 +165,62 @@ function readContentFieldsets(): ProvisionArtifact[] {
   return _contentFieldsetCache;
 }
 
+/**
+ * Build the per-block "Design token set" fieldset. When the tenant has named
+ * block token sets, emit a SELECT dropdown listing them by name (so authors pick
+ * instead of typing a key); otherwise fall back to a free-text field.
+ */
+export function buildBlockDesignFieldset(
+  sets: ReadonlyArray<{ key: string; name?: string }> = [],
+): string {
+  const header = `title: 'Mister Chameleon — Block Design'
+# Managed by the Mister Chameleon platform. Do not edit by hand — run
+# \`php please mc:sync\` to refresh.
+#
+# Imported by every content-block set in mc_page_blocks so any block can override
+# the site-wide design tokens for itself.
+fields:
+  -
+    handle: mc_token_set
+    field:`;
+
+  const valid = sets.filter((s) => s.key && s.key.trim());
+  if (valid.length === 0) {
+    return `${header}
+      type: text
+      display: 'Design token set'
+      instructions: "Optional. Enter the key of a design token set (defined in Admin → Design → Blocks) to restyle just this block. Leave empty to inherit the site-wide design tokens."
+      width: 100
+`;
+  }
+
+  const esc = (s: string) => s.replace(/'/g, "''");
+  const options = valid
+    .map((s) => `        ${s.key.trim()}: '${esc(s.name?.trim() || s.key.trim())}'`)
+    .join("\n");
+
+  return `${header}
+      type: select
+      display: 'Design token set'
+      instructions: "Optional. Pick a design token set to restyle just this block. Leave empty to inherit the site-wide design tokens."
+      clearable: true
+      width: 100
+      options:
+${options}
+`;
+}
+
 /** Produce the full Statamic provisioning manifest for a tenant. */
-export function generateStatamicManifest(tokenOverrides: TokenOverrides = {}): ProvisionManifest {
+export function generateStatamicManifest(
+  tokenOverrides: TokenOverrides = {},
+  blockTokenSets: ReadonlyArray<{ key: string; name?: string }> = [],
+): ProvisionManifest {
+  // Ship all content fieldsets verbatim EXCEPT mrc_block_design — that one is
+  // generated per-tenant so its dropdown lists the tenant's own token sets.
+  const contentFieldsets = readContentFieldsets().filter(
+    (a) => !a.path.endsWith("/mrc_block_design.yaml"),
+  );
+
   return {
     cms: "statamic",
     version: DEFINITIONS_VERSION,
@@ -183,8 +237,13 @@ export function generateStatamicManifest(tokenOverrides: TokenOverrides = {}): P
         path: "resources/css/mister-chameleon-tokens.css",
         contents: generateTokensCss(tokenOverrides),
       },
+      // Per-tenant: dropdown of the tenant's own named block token sets.
+      {
+        path: "resources/fieldsets/mrc_block_design.yaml",
+        contents: buildBlockDesignFieldset(blockTokenSets),
+      },
       // Content-block fieldsets (mrc_*) — shipped verbatim from the platform.
-      ...readContentFieldsets(),
+      ...contentFieldsets,
     ],
   };
 }
