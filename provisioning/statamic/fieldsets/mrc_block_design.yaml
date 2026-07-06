@@ -1,0 +1,17 @@
+title: 'Mister Chameleon — Block Design'
+# Managed by the Mister Chameleon platform. Do not edit by hand — run
+# `php please mc:sync` to refresh.
+#
+# Shared partial: imported by every content-block set in mc_page_blocks so any
+# block can override the site-wide design tokens for itself. The chosen set key
+# is read by the platform renderer (ContentBlockRenderer) and applied as scoped
+# CSS custom properties around just that block.
+fields:
+  -
+    handle: mc_token_set
+    field:
+      type: text
+      display: 'Design token set'
+      instructions: "Optional. Enter the key of a design token set (defined in Admin → Design → Blocks) to restyle just this block — e.g. `dark-section`. Leave empty to inherit the site-wide design tokens."
+      width: 100
+      icon: tokens

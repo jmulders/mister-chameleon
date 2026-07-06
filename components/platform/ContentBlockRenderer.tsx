@@ -38,7 +38,7 @@
  */
 
 import type { ContentBlock } from "@/page-config";
-import type { BlockTokenSet } from "@/design-system/theme/block-token-set";
+import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { BlockThemeScope } from "./BlockThemeScope";
 import {
   TextSectionBlock,
@@ -115,9 +115,23 @@ export function ContentBlockRenderer({ block, blockTokenSets }: ContentBlockRend
     rendered
   );
 
+  // Resolve the block's token ref. DB-authored blocks carry tokenSet/tokens as
+  // first-class fields. CMS-authored (Statamic) blocks carry them inside `data`
+  // as `mc_token_set` / `mc_tokens` — support both, so per-block design tokens
+  // work on Statamic sites without changes to the CMS provider.
+  const data = block.data as Record<string, unknown> | undefined;
+  const dataTokenSet = typeof data?.["mc_token_set"] === "string" ? (data["mc_token_set"] as string).trim() : "";
+  const dataTokens   = data?.["mc_tokens"];
+  const tokenSet = block.tokenSet ?? (dataTokenSet || undefined);
+  const tokens =
+    block.tokens ??
+    (dataTokens && typeof dataTokens === "object" && !Array.isArray(dataTokens)
+      ? (dataTokens as CuratedBlockTokens)
+      : undefined);
+
   return (
     <BlockThemeScope
-      tokenRef={{ tokenSet: block.tokenSet, tokens: block.tokens }}
+      tokenRef={{ tokenSet, tokens }}
       sets={blockTokenSets}
       scopeId={block.id}
     >
