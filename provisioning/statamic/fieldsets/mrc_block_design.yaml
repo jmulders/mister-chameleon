@@ -8,7 +8,7 @@ title: 'Mister Chameleon — Block Design'
 # CSS custom properties around just that block.
 fields:
   -
-    handle: mc_token_set
+    handle: token_set
     field:
       type: text
       display: 'Design token set'

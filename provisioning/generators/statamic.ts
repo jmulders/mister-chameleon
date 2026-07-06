@@ -181,7 +181,7 @@ export function buildBlockDesignFieldset(
 # the site-wide design tokens for itself.
 fields:
   -
-    handle: mc_token_set
+    handle: token_set
     field:`;
 
   const valid = sets.filter((s) => s.key && s.key.trim());

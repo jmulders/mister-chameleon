@@ -120,8 +120,8 @@ export function ContentBlockRenderer({ block, blockTokenSets }: ContentBlockRend
   // as `mc_token_set` / `mc_tokens` — support both, so per-block design tokens
   // work on Statamic sites without changes to the CMS provider.
   const data = block.data as Record<string, unknown> | undefined;
-  const dataTokenSet = typeof data?.["mc_token_set"] === "string" ? (data["mc_token_set"] as string).trim() : "";
-  const dataTokens   = data?.["mc_tokens"];
+  const dataTokenSet = typeof data?.["token_set"] === "string" ? (data["token_set"] as string).trim() : "";
+  const dataTokens   = data?.["tokens"];
   const tokenSet = block.tokenSet ?? (dataTokenSet || undefined);
   const tokens =
     block.tokens ??
