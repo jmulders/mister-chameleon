@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/visitor-profile-purge",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/ad-sync",
+      "schedule": "30 3 * * *"
     }
   ]
 }

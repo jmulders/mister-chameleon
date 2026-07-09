@@ -21,6 +21,8 @@ import {
 } from "@/lib/lead-base/visitor-profiles-store";
 import { archiveContact } from "@/lib/lead-base/hubspot-sync";
 import { getAbmHubspotToken } from "@/lib/abm/abm-store";
+import { getLeadEmailsForProfiles } from "@/lib/ad-sync/segment";
+import { removeLeadsFromAudiences } from "@/lib/ad-sync/sync-engine";
 import { listVisitorEvents, type VisitorEvent } from "@/lib/lead-base/visitor-events-store";
 import {
   listWebhookDeliveries,
@@ -56,7 +58,13 @@ export async function deleteLeadProfilesAction(
     }
   }
 
+  // Also purge these people from any ad-platform retargeting audiences. Resolve
+  // their emails BEFORE deleting the profiles (the link is gone afterwards).
+  const eraseEmails = await getLeadEmailsForProfiles(tenantId, ids);
+
   const deleted = await deleteVisitorProfiles(tenantId, ids);
+
+  if (eraseEmails.length > 0) await removeLeadsFromAudiences(tenantId, eraseEmails);
   return { ok: deleted > 0, deleted, crmArchived };
 }
 
