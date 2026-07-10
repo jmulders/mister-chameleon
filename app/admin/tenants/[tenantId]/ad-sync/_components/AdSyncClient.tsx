@@ -204,15 +204,14 @@ export function AdSyncClient({
       </section>
 
       {/* Google Ads */}
-      <PlatformCard title="Google Ads — Customer Match"
+      <PlatformCard title="Google — Customer Match (Data Manager API)"
         onSave={() => savePlatform("google", google)} onTest={() => testConn("google")} onClear={() => clearPlatform("google")} pending={pending}>
-        <Field label="Developer token" value={isSet(google.developerToken) ? "" : (google.developerToken ?? "")} placeholder={isSet(google.developerToken) ? "•••• opgeslagen" : ""} onChange={(v) => setGoogle({ ...google, developerToken: v })} />
-        <Field label="Login customer id (MCC)" value={google.loginCustomerId ?? ""} onChange={(v) => setGoogle({ ...google, loginCustomerId: v })} hint="Cijfers, zonder streepjes" />
         <Field label="Customer id (doelaccount)" value={google.customerId ?? ""} onChange={(v) => setGoogle({ ...google, customerId: v })} hint="Cijfers, zonder streepjes" />
+        <Field label="Login customer id (MCC)" value={google.loginCustomerId ?? ""} onChange={(v) => setGoogle({ ...google, loginCustomerId: v })} hint="Optioneel — alleen bij een manager-account" />
         <Field label="User list id" value={google.userListId ?? ""} onChange={(v) => setGoogle({ ...google, userListId: v })} hint="De Customer Match-lijst" />
         <Field label="OAuth client id" value={google.clientId ?? ""} onChange={(v) => setGoogle({ ...google, clientId: v })} />
         <Field label="OAuth client secret" type="password" value={isSet(google.clientSecret) ? "" : (google.clientSecret ?? "")} placeholder={isSet(google.clientSecret) ? "•••• opgeslagen" : ""} onChange={(v) => setGoogle({ ...google, clientSecret: v })} />
-        <Field label="Refresh token" type="password" value={isSet(google.refreshToken) ? "" : (google.refreshToken ?? "")} placeholder={isSet(google.refreshToken) ? "•••• opgeslagen" : ""} onChange={(v) => setGoogle({ ...google, refreshToken: v })} />
+        <Field label="Refresh token" type="password" value={isSet(google.refreshToken) ? "" : (google.refreshToken ?? "")} placeholder={isSet(google.refreshToken) ? "•••• opgeslagen" : ""} onChange={(v) => setGoogle({ ...google, refreshToken: v })} hint="Scope: .../auth/datamanager" />
       </PlatformCard>
 
       {/* Meta */}

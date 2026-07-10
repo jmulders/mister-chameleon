@@ -41,13 +41,14 @@ export interface AdSyncSegment {
 // ── Per-platform credentials ────────────────────────────────────────────────────
 
 export interface GoogleAdsConfig {
+  /** @deprecated Not used by the Data Manager API path (kept for stored data). */
   developerToken?:   string;
-  loginCustomerId?:  string;   // MCC id (digits only), sent as login-customer-id header
-  customerId?:       string;   // target account id (digits only)
+  loginCustomerId?:  string;   // MCC id (digits only) → Destination.loginAccount
+  customerId?:       string;   // target Ads account id (digits) → Destination.operatingAccount
   clientId?:         string;   // OAuth2 client
   clientSecret?:     string;
-  refreshToken?:     string;   // OAuth2 refresh token (offline access)
-  userListId?:       string;   // target Customer Match user list (crm-based)
+  refreshToken?:     string;   // OAuth2 refresh token, scope: .../auth/datamanager
+  userListId?:       string;   // Customer Match user list id → Destination.productDestinationId
 }
 
 export interface MetaConfig {

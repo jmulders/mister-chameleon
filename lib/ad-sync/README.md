@@ -61,24 +61,38 @@ Apply before use:
 All credentials are entered in **Admin → Tenants → [tenant] → Doelgroepen →
 Retargeting**. There are no env vars (besides the shared `CRON_SECRET`).
 
-### Google Ads — Customer Match
+### Google — Customer Match (via the Data Manager API)
 
-Requirements: a Google Ads account eligible for Customer Match, API access, and
-an OAuth client.
+> **Why Data Manager API?** Since **1 April 2026** Google disabled Customer Match
+> uploads through the Google Ads API (`OfflineUserDataJobService`) for developer
+> tokens that weren't already allowlisted. New integrations must use the Data
+> Manager API. This client uses `datamanager.googleapis.com`. **No developer
+> token is needed** — auth is OAuth2 with the `datamanager` scope.
 
-1. **Developer token** — Google Ads → Tools → API Center. (Basic access is fine
-   for Customer Match once approved.)
-2. **OAuth client** — Google Cloud Console → APIs & Services → Credentials →
-   create an OAuth 2.0 Client (Desktop or Web). Note the **client id** + **secret**.
+Requirements: a Google Ads account eligible for Customer Match and an OAuth client.
+
+1. **Enable the API** — Google Cloud Console → *APIs & Services → Library* →
+   enable **"Data Manager API"** in your project.
+2. **OAuth client** — *APIs & Services → Credentials* → create an OAuth 2.0
+   Client (Web). Add `https://developers.google.com/oauthplayground` as an
+   authorized redirect URI if you'll use the playground. Note the **client id**
+   + **secret**.
 3. **Refresh token** — run the OAuth consent once for a user with access to the
-   account, requesting scope `https://www.googleapis.com/auth/adwords` with
-   `access_type=offline`. Store the resulting **refresh token**.
-4. **Customer id** — the target account id (10 digits, no dashes).
-5. **Login customer id** — your MCC/manager id if the account sits under one.
+   Ads account, requesting scope **`https://www.googleapis.com/auth/datamanager`**
+   with `access_type=offline` (e.g. via the OAuth Playground → gear → "Use your
+   own OAuth credentials"). Store the **refresh token**.
+4. **Customer id** — the target Ads account id (10 digits, no dashes) →
+   becomes `Destination.operatingAccount`.
+5. **Login customer id** — your MCC/manager id (digits) if the account sits under
+   one; otherwise leave empty → `Destination.loginAccount`.
 6. **User list** — create a *Customer list* audience in the Ads UI (Tools →
-   Audience manager → Segments → +). Copy its **user list id**.
+   Audience manager → Segments → +). Copy its **user list id** →
+   `Destination.productDestinationId`. (You can also create it via the Data
+   Manager API `userLists:create`, but the UI is simpler.)
 
-Fill all six fields, click **Test verbinding**, then **Opslaan**.
+Fill the fields, click **Test verbinding** (runs a `validateOnly` ingest — no
+data is written), then **Opslaan**. The Customer Match Terms of Service is
+accepted automatically per upload (`termsOfService: ACCEPTED`).
 
 ### Meta — Custom Audiences
 
@@ -113,9 +127,9 @@ Fill the three fields, **Test verbinding**, **Opslaan**.
 
 ## Notes / limits
 
-- **API versions** are pinned as a constant at the top of each client
-  (`API_VERSION` / `LINKEDIN_VERSION`). Bump them when a platform deprecates a
-  version.
+- **API versions** are pinned as a constant at the top of each client (Google
+  uses Data Manager API `v1`; Meta `API_VERSION`; LinkedIn `LINKEDIN_VERSION`).
+  Bump them when a platform deprecates a version.
 - **Match rate** — you only reach leads with an email, and each platform drops
   the ones it can't match. Audiences also have a minimum size before they're
   usable for targeting (hundreds to ~1000); verify current thresholds.

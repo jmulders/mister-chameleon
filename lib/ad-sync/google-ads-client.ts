@@ -1,31 +1,38 @@
 /**
- * Ad-platform audience sync — Google Ads Customer Match client.
+ * Ad-platform audience sync — Google Customer Match via the Data Manager API.
  *
- * Pushes hashed lead identifiers into a Customer Match user list via the Google
- * Ads API using an *offline user data job*:
- *   1. create a CUSTOMER_MATCH_USER_LIST job bound to the target user list,
- *   2. add the members (hashed email / phone / name+country) in batches,
- *   3. run the job (async server-side match).
+ * As of 1 April 2026 Google disabled Customer Match uploads through the Google
+ * Ads API (OfflineUserDataJobService) for developer tokens that weren't already
+ * allowlisted. The supported path for new integrations is the **Data Manager
+ * API** (datamanager.googleapis.com), which this client uses:
  *
- * Auth: OAuth2 (refresh-token → access-token) + a developer token; the
- * login-customer-id header carries the MCC. All identifiers are SHA-256 hashed
- * by @/lib/ad-sync/hash before they leave the process. Fail-open: any missing
- * credential or API error → { ok:false, error } and never throws.
+ *   POST /v1/audienceMembers:ingest   → add members to a Customer Match user list
+ *   POST /v1/audienceMembers:remove   → remove members
  *
- * API version is pinned in one place (API_VERSION) so it's trivial to bump.
- * See docs/lead-base-design.md.
+ * Key differences from the old Ads-API path:
+ *   • No developer token. Auth is OAuth2 with the dedicated scope
+ *     `https://www.googleapis.com/auth/datamanager`.
+ *   • The target list + account are addressed via a `Destination`
+ *     (operatingAccount = the Ads customer id, loginAccount = the MCC when used,
+ *     productDestinationId = the Customer Match user list id).
+ *   • Customer Match ToS is accepted inline via `termsOfService`.
+ *
+ * Identifiers are SHA-256 hashed (hex) by @/lib/ad-sync/hash before sending;
+ * only hashes leave the process. Fail-open — never throws.
+ *
+ * Docs: https://developers.google.com/data-manager/api/devguides/audiences/google-ads/customer-match
  */
 
 import "server-only";
 
 import { logger } from "@/lib/logger";
-import { hashEmail, hashPhone, hashName, hashCountry } from "./hash";
+import { hashEmail, hashPhone } from "./hash";
 import type { AudienceMember, GoogleAdsConfig, PlatformSyncResult } from "./types";
 
-const API_VERSION = "v17";
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const DM_BASE = "https://datamanager.googleapis.com/v1";
 const TIMEOUT_MS = 15_000;
-const BATCH_SIZE = 10_000;         // Google allows up to 100k ops/request; stay conservative
+const BATCH_SIZE = 10_000;         // Data Manager API max is 10k members/request
 
 function digitsOnly(v: string | undefined | null): string {
   return (v ?? "").replace(/\D/g, "");
@@ -69,160 +76,139 @@ async function getAccessToken(cfg: GoogleAdsConfig): Promise<string | null> {
   }
 }
 
-/** Build a Customer Match user identifier object for one member (hashed). */
-function toUserIdentifiers(member: AudienceMember): Array<Record<string, unknown>> {
-  const ids: Array<Record<string, unknown>> = [];
+/** The Destination pointing at the tenant's Customer Match user list. */
+function buildDestination(cfg: GoogleAdsConfig): Record<string, unknown> {
+  return {
+    ...(cfg.loginCustomerId
+      ? { loginAccount: { product: "GOOGLE_ADS", accountId: digitsOnly(cfg.loginCustomerId) } }
+      : {}),
+    operatingAccount: { product: "GOOGLE_ADS", accountId: digitsOnly(cfg.customerId) },
+    productDestinationId: digitsOnly(cfg.userListId),
+  };
+}
+
+/** AudienceMember (compositeData) from a member's hashed email/phone. */
+function toAudienceMember(member: AudienceMember): Record<string, unknown> | null {
+  const userIdentifiers: Array<Record<string, unknown>> = [];
   const email = hashEmail(member.email);
-  if (email) ids.push({ hashedEmail: email });
+  if (email) userIdentifiers.push({ emailAddress: email });
   const phone = hashPhone(member.phone, "31");
-  if (phone) ids.push({ hashedPhoneNumber: phone });
-  const first = hashName(member.firstName);
-  const last  = hashName(member.lastName);
-  const country = hashCountry(member.country);
-  if (first && last && country) {
-    ids.push({ addressInfo: { hashedFirstName: first, hashedLastName: last, countryCode: (member.country ?? "").toUpperCase() } });
-  }
-  return ids;
+  if (phone) userIdentifiers.push({ phoneNumber: phone });
+  if (userIdentifiers.length === 0) return null;
+  return { compositeData: { userData: { userIdentifiers } } };
 }
 
-async function apiCall(
+/** AudienceMember built directly from a hashed email (used for removals). */
+function memberFromEmailHash(hash: string): Record<string, unknown> {
+  return { compositeData: { userData: { userIdentifiers: [{ emailAddress: hash }] } } };
+}
+
+async function dmCall(
   accessToken: string,
-  cfg: GoogleAdsConfig,
-  path: string,
+  method: "ingest" | "remove",
   payload: unknown,
-): Promise<{ ok: boolean; status: number; json: Record<string, unknown>; text: string }> {
-  const customerId = digitsOnly(cfg.customerId);
-  const res = await timedFetch(
-    `https://googleads.googleapis.com/${API_VERSION}/customers/${customerId}/${path}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization:       `Bearer ${accessToken}`,
-        "developer-token":   cfg.developerToken ?? "",
-        ...(cfg.loginCustomerId ? { "login-customer-id": digitsOnly(cfg.loginCustomerId) } : {}),
-        "Content-Type":      "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
-  );
+): Promise<{ ok: boolean; status: number; text: string }> {
+  const res = await timedFetch(`${DM_BASE}/audienceMembers:${method}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
   const text = await res.text().catch(() => "");
-  let json: Record<string, unknown> = {};
-  try { json = text ? (JSON.parse(text) as Record<string, unknown>) : {}; } catch { /* non-JSON */ }
-  return { ok: res.ok, status: res.status, json, text };
+  return { ok: res.ok, status: res.status, text };
 }
 
-/**
- * Push members into the configured Customer Match user list. Returns the number
- * of members accepted (added to the job). Fail-open.
- */
+/** Add members to the Customer Match list. Returns members accepted. */
 export async function syncGoogleCustomerMatch(
   cfg:     GoogleAdsConfig,
   members: AudienceMember[],
 ): Promise<PlatformSyncResult> {
   const base = { platform: "google" as const, membersTotal: members.length };
 
-  if (!cfg.developerToken || !cfg.customerId || !cfg.userListId) {
-    return { ok: false, status: "skipped", membersSent: 0, error: "Google Ads not fully configured (developer token, customer id, user list id).", ...base };
+  if (!cfg.customerId || !cfg.userListId) {
+    return { ok: false, status: "skipped", membersSent: 0, error: "Google not fully configured (customer id + user list id).", ...base };
   }
-
   const accessToken = await getAccessToken(cfg);
   if (!accessToken) {
-    return { ok: false, status: "error", membersSent: 0, error: "Could not obtain Google OAuth access token — check client id/secret/refresh token.", ...base };
+    return { ok: false, status: "error", membersSent: 0, error: "Could not obtain Google OAuth token — check client id/secret/refresh token (datamanager scope).", ...base };
   }
 
   try {
-    // 1) Create the offline user data job bound to the Customer Match list.
-    const userListResource = `customers/${digitsOnly(cfg.customerId)}/userLists/${digitsOnly(cfg.userListId)}`;
-    const create = await apiCall(accessToken, cfg, "offlineUserDataJobs:create", {
-      job: {
-        type: "CUSTOMER_MATCH_USER_LIST",
-        customerMatchUserListMetadata: { userList: userListResource },
-      },
-    });
-    if (!create.ok) {
-      return { ok: false, status: "error", membersSent: 0, error: `Create job ${create.status}: ${create.text.slice(0, 300)}`, ...base };
-    }
-    const jobResource = String(create.json.resourceName ?? "");
-    if (!jobResource) {
-      return { ok: false, status: "error", membersSent: 0, error: "Create job returned no resourceName.", ...base };
-    }
-    const jobId = jobResource.split("/").pop() ?? "";
-
-    // 2) Add members in batches.
+    const destination = buildDestination(cfg);
     let sent = 0;
     for (let i = 0; i < members.length; i += BATCH_SIZE) {
-      const slice = members.slice(i, i + BATCH_SIZE);
-      const operations = slice
-        .map((m) => toUserIdentifiers(m))
-        .filter((ids) => ids.length > 0)
-        .map((userIdentifiers) => ({ create: { userIdentifiers } }));
-      if (operations.length === 0) continue;
+      const audienceMembers = members
+        .slice(i, i + BATCH_SIZE)
+        .map(toAudienceMember)
+        .filter((m): m is Record<string, unknown> => m !== null);
+      if (audienceMembers.length === 0) continue;
 
-      const add = await apiCall(accessToken, cfg, `offlineUserDataJobs/${jobId}:addOperations`, {
-        enablePartialFailure: true,
-        operations,
+      const r = await dmCall(accessToken, "ingest", {
+        destinations: [destination],
+        audienceMembers,
+        encoding: "HEX",
+        termsOfService: { customerMatchTermsOfServiceStatus: "ACCEPTED" },
       });
-      if (!add.ok) {
-        return { ok: false, status: "error", membersSent: sent, error: `Add operations ${add.status}: ${add.text.slice(0, 300)}`, ...base };
+      if (!r.ok) {
+        return { ok: false, status: "error", membersSent: sent, error: `Data Manager ingest ${r.status}: ${r.text.slice(0, 300)}`, ...base };
       }
-      sent += operations.length;
+      sent += audienceMembers.length;
     }
-
-    // 3) Run the job (fire-and-forget; matching happens server-side).
-    const run = await apiCall(accessToken, cfg, `offlineUserDataJobs/${jobId}:run`, {});
-    if (!run.ok) {
-      return { ok: false, status: "error", membersSent: sent, error: `Run job ${run.status}: ${run.text.slice(0, 300)}`, ...base };
-    }
-
     return { ok: true, status: "ok", membersSent: sent, ...base };
   } catch (err) {
     return { ok: false, status: "error", membersSent: 0, error: err instanceof Error ? err.message : String(err), ...base };
   }
 }
 
-/**
- * Remove members (by hashed email) from the Customer Match user list. Uses an
- * offline user data job with `remove` operations. Returns members removed.
- */
+/** Remove members (by hashed email) from the Customer Match list. */
 export async function removeGoogleCustomerMatch(
   cfg:         GoogleAdsConfig,
   emailHashes: string[],
 ): Promise<{ ok: boolean; removed: number; error?: string }> {
   if (emailHashes.length === 0) return { ok: true, removed: 0 };
-  if (!cfg.developerToken || !cfg.customerId || !cfg.userListId) {
-    return { ok: false, removed: 0, error: "Google Ads not fully configured." };
-  }
+  if (!cfg.customerId || !cfg.userListId) return { ok: false, removed: 0, error: "Google not fully configured." };
   const accessToken = await getAccessToken(cfg);
   if (!accessToken) return { ok: false, removed: 0, error: "Google OAuth failed." };
 
   try {
-    const userListResource = `customers/${digitsOnly(cfg.customerId)}/userLists/${digitsOnly(cfg.userListId)}`;
-    const create = await apiCall(accessToken, cfg, "offlineUserDataJobs:create", {
-      job: { type: "CUSTOMER_MATCH_USER_LIST", customerMatchUserListMetadata: { userList: userListResource } },
-    });
-    if (!create.ok) return { ok: false, removed: 0, error: `Create job ${create.status}: ${create.text.slice(0, 200)}` };
-    const jobId = String(create.json.resourceName ?? "").split("/").pop() ?? "";
-    if (!jobId) return { ok: false, removed: 0, error: "Create job returned no resourceName." };
-
+    const destination = buildDestination(cfg);
     let removed = 0;
     for (let i = 0; i < emailHashes.length; i += BATCH_SIZE) {
-      const operations = emailHashes.slice(i, i + BATCH_SIZE).map((hashedEmail) => ({ remove: { userIdentifiers: [{ hashedEmail }] } }));
-      const add = await apiCall(accessToken, cfg, `offlineUserDataJobs/${jobId}:addOperations`, { enablePartialFailure: true, operations });
-      if (!add.ok) return { ok: false, removed, error: `Add remove-ops ${add.status}: ${add.text.slice(0, 200)}` };
-      removed += operations.length;
+      const audienceMembers = emailHashes.slice(i, i + BATCH_SIZE).map(memberFromEmailHash);
+      const r = await dmCall(accessToken, "remove", {
+        destinations: [destination],
+        audienceMembers,
+        encoding: "HEX",
+      });
+      if (!r.ok) return { ok: false, removed, error: `Data Manager remove ${r.status}: ${r.text.slice(0, 200)}` };
+      removed += audienceMembers.length;
     }
-    const run = await apiCall(accessToken, cfg, `offlineUserDataJobs/${jobId}:run`, {});
-    if (!run.ok) return { ok: false, removed, error: `Run job ${run.status}: ${run.text.slice(0, 200)}` };
     return { ok: true, removed };
   } catch (err) {
     return { ok: false, removed: 0, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
-/** Lightweight credential probe used by the admin "Test connection" button. */
+/**
+ * Credential probe for the admin "Test connection" button. Runs a validateOnly
+ * ingest with a single synthetic hashed email — this exercises the token, the
+ * scope and the destination without actually writing to the audience.
+ */
 export async function testGoogleConnection(cfg: GoogleAdsConfig): Promise<{ ok: boolean; error?: string }> {
-  if (!cfg.developerToken || !cfg.customerId) return { ok: false, error: "Developer token and customer id required." };
-  const token = await getAccessToken(cfg);
-  if (!token) return { ok: false, error: "OAuth failed — check client id, secret and refresh token." };
-  return { ok: true };
+  if (!cfg.customerId || !cfg.userListId) return { ok: false, error: "Customer id and user list id required." };
+  const accessToken = await getAccessToken(cfg);
+  if (!accessToken) return { ok: false, error: "OAuth failed — check client id, secret and refresh token (needs the datamanager scope)." };
+  try {
+    const probe = hashEmail("connection-test@example.com")!;
+    const r = await dmCall(accessToken, "ingest", {
+      destinations: [buildDestination(cfg)],
+      audienceMembers: [memberFromEmailHash(probe)],
+      encoding: "HEX",
+      validateOnly: true,
+      termsOfService: { customerMatchTermsOfServiceStatus: "ACCEPTED" },
+    });
+    if (!r.ok) return { ok: false, error: `Data Manager ${r.status}: ${r.text.slice(0, 200)}` };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
