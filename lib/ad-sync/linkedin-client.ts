@@ -20,9 +20,9 @@ import { hashEmail } from "./hash";
 import type { AudienceMember, LinkedInConfig, PlatformSyncResult } from "./types";
 
 const REST_BASE = "https://api.linkedin.com/rest";
-const LINKEDIN_VERSION = "202405";  // YYYYMM — bump periodically per LinkedIn's schedule
+const LINKEDIN_VERSION = "202606";  // YYYYMM — bump periodically per LinkedIn's ~15-month sunset schedule
 const TIMEOUT_MS = 15_000;
-const BATCH_SIZE = 1_000;           // LinkedIn: max ~1000 users/request
+const BATCH_SIZE = 5_000;           // LinkedIn batch max is 5000 users/request
 
 async function timedFetch(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -41,6 +41,11 @@ function headers(cfg: LinkedInConfig): Record<string, string> {
     "LinkedIn-Version":         LINKEDIN_VERSION,
     "X-Restli-Protocol-Version": "2.0.0",
   };
+}
+
+/** Batch add/remove requires the BATCH_CREATE method header on the /users endpoint. */
+function batchHeaders(cfg: LinkedInConfig): Record<string, string> {
+  return { ...headers(cfg), "X-RestLi-Method": "BATCH_CREATE" };
 }
 
 /** Add members (by hashed email) to the configured DMP Segment. */
@@ -71,7 +76,7 @@ export async function syncLinkedInDmpSegment(
 
       const res = await timedFetch(url, {
         method: "POST",
-        headers: headers(cfg),
+        headers: batchHeaders(cfg),
         body: JSON.stringify({ elements }),
       });
       const text = await res.text().catch(() => "");
@@ -107,7 +112,7 @@ export async function removeLinkedInDmpSegment(
         action: "REMOVE",
         userIds: [{ idType: "SHA256_EMAIL", idValue }],
       }));
-      const res = await timedFetch(url, { method: "POST", headers: headers(cfg), body: JSON.stringify({ elements }) });
+      const res = await timedFetch(url, { method: "POST", headers: batchHeaders(cfg), body: JSON.stringify({ elements }) });
       const text = await res.text().catch(() => "");
       if (!res.ok) return { ok: false, removed, error: `LinkedIn API ${res.status}: ${text.slice(0, 200)}` };
       removed += elements.length;
