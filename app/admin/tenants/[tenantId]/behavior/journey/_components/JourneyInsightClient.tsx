@@ -43,7 +43,7 @@ interface Props {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   try {
     return new Intl.DateTimeFormat("en-GB", {
       dateStyle: "medium",
@@ -55,7 +55,7 @@ function fmtTime(iso: string | null): string {
 }
 
 function fmtRelative(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   const ms  = Date.now() - new Date(iso).getTime();
   const min = Math.floor(ms / 60000);
   if (min < 1)  return "just now";
@@ -78,11 +78,11 @@ const STAGE_LABELS: Record<JourneyFunnelStage, string> = {
 };
 
 const STAGE_DESC: Record<JourneyFunnelStage, string> = {
-  awareness:    "First visit — no strong signals yet",
+  awareness:    "First visit, no strong signals yet",
   consideration:"Exploring content and pages",
   intent:       "Pricing, forms, or key sequences detected",
   high_intent:  "Multiple intent signals, actively evaluating",
-  customer:     "Converted — form submitted",
+  customer:     "Converted, form submitted",
 };
 
 const STAGE_COLOR: Record<JourneyFunnelStage, string> = {
@@ -140,7 +140,7 @@ const EVENT_COLOR: Record<string, string> = {
 
 /** Map confidence band to adaptive mode label for the Overview card. */
 function deriveAdaptiveMode(band: ConfidenceBand, frictionScore: number): string {
-  if (frictionScore >= 60) return "Minimal — high friction detected";
+  if (frictionScore >= 60) return "Minimal: high friction detected";
   switch (band) {
     case "very_high": return "Fully Personalised";
     case "high":      return "Personalised";
@@ -162,7 +162,7 @@ function deriveUnlockedOutputs(band: ConfidenceBand, frictionScore: number): str
 function deriveBlockedOutputs(band: ConfidenceBand, frictionScore: number): string[] {
   const blocked: string[] = [];
   if (frictionScore >= 60) {
-    blocked.push("All personalisation suppressed — friction score " + frictionScore);
+    blocked.push("All personalisation suppressed, friction score " + frictionScore);
     return blocked;
   }
   if (band === "low" || band === "medium") {
@@ -187,13 +187,13 @@ function explainFriction(j: JourneyState): string[] {
     }
   }
   if (j.burstPenalty > 0.2) {
-    causes.push(`Bursty navigation detected — many events in a short window (penalty: ${Math.round(j.burstPenalty * 100)}%)`);
+    causes.push(`Bursty navigation detected: many events in a short window (penalty: ${Math.round(j.burstPenalty * 100)}%)`);
   }
   if (j.deduplicatedEventCount > 2) {
     causes.push(`${j.deduplicatedEventCount} near-duplicate events were downweighted`);
   }
   if (j.signalDiversityScore < 0.2 && j.pageViewCount > 3) {
-    causes.push("Shallow navigation — same pages visited repeatedly");
+    causes.push("Shallow navigation: same pages visited repeatedly");
   }
   if (causes.length === 0 && j.frictionScore > 0) {
     causes.push("Repetitive behavior pattern detected");
@@ -210,10 +210,10 @@ function explainConfidenceDrivers(j: JourneyState): string[] {
   if (j.hasSubmittedForm) drivers.push("Form submitted (high-intent conversion signal)");
   if (j.hasClickedCta) drivers.push("Clicked a call-to-action");
   if (j.shortTermIntentScore > 30) drivers.push("Active in-session research (high recency)");
-  if (j.longTermAffinityScore > 20) drivers.push("Sustained affinity — interest built over time");
+  if (j.longTermAffinityScore > 20) drivers.push("Sustained affinity: interest built over time");
   if (drivers.length === 0) {
     if (j.pageViewCount > 0) drivers.push("Some pages visited, building initial picture");
-    else drivers.push("No signal data yet — confidence is low by default");
+    else drivers.push("No signal data yet, confidence is low by default");
   }
   return drivers;
 }
@@ -567,7 +567,7 @@ function JourneyOverviewPanel({ journey }: { journey: JourneyState }) {
     "Personalised":                   "bg-blue-50   border-blue-200  text-blue-800",
     "Segmented":                      "bg-amber-50  border-amber-200 text-amber-800",
     "Default":                        "bg-neutral-50 border-neutral-200 text-neutral-600",
-    "Minimal — high friction detected":"bg-red-50   border-red-200   text-red-700",
+    "Minimal: high friction detected":"bg-red-50   border-red-200   text-red-700",
   }[adaptMode] ?? "bg-neutral-50 border-neutral-200 text-neutral-600";
 
   const stageIdx     = STAGE_ORDER.indexOf(journey.funnelStage);
@@ -668,7 +668,7 @@ function JourneyTimeline({ journey }: { journey: JourneyState }) {
     <Card>
       <CardHeader
         title="Journey Timeline"
-        subtitle="Progression through the behavioral funnel — where this visitor is today."
+        subtitle="Progression through the behavioral funnel: where this visitor is today."
       />
       <div className="p-5">
         {/* Stage progression bar */}
@@ -700,7 +700,7 @@ function JourneyTimeline({ journey }: { journey: JourneyState }) {
           {currentIdx < STAGE_ORDER.length - 1 && (
             <div className="mt-3 pt-3 border-t border-current border-opacity-20 text-xs opacity-70">
               <span className="font-semibold">Next: </span>
-              {STAGE_LABELS[STAGE_ORDER[currentIdx + 1]]} — {STAGE_DESC[STAGE_ORDER[currentIdx + 1]]}
+              {STAGE_LABELS[STAGE_ORDER[currentIdx + 1]]}: {STAGE_DESC[STAGE_ORDER[currentIdx + 1]]}
             </div>
           )}
           {current === "customer" && (
@@ -861,7 +861,7 @@ function FrictionPanel({ journey }: { journey: JourneyState }) {
     <Card>
       <CardHeader
         title="Friction & Noise"
-        subtitle="Patterns that indicate confusion, repetition, or bursty behavior — not genuine intent."
+        subtitle="Patterns that indicate confusion, repetition, or bursty behavior, not genuine intent."
         badge={
           <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${frictionConfig.color}`}>
             {frictionConfig.icon} {frictionConfig.label}
@@ -959,7 +959,7 @@ function WhyThisExperiencePanel({ journey }: { journey: JourneyState }) {
     <Card>
       <CardHeader
         title="Why This Experience?"
-        subtitle="Decision intelligence — why the system chose this adaptive experience for this visitor."
+        subtitle="Decision intelligence: why the system chose this adaptive experience for this visitor."
       />
       <div className="p-5 space-y-5">
         {/* Chosen mode */}
@@ -1016,7 +1016,7 @@ function WhyThisExperiencePanel({ journey }: { journey: JourneyState }) {
               { label: "Engagement Score",    value: `${journey.engagementScore}/100`,     show: true },
               { label: "Sequence Matches",    value: `${journey.matchedSequences.length}`, show: true },
               { label: "Diversity Score",     value: `${Math.round(journey.signalDiversityScore * 100)}%`, show: true },
-              { label: "Recency",             value: journey.lastSeenAt ? fmtRelative(journey.lastSeenAt) : "—", show: !!journey.lastSeenAt },
+              { label: "Recency",             value: journey.lastSeenAt ? fmtRelative(journey.lastSeenAt) : "·", show: !!journey.lastSeenAt },
               { label: "Short-term intent",   value: `${journey.shortTermIntentScore}/100`, show: journey.shortTermIntentScore > 0 },
               { label: "Long-term affinity",  value: `${journey.longTermAffinityScore}/100`, show: journey.longTermAffinityScore > 0 },
               { label: "Repeat visit bonus",  value: `${Math.round(journey.repeatSessionBonus * 100)}%`, show: journey.repeatSessionBonus > 0 },
@@ -1259,7 +1259,7 @@ function SequencesPanel({
           <EmptyState
             icon="🔗"
             title="No sequences matched yet"
-            description="Sequences fire when a visitor completes a defined ordered pattern of actions — for example, visiting About then Pricing within 2 hours. This visitor hasn't completed any yet."
+            description="Sequences fire when a visitor completes a defined ordered pattern of actions (for example, visiting About then Pricing within 2 hours). This visitor hasn't completed any yet."
           />
         ) : (
           <>
@@ -1281,7 +1281,7 @@ function SequencesPanel({
                     <div>
                       <div className="text-sm font-semibold text-indigo-900">{slug}</div>
                       <div className="text-xs text-indigo-600 mt-0.5">
-                        Completed — contributed a score bonus and strengthened intent signals.
+                        Completed: contributed a score bonus and strengthened intent signals.
                       </div>
                     </div>
                   </div>
@@ -1299,7 +1299,7 @@ function SequencesPanel({
             {nearMisses.length > 0 && (
               <div>
                 <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
-                  Near Misses — {nearMisses.length} sequence{nearMisses.length > 1 ? "s" : ""} in progress
+                  Near Misses: {nearMisses.length} sequence{nearMisses.length > 1 ? "s" : ""} in progress
                 </div>
                 <div className="space-y-2">
                   {nearMisses.map((miss) => (
@@ -1372,11 +1372,11 @@ const CUSTOMER_MODE_COLOR: Record<string, string> = {
 };
 
 const CUSTOMER_MODE_DESC: Record<string, string> = {
-  acquisition_mode: "Visitor has not yet converted — seeing the acquisition experience.",
-  onboarding_mode:  "Recently converted customer — seeing onboarding and activation content.",
-  active_usage_mode:"Established customer with regular engagement — in retention/upsell mode.",
-  expansion_mode:   "High feature interest + engagement signals — showing upgrade or expansion content.",
-  churn_risk_mode:  "Low recency, low engagement — at risk. Seeing re-engagement experience.",
+  acquisition_mode: "Visitor has not yet converted, seeing the acquisition experience.",
+  onboarding_mode:  "Recently converted customer, seeing onboarding and activation content.",
+  active_usage_mode:"Established customer with regular engagement, in retention/upsell mode.",
+  expansion_mode:   "High feature interest + engagement signals, showing upgrade or expansion content.",
+  churn_risk_mode:  "Low recency, low engagement: at risk. Seeing re-engagement experience.",
 };
 
 /** Derive a rough customer mode from journey signals without CRM enrichment. */
@@ -1534,7 +1534,7 @@ function CrmStatusPanel({
               <div className="text-xl font-bold">{LIFECYCLE_LABELS[effectiveLifecycle]}</div>
               <div className="text-xs mt-1 opacity-70">
                 Source: {lifecycleSource === "crm-identity-resolved"
-                  ? "CRM identity matched — stage from live enrichment"
+                  ? "CRM identity matched: stage from live enrichment"
                   : "Derived from behavioral funnel signals"}
               </div>
             </div>
@@ -1815,7 +1815,7 @@ function NoDataState({ sessionId }: { sessionId: string }) {
               {consentStatus === "unknown"
                 ? "Checking consent cookie…"
                 : consentOk
-                ? "Consent granted — events should reach the DB"
+                ? "Consent granted, events should reach the DB"
                 : "Consent missing or incomplete (mc_consent)"}
             </div>
             {!consentOk && consentStatus !== "unknown" && (
@@ -1841,7 +1841,7 @@ function NoDataState({ sessionId }: { sessionId: string }) {
               "Open the site in a new tab (e.g. localhost:3000)",
               "Accept the cookie / consent banner",
               "Browse a few pages and click a CTA",
-              "Come back here — sessions appear within ~5 seconds",
+              "Come back here, sessions appear within ~5 seconds",
             ].map((step, i) => (
               <li key={i} className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-5 h-5 rounded-full bg-neutral-100 text-neutral-500 text-[11px] font-medium flex items-center justify-center mt-0.5">
@@ -1856,7 +1856,7 @@ function NoDataState({ sessionId }: { sessionId: string }) {
         {/* Seed button */}
         <div className="border-t border-neutral-100 pt-4">
           <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
-            Admin shortcut — bypass consent gate
+            Admin shortcut: bypass consent gate
           </div>
           <p className="text-xs text-neutral-500 mb-3">
             Seeds 5 test page views + a pricing CTA click into the pipeline for this browser session.
@@ -1885,7 +1885,7 @@ function NoDataState({ sessionId }: { sessionId: string }) {
                 Seeding events…
               </>
             ) : seedResult === "ok" ? (
-              <>✓ Events seeded — refresh the session list</>
+              <>✓ Events seeded, refresh the session list</>
             ) : (
               <>🔬 Seed test events for this session</>
             )}
@@ -1956,11 +1956,11 @@ function LiveStatusBar({
   onStop:          () => void;
   onManualRefresh: () => void;
 }) {
-  const [ageLabel, setAgeLabel] = useState("—");
+  const [ageLabel, setAgeLabel] = useState("·");
 
   React.useEffect(() => {
     function tick() {
-      if (!lastUpdated) { setAgeLabel("—"); return; }
+      if (!lastUpdated) { setAgeLabel("·"); return; }
       const s = Math.round((Date.now() - lastUpdated.getTime()) / 1000);
       setAgeLabel(s <= 1 ? "just now" : `${s}s ago`);
     }

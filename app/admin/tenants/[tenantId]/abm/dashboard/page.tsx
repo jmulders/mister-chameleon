@@ -33,7 +33,7 @@ export default async function AbmDashboardPage({
         </Link>
         <h1 className="mt-2 text-xl font-semibold text-neutral-900">ABM account dashboard</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Your target accounts joined with their observed activity from the Lead Base — who
+          Your target accounts joined with their observed activity from the Lead Base: who
           engaged, how hot, and whether they&apos;re synced to your CRM. Hottest first.
         </p>
       </div>

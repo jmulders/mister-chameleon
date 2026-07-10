@@ -12,9 +12,9 @@ import type { AbmLead, AbmLeadStatus, AbmLeadVisit } from "@/lib/abm/abm-store";
 
 /** Compact local date-time label, e.g. "28 Jun, 14:02". */
 function fmtWhen(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "·";
   return d.toLocaleString(undefined, {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
   });
@@ -157,7 +157,7 @@ export function AbmClient({
       const fresh = await listAbmLeadsAction(tenantId);
       setLeads(fresh);
       setCsv("");
-      setMsg(`Imported ${res.created} lead(s)${res.errors.length ? ` — ${res.errors.length} skipped` : ""}.`);
+      setMsg(`Imported ${res.created} lead(s)${res.errors.length ? ` (${res.errors.length} skipped)` : ""}.`);
     });
   }
 
@@ -185,7 +185,7 @@ export function AbmClient({
           <div>
             <label className={LABEL}>Audience segment <span className="text-neutral-400">(optional)</span></label>
             <select className={INPUT} value={form.segmentHint} onChange={(e) => set("segmentHint", e.target.value)}>
-              <option value="">— None —</option>
+              <option value="">· None ·</option>
               {segments.map((s) => (
                 <option key={s.key} value={s.key}>{s.label}</option>
               ))}
@@ -220,7 +220,7 @@ export function AbmClient({
           Paste any CSV with these columns: First name, Last name, Email, Company, Title,
           Industry, Company size, Profile URL. Columns are auto-detected (comma,
           semicolon, or tab-separated); a link is generated per row. Email is optional
-          but recommended — it&apos;s the dedup key when syncing contacts to your CRM.
+          but recommended: it&apos;s the dedup key when syncing contacts to your CRM.
         </p>
         <textarea className={`${INPUT} font-mono text-xs`} rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={"First Name,Last Name,Company,Title\nJohn,Doe,Acme BV,Head of Growth"} />
         <div className="flex items-end gap-3">
@@ -235,7 +235,7 @@ export function AbmClient({
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-neutral-900">Leads ({leads.length})</h2>
         {leads.length === 0 ? (
-          <p className="text-sm text-neutral-500">No leads yet — add one above or import a CSV.</p>
+          <p className="text-sm text-neutral-500">No leads yet. Add one above or import a CSV.</p>
         ) : (
           <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200">
             {leads.map((lead) => (

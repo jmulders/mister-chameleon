@@ -14,9 +14,9 @@ const FILTERS = (hot: number): { key: Filter; label: string }[] => [
 ];
 
 function fmtWhen(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "·" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function scoreClass(score: number): string {
@@ -158,8 +158,8 @@ export function AbmDashboard({ rows, baseUrl, hotThreshold = 60 }: { rows: AbmDa
                     <td className="px-3 py-2 text-right text-neutral-600">{activity?.sessionCount ?? 0}</td>
                     <td className="px-3 py-2 text-right text-neutral-600">{activity?.visitCount ?? 0}</td>
                     <td className="px-3 py-2 text-xs text-neutral-500">{fmtWhen(activity?.lastSeenAt ?? null)}</td>
-                    <td className="px-3 py-2 max-w-[14rem] truncate text-xs text-neutral-500">{activity?.segmentIds.join(", ") || "—"}</td>
-                    <td className="px-3 py-2 text-center">{activity?.hubspotSynced ? <span className="text-green-600">✓</span> : <span className="text-neutral-300">—</span>}</td>
+                    <td className="px-3 py-2 max-w-[14rem] truncate text-xs text-neutral-500">{activity?.segmentIds.join(", ") || "·"}</td>
+                    <td className="px-3 py-2 text-center">{activity?.hubspotSynced ? <span className="text-green-600">✓</span> : <span className="text-neutral-300">·</span>}</td>
                   </tr>
                 );
               })}

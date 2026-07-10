@@ -14,6 +14,7 @@ import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAc
 import { listWebhookDeliveriesAction } from "./actions";
 import { getCreditBalance } from "@/lib/billing/billing-store";
 import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
+import { AdminPageHeader }         from "@/components/admin/AdminPageHeader";
 import { LeadBaseClient }         from "./_components/LeadBaseClient";
 import { LeadCrmSettings }        from "./_components/LeadCrmSettings";
 
@@ -43,31 +44,20 @@ export default async function LeadBasePage({
     .map((s) => ({ key: s.key, label: s.label }));
 
   return (
-    <div className="p-8 max-w-6xl space-y-5">
-      <div>
-        <Link
-          href={`/admin/tenants/${tenantId}/abm`}
-          className="text-xs text-neutral-500 hover:text-neutral-800"
-        >
-          ← Target accounts
-        </Link>
-        <div className="mt-2 flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-neutral-900">Leads</h1>
+    <div className="p-8 max-w-6xl space-y-6">
+      <AdminPageHeader
+        eyebrow="Audience"
+        title="Leads"
+        description="Every visitor who arrives, tracked at some identity level: anonymous, recognised (company), known (named person), or customer. Filter, delete, and export. Pseudonymous and firmographic data only; named-contact PII lives under Target accounts. Profiles are retained for 90 days."
+        actions={
           <Link
             href={`/admin/tenants/${tenantId}/leads/performance`}
-            className="rounded-md border border-neutral-300 bg-white px-3 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
           >
-            Personalization performance →
+            Personalization performance
           </Link>
-        </div>
-        <p className="mt-1 text-sm text-neutral-500">
-          Every visitor who arrives, tracked at some identity level — anonymous,
-          recognised (company), known (named), or customer. Filter, delete, and export.
-          Pseudonymous + firmographic only; named-contact PII lives in Target accounts.
-          Profiles are retained 90 days.
-          {tenant ? "" : " (tenant not found)"}
-        </p>
-      </div>
+        }
+      />
 
       {creditBalance <= 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

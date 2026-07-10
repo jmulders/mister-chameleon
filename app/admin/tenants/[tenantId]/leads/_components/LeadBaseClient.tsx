@@ -67,9 +67,9 @@ function aggregateGroup(g: AccountGroup) {
 }
 
 function fmtWhen(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "·";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "·";
   return d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
@@ -236,14 +236,14 @@ export function LeadBaseClient({
         <td className="px-3 py-2 text-neutral-900">
           {indented
             ? <span className="font-mono text-xs text-neutral-400">session {p.visitorKey.slice(0, 8)}…</span>
-            : (<>{p.companyName || <span className="text-neutral-400">—</span>}{p.companyDomain && <span className="text-neutral-400"> · {p.companyDomain}</span>}</>)}
+            : (<>{p.companyName || <span className="text-neutral-400">·</span>}{p.companyDomain && <span className="text-neutral-400"> · {p.companyDomain}</span>}</>)}
         </td>
         <td className="px-3 py-2 text-right">
           <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(score(p))}`}>{score(p)}</span>
         </td>
         <td className="px-3 py-2 text-neutral-600">{p.status}</td>
-        <td className="px-3 py-2 text-right text-neutral-700">{p.intentScore ?? "—"}</td>
-        <td className="px-3 py-2 text-xs text-neutral-500 max-w-[14rem] truncate">{p.segmentIds.join(", ") || "—"}</td>
+        <td className="px-3 py-2 text-right text-neutral-700">{p.intentScore ?? "·"}</td>
+        <td className="px-3 py-2 text-xs text-neutral-500 max-w-[14rem] truncate">{p.segmentIds.join(", ") || "·"}</td>
         <td className="px-3 py-2 text-right">
           <button onClick={() => toggleEvents(p)} className="inline-flex items-center gap-1 text-neutral-600 hover:text-neutral-900 hover:underline" title="Activity timeline">
             <span className="text-neutral-400">{eventsOpen === p.id ? "▾" : "▸"}</span>{p.visitCount}
@@ -284,7 +284,7 @@ export function LeadBaseClient({
                 {events.map((e) => (
                   <li key={e.id} className="flex items-center gap-3 text-xs">
                     <span className="w-28 shrink-0 text-neutral-400">{fmtWhen(e.occurredAt)}</span>
-                    <span className="font-mono text-neutral-800">{e.path || "—"}</span>
+                    <span className="font-mono text-neutral-800">{e.path || "·"}</span>
                     {(e.utmSource || e.utmCampaign) && (
                       <span className="text-neutral-500">· utm: {[e.utmSource, e.utmMedium, e.utmCampaign].filter(Boolean).join(" / ")}</span>
                     )}
@@ -323,8 +323,8 @@ export function LeadBaseClient({
             <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${scoreClass(Math.max(...g.members.map(score)))}`}>{Math.max(...g.members.map(score))}</span>
           </td>
           <td className="px-3 py-2 text-neutral-600">{a.status}</td>
-          <td className="px-3 py-2 text-right text-neutral-700">{a.intent ?? "—"}</td>
-          <td className="px-3 py-2 text-xs text-neutral-500 max-w-[14rem] truncate">{a.segments.join(", ") || "—"}</td>
+          <td className="px-3 py-2 text-right text-neutral-700">{a.intent ?? "·"}</td>
+          <td className="px-3 py-2 text-xs text-neutral-500 max-w-[14rem] truncate">{a.segments.join(", ") || "·"}</td>
           <td className="px-3 py-2 text-right text-neutral-600">{a.visits}</td>
           <td className="px-3 py-2 text-xs text-neutral-500">{fmtWhen(a.lastSeen)}</td>
           <td className="px-3 py-2 text-right">
@@ -414,7 +414,7 @@ export function LeadBaseClient({
 
       {/* ── Table ───────────────────────────────────────────────────── */}
       {profiles.length === 0 ? (
-        <p className="text-sm text-neutral-500">No profiles match — visitors populate this as they browse (homepage).</p>
+        <p className="text-sm text-neutral-500">No profiles match. Visitors populate this as they browse (homepage).</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-neutral-200">
           <table className="w-full text-sm">

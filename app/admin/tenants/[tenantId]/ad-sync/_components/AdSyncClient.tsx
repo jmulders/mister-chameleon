@@ -125,7 +125,7 @@ export function AdSyncClient({
   const syncNow = () => startTransition(async () => {
     setSyncResults(null);
     const r = await syncNowAction(tenantId);
-    if (r.ok) { setSyncResults(r.results); flash(`Sync klaar — ${r.membersTotal} leads verwerkt.`); }
+    if (r.ok) { setSyncResults(r.results); flash(`Sync klaar: ${r.membersTotal} leads verwerkt.`); }
     else flash(`Fout: ${r.error}`);
   });
 
@@ -160,7 +160,7 @@ export function AdSyncClient({
           <div className="mt-3 space-y-1 text-xs">
             {syncResults.map((r) => (
               <div key={r.platform} className={r.status === "ok" ? "text-green-700" : r.status === "skipped" ? "text-neutral-400" : "text-red-700"}>
-                <strong className="capitalize">{r.platform}</strong>: {r.status} — +{r.membersSent} toegevoegd, −{r.membersRemoved ?? 0} verwijderd (segment: {r.membersTotal}){r.error ? ` — ${r.error}` : ""}
+                <strong className="capitalize">{r.platform}</strong>: {r.status}, +{r.membersSent} toegevoegd, −{r.membersRemoved ?? 0} verwijderd (segment: {r.membersTotal}){r.error ? ` (${r.error})` : ""}
               </div>
             ))}
           </div>
@@ -169,14 +169,14 @@ export function AdSyncClient({
 
       {/* Segment definition */}
       <section className="rounded-lg border border-neutral-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-neutral-900">Segment — welke leads</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">Segment: welke leads</h2>
         <p className="mt-1 text-xs text-neutral-500">Alleen leads met een e-mailadres (uit je lead-base) worden meegenomen.</p>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <label className="block">
             <span className="text-xs font-medium text-neutral-700">Min. lead level</span>
             <select value={segment.minIdentityLevel ?? ""} onChange={(e) => setSegment({ ...segment, minIdentityLevel: (e.target.value || undefined) as AdSyncSegment["minIdentityLevel"] })}
               className="mt-1 w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm">
-              <option value="">— geen minimum —</option>
+              <option value="">· geen minimum ·</option>
               {IDENTITY_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </label>
@@ -184,7 +184,7 @@ export function AdSyncClient({
             <span className="text-xs font-medium text-neutral-700">Status</span>
             <select value={segment.status ?? ""} onChange={(e) => setSegment({ ...segment, status: (e.target.value || undefined) as AdSyncSegment["status"] })}
               className="mt-1 w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm">
-              {STATUSES.map((s) => <option key={s} value={s}>{s || "— elke status —"}</option>)}
+              {STATUSES.map((s) => <option key={s} value={s}>{s || "· elke status ·"}</option>)}
             </select>
           </label>
           <Field label="Min. intent score" type="number" value={segment.minIntent?.toString() ?? ""}
@@ -204,10 +204,10 @@ export function AdSyncClient({
       </section>
 
       {/* Google Ads */}
-      <PlatformCard title="Google — Customer Match (Data Manager API)"
+      <PlatformCard title="Google: Customer Match (Data Manager API)"
         onSave={() => savePlatform("google", google)} onTest={() => testConn("google")} onClear={() => clearPlatform("google")} pending={pending}>
         <Field label="Customer id (doelaccount)" value={google.customerId ?? ""} onChange={(v) => setGoogle({ ...google, customerId: v })} hint="Cijfers, zonder streepjes" />
-        <Field label="Login customer id (MCC)" value={google.loginCustomerId ?? ""} onChange={(v) => setGoogle({ ...google, loginCustomerId: v })} hint="Optioneel — alleen bij een manager-account" />
+        <Field label="Login customer id (MCC)" value={google.loginCustomerId ?? ""} onChange={(v) => setGoogle({ ...google, loginCustomerId: v })} hint="Optioneel, alleen bij een manager-account" />
         <Field label="User list id" value={google.userListId ?? ""} onChange={(v) => setGoogle({ ...google, userListId: v })} hint="De Customer Match-lijst" />
         <Field label="OAuth client id" value={google.clientId ?? ""} onChange={(v) => setGoogle({ ...google, clientId: v })} />
         <Field label="OAuth client secret" type="password" value={isSet(google.clientSecret) ? "" : (google.clientSecret ?? "")} placeholder={isSet(google.clientSecret) ? "•••• opgeslagen" : ""} onChange={(v) => setGoogle({ ...google, clientSecret: v })} />
@@ -215,7 +215,7 @@ export function AdSyncClient({
       </PlatformCard>
 
       {/* Meta */}
-      <PlatformCard title="Meta — Custom Audience"
+      <PlatformCard title="Meta: Custom Audience"
         onSave={() => savePlatform("meta", meta)} onTest={() => testConn("meta")} onClear={() => clearPlatform("meta")} pending={pending}>
         <Field label="Access token (system user)" type="password" value={isSet(meta.accessToken) ? "" : (meta.accessToken ?? "")} placeholder={isSet(meta.accessToken) ? "•••• opgeslagen" : ""} onChange={(v) => setMeta({ ...meta, accessToken: v })} />
         <Field label="Ad account id" value={meta.adAccountId ?? ""} onChange={(v) => setMeta({ ...meta, adAccountId: v })} hint="act_… of alleen de cijfers" />
@@ -223,7 +223,7 @@ export function AdSyncClient({
       </PlatformCard>
 
       {/* LinkedIn */}
-      <PlatformCard title="LinkedIn — Matched Audience (DMP Segment)"
+      <PlatformCard title="LinkedIn: Matched Audience (DMP Segment)"
         onSave={() => savePlatform("linkedin", linkedin)} onTest={() => testConn("linkedin")} onClear={() => clearPlatform("linkedin")} pending={pending}>
         <Field label="Access token" type="password" value={isSet(linkedin.accessToken) ? "" : (linkedin.accessToken ?? "")} placeholder={isSet(linkedin.accessToken) ? "•••• opgeslagen" : ""} onChange={(v) => setLinkedin({ ...linkedin, accessToken: v })} />
         <Field label="Ad account id" value={linkedin.adAccountId ?? ""} onChange={(v) => setLinkedin({ ...linkedin, adAccountId: v })} hint="Cijfers" />

@@ -40,7 +40,7 @@ export function PersonalizationReport({
         <Stat label="Conversion rate" value={fmtPct(overallRate)} />
         <Stat
           label="Personalization lift"
-          value={lift === null ? "—" : `${lift >= 0 ? "+" : ""}${lift.toFixed(0)}%`}
+          value={lift === null ? "·" : `${lift >= 0 ? "+" : ""}${lift.toFixed(0)}%`}
           sub="personalized vs baseline"
         />
       </div>

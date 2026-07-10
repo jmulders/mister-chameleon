@@ -30,15 +30,15 @@ function summarizePayload(payload: unknown): { company: string; person: string; 
     transition?: { toStatus?: string | null };
   };
   return {
-    company:  p.profile?.companyName ?? "—",
-    person:   p.person?.fullName ?? "—",
-    toStatus: p.transition?.toStatus ?? p.profile?.status ?? "—",
+    company:  p.profile?.companyName ?? "·",
+    person:   p.person?.fullName ?? "·",
+    toStatus: p.transition?.toStatus ?? p.profile?.status ?? "·",
   };
 }
 
 function fmtDeliveryTime(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "·" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
@@ -70,7 +70,7 @@ export function LeadCrmSettings({
     setDeliveryMsg("Replaying…");
     start(async () => {
       const res = await replayWebhookDeliveryAction(tenantId, id);
-      setDeliveryMsg(res.ok ? `✓ Replayed (status ${res.status ?? "—"}).` : `✗ ${res.error}`);
+      setDeliveryMsg(res.ok ? `✓ Replayed (status ${res.status ?? "·"}).` : `✗ ${res.error}`);
       setDeliveries(await listWebhookDeliveriesAction(tenantId));
     });
   }
@@ -107,7 +107,7 @@ export function LeadCrmSettings({
   function generateSecret() {
     start(async () => {
       const res = await generateAbmWebhookSecretAction(tenantId);
-      if (res.ok) { setWebhookSecret(res.secret); setSecretMsg("Generated + saved — copy it into your receiver."); }
+      if (res.ok) { setWebhookSecret(res.secret); setSecretMsg("Generated + saved. Copy it into your receiver."); }
       else setSecretMsg(res.error);
     });
   }
@@ -123,7 +123,7 @@ export function LeadCrmSettings({
       const res = await testAbmHubspotSyncAction(tenantId);
       setHubspotMsg(
         res.ok
-          ? `✓ Verbonden — testbedrijf "Mister Chameleon — Sync Test" aangemaakt/bijgewerkt${res.companyId ? ` (id ${res.companyId})` : ""}.`
+          ? `✓ Verbonden: testbedrijf "Mister Chameleon (Sync Test)" aangemaakt/bijgewerkt${res.companyId ? ` (id ${res.companyId})` : ""}.`
           : `✗ ${res.error}`,
       );
     });
@@ -135,11 +135,11 @@ export function LeadCrmSettings({
       <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-neutral-900">Outbound webhook <span className="text-neutral-400 font-normal">(optional)</span></h2>
         <p className="text-xs text-neutral-500">
-          When a lead qualifies — a named lead arriving via their link, or any visitor reaching
-          MQL/SQL through the funnel — POST a JSON event to this URL. The payload carries the
+          When a lead qualifies (a named lead arriving via their link, or any visitor reaching
+          MQL/SQL through the funnel), POST a JSON event to this URL. The payload carries the
           named <code className="font-mono">person</code> (name, job title, LinkedIn) plus the
           <code className="font-mono"> profile</code> (company, size, industry, geo, intent, funnel
-          stage, segments), so your flow (Make, n8n, Slack, your own endpoint) can use them — e.g.
+          stage, segments), so your flow (Make, n8n, Slack, your own endpoint) can use them, e.g.
           in the body of a triggered email. Leave empty to disable.
         </p>
         <div className="flex items-end gap-3">
@@ -207,7 +207,7 @@ export function LeadCrmSettings({
       <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-neutral-900">Hot-lead Slack alerts <span className="text-neutral-400 font-normal">(optional)</span></h2>
         <p className="text-xs text-neutral-500">
-          Get an instant Slack message when a qualifying lead clears a hot-score threshold —
+          Get an instant Slack message when a qualifying lead clears a hot-score threshold,
           no Make/Zapier needed. Paste a Slack{" "}
           <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noreferrer" className="underline">incoming-webhook URL</a>{" "}
           and set the minimum score (the same 0–100 score shown in the list).
@@ -240,7 +240,7 @@ export function LeadCrmSettings({
           a failed one can be re-sent to the current URL with <strong>Replay</strong>.
         </p>
         {deliveries.length === 0 ? (
-          <p className="text-xs text-neutral-400">No deliveries yet — they appear when a lead qualifies and a webhook URL is set.</p>
+          <p className="text-xs text-neutral-400">No deliveries yet. They appear when a lead qualifies and a webhook URL is set.</p>
         ) : (
           <div className="overflow-x-auto rounded-md border border-neutral-200">
             <table className="w-full text-xs">
