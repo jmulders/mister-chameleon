@@ -2,7 +2,7 @@
  * Google conversion feedback via the Data Manager API (events:ingest).
  *
  *   POST https://datamanager.googleapis.com/v1/events:ingest
- *   { destinations: [ { operatingAccount: { product: "GOOGLE_ADS", accountId },
+ *   { destinations: [ { operatingAccount: { accountType: "GOOGLE_ADS", accountId },
  *                       loginAccount?, productDestinationId: <conversionActionId> } ],
  *     events: [ { transactionId, eventTimestamp,
  *                 userData: { userIdentifiers: [ { emailAddress: <sha256 hex> } ] },
@@ -14,8 +14,9 @@
  * scope (reuses the audience-sync Google credentials). Email SHA-256 hashed.
  * Fail-open, never throws.
  *
- * NOTE: field names are pinned here (operatingAccount.product, conversionValue,
- * eventTimestamp) per the Data Manager API v1 schema; bump if Google changes them.
+ * NOTE: field names are pinned here (operatingAccount.accountType, conversionValue,
+ * eventTimestamp) per the Data Manager API v1 events:ingest schema; bump if Google
+ * changes them.
  */
 
 import "server-only";
@@ -54,9 +55,12 @@ export async function sendGoogleConversion(
   if (!accessToken) return { ok: false, platform: "google", status: "error", error: "Google OAuth failed (datamanager scope)." };
 
   try {
+    // NOTE: the Data Manager *events* API uses `accountType` on the account
+    // objects (the audiences API uses `product`) — verified against the
+    // events:ingest reference.
     const destination: Record<string, unknown> = {
-      ...(google.loginCustomerId ? { loginAccount: { product: "GOOGLE_ADS", accountId: digits(google.loginCustomerId) } } : {}),
-      operatingAccount: { product: "GOOGLE_ADS", accountId: digits(google.customerId) },
+      ...(google.loginCustomerId ? { loginAccount: { accountType: "GOOGLE_ADS", accountId: digits(google.loginCustomerId) } } : {}),
+      operatingAccount: { accountType: "GOOGLE_ADS", accountId: digits(google.customerId) },
       productDestinationId: digits(conversionActionId),
     };
 
