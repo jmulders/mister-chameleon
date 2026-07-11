@@ -57,6 +57,36 @@ export async function removeSuppression(tenantId: string, email: string): Promis
   }
 }
 
+export interface SuppressionRow {
+  email:     string;
+  reason:    string | null;
+  source:    string | null;
+  createdAt: string;
+}
+
+/** Suppression rows for the admin list (newest first). */
+export async function listSuppressions(tenantId: string, limit = 500): Promise<SuppressionRow[]> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("lead_suppressions")
+      .select("email, reason, source, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error || !data) return [];
+    return (data as Array<Record<string, unknown>>).map((r) => ({
+      email:     String(r.email),
+      reason:    (r.reason as string | null) ?? null,
+      source:    (r.source as string | null) ?? null,
+      createdAt: String(r.created_at),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** All suppressed (lowercased) emails for a tenant, as a lookup set. */
 export async function listSuppressedEmails(tenantId: string): Promise<Set<string>> {
   const out = new Set<string>();

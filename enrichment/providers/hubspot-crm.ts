@@ -54,6 +54,28 @@ interface HubSpotCompanyProperties {
   domain?:           string;
   industry?:         string;
   lifecyclestage?:   string;
+  // Additional/custom company properties are keyed by their HubSpot handle.
+  [key: string]: string | undefined;
+}
+
+/** HubSpot company property handles for the richer CRM fields (configurable). */
+interface CrmPropertyMap {
+  customerSince: string;         // default "createdate"
+  lastActivity:  string;         // default "hs_lastmodifieddate"
+  planTier:      string | null;  // custom, e.g. "mc_plan_tier" — off unless set
+  dealStage:     string | null;  // custom
+  contractValue: string | null;  // custom
+}
+
+function resolveCrmPropertyMap(): CrmPropertyMap {
+  const env = (k: string) => process.env[k]?.trim() || null;
+  return {
+    customerSince: env("HUBSPOT_COMPANY_CUSTOMER_SINCE_PROP") ?? "createdate",
+    lastActivity:  env("HUBSPOT_COMPANY_LAST_ACTIVITY_PROP")  ?? "hs_lastmodifieddate",
+    planTier:      env("HUBSPOT_COMPANY_PLAN_TIER_PROP"),
+    dealStage:     env("HUBSPOT_COMPANY_DEAL_STAGE_PROP"),
+    contractValue: env("HUBSPOT_COMPANY_CONTRACT_VALUE_PROP"),
+  };
 }
 
 interface HubSpotCompanyResult {
@@ -81,10 +103,12 @@ interface HubSpotSearchResponse {
 export class HubSpotCrmProvider implements CrmProvider {
   private readonly accessToken: string;
   private readonly apiBase:     string;
+  private readonly propMap:     CrmPropertyMap;
 
   constructor(options: { accessToken: string; apiBase?: string }) {
     this.accessToken = options.accessToken;
     this.apiBase     = options.apiBase ?? "https://api.hubapi.com";
+    this.propMap     = resolveCrmPropertyMap();
   }
 
   // ── match ──────────────────────────────────────────────────────────────────
@@ -133,6 +157,10 @@ export class HubSpotCrmProvider implements CrmProvider {
     // Normalise to CrmOutput
     const props          = company.properties;
     const lifecycleStage = normalizeLifecycleStage(props.lifecyclestage);
+    const m              = this.propMap;
+
+    const contractRaw = m.contractValue ? props[m.contractValue] : undefined;
+    const contractValue = contractRaw ? Number(contractRaw) : NaN;
 
     return {
       crmMatched:        true,
@@ -144,6 +172,12 @@ export class HubSpotCrmProvider implements CrmProvider {
       crmCompanyDomain:  props.domain   ?? domain,
       crmIndustry:       props.industry ?? null,
       crmIsCustomer:     lifecycleStage === "customer",
+      // Richer fields — powers customer journey modes (onboarding/expansion).
+      crmPlanTier:       m.planTier  ? (props[m.planTier]  ?? null) : null,
+      crmDealStage:      m.dealStage ? (props[m.dealStage] ?? null) : null,
+      crmContractValue:  Number.isFinite(contractValue) ? contractValue : null,
+      crmCustomerSince:  props[m.customerSince] ?? null,
+      crmLastActivityAt: props[m.lastActivity]  ?? null,
     };
   }
 
@@ -160,6 +194,11 @@ export class HubSpotCrmProvider implements CrmProvider {
     domain: string,
   ): Promise<HubSpotCompanyResult | null> {
     const url  = `${this.apiBase}/crm/v3/objects/companies/search`;
+    const m    = this.propMap;
+    const properties = Array.from(new Set(
+      ["name", "domain", "industry", "lifecyclestage", m.customerSince, m.lastActivity, m.planTier, m.dealStage, m.contractValue]
+        .filter((p): p is string => !!p),
+    ));
     const body = {
       filterGroups: [
         {
@@ -172,8 +211,8 @@ export class HubSpotCrmProvider implements CrmProvider {
           ],
         },
       ],
-      properties: ["name", "domain", "industry", "lifecyclestage"],
-      limit:      1,
+      properties,
+      limit: 1,
     };
 
     const response = await fetch(url, {

@@ -25,6 +25,7 @@ import { archiveContact } from "@/lib/lead-base/hubspot-sync";
 import { getAbmHubspotToken } from "@/lib/abm/abm-store";
 import { getLeadEmailsForProfiles } from "@/lib/ad-sync/segment";
 import { removeLeadsFromAudiences } from "@/lib/ad-sync/sync-engine";
+import { addSuppression, removeSuppression, listSuppressions, type SuppressionRow } from "@/lib/lead-base/suppression-store";
 import { listVisitorEvents, type VisitorEvent } from "@/lib/lead-base/visitor-events-store";
 import {
   listWebhookDeliveries,
@@ -46,6 +47,31 @@ export async function listLeadProfilesAction(
 export async function getChannelAttributionAction(tenantId: string): Promise<ChannelStat[]> {
   await getRequiredAdminSession();
   return getChannelAttribution(tenantId);
+}
+
+// ── Suppression list (unsubscribe / opt-out) ────────────────────────────────────
+
+export async function listSuppressionsAction(tenantId: string): Promise<SuppressionRow[]> {
+  await getRequiredAdminSession();
+  return listSuppressions(tenantId);
+}
+
+/** Add a suppression + pull the email from all ad-platform audiences. */
+export async function addSuppressionAction(tenantId: string, formData: FormData): Promise<void> {
+  await getRequiredAdminSession();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) return;
+  await addSuppression(tenantId, email, "manual", "admin");
+  await removeLeadsFromAudiences(tenantId, [email]);
+  revalidatePath(`/admin/tenants/${tenantId}/leads/suppression`);
+}
+
+/** Lift a suppression (re-opt-in). */
+export async function removeSuppressionAction(tenantId: string, formData: FormData): Promise<void> {
+  await getRequiredAdminSession();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (email) await removeSuppression(tenantId, email);
+  revalidatePath(`/admin/tenants/${tenantId}/leads/suppression`);
 }
 
 export async function deleteLeadProfilesAction(
