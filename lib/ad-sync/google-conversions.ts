@@ -67,6 +67,9 @@ export async function sendGoogleConversion(
     const ev: Record<string, unknown> = {
       transactionId:  event.transactionId ?? `mc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       eventTimestamp: new Date(event.eventTimeMs ?? Date.now()).toISOString(),
+      // Required by the Data Manager events:ingest schema. A form-submit lead
+      // originates on the web.
+      eventSource:    "WEB",
       userData:       { userIdentifiers: [{ emailAddress }] },
     };
     if (event.value != null) {
