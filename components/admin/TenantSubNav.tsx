@@ -185,7 +185,7 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
         { label: "Target accounts", href: `${base}/abm`,            activePrefix: `${base}/abm` },
         { label: "Leads",           href: `${base}/leads`,          activePrefix: `${base}/leads`, exact: true },
         { label: "Retargeting",     href: `${base}/ad-sync`,        activePrefix: `${base}/ad-sync` },
-        { label: "Suppressie",      href: `${base}/leads/suppression`, activePrefix: `${base}/leads/suppression` },
+        { label: "Suppression",     href: `${base}/leads/suppression`, activePrefix: `${base}/leads/suppression` },
         { label: "Journey",   href: `${base}/behavior/journey`,     activePrefix: `${base}/behavior/journey` },
         { label: "Scoring",   href: `${base}/behavior`,             activePrefix: `${base}/behavior`,         exact: true },
       ],

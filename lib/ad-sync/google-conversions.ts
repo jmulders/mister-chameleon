@@ -80,8 +80,8 @@ export async function sendGoogleConversion(
     });
     const text = await res.text().catch(() => "");
     if (!res.ok) {
-      logger.warn("[ad-sync] Google events:ingest non-2xx", { status: res.status, body: text.slice(0, 200) });
-      return { ok: false, platform: "google", status: "error", error: `Data Manager events ${res.status}: ${text.slice(0, 200)}` };
+      logger.warn("[ad-sync] Google events:ingest non-2xx", { status: res.status, body: text.slice(0, 2000) });
+      return { ok: false, platform: "google", status: "error", error: `Data Manager events ${res.status}: ${text.slice(0, 2000)}` };
     }
     return { ok: true, platform: "google", status: "ok" };
   } catch (err) {
