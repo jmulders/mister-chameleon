@@ -290,6 +290,7 @@ export async function applyBlueprint(
       const now = new Date().toISOString();
 
       for (const bp of blueprint.pages) {
+        if (bp.slug.includes("[")) continue;              // skip dynamic route templates
         const slug = bp.slug.replace(/^\//, "").trim();   // "/" → "" (homepage)
         const existing = bySlug.get(slug);
         if (existing && !force) continue;                 // preserve customised page

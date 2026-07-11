@@ -99,6 +99,8 @@ export async function writeBlueprintPagesToStatamic(
     const provider = await createCMSProviderAsync(tenant.cms, tenant.id);
 
     for (const page of blueprint.pages) {
+      // Skip dynamic route templates (e.g. "/vacatures/[slug]") — not real pages.
+      if (page.slug.includes("[")) continue;
       const slug   = toCmsSlug(page.slug);
       const isHome = slug === "home";
 
