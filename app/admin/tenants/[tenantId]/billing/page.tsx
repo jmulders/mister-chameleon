@@ -76,6 +76,7 @@ export const dynamic = "force-dynamic";
 // ── Pagination ────────────────────────────────────────────────────────────────
 
 const LEDGER_PAGE_SIZE = 25;
+const LEDGER_PAGE_SIZES = [10, 25, 50, 100];
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -181,6 +182,8 @@ export default async function TenantBillingPage({
 
   // ── Ledger pagination ──────────────────────────────────────────────────────
   const ledgerPage = Math.max(0, parseInt(String(sp["ledgerPage"] ?? "0"), 10) || 0);
+  const rawLedgerSize = parseInt(String(sp["ledgerPageSize"] ?? String(LEDGER_PAGE_SIZE)), 10);
+  const ledgerPageSize = LEDGER_PAGE_SIZES.includes(rawLedgerSize) ? rawLedgerSize : LEDGER_PAGE_SIZE;
 
   // ── Bundle purchase return params ─────────────────────────────────────────
   //
@@ -493,11 +496,11 @@ export default async function TenantBillingPage({
     const raw = await getWalletLedger(
       client,
       tenantId,
-      LEDGER_PAGE_SIZE + 1,
-      ledgerPage * LEDGER_PAGE_SIZE,
+      ledgerPageSize + 1,
+      ledgerPage * ledgerPageSize,
     );
-    ledgerHasNext = raw.length > LEDGER_PAGE_SIZE;
-    walletLedger  = raw.slice(0, LEDGER_PAGE_SIZE);
+    ledgerHasNext = raw.length > ledgerPageSize;
+    walletLedger  = raw.slice(0, ledgerPageSize);
   } catch (err) {
     rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
@@ -648,7 +651,7 @@ export default async function TenantBillingPage({
         wallet={wallet}
         walletLedger={walletLedger}
         ledgerPage={ledgerPage}
-        ledgerPageSize={LEDGER_PAGE_SIZE}
+        ledgerPageSize={ledgerPageSize}
         ledgerHasNext={ledgerHasNext}
         spendToday={spendToday}
         spendThisMonth={spendThisMonth}

@@ -9,11 +9,11 @@
  *   2. Scoring rules     → inserted into behavior_scoring_rules
  *   3. Sequence patterns → inserted into behavior_sequence_patterns
  *   4. Theme preset      → written to tenant_settings (when applyTheme=true)
- *   5. Pages             → scaffolded into the platform page-store (getPagesByTenant/
- *                          savePage), non-destructive by slug. Renders live for
- *                          Platform-CMS tenants; for external-CMS tenants these are
- *                          real editable page records (the public site still renders
- *                          from that external CMS).
+ *   5. Pages             → for Statamic tenants, real page entries are written to
+ *                          the CMS (writeBlueprintPagesToStatamic) so they render
+ *                          on the live site. For other tenants they are scaffolded
+ *                          into the platform page-store (getPagesByTenant/savePage).
+ *                          Non-destructive by slug (unless force).
  *
  * ─── Safety model ────────────────────────────────────────────────────────────
  *
@@ -44,6 +44,8 @@ import { savePage, getPagesByTenant }            from "@/page-store";
 import type { EditablePage, EditableContentBlock } from "@/page-store";
 import { REGISTERED_CONTENT_BLOCK_TYPES }        from "@/page-config";
 import type { ContentBlockKey }                  from "@/tenant/types";
+import { getTenantById }                         from "@/tenant/server";
+import { writeBlueprintPagesToStatamic }         from "./write-cms-pages";
 import type {
   ApplyBlueprintOptions,
   ApplyBlueprintResult,
@@ -270,39 +272,52 @@ export async function applyBlueprint(
   // (Statamic/Sanity/Storyblok) they are real, editable page records in the
   // platform, but the public site continues to render from that external CMS.
   try {
-    const existingPages = await getPagesByTenant(tenantId);
-    const bySlug = new Map(existingPages.map((p) => [p.slug, p]));
-    const allowedBlocks = new Set<string>(REGISTERED_CONTENT_BLOCK_TYPES);
-    const now = new Date().toISOString();
+    const tenant = await getTenantById(tenantId);
 
-    for (const bp of blueprint.pages) {
-      const slug = bp.slug.replace(/^\//, "").trim();   // "/" → "" (homepage)
-      const existing = bySlug.get(slug);
-      if (existing && !force) continue;                 // preserve customised page
+    if (tenant && tenant.cms?.provider === "statamic") {
+      // External Statamic CMS: write real page entries so they render on the
+      // live site. Non-destructive by slug (unless force).
+      const res = await writeBlueprintPagesToStatamic(tenant, blueprint, force);
+      pagesCreated = res.created;
+      if (res.warnings.length > 0) {
+        console.warn("[apply-blueprint] Statamic page warnings:", res.warnings);
+      }
+    } else {
+      // Platform-CMS (or unknown provider): scaffold into the platform page-store.
+      const existingPages = await getPagesByTenant(tenantId);
+      const bySlug = new Map(existingPages.map((p) => [p.slug, p]));
+      const allowedBlocks = new Set<string>(REGISTERED_CONTENT_BLOCK_TYPES);
+      const now = new Date().toISOString();
 
-      const contentBlocks: EditableContentBlock[] = bp.blocks
-        .filter((b) => allowedBlocks.has(b.type))
-        .map((b) => ({
-          id:        crypto.randomUUID(),
-          blockType: b.type as ContentBlockKey,
-          variant:   "default",
-          data:      {},
-        }));
+      for (const bp of blueprint.pages) {
+        const slug = bp.slug.replace(/^\//, "").trim();   // "/" → "" (homepage)
+        const existing = bySlug.get(slug);
+        if (existing && !force) continue;                 // preserve customised page
 
-      const page: EditablePage = {
-        id:           existing?.id ?? crypto.randomUUID(),
-        tenantId,
-        slug,
-        title:        bp.title,
-        templateKey:  "marketing-page",
-        contextSlots: existing?.contextSlots ?? [],
-        contentBlocks,
-        seo:          existing?.seo ?? {},
-        createdAt:    existing?.createdAt ?? now,
-        updatedAt:    now,
-      };
-      await savePage(page);
-      pagesCreated++;
+        const contentBlocks: EditableContentBlock[] = bp.blocks
+          .filter((b) => allowedBlocks.has(b.type))
+          .map((b) => ({
+            id:        crypto.randomUUID(),
+            blockType: b.type as ContentBlockKey,
+            variant:   "default",
+            data:      {},
+          }));
+
+        const page: EditablePage = {
+          id:           existing?.id ?? crypto.randomUUID(),
+          tenantId,
+          slug,
+          title:        bp.title,
+          templateKey:  "marketing-page",
+          contextSlots: existing?.contextSlots ?? [],
+          contentBlocks,
+          seo:          existing?.seo ?? {},
+          createdAt:    existing?.createdAt ?? now,
+          updatedAt:    now,
+        };
+        await savePage(page);
+        pagesCreated++;
+      }
     }
   } catch (err) {
     console.warn("[apply-blueprint] pages error:", err);
@@ -314,6 +329,7 @@ export async function applyBlueprint(
   revalidatePath(`/admin/tenants/${tenantId}/behavior`);
   revalidatePath(`/admin/tenants/${tenantId}/rules`);
   revalidatePath(`/admin/tenants/${tenantId}/pages`);
+  revalidatePath(`/admin/tenants/${tenantId}/content`);
 
   return {
     ok:                  true,

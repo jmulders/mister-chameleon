@@ -1260,12 +1260,14 @@ function LedgerPagination({
   rowCount: number;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
 
-  // Build a URL that preserves any existing search params except ledgerPage.
-  function pageUrl(p: number) {
+  // Build a URL for a given page + page size. Server reads ledgerPage /
+  // ledgerPageSize; the #history anchor keeps the tab in view after navigation.
+  function pageUrl(p: number, size: number = pageSize) {
     const params = new URLSearchParams();
     if (p > 0) params.set("ledgerPage", String(p));
-    // Keep the #history anchor so the tab stays in view after navigation.
+    if (size !== 25) params.set("ledgerPageSize", String(size));
     const qs = params.toString();
     return `${pathname}${qs ? `?${qs}` : ""}#history`;
   }
@@ -1274,38 +1276,45 @@ function LedgerPagination({
   const firstRow  = page * pageSize + 1;
   const lastRow   = page * pageSize + rowCount;
 
-  if (!hasPrev && !hasNext) return null; // single page — no controls needed
+  if (rowCount === 0) return null; // nothing to show
+
+  const linkCls =
+    "inline-flex items-center gap-1 rounded border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors";
+  const disabledCls =
+    "inline-flex items-center gap-1 rounded border border-neutral-100 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-300 cursor-not-allowed";
 
   return (
-    <div className="mt-4 flex items-center justify-between border-t border-neutral-100 pt-3">
-      <p className="text-xs text-neutral-400">
-        Showing rows {firstRow}–{lastRow}
-      </p>
-      <div className="flex items-center gap-2">
-        {hasPrev ? (
-          <Link
-            href={pageUrl(page - 1)}
-            className="inline-flex items-center gap-1 rounded border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+    <div className="mt-4 flex flex-col gap-3 border-t border-neutral-100 pt-3 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-neutral-400">Rijen {firstRow}–{lastRow}</p>
+
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-1.5">
+          <span>Toon</span>
+          <select
+            value={String(pageSize)}
+            onChange={(e) => router.push(pageUrl(0, Number(e.target.value)))}
+            className="rounded-md border border-neutral-300 bg-white px-1.5 py-1 text-xs text-neutral-700 focus:border-neutral-500 focus:outline-none"
           >
-            ← Previous
-          </Link>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded border border-neutral-100 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-300 cursor-not-allowed">
-            ← Previous
-          </span>
-        )}
-        <span className="text-xs text-neutral-400">Page {page + 1}</span>
-        {hasNext ? (
-          <Link
-            href={pageUrl(page + 1)}
-            className="inline-flex items-center gap-1 rounded border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-          >
-            Next →
-          </Link>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded border border-neutral-100 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-300 cursor-not-allowed">
-            Next →
-          </span>
+            {[10, 25, 50, 100].map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </label>
+
+        {(hasPrev || hasNext) && (
+          <div className="flex items-center gap-2">
+            {hasPrev ? (
+              <Link href={pageUrl(page - 1)} className={linkCls}>Vorige</Link>
+            ) : (
+              <span className={disabledCls}>Vorige</span>
+            )}
+            <span className="text-neutral-400">Pagina {page + 1}</span>
+            {hasNext ? (
+              <Link href={pageUrl(page + 1)} className={linkCls}>Volgende</Link>
+            ) : (
+              <span className={disabledCls}>Volgende</span>
+            )}
+          </div>
         )}
       </div>
     </div>
