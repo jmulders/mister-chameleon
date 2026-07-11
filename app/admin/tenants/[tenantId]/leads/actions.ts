@@ -9,6 +9,7 @@
  * See docs/lead-base-design.md.
  */
 
+import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
 import {
   listVisitorProfiles,
