@@ -9,6 +9,7 @@ import {
   listAbmLeadVisitsAction,
 } from "../actions";
 import type { AbmLead, AbmLeadStatus, AbmLeadVisit } from "@/lib/abm/abm-store";
+import { usePagination, PaginationControls } from "@/components/admin/Pagination";
 
 /** Compact local date-time label, e.g. "28 Jun, 14:02". */
 function fmtWhen(iso: string | null): string {
@@ -76,6 +77,8 @@ export function AbmClient({
   const [visitsLoading, setVisitsLoading] = useState(false);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  const leadsPager = usePagination(leads, 25);
 
   async function toggleExpand(leadId: string) {
     if (expandedId === leadId) { setExpandedId(null); return; }
@@ -237,8 +240,9 @@ export function AbmClient({
         {leads.length === 0 ? (
           <p className="text-sm text-neutral-500">No leads yet. Add one above or import a CSV.</p>
         ) : (
+          <>
           <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200">
-            {leads.map((lead) => (
+            {leadsPager.pageItems.map((lead) => (
               <div key={lead.id} className="px-4 py-3 text-sm">
                 <div className="flex items-center gap-3">
                   <button
@@ -288,6 +292,8 @@ export function AbmClient({
               </div>
             ))}
           </div>
+          <PaginationControls {...leadsPager} label="leads" />
+          </>
         )}
       </section>
     </div>

@@ -67,6 +67,7 @@ import {
 import type { AddCreditsAdjustmentType, UpdateSubscriptionInput } from "../actions";
 import type { TenantDunningSettings } from "@/billing/dunning";
 import { DunningSettingsPanel } from "@/components/admin/DunningSettingsPanel";
+import { usePagination, PaginationControls } from "@/components/admin/Pagination";
 import type { StripeInvoiceRow } from "../actions";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -2793,6 +2794,8 @@ function StripePaymentsTab({
   error:      string | null;
   customerId: string | null;
 }) {
+  const invoicesPager = usePagination(invoices, 25);
+
   if (error) {
     return (
       <Card>
@@ -2884,7 +2887,7 @@ function StripePaymentsTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-50">
-              {invoices.map((inv) => (
+              {invoicesPager.pageItems.map((inv) => (
                 <tr key={inv.id} className="text-neutral-700 hover:bg-neutral-50/60">
                   <td className="py-2.5 pr-4 font-mono text-xs text-neutral-500">
                     {inv.source === "invoice" ? (
@@ -2952,6 +2955,7 @@ function StripePaymentsTab({
             </tbody>
           </table>
         </div>
+        <PaginationControls {...invoicesPager} label="betalingen" />
       </Card>
     </div>
   );
@@ -3250,6 +3254,7 @@ function SessionsTab({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [buyError,  setBuyError]  = useState<string | null>(null);
   const router = useRouter();
+  const ledgerPager = usePagination(ledger, 25);
 
   async function handleBuyBundle(bundleId: string) {
     setLoadingId(bundleId);
@@ -3496,7 +3501,7 @@ function SessionsTab({
               </tr>
             </thead>
             <tbody>
-              {ledger.map((entry, i) => (
+              {ledgerPager.pageItems.map((entry, i) => (
                 <tr key={entry.id} className={`border-b border-neutral-50 ${i % 2 === 0 ? "" : "bg-neutral-50/40"}`}>
                   <td className="px-5 py-3 text-xs text-neutral-500 whitespace-nowrap">{fmtDate(entry.created_at)}</td>
                   <td className={`px-5 py-3 font-medium text-sm ${entryTypeColor(entry.entry_type)}`}>
@@ -3512,6 +3517,9 @@ function SessionsTab({
             </tbody>
           </table>
         )}
+        <div className="px-5 pb-4">
+          <PaginationControls {...ledgerPager} label="transacties" />
+        </div>
       </div>
     </div>
   );

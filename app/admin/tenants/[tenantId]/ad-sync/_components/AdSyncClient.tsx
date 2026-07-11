@@ -28,6 +28,7 @@ import type {
   MetaConfig,
   PlatformSyncResult,
 } from "@/lib/ad-sync/types";
+import { usePagination, PaginationControls } from "@/components/admin/Pagination";
 
 const SET = "__SET__";
 const isSet = (v: string | undefined) => v === SET;
@@ -75,6 +76,7 @@ export function AdSyncClient({
   const [meta, setMeta] = useState<MetaConfig>(initialSettings.meta ?? {});
   const [linkedin, setLinkedin] = useState<LinkedInConfig>(initialSettings.linkedin ?? {});
   const [runs] = useState<AdSyncRun[]>(initialRuns);
+  const runsPager = usePagination(runs, 25);
 
   const [preview, setPreview] = useState<number | null>(null);
   const [syncResults, setSyncResults] = useState<PlatformSyncResult[] | null>(null);
@@ -242,6 +244,7 @@ export function AdSyncClient({
         {runs.length === 0 ? (
           <p className="mt-2 text-xs text-neutral-400">Nog geen syncs uitgevoerd.</p>
         ) : (
+          <>
           <table className="mt-2 w-full text-xs">
             <thead>
               <tr className="text-left text-neutral-400">
@@ -249,7 +252,7 @@ export function AdSyncClient({
               </tr>
             </thead>
             <tbody>
-              {runs.map((r) => (
+              {runsPager.pageItems.map((r) => (
                 <tr key={r.id} className="border-t border-neutral-100">
                   <td className="py-1">{new Date(r.createdAt).toLocaleString("nl-NL")}</td>
                   <td className="capitalize">{r.platform}</td>
@@ -262,6 +265,8 @@ export function AdSyncClient({
               ))}
             </tbody>
           </table>
+          <PaginationControls {...runsPager} label="syncs" />
+          </>
         )}
       </section>
     </div>

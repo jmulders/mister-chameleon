@@ -6,6 +6,7 @@ import type { VisitorEvent } from "@/lib/lead-base/visitor-events-store";
 import type { VisitorProfile, VisitorProfileFilter } from "@/lib/lead-base/visitor-profiles-store";
 import type { IdentityLevel, ProfileStatus } from "@/lib/lead-base/profile-gate";
 import { leadScore, scoreClass, type LeadScoreConfig } from "@/lib/lead-base/lead-scoring";
+import { usePagination, PaginationControls } from "@/components/admin/Pagination";
 
 const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
 const LABEL = "block text-xs font-medium text-neutral-600 mb-1";
@@ -164,6 +165,7 @@ export function LeadBaseClient({
     item.type === "single" ? score(item.profile) : Math.max(...item.group.members.map(score));
   const renderList = buildRenderList(profiles, grouped);
   if (sortBy === "score") renderList.sort((a, b) => itemScore(b) - itemScore(a));
+  const profilesPager = usePagination(renderList, 25);
   const toggleExpand = (key: string) =>
     setExpanded((cur) => { const n = new Set(cur); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const selectMany = (ids: string[], on: boolean) =>
@@ -416,6 +418,7 @@ export function LeadBaseClient({
       {profiles.length === 0 ? (
         <p className="text-sm text-neutral-500">No profiles match. Visitors populate this as they browse (homepage).</p>
       ) : (
+        <>
         <div className="overflow-x-auto rounded-lg border border-neutral-200">
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 text-xs text-neutral-500">
@@ -433,12 +436,14 @@ export function LeadBaseClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {renderList.map((item) =>
+              {profilesPager.pageItems.map((item) =>
                 item.type === "single" ? renderProfileRow(item.profile) : renderGroupRow(item.group),
               )}
             </tbody>
           </table>
         </div>
+        <PaginationControls {...profilesPager} label="profielen" />
+        </>
       )}
     </div>
   );
