@@ -2232,6 +2232,19 @@ export class StatamicProvider implements CMSProvider {
 
     if (options?.pages && options.pages.length > 0) {
       for (const page of options.pages) {
+        // Skip collection-item DETAIL templates — these belong to a collection +
+        // a /[slug] detail route, not a standalone page. Without this, presets
+        // like "Event detail", "Case study detail", "Vacancy detail",
+        // "Article detail" and "Product detail" get scaffolded as junk pages.
+        const detailPreset = getPreset(page.presetKey);
+        if (
+          page.presetKey.startsWith("detail_") ||
+          detailPreset?.templateKey === "detail-page" ||
+          detailPreset?.templateKey === "article-page"
+        ) {
+          continue;
+        }
+
         // Statamic stores the homepage as slug "home"; URL slug is "".
         const pageSlug = page.slug === "" ? "home" : page.slug;
         const isHome   = page.slug === "";
