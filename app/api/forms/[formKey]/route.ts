@@ -79,6 +79,7 @@ import {
 import { resolveSession }               from "@/data/session";
 import { logger }                       from "@/lib/logger";
 import { markProfileConverted }         from "@/lib/lead-base/visitor-profiles-store";
+import { captureInboundLead }            from "@/lib/lead-base/inbound-capture";
 import { getActiveTenant }              from "@/tenant/server";
 import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
 import { serverEnv }                    from "@/lib/env";
@@ -248,6 +249,15 @@ export async function POST(
     // Ignore — submission proceeds without a session link.
   }
 
+  // The page the form was submitted from — stored as the lead's target path.
+  let submissionPath = "/";
+  try {
+    const ref = reqHeaders.get("referer");
+    if (ref) submissionPath = new URL(ref).pathname || "/";
+  } catch {
+    // Ignore — fall back to "/".
+  }
+
   // ── 6. Derive action flags and dispatch ──────────────────────────────────
   //
   //   All actions run inside Promise.allSettled() — one failure cannot block
@@ -337,6 +347,18 @@ export async function POST(
     // converted (form submission = conversion), linked by mc_session_id. Fail-open.
     (tenantId && sessionId)
       ? markProfileConverted(tenantId, sessionId)
+      : Promise.resolve(),
+
+    // 6a-ter. Inbound lead capture — a submitted email becomes a named lead in the
+    // Lead Base (deduped by email) and the visitor profile is upgraded to "known".
+    // Voluntary first-party contact, so not consent-gated. Fail-open.
+    tenantId
+      ? captureInboundLead({
+          tenantId,
+          visitorKey: sessionId,
+          values:     validation.values,
+          targetPath: submissionPath,
+        })
       : Promise.resolve(),
 
     // 6b–c. Platform form: backoffice + confirmation ───────────────────────

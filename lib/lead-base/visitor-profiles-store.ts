@@ -78,6 +78,40 @@ function mapRow(row: Record<string, unknown>): VisitorProfile {
   };
 }
 
+/**
+ * Link a visitor profile to an ABM lead (inbound form capture). Sets abm_lead_id
+ * and upgrades identity_level to "known" (never downgrades a customer). Keyed by
+ * the session's visitor_key. No-op when the profile row doesn't exist yet — the
+ * lead itself still exists in abm_leads and is retargetable. Fail-open.
+ */
+export async function linkProfileToAbmLead(
+  tenantId:   string,
+  visitorKey: string,
+  abmLeadId:  string,
+): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const now = new Date().toISOString();
+    await db
+      .from("visitor_profiles")
+      .update({ abm_lead_id: abmLeadId, updated_at: now })
+      .eq("tenant_id", tenantId)
+      .eq("visitor_key", visitorKey);
+    // Upgrade to "known" only from a lower level — never downgrade a customer.
+    await db
+      .from("visitor_profiles")
+      .update({ identity_level: "known", updated_at: now })
+      .eq("tenant_id", tenantId)
+      .eq("visitor_key", visitorKey)
+      .in("identity_level", ["anonymous", "recognised"]);
+  } catch (err) {
+    logger.warn("[lead-base] linkProfileToAbmLead failed", {
+      tenantId, err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 // ── Upsert (per request) ───────────────────────────────────────────────────────
 
 /** What an upsert changed — lets callers detect upward qualification. */
