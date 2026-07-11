@@ -81,7 +81,7 @@ export function AdSyncClient({
   const [msg, setMsg] = useState<string>("");
   const [pending, startTransition] = useTransition();
 
-  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 4000); };
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 7000); };
 
   const toggleEnabled = (val: boolean) => {
     setEnabled(val);
@@ -132,7 +132,13 @@ export function AdSyncClient({
   return (
     <div className="space-y-6">
       {msg ? (
-        <div className="rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">{msg}</div>
+        <div
+          role="status"
+          onClick={() => setMsg("")}
+          className="fixed bottom-6 right-6 z-50 max-w-sm cursor-pointer rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm text-white shadow-xl"
+        >
+          {msg}
+        </div>
       ) : null}
 
       {/* Master toggle + run now */}
