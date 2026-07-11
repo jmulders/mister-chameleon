@@ -32,7 +32,7 @@ function pick(values: Record<string, string>, keyRe: RegExp): string | undefined
 }
 
 /** Extract a submitted email: prefer an email-named field, else any email-shaped value. */
-function pickEmail(values: Record<string, string>): string | null {
+export function extractSubmittedEmail(values: Record<string, string>): string | null {
   for (const [k, v] of Object.entries(values)) {
     if (typeof v === "string" && /e-?mail/i.test(k) && EMAIL_RE.test(v.trim())) {
       return v.trim().toLowerCase();
@@ -54,7 +54,7 @@ export async function captureInboundLead(args: {
   targetPath: string;
 }): Promise<void> {
   try {
-    const email = pickEmail(args.values);
+    const email = extractSubmittedEmail(args.values);
     if (!email) return;   // no matchable identifier — nothing to capture
 
     const firstNameRaw = pick(args.values, /first.?name|voornaam/i);
@@ -64,7 +64,8 @@ export async function captureInboundLead(args: {
     const phone        = pick(args.values, /phone|tel|telefoon|mobile|mobiel/i);
 
     const firstName = firstNameRaw ?? (fullNameRaw ? fullNameRaw.split(/\s+/)[0] : undefined);
-    const fullName  = fullNameRaw ?? [firstNameRaw, lastName].filter(Boolean).join(" ") || undefined;
+    const joinedName = [firstNameRaw, lastName].filter(Boolean).join(" ");
+    const fullName  = fullNameRaw ?? (joinedName || undefined);
 
     const profile: AbmLeadProfile = {
       email,

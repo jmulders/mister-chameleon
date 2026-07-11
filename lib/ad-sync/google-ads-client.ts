@@ -49,6 +49,10 @@ async function timedFetch(url: string, init: RequestInit): Promise<Response> {
 }
 
 /** Exchange the stored refresh token for a short-lived access token. */
+export async function getGoogleAccessToken(cfg: GoogleAdsConfig): Promise<string | null> {
+  return getAccessToken(cfg);
+}
+
 async function getAccessToken(cfg: GoogleAdsConfig): Promise<string | null> {
   if (!cfg.clientId || !cfg.clientSecret || !cfg.refreshToken) return null;
   try {

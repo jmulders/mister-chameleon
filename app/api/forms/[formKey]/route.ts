@@ -79,7 +79,8 @@ import {
 import { resolveSession }               from "@/data/session";
 import { logger }                       from "@/lib/logger";
 import { markProfileConverted }         from "@/lib/lead-base/visitor-profiles-store";
-import { captureInboundLead }            from "@/lib/lead-base/inbound-capture";
+import { captureInboundLead, extractSubmittedEmail } from "@/lib/lead-base/inbound-capture";
+import { sendConversion }                from "@/lib/ad-sync/conversion-engine";
 import { getActiveTenant }              from "@/tenant/server";
 import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
 import { serverEnv }                    from "@/lib/env";
@@ -360,6 +361,14 @@ export async function POST(
           targetPath: submissionPath,
         })
       : Promise.resolve(),
+
+    // 6a-quater. Conversion feedback — report the form-submit conversion back to
+    // the configured ad platforms (Google/Meta/LinkedIn) so bidding optimizes on
+    // real leads. No-op unless conversion feedback is configured + enabled.
+    (tenantId && (() => {
+      const email = extractSubmittedEmail(validation.values);
+      return email ? sendConversion(tenantId, { email, eventName: "Lead" }, "conversion") : null;
+    })()) || Promise.resolve(),
 
     // 6b–c. Platform form: backoffice + confirmation ───────────────────────
     ...(formDef ? [

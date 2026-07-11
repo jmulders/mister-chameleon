@@ -23,6 +23,8 @@ import type {
   MetaConfig,
 } from "./types";
 
+import type { ConversionConfig } from "./conversion-types";
+
 export type { AdSyncRun } from "./types";
 
 const EMPTY_SETTINGS = (tenantId: string): AdSyncSettings => ({
@@ -242,6 +244,53 @@ export async function removeAudienceHashes(tenantId: string, platform: AdPlatfor
   } catch (err) {
     logger.warn("[ad-sync-store] removeAudienceHashes failed", {
       tenantId, platform, err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+// ── Conversion feedback (config + audit log) ────────────────────────────────────
+
+/** Read the tenant's conversion-feedback config (or null when unset). */
+export async function getConversionConfig(tenantId: string): Promise<ConversionConfig | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("ad_sync_settings")
+      .select("conversions")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return (data.conversions as ConversionConfig | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Upsert the tenant's conversion-feedback config. */
+export function setConversionConfig(tenantId: string, conversions: ConversionConfig): Promise<boolean> {
+  return upsert(tenantId, { conversions });
+}
+
+/** Append one conversion-send outcome to the audit log. */
+export async function logConversionEvent(
+  tenantId: string,
+  row: { platform: string; status: string; eventName?: string | null; trigger: string; error?: string | null },
+): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    await db.from("ad_conversion_events").insert({
+      tenant_id:  tenantId,
+      platform:   row.platform,
+      status:     row.status,
+      event_name: row.eventName ?? null,
+      trigger:    row.trigger,
+      error:      row.error ?? null,
+    });
+  } catch (err) {
+    logger.warn("[ad-sync-store] logConversionEvent failed", {
+      tenantId, err: err instanceof Error ? err.message : String(err),
     });
   }
 }

@@ -17,6 +17,7 @@ import {
   previewSegmentAction,
   testPlatformConnectionAction,
   syncNowAction,
+  saveConversionConfigAction,
 } from "../actions";
 import type {
   AdPlatform,
@@ -28,6 +29,7 @@ import type {
   MetaConfig,
   PlatformSyncResult,
 } from "@/lib/ad-sync/types";
+import type { ConversionConfig } from "@/lib/ad-sync/conversion-types";
 import { usePagination, PaginationControls } from "@/components/admin/Pagination";
 
 const SET = "__SET__";
@@ -61,14 +63,18 @@ function Field({
   );
 }
 
+const EMPTY_CONVERSIONS: ConversionConfig = { enabled: false, eventName: "Lead", currency: "EUR" };
+
 export function AdSyncClient({
   tenantId,
   initialSettings,
   initialRuns,
+  initialConversions,
 }: {
   tenantId: string;
   initialSettings: AdSyncSettings;
   initialRuns: AdSyncRun[];
+  initialConversions?: ConversionConfig | null;
 }) {
   const [enabled, setEnabled] = useState(initialSettings.enabled);
   const [segment, setSegment] = useState<AdSyncSegment>(initialSettings.segment ?? { requireConsent: true });
@@ -77,6 +83,7 @@ export function AdSyncClient({
   const [linkedin, setLinkedin] = useState<LinkedInConfig>(initialSettings.linkedin ?? {});
   const [runs] = useState<AdSyncRun[]>(initialRuns);
   const runsPager = usePagination(runs, 25);
+  const [conv, setConv] = useState<ConversionConfig>(initialConversions ?? EMPTY_CONVERSIONS);
 
   const [preview, setPreview] = useState<number | null>(null);
   const [syncResults, setSyncResults] = useState<PlatformSyncResult[] | null>(null);
@@ -129,6 +136,11 @@ export function AdSyncClient({
     const r = await syncNowAction(tenantId);
     if (r.ok) { setSyncResults(r.results); flash(`Sync klaar: ${r.membersTotal} leads verwerkt.`); }
     else flash(`Fout: ${r.error}`);
+  });
+
+  const saveConv = () => startTransition(async () => {
+    const r = await saveConversionConfigAction(tenantId, conv);
+    flash(r.ok ? "Conversie-feedback opgeslagen." : `Fout: ${r.error}`);
   });
 
   return (
@@ -237,6 +249,29 @@ export function AdSyncClient({
         <Field label="Ad account id" value={linkedin.adAccountId ?? ""} onChange={(v) => setLinkedin({ ...linkedin, adAccountId: v })} hint="Cijfers" />
         <Field label="DMP segment id" value={linkedin.dmpSegmentId ?? ""} onChange={(v) => setLinkedin({ ...linkedin, dmpSegmentId: v })} />
       </PlatformCard>
+
+      {/* Conversion feedback */}
+      <section className="rounded-lg border border-neutral-200 bg-white p-4">
+        <label className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+          <input type="checkbox" checked={conv.enabled} onChange={(e) => setConv({ ...conv, enabled: e.target.checked })} />
+          Conversie-feedback naar ad-platforms
+        </label>
+        <p className="mt-1 text-xs text-neutral-500">
+          Stuurt bij een formulier-conversie een server-side event terug (hashed e-mail) zodat biedingen op echte leads optimaliseren. Hergebruikt de credentials hierboven; vul per platform het conversie-doel in.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Field label="Event-naam" value={conv.eventName ?? ""} onChange={(v) => setConv({ ...conv, eventName: v })} hint="Bijv. Lead" />
+          <Field label="Standaardwaarde" type="number" value={conv.defaultValue?.toString() ?? ""} onChange={(v) => setConv({ ...conv, defaultValue: v ? Number(v) : undefined })} hint="Optioneel, per conversie" />
+          <Field label="Valuta" value={conv.currency ?? ""} onChange={(v) => setConv({ ...conv, currency: v })} hint="Bijv. EUR" />
+          <Field label="Google conversion action id" value={conv.google?.conversionActionId ?? ""} onChange={(v) => setConv({ ...conv, google: { conversionActionId: v } })} hint="UPLOAD_CLICKS-actie" />
+          <Field label="Meta pixel id" value={conv.meta?.pixelId ?? ""} onChange={(v) => setConv({ ...conv, meta: { pixelId: v } })} />
+          <Field label="LinkedIn conversion id" value={conv.linkedin?.conversionId ?? ""} onChange={(v) => setConv({ ...conv, linkedin: { conversionId: v } })} hint="Cijfers" />
+        </div>
+        <button onClick={saveConv} disabled={pending}
+          className="mt-3 rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+          Conversie-feedback opslaan
+        </button>
+      </section>
 
       {/* Run history */}
       <section className="rounded-lg border border-neutral-200 bg-white p-4">

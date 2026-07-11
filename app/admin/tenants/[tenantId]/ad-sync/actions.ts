@@ -17,8 +17,11 @@ import {
   setAdSyncSegment,
   setPlatformConfig,
   listAdSyncRuns,
+  getConversionConfig,
+  setConversionConfig,
   type AdSyncRun,
 } from "@/lib/ad-sync/ad-sync-store";
+import type { ConversionConfig } from "@/lib/ad-sync/conversion-types";
 import { resolveAudienceMembers } from "@/lib/ad-sync/segment";
 import { runTenantAdSync } from "@/lib/ad-sync/sync-engine";
 import { testGoogleConnection } from "@/lib/ad-sync/google-ads-client";
@@ -135,6 +138,24 @@ export async function testPlatformConnectionAction(
   if (platform === "meta")     return s.meta     ? testMetaConnection(s.meta)         : { ok: false, error: "Not configured." };
   if (platform === "linkedin") return s.linkedin ? testLinkedInConnection(s.linkedin) : { ok: false, error: "Not configured." };
   return { ok: false, error: "Unknown platform." };
+}
+
+// ── Conversion feedback ─────────────────────────────────────────────────────────
+
+export async function getConversionConfigAction(tenantId: string): Promise<ConversionConfig | null> {
+  await getRequiredAdminSession();
+  return getConversionConfig(tenantId);
+}
+
+export async function saveConversionConfigAction(
+  tenantId:    string,
+  conversions: ConversionConfig,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const ok = await setConversionConfig(tenantId, conversions);
+  if (!ok) return { ok: false, error: "Save failed." };
+  revalidatePath(path(tenantId));
+  return { ok: true };
 }
 
 /** Run the push now (manual trigger), returning a per-platform result summary. */

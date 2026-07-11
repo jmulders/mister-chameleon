@@ -6,7 +6,7 @@
  * at /admin/tenants/[tenantId]/ad-sync. See docs/lead-base-design.md.
  */
 
-import { getAdSyncSettingsAction, listAdSyncRunsAction } from "./actions";
+import { getAdSyncSettingsAction, listAdSyncRunsAction, getConversionConfigAction } from "./actions";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdSyncClient } from "./_components/AdSyncClient";
 
@@ -16,9 +16,10 @@ export default async function AdSyncPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const [settings, runs] = await Promise.all([
+  const [settings, runs, conversions] = await Promise.all([
     getAdSyncSettingsAction(tenantId),
     listAdSyncRunsAction(tenantId),
+    getConversionConfigAction(tenantId),
   ]);
 
   return (
@@ -37,7 +38,7 @@ export default async function AdSyncPage({
         another basis.
       </p>
 
-      <AdSyncClient tenantId={tenantId} initialSettings={settings} initialRuns={runs} />
+      <AdSyncClient tenantId={tenantId} initialSettings={settings} initialRuns={runs} initialConversions={conversions} />
     </div>
   );
 }
