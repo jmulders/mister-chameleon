@@ -153,35 +153,17 @@ export async function resolveAudienceMembers(
       wantedLeadIds.push(row.abm_lead_id);
     }
 
-    if (wantedLeadIds.length === 0) return [];
-
-    // Fetch the linked ABM profiles (PII) in one query.
-    const uniqueIds = Array.from(new Set(wantedLeadIds));
-    const { data: leadData, error: leadErr } = await db
-      .from("abm_leads")
-      .select("id, profile")
-      .eq("tenant_id", tenantId)
-      .in("id", uniqueIds);
-    if (leadErr || !leadData) return [];
-
-    const profileById = new Map<string, AbmLeadProfile>();
-    for (const l of leadData as Array<{ id: string; profile: AbmLeadProfile }>) {
-      profileById.set(String(l.id), l.profile ?? {});
-    }
-
-    // Build members, de-duped by hashed-later email (dedupe on raw lowercase email).
     const seen = new Set<string>();
     const members: AudienceMember[] = [];
-    for (const row of keptRows) {
-      const profile = profileById.get(String(row.abm_lead_id));
-      if (!profile) continue;
+
+    // Helper: push one ABM profile as an audience member (deduped by identifier).
+    const pushProfile = (profile: AbmLeadProfile): boolean => {
       const email = profile.email?.trim().toLowerCase();
       const phone = (profile.phone ?? profile["phoneNumber"])?.toString().trim();
-      if (!email && !phone) continue;             // no matchable identifier
+      if (!email && !phone) return false;           // no matchable identifier
       const dedupeKey = email ?? phone!;
-      if (seen.has(dedupeKey)) continue;
+      if (seen.has(dedupeKey)) return false;
       seen.add(dedupeKey);
-
       const { firstName, lastName } = splitName(profile);
       members.push({
         ...(email ? { email } : {}),
@@ -190,7 +172,45 @@ export async function resolveAudienceMembers(
         ...(lastName ? { lastName } : {}),
         ...(profile["country"] ? { country: profile["country"] } : {}),
       });
-      if (members.length >= hardCap) break;
+      return true;
+    };
+
+    // 1) Behaviourally-qualified visitors: profiles linked to an ABM lead's PII.
+    if (wantedLeadIds.length > 0) {
+      const uniqueIds = Array.from(new Set(wantedLeadIds));
+      const { data: leadData } = await db
+        .from("abm_leads")
+        .select("id, profile")
+        .eq("tenant_id", tenantId)
+        .in("id", uniqueIds);
+      const profileById = new Map<string, AbmLeadProfile>();
+      for (const l of (leadData ?? []) as Array<{ id: string; profile: AbmLeadProfile }>) {
+        profileById.set(String(l.id), l.profile ?? {});
+      }
+      for (const row of keptRows) {
+        const profile = profileById.get(String(row.abm_lead_id));
+        if (!profile) continue;
+        pushProfile(profile);
+        if (members.length >= hardCap) break;
+      }
+    }
+
+    // 2) First-party ABM target accounts: known leads you explicitly target, even
+    //    if they haven't visited yet. They are "known" identity level and count as
+    //    first-party (legitimate interest), so they pass the consent gate. Only
+    //    excluded when a stricter minIdentityLevel ("customer") is required.
+    const minBlocksKnown = segment.minIdentityLevel === "customer";
+    if (!minBlocksKnown && members.length < hardCap) {
+      const { data: abmData } = await db
+        .from("abm_leads")
+        .select("profile, segment_hint")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active");
+      for (const l of (abmData ?? []) as Array<{ profile: AbmLeadProfile; segment_hint: string | null }>) {
+        if (segment.segmentKey && l.segment_hint !== segment.segmentKey) continue;
+        pushProfile(l.profile ?? {});
+        if (members.length >= hardCap) break;
+      }
     }
 
     return members;
