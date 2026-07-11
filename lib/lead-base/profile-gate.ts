@@ -55,6 +55,19 @@ export interface ProfileCandidate {
   identityLevel?: IdentityLevel;
   /** A/B holdout group: 'control' | 'personalized' (pseudonymous, always allowed). */
   personalizationGroup?: string | null;
+
+  // ── First-touch attribution (gated on `analytics`/`personalization`) ──
+  // How the visitor arrived. First-party marketing signals, not third-party
+  // enrichment. First-touch semantics are enforced in the store (never
+  // overwritten once set).
+  utmSource?:      string | null;
+  utmMedium?:      string | null;
+  utmCampaign?:    string | null;
+  utmContent?:     string | null;
+  utmTerm?:        string | null;
+  referrerDomain?: string | null;
+  /** Derived coarse channel (see classifyChannel). */
+  firstChannel?:   string | null;
 }
 
 /** The gated, ready-to-persist patch. Absent groups were denied by consent. */
@@ -79,6 +92,14 @@ export interface GatedProfilePatch {
   geoRegion?:       string | null;
   abmLeadId?:    string | null;
   personalizationGroup?: string | null;
+  // attribution (only when analytics/personalization granted)
+  utmSource?:      string | null;
+  utmMedium?:      string | null;
+  utmCampaign?:    string | null;
+  utmContent?:     string | null;
+  utmTerm?:        string | null;
+  referrerDomain?: string | null;
+  firstChannel?:   string | null;
 }
 
 const DEFAULT_RETENTION_DAYS = 90;
@@ -145,6 +166,18 @@ export function gateProfileWrite(
   if (consent.enrichment) {
     if (candidate.geoCountry      !== undefined) patch.geoCountry      = candidate.geoCountry;
     if (candidate.geoRegion       !== undefined) patch.geoRegion       = candidate.geoRegion;
+  }
+
+  // First-touch attribution — how the visitor arrived. First-party marketing
+  // analytics, so analytics OR personalization consent permits it.
+  if (consent.analytics || consent.personalization) {
+    if (candidate.utmSource      !== undefined) patch.utmSource      = candidate.utmSource;
+    if (candidate.utmMedium      !== undefined) patch.utmMedium      = candidate.utmMedium;
+    if (candidate.utmCampaign    !== undefined) patch.utmCampaign    = candidate.utmCampaign;
+    if (candidate.utmContent     !== undefined) patch.utmContent     = candidate.utmContent;
+    if (candidate.utmTerm        !== undefined) patch.utmTerm        = candidate.utmTerm;
+    if (candidate.referrerDomain !== undefined) patch.referrerDomain = candidate.referrerDomain;
+    if (candidate.firstChannel   !== undefined) patch.firstChannel   = candidate.firstChannel;
   }
 
   return patch;

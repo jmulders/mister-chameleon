@@ -36,6 +36,13 @@ export interface VisitorProfile {
   abmLeadId:       string | null;
   consentState:    ConsentLabel;
   expiresAt:       string | null;
+  utmSource:       string | null;
+  utmMedium:       string | null;
+  utmCampaign:     string | null;
+  utmContent:      string | null;
+  utmTerm:         string | null;
+  referrerDomain:  string | null;
+  firstChannel:    string | null;
 }
 
 function mapRow(row: Record<string, unknown>): VisitorProfile {
@@ -61,6 +68,13 @@ function mapRow(row: Record<string, unknown>): VisitorProfile {
     abmLeadId:       (row.abm_lead_id as string | null) ?? null,
     consentState:    (row.consent_state as ConsentLabel) ?? "none",
     expiresAt:       (row.expires_at as string | null) ?? null,
+    utmSource:       (row.utm_source as string | null) ?? null,
+    utmMedium:       (row.utm_medium as string | null) ?? null,
+    utmCampaign:     (row.utm_campaign as string | null) ?? null,
+    utmContent:      (row.utm_content as string | null) ?? null,
+    utmTerm:         (row.utm_term as string | null) ?? null,
+    referrerDomain:  (row.referrer_domain as string | null) ?? null,
+    firstChannel:    (row.first_channel as string | null) ?? null,
   };
 }
 
@@ -88,7 +102,7 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<Pr
 
     const { data: existing } = await db
       .from("visitor_profiles")
-      .select("visit_count, first_seen_at, identity_level, status")
+      .select("visit_count, first_seen_at, identity_level, status, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer_domain, first_channel")
       .eq("tenant_id", patch.tenantId)
       .eq("visitor_key", patch.visitorKey)
       .maybeSingle();
@@ -117,6 +131,15 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<Pr
       ...(patch.geoRegion       !== undefined ? { geo_region:       patch.geoRegion }       : {}),
       ...(patch.abmLeadId       !== undefined ? { abm_lead_id:      patch.abmLeadId }       : {}),
       ...(patch.personalizationGroup !== undefined ? { personalization_group: patch.personalizationGroup } : {}),
+      // First-touch attribution: keep the value captured on the first visit; only
+      // fill it in when the profile doesn't have one yet. Never overwritten later.
+      utm_source:      existing?.utm_source      ?? patch.utmSource      ?? null,
+      utm_medium:      existing?.utm_medium      ?? patch.utmMedium      ?? null,
+      utm_campaign:    existing?.utm_campaign    ?? patch.utmCampaign    ?? null,
+      utm_content:     existing?.utm_content     ?? patch.utmContent     ?? null,
+      utm_term:        existing?.utm_term        ?? patch.utmTerm        ?? null,
+      referrer_domain: existing?.referrer_domain ?? patch.referrerDomain ?? null,
+      first_channel:   existing?.first_channel   ?? patch.firstChannel   ?? null,
       // Stamp the firmographics' freshness whenever a company field is (re)written.
       ...((patch.companyName !== undefined || patch.companyDomain !== undefined ||
            patch.companyIndustry !== undefined || patch.companySize !== undefined)

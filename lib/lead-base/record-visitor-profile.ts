@@ -14,6 +14,7 @@ import "server-only";
 import type { DecisionContext } from "@/decision/decision-context";
 import { resolveConsent }       from "@/lib/consent/server-consent";
 import { gateProfileWrite, type ProfileCandidate, type IdentityLevel, type ProfileStatus } from "./profile-gate";
+import { classifyChannel } from "./channel";
 import {
   upsertVisitorProfile,
   getProfileCrmState,
@@ -129,6 +130,19 @@ export async function recordVisitorProfile(args: {
       geoRegion:       ctx.enrichment?.region           ?? null,
       abmLeadId:       args.abmLeadId ?? null,
       personalizationGroup: args.personalizationGroup ?? null,
+      // First-touch attribution (how they arrived). Stored first-touch by the store.
+      utmSource:       ctx.utmSource      ?? null,
+      utmMedium:       ctx.utmMedium      ?? null,
+      utmCampaign:     ctx.utmCampaign    ?? null,
+      utmContent:      ctx.utmContent     ?? null,
+      utmTerm:         ctx.utmTerm        ?? null,
+      referrerDomain:  ctx.referrerDomain ?? null,
+      firstChannel:    classifyChannel({
+        utmSource:      ctx.utmSource,
+        utmMedium:      ctx.utmMedium,
+        utmCampaign:    ctx.utmCampaign,
+        referrerDomain: ctx.referrerDomain,
+      }),
     };
 
     const patch = gateProfileWrite(candidate, consent);
