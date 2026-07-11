@@ -17,6 +17,7 @@ Detail-instructies per platform (OAuth-stappen etc.) staan in
 | Vercel | `CRON_SECRET` | Gate voor de nachtelijke ad-sync-cron (`/api/cron/ad-sync`, 03:30) | verplicht |
 | Vercel | `STATAMIC_API_KEY` | Statamic API-key; ook gedeeld geheim voor de CMS-schrijfroute | verplicht |
 | Vercel | `LEAD_SUPPRESSION_SECRET` | Auth voor de suppressie-webhook (`/api/webhooks/suppression`) | verplicht voor #3 |
+| Vercel + Ploi (CMS) | `LEAD_INBOUND_SECRET` | Gedeeld geheim voor de inbound-form-brug (`/api/webhooks/inbound-form`). Zelfde waarde op Vercel én in Ploi | verplicht voor Statamic-formulieren |
 | Vercel | `HUBSPOT_COMPANY_PLAN_TIER_PROP` | HubSpot company-property-handle voor plan-tier (optioneel) | optioneel |
 | Vercel | `HUBSPOT_COMPANY_DEAL_STAGE_PROP` | HubSpot company-property-handle voor deal-stage (optioneel) | optioneel |
 | Vercel | `HUBSPOT_COMPANY_CONTRACT_VALUE_PROP` | HubSpot company-property voor contractwaarde (optioneel) | optioneel |
@@ -92,6 +93,20 @@ optimaliseren.
   `x-mc-secret: <secret>`. Body: JSON `{ "email": "..." }` of ESP-form (Mailchimp
   `data[email]`).
 - Handmatig beheren kan onder **Doelgroepen → Suppressie**.
+
+## 5b. Statamic-formulieren → platform (inbound-form-brug)
+
+Een Statamic-geserveerde tenant gebruikt Statamic-eigen formulieren; die posten
+naar de CMS, niet naar `/api/forms`. Zonder brug vuurt de conversie-feedback niet.
+De brug:
+- Platform-endpoint `POST /api/webhooks/inbound-form?tenant=<id>` (header
+  `x-mc-secret: <LEAD_INBOUND_SECRET>`). Draait lead-capture + conversie-feedback
+  + profiel→converted.
+- In de CMS-deploy-repo: een `SubmissionCreated`-listener in
+  `app/Providers/AppServiceProvider.php` (boot-methode) die elke inzending
+  doorpost. Zie het snippet-bestand `AppServiceProvider-boot-snippet.php`.
+- Env: `LEAD_INBOUND_SECRET` op Vercel én Ploi (zelfde waarde);
+  `MISTER_CHAMELEON_API_URL` staat al in Ploi.
 
 ## 6. E-mail & fysieke post opvolging
 
