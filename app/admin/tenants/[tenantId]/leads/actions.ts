@@ -15,9 +15,11 @@ import {
   deleteVisitorProfiles,
   getHubspotContactIdsForProfiles,
   getPersonalizationPerformance,
+  getChannelAttribution,
   type VisitorProfile,
   type VisitorProfileFilter,
   type PersonalizationPerformance,
+  type ChannelStat,
 } from "@/lib/lead-base/visitor-profiles-store";
 import { archiveContact } from "@/lib/lead-base/hubspot-sync";
 import { getAbmHubspotToken } from "@/lib/abm/abm-store";
@@ -38,6 +40,12 @@ export async function listLeadProfilesAction(
 ): Promise<VisitorProfile[]> {
   await getRequiredAdminSession();
   return listVisitorProfiles(tenantId, filter);
+}
+
+/** First-touch channel → visitors / leads / conversions for the funnel report. */
+export async function getChannelAttributionAction(tenantId: string): Promise<ChannelStat[]> {
+  await getRequiredAdminSession();
+  return getChannelAttribution(tenantId);
 }
 
 export async function deleteLeadProfilesAction(

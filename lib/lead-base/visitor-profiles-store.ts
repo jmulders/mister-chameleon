@@ -498,6 +498,47 @@ export async function listVisitorProfiles(
   }
 }
 
+// ── Channel attribution report ──────────────────────────────────────────────────
+
+export interface ChannelStat {
+  channel:     string;
+  visitors:    number;
+  leads:       number;   // recognised as a lead (known/customer or linked ABM lead)
+  conversions: number;   // converted_at set (e.g. form submit)
+}
+
+/**
+ * Aggregate first-touch channel → visitors / leads / conversions for a tenant.
+ * Aggregated in-process over the profile set (capped). Channel comes from the
+ * first_channel column captured on first visit; null falls back to "direct".
+ */
+export async function getChannelAttribution(tenantId: string, limit = 50_000): Promise<ChannelStat[]> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("visitor_profiles")
+      .select("first_channel, identity_level, abm_lead_id, converted_at")
+      .eq("tenant_id", tenantId)
+      .limit(limit);
+    if (error || !data) return [];
+
+    const byChannel = new Map<string, ChannelStat>();
+    for (const r of data as Array<Record<string, unknown>>) {
+      const channel = (r.first_channel as string | null) || "direct";
+      let s = byChannel.get(channel);
+      if (!s) { s = { channel, visitors: 0, leads: 0, conversions: 0 }; byChannel.set(channel, s); }
+      s.visitors++;
+      const lvl = r.identity_level as string;
+      if (lvl === "known" || lvl === "customer" || r.abm_lead_id) s.leads++;
+      if (r.converted_at) s.conversions++;
+    }
+    return Array.from(byChannel.values()).sort((a, b) => b.visitors - a.visitors);
+  } catch {
+    return [];
+  }
+}
+
 // ── Erasure (right to be forgotten) ────────────────────────────────────────────
 
 /** Delete one or more profiles by id (tenant-scoped). Returns rows removed. */
