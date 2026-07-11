@@ -19,6 +19,7 @@ import "server-only";
 import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
 import { leadScore } from "@/lib/lead-base/lead-scoring";
+import { listSuppressedEmails } from "@/lib/lead-base/suppression-store";
 import type { IdentityLevel } from "@/lib/lead-base/profile-gate";
 import type { AbmLeadProfile } from "@/lib/abm/abm-store";
 import type { AdSyncSegment, AudienceMember } from "./types";
@@ -155,11 +156,14 @@ export async function resolveAudienceMembers(
 
     const seen = new Set<string>();
     const members: AudienceMember[] = [];
+    // Suppressed emails (unsubscribes / opt-outs) are excluded from the audience.
+    const suppressed = await listSuppressedEmails(tenantId);
 
     // Helper: push one ABM profile as an audience member (deduped by identifier).
     const pushProfile = (profile: AbmLeadProfile): boolean => {
       const email = profile.email?.trim().toLowerCase();
       const phone = (profile.phone ?? profile["phoneNumber"])?.toString().trim();
+      if (email && suppressed.has(email)) return false;   // opted out
       if (!email && !phone) return false;           // no matchable identifier
       const dedupeKey = email ?? phone!;
       if (seen.has(dedupeKey)) return false;

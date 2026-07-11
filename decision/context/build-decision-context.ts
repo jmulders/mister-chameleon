@@ -95,6 +95,7 @@ import { createCrmEnricher, StubCrmProvider } from "@/enrichment/providers/crm";
 import type { CrmProvider } from "@/enrichment/providers/crm";
 import { createCompanyEnricher, StubCompanyProvider } from "@/enrichment/providers/company";
 import type { CompanyProvider } from "@/enrichment/providers/company";
+import { normalizeCrmProfile, mergeCrmWithBehavior } from "@/lib/crm";
 
 // ── Params ─────────────────────────────────────────────────────────────────────
 
@@ -816,6 +817,10 @@ export async function buildDecisionContext(
         ...timeCtx,
         seasonalEvent: finalSeasonalEventCached,
         clientContext,
+        // CRM → behavior merged lifecycle (customer mode drives personalization).
+        crmMergedState: history.journey
+          ? mergeCrmWithBehavior(normalizeCrmProfile(cachedEnrichment), history.journey)
+          : null,
       };
 
       let cachedDerived: ReturnType<typeof computeDerivedContext>;
@@ -1329,6 +1334,10 @@ export async function buildDecisionContext(
     derived,
     interestScores:  interestScores ?? null,
     interestContext: interestContext ?? null,
+    // CRM → behavior merged lifecycle (customer mode drives personalization).
+    crmMergedState: history.journey
+      ? mergeCrmWithBehavior(normalizeCrmProfile(enrichment), history.journey)
+      : null,
   };
 
   // ── Logging ──────────────────────────────────────────────────────────────────
