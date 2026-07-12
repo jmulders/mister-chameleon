@@ -45,6 +45,7 @@ import {
   recordWebhookEvent,
 }                                       from "@/billing/stripe";
 import { resolveStripeCredentials }    from "@/platform/platform-store";
+import { reportInboundConversion }     from "@/lib/lead-base/report-inbound-conversion";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -153,6 +154,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     result.action,
     handlerError,
   );
+
+  // ── 6b. Purchase conversion feedback ─────────────────────────────────────────
+  //
+  // When a checkout completes, report a "Purchase" conversion to the ad platforms
+  // of the MARKETING-SITE tenant (stamped into session metadata at checkout), not
+  // the new customer tenant. Fail-open — never affects the webhook response.
+  if (event.type === "checkout.session.completed") {
+    try {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const md      = session.metadata ?? {};
+      const email   = session.customer_details?.email ?? session.customer_email ?? "";
+      const siteTenant = md["mc_site_tenant"] || process.env["MARKETING_SITE_TENANT"] || "statamic";
+      if (email) {
+        const amount = typeof session.amount_total === "number" && session.amount_total > 0
+          ? session.amount_total / 100
+          : undefined;
+        await reportInboundConversion({
+          tenantId:   siteTenant,
+          sessionId:  md["mc_session_id"] || null,
+          targetPath: "/checkout",
+          eventName:  "Purchase",
+          values:     { email },
+          ...(amount != null ? { value: amount, currency: (session.currency ?? "eur").toUpperCase() } : {}),
+        });
+      }
+    } catch (err) {
+      console.warn("[stripe-webhook] purchase conversion failed:", err);
+    }
+  }
 
   // ── 7. Respond ──────────────────────────────────────────────────────────────
   //

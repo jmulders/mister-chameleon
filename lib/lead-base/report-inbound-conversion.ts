@@ -28,6 +28,10 @@ export async function reportInboundConversion(args: {
   targetPath?: string;
   /** Label for the conversion event (Meta/LinkedIn + our log). Defaults to "Lead". */
   eventName?:  string;
+  /** Optional monetary value of the conversion (e.g. a purchase amount). */
+  value?:      number;
+  /** ISO currency for `value` (e.g. "EUR"). */
+  currency?:   string;
 }): Promise<void> {
   const sessionId  = args.sessionId ?? null;
   const targetPath = args.targetPath ?? "/";
@@ -45,7 +49,16 @@ export async function reportInboundConversion(args: {
 
     const email = extractSubmittedEmail(args.values);
     if (email) {
-      await sendConversion(args.tenantId, { email, eventName }, "conversion");
+      await sendConversion(
+        args.tenantId,
+        {
+          email,
+          eventName,
+          ...(typeof args.value === "number" && args.value > 0 ? { value: args.value } : {}),
+          ...(args.currency ? { currency: args.currency } : {}),
+        },
+        "conversion",
+      );
     }
   } catch (err) {
     logger.warn("[lead-base] reportInboundConversion failed", {

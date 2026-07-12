@@ -44,6 +44,9 @@ import { findAdminUserByEmailForLogin }           from "@/data/admin-auth";
 import Stripe                                     from "stripe";
 import { getResolvedPlanStripePriceId }          from "@/billing/plans";
 import { resolveStripeCredentials }              from "@/platform/platform-store";
+import { headers }                               from "next/headers";
+import { getActiveTenant }                       from "@/tenant/server";
+import { resolveSession }                        from "@/data/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -153,6 +156,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const origin = request.headers.get("origin") ?? "http://localhost:3000";
 
+  // Resolve the marketing-site tenant + visitor session so the purchase
+  // conversion fired from the Stripe webhook can be attributed to the right
+  // ad account (the site the buyer came from, not the new customer tenant).
+  let siteTenantId = "";
+  let mcSessionId  = "";
+  try { siteTenantId = (await getActiveTenant()).tenantId; } catch { /* fail-open */ }
+  try { mcSessionId  = resolveSession((await headers()).get("cookie")).sessionId ?? ""; } catch { /* fail-open */ }
+
   let checkoutUrl: string;
   try {
     const { secretKey } = stripeCredentials;
@@ -178,6 +189,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         type:              "trial_signup",
         pending_signup_id: pendingId,
         plan_id:           planId,
+        ...(siteTenantId ? { mc_site_tenant: siteTenantId } : {}),
+        ...(mcSessionId  ? { mc_session_id:  mcSessionId  } : {}),
       },
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${origin}/checkout`,
