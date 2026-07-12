@@ -217,7 +217,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
           indent && "pl-8",
           isActive
             ? "bg-white/10 text-white font-medium"
-            : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-200",
+            : "text-slate-200 hover:bg-white/[0.06] hover:text-white",
         )}
         aria-current={isActive ? "page" : undefined}
       >
@@ -227,13 +227,13 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
         )}
 
         {icon && (
-          <span className={cn("shrink-0", isActive ? "text-indigo-400" : "text-slate-400 group-hover:text-slate-200")}>
+          <span className={cn("shrink-0", isActive ? "text-indigo-400" : "text-slate-300 group-hover:text-white")}>
             {icon}
           </span>
         )}
         <span className="flex-1 truncate text-[13px]">{label}</span>
         {note && (
-          <span className={cn("shrink-0 text-[10px]", isActive ? "text-slate-300" : "text-slate-500")}>
+          <span className={cn("shrink-0 text-[10px]", isActive ? "text-slate-300" : "text-slate-400")}>
             {note}
           </span>
         )}
@@ -243,7 +243,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
 
   function SectionLabel({ children }: { children: React.ReactNode }) {
     return (
-      <p className="mb-1 mt-0.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+      <p className="mb-1 mt-0.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
         {children}
       </p>
     );
