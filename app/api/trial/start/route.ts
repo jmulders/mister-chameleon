@@ -47,6 +47,10 @@ import { hashPassword, validatePasswordStrength } from "@/lib/admin-auth/passwor
 import { findAdminUserByEmailForLogin } from "@/data/admin-auth";
 import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
 import { serverEnv } from "@/lib/env";
+import { headers } from "next/headers";
+import { getActiveTenant } from "@/tenant/server";
+import { resolveSession } from "@/data/session";
+import { reportInboundConversion } from "@/lib/lead-base/report-inbound-conversion";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -351,6 +355,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     ).then((r) => {
       if (!r.ok) console.warn("[trial/start] Admin notification email failed:", r.error);
     });
+  }
+
+  // ── 8b. Report the signup as a conversion ───────────────────────────────────
+  //
+  //   A trial signup is a strong conversion for the MARKETING site's tenant
+  //   (the site the visitor signed up on) — not the freshly created trial tenant.
+  //   Resolve the active (site) tenant and report against it. Fail-open.
+  try {
+    const siteTenant = await getActiveTenant();
+    const { sessionId } = resolveSession((await headers()).get("cookie"));
+    await reportInboundConversion({
+      tenantId:   siteTenant.tenantId,
+      sessionId,
+      targetPath: "/",
+      eventName:  "Trial",
+      values:     { name, email, company },
+    });
+  } catch {
+    // Never let conversion reporting affect the signup response.
   }
 
   // ── 9. Return success ────────────────────────────────────────────────────────

@@ -80,9 +80,7 @@ import {
 } from "@/forms/email";
 import { resolveEmailConfig, resolveFormsConfig } from "@/lib/config";
 import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
-import { captureInboundLead } from "@/lib/lead-base/inbound-capture";
-import { markProfileConverted } from "@/lib/lead-base/visitor-profiles-store";
-import { sendConversion } from "@/lib/ad-sync/conversion-engine";
+import { reportInboundConversion } from "@/lib/lead-base/report-inbound-conversion";
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
@@ -263,19 +261,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   //   bidding optimises on real leads. Awaited so the serverless function does
   //   not terminate before the conversion is delivered. Fail-open: a failure
   //   here never changes the response the submitter sees.
-  try {
+  {
     const companyRaw = (body as Record<string, unknown>).company;
-    const leadValues: Record<string, string> = {
-      name:    formFields.name,
-      email:   formFields.email,
-      message: formFields.message,
-      ...(typeof companyRaw === "string" && companyRaw.trim() ? { company: companyRaw.trim() } : {}),
-    };
-    await captureInboundLead({ tenantId, visitorKey: sessionId, values: leadValues, targetPath: pathname });
-    if (sessionId) await markProfileConverted(tenantId, sessionId);
-    await sendConversion(tenantId, { email: formFields.email, eventName: "Lead" }, "conversion");
-  } catch (err) {
-    logger.warn("[contact] lead capture / conversion feedback failed", { error: String(err) });
+    await reportInboundConversion({
+      tenantId,
+      sessionId,
+      targetPath: pathname,
+      values: {
+        name:    formFields.name,
+        email:   formFields.email,
+        message: formFields.message,
+        ...(typeof companyRaw === "string" && companyRaw.trim() ? { company: companyRaw.trim() } : {}),
+      },
+    });
   }
 
   // ── Step 7: Write first-party contact_form_submit event (fire-and-forget) ─

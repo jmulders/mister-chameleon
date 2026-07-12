@@ -38,6 +38,9 @@ import { logger }                     from "@/lib/logger";
 import { serverEnv }                  from "@/lib/env";
 import { getActiveTenant }            from "@/tenant/get-active-tenant";
 import { resolveCalendarConfig }      from "@/lib/google-calendar/config";
+import { headers }                    from "next/headers";
+import { resolveSession }             from "@/data/session";
+import { reportInboundConversion }    from "@/lib/lead-base/report-inbound-conversion";
 
 export const runtime = "nodejs";
 
@@ -136,6 +139,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }, transport).then((r) => {
       if (!r.ok) logger.warn("[demo/book] Backoffice email failed", { error: r.error });
     });
+  }
+
+  // ── Report the demo booking as a conversion ──────────────────────────────
+  //   A booked demo is a strong lead signal. Report it against the active
+  //   (site) tenant so bidding optimises on it. Fail-open.
+  if (tenantId) {
+    try {
+      const { sessionId } = resolveSession((await headers()).get("cookie"));
+      await reportInboundConversion({
+        tenantId,
+        sessionId,
+        targetPath: "/book-demo",
+        eventName:  "Demo",
+        values: {
+          name,
+          email,
+          ...(company ? { company } : {}),
+          ...(phone   ? { phone }   : {}),
+        },
+      });
+    } catch {
+      // Never let conversion reporting affect the booking response.
+    }
   }
 
   return NextResponse.json(
