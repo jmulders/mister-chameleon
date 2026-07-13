@@ -1663,6 +1663,7 @@ export function mapStatamicPageBlocksToSections(
           vacancies:    "vacancies",
           case_studies: "cases",
           team_members: "team_members",
+          events:       "events",
         };
         const collectionKey =
           cmsToPlatformCollection[extractString(block.collection) ?? ""] ?? "articles";

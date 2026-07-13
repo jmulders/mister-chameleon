@@ -75,7 +75,8 @@ export type CollectionKey =
   | "cases"         // case studies / client highlights
   | "news"          // short news items (alias of articles for some providers)
   | "companies"     // company / client profiles
-  | "team_members"; // team member profiles
+  | "team_members"  // team member profiles
+  | "events";       // events / agenda items
 
 /**
  * Human-readable labels for collection keys.
@@ -88,6 +89,7 @@ export const COLLECTION_KEY_LABELS: Record<CollectionKey, string> = {
   news:         "News items",
   companies:    "Companies",
   team_members: "Team members",
+  events:       "Events",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -236,7 +238,7 @@ export function isManualSource(src: ContentSource | undefined): src is ManualCon
 
 /** Returns true when the string is a recognised CollectionKey. */
 export function isCollectionKey(key: string): key is CollectionKey {
-  return ["articles", "vacancies", "cases", "news", "companies", "team_members"].includes(key);
+  return ["articles", "vacancies", "cases", "news", "companies", "team_members", "events"].includes(key);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2049,6 +2049,45 @@ export class StatamicProvider implements CMSProvider {
       } catch {
         return [];
       }
+    } else if (collection === "events") {
+      try {
+        type EventEntry = {
+          title?:                string;
+          date?:                 string;
+          start_date?:           string;
+          end_date?:             string;
+          show_date?:            boolean;
+          location?:             string;
+          excerpt?:              string;
+          overview_image?:       Array<{ url?: string; permalink?: string } | string> | string;
+          overview_image_hover?: Array<{ url?: string; permalink?: string } | string> | string;
+        };
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const entries = await this.client.fetchAll<EventEntry>("events", fetchLimit);
+        // Keep upcoming events: hide those whose end_date (or start/date) is past.
+        const upcoming = entries.filter((entry) => {
+          const ref = entry.end_date ?? entry.start_date ?? entry.date;
+          if (!ref) return true;
+          const d = new Date(String(ref).split(" ")[0] ?? "");
+          return isNaN(d.getTime()) || d >= today;
+        });
+        items = upcoming.map((entry): CollectionItem => ({
+          id:            entry.id,
+          title:         entry.title ?? entry.slug,
+          href:          `/events/${entry.slug}`,
+          excerpt:       typeof entry.excerpt === "string" ? entry.excerpt : undefined,
+          date:          typeof (entry.start_date ?? entry.date) === "string"
+                           ? String(entry.start_date ?? entry.date).split(" ")[0]
+                           : undefined,
+          showDate:      entry.show_date !== false,
+          category:      typeof entry.location === "string" ? entry.location : undefined,
+          imageUrl:      this.resolveAssetUrl(entry.overview_image)       ?? undefined,
+          hoverImageUrl: this.resolveAssetUrl(entry.overview_image_hover) ?? undefined,
+        }));
+      } catch {
+        return [];
+      }
     } else {
       // Unknown collection key — degrade gracefully rather than throwing
       return [];
