@@ -16,6 +16,87 @@
 
 import { upsertAdaptiveBlock } from "./adaptive-blocks-store";
 import type { AdaptiveVariantContent } from "@/cms/types";
+import type { VariantDecisionMeta } from "@/ai/variant-meta";
+
+// ── AI / Decision metadata derivation ─────────────────────────────────────────
+//
+// Every platform default block ships with complete decisionMeta so it is
+// AI-selectable out of the box. The signals are derived from the block key
+// (slot, audience, traffic source, funnel stage). Tenants can still override
+// per block in the editor.
+
+const kHas = (k: string, ...w: string[]) => w.some((x) => k.includes(x));
+
+function deriveDecisionMeta(key: string): VariantDecisionMeta {
+  const slot = key.split("_")[0]!;
+
+  const audience = kHas(key, "careers")
+    ? "Werkzoekende kandidaten"
+    : kHas(key, "saas")
+      ? "B2B SaaS-bedrijven"
+      : "B2B-besluitvormers";
+
+  const sources: VariantDecisionMeta["bestForSources"] =
+    kHas(key, "google")            ? ["google"]
+    : kHas(key, "linkedin")        ? ["linkedin"]
+    : kHas(key, "direct", "brand") ? ["direct"]
+    : ["google", "linkedin", "direct", "unknown"];
+
+  const stage: "awareness" | "consideration" | "decision" | "retention" =
+    kHas(key, "onboarding", "customer", "returning", "expansion") ? "retention"
+    : (kHas(key, "intent", "apply", "signup", "trial", "meeting", "offer", "urgency") || slot === "conversion" || key.endsWith("_demo")) ? "decision"
+    : kHas(key, "consideration", "comparison", "cases", "vision", "job_match", "guide", "highlights", "reassurance") ? "consideration"
+    : "awareness";
+
+  const intentLevel: VariantDecisionMeta["intentLevel"] = stage === "retention" ? "decision" : stage;
+  const funnelStages: VariantDecisionMeta["funnelStages"] =
+    stage === "retention"     ? ["retention"]
+    : stage === "decision"    ? ["decision"]
+    : stage === "consideration" ? ["consideration", "decision"]
+    : ["awareness", "consideration"];
+
+  const tone: VariantDecisionMeta["tone"] =
+    slot === "proof"                       ? "credibility"
+    : kHas(key, "reassurance")             ? "credibility"
+    : kHas(key, "urgency", "offer")        ? "urgency"
+    : kHas(key, "vision")                  ? "inspiring"
+    : (slot === "hero" && key.endsWith("_default")) ? "inspiring"
+    : stage === "decision"                 ? "direct"
+    : kHas(key, "guide", "highlights", "comparison", "consideration") ? "educational"
+    : (slot === "cta" || slot === "conversion") ? "direct"
+    : "educational";
+
+  const primaryGoal = ({
+    hero:         "De juiste eerste indruk wekken en doorklikken naar de primaire CTA",
+    proof:        "Vertrouwen opbouwen met concreet bewijs",
+    cta:          "Een concrete vervolgstap laten zetten",
+    conversion:   "De conversie afronden (aanmelden of aanvragen)",
+    feature:      "Productwaarde en mogelijkheden uitleggen",
+    notification: "Aandacht trekken voor nieuws of een actie",
+  } as Record<string, string>)[slot] ?? "Bezoeker naar de volgende stap begeleiden";
+
+  const slotNL: Record<string, string> = {
+    hero: "hero", proof: "proof", cta: "CTA", conversion: "conversie",
+    feature: "feature", notification: "notificatie",
+  };
+  const stageNL: Record<string, string> = {
+    awareness: "kennismakings", consideration: "overwegings",
+    decision: "beslissings", retention: "retentie",
+  };
+  const srcClause = sources.length === 1 ? `, met name bij bezoekers via ${sources[0]}` : "";
+
+  return {
+    decisionLabel:    key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    decisionSummary:  `Toon dit ${slotNL[slot] ?? slot}-blok aan ${audience.toLowerCase()} in de ${stageNL[stage]}fase${srcClause}.`,
+    intendedAudience: audience,
+    intentLevel,
+    funnelStages,
+    bestForSources:   sources,
+    tone,
+    primaryGoal,
+    supportingGoals:  ["Relevantie vergroten voor dit bezoekerstype", "Uitval verlagen"],
+  };
+}
 
 // ── Seed payload type ─────────────────────────────────────────────────────────
 
@@ -868,7 +949,11 @@ export async function seedPlatformBlocks(overwrite = false): Promise<SeedResult>
       key:              seed.key,
       tenantId:         null,       // platform-wide
       isActive:         true,
-      defaultVariant:   seed.content,
+      defaultVariant:   {
+        ...seed.content,
+        // Ship complete AI/Decision signals so the block is AI-selectable.
+        decisionMeta: seed.content.decisionMeta ?? deriveDecisionMeta(seed.key),
+      },
       adaptiveVariants: [],
     });
 
