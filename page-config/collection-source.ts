@@ -236,7 +236,7 @@ export function isManualSource(src: ContentSource | undefined): src is ManualCon
 
 /** Returns true when the string is a recognised CollectionKey. */
 export function isCollectionKey(key: string): key is CollectionKey {
-  return ["articles", "vacancies", "cases", "news", "companies"].includes(key);
+  return ["articles", "vacancies", "cases", "news", "companies", "team_members"].includes(key);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
