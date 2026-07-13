@@ -110,6 +110,23 @@ export function buildSnippetSource(decideUrl: string): string {
     if (context[k] === undefined) delete context[k];
   });
 
+  // ── 3b. Interest keywords from the page <head> (CMS-authored SEO keywords) ────
+  // Sent to the decide endpoint so interest-profile scoring can build a keyword
+  // cloud for this visitor. Merged server-side with the built-in URL keyword map.
+  try {
+    var kwEl  = document.querySelector('meta[name="keywords"]');
+    var kwStr = kwEl ? (kwEl.getAttribute('content') || '') : '';
+    var kws   = kwStr.split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
+    if (kws.length) context.keywords = kws;
+  } catch(e) {}
+
+  // Stable per-pageview id so repeated decide calls don't double-record.
+  try {
+    context.eventId = (window.crypto && window.crypto.randomUUID)
+      ? window.crypto.randomUUID()
+      : ('mc_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+  } catch(e) {}
+
   // ── 4. Call decide endpoint ──────────────────────────────────────────────────
   fetch(${JSON.stringify(decideUrl)}, {
     method: 'POST',

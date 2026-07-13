@@ -87,6 +87,8 @@ import type { HeroBlockData, CTABlockData, ProofBlockData, FeatureBlockData, Con
 import { getDunningState }           from "@/billing/dunning";
 import { getTenantDunningSettings }  from "@/billing/dunning";
 import { logger }                    from "@/lib/logger";
+import { recordJourneyEvent }        from "@/lib/journey/record-event";
+import { resolvePageMeta }           from "@/tracking/page-meta-map";
 
 // ── CORS helpers ──────────────────────────────────────────────────────────────
 
@@ -112,6 +114,15 @@ interface DecideRequest {
     utm_campaign?:   string;
     sessionId?:      string;
     locale?:         string;
+    /**
+     * Interest keywords for this page — sent by the snippet from the page's
+     * <meta name="keywords"> tag. Merged with the URL→keyword map and recorded
+     * as a behavioural page_view so interest-profile scoring works on snippet
+     * (e.g. Statamic) sites, not just platform-rendered pages.
+     */
+    keywords?:       string[];
+    /** Stable per-pageview id for idempotent journey-event recording. */
+    eventId?:        string;
     /**
      * Mirror-demo scenario override.
      * When present alongside _demoMode === "mirror" the rule engine is bypassed.
@@ -503,6 +514,34 @@ export async function POST(request: NextRequest) {
       ? `mc_sid=${context.sessionId}`
       : "";
     const { sessionId } = resolveSession(sessionCookie || null);
+
+    // ── Record a behavioural page_view (interest-keyword capture) ─────────────
+    //
+    //   viewed_keywords (the cloud the interest-profile scorer reads) is
+    //   otherwise only populated by PageTracker on platform-rendered pages, so
+    //   snippet sites (Statamic, etc.) never build interest signals. Here we
+    //   record the page's keywords: the snippet-sent CMS <meta name="keywords">
+    //   plus the built-in URL→keyword map. Awaited so this page's keywords are
+    //   included in the scoring below. Fail-open.
+    const pageMeta     = resolvePageMeta(context.path ?? "/");
+    const sentKeywords = Array.isArray(context.keywords)
+      ? context.keywords.map((k) => String(k).toLowerCase().trim()).filter(Boolean)
+      : [];
+    const pageKeywords = Array.from(new Set([...sentKeywords, ...pageMeta.keywords]));
+    if (sessionId && pageKeywords.length > 0) {
+      await recordJourneyEvent({
+        tenantId,
+        sessionId,
+        eventType:    "page_view",
+        pagePath:     context.path ?? "/",
+        pageCategory: pageMeta.category ?? undefined,
+        pageKeywords,
+        source:       context.utm_source   ?? undefined,
+        medium:       context.utm_medium   ?? undefined,
+        campaign:     context.utm_campaign ?? undefined,
+        eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+      }).catch(() => false);
+    }
 
     // Fetch visitor history and rules config in parallel
     const [rawHistory, tenantRulesConfig] = await Promise.all([
