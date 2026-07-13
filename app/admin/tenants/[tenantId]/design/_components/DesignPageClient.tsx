@@ -105,16 +105,13 @@ interface TabBarProps {
 }
 
 function TabBar({ active, onChange }: TabBarProps) {
+  // Styling mirrors the shared tenant sub-nav (TenantSubNav secondary row) so the
+  // Design tabs sit and size identically to the sub-nav on Content, Slots, etc.
   return (
     <div
       role="tablist"
       aria-label="Design settings"
-      style={{
-        display:      "flex",
-        gap:          "0",
-        borderBottom: "1px solid #e5e7eb",
-        marginBottom: "2rem",
-      }}
+      className="mb-8 flex items-center gap-0 border-b border-neutral-200"
     >
       {TABS.map((tab) => {
         const isActive = tab.id === active;
@@ -127,19 +124,12 @@ function TabBar({ active, onChange }: TabBarProps) {
             id={`tab-${tab.id}`}
             type="button"
             onClick={() => onChange(tab.id)}
-            style={{
-              padding:       "0.625rem 1rem",
-              fontSize:      "0.8125rem",
-              fontWeight:    isActive ? 600 : 500,
-              color:         isActive ? "#111827" : "#6b7280",
-              background:    "transparent",
-              border:        "none",
-              borderBottom:  isActive ? "2px solid #111827" : "2px solid transparent",
-              marginBottom:  "-1px",
-              cursor:        "pointer",
-              transition:    "color 0.12s ease, border-color 0.12s ease",
-              whiteSpace:    "nowrap",
-            }}
+            className={
+              "-mb-px inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-2 text-xs font-medium transition-all " +
+              (isActive
+                ? "border-indigo-500 text-indigo-700"
+                : "border-transparent text-neutral-500 hover:text-neutral-800")
+            }
           >
             {tab.label}
           </button>
