@@ -1321,6 +1321,7 @@ export class StatamicProvider implements CMSProvider {
         "blog/":         "blog",
         "team/":         "team_members",
         "cases/":        "case_studies",
+        "events/":       "events",
       };
       for (const [prefix, collHandle] of Object.entries(collectionPathMap)) {
         if (slug.startsWith(prefix)) {
@@ -2721,6 +2722,21 @@ export class StatamicProvider implements CMSProvider {
               "",
             ].join("\n"),
           },
+          {
+            handle: "events",
+            yaml: [
+              "title: Events",
+              "sites:",
+              collectionSitesLines,
+              "route: 'events/{slug}'",
+              "propagate: true",
+              "dated: true",
+              "date_behavior:",
+              "  past: public",
+              "  future: public",
+              "",
+            ].join("\n"),
+          },
         ];
 
         for (const col of collectionYamls) {
@@ -3054,11 +3070,59 @@ export class StatamicProvider implements CMSProvider {
           "",
         ];
 
+        const eventsBlueprintLines = [
+          "title: Event",
+          "tabs:",
+          "  meta:",
+          "    display: Meta",
+          "    sections:",
+          "      - fields:",
+          "          - handle: title",
+          "            field:",
+          "              type: text",
+          "              display: Event title",
+          "              validate: required",
+          "          - handle: start_date",
+          "            field:",
+          "              type: date",
+          "              display: Start date",
+          "              instructions: When the event starts. Also used on the content calendar.",
+          "              time_enabled: true",
+          "              time_seconds_enabled: false",
+          "          - handle: end_date",
+          "            field:",
+          "              type: date",
+          "              display: End date",
+          "              instructions: When the event ends. Past events are hidden from listings automatically.",
+          "              time_enabled: true",
+          "              time_seconds_enabled: false",
+          "          - handle: location",
+          "            field:",
+          "              type: text",
+          "              display: Location",
+          "          - handle: seo_description",
+          "            field:",
+          "              type: textarea",
+          "              display: SEO description",
+          "              instructions: Meta description shown in search results (max 160 chars).",
+          ...cardTab,
+          "  content:",
+          "    display: Content",
+          "    sections:",
+          "      - fields:",
+          "          - handle: page_blocks",
+          "            field:",
+          "              type: replicator",
+          ...replicatorSets("Content blocks"),
+          "",
+        ];
+
         const blueprints: Array<{ handle: string; filename: string; lines: string[] }> = [
           { handle: "blog",         filename: "blog.yaml",         lines: blogBlueprintLines         },
           { handle: "vacancies",    filename: "vacancies.yaml",    lines: vacanciesBlueprintLines    },
           { handle: "case_studies", filename: "case_study.yaml",   lines: caseStudiesBlueprintLines  },
           { handle: "team_members", filename: "team_member.yaml",  lines: teamMembersBlueprintLines  },
+          { handle: "events",       filename: "event.yaml",        lines: eventsBlueprintLines       },
         ];
         for (const bp of blueprints) {
           const bpDir  = nodePath.join(absRoot, "resources", "blueprints", "collections", bp.handle);
