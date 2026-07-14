@@ -47,7 +47,7 @@ De `StatamicClient` leest dan de platte YAML direct van schijf zodra de HTTP-API
 | `.env.vercel.local` | Gegenereerd door `vercel pull`. |
 | `apps/studio/.env.local` | Sanity Studio: `SANITY_STUDIO_PROJECT_ID`, `_DATASET`, `SANITY_API_TOKEN`. |
 
-Alle env-bestanden zijn gitignored (`.gitignore` bevat `.env*`); niets is getrackt.
+`.gitignore` negeert `.env*`, met een uitzondering voor de drie `*.example`-templates — die horen in de repo, want een verse clone heeft ze nodig om te onboarden (`cp .env.example .env.local`). Ze bevatten uitsluitend placeholders. Alle bestanden met echte waarden (`.env.local`, `.env.vercel`, `.env.vercel.local`, `.env.staging.local`) blijven genegeerd.
 
 De CMS-app heeft een eigen `.env` + `.env.example`. Die `.env.example` is grotendeels het stock Laravel/Statamic-sjabloon — de MC-vars (`MISTER_CHAMELEON_API_URL`, `_TENANT_KEY`, `MC_PREVIEW_FRONTEND_URL`) staan in `DEPLOY.md`.
 
@@ -167,15 +167,27 @@ Zie ook `STAGING.md` in de repo-root voor de volledige end-to-end guide (migrati
 
 ## 11. Aandachtspunten
 
-- `typescript.ignoreBuildErrors: true` — de build is blind voor typefouten; alleen CI's `tsc --noEmit` vangt ze.
-- SWC-valkuil: `??` gemengd met `||`/`&&` zonder haakjes sloopt de productie-build.
-- `STATAMIC_CMS_PATH` ontbreekt in `.env.example`.
-- De System-pagina verwijst naar `.env.local.example`; **dat bestand bestaat niet** (het heet `.env.example`).
-- De System-pagina kent maar twee omgevingen (dev + productie); **staging ontbreekt daar**, terwijl `staging.yml` wél handmatig triggerbaar is.
-- `supabase db push` in de workflows kan stuklopen op history-mismatch.
-- `docs/pipeline.md` noemt jest; de tests draaien op de Node test runner.
-- `.nvmrc` zegt Node 22, CI draait Node 20.
-- `set-previews.yml` heeft een placeholder `CMS_REPO` en is niet af.
+**Blijvend relevant:**
+
+- `typescript.ignoreBuildErrors: true` — de build is blind voor typefouten; alleen CI's `tsc --noEmit` vangt ze. Draai die lokaal.
+- SWC-valkuil: `??` gemengd met `||`/`&&` zonder haakjes sloopt de productie-build en wordt niet gevangen door een losse transpile-check.
+- `supabase db push` in de workflows kan stuklopen op een history-mismatch; gebruik dan `npm run db:migrate` of de SQL-editor.
+
+**Nog open:**
+
+- `.nvmrc` zegt Node 22, CI draait Node 20 — bewust laten of gelijktrekken (CI bumpen is een aparte, geteste wijziging).
+- `/api/cron/billing-renewal` en `/api/cron/keep-warm` staan niet in `vercel.json` en draaien dus niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen.
+- `set-previews.yml` heeft nog een placeholder `CMS_REPO` en is niet af.
+
+**Opgelost (was drift, nu gefixt):**
+
+- `STATAMIC_CMS_PATH` staat nu in `.env.example`.
+- De System-pagina verwees naar een niet-bestaand `.env.local.example` → nu `.env.example`, met staging- en productie-templates erbij.
+- Staging ontbrak op de System-pagina → er is nu een staging-rij én een "Deploy to staging"-knop (`staging.yml`).
+- De Deployment-checklist miste hele groepen → aangevuld met Statamic, Stripe, Cron, Lead-base/webhooks, Enrichment, HubSpot en Google Calendar.
+- Het setup-script noemde vars die de code niet leest → vervangen door de echte namen.
+- **De "Download setup.sh"-route was kapot**: het bash-script staat in een TS-template-literal en de shell-kleurvariabelen (`${CYAN}` etc.) werden door TypeScript geïnterpoleerd → `ReferenceError: CYAN is not defined` → 500. Alle shell-`${…}` zijn nu geëscaped; het gegenereerde script is geverifieerd met `bash -n`.
+- `docs/pipeline.md` noemde jest → nu de Node test runner.
 
 ### Beveiliging
 

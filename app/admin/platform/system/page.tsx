@@ -149,6 +149,13 @@ export default async function SystemPage() {
                   stripe="Test mode"
                 />
                 <EnvRow
+                  env="Staging"
+                  branch="develop"
+                  url="staging.misterchameleon.com"
+                  db="Staging project"
+                  stripe="Test mode"
+                />
+                <EnvRow
                   env="Production"
                   branch="main"
                   url="project-w9ql1.vercel.app"
@@ -160,9 +167,11 @@ export default async function SystemPage() {
           </div>
 
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
-            Environment variable template:{" "}
-            <code className="font-mono text-xs">.env.local.example</code> — copy to <code className="font-mono text-xs">.env.local</code> for local dev.
-            Production variables are set in <strong>Vercel → Settings → Environment Variables</strong>.
+            Environment variable templates:{" "}
+            <code className="font-mono text-xs">.env.example</code> — copy to <code className="font-mono text-xs">.env.local</code> for local dev.
+            Staging uses <code className="font-mono text-xs">.env.staging.example</code> (scope: Preview) and production{" "}
+            <code className="font-mono text-xs">.env.production.example</code> (scope: Production), both set in{" "}
+            <strong>Vercel → Settings → Environment Variables</strong>.
           </div>
         </div>
       </Section>
@@ -170,6 +179,35 @@ export default async function SystemPage() {
       {/* ── PART 3: BUILD PIPELINE ───────────────────────────────────────────── */}
       <Section title="Build Pipeline">
         <div className="space-y-6">
+
+          {/* Staging */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="rounded bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">STAGING</span>
+              <span className="text-sm text-neutral-600">Push naar <code className="font-mono text-xs">develop</code> → auto-deploy naar staging</span>
+            </div>
+            <div className="space-y-2">
+              <Step n={1}>
+                Commit en push naar <code className="font-mono text-xs">develop</code>:
+                <CodeBlock>{`git push origin develop`}</CodeBlock>
+              </Step>
+              <Step n={2}>
+                De workflow draait tests, past migraties toe op het staging-project en deployt naar{" "}
+                <code className="font-mono text-xs">staging.misterchameleon.com</code>, gevolgd door een healthcheck.
+              </Step>
+              <Step n={3}>Of trigger handmatig met de knop hieronder.</Step>
+            </div>
+            <WorkflowButton
+              workflow="staging.yml"
+              branch="develop"
+              className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:border-amber-300 hover:bg-amber-100 disabled:opacity-60"
+            >
+              <GitHubIcon />
+              Deploy to staging
+            </WorkflowButton>
+          </div>
+
+          <div className="border-t border-neutral-100" />
 
           {/* Production */}
           <div className="space-y-3">

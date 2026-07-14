@@ -57,7 +57,7 @@ const ENV_VAR_MANIFEST: EnvVarEntry[] = [
   { key: "SANITY_API_VERSION",          required: false, group: "Sanity CMS",  description: "API version date, e.g. 2024-01-01",      howToGet: "Use today's date when creating a new project" },
   { key: "SANITY_READ_TOKEN",           required: false, group: "Sanity CMS",  description: "Read token for draft/preview content",   howToGet: "manage.sanity.io → Settings → API → Tokens" },
   { key: "SANITY_API_WRITE_TOKEN",      required: false, group: "Sanity CMS",  description: "Write token for CMS provisioning",       howToGet: "manage.sanity.io → Settings → API → Tokens (Write access)" },
-  { key: "SANITY_API_TOKEN",            required: false, group: "Sanity CMS",  description: "Editor token for seeding platform variants — set in apps/studio/.env.local (not root .env.local)", howToGet: "manage.sanity.io → your project → API → Tokens → Add API token (Editor role) — then add to apps/studio/.env.local" },
+  { key: "SANITY_API_TOKEN",            required: false, group: "Sanity CMS",  description: "Editor token used by \"Seed platform variants\" — read from the server env, so set it on the Vercel project (and in .env.local locally)", howToGet: "manage.sanity.io → your project → API → Tokens → Add API token (Editor role)" },
   // Storyblok CMS
   { key: "STORYBLOK_ACCESS_TOKEN",      required: false, group: "Storyblok CMS", description: "Content Delivery API access token (Preview or Public)", howToGet: "app.storyblok.com → your space → Settings → Access Tokens",                                              canUseDb: true },
   { key: "STORYBLOK_REGION",            required: false, group: "Storyblok CMS", description: "CDN region: eu | us | ap | ca | cn (default: eu)",     howToGet: "Match the region where your Storyblok space was created",                                                 canUseDb: true },
@@ -84,6 +84,32 @@ const ENV_VAR_MANIFEST: EnvVarEntry[] = [
   { key: "R2_SECRET_ACCESS_KEY",       required: false, group: "Cloudflare R2", description: "R2 API token Secret Access Key",       howToGet: "Shown once on token creation in R2 dashboard",            canUseDb: true },
   { key: "R2_BUCKET_NAME",             required: false, group: "Cloudflare R2", description: "R2 bucket name",                      howToGet: "Create a bucket in dash.cloudflare.com → R2",             canUseDb: true },
   { key: "R2_PUBLIC_URL",              required: false, group: "Cloudflare R2", description: "Public base URL for R2 assets",        howToGet: "Bucket overview or custom domain on R2 bucket",           canUseDb: true },
+  // Statamic CMS
+  { key: "STATAMIC_API_URL",           required: false, group: "Statamic CMS", description: "Base URL of the Statamic site (no trailing slash)", howToGet: "The tenant's CMS domain, e.g. https://cms.example.com",   canUseDb: true },
+  { key: "STATAMIC_API_KEY",           required: false, group: "Statamic CMS", description: "API token AND shared secret for the CMS write route — must equal MISTER_CHAMELEON_CMS_WRITE_TOKEN in the Statamic app's .env", howToGet: "Generate: openssl rand -base64 32 — set the same value in Ploi", canUseDb: true },
+  { key: "STATAMIC_WEBHOOK_SECRET",    required: false, group: "Statamic CMS", description: "x-statamic-secret for the cache-flush webhook",   howToGet: "Generate: openssl rand -base64 32 — set as MISTER_CHAMELEON_WEBHOOK_SECRET in Ploi", canUseDb: true },
+  // Cron
+  { key: "CRON_SECRET",                required: true,  group: "Cron",        description: "Gates every /api/cron/* endpoint",       howToGet: "Auto-injected by Vercel in production; set manually for local/staging" },
+  // Lead base & webhooks
+  { key: "LEAD_INBOUND_SECRET",        required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/inbound-form (Statamic form bridge)", howToGet: "Generate: openssl rand -base64 32 — same value in the Statamic app's .env" },
+  { key: "LEAD_SUPPRESSION_SECRET",    required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/suppression (ESP unsubscribes)",     howToGet: "Generate: openssl rand -base64 32 — give it to your ESP" },
+  // Stripe
+  { key: "STRIPE_SECRET_KEY",          required: false, group: "Stripe",      description: "Live secret key",                        howToGet: "dashboard.stripe.com/apikeys",                            canUseDb: true },
+  { key: "STRIPE_WEBHOOK_SECRET",      required: false, group: "Stripe",      description: "Signing secret for /api/webhooks/stripe", howToGet: "Stripe → Developers → Webhooks → your endpoint",          canUseDb: true },
+  { key: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", required: false, group: "Stripe", description: "Publishable key (browser-safe)",      howToGet: "dashboard.stripe.com/apikeys",                            canUseDb: true },
+  { key: "STRIPE_MODE",                required: false, group: "Stripe",      description: "test | live (default live) — validated against event.livemode", howToGet: "Set to \"test\" while developing" },
+  // Enrichment
+  { key: "MAXMIND_DB_PATH",            required: false, group: "Enrichment",  description: "Path to the local MaxMind GeoLite database", howToGet: "Download GeoLite2 from maxmind.com and point to the .mmdb file", canUseDb: true },
+  { key: "IPINFO_TOKEN",               required: false, group: "Enrichment",  description: "IPinfo token for ASN/network-org lookup",  howToGet: "ipinfo.io/account",                                       canUseDb: true },
+  { key: "CLEARBIT_SECRET_KEY",        required: false, group: "Enrichment",  description: "Clearbit Reveal (reverse-IP → company); absent = stub provider", howToGet: "dashboard.clearbit.com",                canUseDb: true },
+  { key: "LEADINFO_API_KEY",           required: false, group: "Enrichment",  description: "Leadinfo IP-to-company",                  howToGet: "Your Leadinfo account",                                   canUseDb: true },
+  { key: "LOCATIONIQ_API_KEY",         required: false, group: "Enrichment",  description: "Reverse-geocoding",                       howToGet: "locationiq.com",                                          canUseDb: true },
+  // CRM
+  { key: "HUBSPOT_ACCESS_TOKEN",       required: false, group: "HubSpot CRM", description: "Private App token for company/contact sync", howToGet: "HubSpot → Settings → Integrations → Private Apps",       canUseDb: true },
+  // Google Calendar
+  { key: "GOOGLE_SERVICE_ACCOUNT_EMAIL",       required: false, group: "Google Calendar", description: "Service account for demo bookings", howToGet: "console.cloud.google.com → IAM → Service Accounts",   canUseDb: true },
+  { key: "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", required: false, group: "Google Calendar", description: "Private key for that service account", howToGet: "Download the JSON key and copy the private_key field", canUseDb: true },
+  { key: "GOOGLE_CALENDAR_ID",                 required: false, group: "Google Calendar", description: "Target calendar for demo bookings", howToGet: "Google Calendar → Settings → Integrate calendar",     canUseDb: true },
 ];
 
 // ── Status types ──────────────────────────────────────────────────────────────

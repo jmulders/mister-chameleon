@@ -122,7 +122,7 @@ Triggered by: PRs targeting `main` or `develop`.
 ```
 ci.yml
   ├── lint-and-typecheck (eslint + tsc --noEmit)
-  ├── test (jest — unit + integration, with TEST_SUPABASE vars)
+  ├── test (Node test runner — unit + integration, with TEST_SUPABASE vars)
   └── build (next build — verifies no compile errors)
 ```
 

@@ -18,7 +18,7 @@ import { useState, useCallback, useTransition } from "react";
 import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
 import type { BlockTokenSet }                     from "@/design-system/theme/block-token-set";
-import { activateBlockForTenantAction }          from "@/lib/adaptive-blocks/adaptive-blocks-actions";
+import { activateBlockForTenantAction, deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import type { AdaptiveBlockData }                from "@/cms/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -47,8 +47,22 @@ function BlockRow({
   onEdit:         (block: AdaptiveBlockData) => void;
   onCustomized:   (block: AdaptiveBlockData) => void;
 }) {
+  const router = useRouter();
   const [forking, startFork] = useTransition();
+  const [resetting, startReset] = useTransition();
   const block = resolved.tenantBlock ?? resolved.platformBlock;
+
+  function handleReset() {
+    const id = resolved.tenantBlock?.id;
+    if (!id) return;
+    if (!window.confirm(
+      `Reset "${resolved.blockKey}" to the platform default? This tenant's customization for this block will be discarded.`,
+    )) return;
+    startReset(async () => {
+      const res = await deleteAdaptiveBlockAction(id, revalidatePath);
+      if (res.ok) router.refresh();
+    });
+  }
 
   function handleCustomize() {
     startFork(async () => {
@@ -114,13 +128,26 @@ function BlockRow({
 
       {/* Actions */}
       {resolved.status === "customized" && resolved.tenantBlock && (
-        <button
-          type="button"
-          onClick={() => onEdit(resolved.tenantBlock!)}
-          className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 opacity-0 transition-all hover:border-brand-300 hover:text-brand-600 group-hover:opacity-100"
-        >
-          Edit
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => onEdit(resolved.tenantBlock!)}
+            className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 opacity-0 transition-all hover:border-brand-300 hover:text-brand-600 group-hover:opacity-100"
+          >
+            Edit
+          </button>
+          {resolved.platformBlock && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={resetting}
+              title="Discard this tenant's customization and fall back to the platform default"
+              className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-500 opacity-0 transition-all hover:border-red-300 hover:text-red-600 group-hover:opacity-100 disabled:opacity-40"
+            >
+              {resetting ? "…" : "Reset to default"}
+            </button>
+          )}
+        </>
       )}
 
       {resolved.status === "platform" && (

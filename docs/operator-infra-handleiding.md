@@ -234,14 +234,23 @@ Resolutie: tenant → platform_settings → env.
 
 ---
 
-## 4. Aandachtspunten en bekende drift
+## 4. Aandachtspunten
 
-- De **env-checklist op Admin → Deployment is incompleet**: mist o.a. Stripe, HubSpot, Google Calendar, Statamic, `CRON_SECRET`, `LEAD_INBOUND_SECRET`, `LEAD_SUPPRESSION_SECRET` en alle enrichment-vars → te rooskleurig beeld.
-- Het **setup-script** (`/api/admin/deployment/setup-script`) noemt vars die de code níét leest: `NEXTAUTH_SECRET`, `MAXMIND_ACCOUNT_ID`/`_LICENSE_KEY` (code: `MAXMIND_DB_PATH`), `EMAIL_FROM` (code: `MAIL_FROM_ADDRESS`), `NEXT_PUBLIC_R2_PUBLIC_URL` (code: `R2_PUBLIC_URL`), `GA4_*`.
-- `.env.production.example` / `.env.staging.example` noemen `STRIPE_PUBLISHABLE_KEY`; de code leest `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
-- `SANITY_API_TOKEN` staat beschreven als "in `apps/studio/.env.local`", maar de seed-actie leest hem uit de server-env → op Vercel zetten.
-- `/api/cron/billing-renewal` en `/api/cron/keep-warm` bestaan maar staan **niet in `vercel.json`** → draaien nu niet automatisch.
-- `NEXTAUTH_URL` wordt alleen als fallback-base-URL gelezen; er is geen NextAuth.
+**Nog open:**
+
+- `/api/cron/billing-renewal` en `/api/cron/keep-warm` bestaan als routes maar staan **niet in `vercel.json`** → draaien niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen.
+- `NEXTAUTH_URL` wordt alleen als fallback-base-URL gelezen; er is geen NextAuth-implementatie (admin-auth is een eigen JWT).
+- `.nvmrc` zegt Node 22, CI draait Node 20.
+
+**Opgelost (was drift, nu gefixt):**
+
+- De **env-checklist op Admin → Deployment** miste hele groepen → aangevuld met Statamic, Stripe, Cron, Lead-base/webhooks, Enrichment, HubSpot en Google Calendar.
+- Het **setup-script** noemde vars die de code niet leest → vervangen door de echte namen (`MAXMIND_DB_PATH`, `MAIL_FROM_ADDRESS`, `R2_PUBLIC_URL`, `VERCEL_API_TOKEN`), plus de ontbrekende groepen toegevoegd. `NEXTAUTH_SECRET` en `GA4_*` zijn weg.
+- **De "Download setup.sh"-route was kapot**: het bash-script zit in een TS-template-literal en de shell-variabelen (`${CYAN}`, `${BOLD}`, …) werden door TypeScript geïnterpoleerd → `ReferenceError` → 500. Nu geëscaped en geverifieerd met `bash -n`.
+- `.env.production.example` / `.env.staging.example` gebruikten `STRIPE_PUBLISHABLE_KEY` → nu `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
+- `SANITY_API_TOKEN` stond beschreven als "in `apps/studio/.env.local`" → omschrijving gecorrigeerd: hij wordt uit de server-env gelezen, dus op het Vercel-project zetten.
+- `STATAMIC_CMS_PATH` ontbrak in `.env.example` → toegevoegd, met uitleg over de file-fallback.
+- Staging ontbrak op de System-pagina → staging-rij + "Deploy to staging"-knop toegevoegd.
 
 ---
 
