@@ -216,18 +216,6 @@ export const PAGE_PRESETS: readonly PagePreset[] = [
     ],
   },
 
-  {
-    key:         "listing_team",
-    label:       "Team listing",
-    description: "Team overview — intro heading followed by a card grid of team members (from the team_members collection).",
-    templateKey: "listing-page",
-    contextSlots: [],
-    blocks: [
-      { blockType: "textSection", variant: "text_single"  },
-      { blockType: "listing",     variant: "listing_cards" },
-    ],
-  },
-
   // ── Detail pages ──────────────────────────────────────────────────────────
 
   {

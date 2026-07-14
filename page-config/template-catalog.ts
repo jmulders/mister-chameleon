@@ -281,9 +281,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogEntry[] = [
   {
     key:          "team",
     label:        "Team",
-    description:  "Team overview page — intro heading and a card grid of team members from the team_members collection.",
+    description:  "Team overview page — hero, lead text, and team grid.",
     category:     "utility",
-    presetKey:    "listing_team",
+    presetKey:    "team_default",
     defaultTitle: "Team",
     defaultSlug:  "team",
     required:     false,
