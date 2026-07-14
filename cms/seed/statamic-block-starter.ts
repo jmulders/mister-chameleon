@@ -224,6 +224,9 @@ export function getBlockStarterContent(
     case "listing":
       return { heading: "Overzicht" };
 
+    case "collection_listing":
+      return { heading: "Overzicht", collection: "blog", sort_direction: "desc", limit: 6 };
+
     case "article_meta":
       return {};
 
