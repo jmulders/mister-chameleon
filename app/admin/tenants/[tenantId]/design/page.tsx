@@ -12,6 +12,7 @@
  *   Advanced            — full token editor + JSON import/export
  */
 
+import { Suspense }      from "react";
 import { notFound }      from "next/navigation";
 import { getTenantById } from "@/tenant/server";
 import { normalizeThemeKey } from "@/tenant";
@@ -38,13 +39,16 @@ export default async function TenantDesignPage({
   return (
     <div className="p-8 max-w-5xl">
 
-      {/* Tab bar sits at the top (matching the sub-nav position on other pages);
-          each tab renders its own section header below it. */}
-      <DesignPageClient
-        tenantId={tenantId}
-        activeTheme={safeThemeKey}
-        design={safeDesign}
-      />
+      {/* The tab strip is rendered by TenantSubNav (shared secondary row), so it
+          sits in the same place and at the same size as the sub-nav on Content
+          etc. Selection travels via ?tab=…; each panel renders its own header. */}
+      <Suspense fallback={null}>
+        <DesignPageClient
+          tenantId={tenantId}
+          activeTheme={safeThemeKey}
+          design={safeDesign}
+        />
+      </Suspense>
 
     </div>
   );

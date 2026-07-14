@@ -1,7 +1,7 @@
 "use client";
 
 import Link        from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn }      from "@/lib/utils";
 
 /**
@@ -37,6 +37,14 @@ interface SubItem {
   href:         string;
   exact?:       boolean;
   activePrefix: string;
+  /**
+   * For tab-style sub-items that live on ONE route and switch via ?tab=…
+   * (Design). When set, active detection compares the `tab` search param
+   * instead of matching a pathname prefix.
+   */
+  tab?:         string;
+  /** The `tab` value that applies when the param is absent (the default tab). */
+  tabDefault?:  boolean;
 }
 
 interface PrimaryGroup {
@@ -121,8 +129,9 @@ const ICONS = {
 };
 
 export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
-  const pathname = usePathname();
-  const base     = `/admin/tenants/${tenantId}`;
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
+  const base         = `/admin/tenants/${tenantId}`;
 
   // ── Group definitions ───────────────────────────────────────────────────────
 
@@ -141,7 +150,17 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
       href:   `${base}/design`,
       prefix: `${base}/design`,
       icon:   ICONS.design,
-      items:  [],   // the Design page has its own in-page tabs (presets/builder/…)
+      // Design switches panels via ?tab=… rather than separate routes, but the
+      // items render in the shared secondary row so they sit and size exactly
+      // like the sub-nav on Content, Personalization, etc.
+      items: [
+        { label: "Presets",    href: `${base}/design`,                  activePrefix: `${base}/design`, tab: "presets", tabDefault: true },
+        { label: "Builder",    href: `${base}/design?tab=builder`,      activePrefix: `${base}/design`, tab: "builder" },
+        { label: "Layout",     href: `${base}/design?tab=layout`,       activePrefix: `${base}/design`, tab: "layout" },
+        { label: "Typography", href: `${base}/design?tab=typography`,   activePrefix: `${base}/design`, tab: "typography" },
+        { label: "Blocks",     href: `${base}/design?tab=blocks`,       activePrefix: `${base}/design`, tab: "blocks" },
+        { label: "Advanced",   href: `${base}/design?tab=advanced`,     activePrefix: `${base}/design`, tab: "advanced" },
+      ],
     },
     {
       key:    "content",
@@ -235,6 +254,12 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
   }
 
   function isSubItemActive(item: SubItem): boolean {
+    // Tab-style items (Design): one route, panel chosen by ?tab=…
+    if (item.tab) {
+      if (pathname !== item.activePrefix) return false;
+      const current = searchParams.get("tab");
+      return current ? current === item.tab : item.tabDefault === true;
+    }
     if (item.label === "AI") {
       return (
         pathname === `${base}/ai` ||

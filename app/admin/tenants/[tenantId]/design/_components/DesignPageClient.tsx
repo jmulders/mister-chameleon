@@ -14,7 +14,11 @@
  * (/theme-switching), not as a Design tab.
  *
  * The server component (page.tsx) fetches all required data and passes it down
- * here; this component owns only the tab selection state.
+ * here; this component only renders the panels.
+ *
+ * The tab strip lives in the shared TenantSubNav secondary row so it matches the
+ * sub-nav on Content/Personalization/Audience exactly (same component, same
+ * position, same size). Selection travels through the `?tab=` search param.
  *
  * ─── Typography override state ────────────────────────────────────────────────
  *
@@ -30,6 +34,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useSearchParams }         from "next/navigation";
 import { ThemeGallery }         from "./ThemeGallery";
 import { PresetBuilder }        from "./PresetBuilder";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
@@ -97,46 +102,18 @@ export interface DesignPageClientProps {
   design:       TenantDesignSettings;
 }
 
-// ── Tab bar ───────────────────────────────────────────────────────────────────
+// ── Active tab resolution ─────────────────────────────────────────────────────
+//
+// The tab strip itself is NOT rendered here — it lives in the shared
+// TenantSubNav secondary row (components/admin/TenantSubNav.tsx), so the Design
+// tabs sit in exactly the same position and at the same size as the sub-nav on
+// Content, Personalization, Audience, etc. Those links point at
+// /design?tab=<id>; this component only reads that param back.
 
-interface TabBarProps {
-  active:   DesignTab;
-  onChange: (tab: DesignTab) => void;
-}
+const TAB_IDS: readonly string[] = TABS.map((t) => t.id);
 
-function TabBar({ active, onChange }: TabBarProps) {
-  // Styling mirrors the shared tenant sub-nav (TenantSubNav secondary row) so the
-  // Design tabs sit and size identically to the sub-nav on Content, Slots, etc.
-  return (
-    <div
-      role="tablist"
-      aria-label="Design settings"
-      className="mb-8 flex items-center gap-0 border-b border-neutral-200"
-    >
-      {TABS.map((tab) => {
-        const isActive = tab.id === active;
-        return (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={isActive}
-            aria-controls={`tab-panel-${tab.id}`}
-            id={`tab-${tab.id}`}
-            type="button"
-            onClick={() => onChange(tab.id)}
-            className={
-              "-mb-px inline-flex items-center whitespace-nowrap border-b-2 px-3.5 py-2 text-xs font-medium transition-all " +
-              (isActive
-                ? "border-indigo-500 text-indigo-700"
-                : "border-transparent text-neutral-500 hover:text-neutral-800")
-            }
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+function isDesignTab(value: string | null): value is DesignTab {
+  return value !== null && TAB_IDS.includes(value);
 }
 
 // ── Tab panel wrapper ─────────────────────────────────────────────────────────
@@ -148,13 +125,11 @@ interface TabPanelProps {
 }
 
 function TabPanel({ id, active, children }: TabPanelProps) {
+  // Plain section, not role="tabpanel": the strip that selects it is now a set
+  // of navigation links in TenantSubNav, not an ARIA tablist, so a tabpanel
+  // role here would reference a non-existent tab element.
   return (
-    <div
-      role="tabpanel"
-      id={`tab-panel-${id}`}
-      aria-labelledby={`tab-${id}`}
-      hidden={id !== active}
-    >
+    <div id={`tab-panel-${id}`} hidden={id !== active}>
       {children}
     </div>
   );
@@ -510,7 +485,9 @@ export function DesignPageClient({
   activeTheme,
   design,
 }: DesignPageClientProps) {
-  const [activeTab, setActiveTab] = useState<DesignTab>("presets");
+  // Driven by the shared sub-nav links (?tab=…); "presets" when absent/unknown.
+  const tabParam  = useSearchParams().get("tab");
+  const activeTab: DesignTab = isDesignTab(tabParam) ? tabParam : "presets";
 
   // ── Typography override state ─────────────────────────────────────────────
   //
@@ -525,8 +502,6 @@ export function DesignPageClient({
 
   return (
     <div>
-      <TabBar active={activeTab} onChange={setActiveTab} />
-
       {/* ── Presets (curated themes — contextual-rule compatible) ───────────── */}
       <TabPanel id="presets" active={activeTab}>
         <TabSectionHeader

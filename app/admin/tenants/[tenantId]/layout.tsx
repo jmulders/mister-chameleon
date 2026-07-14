@@ -21,6 +21,7 @@
  *   handled by the individual page components.
  */
 
+import { Suspense }           from "react";
 import { getTenantById }      from "@/tenant/server";
 import { TenantSubNav }       from "@/components/admin/TenantSubNav";
 import {
@@ -56,8 +57,14 @@ export default async function TenantWorkspaceLayout({
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Tenant tab bar */}
-      <TenantSubNav tenantId={tenantId} tenantName={tenantName} />
+      {/* Tenant tab bar.
+          Suspense: TenantSubNav reads useSearchParams() (the Design sub-items
+          are ?tab=… links), which Next requires to sit inside a boundary. These
+          routes are dynamic anyway (the session read above uses cookies), so the
+          fallback is never rendered — it only keeps the build rule satisfied. */}
+      <Suspense fallback={null}>
+        <TenantSubNav tenantId={tenantId} tenantName={tenantName} />
+      </Suspense>
 
       {/* Page content */}
       <div className="flex-1">
