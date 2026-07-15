@@ -396,6 +396,38 @@ const heroBlocks: SeedBlock[] = [
       { layoutVariant: "hero_page_banner", contentAlign: "left" },
     ),
   },
+
+  // ── Pagina-specifieke hero's ────────────────────────────────────────────────
+  //
+  // De CMS-pagina's van misterchameleon.nl verwijzen naar deze keys via hun
+  // context_slots. Ze bestonden niet, dus viel elke pagina terug op hero_default
+  // — /features en /pricing toonden dezelfde hero als de homepage, en de
+  // per-pagina afstemming deed niets. De fallback maakte dat onzichtbaar.
+
+  // ─ hero_features: bezoeker wil weten wát het doet ───────────────────────────
+  {
+    key:     "hero_features",
+    content: c(
+      "Uw campagne is gesegmenteerd. Uw website niet.",
+      "U investeert in positionering, en dan landt iedereen op dezelfde homepage. Mister Chameleon laat uw bestaande site meebewegen met wie er kijkt — zonder redesign.",
+      "Wat het platform doet",
+      [{ label: "Demo boeken", href: "/book-demo" }, { label: "Bekijk de prijzen", href: "/pricing" }],
+      { layoutVariant: "hero_split", contentAlign: "left" },
+    ),
+  },
+
+  // ─ hero_pricing: bezoeker is aan het rekenen ────────────────────────────────
+  {
+    key:     "hero_pricing",
+    content: c(
+      "U betaalt voor geleverde waarde, niet voor complexiteit",
+      "Prijs per gepersonaliseerde sessie. Regels, experimenten, segmenten en pagina's zijn onbeperkt op elk plan — en een plafond dat u zelf zet, dus geen onverwachte factuur.",
+      "Prijzen",
+      [{ label: "14 dagen gratis proberen", href: "/book-demo" }, { label: "Wat het doet", href: "/features" }],
+      { layoutVariant: "hero_split", contentAlign: "left" },
+    ),
+  },
+
 ];
 
 // ── Proof ─────────────────────────────────────────────────────────────────────
@@ -570,6 +602,41 @@ const proofBlocks: SeedBlock[] = [
       ],
     ),
   },
+
+  // ── Pagina-specifieke proof ─────────────────────────────────────────────────
+
+  // ─ proof_features_stats: onder de hero van /features ────────────────────────
+  //   Ondanks "stats" in de naam staan hier bewust geen cijfers: we hebben geen
+  //   gevalideerde resultaten, en verzonnen gemiddelden kosten meer geloofwaardig-
+  //   heid dan ze opleveren. Het bewijs is de mechaniek.
+  {
+    key:     "proof_features_stats",
+    content: ci(
+      "Waarom dit werkt zonder dat uw bezoeker het merkt",
+      "Geen tussenlaag die eerst de standaardpagina toont en die daarna verbouwt. De beslissing valt voordat de pagina bij de bezoeker aankomt.",
+      "Onder de motorkap",
+      [
+        { title: "Server-side",     text: "De pagina komt al goed aan. Geen flikkering, geen sprong — en zoekmachines zien een gewone, snelle pagina." },
+        { title: "Zonder cookies",  text: "De basis werkt op gedrag en context, niet op third-party data. U hoeft niet te wachten op toestemming om relevant te zijn." },
+        { title: "Op uw eigen CMS", text: "Statamic, Sanity of Storyblok — of één snippet op de site die u al heeft. Uw redactie verandert er niets aan." },
+      ],
+    ),
+  },
+
+  // ─ proof_pricing_trust: wegnemen van koudwatervrees bij de prijs ────────────
+  {
+    key:     "proof_pricing_trust",
+    content: ci(
+      "Geen verrassingen op de factuur",
+      "De twee vragen die iedereen bij een prijslijst heeft: wat als het tegenvalt, en wat als het uit de hand loopt.",
+      "Wat u vooraf wilt weten",
+      [
+        { title: "Uw plafond, niet het onze", text: "U stelt in hoeveel er per maand aan verrijking besteed mag worden. Boven dat bedrag stopt het — er komt nooit een onverwachte factuur." },
+        { title: "Onbeperkt configureren",    text: "Regels, experimenten, segmenten en pagina's zijn op elk plan onbeperkt. U betaalt voor geleverde sessies, niet voor nadenken." },
+        { title: "14 dagen proberen",         text: "Genoeg om de controlegroep te laten meelopen en zelf te zien of er iets gebeurt." },
+      ],
+    ),
+  },
 ];
 
 // ── CTA ───────────────────────────────────────────────────────────────────────
@@ -719,6 +786,30 @@ const ctaBlocks: SeedBlock[] = [
       [{ label: "Neem contact op", href: "/contact" }],
     ),
   },
+
+  // ── Pagina-specifieke CTA's ─────────────────────────────────────────────────
+
+  // ─ cta_features_bottom: afsluiter van /features ─────────────────────────────
+  {
+    key:     "cta_features_bottom",
+    content: c(
+      "Zie het op uw eigen website",
+      "Dit is lastig te geloven op papier en meteen duidelijk op het scherm. In 30 minuten zetten we uw eigen site ernaast en laten we zien hoe die eruitziet voor drie van uw doelgroepen.",
+      "Overtuigd? Of juist niet?",
+      [{ label: "Demo boeken", href: "/book-demo" }, { label: "Bekijk de prijzen", href: "/pricing" }],
+    ),
+  },
+
+  // ─ cta_pricing_enterprise: onderaan /pricing, voor wie boven de plannen zit ─
+  {
+    key:     "cta_pricing_enterprise",
+    content: c(
+      "Meer verkeer dan de plannen dekken?",
+      "Werkt u met meerdere merken of domeinen, of zit u boven een half miljoen sessies per maand? Dan rekenen we het liever samen door dan dat u een pakket kiest dat niet past.",
+      "Grotere opzet",
+      [{ label: "Neem contact op", href: "/contact" }, { label: "Demo boeken", href: "/book-demo" }],
+    ),
+  },
 ];
 
 // ── Feature ───────────────────────────────────────────────────────────────────
@@ -814,6 +905,26 @@ const featureBlocks: SeedBlock[] = [
           cta:   "Neem contact op",
           ctaHref: "/contact",
         },
+      ],
+    ),
+  },
+
+  // ─ feature_full_platform: het volledige platform op /features ───────────────
+  //   Dezelfde zes onderdelen als de feature-grid op de CMS-pagina, maar dan als
+  //   context-slot — zodat een regel deze later per doelgroep kan wisselen.
+  {
+    key:     "feature_full_platform",
+    content: ci(
+      "Wat het platform doet",
+      "Zes onderdelen die samen één ding doen: de juiste boodschap bij de juiste bezoeker krijgen — en aantonen dat het werkte.",
+      "Het hele platform",
+      [
+        { title: "Herkennen",       body: "Bron, campagne, zoekwoord, gedrag en terugkeer. En zakelijk: welk bedrijf achter het IP zit, aangevuld met KvK-gegevens en wat er al in uw CRM staat." },
+        { title: "Aanpassen",       body: "U wijst de blokken aan die mogen meebewegen — hero, bewijs, CTA. De rest van de pagina blijft staan zoals hij staat." },
+        { title: "Bewijzen",        body: "Elke aanpassing draait tegen een controlegroep die de gewone site ziet. U meet de werkelijke lift in plaats van te geloven dat het hielp." },
+        { title: "Server-side",     body: "De beslissing valt vóórdat de pagina aankomt. Geen flikkering, geen vertraging, en zoekmachines zien een gewone pagina." },
+        { title: "AVG-first",       body: "De basis werkt zonder cookies. Een verwijderverzoek loopt door tot in uw CRM en onderdrukt het profiel ook bij de advertentieplatforms." },
+        { title: "Op uw eigen CMS", body: "Statamic, Sanity of Storyblok — of één snippet op een site die u houdt zoals hij is." },
       ],
     ),
   },
