@@ -80,6 +80,7 @@ import {
 } from "@/forms/email";
 import { resolveEmailConfig, resolveFormsConfig } from "@/lib/config";
 import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
+import { storeSubmission }         from "@/forms/storage";
 import { reportInboundConversion } from "@/lib/lead-base/report-inbound-conversion";
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -251,6 +252,45 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             })
           : Promise.resolve(),
       ]);
+    }
+  }
+
+  // ── Step 6a2: Persist the submission ──────────────────────────────────────
+  //
+  //   Without this the submission never reaches the form_submissions table, so
+  //   Admin → Content → Forms → Submissions stays empty even though contact
+  //   forms are coming in. The lead itself lands in abm_leads via Step 6b — two
+  //   different stores with two different jobs (sales follow-up vs. an audit
+  //   trail of what was literally submitted).
+  //
+  //   Precedence mirrors /api/forms/[formKey] exactly:
+  //     per-form override (when enabled) → tenant default
+  //   so switching storage off for this tenant also switches it off here.
+  //
+  //   Fail-open, like every other side effect in this route: a storage failure
+  //   is logged but never changes the response the submitter sees.
+  {
+    const shouldStore = formOverride.overrideEnabled
+      ? formOverride.storeEnabled
+      : formsResolution.config.storeSubmissions;
+
+    if (shouldStore) {
+      const companyRaw = (body as Record<string, unknown>).company;
+      const stored = await storeSubmission({
+        formKey: "contact",
+        values: {
+          name:    formFields.name,
+          email:   formFields.email,
+          message: formFields.message,
+          ...(typeof companyRaw === "string" && companyRaw.trim() ? { company: companyRaw.trim() } : {}),
+        },
+        sessionId,
+        tenantId,
+      });
+
+      if (!stored.ok) {
+        logger.warn("[contact] Submission storage failed", { error: stored.error });
+      }
     }
   }
 
