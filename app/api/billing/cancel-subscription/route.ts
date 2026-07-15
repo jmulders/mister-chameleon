@@ -21,13 +21,18 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient }              from "@supabase/supabase-js";
-import { getStripe }                 from "@/billing/stripe";
+// getStripeClient — NOT getStripe, which has never existed. This route imported
+// a non-existent export, so webpack emitted only a warning ("Attempted import
+// error") and the build passed; the failure surfaced at runtime instead, as a
+// TypeError on every cancellation attempt. getStripeClient() picks live or test
+// itself via getStripeMode().
+import { getStripeClient }           from "@/billing/stripe-config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function stripeAny(): any { return getStripe(); }
+function stripeAny(): any { return getStripeClient(); }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── 1. Parse body ────────────────────────────────────────────────────────────
