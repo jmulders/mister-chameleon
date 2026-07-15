@@ -13,13 +13,17 @@
  * ─── Current routing ─────────────────────────────────────────────────────────
  *
  *   Config null or mode disabled    →  DisabledAiProvider
- *   "claude"  — hasApiKey           →  MockAiProvider  (ClaudeAdapter TODO)
- *   "claude"  — !hasApiKey          →  DisabledAiProvider
+ *   "claude"  — key present         →  ClaudeAdapter   (real Anthropic call)
+ *   "claude"  — no key              →  DisabledAiProvider
  *   "openai"  — hasApiKey           →  MockAiProvider  (OpenAiAdapter TODO)
  *   "openai"  — !hasApiKey          →  DisabledAiProvider
  *   "gemini"  — hasApiKey           →  MockAiProvider  (GeminiAdapter TODO)
  *   "gemini"  — !hasApiKey          →  DisabledAiProvider
  *   Unknown provider name           →  DisabledAiProvider  (TS exhaustive guard)
+ *
+ *   NOTE: openai and gemini still return a MOCK. Selecting them looks like it
+ *   works — decisions get logged, plans_match populates — but no model is ever
+ *   called. Only "claude" performs real inference today.
  *
  * ─── Adding a real adapter ────────────────────────────────────────────────────
  *
@@ -59,6 +63,7 @@ import type { AiProviderConfig } from "@/ai/types";
 import type { AiProvider } from "./base-provider";
 import { DisabledAiProvider } from "./base-provider";
 import { MockAiProvider } from "./mock-ai-provider";
+import { ClaudeAdapter } from "./claude-adapter";
 
 // ── Factory ───────────────────────────────────────────────────────────────────
 
@@ -114,15 +119,22 @@ export function createAiProvider(config: AiProviderConfig | null): AiProvider {
           `Add it to .env.local (or your deployment secrets) to enable inference.`,
         );
       }
-      // TODO: replace with ClaudeAdapter when implemented:
-      //
-      //   import { ClaudeAdapter } from "./claude-adapter";
-      //   return new ClaudeAdapter({
-      //     modelId:   config.modelId,
-      //     timeoutMs: config.timeoutMs,
-      //     apiKey:    process.env.ANTHROPIC_API_KEY as string,
-      //   });
-      return new MockAiProvider();
+      // hasApiKey can be true because the TENANT configured its own key — but
+      // AiProviderConfig never carries the value, so all we can use is the
+      // platform key. Guard rather than hand the adapter an empty string.
+      const anthropicKey = process.env["ANTHROPIC_API_KEY"];
+      if (!anthropicKey) {
+        return new DisabledAiProvider(
+          `AI provider "claude" is marked configured, but ANTHROPIC_API_KEY is ` +
+          `absent in this environment. A tenant-supplied key cannot be used yet: ` +
+          `AiProviderConfig carries only hasApiKey, never the value.`,
+        );
+      }
+      return new ClaudeAdapter({
+        modelId:   config.modelId,
+        timeoutMs: config.timeoutMs,
+        apiKey:    anthropicKey,
+      });
     }
 
     // ── OpenAI ─────────────────────────────────────────────────────────

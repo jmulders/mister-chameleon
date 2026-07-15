@@ -18,10 +18,11 @@
  *   │
  *   ├─ MockAiProvider (mock-ai-provider.ts)
  *   │     Returns deterministic suggestions based on visitor source.
- *   │     Active today — no external API call needed.
+ *   │     Still routed to for "openai" and "gemini" — those adapters do not
+ *   │     exist yet, so selecting them calls no model.
  *   │
- *   ├─ ClaudeAdapter (future: ai/providers/claude-adapter.ts)
- *   │     Calls the Anthropic Messages API.
+ *   ├─ ClaudeAdapter (claude-adapter.ts)
+ *   │     Calls the Anthropic Messages API. The only real adapter today.
  *   │
  *   └─ OpenAiAdapter (future: ai/providers/openai-adapter.ts)
  *         Calls the OpenAI Chat Completions API.
