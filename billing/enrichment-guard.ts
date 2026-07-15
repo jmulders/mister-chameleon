@@ -33,6 +33,28 @@
  *     smart_lite    — recognition-category only; adaptation + brainpower blocked
  *     default       — all billable enrichments blocked; static content only
  *
+ * ─── Why fallbackMode is ONLY returned for monthly_cap_exceeded ───────────────
+ *
+ *   This looks like an oversight and has been "fixed" before. It is deliberate.
+ *
+ *   fallbackMode describes how far to degrade when we CHOOSE not to spend. It
+ *   only applies when the wallet can still pay:
+ *
+ *     monthly_cap_exceeded — money is there; the tenant set a budget ceiling.
+ *                            Degrading is a policy decision, and smart_lite can
+ *                            still pay for the recognition stages it keeps.
+ *
+ *     insufficient_balance — there is no money. Every recognition stage
+ *     wallet_suspended       smart_lite keeps (ip_enrich, reverse_geocode,
+ *     wallet_frozen          company_lookup) costs a credit, so honouring
+ *                            smart_lite here would run them and fail the debit:
+ *                            enrichment delivered, nobody billed. That is the
+ *                            debit_failed leak.
+ *
+ *   So these three return no fallbackMode, the caller's `?? "default"` kicks in,
+ *   and every billable stage is dropped. You cannot spend what you do not have —
+ *   regardless of what the tenant configured.
+ *
  * ─── Recording blocks ─────────────────────────────────────────────────────────
  *
  *   When enrichments are blocked, call `recordWalletBlock` to append one

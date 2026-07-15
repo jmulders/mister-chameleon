@@ -1,7 +1,7 @@
 /**
  * billing/notifications.ts
  *
- * Wallet notification stubs — low balance, empty wallet, enrichments paused,
+ * Wallet notifications — low balance, empty wallet, enrichments paused,
  * auto-reload success/failure.
  *
  * ─── Architecture ─────────────────────────────────────────────────────────────
@@ -9,20 +9,30 @@
  *   All notification functions follow a consistent pattern:
  *     1. Read tenant wallet to find notification preferences + channel addresses.
  *     2. Determine which channels are enabled (email / SMS).
- *     3. Dispatch notifications (email via Resend/SendGrid; SMS stubbed).
+ *     3. Dispatch notifications.
  *     4. Never throw — notification failure must not block the caller.
  *
- *   Currently all email/SMS sends are STUBBED: they log the payload but do not
- *   make real network calls.  Wire up a real email provider (e.g. Resend, SES)
- *   by replacing the `sendEmail` stub below.
+ * ─── Email delivery ───────────────────────────────────────────────────────────
  *
- * ─── Extending ────────────────────────────────────────────────────────────────
+ *   Email now goes out for real, over the same platform transport that
+ *   billing/dunning.ts uses (forms/mail-transport). It used to be a stub that
+ *   only did console.info: every function below was correctly wired and fired at
+ *   the right moment, but nothing ever left the building. A tenant could run for
+ *   weeks with a drained wallet and degraded enrichment without a single warning
+ *   — which is exactly what happened on this platform.
  *
- *   To add real email delivery, replace `sendEmail` with a call to your email
- *   provider SDK.  The payload shape is stable.
+ *   Transport is resolved per send (never cached): resolveTransportConfig(null,
+ *   null) — billing mail always uses the platform config, never a tenant's own
+ *   SMTP. When no transport is configured, sendMail returns ok and logs in dev;
+ *   it does not throw.
  *
- *   To add real SMS delivery, replace `sendSms` with a Twilio / MessageBird
- *   call.  The phone number comes from wallet.notification_phone.
+ * ─── SMS ──────────────────────────────────────────────────────────────────────
+ *
+ *   Still a stub, and deliberately so: there is no SMS provider in this stack.
+ *   notify_sms / notification_phone exist in the schema and in the settings UI,
+ *   but nothing delivers. Either wire a provider here, or drop the columns and
+ *   the toggle — a switch that promises SMS and sends nothing is worse than no
+ *   switch at all.
  *
  * ─── Server only ──────────────────────────────────────────────────────────────
  *
@@ -32,10 +42,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TenantWallet } from "./types";
 import { serializeError } from "./errors";
+import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
+import { logger } from "@/lib/logger";
 
-// ── Email / SMS stubs ─────────────────────────────────────────────────────────
-//
-// Replace these with real provider calls when you're ready to deliver messages.
+// ── Email / SMS delivery ──────────────────────────────────────────────────────
 
 interface EmailPayload {
   to:      string;
@@ -48,17 +58,51 @@ interface SmsPayload {
   body: string;
 }
 
+/**
+ * The platform "from" address for billing mail.
+ *
+ * Identical chain to billing/dunning.ts, so both billing streams appear from the
+ * same sender. Kept as env-only on purpose: this runs inside a debit, and a DB
+ * round-trip to platform_settings on every low-balance notification is not worth
+ * it for a value that never changes per tenant.
+ */
+function resolveFromAddress(): string {
+  return (
+    process.env["MAIL_FROM_ADDRESS"] ??
+    process.env["BACKOFFICE_EMAIL"] ??
+    "billing@misterchameleon.com"
+  );
+}
+
+/**
+ * Sends a wallet notification email. Never throws: a failed notification must
+ * not break a debit, and the caller is usually fire-and-forget.
+ */
 async function sendEmail(payload: EmailPayload): Promise<void> {
-  // STUB — wire up Resend / SES / SendGrid here.
-  console.info("[billing/notifications] [STUB] email notification", {
-    to:      payload.to,
-    subject: payload.subject,
-  });
+  try {
+    const transport = resolveTransportConfig(null, null);
+
+    const result = await sendMail(
+      { from: resolveFromAddress(), to: [payload.to], subject: payload.subject, text: payload.body },
+      transport,
+    );
+
+    if (!result.ok) {
+      logger.error("[billing/notifications] wallet email failed", {
+        to: payload.to, subject: payload.subject, error: result.error,
+      });
+    }
+  } catch (err) {
+    logger.error("[billing/notifications] wallet email threw", {
+      to: payload.to, error: serializeError(err),
+    });
+  }
 }
 
 async function sendSms(payload: SmsPayload): Promise<void> {
-  // STUB — wire up Twilio / MessageBird here.
-  console.info("[billing/notifications] [STUB] SMS notification", {
+  // STUB — no SMS provider is configured in this stack. See the module JSDoc:
+  // this either gets a provider or the notify_sms toggle should be removed.
+  logger.info("[billing/notifications] SMS requested but no provider is wired", {
     to: payload.to,
   });
 }
