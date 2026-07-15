@@ -347,10 +347,42 @@ export async function getSessionCreditLedger(
 }
 
 /**
- * Check whether a tenant has consumed their monthly personalised session cap.
+ * The cap rule, as pure arithmetic — no I/O, so it can be tested directly.
  *
- * The effective limit is:
- *   plan.limits.personalizedSessionsPerMonth + purchased session credits
+ * A tenant may be served a personalised page while EITHER:
+ *   • they are still under their plan's monthly limit, or
+ *   • they have purchased session credits left.
+ *
+ * ─── Why not `current >= planLimit + credits` ────────────────────────────────
+ *
+ *   That is the obvious formula and it silently robs the tenant. Every session
+ *   over the plan limit moves both terms: `current` +1, `credits` −1. The two
+ *   converge and block at the halfway point, with credits still unspent.
+ *
+ *     plan 100, bought 10:
+ *       current=100 credits=10 → limit 110 → serve → credits 9
+ *       current=105 credits=5  → limit 105 → BLOCKED, 5 credits left unused
+ *
+ *   The tenant paid for ten extra sessions and got five. See
+ *   tests/billing/session-cap.test.ts.
+ *
+ * @param planLimit 0 means unlimited (enterprise override).
+ */
+export function isOverCap(input: {
+  current:   number;
+  planLimit: number;
+  credits:   number;
+}): boolean {
+  const { current, planLimit } = input;
+  const credits = Math.max(0, input.credits);   // a negative balance is no balance
+
+  if (planLimit <= 0)      return false;        // unlimited
+  if (current < planLimit) return false;        // still inside the plan
+  return credits <= 0;                          // over the plan: credits decide
+}
+
+/**
+ * Check whether a tenant has consumed their monthly personalised session cap.
  *
  * When overLimit is true the caller should serve the default (unpersonalised)
  * experience.  No errors are thrown — degradation is always graceful.
@@ -367,11 +399,12 @@ export async function checkSessionSoftCap(tenantId: string): Promise<SessionCapR
   ]);
 
   const planLimit = plan.limits.personalizedSessionsPerMonth;
-  // 0 = unlimited (enterprise override); otherwise add purchased credits on top.
+  // Reported as plan + remaining credits so the dashboard shows headroom. Not
+  // used for the decision itself — see isOverCap for why that formula is unsafe.
   const limit = planLimit === 0 ? 0 : planLimit + bonusSessions;
 
   return {
-    overLimit:    limit > 0 && current >= limit,
+    overLimit:    isOverCap({ current, planLimit, credits: bonusSessions }),
     current,
     limit,
     planLimit,
