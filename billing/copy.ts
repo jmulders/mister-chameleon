@@ -107,7 +107,10 @@ export const WALLET_STATUS: Record<WalletStatusKey, WalletStatusDisplay> = {
   },
   empty: {
     label:       "Empty",
-    description: "No credits remaining. Enrichments are paused until you top up.",
+    description:
+      "No credits left. Every paid enrichment is off: no company recognition, no " +
+      "geo, no CRM lookup. Visitors still get the site, but personalisation now " +
+      "runs on traffic source and behaviour only. Top up to switch it back on.",
     badgeBg:     "bg-red-100",
     badgeText:   "text-red-700",
     heroBorder:  "border-red-300",
@@ -137,7 +140,14 @@ export const WALLET_STATUS: Record<WalletStatusKey, WalletStatusDisplay> = {
   },
   cap_reached: {
     label:       "Budget cap reached",
-    description: "Monthly spend limit has been reached. Fallback mode is now active.",
+    // Names the tier, because "fallback mode is active" tells an operator
+    // nothing: smart_lite still recognises companies, default does not. That is
+    // the whole difference between a degraded site and a static one.
+    description:
+      "Your monthly spend limit is reached, so enrichment is degraded to the " +
+      "fallback tier you configured — Smart Lite keeps company and geo " +
+      "recognition, Default turns all paid enrichment off. Raise the cap or wait " +
+      "for the new month.",
     badgeBg:     "bg-amber-100",
     badgeText:   "text-amber-700",
     heroBorder:  "border-amber-300",
@@ -145,15 +155,25 @@ export const WALLET_STATUS: Record<WalletStatusKey, WalletStatusDisplay> = {
     icon:        "◎",
     severity:    1,
   },
+  // severity 2, not 0.
+  //
+  // This used to be grey and severity 0 — the same weight as "Healthy" — so a
+  // tenant with no wallet looked fine. It is not fine: without a wallet there is
+  // nothing to debit against, so paid enrichment is off. Two tenants on this
+  // platform sat here for weeks with zero ledger entries and nobody noticed,
+  // because the one screen that could have said so said "Not set up" in grey.
   no_wallet: {
-    label:       "Not set up",
-    description: "No wallet has been initialised for this account yet.",
-    badgeBg:     "bg-neutral-100",
-    badgeText:   "text-neutral-500",
-    heroBorder:  "border-neutral-200",
-    accent:      "text-neutral-400",
+    label:       "No wallet",
+    description:
+      "This tenant has no wallet, so paid enrichment cannot run — no company " +
+      "recognition, no geo, no CRM lookup. Create a wallet and add credits to " +
+      "switch it on.",
+    badgeBg:     "bg-red-100",
+    badgeText:   "text-red-700",
+    heroBorder:  "border-red-300",
+    accent:      "text-red-600",
     icon:        "○",
-    severity:    0,
+    severity:    2,
   },
 };
 
@@ -277,7 +297,7 @@ export const FALLBACK_MODE_COPY: Record<string, { label: string; description: st
 
 export const ANOMALY_LABELS = {
   NO_STRIPE_SUBSCRIPTION:   "No Stripe subscription",
-  NO_WALLET_INITIALIZED:    "Wallet not yet initialised",
+  NO_WALLET_INITIALIZED:    "No wallet — paid enrichment cannot run for this tenant",
   WALLET_SUSPENDED:         "Wallet suspended — enrichments paused",
   WALLET_FROZEN:            "Wallet frozen — admin action required",
   CREDITS_EXHAUSTED:        "Credits exhausted",

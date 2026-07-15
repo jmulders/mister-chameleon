@@ -504,6 +504,10 @@ function AlertBanners({
 
   if (statusKey === "frozen")      alerts.push({ icon: "❄", msg: ANOMALY_LABELS.WALLET_FROZEN,       level: "red"   });
   if (statusKey === "suspended")   alerts.push({ icon: "⊘", msg: ANOMALY_LABELS.WALLET_SUSPENDED,    level: "red"   });
+  // no_wallet had no branch at all, so a tenant without a wallet showed no alert
+  // whatsoever — while paid enrichment silently could not run. Two tenants sat
+  // like that for weeks: hundreds of usage_events, zero ledger entries.
+  if (statusKey === "no_wallet")   alerts.push({ icon: "○", msg: ANOMALY_LABELS.NO_WALLET_INITIALIZED, level: "red" });
   // An empty wallet is only a genuine "exhausted" problem when the tenant has
   // actually consumed enrichment this month. A healthy subscribed tenant that
   // simply never bought (optional) enrichment credits gets a neutral note, not

@@ -161,8 +161,30 @@ export async function checkWalletForEnrichment(
       return { blocked: false, balanceCents: Infinity };
     }
 
-    // No wallet row = tenant hasn't been billed yet → allow enrichments.
-    if (!data) return { blocked: false, balanceCents: Infinity };
+    // ── No wallet row ─────────────────────────────────────────────────────────
+    //
+    // This used to allow enrichments unconditionally ("tenant hasn't been billed
+    // yet"), which made a missing wallet row equal to an unlimited free budget.
+    // Two of the four tenants on this platform had no wallet: together 525
+    // usage_events and ZERO wallet_ledger entries. Every enrichment ran, the
+    // debit failed with wallet_not_found, and the tracker logged errorCode
+    // "debit_failed" — enrichment delivered, nobody billed. That is the leak.
+    //
+    // Failing OPEN is right for an infrastructure error (see the branches above:
+    // missing table, unreadable column — never punish a visitor for our outage).
+    // But a missing wallet row is not an outage; it is an unprovisioned tenant.
+    // Those are different failures and deserve different answers.
+    //
+    // So: block billable enrichment, and say why. The site keeps working —
+    // non-billable stages (header geo, MaxMind, cloud detection) still run, and
+    // the visitor still gets a page. Provisioning a wallet is one insert.
+    if (!data) {
+      return {
+        blocked:      true,
+        blockReason:  "no_wallet",
+        balanceCents: 0,
+      };
+    }
 
     const {
       balance,

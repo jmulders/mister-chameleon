@@ -512,8 +512,14 @@ export interface WalletReloadAttempt {
 export interface WalletGuardResult {
   /** Whether billable enrichments should be blocked for this request. */
   blocked:      boolean;
-  /** Machine-readable reason for the block. */
-  blockReason?: "insufficient_balance" | "wallet_suspended" | "wallet_frozen" | "monthly_cap_exceeded";
+  /**
+   * Machine-readable reason for the block.
+   *
+   * no_wallet — the tenant has no tenant_wallets row at all. Distinct from
+   * insufficient_balance: there is nothing to debit against, so enrichment would
+   * run and fail to bill. An unprovisioned tenant, not an empty one.
+   */
+  blockReason?: "insufficient_balance" | "wallet_suspended" | "wallet_frozen" | "monthly_cap_exceeded" | "no_wallet";
   /** Current wallet balance in cents at time of check. */
   balanceCents: number;
   /**
