@@ -69,7 +69,12 @@ import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-vi
 import { getKnownFirmographics, getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
 import { recordVisitorEvent }              from "@/lib/lead-base/visitor-events-store";
 import { injectReturningVisitorContext }   from "@/lib/lead-base/returning-visitor-context";
-import { assignPersonalizationGroup }       from "@/lib/lead-base/holdout";
+import {
+  assignPersonalizationGroup,
+  applySessionCap,
+  servesDefaultExperience,
+}                                          from "@/lib/lead-base/holdout";
+import { checkSessionSoftCap }             from "@/billing/plan-enforcement";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -466,8 +471,25 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // Personalization holdout — a deterministic % of visitors are the control group
   // and get the default experience (no ABM/returning/segment/AI adaptation), so the
   // performance report can measure true causal lift. Inert when holdout pct is 0.
-  const personalizationGroup = assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0);
-  const isControl = personalizationGroup === "control";
+  //
+  // The monthly session cap folds in here. Over the cap (and out of purchased
+  // credits) the visitor also gets the default experience — but labelled "capped",
+  // never "control", so the lift baseline stays a random sample. See
+  // lib/lead-base/holdout.ts.
+  //
+  // The cap check is not free (three reads), but it replaces the ones
+  // recordPersonalizedSession used to do on every pageview — that function now
+  // takes this verdict as an argument. Net: same query count, and the answer is
+  // computed BEFORE we decide instead of after we already personalised.
+  const sessionCap = await checkSessionSoftCap(tenantConfig.tenantId);
+
+  const personalizationGroup = applySessionCap(
+    assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
+    sessionCap.overLimit,
+  );
+  // Both "control" and "capped" get the default experience — never compare to
+  // "control" directly, or the cap silently stops being enforced.
+  const isControl = servesDefaultExperience(personalizationGroup);
 
   // ── Decision context ──────────────────────────────────────────────────────
   let debugInfo: EnrichmentDebugInfo | null = null;
@@ -896,6 +918,11 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   return {
     // Request / session
     sessionId,
+    // Billing — the caller passes these straight to recordPersonalizedSession so
+    // it does not re-query what we already know. personalizationGroup is
+    // "capped" when the monthly bundle ran out (see lib/lead-base/holdout.ts).
+    sessionCap,
+    personalizationGroup,
     // Experiment
     appliedExperiment,
     experimentChallenger,

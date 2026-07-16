@@ -82,7 +82,12 @@ import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-vi
 import { recordVisitorEvent }      from "@/lib/lead-base/visitor-events-store";
 import { getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
 import { injectReturningVisitorContext } from "@/lib/lead-base/returning-visitor-context";
-import { assignPersonalizationGroup }    from "@/lib/lead-base/holdout";
+import {
+  assignPersonalizationGroup,
+  applySessionCap,
+  servesDefaultExperience,
+}                                        from "@/lib/lead-base/holdout";
+import { checkSessionSoftCap }           from "@/billing/plan-enforcement";
 import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
@@ -361,8 +366,18 @@ export async function resolveSlugPageConfig(
       .find((c) => c.startsWith("mc_lead="))
       ?.slice("mc_lead=".length);
     // Personalization holdout — control group gets the default experience.
-    const personalizationGroup = assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0);
-    const isControl = personalizationGroup === "control";
+    //
+    // The monthly session cap folds in the same way as on the homepage: over the
+    // bundle (and out of purchased credits) the visitor is labelled "capped" and
+    // also gets the default. Enforcing on the homepage alone would leave every
+    // CMS page personalising past the cap — the tenant's busiest pages served
+    // for free.
+    const sessionCap = await checkSessionSoftCap(tenantConfig.tenantId);
+    const personalizationGroup = applySessionCap(
+      assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
+      sessionCap.overLimit,
+    );
+    const isControl = servesDefaultExperience(personalizationGroup);
 
     let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
     try {

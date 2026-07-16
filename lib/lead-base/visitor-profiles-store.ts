@@ -321,6 +321,14 @@ export async function getPersonalizationPerformance(tenantId: string, limit = 10
       bucket.total += 1;
       if (converted) bucket.converted += 1;
       // Randomized holdout buckets (only when assigned).
+      //
+      // The explicit two-value check is load-bearing, not defensive: it is what
+      // keeps "capped" visitors — served the default page because the tenant ran
+      // out of monthly sessions — out of the lift figure. They are not a random
+      // sample (they are whoever arrived late in a busy month), so counting them
+      // as control would bias the baseline exactly when traffic is highest, and
+      // the report would keep printing a number as if nothing were wrong.
+      // Do not relax this to `!== null`.
       if (r.personalization_group === "control" || r.personalization_group === "personalized") {
         const g = acc.holdout[r.personalization_group];
         g.total += 1; if (converted) g.converted += 1;

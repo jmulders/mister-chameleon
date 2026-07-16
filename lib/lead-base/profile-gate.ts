@@ -53,7 +53,14 @@ export interface ProfileCandidate {
   // ── Identity (references — not PII) ──
   abmLeadId?:     string | null;
   identityLevel?: IdentityLevel;
-  /** A/B holdout group: 'control' | 'personalized' (pseudonymous, always allowed). */
+  /**
+   * Cohort for lift measurement: 'control' | 'personalized' | 'capped'
+   * (pseudonymous, always allowed).
+   *
+   * 'capped' means the visitor got the default page because the tenant's monthly
+   * session bundle was exhausted — not because they were sampled into the
+   * holdout. See lib/lead-base/holdout.ts.
+   */
   personalizationGroup?: string | null;
 
   // ── First-touch attribution (gated on `analytics`/`personalization`) ──

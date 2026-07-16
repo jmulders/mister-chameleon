@@ -284,7 +284,19 @@ async function HomeBody({ params }: { params: Record<string, string | string[] |
   // ── Billing side-effect ──────────────────────────────────────────────────
   //
   // Non-blocking; idempotent per (tenant, month, session) triple.
-  recordPersonalizedSession(tenantConfig.tenantId, sessionId).catch(() => null);
+  //
+  // Only counted when we actually served a personalised page. Over the cap the
+  // visitor gets the default experience, so billing them a "personalised
+  // session" would charge for something they did not receive — and would inflate
+  // the very counter that decides the cap.
+  //
+  // sessionCap is passed through from the pipeline, which already computed it to
+  // make that decision; without it this function re-ran the same three queries
+  // on every pageview.
+  if (!result.sessionCap.overLimit) {
+    recordPersonalizedSession(tenantConfig.tenantId, sessionId, result.sessionCap)
+      .catch(() => null);
+  }
 
   // ── Token context ─────────────────────────────────────────────────────────
   //

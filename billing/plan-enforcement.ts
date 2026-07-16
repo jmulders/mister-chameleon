@@ -206,35 +206,59 @@ export async function checkPlanFeature(
  * Uses INSERT … ON CONFLICT DO NOTHING so the same (tenant, month, session)
  * triple is counted only once — idempotent and safe to call multiple times.
  *
+ * ─── Known gap: only the homepage counts ─────────────────────────────────────
+ *
+ *   The only caller is app/(site)/page.tsx. CMS pages (app/(site)/[slug]) run
+ *   the same personalisation via lib/cms-page-decision.ts and DO respect the cap,
+ *   but never record a session. A tenant whose traffic lands mostly on inner
+ *   pages therefore consumes far less of its bundle than it actually uses.
+ *
+ *   Not fixed here on purpose: starting to count those sessions would move every
+ *   existing tenant's usage overnight, which is a pricing decision, not a bug
+ *   fix. Wire it up together with a communication plan.
+ *
+ * ─── Known gap: month boundary ───────────────────────────────────────────────
+ *
+ *   month_key is the UTC calendar month, while Stripe bills from the
+ *   subscription's own anchor date. For a tenant that started on the 15th, the
+ *   cap resets halfway through their invoice period.
+ *
  * @param tenantId  The tenant that served the personalised content.
  * @param sessionId A stable, opaque visitor session token (hashed, no PII).
- * @param monthKey  Calendar month in "YYYY-MM" format (default: current UTC month).
+ * @param cap       The already-computed cap verdict from the pipeline. Pass it —
+ *                  otherwise this re-queries what the caller just worked out.
+ * @param monthKey  Calendar month in "YYYY-MM" format (default: cap's, else now).
  */
 export async function recordPersonalizedSession(
   tenantId:  string,
   sessionId: string,
+  cap?:      SessionCapResult,
   monthKey?: string,
 ): Promise<void> {
   if (!tenantId || !sessionId) return;
 
-  const key = monthKey ?? currentMonthKey();
+  const key = monthKey ?? cap?.monthKey ?? currentMonthKey();
   const db  = getAnyDb();
 
   try {
-    // ── Check if this session is served from purchased bonus credits ──────────
-    // If current count >= plan limit AND tenant has purchased credits, deduct 1.
-    // The RPC is atomic (FOR UPDATE) and writes to session_credit_ledger.
-    const [currentCount, plan, creditBalance] = await Promise.all([
-      getMonthlySessionCount(tenantId, key),
-      getEffectivePlan(tenantId),
-      getSessionCreditBalance(tenantId),
-    ]);
+    // ── Resolve the cap ───────────────────────────────────────────────────────
+    //
+    // The caller (the pipeline) has already computed this to decide whether to
+    // personalise at all — pass it in. This function used to run three queries
+    // of its own on EVERY pageview, duplicating that work and answering the
+    // question after the fact. The fallback keeps older call sites working.
+    const capResult = cap ?? await checkSessionSoftCap(tenantId);
 
-    const planLimit = plan.limits.personalizedSessionsPerMonth;
-    const isOverPlanCap = planLimit > 0 && currentCount >= planLimit;
+    // ── Spend a purchased credit when we are past the plan limit ──────────────
+    //
+    // Only when we actually served a personalised page: over the plan limit AND
+    // credits left. If overLimit is true the visitor got the default page, so
+    // there is nothing to bill — charging there would sell them nothing.
+    const pastPlanLimit =
+      capResult.planLimit > 0 && capResult.current >= capResult.planLimit;
 
-    if (isOverPlanCap && creditBalance > 0) {
-      // Deduct 1 session credit — non-fatal if it fails.
+    if (!capResult.overLimit && pastPlanLimit && capResult.bonusSessions > 0) {
+      // Atomic (FOR UPDATE) and writes to session_credit_ledger. Non-fatal.
       await db.rpc("deduct_session_credit", {
         p_tenant_id: tenantId,
         p_session_id: sessionId,
