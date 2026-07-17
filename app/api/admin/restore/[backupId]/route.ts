@@ -105,7 +105,20 @@ export async function POST(
 
   const nextVersion = ((latest as { version: number } | null)?.version ?? 0) + 1;
 
-  const { data: newEntry, error: insErr } = await db
+  // (db as any) — zoals de 24 andere plekken in deze codebase.
+  //
+  // data/types.ts bevat een HANDGESCHREVEN Database-type. Dat mist per tabel de
+  // door @supabase/postgrest-js vereiste `Relationships`-sleutel, plus Views /
+  // Functions / Enums / CompositeTypes op schemaniveau. Daardoor faalt het type
+  // zijn GenericSchema-constraint en resolvet supabase-js ELKE tabel naar `never`
+  // — niet alleen platform_backups. De getypte client heeft dus nooit iets getypt,
+  // en deze cast verliest geen enkele veiligheid die er was.
+  //
+  // De echte oplossing is genereren i.p.v. handschrijven:
+  //   npx supabase gen types typescript --linked > data/database.types.ts
+  // Daarna kunnen deze 24 casts weg. Zie docs/testing.md.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: newEntry, error: insErr } = await (db as any)
     .from("platform_backups")
     .insert({
       created_by:            session.email ?? "admin",

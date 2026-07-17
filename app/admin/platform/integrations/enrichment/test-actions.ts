@@ -53,6 +53,16 @@ export type TestConnectionResult =
       fields:     TestResultField[];
       /** Round-trip latency in milliseconds. */
       latencyMs:  number;
+      /**
+       * Optional note for a success that still needs explaining.
+       *
+       * The KvK Zoeken test treats a 404 as a pass — the API returns 404 rather
+       * than an empty array when nothing matches — and wants to say so ("test
+       * environment returned no results for 'ING'; this is normal"). It already
+       * returned that string; the type had no field for it, so the message was
+       * dropped and the operator saw a bare green tick with zero fields.
+       */
+      message?:   string;
     }
   | {
       ok:         false;

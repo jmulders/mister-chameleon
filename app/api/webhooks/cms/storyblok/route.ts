@@ -52,7 +52,6 @@ import { logger }                    from "@/lib/logger";
 import { rethrowNextInternal }       from "@/lib/server-action-guard";
 import { mapStoryblokAdaptiveBlock } from "@/cms/mappers/storyblok";
 import { syncAdaptiveBlocksToDB }    from "@/lib/adaptive-blocks/adaptive-blocks-sync";
-import { adaptiveBlockSlug }         from "@/cms/queries/storyblok/adaptive-block-queries";
 import type { StoryblokAdaptiveBlockContent } from "@/cms/queries/storyblok/adaptive-block-queries";
 import {
   STORYBLOK_CDN_BASE_URLS,
@@ -278,6 +277,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 // ── Storyblok slug helper export ───────────────────────────────────────────────
-
-// Re-export voor gebruik in tests of provisioning
-export { adaptiveBlockSlug };
+//
+// Verwijderd: `export { adaptiveBlockSlug };`
+//
+// Een route-bestand mag alleen HTTP-methodes (GET/POST/…) en Next's eigen
+// config-exports exporteren — Next controleert dat in .next/types en gaf hier
+// TS2344. De re-export was bovendien overbodig: adaptiveBlockSlug woont in
+// @/cms/queries/storyblok/adaptive-block-queries en wordt daar al door de
+// barrel (cms/queries/storyblok/index.ts) en door storyblok-provider.ts
+// geïmporteerd. Niemand haalde hem ooit uit deze route.
+//
+// De comment zei "voor gebruik in tests of provisioning". Importeer daar
+// rechtstreeks uit @/cms/queries/storyblok.

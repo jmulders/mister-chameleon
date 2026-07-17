@@ -147,7 +147,15 @@ export async function saveRulesAction(
     updatedAt: new Date().toISOString(),
   };
 
-  const { error } = await getDb()
+  // (getDb() as any) — zie de uitleg bij app/api/admin/backup/route.ts.
+  //
+  // rules_config STAAT gewoon in het handgeschreven Database-type in data/types.ts,
+  // en tsc noemt het toch `never`. Dat is de tell: het schema mist per tabel
+  // `Relationships` (vereist door @supabase/postgrest-js), dus het hele type faalt
+  // zijn constraint en elke tabel wordt never. Genereren lost dit op:
+  //   npx supabase gen types typescript --linked > data/database.types.ts
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (getDb() as any)
     .from("rules_config")
     .upsert(
       {
@@ -179,7 +187,15 @@ export async function resetRulesAction(): Promise<{ ok: true } | { ok: false; er
     updatedAt: new Date().toISOString(),
   };
 
-  const { error } = await getDb()
+  // (getDb() as any) — zie de uitleg bij app/api/admin/backup/route.ts.
+  //
+  // rules_config STAAT gewoon in het handgeschreven Database-type in data/types.ts,
+  // en tsc noemt het toch `never`. Dat is de tell: het schema mist per tabel
+  // `Relationships` (vereist door @supabase/postgrest-js), dus het hele type faalt
+  // zijn constraint en elke tabel wordt never. Genereren lost dit op:
+  //   npx supabase gen types typescript --linked > data/database.types.ts
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (getDb() as any)
     .from("rules_config")
     .upsert(
       {

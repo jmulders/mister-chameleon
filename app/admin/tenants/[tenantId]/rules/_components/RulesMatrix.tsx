@@ -193,7 +193,13 @@ export function RulesMatrix({ config }: RulesMatrixProps) {
   const sorted = [...rules].sort((a, b) => a.priority - b.priority);
 
   function getPlanValue(plan: StoredPlan, slotKey: SlotKey): string | undefined {
-    return (plan as Record<string, string | undefined>)[slotKey];
+    // Direct indexeren, zonder cast. SlotKey is `typeof SLOT_COLUMNS[number]["key"]`
+    // en elke sleutel daarin bestaat op StoredPlan, dus TypeScript kan dit gewoon
+    // opzoeken. De cast naar Record<string, string | undefined> was niet alleen
+    // overbodig maar ook ongeldig (TS2352: geen overlap) — en hij zette de deur
+    // open voor een SLOT_COLUMNS-sleutel die niet op StoredPlan bestaat. Zo blijven
+    // die twee automatisch in de pas.
+    return plan[slotKey];
   }
 
   return (
@@ -315,7 +321,15 @@ export function RulesMatrix({ config }: RulesMatrixProps) {
                   {/* Condition summary */}
                   <td className="px-3 py-2">
                     <span className="text-neutral-500 text-[11px] leading-snug">
-                      {summariseCondition(rule.condition as AnyCondition)}
+                      {/*
+                        `as unknown as` omdat RuleCondition een discriminated union
+                        is en AnyCondition een index-signatuur heeft: die overlappen
+                        structureel niet, dus TS2352. De enkele cast compileerde niet.
+                        summariseCondition leest alleen `type` en dan losse velden met
+                        String(...)/Array.isArray(...) — het is bewust een tolerante
+                        lezer voor UI-tekst, niet een consument van de union.
+                      */}
+                      {summariseCondition(rule.condition as unknown as AnyCondition)}
                     </span>
                   </td>
 
