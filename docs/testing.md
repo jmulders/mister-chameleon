@@ -136,14 +136,16 @@ speed matters". The full suite takes about two seconds, and `test:personalizatio
 is precisely the suite that stays green while the billing is wrong. The weakest
 gate sat on the highest-risk change anyone makes. It runs the full gate now.
 
-### Before the next deploy to production
+### What happened when the gate finally passed
 
-Now that the gate can pass, `supabase db push` will actually run — for the first
-time in months, against production. Expect it to apply roughly 20 migrations
-(20240101000127 … 147). They are already applied to the live database by other
-means (see below), and every DDL statement in them is guarded with
-`IF NOT EXISTS`, so the push should be a no-op. Push to `develop` first and watch
-the staging migrate job before letting `main` run.
+17 July, on `main`, commit 7e19c22: **CI went green.** Lint, typecheck, 285 tests
+and the build, all on a clean checkout. First time.
+
+`Deploy — Production` still failed — at `DB Migrations`, see Known debt below.
+So `supabase db push` has still never run. The ~20 unrecorded migrations
+(20240101000127 … 147) are still waiting, still guarded with `IF NOT EXISTS`,
+still expected to be a no-op against a database that already has those tables.
+Whoever fixes the migrate job finds out.
 
 ### The migration ledger is not one ledger
 
@@ -182,6 +184,69 @@ Do not read the 525 as noise, though. Most are unused variables. Some are not:
 Left as warnings on purpose: fixing them is behaviour change, not cleanup, and
 they were found at the end of a long session. They are real, and they are worth a
 morning.
+
+## Known debt — written down so it stops living in someone's head
+
+Four things are still wrong. None of them break anything today, which is exactly
+why they need writing down: that is the condition under which the last batch
+survived for months.
+
+### 1. `DB Migrations — Production` is red
+
+`Deploy — Production` reaches this job and fails with exit 1 on `supabase link`
+or `supabase db push`. It has never succeeded — the workflow never got past its
+own test gate before 17 July 2026, so everything downstream is untested ground.
+
+Nothing is broken by it *right now*: the schema is already correct (every table
+verified present), and Vercel deploys `main` through its own Git integration, so
+the code ships regardless. What it costs is the future — every migration you
+write from here on will not be applied by the pipeline, and you will keep
+applying schema by hand.
+
+Start with the log of that job. Most likely a missing or stale secret:
+`SUPABASE_ACCESS_TOKEN`, `PRODUCTION_DB_PASSWORD`, `PRODUCTION_SUPABASE_PROJECT_ID`.
+
+### 2. The production environment has no reviewers
+
+`production.yml` has an `Approval Gate` job with `environment: production`. On
+17 July it did not pause — it went straight through to the migrate job. So there
+are no required reviewers configured, and `supabase db push` would have run
+against the production database unattended. It only didn't because it errored.
+
+Two minutes of work: Settings → Environments → production → Required reviewers.
+
+### 3. The migration ledger is not one ledger
+
+See the table above. Two ledgers, three ways of applying schema, and the five
+newest migrations recorded in neither. Pick one path (`supabase db push`, since
+it is the one meant to run unattended), reconcile with `supabase migration
+repair`, delete the other. Blocked on (1).
+
+### 4. The Supabase client has never been typed
+
+`data/types.ts` hand-writes the `Database` type. Every table in it is missing the
+`Relationships` key that @supabase/postgrest-js requires, and the schema is
+missing Views / Functions / Enums / CompositeTypes. So the type fails its
+`GenericSchema` constraint and supabase-js resolves **every** table to `never` —
+including tables that are right there in the file. Verified: adding
+`platform_backups` plus the four schema keys was not enough; `rules_config` is in
+`Tables` and still resolves to `never`.
+
+That is why there are 24 `(db as any)` casts. They were not laziness; they were
+the only way to use the client. Every `db.from(...)` in this codebase is
+effectively `any`, and has been since the file was written.
+
+The fix is one command and a day of consequences:
+
+```
+npx supabase gen types typescript --linked > data/database.types.ts
+```
+
+Then the 24 casts come out, and you find out what they were hiding. Given that
+the equivalent hand-written Stripe shim (types/stripe.d.ts, deleted on 17 July)
+had been actively teaching the codebase that `current_period_end` lives on the
+subscription root — which stopped being true in API 2024-09-30 — expect to find
+something.
 
 ## Enforcement
 
