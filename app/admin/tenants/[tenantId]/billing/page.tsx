@@ -421,6 +421,15 @@ export default async function TenantBillingPage({
     currentBalance,
     usedCredits:      periodSpend,
     purchasedCredits: 0,
+    // The three fields below are all zero because the wallet model has no plan
+    // credit allowance and no overage — see billing/calculator.ts. They are
+    // required on UsageSummary and were simply omitted here, which typechecked
+    // only because next.config ignored build errors. Spelled out rather than
+    // made optional: the calculator reads them, and a silently-undefined number
+    // in a billing path is how `undefined > 0` bugs start.
+    includedCredits:  0,   // no plan allowance — credits are bought separately
+    deductedCredits:  periodSpend,  // raw ledger debits; equals usedCredits with no cap
+    overageCredits:   0,   // there is no overage billing
     periodStart:      walletState?.period_start ?? subscription?.current_period_start ?? null,
     periodEnd:        walletState?.period_end   ?? subscription?.current_period_end   ?? null,
   };

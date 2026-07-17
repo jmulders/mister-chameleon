@@ -18,6 +18,7 @@ import { getDb }          from "@/data/db";
 import {
   getRequiredAdminSession,
   isSuperAdmin,
+  canAccessTenant,
 }                         from "@/lib/admin-auth/authorization";
 import { DEV_TENANT_COOKIE, DEV_TENANT_COOKIE_MAX_AGE } from "@/tenant/dev-tenant-cookie";
 import { validateDesignTokenUpload } from "@/tenant/design-token-validator";
@@ -25,6 +26,7 @@ import { logger } from "@/lib/logger";
 import { provisionTenant }           from "@/cms/seed/tenant-provisioner";
 import { getPackageDefinition, isValidPackageKey } from "@/tenant";
 import { templateKeysToPageEntries }  from "@/page-config";
+import { deletePage }                from "@/page-store";
 import type { TenantSettings, StoreResult, TenantAiSettings, TenantDesignSettings, TenantCmsSettings } from "@/tenant/server";
 import type { DesignTokenUploadInput }  from "@/tenant/design-token-validator";
 import type { TenantTokenOverrides, ThemeKey, TemplateCatalogKey, HeaderVariant, FooterVariant, FooterDensity } from "@/tenant/types";
@@ -3065,4 +3067,65 @@ export async function saveDefaultTokensAction(
     rethrowNextInternal(err);
     return { ok: false, errors: [err instanceof Error ? err.message : String(err)] };
   }
+}
+
+// ── Pages ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Delete a single CMS page belonging to a tenant.
+ *
+ * ─── Why this was missing ────────────────────────────────────────────────────
+ *
+ *   DeletePageButton.tsx has imported `deletePageAction` from this file since it
+ *   was written. The function never existed. Webpack downgrades an unresolved
+ *   import to a warning and next.config set typescript.ignoreBuildErrors, so the
+ *   build said "Compiled successfully" and shipped a Delete button that throws
+ *   "deletePageAction is not a function" the moment anyone confirms the dialog.
+ *   Nothing in the admin has ever been deletable this way.
+ *
+ *   (The same shape as app/api/billing/cancel-subscription importing a `getStripe`
+ *   that never existed. Two in one codebase, both found by turning the typecheck
+ *   back on.)
+ *
+ * ─── Access ──────────────────────────────────────────────────────────────────
+ *
+ *   Requires an admin session with access to this tenant. `canAccessTenant`
+ *   rather than `assertTenantAccess`: the latter redirects, which is right for a
+ *   layout but wrong here — the client expects `{ ok, error }` so it can show the
+ *   reason in the confirmation dialog.
+ *
+ *   tenantId is passed to deletePage() as well, so scoping is enforced at the
+ *   query too: a page id from another tenant simply is not found.
+ *
+ * @returns `{ ok: true }`, or `{ ok: false, error }` with a message the operator
+ *          can act on. Never throws — the button surfaces `error` in an alert.
+ */
+export async function deletePageAction(
+  tenantId: string,
+  pageId:   string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!tenantId) return { ok: false, error: "Tenant ID is required." };
+  if (!pageId)   return { ok: false, error: "Page ID is required." };
+
+  const session = await getRequiredAdminSession();
+  if (!(await canAccessTenant(session, tenantId))) {
+    return { ok: false, error: "You do not have access to this tenant." };
+  }
+
+  try {
+    const removed = await deletePage(pageId, tenantId);
+    if (!removed) {
+      return { ok: false, error: "Page not found, or it belongs to another tenant." };
+    }
+  } catch (err) {
+    logger.error("[deletePageAction] delete failed", {
+      tenantId, pageId, error: err instanceof Error ? err.message : String(err),
+    });
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  // The list is a Server Component — revalidate so the row disappears without
+  // the client having to refetch or reload.
+  revalidatePath(`/admin/tenants/${tenantId}/pages`);
+  return { ok: true };
 }

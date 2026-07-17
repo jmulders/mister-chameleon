@@ -32,6 +32,16 @@
   ],
   "exclude": [
     "node_modules",
-    "apps"
+    "apps",
+    // Build artifacts and archives — not source, and their errors are not ours.
+    //
+    // `include` is "**/*.ts", so without these tsc typechecks a built Storybook
+    // bundle and Sanity schemas from a backup taken in April. Two of the 44
+    // errors in the first honest `npm run typecheck` came from backups/.
+    // ESLint had exactly the same blind spot, and there it was worse:
+    // storybook-static/ supplied all 354 of its errors and kept CI red for
+    // months, over generated code nobody wrote.
+    "backups",
+    "storybook-static"
   ]
 }
