@@ -28,7 +28,7 @@
 import { NextRequest, NextResponse } from "next/server";
 // Eén lijst, gedeeld met de backup — anders drijven ze uit elkaar en herstelt
 // een restore net die tabellen niet die de backup net wel meenam.
-import { BACKUP_TABLES } from "@/app/api/admin/backup/route";
+import { BACKUP_TABLES } from "@/lib/backup/backup-tables";
 import { getRequiredAdminSession }   from "@/lib/admin-auth/authorization";
 import { getDb }                     from "@/data/db";
 import type { BackupMeta }           from "@/app/api/admin/backup/route";
