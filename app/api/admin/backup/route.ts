@@ -36,9 +36,29 @@ const MAX_BACKUPS = 20;
  * Ordered so FK constraints are satisfied on restore.
  * Analytics / event tables are intentionally excluded.
  */
+// ─── Wat hier NIET in staat ──────────────────────────────────────────────────
+//
+// Dit dekt 13 van de 105 tabellen. Twee namen die er wél in stonden bestaan niet
+// in de database: "tenants" en "scoring_rules". Regel ~112 hieronder slaat
+// ontbrekende tabellen stil over ("Skip tables that don't exist in this
+// environment"), dus die twee deden al niets — alleen zei niemand het.
+//
+// "scoring_rules" was vermoedelijk bedoeld als `behavior_scoring_rules`. Die
+// heeft 74 rijen. Ze zitten niet in je backup. Net zomin als:
+//
+//   behavior_scoring_rules    74     tenant_interest_profiles  34
+//   adaptive_blocks           59     interest_profiles         26
+//   audience_segments         21     site_navigation           10
+//   tenant_pipeline_stages     9     tenant_wallets             2
+//
+// Dat is de hele tenant-configuratie plus de creditsaldi van klanten.
+//
+// Bewust NIET uitgebreid op 17 juli 2026: welke tabellen in een backup horen is
+// een beslissing over wat je bij verlies terug wilt kunnen zetten, en in welke
+// volgorde (FK's). Dat is werk, geen opruiming. De twee spoken zijn hier alleen
+// verwijderd omdat ze niets deden en de typecheck blokkeerden.
 const BACKUP_TABLES = [
   // Platform / global
-  "tenants",
   "admin_users",
   "platform_settings",
   // Per-tenant config
@@ -54,7 +74,6 @@ const BACKUP_TABLES = [
   "billing_plans",
   "subscriptions",
   "credit_balance",
-  "scoring_rules",
 ] as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────

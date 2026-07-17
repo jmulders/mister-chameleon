@@ -181,7 +181,7 @@ interface DomainRowProps {
   tenantId:      string;
   vercelEnabled: boolean;
   onUpdated:     (updated: TenantDomainRow) => void;
-  onRemoved:     (id: string) => void;
+  onRemoved:     (id: number) => void;
 }
 
 function DomainRow({ domain, tenantId, vercelEnabled, onUpdated, onRemoved }: DomainRowProps) {
@@ -360,7 +360,7 @@ export function TenantDomainsPanel({
     );
   }
 
-  function handleDomainRemoved(id: string) {
+  function handleDomainRemoved(id: number) {
     setDomains((prev) => prev.filter((d) => d.id !== id));
   }
 

@@ -76,9 +76,21 @@ export async function POST(
     const CHUNK = 500;
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK) as Record<string, unknown>[];
-      const { error } = await db
+      // `db as any` — hier terecht, en het blijft.
+      //
+      // `table` komt uit de opgeslagen backup-JSON, dus het is een echte string:
+      // TypeScript kan niet weten of het een bestaande tabelnaam is, en dat is
+      // niet op te lossen met een beter type. De 42P01-check hieronder is de
+      // runtime-controle die dit afdekt.
+      //
+      // (Overweging voor later: eerst valideren dat `table` in BACKUP_TABLES
+      // staat. Een restore schrijft nu naar elke tabelnaam die in de JSON staat.
+      // Die rijen zijn admin-gemaakt, dus het risico is klein — maar het is wel
+      // een schrijfpad dat door data wordt gestuurd.)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (db as any)
         .from(table)
-        .upsert(chunk as never[], { onConflict: "id", ignoreDuplicates: false });
+        .upsert(chunk, { onConflict: "id", ignoreDuplicates: false });
 
       if (error) {
         if (error.code === "42P01") break; // table gone — skip silently

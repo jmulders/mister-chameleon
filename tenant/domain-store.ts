@@ -282,7 +282,7 @@ export async function addDomain(
  * @param opts    Optional Vercel metadata to update at the same time.
  */
 export async function updateDomainStatus(
-  id:     string,
+  id:     number,
   status: DomainStatus,
   opts: {
     vercelDomainId?:     string;
@@ -326,15 +326,19 @@ export async function updateDomainStatus(
  * client does not expose transaction APIs).  The brief inconsistency between
  * the two writes is acceptable for an admin-only operation.
  *
- * @param id        UUID of the tenant_domains row to promote.
+ * @param id        bigint primary key of the tenant_domains row to promote.
  * @param tenantId  The owning tenant (enforced in both WHERE clauses).
  */
 export async function setPrimaryDomain(
-  id:       string,
+  id:       number,
   tenantId: string,
 ): Promise<DomainStoreResult<TenantDomainRow>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- hand-written Database types lag the schema; payloads are validated by the DB.
-  const db  = getDb() as any;
+  // `getDb()` zonder cast. Hier stond `getDb() as any`, met de reden
+  // "hand-written Database types lag the schema". Dat klopte — maar niet zoals
+  // bedoeld: het type miste `Relationships` per tabel, dus supabase-js verwierp
+  // het hele schema en resolvede ELKE tabel naar `never`. De cast was de enige
+  // manier om de client te gebruiken. De types komen nu uit `supabase gen types`.
+  const db  = getDb();
   const now = new Date().toISOString();
 
   // Step 1 — clear is_primary on every domain for this tenant.
@@ -385,11 +389,11 @@ export async function setPrimaryDomain(
  * scoped to both the row ID and the tenant, so a misconfigured caller cannot
  * accidentally delete another tenant's domain.
  *
- * @param id        UUID of the tenant_domains row to delete.
+ * @param id        bigint primary key of the tenant_domains row to delete.
  * @param tenantId  The owning tenant (enforced in the WHERE clause).
  */
 export async function removeDomain(
-  id:       string,
+  id:       number,
   tenantId: string,
 ): Promise<DomainStoreResult<void>> {
   const { error } = await getDb()
