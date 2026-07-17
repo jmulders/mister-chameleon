@@ -15,8 +15,21 @@ here it passes there, which is the whole reason it is one command.
 | `npm run verify` | lint → typecheck → all tests. The gate. |
 | `npm run typecheck` | `next typegen && tsc --noEmit` |
 | `npm test` | every `tests/**/*.test.ts` |
+| `npm run test:verbose` | the same, with the full spec output — for when you are reading one suite |
+| `npm run test:watch` | spec output, re-runs on save |
 | `npm run test:release-check` | the golden scenarios only — fast confidence before a deploy |
 | `npm run test:billing` | everything under `tests/billing/` |
+
+### On the output
+
+The test scripts use the `dot` reporter: one dot per test, and failures printed
+in full at the end. A green `verify` is about 30 lines.
+
+That is deliberate. The first version of these scripts used the default `spec`
+reporter and printed **2,449 lines on success** — the whole suite narrating every
+passing test. Which is the same disease as the red CI nobody read: output you
+cannot take in is output you stop looking at, and then a real failure scrolls past
+in the same wall of green. If you want the narration, `npm run test:verbose`.
 
 ## Why this document exists
 
