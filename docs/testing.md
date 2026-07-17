@@ -176,14 +176,26 @@ compact view.
 
 Do not read the 525 as noise, though. Most are unused variables. Some are not:
 
-| rule | where | what it means |
+| rule | where | status |
 |---|---|---|
-| `react-hooks/set-state-in-effect` (5) | ConsentBanner, CookieDeclaration, cart-context | setState called synchronously in an effect body — cascading renders. Production components, including the consent banner. |
-| `react-hooks/static-components` (30) | ScenarioControlPanel | `Section` and `Row` are declared inside render, so they are new component types every render and their state resets. Dev-only panel, but it is why that panel feels flaky. |
+| `react-hooks/static-components` (30) | ScenarioControlPanel | **Fixed.** `Section` and `Row` were declared inside render, so React saw a new component type every render and rebuilt the tree. Now `LiveSection` / `LiveRow` at module level, with `open`/`toggle` passed as props instead of closed over. |
+| `react-hooks/set-state-in-effect` (5) | ConsentBanner, CookieDeclaration, cart-context | **Open, deliberately.** |
 
-Left as warnings on purpose: fixing them is behaviour change, not cleanup, and
-they were found at the end of a long session. They are real, and they are worth a
-morning.
+### Why set-state-in-effect is still there
+
+The right fix is `useSyncExternalStore`, and it fits unusually well:
+`onConsentChange` is already a subscribe function and `getConsent` is already a
+snapshot — that hook exists for exactly this shape.
+
+The catch is that `useSyncExternalStore` requires `getSnapshot` to return a
+*cached* value. `getConsent()` returns `window.__mc_consent`, and calls
+`initConsentStore()` first. If that ever hands back a fresh object, the result is
+an infinite render loop — on the consent banner, in production, for every
+visitor. That is a much larger problem than the warning being fixed, and the
+warning says "can hurt performance", not "this is broken".
+
+So: verify that `getConsent()` returns a stable reference across calls, then
+convert. Do not convert first.
 
 ## Known debt — written down so it stops living in someone's head
 
