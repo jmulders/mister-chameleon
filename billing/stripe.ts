@@ -180,6 +180,46 @@ async function getOrCreateTestStripeCustomer(
   return customer.id;
 }
 
+// ── Calendar-month billing anchor ─────────────────────────────────────────────
+
+/**
+ * The Unix timestamp (seconds) of 00:00:00 UTC on the next 1st of the month.
+ *
+ * ─── Why every subscription anchors to the 1st ───────────────────────────────
+ *
+ *   The session bundle resets on `month_key`, a UTC calendar month (see
+ *   billing/plan-enforcement.ts). Stripe's default anchor is the signup moment,
+ *   so a tenant who subscribed on the 27th was invoiced 27th→27th while their
+ *   cap reset on the 1st. Their paid period straddled two monthly buckets: up to
+ *   two full bundles for one month's money, with nothing in the system noticing.
+ *
+ *   Anchoring here to 00:00 UTC on the 1st makes the invoice period and the cap
+ *   window the same window, by construction rather than by coincidence. Stripe
+ *   prorates the partial first month automatically (proration_behavior defaults
+ *   to create_prorations): subscribe on the 15th, pay half a month, then full
+ *   months from the 1st.
+ *
+ * ─── On the timezone ─────────────────────────────────────────────────────────
+ *
+ *   00:00 UTC, not 00:00 Amsterdam, on purpose. month_key is derived from a UTC
+ *   ISO string, so a local-midnight anchor would reintroduce the same drift this
+ *   fixes — just smaller (one or two hours instead of two weeks). The cost is
+ *   that a Dutch tenant's month rolls over at 01:00/02:00 local; two hours of
+ *   1 July traffic book to June. Both numbers agree with each other and with the
+ *   invoice, which is what matters. Label it in the dashboard, don't "fix" it.
+ *
+ *   Always in the future and never more than ~31 days out, so it satisfies
+ *   Stripe's constraint that the anchor fall within one billing interval.
+ */
+export function nextCalendarMonthStartUnix(now: Date = new Date()): number {
+  const firstOfNextMonth = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth() + 1, // Date.UTC rolls December → January of the next year
+    1, 0, 0, 0, 0,
+  );
+  return Math.floor(firstOfNextMonth / 1000);
+}
+
 // ── Checkout sessions ──────────────────────────────────────────────────────────
 
 export interface CheckoutSessionOptions {
@@ -241,6 +281,11 @@ export async function createCheckoutSession(
         tenant_id: opts.tenantId,
         plan_id:   opts.planId,
       },
+      // Bill on the 1st, like the cap resets on the 1st. Without this Stripe
+      // anchors to the signup moment and the two windows drift apart — see
+      // nextCalendarMonthStartUnix. proration_behavior is left at its default
+      // (create_prorations), so the partial first month is charged pro rata.
+      billing_cycle_anchor: nextCalendarMonthStartUnix(),
     },
   });
 
