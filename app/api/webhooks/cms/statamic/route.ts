@@ -111,9 +111,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // pas na de TTL. Dit maakt het veilig om STATAMIC_REVALIDATE_SECONDS te verhogen
   // voor minder Ploi-round-trips zonder verlies van versheid.
   try {
-    revalidateTag(STATAMIC_CACHE_TAG);
-  } catch {
+    // Het tweede argument is in Next 16 verplicht: revalidateTag(tag, profile).
+    // Deze aanroep gaf er één mee. Samen met de catch hieronder — die alles
+    // opslokt — betekende dat: als deze aanroep gooide, invalideerde de cache
+    // stil niet en meldde de webhook nog steeds succes. De storyblok-webhook en
+    // /api/revalidate geven `{}` mee; hier ontbrak het.
+    revalidateTag(STATAMIC_CACHE_TAG, {});
+  } catch (err) {
     // Non-fatal — revalidation mag de webhook-afhandeling nooit breken.
+    // Wél loggen: een stille catch is precies hoe dit maandenlang onzichtbaar bleef.
+    logger.warn("[webhooks/statamic] revalidateTag mislukt — content blijft stale tot de TTL", {
+      tag: STATAMIC_CACHE_TAG, error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   // Alleen adaptive_blocks collection verwerken

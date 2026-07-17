@@ -21,7 +21,13 @@
  *   full-flush             — Flush all in-process caches (optionally scoped to one tenant).
  */
 export type InvalidationEvent =
-  | { type: "cms-content-updated";   tenantId: string }
+  // tenantId is nullable: a CMS webhook payload may carry no tenantId, and the
+  // cache layer has always handled that — pruneCmsCacheForTenant() takes
+  // `string | null | undefined` and buckets it under "_". The event type said
+  // `string`, so /api/revalidate could not pass its own `string | null` through.
+  // Narrowing the caller instead (skip when null) would have been worse: a
+  // webhook without a tenantId would then invalidate nothing at all.
+  | { type: "cms-content-updated";   tenantId: string | null }
   | { type: "tenant-config-changed"; tenantId: string }
   | { type: "session-reset";         sessionId: string }
   | { type: "full-flush";            tenantId?: string };
