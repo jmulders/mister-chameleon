@@ -19,6 +19,20 @@ const eslintConfig = defineConfig([
     "apps/studio/dist/**",
     "apps/studio/#/**",
     "apps/studio/node_modules/**",
+    // Built Storybook output (`npm run build-storybook`). Minified bundles of
+    // React, axe and Storybook's own runtime — not our source, and not fixable.
+    //
+    // This is where all 354 lint errors came from. `globals-runtime.js` alone
+    // scores 85 (36 × react-hooks/rules-of-hooks, 22 × react-hooks/refs, …)
+    // because eslint dutifully applies our React rules to bundled vendor code.
+    // Our actual source has 5 errors across app/ and components/.
+    //
+    // Flat config does NOT read .gitignore, which is the trap: the directory is
+    // absent from .gitignore too, so nothing anywhere excluded it. `npm run lint`
+    // reported 14,100 problems, the lint job in every workflow failed on them,
+    // and because that job runs first, tsc and the tests never got a turn.
+    // Months of red CI, over a build artifact.
+    "storybook-static/**",
     // Test helper scripts
     "test-smpt.js",
   ]),

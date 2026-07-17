@@ -24,6 +24,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { deployStatamicSiteAction }  from "@/app/admin/tenants/[tenantId]/actions";
 import type { DeployStatamicResult, DeployStatamicStep } from "@/app/admin/tenants/[tenantId]/types";
 
@@ -136,9 +137,9 @@ export function StatamicDeployPanel({
         <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
           <p className="text-xs text-amber-800">
             Forge is not configured yet. Go to{" "}
-            <a href="/admin/platform/integrations/forge" className="font-medium underline">
+            <Link href="/admin/platform/integrations/forge" className="font-medium underline">
               Platform → Integrations → Forge
-            </a>{" "}
+            </Link>{" "}
             to add your API token and deployment defaults.
           </p>
         </div>

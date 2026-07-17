@@ -12,6 +12,7 @@
  */
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { provisionTenantCmsAction } from "@/app/admin/tenants/[tenantId]/actions";
 
 export function TenantProvisionCard({ tenantId }: { tenantId: string }) {
@@ -40,7 +41,7 @@ export function TenantProvisionCard({ tenantId }: { tenantId: string }) {
         Creates this tenant&apos;s GitHub repo from the template (full copy, incl. fieldsets)
         and its Ploi Cloud application in one step. No <code className="font-mono">mc:sync</code> needed —
         fieldsets bake into the image. Configure tokens in{" "}
-        <a href="/admin/platform/integrations/provisioning" className="font-medium text-blue-600 underline">Integrations → Provisioning</a>.
+        <Link href="/admin/platform/integrations/provisioning" className="font-medium text-blue-600 underline">Integrations → Provisioning</Link>.
       </p>
 
       <div className="mt-3 flex items-center gap-3">

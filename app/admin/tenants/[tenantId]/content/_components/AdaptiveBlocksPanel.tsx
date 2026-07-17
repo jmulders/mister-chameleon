@@ -23,6 +23,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useMemo } from "react";
+import Link from "next/link";
 import type { AdaptiveBlockData, AdaptiveVariantContent, AdaptiveVariantEntry } from "@/cms/types";
 import { ADAPTIVE_SLOT_REGISTRY } from "@/decision/types";
 import {
@@ -737,9 +738,9 @@ function SlotSection({ slotId, keyPrefix, blocks, tenantId, onRefresh, onNewBloc
           </p>
           <p className="mt-0.5 text-[11px] text-neutral-400">
             Go to the{" "}
-            <a href="/admin/platform/blocks" className="underline hover:text-neutral-600">
+            <Link href="/admin/platform/blocks" className="underline hover:text-neutral-600">
               platform blocks catalog
-            </a>{" "}
+            </Link>{" "}
             to create them.
           </p>
         </div>

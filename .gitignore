@@ -16,6 +16,9 @@ node_modules
 
 # next.js
 /.next/
+
+# built Storybook output (npm run build-storybook) — 13 MB of vendor bundles
+/storybook-static/
 /out/
 
 # production

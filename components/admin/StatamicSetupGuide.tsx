@@ -10,6 +10,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 
 interface Props {
   tenantId:        string;
@@ -64,9 +65,9 @@ export function StatamicSetupGuide({
       <h2 className="text-sm font-semibold text-neutral-900">Statamic instance — setup steps</h2>
       <p className="mt-1 text-xs text-neutral-500">
         Stand up a fresh Statamic instance on Ploi and wire it to this tenant. Full guide:{" "}
-        <a href="/admin/platform/docs/provision-statamic-tenant" className="font-medium text-blue-600 underline hover:text-blue-800">
+        <Link href="/admin/platform/docs/provision-statamic-tenant" className="font-medium text-blue-600 underline hover:text-blue-800">
           provision-statamic-tenant
-        </a>.
+        </Link>.
       </p>
 
       <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-xs text-neutral-700 marker:text-neutral-400">
