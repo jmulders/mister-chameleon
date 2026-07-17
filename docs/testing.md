@@ -35,10 +35,13 @@ in the same wall of green. If you want the narration, `npm run test:verbose`.
 
 ## Why this document exists
 
-On 17 July 2026 the test suite had 26 failures and `tsc --noEmit` had ~56 errors.
-CI had been running all three gates on every push to `main` for months, and had
-been red the whole time. Because the lint job was red, the Build job (`needs:
-[lint]`) never ran either.
+On 17 July 2026 CI had been red for months: 354 lint errors (all from a committed
+Storybook bundle), ~44 type errors, and a test job that could not start at all
+because it ran on Node 20.
+
+CI had been running all three gates on every push to `main` the whole time, and
+had been red the whole time. Because the lint job was red, the Build job
+(`needs: [lint]`) never ran either.
 
 Nothing was broken by that in the obvious way. What it cost was subtler: with the
 gate already red, a new red meant nothing, so real problems arrived unannounced —
@@ -50,7 +53,23 @@ build said "Compiled successfully" through all of it.
 The lesson is not "write more tests". It is that **a gate nobody can read is not
 a gate**, and a red gate becomes unreadable within a week.
 
-### One trap worth knowing about
+### Two traps worth knowing about
+
+**Node version.** The test runner needs `--experimental-transform-types`, which
+arrived in Node 22.6. Every workflow pinned `node-version: "20"`, so
+`npm test` died instantly with `node: bad option` and exit 9 — on every run,
+since the day the flag was added. The tests have never executed in CI. Not
+"26 red": zero run. Nobody saw it because the lint job was red above it.
+
+`.nvmrc` already said 22 and every developer had 22 locally. Nothing connected
+the two. The workflows now use `node-version-file: ".nvmrc"`, so there is one
+place that decides, and `package.json` has `engines: { node: ">=22.6" }` so npm
+says something the moment the version is wrong.
+
+That is the shape of this whole day in one line: the right answer was written
+down, and nothing read it.
+
+### The next-env.d.ts trap
 
 ~18 of those 56 type errors were not code. `next-env.d.ts` and `.next/types/` are
 both gitignored, and `tsconfig.json` includes them — `next-env.d.ts` is what
