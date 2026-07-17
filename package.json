@@ -14,7 +14,7 @@
     "test": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/**/*.test.ts'",
     "test:cms": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/cms/*.test.ts'",
     "test:personalization": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/personalization/*.test.ts'",
-    "test:release-check": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/personalization/golden-flows.test.ts'",
+    "test:release-check": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/personalization/golden-flows.test.ts' './tests/billing/billing-flow.test.ts'",
     "studio": "cd apps/studio && npm run dev",
     "studio:install": "cd apps/studio && npm install",
     "storybook": "storybook dev -p 6006",
@@ -31,7 +31,8 @@
     "upload:logos": "npx tsx cms/seed/upload-logos.ts",
     "upload:logos:dry": "npx tsx cms/seed/upload-logos.ts --dry-run",
     "seed:all": "npm run seed:variants && npm run seed:marketing",
-    "deploy:seed": "npm run build && npm run seed:all"
+    "deploy:seed": "npm run build && npm run seed:all",
+    "test:billing": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test './tests/billing/*.test.ts'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

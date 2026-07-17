@@ -85,18 +85,30 @@ const nextConfig = {
   ],
 
   // ── TypeScript ──────────────────────────────────────────────────────────────
-  // The generated Supabase Database types are currently missing a handful of
-  // tables (domain_store, tenant_settings), causing TS2769/TS2345 errors in
-  // tenant/domain-store.ts and tenant/tenant-store.ts.  These are pre-existing
-  // type-generation issues that do not affect runtime behaviour; the queries
-  // execute correctly.  Suppress them here so Vercel builds succeed while the
-  // types are kept in sync with the actual schema.
+  // ── Why there is no typescript.ignoreBuildErrors here ───────────────────────
   //
-  // TODO: regenerate Supabase types after all migrations are applied:
+  // There was: `typescript: { ignoreBuildErrors: true }`, added for TS2769/TS2345
+  // in tenant/domain-store.ts and tenant/tenant-store.ts from stale generated
+  // Supabase types. Those files typecheck clean now, so the stated reason is
+  // gone — but the flag was global and permanent, and it is what let each of
+  // these ship without a word:
+  //
+  //   • cms-page-decision.ts calling checkSessionSoftCap(tenantConfig.tenantId)
+  //     in a file that has no tenantConfig — in the billing path.
+  //   • cancel-subscription importing a `getStripe` that never existed.
+  //   • blueprints/write-cms-pages.ts reading tenant.id (undefined) and scoping
+  //     a CMS provider to no tenant while writing that tenant's pages.
+  //   • Two blocks whose props silently became `any` because the @/page-config
+  //     barrel did not export the types they imported.
+  //
+  // Webpack downgrades a bad import to a warning, so "Compiled successfully" was
+  // never evidence of much. If a deploy now fails on a type error: that is the
+  // feature. Fix the error rather than restoring the flag, and run
+  // `npm run verify` first — the same three gates CI applies.
+  //
+  // If the generated Supabase types drift again:
   //   npx supabase gen types typescript --linked > types/supabase.ts
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // typescript.ignoreBuildErrors is deliberately NOT set. See the note above.
 
   images: {
     // ── Sanity CDN ──────────────────────────────────────────────────────────

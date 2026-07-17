@@ -12,6 +12,8 @@
  *   E  Post-Conversion    — form submitted, very_high, customer onboarding unlocked
  *   F  Customer Expansion — existing customer revisiting pricing, expansion CTA
  *   G  Churn Risk         — low activity + friction, intent rule suppressed to defaults
+ *   H  Holdout Control     — sampled into the baseline; gets the tenant's defaultPlan
+ *   I  Over the Cap        — monthly bundle exhausted; also defaultPlan, labelled "capped"
  *
  * ─── Assertions per scenario ─────────────────────────────────────────────────
  *
@@ -32,6 +34,11 @@ import assert           from "node:assert/strict";
 
 import { RulesDecisionProvider } from "@/decision/providers/rules-decision-provider";
 import { applyConfidenceGating } from "@/decision/apply-confidence-gating";
+import {
+  assignPersonalizationGroup,
+  applySessionCap,
+  servesDefaultExperience,
+}                                from "@/lib/lead-base/holdout";
 import { buildJourney, buildInput, RULES_CONFIG, DEFAULT_PLAN } from "./_fixtures";
 
 function makeProvider() {
@@ -445,5 +452,124 @@ describe("Scenario G — Churn Risk", () => {
   it("theme is stripped", async () => {
     const out = await runPipeline(makeChurnRiskJourney());
     assert.strictEqual(out.plan.themeKey, undefined);
+  });
+});
+
+// ── Scenario H: Holdout Control ───────────────────────────────────────────────
+
+describe("Scenario H — Holdout Control", () => {
+  /**
+   * A visitor sampled into the holdout: the random baseline the lift report
+   * measures everything else against.
+   *
+   * They must see the tenant's defaultPlan — not "the intent rule minus a few
+   * slots". The distinction matters because the rules engine sits UNDER the
+   * segment/ABM/AI layers: suppressing only those still leaves source and device
+   * adaptation running, and a "control" group that quietly got personalised makes
+   * the lift number meaningless in the safest-looking way possible.
+   *
+   * Expected:
+   *   group   = control (deterministic per visitor key)
+   *   plan    = defaultPlan, whatever the journey says
+   *   rule    = none matched (so plan experiments cannot fire either)
+   */
+  function controlVisitorKey(): string {
+    // Find a key that lands in the holdout at 50% — deterministic, no test flake.
+    for (let i = 0; i < 500; i++) {
+      const k = `visitor-h-${i}`;
+      if (assignPersonalizationGroup(k, 50) === "control") return k;
+    }
+    throw new Error("no control-bucketed key found — assignPersonalizationGroup changed?");
+  }
+
+  it("is assigned to control, and stays there on every request", () => {
+    const key = controlVisitorKey();
+    assert.strictEqual(assignPersonalizationGroup(key, 50), "control");
+    assert.strictEqual(assignPersonalizationGroup(key, 50), "control");
+  });
+
+  it("control is served the default experience", () => {
+    assert.strictEqual(servesDefaultExperience("control"), true);
+  });
+
+  it("gets defaultPlan even as a high-intent Google visitor", async () => {
+    const j        = buildJourney({ funnelStage: "high_intent" });
+    const input    = buildInput(j, { utmSource: "google" });
+    // servesDefaultExperience("control") → forceDefaultPlan, exactly as the
+    // pipelines wire it.
+    const provider = new RulesDecisionProvider(RULES_CONFIG, true);
+    const plan     = await provider.getHomepagePlan(input);
+
+    assert.deepStrictEqual(plan, RULES_CONFIG.defaultPlan);
+    assert.notStrictEqual(plan.heroKey, "hero_google_problem");
+  });
+
+  it("reports no matched rule, so no plan experiment can bucket them", async () => {
+    const input    = buildInput(buildJourney({ funnelStage: "high_intent" }), { utmSource: "google" });
+    const provider = new RulesDecisionProvider(RULES_CONFIG, true);
+    await provider.getHomepagePlan(input);
+    assert.strictEqual(provider.lastMatchedRuleId, null);
+  });
+
+  it("the SAME visitor outside the holdout does get personalised", async () => {
+    // The control of the control. Without this, a provider that always returned
+    // defaultPlan would pass every assertion above.
+    const input    = buildInput(buildJourney({ funnelStage: "high_intent" }), { utmSource: "google" });
+    const provider = new RulesDecisionProvider(RULES_CONFIG, false);
+    const plan     = await provider.getHomepagePlan(input);
+    assert.strictEqual(plan.heroKey, "hero_google_problem");
+  });
+});
+
+// ── Scenario I: Over the monthly cap ──────────────────────────────────────────
+
+describe("Scenario I — Over the Cap", () => {
+  /**
+   * The tenant's monthly session bundle is exhausted and no purchased credits
+   * remain. The visitor gets the default experience — the same page a control
+   * visitor sees, but for a completely different reason.
+   *
+   * Labelled "capped", never "control": the control group is a RANDOM sample,
+   * which is the only thing that makes it a valid baseline. Capped visitors are
+   * whoever happened to arrive late in a busy month. Folding them in would
+   * inflate the baseline with self-selected traffic in exactly the months with
+   * the most traffic, and the lift report would keep printing a number.
+   */
+  it("the cap overrides the cohort, including for control visitors", () => {
+    assert.strictEqual(applySessionCap("personalized", true), "capped");
+    assert.strictEqual(applySessionCap("control",      true), "capped");
+  });
+
+  it("under the cap, the holdout draw stands", () => {
+    assert.strictEqual(applySessionCap("personalized", false), "personalized");
+    assert.strictEqual(applySessionCap("control",      false), "control");
+  });
+
+  it("capped is served the default experience", () => {
+    assert.strictEqual(servesDefaultExperience("capped"), true);
+  });
+
+  it("a capped LinkedIn visitor gets defaultPlan, not hero_linkedin_vision", async () => {
+    const input    = buildInput(buildJourney({}), { source: "linkedin", utmSource: "linkedin" });
+    const capped   = applySessionCap(assignPersonalizationGroup("visitor-i-1", 0), true);
+    const provider = new RulesDecisionProvider(RULES_CONFIG, servesDefaultExperience(capped));
+    const plan     = await provider.getHomepagePlan(input);
+
+    assert.strictEqual(capped, "capped");
+    assert.deepStrictEqual(plan, RULES_CONFIG.defaultPlan);
+  });
+
+  it("confidence gating does not resurrect personalisation for a capped visitor", async () => {
+    // Gating runs after the provider. It can only ever remove slots, never add
+    // them — pin that, so the cap cannot be undone downstream.
+    const j        = buildJourney({ funnelStage: "high_intent" });
+    const input    = buildInput(j, { utmSource: "google" });
+    const provider = new RulesDecisionProvider(RULES_CONFIG, true);
+    const rawPlan  = await provider.getHomepagePlan(input);
+    const { plan } = applyConfidenceGating(rawPlan, j, DEFAULT_PLAN);
+
+    assert.strictEqual(plan.heroKey,  DEFAULT_PLAN.heroKey);
+    assert.strictEqual(plan.proofKey, DEFAULT_PLAN.proofKey);
+    assert.strictEqual(plan.ctaKey,   DEFAULT_PLAN.ctaKey);
   });
 });

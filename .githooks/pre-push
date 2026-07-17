@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# pre-push — run the same gates CI runs, before the push instead of after.
+#
+# ─── Why this exists ─────────────────────────────────────────────────────────
+#
+#   CI has always run lint + typecheck + tests on every push. It was red for
+#   months and nobody looked, because by the time it goes red the code is already
+#   on main and the terminal has moved on. This puts the answer in front of you
+#   while you are still holding the change.
+#
+#   It is a convenience, not the gate. CI is the gate — it runs on a clean
+#   checkout with a fresh `npm ci`, which is the only environment that catches
+#   "works on my machine". Branch protection on main is what makes CI binding;
+#   see docs/testing.md.
+#
+# ─── Install ─────────────────────────────────────────────────────────────────
+#
+#   git config core.hooksPath .githooks
+#
+#   Checked in on purpose (unlike .git/hooks, which git cannot version), so the
+#   whole team gets the same gate from one command.
+#
+# ─── Escape hatch ────────────────────────────────────────────────────────────
+#
+#   git push --no-verify
+#
+#   Deliberately available: a hook that cannot be skipped gets uninstalled the
+#   first time it is wrong. Skipping is a choice you make once; CI still has the
+#   final say.
+
+set -e
+
+printf '\n[pre-push] lint + typecheck + tests — the same three gates as CI.\n'
+printf '[pre-push] Skip with --no-verify (CI will still run them).\n\n'
+
+if ! npm run verify; then
+  printf '\n[pre-push] BLOCKED — one of the gates failed.\n'
+  printf '[pre-push] Run `npm run verify` to see it again, or `git push --no-verify` to override.\n\n'
+  exit 1
+fi
+
+printf '\n[pre-push] Green. Pushing.\n\n'
