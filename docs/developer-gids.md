@@ -82,9 +82,11 @@ De CMS-app heeft een eigen `.env` + `.env.example`. Die `.env.example` is groten
 |---|---|
 | `npm run dev` | `next dev` |
 | `npm run build` | `next build --webpack` (bewust webpack) |
+| **`npm run verify`** | **lint + typecheck + tests — de poort. Draai dit vóór je pusht.** Zie `docs/testing.md`. |
 | `npm run lint` | `eslint` |
-| `npx tsc --noEmit` | Typecheck. **Er is geen `typecheck`-script**; CI draait dit. |
+| `npm run typecheck` | `next typegen && tsc --noEmit`. De `typegen` is niet optioneel: `next-env.d.ts` staat in `.gitignore` en is precies wat TypeScript leert dat `fetch` Next's `{ next: { revalidate } }` accepteert. Zonder die stap meldt `tsc` ~18 fouten die op geen enkele machine bestaan — dat is waarom CI maandenlang rood stond. |
 | `npm test` | Node test runner over `tests/**/*.test.ts` |
+| `npm run test:release-check` | De golden scenario's: personalisatie + facturatie. Snelle check vóór een deploy. |
 | `npm run db:migrate` | `npx tsx scripts/migrate.ts` |
 | `npm run dev:stripe` | `stripe listen --forward-to localhost:3000/api/webhooks/stripe` |
 | `npm run storybook` | `storybook dev -p 6006` |

@@ -6,7 +6,9 @@
 npm run verify        # lint + typecheck + tests — the same three gates CI runs
 ```
 
-Run it before you push. The pre-push hook runs it for you (see Install below).
+Run it before you push. The pre-push hook runs it for you (see Enforcement
+below), and CI runs the identical command on a clean checkout — so if it passes
+here it passes there, which is the whole reason it is one command.
 
 | Command | What it does |
 |---|---|
@@ -80,6 +82,56 @@ Include the mirror assertion. Scenario H ends with "the same visitor outside the
 holdout DOES get personalised" — without it, a provider that returned the default
 plan unconditionally would pass every other assertion in the block.
 
+## The pipeline runs the same command
+
+`ci.yml`, `staging.yml`, `production.yml` and `hotfix.yml` all run `npm run
+verify` — the same command as the pre-push hook and as you. That is the point:
+five copies of "lint, then tsc, then test" is five things that can drift, and
+they had.
+
+They had drifted in the worst possible way. All four called `npx tsc --noEmit`
+without `next typegen`, so all four failed on a clean checkout for a reason that
+does not exist on any developer's machine. `staging.yml` and `production.yml`
+gate their deploy on that job (`needs: [test]` → `migrate` → `deploy`), so the
+deploy pipeline had not run past the gate in months. The site was still live
+because Vercel deploys from its own Git integration — but `supabase db push`
+lives in the pipeline, and it never ran.
+
+`hotfix.yml` was worse: it ran `test:personalization` only, labelled "fast path —
+speed matters". The full suite takes about two seconds, and `test:personalization`
+is precisely the suite that stays green while the billing is wrong. The weakest
+gate sat on the highest-risk change anyone makes. It runs the full gate now.
+
+### Before the next deploy to production
+
+Now that the gate can pass, `supabase db push` will actually run — for the first
+time in months, against production. Expect it to apply roughly 20 migrations
+(20240101000127 … 147). They are already applied to the live database by other
+means (see below), and every DDL statement in them is guarded with
+`IF NOT EXISTS`, so the push should be a no-op. Push to `develop` first and watch
+the staging migrate job before letting `main` run.
+
+### The migration ledger is not one ledger
+
+There are two, and neither is complete:
+
+| ledger | written by | rows | last |
+|---|---|---|---|
+| `_migrations` | `npm run db:migrate` | 116 | 23 June 2026 |
+| `supabase_migrations.schema_migrations` | `supabase db push` (and the Supabase MCP) | 130 | 30 June 2026 |
+| files in `supabase/migrations/` | — | 136 | `…147_lead_suppressions` |
+
+The five newest migrations (ad_sync, ad_sync_audience_members,
+visitor_profiles_attribution, ad_conversions, lead_suppressions) are recorded in
+**neither** — their tables exist because the SQL was executed directly.
+
+So three ways of changing the schema, two ledgers, and the newest tables in no
+ledger at all. The schema happens to be correct; nothing knows why. Pick one path
+(the pipeline's `supabase db push` is the obvious candidate, since it is the one
+that runs unattended), reconcile the ledgers with `supabase migration repair`,
+and delete the other. Until then, "is production migrated?" can only be answered
+by looking at the tables.
+
 ## Enforcement
 
 Three layers, weakest to strongest.
@@ -104,7 +156,7 @@ switched on in the repo settings — it cannot be committed. In GitHub:
 
 > Settings → Branches → Add branch ruleset → target `main`
 >   - ✅ Require a pull request before merging
->   - ✅ Require status checks to pass → add **Lint & Type Check**, **Tests**, **Build**
+>   - ✅ Require status checks to pass → add **Verify (lint + typecheck + tests)** and **Build**
 >   - ✅ Require branches to be up to date before merging
 >   - ✅ Do not allow bypassing the above settings
 

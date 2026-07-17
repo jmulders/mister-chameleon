@@ -41,9 +41,13 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npm run lint
-      - run: npx tsc --noEmit
-      - run: npm test
+      # One command, so this gate cannot drift from ci.yml or from what a
+      # developer runs locally. It was three separate steps here, in ci.yml and
+      # in production.yml — and all three called `npx tsc --noEmit` without
+      # `next typegen` first, so all three failed on a clean checkout (next-env.d.ts
+      # is gitignored). Because migrate/deploy need this job, nothing downstream
+      # has run. `npm run verify` = lint + typecheck (typegen + tsc) + tests.
+      - run: npm run verify
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 2. Apply DB migrations to staging Supabase project

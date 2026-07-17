@@ -29,9 +29,10 @@
 - [ ] My code follows the style of this project
 - [ ] I have performed a self-review of my code
 - [ ] I have added/updated comments for complex logic
-- [ ] TypeScript passes (`npx tsc --noEmit`)
-- [ ] Linting passes (`npm run lint`)
-- [ ] Tests pass (`npm test`)
+- [ ] `npm run verify` passes (lint + typecheck + tests — the same gate CI runs)
+- [ ] If this touches billing or personalisation: a golden scenario covers it
+      (`tests/billing/billing-flow.test.ts` / `tests/personalization/golden-flows.test.ts`),
+      and I watched it fail before the fix
 
 ## Screenshots (if UI change)
 

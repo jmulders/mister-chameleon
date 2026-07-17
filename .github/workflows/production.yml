@@ -44,9 +44,10 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npm run lint
-      - run: npx tsc --noEmit
-      - run: npm test
+      # See the note in staging.yml: one command, so the gate cannot drift.
+      # This job stands between a push to main and `supabase db push` on the
+      # production database — it is the last thing that runs before migrations.
+      - run: npm run verify
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 2. Manual approval gate (configure in Settings → Environments → production)

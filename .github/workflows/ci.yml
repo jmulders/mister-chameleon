@@ -18,49 +18,28 @@ concurrency:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
-  # 1. Lint + type-check
+  # 1. Verify — lint + typecheck + tests
   # ─────────────────────────────────────────────────────────────────────────────
-  lint:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: ESLint
-        run: npm run lint
-
-      # Generate next-env.d.ts and .next/types/routes.d.ts.
-      #
-      # Both are gitignored, so a fresh checkout does not have them — but
-      # tsconfig.json includes them, and next-env.d.ts is what teaches
-      # TypeScript about Next's additions to RequestInit (`fetch(url, { next:
-      # { revalidate } })`). Without this step tsc reported ~18 errors that do
-      # not exist on any developer's machine, this job went red, the Build job
-      # (needs: [lint]) never ran, and the whole gate quietly stopped meaning
-      # anything. Cheap: typegen skips the full build.
-      - name: Generate Next.js types
-        run: npx next typegen
-
-      - name: TypeScript
-        run: npm run typecheck
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # 2. Unit & integration tests
-  # ─────────────────────────────────────────────────────────────────────────────
-  test:
-    name: Tests
+  #
+  # One job running one command, because the three used to be spelled out
+  # separately here, in staging.yml, in production.yml and in hotfix.yml — five
+  # copies of the same idea, and they had drifted. All of them called
+  # `npx tsc --noEmit` without `next typegen`, which fails on a clean checkout for
+  # a reason that exists on no developer's machine: next-env.d.ts and .next/types
+  # are gitignored, tsconfig.json includes them, and next-env.d.ts is what teaches
+  # TypeScript about Next's additions to RequestInit
+  # (`fetch(url, { next: { revalidate } })`).
+  #
+  # So this job was red, Build (needs: [verify]) never ran, and the deploy
+  # workflows never got past their own copy of it either. `npm run verify` is the
+  # same command the pre-push hook runs, so local and CI cannot disagree.
+  verify:
+    name: Verify (lint + typecheck + tests)
     runs-on: ubuntu-latest
     env:
-      # These are safe placeholder values for test mode.
-      # The tests use mock adapters and do not hit real services.
+      # Safe placeholders for test mode — the tests use mock adapters and never
+      # reach a real service. Set on this job because it now runs the tests too;
+      # when lint/typecheck and tests were separate jobs, only the second had them.
       NODE_ENV: test
       NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.TEST_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.TEST_SUPABASE_ANON_KEY }}
@@ -78,16 +57,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Verify
+        run: npm run verify
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # 3. Build check (confirms Next.js builds without errors)
+  # 2. Build check (confirms Next.js builds without errors)
   # ─────────────────────────────────────────────────────────────────────────────
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint]
+    needs: [verify]
     env:
       NEXT_PUBLIC_SUPABASE_URL:       ${{ secrets.STAGING_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY:  ${{ secrets.STAGING_SUPABASE_ANON_KEY }}

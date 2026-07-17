@@ -26,7 +26,7 @@ on:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
-  # Fast CI for hotfix branches (no build step — speed matters)
+  # CI for hotfix branches — same gate as everything else, minus the build step.
   # ─────────────────────────────────────────────────────────────────────────────
   hotfix-ci:
     name: Hotfix CI
@@ -50,14 +50,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Tests (fast path — personalisation suite only)
-        run: npm run test:personalization
+      # The full gate, same as ci.yml / staging.yml / production.yml.
+      #
+      # This used to be lint + `npx tsc --noEmit` + `npm run test:personalization`,
+      # described as a "fast path — speed matters". Two problems with that:
+      #
+      #   1. The full suite runs in about two seconds. There was nothing to save.
+      #   2. test:personalization is exactly the suite that stays green while the
+      #      billing is wrong — it asks whether the visitor gets the right page,
+      #      never whether the tenant is charged the right amount. Every leak
+      #      found on 17 July would have sailed through it.
+      #
+      # So the weakest gate was on the highest-risk, most time-pressured change
+      # anyone makes. Now it is the same gate as everything else.
+      - name: Verify (lint + typecheck + tests)
+        run: npm run verify
 
       - name: Post hotfix instructions
         if: github.event_name == 'push'
