@@ -21,6 +21,14 @@ CREATE INDEX IF NOT EXISTS idx_form_submissions_tenant_id
   ON form_submissions (tenant_id)
   WHERE tenant_id IS NOT NULL;
 
+-- De kolom heet submitted_at, niet created_at. Hier stond `created_at DESC`, en
+-- dat is nooit opgevallen omdat dit bestand versie 000095 deelde met
+-- credit_wallet_numeric.sql: de CLI zag er één van de twee, dus deze migratie is
+-- nooit gedraaid. De tenant_id-kolom en de eerste index staan er wel — ooit met
+-- losse SQL toegepast — maar deze index niet. Toen `supabase db push` het bestand
+-- voor het eerst echt uitvoerde (17 juli 2026), viel hij binnen een seconde om.
+--
+-- Twee jaar lang was dit een kapotte migratie die niemand kon zien.
 CREATE INDEX IF NOT EXISTS idx_form_submissions_tenant_created
-  ON form_submissions (tenant_id, created_at DESC)
+  ON form_submissions (tenant_id, submitted_at DESC)
   WHERE tenant_id IS NOT NULL;
