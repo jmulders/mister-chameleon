@@ -162,11 +162,19 @@ visitor_profiles_attribution, ad_conversions, lead_suppressions) are recorded in
 **neither** — their tables exist because the SQL was executed directly.
 
 So three ways of changing the schema, two ledgers, and the newest tables in no
-ledger at all. The schema happens to be correct; nothing knows why. Pick one path
-(the pipeline's `supabase db push` is the obvious candidate, since it is the one
-that runs unattended), reconcile the ledgers with `supabase migration repair`,
-and delete the other. Until then, "is production migrated?" can only be answered
-by looking at the tables.
+ledger at all. The schema happens to be correct; nothing knows why.
+
+**Do not hand-write the ledger to fix this.** It is tempting — insert the missing
+versions into `supabase_migrations.schema_migrations` and move on — and it is
+wrong. That asserts "this migration is applied" based on the tables existing,
+without checking every column, index and policy in those files. Mark a
+half-applied migration as done and it is never completed, and nobody finds out.
+
+`supabase db push` does it better: those migrations are idempotent (every DDL
+statement is guarded with `IF NOT EXISTS` — counted, all 21), so it applies them,
+proves they are complete by doing so, and writes the ledger itself. Fixing the
+migrate job reconciles the ledger as a side effect, correctly. Then pick one path
+and delete the other.
 
 ## The 525 warnings
 
@@ -176,14 +184,26 @@ compact view.
 
 Do not read the 525 as noise, though. Most are unused variables. Some are not:
 
-| rule | where | what it means |
+| rule | where | status |
 |---|---|---|
-| `react-hooks/set-state-in-effect` (5) | ConsentBanner, CookieDeclaration, cart-context | setState called synchronously in an effect body — cascading renders. Production components, including the consent banner. |
-| `react-hooks/static-components` (30) | ScenarioControlPanel | `Section` and `Row` are declared inside render, so they are new component types every render and their state resets. Dev-only panel, but it is why that panel feels flaky. |
+| `react-hooks/static-components` (30) | ScenarioControlPanel | **Fixed.** `Section` and `Row` were declared inside render, so React saw a new component type every render and rebuilt the tree. Now `LiveSection` / `LiveRow` at module level, with `open`/`toggle` passed as props instead of closed over. |
+| `react-hooks/set-state-in-effect` (5) | ConsentBanner, CookieDeclaration, cart-context | **Open, deliberately.** |
 
-Left as warnings on purpose: fixing them is behaviour change, not cleanup, and
-they were found at the end of a long session. They are real, and they are worth a
-morning.
+### Why set-state-in-effect is still there
+
+The right fix is `useSyncExternalStore`, and it fits unusually well:
+`onConsentChange` is already a subscribe function and `getConsent` is already a
+snapshot — that hook exists for exactly this shape.
+
+The catch is that `useSyncExternalStore` requires `getSnapshot` to return a
+*cached* value. `getConsent()` returns `window.__mc_consent`, and calls
+`initConsentStore()` first. If that ever hands back a fresh object, the result is
+an infinite render loop — on the consent banner, in production, for every
+visitor. That is a much larger problem than the warning being fixed, and the
+warning says "can hurt performance", not "this is broken".
+
+So: verify that `getConsent()` returns a stable reference across calls, then
+convert. Do not convert first.
 
 ## Known debt — written down so it stops living in someone's head
 
@@ -193,18 +213,35 @@ survived for months.
 
 ### 1. `DB Migrations — Production` is red
 
-`Deploy — Production` reaches this job and fails with exit 1 on `supabase link`
-or `supabase db push`. It has never succeeded — the workflow never got past its
-own test gate before 17 July 2026, so everything downstream is untested ground.
+`Deploy — Production` reaches this job and fails with exit 1. It has never
+succeeded — the workflow never got past its own test gate before 17 July 2026, so
+everything behind that gate is untested ground, and it shows.
 
-Nothing is broken by it *right now*: the schema is already correct (every table
-verified present), and Vercel deploys `main` through its own Git integration, so
-the code ships regardless. What it costs is the future — every migration you
-write from here on will not be applied by the pipeline, and you will keep
-applying schema by hand.
+Two things were found without even reading the log:
 
-Start with the log of that job. Most likely a missing or stale secret:
-`SUPABASE_ACCESS_TOKEN`, `PRODUCTION_DB_PASSWORD`, `PRODUCTION_SUPABASE_PROJECT_ID`.
+  • **The health check pointed at the wrong domain.** `misterchameleon.com`, in
+    four places, including the check that decides whether a production deploy
+    counts as successful. The site is `www.misterchameleon.nl` — that is what
+    tenant/production-tenants.ts has as canonicalHostname. So even with working
+    secrets, the deploy would have "failed" against someone else's domain.
+    Fixed.
+
+  • **A missing secret produced a cryptic exit 1.** `supabase link --project-ref`
+    with an empty value fails with a parse error about a flag, not with "you have
+    no project ref". Both migrate jobs now run a preflight that names the missing
+    secret.
+
+What remains is the actual cause, which needs the log: most likely
+`SUPABASE_ACCESS_TOKEN`, `PRODUCTION_DB_PASSWORD` or
+`PRODUCTION_SUPABASE_PROJECT_ID`. The preflight will now say which.
+
+Also unverified: `staging.misterchameleon.nl` must exist and be attached to the
+Vercel project, or the alias step fails. That job has never run either.
+
+Nothing is broken by any of this *right now*: the schema is already correct
+(every table verified present), and Vercel deploys `main` through its own Git
+integration, so the code ships regardless. What it costs is the future — every
+migration you write from here on will not be applied by the pipeline.
 
 ### 2. The production environment has no reviewers
 

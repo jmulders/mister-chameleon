@@ -212,10 +212,10 @@ export async function addDomainAction(
  * Always deletes the DB row regardless of Vercel outcome.
  */
 export async function removeDomainAction(
-  id:       string,
+  id:       number,
   tenantId: string,
 ): Promise<RemoveDomainActionResult> {
-  if (!id?.trim() || !tenantId?.trim()) {
+  if (!Number.isFinite(id) || !tenantId?.trim()) {
     return { ok: false, error: "id and tenantId are required." };
   }
 
@@ -254,10 +254,10 @@ export async function removeDomainAction(
  * Scoped to tenantId so a misconfigured call cannot affect other tenants.
  */
 export async function setPrimaryDomainAction(
-  id:       string,
+  id:       number,
   tenantId: string,
 ): Promise<SetPrimaryDomainActionResult> {
-  if (!id?.trim() || !tenantId?.trim()) {
+  if (!Number.isFinite(id) || !tenantId?.trim()) {
     return { ok: false, error: "id and tenantId are required." };
   }
 
@@ -281,10 +281,10 @@ export async function setPrimaryDomainAction(
  * nothing to check without credentials.
  */
 export async function checkDomainAction(
-  id:       string,
+  id:       number,
   tenantId: string,
 ): Promise<CheckDomainActionResult> {
-  if (!id?.trim() || !tenantId?.trim()) {
+  if (!Number.isFinite(id) || !tenantId?.trim()) {
     return { ok: false, error: "id and tenantId are required." };
   }
 

@@ -60,7 +60,7 @@ jobs:
 
       - name: Alias production domain to previous deployment
         run: |
-          # PRODUCTION_DOMAIN secret should be set to your live domain (e.g. misterchameleon.com).
+          # PRODUCTION_DOMAIN secret should be set to your live domain (www.misterchameleon.nl).
           # Falls back to the Vercel project default URL if the secret is not set.
           DOMAIN="${{ secrets.PRODUCTION_DOMAIN }}"
           if [ -z "$DOMAIN" ]; then

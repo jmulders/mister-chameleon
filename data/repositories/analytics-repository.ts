@@ -30,6 +30,7 @@
  */
 
 import { getDb } from "../db";
+import type { Json } from "@/data/types";
 import { logger } from "@/lib/logger";
 import type { RepositoryResult } from "./sessions-repository";
 import type { SessionRow, ServedVariantRow, EventRow } from "../types";
@@ -46,11 +47,19 @@ import type { SessionRow, ServedVariantRow, EventRow } from "../types";
 // exists on the events table, this can be replaced with a server-side filter.
 
 function matchesTenant(
-  row: { payload?: Record<string, unknown> | null },
+  row: { payload?: Json | null },
   tenantId: string,
 ): boolean {
-  const payload = row.payload as Record<string, unknown> | null | undefined;
-  const tid = payload?.["_tid"];
+  // `Json`, want dat is wat de kolom is: jsonb houdt ook scalars en arrays.
+  // Daarom een echte objectcheck in plaats van de oude cast naar
+  // Record<string, unknown> — die deed alsof, en klopte toevallig.
+  //
+  // Gedrag is identiek: een payload die geen object is heeft geen _tid, en een
+  // event zonder _tid hoort bij elke tenant (zie de oude `tid === undefined`).
+  const payload = row.payload;
+  if (payload === null || payload === undefined) return true;
+  if (typeof payload !== "object" || Array.isArray(payload)) return true;
+  const tid = payload["_tid"];
   return tid === undefined || tid === null || tid === tenantId;
 }
 
@@ -681,7 +690,7 @@ export async function fetchVariantPerformance(
   // Legacy rows (no _tid in payload) are included for all tenants to preserve
   // historical attribution continuity.
   const clickRows = tenantId
-    ? allClickRows.filter((r) => matchesTenant(r as { payload?: Record<string, unknown> }, tenantId))
+    ? allClickRows.filter((r) => matchesTenant(r as { payload?: Json }, tenantId))
     : allClickRows;
 
   // Build lookup structures for the in-memory join.

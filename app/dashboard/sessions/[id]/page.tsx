@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Json } from "@/data/types";
 import { notFound } from "next/navigation";
 import { fetchSessionDetail } from "@/data/repositories/analytics-repository";
 import type { SessionRow, ServedVariantRow, EventRow } from "@/data/types";
@@ -327,11 +328,17 @@ function EventTypeBadge({ eventType }: { eventType: string }) {
   );
 }
 
-function PayloadDisplay({ payload }: { payload: Record<string, unknown> }) {
+/**
+ * `payload: Json` — de kolom is jsonb en kan dus ook null, een string of een
+ * array zijn. Het type zei `Record<string, unknown>`, maar de eerste regel
+ * hieronder checkte al op `payload === null`: de code wist het, het type ontkende
+ * het. Nu zijn ze het eens.
+ */
+function PayloadDisplay({ payload }: { payload: Json }) {
   const isEmpty =
     payload === null ||
     payload === undefined ||
-    Object.keys(payload).length === 0;
+    (typeof payload === "object" && !Array.isArray(payload) && Object.keys(payload).length === 0);
 
   if (isEmpty) {
     return <span className="text-xs text-neutral-300">{"{}"}</span>;

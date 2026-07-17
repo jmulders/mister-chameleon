@@ -77,6 +77,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ── Preflight: zeg wélk secret ontbreekt ────────────────────────────────
+      #
+      # Zonder dit is een leeg secret een cryptische exit 1: `supabase link
+      # --project-ref` zonder waarde faalt met een parse-fout over een vlag, niet
+      # met "je hebt geen project ref". Deze job is nog nooit geslaagd, dus alles
+      # hierachter is ongetest terrein — dan wil je dat de eerste hobbel zichzelf
+      # aanwijst.
+      - name: Check secrets
+        run: |
+          MISSING=""
+          [ -z "$SUPABASE_ACCESS_TOKEN" ] && MISSING="$MISSING SUPABASE_ACCESS_TOKEN"
+          [ -z "$SUPABASE_DB_PASSWORD" ]  && MISSING="$MISSING PRODUCTION_DB_PASSWORD"
+          [ -z "$PRODUCTION_PROJECT_ID" ]     && MISSING="$MISSING PRODUCTION_SUPABASE_PROJECT_ID"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Ontbrekende secrets:$MISSING"
+            echo ""
+            echo "Zet ze in Settings → Secrets and variables → Actions."
+            echo "Environment secrets (scope: production) hebben voorrang op repository secrets."
+            exit 1
+          fi
+          echo "Alle drie de secrets zijn gezet."
+
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -97,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://misterchameleon.com
+      url: https://www.misterchameleon.nl
     env:
       VERCEL_ORG_ID:     ${{ secrets.VERCEL_TEAM_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -125,12 +147,17 @@ jobs:
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
+      # www.misterchameleon.nl — het canonicalHostname uit
+      # tenant/production-tenants.ts. Hier stond misterchameleon.com: een domein
+      # dat niet van ons is. Dus zelfs mét werkende secrets zou deze health check
+      # falen op andermans site, en zou de deploy "mislukt" heten terwijl er niets
+      # mis was. Derde reden waarom deze keten nooit kon slagen.
       - name: Post-deploy health check
         run: |
           sleep 10
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://misterchameleon.com/api/health)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://www.misterchameleon.nl/api/health)
           if [ "$STATUS" != "200" ]; then
-            echo "Production health check FAILED: HTTP $STATUS"
+            echo "Production health check FAILED op https://www.misterchameleon.nl/api/health: HTTP $STATUS"
             exit 1
           fi
           echo "Production health check PASSED: HTTP $STATUS"

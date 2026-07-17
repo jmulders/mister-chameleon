@@ -25,6 +25,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequiredAdminSession }   from "@/lib/admin-auth/authorization";
 import { getDb }                     from "@/data/db";
+import { BACKUP_TABLES }             from "@/lib/backup/backup-tables";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -36,26 +37,7 @@ const MAX_BACKUPS = 20;
  * Ordered so FK constraints are satisfied on restore.
  * Analytics / event tables are intentionally excluded.
  */
-const BACKUP_TABLES = [
-  // Platform / global
-  "tenants",
-  "admin_users",
-  "platform_settings",
-  // Per-tenant config
-  "tenant_settings",
-  "tenant_domains",
-  "tenant_email_transport",
-  "tenant_form_settings",
-  "tenant_form_overrides",
-  "context_variable_metadata",
-  "rules_config",
-  "pages",
-  // Billing config
-  "billing_plans",
-  "subscriptions",
-  "credit_balance",
-  "scoring_rules",
-] as const;
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

@@ -1621,6 +1621,54 @@ function WhyThisTab({ journey }: { journey: JourneyState | null }) {
 
 // ── Tab 3: Live State ─────────────────────────────────────────────────────────
 
+// ── LiveStateTab sub-componenten ──────────────────────────────────────────────
+//
+// Buiten LiveStateTab gedeclareerd, niet erbinnen.
+//
+// Ze stonden in de render-body, wat betekent dat React ze bij elke render als een
+// NIEUW componenttype ziet: de oude boom wordt weggegooid en opnieuw opgebouwd,
+// en alle state erin reset. Voor Row is dat onzichtbaar (hij heeft geen state),
+// maar Section's open/dicht zat in de parent en overleefde het per toeval.
+// react-hooks/static-components meldde dit 30 keer.
+//
+// Section krijgt `open` en `toggle` nu als props in plaats van via een closure —
+// dat is precies de reden dat hij binnen de render stond.
+
+function LiveRow({ label, value }: { label: string; value: string | number | boolean | null }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2,
+      borderBottom: "1px solid #f1f5f9", paddingBottom: 2 }}>
+      <span style={{ color: "#9ca3af" }}>{label}</span>
+      <span style={{ fontWeight: 600, color: "#374151", fontFamily: "monospace", fontSize: 10 }}>
+        {String(value ?? "—")}
+      </span>
+    </div>
+  );
+}
+
+function LiveSection({ k, title, open, toggle, children }: {
+  k:        string;
+  title:    string;
+  open:     Record<string, boolean>;
+  toggle:   (k: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginBottom: 5 }}>
+      <button onClick={() => toggle(k)}
+        style={{ width: "100%", display: "flex", justifyContent: "space-between",
+          background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 6,
+          padding: "4px 8px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#374151" }}>
+        <span>{title}</span><span>{open[k] ? "▲" : "▼"}</span>
+      </button>
+      {open[k] && <div style={{ border: "1px solid #e5e7eb", borderTop: "none",
+        borderRadius: "0 0 5px 5px", padding: "7px 9px", fontSize: 11, background: "#fff" }}>
+        {children}
+      </div>}
+    </div>
+  );
+}
+
 function LiveStateTab({ journey, mergedEventCount, onRefresh, lastRefreshed }: {
   journey: JourneyState | null;
   mergedEventCount: number;
@@ -1673,35 +1721,6 @@ function LiveStateTab({ journey, mergedEventCount, onRefresh, lastRefreshed }: {
     </div>
   );
 
-  function Section({ k, title, children }: { k: string; title: string; children: React.ReactNode }) {
-    return (
-      <div style={{ marginBottom: 5 }}>
-        <button onClick={() => toggle(k)}
-          style={{ width: "100%", display: "flex", justifyContent: "space-between",
-            background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 6,
-            padding: "4px 8px", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#374151" }}>
-          <span>{title}</span><span>{open[k] ? "▲" : "▼"}</span>
-        </button>
-        {open[k] && <div style={{ border: "1px solid #e5e7eb", borderTop: "none",
-          borderRadius: "0 0 5px 5px", padding: "7px 9px", fontSize: 11, background: "#fff" }}>
-          {children}
-        </div>}
-      </div>
-    );
-  }
-
-  function Row({ label, value }: { label: string; value: string | number | boolean | null }) {
-    return (
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2,
-        borderBottom: "1px solid #f1f5f9", paddingBottom: 2 }}>
-        <span style={{ color: "#9ca3af" }}>{label}</span>
-        <span style={{ fontWeight: 600, color: "#374151", fontFamily: "monospace", fontSize: 10 }}>
-          {String(value ?? "—")}
-        </span>
-      </div>
-    );
-  }
-
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
@@ -1717,45 +1736,45 @@ function LiveStateTab({ journey, mergedEventCount, onRefresh, lastRefreshed }: {
           </button>
         </div>
       </div>
-      <Section k="scores" title="📊 Scores">
-        <Row label="Intent Score"        value={journey.intentScore} />
-        <Row label="Short-term Intent"   value={journey.shortTermIntentScore} />
-        <Row label="Long-term Affinity"  value={journey.longTermAffinityScore} />
-        <Row label="Engagement Score"    value={journey.engagementScore} />
-        <Row label="Friction Score"      value={journey.frictionScore} />
-        <Row label="Sequence Score"      value={journey.sequenceScore} />
-        <Row label="Signal Diversity"    value={pct(journey.signalDiversityScore)} />
-      </Section>
-      <Section k="confidence" title="🎯 Confidence">
-        <Row label="Overall"             value={pct(journey.confidence.overallConfidence)} />
-        <Row label="Band"                value={journey.confidence.band} />
-        <Row label="Intent Confidence"   value={pct(journey.confidence.intentConfidence)} />
-        <Row label="Sequence Confidence" value={pct(journey.confidence.sequenceConfidence)} />
-        <Row label="Funnel Confidence"   value={pct(journey.confidence.funnelStageConfidence)} />
-      </Section>
-      <Section k="flags" title="🚩 Page Flags">
-        <Row label="Visited Pricing"  value={journey.hasVisitedPricing} />
-        <Row label="Visited About"    value={journey.hasVisitedAbout} />
-        <Row label="Visited Cases"    value={journey.hasVisitedCases} />
-        <Row label="Visited Contact"  value={journey.hasVisitedContact} />
-        <Row label="Clicked CTA"      value={journey.hasClickedCta} />
-        <Row label="Form Starts"      value={journey.formStartCount} />
-        <Row label="Form Submitted"   value={journey.hasSubmittedForm} />
-      </Section>
-      <Section k="counts" title="📋 Counts">
-        <Row label="Page Views"   value={journey.pageViewCount} />
-        <Row label="CTA Clicks"   value={journey.ctaClickCount} />
-      </Section>
+      <LiveSection open={open} toggle={toggle} k="scores" title="📊 Scores">
+        <LiveRow label="Intent Score"        value={journey.intentScore} />
+        <LiveRow label="Short-term Intent"   value={journey.shortTermIntentScore} />
+        <LiveRow label="Long-term Affinity"  value={journey.longTermAffinityScore} />
+        <LiveRow label="Engagement Score"    value={journey.engagementScore} />
+        <LiveRow label="Friction Score"      value={journey.frictionScore} />
+        <LiveRow label="Sequence Score"      value={journey.sequenceScore} />
+        <LiveRow label="Signal Diversity"    value={pct(journey.signalDiversityScore)} />
+      </LiveSection>
+      <LiveSection open={open} toggle={toggle} k="confidence" title="🎯 Confidence">
+        <LiveRow label="Overall"             value={pct(journey.confidence.overallConfidence)} />
+        <LiveRow label="Band"                value={journey.confidence.band} />
+        <LiveRow label="Intent Confidence"   value={pct(journey.confidence.intentConfidence)} />
+        <LiveRow label="Sequence Confidence" value={pct(journey.confidence.sequenceConfidence)} />
+        <LiveRow label="Funnel Confidence"   value={pct(journey.confidence.funnelStageConfidence)} />
+      </LiveSection>
+      <LiveSection open={open} toggle={toggle} k="flags" title="🚩 Page Flags">
+        <LiveRow label="Visited Pricing"  value={journey.hasVisitedPricing} />
+        <LiveRow label="Visited About"    value={journey.hasVisitedAbout} />
+        <LiveRow label="Visited Cases"    value={journey.hasVisitedCases} />
+        <LiveRow label="Visited Contact"  value={journey.hasVisitedContact} />
+        <LiveRow label="Clicked CTA"      value={journey.hasClickedCta} />
+        <LiveRow label="Form Starts"      value={journey.formStartCount} />
+        <LiveRow label="Form Submitted"   value={journey.hasSubmittedForm} />
+      </LiveSection>
+      <LiveSection open={open} toggle={toggle} k="counts" title="📋 Counts">
+        <LiveRow label="Page Views"   value={journey.pageViewCount} />
+        <LiveRow label="CTA Clicks"   value={journey.ctaClickCount} />
+      </LiveSection>
       {journey.matchedSequences.length > 0 && (
-        <Section k="sequences" title="🔗 Sequences">
-          {journey.matchedSequences.map((s) => <Row key={s} label={s} value="matched ✓" />)}
-        </Section>
+        <LiveSection open={open} toggle={toggle} k="sequences" title="🔗 Sequences">
+          {journey.matchedSequences.map((s) => <LiveRow key={s} label={s} value="matched ✓" />)}
+        </LiveSection>
       )}
-      <Section k="timing" title="🕐 Timing">
-        <Row label="First seen"   value={journey.firstSeenAt ? new Date(journey.firstSeenAt).toLocaleString() : "—"} />
-        <Row label="Last seen"    value={journey.lastSeenAt  ? new Date(journey.lastSeenAt).toLocaleString()  : "—"} />
-        <Row label="From DB"      value={journey.fromDatabase} />
-      </Section>
+      <LiveSection open={open} toggle={toggle} k="timing" title="🕐 Timing">
+        <LiveRow label="First seen"   value={journey.firstSeenAt ? new Date(journey.firstSeenAt).toLocaleString() : "—"} />
+        <LiveRow label="Last seen"    value={journey.lastSeenAt  ? new Date(journey.lastSeenAt).toLocaleString()  : "—"} />
+        <LiveRow label="From DB"      value={journey.fromDatabase} />
+      </LiveSection>
     </div>
   );
 }

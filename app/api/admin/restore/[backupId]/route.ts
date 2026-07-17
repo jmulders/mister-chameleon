@@ -26,6 +26,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+// Eén lijst, gedeeld met de backup — anders drijven ze uit elkaar en herstelt
+// een restore net die tabellen niet die de backup net wel meenam.
+import { BACKUP_TABLES } from "@/lib/backup/backup-tables";
 import { getRequiredAdminSession }   from "@/lib/admin-auth/authorization";
 import { getDb }                     from "@/data/db";
 import type { BackupMeta }           from "@/app/api/admin/backup/route";
@@ -66,19 +69,45 @@ export async function POST(
   }
 
   // ── Restore each table ────────────────────────────────────────────────────
+  //
+  // In BACKUP_TABLES-volgorde, niet in JSON-sleutelvolgorde.
+  //
+  // Die twee zijn nu hetzelfde — de backup schrijft de keys in die volgorde weg
+  // en V8 bewaart insertion order — maar dan hangt je foreign-key-volgorde aan
+  // een impliciete eigenschap van de JSON-parser. Expliciet is het een regel die
+  // je kunt lezen en die blijft kloppen als iemand een backup met de hand
+  // aanpast of samenvoegt.
+  //
+  // Keys die niet in BACKUP_TABLES staan (een oudere backup, een tabel die
+  // sindsdien hernoemd is) gaan daarna, zodat er niets stil verdwijnt.
   const tableData = b.data ?? {};
   const errors: string[] = [];
 
-  for (const [table, rows] of Object.entries(tableData)) {
+  const known   = BACKUP_TABLES.filter((t) => t in tableData).map((t) => [t, tableData[t]] as const);
+  const unknown = Object.entries(tableData).filter(([t]) => !(BACKUP_TABLES as readonly string[]).includes(t));
+
+  for (const [table, rows] of [...known, ...unknown]) {
     if (!Array.isArray(rows) || rows.length === 0) continue;
 
     // Chunk to stay within Supabase request size limits
     const CHUNK = 500;
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK) as Record<string, unknown>[];
-      const { error } = await db
+      // `db as any` — hier terecht, en het blijft.
+      //
+      // `table` komt uit de opgeslagen backup-JSON, dus het is een echte string:
+      // TypeScript kan niet weten of het een bestaande tabelnaam is, en dat is
+      // niet op te lossen met een beter type. De 42P01-check hieronder is de
+      // runtime-controle die dit afdekt.
+      //
+      // (Overweging voor later: eerst valideren dat `table` in BACKUP_TABLES
+      // staat. Een restore schrijft nu naar elke tabelnaam die in de JSON staat.
+      // Die rijen zijn admin-gemaakt, dus het risico is klein — maar het is wel
+      // een schrijfpad dat door data wordt gestuurd.)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (db as any)
         .from(table)
-        .upsert(chunk as never[], { onConflict: "id", ignoreDuplicates: false });
+        .upsert(chunk, { onConflict: "id", ignoreDuplicates: false });
 
       if (error) {
         if (error.code === "42P01") break; // table gone — skip silently
