@@ -282,6 +282,7 @@ const CONTENT_BLOCK_HINTS: Record<ContentBlockKey, string> = {
   quickLinks:         "Pro only",
   textMedia:          "Pro only",
   contactSection:     "Pro only",
+  floatingContact:    "Pro only",
   // commerce / product
   productOverview:    "Pro only",
   productDetail:      "Pro only",
@@ -330,6 +331,7 @@ const CONTENT_BLOCK_DISPLAY: Record<ContentBlockKey, string> = {
   quickLinks:         "Quick links",
   textMedia:          "Text + media",
   contactSection:     "Contact",
+  floatingContact:    "Floating contact button",
   // commerce / product
   productOverview:    "Product overview",
   productDetail:      "Product detail",

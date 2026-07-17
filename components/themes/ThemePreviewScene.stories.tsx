@@ -64,7 +64,7 @@
  *   CSS transform: scale(0.2).
  */
 
-import type { Meta, StoryObj, Decorator } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import React from "react";
 import { THEME_PRESETS }           from "@/design-system/theme/presets";
 import { tenantThemeToCSS }        from "@/design-system/theme";
@@ -79,7 +79,17 @@ import { ThemePreviewFeaturesPage } from "./ThemePreviewFeaturesPage";
 // It does NOT attempt to pass presetKey to the component — that is handled
 // by setting args: { presetKey } on each story (see factory functions below).
 
-function withTheme(presetKey: keyof typeof THEME_PRESETS): Decorator {
+// Typed off Story itself rather than as a bare `Decorator`.
+//
+// Bare Decorator defaults to Storybook's generic `Args`, while StoryObj<typeof
+// meta> narrows decorators to this component's own args — so a bare Decorator was
+// not assignable to Story["decorators"] and every story here was a type error.
+// Deriving the type from Story means it cannot drift again when the props change.
+// (Story["decorators"] is `Fn | Fn[] | undefined`, hence the Extract to get at
+// the array's element type.)
+type ThemeDecorator = Extract<NonNullable<Story["decorators"]>, readonly unknown[]>[number];
+
+function withTheme(presetKey: keyof typeof THEME_PRESETS): ThemeDecorator {
   return function ThemeDecorator(Story) {
     // Wrap in :root {} — same as layout.tsx in production:
     //   const cssVarBlock = `:root {\n${tenantThemeToCSS(tenantConfig.theme)}}`;

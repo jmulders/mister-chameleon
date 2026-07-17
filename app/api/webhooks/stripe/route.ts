@@ -40,6 +40,7 @@
 import { NextRequest, NextResponse }   from "next/server";
 import { createClient }                from "@supabase/supabase-js";
 import Stripe                          from "stripe";
+import { STRIPE_API_VERSION }          from "@/billing/stripe-config";
 import {
   handleStripeWebhook,
   recordWebhookEvent,
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── 3. Verify signature ──────────────────────────────────────────────────────
 
   const stripeClient = new Stripe(secretKey, {
-    apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+    apiVersion: STRIPE_API_VERSION,
     typescript: true,
   });
 

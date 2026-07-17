@@ -57,6 +57,25 @@ import type {
   SearchHighlight,
 }                                   from "@/search";
 import { logger }                   from "@/lib/logger";
+import type { FilteredResponseQueryOptions } from "@sanity/client";
+
+/**
+ * Fetch options for the page-search query.
+ *
+ * SANITY_SEARCH_REVALIDATE_SECONDS (default 900 s) rather than the general 300 s
+ * window: the page list changes infrequently, so a longer TTL cuts Sanity API
+ * calls from search substantially. On-demand revalidateTag("sanity") still
+ * flushes it immediately on publish.
+ *
+ * Typed explicitly (not `as const`) so `tags` is `string[]` — the same reason
+ * cms/providers/sanity-provider.ts does it this way.
+ */
+const SEARCH_FETCH_OPTIONS: FilteredResponseQueryOptions = {
+  next: {
+    revalidate: SANITY_SEARCH_REVALIDATE_SECONDS,
+    tags:       [SANITY_CACHE_TAG],
+  },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GROQ query
@@ -181,20 +200,21 @@ export class SanitySearchProvider implements SearchProvider {
     let rawPages: SanityPageSearchRaw[] = [];
     try {
       const client = createSanityClient();
-      // Use SANITY_SEARCH_REVALIDATE_SECONDS (default 900 s) rather than the
-      // general 300 s window.  The page list changes infrequently; a longer
-      // TTL dramatically reduces Sanity API calls from the search feature.
-      // On-demand revalidateTag("sanity") still flushes this immediately on publish.
       logSanityFetch("SanitySearchProvider/search", { tenantId: this.tenantId, query: query.query });
+      // FilteredResponseQueryOptions, not `as Parameters<typeof client.fetch>[2]`.
+      //
+      // Parameters<>[2] is the union of every options shape fetch accepts, so it
+      // matched the RAW overload — the one returning RawQuerylessQueryResponse<T>
+      // ({ result, ms, query }) rather than T. Type-level only: at runtime
+      // filterResponse defaults to true and the client hands back the array, so
+      // search works. But the compiler could not agree that it does, and this is
+      // one of the errors that kept CI red.
+      //
+      // cms/providers/sanity-provider.ts already types its options this way.
       rawPages = await client.fetch<SanityPageSearchRaw[]>(
         PAGE_SEARCH_QUERY,
         { tenantId: this.tenantId },
-        {
-          next: {
-            revalidate: SANITY_SEARCH_REVALIDATE_SECONDS,
-            tags:       [SANITY_CACHE_TAG],
-          },
-        } as Parameters<typeof client.fetch>[2],
+        SEARCH_FETCH_OPTIONS,
       );
     } catch (err) {
       logger.warn("[SanitySearchProvider] GROQ fetch failed — returning empty results", {

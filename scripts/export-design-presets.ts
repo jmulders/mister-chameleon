@@ -19,6 +19,12 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 // Dynamic .ts import so this stand-alone tool runs under
 // `node --experimental-transform-types` without app-build tsconfig settings.
+//
+// The extension is what node needs at runtime and what the app tsconfig forbids
+// (allowImportingTsExtensions is off, TS5097). The suppression is scoped to this
+// one line rather than loosening the setting for the whole codebase: this file
+// is a CLI tool run by hand, never imported by the app or bundled by Next.
+// @ts-expect-error TS5097 — see above.
 const { DESIGN_PRESET_GALLERY } = await import("../tenant/design-presets-gallery.ts");
 
 const OUT_DIR = join(process.cwd(), "design-presets");

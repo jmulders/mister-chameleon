@@ -69,12 +69,32 @@ export interface BlueprintVariant {
  * The variant keys assigned when a blueprint rule fires.
  * Mirrors StoredPlan from stored-rule.ts but typed as plain strings so the
  * blueprint package does not need to import decision internals.
+ *
+ * ─── Keep this in step with StoredPlan ───────────────────────────────────────
+ *
+ *   "Mirrors StoredPlan" was aspirational: StoredPlan grew pricingEmphasis,
+ *   pricingCtaMode, featureKey, conversionKey and notificationKey, and this did
+ *   not. lib/demo/b2b-saas-blueprint.ts sets pricingEmphasis and pricingCtaMode
+ *   on six of its rules — TypeScript rejected all six (TS2353) and the build
+ *   ignored it. The values do survive to the DB (rules are persisted as objects,
+ *   not field-by-field), so the demo works; the type simply described a smaller
+ *   product than the one that exists.
+ *
+ *   Strings, not the unions from stored-rule.ts, so this package stays decoupled
+ *   from decision internals — the rule engine validates the shape on load.
  */
 export interface BlueprintPlan {
   heroKey:   string;
   proofKey:  string;
   ctaKey:    string;
   themeKey?: string;
+  /** "hidden" | "teaser" | "standard" | "emphasized" — see StoredPlan.pricingEmphasis. */
+  pricingEmphasis?: string;
+  /** "trial" | "demo" | "onboarding" | "expansion" | "none" — see StoredPlan.pricingCtaMode. */
+  pricingCtaMode?:  string;
+  featureKey?:      string;
+  conversionKey?:   string;
+  notificationKey?: string;
 }
 
 /**
@@ -113,6 +133,14 @@ export interface BlueprintDefaultPlan {
   proofKey: string;
   ctaKey:   string;
   reason:   string;
+  // Same fields as BlueprintPlan, same reason — the default plan is a plan, and
+  // b2b-saas-blueprint.ts sets pricingEmphasis on it too.
+  themeKey?:        string;
+  pricingEmphasis?: string;
+  pricingCtaMode?:  string;
+  featureKey?:      string;
+  conversionKey?:   string;
+  notificationKey?: string;
 }
 
 // ── Scenario mapping ──────────────────────────────────────────────────────────

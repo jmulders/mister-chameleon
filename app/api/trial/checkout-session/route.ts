@@ -42,6 +42,7 @@ import { getDb }                                 from "@/data/db";
 import { hashPassword, validatePasswordStrength } from "@/lib/admin-auth/password";
 import { findAdminUserByEmailForLogin }           from "@/data/admin-auth";
 import Stripe                                     from "stripe";
+import { STRIPE_API_VERSION }                     from "@/billing/stripe-config";
 import { getResolvedPlanStripePriceId }          from "@/billing/plans";
 import { resolveStripeCredentials }              from "@/platform/platform-store";
 import { headers }                               from "next/headers";
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Payment provider not configured. Contact support." }, { status: 500 });
     }
     const stripe = new Stripe(secretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     });
     const session = await stripe.checkout.sessions.create({

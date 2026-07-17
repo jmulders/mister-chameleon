@@ -394,8 +394,18 @@ function buildSupabaseAdapter(
       // restriction by clearing allowedMimeTypes (our API route already validates
       // types before this point) and retry once.
       if (error && /mime type.*not supported/i.test(error.message)) {
+        // updateBucket requires `public` — it is a full update, not a patch. The
+        // call omitted it, so TypeScript rejected the argument (the build ignored
+        // that). Hardcoding `public: true` would silently expose any bucket that
+        // happens to be private when this fallback fires, so read the bucket's
+        // current visibility and hand it straight back.
+        const { data: bucketInfo } = await client.storage.getBucket(bucketName);
+
         const { error: updateError } = await client.storage.updateBucket(bucketName, {
-          allowedMimeTypes: [],   // empty = allow all; our route-level guard is sufficient
+          public:           bucketInfo?.public ?? true,
+          // Empty = no MIME restriction. Route-level validation has already checked
+          // the type before this point.
+          allowedMimeTypes: [],
         });
         if (updateError) {
           throw new Error(

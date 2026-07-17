@@ -147,6 +147,35 @@ export function getStripePublishableKey(mode?: StripeMode): string {
 const _clients = new Map<StripeMode, Stripe>();
 
 /**
+ * The Stripe API version every client in this codebase talks.
+ *
+ * ─── Why it is pinned, and why the cast ──────────────────────────────────────
+ *
+ *   The API version decides the SHAPE of what Stripe sends back, so it is not a
+ *   cosmetic setting. Between basil and the SDK's current default, for instance,
+ *   `subscription.current_period_end` moved onto the subscription's items —
+ *   app/api/cron/billing-renewal reads exactly that field. Bumping this is a
+ *   migration with real behaviour to verify, not a lint fix.
+ *
+ *   stripe-node types `apiVersion` as the single literal the installed SDK
+ *   defaults to, so pinning anything older cannot typecheck by construction.
+ *   Hence one deliberate, documented cast — here, once.
+ *
+ *   It used to be seven. Six call sites wrote
+ *   `as Parameters<typeof Stripe>[1]["apiVersion"]`, which does not compile at
+ *   all (Stripe is a class: that is ConstructorParameters), plus one `as any`.
+ *   Every one of them was a type error the build was told to ignore, and two
+ *   further clients — lib/stripe.ts and lib/billing/stripe-client.ts, now
+ *   deleted — quietly pinned different versions again.
+ *
+ *   To upgrade: bump this, then verify the subscription-shape readers (the
+ *   renewal cron and app/admin/tenants/[tenantId]/billing/actions.ts) against
+ *   Stripe's changelog.
+ */
+export const STRIPE_API_VERSION =
+  "2025-08-27.basil" as NonNullable<ConstructorParameters<typeof Stripe>[1]>["apiVersion"];
+
+/**
  * Return a Stripe SDK instance configured for the given mode.
  *
  * Each mode has its own singleton — test and live clients are never shared.
@@ -158,8 +187,7 @@ export function getStripeClient(mode?: StripeMode): Stripe {
   if (cached) return cached;
 
   const instance = new Stripe(getStripeSecretKey(m), {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pin apiVersion across stripe-node minor type drift
-    apiVersion: "2025-08-27.basil" as any,
+    apiVersion: STRIPE_API_VERSION,
     typescript: true,
   });
 

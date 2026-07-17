@@ -37,8 +37,20 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      # Generate next-env.d.ts and .next/types/routes.d.ts.
+      #
+      # Both are gitignored, so a fresh checkout does not have them — but
+      # tsconfig.json includes them, and next-env.d.ts is what teaches
+      # TypeScript about Next's additions to RequestInit (`fetch(url, { next:
+      # { revalidate } })`). Without this step tsc reported ~18 errors that do
+      # not exist on any developer's machine, this job went red, the Build job
+      # (needs: [lint]) never ran, and the whole gate quietly stopped meaning
+      # anything. Cheap: typegen skips the full build.
+      - name: Generate Next.js types
+        run: npx next typegen
+
       - name: TypeScript
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 2. Unit & integration tests

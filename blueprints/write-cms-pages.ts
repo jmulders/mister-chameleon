@@ -96,7 +96,10 @@ export async function writeBlueprintPagesToStatamic(
     const client = new StatamicClient(baseUrl, apiKey);
 
     // Provider (read side) for a non-destructive existence check.
-    const provider = await createCMSProviderAsync(tenant.cms, tenant.id);
+    // tenant.tenantId — TenantSettings has no `id`. It read `tenant.id`, which is
+    // undefined, so the provider was built with no tenant scope at all and fell
+    // back to platform-wide adaptive blocks while writing THIS tenant's pages.
+    const provider = await createCMSProviderAsync(tenant.cms, tenant.tenantId);
 
     for (const page of blueprint.pages) {
       // Skip dynamic route templates (e.g. "/vacatures/[slug]") — not real pages.
@@ -131,7 +134,7 @@ export async function writeBlueprintPagesToStatamic(
     }
   } catch (err) {
     logger.warn("[apply-blueprint] Statamic page write failed", {
-      tenantId: tenant.id, err: err instanceof Error ? err.message : String(err),
+      tenantId: tenant.tenantId, err: err instanceof Error ? err.message : String(err),
     });
     result.warnings.push(err instanceof Error ? err.message : String(err));
   }

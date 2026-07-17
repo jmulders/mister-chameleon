@@ -206,7 +206,12 @@ async function signRS256(input: string, privateKeyPem: string): Promise<string> 
     .filter((l) => l.length > 0 && !l.startsWith("-"))
     .join("");
 
-  let binaryKey: Uint8Array;
+  // Uint8Array<ArrayBuffer>, not bare Uint8Array: since TypeScript 5.7 the array
+  // is generic over its buffer, and the bare form widens to ArrayBufferLike —
+  // which includes SharedArrayBuffer, which crypto.subtle.importKey will not
+  // accept. Uint8Array.from() always allocates a plain ArrayBuffer, so this is
+  // the narrower truth rather than a cast.
+  let binaryKey: Uint8Array<ArrayBuffer>;
   try {
     binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
   } catch {
@@ -220,7 +225,10 @@ async function signRS256(input: string, privateKeyPem: string): Promise<string> 
 
   const cryptoKey = await crypto.subtle.importKey(
     "pkcs8",
-    binaryKey.buffer,
+    // .buffer is ArrayBufferLike, which since TS 5.7 includes SharedArrayBuffer —
+    // importKey does not accept that. Passing the view itself is equivalent here
+    // (Uint8Array.from allocates exactly this key) and typechecks.
+    binaryKey,
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["sign"],

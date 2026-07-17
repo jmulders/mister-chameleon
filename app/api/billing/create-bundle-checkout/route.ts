@@ -32,7 +32,7 @@ import { createClient }              from "@supabase/supabase-js";
 import Stripe                        from "stripe";
 import { CREDIT_BUNDLES }            from "@/billing/plans";
 import { getPlatformStripeSettings } from "@/platform/platform-store";
-import { getStripeMode }             from "@/billing/stripe-config";
+import { getStripeMode, STRIPE_API_VERSION } from "@/billing/stripe-config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     });
 

@@ -95,6 +95,19 @@ function deriveDecisionMeta(key: string): VariantDecisionMeta {
     tone,
     primaryGoal,
     supportingGoals:  ["Relevantie vergroten voor dit bezoekerstype", "Uitval verlagen"],
+    // Deliberately empty, not omitted.
+    //
+    // `exclusions` is required on VariantDecisionMeta — the AI reads it as hard
+    // "never pick this variant when…" rules. This seed derives everything else
+    // from the variant key, but there is nothing in a key to derive an exclusion
+    // from: they are editorial judgements ("do not show to existing customers").
+    // Inventing them here would put guesses in front of the model.
+    //
+    // Empty is what the rest of the system already assumed: resolveVariantCandidates
+    // coerces a missing value to [] on read, so seeded blocks behaved this way all
+    // along — the type just never said so. Editors fill them in per block via
+    // admin → Blocks → Edit (EditBlockDrawer).
+    exclusions:       [],
   };
 }
 

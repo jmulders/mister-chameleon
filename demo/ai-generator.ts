@@ -447,7 +447,12 @@ function parseV2Response(
       title:       analysis.title,
       description: analysis.description || undefined,
     },
-    blocks: blocks as DemoBlockSpec[],
+    // Double cast, because the two types genuinely do not overlap and TypeScript
+    // is right to say so: `blocks` is model output, parsed from JSON. The loop
+    // above is what makes this safe — it rejects the whole page unless every
+    // block has an id, a type and an object content. Beyond that we are trusting
+    // the model, and the cast says so out loud instead of pretending.
+    blocks: blocks as unknown as DemoBlockSpec[],
   };
 }
 

@@ -33,7 +33,15 @@
  */
 
 // ── Stripe client ─────────────────────────────────────────────────────────────
-export { getStripe, getWebhookSecret }           from "./stripe-client";
+//
+// Removed. This barrel used to re-export getStripe/getWebhookSecret from a
+// ./stripe-client that pinned Stripe API version 2024-06-20, while the canonical
+// client (billing/stripe-config.ts → getStripeClient) pins 2025-08-27.basil.
+// Nothing outside lib/billing/ ever imported either of them, so the split never
+// bit — but it is why app/api/billing/cancel-subscription/route.ts once imported
+// a `getStripe` that does not exist in the module it was importing from.
+//
+// Use: import { getStripeClient } from "@/billing/stripe-config";
 
 // ── Plan map ──────────────────────────────────────────────────────────────────
 export type { BillingCycle, PriceEntry, CreditBundle } from "./plan-map";

@@ -55,6 +55,7 @@ import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
 import { getActiveTenant, getTenantByIdCached } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
+import type { HeaderVariant } from "@/tenant/types";
 import { getSiteNavigation }  from "@/site/navigation-store";
 import { Container } from "@/components/primitives";
 import { NavBar, UtilityBar } from "./NavBar";
@@ -143,6 +144,56 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
     headerStyle = structural.header.style;
   }
 
+  // ── Header variant → structural settings ────────────────────────────────────
+  //
+  // One mapping, applied by both layers below. It used to be two copies of the
+  // same if/else chain, each starting with `hv === "standard"` and
+  // `hv === "compact"` — values that exist in neither HeaderVariant nor the CMS
+  // SiteSettings type. Comments called them "consolidated variants" and the rest
+  // "backward-compat", so a rename was clearly planned; the types never followed.
+  // Those four branches were unreachable, and TypeScript said so (TS2367) into a
+  // CI job nobody could read because it was already red.
+  //
+  // Mega menus are content-driven (see NavBar), so a variant controls only the
+  // look — density, background, structure — never whether menus are rich.
+  function applyHeaderVariant(hv: HeaderVariant | null): void {
+    switch (hv) {
+      case "transparent":
+        navVariant  = "flyout";
+        navDensity  = "comfortable";
+        headerStyle = "transparent";
+        break;
+      case "triband":
+        // A structural layout change. navVariant / navDensity / headerStyle stay
+        // at the family default — they drive band 3 and the mobile nav inside it.
+        layout = "header_triband";
+        break;
+      case "minimal":
+      case "mega":
+        navVariant  = "flyout";
+        navDensity  = "compact";
+        headerStyle = "light";
+        break;
+      case "flyout":
+        navVariant  = "flyout";
+        navDensity  = "comfortable";
+        headerStyle = "light";
+        break;
+      case null:
+        break;
+    }
+  }
+
+  /**
+   * The CMS types headerVariant as a bare `string`, so an editor can put anything
+   * in that field. Anything we do not recognise falls through to the family
+   * default rather than to an arbitrary branch.
+   */
+  function asHeaderVariant(raw: string): HeaderVariant | null {
+    const known: readonly HeaderVariant[] = ["minimal", "flyout", "mega", "transparent", "triband"];
+    return known.includes(raw as HeaderVariant) ? (raw as HeaderVariant) : null;
+  }
+
   // Fetch site settings (CMS) — needed for Layer 1.5 layout override and all
   // site identity / navigation data further below.  We fetch early so the
   // headerVariant fallback is available before Layer 2 overrides it.
@@ -154,76 +205,13 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   // tenant DB).  Applied only when the CMS entry has an explicit value and the
   // tenant DB has NOT set one.  The tenant DB (Layer 2) will override this below.
   if (settings?.headerVariant && !tenantSettings?.design.headerVariant) {
-    const hv = settings.headerVariant;
-    // ── Consolidated variants ──────────────────────────────────────────────
-    // Mega menus are content-driven (see NavBar), so these control only the
-    // look — density / background / structure — never whether menus are rich.
-    if (hv === "standard") {
-      navVariant  = "flyout";
-      navDensity  = "comfortable";
-      headerStyle = "light";
-    } else if (hv === "compact") {
-      navVariant  = "flyout";
-      navDensity  = "compact";
-      headerStyle = "light";
-    } else if (hv === "transparent") {
-      navVariant  = "flyout";
-      navDensity  = "comfortable";
-      headerStyle = "transparent";
-    } else if (hv === "triband") {
-      // Triband is a structural layout change — switch the layout variant.
-      // navVariant / navDensity / headerStyle remain at the family default
-      // (they are used for band 3 / mobile nav inside the triband layout).
-      layout = "header_triband";
-    // ── Backward-compat (pre-consolidation keys) ───────────────────────────
-    } else if (hv === "minimal") {
-      navVariant  = "flyout";
-      navDensity  = "compact";
-      headerStyle = "light";
-    } else if (hv === "flyout") {
-      navVariant  = "flyout";
-      navDensity  = "comfortable";
-      headerStyle = "light";
-    } else if (hv === "mega") {
-      navVariant  = "flyout";
-      navDensity  = "compact";
-      headerStyle = "light";
-    }
+    applyHeaderVariant(asHeaderVariant(settings.headerVariant));
   }
 
   // Layer 2 — tenant-level structural override from the DB-stored design settings.
   // getTenantById() is Next.js-request-memoised so this adds no extra I/O cost.
   if (tenantSettings?.design.headerVariant) {
-    const hv = tenantSettings.design.headerVariant;
-    // Consolidated variants (mega menus are content-driven — see NavBar).
-    if (hv === "standard") {
-      navVariant  = "flyout";
-      navDensity  = "comfortable";
-      headerStyle = "light";
-    } else if (hv === "compact") {
-      navVariant  = "flyout";
-      navDensity  = "compact";
-      headerStyle = "light";
-    } else if (hv === "transparent") {
-      navVariant  = "flyout";
-      navDensity  = "comfortable";
-      headerStyle = "transparent";
-    } else if (hv === "triband") {
-      layout = "header_triband";
-    // Backward-compat (pre-consolidation keys).
-    } else if (hv === "minimal") {
-      navVariant  = "flyout";
-      navDensity  = "compact";
-      headerStyle = "light";
-    } else if (hv === "flyout") {
-      navVariant  = "flyout";
-      navDensity  = "comfortable";
-      headerStyle = "light";
-    } else if (hv === "mega") {
-      navVariant  = "flyout";
-      navDensity  = "compact";
-      headerStyle = "light";
-    }
+    applyHeaderVariant(tenantSettings.design.headerVariant);
   }
 
   // ── Final: CMS triband always wins (structural layout override) ──────────────

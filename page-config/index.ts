@@ -93,6 +93,18 @@ export type {
   CaseMetric,
   CaseHighlightBlockData,
 
+  // ── Product block data types ─────────────────────────────────────────────────
+  //
+  // Defined in ./types.ts and registered in ./registry.ts, but never re-exported
+  // here — so ProductOverviewBlock.tsx and ProductDetailBlock.tsx imported names
+  // this barrel does not have. Webpack downgrades a bad import to a warning and
+  // next.config ignored the type error, so both components shipped with their
+  // props typed as `any`.
+  ProductCardItem,
+  ProductOverviewBlockData,
+  ProductDetailBlockData,
+  ProductSpecItem,
+
   // ── Listing / detail block data types ────────────────────────────────────────
   ListingItem,
   SliderMediaItem,

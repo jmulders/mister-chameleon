@@ -1974,11 +1974,24 @@ export interface TenantCustomFonts {
  *   flyout      — standard bar, vertical flyout dropdown panels on hover
  *   mega        — full-width bar, multi-column mega-menu panels
  *   transparent — no initial background; floats over the hero section
+ *   triband     — three-band layout (see components/layout/TriBandNav.tsx)
  *
  * When absent the active theme family prescribes the default.
  * Store as `design.headerVariant` in TenantDesignSettings.
+ *
+ * ─── Why triband was added here ──────────────────────────────────────────────
+ *
+ *   The tri-band header exists: TriBandNav.tsx renders it, Header.tsx switches
+ *   to it, HeaderShell knows the layout, and the CMS SiteSettings type offers it.
+ *   This union did not — so LayoutVariantEditor, which is typed on it, could
+ *   never offer the option, and design.headerVariant = "triband" was not even
+ *   representable. A tenant could only reach the tri-band header by editing site
+ *   settings in the CMS. Nothing failed; the option was simply not there.
+ *
+ *   Safe to widen: no tenant has ever stored a headerVariant (all four rows are
+ *   null), so there is no persisted value to migrate either way.
  */
-export type HeaderVariant = "minimal" | "flyout" | "mega" | "transparent";
+export type HeaderVariant = "minimal" | "flyout" | "mega" | "transparent" | "triband";
 
 /**
  * Footer structural variant.

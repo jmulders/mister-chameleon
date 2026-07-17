@@ -48,11 +48,12 @@ import type { CreditSettings }                 from "@/billing/credits";
 import { CREDIT_SETTINGS_DEFAULTS }            from "@/billing/credits";
 import type { FallbackMode }                   from "@/billing/credits";
 import { creditWallet, debitWallet, ensureWallet, updateWalletStatus } from "@/billing/wallet";
-import { CREDIT_BUNDLES, SESSION_CREDIT_BUNDLES } from "@/billing/plans";
+import { CREDIT_BUNDLES, SESSION_CREDIT_BUNDLES, isValidPlanId } from "@/billing/plans";
+import type { BillingPlanId }                    from "@/billing/types";
 import { addCredits }                          from "@/billing/usage";
 import { upsertSubscription, syncPackageKeyFromPlan, renewSubscriptionPeriod } from "@/billing/subscriptions";
 import { getPlatformStripeSettings }           from "@/platform/platform-store";
-import { getStripeMode }                       from "@/billing/stripe-config";
+import { getStripeMode, STRIPE_API_VERSION }   from "@/billing/stripe-config";
 
 // ── Auth helper ────────────────────────────────────────────────────────────────
 
@@ -707,7 +708,7 @@ export async function confirmSubscriptionCheckoutAction(
     // ── 2. Fetch the Stripe checkout session (expand subscription) ───────────
 
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     });
 
@@ -774,7 +775,19 @@ export async function confirmSubscriptionCheckoutAction(
 
     // ── 6. Upsert subscription row ───────────────────────────────────────────
 
-    const planId      = session.metadata.plan_id ?? "starter";
+    // Stripe metadata is a free-form string map — whatever was written when the
+    // Checkout session was created, echoed back. It was assigned straight to
+    // `plan`, which is a BillingPlanId, so a typo or a stale value would land in
+    // the subscriptions table as a plan that does not exist, and getEffectivePlan
+    // would fall back to starter for a paying Pro customer. Validate it.
+    const rawPlanId = session.metadata.plan_id ?? "starter";
+    const planId: BillingPlanId = isValidPlanId(rawPlanId) ? rawPlanId : "starter";
+    if (!isValidPlanId(rawPlanId)) {
+      console.warn(
+        `[billing/actions] Unknown plan_id "${rawPlanId}" in Stripe session metadata ` +
+        `(tenantId=${tenantId} session=${checkoutSessionId}) — falling back to "starter".`,
+      );
+    }
     const billingCycle: "monthly" | "annual" =
       (session.metadata.billing_cycle as "monthly" | "annual") ?? "monthly";
 
@@ -936,7 +949,7 @@ export async function syncPaymentMethodFromStripeAction(
     }
 
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     });
 
@@ -1076,7 +1089,7 @@ export async function confirmSessionBundlePurchaseAction(
     // ── 3. Fetch and validate the Stripe Checkout session ────────────────────
 
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     });
 
@@ -1405,7 +1418,7 @@ export async function syncSubscriptionFromStripeAction(
 
     // ── 3. Fetch from Stripe ──────────────────────────────────────────────────
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     });
     // Expand items so we can read period dates from the first item.
@@ -1653,7 +1666,7 @@ export async function confirmPlanChangeCheckoutAction(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
@@ -1933,7 +1946,7 @@ export async function getStripeInvoicesAction(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-08-27.basil" as Parameters<typeof Stripe>[1]["apiVersion"],
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;

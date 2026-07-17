@@ -124,7 +124,7 @@ export function StatsBlock({ data, variant: rawVariant, surface }: StatsBlockPro
             {stats.length > 0 && (
               <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-0 sm:divide-x sm:divide-[var(--border)]">
                 {stats.map((stat, i) => (
-                  <StatCell key={stat.id ?? i} item={stat} compact />
+                  <StatCell key={i} item={stat} compact />
                 ))}
               </div>
             )}
@@ -182,7 +182,7 @@ export function StatsBlock({ data, variant: rawVariant, surface }: StatsBlockPro
                 {stats.map((stat, i) => {
                   const value = `${stat.prefix ?? ""}${stat.value}${stat.suffix ?? ""}`;
                   return (
-                    <div key={stat.id ?? i} className="flex flex-col items-center gap-2 text-center">
+                    <div key={i} className="flex flex-col items-center gap-2 text-center">
                       <span
                         className="text-4xl font-bold leading-none tracking-tight sm:text-5xl lg:text-6xl"
                         style={{
@@ -238,7 +238,7 @@ export function StatsBlock({ data, variant: rawVariant, surface }: StatsBlockPro
               style={{ "--stats-cols": String(Math.min(stats.length, 4)) } as CSSProperties}
             >
               {stats.map((stat, i) => (
-                <StatCell key={stat.id ?? i} item={stat} compact={false} />
+                <StatCell key={i} item={stat} compact={false} />
               ))}
             </div>
           )}

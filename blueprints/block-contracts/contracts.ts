@@ -113,7 +113,13 @@ export const NOTIFICATION_CONTRACT: BlockContentContract = {
     { name: "dismissible",   type: "boolean", description: "Whether the visitor can dismiss the notification." },
     { name: "autoDismissMs", type: "number",  description: "Auto-dismiss delay in ms (0 = never)." },
   ],
-  supportedPageTypes: ["homepage", "landing", "detail"],
+  // "landing" is not a PageTypeKey — the union is homepage | overview | detail |
+  // form | process, and "homepage" is the landing page (see its comment in
+  // blueprints/site-models/types.ts). The value never matched anything; it was a
+  // silent no-op in the middle of a list that reads as if it means something.
+  // Not swapped for another key: which pages a notification belongs on is a
+  // product call, and this states the two it already effectively had.
+  supportedPageTypes: ["homepage", "detail"],
   supportedModels:    ["service", "product-saas", "careers", "catalog", "commerce"],
   rules: [
     requireField("message",  "Notification message"),

@@ -110,7 +110,9 @@ function coerce(raw: unknown): GenerateResult {
         const o = (x ?? {}) as Record<string, unknown>;
         const label = asStr(o.label); const href = asStr(o.href);
         if (!label || !href) return [];
-        const variant = o.variant === "secondary" ? "secondary" : "primary";
+        // `as const` — without it the literal widens to `string` inside the
+        // flatMap's inferred return type, and HeroCTAItem.variant is a union.
+        const variant = o.variant === "secondary" ? "secondary" as const : "primary" as const;
         return [{ label, href, variant }];
       })
     : undefined;
