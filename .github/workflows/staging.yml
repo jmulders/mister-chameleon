@@ -99,57 +99,21 @@ jobs:
         run: supabase db push
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # 3. Deploy to Vercel staging
+  # 3. (verwijderd) Deploy to Vercel — Staging
   # ─────────────────────────────────────────────────────────────────────────────
-  deploy:
-    name: Deploy to Vercel — Staging
-    needs: [migrate]
-    runs-on: ubuntu-latest
-    environment:
-      name: staging
-      url: ${{ steps.deploy.outputs.url }}
-    env:
-      VERCEL_ORG_ID:   ${{ secrets.VERCEL_TEAM_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Pull Vercel env (staging)
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy
-        id: deploy
-        run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "Deployed to: $URL"
-
-      # staging.misterchameleon.nl — stond op .com, een domein dat niet van ons
-      # is. LET OP: dit subdomein moet wel bestaan en op Vercel staan, anders
-      # faalt de alias-stap. Deze job heeft nog nooit gedraaid, dus dat is niet
-      # eerder gebleken.
-      - name: Alias to staging domain
-        run: |
-          vercel alias ${{ steps.deploy.outputs.url }} staging.misterchameleon.nl \
-            --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Run validation against staging
-        run: |
-          echo "Validating staging deployment..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://staging.misterchameleon.nl/api/health)
-          if [ "$STATUS" != "200" ]; then
-            echo "Health check failed: HTTP $STATUS"
-            exit 1
-          fi
-          echo "Health check passed: HTTP $STATUS"
+  #
+  # Hier stond een deploy-job: vercel pull → vercel build → vercel deploy
+  # --prebuilt → alias naar staging.misterchameleon.nl → health check.
+  #
+  # Die is weg om dezelfde reden als in production.yml: `vercel pull` krijgt voor
+  # elke variabele die in Vercel als Sensitive staat de letterlijke waarde
+  # "[SENSITIVE]" terug — 52 van de 73 — dus `vercel build` in een runner kan niet
+  # bouwen wat Vercel zelf bouwt. Zie de uitgebreide notitie in production.yml.
+  #
+  # Er is ook niets om naartoe te deployen. Er bestaat geen staging-project in
+  # Supabase, `staging.misterchameleon.nl` is nooit aangemaakt, en deze hele
+  # workflow triggert op `develop` — een branch die 165 commits achterloopt en
+  # waar niemand naartoe pusht. Deze job heeft nog nooit gedraaid.
+  #
+  # Wil je ooit echt staging: begin bij een apart Supabase-project en een domein
+  # dat bestaat. Niet bij een job die doet alsof beide er al zijn.

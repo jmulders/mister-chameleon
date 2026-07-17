@@ -111,63 +111,82 @@ jobs:
         run: supabase db push
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # 4. Deploy to Vercel production
+  # 4. Health check — production
   # ─────────────────────────────────────────────────────────────────────────────
-  deploy:
-    name: Deploy to Vercel — Production
+  #
+  # ─── Waarom hier geen deploy-job meer staat ─────────────────────────────────
+  #
+  # Hier stond `Deploy to Vercel — Production`: vercel pull → vercel build →
+  # vercel deploy --prebuilt. Die job heeft nooit gedraaid, en kón ook nooit
+  # slagen. Op 17 juli 2026 draaide hij voor het eerst en viel om op:
+  #
+  #     `destination` does not start with `/`, `http://`, or `https://`
+  #     {"source":"/assets/:path*","destination":"[SENSITIVE]/assets/:path*"}
+  #
+  # Dat was geen redactie in het log. `[SENSITIVE]` is de letterlijke waarde die
+  # `vercel pull` teruggeeft voor een variabele die in Vercel als Sensitive staat
+  # gemarkeerd — die zijn per ontwerp niet uitleesbaar, ook niet met een geldige
+  # token. Van de 73 productievariabelen zijn er 52 zo gemarkeerd, waaronder
+  # NEXT_PUBLIC_SHOW_SCENARIO_PANEL: die zou als de tekst "[SENSITIVE]" in de
+  # client-bundle zijn gebakken.
+  #
+  # `vercel build` in een runner kan dus principieel niet bouwen wat Vercel zelf
+  # bouwt. Dat repareren betekent 52 variabelen weer uitleesbaar maken — inclusief
+  # STRIPE_SECRET_KEY en GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY — en dat is een echte
+  # beveiligingslaag inleveren voor een job die dubbelop was.
+  #
+  # Dubbelop, want Vercel deployt `main` al via zijn eigen Git-integratie. Dat is
+  # precies waarom deze site maandenlang live bleef terwijl deze pipeline rood
+  # stond: het deployen liep hier altijd al omheen.
+  #
+  # ─── Wat deze workflow dus wél is ───────────────────────────────────────────
+  #
+  # Een gate op de DATABASE, niet op de deploy. Tests, goedkeuring, migraties,
+  # en daarna een controle of de site die Vercel heeft neergezet ook echt leeft.
+  #
+  # LET OP, en dit is geen detail: Vercel deployt bij elke push naar main, los van
+  # alles hieronder. Op het moment dat jij de approval gate goedkeurt, staat de
+  # nieuwe code er al. Wil je dat ook dichtzetten, dan is dat een instelling aan
+  # de Vercel-kant (Deployment Protection / Ignored Build Step), geen job hier.
+  health:
+    name: Health check — Production
     needs: [migrate]
     runs-on: ubuntu-latest
     environment:
       name: production
       url: https://www.misterchameleon.nl
-    env:
-      VERCEL_ORG_ID:     ${{ secrets.VERCEL_TEAM_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Pull Vercel env (production)
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to production
-        id: deploy
-        run: |
-          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "Deployed to: $URL"
-
       # www.misterchameleon.nl — het canonicalHostname uit
       # tenant/production-tenants.ts. Hier stond misterchameleon.com: een domein
-      # dat niet van ons is. Dus zelfs mét werkende secrets zou deze health check
-      # falen op andermans site, en zou de deploy "mislukt" heten terwijl er niets
-      # mis was. Derde reden waarom deze keten nooit kon slagen.
-      - name: Post-deploy health check
+      # dat niet van ons is. Dus zelfs mét werkende secrets zou deze check falen
+      # op andermans site, en zou de deploy "mislukt" heten terwijl er niets mis
+      # was.
+      #
+      # Vercel's eigen deploy is bij een merge meestal al klaar tegen de tijd dat
+      # tests + goedkeuring + migraties voorbij zijn. De retry hieronder vangt het
+      # geval waarin dat niet zo is — anders zou deze job falen op timing in
+      # plaats van op gezondheid.
+      - name: Health check
         run: |
-          sleep 10
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://www.misterchameleon.nl/api/health)
-          if [ "$STATUS" != "200" ]; then
-            echo "Production health check FAILED op https://www.misterchameleon.nl/api/health: HTTP $STATUS"
-            exit 1
-          fi
-          echo "Production health check PASSED: HTTP $STATUS"
+          URL=https://www.misterchameleon.nl/api/health
+          for POGING in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check PASSED: HTTP $STATUS (poging $POGING)"
+              exit 0
+            fi
+            echo "Poging $POGING: HTTP $STATUS — nog 15s wachten"
+            sleep 15
+          done
+          echo "Production health check FAILED op $URL: HTTP $STATUS na 5 pogingen"
+          exit 1
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 5. Create GitHub release with version tag
   # ─────────────────────────────────────────────────────────────────────────────
   release:
     name: Create Release
-    needs: [deploy]
+    needs: [health]
     runs-on: ubuntu-latest
     permissions:
       contents: write
