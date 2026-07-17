@@ -45,10 +45,8 @@ export const BACKUP_TABLES = [
   "billing_plans",
   "credit_pricing",
   "enrichment_pricing",
-  "enrichment_price_cards",
   "decay_profiles",
   "interest_profiles",        // de catalogus
-  "interest_profile_tags",
   "behavior_scoring_rules",   // 74 rijen — de "scoring_rules"-spook
   "behavior_sequence_patterns",
   "site_types",
@@ -76,7 +74,6 @@ export const BACKUP_TABLES = [
   "audience_segments",
   "adaptive_blocks",          // 59 blokken, met de hand geschreven
   "rules_config",
-  "runtime_rules",
   "pages",
   "navigation",
   "site_navigation",
@@ -136,6 +133,18 @@ export const BACKUP_TABLES = [
 //
 //   Meta — hoort niet in zijn eigen backup:
 //     _migrations · platform_backups · pending_trial_signups (verlopen vanzelf)
+//
+//   Dood — staan in productie, maar geen regel code raakt ze aan (17 juli 2026):
+//     enrichment_price_cards · interest_profile_tags · runtime_rules
+//
+//   Deze drie stonden hier eerst wél in. Dat was een fout van mijn kant: ik heb
+//   de tabellenlijst uit de database gehaald en niet gecontroleerd of de code ze
+//   nog gebruikt. Ze zijn opvolgers-zonder-opruiming — `enrichment_price_cards`
+//   is vervangen door `enrichment_pricing` (7 queries, migratie 072), de andere
+//   twee zijn leeg. Ze worden door geen enkele migratie aangemaakt en horen ook
+//   niet in een backup: dan herstel je dood schema terug.
+//
+//   Ze staan er nog wel. Droppen is een aparte beslissing.
 //
 // ─── Twee dingen die deze backup NIET dekt ───────────────────────────────────
 //
