@@ -31,6 +31,7 @@ import assert from 'node:assert/strict';
 import { StoryblokProvider } from '@/cms/providers/storyblok-provider';
 import { MockStoryblokClient } from './helpers/mock-storyblok-client';
 import { runCMSProviderContractSuite } from './contract-suite';
+import { assertVariantEquals } from './helpers/assert-variant';
 import { heroVariantSlug, proofVariantSlug, ctaVariantSlug } from '@/cms/queries/storyblok';
 import {
   HERO_KEY,
@@ -125,7 +126,7 @@ describe('CMSProvider contract — StoryblokProvider', () => {
 
     it('returns data normally when is_active: true (sanity check)', async () => {
       const result = await makeStoryblokProvider().getHeroVariant(HERO_KEY);
-      assert.deepStrictEqual(result, EXPECTED_HERO);
+      assertVariantEquals(result, EXPECTED_HERO);
     });
   });
 

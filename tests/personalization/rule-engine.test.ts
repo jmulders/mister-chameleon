@@ -36,7 +36,8 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 
-import { RulesDecisionProvider } from "@/decision/providers/rules-decision-provider";
+import { RulesDecisionProvider }   from "@/decision/providers/rules-decision-provider";
+import type { JourneyFunnelStage } from "@/lib/journey/types";
 import { buildJourney, buildInput, RULES_CONFIG } from "./_fixtures";
 
 function makeProvider() {
@@ -429,7 +430,7 @@ describe("rule engine — behavioral rules", () => {
     // Use a null funnelStage so none of the field-equality conditions match.
     // Named conditions are suppressed by fromDatabase=false (default in buildInput).
     // intentScore=0, hasVisitedPricing=false, matchedSequences=[] → no intent/consideration arms fire.
-    const j     = buildJourney({ funnelStage: null as unknown as string });
+    const j     = buildJourney({ funnelStage: null as unknown as JourneyFunnelStage });
     const input = buildInput(j, {}, { fromDatabase: false });
     const provider = makeProvider();
     const plan     = await provider.getHomepagePlan(input);

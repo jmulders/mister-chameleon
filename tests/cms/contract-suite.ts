@@ -43,6 +43,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import type { CMSProvider } from '@/cms/providers/cms-provider';
 import type { HeroBlockData, ProofBlockData, CTABlockData } from '@/cms/types';
+import { assertVariantEquals } from './helpers/assert-variant';
 
 // ── Setup type ────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export function runCMSProviderContractSuite(
     describe('getHeroVariant()', () => {
       it('returns the expected HeroBlockData for a known key', async () => {
         const result = await provider.getHeroVariant(setup.heroKey);
-        assert.deepStrictEqual(result, setup.expectedHero);
+        assertVariantEquals(result, setup.expectedHero);
       });
 
       it('result conforms to the HeroBlockData shape', async () => {
@@ -127,7 +128,7 @@ export function runCMSProviderContractSuite(
       if (setup.heroKeyNoTag && setup.expectedHeroNoTag) {
         it('returns undefined (not a string) for `tag` when the content has none', async () => {
           const result = await provider.getHeroVariant(setup.heroKeyNoTag!);
-          assert.deepStrictEqual(result, setup.expectedHeroNoTag);
+          assertVariantEquals(result, setup.expectedHeroNoTag);
           assert.strictEqual(result?.tag, undefined, '`tag` should be undefined when absent in CMS');
         });
       }
@@ -138,7 +139,7 @@ export function runCMSProviderContractSuite(
     describe('getProofVariant()', () => {
       it('returns the expected ProofBlockData for a known key', async () => {
         const result = await provider.getProofVariant(setup.proofKey);
-        assert.deepStrictEqual(result, setup.expectedProof);
+        assertVariantEquals(result, setup.expectedProof);
       });
 
       it('result conforms to the ProofBlockData shape', async () => {
@@ -165,7 +166,7 @@ export function runCMSProviderContractSuite(
     describe('getCTAVariant()', () => {
       it('returns the expected CTABlockData for a known key', async () => {
         const result = await provider.getCTAVariant(setup.ctaKey);
-        assert.deepStrictEqual(result, setup.expectedCTA);
+        assertVariantEquals(result, setup.expectedCTA);
       });
 
       it('result conforms to the CTABlockData shape', async () => {

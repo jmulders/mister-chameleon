@@ -48,6 +48,26 @@ import { SEEN_COOKIE, SEEN_COOKIE_VALUE } from "@/context/detect-context";
 
 export const SESSION_COOKIE = "mc_session_id" as const;
 
+/**
+ * The billable web-session cookie.
+ *
+ * ─── Why this exists next to mc_session_id ───────────────────────────────────
+ *
+ *   mc_session_id lives for 30 days of inactivity. Despite the name it is a
+ *   VISITOR key, not a session: someone who comes back six times in a month
+ *   carries the same value all six times. Everything downstream that wants
+ *   continuity — the enrichment cache, the journey history, visitor_profiles —
+ *   depends on exactly that, so it must not be shortened.
+ *
+ *   Billing wants the opposite. A contextual session is one visit: the visitor
+ *   arrives, looks at one or more pages, leaves. Keyed on mc_session_id, those
+ *   six visits billed as one — the tenant got six adapted visits and paid for
+ *   one. So the billing key is its own cookie, with the usual 30-minute
+ *   inactivity window (the same definition GA4 uses, which is what tenants will
+ *   compare their numbers against).
+ */
+export const WEB_SESSION_COOKIE = "mc_ws" as const;
+
 // SEEN_COOKIE and SEEN_COOKIE_VALUE are defined in @/context/detect-context and
 // re-exported here so consumers of @/data/session get a single import point.
 export { SEEN_COOKIE, SEEN_COOKIE_VALUE };
@@ -56,6 +76,15 @@ export { SEEN_COOKIE, SEEN_COOKIE_VALUE };
 
 /** Session ID persists for 30 days of inactivity. */
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days in seconds
+
+/**
+ * A web session ends after 30 minutes of inactivity.
+ *
+ * Refreshed on every request, so the window slides: continuous browsing stays
+ * one session no matter how long it lasts. Returning after a 30-minute gap
+ * starts a new one — and a new billable contextual session.
+ */
+export const WEB_SESSION_MAX_AGE = 60 * 30; // 30 minutes in seconds
 
 /**
  * "Seen" marker persists for 1 year — long enough that a returning
@@ -77,7 +106,14 @@ export interface CookieSpec {
   maxAge: number;
   path: string;
   httpOnly: boolean;
-  sameSite: "Lax" | "Strict" | "None";
+  /**
+   * Lowercase on purpose: this spec is spread straight into
+   * NextResponse.cookies.set(), whose ResponseCookie type accepts
+   * "lax" | "strict" | "none". The capitalised form typechecked nowhere and
+   * only survived because next.config sets typescript.ignoreBuildErrors — it
+   * worked at runtime because the cookie serializer is case-insensitive.
+   */
+  sameSite: "lax" | "strict" | "none";
   /** true in production (requires HTTPS); false in local dev. */
   secure: boolean;
 }
@@ -92,6 +128,21 @@ export interface CookieSpec {
 export interface SessionResolution {
   /** UUID identifying this visitor's session. Always populated. */
   sessionId: string;
+
+  /**
+   * UUID identifying this visitor's current WEB session — one visit, 30-minute
+   * inactivity window. Always populated.
+   *
+   * This is the billing unit (one contextual session), not `sessionId`. See
+   * WEB_SESSION_COOKIE.
+   */
+  webSessionId: string;
+
+  /**
+   * Whether a new web session started on this request — i.e. this is a fresh
+   * visit rather than another pageview within one.
+   */
+  isNewWebSession: boolean;
 
   /**
    * Whether a new `mc_session_id` was generated on this request.
@@ -151,10 +202,30 @@ export function resolveSession(cookieHeader: string | null): SessionResolution {
       maxAge: SESSION_MAX_AGE,
       path: "/",
       httpOnly: true,
-      sameSite: "Lax",
+      sameSite: "lax",
       secure: isSecure,
     });
   }
+
+  // ── mc_ws (billable web session) ───────────────────────────────────────────
+  //
+  // Set on every request, not just when absent: that is what makes the 30-minute
+  // window slide. Skipping the refresh would end the session 30 minutes after it
+  // STARTED, mid-visit, and bill the same visitor twice for one sitting.
+
+  const existingWebSessionId = cookies.get(WEB_SESSION_COOKIE);
+  const isNewWebSession      = !existingWebSessionId;
+  const webSessionId: string = existingWebSessionId ?? generateId();
+
+  cookiesToSet.push({
+    name: WEB_SESSION_COOKIE,
+    value: webSessionId,
+    maxAge: WEB_SESSION_MAX_AGE,
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isSecure,
+  });
 
   // ── mc_seen ────────────────────────────────────────────────────────────────
 
@@ -172,12 +243,12 @@ export function resolveSession(cookieHeader: string | null): SessionResolution {
       maxAge: SEEN_MAX_AGE,
       path: "/",
       httpOnly: true,
-      sameSite: "Lax",
+      sameSite: "lax",
       secure: isSecure,
     });
   }
 
-  return { sessionId, isNewSession, visitType, cookiesToSet };
+  return { sessionId, isNewSession, webSessionId, isNewWebSession, visitType, cookiesToSet };
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────

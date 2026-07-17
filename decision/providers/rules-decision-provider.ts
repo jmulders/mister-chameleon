@@ -193,8 +193,24 @@ export class RulesDecisionProvider implements DecisionProvider {
    */
   private readonly _storedConfig: StoredRulesConfig | undefined;
 
-  constructor(storedConfig?: StoredRulesConfig) {
-    this._storedConfig = storedConfig;
+  /**
+   * When true, skip rule evaluation entirely and return the tenant's defaultPlan
+   * — the same outcome as the tenant-level `rulesEnabled: false` switch.
+   *
+   * Used for visitors past the monthly session cap. Emptying audience segments
+   * (what the holdout does) is NOT enough there: the rules engine still adapts on
+   * source, device and visit type, so a Google visitor would keep getting the
+   * Google hero. That is the product, delivered for free, to a tenant whose
+   * bundle has run out.
+   *
+   * Separate from _storedConfig.rulesEnabled on purpose: that is the tenant's own
+   * setting and must not be overwritten by a billing state.
+   */
+  private readonly _forceDefaultPlan: boolean;
+
+  constructor(storedConfig?: StoredRulesConfig, forceDefaultPlan = false) {
+    this._storedConfig     = storedConfig;
+    this._forceDefaultPlan = forceDefaultPlan;
   }
 
   /**
@@ -277,9 +293,10 @@ export class RulesDecisionProvider implements DecisionProvider {
       // ── Tenant-level master switch ──────────────────────────────────────────
       this.lastRulesEnabled = rulesEnabled;
 
-      if (!rulesEnabled) {
-        logger.debug("[decision] Rules engine disabled for this tenant — using default plan", {
+      if (!rulesEnabled || this._forceDefaultPlan) {
+        logger.debug("[decision] Rules engine skipped — using default plan", {
           rulesSource: source,
+          reason:      !rulesEnabled ? "tenant_disabled" : "session_cap_reached",
         });
         return defaultPlan;
       }

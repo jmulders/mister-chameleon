@@ -3,21 +3,31 @@
  *
  * Tests calculateBillingEstimate() in isolation — no DB, no Stripe SDK.
  *
- * ─── Coverage ─────────────────────────────────────────────────────────────────
+ * ─── What the invoice is, as of the current model ────────────────────────────
  *
- *   1. Plan model: included credits, overage rate, base price per cycle.
- *   2. Billing formula: total = base + max(0, deducted - included) * overageRate
- *   3. Period handling: no period, active period, mid-period.
- *   4. Edge cases: no usage, exact limit, 1 over limit, far over limit,
- *                  annual vs monthly pricing, purchased credits, canceled plan.
- *   5. Line item structure: correct labels, quantities, isEstimate flags.
- *   6. Overage alert: present when overageCredits > 0, absent otherwise.
+ *   total = plan base fee. That is the whole formula.
  *
- * ─── Usage summary construction ───────────────────────────────────────────────
+ *   Enrichment credits are a separate consumable, paid for at checkout when a
+ *   bundle is bought, and drawn down from the wallet as they are used. Nothing
+ *   about that usage lands on the subscription invoice — no included allowance,
+ *   no overage rate, no overage line. The estimate lists credit activity as €0
+ *   reference lines so the panel shows what happened, not what it costs.
  *
- *   Tests construct UsageSummary objects manually rather than querying the DB.
- *   This keeps the test suite fast and isolated — DB integration is tested
- *   separately (see tests/billing/usage.test.ts when DB test harness is added).
+ *   Personalised sessions are capped, not billed per unit: over the monthly
+ *   bundle the visitor gets the default page unless the tenant has purchased
+ *   session credits. See billing/plan-enforcement.ts. Also not on this invoice.
+ *
+ * ─── Why this file was rewritten ─────────────────────────────────────────────
+ *
+ *   The previous version tested the old model: 500 included credits per plan,
+ *   €0.03/credit overage, an overage line item, an overage alert. The plans lost
+ *   `includedCredits` and `overageCentPerCredit` (now @deprecated, optional, and
+ *   unset) and the calculator lost the overage branch — but the tests stayed,
+ *   asserting `undefined === 500`. Sixteen red tests on the pricing calculator,
+ *   every run, for a calculator that was working as designed.
+ *
+ *   The tests below assert the model that ships. If the pricing model changes
+ *   again, these must fail — that is the point of them.
  */
 
 import { describe, it } from "node:test";
@@ -28,53 +38,61 @@ import type { UsageSummary }        from "@/billing/types";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const NOW      = "2025-03-01T00:00:00.000Z";
 const PERIOD_S = "2025-03-01T00:00:00.000Z";
 const PERIOD_E = "2025-04-01T00:00:00.000Z";
 const TENANT   = "tenant-test-001";
 
-/**
- * Build a minimal UsageSummary for testing.
- * Only deductedCredits and purchasedCredits affect the billing calculation.
- */
+/** Build a minimal UsageSummary. Only the credit fields vary per test. */
 function makeUsage(overrides: Partial<UsageSummary> = {}): UsageSummary {
-  const includedCredits = overrides.includedCredits ?? BILLING_PLANS.starter.includedCredits; // 500
-  const deducted        = overrides.usedCredits     ?? 0; // credits from deductions (used)
-  const overageCredits  = Math.max(0, deducted - includedCredits);
   return {
     tenantId:         TENANT,
-    currentBalance:   includedCredits - Math.min(deducted, includedCredits),
-    includedCredits,
-    usedCredits:      Math.min(deducted, includedCredits),
-    purchasedCredits: overrides.purchasedCredits ?? 0,
-    overageCredits,
-    periodStart:      overrides.periodStart ?? PERIOD_S,
-    periodEnd:        overrides.periodEnd   ?? PERIOD_E,
+    currentBalance:   0,
+    includedCredits:  0,
+    usedCredits:      0,
+    deductedCredits:  0,
+    purchasedCredits: 0,
+    overageCredits:   0,
+    periodStart:      PERIOD_S,
+    periodEnd:        PERIOD_E,
     ...overrides,
   };
 }
 
-// ── Plan model tests ──────────────────────────────────────────────────────────
+// ── Plan model ────────────────────────────────────────────────────────────────
 
 describe("Plan model", () => {
-  it("starter plan has 500 included credits at €0.03/credit overage", () => {
-    assert.equal(BILLING_PLANS.starter.includedCredits, 500);
-    assert.equal(BILLING_PLANS.starter.overageCentPerCredit, 3);
-    assert.equal(BILLING_PLANS.starter.monthlyPriceCents, 14900);
+  it("the three plans are priced €149 / €349 / €749 per month", () => {
+    assert.equal(BILLING_PLANS.starter.monthlyPriceCents, 14_900);
+    assert.equal(BILLING_PLANS.growth.monthlyPriceCents,  34_900);
+    assert.equal(BILLING_PLANS.pro.monthlyPriceCents,     74_900);
   });
 
-  it("growth plan has more credits than starter", () => {
+  it("each plan up the ladder allows more personalised sessions", () => {
     assert.ok(
-      BILLING_PLANS.growth.includedCredits > BILLING_PLANS.starter.includedCredits,
-      "growth.includedCredits should exceed starter.includedCredits",
+      BILLING_PLANS.growth.limits.personalizedSessionsPerMonth >
+      BILLING_PLANS.starter.limits.personalizedSessionsPerMonth,
+      "growth should allow more sessions than starter",
+    );
+    assert.ok(
+      BILLING_PLANS.pro.limits.personalizedSessionsPerMonth >
+      BILLING_PLANS.growth.limits.personalizedSessionsPerMonth,
+      "pro should allow more sessions than growth",
     );
   });
 
-  it("pro plan has the most credits", () => {
-    assert.ok(
-      BILLING_PLANS.pro.includedCredits >= BILLING_PLANS.growth.includedCredits,
-      "pro.includedCredits should be ≥ growth.includedCredits",
-    );
+  it("no plan carries an included credit allowance or an overage rate", () => {
+    // The wallet model replaced these. If a plan starts carrying them again,
+    // the calculator must grow an overage branch to match — so fail loudly.
+    for (const planId of ["starter", "growth", "pro"] as const) {
+      assert.equal(
+        BILLING_PLANS[planId].includedCredits, undefined,
+        `${planId}: credits are purchased separately, not included in the plan`,
+      );
+      assert.equal(
+        BILLING_PLANS[planId].overageCentPerCredit, undefined,
+        `${planId}: there is no overage billing`,
+      );
+    }
   });
 
   it("annual pricing is cheaper per month than monthly for all plans", () => {
@@ -88,104 +106,65 @@ describe("Plan model", () => {
   });
 });
 
-// ── Formula tests ─────────────────────────────────────────────────────────────
+// ── Formula ───────────────────────────────────────────────────────────────────
 
-describe("Billing formula: total = base + max(0, deducted - included) * overageRate", () => {
-  it("no usage: total equals base fee only", () => {
+describe("Billing formula: total = plan base fee", () => {
+  it("no usage: total equals the base fee", () => {
     const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", makeUsage());
     assert.equal(estimate.totalCents, BILLING_PLANS.starter.monthlyPriceCents);
     assert.equal(estimate.hasOverage, false);
   });
 
-  it("usage below included limit: no overage charge", () => {
-    const usage    = makeUsage({ usedCredits: 499, overageCredits: 0 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
+  it("credit usage does not change the total", () => {
+    const estimate = calculateBillingEstimate(
+      TENANT, "starter", "monthly", makeUsage({ usedCredits: 5_000 }),
+    );
     assert.equal(estimate.totalCents, BILLING_PLANS.starter.monthlyPriceCents);
     assert.equal(estimate.hasOverage, false);
   });
 
-  it("usage exactly at included limit: no overage charge", () => {
-    const plan     = BILLING_PLANS.starter;
-    const usage    = makeUsage({ usedCredits: plan.includedCredits, overageCredits: 0 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    assert.equal(estimate.totalCents, plan.monthlyPriceCents);
-    assert.equal(estimate.hasOverage, false);
+  it("purchased bundles do not change the total (paid at checkout)", () => {
+    const estimate = calculateBillingEstimate(
+      TENANT, "starter", "monthly", makeUsage({ purchasedCredits: 5_000 }),
+    );
+    assert.equal(estimate.totalCents, BILLING_PLANS.starter.monthlyPriceCents);
   });
 
-  it("1 credit over limit: exactly 1 overage credit charged", () => {
-    const plan     = BILLING_PLANS.starter;
-    const usage    = makeUsage({
-      usedCredits:    plan.includedCredits,
-      overageCredits: 1,
-    });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    const expected = plan.monthlyPriceCents + 1 * plan.overageCentPerCredit; // 14900 + 3 = 14903
-    assert.equal(estimate.totalCents, expected);
-    assert.equal(estimate.hasOverage, true);
-  });
-
-  it("100 credits over limit: base + 100 × overageRate", () => {
-    const plan     = BILLING_PLANS.starter;
-    const usage    = makeUsage({
-      usedCredits:    plan.includedCredits,
-      overageCredits: 100,
-    });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    const expected = plan.monthlyPriceCents + 100 * plan.overageCentPerCredit;
-    assert.equal(estimate.totalCents, expected);
-  });
-
-  it("growth plan 250 credits over: correct rate applied", () => {
-    const plan  = BILLING_PLANS.growth;
-    const usage = makeUsage({
-      tenantId:         TENANT,
-      includedCredits:  plan.includedCredits,
-      usedCredits:      plan.includedCredits,
-      overageCredits:   250,
-      purchasedCredits: 0,
-      currentBalance:   0,
-      periodStart:      PERIOD_S,
-      periodEnd:        PERIOD_E,
-    });
-    const estimate = calculateBillingEstimate(TENANT, "growth", "monthly", usage);
-    const expected = plan.monthlyPriceCents + 250 * plan.overageCentPerCredit;
-    assert.equal(estimate.totalCents, expected);
+  it("every plan bills its own base fee", () => {
+    for (const planId of ["starter", "growth", "pro"] as const) {
+      const estimate = calculateBillingEstimate(TENANT, planId, "monthly", makeUsage());
+      assert.equal(estimate.totalCents, BILLING_PLANS[planId].monthlyPriceCents, planId);
+    }
   });
 });
 
-// ── Annual billing tests ──────────────────────────────────────────────────────
+// ── Annual billing ────────────────────────────────────────────────────────────
 
 describe("Annual billing cycle", () => {
   it("annual base fee uses annualMonthlyCents (effective monthly rate)", () => {
     const plan     = BILLING_PLANS.starter;
     const estimate = calculateBillingEstimate(TENANT, "starter", "annual", makeUsage());
     assert.equal(estimate.totalCents, plan.annualMonthlyCents);
-    assert.ok(
-      plan.annualMonthlyCents < plan.monthlyPriceCents,
-      "annual effective monthly rate should be cheaper",
-    );
   });
 
-  it("annual with overage: base is annual rate + overage", () => {
-    const plan  = BILLING_PLANS.starter;
-    const usage = makeUsage({ usedCredits: plan.includedCredits, overageCredits: 50 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "annual", usage);
-    const expected = plan.annualMonthlyCents + 50 * plan.overageCentPerCredit;
-    assert.equal(estimate.totalCents, expected);
+  it("annual with heavy credit usage: still just the annual rate", () => {
+    const estimate = calculateBillingEstimate(
+      TENANT, "starter", "annual", makeUsage({ usedCredits: 10_000 }),
+    );
+    assert.equal(estimate.totalCents, BILLING_PLANS.starter.annualMonthlyCents);
   });
 });
 
-// ── Period handling tests ─────────────────────────────────────────────────────
+// ── Period handling ───────────────────────────────────────────────────────────
 
 describe("Period handling", () => {
-  it("estimate reflects period start/end from usage summary", () => {
-    const usage    = makeUsage({ periodStart: PERIOD_S, periodEnd: PERIOD_E });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
+  it("estimate reflects period start/end from the usage summary", () => {
+    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", makeUsage());
     assert.equal(estimate.periodStart, PERIOD_S);
     assert.equal(estimate.periodEnd,   PERIOD_E);
   });
 
-  it("no period (new tenant): estimate still returns base fee", () => {
+  it("no period (new tenant): estimate still returns the base fee", () => {
     const usage    = makeUsage({ periodStart: null, periodEnd: null });
     const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
     assert.equal(estimate.totalCents, BILLING_PLANS.starter.monthlyPriceCents);
@@ -193,77 +172,72 @@ describe("Period handling", () => {
   });
 });
 
-// ── Purchased credits tests ───────────────────────────────────────────────────
+// ── Reference line items ──────────────────────────────────────────────────────
 
-describe("Purchased credit bundles", () => {
-  it("purchased credits appear as a €0 reference line item", () => {
-    const usage    = makeUsage({ purchasedCredits: 500 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
+describe("Credit activity reference lines", () => {
+  it("credits used this period appear as a €0 reference line", () => {
+    const estimate = calculateBillingEstimate(
+      TENANT, "starter", "monthly", makeUsage({ usedCredits: 120 }),
+    );
+    const usedLine = estimate.lineItems.find((li) => li.label.includes("credits used"));
+    assert.ok(usedLine, "should have a credits-used line item");
+    assert.equal(usedLine!.totalCents, 0, "reference lines never add to the total");
+  });
+
+  it("purchased credits appear as a €0 reference line", () => {
+    const estimate = calculateBillingEstimate(
+      TENANT, "starter", "monthly", makeUsage({ purchasedCredits: 500 }),
+    );
     const bundleLine = estimate.lineItems.find((li) => li.label.includes("bundles"));
     assert.ok(bundleLine, "should have a credit bundle line item");
     assert.equal(bundleLine!.totalCents, 0);
     assert.equal(bundleLine!.isEstimate, false);
   });
 
-  it("no purchased credits: no bundle line item", () => {
-    const usage    = makeUsage({ purchasedCredits: 0 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    const bundleLine = estimate.lineItems.find((li) => li.label.includes("bundles"));
-    assert.equal(bundleLine, undefined);
+  it("no credit activity: only the base line item", () => {
+    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", makeUsage());
+    assert.equal(estimate.lineItems.length, 1);
   });
 });
 
-// ── Line item structure tests ─────────────────────────────────────────────────
+// ── Line item structure ───────────────────────────────────────────────────────
 
 describe("Line item structure", () => {
-  it("base fee line item is never marked as estimate", () => {
+  it("base fee line item is never marked as an estimate", () => {
     const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", makeUsage());
     const baseLine = estimate.lineItems[0];
     assert.ok(baseLine, "should have at least one line item");
     assert.equal(baseLine.isEstimate, false);
   });
 
-  it("overage line item is marked as estimate", () => {
-    const plan  = BILLING_PLANS.starter;
-    const usage = makeUsage({ usedCredits: plan.includedCredits, overageCredits: 10 });
+  it("no line item is ever an overage charge", () => {
+    const usage    = makeUsage({ usedCredits: 99_999, purchasedCredits: 99_999 });
     const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    const overageLine = estimate.lineItems.find((li) => li.label.includes("overage"));
-    assert.ok(overageLine, "should have an overage line item");
-    assert.equal(overageLine!.isEstimate, true);
+    const overage  = estimate.lineItems.find((li) => li.label.toLowerCase().includes("overage"));
+    assert.equal(overage, undefined, "overage billing no longer exists");
   });
 
-  it("subtotal equals sum of all line item totals", () => {
-    const usage    = makeUsage({ overageCredits: 50, purchasedCredits: 100 });
+  it("subtotal equals the sum of all line item totals", () => {
+    const usage    = makeUsage({ usedCredits: 50, purchasedCredits: 100 });
     const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    const summedTotal = estimate.lineItems.reduce((s, li) => s + li.totalCents, 0);
-    assert.equal(estimate.subtotalCents, summedTotal);
+    const summed   = estimate.lineItems.reduce((s, li) => s + li.totalCents, 0);
+    assert.equal(estimate.subtotalCents, summed);
   });
 
   it("totalCents equals subtotalCents + taxCents", () => {
-    const usage    = makeUsage({ overageCredits: 100 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
+    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", makeUsage());
     assert.equal(estimate.totalCents, estimate.subtotalCents + estimate.taxCents);
   });
 });
 
-// ── Overage alert tests ───────────────────────────────────────────────────────
+// ── Overage alert ─────────────────────────────────────────────────────────────
 
 describe("Overage alert", () => {
-  it("no overage: overageAlert is undefined", () => {
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", makeUsage());
+  it("is never raised — there is nothing to overrun", () => {
+    const usage    = makeUsage({ usedCredits: 1_000_000, overageCredits: 1_000_000 });
+    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
+    assert.equal(estimate.hasOverage,   false);
     assert.equal(estimate.overageAlert, undefined);
-  });
-
-  it("overage present: overageAlert is a non-empty string", () => {
-    const usage    = makeUsage({ overageCredits: 5 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    assert.ok(typeof estimate.overageAlert === "string" && estimate.overageAlert.length > 0);
-  });
-
-  it("overage alert mentions overage credit count", () => {
-    const usage    = makeUsage({ overageCredits: 42 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    assert.ok(estimate.overageAlert!.includes("42"), `alert should mention "42": ${estimate.overageAlert}`);
   });
 });
 
@@ -272,30 +246,15 @@ describe("Overage alert", () => {
 describe("Edge cases", () => {
   it("all three plans return a non-zero total", () => {
     for (const planId of ["starter", "growth", "pro"] as const) {
-      const plan     = BILLING_PLANS[planId];
-      const usage    = makeUsage({ includedCredits: plan.includedCredits });
-      const estimate = calculateBillingEstimate(TENANT, planId, "monthly", usage);
+      const estimate = calculateBillingEstimate(TENANT, planId, "monthly", makeUsage());
       assert.ok(estimate.totalCents > 0, `${planId} estimate should have a positive total`);
     }
   });
 
-  it("very large overage: no integer overflow (test with 1 million credits)", () => {
-    const usage = makeUsage({
-      includedCredits: BILLING_PLANS.starter.includedCredits,
-      usedCredits:     BILLING_PLANS.starter.includedCredits,
-      overageCredits:  1_000_000,
-    });
+  it("totals stay safe integers under absurd usage", () => {
+    const usage    = makeUsage({ usedCredits: 1_000_000, purchasedCredits: 1_000_000 });
     const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    const expected = BILLING_PLANS.starter.monthlyPriceCents +
-                     1_000_000 * BILLING_PLANS.starter.overageCentPerCredit;
-    assert.equal(estimate.totalCents, expected);
     assert.ok(Number.isSafeInteger(estimate.totalCents), "totalCents should be a safe integer");
-  });
-
-  it("zero usedCredits and zero purchasedCredits: only base line item", () => {
-    const usage    = makeUsage({ usedCredits: 0, purchasedCredits: 0, overageCredits: 0 });
-    const estimate = calculateBillingEstimate(TENANT, "starter", "monthly", usage);
-    assert.equal(estimate.lineItems.length, 1);
   });
 
   it("formattedTotal is a non-empty string", () => {
@@ -314,5 +273,3 @@ describe("Edge cases", () => {
     assert.equal(estimate.billingCycle, "annual");
   });
 });
-
-void NOW; // reference to suppress unused-variable warning

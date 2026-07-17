@@ -185,7 +185,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     }),
   });
 
-  const { sessionId } = resolveSession(cookieHeader);
+  // sessionId — the 30-day visitor key. Drives personalisation continuity.
+  // webSessionId — this visit, 30-minute window. The billing unit. Keep them
+  // apart: billing on the visitor key charges once for a month of visits.
+  const { sessionId, webSessionId } = resolveSession(cookieHeader);
 
   // ── Tenant resolution ─────────────────────────────────────────────────────
   const { tenantConfig, devTenantOverride, devOverrideSource } =
@@ -240,8 +243,38 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const devForceBucket =
     process.env.NODE_ENV !== "production" && params._expBucket === "1" ? 1 : undefined;
 
+  // ── Cohort + monthly session cap ──────────────────────────────────────────
+  //
+  // Personalization holdout — a deterministic % of visitors are the control group
+  // and get the default experience, so the performance report can measure true
+  // causal lift. Inert when holdout pct is 0.
+  //
+  // The monthly session cap folds in here. Over the cap (and out of purchased
+  // credits) the visitor also gets the default experience — but labelled "capped",
+  // never "control", so the lift baseline stays a random sample. See
+  // lib/lead-base/holdout.ts.
+  //
+  // This MUST run before the provider stack is built: "default experience" means
+  // the tenant's defaultPlan, which is a constructor flag on RulesDecisionProvider.
+  // Deciding afterwards only let us suppress ABM/segments/AI while the rules engine
+  // kept adapting on source and device — i.e. the product, for free.
+  //
+  // The cap check is not free (three reads), but it replaces the ones
+  // recordPersonalizedSession used to do on every pageview — that function now
+  // takes this verdict as an argument. Net: same query count, and the answer is
+  // computed BEFORE we decide instead of after we already personalised.
+  const sessionCap = await checkSessionSoftCap(tenantConfig.tenantId);
+
+  const personalizationGroup = applySessionCap(
+    assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
+    sessionCap.overLimit,
+  );
+  // Both "control" and "capped" get the default experience — never compare to
+  // "control" directly, or the cap silently stops being enforced.
+  const isControl = servesDefaultExperience(personalizationGroup);
+
   const baseDecisionProvider = new ExperimentDecisionProvider(
-    new RulesDecisionProvider(tenantRulesConfig ?? undefined),
+    new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl),
     sessionId,
     experimentsEnabled,
     tenantConfig.tenantId,
@@ -467,29 +500,6 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const returningSignals = sessionId
     ? await getReturningProfileSignals(tenantConfig.tenantId, sessionId)
     : null;
-
-  // Personalization holdout — a deterministic % of visitors are the control group
-  // and get the default experience (no ABM/returning/segment/AI adaptation), so the
-  // performance report can measure true causal lift. Inert when holdout pct is 0.
-  //
-  // The monthly session cap folds in here. Over the cap (and out of purchased
-  // credits) the visitor also gets the default experience — but labelled "capped",
-  // never "control", so the lift baseline stays a random sample. See
-  // lib/lead-base/holdout.ts.
-  //
-  // The cap check is not free (three reads), but it replaces the ones
-  // recordPersonalizedSession used to do on every pageview — that function now
-  // takes this verdict as an argument. Net: same query count, and the answer is
-  // computed BEFORE we decide instead of after we already personalised.
-  const sessionCap = await checkSessionSoftCap(tenantConfig.tenantId);
-
-  const personalizationGroup = applySessionCap(
-    assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
-    sessionCap.overLimit,
-  );
-  // Both "control" and "capped" get the default experience — never compare to
-  // "control" directly, or the cap silently stops being enforced.
-  const isControl = servesDefaultExperience(personalizationGroup);
 
   // ── Decision context ──────────────────────────────────────────────────────
   let debugInfo: EnrichmentDebugInfo | null = null;
@@ -921,6 +931,8 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     // Billing — the caller passes these straight to recordPersonalizedSession so
     // it does not re-query what we already know. personalizationGroup is
     // "capped" when the monthly bundle ran out (see lib/lead-base/holdout.ts).
+    // Bill on webSessionId, never sessionId: one visit = one contextual session.
+    webSessionId,
     sessionCap,
     personalizationGroup,
     // Experiment

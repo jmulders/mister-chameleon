@@ -30,6 +30,7 @@ import assert from 'node:assert/strict';
 import { SanityProvider } from '@/cms/providers/sanity-provider';
 import { makeMockSanityClient } from './helpers/mock-sanity-client';
 import { runCMSProviderContractSuite } from './contract-suite';
+import { assertVariantEquals } from './helpers/assert-variant';
 import {
   HERO_KEY,
   HERO_NO_TAG_KEY,

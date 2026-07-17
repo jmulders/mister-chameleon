@@ -294,7 +294,7 @@ async function HomeBody({ params }: { params: Record<string, string | string[] |
   // make that decision; without it this function re-ran the same three queries
   // on every pageview.
   if (!result.sessionCap.overLimit) {
-    recordPersonalizedSession(tenantConfig.tenantId, sessionId, result.sessionCap)
+    recordPersonalizedSession(tenantConfig.tenantId, result.webSessionId, result.sessionCap)
       .catch(() => null);
   }
 

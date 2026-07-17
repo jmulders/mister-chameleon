@@ -2,15 +2,22 @@
  * StatamicProvider — CMSProvider Contract Tests
  *
  * Verifies that StatamicProvider satisfies the CMSProvider interface contract
- * using an injected MockStatamicClient. No environment variables or network
- * calls are required — all data comes from the in-memory entry map.
+ * without environment variables or network calls.
  *
  * ─── Injection point ───────────────────────────────────────────────────────
  *
- *   StatamicProvider(client?: StatamicClient)
+ *   new StatamicProvider(client?, draftBlocks?, tenantId?)
  *
- *   The optional `client` constructor parameter lets tests inject a mock
- *   without any environment variable setup.
+ *   `draftBlocks` pre-populates the provider's home-page Replicator cache, so
+ *   the variant getters resolve from memory and never touch the API.
+ *
+ *   These tests used to inject a MockStatamicClient that overrode
+ *   `fetchEntry(collection, key)`. That method is no longer on the provider's
+ *   read path: variants moved from per-variant collection entries to Replicator
+ *   sets on home.md (plus per-tenant overrides in the platform DB). The mock kept
+ *   answering a question nobody asked, the provider found nothing, and every
+ *   variant test asserted against `null` — for a provider that works fine in
+ *   production. Injecting draftBlocks exercises the path the site actually uses.
  *
  * ─── Coverage ──────────────────────────────────────────────────────────────
  *
@@ -23,19 +30,14 @@
  *
  *   Statamic-specific:
  *     • is_active: false → returns null (not served even if published)
- *     • network / fetch errors return null (never throw)
+ *     • enabled:   false → returns null (the Replicator set's own toggle)
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { StatamicProvider } from '@/cms/providers/statamic-provider';
-import { MockStatamicClient } from './helpers/mock-statamic-client';
 import { runCMSProviderContractSuite } from './contract-suite';
-import {
-  HERO_VARIANTS_COLLECTION,
-  PROOF_VARIANTS_COLLECTION,
-  CTA_VARIANTS_COLLECTION,
-} from '@/cms/queries/statamic';
+import { assertVariantEquals } from './helpers/assert-variant';
 import {
   HERO_KEY,
   HERO_NO_TAG_KEY,
@@ -51,27 +53,36 @@ import {
   STATAMIC_CTA_ENTRY,
 } from './fixtures/contract-fixtures';
 
-// ── Mock client ────────────────────────────────────────────────────────────
+// ── Replicator blocks ──────────────────────────────────────────────────────
+//
+// A Replicator set is the entry's fields plus a `type` naming the set. The
+// fixtures already carry the field shape, so the block is the fixture + type.
+
+function heroSet(overrides: Record<string, unknown> = {}) {
+  return { ...STATAMIC_HERO_ENTRY, type: 'hero_variant', ...overrides };
+}
+
+const DRAFT_BLOCKS: unknown[] = [
+  heroSet(),
+  { ...STATAMIC_HERO_NO_TAG_ENTRY, type: 'hero_variant'  },
+  { ...STATAMIC_PROOF_ENTRY,       type: 'proof_variant' },
+  { ...STATAMIC_CTA_ENTRY,         type: 'cta_variant'   },
+];
 
 /**
- * Entry map for the mock client. Statamic identifies entries by their
- * collection and key, so the lookup is keyed by "collection/key".
+ * Build a provider whose home-page Replicator cache is pre-filled.
+ *
+ * tenantId is null, so the adaptive_blocks DB lookup finds no tenant row and the
+ * Replicator catalog answers — which is exactly the fallback path being tested.
  */
-const ENTRY_MAP = {
-  [`${HERO_VARIANTS_COLLECTION}/${HERO_KEY}`]:           STATAMIC_HERO_ENTRY,
-  [`${HERO_VARIANTS_COLLECTION}/${HERO_NO_TAG_KEY}`]:    STATAMIC_HERO_NO_TAG_ENTRY,
-  [`${PROOF_VARIANTS_COLLECTION}/${PROOF_KEY}`]:         STATAMIC_PROOF_ENTRY,
-  [`${CTA_VARIANTS_COLLECTION}/${CTA_KEY}`]:             STATAMIC_CTA_ENTRY,
-};
-
-function makeStatamicProvider(): StatamicProvider {
-  return new StatamicProvider(new MockStatamicClient(ENTRY_MAP));
+function makeStatamicProvider(blocks: unknown[] = DRAFT_BLOCKS): StatamicProvider {
+  return new StatamicProvider(undefined, blocks, null);
 }
 
 // ── Shared contract ────────────────────────────────────────────────────────
 
 describe('CMSProvider contract — StatamicProvider', () => {
-  runCMSProviderContractSuite('StatamicProvider', makeStatamicProvider, {
+  runCMSProviderContractSuite('StatamicProvider', () => makeStatamicProvider(), {
     heroKey:           HERO_KEY,
     heroKeyNoTag:      HERO_NO_TAG_KEY,
     proofKey:          PROOF_KEY,
@@ -84,69 +95,59 @@ describe('CMSProvider contract — StatamicProvider', () => {
 
   // ── Statamic-specific: is_active flag ──────────────────────────────────
   //
-  // Statamic's REST API returns published entries only (per collection config),
-  // but the `is_active` field is a soft-disable. StatamicProvider checks
-  // `entry.is_active` after fetching and returns null when false.
+  // `is_active` is a soft-disable, independent of Statamic's own publication
+  // state: an entry can be published and still not be served.
 
   describe('is_active flag (Statamic-specific)', () => {
     it('returns null for a hero variant with is_active: false', async () => {
-      const entryMap = {
-        [`${HERO_VARIANTS_COLLECTION}/${HERO_KEY}`]: {
-          ...STATAMIC_HERO_ENTRY,
-          is_active: false,
-        },
-      };
-      const provider = new StatamicProvider(new MockStatamicClient(entryMap));
-      const result = await provider.getHeroVariant(HERO_KEY);
+      const provider = makeStatamicProvider([heroSet({ is_active: false })]);
+      const result   = await provider.getHeroVariant(HERO_KEY);
       assert.strictEqual(result, null, 'is_active:false hero must return null');
     });
 
     it('returns null for a proof variant with is_active: false', async () => {
-      const entryMap = {
-        [`${PROOF_VARIANTS_COLLECTION}/${PROOF_KEY}`]: {
-          ...STATAMIC_PROOF_ENTRY,
-          is_active: false,
-        },
-      };
-      const provider = new StatamicProvider(new MockStatamicClient(entryMap));
+      const provider = makeStatamicProvider([
+        { ...STATAMIC_PROOF_ENTRY, type: 'proof_variant', is_active: false },
+      ]);
       const result = await provider.getProofVariant(PROOF_KEY);
       assert.strictEqual(result, null, 'is_active:false proof must return null');
     });
 
     it('returns null for a CTA variant with is_active: false', async () => {
-      const entryMap = {
-        [`${CTA_VARIANTS_COLLECTION}/${CTA_KEY}`]: {
-          ...STATAMIC_CTA_ENTRY,
-          is_active: false,
-        },
-      };
-      const provider = new StatamicProvider(new MockStatamicClient(entryMap));
+      const provider = makeStatamicProvider([
+        { ...STATAMIC_CTA_ENTRY, type: 'cta_variant', is_active: false },
+      ]);
       const result = await provider.getCTAVariant(CTA_KEY);
       assert.strictEqual(result, null, 'is_active:false CTA must return null');
     });
 
     it('returns data normally when is_active: true (sanity check)', async () => {
       const result = await makeStatamicProvider().getHeroVariant(HERO_KEY);
-      assert.deepStrictEqual(result, EXPECTED_HERO);
+      assertVariantEquals(result, EXPECTED_HERO);
     });
   });
 
-  // ── Statamic-specific: error handling ──────────────────────────────────
+  // ── Statamic-specific: the Replicator set's own enable toggle ───────────
 
-  describe('StatamicProvider error handling', () => {
-    it('returns null when the Statamic client throws (e.g. API error)', async () => {
-      const errorClient = new MockStatamicClient({});
-      // Override fetchEntry to throw unconditionally
-      errorClient.fetchEntry = async (): Promise<never> => {
-        throw new Error('Simulated Statamic API error');
-      };
-      const provider = new StatamicProvider(errorClient);
+  describe('enabled toggle (Statamic-specific)', () => {
+    it('returns null for a hero variant with enabled: false', async () => {
+      const provider = makeStatamicProvider([heroSet({ enabled: false })]);
+      const result   = await provider.getHeroVariant(HERO_KEY);
+      assert.strictEqual(result, null, 'enabled:false hero must return null');
+    });
+  });
+
+  // ── Unknown key ────────────────────────────────────────────────────────
+
+  describe('StatamicProvider unknown keys', () => {
+    it('returns null when the Replicator catalog is empty (never throws)', async () => {
+      const provider = makeStatamicProvider([]);
       const hero  = await provider.getHeroVariant(HERO_KEY);
       const proof = await provider.getProofVariant(PROOF_KEY);
       const cta   = await provider.getCTAVariant(CTA_KEY);
-      assert.strictEqual(hero,  null, 'getHeroVariant should return null on error');
-      assert.strictEqual(proof, null, 'getProofVariant should return null on error');
-      assert.strictEqual(cta,   null, 'getCTAVariant should return null on error');
+      assert.strictEqual(hero,  null, 'getHeroVariant should return null');
+      assert.strictEqual(proof, null, 'getProofVariant should return null');
+      assert.strictEqual(cta,   null, 'getCTAVariant should return null');
     });
   });
 });

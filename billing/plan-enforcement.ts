@@ -90,10 +90,20 @@ export interface SessionCapResult {
   current:      number;
   /** Effective monthly cap = plan limit + purchased session credits. 0 = unlimited. */
   limit:        number;
-  /** Sessions provided by the subscription plan alone (before bonus credits). */
-  planLimit?:   number;
+  /**
+   * Sessions provided by the subscription plan alone (before bonus credits).
+   * 0 = unlimited.
+   */
+  planLimit:    number;
   /** Purchased bonus sessions added on top of the plan limit. */
-  bonusSessions?: number;
+  bonusSessions: number;
+  //
+  // These two were optional. Every producer sets them, but the `?` let
+  // recordPersonalizedSession read `capResult.planLimit > 0` on a possibly-
+  // undefined number: `undefined > 0` is false, silently, so the branch that
+  // spends a purchased session credit would just never run. The tenant would
+  // have bought credits, had them served, and never had them deducted. Required
+  // here so the compiler catches a producer that forgets one.
   /** The calendar month key checked ("YYYY-MM"). */
   monthKey:     string;
 }
@@ -206,25 +216,34 @@ export async function checkPlanFeature(
  * Uses INSERT … ON CONFLICT DO NOTHING so the same (tenant, month, session)
  * triple is counted only once — idempotent and safe to call multiple times.
  *
- * ─── Known gap: only the homepage counts ─────────────────────────────────────
+ * ─── The billing unit: one visit ─────────────────────────────────────────────
  *
- *   The only caller is app/(site)/page.tsx. CMS pages (app/(site)/[slug]) run
- *   the same personalisation via lib/cms-page-decision.ts and DO respect the cap,
- *   but never record a session. A tenant whose traffic lands mostly on inner
- *   pages therefore consumes far less of its bundle than it actually uses.
+ *   A contextual session is one WEB session — the visitor arrives, reads one or
+ *   more pages, leaves. Two consequences, both load-bearing:
  *
- *   Not fixed here on purpose: starting to count those sessions would move every
- *   existing tenant's usage overnight, which is a pricing decision, not a bug
- *   fix. Wire it up together with a communication plan.
+ *   1. Every page counts, not just the homepage. app/(site)/page.tsx and
+ *      lib/cms-page-decision.ts both call this. The PK (tenant, month, session)
+ *      collapses the whole visit into one row, so "every page counts" does not
+ *      mean "every page is billed".
  *
- * ─── Known gap: month boundary ───────────────────────────────────────────────
+ *   2. Pass the mc_ws cookie value, never mc_session_id. The latter lives 30
+ *      days and is a VISITOR key: keyed on it, a visitor who comes back weekly
+ *      is billed once a month. See WEB_SESSION_COOKIE in @/data/session.
  *
- *   month_key is the UTC calendar month, while Stripe bills from the
- *   subscription's own anchor date. For a tenant that started on the 15th, the
- *   cap resets halfway through their invoice period.
+ * ─── Month boundary ──────────────────────────────────────────────────────────
+ *
+ *   month_key is the calendar month and the cap resets on the 1st. That is the
+ *   intended commercial model: a tenant starting on the 15th pays a prorated
+ *   half month, then full months from the 1st. It requires the Stripe
+ *   subscription to be anchored to the 1st with proration — if the anchor drifts
+ *   to the signup date, the reset and the invoice stop lining up.
+ *
+ *   Calendar month is computed in UTC. For a Dutch tenant the reset lands at
+ *   01:00/02:00 local on the 1st, not midnight — an hour of a busy night bills
+ *   to the previous month.
  *
  * @param tenantId  The tenant that served the personalised content.
- * @param sessionId A stable, opaque visitor session token (hashed, no PII).
+ * @param sessionId The visitor's WEB session token (mc_ws) — opaque, no PII.
  * @param cap       The already-computed cap verdict from the pipeline. Pass it —
  *                  otherwise this re-queries what the caller just worked out.
  * @param monthKey  Calendar month in "YYYY-MM" format (default: cap's, else now).

@@ -87,7 +87,7 @@ import {
   applySessionCap,
   servesDefaultExperience,
 }                                        from "@/lib/lead-base/holdout";
-import { checkSessionSoftCap }           from "@/billing/plan-enforcement";
+import { checkSessionSoftCap, recordPersonalizedSession } from "@/billing/plan-enforcement";
 import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
@@ -238,7 +238,10 @@ export async function resolveSlugPageConfig(
 
   try {
     // ── Session resolution ────────────────────────────────────────────────────
-    const { sessionId } = resolveSession(cookieHeader);
+    //
+    // sessionId is the 30-day visitor key (personalisation continuity);
+    // webSessionId is this visit (the billing unit). See @/data/session.
+    const { sessionId, webSessionId } = resolveSession(cookieHeader);
 
     // ── Scenario overrides ────────────────────────────────────────────────────
     //
@@ -286,13 +289,51 @@ export async function resolveSlugPageConfig(
       ? applyScenarioToHistory(rawHistory, scenarioOverrides)
       : rawHistory;
 
+    // ── Cohort + monthly session cap ──────────────────────────────────────────
+    //
+    // Personalization holdout — control group gets the default experience.
+    //
+    // The monthly session cap folds in the same way as on the homepage: over the
+    // bundle (and out of purchased credits) the visitor is labelled "capped" and
+    // also gets the default. Enforcing on the homepage alone would leave every
+    // CMS page personalising past the cap — the tenant's busiest pages served
+    // for free.
+    //
+    // Runs before the provider stack because "default experience" means the
+    // tenant's defaultPlan, which is a constructor flag on RulesDecisionProvider.
+    const sessionCap = await checkSessionSoftCap(tenantId);
+    const personalizationGroup = applySessionCap(
+      assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
+      sessionCap.overLimit,
+    );
+    const isControl = servesDefaultExperience(personalizationGroup);
+
+    // ── Billing: count this visit ─────────────────────────────────────────────
+    //
+    // A contextual session is one visit to the site, not one visit to the
+    // homepage. Until now only app/(site)/page.tsx recorded anything, so a
+    // visitor who landed on /pricing from Google — adapted, the product working
+    // exactly as sold — consumed nothing. Tenants whose traffic lands on inner
+    // pages were using the bundle without spending it.
+    //
+    // Keyed on webSessionId, so the five pages of one visit are one row: the PK
+    // is (tenant, month, session) and the insert is ON CONFLICT DO NOTHING. The
+    // homepage records the same key, so a visit that touches both counts once.
+    //
+    // Skipped over the cap: the visitor got the default page, so there is
+    // nothing to bill — and counting it would inflate the counter that decides
+    // the cap in the first place.
+    if (!sessionCap.overLimit) {
+      void recordPersonalizedSession(tenantId, webSessionId, sessionCap).catch(() => null);
+    }
+
     // ── Decision provider stack ───────────────────────────────────────────────
     //
     // Rules → Experiments → (optionally) AI — mirrors the homepage stack but
     // without the enrichment pipeline.
     const experimentsEnabled = tenant?.experiments?.enabled ?? true;
     const baseDecisionProvider = new ExperimentDecisionProvider(
-      new RulesDecisionProvider(tenantRulesConfig ?? undefined),
+      new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl),
       sessionId,
       experimentsEnabled,
       tenantId,
@@ -365,19 +406,6 @@ export async function resolveSlugPageConfig(
       .split(";").map((c) => c.trim())
       .find((c) => c.startsWith("mc_lead="))
       ?.slice("mc_lead=".length);
-    // Personalization holdout — control group gets the default experience.
-    //
-    // The monthly session cap folds in the same way as on the homepage: over the
-    // bundle (and out of purchased credits) the visitor is labelled "capped" and
-    // also gets the default. Enforcing on the homepage alone would leave every
-    // CMS page personalising past the cap — the tenant's busiest pages served
-    // for free.
-    const sessionCap = await checkSessionSoftCap(tenantConfig.tenantId);
-    const personalizationGroup = applySessionCap(
-      assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
-      sessionCap.overLimit,
-    );
-    const isControl = servesDefaultExperience(personalizationGroup);
 
     let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
     try {

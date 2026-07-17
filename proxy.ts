@@ -72,7 +72,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { resolveSession, SESSION_COOKIE }    from "@/data/session";
+import { resolveSession, SESSION_COOKIE, WEB_SESSION_COOKIE } from "@/data/session";
 import {
   resolveAttribution,
   ATTRIBUTION_COOKIE,
@@ -188,6 +188,20 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     requestHeaders.set(
       "cookie",
       `${existing}${separator}${SESSION_COOKIE}=${session.sessionId}`,
+    );
+  }
+
+  // Same trick for the billable web-session cookie: on the first request of a
+  // visit the browser has not received the Set-Cookie yet, so inject it into the
+  // forwarded request. Without this the very first pageview of every visit — the
+  // one that actually gets personalised — would be counted under a value the
+  // next pageview no longer carries, billing each visit twice.
+  if (session.isNewWebSession) {
+    const existing  = requestHeaders.get("cookie") ?? "";
+    const separator = existing.length > 0 ? "; " : "";
+    requestHeaders.set(
+      "cookie",
+      `${existing}${separator}${WEB_SESSION_COOKIE}=${session.webSessionId}`,
     );
   }
 
