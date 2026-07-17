@@ -11,7 +11,7 @@
     "lint": "eslint",
     "lint:summary": "node scripts/lint-summary.mjs",
     "typecheck": "next typegen && tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm test",
+    "verify": "eslint --quiet && npm run typecheck && npm test",
     "test": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=dot --test './tests/**/*.test.ts'",
     "test:cms": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=dot --test './tests/cms/*.test.ts'",
     "test:personalization": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=dot --test './tests/personalization/*.test.ts'",

@@ -12,8 +12,10 @@ here it passes there, which is the whole reason it is one command.
 
 | Command | What it does |
 |---|---|
-| `npm run verify` | lint → typecheck → all tests. The gate. |
+| `npm run verify` | `eslint --quiet` → typecheck → all tests. The gate. Errors only — warnings do not fail the build, so they do not belong in the gate’s output. |
 | `npm run typecheck` | `next typegen && tsc --noEmit` |
+| `npm run lint` | eslint, warnings and all (525 of them) |
+| `npm run lint:summary` | errors grouped by rule and directory |
 | `npm test` | every `tests/**/*.test.ts` |
 | `npm run test:verbose` | the same, with the full spec output — for when you are reading one suite |
 | `npm run test:watch` | spec output, re-runs on save |
@@ -144,6 +146,23 @@ ledger at all. The schema happens to be correct; nothing knows why. Pick one pat
 that runs unattended), reconcile the ledgers with `supabase migration repair`,
 and delete the other. Until then, "is production migrated?" can only be answered
 by looking at the tables.
+
+## The 525 warnings
+
+`npm run verify` runs `eslint --quiet` — errors only, because only errors fail the
+build. `npm run lint` still shows everything; `npm run lint:summary` gives the
+compact view.
+
+Do not read the 525 as noise, though. Most are unused variables. Some are not:
+
+| rule | where | what it means |
+|---|---|---|
+| `react-hooks/set-state-in-effect` (5) | ConsentBanner, CookieDeclaration, cart-context | setState called synchronously in an effect body — cascading renders. Production components, including the consent banner. |
+| `react-hooks/static-components` (30) | ScenarioControlPanel | `Section` and `Row` are declared inside render, so they are new component types every render and their state resets. Dev-only panel, but it is why that panel feels flaky. |
+
+Left as warnings on purpose: fixing them is behaviour change, not cleanup, and
+they were found at the end of a long session. They are real, and they are worth a
+morning.
 
 ## Enforcement
 
