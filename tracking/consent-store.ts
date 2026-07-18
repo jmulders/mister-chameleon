@@ -164,3 +164,19 @@ export function onConsentChange(
   window.addEventListener("mc:consent-change", handler);
   return () => window.removeEventListener("mc:consent-change", handler);
 }
+
+/**
+ * useSyncExternalStore subscribe adapter.
+ *
+ * useSyncExternalStore hands us a zero-arg `onStoreChange`; onConsentChange
+ * passes the new state to its callback, which onStoreChange simply ignores. The
+ * pairing works because getConsent() is a stable snapshot: it returns
+ * window.__mc_consent, reassigned only by setConsent(), so React never loops.
+ *
+ * Lives here (not in a component) so its identity is module-stable — a fresh
+ * subscribe function on every render would make useSyncExternalStore resubscribe
+ * each time.
+ */
+export function subscribeConsent(onStoreChange: () => void): () => void {
+  return onConsentChange(onStoreChange);
+}

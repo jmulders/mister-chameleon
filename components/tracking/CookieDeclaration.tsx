@@ -10,8 +10,9 @@
  * consent-settings modal.
  */
 
-import { useEffect, useState } from "react";
-import { getConsent, setConsent } from "@/tracking/consent-store";
+import { useState, useSyncExternalStore } from "react";
+import { getConsent, setConsent, subscribeConsent } from "@/tracking/consent-store";
+import { DEFAULT_CONSENT } from "@/tracking/consent-types";
 import {
   COOKIE_CATEGORY_ORDER,
   cookiesForCategory,
@@ -21,15 +22,32 @@ import { consentTexts } from "@/tracking/consent-i18n";
 
 interface Prefs { analytics: boolean; personalization: boolean; enrichment: boolean }
 
+// Server + first-hydration snapshot: all categories denied. Matches the SSR HTML;
+// the real cookie is read straight after hydration by useSyncExternalStore.
+// Module constant → stable reference, so the store never loops.
+function getServerConsent() {
+  return DEFAULT_CONSENT;
+}
+
 export function CookieDeclaration({ locale }: { locale?: string } = {}) {
   const t = consentTexts(locale);
-  const [prefs, setPrefs] = useState<Prefs>({ analytics: false, personalization: false, enrichment: false });
+
+  // The saved consent, read from the store. This replaces the on-mount effect
+  // that used to seed local state with setPrefs() — the set-state-in-effect the
+  // linter flagged. getConsent() is a stable snapshot (see consent-store).
+  const stored = useSyncExternalStore(subscribeConsent, getConsent, getServerConsent);
+
+  // Draft overlay: null means "mirror the saved consent"; an object means the
+  // visitor has started toggling and we show their unsaved edits. Saving writes
+  // the draft to the store and clears it, so prefs re-syncs to what was saved.
+  const [draft, setDraft] = useState<Prefs | null>(null);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    const c = getConsent();
-    setPrefs({ analytics: c.analytics, personalization: c.personalization, enrichment: c.enrichment });
-  }, []);
+  const prefs: Prefs = draft ?? {
+    analytics:       stored.analytics,
+    personalization: stored.personalization,
+    enrichment:      stored.enrichment,
+  };
 
   const value = (cat: CookieCategory): boolean =>
     cat === "essential" ? true : prefs[cat as keyof Prefs];
@@ -37,13 +55,13 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
   const setValue = (cat: CookieCategory, v: boolean) => {
     if (cat === "essential") return;
     setSaved(false);
-    setPrefs((p) => ({ ...p, [cat]: v }));
+    setDraft({ ...prefs, [cat]: v });
   };
 
   function save(next?: Prefs) {
     const s = next ?? prefs;
-    setPrefs(s);
     setConsent({ hasResponded: true, ...s });
+    setDraft(null);   // re-sync to the store, which now holds the saved values
     setSaved(true);
   }
 
