@@ -131,7 +131,15 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // /api/statamic-draft is internal Live Preview infrastructure, called
   // server-side (in bursts) by the CMS render-proxy. Exempt it from public
   // rate limiting so the editor preview is never 429'd.
-  if (pathname.startsWith("/api/") && pathname !== "/api/statamic-draft") {
+  //
+  // /api/health is the deploy pipeline's liveness probe: polled repeatedly right
+  // after a release, from a small pool of GitHub-runner IPs. Under the public
+  // limiter that shared IP is exhausted instantly, so the check returned 429 and
+  // a healthy deploy was reported as failed. A health endpoint exists to be
+  // polled — it must never be rate-limited. (First observed 18 Jul 2026: five
+  // straight 429s on the post-deploy check while the site itself was fine.)
+  const RATE_LIMIT_EXEMPT = new Set(["/api/statamic-draft", "/api/health"]);
+  if (pathname.startsWith("/api/") && !RATE_LIMIT_EXEMPT.has(pathname)) {
     const endpoint  = endpointFromPath(pathname);
     const clientIp  = extractClientIp(request.headers);
     const rl        = await checkRateLimit(endpoint, clientIp);
