@@ -55,9 +55,22 @@ const nextConfig = {
   // upload-for-picker-action.ts.  The +1 MB headroom covers multipart framing
   // and any additional form fields (tenantId, altText).
   //
-  // In Next.js 15+ this is a top-level key (moved out of `experimental`).
-  serverActions: {
-    bodySizeLimit: "11mb",
+  // ─── Waarom dit onder `experimental` staat en niet top-level ────────────────
+  //
+  // Hier stond `serverActions` als top-level key, met de comment "In Next.js 15+
+  // this is a top-level key (moved out of experimental)". Dat klopte niet. Next 16
+  // herkent de top-level key niet en negeerde hem stilzwijgend:
+  //
+  //     ⚠ Unrecognized key(s) in object: 'serverActions'
+  //
+  // Gevolg: de limiet viel terug op de standaard 1 MB, en elke asset-upload groter
+  // dan dat faalde — zonder dat de config een fout gaf. `bodySizeLimit` hoort in
+  // Next 15/16 onder `experimental`. Ontdekt op 17 juli 2026 in de build-log van
+  // de eerste productie-deploy die echt draaide.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "11mb",
+    },
   },
 
   // ── Optional Node.js-only packages ─────────────────────────────────────────

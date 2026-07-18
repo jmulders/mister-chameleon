@@ -65,16 +65,59 @@ interface StripeCheckoutSession {
   subscription: string | null;
 }
 
+interface StripeSubscriptionItem {
+  plan?:                 { interval?: string };
+  // Sinds Stripe API 2024-09-30 leeft de facturatieperiode HIER, op het item —
+  // niet meer op de root van het subscription-object.
+  current_period_start?: number;
+  current_period_end?:   number;
+}
+
 interface StripeSubscription {
-  id:                   string;
-  status:               string;
-  customer:             string;
-  metadata:             Record<string, string | undefined>;
-  items:                { data: Array<{ plan?: { interval?: string } }> };
-  current_period_start: number;
-  current_period_end:   number;
-  cancel_at_period_end: boolean;
-  canceled_at:          number | null;
+  id:                    string;
+  status:                string;
+  customer:              string;
+  metadata:              Record<string, string | undefined>;
+  items:                 { data: Array<StripeSubscriptionItem> };
+  start_date?:           number;
+  billing_cycle_anchor?: number;
+  // ── current_period_start/end zijn hier OPTIONEEL en dat is de hele bug ───────
+  //
+  // Dit type verklaarde ze ooit als verplichte root-velden (`: number`). Dat was
+  // dezelfde leugen als de verwijderde `declare module "stripe"`-shim: sinds API
+  // 2024-09-30 staan ze op items.data[0], niet op de root. De `as unknown as`-cast
+  // in de handlers dwong het echte Stripe-object in dit foute type, dus de
+  // typecheck zweeg. Bij runtime was sub.current_period_end dus undefined, en
+  // `new Date(undefined * 1000).toISOString()` gooit een RangeError. De handler
+  // crashte, de route ving het in try/catch, logde handler_threw en gaf tóch 200 —
+  // Stripe dacht "afgeleverd" terwijl de database nooit werd bijgewerkt. Zo kon
+  // een levend abonnement een maand achterlopen. Optioneel gelaten zodat oude
+  // payloads (van vóór 2024-09-30) nog steeds resolven via de fallback hieronder.
+  current_period_start?: number;
+  current_period_end?:   number;
+  cancel_at_period_end:  boolean;
+  canceled_at:           number | null;
+}
+
+/**
+ * Lees de huidige facturatieperiode uit een subscription, waar Stripe hem ook
+ * heeft gezet. Voorkeur: item-niveau (huidige API). Terugval: de oude root-velden
+ * (payloads van vóór 2024-09-30), dan billing_cycle_anchor / start_date. Zo komt
+ * er altijd een coherente start uit en nooit een NaN die de handler laat crashen.
+ */
+export function subscriptionPeriod(sub: StripeSubscription): { start: number; end: number | null } {
+  const item = sub.items?.data?.[0];
+  const start =
+    item?.current_period_start ??
+    sub.current_period_start ??
+    sub.start_date ??
+    sub.billing_cycle_anchor ??
+    Math.floor(Date.now() / 1000);
+  const end =
+    item?.current_period_end ??
+    sub.current_period_end ??
+    null;
+  return { start, end };
 }
 
 // ── RPC availability helper ────────────────────────────────────────────────────
@@ -777,14 +820,15 @@ export async function handleStripeWebhook(
       if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
 
       const planId = sub.metadata?.plan_id ?? "starter";
+      const period = subscriptionPeriod(sub);
       await upsertSubscription(client, tenantId, {
         stripe_customer_id:     sub.customer,
         stripe_subscription_id: sub.id,
         plan:                   planId,
         status:                 sub.status,
         billing_cycle:          sub.items.data[0]?.plan?.interval === "year" ? "annual" : "monthly",
-        current_period_start:   new Date(sub.current_period_start * 1000).toISOString(),
-        current_period_end:     new Date(sub.current_period_end   * 1000).toISOString(),
+        current_period_start:   new Date(period.start * 1000).toISOString(),
+        current_period_end:     period.end != null ? new Date(period.end * 1000).toISOString() : null,
         cancel_at_period_end:   sub.cancel_at_period_end,
       });
 
@@ -802,14 +846,15 @@ export async function handleStripeWebhook(
       if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
 
       const planId = sub.metadata?.plan_id ?? "starter";
+      const period = subscriptionPeriod(sub);
       await upsertSubscription(client, tenantId, {
         stripe_customer_id:     sub.customer,
         stripe_subscription_id: sub.id,
         plan:                   planId,
         status:                 sub.status,
         billing_cycle:          sub.items.data[0]?.plan?.interval === "year" ? "annual" : "monthly",
-        current_period_start:   new Date(sub.current_period_start * 1000).toISOString(),
-        current_period_end:     new Date(sub.current_period_end   * 1000).toISOString(),
+        current_period_start:   new Date(period.start * 1000).toISOString(),
+        current_period_end:     period.end != null ? new Date(period.end * 1000).toISOString() : null,
         cancel_at_period_end:   sub.cancel_at_period_end,
         canceled_at:            sub.canceled_at
           ? new Date(sub.canceled_at * 1000).toISOString()
@@ -860,9 +905,10 @@ export async function handleStripeWebhook(
       const tenantId  = stripeObj.metadata?.tenant_id ?? null;
       if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
 
+      const period = subscriptionPeriod(stripeObj);
       await upsertSubscription(client, tenantId, {
-        current_period_start: new Date(stripeObj.current_period_start * 1000).toISOString(),
-        current_period_end:   new Date(stripeObj.current_period_end   * 1000).toISOString(),
+        current_period_start: new Date(period.start * 1000).toISOString(),
+        current_period_end:   period.end != null ? new Date(period.end * 1000).toISOString() : null,
       });
 
       return { handled: true, action: "period_dates_synced", tenantId };
