@@ -44,9 +44,9 @@ import fs   from "node:fs";
 import path from "node:path";
 import https from "node:https";
 
-import { log }           from "./lib/logger.js";
-import { run, capture }  from "./lib/exec.js";
-import { PROJECT_ROOT }  from "./lib/env.js";
+import { log }           from "./lib/logger.ts";
+import { run, capture }  from "./lib/exec.ts";
+import { PROJECT_ROOT }  from "./lib/env.ts";
 
 // ── CLI args ───────────────────────────────────────────────────────────────────
 

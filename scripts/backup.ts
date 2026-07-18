@@ -45,11 +45,11 @@
 import fs   from "node:fs";
 import path from "node:path";
 
-import { loadEnv, requireEnv, hasEnv, PROJECT_ROOT } from "./lib/env.js";
-import { log }                                        from "./lib/logger.js";
-import { run, capture, commandExists }                from "./lib/exec.js";
-import { ensureDir, writeJson, copyDir, copyIfExists, formatBytes, fileSize } from "./lib/fs-utils.js";
-import { getSupabaseClient, BACKUP_TABLES, fetchTableData } from "./lib/supabase-client.js";
+import { loadEnv, requireEnv, hasEnv, PROJECT_ROOT } from "./lib/env.ts";
+import { log }                                        from "./lib/logger.ts";
+import { run, capture, commandExists }                from "./lib/exec.ts";
+import { ensureDir, writeJson, copyDir, copyIfExists, formatBytes, fileSize } from "./lib/fs-utils.ts";
+import { getSupabaseClient, BACKUP_TABLES, fetchTableData } from "./lib/supabase-client.ts";
 
 // ── CLI args ───────────────────────────────────────────────────────────────────
 

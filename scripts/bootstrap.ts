@@ -39,10 +39,10 @@
 import fs   from "node:fs";
 import path from "node:path";
 
-import { loadEnv, requireEnv, hasEnv, PROJECT_ROOT } from "./lib/env.js";
-import { log }                                        from "./lib/logger.js";
-import { run, commandExists }                         from "./lib/exec.js";
-import { getSupabaseClient }                          from "./lib/supabase-client.js";
+import { loadEnv, requireEnv, hasEnv, PROJECT_ROOT } from "./lib/env.ts";
+import { log }                                        from "./lib/logger.ts";
+import { run, commandExists }                         from "./lib/exec.ts";
+import { getSupabaseClient }                          from "./lib/supabase-client.ts";
 
 // ── CLI args ───────────────────────────────────────────────────────────────────
 
