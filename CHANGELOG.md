@@ -1,0 +1,427 @@
+# Changelog
+
+## v0.2.0 — 2026-07-18
+
+### Features
+- feat(billing): handhaaf het sessieplafond — credits eerst, dan degraderen
+- feat(billing): isOverCap — de plafondregel, met een rekenfout eruit
+- feat(blocks): de zeven ontbrekende pagina-varianten
+- feat(ai): ClaudeAdapter — de eerste echte modeladapter
+- feat(cms): events als volwaardige collectie (provisioner-collectie + blueprint + /events/{slug}) en collection_listing-blok
+- feat(cms): collection_listing-blok in provisioner-blueprint (collectiekeuze) + events als volwaardige collectie
+- feat(collections): events als volwaardige collectie + team_members in isCollectionKey
+- feat(templates): listing_team-preset + team-catalogus als listing + team_members in isCollectionKey
+- feat(interest): keyword-capture op snippet decide (meta keywords + URL-map) zodat interest-profielen op Statamic-sites werken
+- feat(blocks): platform-defaults shippen met complete AI/Decision-signalen (deriveDecisionMeta)
+- feat(conversions): Purchase-conversie op Stripe checkout.session.completed (marketing-site attributie)
+- feat(conversions): alle bezoekers-formulieren via gedeelde reportInboundConversion (contact/forms/trial/demo)
+- feat(contact): lead-capture + conversie-feedback koppelen aan /api/contact
+- feat: inbound-form-brug voor Statamic-formulieren (lead-capture + conversie-feedback)
+- feat: suppression-admin + CRM-enricher velden + operator-setup doc
+- feat(#4,#3): CRM->site customer-mode wiring + suppression/opt-out inbound
+- feat(#1,#5): conversie-feedback naar ad-platforms + kanaal-attributie-rapport
+- feat(#1): conversie-feedback naar Google/Meta/LinkedIn (offline conversions + CAPI)
+- feat(#2): first-touch attributie + inbound formulier→lead capture
+- feat(attribution): first-touch UTM/referrer/kanaal per visitor_profile
+- feat: enrichment ledger page-size dropdown; blueprint-activatie schrijft echte Statamic-pagina's
+- feat(admin): paginatie op ai-logs/users/tenants + blueprint activatie maakt echte pagina's aan
+- feat(admin): paginatie (10/25/50/100/Alle) op lijsten; ad-sync segment + toast
+- feat(ad-sync): first-party ABM target accounts direct in segment (ook zonder bezoek) + toast fix
+- feat(ad-sync): retargeting audience sync naar Google Ads, Meta en LinkedIn met incrementele reconcile en erasure
+- feat(provision): token-set field as dropdown of the tenant's named sets
+- feat(design): per-block design token field for Statamic content blocks
+- feat(design): per-content-block design token controls in the page editor
+- feat(design): every gallery preset applies matching site block tokens (complete look)
+- feat(design): richer Aurora Purple Gold preset + one-click complete-look apply
+- feat(design): Aurora Purple Gold example for site design tokens
+- feat(design): central site-wide design token system (defaultTokens) cascading to all blocks
+- feat(demo): apply extracted brand design tokens to synthetic demo (on-brand, working images)
+- feat(demo-importer): add Live Mirror run mode (visual clone via /api/demo/mirror)
+- feat(token-extractor): relevance-scored page selection for the crawler
+- feat(token-extractor): multi-page crawl + richer per-block token palette
+- feat(ai): variant generator (phase 1, capped); abm fixes (table+RLS, names)
+- feat(abm): AI-prompt knownLead awareness + named greeting + non-homepage coverage + nav
+- feat(abm): tenant admin — manage + import personalized-URL leads
+- feat(abm): personalized-URL core loop — redirect, lead cookie, known-lead personalization
+- feat(ai): author + feed adaptive-block decisionMeta into live AI candidate selection
+- feat(ai): author AI/Decision metadata on adaptive blocks in the admin
+- feat(interest): map + emit interest keywords for blog/cases/vacancies
+- feat(calendar): per-tenant Google Calendar booking (shared service account)
+- feat(nav): per-item dropdown style + mega CTA link as entry/URL
+- feat(nav): author mega menu CTA via Statamic nav fields
+- feat(nav): consolidate header variants + content-driven mega menus
+- feat(nav): mega menu CTA (left/right card + full-width bottom bar)
+- feat(hero): carousel autoplay toggle + robust desktop video autoplay
+- feat(hero): rich per-slide media (image/video + asset picker) in carousel
+- feat(hero): carousel authoring in EditBlockDrawer + slides data-flow
+- feat: allow floatingContact block in PRO package
+- feat: floating contact block + hero carousel variant (full wiring)
+- feat(staging): honor ?tenant= override on Vercel preview (never production)
+- feat(cms): ship set-picker previews via mc:sync + Storybook screenshot pipeline
+- feat(cms): set-picker previews (icon + instructions + preview image) per block
+- feat(assets): direct-to-storage upload for video/large files (up to 200MB, bypasses Vercel body cap)
+- feat(assets): allow video uploads (mp4/webm/ogg/mov) + honest 4MB Vercel body cap
+- feat(header/footer): dark-bg logo from effective header/footer bg
+- feat(header): auto-select dark-bg logo variant from headerBg luminance
+- feat(theme): color.gradientHero token -> gradient hero background + aurora-purple preset
+- feat(theme): dark/inverse sections (hero/cta/stats) follow tokens via inverse mapping
+- feat(design): expand Builder (spacing/border/motion/focus) + immediate cache bust on save + clamp length support
+- feat(extractor): browser-like fetch + SPA diagnostic; clarify settings block entitlements
+- feat(provision): seed neutral pages into fresh tenant repos (Route A)
+- feat(extractor): richer palette + drop broken var() gradients + heading-font fallback
+- feat: extract CSS gradients in token extractor (+ --gradient token)
+- feat: Design Token Extractor (URL -> importable token set) in admin/platform
+- feat: DTCG/Figma + metadata tolerance in token validator (all import paths)
+- feat: DTCG/Tokens Studio (Figma) adapter for design-token import
+- feat: HTTP Statamic search provider (real content search in production)
+- feat: exportable design-preset JSON files + import in Design Builder
+- feat(design-tokens): Phase 2b-rest step 1 — token-driven section padding
+- feat(design-tokens): Phase 2b-rest (safe subset) — button hover-lift
+- feat(design-tokens): Phase 4b — Preset builder tab + JSON-import fix
+- feat(design-tokens): Phase 4a — Preset gallery tab (pick + apply)
+- feat(design-tokens): Phase 3 — in-repo design preset gallery (10 presets)
+- feat(design-tokens): Phase 2b — wire new-consumer tokens (safe, fallback-guarded)
+- feat(design-tokens): Phase 2a — resolve preset token groups to CSS vars
+- feat(design-tokens): Phase 1 — data model + validation for preset token groups
+- feat(admin): render Finalize manualSteps checklist (stable CMS domain + write deploy key)
+- feat(provisioning): bake the session's hardening into tenant provisioning
+- feat(provisioning): set full Ploi env on deploy (CP_ENABLED, SESSION_DRIVER, MISTER_CHAMELEON_MODE, Statamic Git integration) — parity with working tenant
+- feat(provisioning): orchestrator contract + Finalize auto-registers Vercel domain + Pro env
+- feat(provisioning): finalize step + Pro env + step-by-step guide
+- feat(provisioning): finalize step (statamicBaseUrl + domain + sites.yaml) + step-by-step setup guide
+- feat(provisioning): automated per-tenant CMS repo (GitHub template) + Ploi Cloud app (IaC)
+- feat(admin): Statamic instance setup guide on tenant Setup (steps + prefilled env with siteKey)
+- feat(tenant): per-tenant CMS deploy button (Ploi webhook) on tenant setup
+- feat(admin): one-click CMS (Ploi) deploy button + docs viewer
+- feat(tenant): auto-generate snippet siteKey on tenant creation
+- feat(tenant): resolve admin-onboarded tenants from DB settings (switchable domains); revert mister-chameleon to Sanity; fix statamic footer href
+- feat(provisioning): add managed mc_page_blocks palette + fix timeline vimeo autoplay
+- feat(provisioning): ship mrc_* content-block fieldsets from the platform
+- feat(cms): recognise mc_context_slot provisioned set-handle as context slot
+
+### Bug Fixes
+- Fix the Statamic cache webhook; report that data/types.ts is a bigger job
+- fix(billing): cancel-subscription importeerde een export die niet bestaat
+- fix(billing): geen wallet is geen gratis budget + maak degradatie zichtbaar
+- fix(billing): wallet-mails gaan nu echt de deur uit + leg de fallback-semantiek vast
+- fix(locale): tenant-defaultLocale respecteren + contactformulier opslaan
+- fix(events): /events/[slug]-route + events selecteerbaar in collection_listing
+- fix(setup): shell-interpolatie in setup-script, env-templates in repo, docs gelijk aan code
+- fix(google-conversions): verplicht eventSource=WEB meesturen (events:ingest)
+- fix: volledige Google-conversiefout loggen + Suppressie-pagina naar Engels
+- fix(suppression): revalidatePath importeren (server-fout bij onderdrukken/opheffen)
+- fix(provisioning): detail/collectie-sjablonen niet als losse pagina scaffolden
+- fix(blueprint): dynamische route-pagina's (slug met [...]) niet als CMS-entry schrijven
+- fix(conversions): Google events destination gebruikt accountType (events:ingest)
+- fix(ad-sync): LinkedIn BATCH_CREATE header + version bump; Google via Data Manager API
+- fix(cms): carry per-block tokenSet through [slug] page render path
+- fix(cms): read Statamic select token_set as {value} object, not string
+- fix(provision): token_set handle so per-block sets reach the renderer
+- fix(design): aurora preset no longer pins a mismatched headerBgScrolled
+- fix(demo): proxy mirrored images same-origin (defeats hotlink/CORP → images show in Live Mirror)
+- fix(demo): always resolve absolute base URL (scheme) — no more 404; feat(token-extractor): block token set output
+- fix(vercel): remove sub-daily keep-warm cron (Hobby plan allows daily-only, max 2)
+- fix(billing): soften empty-wallet banner for healthy tenants; perf: Sanity CDN + keep-warm
+- fix(seed): add nested replicator type to feature_grid/testimonial/process_steps items (prevents Statamic CP 500 on provision)
+- fix(build): move const out of use-server file; EN admin labels + theme-switching
+- fix(abm): preserve identifier on lead update; variant generator phase 1; names
+- fix(nav): map overview_image(_hover) for mega-menu cards (REST API) + hover swap
+- fix(nav): unwrap API select objects for CTA; remove per-item header variant
+- fix(nav): unwrap REST API select-field objects for mega CTA position + dropdown style
+- fix(tenant): allow floatingContact in blocks.content validation
+- fix(preview): resolve CMS base from static tenant registry (per-tenant, no shared env)
+- fix(preview): pin per-tenant Statamic CMS base in tenant config
+- fix(preview): resolve draft assets against the per-tenant CMS host
+- fix(cms): root-relative asset URLs in prod so draft/preview images resolve
+- fix(hero): carousel typography uses hero design tokens (size/colour/font)
+- fix(hero): pass carousel slides through mapHeroBlockData to HeroBlock
+- fix(hero): map carousel slides in adaptiveToHero (homepage hero path)
+- fix(set-previews): output to public/set-previews (boot-copy source)
+- fix(header): locale-aware header variant + tenant defaultLocale=nl
+- fix(blocks): always persist video toggle booleans (false was dropped, reverting to defaults)
+- fix(assets): render video thumbnails as <video>; fix external URL preview (plain img)
+- fix(theme): nav-link hover follows secondary token (not base-theme blue)
+- fix(theme): CTA band follows primary + brighter aurora-gold + reject starter nav
+- fix(theme): nav-link + scrolled-header follow header tokens (legible on dark header)
+- fix(nav): pin production domains in static registry (kill flip-flop fallback)
+- fix(theme): nav-link follows headerFg override + add aurora-purple gallery preset
+- fix(theme): override --hero-bg directly so hero follows foreground token
+- fix(nav): deterministic known-host->tenant map (never flip to fallback)
+- fix(theme): hero dark/light bg vars follow tokens (all variants)
+- fix(nav): durable DB-backed host->tenant last-known-good (stop flip to fallback tenant)
+- fix(theme): cover remaining raw-palette hub vars (primary-active/border-strong/primary-text)
+- fix(theme): map subtle/proof block tint vars so adaptive blocks follow tokens
+- fix(import): bulletproof importDesignPresetAction (never throws -> no page crash)
+- fix(builder): import setG returns all token groups (no more undefined border crash)
+- fix(builder): drop post-import refresh that crashed the design page
+- fix(import): bulletproof importDesignPresetAction (never throws -> no page crash)
+- fix(design): Builder file upload (accept + feedback) + preserve imported fonts in Advanced editor
+- fix(validator): accept leading-dot decimals (.7rem) as valid CSS length
+- fix(blocks): tokenize remaining hardcoded colors (quote, faq, quicklinks)
+- fix(blocks): tokenize ConversionBlock colors so design tokens apply everywhere
+- fix(content): Statamic CMS deep-link + drop debug log
+- fix(design): bust tenant cache on save so admin edits apply immediately
+- fix(flip-flop): DB-persisted last-known-good site settings (durable chrome)
+- fix: read validated tokens on import (DTCG no longer crashes Design page)
+- fix: resolveLink unwraps Statamic link objects (fixes search 404 + empty link hrefs)
+- fix: use absolute asset permalink for tenant logos + bump site-settings cache key
+- fix: load tenant logos from own CMS host (absolute asset URLs + plain img)
+- fix: render SVG logos via <img> in header (next/image rejects SVG)
+- fix: parse STATAMIC_CP_ORIGIN as list in draft-endpoint origin check
+- fix(preview): allow multiple custom CP origins in frame-ancestors
+- fix(cms): site-settings cache gates on nav only, not headerVariant
+- fix(seo): page title no longer shows the theme name
+- fix(design): preset/Builder apply also clears curated Style family
+- fix(design): make Style families and token Presets mutually exclusive
+- fix(cms): completeness-gated cross-instance cache for getSiteSettings
+- fix(tenant): persistent cross-instance cache for render-path tenant resolution
+- fix(statamic): platform-DB block customizations override home.md catalog
+- fix(tenant): last-known-good host->tenant resolution — stop transient store misses falling back to FALLBACK_TENANT (header/nav flip-flop between tenants)
+- fix(nav): treat empty mainNavigation as transient — serve last-known-good so the header nav stops flickering to fallback
+- fix(adaptive-blocks): fetch by block_key field (was filtering by non-existent 'key') so Statamic tenant block customizations resolve
+- fix(domains): addDomain sets NOT NULL domain column
+- fix(provisioning): correct Ploi Cloud API host (ploi.cloud/api/v1)
+- fix(statamic): normalise form_section 'form' field (string/array/object) to handle so the Form block renders
+- fix(timeline): drop progress track to year-marker baseline so it no longer crosses the year labels
+- fix(preview): drop duplicate header/footer; fetch context-slot variants from tenant Statamic base; harden site-settings fallback
+- fix(cms): serve last-known-good site settings on CMS outage; stop caching null
+- fix(header): add scroll hysteresis to stop collapse/expand flicker at threshold
+- fix(timeline): anchor progress track to nav row so it stops bleeding over the hero; English DNS tip
+- fix(hero): remove decorative glow bar in hero_minimal_dark (unwanted hairline over hero)
+- fix(statamic): use existing selectValue helper (remove duplicate decl that broke the build)
+- fix(statamic): read header/footer variant from select object (HTTP API) so triband renders + section tabs show
+- fix(statamic): normalise section-tab href/nav_handle (triband tabs); render header+footer in live preview
+- fix(statamic): normalise footer link href (was rendering [object Object])
+- fix(tenant): prefer statamic provider for mister-chameleon when STATAMIC_API_URL is set (was forced to sanity)
+- fix(admin): force-dynamic context library so build doesn't prerender DB-backed page
+- fix: render feature context slot on homepage engine path; remount timeline video iframe per slide
+- fix(blocks): video embed autoplay/loop params, timeline youtube loop, homepage feature context slot
+- fix(preview): unique React keys for page items (avoid slotId collision)
+- Fix build: parenthesize nullish coalescing mixed with logical OR
+- fix  as any cast op regel
+- Fix Safari permission dialog, simplify system page, add git commit panel
+- Fix Safari Local Network permission dialog + simplify system page
+- Fix: handle naam as string or array from suggest endpoint
+- Fix "use client" placement + robust Google PEM parser
+- Fix Google service account private key parsing for Vercel env vars
+- Fix all ESLint errors: 0 errors CI-gate now passes
+- Fix all ESLint errors and warnings blocking CI pre-deploy gate
+- Fix build script: use webpack instead of Turbopack
+- Fix sameSite case: lowercase for Next.js ResponseCookie compatibility
+- Fix rollback: use PRODUCTION_DOMAIN secret with fallback to project-w9ql1.vercel.app
+- Fix workflows: inline CI steps instead of reusable workflow call
+
+### Performance
+- perf: Sanity CDN for public reads + keep-warm cron (faster cold TTFB)
+- perf(sanity): serve published reads from CDN (faster cold TTFB)
+- Perf: harden background enrichment warm via after() hook (reliable cache-warm on serverless)
+- Perf: defer slow enrichment off homepage hero critical path; render fast partial + warm session cache in background
+- Perf: reserve hero-height skeleton (min-h-screen) to cut hero-swap CLS
+- Perf: optimize Statamic hero images via next/image (LCP); preload CDN font CSS
+- perf(images): next/image for logo strip + host-guarded CMS images
+- perf(images): next/image for CMS avatars; nav CTA + header-variant fixes
+- perf(hero): defer YouTube/Vimeo background embed until idle + in-view
+- perf(home): stream personalized body via Suspense (shell paints first)
+- perf(hero): render hero media via next/image (fill + priority) for faster LCP
+- perf(hero): render hero media via next/image (fill + priority) for faster LCP
+- perf(fonts): load only the tenant's used CDN font families (was 18 per page)
+- perf: gate GA4 enrichment on credentials (kills 4s stall); revalidate Statamic cache on webhook
+- perf: run serverless functions in fra1 (close to Ploi CMS + Supabase, EU users)
+
+### Refactoring
+- refactor(admin): design-tabs in de gedeelde sub-nav (zelfde positie en font-size)
+- refactor(ad-sync): Google Customer Match via Data Manager API (post-2026-04 Ads API deprecation)
+- refactor(admin): tenant IA — promote Design, add Personalisatie group, consolidate theming
+- refactor(design): consolidate to curated-theme Presets + custom Builder
+
+### Documentation
+- docs: vier handleidingen (platform-admin, tenant, operator/infra, developer)
+- docs: operator & infra handleiding (scratch tot closed loop, env per dienst)
+- docs: tenant- en platform-admin handleiding
+- docs: platform-admin handleiding (naslag onder /admin/platform/docs)
+- docs: complete handleiding Statamic-tenant tot en met closed loop
+- docs(ad-sync): Zapier/n8n recepten voor e-mail (Mailchimp) en fysieke post (Stannp/Lob)
+- docs: develop-sync runbook
+- docs+chore(staging): CONTRIBUTING + staging hosts + CMS pipeline & env matrix
+- docs: pipeline current-state + CMS pipeline & env-var matrix
+- docs: seed placeholder content + image download step
+- docs(admin): clarify per-tenant vs platform-wide Statamic env (MC_PREVIEW_FRONTEND_URL = tenant domain, not platform)
+- docs(admin): clarify Statamic CMS-credentials panel — per-tenant connection is the CMS base URL (statamicBaseUrl), no token needed (public read API)
+- docs: add step-by-step runbook for provisioning a new Statamic tenant (with the gotchas that caused outages)
+- docs(admin): add DNS setup tip to tenant domains panel
+
+### Other
+- Merge pull request #9 from jmulders/consent-banner-external-store
+- Give the release job a git identity — runners have none
+- Merge pull request #8 from jmulders/consent-banner-external-store
+- Drop the now-stale @ts-expect-error — the flag it worked around is on
+- Release scripts import .ts, not .js — strip-types resolves paths literally
+- Merge pull request #7 from jmulders/consent-banner-external-store
+- Health check: a Vercel edge 429 proves the origin is alive, not broken
+- Merge pull request #6 from jmulders/consent-banner-external-store
+- Health endpoint must never be rate-limited — it exists to be polled
+- CookieDeclaration and cart: derive state from external stores, not effects
+- Merge pull request #5 from jmulders/consent-banner-external-store
+- ConsentBanner: derive visibility from the store instead of two effects
+- Merge pull request #4 from jmulders/fix-subscription-webhook-period
+- The webhook read the billing period from the wrong place. Same lie as the deleted shim.
+- serverActions was silently ignored on Next 16. Three dead tables, now gone.
+- Merge pull request #3 from jmulders/supabase-types
+- The deploy job could never have worked. Vercel was doing it all along.
+- Merge pull request #2 from jmulders/supabase-types
+- One of these six tables was real. I had the other three in the backup.
+- This migration was broken for two years. Nobody could see it.
+- Two files claimed version 000095. The CLI only ever saw one of them.
+- Two migrations lived only in production. Now they live here too.
+- The deploy pipeline pointed at a domain we do not own
+- Move BACKUP_TABLES out of the route — the same rule I fixed an hour earlier
+- ScenarioControlPanel: declare the components once, not per render
+- The backup covered 13 of 84 tables. Now 56, chosen on one question.
+- Generate the Supabase types. The client has never typed anything until now.
+- Write down the four things still wrong, so they stop living in my head
+- CI ran on Node 20, so `npm test` never started. Not once.
+- verify is green — and now it is quiet too
+- The last eight: four real fixes, four honest casts
+- Delete types/stripe.d.ts — a fake Stripe SDK that has been lying for months
+- The 354 lint errors were a build artifact. So was my claim that lint was clean.
+- Make the gate readable: dot reporter, 2449 lines → 23
+- Every workflow runs `npm run verify` — including the ones that deploy
+- Golden billing scenarios, a gate that binds, and docs/testing.md
+- Make the typecheck pass, and find out why CI never told us
+- Anchor subscriptions to the 1st, so the invoice matches the cap window
+- Bill per web session; enforce the cap by returning defaultPlan
+- content(blocks): verzonnen bewijs uit de proof-varianten
+- revert(templates): listing_team-preset terug — listing is een content-blok, geen template
+- style(design): tabbalk gelijk aan gedeelde sub-nav (positie + text-xs font + indigo underline)
+- chore(admin): Design-tabbalk bovenaan, Retargeting EN, lichtere sidebar + Statamic-handleiding
+- chore(admin): Retargeting-pagina naar Engels + leesbaardere sidebar (lichtere nav-tekst)
+- ui(ad-sync): terugkoppeling als vaste toast rechtsonder (altijd zichtbaar)
+- ui(admin): gedeelde AdminPageHeader, cross-links opgeruimd, em-dashes verwijderd op abm/leads/ad-sync/journey
+- debug: temp data-mc marker on content blocks
+- demo(mirror): fix lazy src promotion + onerror image fallback
+- demo(mirror): fill JS-lazy placeholder images with Unsplash
+- demo: premium redesign of Full generation template
+- demo: fix data-uri srcset mangling + promote <picture> lazy images
+- demo: brand-signals token fallback + harden image proxy
+- demo: configurable public base URL for shareable demos + image proxy + store-read viewer
+- token-extractor: downloadable block token set + clearer labels; demo: request-host base URL
+- billing: soften empty-wallet UI; design: JSON upload + set preview in block drawer
+- billing: soften empty-wallet UI; design: JSON file upload + apply hint for block token sets
+- Expand per-block tokens: grouped, data-driven (~55 fields)
+- Per-block design token sets (content + adaptive blocks)
+- Consent: NL/EN i18n + 'More about cookies' link to /cookies; lifetime/type/domain in cookie declaration
+- Cookie declaration: show lifetime + type + domain per cookie; add public /cookies policy page
+- Setup: enable deploy on manual/everything selection; add blog/news, newsletter, lead-capture modules
+- Setup wizard: starterless 'show everything' mode listing all pages + functionalities across starters
+- Setup wizard: add Select-all toggles for pages and functionality modules
+- Journey: fix breadcrumb label Behavior -> Scoring to match nav + page title
+- Lead-base: session→Journey deep-link/copy; decouple personalization tests; fix admin session cookie sameSite type
+- Personalization: known-lead merge tokens ({{first_name}}/{{company}}/...) + configurable lead-score weights & decay threaded through all score sites
+- Personalization causal lift: randomized holdout (deterministic control group skips personalization) + true-lift report section + admin holdout %
+- Consent: always-on cookie-settings launcher+modal; lead scoring: tenant-configurable hot-lead threshold across isHotLead/segment/dashboard
+- Consent: cookie registry + Cookiebot-style cookie declaration / preference manager
+- ABM dashboard: status filters (hot/engaged/not-visited/synced) + CSV export of filtered accounts
+- ABM: platform-wide Hot leads seed segment + account dashboard (target accounts x observed activity, hot score, CRM status)
+- Lead Base: close the personalization loop — returning-visitor signals (returning/hot/known/customer/score) as context vars + rule fields
+- Typecheck cleanup: Sanity seed/schema tooling to 0 errors; full pre-existing typecheck cleanup complete
+- Typecheck cleanup complete: define blueprint theme presets, map CTA link variant, fix SectionTabData predicate, pageItems + revalidateTag (Next 16); runtime graph 0 errors
+- Typecheck cleanup wave 2: safe type fixes across cms/page-store/tenant; ~37→7 real errors
+- Typecheck cleanup: fix real bugs (serializeError, rpc .catch) + safe type fixes across billing/cms/tenant/page-config; 49→10 errors
+- Typecheck cleanup: import serializeError (real bug) + cast Supabase write payloads (hand-written Database types); 37→24 errors
+- Lead Base: per-profile activity timeline (visitor_events) + built-in hot-lead Slack alerts; doc + typecheck
+- Lead Base: extract + unit-test lead scoring and AVG gate; purge old webhook deliveries (30d)
+- Leads: hot-lead score + sort, wallet €0 banner, GDPR delete archives linked HubSpot contact
+- Lead Base: webhook retry + deliveries log with replay; email column for watertight HubSpot contact dedup
+- Move CRM/outbound integration settings from Target accounts to Leads page
+- Lead Base webhook: include named person + geo/consent in payload; broaden copy
+- ABM admin: neutral CSV + HubSpot copy (drop 'free' and Sales Navigator)
+- Leads: group profiles by account (collapsible, aggregate visits/sessions)
+- Lead Base webhook: optional per-tenant HMAC-SHA256 signing (X-MC-Signature/Timestamp) + admin secret field
+- HubSpot: enrich company firmographics + create/associate contact + per-session website-visit note
+- Admin: rename ABM/Lead Base nav + page titles to Target accounts/Leads for clarity
+- Lead Base: HubSpot sync retry-without-industry (enum 400) + admin Test-connection button
+- Lead Base: ABM known-lead firmographics are first-party (sync without cookie consent); HubSpot company sync by name; reuse firmographics for known visitors
+- Lead Base: reuse firmographics for known leads (tenant freshness, default 30d) + HubSpot company sync by name when no domain
+- ABM import: auto-detect CSV delimiter (comma/semicolon/tab)
+- ABM import: generic CSV wording (not Sales Navigator–specific)
+- Debug full-wipe: allow where Scenario panel is enabled + clear mc_lead/mc_consent (httpOnly)
+- Scenario Control: live enricher re-run (real chain + geo->weather + Leadinfo from cookie)
+- Scenario Control: merge enricher re-run output into enrichmentPatch (don't wipe prior fields)
+- Register Leadinfo firmographics (KvK/SBI/omzet/employees) as context + rule fields
+- Leadinfo: forward full dataLayer field set (KvK/SBI/omzet/employees) to enrichment
+- Leadinfo: tap dataLayer.push (timing-robust) to catch the company push
+- Add per-tenant Google Tag Manager integration (establishes window.dataLayer)
+- geo: MaxMind GeoLite2 web-service enricher (uses platform license, serverless-friendly)
+- Lead Base: charge 1 credit on recognition (company identified)
+- Lead Base: Leadinfo dataLayer enrichment + HubSpot Company CRM sync
+- Lead Base phase 3: qualification CRM webhook + non-homepage coverage
+- Lead Base phase 2: admin list/filter/bulk-delete/export + nav
+- Lead Base phase 1: visitor_profiles + GDPR gate + per-request upsert + retention purge
+- enrichment: map IPinfo IP-to-Company (name/domain) when token plan provides it
+- Leadinfo: load real ping.js (dashboard); disable non-existent server identify API
+- ABM: read-only known-lead indicator in Scenario Control panel
+- ABM: known-lead badge on target pages + honest slot-aware wording
+- ABM: known-lead badge on non-homepage target pages
+- ABM: known-lead identity badge in context debug overlay
+- ABM: per-lead visit log + last-seen + generic outbound webhook
+- ABM: segment dropdown + load known-lead firmographics into context (rules/segments fire)
+- ABM: fix vanity-path lookup (leading-slash normalize); EN admin remnants
+- chore(staging): register staging hosts + document CMS pipeline & env matrix
+- style(header): a touch more vertical padding on the main band
+- design(aurora): add aurora-purple-gold variant (complementary gold accent)
+- design(aurora): cohesive violet->orchid palette + refined semantics
+- i18n(design-builder): translate UI to English + stack save button/status
+- ux(builder): friendly stale-action message on import
+- ux(builder): clearly-styled preset-JSON upload button
+- ux: de-duplicate JSON import in Design (drop standalone upload, clarify Builder import)
+- harden Live Preview: self-maintaining draft origin check + provisioning runbook
+- revert(tenant): keep mister-chameleon on Sanity (statamic provider was cross-wired)
+- chore: remove unused tenants.json seed (leaked secrets; runtime uses Supabase)
+- chore: remove stray nested CMS copy from platform repo
+- Platform↔CMS addon: provisioning pipeline + v1 slot/manifest API
+- rate-limit: statamic-draft uitzonderen (preview-proxy)
+- mc-preview: collectie-items resolven (render-proxy fidelity)
+- mc-preview: video-autoplay uit in preview
+- mc-preview: CORS-header zodat Statamic's live-preview hot-reload mag fetchen
+- mc-preview: herlaad op Statamic postMessage met vers token
+- mc-preview: no-store headers zodat CP-iframe altijd het laatste token laadt
+- mc-preview: native Statamic-token (direct, geen bridge) via tenant statamicBaseUrl
+- mc-preview: collectie-hydratie overslaan voor snelheid
+- mc-preview: engine eruit (sneller, lichter, minder platformverbruik)
+- mc-preview: signaleer bridge zodra gerenderd (snelle swap, geen YouTube-wachttijd)
+- mc-preview: run decision engine for slot content + remove debug endpoint
+- Add lightweight mc-preview route for fast Live Preview
+- cleanup: remove temporary draft debug endpoint
+- debug: report tenant + cms provider resolution
+- Live Preview: accept mcdraft alias on contact and slug pages
+- Live Preview: render draft from injected blocks even if entry fetch fails
+- Live Preview: accept mcdraft alias + extend draft debug
+- Live Preview fix: force-dynamic homepage + draft debug endpoint
+- Live Preview in production: Supabase draft store + CP-origin frame headers
+- bigone
+- supabase form submits
+- Billing issues
+- snippet test page
+- Add official KvK Zoeken API as a separate enrichment stage
+- OpenKvK: wildcard queries + handelsnaam queryfield
+- OpenKvK: probe naam queryfield in addition to API defaults
+- OpenKvK test: show fuzzy-fallback warning when suggest is the source
+- OpenKvK: try company+city combined query + drop explicit queryfields
+- OpenKvK: list endpoint first, suggest as fuzzy fallback
+- OpenKvK test: dual-endpoint search + top-5 results display
+- Switch OpenKvK to suggest endpoint for company name search
+- Strip fields[] params from overheid.io URL; show raw response keys on empty
+- Add legal-suffix retry for OpenKvK queries (B.V., N.V., etc.)
+- Remove deprecated GA4 notice from platform enrichment page
+- Drop queryfields restriction from overheid.io OpenKvK queries
+- Remove server-side city filter from overheid.io OpenKvK calls
+- Move overheid.io API key to its own dedicated section in enrichment UI
+- Add overheid.io API key (ovio-api-key) for OpenKvK integration
+- Migrate OpenKvK provider to overheid.io v3 API
+- Google Calendar integration: store credentials in DB via admin UI
+- Robustly parse Google service account private key PEM
+- Add /api/health endpoint for rollback health check
+- Add missing source files and remove studio node_modules from tracking
+- Add GitHub Actions workflows
+- init project
+
