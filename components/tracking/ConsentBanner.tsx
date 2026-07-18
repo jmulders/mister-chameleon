@@ -9,17 +9,34 @@
  *
  * ─── Behaviour ────────────────────────────────────────────────────────────────
  *
- *   • On mount: reads consent from the client store (cookie).
- *   • If `hasResponded` is false: renders the banner.
+ *   Visibility is DERIVED from the consent store via useSyncExternalStore — the
+ *   banner shows exactly when `getConsent().hasResponded` is false. There is no
+ *   local `visible` state and no effect that sets it.
+ *
  *   • "Accept all"     → setConsent(FULL_CONSENT)
  *   • "Essential only" → setConsent(ESSENTIAL_CONSENT)
  *   • "Customize"      → expands detail panel to toggle each category.
- *   • Any choice hides the banner immediately (no page reload needed).
+ *   • Any choice writes consent, which fires mc:consent-change, which the store
+ *     subscription picks up → hasResponded flips to true → the banner unmounts.
+ *     No page reload, and no manual setVisible(false) in every handler.
  *
- * ─── Live consent changes ─────────────────────────────────────────────────────
+ * ─── Why useSyncExternalStore, not useEffect + setState ───────────────────────
  *
- *   Listens to `mc:consent-change` CustomEvent.  If consent changes while the
- *   page is open (e.g. user re-opens settings), the banner dismisses.
+ *   This used to be two effects: one read getConsent() on mount and called
+ *   setVisible(true); another subscribed to mc:consent-change and called
+ *   setVisible(false). That is the set-state-in-effect pattern the linter flags —
+ *   and here it was genuinely redundant, because consent already IS an external
+ *   store with a subscribe (onConsentChange) and a snapshot (getConsent).
+ *
+ *   The conversion is only safe because getConsent() returns a STABLE reference:
+ *   on the client it returns window.__mc_consent, which is reassigned solely by
+ *   setConsent(). Between changes every call returns the same object, so
+ *   useSyncExternalStore does not loop. Verified before converting.
+ *
+ *   The server snapshot reports hasResponded:true (banner hidden), so the banner
+ *   is never in the SSR HTML and the first client render matches it — no hydration
+ *   mismatch. The real cookie state is read immediately after hydration, exactly
+ *   as the old on-mount effect did.
  *
  * ─── Tenant customization ─────────────────────────────────────────────────────
  *
@@ -27,7 +44,7 @@
  *   Passed from the server layout which reads TenantPrivacySettings.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   getConsent,
@@ -38,6 +55,31 @@ import {
 } from "@/tracking/consent-store";
 import type { ConsentState } from "@/tracking/consent-types";
 import { consentTexts } from "@/tracking/consent-i18n";
+
+// ── External-store glue ─────────────────────────────────────────────────────────
+//
+// Module-level so their identity is stable across renders (useSyncExternalStore
+// requires stable subscribe + getServerSnapshot references).
+
+/** Subscribe the store's snapshot to consent-change events. onConsentChange
+ *  ignores the (unused) state arg its callback receives. */
+function subscribeConsent(onStoreChange: () => void): () => void {
+  return onConsentChange(onStoreChange);
+}
+
+/** Server + first-hydration snapshot: pretend the user already responded so the
+ *  banner is absent from the SSR HTML and the first client render matches it.
+ *  Constant reference, so useSyncExternalStore treats it as unchanging. */
+const SERVER_SNAPSHOT: ConsentState = {
+  hasResponded:    true,
+  analytics:       false,
+  personalization: false,
+  enrichment:      false,
+};
+
+function getServerConsent(): ConsentState {
+  return SERVER_SNAPSHOT;
+}
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -56,7 +98,14 @@ const OPTIONAL_CATEGORIES = ["analytics", "personalization", "enrichment"] as co
 
 export function ConsentBanner({ title, description, locale }: ConsentBannerProps) {
   const t = consentTexts(locale);
-  const [visible,    setVisible]    = useState(false);
+
+  // Visibility is derived from the store, not held in local state. The banner is
+  // shown exactly while the user has not yet responded; writing consent (below or
+  // from anywhere else, e.g. a re-opened preferences panel) flips hasResponded and
+  // unmounts it. See the header note on why this is a stable external store.
+  const consent = useSyncExternalStore(subscribeConsent, getConsent, getServerConsent);
+  const visible = !consent.hasResponded;
+
   const [expanded,   setExpanded]   = useState(false);
   const [customState, setCustomState] = useState<Omit<ConsentState, "hasResponded">>({
     analytics:       false,
@@ -64,35 +113,16 @@ export function ConsentBanner({ title, description, locale }: ConsentBannerProps
     enrichment:      false,
   });
 
-  // Show banner only if user hasn't responded yet.
-  useEffect(() => {
-    const consent = getConsent();
-    if (!consent.hasResponded) {
-      setVisible(true);
-    }
-  }, []);
-
-  // Listen for consent changes from other sources (e.g. preferences re-opened).
-  useEffect(() => {
-    const unsubscribe = onConsentChange((state) => {
-      if (state.hasResponded) setVisible(false);
-    });
-    return unsubscribe;
-  }, []);
-
   const handleAcceptAll = useCallback(() => {
     acceptAllConsent();
-    setVisible(false);
   }, []);
 
   const handleEssentialOnly = useCallback(() => {
     acceptEssentialConsent();
-    setVisible(false);
   }, []);
 
   const handleSaveCustom = useCallback(() => {
     setConsent({ hasResponded: true, ...customState });
-    setVisible(false);
   }, [customState]);
 
   const toggleCategory = useCallback(
