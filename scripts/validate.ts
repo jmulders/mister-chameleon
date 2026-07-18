@@ -29,9 +29,9 @@
 import fs   from "node:fs";
 import path from "node:path";
 
-import { loadEnv, hasEnv, PROJECT_ROOT }           from "./lib/env.js";
-import { log }                                      from "./lib/logger.js";
-import { BACKUP_TABLES, getSupabaseClient }         from "./lib/supabase-client.js";
+import { loadEnv, hasEnv, PROJECT_ROOT }           from "./lib/env.ts";
+import { log }                                      from "./lib/logger.ts";
+import { BACKUP_TABLES, getSupabaseClient }         from "./lib/supabase-client.ts";
 
 // ── CLI args ───────────────────────────────────────────────────────────────────
 

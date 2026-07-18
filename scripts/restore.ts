@@ -34,11 +34,11 @@
 import fs   from "node:fs";
 import path from "node:path";
 
-import { loadEnv, PROJECT_ROOT }                 from "./lib/env.js";
-import { log }                                   from "./lib/logger.js";
-import { run, commandExists }                    from "./lib/exec.js";
-import { ensureDir, readJson, listFiles }        from "./lib/fs-utils.js";
-import { getSupabaseClient, upsertTableData }    from "./lib/supabase-client.js";
+import { loadEnv, PROJECT_ROOT }                 from "./lib/env.ts";
+import { log }                                   from "./lib/logger.ts";
+import { run, commandExists }                    from "./lib/exec.ts";
+import { ensureDir, readJson, listFiles }        from "./lib/fs-utils.ts";
+import { getSupabaseClient, upsertTableData }    from "./lib/supabase-client.ts";
 
 // ── CLI args ───────────────────────────────────────────────────────────────────
 

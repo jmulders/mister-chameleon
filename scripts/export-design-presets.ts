@@ -17,14 +17,16 @@
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-// Dynamic .ts import so this stand-alone tool runs under
-// `node --experimental-transform-types` without app-build tsconfig settings.
+// Dynamic .ts import so this stand-alone CLI tool runs under
+// `node --experimental-strip-types`, which resolves import paths literally and
+// needs the real .ts extension.
 //
-// The extension is what node needs at runtime and what the app tsconfig forbids
-// (allowImportingTsExtensions is off, TS5097). The suppression is scoped to this
-// one line rather than loosening the setting for the whole codebase: this file
-// is a CLI tool run by hand, never imported by the app or bundled by Next.
-// @ts-expect-error TS5097 — see above.
+// This used to carry a scoped `@ts-expect-error TS5097`, because
+// allowImportingTsExtensions was off and this was the only file that needed it.
+// The whole scripts/ directory now imports with .ts extensions for the same
+// runtime reason, so the flag is on tsconfig-wide (18 Jul 2026) and the
+// suppression is gone — TS no longer errors here, so the directive would itself
+// be an "unused @ts-expect-error" error (TS2578).
 const { DESIGN_PRESET_GALLERY } = await import("../tenant/design-presets-gallery.ts");
 
 const OUT_DIR = join(process.cwd(), "design-presets");

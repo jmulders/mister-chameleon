@@ -6,7 +6,7 @@
  */
 
 import { execSync, type ExecSyncOptions } from "node:child_process";
-import { log }                            from "./logger.js";
+import { log }                            from "./logger.ts";
 
 export interface RunOptions {
   /** Print the command before running it. Default: true. */
