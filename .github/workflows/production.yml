@@ -166,19 +166,40 @@ jobs:
       # tests + goedkeuring + migraties voorbij zijn. De retry hieronder vangt het
       # geval waarin dat niet zo is — anders zou deze job falen op timing in
       # plaats van op gezondheid.
+      # ── Waarom een 429 hier als "gezond" telt ──────────────────────────────
+      #
+      # Deze check draait vanaf een GitHub-runner: een gedeeld datacenter-IP
+      # (Azure). Vercel's edge rate-limit't zulke IP's en antwoordt met een 429 —
+      # vóór het verzoek de Next-middleware (proxy.ts) of de /api/health-route
+      # bereikt. We hebben health al uitgezonderd van ONZE app-limiter, maar dat
+      # helpt niet: de 429 komt van Vercel's platform, een laag ervoor.
+      #
+      # Cruciaal: een 429 bewíjst dat de origin leeft — de server antwoordde, hij
+      # weigert alleen deze beller. Voor een liveness-probe is dat een succes. Op
+      # 18 juli 2026 faalde een gezonde productie-deploy vijf keer op rij op een
+      # edge-429 terwijl de site prima draaide. Wat we echt willen detecteren is
+      # "origin dood / stuk": geen antwoord (000) of een 5xx. Die falen hieronder.
       - name: Health check
         run: |
           URL=https://www.misterchameleon.nl/api/health
           for POGING in 1 2 3 4 5; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
-            if [ "$STATUS" = "200" ]; then
-              echo "Health check PASSED: HTTP $STATUS (poging $POGING)"
-              exit 0
-            fi
-            echo "Poging $POGING: HTTP $STATUS — nog 15s wachten"
-            sleep 15
+            case "$STATUS" in
+              200)
+                echo "Health check PASSED: HTTP 200 (poging $POGING)"
+                exit 0 ;;
+              429)
+                echo "Health check PASSED: HTTP 429 — Vercel edge-rate-limit, origin leeft (poging $POGING)"
+                exit 0 ;;
+              000|5??)
+                echo "Poging $POGING: HTTP $STATUS — origin niet bereikbaar, nog 15s wachten"
+                sleep 15 ;;
+              *)
+                echo "Health check PASSED: HTTP $STATUS — origin antwoordt (poging $POGING)"
+                exit 0 ;;
+            esac
           done
-          echo "Production health check FAILED op $URL: HTTP $STATUS na 5 pogingen"
+          echo "Production health check FAILED op $URL: geen bruikbaar antwoord (laatste: HTTP $STATUS) na 5 pogingen"
           exit 1
 
   # ─────────────────────────────────────────────────────────────────────────────
