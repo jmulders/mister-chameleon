@@ -224,6 +224,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # release.ts doet `git commit` (versie-bump + CHANGELOG) en `git tag`. Een
+      # GitHub-runner heeft geen git-identiteit, dus zonder dit faalt de commit met
+      # "empty ident name" (exit 128) — pas zichtbaar geworden toen de release-job
+      # op 18 juli 2026 voor het eerst zover kwam. github-actions[bot] is het
+      # conventionele identiteit voor commits die de CI zelf maakt.
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
