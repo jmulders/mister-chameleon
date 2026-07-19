@@ -37,6 +37,8 @@ Opgesteld 19 juli 2026. Vier categorieën, oplopend van "moet gefixt" naar "road
 | # | Wat | Impact | Wie beslist | Status |
 |---|---|---|---|---|
 | D1 | **AI-generatieketen doortrekken** — volgende stap: voorgestelde varianten en regels. **Richtlijn (19 juli): heel beperkt, kostenbewust** — alleen op afroep (mens drukt de knop), één AI-call per keer, bestaande credit-metering als rem, géén automatische publicatie. | Productbelofte AI Generation, met kostenrem | Jij (richtlijn gezet) | Eigen ontwerptraject |
+| D2 | **Chameleon Connect voor WordPress** — PHP-plugin die de snippet inpakt: install, slot-marking (block/shortcode/selector), consent-integratie. Snippet zelf krijgt alleen selector-support. **Ontwerp: `docs/design/snippet-wordpress-plugin.md`.** | Bereik: 's werelds populairste CMS | — | 📄 Ontwerp klaar, bouwen volgt |
+| D3 | **Snippet render-modes + design tokens** — per-variant toggle tussen content-swap (default) en gestyled block met huisstijl via tokens. Raakt snippet, decide-response, datamodel, admin. **Ontwerp: `docs/design/snippet-render-modes.md`.** | Rijkere personalisatie op externe sites, on-brand | — | 📄 Ontwerp klaar, bouwen volgt |
 
 ---
 
