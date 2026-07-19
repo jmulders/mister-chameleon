@@ -171,6 +171,23 @@ export interface HeroBlockData {
   /** Unique identifier — matches the HeroVariantKey used by the decision engine */
   id: string;
   /**
+   * Snippet render mode for this variant on external (snippet) sites.
+   *   "content" (default, absent) — swap the individual text/href slots below.
+   *   "block"                     — serve `blockHtml` as one styled block via the
+   *                                 snippet's data-mc-block path, with tokenRef
+   *                                 forwarded as scoped CSS custom properties.
+   * Only consumed by /api/snippet/decide; the platform's own React renderer
+   * ignores it. See docs/design/snippet-render-modes.md.
+   */
+  renderMode?: "content" | "block";
+  /**
+   * Authored (or AI-generated) HTML for block render mode. Uses `var(--…)` for
+   * colours/fonts so it adopts the tenant's tokens via tokenRef. Ignored unless
+   * `renderMode === "block"`. The trust boundary matches data-mc-html: this is
+   * tenant-authored content, never visitor input.
+   */
+  blockHtml?: string;
+  /**
    * Optional block-level design tokens carried from a resolved adaptive
    * variant, so the homepage/engine renderer can scope this block's styling.
    * See design-system/theme/block-token-set.ts.
@@ -283,6 +300,10 @@ export interface ProofBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the proof block (e.g. "proof_logos", "proof_quotes").
    * Resolved via resolveContextBlockVariant("proof", layoutVariant).
@@ -310,6 +331,10 @@ export interface CTABlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the CTA block (e.g. "cta_split", "cta_card").
    * Resolved via resolveContextBlockVariant("cta", layoutVariant).
@@ -365,6 +390,10 @@ export interface FeatureBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the feature block.
    * Resolved via resolveContextBlockVariant("feature", layoutVariant).
@@ -404,6 +433,12 @@ export interface FeatureBlockData {
 export interface ConversionBlockData {
   /** Unique identifier — matches the ConversionVariantKey */
   id: string;
+  /** Optional block-level design tokens carried from a resolved adaptive variant. */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the conversion block.
    * Resolved via resolveContextBlockVariant("conversion", layoutVariant).
@@ -460,6 +495,12 @@ export interface ConversionBlockData {
 export interface NotificationBlockData {
   /** Unique identifier — matches the NotificationVariantKey */
   id: string;
+  /** Optional block-level design tokens carried from a resolved adaptive variant. */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /** Main notification message text */
   message: string;
   /** Visual severity / colour scheme */

@@ -98,6 +98,7 @@ import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
 import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
 import type { SlotMap }              from "@/lib/snippet/decide-response";
+import { toBlockSlot }               from "@/lib/snippet/block-slot";
 
 // ── CORS helpers ──────────────────────────────────────────────────────────────
 
@@ -602,69 +603,95 @@ export async function POST(request: NextRequest) {
 
     if (heroData) {
       const hero = heroData as HeroBlockData;
-      if (hero.title)    slots["hero-title"]    = hero.title;
-      if (hero.subtitle) slots["hero-subtitle"]  = hero.subtitle;
-      if (hero.tag)      slots["hero-tag"]       = hero.tag;
-      // First CTA
-      if (hero.ctas?.[0]) {
-        if (hero.ctas[0].label) slots["hero-cta-label"] = hero.ctas[0].label;
-        if (hero.ctas[0].href)  slots["hero-cta-href"]  = hero.ctas[0].href;
-      }
-      // Second CTA
-      if (hero.ctas?.[1]) {
-        if (hero.ctas[1].label) slots["hero-cta2-label"] = hero.ctas[1].label;
-        if (hero.ctas[1].href)  slots["hero-cta2-href"]  = hero.ctas[1].href;
+      if (hero.renderMode === "block" && hero.blockHtml) {
+        // Block mode: one styled block into data-mc-block="hero", tokens scoped.
+        slots["hero"] = toBlockSlot(hero.blockHtml, hero.tokenRef);
+      } else {
+        // Content mode (default): individual text/href slots.
+        if (hero.title)    slots["hero-title"]    = hero.title;
+        if (hero.subtitle) slots["hero-subtitle"]  = hero.subtitle;
+        if (hero.tag)      slots["hero-tag"]       = hero.tag;
+        // First CTA
+        if (hero.ctas?.[0]) {
+          if (hero.ctas[0].label) slots["hero-cta-label"] = hero.ctas[0].label;
+          if (hero.ctas[0].href)  slots["hero-cta-href"]  = hero.ctas[0].href;
+        }
+        // Second CTA
+        if (hero.ctas?.[1]) {
+          if (hero.ctas[1].label) slots["hero-cta2-label"] = hero.ctas[1].label;
+          if (hero.ctas[1].href)  slots["hero-cta2-href"]  = hero.ctas[1].href;
+        }
       }
     }
 
     if (proofData) {
       const proof = proofData as ProofBlockData;
-      if (proof.title) slots["proof-title"] = proof.title;
-      proof.items?.forEach((item, i) => {
-        if (item.title) slots[`proof-item-${i}-title`] = item.title;
-        if (item.text)  slots[`proof-item-${i}-text`]  = item.text;
-      });
+      if (proof.renderMode === "block" && proof.blockHtml) {
+        slots["proof"] = toBlockSlot(proof.blockHtml, proof.tokenRef);
+      } else {
+        if (proof.title) slots["proof-title"] = proof.title;
+        proof.items?.forEach((item, i) => {
+          if (item.title) slots[`proof-item-${i}-title`] = item.title;
+          if (item.text)  slots[`proof-item-${i}-text`]  = item.text;
+        });
+      }
     }
 
     if (ctaData) {
       const cta = ctaData as CTABlockData;
-      if (cta.title) slots["cta-title"] = cta.title;
-      if (cta.text)  slots["cta-text"]  = cta.text;
-      if (cta.cta?.label) slots["cta-cta-label"] = cta.cta.label;
-      if (cta.cta?.href)  slots["cta-cta-href"]  = cta.cta.href;
+      if (cta.renderMode === "block" && cta.blockHtml) {
+        slots["cta"] = toBlockSlot(cta.blockHtml, cta.tokenRef);
+      } else {
+        if (cta.title) slots["cta-title"] = cta.title;
+        if (cta.text)  slots["cta-text"]  = cta.text;
+        if (cta.cta?.label) slots["cta-cta-label"] = cta.cta.label;
+        if (cta.cta?.href)  slots["cta-cta-href"]  = cta.cta.href;
+      }
     }
 
     if (featureData) {
       const feat = featureData as FeatureBlockData;
-      if (feat.title)    slots["feature-title"]    = feat.title;
-      if (feat.subtitle) slots["feature-subtitle"] = feat.subtitle;
-      feat.items?.forEach((item, i) => {
-        if (item.title) slots[`feature-item-${i}-title`] = item.title;
-        if (item.body)  slots[`feature-item-${i}-body`]  = item.body;
-      });
+      if (feat.renderMode === "block" && feat.blockHtml) {
+        slots["feature"] = toBlockSlot(feat.blockHtml, feat.tokenRef);
+      } else {
+        if (feat.title)    slots["feature-title"]    = feat.title;
+        if (feat.subtitle) slots["feature-subtitle"] = feat.subtitle;
+        feat.items?.forEach((item, i) => {
+          if (item.title) slots[`feature-item-${i}-title`] = item.title;
+          if (item.body)  slots[`feature-item-${i}-body`]  = item.body;
+        });
+      }
     }
 
     if (conversionData) {
       const conv = conversionData as ConversionBlockData;
-      if (conv.title) slots["conversion-title"] = conv.title;
-      if (conv.text)  slots["conversion-text"]  = conv.text;
-      if (conv.ctas?.[0]) {
-        if (conv.ctas[0].label) slots["conversion-cta-label"] = conv.ctas[0].label;
-        if (conv.ctas[0].href)  slots["conversion-cta-href"]  = conv.ctas[0].href;
+      if (conv.renderMode === "block" && conv.blockHtml) {
+        slots["conversion"] = toBlockSlot(conv.blockHtml, conv.tokenRef);
+      } else {
+        if (conv.title) slots["conversion-title"] = conv.title;
+        if (conv.text)  slots["conversion-text"]  = conv.text;
+        if (conv.ctas?.[0]) {
+          if (conv.ctas[0].label) slots["conversion-cta-label"] = conv.ctas[0].label;
+          if (conv.ctas[0].href)  slots["conversion-cta-href"]  = conv.ctas[0].href;
+        }
+        if (conv.urgencyLabel) slots["conversion-urgency-label"] = conv.urgencyLabel;
       }
-      if (conv.urgencyLabel) slots["conversion-urgency-label"] = conv.urgencyLabel;
     }
 
     if (notificationData) {
       const notif = notificationData as NotificationBlockData;
-      if (notif.message)       slots["notification-message"]         = notif.message;
-      if (notif.severity)      slots["notification-severity"]        = notif.severity;
-      if (notif.ctaLabel)      slots["notification-cta-label"]       = notif.ctaLabel;
-      if (notif.ctaHref)       slots["notification-cta-href"]        = notif.ctaHref;
-      if (notif.position)      slots["notification-position"]        = notif.position;
-      slots["notification-dismissible"]   = String(notif.dismissible ?? true);
-      if (notif.autoDismissMs !== undefined) {
-        slots["notification-auto-dismiss-ms"] = String(notif.autoDismissMs);
+      if (notif.renderMode === "block" && notif.blockHtml) {
+        slots["notification"] = toBlockSlot(notif.blockHtml, notif.tokenRef);
+      } else {
+        if (notif.message)       slots["notification-message"]         = notif.message;
+        if (notif.severity)      slots["notification-severity"]        = notif.severity;
+        if (notif.ctaLabel)      slots["notification-cta-label"]       = notif.ctaLabel;
+        if (notif.ctaHref)       slots["notification-cta-href"]        = notif.ctaHref;
+        if (notif.position)      slots["notification-position"]        = notif.position;
+        slots["notification-dismissible"]   = String(notif.dismissible ?? true);
+        if (notif.autoDismissMs !== undefined) {
+          slots["notification-auto-dismiss-ms"] = String(notif.autoDismissMs);
+        }
       }
     }
 
