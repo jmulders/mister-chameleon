@@ -3,20 +3,8 @@
   "regions": ["fra1"],
   "crons": [
     {
-      "path": "/api/cron/billing-renewal",
-      "schedule": "5 0 * * *"
-    },
-    {
-      "path": "/api/cron/form-submission-purge",
+      "path": "/api/cron/daily",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/visitor-profile-purge",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/ad-sync",
-      "schedule": "30 3 * * *"
     }
   ]
 }
