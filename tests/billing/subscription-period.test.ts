@@ -22,7 +22,7 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 
-import { subscriptionPeriod } from "@/billing/stripe";
+import { subscriptionPeriod, trialConversionRealign } from "@/billing/stripe";
 
 // Minimale payload-vorm; subscriptionPeriod raakt alleen deze velden.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,5 +73,40 @@ describe("subscriptionPeriod", () => {
     }));
     assert.equal(p.start, 900);
     assert.equal(p.end,   999);
+  });
+});
+
+describe("trialConversionRealign", () => {
+  // Period end on an arbitrary day (16 aug 2026, midday) — NOT aligned to the 1st.
+  const unaligned = 1786907838; // 2026-08-16T19:17Z
+  // Period end exactly midnight on the 1st (1 sep 2026).
+  const alignedTo1st = 1788220800; // 2026-09-01T00:00:00Z
+  const now = new Date("2026-07-18T00:00:00Z");
+
+  const subWith = (end: number, status: string) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ({ status, items: { data: [{ current_period_end: end }] } }) as any;
+
+  it("realigns a just-converted trial that lands on an arbitrary day", () => {
+    const r = trialConversionRealign(subWith(unaligned, "active"), "trialing", now);
+    assert.equal(r.realign, true);
+    // Realign target is the next calendar-month start (1 aug 2026, midnight UTC).
+    assert.equal(new Date(r.trialEnd * 1000).getUTCDate(), 1);
+  });
+
+  it("does NOT realign when the period already lands on the 1st (loop guard)", () => {
+    const r = trialConversionRealign(subWith(alignedTo1st, "active"), "trialing", now);
+    assert.equal(r.realign, false);
+  });
+
+  it("does NOT realign a normal update that is not a trial→active conversion", () => {
+    // previousStatus not 'trialing' — e.g. an active sub being updated.
+    const r = trialConversionRealign(subWith(unaligned, "active"), "active", now);
+    assert.equal(r.realign, false);
+  });
+
+  it("does NOT realign while still trialing", () => {
+    const r = trialConversionRealign(subWith(unaligned, "trialing"), "trialing", now);
+    assert.equal(r.realign, false);
   });
 });

@@ -185,27 +185,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         trial_period_days: 14,
         metadata: { type: "trial_signup", pending_signup_id: pendingId, plan_id: planId },
       },
-      // ── KNOWN GAP: this subscription will not bill on the 1st ──────────────
+      // ── Trial anchor: kept at 14 days here, realigned on conversion ─────────
       //
-      // billing/stripe.ts anchors paid checkouts to the next 1st so the invoice
-      // period matches the session-cap window (month_key, a UTC calendar month).
-      // We cannot do that here: Stripe does not allow combining a trial with
-      // billing_cycle_anchor in Checkout — the anchor follows trial_end, which
-      // lands on signup + 14 days, i.e. an arbitrary day of the month.
+      // Stripe forbids combining a trial with billing_cycle_anchor in Checkout, so
+      // the anchor here follows trial_end = signup + 14 days (an arbitrary day of
+      // the month). Left as-is on purpose: we keep the trial exactly 14 days.
       //
-      // So a trial that converts inherits the same drift this codebase just
-      // fixed elsewhere: a period of, say, the 9th → the 9th straddles a cap
-      // reset on the 1st, giving the tenant most of two bundles for one month.
-      //
-      // Not fixed here because both ways out change what the customer gets, and
-      // that is a pricing decision, not a bug fix:
-      //   a) Set trial_end to the first 1st that is ≥ 14 days away. The anchor
-      //      follows trial_end, so everything aligns with no proration — but the
-      //      trial silently becomes 14–44 days long.
-      //   b) Keep 14 days, then on conversion update the subscription with
-      //      trial_end = next 1st and proration_behavior = "none" (Stripe's
-      //      documented realignment path). Costs a few extra free days.
-      // Decide, then delete this comment.
+      // The realignment to the 1st (so the invoice period matches the UTC-month
+      // session-cap window) happens when the trial CONVERTS — see
+      // trialConversionRealign() in billing/stripe.ts, called from the
+      // customer.subscription.updated webhook. That is option (b): keep 14 days,
+      // then on trialing→active set trial_end = next 1st with proration_behavior
+      // "none" (a few free days), with a loop guard so it only fires once.
       customer_email: email,
       metadata: {
         type:              "trial_signup",
