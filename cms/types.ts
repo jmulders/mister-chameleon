@@ -433,6 +433,12 @@ export interface FeatureBlockData {
 export interface ConversionBlockData {
   /** Unique identifier — matches the ConversionVariantKey */
   id: string;
+  /** Optional block-level design tokens carried from a resolved adaptive variant. */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the conversion block.
    * Resolved via resolveContextBlockVariant("conversion", layoutVariant).
@@ -489,6 +495,12 @@ export interface ConversionBlockData {
 export interface NotificationBlockData {
   /** Unique identifier — matches the NotificationVariantKey */
   id: string;
+  /** Optional block-level design tokens carried from a resolved adaptive variant. */
+  tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /** Main notification message text */
   message: string;
   /** Visual severity / colour scheme */

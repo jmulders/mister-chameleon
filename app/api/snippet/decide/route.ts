@@ -665,25 +665,33 @@ export async function POST(request: NextRequest) {
 
     if (conversionData) {
       const conv = conversionData as ConversionBlockData;
-      if (conv.title) slots["conversion-title"] = conv.title;
-      if (conv.text)  slots["conversion-text"]  = conv.text;
-      if (conv.ctas?.[0]) {
-        if (conv.ctas[0].label) slots["conversion-cta-label"] = conv.ctas[0].label;
-        if (conv.ctas[0].href)  slots["conversion-cta-href"]  = conv.ctas[0].href;
+      if (conv.renderMode === "block" && conv.blockHtml) {
+        slots["conversion"] = toBlockSlot(conv.blockHtml, conv.tokenRef);
+      } else {
+        if (conv.title) slots["conversion-title"] = conv.title;
+        if (conv.text)  slots["conversion-text"]  = conv.text;
+        if (conv.ctas?.[0]) {
+          if (conv.ctas[0].label) slots["conversion-cta-label"] = conv.ctas[0].label;
+          if (conv.ctas[0].href)  slots["conversion-cta-href"]  = conv.ctas[0].href;
+        }
+        if (conv.urgencyLabel) slots["conversion-urgency-label"] = conv.urgencyLabel;
       }
-      if (conv.urgencyLabel) slots["conversion-urgency-label"] = conv.urgencyLabel;
     }
 
     if (notificationData) {
       const notif = notificationData as NotificationBlockData;
-      if (notif.message)       slots["notification-message"]         = notif.message;
-      if (notif.severity)      slots["notification-severity"]        = notif.severity;
-      if (notif.ctaLabel)      slots["notification-cta-label"]       = notif.ctaLabel;
-      if (notif.ctaHref)       slots["notification-cta-href"]        = notif.ctaHref;
-      if (notif.position)      slots["notification-position"]        = notif.position;
-      slots["notification-dismissible"]   = String(notif.dismissible ?? true);
-      if (notif.autoDismissMs !== undefined) {
-        slots["notification-auto-dismiss-ms"] = String(notif.autoDismissMs);
+      if (notif.renderMode === "block" && notif.blockHtml) {
+        slots["notification"] = toBlockSlot(notif.blockHtml, notif.tokenRef);
+      } else {
+        if (notif.message)       slots["notification-message"]         = notif.message;
+        if (notif.severity)      slots["notification-severity"]        = notif.severity;
+        if (notif.ctaLabel)      slots["notification-cta-label"]       = notif.ctaLabel;
+        if (notif.ctaHref)       slots["notification-cta-href"]        = notif.ctaHref;
+        if (notif.position)      slots["notification-position"]        = notif.position;
+        slots["notification-dismissible"]   = String(notif.dismissible ?? true);
+        if (notif.autoDismissMs !== undefined) {
+          slots["notification-auto-dismiss-ms"] = String(notif.autoDismissMs);
+        }
       }
     }
 
