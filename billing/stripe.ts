@@ -120,6 +120,48 @@ export function subscriptionPeriod(sub: StripeSubscription): { start: number; en
   return { start, end };
 }
 
+/**
+ * Realign a just-converted trial to the calendar month (the 1st).
+ *
+ * ─── Waarom ──────────────────────────────────────────────────────────────────
+ *
+ * Een trial-checkout kan geen billing_cycle_anchor zetten (Stripe verbiedt trial +
+ * anchor in Checkout), dus het anker volgt trial_end = aanmelddag + 14 dagen — een
+ * willekeurige dag van de maand. Bij conversie erft het abonnement dan exact de
+ * kalendermaand-drift die de rest van deze codebase juist wegwerkt: een periode van
+ * bijv. de 9e → de 9e loopt dwars door de cap-reset op de 1e.
+ *
+ * Gekozen aanpak (optie b): laat de trial exact 14 dagen duren, en herank bij
+ * conversie naar de eerstvolgende 1e met `proration_behavior=none` — een paar gratis
+ * dagen, daarna facturatie op de 1e.
+ *
+ * ─── De lus-guard ────────────────────────────────────────────────────────────
+ *
+ * trial_end zetten maakt het abonnement opnieuw `trialing` tot de 1e; op de 1e gaat
+ * het weer trialing→active en vuurt dit event nóg een keer. Zónder guard zou het
+ * elke maand opnieuw herankeren (oneindig gratis). Daarom: is de periode al netjes
+ * op middernacht-de-1e uitgelijnd, dan doen we niets.
+ */
+export function trialConversionRealign(
+  sub: StripeSubscription,
+  previousStatus: string | undefined,
+  now: Date = new Date(),
+): { realign: boolean; trialEnd: number } {
+  const justConverted = previousStatus === "trialing" && sub.status === "active";
+  const end = subscriptionPeriod(sub).end;
+  if (!justConverted || end == null) return { realign: false, trialEnd: 0 };
+
+  const endDate = new Date(end * 1000);
+  const alreadyAligned =
+    endDate.getUTCDate() === 1 &&
+    endDate.getUTCHours() === 0 &&
+    endDate.getUTCMinutes() === 0 &&
+    endDate.getUTCSeconds() === 0;
+  if (alreadyAligned) return { realign: false, trialEnd: 0 };
+
+  return { realign: true, trialEnd: nextCalendarMonthStartUnix(now) };
+}
+
 // ── RPC availability helper ────────────────────────────────────────────────────
 //
 // Like isSchemaMissingCode but also covers the RPC-not-found errors that
@@ -871,6 +913,30 @@ export async function handleStripeWebhook(
           .update({ is_active_override: null })  // null = auto (back to subscription-driven)
           .eq("tenant_id", tenantId)
           .eq("is_active_override", false);  // only clear if it was false (payment failure)
+      }
+
+      // ── Trial converted → align billing to the calendar month (the 1st) ───────
+      //
+      // See trialConversionRealign(): a converting trial otherwise anchors on an
+      // arbitrary day and straddles the UTC-month cap reset. The guard inside makes
+      // this a no-op once the period already lands on the 1st, so it cannot loop.
+      const previousStatus = (event.data.previous_attributes as { status?: string } | undefined)?.status;
+      const realign = trialConversionRealign(sub, previousStatus);
+      if (realign.realign) {
+        try {
+          await stripeAny().subscriptions.update(sub.id, {
+            trial_end:          realign.trialEnd,
+            proration_behavior: "none",
+          });
+          console.info(
+            `[billing/stripe] trial converted — realigned ${sub.id} to ` +
+            `${new Date(realign.trialEnd * 1000).toISOString()} (tenant=${tenantId})`,
+          );
+        } catch (err) {
+          // Non-fatal: the subscription is active and billing works; it just isn't
+          // aligned to the 1st. Log for follow-up rather than fail the webhook.
+          console.warn(`[billing/stripe] trial realign failed for ${sub.id}:`, err);
+        }
       }
 
       return { handled: true, action: "subscription_updated", tenantId };

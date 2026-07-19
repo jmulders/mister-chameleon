@@ -174,7 +174,7 @@ async function main(): Promise<void> {
     // Load it explicitly so the seed step can find it when run from the project root.
     const studioEnvFile = path.join(PROJECT_ROOT, "apps", "studio", ".env.local");
     if (fs.existsSync(studioEnvFile)) {
-      const { parseEnvFile } = await import("./lib/env.js");
+      const { parseEnvFile } = await import("./lib/env.ts");
       const studioEnv = parseEnvFile(studioEnvFile);
       for (const [k, v] of Object.entries(studioEnv)) {
         if (!(k in process.env)) process.env[k] = v;
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
     if (sanityProjectId && sanityToken) {
       log.step("Seeding Sanity platform variant documents");
       try {
-        const { seedPlatform } = await import("../cms/seed/platform-seed.js") as
+        const { seedPlatform } = await import("../cms/seed/platform-seed.ts") as
           { seedPlatform: (dryRun?: boolean) => Promise<void> };
         await seedPlatform(false);
         log.success("Sanity platform variants seeded");

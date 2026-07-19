@@ -27,42 +27,16 @@ export function getSupabaseClient(): SupabaseClient {
 }
 
 /**
- * All tables that should be included in data backups.
- * Ordered so that foreign-key constraints are satisfied on restore.
+ * All tables that should be included in data backups, FK-ordered for restore.
+ *
+ * This used to be a second, hand-maintained list here — and it had drifted badly:
+ * it named `tenants` (the table is `tenant_settings`), `scoring_rules` (it is
+ * `behavior_scoring_rules`) and `visitor_journey`, none of which exist, and it
+ * covered 24 tables where the real set is 53. A backup that quietly skips a third
+ * of the config is worse than no backup. So there is now ONE source of truth —
+ * lib/backup/backup-tables.ts, the same list the in-app backup/restore routes use.
  */
-export const BACKUP_TABLES: readonly string[] = [
-  // Platform / global
-  "tenants",
-  "admin_users",
-  "platform_settings",
-  // Per-tenant settings
-  "tenant_settings",
-  "tenant_domains",
-  "tenant_email_transport",
-  "tenant_form_settings",
-  "tenant_form_overrides",
-  "context_variable_metadata",
-  "rules_config",
-  "pages",
-  // Visitor data
-  "sessions",
-  "served_variants",
-  "events",
-  "form_submissions",
-  "visitor_journey",
-  // A/B experiments
-  "experiments",
-  // Interest profiles
-  "interest_profiles",
-  // AI
-  "ai_decision_logs",
-  // Billing
-  "subscriptions",
-  "credit_balance",
-  "credit_transactions",
-  // Search
-  "scoring_rules",
-];
+export { BACKUP_TABLES } from "../../lib/backup/backup-tables.ts";
 
 /**
  * Fetch all rows from a table.

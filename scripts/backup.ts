@@ -239,7 +239,7 @@ async function main(): Promise<void> {
     // This token lives in apps/studio/.env.local, not root .env.local.
     const studioEnvFile = path.join(PROJECT_ROOT, "apps", "studio", ".env.local");
     if (fs.existsSync(studioEnvFile)) {
-      const { parseEnvFile } = await import("./lib/env.js");
+      const { parseEnvFile } = await import("./lib/env.ts");
       const studioEnv = parseEnvFile(studioEnvFile);
       const studioKeys = Object.keys(studioEnv);
       writeJson(path.join(configDir, "studio-env-keys.json"), {
@@ -264,7 +264,7 @@ async function main(): Promise<void> {
 
     // Write a sanitized manifest of required env vars (keys only, no values).
     const envExample    = path.join(PROJECT_ROOT, ".env.example");
-    const { parseEnvFile } = await import("./lib/env.js");
+    const { parseEnvFile } = await import("./lib/env.ts");
     const exampleKeys   = Object.keys(parseEnvFile(envExample));
     writeJson(path.join(configDir, "required-env-keys.json"), exampleKeys);
     log.success(`Config saved: ${exampleKeys.length} env var keys documented`);
