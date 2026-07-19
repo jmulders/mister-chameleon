@@ -171,6 +171,23 @@ export interface HeroBlockData {
   /** Unique identifier — matches the HeroVariantKey used by the decision engine */
   id: string;
   /**
+   * Snippet render mode for this variant on external (snippet) sites.
+   *   "content" (default, absent) — swap the individual text/href slots below.
+   *   "block"                     — serve `blockHtml` as one styled block via the
+   *                                 snippet's data-mc-block path, with tokenRef
+   *                                 forwarded as scoped CSS custom properties.
+   * Only consumed by /api/snippet/decide; the platform's own React renderer
+   * ignores it. See docs/design/snippet-render-modes.md.
+   */
+  renderMode?: "content" | "block";
+  /**
+   * Authored (or AI-generated) HTML for block render mode. Uses `var(--…)` for
+   * colours/fonts so it adopts the tenant's tokens via tokenRef. Ignored unless
+   * `renderMode === "block"`. The trust boundary matches data-mc-html: this is
+   * tenant-authored content, never visitor input.
+   */
+  blockHtml?: string;
+  /**
    * Optional block-level design tokens carried from a resolved adaptive
    * variant, so the homepage/engine renderer can scope this block's styling.
    * See design-system/theme/block-token-set.ts.

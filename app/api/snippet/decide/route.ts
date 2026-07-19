@@ -98,6 +98,7 @@ import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
 import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
 import type { SlotMap }              from "@/lib/snippet/decide-response";
+import { toBlockSlot }               from "@/lib/snippet/block-slot";
 
 // ── CORS helpers ──────────────────────────────────────────────────────────────
 
@@ -602,18 +603,24 @@ export async function POST(request: NextRequest) {
 
     if (heroData) {
       const hero = heroData as HeroBlockData;
-      if (hero.title)    slots["hero-title"]    = hero.title;
-      if (hero.subtitle) slots["hero-subtitle"]  = hero.subtitle;
-      if (hero.tag)      slots["hero-tag"]       = hero.tag;
-      // First CTA
-      if (hero.ctas?.[0]) {
-        if (hero.ctas[0].label) slots["hero-cta-label"] = hero.ctas[0].label;
-        if (hero.ctas[0].href)  slots["hero-cta-href"]  = hero.ctas[0].href;
-      }
-      // Second CTA
-      if (hero.ctas?.[1]) {
-        if (hero.ctas[1].label) slots["hero-cta2-label"] = hero.ctas[1].label;
-        if (hero.ctas[1].href)  slots["hero-cta2-href"]  = hero.ctas[1].href;
+      if (hero.renderMode === "block" && hero.blockHtml) {
+        // Block mode: one styled block into data-mc-block="hero", tokens scoped.
+        slots["hero"] = toBlockSlot(hero.blockHtml, hero.tokenRef);
+      } else {
+        // Content mode (default): individual text/href slots.
+        if (hero.title)    slots["hero-title"]    = hero.title;
+        if (hero.subtitle) slots["hero-subtitle"]  = hero.subtitle;
+        if (hero.tag)      slots["hero-tag"]       = hero.tag;
+        // First CTA
+        if (hero.ctas?.[0]) {
+          if (hero.ctas[0].label) slots["hero-cta-label"] = hero.ctas[0].label;
+          if (hero.ctas[0].href)  slots["hero-cta-href"]  = hero.ctas[0].href;
+        }
+        // Second CTA
+        if (hero.ctas?.[1]) {
+          if (hero.ctas[1].label) slots["hero-cta2-label"] = hero.ctas[1].label;
+          if (hero.ctas[1].href)  slots["hero-cta2-href"]  = hero.ctas[1].href;
+        }
       }
     }
 
