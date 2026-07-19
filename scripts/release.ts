@@ -173,14 +173,27 @@ async function main(): Promise<void> {
 
   const pkgPath = path.join(PROJECT_ROOT, "package.json");
   const pkg     = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { version: string };
-  const current = pkg.version ?? "0.0.0";
-  log.info(`Current version: v${current}`);
+
+  // ── Current version comes from the latest git TAG, not package.json ─────────
+  //
+  // The tag is the immutable record of what was actually released. package.json
+  // drifts: this job commits the version bump and tries to push it to main, but
+  // branch protection blocks a CI push to main, so the bump never lands there —
+  // package.json stays at an old version while the tag moves on. Basing the next
+  // version on that stale package.json re-computes a version that already has a
+  // tag, and `git tag` fails with "tag vX already exists" (observed 19 Jul 2026:
+  // package.json 0.1.0, tag v0.2.0 already pushed → every release collided).
+  //
+  // Reading the latest tag makes releases idempotent-by-design: v0.2.0 exists →
+  // next is v0.3.0, regardless of what package.json says.
+  const lastTag = capture("git describe --tags --abbrev=0 2>/dev/null || echo ''", { verbose: false }).trim();
+  const current = lastTag ? lastTag.replace(/^v/, "") : (pkg.version ?? "0.0.0");
+  log.info(`Current version: v${current}${lastTag ? " (from git tag)" : " (from package.json — no tags yet)"}`);
 
   // ── Get commits since last tag ─────────────────────────────────────────────
 
   let commits: string[] = [];
   try {
-    const lastTag    = capture("git describe --tags --abbrev=0 2>/dev/null || echo ''", { verbose: false });
     const range      = lastTag ? `${lastTag}..HEAD` : "HEAD";
     const commitLog  = capture(`git log ${range} --pretty=format:"%s"`, { verbose: false });
     commits          = commitLog.split("\n").filter(Boolean);
@@ -244,9 +257,17 @@ async function main(): Promise<void> {
   // ── Push ──────────────────────────────────────────────────────────────────────
 
   if (pushTag && createTag) {
+    // The tag always pushes — tags bypass branch protection.
     run(`git push origin ${tagName}`, { cwd: PROJECT_ROOT });
-    run("git push", { cwd: PROJECT_ROOT });
     log.success(`Tag pushed: ${tagName}`);
+
+    // The version-bump commit to main is BEST-EFFORT. Branch protection blocks a
+    // direct CI push to main, so this usually fails — and that must not fail the
+    // release: the tag above and the GitHub release below are the source of truth.
+    // (Before this was fatal, `git push` failed on every release even when the tag
+    // and release were fine.) The cost is that package.json / CHANGELOG on main
+    // stay informational; the tag is the real version.
+    run("git push", { cwd: PROJECT_ROOT, ignoreErrors: true });
   }
 
   // ── GitHub Release ─────────────────────────────────────────────────────────
