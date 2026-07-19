@@ -1,0 +1,65 @@
+name: Integration & E2E
+
+# ── Trigger ────────────────────────────────────────────────────────────────────
+#
+# Deliberately NOT on pull_request / push — these tests hit real systems (a DB,
+# live Stripe test mode, a live AI model, a real browser). That is slow and
+# needs secrets, so it must never block a PR or a deploy. See docs/testing.md and
+# tests/integration/README.md.
+#
+# Runs nightly and on demand. Each test self-skips when its secret is absent, so
+# a run with a missing secret is green skips, not a failure.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # DB / Stripe / AI integration — `npm run test:integration`
+  # ─────────────────────────────────────────────────────────────────────────────
+  integration:
+    name: Integration (DB / Stripe / AI)
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      # Point the DB test at a THROWAWAY project (dev), never production — it
+      # inserts and deletes a scratch row.
+      TEST_SUPABASE_URL:              ${{ secrets.TEST_SUPABASE_URL }}
+      TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+      STRIPE_TEST_SECRET_KEY:         ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      ANTHROPIC_API_KEY:              ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - run: npm ci
+      - name: Run integration tests
+        run: npm run test:integration
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Browser / E2E — Playwright against the live site
+  # ─────────────────────────────────────────────────────────────────────────────
+  e2e:
+    name: E2E smoke (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - run: npm ci
+      # Playwright is an opt-in dev tool, not a standing dependency (see
+      # tests/integration/README.md and the tsconfig exclude). Install it here.
+      - name: Install Playwright
+        run: |
+          npm i -D @playwright/test
+          npx playwright install --with-deps chromium
+      - name: Run E2E smoke against production
+        env:
+          BASE_URL: https://www.misterchameleon.nl
+        run: npm run test:e2e
