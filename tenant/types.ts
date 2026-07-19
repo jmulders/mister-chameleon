@@ -2782,4 +2782,18 @@ export interface TenantSnippetSettings {
    * regenerated.  Used to show "Generated on …" in the admin UI.
    */
   siteKeyGeneratedAt?: string;
+
+  /**
+   * Slot-key → CSS selector map. Lets a slot target an element on the tenant's
+   * site that carries no `data-mc-slot` attribute — the mechanism that makes the
+   * snippet usable inside CMSes where the markup can't be edited (WordPress page
+   * builders, etc.). Returned to the snippet as the response `selectors` map.
+   *
+   * This is a TRUSTED source: selectors are set by the operator in the admin UI,
+   * never derived from visitor input.
+   *
+   * See docs/design/snippet-wordpress-plugin.md.
+   * @example { "hero-title": ".hero h1", "cta-cta-label": "a.btn-primary" }
+   */
+  selectorMap?: Record<string, string>;
 }

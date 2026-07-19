@@ -38,8 +38,15 @@
  *       "cta-text":        "Join thousands of teams growing faster.",
  *       "cta-cta-label":   "Book a demo",
  *       "cta-cta-href":    "/book-demo"
+ *     },
+ *     "selectors": {                     // optional, from tenant config
+ *       "hero-title": ".hero h1"         // target host markup without data-mc-slot
  *     }
  *   }
+ *
+ *   A slot value is normally a string (content mode). It may also be a block
+ *   object { mode:"block", html, tokens } once a variant opts into block render
+ *   mode — see lib/snippet/decide-response.ts and docs/design/snippet-render-modes.md.
  *
  *   HTTP 400 — missing or malformed siteKey / context
  *   HTTP 403 — siteKey not found or snippet disabled for this tenant
@@ -89,6 +96,8 @@ import { getTenantDunningSettings }  from "@/billing/dunning";
 import { logger }                    from "@/lib/logger";
 import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
+import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
+import type { SlotMap }              from "@/lib/snippet/decide-response";
 
 // ── CORS helpers ──────────────────────────────────────────────────────────────
 
@@ -162,7 +171,8 @@ const DEMO_SCENARIO_PLANS: Record<string, {
   expansion:    { heroKey: "hero_customer_onboarding",proofKey: "proof_stats",      ctaKey: "cta_expansion",  featureKey: "feature_grid_primary", conversionKey: "conversion_demo"                             },
 };
 
-type SlotMap = Record<string, string>;
+// SlotMap (string | block value) is the shared wire contract — see
+// lib/snippet/decide-response.ts. Assigning plain strings below stays valid.
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
@@ -245,6 +255,10 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantId = tenant.tenantId;
+
+  // Selector map from tenant config (trusted). Included in the content-serving
+  // response so slots work on host markup without a data-mc-slot attribute.
+  const selectorMap = sanitizeSelectorMap(tenant.snippet?.selectorMap);
 
   // ── Subscription payment gate ──────────────────────────────────────────────
   //
@@ -667,7 +681,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { slots },
+      { slots, ...(selectorMap ? { selectors: selectorMap } : {}) },
       { status: 200, headers: CORS_HEADERS },
     );
 
