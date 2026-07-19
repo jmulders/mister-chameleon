@@ -626,29 +626,41 @@ export async function POST(request: NextRequest) {
 
     if (proofData) {
       const proof = proofData as ProofBlockData;
-      if (proof.title) slots["proof-title"] = proof.title;
-      proof.items?.forEach((item, i) => {
-        if (item.title) slots[`proof-item-${i}-title`] = item.title;
-        if (item.text)  slots[`proof-item-${i}-text`]  = item.text;
-      });
+      if (proof.renderMode === "block" && proof.blockHtml) {
+        slots["proof"] = toBlockSlot(proof.blockHtml, proof.tokenRef);
+      } else {
+        if (proof.title) slots["proof-title"] = proof.title;
+        proof.items?.forEach((item, i) => {
+          if (item.title) slots[`proof-item-${i}-title`] = item.title;
+          if (item.text)  slots[`proof-item-${i}-text`]  = item.text;
+        });
+      }
     }
 
     if (ctaData) {
       const cta = ctaData as CTABlockData;
-      if (cta.title) slots["cta-title"] = cta.title;
-      if (cta.text)  slots["cta-text"]  = cta.text;
-      if (cta.cta?.label) slots["cta-cta-label"] = cta.cta.label;
-      if (cta.cta?.href)  slots["cta-cta-href"]  = cta.cta.href;
+      if (cta.renderMode === "block" && cta.blockHtml) {
+        slots["cta"] = toBlockSlot(cta.blockHtml, cta.tokenRef);
+      } else {
+        if (cta.title) slots["cta-title"] = cta.title;
+        if (cta.text)  slots["cta-text"]  = cta.text;
+        if (cta.cta?.label) slots["cta-cta-label"] = cta.cta.label;
+        if (cta.cta?.href)  slots["cta-cta-href"]  = cta.cta.href;
+      }
     }
 
     if (featureData) {
       const feat = featureData as FeatureBlockData;
-      if (feat.title)    slots["feature-title"]    = feat.title;
-      if (feat.subtitle) slots["feature-subtitle"] = feat.subtitle;
-      feat.items?.forEach((item, i) => {
-        if (item.title) slots[`feature-item-${i}-title`] = item.title;
-        if (item.body)  slots[`feature-item-${i}-body`]  = item.body;
-      });
+      if (feat.renderMode === "block" && feat.blockHtml) {
+        slots["feature"] = toBlockSlot(feat.blockHtml, feat.tokenRef);
+      } else {
+        if (feat.title)    slots["feature-title"]    = feat.title;
+        if (feat.subtitle) slots["feature-subtitle"] = feat.subtitle;
+        feat.items?.forEach((item, i) => {
+          if (item.title) slots[`feature-item-${i}-title`] = item.title;
+          if (item.body)  slots[`feature-item-${i}-body`]  = item.body;
+        });
+      }
     }
 
     if (conversionData) {

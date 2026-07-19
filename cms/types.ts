@@ -300,6 +300,10 @@ export interface ProofBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the proof block (e.g. "proof_logos", "proof_quotes").
    * Resolved via resolveContextBlockVariant("proof", layoutVariant).
@@ -327,6 +331,10 @@ export interface CTABlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the CTA block (e.g. "cta_split", "cta_card").
    * Resolved via resolveContextBlockVariant("cta", layoutVariant).
@@ -382,6 +390,10 @@ export interface FeatureBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Snippet block render mode — see HeroBlockData.renderMode. */
+  renderMode?: "content" | "block";
+  /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
+  blockHtml?: string;
   /**
    * Layout variant for the feature block.
    * Resolved via resolveContextBlockVariant("feature", layoutVariant).
