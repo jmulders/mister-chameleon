@@ -19,7 +19,7 @@ on:
       - ".github/workflows/set-previews.yml"
 
 env:
-  CMS_REPO: OWNER/mister-chameleon-cms        # <-- set me
+  CMS_REPO: jmulders/mister-chameleon-cms     # de Statamic CMS-template-repo
   PREVIEW_DIR: public/set-previews
 
 jobs:
