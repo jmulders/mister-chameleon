@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mister Chameleon
 
-## Getting Started
+A multi-tenant, contextual-website SaaS: one platform that serves each visitor an
+adaptive homepage and pages, personalised on behaviour, firmographics and intent,
+and bills the tenant per web session.
 
-First, run the development server:
+- **Platform** — Next.js 16 / React 19 / TypeScript on Vercel. Personalisation,
+  admin, APIs, billing.
+- **CMS** — Statamic 6 / Laravel on Ploi, per tenant. Delivers the content.
+- **Data** — Supabase (Postgres). Schema lives in `supabase/migrations/`.
+
+## Start here
+
+New to the codebase? **[`CONTRIBUTING.md`](./CONTRIBUTING.md)** is the starter kit —
+it takes you from a clean laptop to a merged PR: setup, running locally, the test
+gate, the branch → PR → deploy flow, migrations, and the traps worth knowing.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+node --version            # must be >= 22.6
+cp .env.example .env.local # fill in the dev Supabase keys
+npm ci
+npm run dev               # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## The one command
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run verify            # lint + typecheck + tests — the gate CI runs too
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Install it as a pre-push hook once: `git config core.hooksPath .githooks`.
 
-## Learn More
+## Documentation map
 
-To learn more about Next.js, take a look at the following resources:
+| Read when | Doc |
+|---|---|
+| Onboarding / day one | [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
+| Why the test gate is shaped this way | [`docs/testing.md`](./docs/testing.md) |
+| Deep dev reference (repo layout, scripts, envs) | [`docs/developer-gids.md`](./docs/developer-gids.md) |
+| Deploy pipeline | [`docs/pipeline.md`](./docs/pipeline.md) |
+| Statamic CMS pipeline | [`docs/cms-pipeline.md`](./docs/cms-pipeline.md) |
+| Backup & restore | [`docs/backup-restore.md`](./docs/backup-restore.md) |
+| Architecture overview | [`docs/mvp-architecture.md`](./docs/mvp-architecture.md) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The full set of runbooks lives in [`docs/`](./docs).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## How work ships
 
-## Deploy on Vercel
+Every change is a pull request to `main` (branch protection — no direct pushes).
+CI runs **Verify** and **Build**; a maintainer approves; merge deploys. Vercel puts
+`main` live automatically, and `Deploy — Production` runs
+`test → approve → migrate → health → release`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Licence
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Proprietary — © Mister Chameleon. Not for redistribution.

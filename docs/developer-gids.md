@@ -2,6 +2,14 @@
 
 Lokaal draaien, repo-structuur, omgevingen, deploys en rollback.
 
+> **Status (19 juli 2026).** Dit is de *diepe referentie* — repo-structuur, scripts,
+> env-bestanden, mappen. Voor onboarding en de actuele werkwijze zijn
+> **[`../CONTRIBUTING.md`](../CONTRIBUTING.md)** (de starterkit) en
+> **[`testing.md`](./testing.md)** (de gate) leidend. Deze gids dateert deels van
+> vóór de pipeline-revisie van 17–18 juli; waar hij die overhaul raakt — CI-Node,
+> `ignoreBuildErrors`, pushen naar `main`, de hotfix-gate, de migratie-ledger,
+> staging — zijn de claims hieronder bijgewerkt, maar bij twijfel wint CONTRIBUTING.
+
 ## 1. Twee repo's
 
 - **Platform** — Next.js 16 / React 19 / TypeScript, draait op Vercel. Personalisatie, admin, API's, billing.
@@ -17,7 +25,9 @@ npm ci
 cp .env.example .env.local     # vul de waarden in
 npm run dev                    # http://localhost:3000
 ```
-Node: `.nvmrc` = 22 (CI draait op 20).
+Node: `.nvmrc` = 22, **en CI draait daar nu ook op** (`node-version-file: ".nvmrc"`).
+Tot 18 juli pinde CI Node 20, waardoor `npm test` met exit 9 stierf en de tests
+nooit in CI draaiden — zie `testing.md`.
 
 ### CMS-app (Statamic)
 ```bash
@@ -94,7 +104,10 @@ De CMS-app heeft een eigen `.env` + `.env.example`. Die `.env.example` is groten
 | `npm run backup` / `restore` | `scripts/backup.ts` / `restore.ts` |
 | `npm run seed:all` | Seeds in `cms/seed/` (elk met `:dry`) |
 
-> **Belangrijk:** `next.config.mjs` zet `typescript: { ignoreBuildErrors: true }`. De build faalt **niet** op typefouten — alleen `npx tsc --noEmit` (CI) vangt ze. Draai die lokaal vóór je pusht.
+> **Bijgewerkt:** `typescript.ignoreBuildErrors` is **verwijderd** uit
+> `next.config.mjs` (18 juli). De build faalt nu wél op typefouten — dat is de
+> bedoeling. Draai `npm run verify` vóór je pusht; herstel de vlag niet, fix de
+> fout. Zie `testing.md` → "Why `ignoreBuildErrors` is gone".
 
 > **Build-valkuil:** SWC weigert `??` gemengd met `||`/`&&` zonder haakjes. Dit sloopt de productie-build en wordt níét gevangen door een losse transpile-check.
 
@@ -123,7 +136,10 @@ feature/<naam>   (vanaf develop)
 hotfix/<naam>    (vanaf main, urgente prod-fixes)
 ```
 
-**Fast-path:** rechtstreeks naar `main` pushen mag expliciet, voor snelheid. De CI-gate (lint + `tsc --noEmit` + tests + build) draait op elke push naar `main`. De `develop → main`-route is voor riskante, multi-file of migratie-dragende changes. `docs/develop-sync.md` is de sync-runbook.
+**Geen fast-path meer.** Rechtstreeks naar `main` pushen kán niet — branch
+protection eist een PR met groene checks (Verify + Build) en een reviewer. Elke
+wijziging is een PR. (De oude "fast-path push naar main" is weg; hij was nooit
+veilig.) `docs/develop-sync.md` is de sync-runbook.
 
 ## 8. CI/CD (GitHub Actions)
 
@@ -133,7 +149,7 @@ hotfix/<naam>    (vanaf main, urgente prod-fixes)
 | `staging.yml` | push `develop` + handmatig | test → migrate → deploy (alias `staging.misterchameleon.com`) → healthcheck `/api/health` |
 | `production.yml` | push `main` + handmatig | test → **approve** (Environment `production`) → migrate → deploy (`vercel --prod` + healthcheck) → release (tag + GitHub release). `cancel-in-progress: false` |
 | `rollback.yml` | **alleen handmatig** | Aliast het productiedomein naar een eerdere Vercel-deployment. Inputs: `deployment_url` (verplicht), `reason`. **Raakt de DB niet.** |
-| `hotfix.yml` | push `hotfix/**` + PR op main | Snelle CI (lint, tsc, alleen `test:personalization`, geen build). Deployt niets; merge naar `main` triggert productie |
+| `hotfix.yml` | push `hotfix/**` + PR op main | Draait nu de **volle** `npm run verify` (niet meer alleen `test:personalization` — dat was de zwakste gate op de hoogste-risico change). Deployt niets; merge naar `main` triggert productie |
 | `set-previews.yml` | handmatig + push `develop` | Storybook → set-previews → PR op de CMS-template-repo. **Niet af** (`CMS_REPO` is placeholder) |
 
 Handmatig triggerbaar: `production.yml`, `staging.yml`, `rollback.yml`, `set-previews.yml`.
@@ -171,15 +187,21 @@ Zie ook `STAGING.md` in de repo-root voor de volledige end-to-end guide (migrati
 
 **Blijvend relevant:**
 
-- `typescript.ignoreBuildErrors: true` — de build is blind voor typefouten; alleen CI's `tsc --noEmit` vangt ze. Draai die lokaal.
 - SWC-valkuil: `??` gemengd met `||`/`&&` zonder haakjes sloopt de productie-build en wordt niet gevangen door een losse transpile-check.
-- `supabase db push` in de workflows kan stuklopen op een history-mismatch; gebruik dan `npm run db:migrate` of de SQL-editor.
 
 **Nog open:**
 
-- `.nvmrc` zegt Node 22, CI draait Node 20 — bewust laten of gelijktrekken (CI bumpen is een aparte, geteste wijziging).
 - `/api/cron/billing-renewal` en `/api/cron/keep-warm` staan niet in `vercel.json` en draaien dus niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen.
 - `set-previews.yml` heeft nog een placeholder `CMS_REPO` en is niet af.
+- Geen apart staging-Supabase-project — `develop`/staging is nog niet bekabeld (§7, §10 zijn de "voor als het er komt"-guide).
+
+**Opgelost op 18 juli 2026 (waren blijvend/open, nu weg):**
+
+- `typescript.ignoreBuildErrors` is verwijderd — de build faalt nu op typefouten.
+- `.nvmrc` = 22 én CI draait op 22; de mismatch die de tests in CI stillegde is weg.
+- De migratie-ledger is één ledger (`schema_migrations`); `_migrations` en `npm run
+  db:migrate` zijn uitgefaseerd, de history-mismatch is verzoend (repo = DB, 140 = 140).
+- De hotfix-gate draait de volledige `verify`, niet meer alleen personalisatie.
 
 **Opgelost (was drift, nu gefixt):**
 

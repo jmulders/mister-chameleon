@@ -50,6 +50,12 @@
     // storybook-static/ supplied all 354 of its errors and kept CI red for
     // months, over generated code nobody wrote.
     "backups",
-    "storybook-static"
+    "storybook-static",
+    // Playwright E2E is an opt-in toolchain: @playwright/test is installed on
+    // demand (`npm i -D @playwright/test`), not a standing dependency. Without
+    // excluding these, `tsc --noEmit` in the gate fails on a missing module for a
+    // tool that is not part of the gate. See tests/integration/README.md.
+    "e2e",
+    "playwright.config.ts"
   ]
 }
