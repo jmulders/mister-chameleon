@@ -125,11 +125,16 @@ they had.
 
 They had drifted in the worst possible way. All four called `npx tsc --noEmit`
 without `next typegen`, so all four failed on a clean checkout for a reason that
-does not exist on any developer's machine. `staging.yml` and `production.yml`
-gate their deploy on that job (`needs: [test]` → `migrate` → `deploy`), so the
-deploy pipeline had not run past the gate in months. The site was still live
-because Vercel deploys from its own Git integration — but `supabase db push`
-lives in the pipeline, and it never ran.
+does not exist on any developer's machine. `production.yml` gates its migrations
+on that job (`needs: [test]` → `approve` → `migrate`), so the pipeline had not run
+past the gate in months. The site was still live because Vercel deploys from its
+own Git integration — but `supabase db push` lives in the pipeline, and it never
+ran.
+
+The chain is now test → approve → migrate → **health** → release. There is no
+"deploy to Vercel" job: it could not build from a runner (Vercel's *Sensitive*
+env vars come back as `[SENSITIVE]`) and it duplicated what Vercel already does on
+merge. See "Known debt — resolved" for the removal.
 
 `hotfix.yml` was worse: it ran `test:personalization` only, labelled "fast path —
 speed matters". The full suite takes about two seconds, and `test:personalization`
@@ -141,15 +146,15 @@ gate sat on the highest-risk change anyone makes. It runs the full gate now.
 17 July, on `main`, commit 7e19c22: **CI went green.** Lint, typecheck, 285 tests
 and the build, all on a clean checkout. First time.
 
-`Deploy — Production` still failed — at `DB Migrations`, see Known debt below.
-So `supabase db push` has still never run. The ~20 unrecorded migrations
-(20240101000127 … 147) are still waiting, still guarded with `IF NOT EXISTS`,
-still expected to be a no-op against a database that already has those tables.
-Whoever fixes the migrate job finds out.
+`Deploy — Production` still failed that day at `DB Migrations`, so `supabase db
+push` had still never run. On 18 July it did — the migrate job was fixed, the
+ledger reconciled, and the whole chain reached `Create Release`. See "Known
+debt — resolved" below for how each stage fell over the first time it ran.
 
-### The migration ledger is not one ledger
+### The migration ledger — how it got split, and how it was reconciled
 
-There are two, and neither is complete:
+For historical context, because the reconciliation only makes sense against it.
+On 17 July there were two ledgers and neither was complete:
 
 | ledger | written by | rows | last |
 |---|---|---|---|
@@ -157,24 +162,18 @@ There are two, and neither is complete:
 | `supabase_migrations.schema_migrations` | `supabase db push` (and the Supabase MCP) | 130 | 30 June 2026 |
 | files in `supabase/migrations/` | — | 136 | `…147_lead_suppressions` |
 
-The five newest migrations (ad_sync, ad_sync_audience_members,
-visitor_profiles_attribution, ad_conversions, lead_suppressions) are recorded in
-**neither** — their tables exist because the SQL was executed directly.
+Three ways of changing the schema, two ledgers, and the newest tables in no ledger
+at all — their tables existed because the SQL had been run directly. The schema
+happened to be correct; nothing knew why.
 
-So three ways of changing the schema, two ledgers, and the newest tables in no
-ledger at all. The schema happens to be correct; nothing knows why.
-
-**Do not hand-write the ledger to fix this.** It is tempting — insert the missing
-versions into `supabase_migrations.schema_migrations` and move on — and it is
-wrong. That asserts "this migration is applied" based on the tables existing,
-without checking every column, index and policy in those files. Mark a
-half-applied migration as done and it is never completed, and nobody finds out.
-
-`supabase db push` does it better: those migrations are idempotent (every DDL
-statement is guarded with `IF NOT EXISTS` — counted, all 21), so it applies them,
-proves they are complete by doing so, and writes the ledger itself. Fixing the
-migrate job reconciles the ledger as a side effect, correctly. Then pick one path
-and delete the other.
+The fix was **not** to hand-write the ledger — that asserts "applied" from the
+tables existing, without checking every column, index and policy. `supabase db
+push` proves completeness by applying (every statement `IF NOT EXISTS`, so a
+no-op on the existing schema) and writes the ledger itself. Done on 18 July: the
+duplicates were marked reverted, `db push` applied 127–152, and repo and database
+now agree at 140 = 140. `_migrations` is retired; `schema_migrations` is the one
+ledger. Details, including the two bugs this surfaced, are under "Known debt —
+resolved / 3".
 
 ## The 525 warnings
 
@@ -187,103 +186,165 @@ Do not read the 525 as noise, though. Most are unused variables. Some are not:
 | rule | where | status |
 |---|---|---|
 | `react-hooks/static-components` (30) | ScenarioControlPanel | **Fixed.** `Section` and `Row` were declared inside render, so React saw a new component type every render and rebuilt the tree. Now `LiveSection` / `LiveRow` at module level, with `open`/`toggle` passed as props instead of closed over. |
-| `react-hooks/set-state-in-effect` (5) | ConsentBanner, CookieDeclaration, cart-context | **Open, deliberately.** |
+| `react-hooks/set-state-in-effect` (3) | ConsentBanner, CookieDeclaration, cart-context | **Fixed (18 July).** All three now derive state from an external store via `useSyncExternalStore`. |
 
-### Why set-state-in-effect is still there
+### How set-state-in-effect was fixed
 
-The right fix is `useSyncExternalStore`, and it fits unusually well:
-`onConsentChange` is already a subscribe function and `getConsent` is already a
+The right fix was `useSyncExternalStore`, and it fit unusually well:
+`onConsentChange` was already a subscribe function and `getConsent` already a
 snapshot — that hook exists for exactly this shape.
 
-The catch is that `useSyncExternalStore` requires `getSnapshot` to return a
-*cached* value. `getConsent()` returns `window.__mc_consent`, and calls
-`initConsentStore()` first. If that ever hands back a fresh object, the result is
-an infinite render loop — on the consent banner, in production, for every
-visitor. That is a much larger problem than the warning being fixed, and the
-warning says "can hurt performance", not "this is broken".
+The catch was that `useSyncExternalStore` requires `getSnapshot` to return a
+*cached* value. `getConsent()` returns `window.__mc_consent`, which is reassigned
+only by `setConsent()` — so between changes every call returns the same object.
+That was verified *before* converting, not assumed: convert first and a fresh
+object on every call would be an infinite render loop on the banner, in
+production, for every visitor.
 
-So: verify that `getConsent()` returns a stable reference across calls, then
-convert. Do not convert first.
+The three were not the same shape, and were not treated as such:
 
-## Known debt — written down so it stops living in someone's head
+- **ConsentBanner** — visibility is now derived directly from the store; the two
+  effects and the local `visible` state are gone.
+- **CookieDeclaration** — the store feeds an editable draft overlay
+  (`draft ?? stored`), so the on-mount seeding effect is gone but the form is
+  still editable.
+- **cart-context** — the cart moved out of React into `lib/cart/cart-store.ts`, a
+  framework-agnostic external store backed by localStorage. The load-on-mount
+  effect became a `getServerSnapshot` concern, and the reducers are now pure
+  functions with their own tests (`tests/cart/cart-store.test.ts`) — the checkout
+  maths had no coverage before.
 
-Four things are still wrong. None of them break anything today, which is exactly
-why they need writing down: that is the condition under which the last batch
-survived for months.
+The server snapshots report "hidden / empty" so the SSR HTML matches the first
+client render; the real client state is read straight after hydration, exactly as
+the old effects did.
 
-### 1. `DB Migrations — Production` is red
+## Known debt — resolved 18 July 2026
 
-`Deploy — Production` reaches this job and fails with exit 1. It has never
-succeeded — the workflow never got past its own test gate before 17 July 2026, so
-everything behind that gate is untested ground, and it shows.
+The four things below were "still wrong, but nothing breaks today" — the exact
+condition under which the previous batch survived for months. On 18 July the
+pipeline finally ran end to end for the first time, and each one was closed. They
+are kept here, resolved, because the *how* is the useful part.
 
-Two things were found without even reading the log:
+### 1. `DB Migrations — Production` — green
 
-  • **The health check pointed at the wrong domain.** `misterchameleon.com`, in
-    four places, including the check that decides whether a production deploy
-    counts as successful. The site is `www.misterchameleon.nl` — that is what
-    tenant/production-tenants.ts has as canonicalHostname. So even with working
-    secrets, the deploy would have "failed" against someone else's domain.
-    Fixed.
+Three secrets were missing, not one: `SUPABASE_ACCESS_TOKEN`,
+`PRODUCTION_DB_PASSWORD` and `PRODUCTION_SUPABASE_PROJECT_ID`. The preflight named
+them one run at a time. They now live as **environment** secrets on the
+`production` environment (not repository secrets), so only jobs that declare
+`environment: production` can read them — the account-wide access token in
+particular.
 
-  • **A missing secret produced a cryptic exit 1.** `supabase link --project-ref`
-    with an empty value fails with a parse error about a flag, not with "you have
-    no project ref". Both migrate jobs now run a preflight that names the missing
-    secret.
+One trap on the way: an empty GitHub *environment* is not the same as the
+Vercel-created `Production – mister-chameleon-qlk1` environment. The secrets first
+went into the latter, where the workflow never looks. `environment: production`
+means the lowercase one.
 
-What remains is the actual cause, which needs the log: most likely
-`SUPABASE_ACCESS_TOKEN`, `PRODUCTION_DB_PASSWORD` or
-`PRODUCTION_SUPABASE_PROJECT_ID`. The preflight will now say which.
+The wrong-domain health check (`misterchameleon.com`, a domain we do not own) was
+corrected to `www.misterchameleon.nl` in the same pass.
 
-Also unverified: `staging.misterchameleon.nl` must exist and be attached to the
-Vercel project, or the alias step fails. That job has never run either.
+### 2. The production environment has reviewers
 
-Nothing is broken by any of this *right now*: the schema is already correct
-(every table verified present), and Vercel deploys `main` through its own Git
-integration, so the code ships regardless. What it costs is the future — every
-migration you write from here on will not be applied by the pipeline.
+Settings → Environments → production → Required reviewers, with the account owner
+added. The `Approval Gate` job now actually pauses. Before this, `supabase db
+push` would have run against production unattended — it only ever didn't because
+it errored first.
 
-### 2. The production environment has no reviewers
+Worth knowing what this gate does and does not protect: it gates the **database**,
+not the site. Vercel deploys `main` on merge through its own Git integration, so
+the new code is live before the approval prompt appears. Locking that down too is
+a Vercel Deployment Protection setting, not a workflow change — left off
+deliberately, since every merge is already tested before it lands.
 
-`production.yml` has an `Approval Gate` job with `environment: production`. On
-17 July it did not pause — it went straight through to the migrate job. So there
-are no required reviewers configured, and `supabase db push` would have run
-against the production database unattended. It only didn't because it errored.
+### 3. The migration ledger — one ledger, reconciled
 
-Two minutes of work: Settings → Environments → production → Required reviewers.
+The timestamp-versioned rows the Supabase MCP had written (20260613… onward) were
+the *same migrations* as the repo's `20240101000…` files, statement for statement
+— verified before touching anything. `supabase migration repair --status
+reverted` cleared the fourteen duplicates plus two orphans, then `supabase db
+push` applied 127–152 (all `IF NOT EXISTS`, all no-ops on the existing schema) and
+wrote the ledger itself.
 
-### 3. The migration ledger is not one ledger
+Two real bugs fell out of doing it properly rather than hand-writing the ledger:
 
-See the table above. Two ledgers, three ways of applying schema, and the five
-newest migrations recorded in neither. Pick one path (`supabase db push`, since
-it is the one meant to run unattended), reconcile with `supabase migration
-repair`, delete the other. Blocked on (1).
+- **A migration broken for two years.** `…095_form_submissions_tenant_retention`
+  shared version 000095 with another file, so the CLI only ever saw one of the
+  two and this one never ran. When `db push` finally executed it, it failed on
+  `created_at` — a column `form_submissions` never had (it is `submitted_at`).
+  Renumbered to 150 and fixed.
+- **Six tables in production, in no migration.** `runtime_rules`,
+  `visitor_history`, `tenant_search_settings`, `enrichment_price_cards`,
+  `interest_profile_tags`, `_migrations` existed only because SQL was run by hand.
+  One was real (`tenant_search_settings` → migration 151), three were dead and are
+  now dropped (migration 152), `_migrations` is the retired ledger, and
+  `visitor_history` was a false alarm.
 
-### 4. The Supabase client has never been typed
+Repo and database now agree: 140 files, 140 ledger rows, no duplicate versions.
+Regenerate the ledger's source of truth with `supabase db push`; do not hand-edit
+`schema_migrations`.
 
-`data/types.ts` hand-writes the `Database` type. Every table in it is missing the
-`Relationships` key that @supabase/postgrest-js requires, and the schema is
-missing Views / Functions / Enums / CompositeTypes. So the type fails its
-`GenericSchema` constraint and supabase-js resolves **every** table to `never` —
-including tables that are right there in the file. Verified: adding
-`platform_backups` plus the four schema keys was not enough; `rules_config` is in
-`Tables` and still resolves to `never`.
+### 4. The Supabase client — typed, and the shim's prophecy came true
 
-That is why there are 24 `(db as any)` casts. They were not laziness; they were
-the only way to use the client. Every `db.from(...)` in this codebase is
-effectively `any`, and has been since the file was written.
-
-The fix is one command and a day of consequences:
+`data/types.ts` used to hand-write the `Database` type, missing the
+`Relationships` key on every table, so supabase-js resolved **every** table to
+`never` and 24 `(db as any)` casts were the only way to use the client. It was
+generated:
 
 ```
-npx supabase gen types typescript --linked > data/database.types.ts
+npx --yes supabase gen types typescript --linked > data/database.types.ts
 ```
 
-Then the 24 casts come out, and you find out what they were hiding. Given that
-the equivalent hand-written Stripe shim (types/stripe.d.ts, deleted on 17 July)
-had been actively teaching the codebase that `current_period_end` lives on the
-subscription root — which stopped being true in API 2024-09-30 — expect to find
-something.
+The old note here ended "expect to find something." It was right. The deleted
+Stripe shim (`types/stripe.d.ts`) had taught the codebase that
+`current_period_end` lives on the subscription root — untrue since Stripe API
+2024-09-30, where it moved to the subscription *item*. On 18 July that exact lie
+surfaced in `billing/stripe.ts`: the `customer.subscription.*` webhook handlers
+read `sub.current_period_end` (now `undefined`), called
+`new Date(undefined * 1000).toISOString()` (a `RangeError`), threw, were swallowed
+by the route's try/catch, and returned 200. Stripe thought every event was
+delivered while the database was never updated — a live subscription sat a month
+stale. Fixed with a `subscriptionPeriod()` helper that reads the item, plus
+`tests/billing/subscription-period.test.ts`. The type change made it impossible to
+miss: with the period fields honestly optional, `tsc` flagged the two remaining
+root reads that a grep had not.
+
+## What broke the first time each late stage ran — 18 July 2026
+
+The pipeline had never reached its own back half, so every job past the gate was
+untested ground. Once the gate passed, each one failed the first time it ran, for
+a reason only a first run could reveal. Recorded because the pattern — "green and
+broken, because this code never executed" — is the same one that kept CI red for
+months.
+
+- **The deploy job could not build.** `vercel build` in a runner does `vercel
+  pull` first, and 52 of the 73 production env vars are marked *Sensitive* in
+  Vercel — which return the literal string `[SENSITIVE]`, not their value. The
+  build fell over on a rewrite whose destination was `[SENSITIVE]/assets/:path*`.
+  The job could never work, and it was redundant anyway (Vercel deploys `main`
+  itself). Removed. The workflow is now test → approve → migrate → **health** →
+  release; the deploy belongs to Vercel.
+
+- **The health check got 429, not 200.** It polls from a shared GitHub-runner IP,
+  which Vercel's edge rate-limits — a 429 returned *before* the request reaches
+  the app, so exempting `/api/health` from our own limiter (correct, but a layer
+  too deep) did not help. A 429 proves the origin is alive, so the check now
+  treats 200 and 429 as healthy and fails only on 5xx or no answer.
+
+- **The release job had never committed.** It bumped the version, wrote the
+  CHANGELOG, and then `git commit` failed with "empty ident name" — a runner has
+  no git identity. Added a `github-actions[bot]` identity step.
+
+- **The release scripts could not resolve their imports.** They import each other
+  with `.js` extensions (the TypeScript-source convention), but the workflow runs
+  them under `node --experimental-strip-types`, which resolves paths *literally* —
+  `./logger.js` does not exist, only `logger.ts` does. Changed the `scripts/`
+  imports to `.ts` and turned on `allowImportingTsExtensions` (safe: it permits,
+  it does not require, and `noEmit` is on). That enabled the flag a stray
+  `@ts-expect-error TS5097` had been suppressing — which the pre-push hook caught
+  as a now-unused directive, on the same push.
+
+Every one of these was found by the gate or the hook before it reached anyone
+else. That is the system working: a change that would have broken something
+quietly was stopped at the door.
 
 ## Enforcement
 
@@ -330,16 +391,43 @@ restoring the flag. If the generated Supabase types drift again:
 npx supabase gen types typescript --linked > types/supabase.ts
 ```
 
+## The integration layer (opt-in, added 18 July 2026)
+
+The gate is pure and always will be. Alongside it now sits a second layer that
+talks to real systems, kept out of the gate by name (`*.itest.ts`, not `*.test.ts`)
+and self-skipping when its secret is absent — a run with no secrets is all green
+skips, never failures. See `tests/integration/README.md`.
+
+- **Webhook handler** — `tests/billing/webhook-handler.test.ts` (in the gate, no
+  network). Feeds a real Stripe event through `handleStripeWebhook` with a
+  recording mock client and asserts the `subscriptions` row is written from the
+  item-level period. This is the integration around the exact bug that hid for a
+  month; the pure `subscription-period.test.ts` guards the helper under it.
+- **DB** — `tests/integration/db.itest.ts`. Reads and round-trips a scratch row on
+  a throwaway test project. Catches RLS, real column types, and `(db as any)`
+  fallout. Needs `TEST_SUPABASE_URL` + `TEST_SUPABASE_SERVICE_ROLE_KEY`.
+- **Stripe** — `tests/integration/stripe.itest.ts`. Checks the Pro price still
+  costs €749 (config-vs-Stripe drift) and that Stripe honours a
+  `nextCalendarMonthStartUnix` anchor on a throwaway test subscription. Needs
+  `STRIPE_TEST_SECRET_KEY`.
+- **AI** — `tests/integration/ai.itest.ts`. The no-key guard runs everywhere; the
+  live call to `ClaudeAdapter.suggest()` needs `ANTHROPIC_API_KEY`.
+- **Browser / E2E** — `e2e/smoke.spec.ts` on Playwright (`npm run test:e2e`): home
+  page renders 200, health endpoint alive, consent banner shows for a fresh visitor.
+
+Honesty note: the four infra files were written but could not be executed where
+they were written (no outbound network, no browser). They are correct by
+construction and self-skipping; the first real run is the maintainer's.
+
 ## What is still not covered
 
 Stated plainly, because a list of what a suite does not test is worth more than a
 coverage percentage.
 
-- **No DB integration tests.** Everything is pure. `tests/billing/billing-flow.test.ts`
-  models `personalization_sessions` with a `Set` that enforces the same primary
-  key — it proves the *logic* around the table, not the table.
-- **No browser tests.** Nothing renders a page and checks what a visitor sees.
-- **No Stripe integration tests.** `nextCalendarMonthStartUnix` is tested;
-  whether Stripe honours the anchor is not.
-- **The AI adapters are not exercised against a live model.** By design — but it
-  means "AI mode works" is still only tested at the seam.
+- **The integration layer has run green nowhere yet** — it self-skips without
+  secrets, so "it passes" currently means "it skipped". Wire the secrets into a CI
+  job (separate from the gate) to make it real.
+- **No load or concurrency tests.** Nothing exercises the rate limiter, the wallet
+  deduction, or the session cap under parallel traffic.
+- **The E2E suite is a smoke test.** Three checks. It proves the site loads, not
+  that a full personalise-and-convert journey works end to end.

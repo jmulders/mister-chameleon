@@ -38,7 +38,9 @@
     "deploy:seed": "npm run build && npm run seed:all",
     "test:billing": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=dot --test './tests/billing/*.test.ts'",
     "test:watch": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=spec --watch --test './tests/**/*.test.ts'",
-    "test:verbose": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=spec --test './tests/**/*.test.ts'"
+    "test:verbose": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=spec --test './tests/**/*.test.ts'",
+    "test:integration": "NODE_ENV=test node --experimental-transform-types --loader ./tests/loader.mjs --test-reporter=spec --test './tests/integration/**/*.itest.ts'",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
