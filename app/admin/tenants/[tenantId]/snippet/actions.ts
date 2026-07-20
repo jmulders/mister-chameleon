@@ -10,6 +10,7 @@
 import { revalidatePath }    from "next/cache";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { generateSiteKey }   from "@/lib/snippet/generate-site-key";
+import { sanitizeSelectorMap } from "@/lib/snippet/decide-response";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 
 export type SnippetActionResult =
@@ -70,6 +71,47 @@ export async function setSnippetEnabledAction(
     snippet: {
       ...tenant.snippet,
       enabled,
+    },
+  });
+
+  revalidatePath(`/admin/tenants/${tenantId}/snippet`);
+
+  return { ok: true };
+}
+
+// ── Save selector map ──────────────────────────────────────────────────────────
+
+/**
+ * Persists the tenant's slot → CSS-selector map. This lets a slot target an
+ * element that carries no `data-mc-slot` attribute — the mechanism that makes
+ * the snippet usable inside WordPress page builders and other CMSes where the
+ * markup can't be edited. The decide endpoint returns this map as `selectors`.
+ *
+ * Entries arrive as an ordered array (so the editor can keep row order); blank
+ * or malformed rows are dropped via sanitizeSelectorMap before saving.
+ */
+export async function saveSnippetSelectorMapAction(
+  tenantId: string,
+  entries: { key: string; selector: string }[],
+): Promise<SnippetActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+
+  // Array → record (last wins on duplicate keys), then sanitise.
+  const raw: Record<string, string> = {};
+  for (const entry of entries) {
+    if (entry && typeof entry.key === "string") raw[entry.key.trim()] = entry.selector;
+  }
+  const selectorMap = sanitizeSelectorMap(raw) ?? {};
+
+  await saveTenant({
+    ...tenant,
+    snippet: {
+      ...tenant.snippet,
+      selectorMap,
     },
   });
 

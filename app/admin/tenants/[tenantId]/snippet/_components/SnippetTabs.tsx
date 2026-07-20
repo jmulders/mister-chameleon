@@ -15,12 +15,14 @@
 
 import { useState } from "react";
 import { SnippetPageClient } from "./SnippetPageClient";
+import { SnippetSelectorsEditor } from "./SnippetSelectorsEditor";
 import { HowItWorksContent } from "./HowItWorksContent";
 
-type Tab = "install" | "how-it-works";
+type Tab = "install" | "selectors" | "how-it-works";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "install",       label: "Install"       },
+  { id: "selectors",     label: "Selectors"     },
   { id: "how-it-works",  label: "How it works"  },
 ];
 
@@ -30,6 +32,8 @@ interface SnippetTabsProps {
   enabled:     boolean;
   generatedAt: string | null;
   snippetSrc:  string;
+  selectorMap: Record<string, string>;
+  slotSuggestions: readonly string[];
   initialTab?: Tab;
 }
 
@@ -39,6 +43,8 @@ export function SnippetTabs({
   enabled,
   generatedAt,
   snippetSrc,
+  selectorMap,
+  slotSuggestions,
   initialTab = "install",
 }: SnippetTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -79,6 +85,14 @@ export function SnippetTabs({
           enabled={enabled}
           generatedAt={generatedAt}
           snippetSrc={snippetSrc}
+        />
+      )}
+
+      {activeTab === "selectors" && (
+        <SnippetSelectorsEditor
+          tenantId={tenantId}
+          initialMap={selectorMap}
+          slotSuggestions={slotSuggestions}
         />
       )}
 

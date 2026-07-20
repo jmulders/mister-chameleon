@@ -44,6 +44,7 @@ export default async function SnippetPage({
   const siteKey      = tenant.snippet?.siteKey ?? null;
   const enabled      = tenant.snippet?.enabled ?? false;
   const generatedAt  = tenant.snippet?.siteKeyGeneratedAt ?? null;
+  const selectorMap  = tenant.snippet?.selectorMap ?? {};
 
   return (
     <div className="p-8 max-w-4xl">
@@ -61,7 +62,20 @@ export default async function SnippetPage({
         enabled={enabled}
         generatedAt={generatedAt}
         snippetSrc={snippetSrc}
+        selectorMap={selectorMap}
+        slotSuggestions={SLOT_SUGGESTIONS}
       />
     </div>
   );
 }
+
+// Common slot names, surfaced as autocomplete hints in the selector editor.
+const SLOT_SUGGESTIONS = [
+  "hero-title", "hero-subtitle", "hero-tag",
+  "hero-cta-label", "hero-cta-href", "hero-cta2-label", "hero-cta2-href",
+  "proof-title",
+  "cta-title", "cta-text", "cta-cta-label", "cta-cta-href",
+  "feature-title", "feature-subtitle",
+  "conversion-title", "conversion-text",
+  "notification-message",
+] as const;
