@@ -41,9 +41,12 @@ describe("Stripe integration (test mode)", () => {
     // Throwaway customer with a test payment method attached.
     const customer = await stripe.customers.create({ description: "itest — safe to delete" });
     try {
-      await stripe.paymentMethods.attach("pm_card_visa", { customer: customer.id });
+      // Attaching the shared test token mints a real, attached PaymentMethod;
+      // the default must reference THAT id, not the "pm_card_visa" token (which
+      // is not a payment method on this customer — Stripe 400s at subscribe time).
+      const pm = await stripe.paymentMethods.attach("pm_card_visa", { customer: customer.id });
       await stripe.customers.update(customer.id, {
-        invoice_settings: { default_payment_method: "pm_card_visa" },
+        invoice_settings: { default_payment_method: pm.id },
       });
 
       const anchor = nextCalendarMonthStartUnix();

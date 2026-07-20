@@ -27,8 +27,14 @@ describe("DB integration", () => {
     const { data, error } = await db.from("billing_plans").select("plan_id, monthly_price");
     assert.equal(error, null, error?.message);
     assert.ok(Array.isArray(data), "expected an array of plans");
-    // The seed always has at least starter/growth/pro.
-    assert.ok(data!.length >= 1, "expected billing_plans to be seeded");
+    // Don't require seed rows: a throwaway test project (which this suite asks
+    // for) may be empty. The point here is that the query succeeds over the wire
+    // with the selected columns — that's what catches the RLS / column-type /
+    // client-cast bugs. When rows exist, sanity-check the shape.
+    if (data!.length > 0) {
+      const row = data![0] as { plan_id?: unknown };
+      assert.ok("plan_id" in row, "billing_plans row should expose plan_id");
+    }
   });
 
   it("round-trips a scratch row: insert → select → delete", { skip }, async () => {
