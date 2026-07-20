@@ -186,7 +186,15 @@ async function main(): Promise<void> {
   //
   // Reading the latest tag makes releases idempotent-by-design: v0.2.0 exists →
   // next is v0.3.0, regardless of what package.json says.
-  const lastTag = capture("git describe --tags --abbrev=0 2>/dev/null || echo ''", { verbose: false }).trim();
+  //
+  // Use the HIGHEST version tag across ALL tags — NOT `git describe`, which only
+  // finds tags reachable from HEAD. Because the bump commit never lands on main
+  // (branch protection), the previous release's tag points at an orphan commit
+  // that isn't in main's history, so `git describe` returns nothing and we fell
+  // straight back to the stale package.json — recomputing the very tag that
+  // already exists. `git tag --sort=-v:refname` is reachability-independent, so
+  // it always sees v0.2.0 and the next release becomes v0.3.0.
+  const lastTag = capture("git tag -l 'v*' --sort=-v:refname | head -1", { verbose: false }).trim();
   const current = lastTag ? lastTag.replace(/^v/, "") : (pkg.version ?? "0.0.0");
   log.info(`Current version: v${current}${lastTag ? " (from git tag)" : " (from package.json — no tags yet)"}`);
 
