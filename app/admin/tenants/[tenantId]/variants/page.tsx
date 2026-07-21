@@ -60,7 +60,7 @@ export default async function VariantsPage({
   const tenant = normalizeTenant(rawTenant);
 
   const [pages, catalogue] = await Promise.all([
-    fetchPagesWithVariants(tenantId, tenant.cmsProvider),
+    fetchPagesWithVariants(tenantId, tenant.cms.provider),
     fetchVariantCatalogue(tenantId),
   ]);
 
