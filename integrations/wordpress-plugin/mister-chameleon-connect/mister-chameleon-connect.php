@@ -4,7 +4,7 @@
  * Plugin URI:        https://www.misterchameleon.nl
  * Update URI:        https://www.misterchameleon.nl/mister-chameleon-connect
  * Description:       Real-time contentpersonalisatie via de Mister Chameleon-snippet. Vul je siteKey in en markeer slots — geen thema-code, geen losse header-plugin, geen Wordfence-gedoe.
- * Version:           0.5.3
+ * Version:           0.5.5
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Mister Chameleon
@@ -34,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Directe toegang blokkeren.
 }
 
-define( 'MCC_VERSION', '0.5.3' );
+define( 'MCC_VERSION', '0.5.5' );
 define( 'MCC_DEFAULT_ENDPOINT', 'https://www.misterchameleon.nl' );
 
 /**
@@ -424,9 +424,16 @@ define( 'MCC_UPDATE_SLUG', 'mister-chameleon-connect' );
  * dan ook cachen we een lege array zodat het plugin-scherm nooit breekt.
  */
 function mcc_update_info() {
-	$cached = get_transient( 'mcc_update_info' );
-	if ( false !== $cached ) {
-		return $cached;
+	// On a manual "Check again" (update-core.php?force-check=1) always fetch fresh,
+	// so a just-released version is never hidden behind a still-warm cache. This
+	// bypasses the transient inline — no separate hook whose timing could lose the
+	// race with WordPress' own update check.
+	$force = isset( $_GET['force-check'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( ! $force ) {
+		$cached = get_transient( 'mcc_update_info' );
+		if ( false !== $cached ) {
+			return $cached;
+		}
 	}
 	$resp = wp_remote_get( mcc_endpoint() . '/api/wp-plugin/update', array( 'timeout' => 8 ) );
 	$data = array();
@@ -525,7 +532,8 @@ add_filter( 'update_plugins_www.misterchameleon.nl', function ( $update, $plugin
 	}
 	return array(
 		'slug'         => MCC_UPDATE_SLUG,
-		'version'      => $info['version'],
+		'plugin'       => plugin_basename( __FILE__ ),
+		'new_version'  => $info['version'],
 		'url'          => isset( $info['homepage'] ) ? $info['homepage'] : '',
 		'package'      => $info['download_url'],
 		'requires'     => isset( $info['requires'] ) ? $info['requires'] : '',
