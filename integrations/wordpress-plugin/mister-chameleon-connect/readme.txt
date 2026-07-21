@@ -4,7 +4,7 @@ Tags: personalization, cro, personalisatie, ab-testing, content
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,9 +17,10 @@ zodat je bestaande pagina's real-time per bezoeker gepersonaliseerd worden.
 
 * Laadt de snippet via `wp_enqueue_script` — de nette WordPress-weg, die niet door
   beveiligingsplugins (zoals Wordfence) als "unsafe operation" wordt geblokkeerd.
-* Markeer slots zonder thema-code: een **Adaptive Slot**-block én een
-  `[mc_slot]`-shortcode. Beide renderen een gewone inline `data-mc-slot`-span, dus
-  géén iframe/sandbox waar de snippet niet bij kan.
+* Voeg een volledig **Adaptive Block** in (Gutenberg-block óf `[mc_block key="hero"]`-
+  shortcode): het platform toont per bezoeker de juiste variant van een heel blok
+  (hero, features, social proof, cta, notification). De inhoud die je opmaakt is de
+  standaard/fallback. Voor fijnmazige tekst-swaps bestaat de `[mc_slot]`-shortcode nog.
 * Consent-vriendelijk via de `mcc_should_enqueue`-filter (haakpunt voor Complianz,
   Cookiebot, CookieYes).
 
@@ -47,6 +48,16 @@ Daar heb je de HTML niet altijd in handen. Gebruik dan de selector-mapping in he
 platform (Snippet → Selectors) in plaats van slots in de markup.
 
 == Changelog ==
+
+= 0.5.0 =
+* Adaptive Block (heel blok): het slot-block voegt nu een volledig adaptief blok in
+  (`data-mc-block`) dat het platform per bezoeker in de juiste variant toont — zoals
+  de adaptive slot in Statamic — in plaats van losse tekst-elementen. Je maakt de
+  standaard/fallback-inhoud op met gewone blokken (InnerBlocks). Ook nieuw: de
+  `[mc_block key="hero"]…[/mc_block]`-shortcode.
+* Block-scoped anti-flikker (Optimizely/VWO-stijl): alleen de adaptieve blokken
+  blijven verborgen tot ze geswapt zijn — de rest van de pagina rendert direct. Elk
+  blok komt tevoorschijn zodra het geswapt is, met een 1500 ms fail-safe.
 
 = 0.4.0 =
 * Zelf-update via het platform: WordPress toont voortaan updates in het
