@@ -97,9 +97,13 @@ import { logger }                    from "@/lib/logger";
 import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
 import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
-import type { SlotMap }              from "@/lib/snippet/decide-response";
+import type { SlotMap, BlockSlot }   from "@/lib/snippet/decide-response";
 import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
+import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
+import { tenantThemeToVarsRecord }   from "@/design-system/theme";
+import { THEME_PRESETS }             from "@/design-system/theme/presets";
+import { normalizeThemeKey }         from "@/tenant";
 
 // ── CORS helpers ──────────────────────────────────────────────────────────────
 
@@ -117,6 +121,12 @@ export function OPTIONS() {
 
 interface DecideRequest {
   siteKey: string;
+  /**
+   * Block-slot keys present on the page as `data-mc-block="<key>"` containers.
+   * The snippet reports these so the route renders each requested variant to a
+   * whole self-contained block, instead of the per-element content slots.
+   */
+  blocks?: string[];
   context?: {
     path?:           string;
     referrer?:       string;
@@ -625,11 +635,44 @@ export async function POST(request: NextRequest) {
     // ── Map variant fields to slot map ─────────────────────────────────────────
     const slots: SlotMap = {};
 
+    // ── Whole-block rendering (data-mc-block) ──────────────────────────────────
+    //
+    // The snippet reports which block containers exist on the page (body.blocks).
+    // For each, render the chosen variant to self-contained HTML on the fly and
+    // return it as a block slot — no authored blockHtml needed. The tenant's
+    // active theme is forwarded as scoped CSS vars so the injected block matches
+    // their look; if theme resolution fails the block still renders on its own
+    // hex fallbacks.
+    const rawBlocks = (body as DecideRequest).blocks;
+    const requestedBlocks = new Set(
+      Array.isArray(rawBlocks) ? rawBlocks.filter((b): b is string => typeof b === "string") : [],
+    );
+    let blockThemeTokens: Record<string, string> = {};
+    if (requestedBlocks.size > 0) {
+      try {
+        const themeKey = normalizeThemeKey(tenant.design?.theme ?? "default");
+        const preset   = THEME_PRESETS[themeKey as keyof typeof THEME_PRESETS] ?? Object.values(THEME_PRESETS)[0];
+        if (preset) blockThemeTokens = tenantThemeToVarsRecord(preset);
+      } catch { /* fall back to the block HTML's own defaults */ }
+    }
+    const emitBlockInto = (map: SlotMap, key: string, data: unknown): boolean => {
+      if (!requestedBlocks.has(key)) return false;
+      const html = renderBlockHtml(key, data);
+      if (!html) return false;
+      const slot: BlockSlot = Object.keys(blockThemeTokens).length > 0
+        ? { mode: "block", html, tokens: blockThemeTokens }
+        : { mode: "block", html };
+      map[key] = slot;
+      return true;
+    };
+
     if (heroData) {
       const hero = heroData as HeroBlockData;
       if (hero.renderMode === "block" && hero.blockHtml) {
         // Block mode: one styled block into data-mc-block="hero", tokens scoped.
         slots["hero"] = toBlockSlot(hero.blockHtml, hero.tokenRef);
+      } else if (emitBlockInto(slots, "hero", hero)) {
+        // rendered as a whole block on demand
       } else {
         // Content mode (default): individual text/href slots.
         if (hero.title)    slots["hero-title"]    = hero.title;
@@ -652,6 +695,8 @@ export async function POST(request: NextRequest) {
       const proof = proofData as ProofBlockData;
       if (proof.renderMode === "block" && proof.blockHtml) {
         slots["proof"] = toBlockSlot(proof.blockHtml, proof.tokenRef);
+      } else if (emitBlockInto(slots, "proof", proof)) {
+        // rendered as a whole block on demand
       } else {
         if (proof.title) slots["proof-title"] = proof.title;
         proof.items?.forEach((item, i) => {
@@ -665,6 +710,8 @@ export async function POST(request: NextRequest) {
       const cta = ctaData as CTABlockData;
       if (cta.renderMode === "block" && cta.blockHtml) {
         slots["cta"] = toBlockSlot(cta.blockHtml, cta.tokenRef);
+      } else if (emitBlockInto(slots, "cta", cta)) {
+        // rendered as a whole block on demand
       } else {
         if (cta.title) slots["cta-title"] = cta.title;
         if (cta.text)  slots["cta-text"]  = cta.text;
@@ -677,6 +724,8 @@ export async function POST(request: NextRequest) {
       const feat = featureData as FeatureBlockData;
       if (feat.renderMode === "block" && feat.blockHtml) {
         slots["feature"] = toBlockSlot(feat.blockHtml, feat.tokenRef);
+      } else if (emitBlockInto(slots, "feature", feat)) {
+        // rendered as a whole block on demand
       } else {
         if (feat.title)    slots["feature-title"]    = feat.title;
         if (feat.subtitle) slots["feature-subtitle"] = feat.subtitle;
@@ -691,6 +740,8 @@ export async function POST(request: NextRequest) {
       const conv = conversionData as ConversionBlockData;
       if (conv.renderMode === "block" && conv.blockHtml) {
         slots["conversion"] = toBlockSlot(conv.blockHtml, conv.tokenRef);
+      } else if (emitBlockInto(slots, "conversion", conv)) {
+        // rendered as a whole block on demand
       } else {
         if (conv.title) slots["conversion-title"] = conv.title;
         if (conv.text)  slots["conversion-text"]  = conv.text;
@@ -706,6 +757,8 @@ export async function POST(request: NextRequest) {
       const notif = notificationData as NotificationBlockData;
       if (notif.renderMode === "block" && notif.blockHtml) {
         slots["notification"] = toBlockSlot(notif.blockHtml, notif.tokenRef);
+      } else if (emitBlockInto(slots, "notification", notif)) {
+        // rendered as a whole block on demand
       } else {
         if (notif.message)       slots["notification-message"]         = notif.message;
         if (notif.severity)      slots["notification-severity"]        = notif.severity;
