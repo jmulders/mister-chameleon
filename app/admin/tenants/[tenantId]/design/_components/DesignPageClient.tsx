@@ -40,6 +40,7 @@ import { PresetBuilder }        from "./PresetBuilder";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
 import { SiteDesignTokensEditor } from "./SiteDesignTokensEditor";
+import { ResetDesignButton }    from "./ResetDesignButton";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
 import { saveVisualTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { TenantDesignSettings, ThemeKey } from "@/tenant/types";
@@ -502,6 +503,10 @@ export function DesignPageClient({
 
   return (
     <div>
+      {/* Reset design — visible on every tab so a stuck operator can always get
+          back to a clean slate (imported token overrides mask presets). */}
+      <ResetDesignButton tenantId={tenantId} />
+
       {/* ── Presets (curated themes — contextual-rule compatible) ───────────── */}
       <TabPanel id="presets" active={activeTab}>
         <TabSectionHeader
