@@ -2968,7 +2968,7 @@ function StripePaymentsTab({
             </tbody>
           </table>
         </div>
-        <PaginationControls {...invoicesPager} label="betalingen" />
+        <PaginationControls {...invoicesPager} label="payments" />
       </Card>
     </div>
   );
@@ -3531,7 +3531,7 @@ function SessionsTab({
           </table>
         )}
         <div className="px-5 pb-4">
-          <PaginationControls {...ledgerPager} label="transacties" />
+          <PaginationControls {...ledgerPager} label="transactions" />
         </div>
       </div>
     </div>
