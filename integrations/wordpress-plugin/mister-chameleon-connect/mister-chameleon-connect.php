@@ -2,8 +2,9 @@
 /**
  * Plugin Name:       Mister Chameleon Connect
  * Plugin URI:        https://www.misterchameleon.nl
+ * Update URI:        https://www.misterchameleon.nl/mister-chameleon-connect
  * Description:       Real-time contentpersonalisatie via de Mister Chameleon-snippet. Vul je siteKey in en markeer slots — geen thema-code, geen losse header-plugin, geen Wordfence-gedoe.
- * Version:           0.5.1
+ * Version:           0.5.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Mister Chameleon
@@ -33,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Directe toegang blokkeren.
 }
 
-define( 'MCC_VERSION', '0.5.1' );
+define( 'MCC_VERSION', '0.5.2' );
 define( 'MCC_DEFAULT_ENDPOINT', 'https://www.misterchameleon.nl' );
 
 /**
@@ -501,6 +502,37 @@ add_action( 'load-update-core.php', function () {
 		delete_transient( 'mcc_update_info' );
 	}
 } );
+
+// ── WordPress 5.8+ self-hosted update path ──────────────────────────────────
+//
+//   Because this plugin declares an `Update URI:` header (host
+//   www.misterchameleon.nl), WordPress routes the update check for THIS plugin
+//   to the filter below — and NEVER to WordPress.org. This is the official,
+//   reliable mechanism: it does not depend on injecting into the update
+//   transient (which only runs on WP's periodic / forced checks and was the
+//   flaky part). The transient filter above stays as a fallback for older
+//   WordPress and for tenants on a custom endpoint host.
+add_filter( 'update_plugins_www.misterchameleon.nl', function ( $update, $plugin_data, $plugin_file ) {
+	if ( plugin_basename( __FILE__ ) !== $plugin_file ) {
+		return $update;
+	}
+	$info = mcc_update_info();
+	if ( empty( $info['version'] ) || empty( $info['download_url'] ) ) {
+		return $update;
+	}
+	if ( version_compare( MCC_VERSION, $info['version'], '>=' ) ) {
+		return $update; // al up-to-date
+	}
+	return array(
+		'slug'         => MCC_UPDATE_SLUG,
+		'version'      => $info['version'],
+		'url'          => isset( $info['homepage'] ) ? $info['homepage'] : '',
+		'package'      => $info['download_url'],
+		'requires'     => isset( $info['requires'] ) ? $info['requires'] : '',
+		'requires_php' => isset( $info['requires_php'] ) ? $info['requires_php'] : '',
+		'tested'       => isset( $info['tested'] ) ? $info['tested'] : '',
+	);
+}, 10, 3 );
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * 5. Opruimen bij verwijderen
