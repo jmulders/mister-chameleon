@@ -138,7 +138,21 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // a healthy deploy was reported as failed. A health endpoint exists to be
   // polled — it must never be rate-limited. (First observed 18 Jul 2026: five
   // straight 429s on the post-deploy check while the site itself was fine.)
-  const RATE_LIMIT_EXEMPT = new Set(["/api/statamic-draft", "/api/health"]);
+  //
+  // /api/wp-plugin/update is the self-hosted WordPress plugin's update manifest.
+  // WordPress polls it on every admin page load, on cron, and on every forced
+  // "Check again" — and many tenant sites (or several sites behind one agency /
+  // shared-host IP) hit it from the same address. Under the public limiter that
+  // shared IP is exhausted, the server-side wp_remote_get gets a 429 with an
+  // empty body, and WordPress therefore never sees a new version — so plugin
+  // updates silently never appeared. It is a public, side-effect-free, cacheable
+  // manifest (Cache-Control public), so it must never be rate-limited. (Diagnosed
+  // 21 Jul 2026: the plugin's own update-diagnostics panel reported HTTP 429.)
+  const RATE_LIMIT_EXEMPT = new Set([
+    "/api/statamic-draft",
+    "/api/health",
+    "/api/wp-plugin/update",
+  ]);
   if (pathname.startsWith("/api/") && !RATE_LIMIT_EXEMPT.has(pathname)) {
     const endpoint  = endpointFromPath(pathname);
     const clientIp  = extractClientIp(request.headers);
