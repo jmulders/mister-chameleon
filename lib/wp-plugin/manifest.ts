@@ -22,7 +22,7 @@
  * and what WordPress' own update/`plugins_api` structures expect.
  */
 
-const LATEST_VERSION = "0.5.1";
+const LATEST_VERSION = "0.5.2";
 
 export interface WpPluginManifest {
   name: string;

@@ -4,7 +4,7 @@ Tags: personalization, cro, personalisatie, ab-testing, content
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.5.1
+Stable tag: 0.5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,14 @@ Daar heb je de HTML niet altijd in handen. Gebruik dan de selector-mapping in he
 platform (Snippet → Selectors) in plaats van slots in de markup.
 
 == Changelog ==
+
+= 0.5.2 =
+* Betrouwbare update-detectie: de plugin declareert nu een `Update URI`-header en
+  gebruikt WordPress' officiële `update_plugins_{host}`-mechanisme (WP 5.8+). WordPress
+  routeert de update-check voortaan rechtstreeks naar het platform (nooit meer naar
+  WordPress.org), waardoor een nieuwe versie direct in het plugin-scherm verschijnt.
+  De oude transient-injectie blijft als fallback. Dit is een eenmalige handmatige
+  update; daarna gaan alle volgende updates vanzelf.
 
 = 0.5.1 =
 * Self-updater: een handmatige "Opnieuw controleren" op het Updates-scherm ververst
