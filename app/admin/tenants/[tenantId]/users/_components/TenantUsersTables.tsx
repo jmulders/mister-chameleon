@@ -179,7 +179,7 @@ export function TenantUsersTables({
             </table>
           </div>
           <div className="px-4">
-            <PaginationControls {...assignedPager} label="gebruikers" />
+            <PaginationControls {...assignedPager} label="users" />
           </div>
         </Card>
       )}

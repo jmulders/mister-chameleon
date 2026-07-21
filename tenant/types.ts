@@ -2796,4 +2796,25 @@ export interface TenantSnippetSettings {
    * @example { "hero-title": ".hero h1", "cta-cta-label": "a.btn-primary" }
    */
   selectorMap?: Record<string, string>;
+
+  /**
+   * Allowlist of hostnames the snippet is permitted to call `/api/snippet/decide`
+   * from. Each entry is a bare hostname (e.g. "nascita.nl", "www.nascita.nl").
+   *
+   * The site key is a PUBLIC identifier embedded in the snippet, so without this
+   * anyone could POST it from any origin to run up a tenant's usage/costs. When
+   * this list is non-empty the decide endpoint rejects (403) any request whose
+   * `Origin` (or `Referer`) host is not on it.
+   *
+   * Opt-in by design: an EMPTY/absent list means "no origin restriction" so
+   * existing tenants are never broken. Once the operator adds at least one host,
+   * enforcement is strict. Matching is case-insensitive and treats a leading
+   * "www." as equivalent to the apex; every other subdomain must be listed
+   * explicitly.
+   *
+   * Note: an Origin header can be forged by a non-browser client (curl), so this
+   * is defence-in-depth against browser-based abuse, layered on top of the
+   * per-site-key rate limiting — not an airtight guarantee.
+   */
+  allowedSnippetOrigins?: readonly string[];
 }

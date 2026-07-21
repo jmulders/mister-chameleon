@@ -3,7 +3,7 @@
  * Plugin Name:       Mister Chameleon Connect
  * Plugin URI:        https://www.misterchameleon.nl
  * Description:       Real-time contentpersonalisatie via de Mister Chameleon-snippet. Vul je siteKey in en markeer slots — geen thema-code, geen losse header-plugin, geen Wordfence-gedoe.
- * Version:           0.4.0
+ * Version:           0.5.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Mister Chameleon
@@ -33,7 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Directe toegang blokkeren.
 }
 
-define( 'MCC_VERSION', '0.4.0' );
+define( 'MCC_VERSION', '0.5.0' );
 define( 'MCC_DEFAULT_ENDPOINT', 'https://www.misterchameleon.nl' );
 
 /**
@@ -192,7 +192,17 @@ add_action( 'wp_head', function () {
 	if ( ! mcc_is_active() ) {
 		return;
 	}
+	// Whole-page reveal for element-level (data-mc-slot) swaps.
 	echo "<script id=\"mcc-antiflicker\">document.documentElement.style.opacity='0';setTimeout(function(){document.documentElement.style.opacity='';},1500);</script>\n";
+
+	// Block-scoped anti-flicker (Optimizely / VWO style). Adaptive BLOCKS
+	// (data-mc-block) are hidden until the snippet swaps their content in the
+	// platform-decided variant — so the editor's default/fallback never flashes.
+	// Reveal happens per block the moment its content changes (MutationObserver),
+	// with a safety timeout so a block is never left hidden if the snippet is slow
+	// or never loads (then the default is shown, as intended).
+	echo "<style id=\"mcc-block-antiflicker\">[data-mc-block]{visibility:hidden}</style>\n";
+	echo "<script id=\"mcc-block-reveal\">(function(){function show(b){b.style.visibility='visible';}function showAll(){var n=document.querySelectorAll('[data-mc-block]');for(var i=0;i<n.length;i++)show(n[i]);}function wire(){var b=document.querySelectorAll('[data-mc-block]');for(var i=0;i<b.length;i++){(function(x){if(typeof MutationObserver!=='undefined'){var mo=new MutationObserver(function(){show(x);mo.disconnect();});mo.observe(x,{childList:true,subtree:true});}})(b[i]);}}if(document.readyState!=='loading'){wire();}else{document.addEventListener('DOMContentLoaded',wire);}setTimeout(showAll,1500);})();</script>\n";
 }, 1 );
 
 add_action( 'wp_enqueue_scripts', function () {
@@ -261,7 +271,26 @@ add_shortcode( 'mc_slot', function ( $atts, $content = '' ) {
 } );
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * 3b. Gutenberg-block "Adaptive Slot" (dynamisch, server-rendered inline span)
+ * 3a-bis. Shortcode  [mc_block key="hero"]…standaardinhoud…[/mc_block]
+ *
+ *   Whole-block variant: renders a <div data-mc-block="hero"> container that the
+ *   snippet swaps to the platform-decided variant. The shortcode content is the
+ *   default/fallback, shown until the swap (and if the snippet never loads).
+ * ────────────────────────────────────────────────────────────────────────── */
+
+add_shortcode( 'mc_block', function ( $atts, $content = '' ) {
+	$atts = shortcode_atts( array( 'key' => '' ), $atts, 'mc_block' );
+	$key  = sanitize_text_field( $atts['key'] );
+	$inner = do_shortcode( $content );
+	if ( $key === '' ) {
+		return $inner;
+	}
+	return '<div data-mc-block="' . esc_attr( $key ) . '">' . $inner . '</div>';
+} );
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 3b. Gutenberg-block "Adaptive Block" (heel blok; InnerBlocks als standaard,
+ *     PHP wrapt in een data-mc-block container die de snippet vervangt)
  * ────────────────────────────────────────────────────────────────────────── */
 
 add_action( 'init', function () {
@@ -279,69 +308,57 @@ add_action( 'init', function () {
 	var el = wp.element.createElement;
 	var registerBlockType = wp.blocks.registerBlockType;
 	var useBlockProps = wp.blockEditor.useBlockProps;
+	var InnerBlocks = wp.blockEditor.InnerBlocks;
 	var InspectorControls = wp.blockEditor.InspectorControls;
-	var PlainText = wp.blockEditor.PlainText;
 	var PanelBody = wp.components.PanelBody;
-	var BaseControl = wp.components.BaseControl;
+	var SelectControl = wp.components.SelectControl;
 
-	// Bekende slot-keys — verschijnen als dropdown-suggesties. Vrij typen blijft
-	// mogelijk voor nieuwe keys die hier nog niet in staan.
-	var MCC_SLOT_KEYS = [
-		'hero-title', 'hero-subtitle', 'hero-tag',
-		'hero-cta-label', 'hero-cta-href', 'hero-cta2-label', 'hero-cta2-href',
-		'proof-title',
-		'cta-title', 'cta-text', 'cta-cta-label', 'cta-cta-href',
-		'feature-title', 'feature-subtitle',
-		'conversion-title', 'conversion-text',
-		'notification-message'
+	// The five adaptive block slots the platform can render as a whole block.
+	// The platform decides WHICH variant of the slot each visitor sees (rules/AI);
+	// the block here just marks WHERE the slot goes and holds the default content.
+	var MCC_BLOCK_SLOTS = [
+		{ label: 'Hero',         value: 'hero' },
+		{ label: 'Features',     value: 'feature' },
+		{ label: 'Social proof', value: 'proof' },
+		{ label: 'CTA',          value: 'cta' },
+		{ label: 'Conversion',   value: 'conversion' },
+		{ label: 'Notification', value: 'notification' }
 	];
 
 	registerBlockType( 'mister-chameleon/slot', {
 		apiVersion: 2,
-		title: 'Adaptive Slot (Mister Chameleon)',
-		description: 'Een stukje tekst dat Mister Chameleon per bezoeker kan personaliseren.',
+		title: 'Adaptive Block (Mister Chameleon)',
+		description: 'Voeg een volledig adaptief blok in. Mister Chameleon toont per bezoeker de juiste variant; de inhoud die je hieronder opmaakt is de standaard/fallback.',
 		icon: 'randomize',
-		category: 'text',
+		category: 'design',
+		supports: { html: false },
 		attributes: {
-			slotKey: { type: 'string', default: '' },
-			content: { type: 'string', default: '' }
+			slotKey: { type: 'string', default: 'hero' },
+			content: { type: 'string', default: '' } // legacy: pre-0.5 text blocks
 		},
 		edit: function ( props ) {
 			var a = props.attributes;
 			var blockProps = useBlockProps( { style: { outline: '1px dashed #6366f1', padding: '8px' } } );
 			return el( 'div', blockProps,
 				el( InspectorControls, {},
-					el( PanelBody, { title: 'Slot', initialOpen: true },
-						el( BaseControl, {
-							label: 'Slot-key',
-							help: 'Kies een bekende key uit de lijst of typ een eigen key.'
-						},
-							el( 'input', {
-								className: 'components-text-control__input',
-								type: 'text',
-								list: 'mcc-slot-keys',
-								placeholder: 'hero-title',
-								value: a.slotKey,
-								onChange: function ( e ) { props.setAttributes( { slotKey: e.target.value } ); }
-							} ),
-							el( 'datalist', { id: 'mcc-slot-keys' },
-								MCC_SLOT_KEYS.map( function ( k ) {
-									return el( 'option', { key: k, value: k } );
-								} )
-							)
-						)
+					el( PanelBody, { title: 'Adaptief blok', initialOpen: true },
+						el( SelectControl, {
+							label: 'Welk adaptief slot?',
+							value: a.slotKey,
+							options: MCC_BLOCK_SLOTS,
+							onChange: function ( v ) { props.setAttributes( { slotKey: v } ); },
+							help: 'Het platform bepaalt met regels of AI welke variant hier verschijnt.'
+						} )
 					)
 				),
-				el( 'small', { style: { color: '#6366f1', display: 'block', marginBottom: '4px' } },
-					'MC-slot: ' + ( a.slotKey || '(kies een key in de zijbalk)' ) ),
-				el( PlainText, {
-					value: a.content,
-					onChange: function ( v ) { props.setAttributes( { content: v } ); },
-					placeholder: 'Standaardtekst…'
-				} )
+				el( 'small', { style: { color: '#6366f1', display: 'block', marginBottom: '6px' } },
+					'Adaptief blok: ' + ( a.slotKey || '(kies een slot)' ) + ' — standaardinhoud:' ),
+				el( InnerBlocks, { templateLock: false } )
 			);
 		},
-		save: function () { return null; } // dynamisch: PHP rendert
+		// Dynamic block, but the InnerBlocks default content IS persisted so PHP can
+		// wrap it in the data-mc-block container and use it as the fallback.
+		save: function () { return el( InnerBlocks.Content ); }
 	} );
 } )( window.wp );
 JS;
@@ -351,20 +368,38 @@ JS;
 		'api_version'     => 2,
 		'editor_script'   => 'mcc-slot-block',
 		'attributes'      => array(
-			'slotKey' => array( 'type' => 'string', 'default' => '' ),
+			'slotKey' => array( 'type' => 'string', 'default' => 'hero' ),
 			'content' => array( 'type' => 'string', 'default' => '' ),
 		),
 		'render_callback' => 'mcc_render_slot_block',
 	) );
 } );
 
-function mcc_render_slot_block( $attrs ) {
-	$key  = isset( $attrs['slotKey'] ) ? sanitize_text_field( $attrs['slotKey'] ) : '';
-	$text = isset( $attrs['content'] ) ? wp_strip_all_tags( $attrs['content'] ) : '';
-	if ( $key === '' ) {
-		return esc_html( $text );
+/**
+ * Render the Adaptive Block on the front end as a whole-block container:
+ *
+ *   <div data-mc-block="hero"> …editor default content… </div>
+ *
+ * The snippet replaces the container's innerHTML with the platform-decided
+ * variant (and applies scoped design tokens). Until then the block is hidden by
+ * the block-scoped anti-flicker, so the default never flashes; if the snippet
+ * never runs, the default content is what the visitor sees.
+ *
+ * $content holds the persisted InnerBlocks HTML (0.5+). The legacy `content`
+ * string attribute is used as a fallback for blocks inserted before 0.5.
+ */
+function mcc_render_slot_block( $attrs, $content = '' ) {
+	$key = isset( $attrs['slotKey'] ) ? sanitize_text_field( $attrs['slotKey'] ) : '';
+
+	$inner = trim( (string) $content );
+	if ( $inner === '' && isset( $attrs['content'] ) && $attrs['content'] !== '' ) {
+		$inner = wp_kses_post( $attrs['content'] );
 	}
-	return '<span data-mc-slot="' . esc_attr( $key ) . '">' . esc_html( $text ) . '</span>';
+
+	if ( $key === '' ) {
+		return $inner;
+	}
+	return '<div data-mc-block="' . esc_attr( $key ) . '">' . $inner . '</div>';
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

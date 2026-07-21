@@ -226,11 +226,12 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
 
       <div>
         <label className={labelCls}>Description (optional)</label>
-        <input
+        <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Briefly describe who this segment targets"
-          className={inputCls}
+          rows={3}
+          className={`${inputCls} min-h-[4.5rem] resize-y leading-relaxed`}
         />
       </div>
 

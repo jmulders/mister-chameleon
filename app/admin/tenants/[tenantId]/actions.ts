@@ -3069,6 +3069,52 @@ export async function saveDefaultTokensAction(
   }
 }
 
+/**
+ * Reset a tenant's design to a clean slate.
+ *
+ * ─── Why this exists ─────────────────────────────────────────────────────────
+ *
+ *   Importing a JSON token file (Advanced / Builder) writes `tokenOverrides`
+ *   (and can write `defaultTokens`, `blockTokenSets`, `customFonts`). Those sit
+ *   at the HIGHEST specificity in the theme cascade, so they keep masking any
+ *   preset the operator activates afterwards — making it look like "presets
+ *   won't load anymore". There was no single control to clear all of that, so
+ *   the tenant could get stuck. This wipes every visual override in one save.
+ *
+ *   Preserved on purpose: `themeRules` (the Automatic-switching contextual
+ *   rules) — those are a separate concern from the visual design, and silently
+ *   dropping them on a "reset design" would be surprising.
+ *
+ * @returns `{ ok: true }` or `{ ok: false, error }`. Never throws to the client.
+ */
+export async function resetDesignAction(
+  tenantId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await getRequiredAdminSession();
+
+    const current = await getTenantById(tenantId);
+    if (!current) return { ok: false, error: `Tenant "${tenantId}" not found.` };
+
+    const resetDesign: TenantDesignSettings = {
+      theme: "default" as ThemeKey,
+      // Keep the automatic theme-switching rules; drop every visual override.
+      ...(current.design?.themeRules ? { themeRules: current.design.themeRules } : {}),
+    };
+
+    const saveResult = await saveTenant({ ...current, design: resetDesign });
+    if (!saveResult.ok) return { ok: false, error: saveResult.error };
+
+    revalidatePath("/", "layout");
+    revalidatePath(`/admin/tenants/${tenantId}`);
+    revalidatePath(`/admin/tenants/${tenantId}/design`);
+    return { ok: true };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 // ── Pages ─────────────────────────────────────────────────────────────────────
 
 /**

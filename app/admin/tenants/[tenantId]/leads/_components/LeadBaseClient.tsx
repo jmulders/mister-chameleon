@@ -442,7 +442,7 @@ export function LeadBaseClient({
             </tbody>
           </table>
         </div>
-        <PaginationControls {...profilesPager} label="profielen" />
+        <PaginationControls {...profilesPager} label="profiles" />
         </>
       )}
     </div>

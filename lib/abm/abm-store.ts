@@ -182,9 +182,17 @@ export async function upsertAbmLead(input: AbmLeadInput): Promise<AbmLead | null
       expires_at:   input.expiresAt ?? null,
       updated_at:   new Date().toISOString(),
     };
+    // Conflict target depends on whether this is an edit or a create:
+    //   • Edit (id present): the row carries the existing primary key, so we must
+    //     resolve the conflict on `id`. Using the (tenant_id,identifier) arbiter
+    //     here makes Postgres hit the pkey unique constraint FIRST — a different
+    //     index than the arbiter — which raises "duplicate key … abm_leads_pkey"
+    //     instead of updating. That is why editing a lead silently failed.
+    //   • Create (no id): dedupe on the natural key (tenant_id,identifier).
+    const onConflict = input.id ? "id" : "tenant_id,identifier";
     const { data, error } = await db
       .from("abm_leads")
-      .upsert(row, { onConflict: "tenant_id,identifier" })
+      .upsert(row, { onConflict })
       .select("*")
       .maybeSingle();
     if (error || !data) {

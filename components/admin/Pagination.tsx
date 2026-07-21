@@ -68,12 +68,12 @@ interface PaginationControlsProps {
   pageSize: PageSize;
   setPageSize: (v: PageSize) => void;
   setPage: (p: number) => void;
-  /** Noun for the count label, e.g. "leads", "profielen". Default "rijen". */
+  /** Noun for the count label, e.g. "leads", "profiles". Default "rows". */
   label?: string;
 }
 
 export function PaginationControls({
-  page, pageCount, total, start, end, pageSize, setPageSize, setPage, label = "rijen",
+  page, pageCount, total, start, end, pageSize, setPageSize, setPage, label = "rows",
 }: PaginationControlsProps) {
   const btn =
     "rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40";
@@ -81,12 +81,12 @@ export function PaginationControls({
   return (
     <div className="mt-3 flex flex-col gap-3 border-t border-neutral-100 pt-3 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
       <span>
-        {total === 0 ? `Geen ${label}` : `${start + 1}–${end} van ${total} ${label}`}
+        {total === 0 ? `No ${label}` : `${start + 1}–${end} of ${total} ${label}`}
       </span>
 
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-1.5">
-          <span>Toon</span>
+          <span>Show</span>
           <select
             value={String(pageSize)}
             onChange={(e) => setPageSize(e.target.value === "all" ? "all" : Number(e.target.value))}
@@ -95,18 +95,18 @@ export function PaginationControls({
             {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
-            <option value="all">Alle</option>
+            <option value="all">All</option>
           </select>
         </label>
 
         {pageCount > 1 && (
           <div className="flex items-center gap-1.5">
             <button type="button" className={btn} disabled={page <= 0} onClick={() => setPage(page - 1)}>
-              Vorige
+              Previous
             </button>
             <span className="tabular-nums">{page + 1} / {pageCount}</span>
             <button type="button" className={btn} disabled={page >= pageCount - 1} onClick={() => setPage(page + 1)}>
-              Volgende
+              Next
             </button>
           </div>
         )}

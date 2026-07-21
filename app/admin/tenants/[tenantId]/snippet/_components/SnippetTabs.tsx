@@ -16,13 +16,15 @@
 import { useState } from "react";
 import { SnippetPageClient } from "./SnippetPageClient";
 import { SnippetSelectorsEditor } from "./SnippetSelectorsEditor";
+import { SnippetOriginsEditor } from "./SnippetOriginsEditor";
 import { HowItWorksContent } from "./HowItWorksContent";
 
-type Tab = "install" | "selectors" | "how-it-works";
+type Tab = "install" | "selectors" | "security" | "how-it-works";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "install",       label: "Install"       },
   { id: "selectors",     label: "Selectors"     },
+  { id: "security",      label: "Security"      },
   { id: "how-it-works",  label: "How it works"  },
 ];
 
@@ -33,6 +35,7 @@ interface SnippetTabsProps {
   generatedAt: string | null;
   snippetSrc:  string;
   selectorMap: Record<string, string>;
+  allowedOrigins: readonly string[];
   slotSuggestions: readonly string[];
   initialTab?: Tab;
 }
@@ -44,6 +47,7 @@ export function SnippetTabs({
   generatedAt,
   snippetSrc,
   selectorMap,
+  allowedOrigins,
   slotSuggestions,
   initialTab = "install",
 }: SnippetTabsProps) {
@@ -93,6 +97,13 @@ export function SnippetTabs({
           tenantId={tenantId}
           initialMap={selectorMap}
           slotSuggestions={slotSuggestions}
+        />
+      )}
+
+      {activeTab === "security" && (
+        <SnippetOriginsEditor
+          tenantId={tenantId}
+          initialOrigins={allowedOrigins}
         />
       )}
 
