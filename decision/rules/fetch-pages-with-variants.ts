@@ -33,6 +33,7 @@ import { createSanityClient, SANITY_CACHE_TAG } from "@/cms/providers/sanity-cli
 import { serverEnv }        from "@/lib/env";
 import { logger }           from "@/lib/logger";
 import { getPagesByTenant } from "@/page-store";
+import type { CMSProviderName } from "@/tenant/types";
 
 // ── Public type ───────────────────────────────────────────────────────────────
 
@@ -98,10 +99,16 @@ interface SanityPageVariantRow {
  * @param tenantId  Active tenant slug (e.g. "mister-chameleon").
  */
 export async function fetchPagesWithVariants(
-  tenantId: string,
+  tenantId:    string,
+  cmsProvider: CMSProviderName,
 ): Promise<PageVariantInfo[]> {
   // ── Path 1: Sanity ──────────────────────────────────────────────────────────
-  if (serverEnv.sanity.projectId) {
+  //
+  //   Only when THIS tenant actually uses Sanity. A global SANITY_PROJECT_ID is
+  //   set platform-wide (Sanity is the platform's own CMS), so gating on the env
+  //   alone would query Sanity for Storyblok/Statamic tenants too — showing wrong
+  //   data and a bogus "Live from Sanity" label. Gate on the tenant's provider.
+  if (cmsProvider === "sanity" && serverEnv.sanity.projectId) {
     try {
       const client = createSanityClient();
       const rows   = await client.fetch<SanityPageVariantRow[]>(
