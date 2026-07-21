@@ -3,7 +3,7 @@
  * Plugin Name:       Mister Chameleon Connect
  * Plugin URI:        https://www.misterchameleon.nl
  * Description:       Real-time contentpersonalisatie via de Mister Chameleon-snippet. Vul je siteKey in en markeer slots — geen thema-code, geen losse header-plugin, geen Wordfence-gedoe.
- * Version:           0.5.0
+ * Version:           0.5.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Mister Chameleon
@@ -33,7 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Directe toegang blokkeren.
 }
 
-define( 'MCC_VERSION', '0.5.0' );
+define( 'MCC_VERSION', '0.5.1' );
 define( 'MCC_DEFAULT_ENDPOINT', 'https://www.misterchameleon.nl' );
 
 /**
@@ -435,7 +435,7 @@ function mcc_update_info() {
 			$data = $decoded;
 		}
 	}
-	set_transient( 'mcc_update_info', $data, 6 * HOUR_IN_SECONDS );
+	set_transient( 'mcc_update_info', $data, HOUR_IN_SECONDS );
 	return $data;
 }
 
@@ -490,6 +490,16 @@ add_filter( 'plugins_api', function ( $result, $action, $args ) {
 // Verse check afdwingen na een (de)installatie of update.
 add_action( 'upgrader_process_complete', function () {
 	delete_transient( 'mcc_update_info' );
+} );
+
+// Een handmatige "Opnieuw controleren" op het Updates-scherm
+// (update-core.php?force-check=1) moet óók ONZE cache verversen — niet alleen
+// WordPress' eigen update-transient. Zonder dit blijft een net uitgebrachte
+// versie verborgen tot de plugin-transient vanzelf verloopt.
+add_action( 'load-update-core.php', function () {
+	if ( isset( $_GET['force-check'] ) ) {
+		delete_transient( 'mcc_update_info' );
+	}
 } );
 
 /* ─────────────────────────────────────────────────────────────────────────────
