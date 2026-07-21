@@ -248,15 +248,26 @@ export async function deleteAdaptiveBlock(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    // .select() returns the rows actually deleted. A DELETE that matches nothing
+    // (stale/wrong id, or an RLS-blocked row) reports NO error in supabase-js — it
+    // just affects 0 rows. Without this check the caller would see a false success
+    // and the UI count would never go down. Treat "0 rows deleted" as a failure.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (getDb() as any)
+    const { data, error } = await (getDb() as any)
       .from("adaptive_blocks")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
 
     if (error) return { ok: false, error: error.message };
 
-    logger.info("[AdaptiveBlocksStore] Adaptive block deleted", { id });
+    const deleted = Array.isArray(data) ? data.length : 0;
+    if (deleted === 0) {
+      logger.warn("[AdaptiveBlocksStore] deleteAdaptiveBlock affected 0 rows", { id });
+      return { ok: false, error: `No adaptive block was deleted for id "${id}".` };
+    }
+
+    logger.info("[AdaptiveBlocksStore] Adaptive block deleted", { id, deleted });
     return { ok: true };
   } catch (err) {
     logger.error("[AdaptiveBlocksStore] deleteAdaptiveBlock error", {
