@@ -48,7 +48,9 @@ function safeHref(href: unknown): string {
 
 const WRAP =
   "box-sizing:border-box;max-width:1120px;margin:0 auto;padding:clamp(24px,5vw,56px) clamp(16px,4vw,32px);" +
-  "font-family:var(--font-body,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);";
+  // Inherit the host page's typography so the block reads as native to the site.
+  // Colours/radius still come from the tenant's design tokens (scoped vars).
+  "font-family:inherit;";
 
 /** A primary button. */
 function button(label: string, href: unknown, variant: "primary" | "ghost" = "primary"): string {
@@ -76,7 +78,7 @@ function renderHero(d: HeroBlockData): string {
             `border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:16px;">${escapeHtml(d.tag)}</span>`
           : "") +
         (d.title
-          ? `<h1 style="font-family:var(--font-heading,inherit);font-size:clamp(28px,5vw,46px);line-height:1.1;font-weight:800;margin:0 0 14px;">${escapeHtml(d.title)}</h1>`
+          ? `<h1 style="font-family:inherit;font-size:clamp(28px,5vw,46px);line-height:1.1;font-weight:800;margin:0 0 14px;">${escapeHtml(d.title)}</h1>`
           : "") +
         (d.subtitle
           ? `<p style="color:var(--hero-subtitle-color,#94a3b8);font-size:clamp(16px,2.2vw,19px);line-height:1.5;max-width:64ch;margin:0 auto 24px;">${escapeHtml(d.subtitle)}</p>`
@@ -102,7 +104,7 @@ function renderProof(d: ProofBlockData): string {
   return (
     `<section style="background:var(--bg,#fff);color:var(--text,#0f172a);">` +
       `<div style="${WRAP}">` +
-        (d.title ? `<h2 style="font-family:var(--font-heading,inherit);font-size:clamp(22px,3.5vw,32px);font-weight:800;text-align:center;margin:0 0 28px;">${escapeHtml(d.title)}</h2>` : "") +
+        (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,3.5vw,32px);font-weight:800;text-align:center;margin:0 0 28px;">${escapeHtml(d.title)}</h2>` : "") +
         `<div style="display:flex;flex-wrap:wrap;gap:16px;">${cards}</div>` +
       `</div>` +
     `</section>`
@@ -114,7 +116,7 @@ function renderCta(d: CTABlockData): string {
   return (
     `<section style="background:var(--section-cta-bg,var(--primary,#4f46e5));color:var(--primary-text,#fff);">` +
       `<div style="${WRAP}text-align:center;">` +
-        (d.title ? `<h2 style="font-family:var(--font-heading,inherit);font-size:clamp(22px,4vw,34px);font-weight:800;margin:0 0 12px;">${escapeHtml(d.title)}</h2>` : "") +
+        (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,4vw,34px);font-weight:800;margin:0 0 12px;">${escapeHtml(d.title)}</h2>` : "") +
         (d.text ? `<p style="font-size:clamp(15px,2.2vw,18px);line-height:1.5;opacity:.92;max-width:56ch;margin:0 auto 22px;">${escapeHtml(d.text)}</p>` : "") +
         (cta && cta.label
           ? `<a href="${safeHref(cta.href)}" style="display:inline-block;background:var(--card-bg,#fff);color:var(--primary,#4f46e5);` +
@@ -140,7 +142,7 @@ function renderFeature(d: FeatureBlockData): string {
   return (
     `<section style="background:var(--feature-grid-bg,var(--bg-subtle,#f8fafc));color:var(--text,#0f172a);">` +
       `<div style="${WRAP}">` +
-        (d.title ? `<h2 style="font-family:var(--font-heading,inherit);font-size:clamp(22px,3.5vw,32px);font-weight:800;text-align:center;margin:0 0 8px;">${escapeHtml(d.title)}</h2>` : "") +
+        (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,3.5vw,32px);font-weight:800;text-align:center;margin:0 0 8px;">${escapeHtml(d.title)}</h2>` : "") +
         (d.subtitle ? `<p style="text-align:center;color:var(--muted-foreground,#64748b);font-size:16px;max-width:60ch;margin:0 auto 28px;">${escapeHtml(d.subtitle)}</p>` : "") +
         `<div style="display:flex;flex-wrap:wrap;gap:16px;">${cards}</div>` +
       `</div>` +
@@ -158,7 +160,7 @@ function renderConversion(d: ConversionBlockData): string {
           ? `<span style="display:inline-block;background:var(--accent,#eef2ff);color:var(--primary,#4f46e5);border-radius:999px;` +
             `padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-bottom:14px;">${escapeHtml(d.urgencyLabel)}</span>`
           : "") +
-        (d.title ? `<h2 style="font-family:var(--font-heading,inherit);font-size:clamp(22px,4vw,34px);font-weight:800;margin:0 0 12px;">${escapeHtml(d.title)}</h2>` : "") +
+        (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,4vw,34px);font-weight:800;margin:0 0 12px;">${escapeHtml(d.title)}</h2>` : "") +
         (d.text ? `<p style="font-size:clamp(15px,2.2vw,18px);line-height:1.5;color:var(--muted-foreground,#64748b);margin:0 auto 22px;">${escapeHtml(d.text)}</p>` : "") +
         (buttons ? `<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">${buttons}</div>` : "") +
       `</div>` +
@@ -176,7 +178,7 @@ function renderNotification(d: NotificationBlockData): string {
   return (
     `<div style="box-sizing:border-box;background:var(--card-bg,#fff);border:1px solid var(--card-border,#e2e8f0);` +
     `border-left:4px solid ${accent};border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:10px;` +
-    `font-family:var(--font-body,system-ui,-apple-system,sans-serif);color:var(--text,#0f172a);font-size:14.5px;line-height:1.5;">` +
+    `font-family:inherit;color:var(--text,#0f172a);font-size:14.5px;line-height:1.5;">` +
       `<span>${escapeHtml(d.message)}${cta}</span>` +
     `</div>`
   );
