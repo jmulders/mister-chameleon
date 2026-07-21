@@ -98,6 +98,7 @@ import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
 import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
 import type { SlotMap }              from "@/lib/snippet/decide-response";
+import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 
 // ── CORS helpers ──────────────────────────────────────────────────────────────
@@ -251,6 +252,29 @@ export async function POST(request: NextRequest) {
   if (!tenant.snippet?.enabled) {
     return NextResponse.json(
       { error: "Snippet integration is not enabled for this site." },
+      { status: 403, headers: CORS_HEADERS },
+    );
+  }
+
+  // ── Origin allowlist ────────────────────────────────────────────────────────
+  //
+  //   The site key is a PUBLIC identifier, so on its own it does not prove the
+  //   request came from the tenant's own site. When the operator has configured
+  //   `allowedSnippetOrigins`, reject any request whose Origin (or Referer) host
+  //   is not on the list — this stops a leaked key from being replayed on other
+  //   sites to run up the tenant's usage. Opt-in: an empty list means no check,
+  //   so tenants that never configured it keep working.
+  if (!isSnippetOriginAllowed(
+        request.headers.get("origin"),
+        request.headers.get("referer"),
+        tenant.snippet?.allowedSnippetOrigins,
+      )) {
+    logger.warn("[snippet/decide] Origin not allowed for site key", {
+      tenantId: tenant.tenantId,
+      origin:   request.headers.get("origin") ?? null,
+    });
+    return NextResponse.json(
+      { error: "This origin is not allowed for this site key." },
       { status: 403, headers: CORS_HEADERS },
     );
   }

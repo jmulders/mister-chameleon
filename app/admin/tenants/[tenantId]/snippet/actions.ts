@@ -11,6 +11,7 @@ import { revalidatePath }    from "next/cache";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { generateSiteKey }   from "@/lib/snippet/generate-site-key";
 import { sanitizeSelectorMap } from "@/lib/snippet/decide-response";
+import { sanitizeAllowedOrigins } from "@/lib/snippet/origin-allowlist";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 
 export type SnippetActionResult =
@@ -112,6 +113,41 @@ export async function saveSnippetSelectorMapAction(
     snippet: {
       ...tenant.snippet,
       selectorMap,
+    },
+  });
+
+  revalidatePath(`/admin/tenants/${tenantId}/snippet`);
+
+  return { ok: true };
+}
+
+// ── Save allowed snippet origins ────────────────────────────────────────────────
+
+/**
+ * Persists the tenant's snippet origin allowlist. The site key is public, so
+ * this restricts which hostnames may call `/api/snippet/decide` — a leaked key
+ * replayed from another site is rejected with 403 (see the decide endpoint).
+ *
+ * Opt-in: saving an empty list removes the restriction entirely. Entries are
+ * normalised to bare hostnames (scheme/port/path/"www." stripped) and de-duped.
+ */
+export async function saveSnippetAllowedOriginsAction(
+  tenantId: string,
+  origins:  string[],
+): Promise<SnippetActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+
+  const allowedSnippetOrigins = sanitizeAllowedOrigins(origins);
+
+  await saveTenant({
+    ...tenant,
+    snippet: {
+      ...tenant.snippet,
+      allowedSnippetOrigins,
     },
   });
 
