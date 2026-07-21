@@ -4,7 +4,7 @@ Tags: personalization, cro, personalisatie, ab-testing, content
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.5.2
+Stable tag: 0.5.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,11 @@ Daar heb je de HTML niet altijd in handen. Gebruik dan de selector-mapping in he
 platform (Snippet → Selectors) in plaats van slots in de markup.
 
 == Changelog ==
+
+= 0.5.3 =
+* Verificatie-release om de nieuwe auto-update-detectie (Update URI, sinds 0.5.2)
+  te testen. Bevat het volledige 0.5.2-mechanisme; geen verdere functionele
+  wijziging.
 
 = 0.5.2 =
 * Betrouwbare update-detectie: de plugin declareert nu een `Update URI`-header en
