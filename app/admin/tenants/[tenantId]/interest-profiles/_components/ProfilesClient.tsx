@@ -126,8 +126,11 @@ function ProfileRow({ profile, tenantId, saving, checking, error, onToggle, sele
   const overflow    = validTags.length - tagPreview.length;
   const isDisabled  = isPlatform && !profile.tenantEnabled;
 
+  // Platform-managed profiles are edited on the shared platform page. Pass a
+  // ?return= so its back/Cancel/delete come back to THIS tenant's Audience tab
+  // (keeping the tenant tab bar) instead of the platform list.
   const editHref = isPlatform
-    ? `/admin/interest-profiles/${profile.id}`
+    ? `/admin/interest-profiles/${profile.id}?return=${encodeURIComponent(`/admin/tenants/${tenantId}/interest-profiles`)}`
     : `/admin/tenants/${tenantId}/interest-profiles/${profile.id}`;
 
   return (

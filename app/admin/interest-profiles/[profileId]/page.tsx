@@ -53,6 +53,18 @@ export default function EditInterestProfilePage() {
   const [confirmDelete,  setConfirmDelete]  = useState(false);
   const [isDeleting,     startDeleteTrans]  = useTransition();
 
+  // Where "back"/"Cancel"/"delete" navigate to. Defaults to the platform list,
+  // but honours a ?return=<path> param so that opening this shared profile from
+  // a tenant's Audience tab returns there (keeping the tenant tab bar) instead of
+  // dumping the operator on the platform list. Read from window.location to avoid
+  // useSearchParams' Suspense-boundary build requirement. Only same-origin
+  // /admin/ paths are accepted (no open redirect).
+  const [listHref, setListHref] = useState("/admin/interest-profiles");
+  useEffect(() => {
+    const ret = new URLSearchParams(window.location.search).get("return");
+    if (ret && /^\/admin\/[A-Za-z0-9/_-]+$/.test(ret)) setListHref(ret);
+  }, []);
+
   // Load profile on mount — fetches only this profile, not the full catalog
   useEffect(() => {
     let cancelled = false;
@@ -101,7 +113,7 @@ export default function EditInterestProfilePage() {
         setDeleteError(result.error);
         setConfirmDelete(false);
       } else {
-        router.push("/admin/interest-profiles");
+        router.push(listHref);
       }
     });
   }
@@ -122,7 +134,7 @@ export default function EditInterestProfilePage() {
   if (loadError) {
     return (
       <div className="p-8 max-w-2xl">
-        <Link href="/admin/interest-profiles" className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700">
+        <Link href={listHref} className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700">
           ← Interest profiles
         </Link>
         <div className="mt-4 rounded-lg border border-error-200 bg-error-50 px-4 py-3">
@@ -147,7 +159,7 @@ export default function EditInterestProfilePage() {
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="mb-8">
         <Link
-          href="/admin/interest-profiles"
+          href={listHref}
           className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700 transition-colors"
         >
           ← Interest profiles
@@ -177,7 +189,7 @@ export default function EditInterestProfilePage() {
         profile={profile}
         onSubmit={handleSubmit}
         submitLabel="Save changes"
-        cancelHref="/admin/interest-profiles"
+        cancelHref={listHref}
       />
 
       {/* ── Danger zone ──────────────────────────────────────────────────────── */}
