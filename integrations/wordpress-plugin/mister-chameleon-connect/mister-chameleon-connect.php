@@ -144,6 +144,59 @@ function mcc_render_settings_page() {
 			<li><strong>Shortcode</strong> — <code>[mc_slot key="hero-title"]Standaard kop[/mc_slot]</code>. Voor links: <code>[mc_slot key="hero-cta-label" href="hero-cta-href"]Meld je aan[/mc_slot]</code>.</li>
 		</ul>
 		<p class="description">Werk je met een page builder waar je de HTML niet in handen hebt? Gebruik dan de selector-mapping in het platform (Snippet → Selectors); daar heb je deze plugin niet voor nodig.</p>
+
+		<hr />
+		<h2>Update-diagnose</h2>
+		<?php
+		$mcc_diag_url  = mcc_endpoint() . '/api/wp-plugin/update';
+		$mcc_diag_resp = wp_remote_get( $mcc_diag_url, array( 'timeout' => 8 ) );
+		if ( is_wp_error( $mcc_diag_resp ) ) {
+			$mcc_diag_status = 'FOUT';
+			$mcc_diag_err    = $mcc_diag_resp->get_error_message();
+			$mcc_diag_remote = '';
+		} else {
+			$mcc_diag_status = (string) (int) wp_remote_retrieve_response_code( $mcc_diag_resp );
+			$mcc_diag_err    = '';
+			$mcc_diag_body   = json_decode( wp_remote_retrieve_body( $mcc_diag_resp ), true );
+			$mcc_diag_remote = ( is_array( $mcc_diag_body ) && isset( $mcc_diag_body['version'] ) ) ? (string) $mcc_diag_body['version'] : '';
+		}
+		$mcc_diag_installed = MCC_VERSION;
+		if ( '' === $mcc_diag_remote ) {
+			$mcc_diag_verdict = 'Geen versie ontvangen — server kan het platform niet bereiken.';
+		} elseif ( version_compare( $mcc_diag_installed, $mcc_diag_remote, '<' ) ) {
+			$mcc_diag_verdict = 'Update beschikbaar → ' . $mcc_diag_remote;
+		} else {
+			$mcc_diag_verdict = 'Up-to-date (geen nieuwere versie op het platform).';
+		}
+		?>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row">Endpoint (server → platform)</th>
+				<td><code><?php echo esc_html( $mcc_diag_url ); ?></code></td>
+			</tr>
+			<tr>
+				<th scope="row">HTTP-status</th>
+				<td><code><?php echo esc_html( $mcc_diag_status ); ?></code><?php if ( $mcc_diag_err ) { echo ' — ' . esc_html( $mcc_diag_err ); } ?></td>
+			</tr>
+			<tr>
+				<th scope="row">Versie op platform</th>
+				<td><code><?php echo esc_html( '' !== $mcc_diag_remote ? $mcc_diag_remote : '—' ); ?></code></td>
+			</tr>
+			<tr>
+				<th scope="row">Geïnstalleerde versie</th>
+				<td><code><?php echo esc_html( $mcc_diag_installed ); ?></code></td>
+			</tr>
+			<tr>
+				<th scope="row">Verdict</th>
+				<td><strong><?php echo esc_html( $mcc_diag_verdict ); ?></strong></td>
+			</tr>
+		</table>
+		<p class="description">
+			Live-check vanaf je WordPress-server. HTTP-status 200 + juiste platformversie maar tóch geen
+			update-melding? Dan zit het in WordPress' eigen update-cache: ga naar Dashboard → Updates en klik
+			"Opnieuw controleren". Zie je hier een fout of geen versie? Dan blokkeert je server uitgaand verkeer
+			naar het platform (firewall/SSL).
+		</p>
 	</div>
 	<?php
 }
@@ -531,8 +584,13 @@ add_filter( 'update_plugins_www.misterchameleon.nl', function ( $update, $plugin
 		return $update; // al up-to-date
 	}
 	return array(
+		'id'           => 'https://www.misterchameleon.nl/mister-chameleon-connect',
 		'slug'         => MCC_UPDATE_SLUG,
 		'plugin'       => plugin_basename( __FILE__ ),
+		// WordPress core's Update-URI path (wp_update_plugins) REQUIRES `version`;
+		// it derives `new_version` from it. Omitting `version` makes core drop the
+		// update at `if ( ! isset( $update->version ) ) { continue; }`. We send both.
+		'version'      => $info['version'],
 		'new_version'  => $info['version'],
 		'url'          => isset( $info['homepage'] ) ? $info['homepage'] : '',
 		'package'      => $info['download_url'],
