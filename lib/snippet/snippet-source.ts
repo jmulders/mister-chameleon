@@ -145,11 +145,24 @@ export function buildSnippetSource(decideUrl: string): string {
       : ('mc_' + Date.now() + '_' + Math.random().toString(36).slice(2));
   } catch(e) {}
 
+  // Collect the whole-block containers present on the page (data-mc-block="…"),
+  // so the endpoint renders each requested variant as a self-contained block
+  // instead of the per-element content slots.
+  var blockKeys = [];
+  try {
+    var blockEls = document.querySelectorAll('[data-mc-block]');
+    var seenBlock = {};
+    for (var b = 0; b < blockEls.length; b++) {
+      var bk = blockEls[b].getAttribute('data-mc-block');
+      if (bk && !seenBlock[bk]) { seenBlock[bk] = 1; blockKeys.push(bk); }
+    }
+  } catch(e) {}
+
   // ── 4. Call decide endpoint ──────────────────────────────────────────────────
   fetch(${JSON.stringify(decideUrl)}, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ siteKey: siteKey, context: context }),
+    body: JSON.stringify({ siteKey: siteKey, context: context, blocks: blockKeys }),
   })
   .then(function(res) {
     if (!res.ok) return null;
