@@ -101,9 +101,24 @@ import type { SlotMap, BlockSlot }   from "@/lib/snippet/decide-response";
 import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
-import { tenantThemeToVarsRecord }   from "@/design-system/theme";
-import { THEME_PRESETS }             from "@/design-system/theme/presets";
-import { normalizeThemeKey }         from "@/tenant";
+import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
+
+/**
+ * Parse a `--var: value;` CSS declaration block into a record, for forwarding
+ * the tenant's fully-resolved theme (preset + admin token-editor overrides) to
+ * a block slot's scoped tokens.
+ */
+function cssDeclarationsToRecord(css: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const re = /(--[\w-]+)\s*:\s*([^;]+);/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css)) !== null) {
+    const k = m[1].trim();
+    const v = m[2].trim();
+    if (k && v) out[k] = v;
+  }
+  return out;
+}
 
 // ── CORS helpers ──────────────────────────────────────────────────────────────
 
@@ -650,9 +665,12 @@ export async function POST(request: NextRequest) {
     let blockThemeTokens: Record<string, string> = {};
     if (requestedBlocks.size > 0) {
       try {
-        const themeKey = normalizeThemeKey(tenant.design?.theme ?? "default");
-        const preset   = THEME_PRESETS[themeKey as keyof typeof THEME_PRESETS] ?? Object.values(THEME_PRESETS)[0];
-        if (preset) blockThemeTokens = tenantThemeToVarsRecord(preset);
+        // The FULLY resolved tenant theme — base preset PLUS the admin token-editor
+        // overrides (colours, radius, fonts) from the Design tab. This is the same
+        // resolution the tenant's own site uses, so the injected block matches
+        // whatever the operator configured to look like their brand.
+        const resolved = resolveThemeForTenant(tenant, null);
+        blockThemeTokens = cssDeclarationsToRecord(resolvedThemeToCSS(resolved));
       } catch { /* fall back to the block HTML's own defaults */ }
     }
     const emitBlockInto = (map: SlotMap, key: string, data: unknown): boolean => {
