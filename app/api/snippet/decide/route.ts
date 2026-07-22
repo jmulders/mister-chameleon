@@ -100,6 +100,7 @@ import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
 import type { SlotMap, BlockSlot }   from "@/lib/snippet/decide-response";
 import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
+import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -149,6 +150,13 @@ interface DecideRequest {
     utm_medium?:     string;
     utm_campaign?:   string;
     sessionId?:      string;
+    /**
+     * Stable first-party visitor id minted and persisted by the snippet
+     * (localStorage `mc_vid`, cookie fallback). Sent on every pageview so the
+     * platform can key behavioural history to one visitor instead of treating
+     * each pageview as a brand-new session. Normally equal to sessionId.
+     */
+    visitorId?:      string;
     locale?:         string;
     /**
      * Interest keywords for this page — sent by the snippet from the page's
@@ -573,11 +581,19 @@ export async function POST(request: NextRequest) {
       headers: syntheticRequest.headers,
     });
 
-    // Synthesise a cookie header for session resolution
-    const sessionCookie = context.sessionId
-      ? `mc_sid=${context.sessionId}`
-      : "";
-    const { sessionId } = resolveSession(sessionCookie || null);
+    // ── Resolve the visitor/session key ───────────────────────────────────────
+    //
+    //   The snippet mints a stable first-party id (localStorage `mc_vid`) and
+    //   sends it as sessionId (and visitorId) on every pageview. We use that id
+    //   DIRECTLY as the session key so behavioural history accumulates across the
+    //   whole visit. Previously this synthesised an `mc_sid=` cookie and handed it
+    //   to resolveSession(), which reads `mc_session_id` — a key mismatch that
+    //   silently discarded the id and minted a fresh random UUID on every single
+    //   request, so nothing ever accumulated and only the default variant showed.
+    //   Fall back to a server-minted id only when the client sends none/invalid.
+    const stableId = normaliseVisitorId(context.sessionId)
+      ?? normaliseVisitorId(context.visitorId);
+    const sessionId = stableId ?? resolveSession(null).sessionId;
 
     // ── Record a behavioural page_view (interest-keyword capture) ─────────────
     //
@@ -587,15 +603,22 @@ export async function POST(request: NextRequest) {
     //   record the page's keywords: the snippet-sent CMS <meta name="keywords">
     //   plus the built-in URL→keyword map. Awaited so this page's keywords are
     //   included in the scoring below. Fail-open.
+    //
+    //   Recorded on EVERY pageview, not only when keywords exist: the visit
+    //   count, recency and journey sequence that drive returning-visitor and
+    //   journey-stage rules need a row for each page the visitor sees — including
+    //   keyword-less pages. Keywords are attached when present. visitor_id carries
+    //   the stable localStorage id so events link across sessions too.
     const pageMeta     = resolvePageMeta(context.path ?? "/");
     const sentKeywords = Array.isArray(context.keywords)
       ? context.keywords.map((k) => String(k).toLowerCase().trim()).filter(Boolean)
       : [];
     const pageKeywords = Array.from(new Set([...sentKeywords, ...pageMeta.keywords]));
-    if (sessionId && pageKeywords.length > 0) {
+    if (sessionId) {
       await recordJourneyEvent({
         tenantId,
         sessionId,
+        visitorId:    stableId ?? undefined,
         eventType:    "page_view",
         pagePath:     context.path ?? "/",
         pageCategory: pageMeta.category ?? undefined,

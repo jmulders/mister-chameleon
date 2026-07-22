@@ -57,9 +57,15 @@
  *
  * ─── Session identity ────────────────────────────────────────────────────────
  *
- *   The snippet reads the `mc_sid` first-party cookie (written by the
- *   server-side session resolver) and includes it in the decide request
- *   so that personalisation is consistent with server-rendered pages.
+ *   The snippet mints a stable first-party visitor id (localStorage `mc_vid`,
+ *   with a 1-year first-party cookie fallback) and sends it as sessionId +
+ *   visitorId on every pageview. This is what lets the platform key a visitor's
+ *   behavioural history to one id and build context across the visit — without
+ *   it every pageview looked like a new visitor and only the default variant
+ *   was ever served. On same-origin platform pages an existing `mc_sid` cookie
+ *   is preferred so identity stays consistent with server-rendered pages. The id
+ *   lives entirely inside the snippet, which the WordPress plugin only loads
+ *   after consent (mcc_should_enqueue), so it is consent-gated by design.
  *
  * ─── CORS ─────────────────────────────────────────────────────────────────────
  *
@@ -114,13 +120,52 @@ export function buildSnippetSource(decideUrl: string): string {
     } catch(e) { return undefined; }
   }
 
+  // ── Stable first-party visitor id ────────────────────────────────────────────
+  // Without a persistent id every pageview looks like a new visitor to the
+  // platform, so behavioural context (returning, interest, journey) never
+  // accumulates and only the default variant is ever served. We mint one id and
+  // keep it: localStorage first (survives across sessions), a 1-year first-party
+  // cookie as fallback when storage is blocked. Same-origin platform sites may
+  // already carry an mc_sid cookie — prefer that so identity stays consistent.
+  // This id lives entirely inside the snippet, which the WordPress plugin only
+  // loads after consent (mcc_should_enqueue), so it is consent-gated by design.
+  function newId() {
+    try {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    } catch(e) {}
+    return 'mc_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  }
+  function getOrCreateVisitorId() {
+    var existing = getCookie('mc_sid');
+    if (existing) return existing;
+    try {
+      var stored = window.localStorage.getItem('mc_vid');
+      if (stored) return stored;
+      var fresh = newId();
+      window.localStorage.setItem('mc_vid', fresh);
+      return fresh;
+    } catch(e) {
+      var fromCookie = getCookie('mc_vid');
+      if (fromCookie) return fromCookie;
+      var id = newId();
+      try {
+        document.cookie = 'mc_vid=' + encodeURIComponent(id) +
+          '; max-age=31536000; path=/; SameSite=Lax' +
+          (window.location.protocol === 'https:' ? '; Secure' : '');
+      } catch(e2) {}
+      return id;
+    }
+  }
+  var visitorId = getOrCreateVisitorId();
+
   var context = {
     path:     window.location.pathname,
     referrer: document.referrer || undefined,
     utm_source:   getParam('utm_source'),
     utm_medium:   getParam('utm_medium'),
     utm_campaign: getParam('utm_campaign'),
-    sessionId:    getCookie('mc_sid') || undefined,
+    sessionId:    visitorId,
+    visitorId:    visitorId,
     locale:       getCookie('mc_locale') || undefined,
   };
   // Strip undefined keys
