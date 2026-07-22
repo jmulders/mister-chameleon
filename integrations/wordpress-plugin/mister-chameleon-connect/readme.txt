@@ -4,7 +4,7 @@ Tags: personalization, cro, personalisatie, ab-testing, content
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.5.5
+Stable tag: 0.5.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,15 @@ Daar heb je de HTML niet altijd in handen. Gebruik dan de selector-mapping in he
 platform (Snippet → Selectors) in plaats van slots in de markup.
 
 == Changelog ==
+
+= 0.5.6 =
+* Update-diagnose voortaan verborgen: de instellingenpagina is weer schoon. Roep
+  het diagnosepaneel bij nood op door `?mcc_diag=1` aan de instellingen-URL te
+  hangen — het toont de live-check plus de antwoord-body en headers, zodat de
+  bron van een eventuele blokkade (app-limiter / Cloudflare / Vercel) meteen
+  zichtbaar is. Achtergrond: de update-detectie werd geblokkeerd door Vercel Bot
+  Protection, die server-to-server-calls met een JS-challenge (429) wegstuurde;
+  opgelost met een Firewall-bypass voor de machine-endpoints.
 
 = 0.5.5 =
 * Verificatie-release om de gecorrigeerde auto-update-detectie (0.5.4) te testen.
