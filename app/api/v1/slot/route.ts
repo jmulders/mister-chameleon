@@ -48,6 +48,10 @@ import type {
   FeatureBlockData, ConversionBlockData, NotificationBlockData,
 } from "@/cms/types";
 import { logger } from "@/lib/logger";
+import { normaliseVisitorId } from "@/lib/snippet/visitor-id";
+import { recordJourneyEvent } from "@/lib/journey/record-event";
+import { resolvePageMeta } from "@/tracking/page-meta-map";
+import { createHash } from "node:crypto";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -82,6 +86,24 @@ const PLAN_KEY: Record<SlotType, "heroKey" | "proofKey" | "ctaKey" | "featureKey
 };
 
 type Content = Record<string, string>;
+
+/**
+ * Deterministic UUID (v5-style) from an arbitrary name string.
+ *
+ * visitor_journey_events.event_id is a `uuid` column, and recordJourneyEvent
+ * dedupes on it via ON CONFLICT DO NOTHING. This slot endpoint fires once per
+ * slot (up to 6× per page render); by deriving the SAME event_id from
+ * (visitor, page, minute) for every slot call in a render, the burst collapses
+ * to a single page_view. Must be a valid UUID or the insert silently fails.
+ */
+function deterministicUuid(name: string): string {
+  const h = createHash("sha1").update(name).digest();
+  const b = Buffer.from(h.subarray(0, 16));
+  b[6] = (b[6] & 0x0f) | 0x50; // version 5
+  b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = b.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
 
 /** Best-effort URL out of a loosely-typed media object. */
 function mediaUrl(media: unknown): string {
@@ -217,7 +239,47 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const { sessionId } = resolveSession(visitor.fingerprint ? `mc_sid=${visitor.fingerprint}` : null);
+    // ── Stable visitor/session key ─────────────────────────────────────────────
+    //
+    //   Use the adapter-sent visitor id DIRECTLY as the session key so behavioural
+    //   history accumulates. Prefer a first-party `mc_vid` (sent in tokens once the
+    //   adapter is upgraded) over the coarser daily fingerprint. The previous code
+    //   synthesised `mc_sid=<id>` and handed it to resolveSession(), which reads
+    //   `mc_session_id` — a key mismatch that minted a fresh UUID every call, so
+    //   every request looked like a brand-new visitor and nothing ever accumulated.
+    const tokenVid = (visitor.tokens && typeof visitor.tokens === "object")
+      ? (visitor.tokens as Record<string, unknown>)["mc_vid"]
+      : undefined;
+    const stableId  = normaliseVisitorId(tokenVid) ?? normaliseVisitorId(visitor.fingerprint);
+    const sessionId = stableId ?? resolveSession(null).sessionId;
+
+    // ── Record a page_view so context builds for edge-mode adapters too ─────────
+    //
+    //   This endpoint is called ONCE PER SLOT (up to 6× per page render), so a
+    //   naive insert would log six page_views per pageview. We derive a
+    //   deterministic event_id from (visitor, page, minute) and rely on
+    //   recordJourneyEvent's ON CONFLICT (event_id) DO NOTHING dedup, so the burst
+    //   of slot calls for one page render collapses into a single event. Without
+    //   this, edge-mode (Statamic) sites could personalise on live signals but
+    //   never build funnel-stage / interest / returning context. Fire-and-forget.
+    if (stableId) {
+      const pageMeta     = resolvePageMeta(path);
+      const minuteBucket = Math.floor(Date.now() / 60_000);
+      const eventId      = deterministicUuid(`v1slot|${stableId}|${path}|${minuteBucket}`);
+      void recordJourneyEvent({
+        tenantId,
+        sessionId,
+        visitorId:    stableId,
+        eventType:    "page_view",
+        pagePath:     path,
+        pageCategory: pageMeta.category ?? undefined,
+        pageKeywords: pageMeta.keywords,
+        source:       visitor.utm?.source   ?? undefined,
+        medium:       visitor.utm?.medium   ?? undefined,
+        campaign:     visitor.utm?.campaign ?? undefined,
+        eventId,
+      }).catch(() => false);
+    }
 
     const [history, rulesConfig] = await Promise.all([
       fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory()),
