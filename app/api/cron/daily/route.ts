@@ -30,6 +30,7 @@ const JOBS = [
   "/api/cron/form-submission-purge",
   "/api/cron/visitor-profile-purge",
   "/api/cron/ad-sync",
+  "/api/cron/ad-billing",
 ] as const;
 
 function isAuthorized(request: NextRequest): boolean {

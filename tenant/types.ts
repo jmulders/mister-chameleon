@@ -2698,6 +2698,21 @@ export interface TenantSettings {
   readonly snippet?: TenantSnippetSettings;
 
   /**
+   * Ad-network role. When "advertiser", this tenant's siteKey is embedded by
+   * *publisher* sites and its adaptive slots are served as ads (see lib/ads).
+   * Absent = a normal site tenant. Stored in settings.tenantRole.
+   */
+  readonly tenantRole?: "advertiser";
+
+  /**
+   * Billing mode. "usage_ads" meters ad impressions/clicks against the wallet
+   * and skips the per-session subscription/dunning gate; the default
+   * ("subscription", or absent) keeps the normal session-based billing.
+   * Stored in settings.billingMode.
+   */
+  readonly billingMode?: "subscription" | "usage_ads";
+
+  /**
    * Asset storage override for this tenant.
    *
    * When set, the specified provider is used instead of the platform-wide
