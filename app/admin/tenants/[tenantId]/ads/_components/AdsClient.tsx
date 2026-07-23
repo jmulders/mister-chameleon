@@ -10,6 +10,7 @@ import {
   setAdStatusAction,
   type AdsOverview,
   type CreateAdInput,
+  type DayReport,
 } from "../actions";
 import type { AdSlotType, AdPricingModel } from "@/lib/ads/types";
 
@@ -96,6 +97,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         )}
       </div>
 
+      <ReportCard report={initial.report} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <CreateAdCard tenantId={tenantId} pending={pending} run={run} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
@@ -104,6 +106,75 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
 }
 
 type RunFn = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => void;
+
+function Stat({ label: text, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold text-neutral-500">{text}</div>
+      <div className="text-lg font-bold text-neutral-900">{value}</div>
+    </div>
+  );
+}
+
+function ReportCard({ report }: { report: DayReport[] }) {
+  const totals = report.reduce(
+    (t, d) => ({ impressions: t.impressions + d.impressions, clicks: t.clicks + d.clicks, spend_cents: t.spend_cents + d.spend_cents }),
+    { impressions: 0, clicks: 0, spend_cents: 0 },
+  );
+  const ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  const maxImpr = Math.max(1, ...report.map((d) => d.impressions));
+  const W = 720, H = 140, pad = 8;
+  const bw = report.length > 0 ? (W - pad * 2) / report.length : 0;
+
+  return (
+    <div className={card}>
+      <h3 className="text-base font-semibold text-neutral-900">Performance (30 days)</h3>
+      <div className="mt-3 flex flex-wrap gap-8">
+        <Stat label="Impressions" value={totals.impressions.toLocaleString()} />
+        <Stat label="Clicks" value={totals.clicks.toLocaleString()} />
+        <Stat label="CTR" value={ctr.toFixed(2) + "%"} />
+        <Stat label="Spend" value={euros(totals.spend_cents)} />
+      </div>
+
+      {report.length === 0 ? (
+        <p className="mt-4 text-sm text-neutral-400">No data yet — impressions appear after the first served ad.</p>
+      ) : (
+        <>
+          <svg viewBox={`0 0 ${W} ${H}`} className="mt-4 w-full" role="img" aria-label="Impressions per day">
+            {report.map((d, i) => {
+              const h = (d.impressions / maxImpr) * (H - 16);
+              return (
+                <rect key={d.date} x={pad + i * bw + 1} y={H - h} width={Math.max(1, bw - 2)} height={h} rx={2} fill="#6366f1">
+                  <title>{`${d.date} — ${d.impressions} impr · ${d.clicks} clicks · ${euros(d.spend_cents)}`}</title>
+                </rect>
+              );
+            })}
+          </svg>
+          <div className="mt-3 max-h-48 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-100">
+                  <th className="py-1.5 pr-3">Date</th><th className="pr-3">Impr.</th><th className="pr-3">Clicks</th><th className="pr-3">CTR</th><th>Spend</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...report].reverse().map((d) => (
+                  <tr key={d.date} className="border-b border-neutral-50">
+                    <td className="py-1.5 pr-3">{d.date}</td>
+                    <td className="pr-3">{d.impressions.toLocaleString()}</td>
+                    <td className="pr-3">{d.clicks.toLocaleString()}</td>
+                    <td className="pr-3">{d.impressions > 0 ? ((d.clicks / d.impressions) * 100).toFixed(1) + "%" : "—"}</td>
+                    <td>{euros(d.spend_cents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function PublishersCard({ tenantId, initial, pending, run }:
   { tenantId: string; initial: AdsOverview; pending: boolean; run: RunFn }) {

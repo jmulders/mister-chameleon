@@ -22,6 +22,8 @@ import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
 
+export interface DayReport { date: string; impressions: number; clicks: number; spend_cents: number }
+
 export interface AdsOverview {
   isAdvertiser:  boolean;
   siteKey:       string | null;
@@ -29,6 +31,8 @@ export interface AdsOverview {
   publishers:    AdPublisher[];
   ads:           Ad[];
   stats:         Array<{ ad_id: string; impressions: number; clicks: number; spend_cents: number }>;
+  /** Per-day totals across all ads (last 30 days), oldest → newest. */
+  report:        DayReport[];
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -54,14 +58,23 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     db().from("ads").select("*").eq("ad_tenant_id", tenantId).order("created_at", { ascending: false }),
   ]);
 
-  // Aggregate stats per ad from the daily rollup.
+  // Aggregate stats per ad AND per day from the daily rollup (last 30 days).
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
   const { data: statRows } = await db()
-    .from("ad_stats_daily").select("ad_id, impressions, clicks, spend_cents").eq("ad_tenant_id", tenantId);
-  const byAd = new Map<string, { ad_id: string; impressions: number; clicks: number; spend_cents: number }>();
-  for (const r of (statRows ?? []) as Array<{ ad_id: string; impressions: number; clicks: number; spend_cents: number }>) {
-    const cur = byAd.get(r.ad_id) ?? { ad_id: r.ad_id, impressions: 0, clicks: 0, spend_cents: 0 };
-    cur.impressions += Number(r.impressions); cur.clicks += Number(r.clicks); cur.spend_cents += Number(r.spend_cents);
-    byAd.set(r.ad_id, cur);
+    .from("ad_stats_daily")
+    .select("ad_id, date, impressions, clicks, spend_cents")
+    .eq("ad_tenant_id", tenantId)
+    .gte("date", since);
+  type Row = { ad_id: string; date: string; impressions: number; clicks: number; spend_cents: number };
+  const byAd  = new Map<string, { ad_id: string; impressions: number; clicks: number; spend_cents: number }>();
+  const byDay = new Map<string, DayReport>();
+  for (const r of (statRows ?? []) as Row[]) {
+    const a = byAd.get(r.ad_id) ?? { ad_id: r.ad_id, impressions: 0, clicks: 0, spend_cents: 0 };
+    a.impressions += Number(r.impressions); a.clicks += Number(r.clicks); a.spend_cents += Number(r.spend_cents);
+    byAd.set(r.ad_id, a);
+    const d = byDay.get(r.date) ?? { date: r.date, impressions: 0, clicks: 0, spend_cents: 0 };
+    d.impressions += Number(r.impressions); d.clicks += Number(r.clicks); d.spend_cents += Number(r.spend_cents);
+    byDay.set(r.date, d);
   }
 
   return {
@@ -71,6 +84,7 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     publishers: (publishers ?? []) as AdPublisher[],
     ads:        (ads ?? []) as Ad[],
     stats:      Array.from(byAd.values()),
+    report:     Array.from(byDay.values()).sort((x, y) => x.date.localeCompare(y.date)),
   };
 }
 
