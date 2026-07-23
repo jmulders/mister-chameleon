@@ -46,11 +46,13 @@ export default async function TenantWorkspaceLayout({
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
 
-  // ── Best-effort tenant name for subnav header ──────────────────────────────
-  let tenantName = tenantId;
+  // ── Best-effort tenant name + role for subnav ──────────────────────────────
+  let tenantName   = tenantId;
+  let isAdvertiser = false;
   try {
     const tenant = await getTenantById(tenantId);
     if (tenant?.name) tenantName = tenant.name;
+    isAdvertiser = tenant?.tenantRole === "advertiser";
   } catch {
     // Swallow — layout never throws for a missing tenant.
   }
@@ -63,7 +65,7 @@ export default async function TenantWorkspaceLayout({
           routes are dynamic anyway (the session read above uses cookies), so the
           fallback is never rendered — it only keeps the build rule satisfied. */}
       <Suspense fallback={null}>
-        <TenantSubNav tenantId={tenantId} tenantName={tenantName} />
+        <TenantSubNav tenantId={tenantId} tenantName={tenantName} isAdvertiser={isAdvertiser} />
       </Suspense>
 
       {/* Page content */}

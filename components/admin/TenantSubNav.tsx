@@ -30,6 +30,13 @@ import { cn }      from "@/lib/utils";
 interface TenantSubNavProps {
   tenantId:   string;
   tenantName: string;
+  /**
+   * When the tenant is an ad account, the workspace shows only the pages that
+   * apply to an advertiser (Overview · Ads · Billing · Admin) and hides the
+   * personalisation surfaces (Design, Content, Personalization, Audience, most
+   * of Platform).
+   */
+  isAdvertiser?: boolean;
 }
 
 interface SubItem {
@@ -128,14 +135,14 @@ const ICONS = {
   ),
 };
 
-export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
+export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: TenantSubNavProps) {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
   const base         = `/admin/tenants/${tenantId}`;
 
   // ── Group definitions ───────────────────────────────────────────────────────
 
-  const groups: PrimaryGroup[] = [
+  const fullGroups: PrimaryGroup[] = [
     {
       key:    "overview",
       label:  "Overview",
@@ -239,6 +246,30 @@ export function TenantSubNav({ tenantId, tenantName }: TenantSubNavProps) {
       ],
     },
   ];
+
+  // ── Advertiser workspace: only the ad-relevant pages ───────────────────────
+  const advertiserGroups: PrimaryGroup[] = [
+    { key: "overview", label: "Overview", href: base, prefix: base, icon: ICONS.overview, items: [] },
+    { key: "ads", label: "Ads", href: `${base}/ads`, prefix: `${base}/ads`, icon: ICONS.platform, items: [] },
+    {
+      key: "billing", label: "Billing", href: `${base}/billing`,
+      prefix: `${base}/billing|${base}/snippet`, icon: ICONS.admin,
+      items: [
+        { label: "Billing", href: `${base}/billing`, activePrefix: `${base}/billing` },
+        { label: "SiteKey",  href: `${base}/snippet`, activePrefix: `${base}/snippet` },
+      ],
+    },
+    {
+      key: "admin", label: "Admin", href: `${base}/settings`,
+      prefix: `${base}/settings|${base}/users`, icon: ICONS.admin,
+      items: [
+        { label: "Settings", href: `${base}/settings`, activePrefix: `${base}/settings` },
+        { label: "Users",    href: `${base}/users`,    activePrefix: `${base}/users` },
+      ],
+    },
+  ];
+
+  const groups = isAdvertiser ? advertiserGroups : fullGroups;
 
   // ── Active group detection ─────────────────────────────────────────────────
 
