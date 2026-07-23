@@ -68,7 +68,7 @@ type SlotType = "hero" | "proof" | "cta" | "feature" | "conversion" | "notificat
 interface SlotRequest {
   slot_type?: string;
   default_variant_key?: string;
-  page?: { collection?: string; slug?: string; locale?: string };
+  page?: { collection?: string; slug?: string; locale?: string; keywords?: string[] };
   visitor?: {
     fingerprint?: string;
     referrer?: string;
@@ -266,6 +266,13 @@ export async function POST(request: NextRequest) {
       const pageMeta     = resolvePageMeta(path);
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const eventId      = deterministicUuid(`v1slot|${stableId}|${path}|${minuteBucket}`);
+      // Merge the page's editor-set meta keywords (sent by the adapter as
+      // page.keywords) with the built-in URL→keyword map — same as the snippet's
+      // decide path — so interest-profile scoring works on edge-mode sites too.
+      const sentKeywords = Array.isArray(page.keywords)
+        ? page.keywords.map((k) => String(k).toLowerCase().trim()).filter(Boolean)
+        : [];
+      const pageKeywords = Array.from(new Set([...sentKeywords, ...pageMeta.keywords]));
       void recordJourneyEvent({
         tenantId,
         sessionId,
@@ -273,7 +280,7 @@ export async function POST(request: NextRequest) {
         eventType:    "page_view",
         pagePath:     path,
         pageCategory: pageMeta.category ?? undefined,
-        pageKeywords: pageMeta.keywords,
+        pageKeywords,
         source:       visitor.utm?.source   ?? undefined,
         medium:       visitor.utm?.medium   ?? undefined,
         campaign:     visitor.utm?.campaign ?? undefined,
