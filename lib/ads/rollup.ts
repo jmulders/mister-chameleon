@@ -10,10 +10,10 @@
  * debitWallet credits (sub-cent precision supported).
  */
 
-import { getDb }         from "@/data/db";
-import { debitWallet }   from "@/billing/wallet";
-import { eventCostCents } from "./pricing";
-import { logger }        from "@/lib/logger";
+import { getDb }             from "@/data/db";
+import { debitWallet }       from "@/billing/wallet";
+import { aggregateAdBilling } from "./aggregate-billing";
+import { logger }            from "@/lib/logger";
 import type { Ad } from "./types";
 
 interface EventRow {
@@ -44,37 +44,12 @@ export async function rollupAdBilling(limit = 5000): Promise<{ processed: number
   const { data: adRows } = await db.from("ads").select("*").in("id", adIds);
   const adById = new Map<string, Ad>(((adRows ?? []) as Ad[]).map((a) => [a.id, a]));
 
-  // 3. Aggregate spend per ad and per (ad, publisher, date).
-  const perAd    = new Map<string, { tenantId: string; cents: number }>();
-  const perTenant = new Map<string, number>();
-  const daily = new Map<string, {
-    ad_id: string; ad_tenant_id: string; publisher_domain: string; date: string;
-    impressions: number; clicks: number; spend_cents: number;
-  }>();
-
-  for (const r of rows) {
-    const ad = adById.get(r.ad_id);
-    if (!ad) continue;
-    const cost = eventCostCents(ad, r.event_type);
-    const date = r.occurred_at.slice(0, 10);
-    const pub  = r.publisher_domain ?? "";
-    const dk   = `${r.ad_id}|${pub}|${date}`;
-    const d = daily.get(dk) ?? {
-      ad_id: r.ad_id, ad_tenant_id: r.ad_tenant_id, publisher_domain: pub, date,
-      impressions: 0, clicks: 0, spend_cents: 0,
-    };
-    if (r.event_type === "impression") d.impressions += 1; else d.clicks += 1;
-    d.spend_cents += cost;
-    daily.set(dk, d);
-
-    const p = perAd.get(r.ad_id) ?? { tenantId: r.ad_tenant_id, cents: 0 };
-    p.cents += cost;
-    perAd.set(r.ad_id, p);
-    perTenant.set(r.ad_tenant_id, (perTenant.get(r.ad_tenant_id) ?? 0) + cost);
-  }
+  // 3. Aggregate spend per tenant/ad and the per-(ad, publisher, day) rollup
+  //    (pure, unit-tested — see aggregate-billing.ts).
+  const { perTenantCents, perAdCents, daily } = aggregateAdBilling(rows, adById);
 
   // 4. Increment each ad's spent_cents (best-effort).
-  for (const [adId, s] of perAd) {
+  for (const [adId, s] of perAdCents) {
     const ad = adById.get(adId);
     if (!ad) continue;
     await db.from("ads")
@@ -86,7 +61,7 @@ export async function rollupAdBilling(limit = 5000): Promise<{ processed: number
   //    impressions are sunk, so mark billed even if the balance can't cover them
   //    (the serve-time wallet gate limits overspend to the settlement lag).
   let debitedCents = 0;
-  for (const [tenantId, cents] of perTenant) {
+  for (const [tenantId, cents] of perTenantCents) {
     if (cents <= 0) continue;
     try {
       const res = await debitWallet(getDb(), tenantId, cents, "ad_spend");

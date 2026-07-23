@@ -122,6 +122,31 @@ export async function recordAdEvent(input: {
   }
 }
 
+/**
+ * Click integrity: true when this visitor had an impression of this ad recently
+ * (default 30 min). Billable clicks require this, so hammering the click URL
+ * directly (no prior impression) can't drain a CPC budget.
+ */
+export async function recentImpressionExists(
+  adId: string, sessionId: string | null, windowMs = 30 * 60_000,
+): Promise<boolean> {
+  if (!sessionId) return false;
+  try {
+    const since = new Date(Date.now() - windowMs).toISOString();
+    const { data } = await db()
+      .from("ad_events")
+      .select("id")
+      .eq("ad_id", adId)
+      .eq("session_id", sessionId)
+      .eq("event_type", "impression")
+      .gte("occurred_at", since)
+      .limit(1);
+    return Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /** Look up one ad (for the click endpoint → its click_url). */
 export async function getAdById(adId: string): Promise<Ad | null> {
   try {
