@@ -46,6 +46,7 @@
 import { createClient }             from "@supabase/supabase-js";
 import { notFound }                 from "next/navigation";
 import { getTenantById }            from "@/tenant/server";
+import { AdvertiserBilling }        from "./_components/AdvertiserBilling";
 import { BILLING_PLANS, getResolvedCreditBundles } from "@/billing/plans";
 import { getUsageEventSummary }     from "@/billing/usage-events";
 import { calculateBillingEstimate } from "@/billing/calculator";
@@ -633,6 +634,21 @@ export default async function TenantBillingPage({
   const stripeCustomerId: string | null    = invoicesResult?.customerId ?? null;
 
   // ── 12. Render ─────────────────────────────────────────────────────────────
+
+  // Advertiser accounts are metered per impression/click against the wallet, not
+  // on a subscription — show the focused advertiser billing view instead of the
+  // full subscription/enrichment dashboard. `?full=1` falls through to the
+  // standard page (for the Stripe wallet top-up).
+  if (tenant?.tenantRole === "advertiser" && String(sp["full"] ?? "") !== "1") {
+    return (
+      <AdvertiserBilling
+        tenantId={tenantId}
+        balanceCents={currentBalance}
+        spendThisMonthCents={spendThisMonth}
+        ledger={walletLedger as unknown as Parameters<typeof AdvertiserBilling>[0]["ledger"]}
+      />
+    );
+  }
 
   return (
     <div className="max-w-5xl p-8">
