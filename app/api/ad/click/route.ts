@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAdById, recordAdEvent } from "@/lib/ads/serve";
+import { getAdById, recordAdEvent, recentImpressionExists } from "@/lib/ads/serve";
 import { logger } from "@/lib/logger";
 
 /** Only follow http/https destinations. */
@@ -40,8 +40,11 @@ export async function GET(request: NextRequest) {
   const ad = await getAdById(adId);
   const dest = safeDestination(ad?.click_url ?? null);
 
-  // Record the click (deduped per visitor+ad+minute) — fire-and-forget.
-  if (ad) {
+  // Record the click — but only when this visitor actually saw the ad recently
+  // (click integrity: a click without a prior impression is not billed, so the
+  // click URL can't be hammered to drain a CPC budget). Deduped per
+  // visitor+ad+minute. Fire-and-forget; the redirect happens regardless.
+  if (ad && (await recentImpressionExists(ad.id, sid))) {
     const minuteBucket = Math.floor(Date.now() / 60_000);
     void recordAdEvent({
       tenantId:        ad.ad_tenant_id,
