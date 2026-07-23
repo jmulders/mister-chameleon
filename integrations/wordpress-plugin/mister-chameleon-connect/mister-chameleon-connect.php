@@ -4,7 +4,7 @@
  * Plugin URI:        https://www.misterchameleon.nl
  * Update URI:        https://www.misterchameleon.nl/mister-chameleon-connect
  * Description:       Real-time contentpersonalisatie via de Mister Chameleon-snippet. Vul je siteKey in en markeer slots — geen thema-code, geen losse header-plugin, geen Wordfence-gedoe.
- * Version:           0.5.5
+ * Version:           0.5.6
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Mister Chameleon
@@ -34,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Directe toegang blokkeren.
 }
 
-define( 'MCC_VERSION', '0.5.5' );
+define( 'MCC_VERSION', '0.5.6' );
 define( 'MCC_DEFAULT_ENDPOINT', 'https://www.misterchameleon.nl' );
 
 /**
@@ -145,24 +145,45 @@ function mcc_render_settings_page() {
 		</ul>
 		<p class="description">Werk je met een page builder waar je de HTML niet in handen hebt? Gebruik dan de selector-mapping in het platform (Snippet → Selectors); daar heb je deze plugin niet voor nodig.</p>
 
+		<?php
+		// ── Update-diagnose (verborgen) ──────────────────────────────────────────
+		// Standaard verborgen om de instellingenpagina schoon te houden. Roep 'm op
+		// door ?mcc_diag=1 aan de URL te hangen, dus:
+		//   /wp-admin/options-general.php?page=mister-chameleon-connect&mcc_diag=1
+		// Doet een live-check vanaf de WordPress-server en toont status, versie,
+		// de antwoord-body en de headers (server/x-vercel-id/cf-ray) zodat de bron
+		// van een eventuele blokkade (app-limiter / Cloudflare / Vercel) zichtbaar is.
+		if ( isset( $_GET['mcc_diag'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- alleen-lezen weergaveschakelaar
+		?>
 		<hr />
 		<h2>Update-diagnose</h2>
 		<?php
 		$mcc_diag_url  = mcc_endpoint() . '/api/wp-plugin/update';
 		$mcc_diag_resp = wp_remote_get( $mcc_diag_url, array( 'timeout' => 8 ) );
+		$mcc_diag_body_raw = '';
+		$mcc_diag_headers  = array();
 		if ( is_wp_error( $mcc_diag_resp ) ) {
 			$mcc_diag_status = 'FOUT';
 			$mcc_diag_err    = $mcc_diag_resp->get_error_message();
 			$mcc_diag_remote = '';
 		} else {
-			$mcc_diag_status = (string) (int) wp_remote_retrieve_response_code( $mcc_diag_resp );
-			$mcc_diag_err    = '';
-			$mcc_diag_body   = json_decode( wp_remote_retrieve_body( $mcc_diag_resp ), true );
-			$mcc_diag_remote = ( is_array( $mcc_diag_body ) && isset( $mcc_diag_body['version'] ) ) ? (string) $mcc_diag_body['version'] : '';
+			$mcc_diag_status   = (string) (int) wp_remote_retrieve_response_code( $mcc_diag_resp );
+			$mcc_diag_err      = '';
+			$mcc_diag_body_raw = (string) wp_remote_retrieve_body( $mcc_diag_resp );
+			$mcc_diag_body     = json_decode( $mcc_diag_body_raw, true );
+			$mcc_diag_remote   = ( is_array( $mcc_diag_body ) && isset( $mcc_diag_body['version'] ) ) ? (string) $mcc_diag_body['version'] : '';
+			// Capture the headers that reveal WHO answered (our app vs Vercel vs a
+			// CDN like Cloudflare) so a non-200 can be attributed without guessing.
+			foreach ( array( 'server', 'x-vercel-id', 'x-vercel-cache', 'cf-ray', 'cf-cache-status', 'retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining' ) as $mcc_h ) {
+				$mcc_v = wp_remote_retrieve_header( $mcc_diag_resp, $mcc_h );
+				if ( '' !== $mcc_v && array() !== $mcc_v ) {
+					$mcc_diag_headers[ $mcc_h ] = is_array( $mcc_v ) ? implode( ', ', $mcc_v ) : (string) $mcc_v;
+				}
+			}
 		}
 		$mcc_diag_installed = MCC_VERSION;
 		if ( '' === $mcc_diag_remote ) {
-			$mcc_diag_verdict = 'Geen versie ontvangen — server kan het platform niet bereiken.';
+			$mcc_diag_verdict = 'Geen versie ontvangen — antwoord kwam niet van de update-manifest.';
 		} elseif ( version_compare( $mcc_diag_installed, $mcc_diag_remote, '<' ) ) {
 			$mcc_diag_verdict = 'Update beschikbaar → ' . $mcc_diag_remote;
 		} else {
@@ -190,13 +211,33 @@ function mcc_render_settings_page() {
 				<th scope="row">Verdict</th>
 				<td><strong><?php echo esc_html( $mcc_diag_verdict ); ?></strong></td>
 			</tr>
+			<tr>
+				<th scope="row">Antwoord-body</th>
+				<td><code style="white-space:pre-wrap;word-break:break-all"><?php echo esc_html( '' !== $mcc_diag_body_raw ? substr( $mcc_diag_body_raw, 0, 300 ) : '(leeg)' ); ?></code></td>
+			</tr>
+			<tr>
+				<th scope="row">Wie antwoordde (headers)</th>
+				<td>
+					<?php if ( empty( $mcc_diag_headers ) ) { echo '<code>(geen)</code>'; } else { ?>
+						<code style="white-space:pre-wrap;word-break:break-all"><?php
+						$mcc_lines = array();
+						foreach ( $mcc_diag_headers as $mcc_k => $mcc_val ) {
+							$mcc_lines[] = $mcc_k . ': ' . $mcc_val;
+						}
+						echo esc_html( implode( "\n", $mcc_lines ) );
+						?></code>
+					<?php } ?>
+				</td>
+			</tr>
 		</table>
 		<p class="description">
-			Live-check vanaf je WordPress-server. HTTP-status 200 + juiste platformversie maar tóch geen
-			update-melding? Dan zit het in WordPress' eigen update-cache: ga naar Dashboard → Updates en klik
-			"Opnieuw controleren". Zie je hier een fout of geen versie? Dan blokkeert je server uitgaand verkeer
-			naar het platform (firewall/SSL).
+			Live-check vanaf je WordPress-server. Bij een 429 verraden de body en de headers de bron:
+			een JSON-body <code>{"error":"Too Many Requests"}</code> = de app-limiter; een <code>cf-ray</code>/
+			<code>server: cloudflare</code> = Cloudflare; een <code>x-vercel-id</code> zonder app-JSON = Vercel's
+			edge. HTTP 200 + juiste versie maar geen update-melding? Ga naar Dashboard → Updates en klik
+			"Opnieuw controleren".
 		</p>
+		<?php endif; // mcc_diag ?>
 	</div>
 	<?php
 }
