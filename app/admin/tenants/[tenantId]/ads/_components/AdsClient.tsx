@@ -97,6 +97,13 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         )}
       </div>
 
+      <EmbedCard
+        siteKey={initial.siteKey}
+        slots={(() => {
+          const s = Array.from(new Set(initial.ads.filter((a) => a.status === "active").map((a) => a.slot_type)));
+          return s.length > 0 ? s : SLOTS;
+        })()}
+      />
       <ReportCard report={initial.report} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <CreateAdCard tenantId={tenantId} pending={pending} run={run} />
@@ -170,6 +177,46 @@ function ReportCard({ report }: { report: DayReport[] }) {
               </tbody>
             </table>
           </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EmbedCard({ siteKey, slots }: { siteKey: string | null; slots: string[] }) {
+  const [slot, setSlot] = useState(slots[0] ?? "hero");
+  const [copied, setCopied] = useState(false);
+  const base = typeof window !== "undefined" ? window.location.origin : "https://www.misterchameleon.nl";
+  const code = siteKey
+    ? `<!-- Mister Chameleon ad slot — paste where the ad should appear -->\n` +
+      `<div data-mc-block="${slot}"></div>\n` +
+      `<script src="${base}/api/snippet.js"\n        data-site-key="${siteKey}" async></script>`
+    : "";
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    catch { /* clipboard blocked */ }
+  };
+
+  return (
+    <div className={card}>
+      <h3 className="text-base font-semibold text-neutral-900">Embed code for publishers</h3>
+      <p className="mt-1 text-sm text-neutral-600 max-w-2xl">
+        Give this to a publisher / affiliate. They paste it where the ad should appear —
+        on any site, no plugin needed. WordPress and Statamic publishers can use the
+        plugin / add-on instead, but this snippet works everywhere.
+      </p>
+      {!siteKey ? (
+        <p className="mt-3 text-sm text-amber-700">Generate a siteKey first on the Snippet tab.</p>
+      ) : (
+        <>
+          <div className="mt-3 flex items-center gap-3">
+            <span className="text-xs font-semibold text-neutral-600">Slot</span>
+            <select className={input + " max-w-[160px]"} value={slot} onChange={(e) => setSlot(e.target.value)}>
+              {slots.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button className={btn} onClick={copy}>{copied ? "Copied!" : "Copy code"}</button>
+          </div>
+          <pre className="mt-3 overflow-x-auto rounded-md bg-neutral-900 p-4 text-xs text-neutral-100"><code>{code}</code></pre>
         </>
       )}
     </div>
