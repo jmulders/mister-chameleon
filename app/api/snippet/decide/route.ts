@@ -101,6 +101,7 @@ import type { SlotMap, BlockSlot }   from "@/lib/snippet/decide-response";
 import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
+import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -313,6 +314,38 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantId = tenant.tenantId;
+
+  // ── Advertiser tenants: serve ads instead of CMS variants ──────────────────
+  //
+  //   When the resolved tenant is an ad account, its siteKey is embedded by
+  //   PUBLISHER sites and the requested blocks are filled with ads (not the
+  //   tenant's own CMS content). This path has its own gates — approved
+  //   publisher + wallet balance, inside serveAds — and bills via metered
+  //   impressions/clicks, so it deliberately returns BEFORE the subscription /
+  //   dunning gate below. Normal tenants (tenantRole !== "advertiser") are
+  //   completely unaffected. Targeting is off in this MVP (no evalCtx).
+  if (tenant.tenantRole === "advertiser") {
+    const rawAdBlocks = (body as DecideRequest).blocks;
+    const adBlockKeys = Array.isArray(rawAdBlocks)
+      ? rawAdBlocks.filter((b): b is string => typeof b === "string")
+      : [];
+    let adTokens: Record<string, string> = {};
+    try {
+      adTokens = cssDeclarationsToRecord(resolvedThemeToCSS(resolveThemeForTenant(tenant, null)));
+    } catch { /* ads fall back to their own styling */ }
+    const adSlots = adBlockKeys.length > 0
+      ? await serveAds({
+          tenantId,
+          blockKeys:    adBlockKeys,
+          originHost:   hostFromOrigin(request.headers.get("origin") ?? request.headers.get("referer")),
+          platformBase: new URL(request.url).origin,
+          sessionId:    normaliseVisitorId(context.sessionId) ?? normaliseVisitorId(context.visitorId),
+          evalCtx:      null,
+          tokens:       adTokens,
+        })
+      : {};
+    return NextResponse.json({ slots: adSlots, _ad: true }, { status: 200, headers: CORS_HEADERS });
+  }
 
   // Selector map from tenant config (trusted). Included in the content-serving
   // response so slots work on host markup without a data-mc-slot attribute.
