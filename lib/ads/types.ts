@@ -38,6 +38,7 @@ export interface Ad {
 
 /** One approved publisher domain for an advertiser tenant. */
 export interface AdPublisher {
+  id:               string;
   ad_tenant_id:     string;
   publisher_domain: string;
   status:           "pending" | "approved" | "blocked";
