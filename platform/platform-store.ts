@@ -852,6 +852,7 @@ const KEYS = {
   forge:           "forge",
   github:          "github",
   ploi:            "ploi",
+  adPricing:       "ad_pricing",
 } as const;
 
 // ── Generic read / write ───────────────────────────────────────────────────────
@@ -2202,4 +2203,33 @@ export function ploiFlags(s: PlatformPloiSettings): {
     platformApiUrl: s.platformApiUrl ?? "https://www.misterchameleon.nl",
     isConfigured:   hasToken,
   };
+}
+
+// ── Ad pricing (advertiser rate-card) ─────────────────────────────────────────
+
+/**
+ * Platform-wide advertiser rate-card. Advertiser ad creation defaults to these
+ * CPM / CPC rates (the advertiser can still override per ad). Non-secret.
+ * Stored under the key "ad_pricing" in platform_settings.
+ */
+export interface PlatformAdPricingSettings {
+  /** Default CPM: cents per 1000 impressions. */
+  cpmCents?: number;
+  /** Default CPC: cents per click. */
+  cpcCents?: number;
+}
+
+/** Sensible defaults when the rate-card row is absent. */
+export const AD_PRICING_DEFAULTS = { cpmCents: 500, cpcCents: 20 } as const; // €5 CPM, €0.20 CPC
+
+/** Read the platform advertiser rate-card. */
+export async function getPlatformAdPricingSettings(): Promise<SettingsResult<PlatformAdPricingSettings>> {
+  return readSection<PlatformAdPricingSettings>(KEYS.adPricing);
+}
+
+/** Persist the platform advertiser rate-card (partial patch, merged). */
+export async function savePlatformAdPricingSettings(
+  patch: PlatformAdPricingSettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return writeSection(KEYS.adPricing, patch);
 }

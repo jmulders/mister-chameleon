@@ -145,6 +145,7 @@ export function AdminNav({ activeTenantId, role }: AdminNavProps) {
     { label: "Tenants",       href: "/admin/tenants",           activePrefix: "/admin/tenants",          icon: icons.tenants,      exact: true },
     { label: "New Tenant",    href: "/admin/onboarding",        activePrefix: "/admin/onboarding",       icon: icons.plus },
     { label: "Signups",       href: "/admin/platform/signups",  activePrefix: "/admin/platform/signups", icon: icons.signups,      note: "Trial queue" },
+    { label: "Ad pricing",    href: "/admin/platform/ad-pricing", activePrefix: "/admin/platform/ad-pricing", icon: icons.signups, note: "Advertiser CPM/CPC" },
     { label: "Integrations",  href: INTEGRATIONS_PREFIX,        activePrefix: INTEGRATIONS_PREFIX,       icon: icons.integrations },
   ];
 

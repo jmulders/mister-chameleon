@@ -24,6 +24,7 @@ import { logger } from "@/lib/logger";
 import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/types";
 import { aggregateAdBilling } from "@/lib/ads/aggregate-billing";
 import { parseAdTargeting, type AdTargeting } from "@/lib/ads/targeting";
+import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/platform-store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -51,6 +52,8 @@ export interface AdsOverview {
   pendingProfilingCents: number;
   /** Slot types this ad account offers to publishers (defaults to all). */
   activeSlots:           AdSlotType[];
+  /** Platform rate-card: default CPM/CPC (cents) new ads start from. */
+  rateCard:              { cpmCents: number; cpcCents: number };
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -142,6 +145,9 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     for (const c of (charges ?? []) as { fee_cents: number }[]) pendingProfilingCents += Number(c.fee_cents ?? 0);
   } catch { /* best-effort */ }
 
+  // Platform rate-card — the CPM/CPC defaults new ads start from.
+  const pricingRes = await getPlatformAdPricingSettings();
+
   return {
     isAdvertiser,
     siteKey,
@@ -158,6 +164,10 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     activeSlots: tenant?.adSlots == null
       ? SLOTS                                            // legacy/unset = all slots
       : SLOTS.filter((s) => tenant.adSlots!.includes(s)),
+    rateCard: {
+      cpmCents: (pricingRes.ok ? pricingRes.data.cpmCents : undefined) ?? AD_PRICING_DEFAULTS.cpmCents,
+      cpcCents: (pricingRes.ok ? pricingRes.data.cpcCents : undefined) ?? AD_PRICING_DEFAULTS.cpcCents,
+    },
   };
 }
 

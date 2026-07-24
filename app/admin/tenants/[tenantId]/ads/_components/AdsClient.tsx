@@ -118,7 +118,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
       />
       <SessionsCard tenantId={tenantId} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
-      <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} />
+      <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.rateCard} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
     </div>
   );
@@ -410,15 +410,20 @@ function adToForm(a: Ad): CreateAdInput {
   };
 }
 
-function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone, slots }:
-  { tenantId: string; pending: boolean; run: RunFn; mode?: "create" | "edit"; initial?: CreateAdInput; adId?: string; onDone?: () => void; slots?: AdSlotType[] }) {
+function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone, slots, rateCard }:
+  { tenantId: string; pending: boolean; run: RunFn; mode?: "create" | "edit"; initial?: CreateAdInput; adId?: string; onDone?: () => void; slots?: AdSlotType[]; rateCard?: { cpmCents: number; cpcCents: number } }) {
   const slotOptions = slots && slots.length > 0 ? slots : SLOTS;
   const [slot, setSlot] = useState<AdSlotType>(initial?.slot_type ?? "hero");
   const [form, setForm] = useState<CreateAdInput>(initial ?? {
     name: "", slot_type: "hero",
     creativeJson: JSON.stringify(CREATIVE_TEMPLATES.hero, null, 2),
-    click_url: "", pricing_model: "cpm", rate_cents: 500, budget_cents: 5000, weight: 1,
+    click_url: "", pricing_model: "cpm", rate_cents: rateCard?.cpmCents ?? 500, budget_cents: 5000, weight: 1,
   });
+  // When switching model on a new ad, snap the rate to the platform rate-card.
+  const onModel = (m: AdPricingModel) => {
+    if (mode === "create" && rateCard) set({ pricing_model: m, rate_cents: m === "cpm" ? rateCard.cpmCents : rateCard.cpcCents });
+    else set({ pricing_model: m });
+  };
   const set = (patch: Partial<CreateAdInput>) => setForm((f) => ({ ...f, ...patch }));
   const setT = (patch: Partial<NonNullable<CreateAdInput["targeting"]>>) =>
     setForm((f) => ({ ...f, targeting: { ...(f.targeting ?? {}), ...patch } }));
@@ -455,7 +460,7 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className={label}>Model</label>
-            <select className={input} value={form.pricing_model} onChange={(e) => set({ pricing_model: e.target.value as AdPricingModel })}>
+            <select className={input} value={form.pricing_model} onChange={(e) => onModel(e.target.value as AdPricingModel)}>
               <option value="cpm">CPM</option><option value="cpc">CPC</option>
             </select>
           </div>
