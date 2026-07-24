@@ -2713,6 +2713,14 @@ export interface TenantSettings {
   readonly billingMode?: "subscription" | "usage_ads";
 
   /**
+   * Advertiser only: which adaptive slot types this ad account offers to
+   * publishers (subset of hero/proof/cta/feature/conversion/notification).
+   * Drives the publisher embed code and which slots ads can be created for.
+   * Absent = all slots. Stored in settings.adSlots.
+   */
+  readonly adSlots?: readonly string[];
+
+  /**
    * Asset storage override for this tenant.
    *
    * When set, the specified provider is used instead of the platform-wide

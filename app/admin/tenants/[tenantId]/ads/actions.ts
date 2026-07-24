@@ -49,6 +49,8 @@ export interface AdsOverview {
   profilingSpentCents:   number;
   /** Profiling fees recorded but not yet billed, in cents. */
   pendingProfilingCents: number;
+  /** Slot types this ad account offers to publishers (defaults to all). */
+  activeSlots:           AdSlotType[];
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -153,6 +155,9 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     pendingSpendCents: Math.round(pendingSpendCents),
     profilingSpentCents: Math.round(profilingSpentCents),
     pendingProfilingCents: Math.round(pendingProfilingCents),
+    activeSlots: tenant?.adSlots == null
+      ? SLOTS                                            // legacy/unset = all slots
+      : SLOTS.filter((s) => tenant.adSlots!.includes(s)),
   };
 }
 
@@ -237,6 +242,18 @@ export async function fetchAdSessionsAction(tenantId: string): Promise<AdSession
   }
 
   return top;
+}
+
+/** Set which adaptive slot types this advertiser account offers to publishers. */
+export async function setAdSlotsAction(tenantId: string, slots: AdSlotType[]): Promise<ActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+  const clean = SLOTS.filter((s) => slots.includes(s));   // keep canonical order, drop junk
+  await saveTenant({ ...tenant, adSlots: clean });
+  revalidatePath(`/admin/tenants/${tenantId}/ads`);
+  return { ok: true };
 }
 
 export async function setAdvertiserRoleAction(tenantId: string, on: boolean): Promise<ActionResult> {
@@ -334,6 +351,47 @@ export async function createAdAction(tenantId: string, input: CreateAdInput): Pr
   });
   if (error) return { ok: false, error: error.message };
   logger.info("[ads-admin] ad created", { tenantId, slot: input.slot_type });
+  revalidatePath(`/admin/tenants/${tenantId}/ads`);
+  return { ok: true };
+}
+
+/** Edit an existing ad's content/settings. Same guardrails as createAdAction. */
+export async function editAdAction(tenantId: string, adId: string, input: CreateAdInput): Promise<ActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  if (!input.name.trim()) return { ok: false, error: "Name is required." };
+  if (!SLOTS.includes(input.slot_type)) return { ok: false, error: "Invalid slot type." };
+
+  let creative: Record<string, unknown>;
+  try {
+    creative = JSON.parse(input.creativeJson);
+  } catch {
+    return { ok: false, error: "Creative is not valid JSON." };
+  }
+  if (!renderBlockHtml(input.slot_type, creative)) {
+    return { ok: false, error: `This creative renders empty for a "${input.slot_type}" block. Check the field shape (see the ad-network setup doc).` };
+  }
+  if (input.click_url && !/^https?:\/\//.test(input.click_url)) {
+    return { ok: false, error: "Click URL must start with http(s)://." };
+  }
+
+  const { error } = await db().from("ads")
+    .update({
+      name:          input.name.trim(),
+      slot_type:     input.slot_type,
+      creative,
+      click_url:     input.click_url || null,
+      pricing_model: input.pricing_model,
+      rate_cents:    Math.max(0, input.rate_cents),
+      budget_cents:  Math.max(0, input.budget_cents),
+      weight:        Math.max(1, input.weight),
+      targeting:     input.targeting ? parseAdTargeting(input.targeting) : {},
+      updated_at:    new Date().toISOString(),
+    })
+    .eq("id", adId).eq("ad_tenant_id", tenantId);
+  if (error) return { ok: false, error: error.message };
+  logger.info("[ads-admin] ad edited", { tenantId, adId, slot: input.slot_type });
   revalidatePath(`/admin/tenants/${tenantId}/ads`);
   return { ok: true };
 }

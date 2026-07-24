@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   setAdvertiserRoleAction,
@@ -8,14 +8,16 @@ import {
   setPublisherStatusAction,
   createAdAction,
   setAdStatusAction,
+  setAdSlotsAction,
+  editAdAction,
   fetchAdSessionsAction,
   type AdsOverview,
   type CreateAdInput,
   type DayReport,
   type AdSession,
 } from "../actions";
-import type { AdSlotType, AdPricingModel } from "@/lib/ads/types";
-import type { AdFunnelStage } from "@/lib/ads/targeting";
+import type { AdSlotType, AdPricingModel, Ad } from "@/lib/ads/types";
+import { parseAdTargeting, type AdFunnelStage } from "@/lib/ads/targeting";
 
 const SLOTS: AdSlotType[] = ["hero", "proof", "cta", "feature", "conversion", "notification"];
 const FUNNEL_STAGES: AdFunnelStage[] = ["awareness", "consideration", "intent", "high_intent", "customer"];
@@ -101,12 +103,10 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         )}
       </div>
 
+      <SlotsCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <EmbedCard
         siteKey={initial.siteKey}
-        slots={(() => {
-          const s = Array.from(new Set(initial.ads.filter((a) => a.status === "active").map((a) => a.slot_type)));
-          return s.length > 0 ? s : SLOTS;
-        })()}
+        slots={initial.activeSlots.length > 0 ? initial.activeSlots : SLOTS}
       />
       <ReportCard
         report={initial.report}
@@ -118,7 +118,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
       />
       <SessionsCard tenantId={tenantId} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
-      <CreateAdCard tenantId={tenantId} pending={pending} run={run} />
+      <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
     </div>
   );
@@ -400,10 +400,21 @@ function PublishersCard({ tenantId, initial, pending, run }:
   );
 }
 
-function CreateAdCard({ tenantId, pending, run }:
-  { tenantId: string; pending: boolean; run: RunFn }) {
-  const [slot, setSlot] = useState<AdSlotType>("hero");
-  const [form, setForm] = useState<CreateAdInput>({
+function adToForm(a: Ad): CreateAdInput {
+  return {
+    name: a.name, slot_type: a.slot_type,
+    creativeJson: JSON.stringify(a.creative ?? {}, null, 2),
+    click_url: a.click_url ?? "", pricing_model: a.pricing_model,
+    rate_cents: a.rate_cents, budget_cents: a.budget_cents, weight: a.weight,
+    targeting: parseAdTargeting(a.targeting),
+  };
+}
+
+function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone, slots }:
+  { tenantId: string; pending: boolean; run: RunFn; mode?: "create" | "edit"; initial?: CreateAdInput; adId?: string; onDone?: () => void; slots?: AdSlotType[] }) {
+  const slotOptions = slots && slots.length > 0 ? slots : SLOTS;
+  const [slot, setSlot] = useState<AdSlotType>(initial?.slot_type ?? "hero");
+  const [form, setForm] = useState<CreateAdInput>(initial ?? {
     name: "", slot_type: "hero",
     creativeJson: JSON.stringify(CREATIVE_TEMPLATES.hero, null, 2),
     click_url: "", pricing_model: "cpm", rate_cents: 500, budget_cents: 5000, weight: 1,
@@ -411,11 +422,16 @@ function CreateAdCard({ tenantId, pending, run }:
   const set = (patch: Partial<CreateAdInput>) => setForm((f) => ({ ...f, ...patch }));
   const setT = (patch: Partial<NonNullable<CreateAdInput["targeting"]>>) =>
     setForm((f) => ({ ...f, targeting: { ...(f.targeting ?? {}), ...patch } }));
-  const onSlot = (s: AdSlotType) => { setSlot(s); set({ slot_type: s, creativeJson: JSON.stringify(CREATIVE_TEMPLATES[s], null, 2) }); };
+  // Edit mode: changing slot keeps the existing creative (don't overwrite it).
+  const onSlot = (s: AdSlotType) => {
+    setSlot(s);
+    if (mode === "edit") set({ slot_type: s });
+    else set({ slot_type: s, creativeJson: JSON.stringify(CREATIVE_TEMPLATES[s], null, 2) });
+  };
 
   return (
     <div className={card}>
-      <h3 className="text-base font-semibold text-neutral-900">New ad</h3>
+      <h3 className="text-base font-semibold text-neutral-900">{mode === "edit" ? "Edit ad" : "New ad"}</h3>
       <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className={label}>Name</label>
@@ -424,7 +440,7 @@ function CreateAdCard({ tenantId, pending, run }:
         <div>
           <label className={label}>Slot</label>
           <select className={input} value={slot} onChange={(e) => onSlot(e.target.value as AdSlotType)}>
-            {SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
+            {slotOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div className="md:col-span-2">
@@ -507,10 +523,54 @@ function CreateAdCard({ tenantId, pending, run }:
           </p>
         </div>
       </div>
-      <button className={btn + " mt-4"} disabled={pending || !form.name.trim()}
-        onClick={() => run(() => createAdAction(tenantId, form))}>
-        Create ad
-      </button>
+      <div className="mt-4 flex gap-2">
+        <button className={btn} disabled={pending || !form.name.trim()}
+          onClick={() => {
+            if (mode === "edit" && adId) { run(() => editAdAction(tenantId, adId, form)); onDone?.(); }
+            else run(() => createAdAction(tenantId, form));
+          }}>
+          {mode === "edit" ? "Save changes" : "Create ad"}
+        </button>
+        {mode === "edit" && onDone && (
+          <button className={btnGhost} onClick={onDone}>Cancel</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SlotsCard({ tenantId, initial, pending, run }:
+  { tenantId: string; initial: AdsOverview; pending: boolean; run: RunFn }) {
+  const active = new Set(initial.activeSlots);
+  const toggle = (s: AdSlotType) => {
+    const next = new Set(active);
+    if (next.has(s)) next.delete(s); else next.add(s);
+    run(() => setAdSlotsAction(tenantId, SLOTS.filter((x) => next.has(x))));
+  };
+  return (
+    <div className={card}>
+      <h3 className="text-base font-semibold text-neutral-900">Slots</h3>
+      <p className="mt-1 text-sm text-neutral-600 max-w-2xl">
+        Which adaptive slot types your account offers to publishers. Only enabled slots appear in the
+        embed code and can hold ads. These are the same six adaptive slots the platform personalises —
+        here they are filled with your ads instead.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {SLOTS.map((s) => {
+          const on = active.has(s);
+          return (
+            <button key={s} type="button" disabled={pending} onClick={() => toggle(s)}
+              className={"rounded-full border px-3 py-1.5 text-sm capitalize " + (on
+                ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                : "border-neutral-300 text-neutral-500 hover:bg-neutral-50")}>
+              {on ? "✓ " : ""}{s}
+            </button>
+          );
+        })}
+      </div>
+      {active.size === 0 && (
+        <p className="mt-2 text-xs text-amber-700">No slots enabled — publishers have nothing to embed and no ads will serve.</p>
+      )}
     </div>
   );
 }
@@ -518,6 +578,7 @@ function CreateAdCard({ tenantId, pending, run }:
 function AdsListCard({ tenantId, initial, pending, run }:
   { tenantId: string; initial: AdsOverview; pending: boolean; run: RunFn }) {
   const statFor = (id: string) => initial.stats.find((s) => s.ad_id === id);
+  const [editId, setEditId] = useState<string | null>(null);
   return (
     <div className={card}>
       <h3 className="text-base font-semibold text-neutral-900">Ads</h3>
@@ -535,7 +596,8 @@ function AdsListCard({ tenantId, initial, pending, run }:
             {initial.ads.map((a) => {
               const s = statFor(a.id);
               return (
-                <tr key={a.id} className="border-b border-neutral-50">
+                <Fragment key={a.id}>
+                <tr className="border-b border-neutral-50">
                   <td className="py-2 pr-3 font-medium">{a.name}</td>
                   <td className="pr-3">{a.slot_type}</td>
                   <td className="pr-3">{a.pricing_model.toUpperCase()} {euros(a.rate_cents)}</td>
@@ -550,13 +612,27 @@ function AdsListCard({ tenantId, initial, pending, run }:
                     </span>
                   </td>
                   <td className="text-right">
-                    {a.status === "active"
-                      ? <button className={btnGhost} disabled={pending} onClick={() => run(() => setAdStatusAction(tenantId, a.id, "paused"))}>Pause</button>
-                      : a.status === "paused"
-                      ? <button className={btnGhost} disabled={pending} onClick={() => run(() => setAdStatusAction(tenantId, a.id, "active"))}>Resume</button>
-                      : null}
+                    <div className="inline-flex gap-1.5">
+                      <button className={btnGhost} onClick={() => setEditId(editId === a.id ? null : a.id)}>
+                        {editId === a.id ? "Close" : "Edit"}
+                      </button>
+                      {a.status === "active"
+                        ? <button className={btnGhost} disabled={pending} onClick={() => run(() => setAdStatusAction(tenantId, a.id, "paused"))}>Pause</button>
+                        : a.status === "paused"
+                        ? <button className={btnGhost} disabled={pending} onClick={() => run(() => setAdStatusAction(tenantId, a.id, "active"))}>Resume</button>
+                        : null}
+                    </div>
                   </td>
                 </tr>
+                {editId === a.id && (
+                  <tr>
+                    <td colSpan={8} className="bg-neutral-50/60 p-3">
+                      <AdForm tenantId={tenantId} pending={pending} run={run}
+                        mode="edit" adId={a.id} initial={adToForm(a)} onDone={() => setEditId(null)} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
