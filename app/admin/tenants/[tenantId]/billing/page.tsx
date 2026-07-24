@@ -643,6 +643,7 @@ export default async function TenantBillingPage({
   if (tenant?.tenantRole === "advertiser" && String(sp["full"] ?? "") !== "1") {
     let topup: "success" | "already" | "cancelled" | null = null;
     let advBalance = currentBalance;
+    let advLedger  = walletLedger;
     const topupParam = String(sp["topup"] ?? "");
     if (topupParam === "cancelled") {
       topup = "cancelled";
@@ -652,9 +653,15 @@ export default async function TenantBillingPage({
         const res = await confirmAdTopUpAction(tenantId, csid);
         if (res.ok) {
           topup = res.alreadyCredited ? "already" : "success";
-          // Re-read the balance so the just-credited amount shows immediately.
-          const w = await getWalletState(client, tenantId).catch(() => null);
+          // The credit lands after walletState/walletLedger were read above, so
+          // re-read both — otherwise the balance and the transactions list would
+          // still show pre-top-up values until the next page load.
+          const [w, freshLedger] = await Promise.all([
+            getWalletState(client, tenantId).catch(() => null),
+            getWalletLedger(client, tenantId, ledgerPageSize, 0).catch(() => null),
+          ]);
           if (w) advBalance = (w.balance ?? w.balance_cents ?? 0) as number;
+          if (freshLedger) advLedger = freshLedger;
         }
       }
     }
@@ -663,7 +670,7 @@ export default async function TenantBillingPage({
         tenantId={tenantId}
         balanceCents={advBalance}
         spendThisMonthCents={spendThisMonth}
-        ledger={walletLedger as unknown as Parameters<typeof AdvertiserBilling>[0]["ledger"]}
+        ledger={advLedger as unknown as Parameters<typeof AdvertiserBilling>[0]["ledger"]}
         topup={topup}
       />
     );

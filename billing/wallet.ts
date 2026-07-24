@@ -525,19 +525,36 @@ export async function creditWallet(
   });
 
   if (error) {
-    // ── 22P02: RPC p_amount_cents is still INTEGER (pre-migration-095) ──────────
+    // ── When to fall back to direct table writes ────────────────────────────────
     //
-    // The credit_wallet RPC was defined with p_amount_cents INTEGER in migration
-    // 094.  Decimal amounts (e.g. 0.4) cause Postgres to raise
-    // "invalid input syntax for type integer".
+    // Two distinct RPC failures both mean "the deployed credit_wallet function
+    // can't service this call" — and in both cases a direct write produces the
+    // correct ledger row + balance, so we degrade to that instead of failing:
     //
-    // Fall back to direct table writes so decimal admin adjustments work
-    // immediately.  Migration 095 upgrades the RPC to NUMERIC, at which point
-    // this branch is never reached.
-    if (error.code === "22P02") {
+    //   • 22P02 — the RPC still has p_amount_cents INTEGER (pre-migration-095),
+    //     so decimal amounts (e.g. 0.4) raise "invalid input syntax for integer".
+    //
+    //   • PGRST202 / 42883 — the deployed RPC signature does not match the
+    //     parameters we send. Production drifted: migrations 092/095 rewrote
+    //     credit_wallet to (p_reference, p_credit_type), but this code calls it
+    //     with the richer (p_reference_type, p_reference_id, p_category) shape
+    //     the wallet_ledger table actually has. PostgREST then reports "could
+    //     not find the function … in the schema cache" and no credit lands.
+    //     The direct-write path writes reference_type/reference_id/category
+    //     correctly, so top-ups, bundle purchases and refunds keep working.
+    //
+    // The proper long-term fix is a migration that realigns the RPC signature
+    // with the table + this code; until then the fallback keeps credits correct.
+    const message  = error.message ?? "";
+    const fnMissing =
+      error.code === "PGRST202" ||
+      error.code === "42883" ||
+      (/function/i.test(message) && /(does not exist|could not find|no function)/i.test(message));
+
+    if (error.code === "22P02" || fnMissing) {
       console.warn(
-        `[billing/wallet] creditWallet: 22P02 INTEGER cast error for decimal amount ${amountCents} — ` +
-        `using direct-write fallback (run supabase db push to apply migration 095 and fix permanently)`,
+        `[billing/wallet] creditWallet: RPC unavailable (code=${error.code ?? "?"}) for amount ${amountCents} — ` +
+        `using direct-write fallback. Realign the credit_wallet RPC signature to fix permanently.`,
       );
       return _creditWalletDirectFallback(
         client, tenantId, amountCents, entryType, referenceType, referenceId, note, category,
