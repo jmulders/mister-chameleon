@@ -105,6 +105,7 @@ import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
+import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -405,6 +406,11 @@ export async function POST(request: NextRequest) {
       company:     adCompany,
     };
 
+    // Record this ad-audience session into the tenant's own GA4 (Measurement
+    // Protocol), keyed by our visitor_id, so returning visitors can be enriched
+    // from GA4 later. No-op unless GA4 server tracking is configured. Fire-and-forget.
+    if (adSessionId) void writeAdGa4Event(tenant.ga4, adSessionId, { page: context.path ?? null, publisher: adOriginHost });
+
     // Advanced rule targeting: build a COST-SAFE decision context — no
     // stagedEnrichers, so buildDecisionContext uses stub providers and makes no
     // paid enrichment calls; header geo is free and the company we already
@@ -426,7 +432,12 @@ export async function POST(request: NextRequest) {
             "x-vercel-ip-city":           request.headers.get("x-vercel-ip-city") ?? "",
           },
         });
-        const ruleHistory = await fetchVisitorHistory(adSessionId, tenantId).catch(() => emptyHistory());
+        // GA4 history (read from the tenant's own GA4) — no-op unless configured.
+        // Seeded so advanced rules can target ga4.* fields. Cost-free (GA4 Data API).
+        const [ruleHistory, adGa4History] = await Promise.all([
+          fetchVisitorHistory(adSessionId, tenantId).catch(() => emptyHistory()),
+          resolveAdGa4History(tenant.ga4, adSessionId),
+        ]);
         adRuleCtx = await buildDecisionContext({
           request:     ruleRequest,
           history:     ruleHistory,
@@ -436,6 +447,7 @@ export async function POST(request: NextRequest) {
           sessionId:   adSessionId,
           timezone:    tenant.timezone ?? null,
           seedEnrichment: {
+            ...adGa4History,
             countryCode:     audience.country ?? undefined,
             region:          audience.region ?? undefined,
             companyName:     audience.company?.name ?? undefined,
