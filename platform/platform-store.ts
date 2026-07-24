@@ -2231,5 +2231,9 @@ export async function getPlatformAdPricingSettings(): Promise<SettingsResult<Pla
 export async function savePlatformAdPricingSettings(
   patch: PlatformAdPricingSettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  return writeSection(KEYS.adPricing, patch);
+  const normalized: Record<string, unknown> = {
+    ...(patch.cpmCents !== undefined ? { cpmCents: patch.cpmCents } : {}),
+    ...(patch.cpcCents !== undefined ? { cpcCents: patch.cpcCents } : {}),
+  };
+  return writeSection<Record<string, unknown>>(KEYS.adPricing, normalized);
 }
