@@ -102,7 +102,9 @@ import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
-import { fetchAdAudience }            from "@/lib/ads/serve";
+import { fetchAdAudience, tenantHasFirmographicAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
+import type { AdAudience }            from "@/lib/ads/targeting";
+import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -355,7 +357,7 @@ export async function POST(request: NextRequest) {
     // Build the behavioural audience (prior interest/journey) and record this
     // pageview in parallel — neither blocks the other. The audience reflects
     // history up to (not including) this view; this view feeds the next one.
-    const [audience] = await Promise.all([
+    const [behav] = await Promise.all([
       fetchAdAudience(tenantId, adSessionId),
       adSessionId
         ? recordJourneyEvent({
@@ -374,6 +376,34 @@ export async function POST(request: NextRequest) {
           }).catch(() => false)
         : Promise.resolve(false),
     ]);
+
+    // Attach free geo (Vercel request headers) so geo targeting works even for
+    // visitors without a behavioural profile.
+    const adGeo = await new HeadersGeoProvider(request.headers).lookup(null);
+
+    // Firmographic company (IP→company) — opt-in and gated: only when the tenant
+    // runs a firmographic-targeted ad, from an approved publisher, with wallet
+    // balance. resolveAdCompany caches per visitor/day and is a no-op (null, no
+    // cost) unless a Leadinfo key is configured. Skips the whole path otherwise.
+    let adCompany: Awaited<ReturnType<typeof resolveAdCompany>> = null;
+    if (adSessionId && adOriginHost && await tenantHasFirmographicAd(tenantId)) {
+      if (await isPublisherApproved(tenantId, adOriginHost) && await isWalletServable(tenantId)) {
+        const adIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+          ?? request.headers.get("x-real-ip") ?? null;
+        adCompany = await resolveAdCompany(tenantId, adSessionId, adIp, adOriginHost);
+      }
+    }
+
+    const audience: AdAudience = {
+      keywords:    behav?.keywords ?? [],
+      funnelStage: behav?.funnelStage ?? "awareness",
+      pageviews:   behav?.pageviews ?? 0,
+      returning:   behav?.returning ?? false,
+      hasProfile:  !!behav,
+      country:     adGeo.countryCode ?? null,
+      region:      adGeo.region ?? null,
+      company:     adCompany,
+    };
 
     const adSlots: SlotMap = adBlockKeys.length > 0
       ? await serveAds({

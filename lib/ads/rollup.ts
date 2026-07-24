@@ -38,22 +38,32 @@ async function billProfilingCharges(
   try {
     const { data: charges } = await db
       .from("ad_profiling_charges")
-      .select("id, ad_tenant_id, fee_cents")
+      .select("id, ad_tenant_id, kind, fee_cents")
       .eq("billed", false)
       .limit(limit);
-    const rows = (charges ?? []) as { id: string; ad_tenant_id: string; fee_cents: number }[];
+    const rows = (charges ?? []) as { id: string; ad_tenant_id: string; kind: string; fee_cents: number }[];
     if (rows.length === 0) return 0;
 
-    const perTenant = new Map<string, number>();
-    for (const c of rows) perTenant.set(c.ad_tenant_id, (perTenant.get(c.ad_tenant_id) ?? 0) + Number(c.fee_cents ?? 0));
-    for (const [tid, cents] of perTenant) {
+    // Group by (tenant, kind) so each fee kind hits the ledger with its own
+    // reference_type (ad_profiling / ad_geo).
+    const perKey = new Map<string, { tenantId: string; kind: string; cents: number }>();
+    for (const c of rows) {
+      const key = `${c.ad_tenant_id}|${c.kind}`;
+      const e = perKey.get(key) ?? { tenantId: c.ad_tenant_id, kind: c.kind, cents: 0 };
+      e.cents += Number(c.fee_cents ?? 0);
+      perKey.set(key, e);
+    }
+    for (const { tenantId, kind, cents } of perKey.values()) {
       if (cents <= 0) continue;
+      const ref = kind === "geo" ? "ad_geo"
+        : kind === "firmographic" ? "ad_firmographic"
+        : "ad_profiling";
       try {
-        const res = await debitWallet(getDb(), tid, cents, "ad_profiling");
+        const res = await debitWallet(getDb(), tenantId, cents, ref);
         if (res.success) debited += cents;
-        else logger.warn("[ads] rollup profiling debit not applied", { tenantId: tid, cents, error: res.error });
+        else logger.warn("[ads] rollup charge debit not applied", { tenantId, kind, cents, error: res.error });
       } catch (err) {
-        logger.warn("[ads] rollup profiling debit threw", { tenantId: tid, error: String(err) });
+        logger.warn("[ads] rollup charge debit threw", { tenantId, kind, error: String(err) });
       }
     }
     await db.from("ad_profiling_charges").update({ billed: true }).in("id", rows.map((r) => r.id));
