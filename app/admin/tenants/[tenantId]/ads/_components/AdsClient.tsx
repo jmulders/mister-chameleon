@@ -104,7 +104,12 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
           return s.length > 0 ? s : SLOTS;
         })()}
       />
-      <ReportCard report={initial.report} />
+      <ReportCard
+        report={initial.report}
+        pendingImpressions={initial.pendingImpressions}
+        pendingClicks={initial.pendingClicks}
+        pendingSpendCents={initial.pendingSpendCents}
+      />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <CreateAdCard tenantId={tenantId} pending={pending} run={run} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
@@ -123,7 +128,12 @@ function Stat({ label: text, value }: { label: string; value: string }) {
   );
 }
 
-function ReportCard({ report }: { report: DayReport[] }) {
+function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pendingSpendCents = 0 }: {
+  report: DayReport[];
+  pendingImpressions?: number;
+  pendingClicks?: number;
+  pendingSpendCents?: number;
+}) {
   const totals = report.reduce(
     (t, d) => ({ impressions: t.impressions + d.impressions, clicks: t.clicks + d.clicks, spend_cents: t.spend_cents + d.spend_cents }),
     { impressions: 0, clicks: 0, spend_cents: 0 },
@@ -132,16 +142,31 @@ function ReportCard({ report }: { report: DayReport[] }) {
   const maxImpr = Math.max(1, ...report.map((d) => d.impressions));
   const W = 720, H = 140, pad = 8;
   const bw = report.length > 0 ? (W - pad * 2) / report.length : 0;
+  const hasPending = pendingImpressions > 0 || pendingClicks > 0 || pendingSpendCents > 0;
 
   return (
     <div className={card}>
-      <h3 className="text-base font-semibold text-neutral-900">Performance (30 days)</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-neutral-900">Performance (30 days)</h3>
+        {hasPending && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+            <span className="size-1.5 rounded-full bg-amber-500"></span>
+            {pendingImpressions.toLocaleString()} impressies · {euros(pendingSpendCents)} nog niet afgerekend
+          </span>
+        )}
+      </div>
       <div className="mt-3 flex flex-wrap gap-8">
         <Stat label="Impressions" value={totals.impressions.toLocaleString()} />
         <Stat label="Clicks" value={totals.clicks.toLocaleString()} />
         <Stat label="CTR" value={ctr.toFixed(2) + "%"} />
         <Stat label="Spend" value={euros(totals.spend_cents)} />
       </div>
+      {hasPending && (
+        <p className="mt-2 text-xs text-neutral-400">
+          Cijfers zijn live: pas-geregistreerde impressies tellen direct mee. De spend hiervan
+          ({euros(pendingSpendCents)}) wordt bij de eerstvolgende afreken-rollup van de wallet afgeschreven.
+        </p>
+      )}
 
       {report.length === 0 ? (
         <p className="mt-4 text-sm text-neutral-400">No data yet — impressions appear after the first served ad.</p>
