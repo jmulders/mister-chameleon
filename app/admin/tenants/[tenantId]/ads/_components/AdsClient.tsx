@@ -113,6 +113,8 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         pendingImpressions={initial.pendingImpressions}
         pendingClicks={initial.pendingClicks}
         pendingSpendCents={initial.pendingSpendCents}
+        profilingSpentCents={initial.profilingSpentCents}
+        pendingProfilingCents={initial.pendingProfilingCents}
       />
       <SessionsCard tenantId={tenantId} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
@@ -233,11 +235,13 @@ function SessionsCard({ tenantId }: { tenantId: string }) {
   );
 }
 
-function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pendingSpendCents = 0 }: {
+function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pendingSpendCents = 0, profilingSpentCents = 0, pendingProfilingCents = 0 }: {
   report: DayReport[];
   pendingImpressions?: number;
   pendingClicks?: number;
   pendingSpendCents?: number;
+  profilingSpentCents?: number;
+  pendingProfilingCents?: number;
 }) {
   const totals = report.reduce(
     (t, d) => ({ impressions: t.impressions + d.impressions, clicks: t.clicks + d.clicks, spend_cents: t.spend_cents + d.spend_cents }),
@@ -247,7 +251,10 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
   const maxImpr = Math.max(1, ...report.map((d) => d.impressions));
   const W = 720, H = 140, pad = 8;
   const bw = report.length > 0 ? (W - pad * 2) / report.length : 0;
-  const hasPending = pendingImpressions > 0 || pendingClicks > 0 || pendingSpendCents > 0;
+  const profilingTotal = profilingSpentCents + pendingProfilingCents;
+  const pendingTotalCents = pendingSpendCents + pendingProfilingCents;
+  const hasProfiling = profilingTotal > 0;
+  const hasPending = pendingImpressions > 0 || pendingClicks > 0 || pendingTotalCents > 0;
 
   return (
     <div className={card}>
@@ -256,7 +263,7 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
         {hasPending && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
             <span className="size-1.5 rounded-full bg-amber-500"></span>
-            {pendingImpressions.toLocaleString()} impressies · {euros(pendingSpendCents)} nog niet afgerekend
+            {euros(pendingTotalCents)} nog niet afgerekend
           </span>
         )}
       </div>
@@ -264,12 +271,14 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
         <Stat label="Impressions" value={totals.impressions.toLocaleString()} />
         <Stat label="Clicks" value={totals.clicks.toLocaleString()} />
         <Stat label="CTR" value={ctr.toFixed(2) + "%"} />
-        <Stat label="Spend" value={euros(totals.spend_cents)} />
+        <Stat label="Ad spend" value={euros(totals.spend_cents)} />
+        {hasProfiling && <Stat label="Profiling fees" value={euros(profilingTotal)} />}
       </div>
       {hasPending && (
         <p className="mt-2 text-xs text-neutral-400">
-          Cijfers zijn live: pas-geregistreerde impressies tellen direct mee. De spend hiervan
-          ({euros(pendingSpendCents)}) wordt bij de eerstvolgende afreken-rollup van de wallet afgeschreven.
+          Cijfers zijn live. Nog niet afgerekend: {euros(pendingSpendCents)} ad-spend
+          {pendingProfilingCents > 0 ? ` + ${euros(pendingProfilingCents)} profiling` : ""} —
+          dit wordt bij de eerstvolgende afreken-rollup van de wallet afgeschreven.
         </p>
       )}
 

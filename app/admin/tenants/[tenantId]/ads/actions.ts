@@ -45,6 +45,10 @@ export interface AdsOverview {
   pendingClicks:      number;
   /** Spend those pending events represent, in cents (will be debited on rollup). */
   pendingSpendCents:  number;
+  /** Settled behavioural-targeting profiling fees (last 30 days), in cents. */
+  profilingSpentCents:   number;
+  /** Profiling fees recorded but not yet billed, in cents. */
+  pendingProfilingCents: number;
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -118,6 +122,24 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     }
   } catch { /* pending layer is best-effort — never break the report */ }
 
+  // ── Profiling fees (behavioural targeting) ─────────────────────────────────
+  // Settled fees come from the wallet ledger (reference_type "ad_profiling",
+  // last 30 days); pending fees are unbilled ad_profiling_charges rows.
+  let profilingSpentCents = 0, pendingProfilingCents = 0;
+  try {
+    const sinceIso = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const [{ data: ledger }, { data: charges }] = await Promise.all([
+      db().from("wallet_ledger").select("amount, amount_cents")
+        .eq("tenant_id", tenantId).eq("reference_type", "ad_profiling").gte("created_at", sinceIso),
+      db().from("ad_profiling_charges").select("fee_cents")
+        .eq("ad_tenant_id", tenantId).eq("billed", false),
+    ]);
+    for (const r of (ledger ?? []) as { amount: number | null; amount_cents: number | null }[]) {
+      profilingSpentCents += Math.abs(Number(r.amount ?? r.amount_cents ?? 0));
+    }
+    for (const c of (charges ?? []) as { fee_cents: number }[]) pendingProfilingCents += Number(c.fee_cents ?? 0);
+  } catch { /* best-effort */ }
+
   return {
     isAdvertiser,
     siteKey,
@@ -129,6 +151,8 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     pendingImpressions,
     pendingClicks,
     pendingSpendCents: Math.round(pendingSpendCents),
+    profilingSpentCents: Math.round(profilingSpentCents),
+    pendingProfilingCents: Math.round(pendingProfilingCents),
   };
 }
 
