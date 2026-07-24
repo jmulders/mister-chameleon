@@ -14,6 +14,8 @@
 import { renderBlockHtml }        from "@/lib/snippet/render-block-html";
 import { matchesTargeting, parseAdTargeting, usesBehaviouralTargeting, usesGeoTargeting } from "./targeting";
 import type { AdAudience }        from "./targeting";
+import { evaluateCondition }      from "@/decision/rules/stored-rule";
+import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { PROFILING_FEE_CENTS, GEO_FEE_CENTS } from "./pricing";
 import type { SlotMap, BlockSlot } from "@/lib/snippet/decide-response";
 import { logger }                 from "@/lib/logger";
@@ -69,6 +71,8 @@ export interface ServeAdsArgs {
   sessionId:    string | null;  // visitor mc_vid
   /** Behavioural profile for targeting (null = no profile → targeted ads skip). */
   audience?:    AdAudience | null;
+  /** Cost-safe rule-evaluation context (built only when a rule-targeted ad exists). */
+  ruleCtx?:     RuleEvaluationContext | null;
   tokens?:      Record<string, string>;
 }
 
@@ -98,7 +102,14 @@ export async function serveAds(args: ServeAdsArgs): Promise<SlotMap> {
       const targeting = parseAdTargeting(ad.targeting);
       if (usesBehaviouralTargeting(targeting) && args.audience?.hasProfile) profiledVisitor = true;
       if (usesGeoTargeting(targeting) && args.audience?.country) geoUsed = true;
-      return matchesTargeting(targeting, args.audience ?? null);
+      if (!matchesTargeting(targeting, args.audience ?? null)) return false;
+      // Advanced rule: AND-combined. Fail closed if we couldn't build a context.
+      if (targeting.rule) {
+        if (!args.ruleCtx) return false;
+        try { if (!evaluateCondition(targeting.rule, args.ruleCtx)) return false; }
+        catch { return false; }
+      }
+      return true;
     };
 
     for (const slotType of args.blockKeys) {

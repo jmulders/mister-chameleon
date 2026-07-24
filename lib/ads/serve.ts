@@ -12,7 +12,7 @@ import { getWallet } from "@/billing/wallet";
 import { logger }    from "@/lib/logger";
 import type { Ad, AdEventType } from "./types";
 import type { AdAudience, AdFunnelStage } from "./targeting";
-import { anyFirmographicAd } from "./targeting";
+import { anyFirmographicAd, anyRuleAd } from "./targeting";
 import { FIRMOGRAPHIC_FEE_CENTS } from "./pricing";
 import { LeadinfoProvider } from "@/enrichment/providers/leadinfo";
 import { getPlatformEnrichmentSettings } from "@/platform/platform-store";
@@ -58,6 +58,16 @@ export async function tenantHasFirmographicAd(tenantId: string): Promise<boolean
   try {
     const { data } = await db().from("ads").select("targeting").eq("ad_tenant_id", tenantId).eq("status", "active");
     return anyFirmographicAd((data ?? []) as { targeting: unknown }[]);
+  } catch {
+    return false;
+  }
+}
+
+/** True when the tenant has an active ad that carries an advanced RuleCondition. */
+export async function tenantHasRuleAd(tenantId: string): Promise<boolean> {
+  try {
+    const { data } = await db().from("ads").select("targeting").eq("ad_tenant_id", tenantId).eq("status", "active");
+    return anyRuleAd((data ?? []) as { targeting: unknown }[]);
   } catch {
     return false;
   }

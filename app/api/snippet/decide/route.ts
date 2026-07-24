@@ -102,7 +102,7 @@ import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
-import { fetchAdAudience, tenantHasFirmographicAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
+import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
@@ -405,6 +405,47 @@ export async function POST(request: NextRequest) {
       company:     adCompany,
     };
 
+    // Advanced rule targeting: build a COST-SAFE decision context — no
+    // stagedEnrichers, so buildDecisionContext uses stub providers and makes no
+    // paid enrichment calls; header geo is free and the company we already
+    // resolved is seeded. Only built when the tenant runs a rule-targeted ad.
+    let adRuleCtx: Awaited<ReturnType<typeof buildDecisionContext>> | null = null;
+    if (adSessionId && await tenantHasRuleAd(tenantId)) {
+      try {
+        const ruleUrl = new URL(`https://${adOriginHost ?? "publisher"}${context.path ?? "/"}`);
+        if (context.utm_source)   ruleUrl.searchParams.set("utm_source",   context.utm_source);
+        if (context.utm_medium)   ruleUrl.searchParams.set("utm_medium",   context.utm_medium);
+        if (context.utm_campaign) ruleUrl.searchParams.set("utm_campaign", context.utm_campaign);
+        const ruleRequest = new Request(ruleUrl.toString(), {
+          headers: {
+            "referer":                    context.referrer ?? "",
+            "user-agent":                 request.headers.get("user-agent") ?? "",
+            "x-forwarded-for":            request.headers.get("x-forwarded-for") ?? "",
+            "x-vercel-ip-country":        request.headers.get("x-vercel-ip-country") ?? "",
+            "x-vercel-ip-country-region": request.headers.get("x-vercel-ip-country-region") ?? "",
+            "x-vercel-ip-city":           request.headers.get("x-vercel-ip-city") ?? "",
+          },
+        });
+        const ruleHistory = await fetchVisitorHistory(adSessionId, tenantId).catch(() => emptyHistory());
+        adRuleCtx = await buildDecisionContext({
+          request:     ruleRequest,
+          history:     ruleHistory,
+          tenantId,
+          templateKey: context.path ?? "/",
+          pageType:    null,
+          sessionId:   adSessionId,
+          timezone:    tenant.timezone ?? null,
+          seedEnrichment: {
+            countryCode:     audience.country ?? undefined,
+            region:          audience.region ?? undefined,
+            companyName:     audience.company?.name ?? undefined,
+            companyIndustry: audience.company?.industry ?? undefined,
+            companySize:     audience.company?.size ?? undefined,
+          },
+        });
+      } catch { adRuleCtx = null; }
+    }
+
     const adSlots: SlotMap = adBlockKeys.length > 0
       ? await serveAds({
           tenantId,
@@ -413,6 +454,7 @@ export async function POST(request: NextRequest) {
           platformBase: new URL(request.url).origin,
           sessionId:    adSessionId,
           audience,
+          ruleCtx:      adRuleCtx,
           tokens:       adTokens,
         })
       : {};

@@ -10,6 +10,8 @@
  * audience profile; without one it is not served.
  */
 
+import type { RuleCondition } from "@/decision/rules/stored-rule";
+
 export type AdFunnelStage =
   | "awareness" | "consideration" | "intent" | "high_intent" | "customer";
 
@@ -33,6 +35,12 @@ export interface AdTargeting {
   industries?: string[];
   /** Firmographic: company size buckets to allow (e.g. "51-200"). */
   companySizes?: string[];
+  /**
+   * Advanced: a full decision-engine RuleCondition tree (AND/OR/NOT over the
+   * platform's rule fields). Evaluated in serveAds against a cost-safe context
+   * built from the AdAudience. AND-combined with the simple dimensions above.
+   */
+  rule?: RuleCondition;
 }
 
 /** The visitor's profile: behavioural (visitor_behavior_state) + geo (headers). */
@@ -72,9 +80,15 @@ export function usesFirmographicTargeting(t: AdTargeting | null | undefined): bo
     || (Array.isArray(t.companySizes) && t.companySizes.length > 0);
 }
 
+/** True when a spec carries an advanced RuleCondition tree. */
+export function usesRuleTargeting(t: AdTargeting | null | undefined): boolean {
+  return !!t && !!t.rule && typeof t.rule === "object" && "type" in (t.rule as object);
+}
+
 /** True when a targeting spec imposes no constraints (show to everyone). */
 export function isUntargeted(t: AdTargeting | null | undefined): boolean {
-  return !usesBehaviouralTargeting(t) && !usesGeoTargeting(t) && !usesFirmographicTargeting(t);
+  return !usesBehaviouralTargeting(t) && !usesGeoTargeting(t)
+    && !usesFirmographicTargeting(t) && !usesRuleTargeting(t);
 }
 
 /**
@@ -143,6 +157,11 @@ export function anyFirmographicAd(ads: ReadonlyArray<{ targeting: unknown }>): b
   return ads.some((a) => usesFirmographicTargeting(parseAdTargeting(a.targeting)));
 }
 
+/** True when any of these ads carries an advanced RuleCondition (drives context build). */
+export function anyRuleAd(ads: ReadonlyArray<{ targeting: unknown }>): boolean {
+  return ads.some((a) => usesRuleTargeting(parseAdTargeting(a.targeting)));
+}
+
 /** Defensively parse an ads.targeting jsonb value into a typed AdTargeting. */
 export function parseAdTargeting(raw: unknown): AdTargeting {
   if (!raw || typeof raw !== "object") return {};
@@ -174,6 +193,11 @@ export function parseAdTargeting(raw: unknown): AdTargeting {
   if (Array.isArray(r.companySizes)) {
     const sz = r.companySizes.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean);
     if (sz.length > 0) out.companySizes = sz;
+  }
+  // Advanced rule: pass through when it looks like a RuleCondition node.
+  // Structural validation happens at evaluation time (evaluateCondition).
+  if (r.rule && typeof r.rule === "object" && "type" in (r.rule as object)) {
+    out.rule = r.rule as RuleCondition;
   }
   return out;
 }
