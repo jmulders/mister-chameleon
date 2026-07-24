@@ -10,7 +10,7 @@ import {
   type AdTargeting, type AdAudience,
 } from "../../lib/ads/targeting.ts";
 
-const RULE = { type: "field", field: "geo.countryCode", operator: "equals", value: "NL" } as const;
+const RULE = { type: "field", field: "countryCode", operator: "equals", value: "NL" } as const;
 
 function aud(over: Partial<AdAudience> = {}): AdAudience {
   return { keywords: [], funnelStage: "awareness", pageviews: 1, returning: false, hasProfile: true, country: null, region: null, company: null, ...over };

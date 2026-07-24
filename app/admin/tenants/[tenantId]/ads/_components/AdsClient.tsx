@@ -574,14 +574,14 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
             <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Advanced rule (optional)</summary>
             <p className="mt-1 text-[11px] text-neutral-400">
               A full decision-engine RuleCondition (JSON) — AND/OR/NOT over the platform's rule fields
-              (e.g. <code>journey.funnelStage</code>, <code>enrichment.companyIndustry</code>, <code>geo.countryCode</code>).
+              (e.g. <code>funnelStage</code>, <code>companyIndustry</code>, <code>countryCode</code>).
               AND-combined with the fields above. Evaluated against a cost-safe context (no extra paid lookups).
             </p>
             <textarea
               className={input + " mt-2 font-mono text-xs h-28"}
               value={ruleText}
               onChange={(e) => onRuleText(e.target.value)}
-              placeholder={'{"type":"field","field":"geo.countryCode","operator":"equals","value":"NL"}'}
+              placeholder={'{"type":"field","field":"countryCode","operator":"equals","value":"NL"}'}
             />
             {ruleError && <p className="mt-1 text-xs text-red-600">{ruleError}</p>}
           </details>
