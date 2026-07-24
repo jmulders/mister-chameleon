@@ -10,6 +10,7 @@
  */
 
 import Link from "next/link";
+import { AddFundsWidget } from "./AddFundsWidget";
 
 interface LedgerRow {
   entry_type?:     string | null;
@@ -25,12 +26,13 @@ function euros(cents: number | null | undefined): string {
 }
 
 export function AdvertiserBilling({
-  tenantId, balanceCents, spendThisMonthCents, ledger,
+  tenantId, balanceCents, spendThisMonthCents, ledger, topup,
 }: {
   tenantId: string;
   balanceCents: number;
   spendThisMonthCents: number;
   ledger: LedgerRow[];
+  topup?: "success" | "already" | "cancelled" | null;
 }) {
   const base = `/admin/tenants/${tenantId}`;
   const card = "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm";
@@ -46,6 +48,22 @@ export function AdvertiserBilling({
         </p>
       </div>
 
+      {topup === "success" && (
+        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+          Payment received — your ad budget has been topped up.
+        </div>
+      )}
+      {topup === "already" && (
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-600">
+          This top-up was already credited.
+        </div>
+      )}
+      {topup === "cancelled" && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          Top-up cancelled — no charge was made.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className={card}>
           <div className="text-xs font-semibold text-neutral-500">Wallet balance</div>
@@ -56,13 +74,18 @@ export function AdvertiserBilling({
           <div className="text-xs font-semibold text-neutral-500">Ad spend (this month)</div>
           <div className="mt-1 text-2xl font-bold text-neutral-900">{euros(spendThisMonthCents)}</div>
         </div>
-        <div className={card + " flex flex-col justify-center gap-2"}>
-          <Link href={`${base}/billing?full=1`} className="inline-flex justify-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            Top up wallet
-          </Link>
+        <div className={card + " flex flex-col justify-center"}>
           <Link href={`${base}/ads`} className="inline-flex justify-center rounded-md border border-neutral-300 px-3.5 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
             View campaigns & stats
           </Link>
+        </div>
+      </div>
+
+      <div className={card}>
+        <h3 className="text-base font-semibold text-neutral-900">Add funds</h3>
+        <p className="mt-1 text-sm text-neutral-600">Top up your ad budget. You'll be redirected to a secure Stripe checkout.</p>
+        <div className="mt-3">
+          <AddFundsWidget tenantId={tenantId} />
         </div>
       </div>
 

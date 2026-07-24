@@ -47,6 +47,7 @@ import { createClient }             from "@supabase/supabase-js";
 import { notFound }                 from "next/navigation";
 import { getTenantById }            from "@/tenant/server";
 import { AdvertiserBilling }        from "./_components/AdvertiserBilling";
+import { confirmAdTopUpAction }     from "../ads/actions";
 import { BILLING_PLANS, getResolvedCreditBundles } from "@/billing/plans";
 import { getUsageEventSummary }     from "@/billing/usage-events";
 import { calculateBillingEstimate } from "@/billing/calculator";
@@ -640,12 +641,30 @@ export default async function TenantBillingPage({
   // full subscription/enrichment dashboard. `?full=1` falls through to the
   // standard page (for the Stripe wallet top-up).
   if (tenant?.tenantRole === "advertiser" && String(sp["full"] ?? "") !== "1") {
+    let topup: "success" | "already" | "cancelled" | null = null;
+    let advBalance = currentBalance;
+    const topupParam = String(sp["topup"] ?? "");
+    if (topupParam === "cancelled") {
+      topup = "cancelled";
+    } else if (topupParam === "success") {
+      const csid = String(sp["session_id"] ?? "");
+      if (csid) {
+        const res = await confirmAdTopUpAction(tenantId, csid);
+        if (res.ok) {
+          topup = res.alreadyCredited ? "already" : "success";
+          // Re-read the balance so the just-credited amount shows immediately.
+          const w = await getWalletState(client, tenantId).catch(() => null);
+          if (w) advBalance = (w.balance ?? w.balance_cents ?? 0) as number;
+        }
+      }
+    }
     return (
       <AdvertiserBilling
         tenantId={tenantId}
-        balanceCents={currentBalance}
+        balanceCents={advBalance}
         spendThisMonthCents={spendThisMonth}
         ledger={walletLedger as unknown as Parameters<typeof AdvertiserBilling>[0]["ledger"]}
+        topup={topup}
       />
     );
   }
