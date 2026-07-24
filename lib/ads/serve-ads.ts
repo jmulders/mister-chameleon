@@ -12,8 +12,8 @@
  */
 
 import { renderBlockHtml }        from "@/lib/snippet/render-block-html";
-import { evaluateCondition }      from "@/decision/rules/stored-rule";
-import type { RuleCondition }     from "@/decision/rules/stored-rule";
+import { matchesTargeting, parseAdTargeting, isUntargeted } from "./targeting";
+import type { AdAudience }        from "./targeting";
 import type { SlotMap, BlockSlot } from "@/lib/snippet/decide-response";
 import { logger }                 from "@/lib/logger";
 import { selectAd }               from "./select-ad";
@@ -22,6 +22,7 @@ import {
   isPublisherApproved,
   isWalletServable,
   recordAdEvent,
+  recordProfilingCharge,
   hostFromOrigin,
 }                                 from "./serve";
 import type { Ad } from "./types";
@@ -65,9 +66,8 @@ export interface ServeAdsArgs {
   originHost:   string | null;  // publisher host (from Origin/Referer)
   platformBase: string;         // absolute base for the click redirect
   sessionId:    string | null;  // visitor mc_vid
-  /** Decision context for targeting (RuleEvaluationContext-compatible). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  evalCtx:      any;
+  /** Behavioural profile for targeting (null = no profile → targeted ads skip). */
+  audience?:    AdAudience | null;
   tokens?:      Record<string, string>;
 }
 
@@ -88,15 +88,15 @@ export async function serveAds(args: ServeAdsArgs): Promise<SlotMap> {
     const minuteBucket = Math.floor(Date.now() / 60_000);
     const now = new Date();
 
+    // Behavioural targeting: an ad's spec is matched against the visitor's
+    // profile. Untargeted ads serve to everyone. When we evaluate a targeted ad
+    // against a real audience we "profile" the visitor — billed once per
+    // visitor/day (recorded below).
+    let profiledVisitor = false;
     const matchTargeting = (ad: Ad): boolean => {
-      if (!args.evalCtx) return true; // targeting disabled (no decision context)
-      const t = ad.targeting as unknown;
-      if (!t || typeof t !== "object" || !("type" in (t as object))) return true; // no targeting = all
-      try {
-        return evaluateCondition(t as RuleCondition, args.evalCtx);
-      } catch {
-        return false; // malformed targeting → don't serve this ad
-      }
+      const targeting = parseAdTargeting(ad.targeting);
+      if (!isUntargeted(targeting) && args.audience) profiledVisitor = true;
+      return matchesTargeting(targeting, args.audience ?? null);
     };
 
     for (const slotType of args.blockKeys) {
@@ -129,6 +129,13 @@ export async function serveAds(args: ServeAdsArgs): Promise<SlotMap> {
         ? { mode: "block", html, tokens: args.tokens }
         : { mode: "block", html };
       slots[slotType] = slot;
+    }
+
+    // Profiling fee: if we evaluated a targeted ad against a real audience, the
+    // visitor was profiled. Record it once per visitor/day (idempotent); the
+    // billing rollup debits the advertiser wallet for new charges.
+    if (profiledVisitor && args.sessionId) {
+      void recordProfilingCharge(args.tenantId, args.sessionId, host);
     }
   } catch (err) {
     logger.warn("[ads] serveAds failed", { tenantId: args.tenantId, error: String(err) });

@@ -23,6 +23,7 @@ import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { logger } from "@/lib/logger";
 import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/types";
 import { aggregateAdBilling } from "@/lib/ads/aggregate-billing";
+import { parseAdTargeting, type AdTargeting } from "@/lib/ads/targeting";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -131,6 +132,89 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
   };
 }
 
+// ── Ad-audience sessions + journeys ───────────────────────────────────────────
+
+export interface AdSessionStep { at: string; path: string | null; keywords: string[] }
+export interface AdSession {
+  sessionId:       string;
+  publisherDomain: string | null;
+  adsSeen:         string[];   // ad names shown to this session
+  impressions:     number;
+  clicks:          number;
+  firstSeen:       string;
+  lastSeen:        string;
+  journey:         AdSessionStep[];
+}
+
+/**
+ * Recent sessions that were served ads, enriched with each session's journey.
+ * Anchors on ad_events (so only sessions that actually saw an ad appear) and
+ * folds in the page_view journey recorded for the advertiser tenant.
+ */
+export async function fetchAdSessionsAction(tenantId: string): Promise<AdSession[]> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  // 1. Recent ad events → which sessions saw which ads.
+  const { data: events } = await db()
+    .from("ad_events")
+    .select("session_id, ad_id, publisher_domain, event_type, occurred_at")
+    .eq("ad_tenant_id", tenantId)
+    .order("occurred_at", { ascending: false })
+    .limit(1000);
+  type Ev = { session_id: string | null; ad_id: string; publisher_domain: string | null; event_type: string; occurred_at: string };
+  const evRows = (events ?? []) as Ev[];
+  if (evRows.length === 0) return [];
+
+  // 2. Resolve ad names.
+  const adIds = Array.from(new Set(evRows.map((e) => e.ad_id)));
+  const { data: adRows } = await db().from("ads").select("id, name").in("id", adIds);
+  const adName = new Map<string, string>(((adRows ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]));
+
+  // 3. Fold events into per-session summaries.
+  const sessions = new Map<string, AdSession>();
+  for (const e of evRows) {
+    const sid = e.session_id;
+    if (!sid) continue;
+    const s = sessions.get(sid) ?? {
+      sessionId: sid, publisherDomain: e.publisher_domain ?? null,
+      adsSeen: [], impressions: 0, clicks: 0, firstSeen: e.occurred_at, lastSeen: e.occurred_at, journey: [],
+    };
+    if (e.event_type === "impression") s.impressions += 1;
+    else if (e.event_type === "click") s.clicks += 1;
+    const nm = adName.get(e.ad_id);
+    if (nm && !s.adsSeen.includes(nm)) s.adsSeen.push(nm);
+    if (e.occurred_at < s.firstSeen) s.firstSeen = e.occurred_at;
+    if (e.occurred_at > s.lastSeen)  s.lastSeen  = e.occurred_at;
+    if (!s.publisherDomain && e.publisher_domain) s.publisherDomain = e.publisher_domain;
+    sessions.set(sid, s);
+  }
+
+  // 4. Keep the 50 most-recently-active sessions.
+  const top = Array.from(sessions.values())
+    .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen))
+    .slice(0, 50);
+  const topIds = top.map((s) => s.sessionId);
+
+  // 5. Attach each session's journey (page_views recorded for this tenant).
+  const { data: jEvents } = await db()
+    .from("visitor_journey_events")
+    .select("session_id, occurred_at, page_path, page_keywords")
+    .eq("tenant_id", tenantId)
+    .in("session_id", topIds)
+    .order("occurred_at", { ascending: true })
+    .limit(2000);
+  type J = { session_id: string; occurred_at: string; page_path: string | null; page_keywords: string[] | null };
+  const byId = new Map(top.map((s) => [s.sessionId, s]));
+  for (const j of (jEvents ?? []) as J[]) {
+    const s = byId.get(j.session_id);
+    if (!s) continue;
+    s.journey.push({ at: j.occurred_at, path: j.page_path ?? null, keywords: j.page_keywords ?? [] });
+  }
+
+  return top;
+}
+
 export async function setAdvertiserRoleAction(tenantId: string, on: boolean): Promise<ActionResult> {
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
@@ -183,6 +267,8 @@ export interface CreateAdInput {
   rate_cents:    number;
   budget_cents:  number;
   weight:        number;
+  /** Optional behavioural targeting; empty/omitted = show to everyone. */
+  targeting?:    AdTargeting;
 }
 
 export async function createAdAction(tenantId: string, input: CreateAdInput): Promise<ActionResult> {
@@ -218,6 +304,7 @@ export async function createAdAction(tenantId: string, input: CreateAdInput): Pr
     rate_cents:    Math.max(0, input.rate_cents),
     budget_cents:  Math.max(0, input.budget_cents),
     weight:        Math.max(1, input.weight),
+    targeting:     input.targeting ? parseAdTargeting(input.targeting) : {},
     status:        "active",
     start_at:      new Date().toISOString(),
   });

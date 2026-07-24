@@ -11,9 +11,72 @@ import { getDb }     from "@/data/db";
 import { getWallet } from "@/billing/wallet";
 import { logger }    from "@/lib/logger";
 import type { Ad, AdEventType } from "./types";
+import type { AdAudience, AdFunnelStage } from "./targeting";
+import { PROFILING_FEE_CENTS } from "./pricing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
+
+const AD_FUNNEL_STAGES: AdFunnelStage[] = ["awareness", "consideration", "intent", "high_intent", "customer"];
+
+/**
+ * Build the behavioural audience profile for a visitor from visitor_behavior_state
+ * (the interest/journey signals the advertiser decide branch already records).
+ * Returns null when the visitor has no profile yet — untargeted ads still serve,
+ * targeted ones do not. Never throws.
+ */
+/**
+ * Record a behavioural-profiling charge for this visitor, deduped per calendar
+ * day via UNIQUE(ad_tenant_id, session_id, charge_date). Insert-only and
+ * idempotent — the billing rollup debits the wallet for unbilled rows. Never
+ * throws (best-effort; profiling billing must not break serving).
+ */
+export async function recordProfilingCharge(
+  tenantId: string, sessionId: string, publisherDomain: string | null,
+): Promise<void> {
+  try {
+    await db()
+      .from("ad_profiling_charges")
+      .upsert(
+        { ad_tenant_id: tenantId, session_id: sessionId, publisher_domain: publisherDomain ?? null, fee_cents: PROFILING_FEE_CENTS },
+        { onConflict: "ad_tenant_id,session_id,charge_date", ignoreDuplicates: true },
+      );
+  } catch (err) {
+    logger.warn("[ads] recordProfilingCharge failed", { tenantId, error: String(err) });
+  }
+}
+
+export async function fetchAdAudience(tenantId: string, sessionId: string | null): Promise<AdAudience | null> {
+  if (!sessionId) return null;
+  try {
+    const { data } = await db()
+      .from("visitor_behavior_state")
+      .select("funnel_stage, viewed_keywords, page_view_count, first_seen_at, last_seen_at, repeat_session_bonus")
+      .eq("tenant_id", tenantId)
+      .eq("session_id", sessionId)
+      .maybeSingle();
+    if (!data) return null;
+    const row = data as {
+      funnel_stage: string | null; viewed_keywords: string[] | null; page_view_count: number | null;
+      first_seen_at: string | null; last_seen_at: string | null; repeat_session_bonus: number | null;
+    };
+    const stage = (AD_FUNNEL_STAGES as string[]).includes(row.funnel_stage ?? "")
+      ? (row.funnel_stage as AdFunnelStage)
+      : "awareness";
+    const returning =
+      (row.repeat_session_bonus ?? 0) > 0 ||
+      (!!row.first_seen_at && !!row.last_seen_at && row.first_seen_at.slice(0, 10) !== row.last_seen_at.slice(0, 10));
+    return {
+      keywords:    row.viewed_keywords ?? [],
+      funnelStage: stage,
+      pageviews:   Number(row.page_view_count ?? 0),
+      returning,
+    };
+  } catch (err) {
+    logger.warn("[ads] fetchAdAudience failed", { tenantId, error: String(err) });
+    return null;
+  }
+}
 
 /** Normalise an Origin/Referer into a bare, www-insensitive host. */
 export function hostFromOrigin(origin: string | null): string | null {

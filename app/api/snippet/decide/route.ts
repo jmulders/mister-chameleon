@@ -102,6 +102,7 @@ import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
+import { fetchAdAudience }            from "@/lib/ads/serve";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -323,7 +324,8 @@ export async function POST(request: NextRequest) {
   //   publisher + wallet balance, inside serveAds — and bills via metered
   //   impressions/clicks, so it deliberately returns BEFORE the subscription /
   //   dunning gate below. Normal tenants (tenantRole !== "advertiser") are
-  //   completely unaffected. Targeting is off in this MVP (no evalCtx).
+  //   completely unaffected. Behavioural targeting uses the visitor's audience
+  //   profile (built below); profiling is billed per unique visitor/day.
   if (tenant.tenantRole === "advertiser") {
     const rawAdBlocks = (body as DecideRequest).blocks;
     const adBlockKeys = Array.isArray(rawAdBlocks)
@@ -333,14 +335,54 @@ export async function POST(request: NextRequest) {
     try {
       adTokens = cssDeclarationsToRecord(resolvedThemeToCSS(resolveThemeForTenant(tenant, null)));
     } catch { /* ads fall back to their own styling */ }
-    const adSlots = adBlockKeys.length > 0
+
+    const adSessionId  = normaliseVisitorId(context.sessionId) ?? normaliseVisitorId(context.visitorId);
+    const adOriginHost = hostFromOrigin(request.headers.get("origin") ?? request.headers.get("referer"));
+
+    // Capture the ad-audience journey: a page_view keyed to the ADVERTISER tenant
+    // so advertisers can see the journeys of the sessions their ads reached
+    // (page sequence + interest keywords). Behavioural capture only — no wallet
+    // cost. Runs in parallel with serving so it adds no latency to the ad
+    // response; publisher domain is stored in metadata. Targeting still off (MVP).
+    const adPageMeta = resolvePageMeta(context.path ?? "/");
+    const adKeywords = Array.from(new Set([
+      ...(Array.isArray(context.keywords)
+        ? context.keywords.map((k) => String(k).toLowerCase().trim()).filter(Boolean)
+        : []),
+      ...adPageMeta.keywords,
+    ]));
+
+    // Build the behavioural audience (prior interest/journey) and record this
+    // pageview in parallel — neither blocks the other. The audience reflects
+    // history up to (not including) this view; this view feeds the next one.
+    const [audience] = await Promise.all([
+      fetchAdAudience(tenantId, adSessionId),
+      adSessionId
+        ? recordJourneyEvent({
+            tenantId,
+            sessionId:    adSessionId,
+            visitorId:    adSessionId,
+            eventType:    "page_view",
+            pagePath:     context.path ?? "/",
+            pageCategory: adPageMeta.category ?? undefined,
+            pageKeywords: adKeywords,
+            source:       context.utm_source   ?? undefined,
+            medium:       context.utm_medium   ?? undefined,
+            campaign:     context.utm_campaign ?? undefined,
+            metadata:     { via: "ad", publisher_domain: adOriginHost ?? null },
+            eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+          }).catch(() => false)
+        : Promise.resolve(false),
+    ]);
+
+    const adSlots: SlotMap = adBlockKeys.length > 0
       ? await serveAds({
           tenantId,
           blockKeys:    adBlockKeys,
-          originHost:   hostFromOrigin(request.headers.get("origin") ?? request.headers.get("referer")),
+          originHost:   adOriginHost,
           platformBase: new URL(request.url).origin,
-          sessionId:    normaliseVisitorId(context.sessionId) ?? normaliseVisitorId(context.visitorId),
-          evalCtx:      null,
+          sessionId:    adSessionId,
+          audience,
           tokens:       adTokens,
         })
       : {};
