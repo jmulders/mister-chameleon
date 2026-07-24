@@ -14,6 +14,8 @@ import { DEV_TENANT_COOKIE }    from "@/tenant/dev-tenant-cookie";
 import { Badge }                from "@/components/ui/Badge";
 import { TenantStatusPanel }    from "@/components/admin/TenantStatusPanel";
 import { TenantReadinessChecklist } from "@/components/admin/TenantReadinessChecklist";
+import { AdvertiserOverview }      from "./_components/AdvertiserOverview";
+import { fetchAdsOverviewAction }  from "./ads/actions";
 import type { TenantSettings, PackageKey } from "@/tenant/server";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -110,6 +112,28 @@ export default async function AdminTenantOverviewPage({
   const isActive = isTenantActive(tenant);
   const initials = (tenant.name ?? tenant.tenantId).slice(0, 2).toUpperCase();
   const color    = avatarColor(tenant.tenantId);
+
+  // Advertiser tenants get a focused ad-account cockpit instead of the
+  // personalization dashboard (no site to personalize → Setup/Design/CMS/AI
+  // are noise). See AdvertiserOverview.
+  if (tenant.tenantRole === "advertiser") {
+    const ov = await fetchAdsOverviewAction(tenantId);
+    const activeCampaigns    = ov.ads.filter((a) => a.status === "active").length;
+    const approvedPublishers = ov.publishers.filter((p) => p.status === "approved").length;
+    return (
+      <AdvertiserOverview
+        tenantId={tenantId}
+        tenantName={tenant.name ?? tenant.tenantId}
+        initials={initials}
+        color={color}
+        isActive={isActive}
+        walletBalanceCents={ov.walletBalance ?? 0}
+        activeCampaigns={activeCampaigns}
+        approvedPublishers={approvedPublishers}
+        siteKey={ov.siteKey}
+      />
+    );
+  }
 
   const devActiveTenantId: string | null =
     process.env.NODE_ENV === "development"
