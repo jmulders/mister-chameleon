@@ -1,0 +1,45 @@
+name: Ad billing rollup (hourly)
+
+# ── Why this exists ──────────────────────────────────────────────────────────
+#
+# The ad-billing rollup meters unbilled ad_events → wallet debits + ad_stats_daily.
+# It already runs once a day inside /api/cron/daily, but Vercel Hobby caps crons
+# at daily frequency. This scheduled workflow calls the same endpoint hourly so
+# advertiser spend/stats settle much sooner — no Vercel plan upgrade needed.
+#
+# The rollup is idempotent (each event is marked `billed`), so extra runs are safe.
+#
+# ── Setup (one-time) ─────────────────────────────────────────────────────────
+#   Repo → Settings → Secrets and variables → Actions:
+#     • Secret  CRON_SECRET        — same value as the Vercel CRON_SECRET env var
+#     • Variable PLATFORM_BASE_URL — optional; defaults to https://www.misterchameleon.nl
+#
+# GitHub's scheduler is best-effort and can run a few minutes late under load;
+# that is fine for billing settlement.
+
+on:
+  schedule:
+    - cron: "5 * * * *"        # every hour at :05
+  workflow_dispatch: {}         # allow manual "Run workflow" from the Actions tab
+
+concurrency:
+  group: ad-billing-rollup      # never let two rollups overlap
+  cancel-in-progress: false
+
+jobs:
+  rollup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger /api/cron/ad-billing
+        env:
+          BASE:   ${{ vars.PLATFORM_BASE_URL || 'https://www.misterchameleon.nl' }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "::error::CRON_SECRET is not set — add it in repo Settings → Secrets → Actions."
+            exit 1
+          fi
+          echo "Calling $BASE/api/cron/ad-billing"
+          curl -fsS --max-time 90 -X GET "$BASE/api/cron/ad-billing" \
+            -H "Authorization: Bearer $SECRET" \
+            -w '\nHTTP %{http_code}\n'

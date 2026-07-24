@@ -22,6 +22,7 @@ import { STRIPE_API_VERSION } from "@/billing/stripe-config";
 import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { logger } from "@/lib/logger";
 import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/types";
+import { aggregateAdBilling } from "@/lib/ads/aggregate-billing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -35,8 +36,14 @@ export interface AdsOverview {
   publishers:    AdPublisher[];
   ads:           Ad[];
   stats:         Array<{ ad_id: string; impressions: number; clicks: number; spend_cents: number }>;
-  /** Per-day totals across all ads (last 30 days), oldest → newest. */
+  /** Per-day totals across all ads (last 30 days), oldest → newest. Includes
+      pending (not-yet-settled) impressions/clicks so counts are live. */
   report:        DayReport[];
+  /** Impressions/clicks recorded but not yet metered by the billing rollup. */
+  pendingImpressions: number;
+  pendingClicks:      number;
+  /** Spend those pending events represent, in cents (will be debited on rollup). */
+  pendingSpendCents:  number;
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -81,14 +88,46 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     byDay.set(r.date, d);
   }
 
+  // ── Live layer: fold in pending (unbilled) events ──────────────────────────
+  // ad_stats_daily is only written by the billing rollup, which lags. To make
+  // the report feel live, meter the not-yet-billed ad_events the same way the
+  // rollup will (reusing aggregateAdBilling) and add them on top. Spend from
+  // these is "pending" — it will hit the wallet on the next rollup.
+  const adsArr  = (ads ?? []) as Ad[];
+  const adsById = new Map<string, Ad>(adsArr.map((a): [string, Ad] => [a.id, a]));
+  let pendingImpressions = 0, pendingClicks = 0, pendingSpendCents = 0;
+  try {
+    const { data: pendingEvents } = await db()
+      .from("ad_events")
+      .select("ad_id, ad_tenant_id, publisher_domain, event_type, occurred_at")
+      .eq("ad_tenant_id", tenantId)
+      .eq("billed", false)
+      .limit(20_000);
+    const agg = aggregateAdBilling(pendingEvents ?? [], adsById);
+    for (const [, c] of agg.perTenantCents) pendingSpendCents += c;
+    for (const d of agg.daily) {
+      pendingImpressions += d.impressions;
+      pendingClicks      += d.clicks;
+      const day = byDay.get(d.date) ?? { date: d.date, impressions: 0, clicks: 0, spend_cents: 0 };
+      day.impressions += d.impressions; day.clicks += d.clicks; day.spend_cents += d.spend_cents;
+      byDay.set(d.date, day);
+      const a = byAd.get(d.ad_id) ?? { ad_id: d.ad_id, impressions: 0, clicks: 0, spend_cents: 0 };
+      a.impressions += d.impressions; a.clicks += d.clicks; a.spend_cents += d.spend_cents;
+      byAd.set(d.ad_id, a);
+    }
+  } catch { /* pending layer is best-effort — never break the report */ }
+
   return {
     isAdvertiser,
     siteKey,
     walletBalance,
     publishers: (publishers ?? []) as AdPublisher[],
-    ads:        (ads ?? []) as Ad[],
+    ads:        adsArr,
     stats:      Array.from(byAd.values()),
     report:     Array.from(byDay.values()).sort((x, y) => x.date.localeCompare(y.date)),
+    pendingImpressions,
+    pendingClicks,
+    pendingSpendCents: Math.round(pendingSpendCents),
   };
 }
 
