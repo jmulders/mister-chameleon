@@ -11,10 +11,14 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import Stripe from "stripe";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { getDb } from "@/data/db";
-import { getWallet } from "@/billing/wallet";
+import { getWallet, creditWallet } from "@/billing/wallet";
+import { getPlatformStripeSettings } from "@/platform/platform-store";
+import { STRIPE_API_VERSION } from "@/billing/stripe-config";
 import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { logger } from "@/lib/logger";
 import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/types";
@@ -195,4 +199,89 @@ export async function setAdStatusAction(
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/admin/tenants/${tenantId}/ads`);
   return { ok: true };
+}
+
+// ── Wallet top-up (advertiser self-serve, 1:1 euro → ad budget) ────────────────
+//
+//   Unlike enrichment credit bundles (which carry a margin), ad budget is 1:1:
+//   the advertiser pays X euros and gets X euros of wallet balance (1 credit =
+//   €0.01, the same unit the ad rollup debits). A one-off Stripe payment
+//   (price_data, no pre-created Price), credited on return, idempotent per
+//   checkout session — mirrors confirmBundlePurchaseAction.
+
+async function resolveStripeKey(): Promise<string | null> {
+  let key: string | undefined = process.env["STRIPE_TEST_SECRET_KEY"] ?? process.env["STRIPE_SECRET_KEY"];
+  if (!key) {
+    try { const s = await getPlatformStripeSettings(); if (s.ok) key = s.data.secretKey?.trim(); }
+    catch { /* non-fatal */ }
+  }
+  return key ?? null;
+}
+
+export async function createAdTopUpCheckoutAction(
+  tenantId: string, amountCents: number,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  const amount = Math.round(amountCents);
+  if (!Number.isFinite(amount) || amount < 500)   return { ok: false, error: "Minimum top-up is €5.00." };
+  if (amount > 1_000_000_00)                       return { ok: false, error: "Amount too large." };
+
+  const key = await resolveStripeKey();
+  if (!key) return { ok: false, error: "Stripe is not configured." };
+
+  const h    = await headers();
+  const base = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}/admin/tenants/${tenantId}/billing`;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stripe: any = new (Stripe as any)(key, { apiVersion: STRIPE_API_VERSION });
+    const checkout = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: amount, product_data: { name: "Ad budget top-up" } } }],
+      success_url: `${base}?topup=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${base}?topup=cancelled`,
+      metadata: { tenant_id: tenantId, ad_topup: "1", credit_cents: String(amount) },
+    });
+    if (!checkout.url) return { ok: false, error: "Stripe returned no checkout URL." };
+    return { ok: true, url: checkout.url };
+  } catch (err) {
+    logger.error("[ads] createAdTopUpCheckout failed", { tenantId, error: String(err) });
+    return { ok: false, error: "Could not start checkout." };
+  }
+}
+
+export async function confirmAdTopUpAction(
+  tenantId: string, checkoutSessionId: string,
+): Promise<{ ok: true; creditedCents: number; alreadyCredited: boolean } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  if (!checkoutSessionId.startsWith("cs_")) return { ok: false, error: "Invalid session." };
+
+  // Idempotency: already credited for this checkout session? (keyed by reference_id)
+  const { data: existing } = await db()
+    .from("wallet_ledger").select("id")
+    .eq("tenant_id", tenantId).eq("reference_id", checkoutSessionId).maybeSingle();
+  if (existing) return { ok: true, creditedCents: 0, alreadyCredited: true };
+
+  const key = await resolveStripeKey();
+  if (!key) return { ok: false, error: "Stripe is not configured." };
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stripe: any = new (Stripe as any)(key, { apiVersion: STRIPE_API_VERSION });
+    const cs = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+    if (cs.payment_status !== "paid")          return { ok: false, error: "Payment not completed." };
+    if (cs.metadata?.tenant_id !== tenantId)   return { ok: false, error: "Session tenant mismatch." };
+    const cents = Number(cs.metadata?.credit_cents ?? cs.amount_total ?? 0);
+    if (!(cents > 0))                          return { ok: false, error: "No amount to credit." };
+
+    await creditWallet(getDb(), tenantId, cents, "top_up_manual", "ad_topup", checkoutSessionId, "Ad budget top-up", "topup");
+    revalidatePath(`/admin/tenants/${tenantId}/billing`);
+    return { ok: true, creditedCents: cents, alreadyCredited: false };
+  } catch (err) {
+    logger.error("[ads] confirmAdTopUp failed", { tenantId, error: String(err) });
+    return { ok: false, error: "Could not confirm the top-up." };
+  }
 }
