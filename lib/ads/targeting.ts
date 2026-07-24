@@ -138,6 +138,11 @@ export function matchesTargeting(
 
 const FUNNEL_STAGES: AdFunnelStage[] = ["awareness", "consideration", "intent", "high_intent", "customer"];
 
+/** True when any of these ads uses firmographic targeting (drives IP→company enrichment). */
+export function anyFirmographicAd(ads: ReadonlyArray<{ targeting: unknown }>): boolean {
+  return ads.some((a) => usesFirmographicTargeting(parseAdTargeting(a.targeting)));
+}
+
 /** Defensively parse an ads.targeting jsonb value into a typed AdTargeting. */
 export function parseAdTargeting(raw: unknown): AdTargeting {
   if (!raw || typeof raw !== "object") return {};

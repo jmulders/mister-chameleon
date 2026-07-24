@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 import {
-  matchesTargeting, isUntargeted, parseAdTargeting,
+  matchesTargeting, isUntargeted, parseAdTargeting, anyFirmographicAd,
   type AdTargeting, type AdAudience,
 } from "../../lib/ads/targeting.ts";
 
@@ -143,5 +143,14 @@ describe("parseAdTargeting", () => {
     assert.deepEqual(parseAdTargeting(null), {});
     assert.deepEqual(parseAdTargeting("x"), {});
     assert.equal(isUntargeted(parseAdTargeting({ interestKeywords: [] })), true);
+  });
+});
+
+describe("anyFirmographicAd", () => {
+  it("detects firmographic targeting among a tenant's ads", () => {
+    assert.equal(anyFirmographicAd([{ targeting: {} }, { targeting: { requireCompany: true } }]), true);
+    assert.equal(anyFirmographicAd([{ targeting: { industries: ["software"] } }]), true);
+    assert.equal(anyFirmographicAd([{ targeting: { countries: ["NL"] } }, { targeting: { interestKeywords: ["saas"] } }]), false);
+    assert.equal(anyFirmographicAd([]), false);
   });
 });
