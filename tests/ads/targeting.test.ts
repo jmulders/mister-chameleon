@@ -6,8 +6,11 @@ import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 import {
   matchesTargeting, isUntargeted, parseAdTargeting, anyFirmographicAd,
+  anyRuleAd, usesRuleTargeting,
   type AdTargeting, type AdAudience,
 } from "../../lib/ads/targeting.ts";
+
+const RULE = { type: "field", field: "countryCode", operator: "equals", value: "NL" } as const;
 
 function aud(over: Partial<AdAudience> = {}): AdAudience {
   return { keywords: [], funnelStage: "awareness", pageviews: 1, returning: false, hasProfile: true, country: null, region: null, company: null, ...over };
@@ -152,5 +155,26 @@ describe("anyFirmographicAd", () => {
     assert.equal(anyFirmographicAd([{ targeting: { industries: ["software"] } }]), true);
     assert.equal(anyFirmographicAd([{ targeting: { countries: ["NL"] } }, { targeting: { interestKeywords: ["saas"] } }]), false);
     assert.equal(anyFirmographicAd([]), false);
+  });
+});
+
+describe("advanced rule targeting", () => {
+  it("usesRuleTargeting / isUntargeted recognise a rule node", () => {
+    assert.equal(usesRuleTargeting({ rule: RULE }), true);
+    assert.equal(usesRuleTargeting({}), false);
+    assert.equal(usesRuleTargeting({ rule: { foo: 1 } as never }), false); // no "type" → not a rule
+    assert.equal(isUntargeted({ rule: RULE }), false);
+  });
+  it("parseAdTargeting passes a rule node through, drops non-rule junk", () => {
+    assert.deepEqual(parseAdTargeting({ rule: RULE }).rule, RULE);
+    assert.equal(parseAdTargeting({ rule: { foo: 1 } }).rule, undefined);
+  });
+  it("anyRuleAd detects rule ads", () => {
+    assert.equal(anyRuleAd([{ targeting: {} }, { targeting: { rule: RULE } }]), true);
+    assert.equal(anyRuleAd([{ targeting: { countries: ["NL"] } }]), false);
+  });
+  it("the pure matcher does not evaluate the rule (serveAds does)", () => {
+    // A rule-only spec passes the simple matcher; rule enforcement is in serveAds.
+    assert.equal(matchesTargeting({ rule: RULE }, aud()), true);
   });
 });

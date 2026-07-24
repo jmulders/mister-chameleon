@@ -424,6 +424,18 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
     if (mode === "create" && rateCard) set({ pricing_model: m, rate_cents: m === "cpm" ? rateCard.cpmCents : rateCard.cpcCents });
     else set({ pricing_model: m });
   };
+  const [ruleText, setRuleText] = useState(() => (form.targeting?.rule ? JSON.stringify(form.targeting.rule, null, 2) : ""));
+  const [ruleError, setRuleError] = useState<string | null>(null);
+  const onRuleText = (v: string) => {
+    setRuleText(v);
+    const trimmed = v.trim();
+    if (!trimmed) { setRuleError(null); setT({ rule: undefined }); return; }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && "type" in parsed) { setRuleError(null); setT({ rule: parsed }); }
+      else setRuleError('Rule must be a condition object with a "type" field.');
+    } catch { setRuleError("Invalid JSON."); }
+  };
   const set = (patch: Partial<CreateAdInput>) => setForm((f) => ({ ...f, ...patch }));
   const setT = (patch: Partial<NonNullable<CreateAdInput["targeting"]>>) =>
     setForm((f) => ({ ...f, targeting: { ...(f.targeting ?? {}), ...patch } }));
@@ -557,6 +569,22 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
             Firmographic (industry / size / company) requires IP→company enrichment to be switched on — until
             then those ads simply don't serve.
           </p>
+
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Advanced rule (optional)</summary>
+            <p className="mt-1 text-[11px] text-neutral-400">
+              A full decision-engine RuleCondition (JSON) — AND/OR/NOT over the platform's rule fields
+              (e.g. <code>funnelStage</code>, <code>companyIndustry</code>, <code>countryCode</code>).
+              AND-combined with the fields above. Evaluated against a cost-safe context (no extra paid lookups).
+            </p>
+            <textarea
+              className={input + " mt-2 font-mono text-xs h-28"}
+              value={ruleText}
+              onChange={(e) => onRuleText(e.target.value)}
+              placeholder={'{"type":"field","field":"countryCode","operator":"equals","value":"NL"}'}
+            />
+            {ruleError && <p className="mt-1 text-xs text-red-600">{ruleError}</p>}
+          </details>
         </div>
       </div>
       <div className="mt-4 flex gap-2">
