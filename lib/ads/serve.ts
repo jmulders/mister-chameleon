@@ -77,6 +77,7 @@ export async function fetchAdAudience(tenantId: string, sessionId: string | null
       hasProfile:  true,
       country:     null,   // geo is attached by the caller from request headers
       region:      null,
+      company:     null,   // firmographic company is resolved separately
     };
   } catch (err) {
     logger.warn("[ads] fetchAdAudience failed", { tenantId, error: String(err) });
