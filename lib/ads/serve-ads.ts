@@ -12,8 +12,9 @@
  */
 
 import { renderBlockHtml }        from "@/lib/snippet/render-block-html";
-import { matchesTargeting, parseAdTargeting, isUntargeted } from "./targeting";
+import { matchesTargeting, parseAdTargeting, usesBehaviouralTargeting, usesGeoTargeting } from "./targeting";
 import type { AdAudience }        from "./targeting";
+import { PROFILING_FEE_CENTS, GEO_FEE_CENTS } from "./pricing";
 import type { SlotMap, BlockSlot } from "@/lib/snippet/decide-response";
 import { logger }                 from "@/lib/logger";
 import { selectAd }               from "./select-ad";
@@ -22,7 +23,7 @@ import {
   isPublisherApproved,
   isWalletServable,
   recordAdEvent,
-  recordProfilingCharge,
+  recordAdCharge,
   hostFromOrigin,
 }                                 from "./serve";
 import type { Ad } from "./types";
@@ -88,14 +89,15 @@ export async function serveAds(args: ServeAdsArgs): Promise<SlotMap> {
     const minuteBucket = Math.floor(Date.now() / 60_000);
     const now = new Date();
 
-    // Behavioural targeting: an ad's spec is matched against the visitor's
-    // profile. Untargeted ads serve to everyone. When we evaluate a targeted ad
-    // against a real audience we "profile" the visitor — billed once per
-    // visitor/day (recorded below).
-    let profiledVisitor = false;
+    // Targeting is matched against the visitor's profile. Untargeted ads serve
+    // to everyone. Evaluating a BEHAVIOURAL-targeted ad against a real profile
+    // "profiles" the visitor; evaluating a GEO-targeted ad against a resolved
+    // country uses geo. Each is billed once per visitor/day (recorded below).
+    let profiledVisitor = false, geoUsed = false;
     const matchTargeting = (ad: Ad): boolean => {
       const targeting = parseAdTargeting(ad.targeting);
-      if (!isUntargeted(targeting) && args.audience) profiledVisitor = true;
+      if (usesBehaviouralTargeting(targeting) && args.audience?.hasProfile) profiledVisitor = true;
+      if (usesGeoTargeting(targeting) && args.audience?.country) geoUsed = true;
       return matchesTargeting(targeting, args.audience ?? null);
     };
 
@@ -131,11 +133,11 @@ export async function serveAds(args: ServeAdsArgs): Promise<SlotMap> {
       slots[slotType] = slot;
     }
 
-    // Profiling fee: if we evaluated a targeted ad against a real audience, the
-    // visitor was profiled. Record it once per visitor/day (idempotent); the
+    // Targeting fees: record once per visitor/day per kind (idempotent). The
     // billing rollup debits the advertiser wallet for new charges.
-    if (profiledVisitor && args.sessionId) {
-      void recordProfilingCharge(args.tenantId, args.sessionId, host);
+    if (args.sessionId) {
+      if (profiledVisitor) void recordAdCharge(args.tenantId, args.sessionId, host, "profiling", PROFILING_FEE_CENTS);
+      if (geoUsed)         void recordAdCharge(args.tenantId, args.sessionId, host, "geo", GEO_FEE_CENTS);
     }
   } catch (err) {
     logger.warn("[ads] serveAds failed", { tenantId: args.tenantId, error: String(err) });

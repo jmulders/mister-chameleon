@@ -21,6 +21,13 @@ import type { Ad } from "./types";
  */
 export const PROFILING_FEE_CENTS = 2; // €0.02 per unique targeted visitor/day
 
+/**
+ * Geo-targeting fee, in cents, charged once per unique visitor/day when a
+ * geo-targeted ad is evaluated against a resolved country. Geo comes from free
+ * request headers (no external provider cost), so this is a small platform fee.
+ */
+export const GEO_FEE_CENTS = 1; // €0.01 per unique geo-targeted visitor/day
+
 /** Cost of one impression, in cents (= wallet credits). 0 for CPC ads. */
 export function impressionCostCents(ad: Pick<Ad, "pricing_model" | "rate_cents">): number {
   return ad.pricing_model === "cpm" ? Math.max(0, ad.rate_cents) / 1000 : 0;

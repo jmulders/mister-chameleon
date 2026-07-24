@@ -13,7 +13,7 @@
 export type AdFunnelStage =
   | "awareness" | "consideration" | "intent" | "high_intent" | "customer";
 
-/** Behavioural targeting spec stored in ads.targeting. Empty = everyone. */
+/** Targeting spec stored in ads.targeting. Empty = everyone. */
 export interface AdTargeting {
   /** Interest keywords to require (compared case-insensitively). */
   interestKeywords?: string[];
@@ -25,30 +25,46 @@ export interface AdTargeting {
   audience?: "any" | "new" | "returning";
   /** Minimum pageviews in the visitor's history. */
   minPageviews?: number;
+  /** Geo: ISO 3166-1 alpha-2 country codes to allow (case-insensitive). */
+  countries?: string[];
 }
 
-/** The visitor's behavioural profile, derived from visitor_behavior_state. */
+/** The visitor's profile: behavioural (visitor_behavior_state) + geo (headers). */
 export interface AdAudience {
   keywords:    string[];        // viewed_keywords
   funnelStage: AdFunnelStage;
   pageviews:   number;
   returning:   boolean;         // activity spans more than one calendar day
+  /** True when a real behavioural profile row existed (gates behavioural targeting). */
+  hasProfile:  boolean;
+  /** ISO 3166-1 alpha-2 country (from request geo headers), or null. */
+  country:     string | null;
+  region:      string | null;
+}
+
+/** True when a spec uses any behavioural dimension (keywords/stage/audience/pageviews). */
+export function usesBehaviouralTargeting(t: AdTargeting | null | undefined): boolean {
+  if (!t) return false;
+  return (Array.isArray(t.interestKeywords) && t.interestKeywords.length > 0)
+    || (Array.isArray(t.funnelStages) && t.funnelStages.length > 0)
+    || t.audience === "new" || t.audience === "returning"
+    || (typeof t.minPageviews === "number" && t.minPageviews > 0);
+}
+
+/** True when a spec uses geo (country) targeting. */
+export function usesGeoTargeting(t: AdTargeting | null | undefined): boolean {
+  return !!t && Array.isArray(t.countries) && t.countries.length > 0;
 }
 
 /** True when a targeting spec imposes no constraints (show to everyone). */
 export function isUntargeted(t: AdTargeting | null | undefined): boolean {
-  if (!t) return true;
-  const hasKw    = Array.isArray(t.interestKeywords) && t.interestKeywords.length > 0;
-  const hasStage = Array.isArray(t.funnelStages) && t.funnelStages.length > 0;
-  const hasAud   = t.audience === "new" || t.audience === "returning";
-  const hasMin   = typeof t.minPageviews === "number" && t.minPageviews > 0;
-  return !(hasKw || hasStage || hasAud || hasMin);
+  return !usesBehaviouralTargeting(t) && !usesGeoTargeting(t);
 }
 
 /**
  * Whether an audience satisfies a targeting spec.
- * Untargeted ads match everyone (even with no audience). A targeted ad requires
- * an audience; without one it does not match.
+ * Untargeted ads match everyone (even with no audience). Behavioural dimensions
+ * require a real profile (audience.hasProfile); geo requires a resolved country.
  */
 export function matchesTargeting(
   targeting: AdTargeting | null | undefined,
@@ -57,6 +73,15 @@ export function matchesTargeting(
   if (isUntargeted(targeting)) return true;
   if (!audience) return false;
   const t = targeting as AdTargeting;
+
+  // Geo (country) — needs a resolved country.
+  if (usesGeoTargeting(t)) {
+    const want = t.countries!.map((c) => c.toUpperCase().trim()).filter(Boolean);
+    if (!audience.country || !want.includes(audience.country.toUpperCase())) return false;
+  }
+
+  // Behavioural dimensions require a real behavioural profile.
+  if (usesBehaviouralTargeting(t) && !audience.hasProfile) return false;
 
   if (Array.isArray(t.interestKeywords) && t.interestKeywords.length > 0) {
     const want = t.interestKeywords.map((k) => k.toLowerCase().trim()).filter(Boolean);
@@ -99,5 +124,12 @@ export function parseAdTargeting(raw: unknown): AdTargeting {
   }
   if (r.audience === "new" || r.audience === "returning" || r.audience === "any") out.audience = r.audience;
   if (typeof r.minPageviews === "number" && r.minPageviews > 0) out.minPageviews = r.minPageviews;
+  if (Array.isArray(r.countries)) {
+    const cc = r.countries
+      .filter((x): x is string => typeof x === "string")
+      .map((x) => x.toUpperCase().trim())
+      .filter((x) => /^[A-Z]{2}$/.test(x));
+    if (cc.length > 0) out.countries = cc;
+  }
   return out;
 }

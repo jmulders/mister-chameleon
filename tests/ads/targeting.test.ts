@@ -10,7 +10,7 @@ import {
 } from "../../lib/ads/targeting.ts";
 
 function aud(over: Partial<AdAudience> = {}): AdAudience {
-  return { keywords: [], funnelStage: "awareness", pageviews: 1, returning: false, ...over };
+  return { keywords: [], funnelStage: "awareness", pageviews: 1, returning: false, hasProfile: true, country: null, region: null, ...over };
 }
 
 describe("isUntargeted", () => {
@@ -25,6 +25,7 @@ describe("isUntargeted", () => {
     assert.equal(isUntargeted({ funnelStages: ["intent"] }), false);
     assert.equal(isUntargeted({ audience: "returning" }), false);
     assert.equal(isUntargeted({ minPageviews: 2 }), false);
+    assert.equal(isUntargeted({ countries: ["NL"] }), false);
   });
 });
 
@@ -78,6 +79,27 @@ describe("matchesTargeting", () => {
     // one dimension off → no match
     assert.equal(matchesTargeting(t, aud({ keywords: ["saas"], funnelStage: "awareness", returning: true, pageviews: 4 })), false);
   });
+
+  it("geo: country allow-list (case-insensitive), needs a resolved country", () => {
+    const t: AdTargeting = { countries: ["NL", "BE"] };
+    assert.equal(matchesTargeting(t, aud({ country: "nl" })), true);
+    assert.equal(matchesTargeting(t, aud({ country: "DE" })), false);
+    assert.equal(matchesTargeting(t, aud({ country: null })), false);
+  });
+
+  it("behavioural dimensions require a real profile; geo does not", () => {
+    // Unprofiled visitor with geo: geo targeting works, behavioural does not.
+    const unprofiled = aud({ hasProfile: false, country: "NL", keywords: ["saas"] });
+    assert.equal(matchesTargeting({ countries: ["NL"] }, unprofiled), true);
+    assert.equal(matchesTargeting({ interestKeywords: ["saas"] }, unprofiled), false);
+    assert.equal(matchesTargeting({ funnelStages: ["awareness"] }, unprofiled), false);
+  });
+
+  it("geo + behavioural combined", () => {
+    const t: AdTargeting = { countries: ["NL"], funnelStages: ["intent"] };
+    assert.equal(matchesTargeting(t, aud({ country: "NL", funnelStage: "intent", hasProfile: true })), true);
+    assert.equal(matchesTargeting(t, aud({ country: "BE", funnelStage: "intent", hasProfile: true })), false);
+  });
 });
 
 describe("parseAdTargeting", () => {
@@ -95,6 +117,10 @@ describe("parseAdTargeting", () => {
     assert.deepEqual(parsed.funnelStages, ["intent"]);
     assert.equal(parsed.audience, "returning");
     assert.equal(parsed.minPageviews, 2);
+  });
+  it("countries: uppercased, only valid 2-letter codes", () => {
+    const parsed = parseAdTargeting({ countries: ["nl", "Be", "USA", 3, "x"] });
+    assert.deepEqual(parsed.countries, ["NL", "BE"]);
   });
   it("empty / invalid input → empty (untargeted) spec", () => {
     assert.deepEqual(parseAdTargeting(null), {});

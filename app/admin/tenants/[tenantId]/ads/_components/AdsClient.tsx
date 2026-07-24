@@ -272,12 +272,12 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
         <Stat label="Clicks" value={totals.clicks.toLocaleString()} />
         <Stat label="CTR" value={ctr.toFixed(2) + "%"} />
         <Stat label="Ad spend" value={euros(totals.spend_cents)} />
-        {hasProfiling && <Stat label="Profiling fees" value={euros(profilingTotal)} />}
+        {hasProfiling && <Stat label="Targeting fees" value={euros(profilingTotal)} />}
       </div>
       {hasPending && (
         <p className="mt-2 text-xs text-neutral-400">
           Cijfers zijn live. Nog niet afgerekend: {euros(pendingSpendCents)} ad-spend
-          {pendingProfilingCents > 0 ? ` + ${euros(pendingProfilingCents)} profiling` : ""} —
+          {pendingProfilingCents > 0 ? ` + ${euros(pendingProfilingCents)} targeting fees` : ""} —
           dit wordt bij de eerstvolgende afreken-rollup van de wallet afgeschreven.
         </p>
       )}
@@ -498,6 +498,13 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
               <label className={label}>Min. pageviews</label>
               <input type="number" min={0} className={input} value={form.targeting?.minPageviews ?? 0} onChange={(e) => setT({ minPageviews: Math.max(0, Number(e.target.value)) })} />
             </div>
+            <div>
+              <label className={label}>Countries (ISO codes, comma-separated)</label>
+              <input className={input}
+                value={(form.targeting?.countries ?? []).join(", ")}
+                onChange={(e) => setT({ countries: e.target.value.split(",").map((s) => s.trim().toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s)) })}
+                placeholder="NL, BE" />
+            </div>
           </div>
           <div className="mt-2">
             <label className={label}>Funnel stage</label>
@@ -519,7 +526,8 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
             </div>
           </div>
           <p className="mt-2 text-[11px] text-neutral-400">
-            Uses the visitor's interest/journey profile. When active it adds a €0.02 profiling fee per unique visitor/day, on top of CPM/CPC.
+            Uses the visitor's interest/journey profile and country. Targeting adds a small fee per unique
+            visitor/day, on top of CPM/CPC: €0.02 for behavioural profiling, €0.01 for geo.
           </p>
         </div>
       </div>

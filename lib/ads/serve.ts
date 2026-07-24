@@ -12,7 +12,6 @@ import { getWallet } from "@/billing/wallet";
 import { logger }    from "@/lib/logger";
 import type { Ad, AdEventType } from "./types";
 import type { AdAudience, AdFunnelStage } from "./targeting";
-import { PROFILING_FEE_CENTS } from "./pricing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -25,24 +24,28 @@ const AD_FUNNEL_STAGES: AdFunnelStage[] = ["awareness", "consideration", "intent
  * Returns null when the visitor has no profile yet — untargeted ads still serve,
  * targeted ones do not. Never throws.
  */
+/** Per-visitor/day ad charge kinds (behavioural profiling, geo, …). */
+export type AdChargeKind = "profiling" | "geo";
+
 /**
- * Record a behavioural-profiling charge for this visitor, deduped per calendar
- * day via UNIQUE(ad_tenant_id, session_id, charge_date). Insert-only and
+ * Record a per-visitor/day ad charge of a given kind, deduped via
+ * UNIQUE(ad_tenant_id, session_id, charge_date, kind). Insert-only and
  * idempotent — the billing rollup debits the wallet for unbilled rows. Never
- * throws (best-effort; profiling billing must not break serving).
+ * throws (best-effort; charge recording must not break serving).
  */
-export async function recordProfilingCharge(
+export async function recordAdCharge(
   tenantId: string, sessionId: string, publisherDomain: string | null,
+  kind: AdChargeKind, feeCents: number,
 ): Promise<void> {
   try {
     await db()
       .from("ad_profiling_charges")
       .upsert(
-        { ad_tenant_id: tenantId, session_id: sessionId, publisher_domain: publisherDomain ?? null, fee_cents: PROFILING_FEE_CENTS },
-        { onConflict: "ad_tenant_id,session_id,charge_date", ignoreDuplicates: true },
+        { ad_tenant_id: tenantId, session_id: sessionId, publisher_domain: publisherDomain ?? null, kind, fee_cents: feeCents },
+        { onConflict: "ad_tenant_id,session_id,charge_date,kind", ignoreDuplicates: true },
       );
   } catch (err) {
-    logger.warn("[ads] recordProfilingCharge failed", { tenantId, error: String(err) });
+    logger.warn("[ads] recordAdCharge failed", { tenantId, kind, error: String(err) });
   }
 }
 
@@ -71,6 +74,9 @@ export async function fetchAdAudience(tenantId: string, sessionId: string | null
       funnelStage: stage,
       pageviews:   Number(row.page_view_count ?? 0),
       returning,
+      hasProfile:  true,
+      country:     null,   // geo is attached by the caller from request headers
+      region:      null,
     };
   } catch (err) {
     logger.warn("[ads] fetchAdAudience failed", { tenantId, error: String(err) });

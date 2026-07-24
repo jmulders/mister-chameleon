@@ -103,6 +103,8 @@ import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { fetchAdAudience }            from "@/lib/ads/serve";
+import type { AdAudience }            from "@/lib/ads/targeting";
+import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -355,7 +357,7 @@ export async function POST(request: NextRequest) {
     // Build the behavioural audience (prior interest/journey) and record this
     // pageview in parallel — neither blocks the other. The audience reflects
     // history up to (not including) this view; this view feeds the next one.
-    const [audience] = await Promise.all([
+    const [behav] = await Promise.all([
       fetchAdAudience(tenantId, adSessionId),
       adSessionId
         ? recordJourneyEvent({
@@ -374,6 +376,19 @@ export async function POST(request: NextRequest) {
           }).catch(() => false)
         : Promise.resolve(false),
     ]);
+
+    // Attach free geo (Vercel request headers) so geo targeting works even for
+    // visitors without a behavioural profile.
+    const adGeo = await new HeadersGeoProvider(request.headers).lookup(null);
+    const audience: AdAudience = {
+      keywords:    behav?.keywords ?? [],
+      funnelStage: behav?.funnelStage ?? "awareness",
+      pageviews:   behav?.pageviews ?? 0,
+      returning:   behav?.returning ?? false,
+      hasProfile:  !!behav,
+      country:     adGeo.countryCode ?? null,
+      region:      adGeo.region ?? null,
+    };
 
     const adSlots: SlotMap = adBlockKeys.length > 0
       ? await serveAds({
