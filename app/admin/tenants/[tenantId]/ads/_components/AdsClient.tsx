@@ -15,8 +15,10 @@ import {
   type AdSession,
 } from "../actions";
 import type { AdSlotType, AdPricingModel } from "@/lib/ads/types";
+import type { AdFunnelStage } from "@/lib/ads/targeting";
 
 const SLOTS: AdSlotType[] = ["hero", "proof", "cta", "feature", "conversion", "notification"];
+const FUNNEL_STAGES: AdFunnelStage[] = ["awareness", "consideration", "intent", "high_intent", "customer"];
 
 /** Starter creative per slot type (matches renderBlockHtml / the setup doc). */
 const CREATIVE_TEMPLATES: Record<AdSlotType, unknown> = {
@@ -398,6 +400,8 @@ function CreateAdCard({ tenantId, pending, run }:
     click_url: "", pricing_model: "cpm", rate_cents: 500, budget_cents: 5000, weight: 1,
   });
   const set = (patch: Partial<CreateAdInput>) => setForm((f) => ({ ...f, ...patch }));
+  const setT = (patch: Partial<NonNullable<CreateAdInput["targeting"]>>) =>
+    setForm((f) => ({ ...f, targeting: { ...(f.targeting ?? {}), ...patch } }));
   const onSlot = (s: AdSlotType) => { setSlot(s); set({ slot_type: s, creativeJson: JSON.stringify(CREATIVE_TEMPLATES[s], null, 2) }); };
 
   return (
@@ -438,6 +442,60 @@ function CreateAdCard({ tenantId, pending, run }:
             <label className={label}>Budget (cents, 0=∞)</label>
             <input type="number" className={input} value={form.budget_cents} onChange={(e) => set({ budget_cents: Number(e.target.value) })} />
           </div>
+        </div>
+
+        <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50/60 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-neutral-600">Behavioural targeting (optional)</span>
+            <span className="text-[11px] text-neutral-400">Leave empty to show to everyone</span>
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div>
+              <label className={label}>Interest keywords (comma-separated)</label>
+              <input className={input}
+                value={(form.targeting?.interestKeywords ?? []).join(", ")}
+                onChange={(e) => setT({ interestKeywords: e.target.value.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) })}
+                placeholder="saas, marketing" />
+            </div>
+            <div>
+              <label className={label}>Keyword match</label>
+              <select className={input} value={form.targeting?.keywordMatch ?? "any"} onChange={(e) => setT({ keywordMatch: e.target.value as "any" | "all" })}>
+                <option value="any">any keyword</option><option value="all">all keywords</option>
+              </select>
+            </div>
+            <div>
+              <label className={label}>Audience</label>
+              <select className={input} value={form.targeting?.audience ?? "any"} onChange={(e) => setT({ audience: e.target.value as "any" | "new" | "returning" })}>
+                <option value="any">everyone</option><option value="new">new visitors</option><option value="returning">returning visitors</option>
+              </select>
+            </div>
+            <div>
+              <label className={label}>Min. pageviews</label>
+              <input type="number" min={0} className={input} value={form.targeting?.minPageviews ?? 0} onChange={(e) => setT({ minPageviews: Math.max(0, Number(e.target.value)) })} />
+            </div>
+          </div>
+          <div className="mt-2">
+            <label className={label}>Funnel stage</label>
+            <div className="flex flex-wrap gap-1.5">
+              {FUNNEL_STAGES.map((st) => {
+                const on = (form.targeting?.funnelStages ?? []).includes(st);
+                return (
+                  <button key={st} type="button"
+                    onClick={() => {
+                      const cur = new Set(form.targeting?.funnelStages ?? []);
+                      if (on) cur.delete(st); else cur.add(st);
+                      setT({ funnelStages: Array.from(cur) });
+                    }}
+                    className={"rounded-full border px-2.5 py-1 text-xs " + (on ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-neutral-300 text-neutral-600 hover:bg-neutral-50")}>
+                    {st.replace("_", " ")}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-neutral-400">
+            Uses the visitor's interest/journey profile. When active it adds a €0.02 profiling fee per unique visitor/day, on top of CPM/CPC.
+          </p>
         </div>
       </div>
       <button className={btn + " mt-4"} disabled={pending || !form.name.trim()}

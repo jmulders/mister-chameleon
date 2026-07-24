@@ -102,6 +102,7 @@ import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
+import { fetchAdAudience }            from "@/lib/ads/serve";
 import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -323,7 +324,8 @@ export async function POST(request: NextRequest) {
   //   publisher + wallet balance, inside serveAds — and bills via metered
   //   impressions/clicks, so it deliberately returns BEFORE the subscription /
   //   dunning gate below. Normal tenants (tenantRole !== "advertiser") are
-  //   completely unaffected. Targeting is off in this MVP (no evalCtx).
+  //   completely unaffected. Behavioural targeting uses the visitor's audience
+  //   profile (built below); profiling is billed per unique visitor/day.
   if (tenant.tenantRole === "advertiser") {
     const rawAdBlocks = (body as DecideRequest).blocks;
     const adBlockKeys = Array.isArray(rawAdBlocks)
@@ -350,7 +352,11 @@ export async function POST(request: NextRequest) {
       ...adPageMeta.keywords,
     ]));
 
-    const [, adSlots] = await Promise.all([
+    // Build the behavioural audience (prior interest/journey) and record this
+    // pageview in parallel — neither blocks the other. The audience reflects
+    // history up to (not including) this view; this view feeds the next one.
+    const [audience] = await Promise.all([
+      fetchAdAudience(tenantId, adSessionId),
       adSessionId
         ? recordJourneyEvent({
             tenantId,
@@ -367,18 +373,19 @@ export async function POST(request: NextRequest) {
             eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
           }).catch(() => false)
         : Promise.resolve(false),
-      adBlockKeys.length > 0
-        ? serveAds({
-            tenantId,
-            blockKeys:    adBlockKeys,
-            originHost:   adOriginHost,
-            platformBase: new URL(request.url).origin,
-            sessionId:    adSessionId,
-            evalCtx:      null,
-            tokens:       adTokens,
-          })
-        : Promise.resolve<SlotMap>({}),
     ]);
+
+    const adSlots: SlotMap = adBlockKeys.length > 0
+      ? await serveAds({
+          tenantId,
+          blockKeys:    adBlockKeys,
+          originHost:   adOriginHost,
+          platformBase: new URL(request.url).origin,
+          sessionId:    adSessionId,
+          audience,
+          tokens:       adTokens,
+        })
+      : {};
     return NextResponse.json({ slots: adSlots, _ad: true }, { status: 200, headers: CORS_HEADERS });
   }
 

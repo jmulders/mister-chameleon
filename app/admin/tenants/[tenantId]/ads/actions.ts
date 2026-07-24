@@ -23,6 +23,7 @@ import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { logger } from "@/lib/logger";
 import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/types";
 import { aggregateAdBilling } from "@/lib/ads/aggregate-billing";
+import { parseAdTargeting, type AdTargeting } from "@/lib/ads/targeting";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -266,6 +267,8 @@ export interface CreateAdInput {
   rate_cents:    number;
   budget_cents:  number;
   weight:        number;
+  /** Optional behavioural targeting; empty/omitted = show to everyone. */
+  targeting?:    AdTargeting;
 }
 
 export async function createAdAction(tenantId: string, input: CreateAdInput): Promise<ActionResult> {
@@ -301,6 +304,7 @@ export async function createAdAction(tenantId: string, input: CreateAdInput): Pr
     rate_cents:    Math.max(0, input.rate_cents),
     budget_cents:  Math.max(0, input.budget_cents),
     weight:        Math.max(1, input.weight),
+    targeting:     input.targeting ? parseAdTargeting(input.targeting) : {},
     status:        "active",
     start_at:      new Date().toISOString(),
   });

@@ -2,9 +2,9 @@
  * Ad selection — pure eligibility filter + weighted pick.
  *
  * No I/O: the caller injects the targeting match, the frequency check and the
- * RNG, so this is fully unit-testable and deterministic in tests. The decide
- * hook wires `matchTargeting` to evaluateCondition() against the visitor's
- * decision context, and `isFrequencyOk` to a recent-impression count.
+ * RNG, so this is fully unit-testable and deterministic in tests. serveAds wires
+ * `matchTargeting` to matchesTargeting() against the visitor's behavioural
+ * audience, and `isFrequencyOk` to a recent-impression count.
  */
 
 import type { Ad } from "./types";

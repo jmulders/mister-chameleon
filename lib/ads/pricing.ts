@@ -14,6 +14,13 @@
 
 import type { Ad } from "./types";
 
+/**
+ * Behavioural-targeting profiling fee, in cents (= wallet credits), charged once
+ * per unique visitor per calendar day when a targeted ad is evaluated against a
+ * real audience profile. Separate from CPM/CPC — see ad_profiling_charges.
+ */
+export const PROFILING_FEE_CENTS = 2; // €0.02 per unique targeted visitor/day
+
 /** Cost of one impression, in cents (= wallet credits). 0 for CPC ads. */
 export function impressionCostCents(ad: Pick<Ad, "pricing_model" | "rate_cents">): number {
   return ad.pricing_model === "cpm" ? Math.max(0, ad.rate_cents) / 1000 : 0;
