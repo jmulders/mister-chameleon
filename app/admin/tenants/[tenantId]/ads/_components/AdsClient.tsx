@@ -510,6 +510,27 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
                 onChange={(e) => setT({ countries: e.target.value.split(",").map((s) => s.trim().toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s)) })}
                 placeholder="NL, BE" />
             </div>
+            <div>
+              <label className={label}>Industries (comma-separated)</label>
+              <input className={input}
+                value={(form.targeting?.industries ?? []).join(", ")}
+                onChange={(e) => setT({ industries: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                placeholder="software, finance" />
+            </div>
+            <div>
+              <label className={label}>Company sizes (comma-separated)</label>
+              <input className={input}
+                value={(form.targeting?.companySizes ?? []).join(", ")}
+                onChange={(e) => setT({ companySizes: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                placeholder="51-200, 201-500" />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" checked={form.targeting?.requireCompany ?? false}
+                  onChange={(e) => setT({ requireCompany: e.target.checked })} />
+                Only company visitors
+              </label>
+            </div>
           </div>
           <div className="mt-2">
             <label className={label}>Funnel stage</label>
@@ -531,8 +552,10 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
             </div>
           </div>
           <p className="mt-2 text-[11px] text-neutral-400">
-            Uses the visitor's interest/journey profile and country. Targeting adds a small fee per unique
-            visitor/day, on top of CPM/CPC: €0.02 for behavioural profiling, €0.01 for geo.
+            Uses the visitor's interest/journey profile, country and (when enabled) company. Targeting adds a
+            small fee per unique visitor/day, on top of CPM/CPC: €0.02 behavioural, €0.01 geo, €0.03 firmographic.
+            Firmographic (industry / size / company) requires IP→company enrichment to be switched on — until
+            then those ads simply don't serve.
           </p>
         </div>
       </div>

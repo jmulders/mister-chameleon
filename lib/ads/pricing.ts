@@ -28,6 +28,13 @@ export const PROFILING_FEE_CENTS = 2; // €0.02 per unique targeted visitor/day
  */
 export const GEO_FEE_CENTS = 1; // €0.01 per unique geo-targeted visitor/day
 
+/**
+ * Firmographic (IP→company) fee, in cents, per unique visitor/day — matches the
+ * Leadinfo lookup cost. Used once the live company enrichment is wired into ad
+ * serving. Charged as kind "firmographic".
+ */
+export const FIRMOGRAPHIC_FEE_CENTS = 3; // €0.03 per unique firmographic visitor/day
+
 /** Cost of one impression, in cents (= wallet credits). 0 for CPC ads. */
 export function impressionCostCents(ad: Pick<Ad, "pricing_model" | "rate_cents">): number {
   return ad.pricing_model === "cpm" ? Math.max(0, ad.rate_cents) / 1000 : 0;

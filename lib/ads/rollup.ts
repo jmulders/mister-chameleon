@@ -55,7 +55,9 @@ async function billProfilingCharges(
     }
     for (const { tenantId, kind, cents } of perKey.values()) {
       if (cents <= 0) continue;
-      const ref = kind === "geo" ? "ad_geo" : "ad_profiling";
+      const ref = kind === "geo" ? "ad_geo"
+        : kind === "firmographic" ? "ad_firmographic"
+        : "ad_profiling";
       try {
         const res = await debitWallet(getDb(), tenantId, cents, ref);
         if (res.success) debited += cents;

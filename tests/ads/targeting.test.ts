@@ -10,8 +10,9 @@ import {
 } from "../../lib/ads/targeting.ts";
 
 function aud(over: Partial<AdAudience> = {}): AdAudience {
-  return { keywords: [], funnelStage: "awareness", pageviews: 1, returning: false, hasProfile: true, country: null, region: null, ...over };
+  return { keywords: [], funnelStage: "awareness", pageviews: 1, returning: false, hasProfile: true, country: null, region: null, company: null, ...over };
 }
+const co = (over: Partial<NonNullable<AdAudience["company"]>> = {}) => ({ name: "Acme", industry: "Software", size: "51-200", ...over });
 
 describe("isUntargeted", () => {
   it("empty / null specs are untargeted", () => {
@@ -99,6 +100,22 @@ describe("matchesTargeting", () => {
     const t: AdTargeting = { countries: ["NL"], funnelStages: ["intent"] };
     assert.equal(matchesTargeting(t, aud({ country: "NL", funnelStage: "intent", hasProfile: true })), true);
     assert.equal(matchesTargeting(t, aud({ country: "BE", funnelStage: "intent", hasProfile: true })), false);
+  });
+
+  it("firmographic: requireCompany needs a company match", () => {
+    assert.equal(matchesTargeting({ requireCompany: true }, aud({ company: co() })), true);
+    assert.equal(matchesTargeting({ requireCompany: true }, aud({ company: null })), false);
+  });
+
+  it("firmographic: industry contains (case-insensitive), size in list", () => {
+    assert.equal(matchesTargeting({ industries: ["soft"] }, aud({ company: co({ industry: "Software" }) })), true);
+    assert.equal(matchesTargeting({ industries: ["finance"] }, aud({ company: co({ industry: "Software" }) })), false);
+    assert.equal(matchesTargeting({ companySizes: ["51-200"] }, aud({ company: co({ size: "51-200" }) })), true);
+    assert.equal(matchesTargeting({ companySizes: ["1-10"] }, aud({ company: co({ size: "51-200" }) })), false);
+  });
+
+  it("firmographic needs a company; behavioural default profile doesn't leak in", () => {
+    assert.equal(matchesTargeting({ industries: ["soft"] }, aud({ company: null })), false);
   });
 });
 

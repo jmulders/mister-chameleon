@@ -388,6 +388,11 @@ export async function POST(request: NextRequest) {
       hasProfile:  !!behav,
       country:     adGeo.countryCode ?? null,
       region:      adGeo.region ?? null,
+      // Firmographic company match is not wired into ad serving yet (it needs
+      // consent-gated IP→company enrichment + real Leadinfo billing). Until then
+      // firmographic-targeted ads simply do not match. The targeting model, UI
+      // and billing plumbing are in place for that follow-up.
+      company:     null,
     };
 
     const adSlots: SlotMap = adBlockKeys.length > 0

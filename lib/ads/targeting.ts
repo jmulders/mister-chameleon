@@ -27,6 +27,12 @@ export interface AdTargeting {
   minPageviews?: number;
   /** Geo: ISO 3166-1 alpha-2 country codes to allow (case-insensitive). */
   countries?: string[];
+  /** Firmographic: only serve to visitors matched to a company. */
+  requireCompany?: boolean;
+  /** Firmographic: company industry must contain one of these (case-insensitive). */
+  industries?: string[];
+  /** Firmographic: company size buckets to allow (e.g. "51-200"). */
+  companySizes?: string[];
 }
 
 /** The visitor's profile: behavioural (visitor_behavior_state) + geo (headers). */
@@ -40,6 +46,8 @@ export interface AdAudience {
   /** ISO 3166-1 alpha-2 country (from request geo headers), or null. */
   country:     string | null;
   region:      string | null;
+  /** Firmographic company match (IP→company), or null when unknown/unmatched. */
+  company:     { name: string | null; industry: string | null; size: string | null } | null;
 }
 
 /** True when a spec uses any behavioural dimension (keywords/stage/audience/pageviews). */
@@ -56,9 +64,17 @@ export function usesGeoTargeting(t: AdTargeting | null | undefined): boolean {
   return !!t && Array.isArray(t.countries) && t.countries.length > 0;
 }
 
+/** True when a spec uses firmographic (company) targeting. */
+export function usesFirmographicTargeting(t: AdTargeting | null | undefined): boolean {
+  if (!t) return false;
+  return t.requireCompany === true
+    || (Array.isArray(t.industries) && t.industries.length > 0)
+    || (Array.isArray(t.companySizes) && t.companySizes.length > 0);
+}
+
 /** True when a targeting spec imposes no constraints (show to everyone). */
 export function isUntargeted(t: AdTargeting | null | undefined): boolean {
-  return !usesBehaviouralTargeting(t) && !usesGeoTargeting(t);
+  return !usesBehaviouralTargeting(t) && !usesGeoTargeting(t) && !usesFirmographicTargeting(t);
 }
 
 /**
@@ -78,6 +94,20 @@ export function matchesTargeting(
   if (usesGeoTargeting(t)) {
     const want = t.countries!.map((c) => c.toUpperCase().trim()).filter(Boolean);
     if (!audience.country || !want.includes(audience.country.toUpperCase())) return false;
+  }
+
+  // Firmographic (company) — needs a resolved company match.
+  if (usesFirmographicTargeting(t)) {
+    const c = audience.company;
+    if (!c) return false;
+    if (t.requireCompany && !(c.name || c.industry || c.size)) return false;
+    if (Array.isArray(t.industries) && t.industries.length > 0) {
+      const ind = (c.industry ?? "").toLowerCase();
+      if (!t.industries.some((x) => ind.includes(x.toLowerCase().trim()))) return false;
+    }
+    if (Array.isArray(t.companySizes) && t.companySizes.length > 0) {
+      if (!c.size || !t.companySizes.map((s) => s.trim()).includes(c.size.trim())) return false;
+    }
   }
 
   // Behavioural dimensions require a real behavioural profile.
@@ -130,6 +160,15 @@ export function parseAdTargeting(raw: unknown): AdTargeting {
       .map((x) => x.toUpperCase().trim())
       .filter((x) => /^[A-Z]{2}$/.test(x));
     if (cc.length > 0) out.countries = cc;
+  }
+  if (r.requireCompany === true) out.requireCompany = true;
+  if (Array.isArray(r.industries)) {
+    const ind = r.industries.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean);
+    if (ind.length > 0) out.industries = ind;
+  }
+  if (Array.isArray(r.companySizes)) {
+    const sz = r.companySizes.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean);
+    if (sz.length > 0) out.companySizes = sz;
   }
   return out;
 }

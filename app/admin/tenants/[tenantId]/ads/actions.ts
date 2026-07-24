@@ -135,7 +135,7 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     const sinceIso = new Date(Date.now() - 30 * 86_400_000).toISOString();
     const [{ data: ledger }, { data: charges }] = await Promise.all([
       db().from("wallet_ledger").select("amount, amount_cents")
-        .eq("tenant_id", tenantId).in("reference_type", ["ad_profiling", "ad_geo"]).gte("created_at", sinceIso),
+        .eq("tenant_id", tenantId).in("reference_type", ["ad_profiling", "ad_geo", "ad_firmographic"]).gte("created_at", sinceIso),
       db().from("ad_profiling_charges").select("fee_cents")
         .eq("ad_tenant_id", tenantId).eq("billed", false),
     ]);
