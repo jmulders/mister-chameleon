@@ -8,9 +8,11 @@ import {
   setPublisherStatusAction,
   createAdAction,
   setAdStatusAction,
+  fetchAdSessionsAction,
   type AdsOverview,
   type CreateAdInput,
   type DayReport,
+  type AdSession,
 } from "../actions";
 import type { AdSlotType, AdPricingModel } from "@/lib/ads/types";
 
@@ -110,6 +112,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         pendingClicks={initial.pendingClicks}
         pendingSpendCents={initial.pendingSpendCents}
       />
+      <SessionsCard tenantId={tenantId} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <CreateAdCard tenantId={tenantId} pending={pending} run={run} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
@@ -124,6 +127,106 @@ function Stat({ label: text, value }: { label: string; value: string }) {
     <div>
       <div className="text-xs font-semibold text-neutral-500">{text}</div>
       <div className="text-lg font-bold text-neutral-900">{value}</div>
+    </div>
+  );
+}
+
+function SessionsCard({ tenantId }: { tenantId: string }) {
+  const [sessions, setSessions] = useState<AdSession[] | null>(null);
+  const [openId, setOpenId]     = useState<string | null>(null);
+  const [loading, start]        = useTransition();
+  const [error, setError]       = useState<string | null>(null);
+
+  const load = () => {
+    setError(null);
+    start(async () => {
+      try { setSessions(await fetchAdSessionsAction(tenantId)); }
+      catch { setError("Could not load sessions."); }
+    });
+  };
+
+  const shortId = (id: string) => (id.length > 14 ? id.slice(0, 8) + "…" + id.slice(-4) : id);
+  const when    = (iso: string) => new Date(iso).toLocaleString();
+
+  return (
+    <div className={card}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-neutral-900">Ad-audience sessions</h3>
+          <p className="mt-0.5 text-sm text-neutral-500">
+            Journeys of the visitors your ads reached — page path + interest keywords per session.
+          </p>
+        </div>
+        <button className={btnGhost} disabled={loading} onClick={load}>
+          {loading ? "Loading…" : sessions ? "Refresh" : "Load sessions"}
+        </button>
+      </div>
+
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+      {sessions && sessions.length === 0 && (
+        <p className="mt-4 text-sm text-neutral-400">
+          No ad-audience sessions yet — they appear once your ads are served on a publisher.
+        </p>
+      )}
+
+      {sessions && sessions.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {sessions.map((s) => {
+            const open = openId === s.sessionId;
+            return (
+              <div key={s.sessionId} className="rounded-lg border border-neutral-200">
+                <button
+                  onClick={() => setOpenId(open ? null : s.sessionId)}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-neutral-50"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-mono text-neutral-700">{shortId(s.sessionId)}</span>
+                      {s.publisherDomain && <span className="text-neutral-400">· {s.publisherDomain}</span>}
+                    </div>
+                    <div className="mt-0.5 text-xs text-neutral-400">
+                      {s.impressions} impr · {s.clicks} clicks · {s.journey.length} pageviews · {when(s.lastSeen)}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {s.adsSeen.slice(0, 2).map((a) => (
+                      <span key={a} className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">{a}</span>
+                    ))}
+                    <span className="text-neutral-400">{open ? "▾" : "▸"}</span>
+                  </div>
+                </button>
+                {open && (
+                  <div className="border-t border-neutral-100 px-3 py-2">
+                    {s.journey.length === 0 ? (
+                      <p className="text-xs text-neutral-400">No journey captured for this session yet.</p>
+                    ) : (
+                      <ol className="space-y-1.5">
+                        {s.journey.map((step, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs">
+                            <span className="mt-0.5 text-neutral-300">{i + 1}.</span>
+                            <div className="min-w-0">
+                              <span className="font-medium text-neutral-700">{step.path ?? "/"}</span>
+                              <span className="ml-2 text-neutral-400">{when(step.at)}</span>
+                              {step.keywords.length > 0 && (
+                                <div className="mt-0.5 flex flex-wrap gap-1">
+                                  {step.keywords.slice(0, 8).map((k) => (
+                                    <span key={k} className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-500">{k}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

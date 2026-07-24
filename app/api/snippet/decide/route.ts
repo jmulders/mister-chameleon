@@ -333,17 +333,52 @@ export async function POST(request: NextRequest) {
     try {
       adTokens = cssDeclarationsToRecord(resolvedThemeToCSS(resolveThemeForTenant(tenant, null)));
     } catch { /* ads fall back to their own styling */ }
-    const adSlots = adBlockKeys.length > 0
-      ? await serveAds({
-          tenantId,
-          blockKeys:    adBlockKeys,
-          originHost:   hostFromOrigin(request.headers.get("origin") ?? request.headers.get("referer")),
-          platformBase: new URL(request.url).origin,
-          sessionId:    normaliseVisitorId(context.sessionId) ?? normaliseVisitorId(context.visitorId),
-          evalCtx:      null,
-          tokens:       adTokens,
-        })
-      : {};
+
+    const adSessionId  = normaliseVisitorId(context.sessionId) ?? normaliseVisitorId(context.visitorId);
+    const adOriginHost = hostFromOrigin(request.headers.get("origin") ?? request.headers.get("referer"));
+
+    // Capture the ad-audience journey: a page_view keyed to the ADVERTISER tenant
+    // so advertisers can see the journeys of the sessions their ads reached
+    // (page sequence + interest keywords). Behavioural capture only — no wallet
+    // cost. Runs in parallel with serving so it adds no latency to the ad
+    // response; publisher domain is stored in metadata. Targeting still off (MVP).
+    const adPageMeta = resolvePageMeta(context.path ?? "/");
+    const adKeywords = Array.from(new Set([
+      ...(Array.isArray(context.keywords)
+        ? context.keywords.map((k) => String(k).toLowerCase().trim()).filter(Boolean)
+        : []),
+      ...adPageMeta.keywords,
+    ]));
+
+    const [, adSlots] = await Promise.all([
+      adSessionId
+        ? recordJourneyEvent({
+            tenantId,
+            sessionId:    adSessionId,
+            visitorId:    adSessionId,
+            eventType:    "page_view",
+            pagePath:     context.path ?? "/",
+            pageCategory: adPageMeta.category ?? undefined,
+            pageKeywords: adKeywords,
+            source:       context.utm_source   ?? undefined,
+            medium:       context.utm_medium   ?? undefined,
+            campaign:     context.utm_campaign ?? undefined,
+            metadata:     { via: "ad", publisher_domain: adOriginHost ?? null },
+            eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+          }).catch(() => false)
+        : Promise.resolve(false),
+      adBlockKeys.length > 0
+        ? serveAds({
+            tenantId,
+            blockKeys:    adBlockKeys,
+            originHost:   adOriginHost,
+            platformBase: new URL(request.url).origin,
+            sessionId:    adSessionId,
+            evalCtx:      null,
+            tokens:       adTokens,
+          })
+        : Promise.resolve<SlotMap>({}),
+    ]);
     return NextResponse.json({ slots: adSlots, _ad: true }, { status: 200, headers: CORS_HEADERS });
   }
 
