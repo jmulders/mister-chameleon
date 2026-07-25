@@ -19,6 +19,9 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { upsertAbmLead, type AbmLeadProfile } from "@/lib/abm/abm-store";
 import { linkProfileToAbmLead } from "./visitor-profiles-store";
+import { getTenantById } from "@/tenant/server";
+import { sendAdaptiveEmail } from "@/lib/email/send-adaptive-email";
+import type { EmailTemplateKey } from "@/lib/email/adaptive-email";
 import { logger } from "@/lib/logger";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -90,6 +93,23 @@ export async function captureInboundLead(args: {
     if (args.visitorKey) {
       await linkProfileToAbmLead(args.tenantId, args.visitorKey, lead.id);
     }
+
+    // Adaptive email follow-up — opt-in per tenant (settings.adaptiveEmail.onFormSubmit),
+    // default off. Fire-and-forget; deduped per lead so a repeat submitter isn't
+    // re-mailed. Never blocks the form response.
+    try {
+      const tenant = await getTenantById(args.tenantId);
+      const trigger = (tenant as { adaptiveEmail?: { onFormSubmit?: { enabled?: boolean; templateKey?: string } } } | null)
+        ?.adaptiveEmail?.onFormSubmit;
+      if (trigger?.enabled && trigger.templateKey) {
+        void sendAdaptiveEmail({
+          tenantId:    args.tenantId,
+          recipient:   { email, leadId: lead.id },
+          templateKey: trigger.templateKey as EmailTemplateKey,
+          dedupeKey:   lead.id,
+        });
+      }
+    } catch { /* trigger is best-effort */ }
   } catch (err) {
     logger.warn("[lead-base] captureInboundLead failed", {
       err: err instanceof Error ? err.message : String(err),

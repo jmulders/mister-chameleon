@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { previewAdaptiveEmailAction, sendTestAdaptiveEmailAction, type EmailPreviewResult } from "../actions";
+import { previewAdaptiveEmailAction, sendTestAdaptiveEmailAction, setFormSubmitTriggerAction, type EmailPreviewResult } from "../actions";
 
 const card = "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm";
 const label = "block text-xs font-semibold text-neutral-600 mb-1";
 const input = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none";
 const btn = "inline-flex items-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
 
-export function EmailPreviewClient({ tenantId, templates }:
-  { tenantId: string; templates: { key: string; label: string }[] }) {
+export function EmailPreviewClient({ tenantId, templates, formSubmit }:
+  { tenantId: string; templates: { key: string; label: string }[]; formSubmit: { enabled: boolean; templateKey: string } }) {
   const [email, setEmail]       = useState("");
   const [templateKey, setTpl]   = useState(templates[0]?.key ?? "");
   const [res, setRes]           = useState<EmailPreviewResult | null>(null);
@@ -33,6 +33,19 @@ export function EmailPreviewClient({ tenantId, templates }:
     startSend(async () => {
       const r = await sendTestAdaptiveEmailAction(tenantId, { email, templateKey, testTo });
       setSendMsg(r.ok ? { ok: true, text: `Sent to ${testTo}.` } : { ok: false, text: r.error });
+    });
+  };
+
+  const [trigOn, setTrigOn]     = useState(formSubmit.enabled);
+  const [trigTpl, setTrigTpl]   = useState(formSubmit.templateKey || (templates[0]?.key ?? ""));
+  const [trigMsg, setTrigMsg]   = useState<{ ok: boolean; text: string } | null>(null);
+  const [trigSaving, startTrig] = useTransition();
+
+  const saveTrigger = () => {
+    setTrigMsg(null);
+    startTrig(async () => {
+      const r = await setFormSubmitTriggerAction(tenantId, { enabled: trigOn, templateKey: trigTpl });
+      setTrigMsg(r.ok ? { ok: true, text: "Saved." } : { ok: false, text: r.error });
     });
   };
 
@@ -95,6 +108,27 @@ export function EmailPreviewClient({ tenantId, templates }:
           </div>
         </div>
       )}
+
+      <div className={card}>
+        <h3 className="text-base font-semibold text-neutral-900">Send automatically on form submit</h3>
+        <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+          When on, a form submitter is emailed the chosen template after their submission is captured
+          (deduped per lead — a repeat submitter isn&apos;t re-mailed). Opt-in; off by default.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" checked={trigOn} onChange={(e) => setTrigOn(e.target.checked)} /> Enabled
+          </label>
+          <div>
+            <label className={label}>Template</label>
+            <select className={input + " max-w-xs"} value={trigTpl} onChange={(e) => setTrigTpl(e.target.value)} disabled={!trigOn}>
+              {templates.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+          </div>
+          <button className={btn} disabled={trigSaving} onClick={saveTrigger}>{trigSaving ? "Saving…" : "Save"}</button>
+        </div>
+        {trigMsg && <p className={"mt-2 text-sm " + (trigMsg.ok ? "text-green-700" : "text-red-600")}>{trigMsg.text}</p>}
+      </div>
     </div>
   );
 }

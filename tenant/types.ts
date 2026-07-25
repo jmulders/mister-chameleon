@@ -2721,6 +2721,15 @@ export interface TenantSettings {
   readonly adSlots?: readonly string[];
 
   /**
+   * Adaptive email triggers. `onFormSubmit` (opt-in, default off) sends the
+   * chosen adaptive email template to a form submitter after capture — the live
+   * form-submit trigger. Stored in settings.adaptiveEmail.
+   */
+  readonly adaptiveEmail?: {
+    readonly onFormSubmit?: { readonly enabled: boolean; readonly templateKey: string };
+  };
+
+  /**
    * Asset storage override for this tenant.
    *
    * When set, the specified provider is used instead of the platform-wide

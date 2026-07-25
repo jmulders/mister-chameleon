@@ -7,7 +7,9 @@
  * workspace layout (assertTenantAccess) and re-checked here.
  */
 
+import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
+import { getTenantById, saveTenant } from "@/tenant/server";
 import { renderAdaptiveEmail, EMAIL_TEMPLATES, type EmailTemplateKey } from "@/lib/email/adaptive-email";
 import { sendAdaptiveEmail } from "@/lib/email/send-adaptive-email";
 
@@ -63,5 +65,23 @@ export async function sendTestAdaptiveEmailAction(
   });
   if (!r.ok) return { ok: false, error: r.error };
   if (r.skipped) return { ok: false, error: r.skipped === "suppressed" ? "That test address is suppressed." : "Already sent." };
+  return { ok: true };
+}
+
+/**
+ * Enable/disable the live form-submit trigger for this tenant (opt-in). When on,
+ * a form submitter is emailed the chosen template after capture (deduped per lead).
+ */
+export async function setFormSubmitTriggerAction(
+  tenantId: string, input: { enabled: boolean; templateKey: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  if (input.enabled && !(input.templateKey in EMAIL_TEMPLATES)) return { ok: false, error: "Unknown template." };
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await saveTenant({ ...tenant, adaptiveEmail: { onFormSubmit: { enabled: input.enabled, templateKey: input.templateKey } } } as any);
+  revalidatePath(`/admin/tenants/${tenantId}/email`);
   return { ok: true };
 }
