@@ -31,6 +31,23 @@ function db(): any { return getDb() as any; }
 
 export interface DayReport { date: string; impressions: number; clicks: number; spend_cents: number }
 
+/**
+ * GA4-for-ads readiness, derived from the tenant's GA4 config. Secrets
+ * (apiSecret / serviceAccountJson) are NEVER included — only booleans and the
+ * non-secret IDs, safe to send to the client.
+ */
+export interface Ga4AdStatus {
+  trackingEnabled: boolean;
+  historyEnabled:  boolean;
+  sendMode:        "off" | "client" | "server" | null;
+  measurementId:   string | null;
+  propertyId:      string | null;
+  /** Server-side event write fully configured (enabled + server + measurementId + apiSecret). */
+  writeReady:      boolean;
+  /** History read fully configured (enabled + propertyId + serviceAccountJson). */
+  readReady:       boolean;
+}
+
 export interface AdsOverview {
   isAdvertiser:  boolean;
   siteKey:       string | null;
@@ -54,6 +71,12 @@ export interface AdsOverview {
   activeSlots:           AdSlotType[];
   /** Platform rate-card: default CPM/CPC (cents) new ads start from. */
   rateCard:              { cpmCents: number; cpcCents: number };
+  /** GA4-for-ads readiness (write/read), for the ads-page status card. */
+  ga4:                   Ga4AdStatus;
+  /** Autocomplete suggestions for firmographic targeting, taken from the
+      company values we've actually observed from Leadinfo (ip_company_cache), so
+      a chosen value is guaranteed to be matchable. */
+  companySuggestions:    { industries: string[]; sizes: string[] };
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -148,6 +171,38 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
   // Platform rate-card — the CPM/CPC defaults new ads start from.
   const pricingRes = await getPlatformAdPricingSettings();
 
+  // Firmographic autocomplete suggestions — distinct industries/sizes we've
+  // actually seen from Leadinfo (matched rows in the shared IP→company cache).
+  // Guarantees a chosen value can match; grows as the cache fills. Best-effort.
+  const companySuggestions = { industries: [] as string[], sizes: [] as string[] };
+  try {
+    const { data: obs } = await db()
+      .from("ip_company_cache")
+      .select("company_industry, company_size")
+      .eq("matched", true)
+      .limit(5000);
+    const inds = new Set<string>(), sizes = new Set<string>();
+    for (const r of (obs ?? []) as { company_industry: string | null; company_size: string | null }[]) {
+      if (r.company_industry) inds.add(r.company_industry.trim());
+      if (r.company_size)     sizes.add(r.company_size.trim());
+    }
+    companySuggestions.industries = Array.from(inds).filter(Boolean).sort((a, b) => a.localeCompare(b)).slice(0, 200);
+    companySuggestions.sizes      = Array.from(sizes).filter(Boolean).sort((a, b) => a.localeCompare(b)).slice(0, 50);
+  } catch { /* suggestions are optional */ }
+
+  // GA4-for-ads readiness (no secrets leave the server).
+  const gTrack = tenant?.ga4?.tracking;
+  const gHist  = tenant?.ga4?.history;
+  const ga4: Ga4AdStatus = {
+    trackingEnabled: !!gTrack?.enabled,
+    historyEnabled:  !!gHist?.enabled,
+    sendMode:        gTrack?.sendMode ?? null,
+    measurementId:   gTrack?.measurementId ?? null,
+    propertyId:      gHist?.propertyId ?? null,
+    writeReady:      !!(gTrack?.enabled && gTrack.sendMode === "server" && gTrack.measurementId && gTrack.apiSecret),
+    readReady:       !!(gHist?.enabled && gHist.propertyId && gHist.serviceAccountJson),
+  };
+
   return {
     isAdvertiser,
     siteKey,
@@ -168,6 +223,8 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
       cpmCents: (pricingRes.ok ? pricingRes.data.cpmCents : undefined) ?? AD_PRICING_DEFAULTS.cpmCents,
       cpcCents: (pricingRes.ok ? pricingRes.data.cpcCents : undefined) ?? AD_PRICING_DEFAULTS.cpcCents,
     },
+    ga4,
+    companySuggestions,
   };
 }
 

@@ -15,6 +15,7 @@ import type { AdAudience, AdFunnelStage } from "./targeting";
 import { anyFirmographicAd, anyRuleAd } from "./targeting";
 import { FIRMOGRAPHIC_FEE_CENTS } from "./pricing";
 import { LeadinfoProvider } from "@/enrichment/providers/leadinfo";
+import { ipCompanyCache } from "@/enrichment/ip-company-store";
 import { getPlatformEnrichmentSettings } from "@/platform/platform-store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,8 +119,13 @@ export async function resolveAdCompany(
     const key = await resolveLeadinfoKey();
     if (!key || !ip) return null;
 
-    // 3. Paid lookup.
-    const out = await new LeadinfoProvider({ apiKey: key, isDev: process.env["NODE_ENV"] !== "production" }).lookup(ip);
+    // 3. Paid lookup — backed by the platform-wide IP→company cache, so the paid
+    //    Leadinfo call is skipped for IPs we already resolved (any tenant).
+    const out = await new LeadinfoProvider({
+      apiKey: key,
+      isDev: process.env["NODE_ENV"] !== "production",
+      persistentCache: ipCompanyCache,
+    }).lookup(ip);
     const company: AdCompany | null =
       (out.companyName || out.companyIndustry || out.companySize)
         ? { name: out.companyName ?? null, industry: out.companyIndustry ?? null, size: out.companySize ?? null }

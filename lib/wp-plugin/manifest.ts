@@ -22,7 +22,7 @@
  * and what WordPress' own update/`plugins_api` structures expect.
  */
 
-const LATEST_VERSION = "0.5.6";
+const LATEST_VERSION = "0.5.7";
 
 export interface WpPluginManifest {
   name: string;
@@ -34,12 +34,18 @@ export interface WpPluginManifest {
   download_url: string;
   homepage: string;
   sections: { description: string; changelog: string };
+  /** Icons WordPress shows on the update / plugins screens (per-DPI + svg). */
+  icons: { "1x": string; "2x": string; svg: string; default: string };
 }
 
 export function wpPluginManifest(): WpPluginManifest {
   const downloadUrl =
     process.env["WP_PLUGIN_DOWNLOAD_URL"] ??
     "https://www.misterchameleon.nl/downloads/mister-chameleon-connect.zip";
+
+  // Icons live next to the zip (same directory), so an overridden download host
+  // keeps them together. Hosted from public/downloads/.
+  const assetBase = downloadUrl.replace(/\/[^/]*$/, "");
 
   return {
     name:         "Mister Chameleon Connect",
@@ -53,6 +59,12 @@ export function wpPluginManifest(): WpPluginManifest {
     sections: {
       description: "Real-time contentpersonalisatie via de Mister Chameleon-snippet.",
       changelog:   "Zie readme.txt in de plugin.",
+    },
+    icons: {
+      "1x":    `${assetBase}/mc-plugin-icon-128.png`,
+      "2x":    `${assetBase}/mc-plugin-icon-256.png`,
+      svg:     `${assetBase}/mc-plugin-icon.svg`,
+      default: `${assetBase}/mc-plugin-icon-256.png`,
     },
   };
 }

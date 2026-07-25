@@ -94,6 +94,7 @@ import { createOpenKvKStagedEnricher }         from "./openkvk";
 import type { OpenKvKMode, OpenKvKMatchingStrategy } from "./openkvk";
 import { createKvkZoekenStagedEnricher }      from "./kvk-zoeken";
 import { createLeadinfoStagedEnricher }        from "./leadinfo";
+import { ipCompanyCache }                       from "../ip-company-store";
 import { HubSpotCrmProvider }                  from "./hubspot-crm";
 import {
   createSeasonalEventStagedEnricher,
@@ -570,7 +571,9 @@ export function buildCompanyCrmChain(
   // No dependency on OpenKvK or ReverseGeocode — safe for wave 2.
   if (enableLeadinfo && leadinfoApiKey) {
     stages.push({
-      ...createLeadinfoStagedEnricher({ apiKey: leadinfoApiKey, isDev }),
+      // Share the platform-wide IP→company cache so a paid Leadinfo call is
+      // skipped for IPs already resolved by any tenant (ads or CMS).
+      ...createLeadinfoStagedEnricher({ apiKey: leadinfoApiKey, isDev, persistentCache: ipCompanyCache }),
       stageKey: "leadinfo",
       wave:     2,
     });
