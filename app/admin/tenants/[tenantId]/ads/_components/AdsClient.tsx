@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { COUNTRIES, countryName, resolveCountry } from "@/lib/geo/countries";
 import {
   setAdvertiserRoleAction,
   addPublisherAction,
@@ -120,7 +121,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
       <SessionsCard tenantId={tenantId} />
       <Ga4StatusCard tenantId={tenantId} status={initial.ga4} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
-      <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.rateCard} />
+      <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.rateCard} suggestions={initial.companySuggestions} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
     </div>
   );
@@ -473,8 +474,62 @@ function adToForm(a: Ad): CreateAdInput {
   };
 }
 
-function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone, slots, rateCard }:
-  { tenantId: string; pending: boolean; run: RunFn; mode?: "create" | "edit"; initial?: CreateAdInput; adId?: string; onDone?: () => void; slots?: AdSlotType[]; rateCard?: { cpmCents: number; cpcCents: number } }) {
+/** Chip input with a native datalist. Values are validated/normalised via `resolve`. */
+function TokenField({ label: lbl, tokens, onChange, placeholder, suggestions, resolve, display }: {
+  label: string;
+  tokens: string[];
+  onChange: (t: string[]) => void;
+  placeholder?: string;
+  suggestions: { value: string; label: string }[];
+  resolve: (raw: string) => string | null;
+  display: (token: string) => string;
+}) {
+  const [text, setText] = useState("");
+  const listId = useId();
+  const add = (raw: string) => {
+    const v = resolve(raw);
+    if (v && !tokens.includes(v)) onChange([...tokens, v]);
+    setText("");
+  };
+  return (
+    <div>
+      <label className={label}>{lbl}</label>
+      <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-neutral-300 px-2 py-1.5 focus-within:border-indigo-500">
+        {tokens.map((t) => (
+          <span key={t} className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
+            {display(t)}
+            <button type="button" className="text-indigo-400 hover:text-indigo-700" onClick={() => onChange(tokens.filter((x) => x !== t))}>×</button>
+          </span>
+        ))}
+        <input
+          list={listId}
+          className="min-w-[7rem] flex-1 border-0 bg-transparent p-0.5 text-sm focus:outline-none"
+          value={text}
+          placeholder={tokens.length === 0 ? placeholder : ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (suggestions.some((s) => s.label === v || s.value === v)) add(v); // picked from list / exact match
+            else setText(v);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); if (text.trim()) add(text); }
+            else if (e.key === "Backspace" && !text && tokens.length > 0) onChange(tokens.slice(0, -1));
+          }}
+          onBlur={() => { if (text.trim()) add(text); }}
+        />
+      </div>
+      <datalist id={listId}>
+        {suggestions.filter((s) => !tokens.includes(s.value)).map((s) => <option key={s.value} value={s.label} />)}
+      </datalist>
+    </div>
+  );
+}
+
+const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
+const identityToken = (raw: string): string | null => (raw.trim() || null);
+
+function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone, slots, rateCard, suggestions }:
+  { tenantId: string; pending: boolean; run: RunFn; mode?: "create" | "edit"; initial?: CreateAdInput; adId?: string; onDone?: () => void; slots?: AdSlotType[]; rateCard?: { cpmCents: number; cpcCents: number }; suggestions?: { industries: string[]; sizes: string[] } }) {
   const slotOptions = slots && slots.length > 0 ? slots : SLOTS;
   const [slot, setSlot] = useState<AdSlotType>(initial?.slot_type ?? "hero");
   const [form, setForm] = useState<CreateAdInput>(initial ?? {
@@ -578,27 +633,33 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
               <label className={label}>Min. pageviews</label>
               <input type="number" min={0} className={input} value={form.targeting?.minPageviews ?? 0} onChange={(e) => setT({ minPageviews: Math.max(0, Number(e.target.value)) })} />
             </div>
-            <div>
-              <label className={label}>Countries (ISO codes, comma-separated)</label>
-              <input className={input}
-                value={(form.targeting?.countries ?? []).join(", ")}
-                onChange={(e) => setT({ countries: e.target.value.split(",").map((s) => s.trim().toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s)) })}
-                placeholder="NL, BE" />
-            </div>
-            <div>
-              <label className={label}>Industries (comma-separated)</label>
-              <input className={input}
-                value={(form.targeting?.industries ?? []).join(", ")}
-                onChange={(e) => setT({ industries: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-                placeholder="software, finance" />
-            </div>
-            <div>
-              <label className={label}>Company sizes (comma-separated)</label>
-              <input className={input}
-                value={(form.targeting?.companySizes ?? []).join(", ")}
-                onChange={(e) => setT({ companySizes: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-                placeholder="51-200, 201-500" />
-            </div>
+            <TokenField
+              label="Countries"
+              tokens={form.targeting?.countries ?? []}
+              onChange={(t) => setT({ countries: t })}
+              placeholder="Type a country…"
+              suggestions={COUNTRY_OPTIONS}
+              resolve={resolveCountry}
+              display={(code) => `${countryName(code)} (${code})`}
+            />
+            <TokenField
+              label="Industries"
+              tokens={form.targeting?.industries ?? []}
+              onChange={(t) => setT({ industries: t })}
+              placeholder={(suggestions?.industries.length ?? 0) > 0 ? "Type or pick an industry…" : "software, finance"}
+              suggestions={(suggestions?.industries ?? []).map((v) => ({ value: v, label: v }))}
+              resolve={identityToken}
+              display={(v) => v}
+            />
+            <TokenField
+              label="Company sizes"
+              tokens={form.targeting?.companySizes ?? []}
+              onChange={(t) => setT({ companySizes: t })}
+              placeholder={(suggestions?.sizes.length ?? 0) > 0 ? "Type or pick a size…" : "51-200, 201-500"}
+              suggestions={(suggestions?.sizes ?? []).map((v) => ({ value: v, label: v }))}
+              resolve={identityToken}
+              display={(v) => v}
+            />
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" checked={form.targeting?.requireCompany ?? false}
@@ -755,7 +816,8 @@ function AdsListCard({ tenantId, initial, pending, run }:
                   <tr>
                     <td colSpan={8} className="bg-neutral-50/60 p-3">
                       <AdForm tenantId={tenantId} pending={pending} run={run}
-                        mode="edit" adId={a.id} initial={adToForm(a)} onDone={() => setEditId(null)} />
+                        mode="edit" adId={a.id} initial={adToForm(a)} onDone={() => setEditId(null)}
+                        suggestions={initial.companySuggestions} />
                     </td>
                   </tr>
                 )}

@@ -73,6 +73,10 @@ export interface AdsOverview {
   rateCard:              { cpmCents: number; cpcCents: number };
   /** GA4-for-ads readiness (write/read), for the ads-page status card. */
   ga4:                   Ga4AdStatus;
+  /** Autocomplete suggestions for firmographic targeting, taken from the
+      company values we've actually observed from Leadinfo (ip_company_cache), so
+      a chosen value is guaranteed to be matchable. */
+  companySuggestions:    { industries: string[]; sizes: string[] };
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -167,6 +171,25 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
   // Platform rate-card — the CPM/CPC defaults new ads start from.
   const pricingRes = await getPlatformAdPricingSettings();
 
+  // Firmographic autocomplete suggestions — distinct industries/sizes we've
+  // actually seen from Leadinfo (matched rows in the shared IP→company cache).
+  // Guarantees a chosen value can match; grows as the cache fills. Best-effort.
+  const companySuggestions = { industries: [] as string[], sizes: [] as string[] };
+  try {
+    const { data: obs } = await db()
+      .from("ip_company_cache")
+      .select("company_industry, company_size")
+      .eq("matched", true)
+      .limit(5000);
+    const inds = new Set<string>(), sizes = new Set<string>();
+    for (const r of (obs ?? []) as { company_industry: string | null; company_size: string | null }[]) {
+      if (r.company_industry) inds.add(r.company_industry.trim());
+      if (r.company_size)     sizes.add(r.company_size.trim());
+    }
+    companySuggestions.industries = Array.from(inds).filter(Boolean).sort((a, b) => a.localeCompare(b)).slice(0, 200);
+    companySuggestions.sizes      = Array.from(sizes).filter(Boolean).sort((a, b) => a.localeCompare(b)).slice(0, 50);
+  } catch { /* suggestions are optional */ }
+
   // GA4-for-ads readiness (no secrets leave the server).
   const gTrack = tenant?.ga4?.tracking;
   const gHist  = tenant?.ga4?.history;
@@ -201,6 +224,7 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
       cpcCents: (pricingRes.ok ? pricingRes.data.cpcCents : undefined) ?? AD_PRICING_DEFAULTS.cpcCents,
     },
     ga4,
+    companySuggestions,
   };
 }
 
