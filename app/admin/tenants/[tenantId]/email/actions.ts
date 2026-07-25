@@ -1,0 +1,67 @@
+"use server";
+
+/**
+ * Adaptive email — admin preview action (slice 1: render only, no send).
+ * Renders the personalised email for a given recipient so an operator can see
+ * exactly what a known lead would receive. Auth is enforced by the tenant
+ * workspace layout (assertTenantAccess) and re-checked here.
+ */
+
+import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
+import { renderAdaptiveEmail, EMAIL_TEMPLATES, type EmailTemplateKey } from "@/lib/email/adaptive-email";
+import { sendAdaptiveEmail } from "@/lib/email/send-adaptive-email";
+
+export interface EmailPreviewResult {
+  subject:    string;
+  html:       string;
+  knownLead:  boolean;
+  usedBlocks: string[];
+}
+
+export async function previewAdaptiveEmailAction(
+  tenantId: string, input: { email: string; templateKey: string },
+): Promise<{ ok: true; data: EmailPreviewResult } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  const email = input.email.trim();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Enter a valid email address." };
+  if (!(input.templateKey in EMAIL_TEMPLATES)) return { ok: false, error: "Unknown template." };
+
+  try {
+    const r = await renderAdaptiveEmail({
+      tenantId,
+      recipient:   { email },
+      templateKey: input.templateKey as EmailTemplateKey,
+    });
+    return { ok: true, data: { subject: r.subject, html: r.html, knownLead: r.knownLead, usedBlocks: r.usedBlocks } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Preview failed." };
+  }
+}
+
+/**
+ * Send the personalised email to a TEST address (real delivery via Resend/SMTP),
+ * while personalising for the entered recipient. Lets you verify end-to-end
+ * without mailing a real lead.
+ */
+export async function sendTestAdaptiveEmailAction(
+  tenantId: string, input: { email: string; templateKey: string; testTo: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  const testTo = input.testTo.trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(testTo)) return { ok: false, error: "Enter a valid test address." };
+  if (!(input.templateKey in EMAIL_TEMPLATES)) return { ok: false, error: "Unknown template." };
+
+  const r = await sendAdaptiveEmail({
+    tenantId,
+    recipient:   { email: input.email.trim() || testTo },
+    templateKey: input.templateKey as EmailTemplateKey,
+    to:          testTo,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  if (r.skipped) return { ok: false, error: r.skipped === "suppressed" ? "That test address is suppressed." : "Already sent." };
+  return { ok: true };
+}
