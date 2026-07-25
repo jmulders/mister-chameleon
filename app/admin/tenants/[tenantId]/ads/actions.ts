@@ -13,7 +13,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import Stripe from "stripe";
-import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
+import { getRequiredAdminSession, assertTenantAccess, isSuperAdmin } from "@/lib/admin-auth/authorization";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { getDb } from "@/data/db";
 import { getWallet, creditWallet } from "@/billing/wallet";
@@ -28,6 +28,28 @@ import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/pl
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
+
+type RateCard = { cpmCents: number; cpcCents: number };
+type TenantRateOverride = { cpmCents?: number; cpcCents?: number };
+
+/** Global CPM/CPC (cents) from the platform rate-card, with safe defaults. */
+async function globalRateCard(): Promise<RateCard> {
+  const r = await getPlatformAdPricingSettings();
+  return {
+    cpmCents: (r.ok ? r.data.cpmCents : undefined) ?? AD_PRICING_DEFAULTS.cpmCents,
+    cpcCents: (r.ok ? r.data.cpcCents : undefined) ?? AD_PRICING_DEFAULTS.cpcCents,
+  };
+}
+
+/** Effective rate for a model: per-advertiser override → global rate-card. */
+function effectiveRate(override: TenantRateOverride | undefined, global: RateCard, model: AdPricingModel): number {
+  return model === "cpm" ? (override?.cpmCents ?? global.cpmCents) : (override?.cpcCents ?? global.cpcCents);
+}
+
+/** Read the per-tenant rate-card override off a tenant record (untyped JSONB field). */
+function tenantRateOverride(tenant: unknown): TenantRateOverride | undefined {
+  return (tenant as { adRateCard?: TenantRateOverride } | null)?.adRateCard;
+}
 
 export interface DayReport { date: string; impressions: number; clicks: number; spend_cents: number }
 
@@ -69,8 +91,14 @@ export interface AdsOverview {
   pendingProfilingCents: number;
   /** Slot types this ad account offers to publishers (defaults to all). */
   activeSlots:           AdSlotType[];
-  /** Platform rate-card: default CPM/CPC (cents) new ads start from. */
+  /** Global platform rate-card (cents) — the default when a tenant has no override. */
   rateCard:              { cpmCents: number; cpcCents: number };
+  /** Effective rate applied to this advertiser's ads (per-tenant override → global). */
+  effectiveRateCard:     { cpmCents: number; cpcCents: number };
+  /** This advertiser's per-tenant override (null = inherit the global rate-card). */
+  tenantRateOverride:    { cpmCents: number | null; cpcCents: number | null };
+  /** True when the viewer is a platform super-admin (may set the per-tenant rate). */
+  isSuperAdmin:          boolean;
   /** GA4-for-ads readiness (write/read), for the ads-page status card. */
   ga4:                   Ga4AdStatus;
   /** Autocomplete suggestions for firmographic targeting, taken from the
@@ -168,8 +196,9 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     for (const c of (charges ?? []) as { fee_cents: number }[]) pendingProfilingCents += Number(c.fee_cents ?? 0);
   } catch { /* best-effort */ }
 
-  // Platform rate-card — the CPM/CPC defaults new ads start from.
-  const pricingRes = await getPlatformAdPricingSettings();
+  // Rate-card: global platform default + this advertiser's per-tenant override.
+  const globalRc = await globalRateCard();
+  const rateOverride = tenantRateOverride(tenant);
 
   // Firmographic autocomplete suggestions — distinct industries/sizes we've
   // actually seen from Leadinfo (matched rows in the shared IP→company cache).
@@ -219,10 +248,16 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     activeSlots: tenant?.adSlots == null
       ? SLOTS                                            // legacy/unset = all slots
       : SLOTS.filter((s) => tenant.adSlots!.includes(s)),
-    rateCard: {
-      cpmCents: (pricingRes.ok ? pricingRes.data.cpmCents : undefined) ?? AD_PRICING_DEFAULTS.cpmCents,
-      cpcCents: (pricingRes.ok ? pricingRes.data.cpcCents : undefined) ?? AD_PRICING_DEFAULTS.cpcCents,
+    rateCard: globalRc,
+    effectiveRateCard: {
+      cpmCents: rateOverride?.cpmCents ?? globalRc.cpmCents,
+      cpcCents: rateOverride?.cpcCents ?? globalRc.cpcCents,
     },
+    tenantRateOverride: {
+      cpmCents: rateOverride?.cpmCents ?? null,
+      cpcCents: rateOverride?.cpcCents ?? null,
+    },
+    isSuperAdmin: isSuperAdmin(session),
     ga4,
     companySuggestions,
   };
@@ -323,6 +358,28 @@ export async function setAdSlotsAction(tenantId: string, slots: AdSlotType[]): P
   return { ok: true };
 }
 
+/**
+ * Set (or clear) this advertiser's per-tenant CPM/CPC rate-card override.
+ * Super-admin only — advertisers must never be able to set their own price.
+ * Pass null for a field to clear it (that model then inherits the global rate).
+ */
+export async function setTenantAdRateCardAction(
+  tenantId: string, input: { cpmCents: number | null; cpcCents: number | null },
+): Promise<ActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  if (!isSuperAdmin(session)) return { ok: false, error: "Only platform admins can set advertiser rates." };
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+  const clean: TenantRateOverride = {
+    ...(typeof input.cpmCents === "number" && input.cpmCents >= 0 ? { cpmCents: Math.round(input.cpmCents) } : {}),
+    ...(typeof input.cpcCents === "number" && input.cpcCents >= 0 ? { cpcCents: Math.round(input.cpcCents) } : {}),
+  };
+  await saveTenant({ ...tenant, adRateCard: Object.keys(clean).length > 0 ? clean : undefined });
+  revalidatePath(`/admin/tenants/${tenantId}/ads`);
+  return { ok: true };
+}
+
 export async function setAdvertiserRoleAction(tenantId: string, on: boolean): Promise<ActionResult> {
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
@@ -402,6 +459,11 @@ export async function createAdAction(tenantId: string, input: CreateAdInput): Pr
     return { ok: false, error: "Click URL must start with http(s)://." };
   }
 
+  // Rate is platform-controlled: per-advertiser override → global rate-card.
+  // Any client-supplied rate is ignored so an advertiser can't set their price.
+  const rateTenant = await getTenantById(tenantId);
+  const enforcedRate = effectiveRate(tenantRateOverride(rateTenant), await globalRateCard(), input.pricing_model);
+
   const { error } = await db().from("ads").insert({
     ad_tenant_id:  tenantId,
     name:          input.name.trim(),
@@ -409,7 +471,7 @@ export async function createAdAction(tenantId: string, input: CreateAdInput): Pr
     creative,
     click_url:     input.click_url || null,
     pricing_model: input.pricing_model,
-    rate_cents:    Math.max(0, input.rate_cents),
+    rate_cents:    enforcedRate,
     budget_cents:  Math.max(0, input.budget_cents),
     weight:        Math.max(1, input.weight),
     targeting:     input.targeting ? parseAdTargeting(input.targeting) : {},
@@ -443,6 +505,10 @@ export async function editAdAction(tenantId: string, adId: string, input: Create
     return { ok: false, error: "Click URL must start with http(s)://." };
   }
 
+  // Rate stays platform-controlled on edit too (advertiser can't change it).
+  const rateTenant = await getTenantById(tenantId);
+  const enforcedRate = effectiveRate(tenantRateOverride(rateTenant), await globalRateCard(), input.pricing_model);
+
   const { error } = await db().from("ads")
     .update({
       name:          input.name.trim(),
@@ -450,7 +516,7 @@ export async function editAdAction(tenantId: string, adId: string, input: Create
       creative,
       click_url:     input.click_url || null,
       pricing_model: input.pricing_model,
-      rate_cents:    Math.max(0, input.rate_cents),
+      rate_cents:    enforcedRate,
       budget_cents:  Math.max(0, input.budget_cents),
       weight:        Math.max(1, input.weight),
       targeting:     input.targeting ? parseAdTargeting(input.targeting) : {},

@@ -10,6 +10,7 @@ import {
   createAdAction,
   setAdStatusAction,
   setAdSlotsAction,
+  setTenantAdRateCardAction,
   editAdAction,
   fetchAdSessionsAction,
   type AdsOverview,
@@ -108,6 +109,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
       </div>
 
       <SlotsCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
+      {initial.isSuperAdmin && <AdRateCardCard tenantId={tenantId} initial={initial} pending={pending} run={run} />}
       <EmbedCard
         siteKey={initial.siteKey}
         slots={initial.activeSlots.length > 0 ? initial.activeSlots : SLOTS}
@@ -123,7 +125,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
       <SessionsCard tenantId={tenantId} />
       <Ga4StatusCard tenantId={tenantId} status={initial.ga4} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
-      <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.rateCard} suggestions={initial.companySuggestions} />
+      <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.effectiveRateCard} suggestions={initial.companySuggestions} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
     </div>
   );
@@ -754,10 +756,10 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
     click_url: "", pricing_model: "cpm", rate_cents: rateCard?.cpmCents ?? 500, budget_cents: 5000, weight: 1,
   });
   // When switching model on a new ad, snap the rate to the platform rate-card.
-  const onModel = (m: AdPricingModel) => {
-    if (mode === "create" && rateCard) set({ pricing_model: m, rate_cents: m === "cpm" ? rateCard.cpmCents : rateCard.cpcCents });
-    else set({ pricing_model: m });
-  };
+  // Rate is platform-controlled; keep the submitted value in sync with the rate
+  // card for display, but the server enforces it regardless of what's sent.
+  const onModel = (m: AdPricingModel) =>
+    set({ pricing_model: m, rate_cents: m === "cpm" ? (rateCard?.cpmCents ?? 0) : (rateCard?.cpcCents ?? 0) });
   const [ruleText, setRuleText] = useState(() => (form.targeting?.rule ? JSON.stringify(form.targeting.rule, null, 2) : ""));
   const [ruleError, setRuleError] = useState<string | null>(null);
   const onRuleText = (v: string) => {
@@ -841,8 +843,11 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
             </select>
           </div>
           <div>
-            <label className={label}>{form.pricing_model === "cpm" ? "€/1000 (cents)" : "€/click (cents)"}</label>
-            <input type="number" className={input} value={form.rate_cents} onChange={(e) => set({ rate_cents: Number(e.target.value) })} />
+            <label className={label}>{form.pricing_model === "cpm" ? "€/1000 (platform rate)" : "€/click (platform rate)"}</label>
+            <div className={input + " bg-neutral-100 text-neutral-600"}>
+              {euros(form.pricing_model === "cpm" ? (rateCard?.cpmCents ?? null) : (rateCard?.cpcCents ?? null))}
+            </div>
+            <p className="mt-0.5 text-[11px] text-neutral-400">Set by the platform</p>
           </div>
           <div>
             <label className={label}>Budget (cents, 0=∞)</label>
@@ -973,6 +978,46 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
   );
 }
 
+function AdRateCardCard({ tenantId, initial, pending, run }:
+  { tenantId: string; initial: AdsOverview; pending: boolean; run: RunFn }) {
+  const [cpm, setCpm] = useState(initial.tenantRateOverride.cpmCents?.toString() ?? "");
+  const [cpc, setCpc] = useState(initial.tenantRateOverride.cpcCents?.toString() ?? "");
+  const save = () => run(() => setTenantAdRateCardAction(tenantId, {
+    cpmCents: cpm.trim() === "" ? null : Math.max(0, Number(cpm)),
+    cpcCents: cpc.trim() === "" ? null : Math.max(0, Number(cpc)),
+  }));
+  const resetToGlobal = () => { setCpm(""); setCpc(""); run(() => setTenantAdRateCardAction(tenantId, { cpmCents: null, cpcCents: null })); };
+  return (
+    <div className={card}>
+      <div className="flex items-center gap-2">
+        <h3 className="text-base font-semibold text-neutral-900">Rate card</h3>
+        <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-500">platform-only</span>
+      </div>
+      <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+        The CPM/CPC this advertiser pays — advertisers can't change it. Leave a field blank to inherit the
+        global rate-card ({euros(initial.rateCard.cpmCents)}/1000, {euros(initial.rateCard.cpcCents)}/click).
+      </p>
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div>
+          <label className={label}>CPM override (cents /1000)</label>
+          <input type="number" min={0} className={input + " max-w-[160px]"} value={cpm}
+            placeholder={`global ${initial.rateCard.cpmCents}`} onChange={(e) => setCpm(e.target.value)} />
+        </div>
+        <div>
+          <label className={label}>CPC override (cents /click)</label>
+          <input type="number" min={0} className={input + " max-w-[160px]"} value={cpc}
+            placeholder={`global ${initial.rateCard.cpcCents}`} onChange={(e) => setCpc(e.target.value)} />
+        </div>
+        <button className={btn} disabled={pending} onClick={save}>Save rate</button>
+        <button className={btnGhost} disabled={pending} onClick={resetToGlobal}>Reset to global</button>
+      </div>
+      <p className="mt-2 text-xs text-neutral-500">
+        Effective now: {euros(initial.effectiveRateCard.cpmCents)}/1000 · {euros(initial.effectiveRateCard.cpcCents)}/click
+      </p>
+    </div>
+  );
+}
+
 function SlotsCard({ tenantId, initial, pending, run }:
   { tenantId: string; initial: AdsOverview; pending: boolean; run: RunFn }) {
   const active = new Set(initial.activeSlots);
@@ -1063,7 +1108,7 @@ function AdsListCard({ tenantId, initial, pending, run }:
                     <td colSpan={8} className="bg-neutral-50/60 p-3">
                       <AdForm tenantId={tenantId} pending={pending} run={run}
                         mode="edit" adId={a.id} initial={adToForm(a)} onDone={() => setEditId(null)}
-                        suggestions={initial.companySuggestions} />
+                        rateCard={initial.effectiveRateCard} suggestions={initial.companySuggestions} />
                     </td>
                   </tr>
                 )}
