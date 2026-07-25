@@ -45,6 +45,7 @@
 import type { EnrichmentOutput, StagedEnricher, EnricherInput } from "../types";
 import { isLocalIp }                                            from "./geo";
 import { ProviderCache }                                        from "../provider-cache";
+import type { LeadinfoPersistentCache }                         from "../ip-company-cache-ttl";
 
 // ── Module-level result cache ─────────────────────────────────────────────────
 //
@@ -88,17 +89,27 @@ export interface LeadinfoProviderOptions {
    * Default: "https://api.leadinfo.com"
    */
   apiBase?: string;
+  /**
+   * Optional platform-wide persistent IP→company cache (ip_company_cache).
+   * When provided, a fresh cached result short-circuits the paid API call, and
+   * every fresh lookup (match or no-match) is written back. Injected — not
+   * imported here — so this provider stays free of server-only dependencies and
+   * unit-testable.
+   */
+  persistentCache?: LeadinfoPersistentCache;
 }
 
 export class LeadinfoProvider {
   private readonly apiKey:  string;
   private readonly isDev:   boolean;
   private readonly apiBase: string;
+  private readonly persistentCache: LeadinfoPersistentCache | undefined;
 
   constructor(options: LeadinfoProviderOptions) {
     this.apiKey  = options.apiKey;
     this.isDev   = options.isDev  ?? false;
     this.apiBase = options.apiBase ?? "https://api.leadinfo.com";
+    this.persistentCache = options.persistentCache;
   }
 
   /**
@@ -122,13 +133,24 @@ export class LeadinfoProvider {
       console.debug("[leadinfo] substituting local IP", { original: ip, effective: effectiveIp });
     }
 
-    // ── Cache check ──────────────────────────────────────────────────────────
+    // ── Cache check (in-process, then persistent DB) ─────────────────────────
     const cachedResult = lookupCache.get(effectiveIp);
     if (cachedResult.hit) {
       if (this.isDev) {
         console.debug("[leadinfo] cache hit", { ip: effectiveIp });
       }
       return cachedResult.value;
+    }
+
+    if (this.persistentCache) {
+      const persisted = await this.persistentCache.get(effectiveIp);
+      if (persisted) {
+        if (this.isDev) {
+          console.debug("[leadinfo] persistent cache hit", { ip: effectiveIp });
+        }
+        lookupCache.set(effectiveIp, persisted.output); // warm the in-process cache
+        return persisted.output;
+      }
     }
 
     try {
@@ -150,6 +172,7 @@ export class LeadinfoProvider {
           console.debug("[leadinfo] no company for IP", effectiveIp);
         }
         lookupCache.set(effectiveIp, {});
+        void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: null });
         return {};
       }
 
@@ -163,7 +186,11 @@ export class LeadinfoProvider {
 
       const data = (await response.json()) as LeadinfoResponse;
 
-      if (!data.company) return {};
+      if (!data.company) {
+        lookupCache.set(effectiveIp, {});
+        void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: data });
+        return {};
+      }
 
       const result: Partial<EnrichmentOutput> = {
         companyMatchSource:     "leadinfo",
@@ -188,8 +215,9 @@ export class LeadinfoProvider {
         });
       }
 
-      // Cache successful result
+      // Cache successful result (in-process + persistent, with the raw payload)
       lookupCache.set(effectiveIp, result);
+      void this.persistentCache?.set(effectiveIp, { matched: true, output: result, raw: data });
       return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
