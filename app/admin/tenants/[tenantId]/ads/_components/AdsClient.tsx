@@ -20,6 +20,8 @@ import {
 } from "../actions";
 import type { AdSlotType, AdPricingModel, Ad } from "@/lib/ads/types";
 import { parseAdTargeting, type AdFunnelStage } from "@/lib/ads/targeting";
+import { renderBlockHtml } from "@/lib/snippet/render-block-html";
+import { BLOCK_TOKEN_GROUPS, blockTokensToStyle, VALID_SURFACE_ROLES, type CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 
 const SLOTS: AdSlotType[] = ["hero", "proof", "cta", "feature", "conversion", "notification"];
 const FUNNEL_STAGES: AdFunnelStage[] = ["awareness", "consideration", "intent", "high_intent", "customer"];
@@ -528,6 +530,220 @@ function TokenField({ label: lbl, tokens, onChange, placeholder, suggestions, re
 const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
 const identityToken = (raw: string): string | null => (raw.trim() || null);
 
+// ── Friendly creative editor (per slot type) ─────────────────────────────────
+// Edits the ad `creative` object with real fields instead of raw JSON. The field
+// set per slot matches exactly what renderBlockHtml consumes, so what you type is
+// what serves. Raw JSON stays available under "Advanced" for power users.
+
+type Cta = { label?: string; href?: string };
+type CreativeValue = Record<string, unknown>;
+
+function CreativeText({ label: lbl, value, onChange, placeholder, area }:
+  { label: string; value: string; onChange: (v: string) => void; placeholder?: string; area?: boolean }) {
+  return (
+    <div>
+      <label className={label}>{lbl}</label>
+      {area
+        ? <textarea className={input} rows={2} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+        : <input className={input} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />}
+    </div>
+  );
+}
+
+function CtaList({ ctas, onChange, max = 2 }: { ctas: Cta[]; onChange: (c: Cta[]) => void; max?: number }) {
+  const upd = (i: number, patch: Partial<Cta>) => onChange(ctas.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  return (
+    <div>
+      <label className={label}>Buttons — the first link becomes the tracked click URL</label>
+      <div className="space-y-2">
+        {ctas.map((c, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input className={input} value={c.label ?? ""} placeholder="Button label" onChange={(e) => upd(i, { label: e.target.value })} />
+            <input className={input} value={c.href ?? ""} placeholder="https://advertiser.example" onChange={(e) => upd(i, { href: e.target.value })} />
+            <button type="button" className={btnGhost} onClick={() => onChange(ctas.filter((_, j) => j !== i))}>×</button>
+          </div>
+        ))}
+        {ctas.length < max && (
+          <button type="button" className={btnGhost} onClick={() => onChange([...ctas, { label: "", href: "" }])}>+ Button</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SingleCta({ cta, onChange }: { cta: Cta; onChange: (c: Cta) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div><label className={label}>Button label</label><input className={input} value={cta.label ?? ""} placeholder="Get started" onChange={(e) => onChange({ ...cta, label: e.target.value })} /></div>
+      <div><label className={label}>Button link</label><input className={input} value={cta.href ?? ""} placeholder="https://advertiser.example" onChange={(e) => onChange({ ...cta, href: e.target.value })} /></div>
+    </div>
+  );
+}
+
+function ItemList({ items, onChange, fields, addLabel }:
+  { items: Record<string, string>[]; onChange: (i: Record<string, string>[]) => void; fields: { key: string; label: string }[]; addLabel: string }) {
+  const upd = (i: number, patch: Record<string, string>) => onChange(items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
+  return (
+    <div>
+      <label className={label}>Items</label>
+      <div className="space-y-2">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-start gap-2 rounded-md border border-neutral-200 p-2">
+            <div className="flex-1 space-y-1.5">
+              {fields.map((f) => (
+                <input key={f.key} className={input} value={it[f.key] ?? ""} placeholder={f.label}
+                  onChange={(e) => upd(i, { [f.key]: e.target.value })} />
+              ))}
+            </div>
+            <button type="button" className={btnGhost} onClick={() => onChange(items.filter((_, j) => j !== i))}>×</button>
+          </div>
+        ))}
+        <button type="button" className={btnGhost} onClick={() => onChange([...items, {}])}>{addLabel}</button>
+      </div>
+    </div>
+  );
+}
+
+function CreativeEditor({ slotType, value, onChange }:
+  { slotType: AdSlotType; value: CreativeValue; onChange: (v: CreativeValue) => void }) {
+  const up   = (patch: CreativeValue) => onChange({ ...value, ...patch });
+  const s    = (k: string): string => (typeof value[k] === "string" ? (value[k] as string) : "");
+  const list = (k: string): Record<string, string>[] => (Array.isArray(value[k]) ? (value[k] as Record<string, string>[]) : []);
+  const ctas = (k: string): Cta[] => (Array.isArray(value[k]) ? (value[k] as Cta[]) : []);
+  const obj  = (k: string): Cta => (value[k] && typeof value[k] === "object" ? (value[k] as Cta) : {});
+
+  switch (slotType) {
+    case "hero":
+      return (
+        <div className="space-y-3">
+          <CreativeText label="Eyebrow / tag" value={s("tag")} onChange={(v) => up({ tag: v })} placeholder="Sponsored" />
+          <CreativeText label="Title" value={s("title")} onChange={(v) => up({ title: v })} placeholder="Your headline" />
+          <CreativeText label="Subtitle" value={s("subtitle")} onChange={(v) => up({ subtitle: v })} area />
+          <CtaList ctas={ctas("ctas")} onChange={(c) => up({ ctas: c })} />
+        </div>
+      );
+    case "proof":
+      return (
+        <div className="space-y-3">
+          <CreativeText label="Title" value={s("title")} onChange={(v) => up({ title: v })} placeholder="Trusted widely" />
+          <ItemList items={list("items")} onChange={(i) => up({ items: i })} addLabel="+ Stat"
+            fields={[{ key: "title", label: "Stat (e.g. 5,000+)" }, { key: "text", label: "Label (e.g. teams)" }]} />
+        </div>
+      );
+    case "cta":
+      return (
+        <div className="space-y-3">
+          <CreativeText label="Title" value={s("title")} onChange={(v) => up({ title: v })} placeholder="Ready to switch?" />
+          <CreativeText label="Text" value={s("text")} onChange={(v) => up({ text: v })} area />
+          <SingleCta cta={obj("cta")} onChange={(c) => up({ cta: c })} />
+        </div>
+      );
+    case "feature":
+      return (
+        <div className="space-y-3">
+          <CreativeText label="Title" value={s("title")} onChange={(v) => up({ title: v })} placeholder="Why us" />
+          <CreativeText label="Subtitle" value={s("subtitle")} onChange={(v) => up({ subtitle: v })} area />
+          <ItemList items={list("items")} onChange={(i) => up({ items: i })} addLabel="+ Feature"
+            fields={[{ key: "title", label: "Feature title" }, { key: "body", label: "Feature description" }]} />
+        </div>
+      );
+    case "conversion":
+      return (
+        <div className="space-y-3">
+          <CreativeText label="Urgency label" value={s("urgencyLabel")} onChange={(v) => up({ urgencyLabel: v })} placeholder="Limited" />
+          <CreativeText label="Title" value={s("title")} onChange={(v) => up({ title: v })} placeholder="Start today" />
+          <CreativeText label="Text" value={s("text")} onChange={(v) => up({ text: v })} area />
+          <CtaList ctas={ctas("ctas")} onChange={(c) => up({ ctas: c })} />
+        </div>
+      );
+    case "notification":
+      return (
+        <div className="space-y-3">
+          <CreativeText label="Message" value={s("message")} onChange={(v) => up({ message: v })} area placeholder="Something new." />
+          <div>
+            <label className={label}>Severity</label>
+            <select className={input} value={s("severity") || "info"} onChange={(e) => up({ severity: e.target.value })}>
+              <option value="info">info</option>
+              <option value="success">success</option>
+              <option value="warning">warning</option>
+              <option value="error">error</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <CreativeText label="Link label" value={s("ctaLabel")} onChange={(v) => up({ ctaLabel: v })} placeholder="See it" />
+            <CreativeText label="Link URL" value={s("ctaHref")} onChange={(v) => up({ ctaHref: v })} placeholder="https://advertiser.example" />
+          </div>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+// ── Design-token styling (same tokens CMS blocks use) ────────────────────────
+
+function DesignTokenField({ field, value, onChange }:
+  { field: { key: string; label: string; kind: string; placeholder?: string }; value: string; onChange: (v: string) => void }) {
+  if (field.kind === "surface") {
+    return (
+      <div>
+        <label className="mb-0.5 block text-[11px] text-neutral-500">{field.label}</label>
+        <select className={input} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">— default —</option>
+          {VALID_SURFACE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+    );
+  }
+  const isColor = field.kind === "color";
+  return (
+    <div>
+      <label className="mb-0.5 block text-[11px] text-neutral-500">{field.label}</label>
+      <div className="flex items-center gap-1.5">
+        {isColor && (
+          <input type="color" className="h-9 w-9 shrink-0 rounded border border-neutral-300 p-0.5"
+            value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#ffffff"} onChange={(e) => onChange(e.target.value)} />
+        )}
+        <input className={input} value={value} placeholder={field.placeholder ?? "—"} onChange={(e) => onChange(e.target.value)} />
+      </div>
+    </div>
+  );
+}
+
+function TokensEditor({ tokens, onChange }: { tokens: CuratedBlockTokens; onChange: (t: CuratedBlockTokens) => void }) {
+  const rec = tokens as Record<string, string>;
+  const setTok = (key: string, val: string) => {
+    const next: Record<string, string> = { ...rec };
+    if (val) next[key] = val; else delete next[key];
+    onChange(next as CuratedBlockTokens);
+  };
+  return (
+    <div className="space-y-3">
+      {BLOCK_TOKEN_GROUPS.map((g) => (
+        <div key={g.title}>
+          <div className="mb-1 text-[11px] font-semibold text-neutral-600">{g.title}</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {g.fields.map((f) => (
+              <DesignTokenField key={f.key} field={f} value={rec[f.key] ?? ""} onChange={(v) => setTok(f.key, v)} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CreativePreview({ slot, creative }: { slot: AdSlotType; creative: CreativeValue }) {
+  const html = renderBlockHtml(slot, creative);
+  if (!html) return <p className="text-xs text-neutral-400">Add content to see a preview.</p>;
+  const style = blockTokensToStyle((creative.tokens as CuratedBlockTokens) ?? {});
+  return (
+    <div className="overflow-hidden rounded-md border border-neutral-200 bg-white" style={style}>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+    </div>
+  );
+}
+
 function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone, slots, rateCard, suggestions }:
   { tenantId: string; pending: boolean; run: RunFn; mode?: "create" | "edit"; initial?: CreateAdInput; adId?: string; onDone?: () => void; slots?: AdSlotType[]; rateCard?: { cpmCents: number; cpcCents: number }; suggestions?: { industries: string[]; sizes: string[] } }) {
   const slotOptions = slots && slots.length > 0 ? slots : SLOTS;
@@ -563,6 +779,9 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
     if (mode === "edit") set({ slot_type: s });
     else set({ slot_type: s, creativeJson: JSON.stringify(CREATIVE_TEMPLATES[s], null, 2) });
   };
+  // Parse the creative JSON for the friendly editor; null when it isn't valid.
+  let parsedCreative: CreativeValue | null = null;
+  try { const p = JSON.parse(form.creativeJson); if (p && typeof p === "object" && !Array.isArray(p)) parsedCreative = p as CreativeValue; } catch { /* invalid → editor hidden */ }
 
   return (
     <div className={card}>
@@ -578,10 +797,37 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
             {slotOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <div className="md:col-span-2">
-          <label className={label}>Creative (JSON) — the CTA link is auto-replaced with a click-tracking URL</label>
-          <textarea className={input + " font-mono text-xs h-44"} value={form.creativeJson}
-            onChange={(e) => set({ creativeJson: e.target.value })} />
+        <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50/60 p-3">
+          <div className="mb-2 text-xs font-semibold text-neutral-600">Creative content</div>
+          {parsedCreative ? (
+            <>
+              <CreativeEditor slotType={slot} value={parsedCreative}
+                onChange={(obj) => set({ creativeJson: JSON.stringify(obj, null, 2) })} />
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Styling (design tokens)</summary>
+                <p className="mt-1 text-[11px] text-neutral-400">
+                  Override colours, radius and fonts for this ad. Leave blank to use your account's theme.
+                </p>
+                <div className="mt-2">
+                  <TokensEditor
+                    tokens={(parsedCreative.tokens as CuratedBlockTokens) ?? {}}
+                    onChange={(tk) => set({ creativeJson: JSON.stringify({ ...parsedCreative, tokens: Object.keys(tk).length ? tk : undefined }, null, 2) })}
+                  />
+                </div>
+              </details>
+              <div className="mt-3">
+                <div className="mb-1 text-[11px] font-semibold text-neutral-500">Live preview</div>
+                <CreativePreview slot={slot} creative={parsedCreative} />
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-amber-700">The creative JSON below is invalid — fix it to use the form editor.</p>
+          )}
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Advanced (raw JSON)</summary>
+            <textarea className={input + " mt-2 font-mono text-xs h-44"} value={form.creativeJson}
+              onChange={(e) => set({ creativeJson: e.target.value })} />
+          </details>
         </div>
         <div>
           <label className={label}>Landing URL (click destination)</label>
