@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { previewAdaptiveEmailAction, type EmailPreviewResult } from "../actions";
+import { previewAdaptiveEmailAction, sendTestAdaptiveEmailAction, type EmailPreviewResult } from "../actions";
 
 const card = "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm";
 const label = "block text-xs font-semibold text-neutral-600 mb-1";
@@ -15,13 +15,24 @@ export function EmailPreviewClient({ tenantId, templates }:
   const [res, setRes]           = useState<EmailPreviewResult | null>(null);
   const [err, setErr]           = useState<string | null>(null);
   const [pending, start]        = useTransition();
+  const [testTo, setTestTo]     = useState("");
+  const [sendMsg, setSendMsg]   = useState<{ ok: boolean; text: string } | null>(null);
+  const [sending, startSend]    = useTransition();
 
   const run = () => {
-    setErr(null);
+    setErr(null); setSendMsg(null);
     start(async () => {
       const r = await previewAdaptiveEmailAction(tenantId, { email, templateKey });
       if (r.ok) setRes(r.data);
       else { setRes(null); setErr(r.error); }
+    });
+  };
+
+  const sendTest = () => {
+    setSendMsg(null);
+    startSend(async () => {
+      const r = await sendTestAdaptiveEmailAction(tenantId, { email, templateKey, testTo });
+      setSendMsg(r.ok ? { ok: true, text: `Sent to ${testTo}.` } : { ok: false, text: r.error });
     });
   };
 
@@ -67,6 +78,21 @@ export function EmailPreviewClient({ tenantId, templates }:
           </div>
           <iframe title="Email preview" srcDoc={res.html}
             className="h-[600px] w-full rounded-md border border-neutral-200 bg-white" />
+
+          <div className="mt-3 border-t border-neutral-100 pt-3">
+            <label className={label}>Send this to a test address (real delivery via Resend/SMTP)</label>
+            <div className="flex gap-2">
+              <input className={input} type="email" placeholder="you@yourcompany.com" value={testTo}
+                onChange={(e) => setTestTo(e.target.value)} />
+              <button className={btn} disabled={sending || !testTo.trim()} onClick={sendTest}>
+                {sending ? "Sending…" : "Send test"}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-neutral-400">
+              Personalised for the recipient above, but delivered to this test inbox — no real lead is emailed.
+            </p>
+            {sendMsg && <p className={"mt-2 text-sm " + (sendMsg.ok ? "text-green-700" : "text-red-600")}>{sendMsg.text}</p>}
+          </div>
         </div>
       )}
     </div>
