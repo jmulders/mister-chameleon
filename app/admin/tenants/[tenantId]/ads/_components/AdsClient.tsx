@@ -11,6 +11,7 @@ import {
   setAdStatusAction,
   setAdSlotsAction,
   setTenantAdRateCardAction,
+  setAdAccountThemeAction,
   editAdAction,
   fetchAdSessionsAction,
   fetchAdSessionGa4Action,
@@ -111,6 +112,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
       </div>
 
       <SlotsCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
+      <AdThemeCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       {initial.isSuperAdmin && <AdRateCardCard tenantId={tenantId} initial={initial} pending={pending} run={run} />}
       <EmbedCard
         siteKey={initial.siteKey}
@@ -1017,6 +1019,33 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
         {mode === "edit" && onDone && (
           <button className={btnGhost} onClick={onDone}>Cancel</button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AdThemeCard({ tenantId, initial, pending, run }:
+  { tenantId: string; initial: AdsOverview; pending: boolean; run: RunFn }) {
+  const [theme, setTheme] = useState(initial.themePreset);
+  const current = initial.themeOptions.find((o) => o.key === initial.themePreset)?.label ?? initial.themePreset;
+  return (
+    <div className={card}>
+      <h3 className="text-base font-semibold text-neutral-900">Account theme</h3>
+      <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+        The base look for all your ads (colours, fonts, radius) — currently <span className="font-medium">{current}</span>.
+        Each ad&apos;s &quot;Styling (design tokens)&quot; section overrides this per creative.
+      </p>
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div>
+          <label className={label}>Theme preset</label>
+          <select className={input + " max-w-xs"} value={theme} onChange={(e) => setTheme(e.target.value)}>
+            {initial.themeOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </div>
+        <button className={btn} disabled={pending || theme === initial.themePreset}
+          onClick={() => run(() => setAdAccountThemeAction(tenantId, theme))}>
+          Save theme
+        </button>
       </div>
     </div>
   );
