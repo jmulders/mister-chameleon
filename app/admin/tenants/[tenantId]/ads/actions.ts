@@ -24,6 +24,7 @@ import { logger } from "@/lib/logger";
 import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/types";
 import { aggregateAdBilling } from "@/lib/ads/aggregate-billing";
 import { parseAdTargeting, type AdTargeting } from "@/lib/ads/targeting";
+import { resolveAdGa4History } from "@/lib/ads/ga4";
 import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/platform-store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -275,6 +276,18 @@ export interface AdSession {
   firstSeen:       string;
   lastSeen:        string;
   journey:         AdSessionStep[];
+  /** Firmographic company for this session (from ad_company_cache), if matched. */
+  company:         { name: string | null; industry: string | null; size: string | null } | null;
+}
+
+/** GA4 history signals for one session's visitor (loaded on demand). */
+export interface AdSessionGa4 {
+  sessionCount: number | null;
+  lastCountry:  string | null;
+  lastRegion:   string | null;
+  lastCity:     string | null;
+  lastChannel:  string | null;
+  source:       string | null;
 }
 
 /**
@@ -309,7 +322,7 @@ export async function fetchAdSessionsAction(tenantId: string): Promise<AdSession
     if (!sid) continue;
     const s = sessions.get(sid) ?? {
       sessionId: sid, publisherDomain: e.publisher_domain ?? null,
-      adsSeen: [], impressions: 0, clicks: 0, firstSeen: e.occurred_at, lastSeen: e.occurred_at, journey: [],
+      adsSeen: [], impressions: 0, clicks: 0, firstSeen: e.occurred_at, lastSeen: e.occurred_at, journey: [], company: null,
     };
     if (e.event_type === "impression") s.impressions += 1;
     else if (e.event_type === "click") s.clicks += 1;
@@ -343,7 +356,54 @@ export async function fetchAdSessionsAction(tenantId: string): Promise<AdSession
     s.journey.push({ at: j.occurred_at, path: j.page_path ?? null, keywords: j.page_keywords ?? [] });
   }
 
+  // 6. Attach the firmographic company we resolved for each session (if any).
+  try {
+    const { data: co } = await db()
+      .from("ad_company_cache")
+      .select("session_id, company_name, company_industry, company_size, resolved_date")
+      .eq("ad_tenant_id", tenantId)
+      .eq("matched", true)
+      .in("session_id", topIds);
+    type Co = { session_id: string; company_name: string | null; company_industry: string | null; company_size: string | null; resolved_date: string };
+    const latest = new Map<string, Co>();
+    for (const r of (co ?? []) as Co[]) {
+      const cur = latest.get(r.session_id);
+      if (!cur || r.resolved_date > cur.resolved_date) latest.set(r.session_id, r);
+    }
+    for (const s of top) {
+      const r = latest.get(s.sessionId);
+      if (r) s.company = { name: r.company_name, industry: r.company_industry, size: r.company_size };
+    }
+  } catch { /* company enrichment is best-effort */ }
+
   return top;
+}
+
+/**
+ * On-demand GA4 history for one session's visitor. Kept out of the list query
+ * because it's a live GA4 Data API call per visitor — only run when a row is
+ * expanded and only when the tenant has GA4 history configured.
+ */
+export async function fetchAdSessionGa4Action(tenantId: string, sessionId: string): Promise<AdSessionGa4 | null> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  const tenant = await getTenantById(tenantId);
+  if (!tenant?.ga4?.history?.enabled) return null;
+  try {
+    const out = await resolveAdGa4History(tenant.ga4, sessionId);
+    const has = out.gaSessionCount != null || !!out.gaLastKnownCountry || !!out.gaLastKnownCity || !!out.gaLastChannelGroup;
+    if (!has) return null;
+    return {
+      sessionCount: out.gaSessionCount ?? null,
+      lastCountry:  out.gaLastKnownCountry ?? null,
+      lastRegion:   out.gaLastKnownRegion ?? null,
+      lastCity:     out.gaLastKnownCity ?? null,
+      lastChannel:  out.gaLastChannelGroup ?? null,
+      source:       out.gaHistorySource ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Set which adaptive slot types this advertiser account offers to publishers. */

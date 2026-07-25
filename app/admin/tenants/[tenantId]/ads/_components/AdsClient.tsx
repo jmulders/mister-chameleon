@@ -13,10 +13,12 @@ import {
   setTenantAdRateCardAction,
   editAdAction,
   fetchAdSessionsAction,
+  fetchAdSessionGa4Action,
   type AdsOverview,
   type CreateAdInput,
   type DayReport,
   type AdSession,
+  type AdSessionGa4,
   type Ga4AdStatus,
 } from "../actions";
 import type { AdSlotType, AdPricingModel, Ad } from "@/lib/ads/types";
@@ -122,7 +124,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         profilingSpentCents={initial.profilingSpentCents}
         pendingProfilingCents={initial.pendingProfilingCents}
       />
-      <SessionsCard tenantId={tenantId} />
+      <SessionsCard tenantId={tenantId} ga4Ready={initial.ga4.readReady} />
       <Ga4StatusCard tenantId={tenantId} status={initial.ga4} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.effectiveRateCard} suggestions={initial.companySuggestions} />
@@ -142,11 +144,12 @@ function Stat({ label: text, value }: { label: string; value: string }) {
   );
 }
 
-function SessionsCard({ tenantId }: { tenantId: string }) {
+function SessionsCard({ tenantId, ga4Ready }: { tenantId: string; ga4Ready: boolean }) {
   const [sessions, setSessions] = useState<AdSession[] | null>(null);
   const [openId, setOpenId]     = useState<string | null>(null);
   const [loading, start]        = useTransition();
   const [error, setError]       = useState<string | null>(null);
+  const [ga4By, setGa4By]       = useState<Record<string, AdSessionGa4 | null | "loading">>({});
 
   const load = () => {
     setError(null);
@@ -154,6 +157,12 @@ function SessionsCard({ tenantId }: { tenantId: string }) {
       try { setSessions(await fetchAdSessionsAction(tenantId)); }
       catch { setError("Could not load sessions."); }
     });
+  };
+
+  const loadGa4 = async (sid: string) => {
+    setGa4By((m) => ({ ...m, [sid]: "loading" }));
+    try { setGa4By((m) => ({ ...m, [sid]: await fetchAdSessionGa4Action(tenantId, sid) })); }
+    catch { setGa4By((m) => ({ ...m, [sid]: null })); }
   };
 
   const shortId = (id: string) => (id.length > 14 ? id.slice(0, 8) + "…" + id.slice(-4) : id);
@@ -185,6 +194,7 @@ function SessionsCard({ tenantId }: { tenantId: string }) {
         <div className="mt-4 space-y-2">
           {sessions.map((s) => {
             const open = openId === s.sessionId;
+            const g = ga4By[s.sessionId];
             return (
               <div key={s.sessionId} className="rounded-lg border border-neutral-200">
                 <button
@@ -199,6 +209,11 @@ function SessionsCard({ tenantId }: { tenantId: string }) {
                     <div className="mt-0.5 text-xs text-neutral-400">
                       {s.impressions} impr · {s.clicks} clicks · {s.journey.length} pageviews · {when(s.lastSeen)}
                     </div>
+                    {s.company?.name && (
+                      <div className="mt-0.5 text-[11px] text-emerald-700">
+                        🏢 {s.company.name}{s.company.industry ? ` · ${s.company.industry}` : ""}{s.company.size ? ` · ${s.company.size}` : ""}
+                      </div>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {s.adsSeen.slice(0, 2).map((a) => (
@@ -208,7 +223,15 @@ function SessionsCard({ tenantId }: { tenantId: string }) {
                   </div>
                 </button>
                 {open && (
-                  <div className="border-t border-neutral-100 px-3 py-2">
+                  <div className="space-y-2 border-t border-neutral-100 px-3 py-2">
+                    {s.company && (s.company.name || s.company.industry || s.company.size) && (
+                      <div className="text-xs">
+                        <span className="font-semibold text-neutral-600">Company:</span>{" "}
+                        <span className="text-neutral-700">{s.company.name ?? "—"}</span>
+                        {s.company.industry && <span className="text-neutral-400"> · {s.company.industry}</span>}
+                        {s.company.size && <span className="text-neutral-400"> · {s.company.size}</span>}
+                      </div>
+                    )}
                     {s.journey.length === 0 ? (
                       <p className="text-xs text-neutral-400">No journey captured for this session yet.</p>
                     ) : (
@@ -230,6 +253,23 @@ function SessionsCard({ tenantId }: { tenantId: string }) {
                           </li>
                         ))}
                       </ol>
+                    )}
+                    {ga4Ready && (
+                      <div className="text-xs">
+                        {g === undefined && (
+                          <button className={btnGhost} onClick={() => void loadGa4(s.sessionId)}>Load GA4 history</button>
+                        )}
+                        {g === "loading" && <span className="text-neutral-400">Loading GA4…</span>}
+                        {g === null && <span className="text-neutral-400">No GA4 history for this visitor.</span>}
+                        {g && g !== "loading" && (
+                          <div className="text-neutral-600">
+                            <span className="font-semibold">GA4:</span>{" "}
+                            {g.sessionCount != null ? `${g.sessionCount} sessions` : "—"}
+                            {(g.lastCity || g.lastRegion || g.lastCountry) && ` · ${[g.lastCity, g.lastRegion, g.lastCountry].filter(Boolean).join(", ")}`}
+                            {g.lastChannel && ` · ${g.lastChannel}`}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
