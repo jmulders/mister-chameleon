@@ -26,6 +26,19 @@ import { aggregateAdBilling } from "@/lib/ads/aggregate-billing";
 import { parseAdTargeting, type AdTargeting } from "@/lib/ads/targeting";
 import { resolveAdGa4History } from "@/lib/ads/ga4";
 import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/platform-store";
+import { THEME_PRESETS, isThemePresetKey } from "@/design-system/theme/presets";
+
+/** Title-case a theme key ("corporate-blue" → "Corporate blue"). */
+function themeLabel(key: string): string {
+  const s = key.replace(/[-_]/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Theme presets an ad account can pick as its base look (+ the platform default). */
+const AD_THEME_OPTIONS: { key: string; label: string }[] = [
+  { key: "default", label: "Default" },
+  ...Object.keys(THEME_PRESETS).map((k) => ({ key: k, label: themeLabel(k) })),
+];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -106,6 +119,10 @@ export interface AdsOverview {
       company values we've actually observed from Leadinfo (ip_company_cache), so
       a chosen value is guaranteed to be matchable. */
   companySuggestions:    { industries: string[]; sizes: string[] };
+  /** The ad account's base theme preset (its default look; per-ad Styling overrides it). */
+  themePreset:           string;
+  /** Available theme presets to choose from. */
+  themeOptions:          { key: string; label: string }[];
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -261,7 +278,31 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     isSuperAdmin: isSuperAdmin(session),
     ga4,
     companySuggestions,
+    themePreset:  (tenant?.design?.theme as string | undefined) ?? "default",
+    themeOptions: AD_THEME_OPTIONS,
   };
+}
+
+/**
+ * Set the ad account's base theme preset (its default look for all ads; the
+ * per-ad "Styling" design tokens still override it). Accessible to the advertiser
+ * (their own branding). saveTenant enforces package theme limits, so if the
+ * chosen preset isn't allowed for the tenant's package we report it back.
+ */
+export async function setAdAccountThemeAction(tenantId: string, theme: string): Promise<ActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  if (theme !== "default" && !isThemePresetKey(theme)) return { ok: false, error: "Unknown theme preset." };
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await saveTenant({ ...tenant, design: { ...(tenant.design ?? {}), theme } } as any);
+  const after = await getTenantById(tenantId);
+  if (((after?.design?.theme as string | undefined) ?? "default") !== theme) {
+    return { ok: false, error: "That theme isn't available for this account's package." };
+  }
+  revalidatePath(`/admin/tenants/${tenantId}/ads`);
+  return { ok: true };
 }
 
 // ── Ad-audience sessions + journeys ───────────────────────────────────────────
