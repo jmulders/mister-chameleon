@@ -161,8 +161,12 @@ function SessionsCard({ tenantId, ga4Ready }: { tenantId: string; ga4Ready: bool
 
   const loadGa4 = async (sid: string) => {
     setGa4By((m) => ({ ...m, [sid]: "loading" }));
-    try { setGa4By((m) => ({ ...m, [sid]: await fetchAdSessionGa4Action(tenantId, sid) })); }
-    catch { setGa4By((m) => ({ ...m, [sid]: null })); }
+    try {
+      const r = await fetchAdSessionGa4Action(tenantId, sid);
+      setGa4By((m) => ({ ...m, [sid]: r }));
+    } catch {
+      setGa4By((m) => ({ ...m, [sid]: null }));
+    }
   };
 
   const shortId = (id: string) => (id.length > 14 ? id.slice(0, 8) + "…" + id.slice(-4) : id);
