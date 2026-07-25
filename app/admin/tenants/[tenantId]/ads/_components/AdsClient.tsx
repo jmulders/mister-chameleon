@@ -15,6 +15,7 @@ import {
   type CreateAdInput,
   type DayReport,
   type AdSession,
+  type Ga4AdStatus,
 } from "../actions";
 import type { AdSlotType, AdPricingModel, Ad } from "@/lib/ads/types";
 import { parseAdTargeting, type AdFunnelStage } from "@/lib/ads/targeting";
@@ -117,6 +118,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         pendingProfilingCents={initial.pendingProfilingCents}
       />
       <SessionsCard tenantId={tenantId} />
+      <Ga4StatusCard tenantId={tenantId} status={initial.ga4} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.rateCard} />
       <AdsListCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
@@ -230,6 +232,67 @@ function SessionsCard({ tenantId }: { tenantId: string }) {
             );
           })}
         </div>
+      )}
+    </div>
+  );
+}
+
+type Ga4RowState = "ready" | "incomplete" | "off";
+
+function Ga4Pill({ state }: { state: Ga4RowState }) {
+  const cls = state === "ready"
+    ? "bg-green-100 text-green-700"
+    : state === "incomplete" ? "bg-amber-100 text-amber-700" : "bg-neutral-100 text-neutral-500";
+  const txt = state === "ready" ? "Ready" : state === "incomplete" ? "Incomplete" : "Off";
+  return <span className={"rounded px-1.5 py-0.5 text-xs font-medium " + cls}>{txt}</span>;
+}
+
+function Ga4Row({ title, hint, state, detail }: { title: string; hint: string; state: Ga4RowState; detail?: string | null }) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-2">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 text-sm font-medium text-neutral-800">{title} <Ga4Pill state={state} /></div>
+        <div className="mt-0.5 text-xs text-neutral-500">{hint}{detail ? ` · ${detail}` : ""}</div>
+      </div>
+    </div>
+  );
+}
+
+function Ga4StatusCard({ tenantId, status }: { tenantId: string; status: Ga4AdStatus }) {
+  const writeState: Ga4RowState = status.writeReady ? "ready" : status.trackingEnabled ? "incomplete" : "off";
+  const readState:  Ga4RowState = status.readReady  ? "ready" : status.historyEnabled  ? "incomplete" : "off";
+
+  return (
+    <div className={card}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-neutral-900">GA4 for ads</h3>
+          <p className="mt-0.5 text-sm text-neutral-500 max-w-2xl">
+            When configured, each ad-audience session is written to your own GA4 (keyed by our first-party
+            visitor id) and the visitor's GA4 history is read back — so you can target on <code>ga4.*</code> fields
+            in an advanced rule. GA4 is free; it adds no wallet fee.
+          </p>
+        </div>
+        <a href={`/admin/tenants/${tenantId}/integrations`} className={btnGhost + " shrink-0"}>Configure GA4</a>
+      </div>
+      <div className="mt-3 divide-y divide-neutral-100">
+        <Ga4Row title="Event write (server-side)" state={writeState}
+          hint="Sends ad views to your GA4 via the Measurement Protocol"
+          detail={status.measurementId} />
+        <Ga4Row title="History read" state={readState}
+          hint="Reads returning-visitor signals from your GA4 (Data API)"
+          detail={status.propertyId ? `property ${status.propertyId}` : null} />
+      </div>
+      {(writeState === "incomplete" || readState === "incomplete") && (
+        <p className="mt-2 text-xs text-amber-700">
+          Enabled but not fully configured. Write needs server send mode + measurement ID + API secret; read needs
+          property ID + service-account JSON. Finish it under Integrations → GA4.
+        </p>
+      )}
+      {writeState === "off" && readState === "off" && (
+        <p className="mt-2 text-xs text-neutral-400">
+          Optional — leave off if you don't target on GA4 history. Behavioural, geo and firmographic targeting work without it.
+        </p>
       )}
     </div>
   );
