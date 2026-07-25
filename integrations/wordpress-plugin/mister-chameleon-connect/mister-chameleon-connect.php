@@ -4,7 +4,7 @@
  * Plugin URI:        https://www.misterchameleon.nl
  * Update URI:        https://www.misterchameleon.nl/mister-chameleon-connect
  * Description:       Real-time contentpersonalisatie via de Mister Chameleon-snippet. Vul je siteKey in en markeer slots — geen thema-code, geen losse header-plugin, geen Wordfence-gedoe.
- * Version:           0.5.6
+ * Version:           0.5.7
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Mister Chameleon
@@ -34,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Directe toegang blokkeren.
 }
 
-define( 'MCC_VERSION', '0.5.6' );
+define( 'MCC_VERSION', '0.5.7' );
 define( 'MCC_DEFAULT_ENDPOINT', 'https://www.misterchameleon.nl' );
 
 /**
@@ -563,6 +563,8 @@ add_filter( 'pre_set_site_transient_update_plugins', function ( $transient ) {
 		'tested'       => isset( $info['tested'] ) ? $info['tested'] : '',
 		'requires'     => isset( $info['requires'] ) ? $info['requires'] : '',
 		'requires_php' => isset( $info['requires_php'] ) ? $info['requires_php'] : '',
+		// Icon shown on the update / plugins screens.
+		'icons'        => isset( $info['icons'] ) ? (array) $info['icons'] : array(),
 	);
 	return $transient;
 } );
@@ -586,6 +588,7 @@ add_filter( 'plugins_api', function ( $result, $action, $args ) {
 		'homepage'      => isset( $info['homepage'] ) ? $info['homepage'] : '',
 		'download_link' => isset( $info['download_url'] ) ? $info['download_url'] : '',
 		'sections'      => isset( $info['sections'] ) ? (array) $info['sections'] : array(),
+		'icons'         => isset( $info['icons'] ) ? (array) $info['icons'] : array(),
 	);
 }, 20, 3 );
 
@@ -638,6 +641,7 @@ add_filter( 'update_plugins_www.misterchameleon.nl', function ( $update, $plugin
 		'requires'     => isset( $info['requires'] ) ? $info['requires'] : '',
 		'requires_php' => isset( $info['requires_php'] ) ? $info['requires_php'] : '',
 		'tested'       => isset( $info['tested'] ) ? $info['tested'] : '',
+		'icons'        => isset( $info['icons'] ) ? (array) $info['icons'] : array(),
 	);
 }, 10, 3 );
 
