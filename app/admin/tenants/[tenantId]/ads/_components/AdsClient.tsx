@@ -682,7 +682,7 @@ function CreativeEditor({ slotType, value, onChange }:
 
 // ── Design-token styling (same tokens CMS blocks use) ────────────────────────
 
-function TokenField({ field, value, onChange }:
+function DesignTokenField({ field, value, onChange }:
   { field: { key: string; label: string; kind: string; placeholder?: string }; value: string; onChange: (v: string) => void }) {
   if (field.kind === "surface") {
     return (
@@ -724,7 +724,7 @@ function TokensEditor({ tokens, onChange }: { tokens: CuratedBlockTokens; onChan
           <div className="mb-1 text-[11px] font-semibold text-neutral-600">{g.title}</div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {g.fields.map((f) => (
-              <TokenField key={f.key} field={f} value={rec[f.key] ?? ""} onChange={(v) => setTok(f.key, v)} />
+              <DesignTokenField key={f.key} field={f} value={rec[f.key] ?? ""} onChange={(v) => setTok(f.key, v)} />
             ))}
           </div>
         </div>
