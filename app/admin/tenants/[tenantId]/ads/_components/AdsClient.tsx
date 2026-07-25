@@ -20,6 +20,8 @@ import {
 } from "../actions";
 import type { AdSlotType, AdPricingModel, Ad } from "@/lib/ads/types";
 import { parseAdTargeting, type AdFunnelStage } from "@/lib/ads/targeting";
+import { renderBlockHtml } from "@/lib/snippet/render-block-html";
+import { BLOCK_TOKEN_GROUPS, blockTokensToStyle, VALID_SURFACE_ROLES, type CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 
 const SLOTS: AdSlotType[] = ["hero", "proof", "cta", "feature", "conversion", "notification"];
 const FUNNEL_STAGES: AdFunnelStage[] = ["awareness", "consideration", "intent", "high_intent", "customer"];
@@ -678,6 +680,70 @@ function CreativeEditor({ slotType, value, onChange }:
   }
 }
 
+// ── Design-token styling (same tokens CMS blocks use) ────────────────────────
+
+function TokenField({ field, value, onChange }:
+  { field: { key: string; label: string; kind: string; placeholder?: string }; value: string; onChange: (v: string) => void }) {
+  if (field.kind === "surface") {
+    return (
+      <div>
+        <label className="mb-0.5 block text-[11px] text-neutral-500">{field.label}</label>
+        <select className={input} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">— default —</option>
+          {VALID_SURFACE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+    );
+  }
+  const isColor = field.kind === "color";
+  return (
+    <div>
+      <label className="mb-0.5 block text-[11px] text-neutral-500">{field.label}</label>
+      <div className="flex items-center gap-1.5">
+        {isColor && (
+          <input type="color" className="h-9 w-9 shrink-0 rounded border border-neutral-300 p-0.5"
+            value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#ffffff"} onChange={(e) => onChange(e.target.value)} />
+        )}
+        <input className={input} value={value} placeholder={field.placeholder ?? "—"} onChange={(e) => onChange(e.target.value)} />
+      </div>
+    </div>
+  );
+}
+
+function TokensEditor({ tokens, onChange }: { tokens: CuratedBlockTokens; onChange: (t: CuratedBlockTokens) => void }) {
+  const rec = tokens as Record<string, string>;
+  const setTok = (key: string, val: string) => {
+    const next: Record<string, string> = { ...rec };
+    if (val) next[key] = val; else delete next[key];
+    onChange(next as CuratedBlockTokens);
+  };
+  return (
+    <div className="space-y-3">
+      {BLOCK_TOKEN_GROUPS.map((g) => (
+        <div key={g.title}>
+          <div className="mb-1 text-[11px] font-semibold text-neutral-600">{g.title}</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {g.fields.map((f) => (
+              <TokenField key={f.key} field={f} value={rec[f.key] ?? ""} onChange={(v) => setTok(f.key, v)} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CreativePreview({ slot, creative }: { slot: AdSlotType; creative: CreativeValue }) {
+  const html = renderBlockHtml(slot, creative);
+  if (!html) return <p className="text-xs text-neutral-400">Add content to see a preview.</p>;
+  const style = blockTokensToStyle((creative.tokens as CuratedBlockTokens) ?? {});
+  return (
+    <div className="overflow-hidden rounded-md border border-neutral-200 bg-white" style={style}>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+    </div>
+  );
+}
+
 function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone, slots, rateCard, suggestions }:
   { tenantId: string; pending: boolean; run: RunFn; mode?: "create" | "edit"; initial?: CreateAdInput; adId?: string; onDone?: () => void; slots?: AdSlotType[]; rateCard?: { cpmCents: number; cpcCents: number }; suggestions?: { industries: string[]; sizes: string[] } }) {
   const slotOptions = slots && slots.length > 0 ? slots : SLOTS;
@@ -733,10 +799,30 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
         </div>
         <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50/60 p-3">
           <div className="mb-2 text-xs font-semibold text-neutral-600">Creative content</div>
-          {parsedCreative
-            ? <CreativeEditor slotType={slot} value={parsedCreative}
+          {parsedCreative ? (
+            <>
+              <CreativeEditor slotType={slot} value={parsedCreative}
                 onChange={(obj) => set({ creativeJson: JSON.stringify(obj, null, 2) })} />
-            : <p className="text-xs text-amber-700">The creative JSON below is invalid — fix it to use the form editor.</p>}
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Styling (design tokens)</summary>
+                <p className="mt-1 text-[11px] text-neutral-400">
+                  Override colours, radius and fonts for this ad. Leave blank to use your account's theme.
+                </p>
+                <div className="mt-2">
+                  <TokensEditor
+                    tokens={(parsedCreative.tokens as CuratedBlockTokens) ?? {}}
+                    onChange={(tk) => set({ creativeJson: JSON.stringify({ ...parsedCreative, tokens: Object.keys(tk).length ? tk : undefined }, null, 2) })}
+                  />
+                </div>
+              </details>
+              <div className="mt-3">
+                <div className="mb-1 text-[11px] font-semibold text-neutral-500">Live preview</div>
+                <CreativePreview slot={slot} creative={parsedCreative} />
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-amber-700">The creative JSON below is invalid — fix it to use the form editor.</p>
+          )}
           <details className="mt-3">
             <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Advanced (raw JSON)</summary>
             <textarea className={input + " mt-2 font-mono text-xs h-44"} value={form.creativeJson}
