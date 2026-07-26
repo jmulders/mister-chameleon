@@ -29,6 +29,9 @@ import {
   emailPlatformFlags,
 }                                            from "@/platform/platform-store";
 import { encryptSecret }                    from "@/lib/email-crypto";
+import { getRequiredAdminSession, isSuperAdmin } from "@/lib/admin-auth/authorization";
+import { sendMail, resolveTransportConfig }  from "@/forms/mail-transport";
+import { serverEnv }                         from "@/lib/env";
 
 // ── Read ───────────────────────────────────────────────────────────────────────
 
@@ -152,6 +155,47 @@ export async function savePlatformEmailAction(
   revalidatePath("/admin/platform/integrations/email");
   revalidatePath("/admin/platform/integrations");
   return { ok: true };
+}
+
+/**
+ * Send a test email using the PLATFORM transport (ignores any tenant transport).
+ * Verifies the configured Resend/SMTP credentials + from-address end-to-end.
+ * Super-admin only. Save your settings first — this uses the stored config.
+ */
+export async function sendPlatformTestEmailAction(
+  recipientEmail: string,
+): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  if (!isSuperAdmin(session)) return { ok: false, error: "Only platform admins can send a test email." };
+
+  const to = recipientEmail?.trim();
+  if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return { ok: false, error: "Enter a valid recipient email." };
+
+  const result   = await getPlatformEmailSettings();
+  const platform = result.ok ? result.data : null;
+  const transport = resolveTransportConfig(null, platform);
+  if (transport.type === "none") {
+    return { ok: false, error: "No platform transport configured — set Resend or SMTP above and Save first." };
+  }
+
+  const fromEmail = platform?.fromEmail ?? serverEnv.email.fromAddress ?? undefined;
+  if (!fromEmail) {
+    return { ok: false, error: "No from-address — set 'From email' above and Save first." };
+  }
+  const from = platform?.fromName?.trim() ? `${platform.fromName.trim()} <${fromEmail}>` : fromEmail;
+
+  const res = await sendMail(
+    {
+      from,
+      to:      [to],
+      subject: "Test email — Mister Chameleon platform",
+      text:    `Platform email test.\n\nTransport: ${transport.type}\nFrom: ${from}\nSent: ${new Date().toISOString()}`,
+      html:    `<p>Platform email test — your transport works. ✅</p><p style="color:#666;font-size:12px">Transport: ${transport.type} · From: ${from} · ${new Date().toISOString()}</p>`,
+    },
+    transport,
+  );
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, message: `Test email sent to ${to} via ${transport.type}.` };
 }
 
 /**

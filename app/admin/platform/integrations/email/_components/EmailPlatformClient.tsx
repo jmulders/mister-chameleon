@@ -29,6 +29,7 @@ import type {
   SafePlatformEmailConfig,
   PlatformEmailFormInput,
 }                              from "../actions";
+import { sendPlatformTestEmailAction } from "../actions";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,18 @@ export function EmailPlatformClient({
       setSaveStatus("error");
       setErrorMsg(result.error);
     }
+  };
+
+  // ── Send test email ──────────────────────────────────────────────────────────
+  const [testTo,     setTestTo]     = useState("");
+  const [testStatus, setTestStatus] = useState<"idle" | "sending">("idle");
+  const [testMsg,    setTestMsg]    = useState<{ ok: boolean; text: string } | null>(null);
+
+  const handleTest = async () => {
+    setTestStatus("sending"); setTestMsg(null);
+    const r = await sendPlatformTestEmailAction(testTo);
+    setTestMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error });
+    setTestStatus("idle");
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -426,6 +439,38 @@ export function EmailPlatformClient({
           </div>
         </Section>
       )}
+
+      {/* ── Send test email ──────────────────────────────────────────────────── */}
+      <Section
+        title="Send a test email"
+        description="Sends a test message using the saved platform transport above (Resend/SMTP) — the quickest way to verify your credentials and from-address. Save your changes first."
+      >
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[220px]">
+            <label className="block text-xs font-medium text-neutral-700 mb-1" htmlFor="pfTestTo">
+              Recipient
+            </label>
+            <input
+              id="pfTestTo"
+              type="email"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder="you@yourdomain.com"
+              className={inputCls}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleTest}
+            disabled={testStatus === "sending" || !testTo.trim() || isDirty}
+            className="inline-flex items-center rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 transition-colors disabled:opacity-40"
+          >
+            {testStatus === "sending" ? "Sending…" : "Send test"}
+          </button>
+        </div>
+        {isDirty && <p className="mt-2 text-xs text-amber-600">Save your changes before sending a test.</p>}
+        {testMsg && <p className={"mt-2 text-sm " + (testMsg.ok ? "text-green-600" : "text-red-600")}>{testMsg.text}</p>}
+      </Section>
 
       {/* ── Save bar ─────────────────────────────────────────────────────────── */}
       <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-neutral-200 bg-white pt-4 pb-2">
