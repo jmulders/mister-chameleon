@@ -131,7 +131,7 @@ export async function savePlatformEmailAction(
     const newKey = input.resendApiKey.trim();
     patch.resendApiKey = newKey
       ? encryptSecret(newKey)
-      : (prev.resendApiKey ?? undefined);  // preserve if empty
+      : (prev.resendApiKey ? encryptSecret(prev.resendApiKey) : undefined);  // preserve (re-encrypt; prev is decrypted on read)
   }
 
   if (transportType === "smtp") {
@@ -143,7 +143,7 @@ export async function savePlatformEmailAction(
     const newPw = input.smtpPassword.trim();
     patch.smtpPassword = newPw
       ? encryptSecret(newPw)
-      : (prev.smtpPassword ?? undefined);  // preserve if empty
+      : (prev.smtpPassword ? encryptSecret(prev.smtpPassword) : undefined);  // preserve (re-encrypt; prev is decrypted on read)
   }
 
   const result = await savePlatformEmailSettings(
