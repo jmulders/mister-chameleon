@@ -23,6 +23,8 @@ import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
 import { loadTenantEmailTransport } from "@/forms/load-tenant-email-transport";
 import { getPlatformEmailSettings } from "@/platform/platform-store";
 import { listSuppressedEmails } from "@/lib/lead-base/suppression-store";
+import { resolveEmailConfig } from "@/lib/config";
+import { serverEnv } from "@/lib/env";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -89,12 +91,22 @@ export async function sendAdaptiveEmail(params: SendAdaptiveEmailParams): Promis
     await logSend(params, to, "failed", "transport not configured", rendered.subject);
     return { ok: false, error: "Email is not configured — set up Resend or SMTP first." };
   }
-  const fromEmail = platform?.fromEmail;
+  // From-address resolved across layers (tenant → platform → env), same chain as
+  // the forms route — so a tenant-level or env from-address works even when the
+  // platform email settings don't carry one.
+  let fromName:  string | undefined = platform?.fromName  ?? undefined;
+  let fromEmail: string | undefined = platform?.fromEmail ?? undefined;
+  try {
+    const resolved = await resolveEmailConfig(params.tenantId);
+    fromName  = resolved.config.fromName  ?? fromName;
+    fromEmail = resolved.config.fromEmail ?? fromEmail;
+  } catch { /* keep platform values */ }
+  fromEmail = fromEmail ?? serverEnv.email.fromAddress ?? undefined;
   if (!fromEmail) {
     await logSend(params, to, "failed", "no from-address", rendered.subject);
-    return { ok: false, error: "No from-address configured (platform email settings)." };
+    return { ok: false, error: "No from-address configured — set one at Platform → Integrations → Email (from name/email)." };
   }
-  const from = platform?.fromName ? `${platform.fromName} <${fromEmail}>` : fromEmail;
+  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
 
   const res = await sendMail(
     { from, to: [to], subject: rendered.subject, text: htmlToText(rendered.html), html: rendered.html },

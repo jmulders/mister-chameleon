@@ -10,7 +10,7 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 import { getTenantById, saveTenant } from "@/tenant/server";
-import { renderAdaptiveEmail, EMAIL_TEMPLATES, type EmailTemplateKey } from "@/lib/email/adaptive-email";
+import { renderAdaptiveEmail, EMAIL_TEMPLATES, EMAIL_BLOCK_KEYS, resolveEmailTemplate, type EmailTemplateKey } from "@/lib/email/adaptive-email";
 import { sendAdaptiveEmail } from "@/lib/email/send-adaptive-email";
 import { sendAdaptiveBatch, MAX_BATCH_RECIPIENTS, type BatchSendSummary } from "@/lib/email/send-adaptive-batch";
 import { selectBatchRecipients, collectFilterOptions, type BatchRecipient, type BatchAudienceFilters } from "@/lib/email/batch-select";
@@ -68,6 +68,79 @@ export async function sendTestAdaptiveEmailAction(
   });
   if (!r.ok) return { ok: false, error: r.error };
   if (r.skipped) return { ok: false, error: r.skipped === "suppressed" ? "That test address is suppressed." : "Already sent." };
+  return { ok: true };
+}
+
+// ── Template editor ────────────────────────────────────────────────────────────
+
+export interface EmailTemplateInfo {
+  key:            string;
+  label:          string;
+  /** Effective (override → default). */
+  subject:        string;
+  blocks:         string[];
+  defaultSubject: string;
+  defaultBlocks:  string[];
+  overridden:     boolean;
+}
+
+export interface EmailTemplatesOverview {
+  templates:     EmailTemplateInfo[];
+  /** Adaptive block keys a template may include. */
+  allowedBlocks: string[];
+}
+
+/** Read the effective email templates (override → default) for the editor. */
+export async function getEmailTemplatesAction(tenantId: string): Promise<EmailTemplatesOverview> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  const tenant = await getTenantById(tenantId);
+  const overrides = (tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> } | null)?.emailTemplates ?? {};
+
+  const templates: EmailTemplateInfo[] = (Object.entries(EMAIL_TEMPLATES) as [EmailTemplateKey, { label: string; subject: string; blocks: string[] }][])
+    .map(([key, base]) => {
+      const eff = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> } | null, key);
+      const ov  = overrides[key];
+      return {
+        key,
+        label:          base.label,
+        subject:        eff.subject,
+        blocks:         eff.blocks,
+        defaultSubject: base.subject,
+        defaultBlocks:  base.blocks,
+        overridden:     !!(ov && (ov.subject?.trim() || (ov.blocks && ov.blocks.length > 0))),
+      };
+    });
+
+  return { templates, allowedBlocks: [...EMAIL_BLOCK_KEYS] };
+}
+
+/** Save per-tenant email template overrides (subject + block set/order). */
+export async function saveEmailTemplatesAction(
+  tenantId: string,
+  input: { templates: Record<string, { subject?: string; blocks?: string[] }> },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+
+  const allowed = new Set<string>(EMAIL_BLOCK_KEYS as readonly string[]);
+  const clean: Record<string, { subject?: string; blocks?: string[] }> = {};
+  for (const [key, ov] of Object.entries(input.templates ?? {})) {
+    if (!(key in EMAIL_TEMPLATES)) continue;
+    const entry: { subject?: string; blocks?: string[] } = {};
+    if (typeof ov.subject === "string" && ov.subject.trim()) entry.subject = ov.subject.trim();
+    if (Array.isArray(ov.blocks)) {
+      const blocks = ov.blocks.filter((b) => allowed.has(b));
+      if (blocks.length > 0) entry.blocks = blocks;
+    }
+    if (Object.keys(entry).length > 0) clean[key] = entry;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await saveTenant({ ...tenant, emailTemplates: clean } as any);
+  revalidatePath(`/admin/tenants/${tenantId}/email`);
   return { ok: true };
 }
 

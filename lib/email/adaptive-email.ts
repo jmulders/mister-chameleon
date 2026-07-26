@@ -44,6 +44,28 @@ export const EMAIL_TEMPLATES: Record<EmailTemplateKey, EmailTemplate> = {
   application_followup: { label: "Application follow-up", blocks: ["hero", "cta"],          subject: "Thanks for applying, {name}" },
 };
 
+/** Adaptive block keys an email template may include (those renderAdaptiveEmail can render). */
+export const EMAIL_BLOCK_KEYS = ["hero", "proof", "cta", "feature", "conversion", "notification"] as const;
+
+/**
+ * Effective template for a tenant: the per-tenant override (settings.emailTemplates)
+ * layered over the code default. Only the subject and the block set/order are
+ * overridable — the block CONTENT still comes from the adaptive blocks library.
+ */
+export function resolveEmailTemplate(
+  tenant: { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> } | null,
+  key: EmailTemplateKey,
+): EmailTemplate {
+  const base = EMAIL_TEMPLATES[key];
+  const ov   = tenant?.emailTemplates?.[key];
+  const validBlocks = ov?.blocks?.filter((b) => (EMAIL_BLOCK_KEYS as readonly string[]).includes(b)) ?? [];
+  return {
+    label:   base.label,
+    subject: ov?.subject && ov.subject.trim() ? ov.subject.trim() : base.subject,
+    blocks:  validBlocks.length > 0 ? validBlocks : base.blocks,
+  };
+}
+
 export interface EmailRecipient {
   email:    string;
   /** Optional explicit ABM lead id; otherwise resolved from the email. */
@@ -90,11 +112,12 @@ export async function renderAdaptiveEmail(params: {
   templateKey: EmailTemplateKey;
   locale?:     string;
 }): Promise<RenderedEmail> {
-  const tmpl = EMAIL_TEMPLATES[params.templateKey];
-  if (!tmpl) throw new Error(`Unknown email template: ${params.templateKey}`);
+  if (!EMAIL_TEMPLATES[params.templateKey]) throw new Error(`Unknown email template: ${params.templateKey}`);
 
   const tenant = await getTenantById(params.tenantId);
   if (!tenant) throw new Error("Tenant not found.");
+  // Effective template = per-tenant override (subject + block set) over the default.
+  const tmpl = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> }, params.templateKey);
   const locale = params.locale ?? DEFAULT_LOCALE;
 
   // 1. Identity → known ABM lead (explicit id, else deterministic email handle).
