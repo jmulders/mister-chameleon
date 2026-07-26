@@ -2752,7 +2752,7 @@ export interface TenantSettings {
    * library. Absent = use the code default (EMAIL_TEMPLATES). Stored in
    * settings.emailTemplates.
    */
-  readonly emailTemplates?: Record<string, { subject?: string; blocks?: string[] }>;
+  readonly emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }>;
 
   /**
    * Contextual CTAs/content blocks: per-block, per-segment overrides (heading,

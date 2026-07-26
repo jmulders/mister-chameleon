@@ -27,42 +27,55 @@ import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
 import { createCMSProvider } from "@/cms";
 import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { getAbmLeadByHandle, getAbmLeadById } from "@/lib/abm/abm-store";
+import { makeUnsubscribeToken } from "./unsubscribe-token";
 import type { AbmLead } from "@/lib/abm/abm-store";
 import type { EnrichmentOutput } from "@/enrichment/types";
 import { DEFAULT_LOCALE } from "@/lib/locale";
 
-export type EmailTemplateKey = "abm_intro" | "application_followup";
+export type EmailTemplateKey =
+  | "abm_intro"
+  | "application_followup"
+  | "contact_followup"
+  | "appointment_followup";
 
 interface EmailTemplate {
-  label:   string;
-  blocks:  string[];   // adaptive block keys, in order
-  subject: string;     // may contain {name} / {company}
+  label:      string;
+  blocks:     string[];   // adaptive block keys + the email-native "footer", in order
+  subject:    string;     // may contain {name} / {company}
+  preheader?: string;     // inbox preview text; may contain {name} / {company}
 }
 
 export const EMAIL_TEMPLATES: Record<EmailTemplateKey, EmailTemplate> = {
-  abm_intro:            { label: "ABM intro",            blocks: ["hero", "proof", "cta"], subject: "A quick idea for {company}" },
-  application_followup: { label: "Application follow-up", blocks: ["hero", "cta"],          subject: "Thanks for applying, {name}" },
+  abm_intro:            { label: "ABM intro",             blocks: ["hero", "proof", "cta", "footer"], subject: "A quick idea for {company}",      preheader: "A tailored idea for {company}." },
+  application_followup: { label: "Application follow-up",  blocks: ["hero", "cta", "footer"],          subject: "Thanks for applying, {name}",     preheader: "We received your application." },
+  contact_followup:     { label: "Contact follow-up",     blocks: ["hero", "cta", "footer"],          subject: "Thanks for reaching out, {name}", preheader: "We got your message and will be in touch." },
+  appointment_followup: { label: "Appointment follow-up", blocks: ["hero", "cta", "footer"],          subject: "Let's get your call set, {name}", preheader: "About your requested call with {company}." },
 };
 
-/** Adaptive block keys an email template may include (those renderAdaptiveEmail can render). */
-export const EMAIL_BLOCK_KEYS = ["hero", "proof", "cta", "feature", "conversion", "notification"] as const;
+/**
+ * Blocks an email template may include: adaptive content blocks (content comes
+ * from the adaptive blocks library) plus the email-native "footer" (sender line
+ * + unsubscribe link, rendered by the email layer, not the blocks library).
+ */
+export const EMAIL_BLOCK_KEYS = ["hero", "proof", "cta", "feature", "conversion", "notification", "footer"] as const;
 
 /**
  * Effective template for a tenant: the per-tenant override (settings.emailTemplates)
- * layered over the code default. Only the subject and the block set/order are
- * overridable — the block CONTENT still comes from the adaptive blocks library.
+ * layered over the code default. Subject, preheader, and the block set/order are
+ * overridable — the adaptive block CONTENT still comes from the blocks library.
  */
 export function resolveEmailTemplate(
-  tenant: { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> } | null,
+  tenant: { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> } | null,
   key: EmailTemplateKey,
 ): EmailTemplate {
   const base = EMAIL_TEMPLATES[key];
   const ov   = tenant?.emailTemplates?.[key];
   const validBlocks = ov?.blocks?.filter((b) => (EMAIL_BLOCK_KEYS as readonly string[]).includes(b)) ?? [];
   return {
-    label:   base.label,
-    subject: ov?.subject && ov.subject.trim() ? ov.subject.trim() : base.subject,
-    blocks:  validBlocks.length > 0 ? validBlocks : base.blocks,
+    label:     base.label,
+    subject:   ov?.subject && ov.subject.trim() ? ov.subject.trim() : base.subject,
+    preheader: ov?.preheader && ov.preheader.trim() ? ov.preheader.trim() : base.preheader,
+    blocks:    validBlocks.length > 0 ? validBlocks : base.blocks,
   };
 }
 
@@ -96,10 +109,31 @@ function cssDeclarationsToRecord(css: string): Record<string, string> {
   return out;
 }
 
-function fillSubject(tmpl: EmailTemplate, lead: AbmLead | null): string {
+function fillVars(str: string, lead: AbmLead | null): string {
   const name    = lead?.profile.firstName || lead?.profile.name || "there";
   const company = lead?.profile.company || "your team";
-  return tmpl.subject.replace(/\{name\}/g, name).replace(/\{company\}/g, company);
+  return str.replace(/\{name\}/g, name).replace(/\{company\}/g, company);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+/**
+ * Email-native footer: sender line + one-click unsubscribe link. Not an adaptive
+ * block — rendered by the email layer so campaign/ABM sends are compliant.
+ */
+function renderEmailFooter(tenantId: string, tenantName: string, recipientEmail: string): string {
+  const base  = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  const token = makeUnsubscribeToken(tenantId, recipientEmail);
+  const url   = `${base}/api/email/unsubscribe?t=${encodeURIComponent(token)}`;
+  return (
+    `<div style="padding:24px 16px;margin-top:8px;text-align:center;color:#8a8a8a;font-size:12px;line-height:1.6;">` +
+    `<p style="margin:0 0 4px">You're receiving this because you're in contact with ${escapeHtml(tenantName)}.</p>` +
+    `<p style="margin:0"><a href="${url}" style="color:#8a8a8a;text-decoration:underline">Unsubscribe</a></p>` +
+    `</div>`
+  );
 }
 
 /**
@@ -117,7 +151,7 @@ export async function renderAdaptiveEmail(params: {
   const tenant = await getTenantById(params.tenantId);
   if (!tenant) throw new Error("Tenant not found.");
   // Effective template = per-tenant override (subject + block set) over the default.
-  const tmpl = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> }, params.templateKey);
+  const tmpl = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> }, params.templateKey);
   const locale = params.locale ?? DEFAULT_LOCALE;
 
   // 1. Identity → known ABM lead (explicit id, else deterministic email handle).
@@ -159,6 +193,11 @@ export async function renderAdaptiveEmail(params: {
   const parts: string[] = [];
   const used:  string[] = [];
   for (const key of tmpl.blocks) {
+    if (key === "footer") {
+      parts.push(renderEmailFooter(params.tenantId, tenant.name ?? params.tenantId, params.recipient.email));
+      used.push("footer");
+      continue;
+    }
     let data: unknown = null;
     if      (key === "hero"         && plan.heroKey)         data = await cms.getHeroVariant(plan.heroKey).catch(() => null);
     else if (key === "proof"        && plan.proofKey)        data = await cms.getProofVariant(plan.proofKey).catch(() => null);
@@ -177,12 +216,19 @@ export async function renderAdaptiveEmail(params: {
     `<div style="${styleVars};max-width:640px;margin:0 auto;background:var(--bg,#ffffff);">` +
     parts.join("") +
     `</div>`;
+  // Preheader: hidden inbox-preview text right after <body> (email convention).
+  const preheaderText = tmpl.preheader ? fillVars(tmpl.preheader, lead) : "";
+  const preheaderHtml = preheaderText
+    ? `<span style="display:none!important;max-height:0;overflow:hidden;opacity:0;color:transparent;visibility:hidden">${escapeHtml(preheaderText)}</span>`
+    : "";
+
   const html =
     `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width,initial-scale=1"></head>` +
     `<body style="margin:0;background:#f4f5f7;padding:24px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">` +
+    preheaderHtml +
     body +
     `</body></html>`;
 
-  return { subject: fillSubject(tmpl, lead), html, usedBlocks: used, knownLead: !!lead };
+  return { subject: fillVars(tmpl.subject, lead), html, usedBlocks: used, knownLead: !!lead };
 }
