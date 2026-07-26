@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useId, useState, useTransition } from "react";
+import { Fragment, useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { COUNTRIES, countryName, resolveCountry } from "@/lib/geo/countries";
 import {
@@ -15,12 +15,14 @@ import {
   editAdAction,
   fetchAdSessionsAction,
   fetchAdSessionGa4Action,
+  fetchAdPublisherBreakdownAction,
   type AdsOverview,
   type CreateAdInput,
   type DayReport,
   type AdSession,
   type AdSessionGa4,
   type Ga4AdStatus,
+  type PublisherBreakdownResult,
 } from "../actions";
 import type { AdSlotType, AdPricingModel, Ad } from "@/lib/ads/types";
 import { parseAdTargeting, type AdFunnelStage } from "@/lib/ads/targeting";
@@ -127,6 +129,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
         pendingProfilingCents={initial.pendingProfilingCents}
       />
       <SessionsCard tenantId={tenantId} ga4Ready={initial.ga4.readReady} />
+      <PublisherBreakdownCard tenantId={tenantId} />
       <Ga4StatusCard tenantId={tenantId} status={initial.ga4} />
       <PublishersCard tenantId={tenantId} initial={initial} pending={pending} run={run} />
       <AdForm tenantId={tenantId} pending={pending} run={run} mode="create" slots={initial.activeSlots} rateCard={initial.effectiveRateCard} suggestions={initial.companySuggestions} />
@@ -142,6 +145,121 @@ function Stat({ label: text, value }: { label: string; value: string }) {
     <div>
       <div className="text-xs font-semibold text-neutral-500">{text}</div>
       <div className="text-lg font-bold text-neutral-900">{value}</div>
+    </div>
+  );
+}
+
+function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
+  const [data, setData]         = useState<PublisherBreakdownResult | null>(null);
+  const [loading, start]        = useTransition();
+  const [error, setError]       = useState<string | null>(null);
+  const [days, setDays]         = useState(30);
+  const [publisher, setPublisher] = useState("");
+  const [page, setPage]         = useState(1);
+  const [nonce, setNonce]       = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    start(async () => {
+      try {
+        const r = await fetchAdPublisherBreakdownAction(tenantId, {
+          days, publisher: publisher || null, page, pageSize: 25,
+        });
+        if (!cancelled) setData(r);
+      } catch {
+        if (!cancelled) setError("Could not load publisher breakdown.");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [tenantId, days, publisher, page, nonce]);
+
+  const totalPages = data ? Math.max(1, Math.ceil(data.totalRows / data.pageSize)) : 1;
+  const pct = (n: number) => (n * 100).toFixed(1) + "%";
+
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-neutral-900">Publishers</h3>
+          <p className="mt-0.5 text-sm text-neutral-500">
+            Where your impressions were served — per publisher domain, including not-yet-billed events.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select className={input + " w-auto"} value={days}
+            onChange={(e) => { setPage(1); setDays(Number(e.target.value)); }}>
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+            <option value={0}>All time</option>
+          </select>
+          <select className={input + " w-auto max-w-[220px]"} value={publisher}
+            onChange={(e) => { setPage(1); setPublisher(e.target.value); }}>
+            <option value="">All publishers</option>
+            {(data?.publishers ?? []).map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <button className={btnGhost} disabled={loading} onClick={() => setNonce((n) => n + 1)}>
+            {loading ? "…" : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+      {data && (
+        <>
+          <div className="mt-3 flex flex-wrap gap-6">
+            <Stat label="Publishers"  value={String(data.totals.publishers)} />
+            <Stat label="Impressions" value={data.totals.impressions.toLocaleString()} />
+            <Stat label="Clicks"      value={data.totals.clicks.toLocaleString()} />
+            <Stat label="CTR"         value={data.totals.impressions > 0 ? pct(data.totals.clicks / data.totals.impressions) : "—"} />
+          </div>
+
+          {data.truncated && (
+            <p className="mt-2 text-xs text-amber-700">
+              Showing the most recent 50,000 events — counts may be partial for this period.
+            </p>
+          )}
+
+          {data.rows.length === 0 ? (
+            <p className="mt-4 text-sm text-neutral-400">No impressions in this period.</p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-xs uppercase tracking-wide text-neutral-500">
+                    <th className="py-2 pr-4">Publisher</th>
+                    <th className="py-2 pr-4 text-right">Impressions</th>
+                    <th className="py-2 pr-4 text-right">Clicks</th>
+                    <th className="py-2 text-right">CTR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.rows.map((r) => (
+                    <tr key={r.publisher} className="border-b border-neutral-100 last:border-0">
+                      <td className="py-2 pr-4 text-neutral-800">{r.publisher}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.impressions.toLocaleString()}</td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.clicks.toLocaleString()}</td>
+                      <td className="py-2 text-right tabular-nums text-neutral-500">{pct(r.ctr)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="mt-3 flex items-center justify-between text-sm">
+              <span className="text-neutral-500">Page {data.page} of {totalPages} · {data.totalRows} publishers</span>
+              <div className="flex gap-2">
+                <button className={btnGhost} disabled={loading || data.page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
+                <button className={btnGhost} disabled={loading || data.page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
