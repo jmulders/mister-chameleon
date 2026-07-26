@@ -249,7 +249,14 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
   // ── Advertiser workspace: only the ad-relevant pages ───────────────────────
   const advertiserGroups: PrimaryGroup[] = [
     { key: "overview", label: "Overview", href: base, prefix: base, icon: ICONS.overview, items: [] },
-    { key: "ads", label: "Ads", href: `${base}/ads`, prefix: `${base}/ads`, icon: ICONS.platform, items: [] },
+    {
+      key: "ads", label: "Ads", href: `${base}/ads`,
+      prefix: `${base}/ads|${base}/publishers`, icon: ICONS.platform,
+      items: [
+        { label: "Ads",        href: `${base}/ads`,        activePrefix: `${base}/ads`, exact: true },
+        { label: "Publishers", href: `${base}/publishers`, activePrefix: `${base}/publishers` },
+      ],
+    },
     {
       key: "billing", label: "Billing", href: `${base}/billing`,
       prefix: `${base}/billing|${base}/snippet`, icon: ICONS.admin,
