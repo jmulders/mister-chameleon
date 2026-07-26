@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdPricingPage() {
   const res = await getAdPricingAction();
-  const initial = res.ok ? res.data : { cpmCents: 500, cpcCents: 20, updatedAt: null };
+  const initial = res.ok ? res.data : { cpmCents: 500, cpcCents: 20, revsharePct: 0, updatedAt: null };
 
   return (
     <div className="p-8 max-w-2xl">

@@ -2217,10 +2217,12 @@ export interface PlatformAdPricingSettings {
   cpmCents?: number;
   /** Default CPC: cents per click. */
   cpcCents?: number;
+  /** Default publisher revenue share (percent 0–100) of the ad revenue they generate. */
+  revsharePct?: number;
 }
 
 /** Sensible defaults when the rate-card row is absent. */
-export const AD_PRICING_DEFAULTS = { cpmCents: 500, cpcCents: 20 } as const; // €5 CPM, €0.20 CPC
+export const AD_PRICING_DEFAULTS = { cpmCents: 500, cpcCents: 20, revsharePct: 0 } as const; // €5 CPM, €0.20 CPC, 0% revshare
 
 /** Read the platform advertiser rate-card. */
 export async function getPlatformAdPricingSettings(): Promise<SettingsResult<PlatformAdPricingSettings>> {
@@ -2234,6 +2236,7 @@ export async function savePlatformAdPricingSettings(
   const normalized: Record<string, unknown> = {
     ...(patch.cpmCents !== undefined ? { cpmCents: patch.cpmCents } : {}),
     ...(patch.cpcCents !== undefined ? { cpcCents: patch.cpcCents } : {}),
+    ...(patch.revsharePct !== undefined ? { revsharePct: patch.revsharePct } : {}),
   };
   return writeSection<Record<string, unknown>>(KEYS.adPricing, normalized);
 }

@@ -2730,6 +2730,14 @@ export interface TenantSettings {
   };
 
   /**
+   * Advertiser only: per-tenant CPM/CPC rate-card override (cents). Set by a
+   * platform super-admin; overrides the global platform rate-card for this
+   * advertiser's ads. Absent (or a missing field) = inherit the global rate.
+   * The advertiser can never set this. Stored in settings.adRateCard.
+   */
+  readonly adRateCard?: { readonly cpmCents?: number; readonly cpcCents?: number };
+
+  /**
    * Asset storage override for this tenant.
    *
    * When set, the specified provider is used instead of the platform-wide

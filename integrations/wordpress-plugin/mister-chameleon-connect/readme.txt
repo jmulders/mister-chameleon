@@ -4,7 +4,7 @@ Tags: personalization, cro, personalisatie, ab-testing, content
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.5.7
+Stable tag: 0.5.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,11 @@ Daar heb je de HTML niet altijd in handen. Gebruik dan de selector-mapping in he
 platform (Snippet → Selectors) in plaats van slots in de markup.
 
 == Changelog ==
+
+= 0.5.8 =
+* Onderhoudsrelease: geen functionele wijziging. Dient om het nieuwe
+  plugin-icoon zichtbaar te maken op het updatescherm (het icoon wordt getekend
+  door de geïnstalleerde 0.5.7+-code).
 
 = 0.5.7 =
 * Plugin-icoon: de plugin toont nu een eigen icoon op het Plugins- en

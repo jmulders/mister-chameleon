@@ -12,6 +12,8 @@
  */
 
 import { renderBlockHtml }        from "@/lib/snippet/render-block-html";
+import { cssVarsFromTokenRef }    from "@/lib/snippet/block-slot";
+import type { CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { matchesTargeting, parseAdTargeting, usesBehaviouralTargeting, usesGeoTargeting } from "./targeting";
 import type { AdAudience }        from "./targeting";
 import { evaluateCondition }      from "@/decision/rules/stored-rule";
@@ -138,8 +140,14 @@ export async function serveAds(args: ServeAdsArgs): Promise<SlotMap> {
       const html = renderBlockHtml(slotType, creative);
       if (!html) continue;
 
-      const slot: BlockSlot = args.tokens && Object.keys(args.tokens).length > 0
-        ? { mode: "block", html, tokens: args.tokens }
+      // Per-creative design tokens (creative.tokens) override the advertiser's
+      // site-wide theme tokens (args.tokens) on this block's container — the same
+      // mechanism CMS variant blocks use.
+      const creativeTokens = (ad.creative as { tokens?: CuratedBlockTokens } | null)?.tokens;
+      const perCreative = cssVarsFromTokenRef({ tokens: creativeTokens }) ?? {};
+      const merged = { ...(args.tokens ?? {}), ...perCreative };
+      const slot: BlockSlot = Object.keys(merged).length > 0
+        ? { mode: "block", html, tokens: merged }
         : { mode: "block", html };
       slots[slotType] = slot;
     }

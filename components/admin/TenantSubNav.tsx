@@ -260,10 +260,11 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
     },
     {
       key: "admin", label: "Admin", href: `${base}/settings`,
-      prefix: `${base}/settings|${base}/users`, icon: ICONS.admin,
+      prefix: `${base}/settings|${base}/users|${base}/integrations`, icon: ICONS.admin,
       items: [
-        { label: "Settings", href: `${base}/settings`, activePrefix: `${base}/settings` },
-        { label: "Users",    href: `${base}/users`,    activePrefix: `${base}/users` },
+        { label: "Settings",     href: `${base}/settings`,     activePrefix: `${base}/settings` },
+        { label: "Integrations", href: `${base}/integrations`, activePrefix: `${base}/integrations` },
+        { label: "Users",        href: `${base}/users`,        activePrefix: `${base}/users` },
       ],
     },
   ];
