@@ -2721,6 +2721,15 @@ export interface TenantSettings {
   readonly adSlots?: readonly string[];
 
   /**
+   * Adaptive email triggers. `onFormSubmit` (opt-in, default off) sends the
+   * chosen adaptive email template to a form submitter after capture — the live
+   * form-submit trigger. Stored in settings.adaptiveEmail.
+   */
+  readonly adaptiveEmail?: {
+    readonly onFormSubmit?: { readonly enabled: boolean; readonly templateKey: string };
+  };
+
+  /**
    * Advertiser only: per-tenant CPM/CPC rate-card override (cents). Set by a
    * platform super-admin; overrides the global platform rate-card for this
    * advertiser's ads. Absent (or a missing field) = inherit the global rate.

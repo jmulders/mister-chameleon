@@ -24,6 +24,12 @@ export default async function AdaptiveEmailPage({
   if (!tenant) return notFound();
 
   const templates = Object.entries(EMAIL_TEMPLATES).map(([key, t]) => ({ key, label: t.label }));
+  const trig = (tenant as { adaptiveEmail?: { onFormSubmit?: { enabled?: boolean; templateKey?: string } } })
+    .adaptiveEmail?.onFormSubmit;
+  const formSubmit = {
+    enabled:     !!trig?.enabled,
+    templateKey: trig?.templateKey ?? (templates[0]?.key ?? ""),
+  };
 
   return (
     <div className="p-8 max-w-4xl space-y-6">
@@ -32,7 +38,7 @@ export default async function AdaptiveEmailPage({
         title="Adaptive email"
         description="Preview the personalised email a known recipient would receive. Same decision engine and blocks as the website — tailored to what you know about the lead. Preview only; sending comes later."
       />
-      <EmailPreviewClient tenantId={tenantId} templates={templates} />
+      <EmailPreviewClient tenantId={tenantId} templates={templates} formSubmit={formSubmit} />
     </div>
   );
 }
