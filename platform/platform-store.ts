@@ -1569,7 +1569,27 @@ export function ga4HistoryFlags(settings: PlatformGa4HistorySettings): {
 
 /** Read the platform email settings (includes secrets — server-only). */
 export async function getPlatformEmailSettings(): Promise<SettingsResult<PlatformEmailSettings>> {
-  return readSection<PlatformEmailSettings>(KEYS.email);
+  const res = await readSection<PlatformEmailSettings>(KEYS.email);
+  if (!res.ok) return res;
+
+  // Secrets are stored encrypted (encryptSecret in the admin save action) — the
+  // transport layer expects DECRYPTED values, mirroring the tenant loader. Decrypt
+  // here on read. Never throw: fall back to the raw value if the key is missing.
+  const { smtpPassword, resendApiKey } = res.data;
+  if (!smtpPassword && !resendApiKey) return res;
+  try {
+    const { decryptSecret } = await import("@/lib/email-crypto");
+    return {
+      ...res,
+      data: {
+        ...res.data,
+        smtpPassword: smtpPassword ? decryptSecret(smtpPassword) : smtpPassword,
+        resendApiKey: resendApiKey ? decryptSecret(resendApiKey) : resendApiKey,
+      },
+    };
+  } catch {
+    return res;
+  }
 }
 
 /**
