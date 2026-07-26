@@ -91,12 +91,33 @@ export function buildSnippetSource(decideUrl: string): string {
 
   // ── 1. Read site key from own script tag ─────────────────────────────────────
   var scripts = document.querySelectorAll('script[data-site-key]');
-  var siteKey = null;
+  var siteKey = null, selfScript = null;
   for (var i = 0; i < scripts.length; i++) {
     siteKey = scripts[i].getAttribute('data-site-key');
-    if (siteKey) break;
+    if (siteKey) { selfScript = scripts[i]; break; }
   }
   if (!siteKey) return; // no site key — bail silently
+
+  // ── 1b. Consent ──────────────────────────────────────────────────────────────
+  // Personalisation profiling and firmographic enrichment only run WITH consent.
+  // Resolution order: explicit publisher signal (data-mc-consent="granted|denied"
+  // on the script tag, or window.mcConsent = true/false) → Global Privacy Control
+  // / Do-Not-Track force denied → default granted (the host is expected to load
+  // the snippet only after its own consent gate; this keeps existing embeds working).
+  // Without consent we still serve ads/variants, but geo-only: no id is stored and
+  // the server skips behavioural, firmographic and GA4.
+  function resolveConsent() {
+    try {
+      var attr = selfScript ? selfScript.getAttribute('data-mc-consent') : null;
+      if (attr === 'denied' || window.mcConsent === false) return false;
+      if (attr === 'granted' || window.mcConsent === true) return true;
+      if (navigator.globalPrivacyControl === true) return false;
+      var dnt = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      if (dnt === '1' || dnt === 'yes' || dnt === true) return false;
+    } catch(e) {}
+    return true;
+  }
+  var consent = resolveConsent();
 
   // ── 2. FOOC prevention — hide page until swap is done ────────────────────────
   var TIMEOUT_MS = 1500;
@@ -135,9 +156,12 @@ export function buildSnippetSource(decideUrl: string): string {
     } catch(e) {}
     return 'mc_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   }
-  function getOrCreateVisitorId() {
+  function getOrCreateVisitorId(persist) {
     var existing = getCookie('mc_sid');
     if (existing) return existing;
+    // Cookieless mode (no consent): mint an ephemeral, per-pageview id — never
+    // stored — so ads still serve/dedupe but no cross-session profile forms.
+    if (!persist) return newId();
     try {
       var stored = window.localStorage.getItem('mc_vid');
       if (stored) return stored;
@@ -156,7 +180,7 @@ export function buildSnippetSource(decideUrl: string): string {
       return id;
     }
   }
-  var visitorId = getOrCreateVisitorId();
+  var visitorId = getOrCreateVisitorId(consent);
 
   var context = {
     path:     window.location.pathname,
@@ -207,7 +231,7 @@ export function buildSnippetSource(decideUrl: string): string {
   fetch(${JSON.stringify(decideUrl)}, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ siteKey: siteKey, context: context, blocks: blockKeys }),
+    body: JSON.stringify({ siteKey: siteKey, context: context, blocks: blockKeys, consent: consent }),
   })
   .then(function(res) {
     if (!res.ok) return null;

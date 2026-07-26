@@ -8,6 +8,7 @@ export function AdPricingForm({ initial }: { initial: AdPricing }) {
   const router = useRouter();
   const [cpm, setCpm] = useState(initial.cpmCents);
   const [cpc, setCpc] = useState(initial.cpcCents);
+  const [rev, setRev] = useState(initial.revsharePct);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -16,7 +17,7 @@ export function AdPricingForm({ initial }: { initial: AdPricing }) {
   const save = () => {
     setMsg(null);
     start(async () => {
-      const res = await saveAdPricingAction({ cpmCents: cpm, cpcCents: cpc });
+      const res = await saveAdPricingAction({ cpmCents: cpm, cpcCents: cpc, revsharePct: rev });
       if (res.ok) { setMsg({ ok: true, text: "Saved." }); router.refresh(); }
       else setMsg({ ok: false, text: res.error });
     });
@@ -36,6 +37,11 @@ export function AdPricingForm({ initial }: { initial: AdPricing }) {
           <label className="mb-1 block text-xs font-semibold text-neutral-600">CPC (cents / click)</label>
           <input type="number" min={0} value={cpc} onChange={(e) => setCpc(Math.max(0, Number(e.target.value)))} className={inputCls} />
           <p className="mt-1 text-xs text-neutral-400">{euro(cpc)} per click</p>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-neutral-600">Publisher revshare (%)</label>
+          <input type="number" min={0} max={100} value={rev} onChange={(e) => setRev(Math.min(100, Math.max(0, Number(e.target.value))))} className={inputCls} />
+          <p className="mt-1 text-xs text-neutral-400">Default publisher cut of ad revenue (per-publisher override on the Publishers page)</p>
         </div>
       </div>
       {msg && <p className={"mt-3 text-sm " + (msg.ok ? "text-green-700" : "text-red-600")}>{msg.text}</p>}

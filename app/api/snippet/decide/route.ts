@@ -148,6 +148,14 @@ interface DecideRequest {
    * whole self-contained block, instead of the per-element content slots.
    */
   blocks?: string[];
+  /**
+   * Visitor consent for profiling, as resolved client-side by the snippet
+   * (explicit publisher signal → GPC/DNT → default). When false, the route still
+   * serves ads/variants but geo-only: no behavioural profiling, no firmographic
+   * (Leadinfo) lookup, no GA4 write/read. Absent (older snippets) is treated as
+   * granted for backward compatibility — those hosts gate loading on consent.
+   */
+  consent?: boolean;
   context?: {
     path?:           string;
     referrer?:       string;
@@ -256,6 +264,10 @@ export async function POST(request: NextRequest) {
   }
 
   const { siteKey, context = {} } = body as DecideRequest;
+  // Consent gate: absent = granted (older snippets; host gated loading). When
+  // false, profiling / firmographic / GA4 are skipped — ads & variants still
+  // serve geo-only. See DecideRequest.consent.
+  const consentGranted = (body as DecideRequest).consent !== false;
 
   if (!siteKey || typeof siteKey !== "string") {
     return NextResponse.json(
@@ -358,25 +370,31 @@ export async function POST(request: NextRequest) {
     // Build the behavioural audience (prior interest/journey) and record this
     // pageview in parallel — neither blocks the other. The audience reflects
     // history up to (not including) this view; this view feeds the next one.
-    const [behav] = await Promise.all([
-      fetchAdAudience(tenantId, adSessionId),
-      adSessionId
-        ? recordJourneyEvent({
-            tenantId,
-            sessionId:    adSessionId,
-            visitorId:    adSessionId,
-            eventType:    "page_view",
-            pagePath:     context.path ?? "/",
-            pageCategory: adPageMeta.category ?? undefined,
-            pageKeywords: adKeywords,
-            source:       context.utm_source   ?? undefined,
-            medium:       context.utm_medium   ?? undefined,
-            campaign:     context.utm_campaign ?? undefined,
-            metadata:     { via: "ad", publisher_domain: adOriginHost ?? null },
-            eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
-          }).catch(() => false)
-        : Promise.resolve(false),
-    ]);
+    // Behavioural profiling requires consent — without it, ads still serve but
+    // geo-only (no history read, no journey write).
+    let behav: Awaited<ReturnType<typeof fetchAdAudience>> = null;
+    if (consentGranted) {
+      const [b] = await Promise.all([
+        fetchAdAudience(tenantId, adSessionId),
+        adSessionId
+          ? recordJourneyEvent({
+              tenantId,
+              sessionId:    adSessionId,
+              visitorId:    adSessionId,
+              eventType:    "page_view",
+              pagePath:     context.path ?? "/",
+              pageCategory: adPageMeta.category ?? undefined,
+              pageKeywords: adKeywords,
+              source:       context.utm_source   ?? undefined,
+              medium:       context.utm_medium   ?? undefined,
+              campaign:     context.utm_campaign ?? undefined,
+              metadata:     { via: "ad", publisher_domain: adOriginHost ?? null },
+              eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+            }).catch(() => false)
+          : Promise.resolve(false),
+      ]);
+      behav = b;
+    }
 
     // Attach free geo (Vercel request headers) so geo targeting works even for
     // visitors without a behavioural profile.
@@ -387,7 +405,7 @@ export async function POST(request: NextRequest) {
     // balance. resolveAdCompany caches per visitor/day and is a no-op (null, no
     // cost) unless a Leadinfo key is configured. Skips the whole path otherwise.
     let adCompany: Awaited<ReturnType<typeof resolveAdCompany>> = null;
-    if (adSessionId && adOriginHost && await tenantHasFirmographicAd(tenantId)) {
+    if (consentGranted && adSessionId && adOriginHost && await tenantHasFirmographicAd(tenantId)) {
       if (await isPublisherApproved(tenantId, adOriginHost) && await isWalletServable(tenantId)) {
         const adIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
           ?? request.headers.get("x-real-ip") ?? null;
@@ -409,7 +427,7 @@ export async function POST(request: NextRequest) {
     // Record this ad-audience session into the tenant's own GA4 (Measurement
     // Protocol), keyed by our visitor_id, so returning visitors can be enriched
     // from GA4 later. No-op unless GA4 server tracking is configured. Fire-and-forget.
-    if (adSessionId) void writeAdGa4Event(tenant.ga4, adSessionId, { page: context.path ?? null, publisher: adOriginHost });
+    if (consentGranted && adSessionId) void writeAdGa4Event(tenant.ga4, adSessionId, { page: context.path ?? null, publisher: adOriginHost });
 
     // Advanced rule targeting: build a COST-SAFE decision context — no
     // stagedEnrichers, so buildDecisionContext uses stub providers and makes no
@@ -773,7 +791,9 @@ export async function POST(request: NextRequest) {
       ? context.keywords.map((k) => String(k).toLowerCase().trim()).filter(Boolean)
       : [];
     const pageKeywords = Array.from(new Set([...sentKeywords, ...pageMeta.keywords]));
-    if (sessionId) {
+    // Behavioural capture requires consent. Without it we still resolve a variant,
+    // but on geo/UTM-only signals (no journey write, no history read below).
+    if (consentGranted && sessionId) {
       await recordJourneyEvent({
         tenantId,
         sessionId,
@@ -789,9 +809,12 @@ export async function POST(request: NextRequest) {
       }).catch(() => false);
     }
 
-    // Fetch visitor history and rules config in parallel
+    // Fetch visitor history and rules config in parallel. Without consent, skip
+    // history entirely so the decision runs on geo/UTM-only signals.
     const [rawHistory, tenantRulesConfig] = await Promise.all([
-      fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory()),
+      consentGranted
+        ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
+        : Promise.resolve(emptyHistory()),
       loadTenantRulesConfig(tenantId).catch(() => null),
     ]);
 
