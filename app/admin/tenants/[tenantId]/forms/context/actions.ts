@@ -12,7 +12,10 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 import { getTenantById, saveTenant } from "@/tenant/server";
-import type { TenantFormContext, FormContextRule, FormOverlay } from "@/forms/context/types";
+import type {
+  TenantFormContext, FormContextRule, FormOverlay,
+  TenantBlockContext, CtaOverlay,
+} from "@/forms/context/types";
 import { safeRelativePath } from "@/forms/context/resolve";
 import type { FormField } from "@/forms";
 
@@ -72,7 +75,11 @@ function cleanRule(r: unknown): FormContextRule | null {
  */
 export async function saveFormContextAction(
   tenantId: string,
-  input: { rules: unknown[]; overlays: Record<string, Record<string, FormOverlay>> },
+  input: {
+    rules: unknown[];
+    overlays: Record<string, Record<string, FormOverlay>>;
+    blockOverlays?: Record<string, Record<string, CtaOverlay>>;
+  },
 ): Promise<ActionResult> {
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
@@ -110,9 +117,28 @@ export async function saveFormContextAction(
     }
   }
 
+  // ── CTA / block overlays ─────────────────────────────────────────────────
+  const blockOverlays: Record<string, Record<string, CtaOverlay>> = {};
+  for (const [key, bySeg] of Object.entries(input.blockOverlays ?? {})) {
+    const cleanKey = key.trim();
+    if (!cleanKey) continue;
+    for (const [segment, ov] of Object.entries(bySeg ?? {})) {
+      const clean: { title?: string; description?: string; ctaLabel?: string; ctaHref?: string } = {};
+      if (typeof ov.title === "string" && ov.title.trim()) clean.title = ov.title.trim();
+      if (typeof ov.description === "string" && ov.description.trim()) clean.description = ov.description.trim();
+      if (typeof ov.ctaLabel === "string" && ov.ctaLabel.trim()) clean.ctaLabel = ov.ctaLabel.trim();
+      if (typeof ov.ctaHref === "string" && ov.ctaHref.trim()) clean.ctaHref = ov.ctaHref.trim();
+      if (Object.keys(clean).length > 0) {
+        blockOverlays[cleanKey] ??= {};
+        blockOverlays[cleanKey][segment] = clean;
+      }
+    }
+  }
+
   const formContext: TenantFormContext = { rules, overlays };
+  const blockContext: TenantBlockContext = { overlays: blockOverlays };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await saveTenant({ ...tenant, formContext } as any);
+  await saveTenant({ ...tenant, formContext, blockContext } as any);
   revalidatePath(`/admin/tenants/${tenantId}/forms/context`);
   return { ok: true };
 }

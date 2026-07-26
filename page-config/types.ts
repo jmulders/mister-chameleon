@@ -1248,6 +1248,12 @@ export interface CtaSectionBlockData {
   readonly primaryCta?:   { readonly label: string; readonly href: string };
   readonly secondaryCta?: { readonly label: string; readonly href: string };
   /**
+   * Optional contextual-CTA key. When set, the block is rendered client-side
+   * and its heading/text/button are swapped per visitor segment via the
+   * tenant's contextual rules (see settings.blockContext). Absent = static.
+   */
+  readonly contextKey?:   string;
+  /**
    * Background style for this CTA section.
    * Resolved to a design token by the component; never a raw colour value.
    *

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { saveFormContextAction } from "../actions";
-import type { FormContextRule, FormOverlay, TenantFormContext } from "@/forms/context/types";
+import type { FormContextRule, FormOverlay, TenantFormContext, TenantBlockContext, CtaOverlay } from "@/forms/context/types";
 import type { FormField } from "@/forms";
 
 const card  = "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm";
@@ -43,9 +43,31 @@ function genId(): string {
   try { return crypto.randomUUID(); } catch { return `r_${Date.now()}_${Math.round(Math.random() * 1e6)}`; }
 }
 
-export function FormContextClient({ tenantId, initial, forms }:
-  { tenantId: string; initial: TenantFormContext; forms: FormInfo[] }) {
+type CtaDraft = { title: string; description: string; ctaLabel: string; ctaHref: string };
+function emptyCta(): CtaDraft { return { title: "", description: "", ctaLabel: "", ctaHref: "" }; }
+
+export function FormContextClient({ tenantId, initial, initialBlock, forms }:
+  { tenantId: string; initial: TenantFormContext; initialBlock: TenantBlockContext; forms: FormInfo[] }) {
   const [rules, setRules] = useState<FormContextRule[]>(() => [...(initial.rules ?? [])]);
+
+  // Contextual CTA overlays: blockDrafts[contextKey][segment] = CtaDraft
+  const [ctaKeys, setCtaKeys] = useState<string[]>(() => Object.keys(initialBlock.overlays ?? {}));
+  const [blockDrafts, setBlockDrafts] = useState<Record<string, Record<string, CtaDraft>>>(() => {
+    const out: Record<string, Record<string, CtaDraft>> = {};
+    for (const [k, bySeg] of Object.entries(initialBlock.overlays ?? {})) {
+      out[k] = {};
+      for (const [seg, ov] of Object.entries(bySeg ?? {})) {
+        out[k][seg] = {
+          title:       ov.title ?? "",
+          description: ov.description ?? "",
+          ctaLabel:    ov.ctaLabel ?? "",
+          ctaHref:     ov.ctaHref ?? "",
+        };
+      }
+    }
+    return out;
+  });
+  const [newKey, setNewKey] = useState("");
 
   // overlays[formKey][segment] = OverlayDraft
   const [overlays, setOverlays] = useState<Record<string, Record<string, OverlayDraft>>>(() => {
@@ -89,6 +111,21 @@ export function FormContextClient({ tenantId, initial, forms }:
   const setDraft = (fk: string, seg: string, patch: Partial<OverlayDraft>) =>
     setOverlays((o) => ({ ...o, [fk]: { ...(o[fk] ?? {}), [seg]: { ...getDraft(fk, seg), ...patch } } }));
 
+  // ── CTA overlay editing ──────────────────────────────────────────────────────
+  const getCta = (key: string, seg: string): CtaDraft => blockDrafts[key]?.[seg] ?? emptyCta();
+  const setCta = (key: string, seg: string, patch: Partial<CtaDraft>) =>
+    setBlockDrafts((b) => ({ ...b, [key]: { ...(b[key] ?? {}), [seg]: { ...getCta(key, seg), ...patch } } }));
+  const addKey = () => {
+    const k = newKey.trim();
+    if (!k || ctaKeys.includes(k)) { setNewKey(""); return; }
+    setCtaKeys((ks) => [...ks, k]);
+    setNewKey("");
+  };
+  const removeKey = (k: string) => {
+    setCtaKeys((ks) => ks.filter((x) => x !== k));
+    setBlockDrafts((b) => { const n = { ...b }; delete n[k]; return n; });
+  };
+
   // ── Save ─────────────────────────────────────────────────────────────────────
   const save = () => {
     setMsg(null);
@@ -120,8 +157,25 @@ export function FormContextClient({ tenantId, initial, forms }:
         }
       }
     }
+    // Build CTA block overlays payload.
+    const blockOverlays: Record<string, Record<string, CtaOverlay>> = {};
+    for (const key of ctaKeys) {
+      const bySeg = blockDrafts[key] ?? {};
+      for (const [seg, d] of Object.entries(bySeg)) {
+        const ov: { title?: string; description?: string; ctaLabel?: string; ctaHref?: string } = {};
+        if (d.title.trim())       ov.title = d.title.trim();
+        if (d.description.trim()) ov.description = d.description.trim();
+        if (d.ctaLabel.trim())    ov.ctaLabel = d.ctaLabel.trim();
+        if (d.ctaHref.trim())     ov.ctaHref = d.ctaHref.trim();
+        if (Object.keys(ov).length > 0) {
+          blockOverlays[key] ??= {};
+          blockOverlays[key][seg] = ov;
+        }
+      }
+    }
+
     start(async () => {
-      const r = await saveFormContextAction(tenantId, { rules, overlays: payload });
+      const r = await saveFormContextAction(tenantId, { rules, overlays: payload, blockOverlays });
       setMsg(r.ok ? { ok: true, text: "Saved." } : { ok: false, text: r.error });
     });
   };
@@ -253,8 +307,63 @@ export function FormContextClient({ tenantId, initial, forms }:
         </div>
       ))}
 
+      {/* ── Contextual CTAs ────────────────────────────────────────────────── */}
+      <div className={card}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-neutral-900">Contextual CTAs</h3>
+            <p className="mt-0.5 text-sm text-neutral-500">
+              Give a CTA block a key (set <code className="rounded bg-neutral-100 px-1 text-xs">contextKey</code> on the ctaSection block), then override its heading, text, and button per segment.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-end gap-2">
+          <div className="flex-1 max-w-xs">
+            <label className={label}>Add CTA key</label>
+            <input className={input} value={newKey} placeholder="e.g. home-hero-cta"
+              onChange={(e) => setNewKey(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addKey(); }} />
+          </div>
+          <button className={btnGhost} onClick={addKey}>+ Add</button>
+        </div>
+
+        {ctaKeys.length === 0 && <p className="mt-4 text-sm text-neutral-400">No contextual CTAs yet.</p>}
+        {ctaKeys.length > 0 && segments.length === 0 && (
+          <p className="mt-4 text-sm text-amber-700">Add a rule above to create a segment first.</p>
+        )}
+
+        <div className="mt-4 space-y-4">
+          {ctaKeys.map((key) => (
+            <div key={key} className="rounded-lg border border-neutral-200 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-mono text-sm text-neutral-800">{key}</span>
+                <button className="text-xs text-red-600 hover:underline" onClick={() => removeKey(key)}>Remove</button>
+              </div>
+              {segments.map((seg) => {
+                const d = getCta(key, seg);
+                return (
+                  <details key={seg} className="mt-2 rounded-md border border-neutral-100">
+                    <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">Segment: {seg}</summary>
+                    <div className="grid grid-cols-1 gap-3 px-3 py-3 sm:grid-cols-2">
+                      <div><label className={label}>Heading</label>
+                        <input className={input} value={d.title} onChange={(e) => setCta(key, seg, { title: e.target.value })} placeholder="(inherit)" /></div>
+                      <div><label className={label}>Text</label>
+                        <input className={input} value={d.description} onChange={(e) => setCta(key, seg, { description: e.target.value })} placeholder="(inherit)" /></div>
+                      <div><label className={label}>Button label</label>
+                        <input className={input} value={d.ctaLabel} onChange={(e) => setCta(key, seg, { ctaLabel: e.target.value })} placeholder="(inherit)" /></div>
+                      <div><label className={label}>Button link</label>
+                        <input className={input} value={d.ctaHref} onChange={(e) => setCta(key, seg, { ctaHref: e.target.value })} placeholder="https://… or /path" /></div>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center gap-3">
-        <button className={btn} disabled={saving} onClick={save}>{saving ? "Saving…" : "Save contextual forms"}</button>
+        <button className={btn} disabled={saving} onClick={save}>{saving ? "Saving…" : "Save contextual content"}</button>
         {msg && <span className={"text-sm " + (msg.ok ? "text-green-700" : "text-red-600")}>{msg.text}</span>}
       </div>
     </div>
