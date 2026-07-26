@@ -82,7 +82,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
   )];
 
   // AI-enabled tenants for filter pills
-  const aiTenants = tenants.filter((t) => t.features.ai);
+  const aiTenants = tenants.filter((t) => t.features?.ai);
 
   return (
     <div className="p-8">
