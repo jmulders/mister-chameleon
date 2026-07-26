@@ -155,7 +155,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       key:    "design",
       label:  "Design",
       href:   `${base}/design`,
-      prefix: `${base}/design`,
+      prefix: `${base}/design|${base}/theme-switching`,
       icon:   ICONS.design,
       // Design switches panels via ?tab=… rather than separate routes, but the
       // items render in the shared secondary row so they sit and size exactly
@@ -167,19 +167,21 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         { label: "Typography", href: `${base}/design?tab=typography`,   activePrefix: `${base}/design`, tab: "typography" },
         { label: "Blocks",     href: `${base}/design?tab=blocks`,       activePrefix: `${base}/design`, tab: "blocks" },
         { label: "Advanced",   href: `${base}/design?tab=advanced`,     activePrefix: `${base}/design`, tab: "advanced" },
+        { label: "Theme switching", href: `${base}/theme-switching`,    activePrefix: `${base}/theme-switching` },
       ],
     },
     {
       key:    "content",
       label:  "Content",
       href:   `${base}/content`,
-      prefix: `${base}/content|${base}/pages|${base}/blueprints|${base}/forms|${base}/assets`,
+      prefix: `${base}/content|${base}/pages|${base}/blueprints|${base}/forms|${base}/assets|${base}/email`,
       icon:   ICONS.content,
       items: [
         { label: "CMS",        href: `${base}/content`,    activePrefix: `${base}/content` },
         { label: "Pages",      href: `${base}/pages`,      activePrefix: `${base}/pages` },
         { label: "Blueprints", href: `${base}/blueprints`, activePrefix: `${base}/blueprints` },
         { label: "Forms",      href: `${base}/forms`,      activePrefix: `${base}/forms` },
+        { label: "Adaptive email", href: `${base}/email`,  activePrefix: `${base}/email` },
         { label: "Assets",     href: `${base}/assets`,     activePrefix: `${base}/assets` },
       ],
     },
@@ -187,7 +189,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       key:    "personalization",
       label:  "Personalization",
       href:   `${base}/behavior/slots`,
-      prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill|${base}/theme-switching`,
+      prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill`,
       icon:   ICONS.personalization,
       items: [
         { label: "Slots",           href: `${base}/behavior/slots`, activePrefix: `${base}/behavior/slots` },
@@ -196,7 +198,6 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         { label: "Rules",           href: `${base}/rules`,          activePrefix: `${base}/rules` },
         { label: "Experiments",     href: `${base}/experiments`,    activePrefix: `${base}/experiments` },
         { label: "AI",              href: `${base}/ai`,             activePrefix: `${base}/ai`, exact: true },
-        { label: "Theme switching", href: `${base}/theme-switching`, activePrefix: `${base}/theme-switching` },
       ],
     },
     {
