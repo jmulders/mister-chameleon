@@ -2746,6 +2746,15 @@ export interface TenantSettings {
   readonly formContext?: import("@/forms/context/types").TenantFormContext;
 
   /**
+   * Per-tenant adaptive-email template overrides, keyed by template key. Each
+   * entry may override the subject line and/or the block set (which adaptive
+   * blocks, in what order). Block CONTENT still comes from the adaptive blocks
+   * library. Absent = use the code default (EMAIL_TEMPLATES). Stored in
+   * settings.emailTemplates.
+   */
+  readonly emailTemplates?: Record<string, { subject?: string; blocks?: string[] }>;
+
+  /**
    * Contextual CTAs/content blocks: per-block, per-segment overrides (heading,
    * text, button label/href). Reuses the same rules as formContext to pick the
    * segment. Absent = blocks render as authored. Stored in settings.blockContext.

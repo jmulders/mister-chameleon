@@ -10,7 +10,9 @@ import { notFound } from "next/navigation";
 import { getTenantById } from "@/tenant/server";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { EMAIL_TEMPLATES } from "@/lib/email/adaptive-email";
+import { getEmailTemplatesAction } from "./actions";
 import { EmailPreviewClient } from "./_components/EmailPreviewClient";
+import { EmailTemplatesClient } from "./_components/EmailTemplatesClient";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,7 @@ export default async function AdaptiveEmailPage({
   if (!tenant) return notFound();
 
   const templates = Object.entries(EMAIL_TEMPLATES).map(([key, t]) => ({ key, label: t.label }));
+  const templatesOverview = await getEmailTemplatesAction(tenantId);
   const trig = (tenant as { adaptiveEmail?: { onFormSubmit?: { enabled?: boolean; templateKey?: string } } })
     .adaptiveEmail?.onFormSubmit;
   const formSubmit = {
@@ -38,6 +41,7 @@ export default async function AdaptiveEmailPage({
         title="Adaptive email"
         description="Preview the personalised email a known recipient would receive. Same decision engine and blocks as the website — tailored to what you know about the lead. Preview only; sending comes later."
       />
+      <EmailTemplatesClient tenantId={tenantId} overview={templatesOverview} />
       <EmailPreviewClient tenantId={tenantId} templates={templates} formSubmit={formSubmit} />
     </div>
   );
