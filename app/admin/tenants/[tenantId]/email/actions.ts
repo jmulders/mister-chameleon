@@ -12,6 +12,9 @@ import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/au
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { renderAdaptiveEmail, EMAIL_TEMPLATES, type EmailTemplateKey } from "@/lib/email/adaptive-email";
 import { sendAdaptiveEmail } from "@/lib/email/send-adaptive-email";
+import { sendAdaptiveBatch, MAX_BATCH_RECIPIENTS, type BatchSendSummary } from "@/lib/email/send-adaptive-batch";
+import { selectBatchRecipients, collectFilterOptions, type BatchRecipient, type BatchAudienceFilters } from "@/lib/email/batch-select";
+import { listAbmLeads } from "@/lib/abm/abm-store";
 
 export interface EmailPreviewResult {
   subject:    string;
@@ -66,6 +69,84 @@ export async function sendTestAdaptiveEmailAction(
   if (!r.ok) return { ok: false, error: r.error };
   if (r.skipped) return { ok: false, error: r.skipped === "suppressed" ? "That test address is suppressed." : "Already sent." };
   return { ok: true };
+}
+
+// ── Batch / ABM campaign ──────────────────────────────────────────────────────
+
+export interface BatchAudienceResult {
+  candidates:    BatchRecipient[];
+  totalLeads:    number;
+  withEmail:     number;
+  industries:    string[];
+  companySizes:  string[];
+  capped:        boolean;
+  maxRecipients: number;
+}
+
+/**
+ * Compute the campaign audience for the tenant: known leads filtered to those
+ * with a valid email, matching optional firmographic filters, de-duped by email.
+ * Read-only — no email is sent here. The operator confirms the list, then calls
+ * sendBatchAction with the chosen lead ids.
+ */
+export async function fetchBatchAudienceAction(
+  tenantId: string, filters: BatchAudienceFilters = {},
+): Promise<{ ok: true; data: BatchAudienceResult } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  try {
+    const leads = await listAbmLeads(tenantId);
+    const candidates = selectBatchRecipients(leads, filters);
+    const withEmail = selectBatchRecipients(leads, { ...filters, industry: undefined, companySize: undefined }).length;
+    return {
+      ok: true,
+      data: {
+        candidates:    candidates.slice(0, MAX_BATCH_RECIPIENTS),
+        totalLeads:    leads.length,
+        withEmail,
+        industries:    collectFilterOptions(leads, "industry"),
+        companySizes:  collectFilterOptions(leads, "companySize"),
+        capped:        candidates.length > MAX_BATCH_RECIPIENTS,
+        maxRecipients: MAX_BATCH_RECIPIENTS,
+      },
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not load audience." };
+  }
+}
+
+/**
+ * Send the chosen template to the selected leads (real delivery). Suppression
+ * and per-campaign dedupe are enforced by the send layer. The operator has
+ * already reviewed the list; this is the confirmed, side-effectful step.
+ */
+export async function sendBatchAction(
+  tenantId: string, input: { templateKey: string; leadIds: string[] },
+): Promise<{ ok: true; data: BatchSendSummary } | { ok: false; error: string }> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  if (!(input.templateKey in EMAIL_TEMPLATES)) return { ok: false, error: "Unknown template." };
+  const leadIds = [...new Set((input.leadIds ?? []).filter(Boolean))];
+  if (leadIds.length === 0) return { ok: false, error: "Select at least one recipient." };
+  if (leadIds.length > MAX_BATCH_RECIPIENTS) {
+    return { ok: false, error: `Too many recipients — max ${MAX_BATCH_RECIPIENTS} per campaign.` };
+  }
+
+  // Re-resolve recipients server-side from the chosen ids (don't trust client emails).
+  const leads = await listAbmLeads(tenantId);
+  const byId = new Map(leads.map((l) => [l.id, l]));
+  const chosen = leadIds.map((id) => byId.get(id)).filter((l): l is NonNullable<typeof l> => Boolean(l));
+  const recipients = selectBatchRecipients(chosen, { activeOnly: false });
+  if (recipients.length === 0) return { ok: false, error: "None of the selected leads have a valid email." };
+
+  const summary = await sendAdaptiveBatch({
+    tenantId,
+    templateKey: input.templateKey as EmailTemplateKey,
+    recipients,
+  });
+  return { ok: true, data: summary };
 }
 
 /**
