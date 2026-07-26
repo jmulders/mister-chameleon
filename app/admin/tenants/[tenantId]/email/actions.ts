@@ -10,7 +10,7 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 import { getTenantById, saveTenant } from "@/tenant/server";
-import { renderAdaptiveEmail, EMAIL_TEMPLATES, EMAIL_BLOCK_KEYS, resolveEmailTemplate, type EmailTemplateKey } from "@/lib/email/adaptive-email";
+import { renderAdaptiveEmail, EMAIL_TEMPLATES, EMAIL_BLOCK_KEYS, resolveEmailTemplate, type EmailTemplateKey, type EmailBlockEntry } from "@/lib/email/adaptive-email";
 import { sendAdaptiveEmail } from "@/lib/email/send-adaptive-email";
 import { sendAdaptiveBatch, MAX_BATCH_RECIPIENTS, type BatchSendSummary } from "@/lib/email/send-adaptive-batch";
 import { selectBatchRecipients, collectFilterOptions, type BatchRecipient, type BatchAudienceFilters } from "@/lib/email/batch-select";
@@ -80,9 +80,9 @@ export interface EmailTemplateInfo {
   defaultPreheader: string;
   /** Effective (override → default). */
   subject:        string;
-  blocks:         string[];
+  blocks:         EmailBlockEntry[];
   defaultSubject: string;
-  defaultBlocks:  string[];
+  defaultBlocks:  EmailBlockEntry[];
   overridden:     boolean;
 }
 
@@ -97,11 +97,11 @@ export async function getEmailTemplatesAction(tenantId: string): Promise<EmailTe
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
   const tenant = await getTenantById(tenantId);
-  const overrides = (tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> } | null)?.emailTemplates ?? {};
+  const overrides = (tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> } | null)?.emailTemplates ?? {};
 
-  const templates: EmailTemplateInfo[] = (Object.entries(EMAIL_TEMPLATES) as [EmailTemplateKey, { label: string; subject: string; blocks: string[]; preheader?: string }][])
+  const templates: EmailTemplateInfo[] = (Object.entries(EMAIL_TEMPLATES) as [EmailTemplateKey, { label: string; subject: string; blocks: EmailBlockEntry[]; preheader?: string }][])
     .map(([key, base]) => {
-      const eff = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> } | null, key);
+      const eff = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> } | null, key);
       const ov  = overrides[key];
       return {
         key,
@@ -122,7 +122,7 @@ export async function getEmailTemplatesAction(tenantId: string): Promise<EmailTe
 /** Save per-tenant email template overrides (subject + block set/order). */
 export async function saveEmailTemplatesAction(
   tenantId: string,
-  input: { templates: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> },
+  input: { templates: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
@@ -130,14 +130,21 @@ export async function saveEmailTemplatesAction(
   if (!tenant) return { ok: false, error: "Tenant not found." };
 
   const allowed = new Set<string>(EMAIL_BLOCK_KEYS as readonly string[]);
-  const clean: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> = {};
+  const clean: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> = {};
   for (const [key, ov] of Object.entries(input.templates ?? {})) {
     if (!(key in EMAIL_TEMPLATES)) continue;
-    const entry: { subject?: string; blocks?: string[]; preheader?: string } = {};
+    const entry: { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string } = {};
     if (typeof ov.subject === "string" && ov.subject.trim()) entry.subject = ov.subject.trim();
     if (typeof ov.preheader === "string" && ov.preheader.trim()) entry.preheader = ov.preheader.trim();
     if (Array.isArray(ov.blocks)) {
-      const blocks = ov.blocks.filter((b) => allowed.has(b));
+      const blocks: EmailBlockEntry[] = [];
+      for (const b of ov.blocks) {
+        if (typeof b === "string") {
+          if (allowed.has(b)) blocks.push(b);
+        } else if (b && typeof b === "object" && typeof b.text === "string" && b.text.trim()) {
+          blocks.push({ text: b.text.trim() });
+        }
+      }
       if (blocks.length > 0) entry.blocks = blocks;
     }
     if (Object.keys(entry).length > 0) clean[key] = entry;
