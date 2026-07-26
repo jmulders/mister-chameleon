@@ -271,9 +271,9 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
             </div>
           )}
 
-          {totalPages > 1 && (
+          {data.rows.length > 0 && (
             <div className="mt-3 flex items-center justify-between text-sm">
-              <span className="text-neutral-500">Page {data.page} of {totalPages} · {data.totalRows} publishers</span>
+              <span className="text-neutral-500">Page {data.page} of {totalPages} · {data.totalRows} publisher{data.totalRows === 1 ? "" : "s"}</span>
               <div className="flex gap-2">
                 <button className={btnGhost} disabled={loading || data.page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
                 <button className={btnGhost} disabled={loading || data.page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
