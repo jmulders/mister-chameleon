@@ -89,6 +89,7 @@ import {
   resolveFormsConfig,
 }                                       from "@/lib/config";
 import { loadTenantFormOverrides }      from "@/forms/load-tenant-form-overrides";
+import { resolveContextualForm }         from "@/forms/context/load";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -227,8 +228,39 @@ export async function POST(
     );
   }
 
-  // ── 4. Validate against form definition ──────────────────────────────────
-  const validation = validateSubmission(fieldsForValidation, body);
+  // ── 3c. Contextual overlay (rules → segment → field set / thank-you) ──────
+  //
+  //   Re-resolve the same segment the render used, from the referer URL
+  //   (path + query) and the geo header, so validation runs against the
+  //   segment's field set (contextual forms can add/drop fields) and the
+  //   success message matches. Platform forms only; falls back to the base
+  //   definition fields on any error.
+  let effectiveFields = fieldsForValidation;
+  let contextualSuccess: string | undefined;
+  if (formDef) {
+    try {
+      const ref = reqHeaders.get("referer");
+      const refUrl = ref ? new URL(ref) : null;
+      const ctxQuery: Record<string, string> = {};
+      refUrl?.searchParams.forEach((v, k) => { ctxQuery[k.toLowerCase()] = v; });
+      const country =
+        reqHeaders.get("x-vercel-ip-country") || reqHeaders.get("cf-ipcountry") || null;
+      const resolved = await resolveContextualForm(tenantId, formKey, {
+        path:  refUrl?.pathname,
+        query: ctxQuery,
+        country,
+      });
+      if (resolved) {
+        effectiveFields  = resolved.fields;
+        contextualSuccess = resolved.successMessage;
+      }
+    } catch {
+      /* keep base fields */
+    }
+  }
+
+  // ── 4. Validate against the (possibly segment-specific) field set ─────────
+  const validation = validateSubmission(effectiveFields, body);
 
   if (!validation.ok) {
     return NextResponse.json(
@@ -454,6 +486,7 @@ export async function POST(
 
   // ── 7. Return success ─────────────────────────────────────────────────────
   const message =
+    contextualSuccess ??
     tenantFormSettings.successMessage ??
     cmsForm?.successMessage ??
     formDef?.action.successMessage ??

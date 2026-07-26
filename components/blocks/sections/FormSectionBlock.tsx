@@ -69,6 +69,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getFormDefinition, isFormKey } from "@/forms";
 import type { FormField } from "@/forms";
+import type { ResolvedForm } from "@/forms/context/types";
 import { trackEvent } from "@/tracking/track-event";
 import {
   pushToJourneyStore,
@@ -132,12 +133,40 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     ? getFormDefinition(data.formKey)
     : undefined;
 
-  // ── Merge CMS copy overrides over definition defaults ─────────────────────
-  const title          = data.title          ?? formDef?.title;
-  const intro          = data.intro          ?? formDef?.description;
-  const submitLabel    = data.submitLabel    ?? "Submit";
-  const successMessage = data.successMessage ?? formDef?.action.successMessage
+  // ── Contextual overlay (rules → segment → copy/fields override) ───────────
+  //
+  // Fetched on mount from /api/forms/[formKey]/context, passing the path +
+  // query the form rendered on. Server resolves the visitor's segment (also
+  // using the geo header) and returns copy/field overrides. Until it arrives
+  // (or when no rule matches) the base definition + CMS copy are used, so the
+  // form is always rendered — the overlay just swaps values in when ready.
+  const [overlay, setOverlay] = useState<ResolvedForm | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const query: Record<string, string> = {};
+    try {
+      new URLSearchParams(window.location.search).forEach((v, k) => { query[k.toLowerCase()] = v; });
+    } catch { /* ignore */ }
+    fetch(`/api/forms/${data.formKey}/context`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ path: pathname, query }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!cancelled && j && j.ok && j.form) setOverlay(j.form as ResolvedForm);
+      })
+      .catch(() => { /* keep base form */ });
+    return () => { cancelled = true; };
+  }, [data.formKey, pathname]);
+
+  // ── Effective copy + fields: overlay override → CMS copy → definition ─────
+  const title          = overlay?.title          ?? data.title          ?? formDef?.title;
+  const intro          = overlay?.intro          ?? data.intro          ?? formDef?.description;
+  const submitLabel    = overlay?.submitLabel    ?? data.submitLabel    ?? "Submit";
+  const successMessage = overlay?.successMessage ?? data.successMessage ?? formDef?.action.successMessage
     ?? "Thank you — your submission has been received.";
+  const effectiveFields: readonly FormField[] = overlay?.fields ?? formDef?.fields ?? [];
 
   // ── Tracking helper ────────────────────────────────────────────────────────
   //
@@ -289,7 +318,7 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   const formContent = (
     <FormFields
       formKey={formDef.key}
-      fields={formDef.fields}
+      fields={effectiveFields}
       submitLabel={submitLabel}
       isSubmitting={isSubmitting}
       fieldErrors={fieldErrors}

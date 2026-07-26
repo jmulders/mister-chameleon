@@ -2738,6 +2738,14 @@ export interface TenantSettings {
   readonly adRateCard?: { readonly cpmCents?: number; readonly cpcCents?: number };
 
   /**
+   * Contextual forms: operator rules (URL/UTM/query/country → segment) plus
+   * per-form, per-segment overlays (heading, intro, submit label, thank-you
+   * message, and an optional field-set override). Absent = forms render from
+   * their base FormDefinition unchanged. Stored in settings.formContext.
+   */
+  readonly formContext?: import("@/forms/context/types").TenantFormContext;
+
+  /**
    * Asset storage override for this tenant.
    *
    * When set, the specified provider is used instead of the platform-wide
