@@ -13,7 +13,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import Stripe from "stripe";
-import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
+import { getRequiredAdminSession, assertTenantAccess, isSuperAdmin } from "@/lib/admin-auth/authorization";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { getDb } from "@/data/db";
 import { getWallet, creditWallet } from "@/billing/wallet";
@@ -24,10 +24,46 @@ import { logger } from "@/lib/logger";
 import type { Ad, AdPublisher, AdSlotType, AdPricingModel } from "@/lib/ads/types";
 import { aggregateAdBilling } from "@/lib/ads/aggregate-billing";
 import { parseAdTargeting, type AdTargeting } from "@/lib/ads/targeting";
+import { resolveAdGa4History } from "@/lib/ads/ga4";
 import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/platform-store";
+import { THEME_PRESETS, isThemePresetKey } from "@/design-system/theme/presets";
+
+/** Title-case a theme key ("corporate-blue" → "Corporate blue"). */
+function themeLabel(key: string): string {
+  const s = key.replace(/[-_]/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Theme presets an ad account can pick as its base look (+ the platform default). */
+const AD_THEME_OPTIONS: { key: string; label: string }[] = [
+  { key: "default", label: "Default" },
+  ...Object.keys(THEME_PRESETS).map((k) => ({ key: k, label: themeLabel(k) })),
+];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
+
+type RateCard = { cpmCents: number; cpcCents: number };
+type TenantRateOverride = { cpmCents?: number; cpcCents?: number };
+
+/** Global CPM/CPC (cents) from the platform rate-card, with safe defaults. */
+async function globalRateCard(): Promise<RateCard> {
+  const r = await getPlatformAdPricingSettings();
+  return {
+    cpmCents: (r.ok ? r.data.cpmCents : undefined) ?? AD_PRICING_DEFAULTS.cpmCents,
+    cpcCents: (r.ok ? r.data.cpcCents : undefined) ?? AD_PRICING_DEFAULTS.cpcCents,
+  };
+}
+
+/** Effective rate for a model: per-advertiser override → global rate-card. */
+function effectiveRate(override: TenantRateOverride | undefined, global: RateCard, model: AdPricingModel): number {
+  return model === "cpm" ? (override?.cpmCents ?? global.cpmCents) : (override?.cpcCents ?? global.cpcCents);
+}
+
+/** Read the per-tenant rate-card override off a tenant record (untyped JSONB field). */
+function tenantRateOverride(tenant: unknown): TenantRateOverride | undefined {
+  return (tenant as { adRateCard?: TenantRateOverride } | null)?.adRateCard;
+}
 
 export interface DayReport { date: string; impressions: number; clicks: number; spend_cents: number }
 
@@ -69,14 +105,24 @@ export interface AdsOverview {
   pendingProfilingCents: number;
   /** Slot types this ad account offers to publishers (defaults to all). */
   activeSlots:           AdSlotType[];
-  /** Platform rate-card: default CPM/CPC (cents) new ads start from. */
+  /** Global platform rate-card (cents) — the default when a tenant has no override. */
   rateCard:              { cpmCents: number; cpcCents: number };
+  /** Effective rate applied to this advertiser's ads (per-tenant override → global). */
+  effectiveRateCard:     { cpmCents: number; cpcCents: number };
+  /** This advertiser's per-tenant override (null = inherit the global rate-card). */
+  tenantRateOverride:    { cpmCents: number | null; cpcCents: number | null };
+  /** True when the viewer is a platform super-admin (may set the per-tenant rate). */
+  isSuperAdmin:          boolean;
   /** GA4-for-ads readiness (write/read), for the ads-page status card. */
   ga4:                   Ga4AdStatus;
   /** Autocomplete suggestions for firmographic targeting, taken from the
       company values we've actually observed from Leadinfo (ip_company_cache), so
       a chosen value is guaranteed to be matchable. */
   companySuggestions:    { industries: string[]; sizes: string[] };
+  /** The ad account's base theme preset (its default look; per-ad Styling overrides it). */
+  themePreset:           string;
+  /** Available theme presets to choose from. */
+  themeOptions:          { key: string; label: string }[];
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -168,8 +214,9 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     for (const c of (charges ?? []) as { fee_cents: number }[]) pendingProfilingCents += Number(c.fee_cents ?? 0);
   } catch { /* best-effort */ }
 
-  // Platform rate-card — the CPM/CPC defaults new ads start from.
-  const pricingRes = await getPlatformAdPricingSettings();
+  // Rate-card: global platform default + this advertiser's per-tenant override.
+  const globalRc = await globalRateCard();
+  const rateOverride = tenantRateOverride(tenant);
 
   // Firmographic autocomplete suggestions — distinct industries/sizes we've
   // actually seen from Leadinfo (matched rows in the shared IP→company cache).
@@ -219,13 +266,43 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     activeSlots: tenant?.adSlots == null
       ? SLOTS                                            // legacy/unset = all slots
       : SLOTS.filter((s) => tenant.adSlots!.includes(s)),
-    rateCard: {
-      cpmCents: (pricingRes.ok ? pricingRes.data.cpmCents : undefined) ?? AD_PRICING_DEFAULTS.cpmCents,
-      cpcCents: (pricingRes.ok ? pricingRes.data.cpcCents : undefined) ?? AD_PRICING_DEFAULTS.cpcCents,
+    rateCard: globalRc,
+    effectiveRateCard: {
+      cpmCents: rateOverride?.cpmCents ?? globalRc.cpmCents,
+      cpcCents: rateOverride?.cpcCents ?? globalRc.cpcCents,
     },
+    tenantRateOverride: {
+      cpmCents: rateOverride?.cpmCents ?? null,
+      cpcCents: rateOverride?.cpcCents ?? null,
+    },
+    isSuperAdmin: isSuperAdmin(session),
     ga4,
     companySuggestions,
+    themePreset:  (tenant?.design?.theme as string | undefined) ?? "default",
+    themeOptions: AD_THEME_OPTIONS,
   };
+}
+
+/**
+ * Set the ad account's base theme preset (its default look for all ads; the
+ * per-ad "Styling" design tokens still override it). Accessible to the advertiser
+ * (their own branding). saveTenant enforces package theme limits, so if the
+ * chosen preset isn't allowed for the tenant's package we report it back.
+ */
+export async function setAdAccountThemeAction(tenantId: string, theme: string): Promise<ActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  if (theme !== "default" && !isThemePresetKey(theme)) return { ok: false, error: "Unknown theme preset." };
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await saveTenant({ ...tenant, design: { ...(tenant.design ?? {}), theme } } as any);
+  const after = await getTenantById(tenantId);
+  if (((after?.design?.theme as string | undefined) ?? "default") !== theme) {
+    return { ok: false, error: "That theme isn't available for this account's package." };
+  }
+  revalidatePath(`/admin/tenants/${tenantId}/ads`);
+  return { ok: true };
 }
 
 // ── Ad-audience sessions + journeys ───────────────────────────────────────────
@@ -240,6 +317,18 @@ export interface AdSession {
   firstSeen:       string;
   lastSeen:        string;
   journey:         AdSessionStep[];
+  /** Firmographic company for this session (from ad_company_cache), if matched. */
+  company:         { name: string | null; industry: string | null; size: string | null } | null;
+}
+
+/** GA4 history signals for one session's visitor (loaded on demand). */
+export interface AdSessionGa4 {
+  sessionCount: number | null;
+  lastCountry:  string | null;
+  lastRegion:   string | null;
+  lastCity:     string | null;
+  lastChannel:  string | null;
+  source:       string | null;
 }
 
 /**
@@ -274,7 +363,7 @@ export async function fetchAdSessionsAction(tenantId: string): Promise<AdSession
     if (!sid) continue;
     const s = sessions.get(sid) ?? {
       sessionId: sid, publisherDomain: e.publisher_domain ?? null,
-      adsSeen: [], impressions: 0, clicks: 0, firstSeen: e.occurred_at, lastSeen: e.occurred_at, journey: [],
+      adsSeen: [], impressions: 0, clicks: 0, firstSeen: e.occurred_at, lastSeen: e.occurred_at, journey: [], company: null,
     };
     if (e.event_type === "impression") s.impressions += 1;
     else if (e.event_type === "click") s.clicks += 1;
@@ -308,7 +397,54 @@ export async function fetchAdSessionsAction(tenantId: string): Promise<AdSession
     s.journey.push({ at: j.occurred_at, path: j.page_path ?? null, keywords: j.page_keywords ?? [] });
   }
 
+  // 6. Attach the firmographic company we resolved for each session (if any).
+  try {
+    const { data: co } = await db()
+      .from("ad_company_cache")
+      .select("session_id, company_name, company_industry, company_size, resolved_date")
+      .eq("ad_tenant_id", tenantId)
+      .eq("matched", true)
+      .in("session_id", topIds);
+    type Co = { session_id: string; company_name: string | null; company_industry: string | null; company_size: string | null; resolved_date: string };
+    const latest = new Map<string, Co>();
+    for (const r of (co ?? []) as Co[]) {
+      const cur = latest.get(r.session_id);
+      if (!cur || r.resolved_date > cur.resolved_date) latest.set(r.session_id, r);
+    }
+    for (const s of top) {
+      const r = latest.get(s.sessionId);
+      if (r) s.company = { name: r.company_name, industry: r.company_industry, size: r.company_size };
+    }
+  } catch { /* company enrichment is best-effort */ }
+
   return top;
+}
+
+/**
+ * On-demand GA4 history for one session's visitor. Kept out of the list query
+ * because it's a live GA4 Data API call per visitor — only run when a row is
+ * expanded and only when the tenant has GA4 history configured.
+ */
+export async function fetchAdSessionGa4Action(tenantId: string, sessionId: string): Promise<AdSessionGa4 | null> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  const tenant = await getTenantById(tenantId);
+  if (!tenant?.ga4?.history?.enabled) return null;
+  try {
+    const out = await resolveAdGa4History(tenant.ga4, sessionId);
+    const has = out.gaSessionCount != null || !!out.gaLastKnownCountry || !!out.gaLastKnownCity || !!out.gaLastChannelGroup;
+    if (!has) return null;
+    return {
+      sessionCount: out.gaSessionCount ?? null,
+      lastCountry:  out.gaLastKnownCountry ?? null,
+      lastRegion:   out.gaLastKnownRegion ?? null,
+      lastCity:     out.gaLastKnownCity ?? null,
+      lastChannel:  out.gaLastChannelGroup ?? null,
+      source:       out.gaHistorySource ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Set which adaptive slot types this advertiser account offers to publishers. */
@@ -319,6 +455,28 @@ export async function setAdSlotsAction(tenantId: string, slots: AdSlotType[]): P
   if (!tenant) return { ok: false, error: "Tenant not found." };
   const clean = SLOTS.filter((s) => slots.includes(s));   // keep canonical order, drop junk
   await saveTenant({ ...tenant, adSlots: clean });
+  revalidatePath(`/admin/tenants/${tenantId}/ads`);
+  return { ok: true };
+}
+
+/**
+ * Set (or clear) this advertiser's per-tenant CPM/CPC rate-card override.
+ * Super-admin only — advertisers must never be able to set their own price.
+ * Pass null for a field to clear it (that model then inherits the global rate).
+ */
+export async function setTenantAdRateCardAction(
+  tenantId: string, input: { cpmCents: number | null; cpcCents: number | null },
+): Promise<ActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+  if (!isSuperAdmin(session)) return { ok: false, error: "Only platform admins can set advertiser rates." };
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+  const clean: TenantRateOverride = {
+    ...(typeof input.cpmCents === "number" && input.cpmCents >= 0 ? { cpmCents: Math.round(input.cpmCents) } : {}),
+    ...(typeof input.cpcCents === "number" && input.cpcCents >= 0 ? { cpcCents: Math.round(input.cpcCents) } : {}),
+  };
+  await saveTenant({ ...tenant, adRateCard: Object.keys(clean).length > 0 ? clean : undefined });
   revalidatePath(`/admin/tenants/${tenantId}/ads`);
   return { ok: true };
 }
@@ -402,6 +560,11 @@ export async function createAdAction(tenantId: string, input: CreateAdInput): Pr
     return { ok: false, error: "Click URL must start with http(s)://." };
   }
 
+  // Rate is platform-controlled: per-advertiser override → global rate-card.
+  // Any client-supplied rate is ignored so an advertiser can't set their price.
+  const rateTenant = await getTenantById(tenantId);
+  const enforcedRate = effectiveRate(tenantRateOverride(rateTenant), await globalRateCard(), input.pricing_model);
+
   const { error } = await db().from("ads").insert({
     ad_tenant_id:  tenantId,
     name:          input.name.trim(),
@@ -409,7 +572,7 @@ export async function createAdAction(tenantId: string, input: CreateAdInput): Pr
     creative,
     click_url:     input.click_url || null,
     pricing_model: input.pricing_model,
-    rate_cents:    Math.max(0, input.rate_cents),
+    rate_cents:    enforcedRate,
     budget_cents:  Math.max(0, input.budget_cents),
     weight:        Math.max(1, input.weight),
     targeting:     input.targeting ? parseAdTargeting(input.targeting) : {},
@@ -443,6 +606,10 @@ export async function editAdAction(tenantId: string, adId: string, input: Create
     return { ok: false, error: "Click URL must start with http(s)://." };
   }
 
+  // Rate stays platform-controlled on edit too (advertiser can't change it).
+  const rateTenant = await getTenantById(tenantId);
+  const enforcedRate = effectiveRate(tenantRateOverride(rateTenant), await globalRateCard(), input.pricing_model);
+
   const { error } = await db().from("ads")
     .update({
       name:          input.name.trim(),
@@ -450,7 +617,7 @@ export async function editAdAction(tenantId: string, adId: string, input: Create
       creative,
       click_url:     input.click_url || null,
       pricing_model: input.pricing_model,
-      rate_cents:    Math.max(0, input.rate_cents),
+      rate_cents:    enforcedRate,
       budget_cents:  Math.max(0, input.budget_cents),
       weight:        Math.max(1, input.weight),
       targeting:     input.targeting ? parseAdTargeting(input.targeting) : {},
