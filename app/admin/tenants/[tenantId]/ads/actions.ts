@@ -447,6 +447,106 @@ export async function fetchAdSessionGa4Action(tenantId: string, sessionId: strin
   }
 }
 
+// ── Publisher breakdown ────────────────────────────────────────────────────────
+
+export interface PublisherBreakdownRow {
+  /** Publisher domain the ad was served on, or a placeholder for unknown/direct. */
+  publisher:   string;
+  impressions: number;
+  clicks:      number;
+  /** clicks / impressions, 0..1. */
+  ctr:         number;
+}
+
+export interface PublisherBreakdownResult {
+  /** Current page of rows (sorted by impressions desc). */
+  rows:       PublisherBreakdownRow[];
+  page:       number;
+  pageSize:   number;
+  /** Distinct publisher rows after the publisher filter (for pagination). */
+  totalRows:  number;
+  /** Totals across the filtered set. */
+  totals:     { impressions: number; clicks: number; publishers: number };
+  /** All distinct publishers in the period (unfiltered) — feeds the filter dropdown. */
+  publishers: string[];
+  /** Echo of the resolved period (days; 0 = all time). */
+  days:       number;
+  /** True when the 50k event scan was hit (counts may be partial). */
+  truncated:  boolean;
+}
+
+const UNKNOWN_PUBLISHER = "(direct / unknown)";
+const BREAKDOWN_EVENT_CAP = 50_000;
+
+/**
+ * Per-publisher impression/click breakdown for an advertiser, from ad_events
+ * (which records publisher_domain on every event — so this is complete and live,
+ * including not-yet-billed events). Supports a period filter, a publisher filter,
+ * and pagination over the distinct-publisher rows.
+ */
+export async function fetchAdPublisherBreakdownAction(
+  tenantId: string,
+  input: { publisher?: string | null; days?: number; page?: number; pageSize?: number } = {},
+): Promise<PublisherBreakdownResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  const days     = [7, 30, 90, 0].includes(input.days ?? 30) ? (input.days ?? 30) : 30;
+  const page     = Math.max(1, Math.floor(input.page ?? 1));
+  const pageSize = Math.min(100, Math.max(5, Math.floor(input.pageSize ?? 25)));
+
+  let query = db()
+    .from("ad_events")
+    .select("publisher_domain, event_type")
+    .eq("ad_tenant_id", tenantId)
+    .limit(BREAKDOWN_EVENT_CAP);
+  if (days > 0) {
+    query = query.gte("occurred_at", new Date(Date.now() - days * 86_400_000).toISOString());
+  }
+  const { data } = await query;
+  const events = (data ?? []) as { publisher_domain: string | null; event_type: string }[];
+
+  const byPublisher = new Map<string, { impressions: number; clicks: number }>();
+  for (const e of events) {
+    const key = e.publisher_domain?.trim() || UNKNOWN_PUBLISHER;
+    const agg = byPublisher.get(key) ?? { impressions: 0, clicks: 0 };
+    if (e.event_type === "impression") agg.impressions += 1;
+    else if (e.event_type === "click") agg.clicks += 1;
+    byPublisher.set(key, agg);
+  }
+
+  const publishers = [...byPublisher.keys()].sort((a, b) => a.localeCompare(b));
+
+  const filter = input.publisher?.trim() || null;
+  let all: PublisherBreakdownRow[] = [...byPublisher.entries()]
+    .filter(([pub]) => !filter || pub === filter)
+    .map(([publisher, v]) => ({
+      publisher,
+      impressions: v.impressions,
+      clicks:      v.clicks,
+      ctr:         v.impressions > 0 ? v.clicks / v.impressions : 0,
+    }));
+  all = all.sort((a, b) => b.impressions - a.impressions || b.clicks - a.clicks);
+
+  const totals = {
+    impressions: all.reduce((s, r) => s + r.impressions, 0),
+    clicks:      all.reduce((s, r) => s + r.clicks, 0),
+    publishers:  all.length,
+  };
+  const start = (page - 1) * pageSize;
+
+  return {
+    rows:       all.slice(start, start + pageSize),
+    page,
+    pageSize,
+    totalRows:  all.length,
+    totals,
+    publishers,
+    days,
+    truncated:  events.length >= BREAKDOWN_EVENT_CAP,
+  };
+}
+
 /** Set which adaptive slot types this advertiser account offers to publishers. */
 export async function setAdSlotsAction(tenantId: string, slots: AdSlotType[]): Promise<ActionResult> {
   const session = await getRequiredAdminSession();
