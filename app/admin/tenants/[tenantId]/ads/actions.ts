@@ -456,6 +456,8 @@ export interface PublisherBreakdownRow {
   clicks:      number;
   /** clicks / impressions, 0..1. */
   ctr:         number;
+  /** Which of this advertiser's ads ran on this publisher (impressions desc). */
+  ads:         { adId: string; label: string; impressions: number; clicks: number }[];
 }
 
 export interface PublisherBreakdownResult {
@@ -497,21 +499,34 @@ export async function fetchAdPublisherBreakdownAction(
 
   let query = db()
     .from("ad_events")
-    .select("publisher_domain, event_type")
+    .select("publisher_domain, event_type, ad_id")
     .eq("ad_tenant_id", tenantId)
     .limit(BREAKDOWN_EVENT_CAP);
   if (days > 0) {
     query = query.gte("occurred_at", new Date(Date.now() - days * 86_400_000).toISOString());
   }
   const { data } = await query;
-  const events = (data ?? []) as { publisher_domain: string | null; event_type: string }[];
+  const events = (data ?? []) as { publisher_domain: string | null; event_type: string; ad_id: string | null }[];
 
-  const byPublisher = new Map<string, { impressions: number; clicks: number }>();
+  // Ad id → human label (name, falling back to slot type, then short id).
+  const adLabels = new Map<string, string>();
+  try {
+    const { data: adRows } = await db().from("ads").select("id, name, slot_type").eq("ad_tenant_id", tenantId);
+    for (const a of (adRows ?? []) as { id: string; name: string | null; slot_type: string | null }[]) {
+      adLabels.set(a.id, a.name?.trim() || a.slot_type || a.id.slice(0, 8));
+    }
+  } catch { /* labels are best-effort */ }
+
+  interface PubAgg { impressions: number; clicks: number; ads: Map<string, { impressions: number; clicks: number }> }
+  const byPublisher = new Map<string, PubAgg>();
   for (const e of events) {
     const key = e.publisher_domain?.trim() || UNKNOWN_PUBLISHER;
-    const agg = byPublisher.get(key) ?? { impressions: 0, clicks: 0 };
-    if (e.event_type === "impression") agg.impressions += 1;
-    else if (e.event_type === "click") agg.clicks += 1;
+    const agg = byPublisher.get(key) ?? { impressions: 0, clicks: 0, ads: new Map() };
+    const adKey  = e.ad_id ?? "(unknown)";
+    const adAgg  = agg.ads.get(adKey) ?? { impressions: 0, clicks: 0 };
+    if (e.event_type === "impression") { agg.impressions += 1; adAgg.impressions += 1; }
+    else if (e.event_type === "click") { agg.clicks += 1; adAgg.clicks += 1; }
+    agg.ads.set(adKey, adAgg);
     byPublisher.set(key, agg);
   }
 
@@ -525,6 +540,14 @@ export async function fetchAdPublisherBreakdownAction(
       impressions: v.impressions,
       clicks:      v.clicks,
       ctr:         v.impressions > 0 ? v.clicks / v.impressions : 0,
+      ads: [...v.ads.entries()]
+        .map(([adId, a]) => ({
+          adId,
+          label:       adId === "(unknown)" ? "(unknown ad)" : (adLabels.get(adId) ?? adId.slice(0, 8)),
+          impressions: a.impressions,
+          clicks:      a.clicks,
+        }))
+        .sort((x, y) => y.impressions - x.impressions || y.clicks - x.clicks),
     }));
   all = all.sort((a, b) => b.impressions - a.impressions || b.clicks - a.clicks);
 
