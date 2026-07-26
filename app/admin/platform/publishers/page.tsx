@@ -22,6 +22,10 @@ export default async function PublishersPage() {
         generated on each publisher over the last {overview.windowDays} days (settled + pending); earnings =
         revenue × revshare. Set the default share on Ad pricing; override it per publisher here.
       </p>
+      <p className="mt-2 max-w-2xl rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        Revenue share is now managed <strong>per advertiser</strong> under each advertiser tenant
+        (Ads → Publishers &amp; revenue share). This platform view remains as a legacy cross-advertiser roll-up.
+      </p>
       <div className="mt-6">
         <PublishersClient initial={overview} />
       </div>

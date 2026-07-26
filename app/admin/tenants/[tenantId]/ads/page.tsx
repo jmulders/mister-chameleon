@@ -8,6 +8,7 @@
  * lib/ads; this is the management surface. See docs/design/ad-network-*.md.
  */
 
+import Link                from "next/link";
 import { notFound }        from "next/navigation";
 import { getTenantById }   from "@/tenant/server";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -35,6 +36,14 @@ export default async function AdsPage({
         title="Ads"
         description="Run this tenant as an ad account: its siteKey is embedded by publisher sites and its adaptive slots are served as ads. Impressions and clicks are metered against the wallet."
       />
+      <div>
+        <Link
+          href={`/admin/tenants/${tenantId}/publishers`}
+          className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+        >
+          Publishers &amp; revenue share →
+        </Link>
+      </div>
       <AdsClient tenantId={tenantId} initial={overview} />
     </div>
   );
