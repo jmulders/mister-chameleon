@@ -131,6 +131,25 @@ function escapeHtml(s: string): string {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 }
 
+/** Absolute base URL for a tenant's own site (for making email links absolute). */
+function tenantBaseUrl(tenant: { primaryDomain?: string | null }): string {
+  const dom = tenant.primaryDomain?.trim();
+  if (dom) return /^https?:\/\//.test(dom) ? dom.replace(/\/$/, "") : `https://${dom}`;
+  return (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+}
+
+/**
+ * Rewrite root-relative href/src ("/signup") to absolute against `base`. Email
+ * clients can't resolve relative URLs — they mangle them to "http:///signup".
+ * Protocol-relative ("//"), absolute (http/https), mailto/tel are left untouched.
+ */
+function absolutizeLinks(html: string, base: string): string {
+  if (!base) return html;
+  return html
+    .replace(/href="\/(?!\/)/g, `href="${base}/`)
+    .replace(/src="\/(?!\/)/g, `src="${base}/`);
+}
+
 /**
  * Email-native footer: sender line + one-click unsubscribe link. Not an adaptive
  * block — rendered by the email layer so campaign/ABM sends are compliant.
@@ -201,6 +220,7 @@ export async function renderAdaptiveEmail(params: {
 
   // 4/5. Fetch winning variant content per template block and render it.
   const cms = createCMSProvider(tenant.cms, params.tenantId, locale);
+  const baseUrl = tenantBaseUrl(tenant as { primaryDomain?: string | null });
   const parts: string[] = [];
   const used:  string[] = [];
   for (const entry of tmpl.blocks) {
@@ -227,7 +247,7 @@ export async function renderAdaptiveEmail(params: {
     else if (key === "conversion"   && plan.conversionKey)   data = await cms.getConversionVariant(plan.conversionKey).catch(() => null);
     else if (key === "notification" && plan.notificationKey) data = await cms.getNotificationVariant(plan.notificationKey).catch(() => null);
     const html = data ? renderBlockHtml(key, data) : null;
-    if (html) { parts.push(html); used.push(key); }
+    if (html) { parts.push(absolutizeLinks(html, baseUrl)); used.push(key); }
   }
 
   // 6. Theme tokens as a container style (email-safe: inline CSS vars, no <style>).
