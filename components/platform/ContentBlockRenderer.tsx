@@ -79,6 +79,7 @@ import {
   VideoBlock,
 } from "@/components/blocks/sections";
 import { FloatingContactBlock } from "@/components/blocks/FloatingContactBlock";
+import { ContextualCtaSection } from "@/components/blocks/sections/ContextualCtaSection";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -175,8 +176,15 @@ function renderContentBlock(block: ContentBlock) {
 
     // ── conversion ────────────────────────────────────────────────────────────
 
-    case "ctaSection":
-      return <CtaSectionBlock data={block.data} variant={block.variant} />;
+    case "ctaSection": {
+      // Contextual CTA: when the block carries a contextKey, render the client
+      // wrapper that swaps copy/button per segment. Otherwise keep the plain
+      // (server-rendered) CTA so normal blocks retain SSR.
+      const ctaKey = typeof block.data.contextKey === "string" ? block.data.contextKey.trim() : "";
+      return ctaKey
+        ? <ContextualCtaSection data={block.data} variant={block.variant} contextKey={ctaKey} />
+        : <CtaSectionBlock data={block.data} variant={block.variant} />;
+    }
 
     case "formSection":
       return <FormSectionBlock data={block.data} variant={block.variant} />;

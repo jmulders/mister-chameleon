@@ -15,7 +15,7 @@ import { getAllFormDefinitions } from "@/forms";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { saveFormContextAction } from "./actions";
 import { FormContextClient } from "./_components/FormContextClient";
-import type { TenantFormContext } from "@/forms/context/types";
+import type { TenantFormContext, TenantBlockContext } from "@/forms/context/types";
 
 export default async function ContextualFormsPage({
   params,
@@ -28,6 +28,8 @@ export default async function ContextualFormsPage({
 
   const initial: TenantFormContext =
     (tenant as { formContext?: TenantFormContext }).formContext ?? { rules: [], overlays: {} };
+  const initialBlock: TenantBlockContext =
+    (tenant as { blockContext?: TenantBlockContext }).blockContext ?? { overlays: {} };
 
   const forms = getAllFormDefinitions().map((d) => ({
     key:         d.key,
@@ -46,7 +48,7 @@ export default async function ContextualFormsPage({
       <div className="text-sm">
         <Link href={`/admin/tenants/${tenantId}/forms`} className="text-indigo-600 hover:underline">← Back to form settings</Link>
       </div>
-      <FormContextClient tenantId={tenantId} initial={initial} forms={forms} />
+      <FormContextClient tenantId={tenantId} initial={initial} initialBlock={initialBlock} forms={forms} />
     </div>
   );
 }

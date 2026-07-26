@@ -157,6 +157,7 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
   const [publisher, setPublisher] = useState("");
   const [page, setPage]         = useState(1);
   const [nonce, setNonce]       = useState(0);
+  const [openPub, setOpenPub]   = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,6 +185,7 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
           <h3 className="text-base font-semibold text-neutral-900">Publishers</h3>
           <p className="mt-0.5 text-sm text-neutral-500">
             Where your impressions were served — per publisher domain, including not-yet-billed events.
+            Click a publisher to see which ads ran there.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -236,14 +238,34 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.rows.map((r) => (
-                    <tr key={r.publisher} className="border-b border-neutral-100 last:border-0">
-                      <td className="py-2 pr-4 text-neutral-800">{r.publisher}</td>
-                      <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.impressions.toLocaleString()}</td>
-                      <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.clicks.toLocaleString()}</td>
-                      <td className="py-2 text-right tabular-nums text-neutral-500">{pct(r.ctr)}</td>
-                    </tr>
-                  ))}
+                  {data.rows.map((r) => {
+                    const open = openPub === r.publisher;
+                    return (
+                      <Fragment key={r.publisher}>
+                        <tr className="border-b border-neutral-100 last:border-0">
+                          <td className="py-2 pr-4 text-neutral-800">
+                            <button className="inline-flex items-center gap-1 hover:text-indigo-700"
+                              onClick={() => setOpenPub(open ? null : r.publisher)}>
+                              <span className="text-neutral-400">{open ? "▾" : "▸"}</span>
+                              {r.publisher}
+                              <span className="ml-1 text-xs text-neutral-400">({r.ads.length} ad{r.ads.length === 1 ? "" : "s"})</span>
+                            </button>
+                          </td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.impressions.toLocaleString()}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.clicks.toLocaleString()}</td>
+                          <td className="py-2 text-right tabular-nums text-neutral-500">{pct(r.ctr)}</td>
+                        </tr>
+                        {open && r.ads.map((a) => (
+                          <tr key={r.publisher + a.adId} className="border-b border-neutral-100 bg-neutral-50/60">
+                            <td className="py-1.5 pl-6 pr-4 text-neutral-500">↳ {a.label}</td>
+                            <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.impressions.toLocaleString()}</td>
+                            <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.clicks.toLocaleString()}</td>
+                            <td className="py-1.5 text-right tabular-nums text-neutral-400">{a.impressions > 0 ? pct(a.clicks / a.impressions) : "—"}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
