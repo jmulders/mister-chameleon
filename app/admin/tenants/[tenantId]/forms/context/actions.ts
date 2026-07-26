@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import type { TenantFormContext, FormContextRule, FormOverlay } from "@/forms/context/types";
+import { safeRelativePath } from "@/forms/context/resolve";
 import type { FormField } from "@/forms";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -86,12 +87,16 @@ export async function saveFormContextAction(
     for (const [segment, ov] of Object.entries(bySeg ?? {})) {
       const clean: {
         title?: string; intro?: string; submitLabel?: string;
-        successMessage?: string; fields?: readonly FormField[];
+        successMessage?: string; redirectPath?: string; fields?: readonly FormField[];
       } = {};
       if (typeof ov.title === "string" && ov.title.trim()) clean.title = ov.title.trim();
       if (typeof ov.intro === "string" && ov.intro.trim()) clean.intro = ov.intro.trim();
       if (typeof ov.submitLabel === "string" && ov.submitLabel.trim()) clean.submitLabel = ov.submitLabel.trim();
       if (typeof ov.successMessage === "string" && ov.successMessage.trim()) clean.successMessage = ov.successMessage.trim();
+      if (typeof ov.redirectPath === "string") {
+        const safe = safeRelativePath(ov.redirectPath);
+        if (safe) clean.redirectPath = safe;
+      }
       if (ov.fields && Array.isArray(ov.fields) && ov.fields.length > 0) {
         const v = validateFields(ov.fields);
         if (!v.ok) return { ok: false, error: `Form "${formKey}" / segment "${segment}": ${v.error}` };

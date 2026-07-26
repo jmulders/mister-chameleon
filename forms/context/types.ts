@@ -75,8 +75,15 @@ export interface FormOverlay {
   readonly intro?:          string;
   /** Submit button label override (the CTA). */
   readonly submitLabel?:    string;
-  /** Thank-you / success message override (shown after submit). */
+  /** Thank-you / success message override (shown inline after submit). */
   readonly successMessage?: string;
+  /**
+   * Relative path to send the visitor to after a successful submit (e.g.
+   * "/thank-you-demo"). When set, the visitor is redirected there instead of
+   * seeing the inline success message — so each segment can have its own
+   * thank-you page. Must be a relative path (leading "/", no protocol/host).
+   */
+  readonly redirectPath?:   string;
   /**
    * Full field-set override. When present, it REPLACES the base definition's
    * fields for this segment (both at render and at server validation), so a
@@ -119,6 +126,8 @@ export interface ResolvedForm {
   readonly intro?:         string;
   readonly submitLabel?:   string;
   readonly successMessage?: string;
+  /** Relative path to redirect to after a successful submit (segment thank-you page). */
+  readonly redirectPath?:  string;
   /** Effective field set (overlay fields when set, else base definition fields). */
   readonly fields:         readonly FormField[];
 }

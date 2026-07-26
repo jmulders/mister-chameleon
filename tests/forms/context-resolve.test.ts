@@ -114,4 +114,13 @@ describe("applyFormOverlay", () => {
     assert.equal(r.fields.length, 2);
     assert.equal(r.title, "T");
   });
+
+  it("passes through a safe relative redirect path", () => {
+    assert.equal(applyFormOverlay(base, "s", { redirectPath: "/thanks" }).redirectPath, "/thanks");
+  });
+
+  it("drops unsafe redirect paths (open-redirect guard)", () => {
+    assert.equal(applyFormOverlay(base, "s", { redirectPath: "//evil.com" }).redirectPath, undefined);
+    assert.equal(applyFormOverlay(base, "s", { redirectPath: "https://evil.com" }).redirectPath, undefined);
+  });
 });

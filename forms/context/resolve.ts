@@ -82,6 +82,18 @@ export function applyFormOverlay(
     intro:          overlay?.intro,
     submitLabel:    overlay?.submitLabel,
     successMessage: overlay?.successMessage,
+    redirectPath:   safeRelativePath(overlay?.redirectPath),
     fields:         overlay?.fields && overlay.fields.length > 0 ? overlay.fields : base.fields,
   };
+}
+
+/**
+ * Only allow same-site relative paths as redirect targets — guards against open
+ * redirects from tenant config. Must start with a single "/" and not "//".
+ */
+export function safeRelativePath(p: string | undefined): string | undefined {
+  if (!p) return undefined;
+  const v = p.trim();
+  if (!v.startsWith("/") || v.startsWith("//")) return undefined;
+  return v;
 }

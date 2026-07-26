@@ -31,11 +31,12 @@ interface OverlayDraft {
   intro:          string;
   submitLabel:    string;
   successMessage: string;
+  redirectPath:   string;
   fieldsJson:     string;
 }
 
 function emptyDraft(): OverlayDraft {
-  return { title: "", intro: "", submitLabel: "", successMessage: "", fieldsJson: "" };
+  return { title: "", intro: "", submitLabel: "", successMessage: "", redirectPath: "", fieldsJson: "" };
 }
 
 function genId(): string {
@@ -57,6 +58,7 @@ export function FormContextClient({ tenantId, initial, forms }:
           intro:          ov.intro ?? "",
           submitLabel:    ov.submitLabel ?? "",
           successMessage: ov.successMessage ?? "",
+          redirectPath:   ov.redirectPath ?? "",
           fieldsJson:     ov.fields && ov.fields.length > 0 ? JSON.stringify(ov.fields, null, 2) : "",
         };
       }
@@ -96,12 +98,13 @@ export function FormContextClient({ tenantId, initial, forms }:
       for (const [seg, d] of Object.entries(bySeg)) {
         const ov: {
           title?: string; intro?: string; submitLabel?: string;
-          successMessage?: string; fields?: readonly FormField[];
+          successMessage?: string; redirectPath?: string; fields?: readonly FormField[];
         } = {};
         if (d.title.trim())          ov.title = d.title.trim();
         if (d.intro.trim())          ov.intro = d.intro.trim();
         if (d.submitLabel.trim())    ov.submitLabel = d.submitLabel.trim();
         if (d.successMessage.trim()) ov.successMessage = d.successMessage.trim();
+        if (d.redirectPath.trim())   ov.redirectPath = d.redirectPath.trim();
         if (d.fieldsJson.trim()) {
           try {
             const parsed = JSON.parse(d.fieldsJson);
@@ -204,8 +207,13 @@ export function FormContextClient({ tenantId, initial, forms }:
                       </div>
                       <div><label className={label}>Intro / sub-text</label>
                         <input className={input} value={d.intro} onChange={(e) => setDraft(f.key, seg, { intro: e.target.value })} placeholder="(inherit base)" /></div>
-                      <div><label className={label}>Thank-you message</label>
-                        <input className={input} value={d.successMessage} onChange={(e) => setDraft(f.key, seg, { successMessage: e.target.value })} placeholder="(inherit)" /></div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div><label className={label}>Thank-you message (inline)</label>
+                          <input className={input} value={d.successMessage} onChange={(e) => setDraft(f.key, seg, { successMessage: e.target.value })} placeholder="(inherit)" /></div>
+                        <div><label className={label}>Thank-you page (redirect path)</label>
+                          <input className={input} value={d.redirectPath} onChange={(e) => setDraft(f.key, seg, { redirectPath: e.target.value })} placeholder="/thank-you-demo" />
+                          <p className="mt-1 text-[11px] text-neutral-400">If set, the visitor is sent here after submit instead of the inline message. Must start with &quot;/&quot;.</p></div>
+                      </div>
                       <div>
                         <div className="flex items-center justify-between">
                           <label className={label}>Fields (JSON) — leave empty to keep the base fields</label>

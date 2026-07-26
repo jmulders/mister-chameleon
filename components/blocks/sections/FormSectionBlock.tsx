@@ -66,7 +66,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { getFormDefinition, isFormKey } from "@/forms";
 import type { FormField } from "@/forms";
 import type { ResolvedForm } from "@/forms/context/types";
@@ -114,6 +114,7 @@ type SubmitState =
 
 export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlockProps) {
   const pathname = usePathname();
+  const router   = useRouter();
   const resolved = resolveBlockVariant("formSection", rawVariant) as FormSectionVariant;
   // Normalise canonical spec names → implementation keys.
   // form_inline → default | form_panel → card | form_split stays as form_split
@@ -167,6 +168,9 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   const successMessage = overlay?.successMessage ?? data.successMessage ?? formDef?.action.successMessage
     ?? "Thank you — your submission has been received.";
   const effectiveFields: readonly FormField[] = overlay?.fields ?? formDef?.fields ?? [];
+  // Segment thank-you page: redirect target after a successful submit (overlay
+  // override → form definition default). Only relative paths are honoured.
+  const redirectPath = overlay?.redirectPath ?? formDef?.action.redirectPath;
 
   // ── Tracking helper ────────────────────────────────────────────────────────
   //
@@ -242,6 +246,11 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
 
       if (json.ok) {
         fireFormEvent("form_submit");
+        // Segment thank-you page: redirect when configured, else show inline.
+        if (redirectPath && redirectPath.startsWith("/") && !redirectPath.startsWith("//")) {
+          router.push(redirectPath);
+          return;
+        }
         setSubmitState({
           status:  "success",
           message: (json as { ok: true; message: string }).message ?? successMessage,
