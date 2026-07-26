@@ -9,13 +9,13 @@ const input = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm foc
 const btn   = "inline-flex items-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
 const btnGhost = "inline-flex items-center rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
 
-interface Draft { subject: string; blocks: string[] }
+interface Draft { subject: string; preheader: string; blocks: string[] }
 
 export function EmailTemplatesClient({ tenantId, overview }:
   { tenantId: string; overview: EmailTemplatesOverview }) {
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() => {
     const out: Record<string, Draft> = {};
-    for (const t of overview.templates) out[t.key] = { subject: t.subject, blocks: [...t.blocks] };
+    for (const t of overview.templates) out[t.key] = { subject: t.subject, preheader: t.preheader, blocks: [...t.blocks] };
     return out;
   });
   const [pending, start] = useTransition();
@@ -40,12 +40,12 @@ export function EmailTemplatesClient({ tenantId, overview }:
     set(key, { blocks: cur });
   };
   const resetToDefault = (t: EmailTemplateInfo) =>
-    set(t.key, { subject: t.defaultSubject, blocks: [...t.defaultBlocks] });
+    set(t.key, { subject: t.defaultSubject, preheader: t.defaultPreheader, blocks: [...t.defaultBlocks] });
 
   const save = () => {
     setMsg(null);
     const templates: Record<string, Draft> = {};
-    for (const [k, d] of Object.entries(drafts)) templates[k] = { subject: d.subject, blocks: d.blocks };
+    for (const [k, d] of Object.entries(drafts)) templates[k] = { subject: d.subject, preheader: d.preheader, blocks: d.blocks };
     start(async () => {
       const r = await saveEmailTemplatesAction(tenantId, { templates });
       setMsg(r.ok ? { ok: true, text: "Saved." } : { ok: false, text: r.error });
@@ -76,6 +76,10 @@ export function EmailTemplatesClient({ tenantId, overview }:
               <label className={label}>Subject</label>
               <input className={input} value={d.subject} onChange={(e) => set(t.key, { subject: e.target.value })}
                 placeholder={t.defaultSubject} />
+
+              <label className={label + " mt-3"}>Preheader <span className="font-normal text-neutral-400">(inbox preview text)</span></label>
+              <input className={input} value={d.preheader} onChange={(e) => set(t.key, { preheader: e.target.value })}
+                placeholder={t.defaultPreheader || "Short line shown next to the subject in the inbox"} />
 
               <label className={label + " mt-3"}>Blocks (in order)</label>
               {d.blocks.length === 0 && <p className="text-xs text-amber-700">No blocks — the email would be empty. Add at least one.</p>}

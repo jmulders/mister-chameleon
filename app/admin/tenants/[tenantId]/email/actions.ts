@@ -74,8 +74,10 @@ export async function sendTestAdaptiveEmailAction(
 // ── Template editor ────────────────────────────────────────────────────────────
 
 export interface EmailTemplateInfo {
-  key:            string;
-  label:          string;
+  key:              string;
+  label:            string;
+  preheader:        string;
+  defaultPreheader: string;
   /** Effective (override → default). */
   subject:        string;
   blocks:         string[];
@@ -95,20 +97,22 @@ export async function getEmailTemplatesAction(tenantId: string): Promise<EmailTe
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
   const tenant = await getTenantById(tenantId);
-  const overrides = (tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> } | null)?.emailTemplates ?? {};
+  const overrides = (tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> } | null)?.emailTemplates ?? {};
 
-  const templates: EmailTemplateInfo[] = (Object.entries(EMAIL_TEMPLATES) as [EmailTemplateKey, { label: string; subject: string; blocks: string[] }][])
+  const templates: EmailTemplateInfo[] = (Object.entries(EMAIL_TEMPLATES) as [EmailTemplateKey, { label: string; subject: string; blocks: string[]; preheader?: string }][])
     .map(([key, base]) => {
-      const eff = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[] }> } | null, key);
+      const eff = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> } | null, key);
       const ov  = overrides[key];
       return {
         key,
-        label:          base.label,
-        subject:        eff.subject,
-        blocks:         eff.blocks,
-        defaultSubject: base.subject,
-        defaultBlocks:  base.blocks,
-        overridden:     !!(ov && (ov.subject?.trim() || (ov.blocks && ov.blocks.length > 0))),
+        label:            base.label,
+        subject:          eff.subject,
+        preheader:        eff.preheader ?? "",
+        blocks:           eff.blocks,
+        defaultSubject:   base.subject,
+        defaultPreheader: base.preheader ?? "",
+        defaultBlocks:    base.blocks,
+        overridden:       !!(ov && (ov.subject?.trim() || ov.preheader?.trim() || (ov.blocks && ov.blocks.length > 0))),
       };
     });
 
@@ -118,7 +122,7 @@ export async function getEmailTemplatesAction(tenantId: string): Promise<EmailTe
 /** Save per-tenant email template overrides (subject + block set/order). */
 export async function saveEmailTemplatesAction(
   tenantId: string,
-  input: { templates: Record<string, { subject?: string; blocks?: string[] }> },
+  input: { templates: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
@@ -126,11 +130,12 @@ export async function saveEmailTemplatesAction(
   if (!tenant) return { ok: false, error: "Tenant not found." };
 
   const allowed = new Set<string>(EMAIL_BLOCK_KEYS as readonly string[]);
-  const clean: Record<string, { subject?: string; blocks?: string[] }> = {};
+  const clean: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> = {};
   for (const [key, ov] of Object.entries(input.templates ?? {})) {
     if (!(key in EMAIL_TEMPLATES)) continue;
-    const entry: { subject?: string; blocks?: string[] } = {};
+    const entry: { subject?: string; blocks?: string[]; preheader?: string } = {};
     if (typeof ov.subject === "string" && ov.subject.trim()) entry.subject = ov.subject.trim();
+    if (typeof ov.preheader === "string" && ov.preheader.trim()) entry.preheader = ov.preheader.trim();
     if (Array.isArray(ov.blocks)) {
       const blocks = ov.blocks.filter((b) => allowed.has(b));
       if (blocks.length > 0) entry.blocks = blocks;
