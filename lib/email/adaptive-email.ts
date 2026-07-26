@@ -38,9 +38,17 @@ export type EmailTemplateKey =
   | "contact_followup"
   | "appointment_followup";
 
+/**
+ * One entry in an email template's ordered block list. Either:
+ *   - a string: an adaptive block key ("hero", …) or the email-native "footer"; or
+ *   - a { text } object: free copy typed by the operator, rendered inline between
+ *     the adaptive blocks (supports {name} / {company} + newlines).
+ */
+export type EmailBlockEntry = string | { readonly text: string };
+
 interface EmailTemplate {
   label:      string;
-  blocks:     string[];   // adaptive block keys + the email-native "footer", in order
+  blocks:     EmailBlockEntry[];  // adaptive keys + "footer" + free-text, in order
   subject:    string;     // may contain {name} / {company}
   preheader?: string;     // inbox preview text; may contain {name} / {company}
 }
@@ -65,12 +73,15 @@ export const EMAIL_BLOCK_KEYS = ["hero", "proof", "cta", "feature", "conversion"
  * overridable — the adaptive block CONTENT still comes from the blocks library.
  */
 export function resolveEmailTemplate(
-  tenant: { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> } | null,
+  tenant: { emailTemplates?: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> } | null,
   key: EmailTemplateKey,
 ): EmailTemplate {
   const base = EMAIL_TEMPLATES[key];
   const ov   = tenant?.emailTemplates?.[key];
-  const validBlocks = ov?.blocks?.filter((b) => (EMAIL_BLOCK_KEYS as readonly string[]).includes(b)) ?? [];
+  const validBlocks = (ov?.blocks ?? []).filter(
+    (b) => (typeof b === "object" && b !== null && "text" in b && typeof b.text === "string")
+      || (typeof b === "string" && (EMAIL_BLOCK_KEYS as readonly string[]).includes(b)),
+  );
   return {
     label:     base.label,
     subject:   ov?.subject && ov.subject.trim() ? ov.subject.trim() : base.subject,
@@ -151,7 +162,7 @@ export async function renderAdaptiveEmail(params: {
   const tenant = await getTenantById(params.tenantId);
   if (!tenant) throw new Error("Tenant not found.");
   // Effective template = per-tenant override (subject + block set) over the default.
-  const tmpl = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }> }, params.templateKey);
+  const tmpl = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> }, params.templateKey);
   const locale = params.locale ?? DEFAULT_LOCALE;
 
   // 1. Identity → known ABM lead (explicit id, else deterministic email handle).
@@ -192,7 +203,17 @@ export async function renderAdaptiveEmail(params: {
   const cms = createCMSProvider(tenant.cms, params.tenantId, locale);
   const parts: string[] = [];
   const used:  string[] = [];
-  for (const key of tmpl.blocks) {
+  for (const entry of tmpl.blocks) {
+    // Free-text block: operator-typed copy, rendered inline.
+    if (typeof entry === "object" && entry !== null) {
+      const txt = fillVars(entry.text ?? "", lead).trim();
+      if (txt) {
+        parts.push(`<div style="padding:8px 24px;color:var(--text,#333333);font-size:15px;line-height:1.6;">${escapeHtml(txt).replace(/\n/g, "<br>")}</div>`);
+        used.push("text");
+      }
+      continue;
+    }
+    const key = entry;
     if (key === "footer") {
       parts.push(renderEmailFooter(params.tenantId, tenant.name ?? params.tenantId, params.recipient.email));
       used.push("footer");
