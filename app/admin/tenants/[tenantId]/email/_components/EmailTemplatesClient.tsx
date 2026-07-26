@@ -97,7 +97,7 @@ export function EmailTemplatesClient({ tenantId, overview }:
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-neutral-400">{i + 1}.</span>
                       <span className="flex-1 text-sm text-neutral-700">
-                        {isText(b) ? <span className="text-indigo-700">Text</span> : <span className="capitalize">{b}</span>}
+                        {typeof b === "string" ? <span className="capitalize">{b}</span> : <span className="text-indigo-700">Text</span>}
                       </span>
                       <button className={btnGhost} disabled={i === 0} onClick={() => move(t.key, i, -1)}>↑</button>
                       <button className={btnGhost} disabled={i === d.blocks.length - 1} onClick={() => move(t.key, i, 1)}>↓</button>
