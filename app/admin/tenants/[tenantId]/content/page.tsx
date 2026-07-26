@@ -32,9 +32,7 @@ import { CmsCredentialsPanel }  from "@/components/admin/CmsCredentialsPanel";
 import { CmsProvisioningPanel } from "@/components/admin/CmsProvisioningPanel";
 import { TenantCmsSeedPanel }      from "./_components/TenantCmsSeedPanel";
 import { PlatformVariantsClient }   from "./_components/PlatformVariantsClient";
-import { AdaptiveBlocksPanel }      from "./_components/AdaptiveBlocksPanel";
 import { listPlatformVariantsAction } from "./actions";
-import { listAdaptiveBlocksAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import { getPlatformStoryblokSettings, storyblokFlags, getPlatformStatamicSettings } from "@/platform/platform-store";
 import type { TestConnectionResult } from "@/cms/providers/cms-provider";
 import type { CMSProviderName, TenantSettings } from "@/tenant/types";
@@ -158,19 +156,10 @@ export default async function TenantContentPage({
 
   const tenant      = normalizeTenant(rawTenant);
   const isPlatformCms = (tenant.cms?.provider ?? "mock") === "platform";
-  // Adaptive blocks are always shown — platform-managed Supabase table is
-  // used by all providers. Sanity tenants can use it as a supplement/override.
-  const showAdaptivePanel = true;
 
   // Fetch platform variants only when the Platform CMS is active.
   const platformVariantsResult = isPlatformCms
     ? await listPlatformVariantsAction(tenantId)
-    : null;
-
-  // Fetch adaptive blocks for non-Sanity providers (platform-managed via Supabase).
-  // includePlatform=true so platform-wide blocks (tenant_id IS NULL) are also shown.
-  const adaptiveBlocksResult = showAdaptivePanel
-    ? await listAdaptiveBlocksAction(tenantId, true)
     : null;
 
   // Capture write token presence BEFORE stripping secrets.
@@ -463,22 +452,21 @@ export default async function TenantContentPage({
         </div>
       )}
 
-      {/* ── Adaptive Blocks (Content Matrix) ─────────────────────────────── */}
-      {/* Shown for all providers — the platform-managed Supabase table is the
-          source of truth for adaptive blocks regardless of which CMS is active. */}
-      {showAdaptivePanel && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-5">
-          <AdaptiveBlocksPanel
-            tenantId={tenantId}
-            initialBlocks={adaptiveBlocksResult?.ok ? adaptiveBlocksResult.blocks : []}
-          />
-          {adaptiveBlocksResult && !adaptiveBlocksResult.ok && (
-            <p className="mt-3 text-xs text-red-600">
-              ⚠ Could not load adaptive blocks: {adaptiveBlocksResult.error}
-            </p>
-          )}
-        </div>
-      )}
+      {/* ── Adaptive Blocks (moved) ──────────────────────────────────────── */}
+      {/* The adaptive-blocks editor now lives on its own page under
+          Personalization → Adaptive blocks, so it isn't duplicated here. */}
+      <div className="rounded-lg border border-neutral-200 bg-white p-5">
+        <h3 className="text-sm font-semibold text-neutral-900">Adaptive blocks</h3>
+        <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
+          The personalised content for each adaptive slot is now managed on its own page.
+        </p>
+        <a
+          href={`/admin/tenants/${tenantId}/blocks`}
+          className="mt-3 inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+        >
+          Open Adaptive blocks →
+        </a>
+      </div>
 
       {/* ── CMS Sync ──────────────────────────────────────────────────────── */}
       {/* Credentials panel (write token) + sync panel live here so operators
