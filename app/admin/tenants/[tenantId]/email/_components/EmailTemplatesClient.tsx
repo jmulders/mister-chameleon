@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import { saveEmailTemplatesAction, type EmailTemplatesOverview, type EmailTemplateInfo } from "../actions";
 import type { EmailBlockEntry } from "@/lib/email/adaptive-email";
+import { HtmlBlockEditor } from "./HtmlBlockEditor";
 
 const isText = (b: EmailBlockEntry): b is { text: string } => typeof b === "object" && b !== null && "text" in b;
+const isHtml = (b: EmailBlockEntry): b is { html: string } => typeof b === "object" && b !== null && "html" in b;
 
 const card  = "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm";
 const label = "block text-xs font-semibold text-neutral-600 mb-1";
@@ -37,6 +39,10 @@ export function EmailTemplatesClient({ tenantId, overview }:
     set(key, { blocks: [...drafts[key].blocks, { text: "" }] });
   const setText = (key: string, i: number, text: string) =>
     set(key, { blocks: drafts[key].blocks.map((b, idx) => (idx === i ? { text } : b)) });
+  const addHtml = (key: string) =>
+    set(key, { blocks: [...drafts[key].blocks, { html: "" }] });
+  const setHtml = (key: string, i: number, html: string) =>
+    set(key, { blocks: drafts[key].blocks.map((b, idx) => (idx === i ? { html } : b)) });
   const removeBlock = (key: string, i: number) =>
     set(key, { blocks: drafts[key].blocks.filter((_, idx) => idx !== i) });
   const move = (key: string, i: number, dir: -1 | 1) => {
@@ -64,8 +70,8 @@ export function EmailTemplatesClient({ tenantId, overview }:
       <h3 className="text-base font-semibold text-neutral-900">Templates</h3>
       <p className="mt-1 max-w-2xl text-sm text-neutral-600">
         Set the subject, preheader, and which blocks each email uses (and in what order).
-        Adaptive blocks pull their content from Adaptive blocks; add a <strong>Text</strong> block to
-        type your own copy in between; <strong>footer</strong> adds the unsubscribe line.
+        Adaptive blocks pull their content from Adaptive blocks; add a <strong>Text</strong> block for plain copy
+        or an <strong>HTML</strong> block (WYSIWYG: text, tables, images, links) in between; <strong>footer</strong> adds the unsubscribe line.
         Use <code className="rounded bg-neutral-100 px-1 text-xs">{"{name}"}</code> and{" "}
         <code className="rounded bg-neutral-100 px-1 text-xs">{"{company}"}</code> in the subject, preheader, and text.
       </p>
@@ -97,7 +103,9 @@ export function EmailTemplatesClient({ tenantId, overview }:
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-neutral-400">{i + 1}.</span>
                       <span className="flex-1 text-sm text-neutral-700">
-                        {typeof b === "string" ? <span className="capitalize">{b}</span> : <span className="text-indigo-700">Text</span>}
+                        {typeof b === "string"
+                          ? <span className="capitalize">{b}</span>
+                          : <span className="text-indigo-700">{isHtml(b) ? "HTML" : "Text"}</span>}
                       </span>
                       <button className={btnGhost} disabled={i === 0} onClick={() => move(t.key, i, -1)}>↑</button>
                       <button className={btnGhost} disabled={i === d.blocks.length - 1} onClick={() => move(t.key, i, 1)}>↓</button>
@@ -107,6 +115,11 @@ export function EmailTemplatesClient({ tenantId, overview }:
                       <textarea className={input + " mt-2 font-normal"} rows={3} value={b.text}
                         onChange={(e) => setText(t.key, i, e.target.value)}
                         placeholder="Type your own copy here… (supports {name} and {company})" />
+                    )}
+                    {isHtml(b) && (
+                      <div className="mt-2">
+                        <HtmlBlockEditor value={b.html} onChange={(h) => setHtml(t.key, i, h)} />
+                      </div>
                     )}
                   </li>
                 ))}
@@ -119,6 +132,7 @@ export function EmailTemplatesClient({ tenantId, overview }:
                   </select>
                 )}
                 <button className={btnGhost} onClick={() => addText(t.key)}>+ Add text</button>
+                <button className={btnGhost} onClick={() => addHtml(t.key)}>+ Add HTML</button>
               </div>
             </div>
           );

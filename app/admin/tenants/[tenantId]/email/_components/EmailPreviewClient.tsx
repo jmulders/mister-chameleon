@@ -260,7 +260,7 @@ export function EmailPreviewClient({ tenantId, templates, formSubmit }:
               <span className="text-xs text-neutral-400">blocks: {res.usedBlocks.join(", ")}</span>
             )}
           </div>
-          <iframe title="Email preview" srcDoc={res.html}
+          <iframe title="Email preview" srcDoc={res.html} sandbox=""
             className="h-[600px] w-full rounded-md border border-neutral-200 bg-white" />
 
           <div className="mt-3 border-t border-neutral-100 pt-3">
