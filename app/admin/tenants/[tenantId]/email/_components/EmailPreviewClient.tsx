@@ -286,17 +286,19 @@ export function EmailPreviewClient({ tenantId, templates, formSubmit }:
           When on, a form submitter is emailed the chosen template after their submission is captured
           (deduped per lead — a repeat submitter isn&apos;t re-mailed). Opt-in; off by default.
         </p>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="mt-3 space-y-3">
           <label className="flex items-center gap-2 text-sm text-neutral-700">
             <input type="checkbox" checked={trigOn} onChange={(e) => setTrigOn(e.target.checked)} /> Enabled
           </label>
-          <div>
-            <label className={label}>Template</label>
-            <select className={input + " max-w-xs"} value={trigTpl} onChange={(e) => setTrigTpl(e.target.value)} disabled={!trigOn}>
-              {templates.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-            </select>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[200px] flex-1 sm:max-w-xs">
+              <label className={label}>Template</label>
+              <select className={input} value={trigTpl} onChange={(e) => setTrigTpl(e.target.value)} disabled={!trigOn}>
+                {templates.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+            </div>
+            <button className={btn} disabled={trigSaving} onClick={saveTrigger}>{trigSaving ? "Saving…" : "Save"}</button>
           </div>
-          <button className={btn} disabled={trigSaving} onClick={saveTrigger}>{trigSaving ? "Saving…" : "Save"}</button>
         </div>
         {trigMsg && <p className={"mt-2 text-sm " + (trigMsg.ok ? "text-green-700" : "text-red-600")}>{trigMsg.text}</p>}
       </div>
