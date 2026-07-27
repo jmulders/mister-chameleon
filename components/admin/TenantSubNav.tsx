@@ -181,7 +181,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         { label: "Pages",      href: `${base}/pages`,      activePrefix: `${base}/pages` },
         { label: "Blueprints", href: `${base}/blueprints`, activePrefix: `${base}/blueprints` },
         { label: "Forms",      href: `${base}/forms`,      activePrefix: `${base}/forms` },
-        { label: "Adaptive email", href: `${base}/email`,  activePrefix: `${base}/email` },
+        { label: "Email", href: `${base}/email`,  activePrefix: `${base}/email` },
         { label: "Assets",     href: `${base}/assets`,     activePrefix: `${base}/assets` },
       ],
     },
