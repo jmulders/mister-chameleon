@@ -15,6 +15,7 @@ import { sendAdaptiveEmail } from "@/lib/email/send-adaptive-email";
 import { sendAdaptiveBatch, MAX_BATCH_RECIPIENTS, type BatchSendSummary } from "@/lib/email/send-adaptive-batch";
 import { selectBatchRecipients, collectFilterOptions, type BatchRecipient, type BatchAudienceFilters } from "@/lib/email/batch-select";
 import { listAbmLeads } from "@/lib/abm/abm-store";
+import { sanitizeEmailHtml } from "@/lib/email/sanitize-email-html";
 
 export interface EmailPreviewResult {
   subject:    string;
@@ -141,8 +142,12 @@ export async function saveEmailTemplatesAction(
       for (const b of ov.blocks) {
         if (typeof b === "string") {
           if (allowed.has(b)) blocks.push(b);
-        } else if (b && typeof b === "object" && typeof b.text === "string" && b.text.trim()) {
-          blocks.push({ text: b.text.trim() });
+        } else if (b && typeof b === "object") {
+          if ("html" in b && typeof b.html === "string" && b.html.trim()) {
+            blocks.push({ html: sanitizeEmailHtml(b.html) });
+          } else if ("text" in b && typeof b.text === "string" && b.text.trim()) {
+            blocks.push({ text: b.text.trim() });
+          }
         }
       }
       if (blocks.length > 0) entry.blocks = blocks;

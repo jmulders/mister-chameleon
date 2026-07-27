@@ -28,6 +28,7 @@ import { createCMSProvider } from "@/cms";
 import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { getAbmLeadByHandle, getAbmLeadById } from "@/lib/abm/abm-store";
 import { makeUnsubscribeToken } from "./unsubscribe-token";
+import { sanitizeEmailHtml } from "./sanitize-email-html";
 import type { AbmLead } from "@/lib/abm/abm-store";
 import type { EnrichmentOutput } from "@/enrichment/types";
 import { DEFAULT_LOCALE } from "@/lib/locale";
@@ -39,12 +40,13 @@ export type EmailTemplateKey =
   | "appointment_followup";
 
 /**
- * One entry in an email template's ordered block list. Either:
- *   - a string: an adaptive block key ("hero", …) or the email-native "footer"; or
- *   - a { text } object: free copy typed by the operator, rendered inline between
- *     the adaptive blocks (supports {name} / {company} + newlines).
+ * One entry in an email template's ordered block list:
+ *   - a string: an adaptive block key ("hero", …) or the email-native "footer";
+ *   - a { text } object: plain free copy (escaped, newlines → <br>);
+ *   - an { html } object: rich HTML authored in the WYSIWYG editor (sanitized;
+ *     supports text, tables, images, links). Both support {name} / {company}.
  */
-export type EmailBlockEntry = string | { readonly text: string };
+export type EmailBlockEntry = string | { readonly text: string } | { readonly html: string };
 
 interface EmailTemplate {
   label:      string;
@@ -79,7 +81,8 @@ export function resolveEmailTemplate(
   const base = EMAIL_TEMPLATES[key];
   const ov   = tenant?.emailTemplates?.[key];
   const validBlocks = (ov?.blocks ?? []).filter(
-    (b) => (typeof b === "object" && b !== null && "text" in b && typeof b.text === "string")
+    (b) => (typeof b === "object" && b !== null
+              && (("text" in b && typeof b.text === "string") || ("html" in b && typeof b.html === "string")))
       || (typeof b === "string" && (EMAIL_BLOCK_KEYS as readonly string[]).includes(b)),
   );
   return {
@@ -224,8 +227,16 @@ export async function renderAdaptiveEmail(params: {
   const parts: string[] = [];
   const used:  string[] = [];
   for (const entry of tmpl.blocks) {
-    // Free-text block: operator-typed copy, rendered inline.
+    // Operator-authored blocks: rich HTML (WYSIWYG) or plain text.
     if (typeof entry === "object" && entry !== null) {
+      if ("html" in entry) {
+        const clean = sanitizeEmailHtml(fillVars(entry.html ?? "", lead));
+        if (clean.trim()) {
+          parts.push(`<div style="padding:8px 24px;color:var(--text,#333333);font-size:15px;line-height:1.6;">${absolutizeLinks(clean, baseUrl)}</div>`);
+          used.push("html");
+        }
+        continue;
+      }
       const txt = fillVars(entry.text ?? "", lead).trim();
       if (txt) {
         parts.push(`<div style="padding:8px 24px;color:var(--text,#333333);font-size:15px;line-height:1.6;">${escapeHtml(txt).replace(/\n/g, "<br>")}</div>`);
