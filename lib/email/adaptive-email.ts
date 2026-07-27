@@ -29,6 +29,7 @@ import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { getAbmLeadByHandle, getAbmLeadById } from "@/lib/abm/abm-store";
 import { makeUnsubscribeToken } from "./unsubscribe-token";
 import { sanitizeEmailHtml } from "./sanitize-email-html";
+import { resolvePublicBaseUrl } from "@/lib/base-url";
 import type { AbmLead } from "@/lib/abm/abm-store";
 import type { EnrichmentOutput } from "@/enrichment/types";
 import { DEFAULT_LOCALE } from "@/lib/locale";
@@ -158,7 +159,11 @@ function absolutizeLinks(html: string, base: string): string {
  * block — rendered by the email layer so campaign/ABM sends are compliant.
  */
 function renderEmailFooter(tenantId: string, tenantName: string, recipientEmail: string): string {
-  const base  = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  // The unsubscribe endpoint lives on the PLATFORM, not the tenant's own site,
+  // so resolve a stable platform base (NEXT_PUBLIC_SITE_URL → VERCEL production
+  // host → deploy host). Always scheme-prefixed, so the link can never come out
+  // relative — which email clients mangle into "http:///api/…".
+  const base  = resolvePublicBaseUrl();
   const token = makeUnsubscribeToken(tenantId, recipientEmail);
   const url   = `${base}/api/email/unsubscribe?t=${encodeURIComponent(token)}`;
   return (
