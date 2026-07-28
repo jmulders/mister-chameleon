@@ -40,7 +40,7 @@ import type { ProvisionResult }        from "@/cms/providers/cms-provider";
 import type { SiteType }               from "@/page-config";
 import type { ThemePresetKey }         from "@/design-system/theme/presets";
 import type { BlockTokenSet }          from "@/design-system/theme/block-token-set";
-import { CURATED_TOKEN_KEYS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
+import { CURATED_TOKEN_KEYS, VALID_SURFACE_ROLES, BLOCK_TOKEN_SET_SLOTS } from "@/design-system/theme/block-token-set";
 import { isFeaturedFamilyKey }         from "@/design-system/theme/theme-families.config";
 import type {
   ProvisionSiteResult,
@@ -2991,6 +2991,12 @@ export async function saveBlockTokenSetsAction(
         tokens[field] = v.trim();
       }
 
+      // Optional block-type scope — keep only known slot types; empty → all blocks.
+      const slots = Array.isArray(set.slots)
+        ? set.slots.filter((s): s is string =>
+            typeof s === "string" && (BLOCK_TOKEN_SET_SLOTS as readonly string[]).includes(s))
+        : [];
+
       clean.push({
         id:   typeof set.id === "string" && set.id.trim() ? set.id : `bts_${key || i}_${Date.now()}`,
         key,
@@ -2998,6 +3004,7 @@ export async function saveBlockTokenSetsAction(
         ...(typeof set.description === "string" && set.description.trim()
           ? { description: set.description.trim() }
           : {}),
+        ...(slots.length ? { slots } : {}),
         tokens: tokens as BlockTokenSet["tokens"],
       });
     });

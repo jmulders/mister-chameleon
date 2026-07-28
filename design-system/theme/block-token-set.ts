@@ -278,11 +278,21 @@ export const VALID_SURFACE_ROLES: readonly BlockSurface[] =
 // ── Named, reusable set ─────────────────────────────────────────────────────────
 
 /** A named, reusable bundle of curated token overrides (design.blockTokenSets). */
+/** Adaptive slot types a block token set can be scoped to. */
+export const BLOCK_TOKEN_SET_SLOTS = ["hero", "proof", "cta", "feature", "conversion", "notification"] as const;
+export type BlockTokenSetSlot = (typeof BLOCK_TOKEN_SET_SLOTS)[number];
+
 export interface BlockTokenSet {
   id:           string;
   key:          string;
   name:         string;
   description?: string;
+  /**
+   * Optional block-type scope. When set, this token set is only offered in the
+   * block editor for these slot types (e.g. ["hero"]). When absent or empty, the
+   * set applies to any block type.
+   */
+  slots?:       readonly string[];
   tokens:       CuratedBlockTokens;
 }
 
