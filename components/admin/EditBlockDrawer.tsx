@@ -98,6 +98,20 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
   ],
 };
 
+// ── Block-specific design-token groups ─────────────────────────────────────────
+// Most token groups (colour, text, buttons, typography…) apply to any block, but
+// a few groups only affect one block type. When editing a hero we shouldn't show
+// the proof/feature/CTA token groups (and vice versa) — only the group for the
+// current slot, plus all the universal groups.
+
+const SLOT_TOKEN_GROUP: Record<string, string> = {
+  hero:    "Hero",
+  proof:   "Proof / testimonials",
+  feature: "Feature grid",
+  cta:     "CTA section",
+};
+const BLOCK_SPECIFIC_GROUP_TITLES = new Set(Object.values(SLOT_TOKEN_GROUP));
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function slotFromKey(key: string): string {
@@ -720,6 +734,12 @@ export function EditBlockDrawer({
 }: EditBlockDrawerProps) {
   const slotId        = slotFromKey(block.key);
   const layoutOptions = LAYOUT_OPTIONS[slotId] ?? [];
+
+  // Token groups relevant to THIS block: all universal groups + only the
+  // block-specific group for the current slot (hide the others).
+  const visibleTokenGroups = BLOCK_TOKEN_GROUPS.filter(
+    (g) => !BLOCK_SPECIFIC_GROUP_TITLES.has(g.title) || g.title === SLOT_TOKEN_GROUP[slotId],
+  );
 
   // ── Form state: content ────────────────────────────────────────────────────
 
@@ -1582,7 +1602,7 @@ export function EditBlockDrawer({
               )}
             </div>
 
-            {BLOCK_TOKEN_GROUPS.map((group) => (
+            {visibleTokenGroups.map((group) => (
               <div key={group.title} className="space-y-1.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{group.title}</p>
                 <div className="grid grid-cols-2 gap-2">
