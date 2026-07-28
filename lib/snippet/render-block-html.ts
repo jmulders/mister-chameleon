@@ -25,6 +25,8 @@ import type {
   ConversionBlockData,
   NotificationBlockData,
 } from "@/cms/types";
+import type { ResolvedForm } from "@/forms/context/types";
+import type { FormField } from "@/forms/types";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -181,6 +183,97 @@ function renderNotification(d: NotificationBlockData): string {
     `font-family:inherit;color:var(--text,#0f172a);font-size:14.5px;line-height:1.5;">` +
       `<span>${escapeHtml(d.message)}${cta}</span>` +
     `</div>`
+  );
+}
+
+// ── Form block ──────────────────────────────────────────────────────────────
+//
+// A real, working <form> for embedding on an external site. The snippet wires
+// the submit (serialise → cross-origin POST to /api/forms/{key} with the siteKey
+// → render success/field-errors/redirect). Fields come from a ResolvedForm, so
+// the contextual overlay (segment copy + field set) is already applied. All
+// dynamic text is HTML-escaped; the honeypot name matches the server's `_hp`.
+
+const FIELD_INPUT =
+  "box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid var(--border,#d1d5db);" +
+  "border-radius:var(--radius-interactive,8px);font-family:inherit;font-size:15px;" +
+  "color:var(--text,#0f172a);background:var(--card-bg,#fff);";
+const FIELD_LABEL = "display:block;font-size:13px;font-weight:600;color:var(--text,#0f172a);margin-bottom:5px;";
+
+function renderFormField(f: FormField): string {
+  const req     = f.validation?.required ? " required" : "";
+  const reqMark = f.validation?.required ? ` <span style="color:var(--primary,#4f46e5)">*</span>` : "";
+  const dv      = typeof f.defaultValue === "string" ? f.defaultValue : "";
+  const err     = `<div data-mc-error="${escapeHtml(f.key)}" style="display:none;color:#dc2626;font-size:12.5px;margin-top:4px;"></div>`;
+
+  if (f.type === "hidden") {
+    return `<input type="hidden" name="${escapeHtml(f.key)}" value="${escapeHtml(dv)}">`;
+  }
+  if (f.type === "checkbox") {
+    return (
+      `<div style="margin-bottom:14px;">` +
+        `<label style="display:flex;gap:9px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--text,#0f172a);cursor:pointer;">` +
+          `<input type="checkbox" name="${escapeHtml(f.key)}"${f.defaultValue ? " checked" : ""}${req} style="margin-top:2px;flex:0 0 auto;">` +
+          `<span>${escapeHtml(f.label)}${reqMark}</span>` +
+        `</label>${err}` +
+      `</div>`
+    );
+  }
+
+  const help = f.helpText
+    ? `<div style="font-size:12px;color:var(--muted-foreground,#64748b);margin-top:4px;">${escapeHtml(f.helpText)}</div>`
+    : "";
+  let control: string;
+  if (f.type === "select") {
+    const opts = (f.options ?? [])
+      .map((o) => `<option value="${escapeHtml(o.value)}"${o.value === dv ? " selected" : ""}>${escapeHtml(o.label)}</option>`)
+      .join("");
+    control = `<select name="${escapeHtml(f.key)}"${req} style="${FIELD_INPUT}">${opts}</select>`;
+  } else if (f.type === "textarea") {
+    control =
+      `<textarea name="${escapeHtml(f.key)}" rows="4"` +
+      `${f.placeholder ? ` placeholder="${escapeHtml(f.placeholder)}"` : ""}${req} ` +
+      `style="${FIELD_INPUT}resize:vertical;">${escapeHtml(dv)}</textarea>`;
+  } else {
+    // text | email | tel | url
+    control =
+      `<input type="${escapeHtml(f.type)}" name="${escapeHtml(f.key)}"` +
+      `${f.placeholder ? ` placeholder="${escapeHtml(f.placeholder)}"` : ""}` +
+      `${dv ? ` value="${escapeHtml(dv)}"` : ""}${req} style="${FIELD_INPUT}">`;
+  }
+  return (
+    `<div style="margin-bottom:14px;">` +
+      `<label style="${FIELD_LABEL}">${escapeHtml(f.label)}${reqMark}</label>` +
+      control + help + err +
+    `</div>`
+  );
+}
+
+/** Render a working, token-styled <form> for the given resolved form + key. */
+export function renderForm(form: ResolvedForm, formKey: string): string {
+  const fields      = (form.fields ?? []).map(renderFormField).join("");
+  const submitLabel = form.submitLabel || "Submit";
+  const submitStyle =
+    "display:block;width:100%;padding:12px 22px;border:1px solid transparent;" +
+    "border-radius:var(--btn-radius,var(--radius-interactive,8px));background:var(--primary,#4f46e5);" +
+    "color:var(--primary-text,#fff);font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;";
+  return (
+    `<section style="background:var(--bg,#fff);color:var(--text,#0f172a);">` +
+      `<div style="${WRAP}max-width:560px;">` +
+        `<form data-mc-form="${escapeHtml(formKey)}"` +
+          `${form.redirectPath ? ` data-mc-redirect="${escapeHtml(form.redirectPath)}"` : ""} novalidate ` +
+          `style="background:var(--card-bg,#fff);border:1px solid var(--card-border,var(--border,#e2e8f0));` +
+          `border-radius:var(--card-radius,14px);padding:clamp(20px,4vw,32px);">` +
+          (form.title ? `<h2 style="font-family:inherit;font-size:clamp(20px,3vw,26px);font-weight:800;margin:0 0 8px;">${escapeHtml(form.title)}</h2>` : "") +
+          (form.intro ? `<p style="font-size:15px;line-height:1.5;color:var(--muted-foreground,#64748b);margin:0 0 20px;">${escapeHtml(form.intro)}</p>` : "") +
+          // Honeypot — must stay empty (server rejects when filled).
+          `<input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">` +
+          fields +
+          `<button type="submit" style="${submitStyle}">${escapeHtml(submitLabel)}</button>` +
+          `<div data-mc-form-status role="status" aria-live="polite" style="margin-top:14px;font-size:14px;line-height:1.5;"></div>` +
+        `</form>` +
+      `</div>` +
+    `</section>`
   );
 }
 

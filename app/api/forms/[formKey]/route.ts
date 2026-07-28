@@ -81,7 +81,8 @@ import { logger }                       from "@/lib/logger";
 import { markProfileConverted }         from "@/lib/lead-base/visitor-profiles-store";
 import { captureInboundLead, extractSubmittedEmail } from "@/lib/lead-base/inbound-capture";
 import { sendConversion }                from "@/lib/ad-sync/conversion-engine";
-import { getActiveTenant }              from "@/tenant/server";
+import { getActiveTenant, getTenantBySiteKey } from "@/tenant/server";
+import { isSnippetOriginAllowed }       from "@/lib/snippet/origin-allowlist";
 import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
 import { serverEnv }                    from "@/lib/env";
 import {
@@ -97,9 +98,43 @@ interface RouteParams {
   params: Promise<{ formKey: string }>;
 }
 
+// ── CORS (cross-origin embeds submit from external customer sites) ─────────────
+
+const FORM_CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "content-type, x-mc-site-key",
+  "Access-Control-Max-Age":       "86400",
+};
+
+export function OPTIONS(): NextResponse {
+  return new NextResponse(null, { status: 204, headers: FORM_CORS });
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
+/**
+ * Public entry point. Runs the handler, then stamps CORS headers on whatever it
+ * returns so cross-origin form submits (snippet/WP/Statamic) can read the
+ * response (success message, 422 field errors, redirect). Same-origin callers
+ * ignore the headers.
+ */
 export async function POST(
+  request: NextRequest,
+  ctx: RouteParams,
+): Promise<NextResponse> {
+  let res: NextResponse;
+  try {
+    res = await handlePost(request, ctx);
+  } catch (err) {
+    logger.error("[forms] Unhandled error", { err: err instanceof Error ? err.message : String(err) });
+    res = NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
+  }
+  for (const [k, v] of Object.entries(FORM_CORS)) res.headers.set(k, v);
+  return res;
+}
+
+async function handlePost(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
@@ -114,12 +149,33 @@ export async function POST(
   //   Tenant context is loaded first so the CMS lookup is properly scoped.
 
   // ── 1a. Load tenant context ──────────────────────────────────────────────
+  //
+  //   Cross-origin embeds (snippet / WP plugin / Statamic add-on) identify the
+  //   tenant by a `x-mc-site-key` header, since the request hits the platform
+  //   host and cannot be scoped by domain. When a siteKey resolves a tenant, we
+  //   enforce that tenant's snippet origin allowlist (opt-in). Same-origin,
+  //   platform-rendered forms send no siteKey and fall back to host resolution.
   let tenantId: string | undefined;
-  try {
-    const tenant = await getActiveTenant();
-    tenantId = tenant.tenantId;
-  } catch {
-    // Non-fatal: proceed without tenant scoping.
+  const siteKey = request.headers.get("x-mc-site-key")?.trim();
+  if (siteKey) {
+    const skTenant = await getTenantBySiteKey(siteKey).catch(() => null);
+    if (skTenant) {
+      if (!isSnippetOriginAllowed(
+            request.headers.get("origin"),
+            request.headers.get("referer"),
+            skTenant.snippet?.allowedSnippetOrigins,
+          )) {
+        return NextResponse.json({ ok: false, error: "Origin not allowed" }, { status: 403 });
+      }
+      tenantId = skTenant.tenantId;
+    }
+  } else {
+    try {
+      const tenant = await getActiveTenant();
+      tenantId = tenant.tenantId;
+    } catch {
+      // Non-fatal: proceed without tenant scoping.
+    }
   }
 
   // ── 1b. Resolve tenant settings + email config via layered resolvers ──────

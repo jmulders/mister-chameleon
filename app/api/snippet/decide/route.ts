@@ -106,7 +106,9 @@ import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCom
 import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
-import { renderBlockHtml }           from "@/lib/snippet/render-block-html";
+import { renderBlockHtml, renderForm } from "@/lib/snippet/render-block-html";
+import { resolveContextualForm }      from "@/forms/context/load";
+import { isFormKey }                  from "@/forms/registry";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
 /**
@@ -992,6 +994,35 @@ export async function POST(request: NextRequest) {
         if (notif.autoDismissMs !== undefined) {
           slots["notification-auto-dismiss-ms"] = String(notif.autoDismissMs);
         }
+      }
+    }
+
+    // ── Form blocks (data-mc-block="form:<key>") ───────────────────────────────
+    // Render a working, contextual <form> per requested form block. The snippet
+    // wires the cross-origin submit; here we only produce the styled markup with
+    // the tenant's theme tokens and the segment-resolved copy/fields.
+    const formBlockKeys = [...requestedBlocks].filter((k) => k.startsWith("form:"));
+    if (formBlockKeys.length > 0) {
+      const formSignals = {
+        path:    context.path,
+        query: {
+          ...(context.utm_source   ? { utm_source:   context.utm_source }   : {}),
+          ...(context.utm_medium   ? { utm_medium:   context.utm_medium }   : {}),
+          ...(context.utm_campaign ? { utm_campaign: context.utm_campaign } : {}),
+        },
+        country: request.headers.get("x-vercel-ip-country") || null,
+      };
+      for (const blockKey of formBlockKeys) {
+        const formKey = blockKey.slice("form:".length).trim();
+        if (!isFormKey(formKey)) continue;
+        try {
+          const resolved = await resolveContextualForm(tenantId, formKey, formSignals);
+          if (!resolved) continue;
+          const html = renderForm(resolved, formKey);
+          slots[blockKey] = Object.keys(blockThemeTokens).length > 0
+            ? { mode: "block", html, tokens: blockThemeTokens }
+            : { mode: "block", html };
+        } catch { /* skip this form block on error */ }
       }
     }
 
