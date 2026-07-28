@@ -412,12 +412,17 @@ add_action( 'init', function () {
 	// The platform decides WHICH variant of the slot each visitor sees (rules/AI);
 	// the block here just marks WHERE the slot goes and holds the default content.
 	var MCC_BLOCK_SLOTS = [
-		{ label: 'Hero',         value: 'hero' },
-		{ label: 'Features',     value: 'feature' },
-		{ label: 'Social proof', value: 'proof' },
-		{ label: 'CTA',          value: 'cta' },
-		{ label: 'Conversion',   value: 'conversion' },
-		{ label: 'Notification', value: 'notification' }
+		{ label: 'Hero',                value: 'hero' },
+		{ label: 'Features',            value: 'feature' },
+		{ label: 'Social proof',        value: 'proof' },
+		{ label: 'CTA',                 value: 'cta' },
+		{ label: 'Conversion',          value: 'conversion' },
+		{ label: 'Notification',        value: 'notification' },
+		// Adaptive forms — the platform renders a working, contextual form and the
+		// snippet wires the submit. The form key follows the "form:" prefix.
+		{ label: 'Form — Contact',      value: 'form:contact' },
+		{ label: 'Form — Application',  value: 'form:application' },
+		{ label: 'Form — Appointment',  value: 'form:appointment' }
 	];
 
 	registerBlockType( 'mister-chameleon/slot', {

@@ -85,6 +85,9 @@
  *           data-site-key="sk_live_abc123" async></script>`
  */
 export function buildSnippetSource(decideUrl: string): string {
+  // Platform origin (e.g. https://app.misterchameleon.com) derived from the
+  // decide URL, so injected form blocks can submit cross-origin to /api/forms.
+  const platformOrigin = decideUrl.replace(/\/api\/snippet\/decide.*$/, "");
   return `
 (function() {
   'use strict';
@@ -118,6 +121,73 @@ export function buildSnippetSource(decideUrl: string): string {
     return true;
   }
   var consent = resolveConsent();
+
+  // Platform origin for cross-origin form-block submits.
+  var mcFormsBase = ${JSON.stringify(platformOrigin)};
+
+  // ── Form blocks: wire submit on an injected <form data-mc-form="key"> ────────
+  // The form markup is rendered server-side (with the tenant theme + contextual
+  // copy/fields); here we intercept submit, POST cross-origin to the platform
+  // with the siteKey, and render success / 422 field errors / thank-you redirect.
+  function mcWireForms(root) {
+    var forms = (root || document).querySelectorAll('form[data-mc-form]');
+    for (var i = 0; i < forms.length; i++) mcWireForm(forms[i]);
+  }
+  function mcWireForm(form) {
+    if (form.getAttribute('data-mc-wired')) return;
+    form.setAttribute('data-mc-wired', '1');
+    var key = form.getAttribute('data-mc-form');
+    var statusEl = form.querySelector('[data-mc-form-status]');
+    form.addEventListener('submit', function(ev) {
+      ev.preventDefault();
+      var errEls = form.querySelectorAll('[data-mc-error]');
+      for (var e = 0; e < errEls.length; e++) { errEls[e].style.display = 'none'; errEls[e].textContent = ''; }
+      if (statusEl) { statusEl.style.color = ''; statusEl.textContent = ''; }
+      var payload = {};
+      var fields = form.querySelectorAll('input[name], textarea[name], select[name]');
+      for (var f = 0; f < fields.length; f++) {
+        var el = fields[f];
+        var name = el.getAttribute('name');
+        if (!name) continue;
+        payload[name] = (el.type === 'checkbox') ? (el.checked ? 'true' : 'false') : el.value;
+      }
+      var btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.disabled = true;
+      fetch(mcFormsBase + '/api/forms/' + encodeURIComponent(key), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-mc-site-key': siteKey },
+        body: JSON.stringify(payload)
+      }).then(function(res) {
+        return res.json().then(function(d) { return { status: res.status, data: d }; })
+                         .catch(function() { return { status: res.status, data: null }; });
+      }).then(function(r) {
+        if (btn) btn.disabled = false;
+        var data = r.data || {};
+        if (r.status === 200 && data.ok) {
+          var redirect = form.getAttribute('data-mc-redirect');
+          if (redirect && redirect.charAt(0) === '/') { window.location.assign(redirect); return; }
+          while (form.firstChild) form.removeChild(form.firstChild);
+          var ok = document.createElement('div');
+          ok.setAttribute('role', 'status');
+          ok.style.cssText = 'padding:20px 4px;text-align:center;font-size:15px;line-height:1.5;color:var(--text,#0f172a);';
+          ok.textContent = data.message || 'Thank you — your submission has been received.';
+          form.appendChild(ok);
+        } else if (r.status === 422 && data && data.errors) {
+          for (var fk in data.errors) {
+            if (!Object.prototype.hasOwnProperty.call(data.errors, fk)) continue;
+            var slot = form.querySelector('[data-mc-error="' + fk + '"]');
+            if (slot) { slot.textContent = data.errors[fk]; slot.style.display = 'block'; }
+          }
+          if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = 'Please fix the highlighted fields.'; }
+        } else {
+          if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = (data && data.error) || 'Something went wrong. Please try again.'; }
+        }
+      }).catch(function() {
+        if (btn) btn.disabled = false;
+        if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = 'Network error. Please try again.'; }
+      });
+    });
+  }
 
   // ── 2. FOOC prevention — hide page until swap is done ────────────────────────
   var TIMEOUT_MS = 1500;
@@ -290,6 +360,8 @@ export function buildSnippetSource(decideUrl: string): string {
         }
         if (typeof block.html === 'string') {
           c.innerHTML = block.html;
+          // Wire any form injected by this block (submit → cross-origin POST).
+          try { mcWireForms(c); } catch (e) { /* forms optional */ }
         }
       }
     }
