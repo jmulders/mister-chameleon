@@ -34,16 +34,17 @@ const STATAMIC_FIELD_TYPE: Record<SlotFieldDef["type"], string> = {
 };
 
 /**
- * Adaptive form blocks selectable in the CMS context-slot picker. Unlike the
- * decision-engine slots, a form carries no CMS content — it renders as a
- * `data-mc-block="form:<key>"` marker that the Mister Chameleon snippet fills and
- * wires (fields + submit + thank-you). Requires the snippet on the page
- * (`{{ mc:snippet }}` — i.e. client/hybrid mode).
+ * Adaptive form blocks selectable in the CMS context-slot picker. A form is a
+ * single `form` slot type; a conditional `form_type` sub-field picks which form.
+ * It carries no CMS content — it renders as a `data-mc-block="form:<type>"`
+ * marker that the Mister Chameleon snippet fills and wires (fields + submit +
+ * thank-you). Requires the snippet on the page (`{{ mc:snippet }}` — i.e.
+ * client/hybrid mode).
  */
-const FORM_SLOT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "form:contact",     label: "Form — Contact" },
-  { value: "form:application", label: "Form — Application" },
-  { value: "form:appointment", label: "Form — Appointment" },
+const FORM_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "contact",     label: "Contact" },
+  { value: "application", label: "Application" },
+  { value: "appointment", label: "Appointment" },
 ];
 
 /** Build the context-slot fieldset YAML from the canonical field definitions. */
@@ -63,9 +64,13 @@ function buildFieldsetYaml(): string {
 
   const slotOptions = [
     ...SLOT_DEFINITIONS.map((s) => `        ${s.id}: ${s.label}`),
-    // Form blocks (keys carry a colon → must be quoted in YAML).
-    ...FORM_SLOT_OPTIONS.map((f) => `        '${f.value}': '${f.label}'`),
+    // Single Form slot type; the conditional form_type field below picks which form.
+    `        form: 'Form'`,
   ].join("\n");
+
+  const formTypeOptions = FORM_TYPE_OPTIONS
+    .map((f) => `        ${f.value}: '${f.label}'`)
+    .join("\n");
 
   const fieldYaml = (f: SlotFieldDef): string => {
     const lines = [
@@ -107,6 +112,16 @@ ${slotOptions}
       display: 'Default variant key'
       instructions: 'CMS-authored fallback served to bots and when the platform is unavailable.'
       width: 50
+  -
+    handle: form_type
+    field:
+      type: select
+      display: 'Form type'
+      instructions: 'Which form this slot shows. Only used for the Form slot type.'
+      options:
+${formTypeOptions}
+      if:
+        slot_type: 'equals form'
 ${fields.map(fieldYaml).join("\n")}
 `;
 }
@@ -148,9 +163,7 @@ function buildBlockTemplate(): string {
 
 ${SLOT_DEFINITIONS.map(renderField).join("\n\n")}
 
-${FORM_SLOT_OPTIONS.map((f) =>
-  `{{ if slot_type == '${f.value}' }}<div data-mc-block="${f.value}"></div>{{ /if }}`,
-).join("\n")}
+{{ if slot_type == 'form' }}<div data-mc-block="form:{{ form_type }}"></div>{{ /if }}
 `;
 }
 
