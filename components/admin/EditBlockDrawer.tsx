@@ -1569,8 +1569,8 @@ export function EditBlockDrawer({
               Design
             </legend>
             <Toggle
-              label={overrideDesign ? "Custom design for this block" : "Inherit site theme"}
-              hint={overrideDesign ? "Overrides layer on top of the theme" : "Recommended"}
+              label="Custom design for this block"
+              hint={overrideDesign ? "Overriding the site theme" : "Off = inherit the site theme (recommended)"}
               value={overrideDesign}
               onChange={(v) => {
                 setOverrideDesign(v);

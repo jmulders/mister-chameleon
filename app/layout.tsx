@@ -595,10 +595,12 @@ export default async function RootLayout({
   // headers() is a cached store lookup — safe to call again outside the try block.
   const _consentHeaders  = await headers();
   const _consentPathname = _consentHeaders.get("x-pathname") ?? "";
-  // Never show the consent banner on admin pages — admin users don't need it.
+  // Never show the consent banner on admin pages or the internal block-preview
+  // surface (it renders inside the editor's iframe — the cookie chrome is noise).
   const showConsentBanner =
     privacySettings?.showConsentBanner !== false &&
-    !_consentPathname.startsWith("/admin");
+    !_consentPathname.startsWith("/admin") &&
+    !_consentPathname.startsWith("/tenant-block-preview");
 
   // Visitor locale for the cookie banner / preferences copy (nl / en).
   const consentLocale = (await cookies()).get("mc_locale")?.value;
