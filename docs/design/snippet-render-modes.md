@@ -120,3 +120,37 @@ token-set-editor) en een token-set-keuze.
 
 Fase 1 en 2 zijn de kern en raken deze codebase (snippet, decide, datamodel). Fase 3 is
 admin-UI. Fase 4 haakt aan op het AI-traject.
+
+## 9. Forms als adaptief blok (`data-mc-block="form:<key>"`)
+
+Een formulier plaats je als block-marker met een `form:`-prefix. De snippet vult het blok
+met een echt, op de tenant-huisstijl gestyled `<form>` (kop, velden, verzendknop) én
+bedraadt het verzenden: cross-origin POST naar het platform met de siteKey, met
+per-veld foutmeldingen (422) en een bedankt-bericht of redirect. Kop/velden/thank-you
+volgen de contextuele form-overlay (segment op basis van pad/UTM/land).
+
+Beschikbare keys: `form:contact`, `form:application`, `form:appointment`.
+
+Kopieer-klaar (rauwe snippet-site):
+
+```html
+<!-- Waar het formulier moet komen: -->
+<div data-mc-block="form:contact"></div>
+
+<!-- Eén keer, vlak voor </body> (siteKey van je tenant): -->
+<script async
+  src="https://www.misterchameleon.nl/api/snippet.js"
+  data-site-key="sk_live_xxx"
+  data-mc-consent="granted"></script>
+```
+
+Voorwaarden en aandachtspunten:
+
+- De **snippet moet op de pagina staan** — forms zijn interactief; zonder snippet blijft de
+  `div` leeg. (Op WordPress: kies "Form — …" in het Adaptive Block-blok; op Statamic: kies
+  "Form — …" in de context-slot-kiezer. Beide plaatsen dezelfde marker.)
+- Werkt op **publisher-tenants**. Een advertiser-tenant serveert advertenties i.p.v.
+  content/form-blokken, dus daar verschijnt geen formulier.
+- De cross-origin submit is beveiligd: de tenant wordt bepaald via de `x-mc-site-key`-header
+  (niet het host-domein), de snippet-origin-allowlist van de tenant wordt gehandhaafd, en
+  honeypot + rate-limit gelden server-side.

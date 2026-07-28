@@ -33,6 +33,19 @@ const STATAMIC_FIELD_TYPE: Record<SlotFieldDef["type"], string> = {
   select: "select",
 };
 
+/**
+ * Adaptive form blocks selectable in the CMS context-slot picker. Unlike the
+ * decision-engine slots, a form carries no CMS content — it renders as a
+ * `data-mc-block="form:<key>"` marker that the Mister Chameleon snippet fills and
+ * wires (fields + submit + thank-you). Requires the snippet on the page
+ * (`{{ mc:snippet }}` — i.e. client/hybrid mode).
+ */
+const FORM_SLOT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "form:contact",     label: "Form — Contact" },
+  { value: "form:application", label: "Form — Application" },
+  { value: "form:appointment", label: "Form — Appointment" },
+];
+
 /** Build the context-slot fieldset YAML from the canonical field definitions. */
 function buildFieldsetYaml(): string {
   // Union of fields across slots, de-duplicated by handle (a single fieldset
@@ -48,7 +61,11 @@ function buildFieldsetYaml(): string {
     }
   }
 
-  const slotOptions = SLOT_DEFINITIONS.map((s) => `        ${s.id}: ${s.label}`).join("\n");
+  const slotOptions = [
+    ...SLOT_DEFINITIONS.map((s) => `        ${s.id}: ${s.label}`),
+    // Form blocks (keys carry a colon → must be quoted in YAML).
+    ...FORM_SLOT_OPTIONS.map((f) => `        '${f.value}': '${f.label}'`),
+  ].join("\n");
 
   const fieldYaml = (f: SlotFieldDef): string => {
     const lines = [
@@ -130,6 +147,10 @@ function buildBlockTemplate(): string {
 #}}
 
 ${SLOT_DEFINITIONS.map(renderField).join("\n\n")}
+
+${FORM_SLOT_OPTIONS.map((f) =>
+  `{{ if slot_type == '${f.value}' }}<div data-mc-block="${f.value}"></div>{{ /if }}`,
+).join("\n")}
 `;
 }
 
