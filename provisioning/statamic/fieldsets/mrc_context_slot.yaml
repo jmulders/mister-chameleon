@@ -12,6 +12,9 @@ fields:
         feature: 'Features'
         conversion: 'Conversion'
         notification: 'Notification'
+        'form:contact': 'Form — Contact'
+        'form:application': 'Form — Application'
+        'form:appointment': 'Form — Appointment'
       validate: required
   -
     handle: variant_key
