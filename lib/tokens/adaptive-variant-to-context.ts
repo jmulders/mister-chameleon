@@ -1,0 +1,93 @@
+/**
+ * adaptiveVariantToContextEntry
+ *
+ * Converts a single AdaptiveVariantContent (as edited in the block drawer) into
+ * the one-slot ContextSlotData entry that the real page renderer consumes. This
+ * lets an admin preview render a block through the IDENTICAL production path
+ * (TemplateRenderer → HeroBlock/ProofBlock/CTABlock/FeatureGridBlock) rather
+ * than the simplified snippet HTML, so layout variants, media, and carousels
+ * appear exactly as visitors would see them.
+ *
+ * Hero reuses the production adapter (adaptiveVariantToHeroBlockData). Proof /
+ * CTA / feature map their fields to the corresponding *BlockData shape. The
+ * block's own tokenRef (tokenSet / inline tokens) is carried through so the
+ * per-block design override is applied in the preview too.
+ *
+ * Conversion and notification are overlays with a different data contract and
+ * are not previewed here — callers get `null` and should show a placeholder.
+ */
+
+import type { AdaptiveVariantContent } from "@/cms/types";
+import type { ContextSlotData } from "@/page-config";
+import type { BlockTokenRef } from "@/design-system/theme/block-token-set";
+import { adaptiveVariantToHeroBlockData } from "./resolve-adaptive-variant";
+
+/** Build a BlockTokenRef from a variant's token fields, or undefined when none. */
+function tokenRefFromVariant(content: AdaptiveVariantContent): BlockTokenRef | undefined {
+  const hasTokens = !!content.tokens && Object.keys(content.tokens).length > 0;
+  if (!content.tokenSet && !hasTokens) return undefined;
+  return {
+    ...(content.tokenSet ? { tokenSet: content.tokenSet } : {}),
+    ...(hasTokens ? { tokens: content.tokens } : {}),
+  };
+}
+
+/**
+ * Map an AdaptiveVariantContent to a one-key ContextSlotData for `slotId`.
+ * Returns null for slot types without a full-fidelity preview path.
+ */
+export function adaptiveVariantToContextEntry(
+  slotId: string,
+  content: AdaptiveVariantContent,
+  blockKey: string,
+): Partial<ContextSlotData> | null {
+  const tokenRef = tokenRefFromVariant(content);
+  const withRef = tokenRef ? { tokenRef } : {};
+
+  switch (slotId) {
+    case "hero":
+      return { hero: { ...adaptiveVariantToHeroBlockData(content, blockKey), ...withRef } };
+
+    case "proof":
+      return {
+        proof: {
+          id:    blockKey,
+          title: content.title ?? "",
+          items: (content.items ?? []).map((i) => ({ title: i.title ?? "", text: i.text ?? "" })),
+          ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
+          ...withRef,
+        },
+      };
+
+    case "cta":
+      return {
+        cta: {
+          id:    blockKey,
+          title: content.title ?? "",
+          text:  content.subtitle ?? "",
+          cta:   { label: content.ctas?.[0]?.label ?? "", href: content.ctas?.[0]?.href ?? "#" },
+          ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
+          ...withRef,
+        },
+      };
+
+    case "feature":
+      return {
+        feature: {
+          id:    blockKey,
+          title: content.title ?? "",
+          items: (content.items ?? []).map((i) => ({
+            title: i.title ?? "",
+            body:  i.text ?? "",
+            ...(i.imageUrl ? { icon: i.imageUrl } : {}),
+          })),
+          ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
+          ...withRef,
+        },
+      };
+
+    default:
+      // conversion / notification — overlay contract, no live preview here.
+      return null;
+  }
+}
