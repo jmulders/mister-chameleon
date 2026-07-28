@@ -823,6 +823,13 @@ export function EditBlockDrawer({
   const [tokens, setTokens]     = useState<CuratedBlockTokens>(
     block.defaultVariant.tokens ?? {},
   );
+  // Opt-in per-block design override. Default ON only when the block already
+  // carries a token set or inline tokens; otherwise the block inherits the site
+  // theme and the override editor stays hidden.
+  const [overrideDesign, setOverrideDesign] = useState<boolean>(
+    !!(block.defaultVariant.tokenSet ||
+      (block.defaultVariant.tokens && Object.keys(block.defaultVariant.tokens).length > 0)),
+  );
   function setToken(field: keyof CuratedBlockTokens, value: string) {
     setTokens((prev) => {
       const next = { ...prev };
@@ -849,6 +856,33 @@ export function EditBlockDrawer({
 
   const [error, setError]       = useState<string | null>(null);
   const [isPending, startTrans] = useTransition();
+
+  // ── Live preview ────────────────────────────────────────────────────────────
+  // Debounced URL to the isolated preview route, which renders THIS block with
+  // the real production components (layout variant, media, carousel) + tenant
+  // theme. Encodes the current (unsaved) draft as base64url in the query.
+  const [previewSrc, setPreviewSrc]       = useState("");
+  const [isPreviewStale, setPreviewStale] = useState(false);
+
+  useEffect(() => {
+    setPreviewStale(true);
+    const id = setTimeout(() => {
+      try {
+        const json  = JSON.stringify(buildVariant());
+        const b64url = btoa(String.fromCharCode(...new TextEncoder().encode(json)))
+          .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+        setPreviewSrc(`/tenant-block-preview/${tenantId}?key=${encodeURIComponent(block.key)}&v=${b64url}`);
+      } catch { /* keep the previous preview on encode failure */ }
+      setPreviewStale(false);
+    }, 350);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    title, subtitle, tag, layoutVariant, contentAlign,
+    mediaType, imageUrl, imageAlt, videoSource, videoUrl, videoPoster,
+    videoMuted, videoControls, videoId, videoAutoplay, videoLoop,
+    ctas, items, slides, carouselAutoplay, tokenSet, tokens,
+  ]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -926,29 +960,34 @@ export function EditBlockDrawer({
     return undefined;
   }
 
+  // Assemble the AdaptiveVariantContent from current form state. Shared by the
+  // save path AND the live preview, so what you preview is exactly what saves.
+  function buildVariant(): AdaptiveVariantContent {
+    const media = buildMedia();
+    return {
+      title,
+      subtitle,
+      ...(tag           ? { tag }                               : {}),
+      ...(layoutVariant ? { layoutVariant }                     : {}),
+      ...(contentAlign !== "left" ? { contentAlign }            : {}),
+      ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant })) } : {}),
+      ...(media         ? { media }                             : {}),
+      ...(items.length  ? { items }                             : {}),
+      // Persist slides only for the carousel layout — keeps other layouts'
+      // payloads clean and avoids stale slide data lingering after a layout
+      // switch away from the carousel.
+      ...(layoutVariant === "hero_carousel" && slides.length ? { slides } : {}),
+      ...(layoutVariant === "hero_carousel" ? { carouselAutoplay } : {}),
+      ...(Object.keys(decisionMeta).length ? { decisionMeta } : {}),
+      ...(tokenSet ? { tokenSet } : {}),
+      ...(Object.keys(tokens).length ? { tokens } : {}),
+    };
+  }
+
   function handleSave() {
     setError(null);
     startTrans(async () => {
-      const media = buildMedia();
-
-      const variant: AdaptiveVariantContent = {
-        title,
-        subtitle,
-        ...(tag           ? { tag }                               : {}),
-        ...(layoutVariant ? { layoutVariant }                     : {}),
-        ...(contentAlign !== "left" ? { contentAlign }            : {}),
-        ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant })) } : {}),
-        ...(media         ? { media }                             : {}),
-        ...(items.length  ? { items }                             : {}),
-        // Persist slides only for the carousel layout — keeps other layouts'
-        // payloads clean and avoids stale slide data lingering after a layout
-        // switch away from the carousel.
-        ...(layoutVariant === "hero_carousel" && slides.length ? { slides } : {}),
-        ...(layoutVariant === "hero_carousel" ? { carouselAutoplay } : {}),
-        ...(Object.keys(decisionMeta).length ? { decisionMeta } : {}),
-        ...(tokenSet ? { tokenSet } : {}),
-        ...(Object.keys(tokens).length ? { tokens } : {}),
-      };
+      const variant = buildVariant();
 
       const savePath =
         revalidatePath ??
@@ -987,7 +1026,7 @@ export function EditBlockDrawer({
       />
 
       {/* Drawer */}
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-white shadow-2xl border-l border-neutral-200">
+      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-5xl flex-col bg-white shadow-2xl border-l border-neutral-200">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4 shrink-0">
@@ -1008,8 +1047,11 @@ export function EditBlockDrawer({
           </button>
         </div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+        {/* Body: editable form (left) + live preview (right) */}
+        <div className="flex-1 flex min-h-0">
+
+          {/* Left column: the form */}
+          <div className="w-full md:w-[52%] md:max-w-xl overflow-y-auto px-5 py-5 space-y-6 border-r border-neutral-200">
 
           {/* ── Active toggle ────────────────────────────────────────────── */}
           <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -1499,14 +1541,27 @@ export function EditBlockDrawer({
           {/* ── Block-level design tokens ─────────────────────────────────── */}
           <fieldset className="space-y-3">
             <legend className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-              Design tokens (this block only)
+              Design
             </legend>
-            <p className="text-xs text-neutral-500 -mt-1">
-              Optionally restyle just this block. Pick a reusable token set (defined in
-              Design → Blocks) and/or set individual overrides below. Leave empty to use
-              the site theme.
-            </p>
+            <Toggle
+              label={overrideDesign ? "Custom design for this block" : "Inherit site theme"}
+              hint={overrideDesign ? "Overrides layer on top of the theme" : "Recommended"}
+              value={overrideDesign}
+              onChange={(v) => {
+                setOverrideDesign(v);
+                if (!v) { setTokenSet(""); setTokens({}); }
+              }}
+            />
+            {!overrideDesign && (
+              <p className="text-xs text-neutral-500">
+                This block uses the site theme. Turn on to restyle just this block — pick a reusable
+                token set (Design → Blocks) or set individual tokens; anything left empty still
+                inherits the theme.
+              </p>
+            )}
 
+            {overrideDesign && (
+            <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-neutral-700 mb-1">Token set</label>
               <select
@@ -1580,6 +1635,8 @@ export function EditBlockDrawer({
                 </div>
               </div>
             ))}
+            </div>
+            )}
           </fieldset>
 
           {error && (
@@ -1587,6 +1644,36 @@ export function EditBlockDrawer({
               {error}
             </p>
           )}
+
+          </div>
+
+          {/* Right column: live preview (full-fidelity, real block components) */}
+          <div className="hidden md:flex flex-1 flex-col bg-neutral-100 min-w-0">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200 bg-white shrink-0">
+              <span className="text-xs font-semibold text-neutral-700">Live preview</span>
+              <span className="text-[10px] text-neutral-400">
+                {isPreviewStale ? "updating…" : "default variant · tenant theme"}
+              </span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              {previewSrc ? (
+                <iframe
+                  src={previewSrc}
+                  title="Block preview"
+                  className="h-full w-full border-0 bg-white"
+                  sandbox="allow-same-origin"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-neutral-400">
+                  Loading preview…
+                </div>
+              )}
+            </div>
+            <p className="px-4 py-2 text-[10px] leading-snug text-neutral-400 border-t border-neutral-200 bg-white shrink-0">
+              Shows the default variant with this tenant&apos;s theme and any per-block design override.
+              Interactive parts (carousel auto-advance, video playback) display their first frame.
+            </p>
+          </div>
 
         </div>
 

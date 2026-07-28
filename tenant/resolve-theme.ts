@@ -639,3 +639,25 @@ export function resolvedThemeToCSS(theme: ResolvedTheme): string {
   const body = entries.map(([k, v]) => `${k}:${v}`).join(";");
   return `:root{${body}}`;
 }
+
+/**
+ * Parse a `--var: value` CSS declaration block (as produced by
+ * resolvedThemeToCSS / tenantThemeToCSS) into a plain record of CSS custom
+ * properties. Useful for applying a tenant's fully-resolved theme as an inline
+ * `style` on a wrapper element — e.g. an isolated block-preview surface that
+ * cannot rely on the site's `[data-site]` stylesheet being present.
+ *
+ * Tolerant of both `;`-terminated and `}`-terminated (final) declarations, so
+ * the last variable in a `:root{…}` block is not dropped.
+ */
+export function cssDeclarationsToRecord(css: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const re = /(--[\w-]+)\s*:\s*([^;}]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css)) !== null) {
+    const k = m[1].trim();
+    const v = m[2].trim();
+    if (k && v) out[k] = v;
+  }
+  return out;
+}

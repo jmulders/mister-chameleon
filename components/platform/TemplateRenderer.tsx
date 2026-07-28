@@ -240,6 +240,31 @@ function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenConte
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SINGLE-SLOT PREVIEW
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Render ONE context slot with the real production block component, for admin
+ * previews. Reuses ContextSlotRenderer (and its BlockThemeScope wrapper), so
+ * layout variants, media, carousels, and per-block token overrides all match
+ * the live site exactly. `contextData` should contain just the slot being
+ * previewed (build it via adaptiveVariantToContextEntry).
+ */
+export function AdaptiveSlotPreview({
+  slotId,
+  contextData,
+  blockTokenSets,
+}: {
+  slotId:          ContextSlotId;
+  contextData:     ContextSlotData;
+  blockTokenSets?: readonly BlockTokenSet[] | null;
+}) {
+  return (
+    <ContextSlotRenderer slotId={slotId} contextData={contextData} blockTokenSets={blockTokenSets} />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TEMPLATE RENDERER
 // ─────────────────────────────────────────────────────────────────────────────
 
