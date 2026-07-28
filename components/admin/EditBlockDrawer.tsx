@@ -862,6 +862,11 @@ export function EditBlockDrawer({
   // fields (as placeholders + tinted swatches) so the admin visibly reflects
   // the set. Inline `tokens` still override per field; empty fields inherit.
   const selectedSet = tokenSet ? blockTokenSets.find((s) => s.key === tokenSet) : undefined;
+  // Only offer sets scoped to this block type (or unscoped = all). Keep the
+  // currently-selected set in the list even if it was later re-scoped elsewhere.
+  const availableSets = blockTokenSets.filter(
+    (s) => !s.slots?.length || s.slots.includes(slotId) || s.key === tokenSet,
+  );
   const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v);
   function toggleArrayValue<T>(arr: readonly T[] | undefined, val: T): T[] {
     const set = new Set(arr ?? []);
@@ -1590,14 +1595,14 @@ export function EditBlockDrawer({
                 className={INPUT_CLS}
               >
                 <option value="">— none (site theme) —</option>
-                {blockTokenSets.map((s) => (
+                {availableSets.map((s) => (
                   <option key={s.id} value={s.key}>{s.name} ({s.key})</option>
                 ))}
               </select>
-              {blockTokenSets.length === 0 && (
+              {availableSets.length === 0 && (
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  No named sets yet — create them in Design → Blocks, or use the inline
-                  overrides below.
+                  No token sets for this block type yet — create one in Design → Blocks (set its
+                  scope to “{slotId}” or leave it unscoped), or use the inline overrides below.
                 </p>
               )}
             </div>

@@ -20,7 +20,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
-import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
+import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES, BLOCK_TOKEN_SET_SLOTS } from "@/design-system/theme/block-token-set";
 import { EXAMPLE_BLOCK_TOKEN_SETS } from "@/design-system/theme/block-token-set-examples";
 import { detectTokenPayloadKind, wrongBoxMessage } from "@/design-system/theme/token-import-detect";
 import { saveBlockTokenSetsAction } from "@/app/admin/tenants/[tenantId]/actions";
@@ -40,6 +40,12 @@ function newEmptySet(): BlockTokenSet {
 
 function isColorish(v: string): boolean {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim());
+}
+
+function toggleSlot(slots: readonly string[] | undefined, slot: string): string[] {
+  const set = new Set(slots ?? []);
+  if (set.has(slot)) set.delete(slot); else set.add(slot);
+  return [...set];
 }
 
 // ── Component ────────────────────────────────────────────────────────────────────
@@ -246,6 +252,35 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
                 />
               </label>
               <button type="button" onClick={() => removeSet(idx)} style={btnStyle("danger")}>Remove</button>
+
+              {/* Block-type scope — which block editors offer this set */}
+              <div style={{ ...labelWrap, flex: "1 1 100%", minWidth: "100%" }}>
+                <span style={labelText}>
+                  Applies to{" "}
+                  <span style={{ color: "#9ca3af", fontWeight: 400 }}>(none selected = all block types)</span>
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", paddingTop: "0.25rem" }}>
+                  {BLOCK_TOKEN_SET_SLOTS.map((slot) => {
+                    const active = (set.slots ?? []).includes(slot);
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => updateSet(idx, { slots: toggleSlot(set.slots, slot) })}
+                        style={{
+                          fontSize: "0.6875rem", padding: "0.2rem 0.6rem", borderRadius: "9999px",
+                          border: active ? "1px solid #6366f1" : "1px solid #d1d5db",
+                          background: active ? "#eef2ff" : "#fff",
+                          color: active ? "#4338ca" : "#6b7280",
+                          cursor: "pointer", textTransform: "capitalize",
+                        }}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Token fields — grouped */}
