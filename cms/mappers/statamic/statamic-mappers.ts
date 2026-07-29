@@ -861,6 +861,34 @@ export function mapStatamicPageBlocksToSections(
         ? block.id
         : `context_slot_${sections.length}`;
 
+      // Form context slot → render as a server-side form section. Unlike the
+      // decision-engine slots (hero/proof/cta/…), a form carries no CMS variant
+      // content; the conditional `form_type` sub-field (contact/application/
+      // appointment) selects a registered FormDefinition, which the platform's
+      // FormSection renders directly. Normalise form_type the same way as
+      // slot_type (raw string, augmented label, or { value/key } object).
+      if (slotId === "form") {
+        const rawFormType = block.form_type;
+        let formKey: string | undefined;
+        if (typeof rawFormType === "string") {
+          formKey = rawFormType.toLowerCase();
+        } else if (typeof rawFormType === "object" && rawFormType !== null) {
+          const obj = rawFormType as Record<string, unknown>;
+          const val = obj.value ?? obj.key;
+          if (typeof val === "string") formKey = val.toLowerCase();
+        }
+        if (!formKey) continue; // no form chosen → render nothing
+
+        const formSection: FormSectionData = {
+          _key:    key,
+          _type:   "formSection",
+          variant: undefined,
+          formKey,
+        };
+        sections.push(formSection);
+        continue;
+      }
+
       const slotSection: ContextSlotSectionData = {
         _type:       "contextSlot",
         _key:        key,

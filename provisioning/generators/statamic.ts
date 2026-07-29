@@ -112,6 +112,8 @@ ${slotOptions}
       display: 'Default variant key'
       instructions: 'CMS-authored fallback served to bots and when the platform is unavailable.'
       width: 50
+      unless:
+        slot_type: 'equals form'
   -
     handle: form_type
     field:

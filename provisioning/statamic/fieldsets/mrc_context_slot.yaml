@@ -34,6 +34,8 @@ fields:
       type: text
       display: 'Default Variant'
       instructions: 'Variant key shown when no personalisation rule matches (e.g. hero_default). The platform may override this at runtime.'
+      unless:
+        slot_type: 'equals form'
   -
     handle: is_active
     field:
