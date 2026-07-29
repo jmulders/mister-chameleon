@@ -18,19 +18,23 @@ function artifact(path: string): string {
 }
 
 describe("statamic manifest — form slots", () => {
-  it("adds form options to the context-slot fieldset dropdown", () => {
+  it("adds a single Form slot type with a conditional form_type sub-field", () => {
     const yaml = artifact("resources/fieldsets/mc_context_slot.yaml");
-    assert.match(yaml, /'form:contact':\s*'Form — Contact'/);
-    assert.match(yaml, /'form:application':\s*'Form — Application'/);
-    assert.match(yaml, /'form:appointment':\s*'Form — Appointment'/);
+    // One 'form' slot-type option (not one option per form).
+    assert.match(yaml, /form: 'Form'/);
+    // Conditional form_type select, shown only for the Form slot type.
+    assert.match(yaml, /handle: form_type/);
+    assert.match(yaml, /contact: 'Contact'/);
+    assert.match(yaml, /application: 'Application'/);
+    assert.match(yaml, /appointment: 'Appointment'/);
+    assert.match(yaml, /slot_type: 'equals form'/);
     // Existing decision-engine slots still present.
     assert.match(yaml, /hero: Hero/);
   });
 
   it("renders a form block as a data-mc-block marker in the Antlers partial", () => {
     const tpl = artifact("resources/views/vendor/mister-chameleon/blocks/context_slot.antlers.html");
-    assert.match(tpl, /\{\{ if slot_type == 'form:contact' \}\}<div data-mc-block="form:contact"><\/div>\{\{ \/if \}\}/);
-    assert.match(tpl, /data-mc-block="form:appointment"/);
+    assert.match(tpl, /\{\{ if slot_type == 'form' \}\}<div data-mc-block="form:\{\{ form_type \}\}"><\/div>\{\{ \/if \}\}/);
     // Existing slot rendering untouched.
     assert.match(tpl, /\{\{ if slot_type == 'hero' \}\}/);
   });

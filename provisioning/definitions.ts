@@ -130,4 +130,4 @@ export const SLOT_DEFINITIONS: readonly SlotDef[] = [
 ] as const;
 
 /** Version stamp — bump when definitions change so syncs are traceable. */
-export const DEFINITIONS_VERSION = "1.1.0";
+export const DEFINITIONS_VERSION = "1.1.1";
