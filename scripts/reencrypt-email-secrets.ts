@@ -127,7 +127,33 @@ try {
 } catch {
   console.log(`Target database : ${SUPA_URL}`);
 }
-console.log(`Service-role key: ${SUPA_KEY.length} chars, ends …${SUPA_KEY.slice(-4)}\n`);
+console.log(`Service-role key: ${SUPA_KEY.length} chars, ends …${SUPA_KEY.slice(-4)}`);
+
+// A Supabase service_role key is a JWT whose `ref` claim names the project it
+// belongs to. If that ref doesn't match the project in the URL, Supabase rejects
+// every call with the opaque "Invalid API key" — catch it here with a clear
+// message instead. (New-style "sb_secret_…" keys aren't JWTs — skip silently.)
+try {
+  const urlRef  = new URL(SUPA_URL).host.split(".")[0];
+  const segment = SUPA_KEY.split(".")[1];
+  if (segment) {
+    const claims = JSON.parse(Buffer.from(segment, "base64").toString("utf8")) as { ref?: string; role?: string };
+    if (claims.ref && claims.ref !== urlRef) {
+      abort(
+        `Key/URL project mismatch — the service_role key belongs to project "${claims.ref}", ` +
+        `but the URL targets "${urlRef}". Copy the service_role key from the SAME project ` +
+        `(Supabase → project ${urlRef} → Settings → API).`,
+      );
+    }
+    if (claims.role && claims.role !== "service_role") {
+      abort(`The provided key has role "${claims.role}", not "service_role". Use the service_role secret, not the anon/publishable key.`);
+    }
+  }
+} catch (err) {
+  if (err instanceof Error && err.message.includes("project")) throw err; // re-throw our abort
+  /* non-JWT key or unparseable — let the live query be the check */
+}
+console.log("");
 if (!process.env["EMAIL_ENCRYPTION_KEY"]) {
   abort(
     "EMAIL_ENCRYPTION_KEY is not set. Set it to the SAME key the running app uses, then re-run.\n" +
