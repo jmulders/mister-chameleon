@@ -9,22 +9,24 @@ import { cn }      from "@/lib/utils";
  *
  * Two-row navigation for the tenant workspace (/admin/tenants/[tenantId]).
  *
- * Primary row — 6 grouped tabs (always visible):
- *   Overview · Configure · Content · Audience · Platform · Admin
+ * Primary row (7 grouped tabs, always visible):
+ *   Overview, Design, Content, Personalization, Audience, Platform, Admin.
  *
- * Secondary row — sub-items for the active primary group (contextual):
- *   Shown only when the active group has more than one page.
+ * Secondary row shows the sub-items of the active primary group, and only
+ * appears when that group has more than one page.
  *
- * Tab ownership:
- *   Content  — CMS · AI · Rules · Variants · Experiments · Slots · Blueprints
- *   Audience — Interests · Segments · Journey · Scoring
+ * Tab ownership (actual):
+ *   Content         CMS, Pages, Blueprints, Forms, Email, Assets, Status.
+ *   Personalization Slots, Variants, Adaptive blocks, Contextual forms, Rules,
+ *                   Experiments, AI.
+ *   Audience        Interests, Segments, Target accounts, Leads, Retargeting,
+ *                   Suppression, Attribution, Journey, Scoring.
  *
- * Note: /behavior/* routes are split across tabs by concept —
- *   behavior/journey + behavior/ (scoring) → Audience
- *   behavior/slots → Content
- *   behavior/ai-policy + behavior/field-fill → Content → AI (active highlight)
- *
- * This replaces the previous 20-tab single row that overflowed horizontally.
+ * The /behavior/* URL tree is split across tabs by concept. behavior/journey
+ * and behavior/ (Scoring) belong to Audience, behavior/slots to
+ * Personalization, and behavior/ai-policy + behavior/field-fill highlight the
+ * Personalization AI item. /forms/context is a Personalization surface even
+ * though it lives under /forms (see isGroupActive).
  */
 
 interface TenantSubNavProps {
@@ -174,15 +176,16 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       key:    "content",
       label:  "Content",
       href:   `${base}/content`,
-      prefix: `${base}/content|${base}/pages|${base}/blueprints|${base}/forms|${base}/assets|${base}/email`,
+      prefix: `${base}/content|${base}/pages|${base}/blueprints|${base}/forms|${base}/assets|${base}/email|${base}/content-status`,
       icon:   ICONS.content,
       items: [
-        { label: "CMS",        href: `${base}/content`,    activePrefix: `${base}/content` },
+        { label: "CMS",        href: `${base}/content`,    activePrefix: `${base}/content`, exact: true },
         { label: "Pages",      href: `${base}/pages`,      activePrefix: `${base}/pages` },
         { label: "Blueprints", href: `${base}/blueprints`, activePrefix: `${base}/blueprints` },
         { label: "Forms",      href: `${base}/forms`,      activePrefix: `${base}/forms` },
-        { label: "Email", href: `${base}/email`,  activePrefix: `${base}/email` },
+        { label: "Email",      href: `${base}/email`,      activePrefix: `${base}/email` },
         { label: "Assets",     href: `${base}/assets`,     activePrefix: `${base}/assets` },
+        { label: "Status",     href: `${base}/content-status`, activePrefix: `${base}/content-status` },
       ],
     },
     {
@@ -214,6 +217,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         { label: "Leads",           href: `${base}/leads`,          activePrefix: `${base}/leads`, exact: true },
         { label: "Retargeting",     href: `${base}/ad-sync`,        activePrefix: `${base}/ad-sync` },
         { label: "Suppression",     href: `${base}/leads/suppression`, activePrefix: `${base}/leads/suppression` },
+        { label: "Attribution",     href: `${base}/leads/performance`, activePrefix: `${base}/leads/performance` },
         { label: "Journey",   href: `${base}/behavior/journey`,     activePrefix: `${base}/behavior/journey` },
         { label: "Scoring",   href: `${base}/behavior`,             activePrefix: `${base}/behavior`,         exact: true },
       ],
@@ -227,6 +231,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       items: [
         { label: "Integrations", href: `${base}/integrations`,          activePrefix: `${base}/integrations`, exact: true },
         { label: "Pipeline",     href: `${base}/integrations/pipeline`, activePrefix: `${base}/integrations/pipeline` },
+        { label: "Calendar",     href: `${base}/integrations/calendar`, activePrefix: `${base}/integrations/calendar` },
         { label: "Snippet",      href: `${base}/snippet`,               activePrefix: `${base}/snippet`, exact: true },
         { label: "Search",       href: `${base}/search`,                activePrefix: `${base}/search` },
         { label: "Storage",      href: `${base}/storage`,               activePrefix: `${base}/storage` },
