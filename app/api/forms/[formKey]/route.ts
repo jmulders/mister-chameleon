@@ -422,6 +422,7 @@ async function handlePost(
           values:    validation.values,
           sessionId,
           tenantId:  tenantId ?? null,
+          pathname:  submissionPath,
         }).then((result) => {
           if (!result.ok) {
             logger.warn("[forms] Submission storage failed", {
