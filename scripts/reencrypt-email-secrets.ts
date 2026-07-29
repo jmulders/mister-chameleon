@@ -48,9 +48,50 @@
 import * as path   from "path";
 import * as dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
-import { encryptSecret, decryptSecret } from "@/lib/email-crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
+// ─── Inlined crypto — byte-for-byte compatible with lib/email-crypto.ts ────────
+//
+// This standalone script cannot import @/lib/email-crypto because that module
+// carries `import "server-only"`, which only resolves inside the Next bundler.
+// The format below (prefixes, algorithm, IV size, field order) is IDENTICAL, so
+// the running app decrypts exactly what this writes. Keep the two in sync.
+const ENC_PREFIX_C = "enc:v1:";
+const PLAIN_PREFIX = "plain:";
+const ALGORITHM    = "aes-256-gcm" as const;
+const IV_BYTES     = 12;
+
+function loadCryptoKey(): Buffer {
+  const raw = process.env["EMAIL_ENCRYPTION_KEY"];
+  if (!raw) throw new Error("EMAIL_ENCRYPTION_KEY is not set.");
+  const buf = raw.length === 64 ? Buffer.from(raw, "hex") : Buffer.from(raw, "base64");
+  if (buf.length !== 32) {
+    throw new Error(`EMAIL_ENCRYPTION_KEY must be 32 bytes (64 hex chars or base64). Got ${buf.length} bytes.`);
+  }
+  return buf;
+}
+
+function encryptSecret(plaintext: string): string {
+  const key       = loadCryptoKey();
+  const iv        = randomBytes(IV_BYTES);
+  const cipher    = createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const authTag   = cipher.getAuthTag();
+  return ENC_PREFIX_C + iv.toString("hex") + ":" + authTag.toString("hex") + ":" + encrypted.toString("hex");
+}
+
+function decryptSecret(stored: string): string {
+  if (stored.startsWith(PLAIN_PREFIX)) return stored.slice(PLAIN_PREFIX.length);
+  if (!stored.startsWith(ENC_PREFIX_C)) return stored; // legacy unformatted → passthrough
+  const parts = stored.slice(ENC_PREFIX_C.length).split(":");
+  if (parts.length !== 3) throw new Error("Malformed encrypted secret — expected iv:authTag:ciphertext.");
+  const [ivHex, tagHex, ctHex] = parts as [string, string, string];
+  const decipher = createDecipheriv(ALGORITHM, loadCryptoKey(), Buffer.from(ivHex, "hex"));
+  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+  return Buffer.concat([decipher.update(Buffer.from(ctHex, "hex")), decipher.final()]).toString("utf8");
+}
 
 const APPLY       = process.argv.includes("--apply");
 const SUPA_URL    = process.env["NEXT_PUBLIC_SUPABASE_URL"];
