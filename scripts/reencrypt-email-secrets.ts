@@ -50,7 +50,19 @@ import * as dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
+// Capture any shell-provided overrides BEFORE loading .env.local. Some setups
+// use dotenvx, which can OVERRIDE process.env from the file — that would silently
+// swap an inline `VAR=… npx tsx …` (e.g. prod creds) back to the file's dev
+// values. Re-applying the shell values afterwards guarantees inline always wins.
+const _shell = {
+  url: process.env["NEXT_PUBLIC_SUPABASE_URL"],
+  key: process.env["SUPABASE_SERVICE_ROLE_KEY"],
+  enc: process.env["EMAIL_ENCRYPTION_KEY"],
+};
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+if (_shell.url) process.env["NEXT_PUBLIC_SUPABASE_URL"] = _shell.url;
+if (_shell.key) process.env["SUPABASE_SERVICE_ROLE_KEY"] = _shell.key;
+if (_shell.enc) process.env["EMAIL_ENCRYPTION_KEY"]      = _shell.enc;
 
 // ─── Inlined crypto — byte-for-byte compatible with lib/email-crypto.ts ────────
 //
@@ -107,6 +119,15 @@ function abort(msg: string): never {
 if (!SUPA_URL || !SUPA_KEY) {
   abort("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set (.env.local or shell).");
 }
+
+// Show WHICH database this run targets, so prod vs dev is unambiguous, plus a
+// masked service-key fingerprint so a wrong/mismatched key is easy to spot.
+try {
+  console.log(`Target database : ${new URL(SUPA_URL).host}`);
+} catch {
+  console.log(`Target database : ${SUPA_URL}`);
+}
+console.log(`Service-role key: ${SUPA_KEY.length} chars, ends …${SUPA_KEY.slice(-4)}\n`);
 if (!process.env["EMAIL_ENCRYPTION_KEY"]) {
   abort(
     "EMAIL_ENCRYPTION_KEY is not set. Set it to the SAME key the running app uses, then re-run.\n" +
