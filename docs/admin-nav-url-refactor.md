@@ -1,8 +1,19 @@
 # Admin nav URL refactor — plan
 
-*Status: plan (not yet executed). Goal: make the tenant-workspace URL tree match
-the tab tree, so a page's path reflects the tab it lives under. Old URLs keep
-working via 301 redirects.*
+*Goal: make the tenant-workspace URL tree match the tab tree, so a page's path
+reflects the tab it lives under. Old URLs keep working via 301 redirects.*
+
+**Progress**
+- Phase 1 (Personalization) — DONE. All 11 routes now under `/personalization/*`,
+  redirects + nav + internal links updated. Needs a local `next build` +
+  click-through before merge.
+- Phase 2 (Audience) — DONE. All routes under `/audience/*` (leads keeps its
+  suppression/performance sub-routes nested), redirects + nav + the leads→abm
+  cross-import fixed. Needs a local `next build` + click-through before merge.
+- Phase 3 (Content) — DEFERRED. Content has no split-brain problem and moving
+  `/forms` (heavily referenced) is higher-risk, so it is intentionally left for a
+  separate, deliberate pass after phases 1–2 are validated in a build.
+- Phase 4 (cleanup) — folded into phases 1–2 (nav special-cases removed inline).
 
 ## Why
 
