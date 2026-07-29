@@ -53,6 +53,8 @@ export interface StoreSubmissionInput {
    * Omit (or pass null/undefined) for un-scoped / legacy submissions.
    */
   tenantId?:  string | null;
+  /** Page the form was submitted from. Optional. */
+  pathname?:  string | null;
 }
 
 /**
@@ -92,6 +94,7 @@ export async function storeSubmission(
       values:    input.values,
       sessionId: input.sessionId ?? null,
       tenantId:  input.tenantId  ?? null,
+      pathname:  input.pathname  ?? null,
     });
 
     if (!result.ok) {
