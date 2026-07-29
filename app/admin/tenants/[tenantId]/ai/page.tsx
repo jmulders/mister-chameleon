@@ -205,7 +205,7 @@ function DecisionPathGuide() {
     {
       label:   "A/B experiment",
       variant: "warning" as BadgeVariant,
-      desc:    "One or more A/B experiment assignments overrode the base plan for specific slots. The experiment layer wraps the rules layer — slots not overridden by an experiment use the rules or fallback plan.",
+      desc:    "One or more A/B experiment assignments overrode the base plan for specific slots. The experiment layer wraps the rules layer. Slots not overridden by an experiment use the rules or fallback plan.",
     },
     {
       label:   "AI decision",
@@ -437,7 +437,7 @@ export default async function TenantDecisionsPage({
           <div className="border-t border-neutral-100 px-4 py-3">
             <p className="text-xs text-neutral-400">
               Showing {logs.length} row{logs.length !== 1 ? "s" : ""}.{" "}
-              API keys are never stored — only model names, variant keys, and anonymised visitor context.
+              API keys are never stored, only model names, variant keys, and anonymised visitor context.
             </p>
           </div>
         </Card>

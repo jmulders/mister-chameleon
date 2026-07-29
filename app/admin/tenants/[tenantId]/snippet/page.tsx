@@ -53,7 +53,7 @@ export default async function SnippetPage({
         <h1 className="text-xl font-semibold text-neutral-900">Snippet Integration</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Add one script tag to your site&apos;s <code className="font-mono text-xs bg-neutral-100 px-1 py-0.5 rounded">&lt;head&gt;</code>.
-          The snippet personalises your existing pages in real-time — no server-side changes required.
+          The snippet personalises your existing pages in real-time, with no server-side changes required.
         </p>
       </div>
 

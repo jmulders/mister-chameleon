@@ -135,7 +135,7 @@ function PageHeader({
           {tenant.name ?? tenant.tenantId}
         </span>
         .{" "}
-        Rules fire across all page templates — not just the homepage — and are
+        Rules fire across all page templates, not just the homepage, and are
         evaluated in priority order; first match wins.
       </p>
     </div>

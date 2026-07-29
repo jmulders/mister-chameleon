@@ -32,7 +32,7 @@ const MODE_OPTIONS: Array<{ value: TenantAiPolicyMode; label: string; hint: stri
   {
     value: "shadow",
     label: "Shadow",
-    hint:  "AI runs in the background but its output is only logged — never served. Safe for observation.",
+    hint:  "AI runs in the background but its output is only logged, never served. Safe for observation.",
     color: "amber",
   },
   {
@@ -54,12 +54,12 @@ interface PhaseMeta {
 const PHASES: PhaseMeta[] = [
   {
     id:          "selection",
-    label:       "Phase 1 — Variant Selection",
+    label:       "Phase 1 (Variant Selection)",
     description: "Controls whether AI may choose which variant key to serve for each slot.",
   },
   {
     id:          "fieldFill",
-    label:       "Phase 2 — Content Field Fill",
+    label:       "Phase 2 (Content Field Fill)",
     description: "Controls whether AI may rewrite text fields within a selected variant.",
   },
 ];

@@ -253,7 +253,7 @@ function SecretField({
         className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
       />
       <p className="mt-0.5 text-[11px] text-neutral-400">
-        {hint ?? "Leave blank to keep the existing value. Stored server-side only — never echoed back."}
+        {hint ?? "Leave blank to keep the existing value. Stored server-side only, never echoed back."}
       </p>
     </div>
   );
@@ -411,7 +411,7 @@ function LeadinfoTestResultPanel({
           Loading site in hidden iframe…
         </p>
         <p className="text-[11px] leading-relaxed text-blue-600">
-          Leadinfo can only be tested via a real browser context — direct API calls
+          Leadinfo can only be tested via a real browser context. Direct API calls
           fail due to CORS restrictions. The identify flow is running in a sandboxed
           iframe using your configured site token. Polling for the mc_li cookie
           (up to 20 s).
@@ -442,7 +442,7 @@ function LeadinfoTestResultPanel({
   const headingText = !result.providerInitialized
     ? "Not configured"
     : result.timedOut
-    ? "⏱ No result — mc_li not written"
+    ? "⏱ No result, mc_li not written"
     : result.matched
     ? "✓ Company matched"
     : "○ No match for this IP";
@@ -493,7 +493,7 @@ function LeadinfoTestResultPanel({
         )}
         <LeadinfoTestResultField
           label="dataLayer push"
-          value="cannot detect across iframe boundary — verify via DevTools → Console → window.dataLayer"
+          value="cannot detect across iframe boundary. Verify via DevTools → Console → window.dataLayer"
         />
       </dl>
 
@@ -558,7 +558,7 @@ const CMS_PROVIDERS: { value: CMSProviderName; label: string; note: string }[] =
   { value: "sanity",    label: "Sanity",    note: "Requires SANITY_PROJECT_ID env var or platform config" },
   { value: "storyblok", label: "Storyblok", note: "Requires STORYBLOK_ACCESS_TOKEN env var or platform config" },
   { value: "statamic",  label: "Statamic",  note: "Requires STATAMIC_API_URL env var or platform config" },
-  { value: "mock",      label: "Mock",      note: "In-memory dev data — no live CMS connection" },
+  { value: "mock",      label: "Mock",      note: "In-memory dev data, no live CMS connection" },
 ];
 
 // ── AI constants ───────────────────────────────────────────────────────────────
@@ -573,7 +573,7 @@ const AI_PROVIDERS: { value: TenantAiProviderName | ""; label: string }[] = [
   { value: "",       label: "— Use platform default —" },
   { value: "claude", label: "Claude (Anthropic)" },
   { value: "openai", label: "OpenAI" },
-  { value: "gemini", label: "Gemini (Google) — adapter pending" },
+  { value: "gemini", label: "Gemini (Google), adapter pending" },
 ];
 
 // ── Root component ─────────────────────────────────────────────────────────────
@@ -1255,8 +1255,8 @@ export function TenantIntegrationsClient({
           <p className="mt-1 text-xs text-slate-500">
             How long a recognised visitor&apos;s company data (name, domain, industry,
             size) is reused before re-checking. Within this window the company lookups
-            (KvK, CRM) are skipped on repeat visits — saving calls and recognition
-            credits — while current location and weather still refresh every visit.
+            (KvK, CRM) are skipped on repeat visits (saving calls and recognition
+            credits) while current location and weather still refresh every visit.
             Default 30.
           </p>
           <input
@@ -1278,7 +1278,7 @@ export function TenantIntegrationsClient({
           </label>
           <p className="mt-1 text-xs text-slate-500">
             The lead score (0–100) at or above which a returning visitor counts as a hot
-            lead — drives the <code className="font-mono">isHotLead</code> personalization
+            lead, which drives the <code className="font-mono">isHotLead</code> personalization
             signal, the &quot;Hot leads&quot; segment, and the ABM dashboard&apos;s hot
             count/filter. Default 60.
           </p>
@@ -1360,7 +1360,7 @@ export function TenantIntegrationsClient({
           </p>
           <p className="mb-3 rounded border border-amber-300 bg-amber-100 px-2 py-1.5 text-xs text-amber-900">
             <strong>Leadinfo is not affected.</strong>{" "}
-            Leadinfo performs client-side identification directly from the real browser IP — a server-side IP
+            Leadinfo performs client-side identification directly from the real browser IP. A server-side IP
             override cannot substitute for it. Use the Leadinfo test below to verify real browser identification.
           </p>
           <div className="space-y-2">
@@ -1403,7 +1403,7 @@ export function TenantIntegrationsClient({
       {/* ──────────────────────────── Leadinfo ──────────────────────────── */}
       <SectionCard
         title="Leadinfo"
-        description="Client-side B2B visitor identification. Leadinfo's script runs inside the visitor's real browser — it uses the actual browser IP and cannot be replaced by a server-side IP override. The company result is stored in the mc_li cookie and is available to the server on subsequent page loads."
+        description="Client-side B2B visitor identification. Leadinfo's script runs inside the visitor's real browser. It uses the actual browser IP and cannot be replaced by a server-side IP override. The company result is stored in the mc_li cookie and is available to the server on subsequent page loads."
       >
         <Toggle
           id="li-enabled"
@@ -1434,10 +1434,10 @@ export function TenantIntegrationsClient({
             */}
             <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2.5">
               <p className="mb-1 text-[11px] font-semibold text-blue-700">
-                No IP override field — Leadinfo always uses your real browser IP
+                No IP override field. Leadinfo always uses your real browser IP
               </p>
               <p className="text-[11px] leading-relaxed text-blue-700">
-                Leadinfo's identify script runs <strong>client-side</strong>: the browser calls
+                Leadinfo's identify script runs <strong>client-side</strong>. The browser calls
                 Leadinfo's CDN directly, and Leadinfo reads the real visitor IP from that
                 network connection. A server-side fake-IP override cannot intercept or
                 substitute for this flow.
@@ -1497,7 +1497,7 @@ export function TenantIntegrationsClient({
               </p>
               <p className="mb-2.5 text-[11px] text-amber-700">
                 Leadinfo identification is always <strong>client-side</strong> from
-                the real browser IP — this simulation does not replicate it. Use the{" "}
+                the real browser IP. This simulation does not replicate it. Use the{" "}
                 <em>Real-browser identify test</em> below to test real Leadinfo.
               </p>
 
@@ -1525,8 +1525,8 @@ export function TenantIntegrationsClient({
               ) : (
                 <p className="text-[11px] font-medium text-amber-700">
                   ⚠ Test IP Override is not configured. Enable it and enter an IP
-                  address in the <strong>Enrichment</strong> section above, then save
-                  — the simulation button will appear here.
+                  address in the <strong>Enrichment</strong> section above, then save.
+                  The simulation button will appear here.
                 </p>
               )}
             </div>
@@ -1573,7 +1573,7 @@ export function TenantIntegrationsClient({
               <p className="mb-3 text-[11px] leading-relaxed text-neutral-500">
                 Loads the site in a hidden same-origin iframe so the LeadinfoProvider
                 script runs in a real browser context with your <em>actual IP address</em>.
-                This is the only valid way to test Leadinfo — the Test IP Override in
+                This is the only valid way to test Leadinfo. The Test IP Override in
                 the Enrichment section does not apply here. To test from a different
                 location, connect via VPN before running this test.
               </p>
@@ -1607,7 +1607,7 @@ export function TenantIntegrationsClient({
       {/* ─────────────────────────── GTM ─────────────────────────────── */}
       <SectionCard
         title="Google Tag Manager"
-        description="Per-tenant GTM container. When set, the GTM snippet is loaded on the site, which establishes window.dataLayer — required for GTM tags and any dataLayer-based integration (e.g. Leadinfo's dataLayer push). Leave empty to disable."
+        description="Per-tenant GTM container. When set, the GTM snippet is loaded on the site, which establishes window.dataLayer, required for GTM tags and any dataLayer-based integration (e.g. Leadinfo's dataLayer push). Leave empty to disable."
       >
         <TextField
           label="Container ID"
@@ -1660,9 +1660,9 @@ export function TenantIntegrationsClient({
                     onChange={(e) => setGa4SendMode(e.target.value as "off" | "client" | "server")}
                     className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
                   >
-                    <option value="off">Off — no events sent</option>
-                    <option value="client">Client — inject gtag.js in the browser</option>
-                    <option value="server">Server — Measurement Protocol via API route</option>
+                    <option value="off">Off (no events sent)</option>
+                    <option value="client">Client (inject gtag.js in the browser)</option>
+                    <option value="server">Server (Measurement Protocol via API route)</option>
                   </select>
                   <p className="mt-0.5 text-[11px] text-neutral-400">
                     Client mode injects gtag.js; server mode sends via the Measurement Protocol (requires API Secret below).

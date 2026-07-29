@@ -55,7 +55,7 @@ export default async function FieldFillPage({
         <h1 className="text-xl font-semibold text-neutral-900">AI Field Fill</h1>
         <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
           Allow AI to rewrite individual text fields within a selected variant to better
-          resonate with the current visitor. The variant layout and key are never changed —
+          resonate with the current visitor. The variant layout and key are never changed,
           only the copy within it.
         </p>
       </div>
@@ -63,7 +63,7 @@ export default async function FieldFillPage({
       {/* Phase relationship banner */}
       <div className="mb-6 rounded-md border border-blue-200 bg-blue-50 px-4 py-3">
         <p className="text-xs font-medium text-blue-800">
-          This is Phase 2 — content personalisation.{" "}
+          This is Phase 2, content personalisation.{" "}
           <span className="font-normal">
             Phase 1 (slot mode selection) controls which variant is shown.
             Phase 2 controls what text appears within that variant.

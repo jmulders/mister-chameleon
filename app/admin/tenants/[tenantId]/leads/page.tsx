@@ -48,7 +48,7 @@ export default async function LeadBasePage({
       <AdminPageHeader
         eyebrow="Audience"
         title="Leads"
-        description="Every visitor who arrives, tracked at some identity level: anonymous, recognised (company), known (named person), or customer. Filter, delete, and export. Pseudonymous and firmographic data only; named-contact PII lives under Target accounts. Profiles are retained for 90 days."
+        description="Every visitor who arrives, tracked at some identity level. The levels are anonymous, recognised (company), known (named person), or customer. Filter, delete, and export. Pseudonymous and firmographic data only; named-contact PII lives under Target accounts. Profiles are retained for 90 days."
         actions={
           <Link
             href={`/admin/tenants/${tenantId}/leads/performance`}

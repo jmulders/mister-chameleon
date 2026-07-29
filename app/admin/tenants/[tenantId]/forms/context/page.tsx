@@ -43,7 +43,7 @@ export default async function ContextualFormsPage({
       <AdminPageHeader
         eyebrow="Personalisation"
         title="Contextual forms"
-        description="Show a different heading, intro, call-to-action, thank-you message, and even a different set of fields depending on where the visitor comes from — using your own rules on URL, UTM, query string, and country."
+        description="Show a different heading, intro, call-to-action, thank-you message, and even a different set of fields depending on where the visitor comes from, using your own rules on URL, UTM, query string, and country."
       />
       <div className="text-sm">
         <Link href={`/admin/tenants/${tenantId}/forms`} className="text-indigo-600 hover:underline">← Back to form settings</Link>

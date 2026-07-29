@@ -39,7 +39,7 @@ export function TenantPublishersClient({ tenantId, initial }: { tenantId: string
       </div>
       {err && <p className="mb-2 text-sm text-red-600">{err}</p>}
       {initial.publishers.length === 0 ? (
-        <p className="text-sm text-neutral-400">No publisher activity yet — rows appear once this advertiser&apos;s ads are served on a publisher site.</p>
+        <p className="text-sm text-neutral-400">No publisher activity yet. Rows appear once this advertiser&apos;s ads are served on a publisher site.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -133,7 +133,7 @@ function PublisherRowView({ tenantId, row, defaultPct, pending, run, open, onTog
               {/* Payout */}
               <div>
                 <div className="mb-1 text-xs font-semibold text-neutral-600">Record payout</div>
-                <p className="mb-1 text-[11px] text-neutral-400">Logs an offline/manual payment — no money is moved. Outstanding: {euro(row.outstandingCents)}.</p>
+                <p className="mb-1 text-[11px] text-neutral-400">Logs an offline/manual payment. No money is moved. Outstanding: {euro(row.outstandingCents)}.</p>
                 <label className={lbl}>Amount (€)</label>
                 <input className={input + " max-w-[140px]"} value={payAmt} onChange={(e) => setPayAmt(e.target.value)} />
                 <input className={input + " mt-1.5"} placeholder="Note (e.g. bank transfer May)" value={payNote} onChange={(e) => setPayNote(e.target.value)} />

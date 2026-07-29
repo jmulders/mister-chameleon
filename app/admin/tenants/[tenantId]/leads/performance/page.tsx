@@ -18,12 +18,12 @@ const CHANNEL_LABELS: Record<string, string> = {
   paid_social:    "Paid social",
   organic_search: "Organic search",
   social:         "Social",
-  email:          "E-mail",
+  email:          "Email",
   referral:       "Referral",
   affiliate:      "Affiliate",
   display:        "Display",
   direct:         "Direct",
-  other:          "Overig",
+  other:          "Other",
 };
 
 export default async function PerformancePage({
@@ -58,25 +58,25 @@ export default async function PerformancePage({
       <PersonalizationReport perf={perf} segmentLabels={segmentLabels} />
 
       <section className="rounded-lg border border-neutral-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">Kanaal-attributie</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">Channel attribution</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Waar komen je leads vandaan? First-touch kanaal per bezoeker: bezoekers, leads
-          (herkend/known) en conversies (formulier-inzending). Kanaal wordt vastgelegd bij het
-          eerste bezoek uit UTM/verwijzer.
+          Where do your leads come from? First-touch channel per visitor. It covers visitors, leads
+          (recognised/known), and conversions (form submission). The channel is captured on the
+          first visit from UTM or referrer.
         </p>
 
         {channels.length === 0 ? (
-          <p className="mt-4 text-xs text-neutral-400">Nog geen data. Zodra bezoekers binnenkomen verschijnt de verdeling hier.</p>
+          <p className="mt-4 text-xs text-neutral-400">No data yet. The breakdown appears here as soon as visitors arrive.</p>
         ) : (
           <table className="mt-4 w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                <th className="py-2">Kanaal</th>
-                <th className="py-2 text-right">Bezoekers</th>
+                <th className="py-2">Channel</th>
+                <th className="py-2 text-right">Visitors</th>
                 <th className="py-2 text-right">Leads</th>
-                <th className="py-2 text-right">Conversies</th>
-                <th className="py-2 text-right">Lead-rate</th>
-                <th className="py-2 text-right">Conv-rate</th>
+                <th className="py-2 text-right">Conversions</th>
+                <th className="py-2 text-right">Lead rate</th>
+                <th className="py-2 text-right">Conv. rate</th>
               </tr>
             </thead>
             <tbody>

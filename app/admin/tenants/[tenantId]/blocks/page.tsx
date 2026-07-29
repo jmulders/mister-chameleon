@@ -43,7 +43,7 @@ export default async function TenantBlocksPage({ params }: Props) {
           <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
             Manage the personalised content for each adaptive slot on this tenant&apos;s site.
             Blocks marked <strong className="font-semibold text-neutral-700">Platform default</strong> inherit
-            from the shared catalog — click <em>Customize</em> to create a tenant-specific version.
+            from the shared catalog. Click <em>Customize</em> to create a tenant-specific version.
             Tenant blocks take full precedence over platform defaults.
           </p>
         </div>

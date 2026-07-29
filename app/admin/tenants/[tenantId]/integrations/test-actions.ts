@@ -109,7 +109,7 @@ export async function testTenantGa4TrackingAction(
       return {
         ok:        false,
         errorType: "config",
-        message:   "Send mode is set to \"off\" — no events will be sent.",
+        message:   "Send mode is set to \"off\". No events will be sent.",
         latencyMs: Date.now() - start,
       };
     }

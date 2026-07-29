@@ -231,7 +231,7 @@ function OverviewTab({
           <div>
             <div className="font-semibold text-indigo-900 group-hover:underline">Journey Intelligence →</div>
             <div className="text-sm text-indigo-600 mt-0.5">
-              Visualize any visitor&apos;s behavioral profile — stage, confidence, friction, and why they&apos;re seeing what they see.
+              Visualize any visitor&apos;s behavioral profile (stage, confidence, friction, and why they&apos;re seeing what they see).
             </div>
           </div>
           <div className="text-2xl ml-4 shrink-0">🔍</div>
@@ -254,7 +254,7 @@ function OverviewTab({
             <p className="mt-1">
               Scoring rules assign intent points to specific event types.  For example,
               viewing the pricing page might be worth 40 points.  Each rule uses a decay
-              profile that controls how quickly old events stop contributing — a form submit
+              profile that controls how quickly old events stop contributing. A form submit
               stays relevant for weeks, while a CTA click might fade quickly.
             </p>
           </div>
@@ -282,7 +282,7 @@ function OverviewTab({
             <span className="font-semibold text-neutral-800">5. Rules Engine Integration</span>
             <p className="mt-1">
               These signals are available as rule conditions.  You can target visitors by
-              funnel stage, intent score, visited pages, or matched sequences — and serve
+              funnel stage, intent score, visited pages, or matched sequences, and serve
               different heroes, CTAs, or themes based on where they are in the journey.
             </p>
           </div>
@@ -803,7 +803,7 @@ function ScoringRulesTab({
               label="Event Value (optional)"
               value={editing.eventValue}
               onChange={(v) => setEditing({ ...editing, eventValue: v })}
-              placeholder="e.g. /pricing — leave blank to match any"
+              placeholder="e.g. /pricing, or leave blank to match any"
             />
             <NumberInput
               label="Score"

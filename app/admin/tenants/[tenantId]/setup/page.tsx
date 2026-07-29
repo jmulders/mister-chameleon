@@ -98,7 +98,7 @@ export default async function TenantSetupPage({
         <div>
           <p className="text-sm font-semibold text-neutral-900">Thema &amp; design</p>
           <p className="mt-0.5 text-xs text-neutral-500">
-            Kies een preset of bouw een eigen look in de Design-sectie — presets, builder, typografie en tokens.
+            Choose a preset or build your own look in the Design section (presets, builder, typography, and tokens).
           </p>
         </div>
         <span className="shrink-0 text-sm font-medium text-indigo-600">Open Design →</span>

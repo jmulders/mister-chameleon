@@ -44,13 +44,13 @@ interface WaveGroup {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const WAVE_LABELS: Record<string, string> = {
-  "1":          "Wave 1 — Parallel",
-  "2":          "Wave 2 — Parallel",
+  "1":          "Wave 1 (Parallel)",
+  "2":          "Wave 2 (Parallel)",
   "sequential": "Sequential",
 };
 
 const WAVE_DESCRIPTIONS: Record<string, string> = {
-  "1":          "These stages run concurrently after IP classification. They only read the request IP or visitor ID — no inter-dependencies.",
+  "1":          "These stages run concurrently after IP classification. They only read the request IP or visitor ID, with no inter-dependencies.",
   "2":          "These stages run concurrently after Wave 1 completes. They can read geo and network data from Wave 1.",
   "sequential": "These stages run one at a time after all wave groups complete. They can read the full accumulated enrichment output.",
 };
@@ -332,11 +332,11 @@ export function PipelineStageEditor({
         <div className="flex flex-wrap gap-3">
           <span className="flex items-center gap-1">
             <span>🔢</span>
-            <span>IP Classification — classifies IPv4 vs IPv6</span>
+            <span>IP Classification (classifies IPv4 vs IPv6)</span>
           </span>
           <span className="flex items-center gap-1">
             <span>☁️</span>
-            <span>Cloud Detection — flags datacenter / CDN IPs</span>
+            <span>Cloud Detection (flags datacenter / CDN IPs)</span>
           </span>
         </div>
       </div>

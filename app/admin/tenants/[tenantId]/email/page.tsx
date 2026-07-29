@@ -39,7 +39,7 @@ export default async function AdaptiveEmailPage({
       <AdminPageHeader
         eyebrow="Personalisation"
         title="Adaptive email"
-        description="Preview the personalised email a known recipient would receive. Same decision engine and blocks as the website — tailored to what you know about the lead. Preview only; sending comes later."
+        description="Preview the personalised email a known recipient would receive. Same decision engine and blocks as the website, tailored to what you know about the lead. Preview only; sending comes later."
       />
       <EmailTemplatesClient tenantId={tenantId} overview={templatesOverview} />
       <EmailPreviewClient tenantId={tenantId} templates={templates} formSubmit={formSubmit} />

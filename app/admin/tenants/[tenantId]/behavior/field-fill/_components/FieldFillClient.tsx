@@ -41,7 +41,7 @@ const SLOT_META: SlotMeta[] = [
   {
     id:          "hero",
     label:       "Hero",
-    description: "Adaptive page header — headline, subtitle, eyebrow tag, and CTA labels.",
+    description: "Adaptive page header (headline, subtitle, eyebrow tag, and CTA labels).",
     fields: [
       { path: "title",        label: "Title (headline)",     defaultMax: 10 },
       { path: "subtitle",     label: "Subtitle",             defaultMax: 25 },
@@ -53,21 +53,21 @@ const SLOT_META: SlotMeta[] = [
   {
     id:          "proof",
     label:       "Proof",
-    description: "Social proof section — section title and up to three proof point titles and text.",
+    description: "Social proof section (section title and up to three proof point titles and text).",
     fields: [
       { path: "title",          label: "Section title",         defaultMax: 10 },
-      { path: "items.0.title",  label: "Proof point 1 — title", defaultMax: 8  },
-      { path: "items.0.text",   label: "Proof point 1 — text",  defaultMax: 30 },
-      { path: "items.1.title",  label: "Proof point 2 — title", defaultMax: 8  },
-      { path: "items.1.text",   label: "Proof point 2 — text",  defaultMax: 30 },
-      { path: "items.2.title",  label: "Proof point 3 — title", defaultMax: 8  },
-      { path: "items.2.text",   label: "Proof point 3 — text",  defaultMax: 30 },
+      { path: "items.0.title",  label: "Proof point 1 (title)", defaultMax: 8  },
+      { path: "items.0.text",   label: "Proof point 1 (text)",  defaultMax: 30 },
+      { path: "items.1.title",  label: "Proof point 2 (title)", defaultMax: 8  },
+      { path: "items.1.text",   label: "Proof point 2 (text)",  defaultMax: 30 },
+      { path: "items.2.title",  label: "Proof point 3 (title)", defaultMax: 8  },
+      { path: "items.2.text",   label: "Proof point 3 (text)",  defaultMax: 30 },
     ],
   },
   {
     id:          "cta",
     label:       "CTA",
-    description: "Call-to-action section — headline, supporting text, and CTA button label.",
+    description: "Call-to-action section (headline, supporting text, and CTA button label).",
     fields: [
       { path: "title",     label: "CTA headline",      defaultMax: 12 },
       { path: "text",      label: "Supporting text",   defaultMax: 40 },

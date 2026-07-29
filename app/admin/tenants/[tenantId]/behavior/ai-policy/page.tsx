@@ -53,7 +53,7 @@ export default async function AiPolicyPage({
         <h1 className="text-xl font-semibold text-neutral-900">AI Policy</h1>
         <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
           Control the AI mode and confidence threshold for each AI sub-system.
-          Changes apply immediately — shadow mode lets you observe AI decisions
+          Changes apply immediately. Shadow mode lets you observe AI decisions
           safely before enabling live serving.
         </p>
       </div>

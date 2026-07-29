@@ -57,7 +57,7 @@ export default async function TenantContextPage({
           Platform-wide settings
         </p>
         <p className="mt-0.5 text-xs text-amber-700">
-          Context variables are shared across all tenants — changes here affect the
+          Context variables are shared across all tenants. Changes here affect the
           entire platform, not just{" "}
           <code className="font-mono font-semibold">{tenantId}</code>.{" "}
           <Link

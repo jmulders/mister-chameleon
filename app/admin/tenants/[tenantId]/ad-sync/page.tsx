@@ -34,7 +34,7 @@ export default async function AdSyncPage({
         <strong>AVG/GDPR:</strong> sharing lead identifiers with ad platforms is a
         separate processing activity that needs a lawful basis (consent or
         legitimate interest) and a processor agreement with each platform. Keep
-        &ldquo;alleen leads met toestemming&rdquo; on unless your DPO has confirmed
+        &ldquo;Only leads with consent or first-party&rdquo; on unless your DPO has confirmed
         another basis.
       </p>
 

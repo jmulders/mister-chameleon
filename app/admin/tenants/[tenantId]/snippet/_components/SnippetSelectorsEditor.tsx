@@ -161,7 +161,7 @@ export function SnippetSelectorsEditor({
         <ul className="space-y-2 pt-1 text-xs text-neutral-500">
           <li className="flex gap-2">
             <span className="text-indigo-400">•</span>
-            Selectors run on the visitor&apos;s page. A blank or invalid selector is ignored — it never breaks the host page.
+            Selectors run on the visitor&apos;s page. A blank or invalid selector is ignored. It never breaks the host page.
           </li>
           <li className="flex gap-2">
             <span className="text-indigo-400">•</span>

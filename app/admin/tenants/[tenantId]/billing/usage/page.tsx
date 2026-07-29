@@ -319,7 +319,7 @@ export default async function TenantBillingUsagePage({
       <p className="mt-1 mb-6 text-sm text-neutral-500">
         Credit usage for{" "}
         <span className="font-medium">{tenant.name ?? tenantId}</span>{" "}
-        — real enrichment events only, simulated excluded.
+        (real enrichment events only, simulated excluded).
       </p>
 
       {fetchErrors.length > 0 && (

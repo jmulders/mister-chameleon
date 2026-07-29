@@ -93,7 +93,7 @@ const TABS: readonly TabDef[] = [
   {
     id:          "advanced",
     label:       "Advanced",
-    description: "Full token editor — colors, spacing, radius, and more",
+    description: "Full token editor (colors, spacing, radius, and more)",
   },
 ] as const;
 
@@ -308,8 +308,8 @@ function FamilyTypographyPanel({
           onClick={handleToggle}
           disabled={pending}
           title={overrideEnabled
-            ? "Disable override — use family defaults"
-            : "Enable override — customise font stacks"}
+            ? "Disable override, use family defaults"
+            : "Enable override to customise font stacks"}
           style={{
             display:      "inline-flex",
             alignItems:   "center",
@@ -377,7 +377,7 @@ function FamilyTypographyPanel({
         {/* No family selected — informational note */}
         {!familyLabel && (
           <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
-            No style family active — select one in the Style tab
+            No style family active. Select one in the Style tab
           </span>
         )}
 
@@ -424,7 +424,7 @@ function FamilyTypographyPanel({
                     <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: "4px" }}>
                       {overrideEnabled
                         ? "(family default, no override set)"
-                        : "(active — override is off)"}
+                        : "(active, override is off)"}
                     </span>
                   </span>
                 )}
@@ -529,7 +529,7 @@ export function DesignPageClient({
       <TabPanel id="layout" active={activeTab}>
         <TabSectionHeader
           title="Layout variants"
-          description="Choose the structural shape of the header and footer. Separate from color tokens — color overrides live in the Advanced tab."
+          description="Choose the structural shape of the header and footer. Separate from color tokens. Color overrides live in the Advanced tab."
         />
         <LayoutVariantEditor tenantId={tenantId} design={design} />
       </TabPanel>
@@ -576,7 +576,7 @@ export function DesignPageClient({
             }}
           >
             <p style={{ fontSize: "0.8125rem", color: "#9ca3af", margin: 0 }}>
-              Font editor is locked — enable{" "}
+              Font editor is locked. Enable{" "}
               <strong style={{ color: "#374151" }}>Override typography</strong>{" "}
               above to customise font stacks.
             </p>
@@ -588,7 +588,7 @@ export function DesignPageClient({
       <TabPanel id="blocks" active={activeTab}>
         <TabSectionHeader
           title="Site design tokens"
-          description="Your central design system. Set colors, typography, cards, buttons and more once here — they apply automatically to every content block and adaptive slot. No per-component setup needed."
+          description="Your central design system. Set colors, typography, cards, buttons and more once here, and they apply automatically to every content block and adaptive slot. No per-component setup needed."
         />
         <SiteDesignTokensEditor
           tenantId={tenantId}
@@ -609,7 +609,7 @@ export function DesignPageClient({
       <TabPanel id="advanced" active={activeTab}>
         <TabSectionHeader
           title="Advanced token editor"
-          description="Fine-tune every design token — colors, border radius, spacing, shadows, motion, and components. Power-user territory: changes override the active preset."
+          description="Fine-tune every design token (colors, border radius, spacing, shadows, motion, and components). Power-user territory. Changes override the active preset."
         />
         <DesignTokenEditor
           tenantId={tenantId}

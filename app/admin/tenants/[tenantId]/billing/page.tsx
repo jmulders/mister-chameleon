@@ -161,7 +161,7 @@ function AdminErrorCard({ errors }: { errors: LoadError[] }) {
           {hasUnexpected && (
             <p className="mt-2 text-xs text-red-600">
               An unexpected database error occurred. The billing tables appear to
-              exist — check the server logs for the full error details.
+              exist. Check the server logs for the full error details.
             </p>
           )}
         </div>

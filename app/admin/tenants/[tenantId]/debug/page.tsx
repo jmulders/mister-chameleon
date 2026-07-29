@@ -77,7 +77,7 @@ export default async function TenantDebugPage({
           <h1 className="text-xl font-semibold text-neutral-900">Debug Settings</h1>
           <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
             Control whether diagnostic information is rendered on the live site.
-            This is a per-tenant setting — it only affects{" "}
+            This is a per-tenant setting. It only affects{" "}
             <strong>{tenant.name ?? tenantId}</strong>.
           </p>
         </div>
@@ -139,12 +139,12 @@ function DevControlsSection({ tenantId, isActive, currentOverrideTenantId }: Dev
           <p className="mb-3 text-xs text-amber-700">
             Currently overriding to:{" "}
             <code className="font-mono font-semibold">{currentOverrideTenantId}</code>
-            {" "}— setting this tenant will replace that override.
+            . Setting this tenant will replace that override.
           </p>
         )}
         {!currentOverrideTenantId && (
           <p className="mb-3 text-xs text-amber-700">
-            No override active — tenant currently resolved from the Host header.
+            No override active. Tenant currently resolved from the Host header.
           </p>
         )}
         {isActive && (

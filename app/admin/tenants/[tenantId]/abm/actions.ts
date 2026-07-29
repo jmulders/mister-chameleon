@@ -184,10 +184,10 @@ export async function testAbmHubspotSyncAction(
 ): Promise<{ ok: true; companyId?: string } | { ok: false; error: string }> {
   await getRequiredAdminSession();
   const token = await getAbmHubspotToken(tenantId);
-  if (!token) return { ok: false, error: "Geen HubSpot-token ingesteld — sla er eerst één op." };
+  if (!token) return { ok: false, error: "No HubSpot token set. Save one first." };
 
   const result = await syncCompanyToHubspot(token, {
-    name: "Mister Chameleon — Sync Test",
+    name: "Mister Chameleon Sync Test",
   });
   if (result.ok) return { ok: true, ...(result.companyId ? { companyId: result.companyId } : {}) };
   return { ok: false, error: result.error ?? "Onbekende fout." };
@@ -340,7 +340,7 @@ export async function importAbmLeadsCsvAction(
     const linkedin  = pick(row, "profile url", "linkedin", "linkedin url", "person linkedin url");
 
     if (!firstName && !company) {
-      errors.push(`Row ${idx + 2}: no first name or company — skipped.`);
+      errors.push(`Row ${idx + 2}: no first name or company, skipped.`);
       continue;
     }
 

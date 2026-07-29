@@ -292,8 +292,8 @@ function DepConfirmBanner({ profileKey, ruleLabels, onConfirm, onCancel, confirm
           </p>
           <p className="mt-1 text-xs text-amber-800">
             Disabling <strong>{profileKey}</strong> will cause{" "}
-            {ruleLabels.length === 1 ? "this rule" : "these rules"} to silently stop matching
-            — the rule stays active in the database but its condition can never be satisfied.
+            {ruleLabels.length === 1 ? "this rule" : "these rules"} to silently stop matching.
+            The rule stays active in the database but its condition can never be satisfied.
           </p>
           <ul className="mt-2 space-y-0.5">
             {ruleLabels.map((label, i) => (
@@ -555,8 +555,8 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
         </p>
         <p className="text-sm text-brand-800 max-w-2xl">
           At runtime the scoring engine uses all <strong>enabled</strong> profiles for this
-          tenant — tenant-specific profiles plus platform-wide ones that haven&apos;t been
-          turned off. Use the toggle in the <strong>Tenant</strong> column to enable or
+          tenant (tenant-specific profiles plus platform-wide ones that haven&apos;t been
+          turned off). Use the toggle in the <strong>Tenant</strong> column to enable or
           disable individual platform profiles for this tenant without affecting other tenants.
           Scores are normalised to 0–1 and available as context variables.
         </p>

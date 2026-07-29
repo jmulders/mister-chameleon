@@ -56,12 +56,12 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
     const set = tokenSets?.find((s) => s.key === key);
     if (!set) return;
     setTokens({ ...(set.tokens as Record<string, string>) });
-    setMsg({ text: `Loaded tokens from "${set.name}" — review and Save to apply site-wide.`, ok: true });
+    setMsg({ text: `Loaded tokens from "${set.name}". Review and Save to apply site-wide.`, ok: true });
   }
 
   function loadExample() {
     setTokens({ ...(EXAMPLE_SITE_DESIGN_TOKENS as Record<string, string>) });
-    setMsg({ text: "Loaded “Aurora Purple Gold” tokens into the editor — review and Save to apply site-wide.", ok: true });
+    setMsg({ text: "Loaded “Aurora Purple Gold” tokens into the editor. Review and Save to apply site-wide.", ok: true });
   }
 
   /**
@@ -77,14 +77,14 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
       const presetRes = await applyDesignPresetAction(tenantId, "aurora-purple-gold");
       if (!presetRes.ok) { setMsg({ text: presetRes.error, ok: false }); return; }
       setTokens({ ...(EXAMPLE_SITE_DESIGN_TOKENS as Record<string, string>) });
-      setMsg({ text: "Applied ✓ — Aurora Purple Gold preset + site tokens are live.", ok: true });
+      setMsg({ text: "Applied ✓. Aurora Purple Gold preset + site tokens are live.", ok: true });
       router.refresh();
     });
   }
 
   function clearAll() {
     setTokens({});
-    setMsg({ text: "Cleared — Save to remove the site default (blocks fall back to the preset).", ok: true });
+    setMsg({ text: "Cleared. Save to remove the site default (blocks fall back to the preset).", ok: true });
   }
 
   function applyImportedText(text: string, source: string) {
@@ -97,11 +97,11 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
       // Reject grouped presets pasted here (they need the preset import path).
       const kind = detectTokenPayloadKind(parsed);
       if (kind === "preset") {
-        throw new Error(wrongBoxMessage("preset", "tokens") ?? "This looks like a design preset — use the preset import.");
+        throw new Error(wrongBoxMessage("preset", "tokens") ?? "This looks like a design preset. Use the preset import.");
       }
       setTokens({ ...(parsed as Record<string, string>) });
       setShowJson(false);
-      setMsg({ text: `Imported tokens from ${source} — review and Save to apply.`, ok: true });
+      setMsg({ text: `Imported tokens from ${source}. Review and Save to apply.`, ok: true });
     } catch (e) {
       setMsg({ text: `Import failed: ${e instanceof Error ? e.message : String(e)}`, ok: false });
     }
@@ -119,7 +119,7 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
     startTransition(async () => {
       const r = await saveDefaultTokensAction(tenantId, tokens);
       if (r.ok) {
-        setMsg({ text: "Saved ✓ — applied site-wide to every block.", ok: true });
+        setMsg({ text: "Saved ✓. Applied site-wide to every block.", ok: true });
         router.refresh();
       } else {
         setMsg({ text: r.errors.join(" "), ok: false });
@@ -180,7 +180,7 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
         border: "1px solid #dcfce7", background: "#f0fdf4", fontSize: "0.8125rem", color: "#166534",
       }}>
         <strong>This is your central design system.</strong> Whatever you set here is applied to{" "}
-        <strong>every component automatically</strong> — no need to configure blocks individually.
+        <strong>every component automatically</strong>, with no need to configure blocks individually.
         Only when a specific block needs to differ do you assign a <em>Block token set</em> (below),
         which overrides these defaults for that one block.
       </div>

@@ -438,10 +438,10 @@ export async function importDesignPresetAction(
   try {
     parsed = JSON.parse(rawJson);
   } catch {
-    return { ok: false, errors: ["Ongeldige JSON — kon het bestand niet lezen."] };
+    return { ok: false, errors: ["Invalid JSON. Could not read the file."] };
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return { ok: false, errors: ["JSON moet een object zijn met token-groepen (color, typography, …)."] };
+    return { ok: false, errors: ["JSON must be an object with token groups (color, typography, …)."] };
   }
   const obj = parsed as Record<string, unknown>;
 
@@ -457,7 +457,7 @@ export async function importDesignPresetAction(
     if (!validation.ok) return { ok: false, errors: validation.errors };
 
     const current = await getTenantById(tenantId);
-    if (!current) return { ok: false, errors: [`Tenant "${tenantId}" niet gevonden.`] };
+    if (!current) return { ok: false, errors: [`Tenant "${tenantId}" not found.`] };
 
     // Build tokenOverrides from the validated groups (REPLACE, not merge).
     const t = validation.tokens;
@@ -2651,7 +2651,7 @@ export async function provisionTenantCmsAction(
 
     const siteKey = tenant.snippet?.siteKey;
     if (!siteKey) {
-      return { ok: false, error: "Tenant has no siteKey yet — generate one on the Snippet tab first." };
+      return { ok: false, error: "Tenant has no siteKey yet. Generate one on the Snippet tab first." };
     }
 
     const {
@@ -2688,7 +2688,7 @@ export async function provisionTenantCmsAction(
       owner:         gh.repoOwner,
       name:          repoName,
       privateRepo:   gh.privateRepos,
-      description:   `Mister Chameleon CMS — tenant ${tenantId}`,
+      description:   `Mister Chameleon CMS (tenant ${tenantId})`,
     });
     if (!repo.ok) return { ok: false, error: `Fase 1 (repo): ${repo.message}` };
 
@@ -2763,7 +2763,7 @@ export async function provisionTenantCmsAction(
       return {
         ok: false,
         error: `Fase 2 (Ploi): ${applied.message}`,
-        detail: `Repo is ready: ${repo.fullName}. Fix the Ploi error and retry — repo creation is idempotent.`,
+        detail: `Repo is ready: ${repo.fullName}. Fix the Ploi error and retry. Repo creation is idempotent.`,
         repoUrl: repo.htmlUrl,
       };
     }
@@ -2847,7 +2847,7 @@ export async function finalizeTenantProvisioningAction(
       if (vercelConfigured) {
         const v = await addVercelDomain(d);
         if (v.ok) {
-          steps.push({ label: `Vercel domain ${d}`, ok: true, note: v.alreadyVerified ? "added (verified)" : "added — DNS pending" });
+          steps.push({ label: `Vercel domain ${d}`, ok: true, note: v.alreadyVerified ? "added (verified)" : "added (DNS pending)" });
           // Vercel returns the authoritative DNS records to set at the registrar.
           for (const rec of v.verification ?? []) {
             if (rec?.type && rec?.value) vercelDns.push({ type: rec.type, name: rec.domain ?? d, value: rec.value });
@@ -2868,7 +2868,7 @@ export async function finalizeTenantProvisioningAction(
         const sy = await updateRepoSitesYaml({ token, owner: gh.repoOwner, repo, primarySiteUrl: primaryUrl });
         steps.push({ label: "Update repo sites.yaml", ok: sy.ok, note: sy.message });
       } else {
-        steps.push({ label: "Update repo sites.yaml", ok: false, note: "skipped — no GitHub token configured" });
+        steps.push({ label: "Update repo sites.yaml", ok: false, note: "skipped (no GitHub token configured)" });
       }
     }
 
@@ -2878,7 +2878,7 @@ export async function finalizeTenantProvisioningAction(
       ok: allOk,
       detail: allOk
         ? `Wired ${tenantId} → ${baseUrl} and ${www}. Now add the domain in Vercel, set DNS, set the Ploi env, then redeploy both.`
-        : "Finished with some warnings — see steps below.",
+        : "Finished with some warnings. See steps below.",
       steps,
       // Routing records (apex A + www CNAME) plus any Vercel ownership-verification
       // TXT records returned when the domain was registered.

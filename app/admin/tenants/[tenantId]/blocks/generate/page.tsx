@@ -30,8 +30,8 @@ export default async function GenerateVariantPage({
         <p className="mt-1 text-sm text-neutral-500">
           Describe the audience and goal; the AI drafts a complete variant <em>with</em> its
           decision metadata, so it&apos;s instantly AI-selectable. Review before saving.
-          Capped at {MAX_VARIANTS_PER_SLOT} variants per slot to keep the candidate set — and
-          your rules — manageable.
+          Capped at {MAX_VARIANTS_PER_SLOT} variants per slot to keep the candidate set (and
+          your rules) manageable.
         </p>
       </div>
 

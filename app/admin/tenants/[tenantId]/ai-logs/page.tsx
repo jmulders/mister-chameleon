@@ -262,7 +262,7 @@ export default async function TenantAiLogsPage({
           <div className="border-t border-neutral-100 px-4 py-3">
             <p className="text-xs text-neutral-400">
               Showing {logs.length} row{logs.length !== 1 ? "s" : ""}.
-              {" "}API keys are never stored — only model names, variant keys, and anonymised visitor context.
+              {" "}API keys are never stored, only model names, variant keys, and anonymised visitor context.
             </p>
           </div>
         </Card>

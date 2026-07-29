@@ -82,7 +82,7 @@ export function BlueprintsClient({ tenantId, blueprints }: Props) {
       setResult({
         ok:      res.ok,
         message: res.ok
-          ? `✓ Blueprint applied — ${res.rulesCreated} rules, ${res.scoringRulesCreated} scoring rules, ${res.sequencesCreated} sequences created.${res.themeApplied ? " Theme updated." : ""}`
+          ? `✓ Blueprint applied. ${res.rulesCreated} rules, ${res.scoringRulesCreated} scoring rules, ${res.sequencesCreated} sequences created.${res.themeApplied ? " Theme updated." : ""}`
           : `Error: ${res.error ?? "Unknown error"}`,
       });
       setConfirming(false);

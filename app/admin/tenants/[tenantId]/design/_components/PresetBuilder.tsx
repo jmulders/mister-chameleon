@@ -128,7 +128,7 @@ export function PresetBuilder({ tenantId }: Props) {
         <div style={{ padding: "22px 20px" }}>
           <span style={{ display: "inline-block", background: c.accent, color: c.primary, borderRadius: 999, padding: "3px 9px", fontSize: 10, fontWeight: 700, marginBottom: 10 }}>PERSONALIZATION</span>
           <div style={{ fontFamily: ty.fontHeading, fontWeight: Number(ty.headingWeight) || 700, textTransform: hT, letterSpacing: ty.letterSpacing, fontSize: 28, lineHeight: 1.1, marginBottom: 8 }}>Your site adapts</div>
-          <div style={{ color: c.mutedForeground, fontSize: 13, marginBottom: 16, maxWidth: "44ch" }}>The same blocks, a totally different look &amp; feel — purely via design tokens.</div>
+          <div style={{ color: c.mutedForeground, fontSize: 13, marginBottom: 16, maxWidth: "44ch" }}>The same blocks, a totally different look &amp; feel, purely via design tokens.</div>
           <div style={{ display: "flex", gap: 9, marginBottom: 18 }}>
             <span style={{ background: c.primary, color: onPrimary, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: Number(b.weight) || 600, textTransform: (b.transform || "none") as React.CSSProperties["textTransform"], letterSpacing: b.tracking, boxShadow: b.shadow }}>View demo</span>
             <span style={{ background: "transparent", color: c.foreground, border: `${g.border?.width || "1px"} solid ${c.border}`, borderRadius: radInt, padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>Outline</span>
@@ -197,7 +197,7 @@ export function PresetBuilder({ tenantId }: Props) {
           // page right after a full token replace has triggered an edge-case
           // crash. The tokens are saved; the operator views the public site to
           // see them. (router stays imported for future use.)
-          setMsg({ text: `Imported${r.name ? `: ${r.name}` : ""} ✓ — saved. Open the public site to see it.`, ok: true });
+          setMsg({ text: `Imported${r.name ? `: ${r.name}` : ""} ✓. Saved. Open the public site to see it.`, ok: true });
         } else {
           setMsg({ text: r.errors.join(" "), ok: false });
         }
@@ -206,7 +206,7 @@ export function PresetBuilder({ tenantId }: Props) {
         // server-action reference after a redeploy — the POST 404s. Surface the
         // fix instead of letting it crash to a raw 404 page.
         setMsg({
-          text: "Import failed — likely an expired session after a new deploy. Refresh the page (⌘/Ctrl-Shift-R) and try again.",
+          text: "Import failed. Likely an expired session after a new deploy. Refresh the page (⌘/Ctrl-Shift-R) and try again.",
           ok: false,
         });
       }
@@ -230,7 +230,7 @@ export function PresetBuilder({ tenantId }: Props) {
     };
     startTransition(async () => {
       const r = await applyDesignTokensAction(tenantId, payload);
-      if (r.ok) { setMsg({ text: "Saved ✓ — view the public site.", ok: true }); router.refresh(); }
+      if (r.ok) { setMsg({ text: "Saved ✓. View the public site.", ok: true }); router.refresh(); }
       else setMsg({ text: r.errors.join(" "), ok: false });
     });
   }
@@ -266,7 +266,7 @@ export function PresetBuilder({ tenantId }: Props) {
             />
           </label>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-            Our preset JSON or a Figma/Tokens Studio export — applied as a complete look (replaces the current tokens).
+            Our preset JSON or a Figma/Tokens Studio export, applied as a complete look (replaces the current tokens).
           </div>
           {pending && <div style={{ fontSize: 11, color: "#6366f1", marginTop: 4 }}>Importing…</div>}
           {msg && (

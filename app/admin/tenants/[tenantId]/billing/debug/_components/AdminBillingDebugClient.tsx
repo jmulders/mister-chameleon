@@ -86,13 +86,13 @@ function CatBadge({ cat }: { cat: string | null }) {
 // ── Anomaly badge ─────────────────────────────────────────────────────────────
 
 const ANOMALY_DESCRIPTIONS: Record<string, string> = {
-  "billing disabled":              "Billing is DISABLED — no DB writes or wallet debits.",
-  "demo mode":                     "Demo / simulated mode — wallet balance unchanged.",
-  "debit_wallet RPC unavailable":  "debit_wallet RPC missing — run supabase db push.",
-  "insufficient balance":          "Wallet was insufficient — debit rejected.",
-  "0 credits were charged":        "Billable stages ran but 0 credits charged — check debit_wallet RPC.",
-  "stage error":                   "Stage returned an error — not charged.",
-  "no_match":                      "Stage ran but returned no data — not charged.",
+  "billing disabled":              "Billing is DISABLED. No DB writes or wallet debits.",
+  "demo mode":                     "Demo / simulated mode. Wallet balance unchanged.",
+  "debit_wallet RPC unavailable":  "debit_wallet RPC missing. Run supabase db push.",
+  "insufficient balance":          "Wallet was insufficient. Debit rejected.",
+  "0 credits were charged":        "Billable stages ran but 0 credits charged. Check debit_wallet RPC.",
+  "stage error":                   "Stage returned an error. Not charged.",
+  "no_match":                      "Stage ran but returned no data. Not charged.",
 };
 
 function getAnomalyTip(anomaly: string): string {

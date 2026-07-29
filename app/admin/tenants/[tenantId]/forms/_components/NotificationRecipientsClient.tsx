@@ -133,7 +133,7 @@ export function NotificationRecipientsClient({
           {fallbackNote ? (
             <p className="mt-1 text-xs text-blue-600">
               <span className="font-medium">Active fallback:</span> {fallbackNote}
-              {" — add recipients above to override."}
+              {". Add recipients above to override."}
             </p>
           ) : (
             <p className="mt-1 text-xs text-neutral-400">

@@ -284,7 +284,7 @@ export default async function TenantFormsPage({
             href={`/admin/tenants/${tenantId}/forms/submissions`}
             className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
           >
-            Bekijk inzendingen →
+            View submissions →
           </Link>
         </div>
       </div>
@@ -368,10 +368,10 @@ function DbErrorBanner({
       {/* ── Headline ────────────────────────────────────────────────────── */}
       <div>
         <p className="font-semibold">
-          {isTableMissing    && `${sectionTitle} — table missing`}
-          {isSchemaMismatch  && `${sectionTitle} — schema mismatch`}
-          {isPermissionError && `${sectionTitle} — permission denied`}
-          {!isTableMissing && !isSchemaMismatch && !isPermissionError && `${sectionTitle} — database error`}
+          {isTableMissing    && `${sectionTitle} (table missing)`}
+          {isSchemaMismatch  && `${sectionTitle} (schema mismatch)`}
+          {isPermissionError && `${sectionTitle} (permission denied)`}
+          {!isTableMissing && !isSchemaMismatch && !isPermissionError && `${sectionTitle} (database error)`}
         </p>
         <p className="text-xs mt-0.5 opacity-80">{rawMessage}</p>
       </div>

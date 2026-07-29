@@ -764,11 +764,11 @@ export function ThemeRulesEditor({
             receives the paired theme for the duration of their session (up to 4 hours).
           </p>
           <p>
-            <span className="font-medium text-neutral-600">RAW</span> — fires on raw field
+            <span className="font-medium text-neutral-600">RAW</span> fires on raw field
             predicates (UTM, time-of-day, device, seasonal event).{" "}
-            <span className="font-medium text-neutral-600">CTX</span> — fires when the visitor
+            <span className="font-medium text-neutral-600">CTX</span> fires when the visitor
             matches a named audience profile from the Context Library.{" "}
-            <span className="font-medium text-neutral-600">CTX+</span> — fires when a context
+            <span className="font-medium text-neutral-600">CTX+</span> fires when a context
             match AND an additional raw condition are both true.
           </p>
           <p>

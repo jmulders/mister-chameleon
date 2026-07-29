@@ -974,7 +974,7 @@ function AutoReloadCard({
           }`}>
             {wallet.stripe_payment_method_id
               ? `✓ Payment method linked`
-              : `⚠ No payment method — auto-reload will not fire`}
+              : `⚠ No payment method. Auto-reload will not fire`}
           </div>
 
           {lastAttempt && (
@@ -983,7 +983,7 @@ function AutoReloadCard({
               lastAttempt.status === "failed"    ? "border-red-200 bg-red-50 text-red-700" :
               "border-neutral-200 bg-neutral-50 text-neutral-600"
             }`}>
-              Last reload: {lastAttempt.status} — {fmtDateTime(lastAttempt.created_at)}
+              Last reload: {lastAttempt.status}, {fmtDateTime(lastAttempt.created_at)}
               {lastAttempt.status === "failed" && lastAttempt.failure_reason && ` (${lastAttempt.failure_reason})`}
             </div>
           )}
@@ -1060,7 +1060,7 @@ function StripeStatusCard({ tenantId, stripeModeInfo, subscription, wallet, onNa
               ? <code className="rounded bg-neutral-100 px-1 text-xs text-neutral-600">{subscription.stripe_subscription_id}</code>
               : subscription
                 ? <span className="text-neutral-500 text-sm">Manual (platform-managed)</span>
-                : <span className="text-neutral-400 text-sm">None — no subscription row</span>,
+                : <span className="text-neutral-400 text-sm">None (no subscription row)</span>,
             // Only warn when there is truly no subscription row at all.
             warn: !subscription,
           },
@@ -1289,11 +1289,11 @@ function LedgerPagination({
 
   return (
     <div className="mt-4 flex flex-col gap-3 border-t border-neutral-100 pt-3 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-neutral-400">Rijen {firstRow}–{lastRow}</p>
+      <p className="text-neutral-400">Rows {firstRow}–{lastRow}</p>
 
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-1.5">
-          <span>Toon</span>
+          <span>Show</span>
           <select
             value={String(pageSize)}
             onChange={(e) => router.push(pageUrl(0, Number(e.target.value)))}
@@ -1308,15 +1308,15 @@ function LedgerPagination({
         {(hasPrev || hasNext) && (
           <div className="flex items-center gap-2">
             {hasPrev ? (
-              <Link href={pageUrl(page - 1)} className={linkCls}>Vorige</Link>
+              <Link href={pageUrl(page - 1)} className={linkCls}>Previous</Link>
             ) : (
-              <span className={disabledCls}>Vorige</span>
+              <span className={disabledCls}>Previous</span>
             )}
-            <span className="text-neutral-400">Pagina {page + 1}</span>
+            <span className="text-neutral-400">Page {page + 1}</span>
             {hasNext ? (
-              <Link href={pageUrl(page + 1)} className={linkCls}>Volgende</Link>
+              <Link href={pageUrl(page + 1)} className={linkCls}>Next</Link>
             ) : (
-              <span className={disabledCls}>Volgende</span>
+              <span className={disabledCls}>Next</span>
             )}
           </div>
         )}
@@ -1542,7 +1542,7 @@ function SuperAdminSubscriptionPanel({
 
   return (
     <Card>
-      <SectionTitle sub="Super-admin only — direct subscription management">
+      <SectionTitle sub="Super-admin only, direct subscription management">
         Subscription management
       </SectionTitle>
 
@@ -1557,7 +1557,7 @@ function SuperAdminSubscriptionPanel({
         }`}>
           {trialExpired
             ? "⚠ Trial has expired. The cron job will mark this subscription as canceled on its next run."
-            : `Trial active — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} remaining ` +
+            : `Trial active. ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} remaining ` +
               (trialEndDate ? `(ends ${trialEndDate.toLocaleDateString("en-GB")})` : "")}
         </div>
       )}
@@ -1709,7 +1709,7 @@ function SuperAdminSubscriptionPanel({
                   ["Period end",    subscription.current_period_end   ? fmtDate(subscription.current_period_end)   : "—"],
                   ["Trial end",     subscription.trial_end            ? fmtDate(subscription.trial_end)            : "—"],
                   ["Cancel at end", subscription.cancel_at_period_end ? "Yes" : "No"],
-                  ["Stripe sub",    subscription.stripe_subscription_id ? subscription.stripe_subscription_id.slice(0, 18) + "…" : "— not linked"],
+                  ["Stripe sub",    subscription.stripe_subscription_id ? subscription.stripe_subscription_id.slice(0, 18) + "…" : "Not linked"],
                 ].map(([label, value]) => (
                   <div key={label as string}>
                     <dt className="text-[11px] text-neutral-400">{label as string}</dt>
@@ -1966,7 +1966,7 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
                 </span>
                 <div>
                   <p className={`text-xs font-semibold ${subscription.pending_plan_paid_at ? "text-emerald-800" : "text-amber-800"}`}>
-                    {subscription.pending_plan_paid_at ? "Upgrade paid — activates next period" : "Plan change scheduled"}
+                    {subscription.pending_plan_paid_at ? "Upgrade paid, activates next period" : "Plan change scheduled"}
                   </p>
                   <p className={`mt-0.5 text-xs ${subscription.pending_plan_paid_at ? "text-emerald-700" : "text-amber-700"}`}>
                     Switching to{" "}
@@ -1977,7 +1977,7 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
                       ? ` on ${fmtDate(subscription.pending_plan_effective_date)}`
                       : " at your next billing period"}.
                     {subscription.pending_plan_paid_at
-                      ? " First-period payment received — no charge at renewal."
+                      ? " First-period payment received. No charge at renewal."
                       : " No further plan changes until this takes effect."}
                   </p>
                 </div>
@@ -2004,7 +2004,7 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
             <div>
               <p className="text-sm font-semibold text-neutral-800">Subscription activating…</p>
               <p className="mt-0.5 text-xs text-neutral-400">
-                Payment received. Your subscription is being set up — this usually takes a few seconds.
+                Payment received. Your subscription is being set up. This usually takes a few seconds.
                 Refresh the page to see the updated status.
               </p>
               <button
@@ -2025,7 +2025,7 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
               <span className="mt-0.5 text-lg text-neutral-400">◆</span>
               <div>
                 <p className="text-sm font-semibold text-neutral-800">
-                  {plan.name} — manually assigned
+                  {plan.name}, manually assigned
                 </p>
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {plan.description}
@@ -2048,7 +2048,7 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
           <SectionTitle sub={
             subscription
               ? isAnnual
-                ? "Annual plan — only upgrades are available mid-period. Downgrades take effect at renewal."
+                ? "Annual plan. Only upgrades are available mid-period. Downgrades take effect at renewal."
                 : "Monthly plan changes take effect at the start of your next billing period."
               : "Select a plan and billing cycle, then click Subscribe to link a Stripe subscription."
           }>
@@ -2261,7 +2261,7 @@ function DebugPanel({ tenantId, wallet, enrichmentUsageSummary, reloadAttempts, 
     const result = await addCreditsAction(tenantId, {
       amountCredits:  correctionAmount,
       adjustmentType: "adjustment",
-      reason:         `Ledger reconciliation — corrects ${Math.abs(correctionAmount).toFixed(2)} cr discrepancy between usage events and ledger deductions.`,
+      reason:         `Ledger reconciliation. Corrects ${Math.abs(correctionAmount).toFixed(2)} cr discrepancy between usage events and ledger deductions.`,
     });
     setReconciling(false);
     setReconcileMsg(result.ok
@@ -2454,7 +2454,7 @@ function BuyCreditsPanel({ tenantId, bundles }: { tenantId: string; bundles: Cre
       // Redirect to Stripe Checkout. Page is unmounted here; no need to reset state.
       router.push(json.url);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error. Please try again.");
       setLoadingId(null);
     }
   }
@@ -2465,8 +2465,8 @@ function BuyCreditsPanel({ tenantId, bundles }: { tenantId: string; bundles: Cre
         <SectionTitle>Buy Enrichment Credits</SectionTitle>
       </div>
       <p className="mb-5 text-xs text-neutral-500">
-        Enrichment credits are used for data lookups — email enrichment, company profiles,
-        intent signals, and similar API-backed features. They are separate from session credits,
+        Enrichment credits are used for data lookups (email enrichment, company profiles,
+        intent signals, and similar API-backed features). They are separate from session credits,
         which control how many visitors receive personalised experiences each month.
         To buy bonus session credits, go to the <strong>Sessions</strong> tab.
       </p>
@@ -2546,7 +2546,7 @@ function BuyCreditsPanel({ tenantId, bundles }: { tenantId: string; bundles: Cre
 
       <p className="mt-4 text-xs text-neutral-400">
         Payments are processed securely by Stripe. Credits are added to your wallet
-        after payment confirmation — this typically takes a few seconds.
+        after payment confirmation. This typically takes a few seconds.
       </p>
     </Card>
   );
@@ -2558,9 +2558,9 @@ function BuyCreditsPanel({ tenantId, bundles }: { tenantId: string; bundles: Cre
 // addCreditsAction — super admin check is also enforced server-side.
 
 const ADJUSTMENT_TYPE_OPTIONS: { value: AddCreditsAdjustmentType; label: string; description: string }[] = [
-  { value: "admin_grant",  label: "Admin grant",  description: "Complimentary credits — service recovery, promotion, or onboarding."        },
+  { value: "admin_grant",  label: "Admin grant",  description: "Complimentary credits (service recovery, promotion, or onboarding)."        },
   { value: "adjustment",   label: "Adjustment",   description: "Balance correction for a billing discrepancy or usage anomaly."               },
-  { value: "refund",       label: "Refund",        description: "Reimbursement — credits added back after an erroneous debit or failed job."  },
+  { value: "refund",       label: "Refund",        description: "Reimbursement. Credits added back after an erroneous debit or failed job."  },
 ];
 
 function AddCreditsPanel({ tenantId }: { tenantId: string }) {
@@ -2656,7 +2656,7 @@ function AddCreditsPanel({ tenantId }: { tenantId: string }) {
           <label className="mb-1 block text-xs font-medium text-neutral-700">
             Amount{" "}
             <span className="text-neutral-400">
-              (credits — 1 credit = €0.01
+              (credits, 1 credit = €0.01
               {adjustmentType === "adjustment" ? "; negative value = deduction" : ""})
             </span>
           </label>
@@ -2682,7 +2682,7 @@ function AddCreditsPanel({ tenantId }: { tenantId: string }) {
         {/* Reason */}
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-700">
-            Reason <span className="text-neutral-400">(required — appears in ledger)</span>
+            Reason <span className="text-neutral-400">(required, appears in ledger)</span>
           </label>
           <textarea
             value={reason}
@@ -2725,7 +2725,7 @@ function AddCreditsPanel({ tenantId }: { tenantId: string }) {
           >
             {result.ok ? (
               <span>
-                ✓ {parseFloat(amount) < 0 ? "Credits deducted" : "Credits added"} — new balance:{" "}
+                ✓ {parseFloat(amount) < 0 ? "Credits deducted" : "Credits added"}. New balance:{" "}
                 <strong>{result.newBalanceCents.toLocaleString()} cr</strong>{" "}
                 (€{(result.newBalanceCents / 100).toFixed(2)}).{" "}
                 The ledger entry is now visible below.
@@ -3067,7 +3067,7 @@ export function BillingDashboard({
       {(buyStatus === "cancelled" || checkoutStatus === "cancelled" || planChangeStatus === "cancelled") && (
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
           <span className="mt-0.5 text-neutral-400">✕</span>
-          <p className="text-sm text-neutral-600">Checkout cancelled — no payment was taken.</p>
+          <p className="text-sm text-neutral-600">Checkout cancelled. No payment was taken.</p>
         </div>
       )}
 
@@ -3079,7 +3079,7 @@ export function BillingDashboard({
         <div className="space-y-6">
           {/* PART 2: Category overview */}
           <section>
-            <SectionTitle sub="Enrichment credits consumed by category this month. These are separate from session credits — see the Sessions tab for personalised visit usage.">
+            <SectionTitle sub="Enrichment credits consumed by category this month. These are separate from session credits. See the Sessions tab for personalised visit usage.">
               {LABELS.SECTION_CATEGORIES}
             </SectionTitle>
             {grandTotal === 0 ? (
@@ -3134,7 +3134,7 @@ export function BillingDashboard({
         <div className="space-y-6">
           {/* Scope clarification */}
           <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
-            <strong>Enrichment wallet</strong> — this tab covers your Chameleon Credits balance,
+            <strong>Enrichment wallet</strong>. This tab covers your Chameleon Credits balance,
             used for data enrichment (email lookups, company profiles, intent signals, and similar
             API-backed features). To buy or view bonus personalised-session credits, use the
             <strong> Sessions</strong> tab.
@@ -3286,7 +3286,7 @@ function SessionsTab({
       }
       router.push(json.url);
     } catch {
-      setBuyError("Network error — please try again.");
+      setBuyError("Network error. Please try again.");
       setLoadingId(null);
     }
   }
@@ -3345,7 +3345,7 @@ function SessionsTab({
       {buyStatus === "cancelled" && (
         <div className="flex items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
           <span className="mt-0.5 text-neutral-400">✕</span>
-          <p className="text-sm text-neutral-600">Checkout cancelled — no payment was taken.</p>
+          <p className="text-sm text-neutral-600">Checkout cancelled. No payment was taken.</p>
         </div>
       )}
 
@@ -3357,7 +3357,7 @@ function SessionsTab({
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                Personalised sessions — {cap.monthKey}
+                Personalised sessions ({cap.monthKey})
               </p>
               <p className="mt-1 text-3xl font-bold text-neutral-900">
                 {fmtN(cap.current)}

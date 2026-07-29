@@ -327,8 +327,8 @@ export function PlanExperimentsTable({
       </div>
 
       <p className="text-xs text-neutral-400">
-        Draft experiments are not evaluated. Activate to start the test. Each experiment targets one rule —
-        bucket 0 receives the rule&apos;s plan unchanged; bucket 1 receives the challenger plan.
+        Draft experiments are not evaluated. Activate to start the test. Each experiment targets one rule.
+        Bucket 0 receives the rule&apos;s plan unchanged; bucket 1 receives the challenger plan.
       </p>
     </div>
   );
@@ -466,7 +466,7 @@ function InlineEditForm({ exp, tenantId, variantCatalogue, rules, onDone, onCanc
       {/* Challenger plan */}
       <div>
         <p className="mb-2 text-xs font-medium text-neutral-600">
-          Challenger plan <span className="font-normal text-neutral-400">(bucket 1 — override one or more slots)</span>
+          Challenger plan <span className="font-normal text-neutral-400">(bucket 1, override one or more slots)</span>
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {PLAN_SLOTS.filter((s) => ["heroKey", "proofKey", "ctaKey"].includes(s)).map((slot) => {

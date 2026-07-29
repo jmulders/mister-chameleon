@@ -295,7 +295,7 @@ export default async function TenantContentPage({
             )}
             {!provisionedAt && (
               <p className="text-xs text-neutral-400">
-                Not yet provisioned —{" "}
+                Not yet provisioned,{" "}
                 <a href="#cms-sync" className="text-brand-600 hover:underline">
                   sync below
                 </a>

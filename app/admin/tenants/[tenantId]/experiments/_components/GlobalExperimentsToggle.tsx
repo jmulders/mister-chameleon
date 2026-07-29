@@ -133,7 +133,7 @@ export function GlobalExperimentsToggle({
 
         {!enabled && (
           <span className="text-xs text-amber-700">
-            Visitors receive the default plan — no A/B overrides applied.
+            Visitors receive the default plan. No A/B overrides applied.
           </span>
         )}
       </div>

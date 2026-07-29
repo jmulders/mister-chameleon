@@ -143,7 +143,7 @@ export function GenerateClient({ tenantId }: { tenantId: string }) {
             </button>
             <button onClick={generate} disabled={pending} className="text-xs text-neutral-500 hover:text-neutral-800">Regenerate</button>
           </div>
-          {atCap && <p className="text-xs text-red-600">Slot at capacity — archive or replace an existing variant before adding.</p>}
+          {atCap && <p className="text-xs text-red-600">Slot at capacity. Archive or replace an existing variant before adding.</p>}
         </section>
       )}
     </div>

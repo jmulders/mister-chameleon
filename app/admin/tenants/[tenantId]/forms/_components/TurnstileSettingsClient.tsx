@@ -57,10 +57,10 @@ export function TurnstileSettingsClient({
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
       <div className="px-5 py-4 border-b border-neutral-100">
-        <h2 className="text-sm font-semibold text-neutral-900">Spam protection — Cloudflare Turnstile</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">Spam protection (Cloudflare Turnstile)</h2>
         <p className="text-xs text-neutral-500 mt-0.5">
           Enter this tenant&rsquo;s Turnstile keys, then enable the CAPTCHA per form under each form&rsquo;s
-          settings. Turnstile is free — get keys at{" "}
+          settings. Turnstile is free. Get keys at{" "}
           <a
             href="https://dash.cloudflare.com/?to=/:account/turnstile"
             target="_blank"
@@ -97,7 +97,7 @@ export function TurnstileSettingsClient({
             type="password"
             value={secretKey}
             onChange={(e) => { setSecretKey(e.target.value); setStatus("idle"); }}
-            placeholder={secretStored ? "•••••••• (stored — leave empty to keep)" : "0x4AAAAAAA…"}
+            placeholder={secretStored ? "•••••••• (stored, leave empty to keep)" : "0x4AAAAAAA…"}
             autoComplete="new-password"
             className={inputCls}
           />

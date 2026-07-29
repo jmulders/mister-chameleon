@@ -88,7 +88,7 @@ export default async function VariantsPage({
           )}
           {dataSource === "db" && (
             <span className="ml-1 text-neutral-400">
-              Reflects platform DB — re-provision to sync latest CMS changes.
+              Reflects platform DB. Re-provision to sync latest CMS changes.
             </span>
           )}
         </p>
@@ -165,7 +165,7 @@ function PageVariantTable({ pages }: { pages: PageVariantInfo[] }) {
         </table>
       </div>
       <p className="mt-1.5 text-[11px] text-neutral-400">
-        {pages.length} page{pages.length !== 1 ? "s" : ""} — empty cells indicate the slot is not configured for that page.
+        {pages.length} page{pages.length !== 1 ? "s" : ""}. Empty cells indicate the slot is not configured for that page.
       </p>
     </section>
   );
@@ -272,7 +272,7 @@ function VariantToPageMap({
         <h2 className="text-sm font-semibold text-neutral-900">Variant → Pages</h2>
         <p className="mt-0.5 text-xs text-neutral-400">
           Which pages use each variant key as a fallback. Variants with no pages
-          are dead content — safe to archive or remove from the CMS.
+          are dead content, safe to archive or remove from the CMS.
         </p>
       </div>
 
@@ -357,7 +357,7 @@ function DeadVariantsSection({ dead }: { dead: VariantPageUsage[] }) {
           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-200 bg-white text-[10px] font-semibold text-neutral-500">
             {dead.length}
           </span>
-          <span>Dead variants — no pages reference these keys</span>
+          <span>Dead variants (no pages reference these keys)</span>
         </div>
         {/* Chevron: rotates when open via group-open */}
         <svg
@@ -386,7 +386,7 @@ function DeadVariantsSection({ dead }: { dead: VariantPageUsage[] }) {
         </div>
         <p className="mt-3 text-[11px] text-neutral-400">
           These variants exist in the catalogue but are not assigned as a fallback on any published page.
-          They may still be served if the decision engine resolves them via rules — check the{" "}
+          They may still be served if the decision engine resolves them via rules. Check the{" "}
           <a href="../rules" className="text-indigo-600 hover:underline">Rules page</a>.
         </p>
       </div>

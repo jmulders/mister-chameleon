@@ -64,7 +64,7 @@ export default async function TenantPipelinePage({
         </p>
         {!pipelineConfig.fromDb && (
           <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Using platform defaults — no custom configuration saved yet. Reorder
+            Using platform defaults. No custom configuration saved yet. Reorder
             or toggle a stage to create a custom config for this tenant.
           </p>
         )}
@@ -82,11 +82,11 @@ export default async function TenantPipelinePage({
         <ul className="space-y-1 list-disc list-inside">
           <li>
             Changes take effect on the <strong>next page render</strong> for
-            this tenant — the session enrichment cache is not immediately
+            this tenant. The session enrichment cache is not immediately
             flushed.
           </li>
           <li>
-            Disabled stages are omitted from the pipeline entirely — they do
+            Disabled stages are omitted from the pipeline entirely. They do
             not consume credits and add no latency.
           </li>
           <li>

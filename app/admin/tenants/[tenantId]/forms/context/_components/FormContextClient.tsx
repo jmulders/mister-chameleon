@@ -194,7 +194,7 @@ export function FormContextClient({ tenantId, initial, initialBlock, forms }:
           <button className={btnGhost} onClick={addRule}>+ Add rule</button>
         </div>
 
-        {rules.length === 0 && <p className="mt-4 text-sm text-neutral-400">No rules yet — every visitor sees the base form.</p>}
+        {rules.length === 0 && <p className="mt-4 text-sm text-neutral-400">No rules yet. Every visitor sees the base form.</p>}
 
         <div className="mt-4 space-y-4">
           {rules.map((r) => (
@@ -270,7 +270,7 @@ export function FormContextClient({ tenantId, initial, initialBlock, forms }:
                       </div>
                       <div>
                         <div className="flex items-center justify-between">
-                          <label className={label}>Fields (JSON) — leave empty to keep the base fields</label>
+                          <label className={label}>Fields (JSON), leave empty to keep the base fields</label>
                           <button className="text-xs text-indigo-600 hover:underline"
                             onClick={() => setDraft(f.key, seg, { fieldsJson: JSON.stringify(f.fields, null, 2) })}>
                             Copy base fields
@@ -286,7 +286,7 @@ export function FormContextClient({ tenantId, initial, initialBlock, forms }:
                         return (
                           <div>
                             {parsed.invalid && (
-                              <p className="mb-1 text-xs text-red-600">Fields JSON is invalid — preview falls back to the base fields.</p>
+                              <p className="mb-1 text-xs text-red-600">Fields JSON is invalid. Preview falls back to the base fields.</p>
                             )}
                             <FormPreview
                               title={d.title.trim() || f.title}

@@ -106,7 +106,7 @@ export default async function TenantExperimentsPage({
           </span>
           .{" "}
           Each experiment targets a specific rule and tests a complete challenger plan against the
-          rule&apos;s control plan — enabling macro-optimisation of full psychological journeys.
+          rule&apos;s control plan, enabling macro-optimisation of full psychological journeys.
         </p>
       </div>
 
@@ -154,25 +154,25 @@ export default async function TenantExperimentsPage({
         <div className="space-y-2 text-xs text-neutral-600">
           <p>
             <strong>Engine master switch (above):</strong> When disabled, no experiments run for
-            this tenant — every visitor receives the rules-based plan unchanged.
+            this tenant. Every visitor receives the rules-based plan unchanged.
           </p>
           <p>
-            <strong>Rule targeting:</strong> Each experiment is linked to a specific rule by ID.
+            <strong>Rule targeting.</strong> Each experiment is linked to a specific rule by ID.
             The experiment only evaluates when that rule matches the visitor.  The rule provides
             the audience segmentation; the experiment randomises within that segment.
           </p>
           <p>
             <strong>Bucket assignment:</strong> Bucket 0 receives the rule&apos;s plan unchanged
             (control). Bucket 1 receives the challenger plan merged on top (only the slots you
-            specified are different). Both buckets are part of the same deterministic hash —
-            the same session always gets the same bucket.
+            specified are different). Both buckets are part of the same deterministic hash.
+            The same session always gets the same bucket.
           </p>
           <p>
             <strong>Status lifecycle:</strong>{" "}
-            <code className="rounded bg-neutral-200 px-1 font-mono">draft</code> — not yet live.{" "}
-            <code className="rounded bg-neutral-200 px-1 font-mono">active</code> — running.{" "}
-            <code className="rounded bg-neutral-200 px-1 font-mono">paused</code> — traffic blocked without ending.{" "}
-            <code className="rounded bg-neutral-200 px-1 font-mono">ended</code> — archived, not resumable.
+            <code className="rounded bg-neutral-200 px-1 font-mono">draft</code> (not yet live).{" "}
+            <code className="rounded bg-neutral-200 px-1 font-mono">active</code> (running).{" "}
+            <code className="rounded bg-neutral-200 px-1 font-mono">paused</code> (traffic blocked without ending).{" "}
+            <code className="rounded bg-neutral-200 px-1 font-mono">ended</code> (archived, not resumable).
           </p>
           <p>
             <strong>One active experiment per rule:</strong> If two active experiments target the

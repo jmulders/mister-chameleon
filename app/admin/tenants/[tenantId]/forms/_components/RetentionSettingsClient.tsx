@@ -20,13 +20,13 @@ interface RetentionSettingsClientProps {
 // ── Options ────────────────────────────────────────────────────────────────────
 
 const RETENTION_OPTIONS: Array<{ value: number | null; label: string }> = [
-  { value: null, label: "Altijd bewaren" },
-  { value: 30,   label: "30 dagen" },
-  { value: 60,   label: "60 dagen" },
-  { value: 90,   label: "90 dagen" },
-  { value: 180,  label: "180 dagen (6 maanden)" },
-  { value: 365,  label: "365 dagen (1 jaar)" },
-  { value: 730,  label: "730 dagen (2 jaar)" },
+  { value: null, label: "Keep forever" },
+  { value: 30,   label: "30 days" },
+  { value: 60,   label: "60 days" },
+  { value: 90,   label: "90 days" },
+  { value: 180,  label: "180 days (6 months)" },
+  { value: 365,  label: "365 days (1 year)" },
+  { value: 730,  label: "730 days (2 years)" },
 ];
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -63,16 +63,16 @@ export function RetentionSettingsClient({
 
   const currentLabel =
     RETENTION_OPTIONS.find((o) => o.value === retentionDays)?.label ??
-    "Onbekend";
+    "Unknown";
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
       {/* ── Section header ──────────────────────────────────────────────── */}
       <div className="px-5 py-4 border-b border-neutral-100">
-        <h2 className="text-sm font-semibold text-neutral-900">Bewaartermijn inzendingen (AVG)</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">Submission retention (GDPR)</h2>
         <p className="text-xs text-neutral-500 mt-0.5">
-          Automatisch verwijderen van formulierinzendingen na een bepaald aantal dagen.
-          Vereist door de AVG wanneer inzendingen persoonsgegevens bevatten.
+          Automatically delete form submissions after a set number of days.
+          Required by GDPR when submissions contain personal data.
         </p>
       </div>
 
@@ -83,15 +83,15 @@ export function RetentionSettingsClient({
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
           <span className="text-base leading-none mt-0.5">⚠️</span>
           <span>
-            <strong>AVG-vereiste:</strong> sla persoonsgegevens niet langer op dan noodzakelijk.
-            Kies een bewaartermijn die past bij het doel van het formulier.
+            <strong>GDPR requirement:</strong> do not store personal data longer than necessary.
+            Choose a retention period that matches the form&rsquo;s purpose.
           </span>
         </div>
 
         {/* Select */}
         <div>
           <label className="block text-xs font-medium text-neutral-700 mb-1" htmlFor="retentionDays">
-            Bewaartermijn
+            Retention period
           </label>
           <select
             id="retentionDays"
@@ -106,17 +106,17 @@ export function RetentionSettingsClient({
             ))}
           </select>
           <p className="mt-1 text-xs text-neutral-400">
-            Huidige instelling:{" "}
+            Current setting:{" "}
             <span className="font-medium text-neutral-600">{currentLabel}</span>
             {retentionDays !== null && (
               <>
-                {" "}— inzendingen ouder dan{" "}
-                <span className="font-medium">{retentionDays} dagen</span> worden
-                dagelijks automatisch verwijderd.
+                {". Submissions older than "}
+                <span className="font-medium">{retentionDays} days</span> are
+                deleted automatically each day.
               </>
             )}
             {retentionDays === null && (
-              <> — inzendingen worden nooit automatisch verwijderd.</>
+              <>. Submissions are never automatically deleted.</>
             )}
           </p>
         </div>
@@ -129,13 +129,13 @@ export function RetentionSettingsClient({
             <p className="text-sm text-red-600">{errorMsg}</p>
           )}
           {saveStatus === "saved" && (
-            <p className="text-sm text-green-600">Bewaartermijn opgeslagen.</p>
+            <p className="text-sm text-green-600">Retention period saved.</p>
           )}
           {saveStatus === "saving" && (
-            <p className="text-sm text-neutral-400">Opslaan…</p>
+            <p className="text-sm text-neutral-400">Saving…</p>
           )}
           {saveStatus === "idle" && isDirty && (
-            <p className="text-xs text-amber-600">Niet-opgeslagen wijzigingen</p>
+            <p className="text-xs text-amber-600">Unsaved changes</p>
           )}
         </div>
         <button
@@ -144,7 +144,7 @@ export function RetentionSettingsClient({
           disabled={saveStatus === "saving" || !isDirty}
           className="inline-flex items-center rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-neutral-700 transition-colors disabled:opacity-40"
         >
-          {saveStatus === "saving" ? "Opslaan…" : "Opslaan"}
+          {saveStatus === "saving" ? "Saving…" : "Save"}
         </button>
       </div>
     </div>

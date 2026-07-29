@@ -165,7 +165,7 @@ export function FormOverrideClient({
         {!overrideEnabled && (
           <div className="px-5 py-3 border-t border-neutral-100 bg-neutral-50">
             <p className="text-xs text-neutral-500">
-              Using tenant defaults —{" "}
+              Using tenant defaults,{" "}
               <span className="font-medium text-neutral-700">
                 Notify: {tenantNotify ? "on" : "off"},{" "}
                 Confirm: {tenantConfirm ? "on" : "off"},{" "}
@@ -225,8 +225,8 @@ export function FormOverrideClient({
         <div className="px-5 py-4 border-b border-neutral-100">
           <h2 className="text-sm font-semibold text-neutral-900">Spam protection</h2>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Require a Cloudflare Turnstile challenge on this form. Applies on its own —
-            it does not depend on &ldquo;Override Tenant Defaults&rdquo;.
+            Require a Cloudflare Turnstile challenge on this form. Applies on its own.
+            It does not depend on &ldquo;Override Tenant Defaults&rdquo;.
           </p>
         </div>
         <div className="px-5 py-4 flex items-start gap-4">
@@ -237,7 +237,7 @@ export function FormOverrideClient({
             </p>
             {turnstileHasKeys === false && (
               <p className="text-xs text-amber-600 mt-1">
-                No Turnstile keys configured for this tenant yet — add the site &amp; secret key under
+                No Turnstile keys configured for this tenant yet. Add the site &amp; secret key under
                 Forms settings first, otherwise this toggle has no effect.
               </p>
             )}

@@ -112,7 +112,7 @@ export function NewPageForm({ presets, tenantId, onSubmit }: NewPageFormProps) {
       if (result.ok && result.pageId) {
         router.push(`/admin/tenants/${tenantId}/pages/${result.pageId}`);
       } else {
-        setError(result.error ?? "Failed to create page — please try again.");
+        setError(result.error ?? "Failed to create page. Please try again.");
       }
     });
   }
@@ -209,7 +209,7 @@ export function NewPageForm({ presets, tenantId, onSubmit }: NewPageFormProps) {
               className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
             <p className="text-xs text-neutral-400">
-              Internal page title — also used as the default SEO title.
+              Internal page title, also used as the default SEO title.
             </p>
           </div>
 
@@ -233,7 +233,7 @@ export function NewPageForm({ presets, tenantId, onSubmit }: NewPageFormProps) {
             </div>
             <p className="text-xs text-neutral-400">
               Lowercase letters, numbers, and hyphens only. Auto-generated from
-              the title — edit to customise.
+              the title. Edit to customise.
             </p>
           </div>
         </div>

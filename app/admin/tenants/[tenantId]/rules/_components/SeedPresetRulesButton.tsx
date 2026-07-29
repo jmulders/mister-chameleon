@@ -57,7 +57,7 @@ export function SeedPresetRulesButton({ seedAction }: Props) {
 
       {status.kind === "ok" && (
         <span className="text-sm text-green-700">
-          ✓ {status.count} rules seeded — reload to see them.
+          ✓ {status.count} rules seeded. Reload to see them.
         </span>
       )}
 

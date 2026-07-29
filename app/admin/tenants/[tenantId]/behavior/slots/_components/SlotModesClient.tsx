@@ -38,37 +38,37 @@ const SLOT_META: SlotMeta[] = [
   {
     id:          "hero",
     label:       "Hero",
-    description: "Adaptive page header — headline, subtitle, and primary CTA.",
+    description: "Adaptive page header (headline, subtitle, and primary CTA).",
     keys:        HERO_VARIANT_KEYS,
   },
   {
     id:          "proof",
     label:       "Proof",
-    description: "Social proof section — case studies, recognition, or platform stats.",
+    description: "Social proof section (case studies, recognition, or platform stats).",
     keys:        PROOF_VARIANT_KEYS,
   },
   {
     id:          "cta",
     label:       "CTA",
-    description: "Call-to-action section — nurture, product-led, or sales-led.",
+    description: "Call-to-action section (nurture, product-led, or sales-led).",
     keys:        CTA_VARIANT_KEYS,
   },
   {
     id:          "feature",
     label:       "Feature",
-    description: "Adaptive feature highlights or benefit grid — adapts messaging by visitor intent.",
+    description: "Adaptive feature highlights or benefit grid. Adapts messaging by visitor intent.",
     keys:        FEATURE_VARIANT_KEYS,
   },
   {
     id:          "conversion",
     label:       "Conversion",
-    description: "Adaptive conversion section — signup form, demo request, or contact form.",
+    description: "Adaptive conversion section (signup form, demo request, or contact form).",
     keys:        CONVERSION_VARIANT_KEYS,
   },
   {
     id:          "notification",
     label:       "Notification",
-    description: "Adaptive overlay notification — toast or banner shown above the page layout.",
+    description: "Adaptive overlay notification (toast or banner shown above the page layout).",
     keys:        NOTIFICATION_VARIANT_KEYS,
   },
 ];

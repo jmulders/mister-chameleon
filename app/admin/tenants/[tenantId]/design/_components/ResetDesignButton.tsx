@@ -36,7 +36,7 @@ export function ResetDesignButton({ tenantId }: { tenantId: string }) {
       const r = await resetDesignAction(tenantId);
       setConfirming(false);
       if (r.ok) {
-        setMsg({ text: "Reset ✓ — design terug naar default. Activeer een preset of laad een nieuwe JSON.", ok: true });
+        setMsg({ text: "Reset ✓. Design is back to default. Activate a preset or load a new JSON.", ok: true });
         router.refresh();
       } else {
         setMsg({ text: r.error, ok: false });
@@ -51,7 +51,7 @@ export function ResetDesignButton({ tenantId }: { tenantId: string }) {
           type="button"
           onClick={() => { setMsg(null); setConfirming(true); }}
           disabled={pending}
-          title="Wis alle design-overrides (kleuren, tokens, fonts, preset) en zet de theme terug op default. Automatische theme-regels blijven behouden."
+          title="Clear all design overrides (colors, tokens, fonts, preset) and reset the theme to default. Automatic theme rules are preserved."
           style={{
             display: "inline-flex", alignItems: "center", gap: "0.375rem",
             padding: "0.375rem 0.75rem", borderRadius: "0.375rem",
@@ -64,7 +64,7 @@ export function ResetDesignButton({ tenantId }: { tenantId: string }) {
       ) : (
         <>
           <span style={{ fontSize: "0.8125rem", color: "#374151" }}>
-            Alle design-overrides wissen en terug naar default?
+            Clear all design overrides and reset to default?
           </span>
           <button
             type="button"
@@ -76,7 +76,7 @@ export function ResetDesignButton({ tenantId }: { tenantId: string }) {
               cursor: pending ? "default" : "pointer", opacity: pending ? 0.7 : 1,
             }}
           >
-            {pending ? "Bezig…" : "Ja, reset"}
+            {pending ? "Working…" : "Yes, reset"}
           </button>
           <button
             type="button"
@@ -87,7 +87,7 @@ export function ResetDesignButton({ tenantId }: { tenantId: string }) {
               background: "#fff", color: "#374151", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
             }}
           >
-            Annuleren
+            Cancel
           </button>
         </>
       )}

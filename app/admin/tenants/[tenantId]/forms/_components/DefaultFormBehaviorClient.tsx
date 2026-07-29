@@ -90,7 +90,7 @@ export function DefaultFormBehaviorClient({
           <Toggle
             id="storeSubmissions"
             label="Store submissions in database"
-            hint="Writes each submission to the form_submissions table so it can be reviewed later. Disabling only stops DB writes — email and webhook still fire."
+            hint="Writes each submission to the form_submissions table so it can be reviewed later. Disabling only stops DB writes. Email and webhook still fire."
             checked={data.storeSubmissions}
             onChange={(v) => patch("storeSubmissions", v)}
           />
@@ -148,7 +148,7 @@ export function DefaultFormBehaviorClient({
               type="text"
               value={data.successMessage ?? ""}
               onChange={(e) => patch("successMessage", e.target.value.trim() || undefined)}
-              placeholder="Thank you — we'll be in touch soon."
+              placeholder="Thank you, we'll be in touch soon."
               className={inputCls}
             />
             <p className="mt-1 text-xs text-neutral-400">
