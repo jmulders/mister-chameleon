@@ -144,6 +144,6 @@ export async function saveSlotModesAction(
     return { ok: false, error: result.error };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/behavior/slots`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/slots`);
   return { ok: true };
 }

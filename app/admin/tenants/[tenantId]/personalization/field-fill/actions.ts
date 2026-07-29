@@ -155,6 +155,6 @@ export async function saveFieldFillAction(
     return { ok: false, error: result.error };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/behavior/field-fill`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/field-fill`);
   return { ok: true };
 }

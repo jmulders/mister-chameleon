@@ -139,6 +139,6 @@ export async function saveFormContextAction(
   const blockContext: TenantBlockContext = { overlays: blockOverlays };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await saveTenant({ ...tenant, formContext, blockContext } as any);
-  revalidatePath(`/admin/tenants/${tenantId}/forms/context`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/contextual-forms`);
   return { ok: true };
 }

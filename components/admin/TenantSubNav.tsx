@@ -191,17 +191,19 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
     {
       key:    "personalization",
       label:  "Personalization",
-      href:   `${base}/behavior/slots`,
-      prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill|${base}/forms/context`,
+      href:   `${base}/personalization/slots`,
+      // All personalisation surfaces now live under one /personalization/*
+      // namespace (see next.config redirects for the old-path 301s).
+      prefix: `${base}/personalization`,
       icon:   ICONS.personalization,
       items: [
-        { label: "Slots",           href: `${base}/behavior/slots`, activePrefix: `${base}/behavior/slots` },
-        { label: "Variants",        href: `${base}/variants`,       activePrefix: `${base}/variants` },
-        { label: "Adaptive blocks", href: `${base}/blocks`,         activePrefix: `${base}/blocks` },
-        { label: "Contextual forms", href: `${base}/forms/context`, activePrefix: `${base}/forms/context` },
-        { label: "Rules",           href: `${base}/rules`,          activePrefix: `${base}/rules` },
-        { label: "Experiments",     href: `${base}/experiments`,    activePrefix: `${base}/experiments` },
-        { label: "AI",              href: `${base}/ai`,             activePrefix: `${base}/ai`, exact: true },
+        { label: "Slots",            href: `${base}/personalization/slots`,            activePrefix: `${base}/personalization/slots` },
+        { label: "Variants",         href: `${base}/personalization/variants`,         activePrefix: `${base}/personalization/variants` },
+        { label: "Adaptive blocks",  href: `${base}/personalization/blocks`,           activePrefix: `${base}/personalization/blocks` },
+        { label: "Contextual forms", href: `${base}/personalization/contextual-forms`, activePrefix: `${base}/personalization/contextual-forms` },
+        { label: "Rules",            href: `${base}/personalization/rules`,            activePrefix: `${base}/personalization/rules` },
+        { label: "Experiments",      href: `${base}/personalization/experiments`,      activePrefix: `${base}/personalization/experiments` },
+        { label: "AI",               href: `${base}/personalization/ai`,               activePrefix: `${base}/personalization/ai`, exact: true },
       ],
     },
     {
@@ -295,12 +297,6 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         .some((g) => isGroupActive(g));
       return !anyOtherActive;
     }
-    // /forms/context is a personalisation surface (Contextual forms), even
-    // though it lives under the /forms/* path that the Content tab owns. Keep it
-    // out of Content so Personalization claims it (and its tab highlights).
-    if (group.key === "content" && pathname.startsWith(`${base}/forms/context`)) {
-      return false;
-    }
     // Multi-prefix groups: check if pathname matches any segment
     return group.prefix.split("|").some((prefix) => pathname.startsWith(prefix));
   }
@@ -313,12 +309,14 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       return current ? current === item.tab : item.tabDefault === true;
     }
     if (item.label === "AI") {
+      // The AI item covers the whole AI family: the AI page plus logs, policy,
+      // field-fill and the shared context variables (all under /personalization).
       return (
-        pathname === `${base}/ai` ||
-        pathname.startsWith(`${base}/ai-`) ||
-        pathname.startsWith(`${base}/context`) ||
-        pathname.startsWith(`${base}/behavior/ai-policy`) ||
-        pathname.startsWith(`${base}/behavior/field-fill`)
+        pathname === `${base}/personalization/ai` ||
+        pathname.startsWith(`${base}/personalization/ai-logs`) ||
+        pathname.startsWith(`${base}/personalization/ai-policy`) ||
+        pathname.startsWith(`${base}/personalization/field-fill`) ||
+        pathname.startsWith(`${base}/personalization/context-variables`)
       );
     }
     return item.exact ? pathname === item.activePrefix : pathname.startsWith(item.activePrefix);

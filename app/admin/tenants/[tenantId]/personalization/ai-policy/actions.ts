@@ -94,6 +94,6 @@ export async function saveAiPolicyAction(
     return { ok: false, error: result.error };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/behavior/ai-policy`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/ai-policy`);
   return { ok: true };
 }

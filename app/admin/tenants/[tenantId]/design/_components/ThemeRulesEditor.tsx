@@ -775,7 +775,7 @@ export function ThemeRulesEditor({
             Built-in conditions create a rule automatically the first time you map them.
             All rules can also be edited in the{" "}
             <a
-              href={`/admin/tenants/${tenantId}/rules`}
+              href={`/admin/tenants/${tenantId}/personalization/rules`}
               className="underline hover:text-neutral-600"
             >
               Rules editor

@@ -274,7 +274,7 @@ interface TenantBlocksClientProps {
 
 export function TenantBlocksClient({ tenantId, slots, allBlocks, blockTokenSets = [] }: TenantBlocksClientProps) {
   const router          = useRouter();
-  const revalidatePath  = `/admin/tenants/${tenantId}/blocks`;
+  const revalidatePath  = `/admin/tenants/${tenantId}/personalization/blocks`;
   const [editing, setEditing] = useState<AdaptiveBlockData | null>(null);
 
   const handleSaved = useCallback(() => {

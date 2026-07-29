@@ -21,7 +21,7 @@ export default async function GenerateVariantPage({
     <div className="p-8 max-w-3xl space-y-5">
       <div>
         <Link
-          href={`/admin/tenants/${tenantId}/blocks`}
+          href={`/admin/tenants/${tenantId}/personalization/blocks`}
           className="text-xs text-neutral-500 hover:text-neutral-800"
         >
           ← Adaptive blocks

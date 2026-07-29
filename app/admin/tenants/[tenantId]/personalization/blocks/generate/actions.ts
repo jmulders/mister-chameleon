@@ -71,7 +71,7 @@ export async function saveGeneratedVariantAction(
       defaultVariant:   { ...content, decisionMeta: decision },
       adaptiveVariants: [],
     },
-    `/admin/tenants/${tenantId}/blocks`,
+    `/admin/tenants/${tenantId}/personalization/blocks`,
   );
   if (!res.ok) return res;
   return { ok: true, id: res.id, key };

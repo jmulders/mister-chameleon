@@ -48,7 +48,7 @@ export default async function TenantBlocksPage({ params }: Props) {
           </p>
         </div>
         <Link
-          href={`/admin/tenants/${tenantId}/blocks/generate`}
+          href={`/admin/tenants/${tenantId}/personalization/blocks/generate`}
           className="shrink-0 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700"
         >
           ✨ Generate variant

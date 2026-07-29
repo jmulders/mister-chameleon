@@ -303,7 +303,7 @@ export default async function TenantDecisionsPage({
             Variant AI metadata →
           </Link>
           <Link
-            href={`/admin/tenants/${tenantId}/ai-logs`}
+            href={`/admin/tenants/${tenantId}/personalization/ai-logs`}
             className="text-xs text-neutral-400 hover:text-brand-700 transition-colors"
           >
             View raw AI logs →

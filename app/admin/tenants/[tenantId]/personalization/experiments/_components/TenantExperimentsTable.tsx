@@ -137,7 +137,7 @@ export function TenantExperimentsTable({
         <p className="mt-1 text-xs text-neutral-400">
           Use the{" "}
           <a
-            href={`/admin/tenants/${tenantId}/experiments`}
+            href={`/admin/tenants/${tenantId}/personalization/experiments`}
             className="text-brand-600 underline-offset-2 hover:underline"
           >
             create form above

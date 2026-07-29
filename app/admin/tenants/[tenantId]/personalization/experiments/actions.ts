@@ -74,7 +74,7 @@ export async function setTenantExperimentsEnabledAction(
     return { ok: false, error: result.error };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/experiments`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/experiments`);
   // Revalidate the homepage so experiment evaluation changes take effect
   // for the next visitor request.
   revalidatePath("/");
@@ -120,7 +120,7 @@ export async function createPlanExperimentAction(
 
   if (!result.ok) return { ok: false, error: result.error };
 
-  revalidatePath(`/admin/tenants/${tenantId}/experiments`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/experiments`);
   revalidatePath("/");
   return { ok: true };
 }
@@ -146,7 +146,7 @@ export async function updatePlanExperimentAction(
   const result = await updatePlanExperiment(tenantId, id, finalPatch);
   if (!result.ok) return { ok: false, error: result.error };
 
-  revalidatePath(`/admin/tenants/${tenantId}/experiments`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/experiments`);
   revalidatePath("/");
   return { ok: true };
 }
@@ -163,7 +163,7 @@ export async function deletePlanExperimentAction(
   const result = await deletePlanExperiment(tenantId, id);
   if (!result.ok) return { ok: false, error: result.error };
 
-  revalidatePath(`/admin/tenants/${tenantId}/experiments`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/experiments`);
   revalidatePath("/");
   return { ok: true };
 }
