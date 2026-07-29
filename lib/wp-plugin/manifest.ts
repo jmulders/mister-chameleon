@@ -22,7 +22,7 @@
  * and what WordPress' own update/`plugins_api` structures expect.
  */
 
-const LATEST_VERSION = "0.5.8";
+const LATEST_VERSION = "0.5.9";
 
 export interface WpPluginManifest {
   name: string;
@@ -52,7 +52,7 @@ export function wpPluginManifest(): WpPluginManifest {
     slug:         "mister-chameleon-connect",
     version:      LATEST_VERSION,
     requires:     "6.0",
-    tested:       "6.6",
+    tested:       "7.0",
     requires_php: "7.4",
     download_url: downloadUrl,
     homepage:     "https://www.misterchameleon.nl",
