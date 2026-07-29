@@ -194,6 +194,18 @@ export interface TenantFormSettings {
 
   /** GDPR: delete submissions older than this many days. null = keep forever. */
   submissionRetentionDays?: number | null;
+
+  /**
+   * Cloudflare Turnstile site key — PUBLIC, rendered in the form widget.
+   * Safe to expose to the browser. Required (with the secret) for Turnstile.
+   */
+  turnstileSiteKey?: string;
+
+  /**
+   * Cloudflare Turnstile secret key — SERVER ONLY, encrypted at rest (via
+   * lib/email-crypto). Used to verify the token against Cloudflare's siteverify.
+   */
+  turnstileSecretKey?: string;
 }
 
 /**
@@ -278,6 +290,18 @@ export interface TenantFormOverrideSettings {
    * When set and `overrideEnabled`, used instead of the tenant-level fromName.
    */
   customSenderName?: string;
+
+  /**
+   * Whether Cloudflare Turnstile (CAPTCHA) is required for THIS form.
+   *
+   * Deliberately INDEPENDENT of `overrideEnabled`: unlike the other override
+   * fields, this flag is honoured on its own so a single form can require
+   * Turnstile without flipping the master override for everything else.
+   * Requires the tenant's `turnstileSiteKey` + `turnstileSecretKey` to be set;
+   * with no keys configured the flag is a no-op.
+   * @default false
+   */
+  turnstileEnabled: boolean;
 }
 
 /**
@@ -290,6 +314,7 @@ export const DEFAULT_FORM_OVERRIDE_SETTINGS: TenantFormOverrideSettings = {
   confirmEnabled:  true,
   storeEnabled:    true,
   customRecipients: [],
+  turnstileEnabled: false,
 };
 
 // ── Email transport settings ───────────────────────────────────────────────────

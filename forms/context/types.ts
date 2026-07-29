@@ -156,4 +156,11 @@ export interface ResolvedForm {
   readonly redirectPath?:  string;
   /** Effective field set (overlay fields when set, else base definition fields). */
   readonly fields:         readonly FormField[];
+  /**
+   * Cloudflare Turnstile widget config for the renderer. Present only when this
+   * form has Turnstile enabled AND the tenant has a site key configured; absent
+   * otherwise (no widget). The site key is public. Server-side token
+   * verification is handled independently in the submit route.
+   */
+  readonly turnstile?:     { readonly siteKey: string };
 }

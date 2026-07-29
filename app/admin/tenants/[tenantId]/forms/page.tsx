@@ -59,7 +59,10 @@ import {
   saveFormBehaviorAction,
   sendTestEmailAction,
   resetTenantEmailTransportAction,
+  getTurnstileSettingsAction,
+  saveTurnstileSettingsAction,
 } from "./actions";
+import { TurnstileSettingsClient } from "./_components/TurnstileSettingsClient";
 import { TenantEmailTransportClient } from "./_components/TenantEmailTransportClient";
 import { NotificationRecipientsClient } from "./_components/NotificationRecipientsClient";
 import { DefaultFormBehaviorClient }   from "./_components/DefaultFormBehaviorClient";
@@ -106,6 +109,8 @@ export default async function TenantFormsPage({
     resolveEmailConfig(tenantId),
     resolveFormsConfig(tenantId),
   ]);
+
+  const turnstileResult = await getTurnstileSettingsAction(tenantId);
 
   const formDefs = getAllFormDefinitions();
 
@@ -156,6 +161,7 @@ export default async function TenantFormsPage({
   const boundResetTransport      = resetTenantEmailTransportAction.bind(null, tenantId);
   const boundSaveNotifications   = saveNotificationSettingsAction.bind(null, tenantId);
   const boundSaveFormBehavior    = saveFormBehaviorAction.bind(null, tenantId);
+  const boundSaveTurnstile       = saveTurnstileSettingsAction.bind(null, tenantId);
 
   return (
     <div className="p-8 max-w-3xl space-y-8">
@@ -249,6 +255,13 @@ export default async function TenantFormsPage({
           saveAction={boundSaveFormBehavior}
         />
       ) : null /* error already shown in section 3 above */}
+
+      {/* ── 4b. Spam protection — Cloudflare Turnstile keys ──────────────── */}
+      <TurnstileSettingsClient
+        initialSiteKey={turnstileResult.ok ? turnstileResult.siteKey : ""}
+        hasSecret={turnstileResult.ok ? turnstileResult.hasSecret : false}
+        saveAction={boundSaveTurnstile}
+      />
 
       {/* ── 5. Registered Forms ──────────────────────────────────────────── */}
       <div className="space-y-3">

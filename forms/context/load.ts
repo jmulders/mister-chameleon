@@ -11,6 +11,8 @@ import "server-only";
 
 import { getFormDefinition, isFormKey } from "@/forms";
 import { getTenantById } from "@/tenant/server";
+import { getDb } from "@/data/db";
+import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
 import { resolveFormSegment, applyFormOverlay } from "./resolve";
 import type {
   FormContextSignals, ResolvedForm, TenantFormContext,
@@ -32,6 +34,10 @@ export async function resolveContextualForm(
 
   const base = { fields: formDef.fields };
 
+  // Turnstile widget config (per-form toggle + tenant site key). Resolved
+  // independently of the overlay so both return paths carry it.
+  const turnstile = tenantId ? await resolveTurnstile(tenantId, formKey) : undefined;
+
   let ctx: TenantFormContext | undefined;
   if (tenantId) {
     try {
@@ -42,11 +48,38 @@ export async function resolveContextualForm(
     }
   }
 
-  if (!ctx?.rules?.length) return applyFormOverlay(base, null, undefined);
+  if (!ctx?.rules?.length) return { ...applyFormOverlay(base, null, undefined), turnstile };
 
   const segment = resolveFormSegment(ctx.rules, signals);
   const overlay = segment ? ctx.overlays?.[formKey]?.[segment] : undefined;
-  return applyFormOverlay(base, segment, overlay);
+  return { ...applyFormOverlay(base, segment, overlay), turnstile };
+}
+
+/**
+ * Resolve the Turnstile widget config for a form: present only when the per-form
+ * `turnstileEnabled` override is on AND the tenant has a public site key set.
+ * Returns undefined otherwise (no widget rendered). Never throws.
+ */
+async function resolveTurnstile(
+  tenantId: string,
+  formKey: string,
+): Promise<{ siteKey: string } | undefined> {
+  try {
+    const override = await loadTenantFormOverrides(tenantId, formKey);
+    if (!override.turnstileEnabled) return undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = (await (getDb() as any)
+      .from("tenant_form_settings")
+      .select("settings")
+      .eq("tenant_id", tenantId)
+      .maybeSingle()) as { data: { settings: Record<string, unknown> } | null };
+    const siteKey = res.data?.settings?.turnstileSiteKey;
+    return typeof siteKey === "string" && siteKey.trim() !== ""
+      ? { siteKey: siteKey.trim() }
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

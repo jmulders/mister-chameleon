@@ -335,6 +335,7 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
       errorRevision={errorRevision}
       onSubmit={handleSubmit}
       onFormStart={() => fireFormEvent("form_start")}
+      turnstileSiteKey={overlay?.turnstile?.siteKey}
     />
   );
 
@@ -487,6 +488,8 @@ interface FormFieldsProps {
   onSubmit:      (values: Record<string, string>) => Promise<void>;
   /** Fired once when the visitor first focuses any form field. */
   onFormStart?:  () => void;
+  /** Cloudflare Turnstile site key — renders the CAPTCHA widget when set. */
+  turnstileSiteKey?: string;
 }
 
 function FormFields({
@@ -499,8 +502,50 @@ function FormFields({
   errorRevision,
   onSubmit,
   onFormStart,
+  turnstileSiteKey,
 }: FormFieldsProps) {
   const formRef = useRef<HTMLFormElement>(null);
+  const turnstileRef = useRef<HTMLDivElement>(null);
+
+  // Load the Cloudflare Turnstile API once and render the widget explicitly.
+  // The widget injects a hidden `cf-turnstile-response` input, captured on submit.
+  useEffect(() => {
+    if (!turnstileSiteKey || !turnstileRef.current) return;
+    const el = turnstileRef.current;
+    let cancelled = false;
+    type TurnstileApi = { render: (e: HTMLElement, o: { sitekey: string }) => void };
+    const w = window as unknown as {
+      turnstile?: TurnstileApi;
+      __mcTsQueue?: Array<() => void>;
+      __mcTsLoading?: boolean;
+      __mcTsOnload?: () => void;
+    };
+    const render = () => {
+      if (cancelled || !w.turnstile?.render) return;
+      if (el.getAttribute("data-mc-rendered")) return;
+      try {
+        w.turnstile.render(el, { sitekey: turnstileSiteKey });
+        el.setAttribute("data-mc-rendered", "1");
+      } catch { /* ignore a bad widget */ }
+    };
+    if (w.turnstile?.render) { render(); return; }
+    w.__mcTsQueue = w.__mcTsQueue ?? [];
+    w.__mcTsQueue.push(render);
+    if (!w.__mcTsLoading) {
+      w.__mcTsLoading = true;
+      w.__mcTsOnload = () => {
+        const q = w.__mcTsQueue ?? [];
+        w.__mcTsQueue = [];
+        q.forEach((fn) => { try { fn(); } catch { /* noop */ } });
+      };
+      const s = document.createElement("script");
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__mcTsOnload&render=explicit";
+      s.async = true;
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+    return () => { cancelled = true; };
+  }, [turnstileSiteKey]);
 
   // Fire form_start exactly once when the visitor first focuses any field.
   // Using a ref (not state) to avoid re-renders on focus.
@@ -543,6 +588,11 @@ function FormFields({
 
     // Include honeypot value so the server can verify it is empty.
     values[HONEYPOT_FIELD] = (formData.get(HONEYPOT_FIELD) as string | null) ?? "";
+
+    // Include the Turnstile token when the widget is present (server verifies it).
+    if (turnstileSiteKey) {
+      values["cf-turnstile-response"] = (formData.get("cf-turnstile-response") as string | null) ?? "";
+    }
 
     void onSubmit(values);
   }
@@ -607,6 +657,11 @@ function FormFields({
             error={fieldErrors[field.key]}
           />
         ))}
+
+        {/* Cloudflare Turnstile widget — rendered when a site key is configured. */}
+        {turnstileSiteKey && (
+          <div ref={turnstileRef} className="cf-turnstile" data-sitekey={turnstileSiteKey} />
+        )}
 
         {/* Submit button — uses Button atom for consistent token-driven styling */}
         <div className="pt-2">

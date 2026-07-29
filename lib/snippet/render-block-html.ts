@@ -269,6 +269,12 @@ export function renderForm(form: ResolvedForm, formKey: string): string {
           // Honeypot — must stay empty (server rejects when filled).
           `<input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">` +
           fields +
+          // Cloudflare Turnstile widget (only when enabled + site key configured).
+          // The snippet loads the Turnstile API and renders this after injection;
+          // the widget adds a hidden `cf-turnstile-response` input the submit reads.
+          (form.turnstile
+            ? `<div class="cf-turnstile" data-sitekey="${escapeHtml(form.turnstile.siteKey)}" style="margin:0 0 16px;"></div>`
+            : "") +
           `<button type="submit" style="${submitStyle}">${escapeHtml(submitLabel)}</button>` +
           `<div data-mc-form-status role="status" aria-live="polite" style="margin-top:14px;font-size:14px;line-height:1.5;"></div>` +
         `</form>` +

@@ -168,6 +168,56 @@ export function checkRateLimit(ip: string, formKey: string): RateLimitResult {
 // IP resolution helper
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Cloudflare Turnstile (CAPTCHA)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Cloudflare Turnstile server-side verification endpoint. */
+const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+/**
+ * Verify a Cloudflare Turnstile token server-side.
+ *
+ * POSTs the token + secret to Cloudflare's siteverify endpoint. Returns true
+ * only when Cloudflare confirms the challenge was solved. Never throws — any
+ * network/parse error returns false so the caller can reject the submission.
+ *
+ * @param token   The `cf-turnstile-response` value from the submitted form.
+ * @param secret  The tenant's decrypted Turnstile secret key.
+ * @param ip      Optional client IP (sent as `remoteip` for extra validation).
+ */
+export async function verifyTurnstile(
+  token: string,
+  secret: string,
+  ip?: string | null,
+): Promise<boolean> {
+  if (!token || !secret) return false;
+  try {
+    const body = new URLSearchParams();
+    body.set("secret", secret);
+    body.set("response", token);
+    if (ip && ip !== "anonymous") body.set("remoteip", ip);
+
+    const res = await fetch(TURNSTILE_VERIFY_URL, {
+      method:  "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    if (!res.ok) {
+      logger.warn("[forms/spam] Turnstile siteverify HTTP error", { status: res.status });
+      return false;
+    }
+    const data = (await res.json()) as { success?: boolean; "error-codes"?: string[] };
+    if (!data.success) {
+      logger.warn("[forms/spam] Turnstile verification failed", { errors: data["error-codes"] });
+    }
+    return Boolean(data.success);
+  } catch (err) {
+    logger.error("[forms/spam] Turnstile verify error", { error: String(err) });
+    return false;
+  }
+}
+
 /**
  * Resolves the best-effort client IP from request headers.
  *

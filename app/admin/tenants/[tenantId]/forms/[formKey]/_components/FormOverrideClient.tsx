@@ -41,6 +41,8 @@ interface FormOverrideClientProps {
   defNotify:          boolean;
   defConfirm:         boolean;
   defStore:           boolean;
+  /** Whether the tenant has Turnstile site + secret keys configured (for a hint). */
+  turnstileHasKeys?:  boolean;
   saveAction:  (overrides: Partial<TenantFormOverrideSettings>) => Promise<{ ok: true } | { ok: false; error: string }>;
   resetAction: ()                                               => Promise<{ ok: true } | { ok: false; error: string }>;
 }
@@ -56,6 +58,7 @@ export function FormOverrideClient({
   defNotify,
   defConfirm,
   defStore,
+  turnstileHasKeys,
   saveAction,
   resetAction,
 }: FormOverrideClientProps) {
@@ -64,6 +67,7 @@ export function FormOverrideClient({
   const [notifyEnabled,   setNotifyEnabled]   = useState(initialOverride.notifyEnabled);
   const [confirmEnabled,  setConfirmEnabled]  = useState(initialOverride.confirmEnabled);
   const [storeEnabled,    setStoreEnabled]    = useState(initialOverride.storeEnabled);
+  const [turnstileEnabled, setTurnstileEnabled] = useState(initialOverride.turnstileEnabled ?? false);
   const [recipients,      setRecipients]      = useState(initialOverride.customRecipients.join(", "));
   const [customSubject,   setCustomSubject]   = useState(initialOverride.customSubject ?? "");
   const [customSender,    setCustomSender]    = useState(initialOverride.customSenderName ?? "");
@@ -91,6 +95,7 @@ export function FormOverrideClient({
         notifyEnabled,
         confirmEnabled,
         storeEnabled,
+        turnstileEnabled,
         customRecipients: parsed,
         customSubject:    customSubject.trim() || undefined,
         customSenderName: customSender.trim()  || undefined,
@@ -122,6 +127,7 @@ export function FormOverrideClient({
         setNotifyEnabled(true);
         setConfirmEnabled(true);
         setStoreEnabled(true);
+        setTurnstileEnabled(false);
         setRecipients("");
         setCustomSubject("");
         setCustomSender("");
@@ -211,6 +217,32 @@ export function FormOverrideClient({
             onChange={setStoreEnabled}
             disabled={isBusy || !overrideEnabled}
           />
+        </div>
+      </div>
+
+      {/* ── Spam protection (Turnstile) — independent of the override toggle ── */}
+      <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+        <div className="px-5 py-4 border-b border-neutral-100">
+          <h2 className="text-sm font-semibold text-neutral-900">Spam protection</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Require a Cloudflare Turnstile challenge on this form. Applies on its own —
+            it does not depend on &ldquo;Override Tenant Defaults&rdquo;.
+          </p>
+        </div>
+        <div className="px-5 py-4 flex items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-neutral-800">Cloudflare Turnstile (CAPTCHA)</p>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              On top of the always-on honeypot and rate-limit.
+            </p>
+            {turnstileHasKeys === false && (
+              <p className="text-xs text-amber-600 mt-1">
+                No Turnstile keys configured for this tenant yet — add the site &amp; secret key under
+                Forms settings first, otherwise this toggle has no effect.
+              </p>
+            )}
+          </div>
+          <Toggle value={turnstileEnabled} onChange={setTurnstileEnabled} disabled={isBusy} />
         </div>
       </div>
 
