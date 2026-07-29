@@ -9,6 +9,7 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 import { generateStatamicManifest } from "../../provisioning/generators/statamic.ts";
+import { mapStatamicPageBlocksToSections } from "../../cms/mappers/statamic/statamic-mappers.ts";
 
 function artifact(path: string): string {
   const m = generateStatamicManifest();
@@ -37,5 +38,37 @@ describe("statamic manifest — form slots", () => {
     assert.match(tpl, /\{\{ if slot_type == 'form' \}\}<div data-mc-block="form:\{\{ form_type \}\}"><\/div>\{\{ \/if \}\}/);
     // Existing slot rendering untouched.
     assert.match(tpl, /\{\{ if slot_type == 'hero' \}\}/);
+  });
+});
+
+describe("statamic page mapper — form context slot", () => {
+  it("maps a slot_type=form block to a server-side formSection with formKey=form_type", () => {
+    const sections = mapStatamicPageBlocksToSections([
+      { type: "context_slot", id: "blk1", slot_type: "form", form_type: "contact", is_active: true },
+    ]);
+    assert.equal(sections.length, 1);
+    assert.equal(sections[0]._type, "formSection");
+    assert.equal((sections[0] as { formKey?: string }).formKey, "contact");
+  });
+
+  it("normalises an augmented form_type object ({ value })", () => {
+    const sections = mapStatamicPageBlocksToSections([
+      { type: "context_slot", id: "blk2", slot_type: "form", form_type: { value: "appointment", label: "Appointment" }, is_active: true },
+    ]);
+    assert.equal((sections[0] as { formKey?: string }).formKey, "appointment");
+  });
+
+  it("skips a form slot with no form_type chosen", () => {
+    const sections = mapStatamicPageBlocksToSections([
+      { type: "context_slot", id: "blk3", slot_type: "form", is_active: true },
+    ]);
+    assert.equal(sections.length, 0);
+  });
+
+  it("still maps a decision-engine slot to a contextSlot", () => {
+    const sections = mapStatamicPageBlocksToSections([
+      { type: "context_slot", id: "blk4", slot_type: "hero", is_active: true },
+    ]);
+    assert.equal(sections[0]._type, "contextSlot");
   });
 });
