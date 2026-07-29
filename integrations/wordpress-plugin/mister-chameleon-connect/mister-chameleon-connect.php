@@ -4,7 +4,7 @@
  * Plugin URI:        https://www.misterchameleon.nl
  * Update URI:        https://www.misterchameleon.nl/mister-chameleon-connect
  * Description:       Real-time contentpersonalisatie via de Mister Chameleon-snippet. Vul je siteKey in en markeer slots — geen thema-code, geen losse header-plugin, geen Wordfence-gedoe.
- * Version:           0.5.8
+ * Version:           0.5.9
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Mister Chameleon
@@ -34,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Directe toegang blokkeren.
 }
 
-define( 'MCC_VERSION', '0.5.8' );
+define( 'MCC_VERSION', '0.5.9' );
 define( 'MCC_DEFAULT_ENDPOINT', 'https://www.misterchameleon.nl' );
 
 /**
@@ -408,9 +408,10 @@ add_action( 'init', function () {
 	var PanelBody = wp.components.PanelBody;
 	var SelectControl = wp.components.SelectControl;
 
-	// The five adaptive block slots the platform can render as a whole block.
+	// The adaptive block slots the platform can render as a whole block.
 	// The platform decides WHICH variant of the slot each visitor sees (rules/AI);
 	// the block here just marks WHERE the slot goes and holds the default content.
+	// "Form" is a single slot type; the Form type sub-field below picks which form.
 	var MCC_BLOCK_SLOTS = [
 		{ label: 'Hero',                value: 'hero' },
 		{ label: 'Features',            value: 'feature' },
@@ -418,11 +419,15 @@ add_action( 'init', function () {
 		{ label: 'CTA',                 value: 'cta' },
 		{ label: 'Conversion',          value: 'conversion' },
 		{ label: 'Notification',        value: 'notification' },
-		// Adaptive forms — the platform renders a working, contextual form and the
-		// snippet wires the submit. The form key follows the "form:" prefix.
-		{ label: 'Form — Contact',      value: 'form:contact' },
-		{ label: 'Form — Application',  value: 'form:application' },
-		{ label: 'Form — Appointment',  value: 'form:appointment' }
+		{ label: 'Form',                value: 'form' }
+	];
+
+	// Form types for the conditional "Form type" select (only for the Form slot).
+	// The platform renders a working, contextual form; the snippet wires the submit.
+	var MCC_FORM_TYPES = [
+		{ label: 'Contact',      value: 'contact' },
+		{ label: 'Application',  value: 'application' },
+		{ label: 'Appointment',  value: 'appointment' }
 	];
 
 	registerBlockType( 'mister-chameleon/slot', {
@@ -433,27 +438,48 @@ add_action( 'init', function () {
 		category: 'design',
 		supports: { html: false },
 		attributes: {
-			slotKey: { type: 'string', default: 'hero' },
-			content: { type: 'string', default: '' } // legacy: pre-0.5 text blocks
+			slotKey:  { type: 'string', default: 'hero' },
+			formType: { type: 'string', default: 'contact' },
+			content:  { type: 'string', default: '' } // legacy: pre-0.5 text blocks
 		},
 		edit: function ( props ) {
 			var a = props.attributes;
+			var isForm = a.slotKey === 'form';
 			var blockProps = useBlockProps( { style: { outline: '1px dashed #6366f1', padding: '8px' } } );
+
+			var controls = [
+				el( SelectControl, {
+					key: 'slot',
+					label: 'Welk adaptief slot?',
+					value: a.slotKey,
+					options: MCC_BLOCK_SLOTS,
+					onChange: function ( v ) { props.setAttributes( { slotKey: v } ); },
+					help: 'Het platform bepaalt met regels of AI welke variant hier verschijnt.'
+				} )
+			];
+			if ( isForm ) {
+				controls.push( el( SelectControl, {
+					key: 'formType',
+					label: 'Form type',
+					value: a.formType,
+					options: MCC_FORM_TYPES,
+					onChange: function ( v ) { props.setAttributes( { formType: v } ); },
+					help: 'Welk formulier dit blok toont. Alleen voor het Form-slot.'
+				} ) );
+			}
+
+			var hint = isForm
+				? 'Adaptief formulier: ' + ( a.formType || 'contact' ) + ' — wordt live door het platform gerenderd.'
+				: 'Adaptief blok: ' + ( a.slotKey || '(kies een slot)' ) + ' — standaardinhoud:';
+
 			return el( 'div', blockProps,
 				el( InspectorControls, {},
-					el( PanelBody, { title: 'Adaptief blok', initialOpen: true },
-						el( SelectControl, {
-							label: 'Welk adaptief slot?',
-							value: a.slotKey,
-							options: MCC_BLOCK_SLOTS,
-							onChange: function ( v ) { props.setAttributes( { slotKey: v } ); },
-							help: 'Het platform bepaalt met regels of AI welke variant hier verschijnt.'
-						} )
-					)
+					el( PanelBody, { title: 'Adaptief blok', initialOpen: true }, controls )
 				),
-				el( 'small', { style: { color: '#6366f1', display: 'block', marginBottom: '6px' } },
-					'Adaptief blok: ' + ( a.slotKey || '(kies een slot)' ) + ' — standaardinhoud:' ),
-				el( InnerBlocks, { templateLock: false } )
+				el( 'small', { style: { color: '#6366f1', display: 'block', marginBottom: '6px' } }, hint ),
+				// A form carries no CMS default content; the snippet fills it. For all
+				// other slots the InnerBlocks are the default/fallback.
+				isForm ? null : el( InnerBlocks, { templateLock: false } )
 			);
 		},
 		// Dynamic block, but the InnerBlocks default content IS persisted so PHP can
@@ -468,8 +494,9 @@ JS;
 		'api_version'     => 2,
 		'editor_script'   => 'mcc-slot-block',
 		'attributes'      => array(
-			'slotKey' => array( 'type' => 'string', 'default' => 'hero' ),
-			'content' => array( 'type' => 'string', 'default' => '' ),
+			'slotKey'  => array( 'type' => 'string', 'default' => 'hero' ),
+			'formType' => array( 'type' => 'string', 'default' => 'contact' ),
+			'content'  => array( 'type' => 'string', 'default' => '' ),
 		),
 		'render_callback' => 'mcc_render_slot_block',
 	) );
@@ -490,6 +517,16 @@ JS;
  */
 function mcc_render_slot_block( $attrs, $content = '' ) {
 	$key = isset( $attrs['slotKey'] ) ? sanitize_text_field( $attrs['slotKey'] ) : '';
+
+	// Form slot → emit a form:<type> marker the snippet fills with a working,
+	// contextual form. A form carries no CMS default content.
+	if ( $key === 'form' ) {
+		$type = isset( $attrs['formType'] ) ? sanitize_key( $attrs['formType'] ) : 'contact';
+		if ( $type === '' ) {
+			$type = 'contact';
+		}
+		return '<div data-mc-block="form:' . esc_attr( $type ) . '"></div>';
+	}
 
 	$inner = trim( (string) $content );
 	if ( $inner === '' && isset( $attrs['content'] ) && $attrs['content'] !== '' ) {

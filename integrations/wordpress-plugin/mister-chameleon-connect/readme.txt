@@ -2,9 +2,9 @@
 Contributors: misterchameleon
 Tags: personalization, cro, personalisatie, ab-testing, content
 Requires at least: 6.0
-Tested up to: 6.6
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.5.8
+Stable tag: 0.5.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,14 @@ Daar heb je de HTML niet altijd in handen. Gebruik dan de selector-mapping in he
 platform (Snippet → Selectors) in plaats van slots in de markup.
 
 == Changelog ==
+
+= 0.5.9 =
+* Adaptief formulier: het Adaptive Block-block heeft nu één **Form**-slottype met
+  een apart **Form type**-veld (Contact, Application of Appointment) — in plaats van
+  drie losse "Form — …"-opties. Zo is de keuze gelijk aan de Statamic-add-on. Het
+  platform rendert het gekozen formulier per bezoeker; de snippet bedraadt het
+  verzenden.
+* Compatibiliteit getest tot WordPress 7.0.
 
 = 0.5.8 =
 * Onderhoudsrelease: geen functionele wijziging. Dient om het nieuwe
