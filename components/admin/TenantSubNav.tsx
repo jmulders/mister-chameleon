@@ -189,12 +189,13 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       key:    "personalization",
       label:  "Personalization",
       href:   `${base}/behavior/slots`,
-      prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill`,
+      prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill|${base}/forms/context`,
       icon:   ICONS.personalization,
       items: [
         { label: "Slots",           href: `${base}/behavior/slots`, activePrefix: `${base}/behavior/slots` },
         { label: "Variants",        href: `${base}/variants`,       activePrefix: `${base}/variants` },
         { label: "Adaptive blocks", href: `${base}/blocks`,         activePrefix: `${base}/blocks` },
+        { label: "Contextual forms", href: `${base}/forms/context`, activePrefix: `${base}/forms/context` },
         { label: "Rules",           href: `${base}/rules`,          activePrefix: `${base}/rules` },
         { label: "Experiments",     href: `${base}/experiments`,    activePrefix: `${base}/experiments` },
         { label: "AI",              href: `${base}/ai`,             activePrefix: `${base}/ai`, exact: true },
@@ -288,6 +289,12 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         .filter((g) => g.key !== "overview")
         .some((g) => isGroupActive(g));
       return !anyOtherActive;
+    }
+    // /forms/context is a personalisation surface (Contextual forms), even
+    // though it lives under the /forms/* path that the Content tab owns. Keep it
+    // out of Content so Personalization claims it (and its tab highlights).
+    if (group.key === "content" && pathname.startsWith(`${base}/forms/context`)) {
+      return false;
     }
     // Multi-prefix groups: check if pathname matches any segment
     return group.prefix.split("|").some((prefix) => pathname.startsWith(prefix));
