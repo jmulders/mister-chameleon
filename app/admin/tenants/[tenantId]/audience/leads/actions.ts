@@ -64,7 +64,7 @@ export async function addSuppressionAction(tenantId: string, formData: FormData)
   if (!email) return;
   await addSuppression(tenantId, email, "manual", "admin");
   await removeLeadsFromAudiences(tenantId, [email]);
-  revalidatePath(`/admin/tenants/${tenantId}/leads/suppression`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/leads/suppression`);
 }
 
 /** Lift a suppression (re-opt-in). */
@@ -72,7 +72,7 @@ export async function removeSuppressionAction(tenantId: string, formData: FormDa
   await getRequiredAdminSession();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (email) await removeSuppression(tenantId, email);
-  revalidatePath(`/admin/tenants/${tenantId}/leads/suppression`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/leads/suppression`);
 }
 
 export async function deleteLeadProfilesAction(

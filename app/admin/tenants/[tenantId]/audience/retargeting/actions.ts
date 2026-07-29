@@ -37,7 +37,7 @@ import type {
   PlatformSyncResult,
 } from "@/lib/ad-sync/types";
 
-const path = (tenantId: string) => `/admin/tenants/${tenantId}/ad-sync`;
+const path = (tenantId: string) => `/admin/tenants/${tenantId}/audience/retargeting`;
 
 /**
  * Redact secret fields before returning config to the client. The form shows

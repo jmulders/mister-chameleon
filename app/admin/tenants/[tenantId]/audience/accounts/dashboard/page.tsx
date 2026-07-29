@@ -28,7 +28,7 @@ export default async function AbmDashboardPage({
   return (
     <div className="p-8 max-w-6xl space-y-5">
       <div>
-        <Link href={`/admin/tenants/${tenantId}/abm`} className="text-xs text-neutral-500 hover:text-neutral-800">
+        <Link href={`/admin/tenants/${tenantId}/audience/accounts`} className="text-xs text-neutral-500 hover:text-neutral-800">
           ← Target accounts
         </Link>
         <h1 className="mt-2 text-xl font-semibold text-neutral-900">ABM account dashboard</h1>

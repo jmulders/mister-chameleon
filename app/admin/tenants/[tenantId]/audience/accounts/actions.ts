@@ -104,7 +104,7 @@ export async function saveAbmWebhookUrlAction(
   }
   const ok = await setAbmWebhookUrl(tenantId, trimmed || null);
   if (!ok) return { ok: false, error: "Save failed." };
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok: true };
 }
 
@@ -120,7 +120,7 @@ export async function saveAbmWebhookSecretAction(
   await getRequiredAdminSession();
   const ok = await setAbmWebhookSecret(tenantId, secret.trim() || null);
   if (!ok) return { ok: false, error: "Save failed." };
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok: true };
 }
 
@@ -132,7 +132,7 @@ export async function generateAbmWebhookSecretAction(
   const secret = `whsec_${randomBytes(32).toString("base64url")}`;
   const ok = await setAbmWebhookSecret(tenantId, secret);
   if (!ok) return { ok: false, error: "Save failed." };
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok: true, secret };
 }
 
@@ -153,7 +153,7 @@ export async function saveAbmNotifySettingsAction(
   }
   const ok = await setAbmNotifySettings(tenantId, trimmed || null, minScore);
   if (!ok) return { ok: false, error: "Save failed." };
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok: true };
 }
 
@@ -169,7 +169,7 @@ export async function saveAbmHubspotTokenAction(
   await getRequiredAdminSession();
   const ok = await setAbmHubspotToken(tenantId, token.trim() || null);
   if (!ok) return { ok: false, error: "Save failed." };
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok: true };
 }
 
@@ -233,7 +233,7 @@ export async function saveAbmLeadAction(
   });
   if (!lead) return { ok: false, error: "Save failed." };
 
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok: true, lead };
 }
 
@@ -243,7 +243,7 @@ export async function deleteAbmLeadAction(
 ): Promise<{ ok: boolean }> {
   await getRequiredAdminSession();
   const ok = await deleteAbmLead(id);
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok };
 }
 
@@ -366,6 +366,6 @@ export async function importAbmLeadsCsvAction(
     else errors.push(`Row ${idx + 2}: save failed.`);
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/abm`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { created, errors };
 }

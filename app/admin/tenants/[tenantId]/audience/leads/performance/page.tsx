@@ -44,7 +44,7 @@ export default async function PerformancePage({
   return (
     <div className="p-8 max-w-6xl space-y-5">
       <div>
-        <Link href={`/admin/tenants/${tenantId}/leads`} className="text-xs text-neutral-500 hover:text-neutral-800">
+        <Link href={`/admin/tenants/${tenantId}/audience/leads`} className="text-xs text-neutral-500 hover:text-neutral-800">
           ← Leads
         </Link>
         <h1 className="mt-2 text-xl font-semibold text-neutral-900">Personalization performance</h1>

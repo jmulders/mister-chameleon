@@ -43,7 +43,7 @@ export default async function AbmPage({
         description="The accounts and contacts you proactively target (outbound). Give each one a personal link, for example /go/ax93z or a vanity path, and the visitor is taken straight to the right page while the site personalizes for their account. Import a CSV to create links in bulk. Visitors who actually arrive show up under Leads."
         actions={
           <Link
-            href={`/admin/tenants/${tenantId}/abm/dashboard`}
+            href={`/admin/tenants/${tenantId}/audience/accounts/dashboard`}
             className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
           >
             Account dashboard

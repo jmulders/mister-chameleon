@@ -231,6 +231,15 @@ const nextConfig = {
       ["ai-logs",             "personalization/ai-logs"],
       ["context",             "personalization/context-variables"],
       ["forms/context",       "personalization/contextual-forms"],
+      // Phase 2: Audience under /audience/*. behavior/journey MUST precede the
+      // bare "behavior" catch-all (first matching redirect wins).
+      ["behavior/journey",    "audience/journey"],
+      ["interest-profiles",   "audience/interests"],
+      ["audience-segments",   "audience/segments"],
+      ["abm",                 "audience/accounts"],
+      ["leads",               "audience/leads"],
+      ["ad-sync",             "audience/retargeting"],
+      ["behavior",            "audience/scoring"],
     ];
     return moves.map(([from, to]) => ({
       source:      `${t}/${from}/:path*`,

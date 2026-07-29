@@ -209,19 +209,21 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
     {
       key:    "audience",
       label:  "Audience",
-      href:   `${base}/interest-profiles`,
-      prefix: `${base}/interest-profiles|${base}/audience-segments|${base}/behavior/journey|${base}/behavior|${base}/abm|${base}/leads|${base}/ad-sync`,
+      href:   `${base}/audience/interests`,
+      // All audience surfaces now live under one /audience/* namespace
+      // (see next.config redirects for the old-path 301s).
+      prefix: `${base}/audience`,
       icon:   ICONS.audience,
       items: [
-        { label: "Interests", href: `${base}/interest-profiles`,    activePrefix: `${base}/interest-profiles` },
-        { label: "Segments",  href: `${base}/audience-segments`,    activePrefix: `${base}/audience-segments` },
-        { label: "Target accounts", href: `${base}/abm`,            activePrefix: `${base}/abm` },
-        { label: "Leads",           href: `${base}/leads`,          activePrefix: `${base}/leads`, exact: true },
-        { label: "Retargeting",     href: `${base}/ad-sync`,        activePrefix: `${base}/ad-sync` },
-        { label: "Suppression",     href: `${base}/leads/suppression`, activePrefix: `${base}/leads/suppression` },
-        { label: "Attribution",     href: `${base}/leads/performance`, activePrefix: `${base}/leads/performance` },
-        { label: "Journey",   href: `${base}/behavior/journey`,     activePrefix: `${base}/behavior/journey` },
-        { label: "Scoring",   href: `${base}/behavior`,             activePrefix: `${base}/behavior`,         exact: true },
+        { label: "Interests",       href: `${base}/audience/interests`,         activePrefix: `${base}/audience/interests` },
+        { label: "Segments",        href: `${base}/audience/segments`,          activePrefix: `${base}/audience/segments` },
+        { label: "Target accounts", href: `${base}/audience/accounts`,          activePrefix: `${base}/audience/accounts` },
+        { label: "Leads",           href: `${base}/audience/leads`,             activePrefix: `${base}/audience/leads`, exact: true },
+        { label: "Retargeting",     href: `${base}/audience/retargeting`,       activePrefix: `${base}/audience/retargeting` },
+        { label: "Suppression",     href: `${base}/audience/leads/suppression`, activePrefix: `${base}/audience/leads/suppression` },
+        { label: "Attribution",     href: `${base}/audience/leads/performance`, activePrefix: `${base}/audience/leads/performance` },
+        { label: "Journey",         href: `${base}/audience/journey`,           activePrefix: `${base}/audience/journey` },
+        { label: "Scoring",         href: `${base}/audience/scoring`,           activePrefix: `${base}/audience/scoring`, exact: true },
       ],
     },
     {

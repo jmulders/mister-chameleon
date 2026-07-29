@@ -115,7 +115,7 @@ export default function EditTenantInterestProfilePage({
 }) {
   const { tenantId, profileId } = use(params);
   const router                  = useRouter();
-  const listHref                = `/admin/tenants/${tenantId}/interest-profiles`;
+  const listHref                = `/admin/tenants/${tenantId}/audience/interests`;
 
   const [profile,       setProfile]       = useState<InterestProfile | null>(null);
   const [loading,       setLoading]       = useState(true);

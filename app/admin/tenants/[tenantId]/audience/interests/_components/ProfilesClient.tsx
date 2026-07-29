@@ -130,8 +130,8 @@ function ProfileRow({ profile, tenantId, saving, checking, error, onToggle, sele
   // ?return= so its back/Cancel/delete come back to THIS tenant's Audience tab
   // (keeping the tenant tab bar) instead of the platform list.
   const editHref = isPlatform
-    ? `/admin/interest-profiles/${profile.id}?return=${encodeURIComponent(`/admin/tenants/${tenantId}/interest-profiles`)}`
-    : `/admin/tenants/${tenantId}/interest-profiles/${profile.id}`;
+    ? `/admin/interest-profiles/${profile.id}?return=${encodeURIComponent(`/admin/tenants/${tenantId}/audience/interests`)}`
+    : `/admin/tenants/${tenantId}/audience/interests/${profile.id}`;
 
   return (
     <>
@@ -389,7 +389,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
 
     try {
       const res = await fetch(
-        `/api/admin/tenants/${tenantId}/interest-profiles/toggle`,
+        `/api/admin/tenants/${tenantId}/audience/interests/toggle`,
         {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
@@ -485,7 +485,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
           Create tenant-specific interest profiles, or use the inherited platform-wide ones.
         </p>
         <Link
-          href={`/admin/tenants/${tenantId}/interest-profiles/new`}
+          href={`/admin/tenants/${tenantId}/audience/interests/new`}
           className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 transition-colors"
         >
           <span>+</span>
@@ -714,7 +714,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
                   <p className="text-sm text-neutral-500">
                     No tenant-specific profiles yet.{" "}
                     <Link
-                      href={`/admin/tenants/${tenantId}/interest-profiles/new`}
+                      href={`/admin/tenants/${tenantId}/audience/interests/new`}
                       className="font-medium text-brand-600 hover:text-brand-800"
                     >
                       Create the first one →

@@ -373,7 +373,7 @@ export async function seedScoringRulesAction(
     if (!res.error) created++;
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/behavior`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/scoring`);
   return { ok: true, created, skipped };
 }
 
@@ -435,7 +435,7 @@ export async function seedSequencePatternsAction(
     }
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/behavior`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/scoring`);
   return { ok: true, created, skipped };
 }
 

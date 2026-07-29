@@ -209,6 +209,6 @@ export async function seedAudienceSegmentsAction(
     // Silently skip individual failures (key collision race, etc.)
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/audience-segments`);
+  revalidatePath(`/admin/tenants/${tenantId}/audience/segments`);
   return { ok: true, created, skipped, createdAsInactive };
 }

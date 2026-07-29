@@ -137,7 +137,7 @@ export function LeadBaseClient({
 
   /** Deep-link to the Journey Intelligence viewer with this session preloaded. */
   const journeyHref = (visitorKey: string) =>
-    `/admin/tenants/${tenantId}/behavior/journey?session=${encodeURIComponent(visitorKey)}`;
+    `/admin/tenants/${tenantId}/audience/journey?session=${encodeURIComponent(visitorKey)}`;
 
   /** Copy the full session ID to the clipboard with brief "Copied!" feedback. */
   function copySession(visitorKey: string) {

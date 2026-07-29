@@ -17,7 +17,7 @@ import {
   saveAbmHubspotTokenAction,
   testAbmHubspotSyncAction,
   saveAbmNotifySettingsAction,
-} from "../../abm/actions";
+} from "../../accounts/actions";
 import type { AbmNotifySettings } from "@/lib/abm/abm-store";
 import { listWebhookDeliveriesAction, replayWebhookDeliveryAction } from "../actions";
 import type { WebhookDelivery } from "@/lib/lead-base/webhook-deliveries-store";

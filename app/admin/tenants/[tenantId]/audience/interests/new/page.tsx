@@ -21,7 +21,7 @@ export default function NewTenantInterestProfilePage({
 }) {
   const { tenantId } = use(params);
   const router       = useRouter();
-  const listHref     = `/admin/tenants/${tenantId}/interest-profiles`;
+  const listHref     = `/admin/tenants/${tenantId}/audience/interests`;
 
   async function handleSubmit(values: ProfileFormValues) {
     const result = await createTenantInterestProfileAction(tenantId, values);

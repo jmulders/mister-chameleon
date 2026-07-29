@@ -63,7 +63,7 @@ export default async function BehaviorPage({
         deleteSequencePatternAction={deleteSequencePatternAction.bind(null, tenantId)}
         seedScoringRulesAction={seedScoringRulesAction.bind(null, tenantId)}
         seedSequencePatternsAction={seedSequencePatternsAction.bind(null, tenantId)}
-        journeyHref={`/admin/tenants/${tenantId}/behavior/journey`}
+        journeyHref={`/admin/tenants/${tenantId}/audience/journey`}
       />
     </div>
   );
