@@ -75,7 +75,10 @@ import {
   checkHoneypot,
   checkRateLimit,
   resolveClientIp,
+  verifyTurnstile,
 }                                       from "@/forms/spam";
+import { getDb }                        from "@/data/db";
+import { decryptSecret }                from "@/lib/email-crypto";
 import { resolveSession }               from "@/data/session";
 import { logger }                       from "@/lib/logger";
 import { markProfileConverted }         from "@/lib/lead-base/visitor-profiles-store";
@@ -282,6 +285,23 @@ async function handlePost(
         headers: { "Retry-After": String(rateResult.retryAfterSeconds) },
       },
     );
+  }
+
+  // 3b-bis. Cloudflare Turnstile (CAPTCHA) — enforced when the per-form
+  //   `turnstileEnabled` flag is on (honoured independently of the master
+  //   override). Fails OPEN when the tenant has no secret configured (the toggle
+  //   is a no-op without keys); rejects when the token is missing or invalid.
+  if (formOverride.turnstileEnabled) {
+    const secret = await loadTurnstileSecret(tenantId);
+    if (secret) {
+      const passed = await verifyTurnstile(body["cf-turnstile-response"] ?? "", secret, clientIp);
+      if (!passed) {
+        return NextResponse.json(
+          { ok: false, error: "Captcha verification failed. Please try again." },
+          { status: 403 },
+        );
+      }
+    }
   }
 
   // ── 3c. Contextual overlay (rules → segment → field set / thank-you) ──────
@@ -566,4 +586,26 @@ function isStringRecord(value: unknown): value is Record<string, string> {
     return false;
   }
   return Object.values(value).every((v) => typeof v === "string");
+}
+
+/**
+ * Read + decrypt the tenant's Turnstile secret key from tenant_form_settings.
+ * Returns null when the tenant is unknown, no secret is configured, or on error
+ * (callers then fail-open for the Turnstile step). SERVER ONLY.
+ */
+async function loadTurnstileSecret(tenantId: string | undefined): Promise<string | null> {
+  if (!tenantId) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = (await (getDb() as any)
+      .from("tenant_form_settings")
+      .select("settings")
+      .eq("tenant_id", tenantId)
+      .maybeSingle()) as { data: { settings: Record<string, unknown> } | null };
+    const stored = res.data?.settings?.turnstileSecretKey;
+    if (typeof stored !== "string" || stored === "") return null;
+    return decryptSecret(stored);
+  } catch {
+    return null;
+  }
 }

@@ -85,6 +85,11 @@ export async function saveTenantFormOverrideAction(
           ? overrides.storeEnabled
           : DEFAULT_FORM_OVERRIDE_SETTINGS.storeEnabled,
 
+      turnstileEnabled:
+        typeof overrides.turnstileEnabled === "boolean"
+          ? overrides.turnstileEnabled
+          : DEFAULT_FORM_OVERRIDE_SETTINGS.turnstileEnabled,
+
       customRecipients:
         Array.isArray(overrides.customRecipients)
           ? overrides.customRecipients

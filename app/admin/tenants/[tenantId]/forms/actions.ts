@@ -241,6 +241,12 @@ export async function getTenantFormSettingsAction(tenantId: string): Promise<{
       successRedirectUrl: typeof raw.successRedirectUrl === "string" && raw.successRedirectUrl.trim() !== ""
         ? raw.successRedirectUrl.trim()
         : undefined,
+
+      // Turnstile site key is PUBLIC — safe to surface. The secret is never
+      // returned here; use getTurnstileSettingsAction for a hasSecret boolean.
+      turnstileSiteKey: typeof raw.turnstileSiteKey === "string" && raw.turnstileSiteKey.trim() !== ""
+        ? raw.turnstileSiteKey.trim()
+        : undefined,
     };
 
     return { ok: true, settings };
@@ -267,6 +273,25 @@ export async function saveTenantFormSettingsAction(
     return { ok: false, error: "tenantId is required" };
   }
 
+  // Preserve Turnstile keys — they're managed via the dedicated Turnstile
+  // section (saveTurnstileSettingsAction) and must not be wiped by a full save
+  // of the other settings. Read the current row and carry them over. The secret
+  // (encrypted) is preserved as-is; the public site key is preserved unless the
+  // incoming payload explicitly provides one.
+  let prevTurnstileSiteKey: string | undefined;
+  let prevTurnstileSecretKey: string | undefined;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prev = (await (getDb() as any)
+      .from("tenant_form_settings")
+      .select("settings")
+      .eq("tenant_id", tenantId)
+      .maybeSingle()) as { data: { settings: Record<string, unknown> } | null };
+    const p = prev.data?.settings ?? {};
+    if (typeof p.turnstileSiteKey === "string")   prevTurnstileSiteKey   = p.turnstileSiteKey;
+    if (typeof p.turnstileSecretKey === "string") prevTurnstileSecretKey = p.turnstileSecretKey;
+  } catch { /* no previous row — nothing to preserve */ }
+
   // Sanitise inputs before storing.
   const settings: TenantFormSettings = {
     storeSubmissions:       Boolean(incoming.storeSubmissions),
@@ -280,6 +305,8 @@ export async function saveTenantFormSettingsAction(
     hubspotEnabled: Boolean(incoming.hubspotEnabled),
     successMessage: incoming.successMessage?.trim() || undefined,
     successRedirectUrl: incoming.successRedirectUrl?.trim() || undefined,
+    turnstileSiteKey:   incoming.turnstileSiteKey?.trim() || prevTurnstileSiteKey,
+    turnstileSecretKey: prevTurnstileSecretKey,
   };
 
   try {
@@ -311,6 +338,86 @@ export async function saveTenantFormSettingsAction(
       error: String(err),
     });
     return { ok: false, error: "Failed to save form settings" };
+  }
+}
+
+// ── Turnstile (Cloudflare CAPTCHA) keys ─────────────────────────────────────────
+
+/**
+ * Read the tenant's Turnstile config for the admin UI: the PUBLIC site key and
+ * whether a secret is stored. The secret value is never returned to the client.
+ */
+export async function getTurnstileSettingsAction(
+  tenantId: string,
+): Promise<{ ok: true; siteKey: string; hasSecret: boolean } | { ok: false; error: string }> {
+  if (!tenantId) return { ok: false, error: "tenantId is required" };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = (await (getDb() as any)
+      .from("tenant_form_settings")
+      .select("settings")
+      .eq("tenant_id", tenantId)
+      .maybeSingle()) as {
+        data: { settings: Record<string, unknown> } | null;
+        error: { message: string } | null;
+      };
+    if (res.error) return { ok: false, error: res.error.message };
+    const s = res.data?.settings ?? {};
+    return {
+      ok:       true,
+      siteKey:  typeof s.turnstileSiteKey === "string" ? s.turnstileSiteKey : "",
+      hasSecret: hasStoredSecret(typeof s.turnstileSecretKey === "string" ? s.turnstileSecretKey : null),
+    };
+  } catch (err) {
+    logger.error("[forms-settings-actions] Failed to read Turnstile settings", { tenantId, error: String(err) });
+    return { ok: false, error: "Failed to read Turnstile settings" };
+  }
+}
+
+/**
+ * Save the tenant's Turnstile keys. Read-then-merge so the other form settings
+ * are preserved. The site key is public (stored plain); the secret is encrypted
+ * at rest. An empty secret input PRESERVES the existing secret, so the admin can
+ * update the site key without re-entering the secret.
+ */
+export async function saveTurnstileSettingsAction(
+  tenantId: string,
+  input: { siteKey: string; secretKey: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!tenantId) return { ok: false, error: "tenantId is required" };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prev = (await (getDb() as any)
+      .from("tenant_form_settings")
+      .select("settings")
+      .eq("tenant_id", tenantId)
+      .maybeSingle()) as { data: { settings: Record<string, unknown> } | null };
+    const current = (prev.data?.settings ?? {}) as Record<string, unknown>;
+
+    const siteKey   = input.siteKey.trim();
+    const newSecret = input.secretKey.trim();
+    const merged: Record<string, unknown> = {
+      ...current,
+      turnstileSiteKey:   siteKey || undefined,
+      turnstileSecretKey: newSecret
+        ? encryptSecret(newSecret)
+        : (typeof current.turnstileSecretKey === "string" ? current.turnstileSecretKey : undefined),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = (await (getDb() as any)
+      .from("tenant_form_settings")
+      .upsert(
+        { tenant_id: tenantId, settings: merged, updated_at: new Date().toISOString() },
+        { onConflict: "tenant_id" },
+      )) as { error: { message: string } | null };
+    if (error) return { ok: false, error: `Failed to save: ${error.message}` };
+
+    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    return { ok: true };
+  } catch (err) {
+    logger.error("[forms-settings-actions] Failed to save Turnstile settings", { tenantId, error: String(err) });
+    return { ok: false, error: "Failed to save Turnstile settings" };
   }
 }
 

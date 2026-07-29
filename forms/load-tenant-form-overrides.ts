@@ -115,6 +115,11 @@ function mergeWithDefaults(raw: Record<string, unknown>): TenantFormOverrideSett
         ? raw.storeEnabled
         : DEFAULT_FORM_OVERRIDE_SETTINGS.storeEnabled,
 
+    turnstileEnabled:
+      typeof raw.turnstileEnabled === "boolean"
+        ? raw.turnstileEnabled
+        : DEFAULT_FORM_OVERRIDE_SETTINGS.turnstileEnabled,
+
     customRecipients:
       Array.isArray(raw.customRecipients)
         ? (raw.customRecipients as string[]).filter(

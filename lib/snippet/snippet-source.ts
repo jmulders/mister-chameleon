@@ -189,6 +189,42 @@ export function buildSnippetSource(decideUrl: string): string {
     });
   }
 
+  // Render Cloudflare Turnstile widgets inside a freshly-injected container.
+  // The Turnstile API script cannot come from innerHTML (script tags don't run),
+  // so load it once with an explicit onload callback and render each widget
+  // manually. The rendered widget injects a hidden <input name="cf-turnstile-response">
+  // which the submit handler above already collects with the other fields.
+  function mcRenderTurnstile(container) {
+    var widgets = container.querySelectorAll('.cf-turnstile');
+    if (!widgets.length) return;
+    function renderAll() {
+      if (!window.turnstile || !window.turnstile.render) return;
+      for (var i = 0; i < widgets.length; i++) {
+        var w = widgets[i];
+        if (w.getAttribute('data-mc-rendered')) continue;
+        try {
+          window.turnstile.render(w, { sitekey: w.getAttribute('data-sitekey') });
+          w.setAttribute('data-mc-rendered', '1');
+        } catch (e) { /* ignore a bad widget */ }
+      }
+    }
+    if (window.turnstile && window.turnstile.render) { renderAll(); return; }
+    window.__mcTsQueue = window.__mcTsQueue || [];
+    window.__mcTsQueue.push(renderAll);
+    if (!window.__mcTsLoading) {
+      window.__mcTsLoading = true;
+      window.__mcTsOnload = function () {
+        var q = window.__mcTsQueue || [];
+        window.__mcTsQueue = [];
+        for (var k = 0; k < q.length; k++) { try { q[k](); } catch (e) {} }
+      };
+      var s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__mcTsOnload&render=explicit';
+      s.async = true; s.defer = true;
+      document.head.appendChild(s);
+    }
+  }
+
   // ── 2. FOOC prevention — hide page until swap is done ────────────────────────
   var TIMEOUT_MS = 1500;
   var revealed = false;
@@ -362,6 +398,10 @@ export function buildSnippetSource(decideUrl: string): string {
           c.innerHTML = block.html;
           // Wire any form injected by this block (submit → cross-origin POST).
           try { mcWireForms(c); } catch (e) { /* forms optional */ }
+          // Render any Cloudflare Turnstile widget the form HTML contains. A
+          // <script> inside innerHTML never runs, so load the Turnstile API
+          // ourselves and render explicitly.
+          try { mcRenderTurnstile(c); } catch (e) { /* captcha optional */ }
         }
       }
     }

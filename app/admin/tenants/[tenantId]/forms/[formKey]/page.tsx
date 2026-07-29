@@ -32,7 +32,7 @@ import {
   saveTenantFormOverrideAction,
   resetTenantFormOverrideAction,
 } from "./actions";
-import { getTenantFormSettingsAction } from "../actions";
+import { getTenantFormSettingsAction, getTurnstileSettingsAction } from "../actions";
 import { FormOverrideClient }    from "./_components/FormOverrideClient";
 import { resolveFormsConfig }    from "@/lib/config";
 import type { TenantFormOverrideSettings } from "@/tenant/types";
@@ -63,11 +63,17 @@ export default async function FormConfigPage({ params }: PageProps) {
   if (!formDef) notFound();
 
   // ── Parallel data fetch ─────────────────────────────────────────────────────
-  const [overrideResult, formSettingsResult, formsResolution] = await Promise.all([
+  const [overrideResult, formSettingsResult, formsResolution, turnstileResult] = await Promise.all([
     getTenantFormOverrideAction(tenantId, formKey),
     getTenantFormSettingsAction(tenantId),
     resolveFormsConfig(tenantId),
+    getTurnstileSettingsAction(tenantId),
   ]);
+
+  // Whether the tenant has both a Turnstile site key and a stored secret.
+  const turnstileHasKeys = turnstileResult.ok
+    ? Boolean(turnstileResult.siteKey) && turnstileResult.hasSecret
+    : false;
 
   // Current override state (or defaults if none saved yet)
   const currentOverride = overrideResult.ok
@@ -78,6 +84,7 @@ export default async function FormConfigPage({ params }: PageProps) {
         confirmEnabled:   true,
         storeEnabled:     true,
         customRecipients: [],
+        turnstileEnabled: false,
       } satisfies TenantFormOverrideSettings);
 
   // Tenant-level effective flags
@@ -207,6 +214,7 @@ export default async function FormConfigPage({ params }: PageProps) {
         defNotify={formDef.action.notifyBackoffice}
         defConfirm={formDef.action.sendConfirmation}
         defStore={formDef.action.storeSubmissions}
+        turnstileHasKeys={turnstileHasKeys}
         saveAction={boundSave}
         resetAction={boundReset}
       />
