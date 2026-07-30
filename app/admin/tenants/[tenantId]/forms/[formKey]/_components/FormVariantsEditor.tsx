@@ -4,20 +4,38 @@
  * FormVariantsEditor
  *
  * Author the variants of a form (forms-as-adaptive-blocks, phase 2.2). Each
- * variant carries a layout (template + contact panel) and copy. A rule in the
- * rules builder then targets a variant by its key (plan.formVariants). Field-set
- * overrides are supported by the engine; a UI for them comes later.
+ * variant carries a layout (template + contact panel), copy, and an optional
+ * presented field set (drop / relabel / reorder of the definition's fields).
+ * A rule in the rules builder then targets a variant by its key
+ * (plan.formVariants).
+ *
+ * Field-set safety mirrors the engine (forms/context/variant.ts): the variant
+ * may only drop (optional), relabel, or reorder fields — the definition still
+ * owns each field's type and validation, and a dropped REQUIRED field is
+ * re-added at submit time. So the checkbox for a required field is locked on.
  */
 
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import type { FormVariantEntry, FormVariantContent } from "@/forms/context/variant";
+import type { FormField } from "@/forms/types";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Template = "single" | "split-left" | "split-right";
 
+/** One editable row in the field-set editor, seeded from a definition field. */
+interface FieldRow {
+  key:         string;
+  type:        string;
+  required:    boolean;
+  include:     boolean;
+  label:       string; // override; empty = use the definition label
+  placeholder: string; // override; empty = use the definition placeholder
+}
+
 interface Props {
-  initialVariants: FormVariantEntry[];
+  definitionFields: FormField[];
+  initialVariants:  FormVariantEntry[];
   saveAction:   (entry: FormVariantEntry) => Promise<Result>;
   deleteAction: (variantKey: string) => Promise<Result>;
 }
@@ -26,19 +44,96 @@ const input =
   "w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 " +
   "focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1";
 
-const blankDraft = {
-  variantKey: "", label: "", template: "single" as Template,
-  title: "", intro: "", submitLabel: "", successMessage: "",
-  cpName: "", cpRole: "", cpPhoto: "", cpPhone: "", cpEmail: "",
-};
+// ── Field-set helpers ────────────────────────────────────────────────────────
 
-export function FormVariantsEditor({ initialVariants, saveAction, deleteAction }: Props) {
+/** Build editor rows from the definition and (optionally) a variant's fields. */
+function seedRows(defFields: FormField[], variantFields: readonly FormField[] | undefined): FieldRow[] {
+  const baseRow = (f: FormField): FieldRow => ({
+    key:         f.key,
+    type:        f.type,
+    required:    !!f.validation?.required,
+    include:     true,
+    label:       "",
+    placeholder: "",
+  });
+  if (!variantFields || variantFields.length === 0) return defFields.map(baseRow);
+
+  const defByKey = new Map(defFields.map((f) => [f.key, f]));
+  const rows: FieldRow[] = [];
+  const seen = new Set<string>();
+  for (const vf of variantFields) {
+    const df = defByKey.get(vf.key);
+    if (!df || seen.has(vf.key)) continue;
+    seen.add(vf.key);
+    rows.push({
+      key:         df.key,
+      type:        df.type,
+      required:    !!df.validation?.required,
+      include:     true,
+      label:       vf.label && vf.label !== df.label ? vf.label : "",
+      placeholder: vf.placeholder && vf.placeholder !== df.placeholder ? vf.placeholder : "",
+    });
+  }
+  // Append any definition fields the variant omitted. Required ones stay on
+  // (the engine re-adds them anyway); optional ones default to excluded.
+  for (const df of defFields) {
+    if (seen.has(df.key)) continue;
+    rows.push({
+      key:         df.key,
+      type:        df.type,
+      required:    !!df.validation?.required,
+      include:     !!df.validation?.required,
+      label:       "",
+      placeholder: "",
+    });
+  }
+  return rows;
+}
+
+/** True when the rows are the full definition, in order, with no overrides. */
+function isPristine(rows: FieldRow[], defFields: FormField[]): boolean {
+  if (rows.length !== defFields.length) return false;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].key !== defFields[i].key) return false;
+    if (!rows[i].include) return false;
+    if (rows[i].label.trim() || rows[i].placeholder.trim()) return false;
+  }
+  return true;
+}
+
+/** Build the variant's stored field set from the editor rows. */
+function buildFields(rows: FieldRow[], defFields: FormField[]): FormField[] {
+  const defByKey = new Map(defFields.map((f) => [f.key, f]));
+  const out: FormField[] = [];
+  for (const r of rows) {
+    if (!r.include) continue;
+    const df = defByKey.get(r.key);
+    if (!df) continue;
+    out.push({
+      ...df,
+      ...(r.label.trim() ? { label: r.label.trim() } : {}),
+      ...(r.placeholder.trim() ? { placeholder: r.placeholder.trim() } : {}),
+    } as FormField);
+  }
+  return out;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+export function FormVariantsEditor({ definitionFields, initialVariants, saveAction, deleteAction }: Props) {
   const [variants, setVariants] = useState<FormVariantEntry[]>(initialVariants);
-  const [draft, setDraft]       = useState({ ...blankDraft });
+  const blankDraft = () => ({
+    variantKey: "", label: "", template: "single" as Template,
+    title: "", intro: "", submitLabel: "", successMessage: "",
+    cpName: "", cpRole: "", cpPhoto: "", cpPhone: "", cpEmail: "",
+    fields: seedRows(definitionFields, undefined),
+  });
+  const [draft, setDraft]           = useState(blankDraft);
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [error, setError]       = useState<string | null>(null);
-  const [saved, setSaved]       = useState(false);
-  const [isPending, start]      = useTransition();
+  const [showFields, setShowFields] = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [saved, setSaved]           = useState(false);
+  const [isPending, start]          = useTransition();
 
   function edit(v: FormVariantEntry) {
     const c = v.content;
@@ -49,11 +144,27 @@ export function FormVariantsEditor({ initialVariants, saveAction, deleteAction }
       template: (c.layout?.template ?? "single") as Template,
       title: c.title ?? "", intro: c.intro ?? "", submitLabel: c.submitLabel ?? "", successMessage: c.successMessage ?? "",
       cpName: cp?.name ?? "", cpRole: cp?.role ?? "", cpPhoto: cp?.photoUrl ?? "", cpPhone: cp?.phone ?? "", cpEmail: cp?.email ?? "",
+      fields: seedRows(definitionFields, c.fields),
     });
+    setShowFields(!!c.fields && c.fields.length > 0);
     setError(null); setSaved(false);
   }
 
-  function reset() { setEditingKey(null); setDraft({ ...blankDraft }); }
+  function reset() { setEditingKey(null); setDraft(blankDraft()); setShowFields(false); }
+
+  // ── Field-row mutators ──────────────────────────────────────────────────────
+  function patchRow(idx: number, patch: Partial<FieldRow>) {
+    setDraft((d) => ({ ...d, fields: d.fields.map((r, i) => (i === idx ? { ...r, ...patch } : r)) }));
+  }
+  function moveRow(idx: number, dir: -1 | 1) {
+    setDraft((d) => {
+      const j = idx + dir;
+      if (j < 0 || j >= d.fields.length) return d;
+      const next = [...d.fields];
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return { ...d, fields: next };
+    });
+  }
 
   function toContent(): FormVariantContent {
     const layout = draft.template === "single"
@@ -68,18 +179,23 @@ export function FormVariantsEditor({ initialVariants, saveAction, deleteAction }
             email:    draft.cpEmail.trim() || undefined,
           },
         };
+    const fields = isPristine(draft.fields, definitionFields)
+      ? undefined
+      : buildFields(draft.fields, definitionFields);
     return {
       title:          draft.title.trim()          || undefined,
       intro:          draft.intro.trim()          || undefined,
       submitLabel:    draft.submitLabel.trim()    || undefined,
       successMessage: draft.successMessage.trim() || undefined,
       layout,
+      ...(fields ? { fields } : {}),
     };
   }
 
   function save() {
     const variantKey = draft.variantKey.trim();
     if (!variantKey) { setError("Variant key is required."); return; }
+    if (!draft.fields.some((r) => r.include)) { setError("At least one field must be included."); return; }
     setError(null);
     const entry: FormVariantEntry = { variantKey, label: draft.label.trim() || undefined, content: toContent() };
     start(async () => {
@@ -101,13 +217,16 @@ export function FormVariantsEditor({ initialVariants, saveAction, deleteAction }
     });
   }
 
+  const includedCount    = draft.fields.filter((r) => r.include).length;
+  const fieldsCustomised = !isPristine(draft.fields, definitionFields);
+
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
       <div className="px-5 py-4 border-b border-neutral-100">
         <h2 className="text-sm font-semibold text-neutral-900">Variants</h2>
         <p className="text-xs text-neutral-500 mt-0.5">
-          Alternative layouts + copy for this form. Target a variant per visitor with a rule in the
-          rules builder (it sets the form variant key). Without a rule, the default form is shown.
+          Alternative layouts, copy, and fields for this form. Target a variant per visitor with a rule
+          in the rules builder (it sets the form variant key). Without a rule, the default form is shown.
         </p>
       </div>
 
@@ -122,6 +241,11 @@ export function FormVariantsEditor({ initialVariants, saveAction, deleteAction }
                 <span className="ml-2 inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">
                   {v.content.layout?.template ?? "single"}
                 </span>
+                {v.content.fields && v.content.fields.length > 0 && (
+                  <span className="ml-2 inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-600">
+                    {v.content.fields.length} field{v.content.fields.length === 1 ? "" : "s"}
+                  </span>
+                )}
               </div>
               <div className="flex flex-shrink-0 gap-2">
                 <button type="button" onClick={() => edit(v)} disabled={isPending}
@@ -177,6 +301,68 @@ export function FormVariantsEditor({ initialVariants, saveAction, deleteAction }
             <Field label="Email"><input className={input} value={draft.cpEmail} onChange={(e) => setDraft({ ...draft, cpEmail: e.target.value })} /></Field>
           </div>
         )}
+
+        {/* Field set (collapsible) */}
+        <div className="rounded-lg border border-neutral-200 bg-white">
+          <button
+            type="button"
+            onClick={() => setShowFields((s) => !s)}
+            className="flex w-full items-center justify-between px-3 py-2 text-left"
+          >
+            <span className="text-xs font-medium text-neutral-700">
+              Fields
+              <span className="ml-2 font-normal text-neutral-400">
+                {fieldsCustomised ? `customised — ${includedCount} shown` : "all fields (default)"}
+              </span>
+            </span>
+            <span className="text-xs text-neutral-400">{showFields ? "Hide" : "Edit"}</span>
+          </button>
+
+          {showFields && (
+            <div className="space-y-2 border-t border-neutral-100 px-3 py-3">
+              <p className="text-[11px] text-neutral-500">
+                Untick to hide an optional field, override its label or placeholder, or reorder with the
+                arrows. Required fields stay on. Type and validation always come from the definition.
+              </p>
+              {draft.fields.map((r, i) => (
+                <div key={r.key} className="flex flex-wrap items-center gap-2 rounded-md bg-neutral-50 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={r.include}
+                    disabled={r.required}
+                    onChange={(e) => patchRow(i, { include: e.target.checked })}
+                    title={r.required ? "Required — always included" : "Include this field"}
+                    className="h-4 w-4 accent-neutral-900 disabled:opacity-50"
+                  />
+                  <span className="w-28 shrink-0 font-mono text-[11px] text-neutral-600" title={`${r.key} (${r.type})`}>
+                    {r.key}
+                    {r.required && <span className="ml-1 text-red-400">*</span>}
+                  </span>
+                  <input
+                    className={`${input} min-w-[7rem] flex-1 py-1`}
+                    value={r.label}
+                    onChange={(e) => patchRow(i, { label: e.target.value })}
+                    placeholder="label override"
+                    disabled={!r.include}
+                  />
+                  <input
+                    className={`${input} min-w-[7rem] flex-1 py-1`}
+                    value={r.placeholder}
+                    onChange={(e) => patchRow(i, { placeholder: e.target.value })}
+                    placeholder="placeholder override"
+                    disabled={!r.include}
+                  />
+                  <div className="flex shrink-0 gap-1">
+                    <button type="button" onClick={() => moveRow(i, -1)} disabled={i === 0}
+                      className="rounded border border-neutral-200 px-1.5 text-xs text-neutral-500 hover:bg-neutral-100 disabled:opacity-30" title="Move up">↑</button>
+                    <button type="button" onClick={() => moveRow(i, 1)} disabled={i === draft.fields.length - 1}
+                      className="rounded border border-neutral-200 px-1.5 text-xs text-neutral-500 hover:bg-neutral-100 disabled:opacity-30" title="Move down">↓</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-3">
           <button type="button" onClick={save} disabled={isPending}

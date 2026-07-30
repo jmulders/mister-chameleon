@@ -232,6 +232,7 @@ export default async function FormConfigPage({ params }: PageProps) {
 
       {/* ── 3. Variants (forms-as-adaptive-blocks) ───────────────────────── */}
       <FormVariantsEditor
+        definitionFields={[...formDef.fields]}
         initialVariants={formVariants}
         saveAction={boundSaveVariant}
         deleteAction={boundDeleteVariant}
