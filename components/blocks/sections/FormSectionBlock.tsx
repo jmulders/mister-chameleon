@@ -339,6 +339,54 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     />
   );
 
+  // ── Per-form override layout (forms-as-adaptive-blocks, phase 1) ───────────
+  //
+  // When the per-form override selects a split template, it takes precedence
+  // over the CMS block variant and renders a contact panel (name/role/photo/
+  // phone/email) on the chosen side, with the form on the other.
+
+  const formLayout = overlay?.layout;
+  if (formLayout && formLayout.template !== "single") {
+    const cp = formLayout.contactPanel;
+    const panel = cp ? (
+      <div className="lg:w-1/3 lg:shrink-0">
+        <div className="flex flex-col gap-2">
+          {cp.photoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cp.photoUrl} alt="" className="h-24 w-24 rounded-full object-cover" />
+          )}
+          {cp.name && (
+            <div style={{ color: "var(--text)", fontFamily: "var(--font-heading)", fontWeight: "var(--font-heading-weight)", fontSize: "1.25rem" }}>
+              {cp.name}
+            </div>
+          )}
+          {cp.role  && <div style={{ color: "var(--text-muted)" }}>{cp.role}</div>}
+          {cp.phone && <a href={`tel:${cp.phone}`} style={{ color: "var(--text)", textDecoration: "none" }}>{cp.phone}</a>}
+          {cp.email && <a href={`mailto:${cp.email}`} style={{ color: "var(--text)", textDecoration: "none" }}>{cp.email}</a>}
+        </div>
+      </div>
+    ) : null;
+    const formCol = <div className="flex-1 min-w-0">{formContent}</div>;
+    return (
+      <Section
+        spacing="xl"
+        style={{
+          background:   "var(--form-bg)",
+          borderTop:    "1px solid var(--form-border)",
+          borderBottom: "1px solid var(--form-border)",
+        }}
+      >
+        <Container size="lg">
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-16">
+            {formLayout.template === "split-right"
+              ? <>{formCol}{panel}</>
+              : <>{panel}{formCol}</>}
+          </div>
+        </Container>
+      </Section>
+    );
+  }
+
   // ── form_split layout ─────────────────────────────────────────────────────
   //
   // Two-column layout: intro/heading in a narrower left column, form in the
