@@ -249,8 +249,8 @@ function renderFormField(f: FormField): string {
   );
 }
 
-/** Render a working, token-styled <form> for the given resolved form + key. */
-export function renderForm(form: ResolvedForm, formKey: string): string {
+/** The working, token-styled <form> card (fields + honeypot + Turnstile + submit). */
+function renderFormElement(form: ResolvedForm, formKey: string): string {
   const fields      = (form.fields ?? []).map(renderFormField).join("");
   const submitLabel = form.submitLabel || "Submit";
   const submitStyle =
@@ -258,28 +258,71 @@ export function renderForm(form: ResolvedForm, formKey: string): string {
     "border-radius:var(--btn-radius,var(--radius-interactive,8px));background:var(--primary,#4f46e5);" +
     "color:var(--primary-text,#fff);font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;";
   return (
-    `<section style="background:var(--bg,#fff);color:var(--text,#0f172a);">` +
-      `<div style="${WRAP}max-width:560px;">` +
-        `<form data-mc-form="${escapeHtml(formKey)}"` +
-          `${form.redirectPath ? ` data-mc-redirect="${escapeHtml(form.redirectPath)}"` : ""} novalidate ` +
-          `style="background:var(--card-bg,#fff);border:1px solid var(--card-border,var(--border,#e2e8f0));` +
-          `border-radius:var(--card-radius,14px);padding:clamp(20px,4vw,32px);">` +
-          (form.title ? `<h2 style="font-family:inherit;font-size:clamp(20px,3vw,26px);font-weight:800;margin:0 0 8px;">${escapeHtml(form.title)}</h2>` : "") +
-          (form.intro ? `<p style="font-size:15px;line-height:1.5;color:var(--muted-foreground,#64748b);margin:0 0 20px;">${escapeHtml(form.intro)}</p>` : "") +
-          // Honeypot — must stay empty (server rejects when filled).
-          `<input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">` +
-          fields +
-          // Cloudflare Turnstile widget (only when enabled + site key configured).
-          // The snippet loads the Turnstile API and renders this after injection;
-          // the widget adds a hidden `cf-turnstile-response` input the submit reads.
-          (form.turnstile
-            ? `<div class="cf-turnstile" data-sitekey="${escapeHtml(form.turnstile.siteKey)}" style="margin:0 0 16px;"></div>`
-            : "") +
-          `<button type="submit" style="${submitStyle}">${escapeHtml(submitLabel)}</button>` +
-          `<div data-mc-form-status role="status" aria-live="polite" style="margin-top:14px;font-size:14px;line-height:1.5;"></div>` +
-        `</form>` +
+    `<form data-mc-form="${escapeHtml(formKey)}"` +
+      `${form.redirectPath ? ` data-mc-redirect="${escapeHtml(form.redirectPath)}"` : ""} novalidate ` +
+      `style="background:var(--card-bg,#fff);border:1px solid var(--card-border,var(--border,#e2e8f0));` +
+      `border-radius:var(--card-radius,14px);padding:clamp(20px,4vw,32px);">` +
+      (form.title ? `<h2 style="font-family:inherit;font-size:clamp(20px,3vw,26px);font-weight:800;margin:0 0 8px;">${escapeHtml(form.title)}</h2>` : "") +
+      (form.intro ? `<p style="font-size:15px;line-height:1.5;color:var(--muted-foreground,#64748b);margin:0 0 20px;">${escapeHtml(form.intro)}</p>` : "") +
+      // Honeypot — must stay empty (server rejects when filled).
+      `<input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">` +
+      fields +
+      // Cloudflare Turnstile widget (only when enabled + site key configured).
+      // The snippet loads the Turnstile API and renders this after injection;
+      // the widget adds a hidden `cf-turnstile-response` input the submit reads.
+      (form.turnstile
+        ? `<div class="cf-turnstile" data-sitekey="${escapeHtml(form.turnstile.siteKey)}" style="margin:0 0 16px;"></div>`
+        : "") +
+      `<button type="submit" style="${submitStyle}">${escapeHtml(submitLabel)}</button>` +
+      `<div data-mc-form-status role="status" aria-live="polite" style="margin-top:14px;font-size:14px;line-height:1.5;"></div>` +
+    `</form>`
+  );
+}
+
+/** The contact panel shown alongside the form in a split layout. */
+function renderContactPanel(p: NonNullable<NonNullable<ResolvedForm["layout"]>["contactPanel"]>): string {
+  const row = (icon: string, inner: string) =>
+    `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;font-size:15px;">` +
+      `<span aria-hidden="true" style="flex:0 0 auto;opacity:.8;">${icon}</span>${inner}</div>`;
+  return (
+    `<div style="align-self:center;">` +
+      (p.photoUrl
+        ? `<img src="${safeHref(p.photoUrl)}" alt="" style="width:104px;height:104px;border-radius:9999px;object-fit:cover;margin-bottom:18px;">`
+        : "") +
+      (p.name ? `<div style="font-family:inherit;font-size:clamp(18px,2.4vw,22px);font-weight:800;">${escapeHtml(p.name)}</div>` : "") +
+      (p.role ? `<div style="font-size:14px;color:var(--muted-foreground,#64748b);margin-top:2px;">${escapeHtml(p.role)}</div>` : "") +
+      (p.phone ? row("&#9742;", `<a href="tel:${escapeHtml(p.phone)}" style="color:inherit;text-decoration:none;">${escapeHtml(p.phone)}</a>`) : "") +
+      (p.email ? row("&#9993;", `<a href="mailto:${escapeHtml(p.email)}" style="color:inherit;text-decoration:none;">${escapeHtml(p.email)}</a>`) : "") +
+    `</div>`
+  );
+}
+
+/**
+ * Render a working, token-styled form for the given resolved form + key, in the
+ * layout its variant selected (phase 1: single column, or a split with a contact
+ * panel on the left/right). The split grid is responsive without media queries.
+ */
+export function renderForm(form: ResolvedForm, formKey: string): string {
+  const formEl  = renderFormElement(form, formKey);
+  const layout  = form.layout;
+  const panel   = layout?.contactPanel;
+  const wrapOpen = `<section style="background:var(--bg,#fff);color:var(--text,#0f172a);">`;
+
+  // Single column (default) — also the fallback when a split has no panel data.
+  if (!layout || layout.template === "single" || !panel) {
+    return `${wrapOpen}<div style="${WRAP}max-width:560px;">${formEl}</div></section>`;
+  }
+
+  const panelEl = renderContactPanel(panel);
+  // split-left = panel first, split-right = form first. auto-fit keeps it side by
+  // side on wide screens and stacks it on narrow ones without a media query.
+  const cols = layout.template === "split-right" ? `${formEl}${panelEl}` : `${panelEl}${formEl}`;
+  return (
+    `${wrapOpen}<div style="${WRAP}">` +
+      `<div style="display:grid;gap:clamp(24px,4vw,48px);grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:stretch;">` +
+        cols +
       `</div>` +
-    `</section>`
+    `</div></section>`
   );
 }
 

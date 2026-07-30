@@ -163,4 +163,24 @@ export interface ResolvedForm {
    * verification is handled independently in the submit route.
    */
   readonly turnstile?:     { readonly siteKey: string };
+
+  /**
+   * Presentation layout for the form (phase 1 of the forms-as-adaptive-blocks
+   * work). Controls only how the form is arranged — the field set and the
+   * server contract are unchanged. Absent → the default single-column layout.
+   *
+   *   template: which layout to render (single, or a split with a contact panel
+   *             on the left/right).
+   *   contactPanel: optional person/contact details shown in the split panel.
+   */
+  readonly layout?: {
+    readonly template: "single" | "split-left" | "split-right";
+    readonly contactPanel?: {
+      readonly name?:     string;
+      readonly role?:     string;
+      readonly photoUrl?: string;
+      readonly phone?:    string;
+      readonly email?:    string;
+    };
+  };
 }

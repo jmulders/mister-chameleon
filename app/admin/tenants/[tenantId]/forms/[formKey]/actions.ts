@@ -22,9 +22,33 @@
 import { revalidatePath }                     from "next/cache";
 import { getDb }                              from "@/data/db";
 import { logger }                             from "@/lib/logger";
-import type { TenantFormOverrideSettings }    from "@/tenant/types";
+import type { TenantFormOverrideSettings, FormLayout } from "@/tenant/types";
 import { DEFAULT_FORM_OVERRIDE_SETTINGS }     from "@/tenant/types";
 import { loadTenantFormOverrides }            from "@/forms/load-tenant-form-overrides";
+
+/** Sanitise a form layout from admin input (phase 1). Returns undefined when unusable. */
+function sanitiseLayout(raw: FormLayout | undefined): FormLayout | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const template =
+    raw.template === "split-left" || raw.template === "split-right" || raw.template === "single"
+      ? raw.template
+      : undefined;
+  if (!template) return undefined;
+  if (template === "single") return { template };
+
+  const clean = (v: unknown, max: number) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+  const cp = raw.contactPanel ?? {};
+  const contactPanel = {
+    name:     clean(cp.name, 120),
+    role:     clean(cp.role, 120),
+    photoUrl: clean(cp.photoUrl, 500),
+    phone:    clean(cp.phone, 40),
+    email:    clean(cp.email, 200),
+  };
+  const hasPanel = Object.values(contactPanel).some(Boolean);
+  return { template, ...(hasPanel ? { contactPanel } : {}) };
+}
 
 // ── Read ───────────────────────────────────────────────────────────────────────
 
@@ -108,6 +132,8 @@ export async function saveTenantFormOverrideAction(
         typeof overrides.customSenderName === "string" && overrides.customSenderName.trim()
           ? overrides.customSenderName.trim().slice(0, 100)
           : undefined,
+
+      layout: sanitiseLayout(overrides.layout),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

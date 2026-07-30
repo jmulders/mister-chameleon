@@ -107,7 +107,9 @@ import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
 import { renderBlockHtml, renderForm } from "@/lib/snippet/render-block-html";
-import { resolveContextualForm }      from "@/forms/context/load";
+import { resolveContextualForm, loadFormVariant } from "@/forms/context/load";
+import { resolvePresentedFields }     from "@/forms/context/variant";
+import { getFormDefinition }          from "@/forms";
 import { isFormKey }                  from "@/forms/registry";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 
@@ -1016,8 +1018,37 @@ export async function POST(request: NextRequest) {
         const formKey = blockKey.slice("form:".length).trim();
         if (!isFormKey(formKey)) continue;
         try {
-          const resolved = await resolveContextualForm(tenantId, formKey, formSignals);
-          if (!resolved) continue;
+          // Base: phase-1 contextual resolution (Turnstile + override layout +
+          // base/segment fields).
+          const baseForm = await resolveContextualForm(tenantId, formKey, formSignals);
+          if (!baseForm) continue;
+
+          // If a rule targeted a form variant for this type, merge it on top of
+          // the base — variant copy/layout/fields win; Turnstile and the
+          // fallback layout come from the base. When no rule targeted a variant
+          // (the common case), the base is served unchanged.
+          let resolved = baseForm;
+          const variantKey = tenantId ? plan.formVariants?.[formKey] : undefined;
+          if (tenantId && variantKey) {
+            const variant = await loadFormVariant(tenantId, formKey, variantKey);
+            if (variant) {
+              const def = getFormDefinition(formKey);
+              resolved = {
+                ...baseForm,
+                title:          variant.title          ?? baseForm.title,
+                intro:          variant.intro          ?? baseForm.intro,
+                submitLabel:    variant.submitLabel    ?? baseForm.submitLabel,
+                successMessage: variant.successMessage ?? baseForm.successMessage,
+                redirectPath:   variant.redirectPath   ?? baseForm.redirectPath,
+                ...(variant.layout ? { layout: variant.layout } : {}),
+                fields: (def && variant.fields?.length)
+                  ? resolvePresentedFields(def.fields, variant.fields)
+                  : baseForm.fields,
+                segment: variantKey,
+              };
+            }
+          }
+
           const html = renderForm(resolved, formKey);
           slots[blockKey] = Object.keys(blockThemeTokens).length > 0
             ? { mode: "block", html, tokens: blockThemeTokens }

@@ -302,6 +302,29 @@ export interface TenantFormOverrideSettings {
    * @default false
    */
   turnstileEnabled: boolean;
+
+  /**
+   * Presentation layout for this form (phase 1 of forms-as-adaptive-blocks).
+   * Honoured independently of `overrideEnabled` — it only affects arrangement,
+   * not the field set or the server contract. Absent → default single column.
+   */
+  layout?: FormLayout;
+}
+
+/**
+ * How a form is arranged on the page. Phase 1: a single column, or a split with
+ * a contact panel on the left or right. The field set and validation are
+ * unchanged — this is presentation only.
+ */
+export interface FormLayout {
+  template: "single" | "split-left" | "split-right";
+  contactPanel?: {
+    name?:     string;
+    role?:     string;
+    photoUrl?: string;
+    phone?:    string;
+    email?:    string;
+  };
 }
 
 /**

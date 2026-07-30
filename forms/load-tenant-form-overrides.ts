@@ -136,5 +136,31 @@ function mergeWithDefaults(raw: Record<string, unknown>): TenantFormOverrideSett
       typeof raw.customSenderName === "string" && raw.customSenderName.trim() !== ""
         ? raw.customSenderName.trim()
         : undefined,
+
+    layout: parseLayout(raw.layout),
   };
+}
+
+/** Parse a stored form layout (phase 1). Returns undefined for anything unusable. */
+function parseLayout(raw: unknown): TenantFormOverrideSettings["layout"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const template =
+    r.template === "split-left" || r.template === "split-right" ? r.template :
+    r.template === "single" ? "single" : undefined;
+  if (!template) return undefined;
+
+  const str = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v.trim() : undefined);
+  const cp = r.contactPanel && typeof r.contactPanel === "object"
+    ? (r.contactPanel as Record<string, unknown>)
+    : {};
+  const contactPanel = {
+    name:     str(cp.name),
+    role:     str(cp.role),
+    photoUrl: str(cp.photoUrl),
+    phone:    str(cp.phone),
+    email:    str(cp.email),
+  };
+  const hasPanel = Object.values(contactPanel).some(Boolean);
+  return { template, ...(hasPanel ? { contactPanel } : {}) };
 }
