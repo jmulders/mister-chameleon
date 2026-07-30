@@ -360,6 +360,8 @@ export interface PlanExperimentRow {
     ctaKey?:        string;
     featureKey?:    string;
     conversionKey?: string;
+    /** Per-form-type variant keys (forms-as-adaptive-blocks). */
+    formVariants?:  Record<string, string>;
   };
   /** Lifecycle state */
   status: "draft" | "active" | "paused" | "ended";
