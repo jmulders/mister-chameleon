@@ -77,6 +77,13 @@ export interface VariantCatalogue {
   cta:        VariantEntry[];
   feature:    VariantEntry[];
   conversion: VariantEntry[];
+  /**
+   * Authored form variants, keyed by form type (contact / application /
+   * appointment). Unlike the slots above, these are entirely tenant-authored
+   * (no platform defaults) — a type is present only when the tenant has saved
+   * at least one variant for it. A rule targets one via plan.formVariants.
+   */
+  forms?:     Record<string, VariantEntry[]>;
 }
 
 // ── Source labels ──────────────────────────────────────────────────────────────
@@ -204,5 +211,6 @@ export function buildPlatformCatalogue(): VariantCatalogue {
       label:  PLATFORM_CONVERSION_LABELS[k] ?? k,
       source: "platform" as const,
     })),
+    forms: {},
   };
 }

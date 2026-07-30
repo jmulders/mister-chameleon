@@ -1188,6 +1188,13 @@ function RuleCard({
                   ))}
                 </select>
               </Field>
+
+              {/* Form variants — target an authored form variant per form type */}
+              <FormVariantFields
+                forms={catalogue.forms}
+                value={rule.plan.formVariants}
+                onChange={(next) => onChange({ plan: { ...rule.plan, formVariants: next } })}
+              />
             </div>
           </div>
 
@@ -1318,6 +1325,13 @@ function DefaultPlanCard({
                   ))}
                 </select>
               </Field>
+
+              {/* Form variants — default form variant per form type */}
+              <FormVariantFields
+                forms={catalogue.forms}
+                value={plan.formVariants}
+                onChange={(next) => onChange({ formVariants: next })}
+              />
             </div>
           </div>
         </div>
@@ -1851,6 +1865,59 @@ function deriveDefaultValue(
  * Groups with only one source level that spans all entries skip the <optgroup>
  * wrapper (platform-only catalogue) to keep the select clean.
  */
+// ── FormVariantFields ──────────────────────────────────────────────────────────
+
+/**
+ * One select per form type that has authored variants, letting a rule (or the
+ * default plan) target a form variant via plan.formVariants[type]. Selecting
+ * "Default form" clears that type. Renders nothing when the tenant has authored
+ * no form variants, so the section only appears once forms have variants.
+ */
+function FormVariantFields({
+  forms,
+  value,
+  onChange,
+}: {
+  forms:    Record<string, VariantEntry[]> | undefined;
+  value:    Record<string, string> | undefined;
+  onChange: (next: Record<string, string> | undefined) => void;
+}) {
+  const types = forms ? Object.keys(forms).filter((t) => (forms[t]?.length ?? 0) > 0) : [];
+  if (types.length === 0) return null;
+
+  function setType(type: string, key: string) {
+    const next: Record<string, string> = { ...(value ?? {}) };
+    if (key) next[type] = key;
+    else delete next[type];
+    onChange(Object.keys(next).length > 0 ? next : undefined);
+  }
+
+  return (
+    <>
+      {types.map((type) => (
+        <Field
+          key={type}
+          label={`Form variant — ${type}`}
+          hint="Optional — the form layout and copy shown when this rule fires."
+        >
+          <select
+            value={value?.[type] ?? ""}
+            onChange={(e) => setType(type, e.target.value)}
+            className={selectCls}
+          >
+            <option value="">— Default form —</option>
+            {(forms?.[type] ?? []).map((entry) => (
+              <option key={entry.key} value={entry.key}>
+                {entry.key}{entry.label && entry.label !== entry.key ? ` — ${entry.label}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ))}
+    </>
+  );
+}
+
 function VariantOptions({ entries }: { entries: VariantEntry[] }) {
   // Determine the distinct source values in the order they appear.
   const sources: VariantSource[] = [];
