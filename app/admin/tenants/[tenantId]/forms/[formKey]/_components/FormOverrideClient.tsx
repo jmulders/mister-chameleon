@@ -68,6 +68,15 @@ export function FormOverrideClient({
   const [confirmEnabled,  setConfirmEnabled]  = useState(initialOverride.confirmEnabled);
   const [storeEnabled,    setStoreEnabled]    = useState(initialOverride.storeEnabled);
   const [turnstileEnabled, setTurnstileEnabled] = useState(initialOverride.turnstileEnabled ?? false);
+  const [layoutTemplate, setLayoutTemplate] = useState<"single" | "split-left" | "split-right">(
+    initialOverride.layout?.template ?? "single",
+  );
+  const cp0 = initialOverride.layout?.contactPanel;
+  const [cpName,  setCpName]  = useState(cp0?.name     ?? "");
+  const [cpRole,  setCpRole]  = useState(cp0?.role     ?? "");
+  const [cpPhoto, setCpPhoto] = useState(cp0?.photoUrl ?? "");
+  const [cpPhone, setCpPhone] = useState(cp0?.phone    ?? "");
+  const [cpEmail, setCpEmail] = useState(cp0?.email    ?? "");
   const [recipients,      setRecipients]      = useState(initialOverride.customRecipients.join(", "));
   const [customSubject,   setCustomSubject]   = useState(initialOverride.customSubject ?? "");
   const [customSender,    setCustomSender]    = useState(initialOverride.customSenderName ?? "");
@@ -99,6 +108,18 @@ export function FormOverrideClient({
         customRecipients: parsed,
         customSubject:    customSubject.trim() || undefined,
         customSenderName: customSender.trim()  || undefined,
+        layout: layoutTemplate === "single"
+          ? { template: "single" }
+          : {
+              template: layoutTemplate,
+              contactPanel: {
+                name:     cpName.trim()  || undefined,
+                role:     cpRole.trim()  || undefined,
+                photoUrl: cpPhoto.trim() || undefined,
+                phone:    cpPhone.trim() || undefined,
+                email:    cpEmail.trim() || undefined,
+              },
+            },
       });
 
       if (result.ok) {
@@ -128,6 +149,8 @@ export function FormOverrideClient({
         setConfirmEnabled(true);
         setStoreEnabled(true);
         setTurnstileEnabled(false);
+        setLayoutTemplate("single");
+        setCpName(""); setCpRole(""); setCpPhoto(""); setCpPhone(""); setCpEmail("");
         setRecipients("");
         setCustomSubject("");
         setCustomSender("");
@@ -243,6 +266,57 @@ export function FormOverrideClient({
             )}
           </div>
           <Toggle value={turnstileEnabled} onChange={setTurnstileEnabled} disabled={isBusy} />
+        </div>
+      </div>
+
+      {/* ── Layout ────────────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+        <div className="px-5 py-4 border-b border-neutral-100">
+          <h2 className="text-sm font-semibold text-neutral-900">Layout</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            How this form is arranged. A split shows a contact panel beside the form.
+            This affects presentation only, not the fields.
+          </p>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div>
+            <label htmlFor="fl-template" className="block text-xs font-medium text-neutral-700 mb-1">Template</label>
+            <select
+              id="fl-template"
+              value={layoutTemplate}
+              onChange={(e) => setLayoutTemplate(e.target.value as typeof layoutTemplate)}
+              disabled={isBusy}
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1"
+            >
+              <option value="single">Single column</option>
+              <option value="split-left">Split — contact panel left</option>
+              <option value="split-right">Split — contact panel right</option>
+            </select>
+          </div>
+
+          {layoutTemplate !== "single" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                ["Name", cpName, setCpName, "Jane Smith"],
+                ["Role", cpRole, setCpRole, "Sales manager"],
+                ["Photo URL", cpPhoto, setCpPhoto, "https://…/photo.jpg"],
+                ["Phone", cpPhone, setCpPhone, "033 246 10 00"],
+                ["Email", cpEmail, setCpEmail, "info@example.com"],
+              ] as const).map(([label, val, set, ph]) => (
+                <div key={label}>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
+                  <input
+                    type="text"
+                    value={val}
+                    onChange={(e) => set(e.target.value)}
+                    placeholder={ph}
+                    disabled={isBusy}
+                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
