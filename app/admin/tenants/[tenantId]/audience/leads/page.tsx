@@ -13,7 +13,7 @@ import { listLeadProfilesAction } from "./actions";
 import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction, getAbmNotifySettingsAction } from "../accounts/actions";
 import { listWebhookDeliveriesAction } from "./actions";
 import { getCreditBalance } from "@/lib/billing/billing-store";
-import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
+import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience/segments/actions";
 import { AdminPageHeader }         from "@/components/admin/AdminPageHeader";
 import { LeadBaseClient }         from "./_components/LeadBaseClient";
 import { LeadCrmSettings }        from "./_components/LeadCrmSettings";

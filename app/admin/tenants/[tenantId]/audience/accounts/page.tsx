@@ -9,7 +9,7 @@
 import Link                  from "next/link";
 import { getTenantById }     from "@/tenant/server";
 import { listAbmLeadsAction } from "./actions";
-import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
+import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience/segments/actions";
 import { AdminPageHeader }   from "@/components/admin/AdminPageHeader";
 import { AbmClient }         from "./_components/AbmClient";
 

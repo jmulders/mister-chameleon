@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { getPersonalizationPerformanceAction, getChannelAttributionAction } from "../actions";
-import { listAudienceSegmentsAction }          from "@/app/admin/tenants/[tenantId]/audience-segments/actions";
+import { listAudienceSegmentsAction }          from "@/app/admin/tenants/[tenantId]/audience/segments/actions";
 import { PersonalizationReport }               from "../_components/PersonalizationReport";
 
 export const dynamic = "force-dynamic";
