@@ -1017,7 +1017,7 @@ export function EditBlockDrawer({
       const savePath =
         revalidatePath ??
         (block.tenantId
-          ? `/admin/tenants/${block.tenantId}/blocks`
+          ? `/admin/tenants/${block.tenantId}/personalization/blocks`
           : "/admin/platform/blocks");
 
       const res = await upsertAdaptiveBlockAction(
