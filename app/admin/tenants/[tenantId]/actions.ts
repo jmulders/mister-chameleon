@@ -1488,8 +1488,8 @@ export async function saveRuleThemeKeyAction(
 
   // Load the current rules config (or fall back to seed)
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {
@@ -1672,8 +1672,8 @@ export async function addThemeMappingAction(
   }
 
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {
@@ -1804,8 +1804,8 @@ export async function setThemeMappingEnabledAction(
   }
 
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {
@@ -1904,8 +1904,8 @@ export async function addContextLibraryThemeMappingAction(
   }
 
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {
