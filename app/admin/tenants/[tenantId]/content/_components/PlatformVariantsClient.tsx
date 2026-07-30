@@ -636,7 +636,7 @@ function NotificationEditor({
         <label className={labelCls}>Message</label>
         <textarea className={cn(inputCls, "resize-y")} rows={2} value={f.message}
           onChange={(e) => setF({ ...f, message: e.target.value })}
-          placeholder="🎁 Beperkte aanbieding — alleen deze week."
+          placeholder="🎁 Limited offer, this week only."
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -662,7 +662,7 @@ function NotificationEditor({
           <label className={labelCls}>CTA label <span className="font-normal text-neutral-400">(opt)</span></label>
           <input className={inputCls} value={f.cta_label}
             onChange={(e) => setF({ ...f, cta_label: e.target.value })}
-            placeholder="Bekijk aanbieding"
+            placeholder="View offer"
           />
         </div>
         <div>

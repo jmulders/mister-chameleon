@@ -98,7 +98,7 @@ export async function listFormSubmissionsAction(
       tenantId,
       error: String(err),
     });
-    return { ok: false, error: "Kan inzendingen niet ophalen" };
+    return { ok: false, error: "Could not load submissions" };
   }
 }
 
@@ -127,7 +127,7 @@ export async function deleteFormSubmissionAction(
       submissionId,
       error: String(err),
     });
-    return { ok: false, error: "Kan inzending niet verwijderen" };
+    return { ok: false, error: "Could not delete submission" };
   }
 }
 
@@ -201,7 +201,7 @@ export async function exportFormSubmissionsAction(
       tenantId,
       error: String(err),
     });
-    return { ok: false, error: "Kan CSV niet exporteren" };
+    return { ok: false, error: "Could not export CSV" };
   }
 }
 
@@ -243,7 +243,7 @@ export async function saveRetentionSettingAction(
       )) as { error: { message: string } | null };
 
     if (error) {
-      return { ok: false, error: `Opslaan mislukt: ${error.message}` };
+      return { ok: false, error: `Save failed: ${error.message}` };
     }
 
     revalidatePath(`/admin/tenants/${tenantId}/forms`);
@@ -253,6 +253,6 @@ export async function saveRetentionSettingAction(
       tenantId,
       error: String(err),
     });
-    return { ok: false, error: "Bewaartermijn opslaan mislukt" };
+    return { ok: false, error: "Could not save retention period" };
   }
 }

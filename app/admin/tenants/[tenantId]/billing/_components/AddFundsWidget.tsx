@@ -60,7 +60,7 @@ export function AddFundsWidget({ tenantId }: { tenantId: string }) {
         {pending ? "Redirecting…" : `Add €${(amount / 100).toFixed(0)} to wallet`}
       </button>
       <p className="mt-2 text-xs text-neutral-400">
-        1:1 — you pay this exact amount and it becomes ad budget (1 credit = €0.01). No subscription.
+        1:1, you pay this exact amount and it becomes ad budget (1 credit = €0.01). No subscription.
       </p>
     </div>
   );

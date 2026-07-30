@@ -33,7 +33,7 @@ export default async function AdsPage({
       <AdminPageHeader
         eyebrow="Platform"
         title="Ads"
-        description="Run this tenant as an ad account: its siteKey is embedded by publisher sites and its adaptive slots are served as ads. Impressions and clicks are metered against the wallet."
+        description="Run this tenant as an ad account. Its siteKey is embedded by publisher sites and its adaptive slots are served as ads. Impressions and clicks are metered against the wallet."
       />
       <AdsClient tenantId={tenantId} initial={overview} />
     </div>

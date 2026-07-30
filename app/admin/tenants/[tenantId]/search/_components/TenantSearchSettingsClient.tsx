@@ -64,7 +64,7 @@ const PROVIDER_OPTIONS: Array<{
   {
     value: "inmemory",
     label: "In-memory (fixture corpus)",
-    hint:  "Searches a built-in fixture dataset — always available. " +
+    hint:  "Searches a built-in fixture dataset. Always available. " +
            "Useful for demos, staging, or QA environments where real CMS data is not needed.",
   },
   {

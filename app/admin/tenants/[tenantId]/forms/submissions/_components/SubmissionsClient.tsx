@@ -100,7 +100,7 @@ export function SubmissionsClient({
           setPage(nextPage);
           setExpandedId(null);
         } else {
-          setStatusMsg(`Fout: ${result.error}`);
+          setStatusMsg(`Error: ${result.error}`);
         }
       });
     },
@@ -128,11 +128,11 @@ export function SubmissionsClient({
         const url  = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href     = url;
-        link.download = `inzendingen-${tenantId}-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.download = `submissions-${tenantId}-${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
         URL.revokeObjectURL(url);
       } else {
-        setStatusMsg(`Export mislukt: ${result.error}`);
+        setStatusMsg(`Export failed: ${result.error}`);
       }
     });
   };
@@ -140,7 +140,7 @@ export function SubmissionsClient({
   // ── Delete ──────────────────────────────────────────────────────────────────
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Weet je zeker dat je deze inzending wilt verwijderen?")) return;
+    if (!window.confirm("Are you sure you want to delete this submission?")) return;
 
     // Optimistic removal.
     setRows((prev) => prev.filter((r) => r.id !== id));
@@ -148,7 +148,7 @@ export function SubmissionsClient({
 
     const result = await deleteFormSubmissionAction(tenantId, id);
     if (!result.ok) {
-      setStatusMsg(`Verwijderen mislukt: ${result.error}`);
+      setStatusMsg(`Delete failed: ${result.error}`);
       // Re-fetch current page to restore state.
       fetchPage(page);
     }
@@ -171,13 +171,13 @@ export function SubmissionsClient({
 
           {/* Form key select */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-400">Formulier</label>
+            <label className="text-xs font-medium text-slate-400">Form</label>
             <select
               value={filterFormKey}
               onChange={(e) => setFilterFormKey(e.target.value)}
               className={selectCls}
             >
-              <option value="">Alle formulieren</option>
+              <option value="">All forms</option>
               {formKeys.map((k) => (
                 <option key={k} value={k}>{k}</option>
               ))}
@@ -186,7 +186,7 @@ export function SubmissionsClient({
 
           {/* Date from */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-400">Vanaf</label>
+            <label className="text-xs font-medium text-slate-400">From</label>
             <input
               type="date"
               value={filterFrom}
@@ -197,7 +197,7 @@ export function SubmissionsClient({
 
           {/* Date to */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-400">Tot en met</label>
+            <label className="text-xs font-medium text-slate-400">To</label>
             <input
               type="date"
               value={filterTo}
@@ -208,13 +208,13 @@ export function SubmissionsClient({
 
           {/* Search */}
           <div className="flex flex-col gap-1 flex-1 min-w-40">
-            <label className="text-xs font-medium text-slate-400">Zoeken</label>
+            <label className="text-xs font-medium text-slate-400">Search</label>
             <input
               type="text"
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleFilter()}
-              placeholder="Zoek op naam, e-mail, inhoud…"
+              placeholder="Search by name, email, content…"
               className={inputCls}
             />
           </div>
@@ -227,7 +227,7 @@ export function SubmissionsClient({
               disabled={isLoading}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
             >
-              {isLoading ? "Laden…" : "Filteren"}
+              {isLoading ? "Loading…" : "Filter"}
             </button>
             <button
               type="button"
@@ -235,7 +235,7 @@ export function SubmissionsClient({
               disabled={isExporting || rows.length === 0}
               className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600 disabled:opacity-50 transition-colors"
             >
-              {isExporting ? "Exporteren…" : "Exporteer CSV"}
+              {isExporting ? "Exporting…" : "Export CSV"}
             </button>
           </div>
         </div>
@@ -249,7 +249,7 @@ export function SubmissionsClient({
       {/* ── Pagination summary ───────────────────────────────────────────── */}
       {total > 0 && (
         <div className="flex items-center justify-between text-sm text-slate-400 px-1">
-          <span>{firstOnPage}–{lastOnPage} van {total} inzendingen</span>
+          <span>{firstOnPage}–{lastOnPage} of {total} submissions</span>
           <div className="flex gap-2">
             <button
               type="button"
@@ -257,10 +257,10 @@ export function SubmissionsClient({
               disabled={page <= 1 || isLoading}
               className="rounded-md border border-slate-600 bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700 disabled:opacity-40 transition-colors"
             >
-              ← Vorige
+              ← Previous
             </button>
             <span className="px-2 py-1 text-xs">
-              Pagina {page} van {totalPages}
+              Page {page} of {totalPages}
             </span>
             <button
               type="button"
@@ -268,7 +268,7 @@ export function SubmissionsClient({
               disabled={page >= totalPages || isLoading}
               className="rounded-md border border-slate-600 bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700 disabled:opacity-40 transition-colors"
             >
-              Volgende →
+              Next →
             </button>
           </div>
         </div>
@@ -277,9 +277,9 @@ export function SubmissionsClient({
       {/* ── Table ────────────────────────────────────────────────────────── */}
       {rows.length === 0 ? (
         <div className="rounded-xl border border-slate-700 bg-slate-800 px-8 py-12 text-center">
-          <p className="text-slate-300 font-medium">Geen inzendingen gevonden</p>
+          <p className="text-slate-300 font-medium">No submissions found</p>
           <p className="text-slate-500 text-sm mt-1">
-            Pas de filters aan of controleer of het formulier inzendingen opslaat.
+            Adjust the filters or check whether the form stores submissions.
           </p>
         </div>
       ) : (
@@ -287,12 +287,12 @@ export function SubmissionsClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-700 bg-slate-900/50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Datum</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Formulier</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Naam</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">E-mail</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Voorbeeld</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">Acties</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Form</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Email</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Preview</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -325,10 +325,10 @@ export function SubmissionsClient({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); void handleDelete(row.id); }}
                         className="inline-flex items-center gap-1 rounded-md border border-red-800 bg-red-900/30 px-2.5 py-1 text-xs text-red-400 hover:bg-red-900/60 transition-colors"
-                        title="Verwijder inzending"
+                        title="Delete submission"
                       >
                         <TrashIcon />
-                        Verwijder
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -339,7 +339,7 @@ export function SubmissionsClient({
                       <td colSpan={6} className="px-6 py-4 bg-slate-900/50">
                         <div className="space-y-3">
                           <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                            Alle velden — {row.form_key} — {formatDate(row.created_at)}
+                            All fields, {row.form_key}, {formatDate(row.created_at)}
                           </p>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             {Object.entries(row.values).map(([k, v]) => (
@@ -364,7 +364,7 @@ export function SubmissionsClient({
       {/* ── Bottom pagination ────────────────────────────────────────────── */}
       {total > PAGE_SIZE && (
         <div className="flex items-center justify-between text-sm text-slate-400 px-1">
-          <span>{firstOnPage}–{lastOnPage} van {total} inzendingen</span>
+          <span>{firstOnPage}–{lastOnPage} of {total} submissions</span>
           <div className="flex gap-2">
             <button
               type="button"
@@ -372,7 +372,7 @@ export function SubmissionsClient({
               disabled={page <= 1 || isLoading}
               className="rounded-md border border-slate-600 bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700 disabled:opacity-40 transition-colors"
             >
-              ← Vorige
+              ← Previous
             </button>
             <button
               type="button"
@@ -380,7 +380,7 @@ export function SubmissionsClient({
               disabled={page >= totalPages || isLoading}
               className="rounded-md border border-slate-600 bg-slate-800 px-3 py-1 text-xs hover:bg-slate-700 disabled:opacity-40 transition-colors"
             >
-              Volgende →
+              Next →
             </button>
           </div>
         </div>

@@ -81,7 +81,7 @@ const HEADER_VARIANTS: readonly HeaderVariantDef[] = [
   {
     value:       "transparent",
     label:       "Transparent",
-    description: "No initial background — header floats over the hero section.",
+    description: "No initial background. The header floats over the hero section.",
   },
 ] as const;
 
@@ -97,12 +97,12 @@ const FOOTER_VARIANTS: readonly FooterVariantDef[] = [
   {
     value:       "minimal",
     label:       "Minimal",
-    description: "Single row: brand on the left, nav links centre, copyright right.",
+    description: "Single row. Brand on the left, nav links centre, copyright right.",
   },
   {
     value:       "corporate",
     label:       "Corporate",
-    description: "Multi-column layout: brand + tagline on the left, organised link categories on the right.",
+    description: "Multi-column layout. Brand + tagline on the left, organised link categories on the right.",
   },
   {
     value:       "branding",

@@ -44,13 +44,13 @@ export function AdvertiserBilling({
         <h1 className="mt-1 text-2xl font-bold text-neutral-900">Billing</h1>
         <p className="mt-1 text-sm text-neutral-600 max-w-2xl">
           This is an ad account. Billing is metered <strong>per impression (CPM) or click (CPC)</strong>
-          against a prepaid wallet — there is no subscription. Serving stops when the balance reaches zero.
+          against a prepaid wallet. There is no subscription. Serving stops when the balance reaches zero.
         </p>
       </div>
 
       {topup === "success" && (
         <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-          Payment received — your ad budget has been topped up.
+          Payment received. Your ad budget has been topped up.
         </div>
       )}
       {topup === "already" && (
@@ -60,7 +60,7 @@ export function AdvertiserBilling({
       )}
       {topup === "cancelled" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-          Top-up cancelled — no charge was made.
+          Top-up cancelled. No charge was made.
         </div>
       )}
 
@@ -68,7 +68,7 @@ export function AdvertiserBilling({
         <div className={card}>
           <div className="text-xs font-semibold text-neutral-500">Wallet balance</div>
           <div className="mt-1 text-2xl font-bold text-neutral-900">{euros(balanceCents)}</div>
-          {balanceCents <= 0 && <div className="mt-1 text-xs text-amber-700">Empty — ads won't serve until funded.</div>}
+          {balanceCents <= 0 && <div className="mt-1 text-xs text-amber-700">Empty. Ads won't serve until funded.</div>}
         </div>
         <div className={card}>
           <div className="text-xs font-semibold text-neutral-500">Ad spend (this month)</div>

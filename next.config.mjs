@@ -209,6 +209,45 @@ const nextConfig = {
   //       The App Router route is unreachable because the rewrite fires first,
   //       but in production the PHP server is expected to be running.
   //
+  // ── Admin nav URL refactor (phase 1: Personalization) ─────────────────────
+  //
+  //   The tenant-workspace Personalization pages moved from scattered paths
+  //   (/behavior/slots, /variants, /blocks, /rules, /experiments, /ai, /ai-logs,
+  //   /behavior/ai-policy, /behavior/field-fill, /context, /forms/context) to a
+  //   single /personalization/* namespace. These permanent redirects keep old
+  //   bookmarks, external links, and any not-yet-updated internal link working.
+  //   `:path*` matches the base path and every sub-route (e.g. blocks/generate).
+  async redirects() {
+    const t = "/admin/tenants/:tenantId";
+    const moves = [
+      ["behavior/slots",      "personalization/slots"],
+      ["behavior/ai-policy",  "personalization/ai-policy"],
+      ["behavior/field-fill", "personalization/field-fill"],
+      ["variants",            "personalization/variants"],
+      ["blocks",              "personalization/blocks"],
+      ["rules",               "personalization/rules"],
+      ["experiments",         "personalization/experiments"],
+      ["ai",                  "personalization/ai"],
+      ["ai-logs",             "personalization/ai-logs"],
+      ["context",             "personalization/context-variables"],
+      ["forms/context",       "personalization/contextual-forms"],
+      // Phase 2: Audience under /audience/*. behavior/journey MUST precede the
+      // bare "behavior" catch-all (first matching redirect wins).
+      ["behavior/journey",    "audience/journey"],
+      ["interest-profiles",   "audience/interests"],
+      ["audience-segments",   "audience/segments"],
+      ["abm",                 "audience/accounts"],
+      ["leads",               "audience/leads"],
+      ["ad-sync",             "audience/retargeting"],
+      ["behavior",            "audience/scoring"],
+    ];
+    return moves.map(([from, to]) => ({
+      source:      `${t}/${from}/:path*`,
+      destination: `${t}/${to}/:path*`,
+      permanent:   true,
+    }));
+  },
+
   async rewrites() {
     // Skip when running in file-based mode — app/assets/[...path]/route.ts
     // serves assets directly from disk, no proxy needed.

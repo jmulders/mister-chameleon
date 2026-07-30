@@ -52,26 +52,26 @@ function MiniPreview({ p }: { p: DesignPresetCard }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 11px", background: headerBg, color: headerFg, borderBottom: `1px solid ${headerBd}` }}>
         <span style={{ fontFamily: fontH, fontWeight: Number(hWeight) || 700, textTransform: hTransform as React.CSSProperties["textTransform"], letterSpacing: letter, fontSize: 12 }}>{p.name}</span>
         <span style={{ marginLeft: "auto", display: "flex", gap: 8, fontSize: 9, opacity: .85 }}>
-          <span>Features</span><span>Prijzen</span>
+          <span>Features</span><span>Pricing</span>
         </span>
         <span style={{ background: primary, color: onPrimary, borderRadius: radInt, padding: "3px 7px", fontSize: 9, fontWeight: 600 }}>Start</span>
       </div>
       {/* hero */}
       <div style={{ padding: "14px 13px 13px" }}>
-        <span style={{ display: "inline-block", background: accent, color: primary, borderRadius: 999, padding: "2px 7px", fontSize: 8.5, fontWeight: 700, marginBottom: 7 }}>PERSONALISATIE</span>
+        <span style={{ display: "inline-block", background: accent, color: primary, borderRadius: 999, padding: "2px 7px", fontSize: 8.5, fontWeight: 700, marginBottom: 7 }}>PERSONALISATION</span>
         <div style={{ fontFamily: fontH, fontWeight: Number(hWeight) || 700, textTransform: hTransform as React.CSSProperties["textTransform"], letterSpacing: letter, fontSize: 17, lineHeight: 1.12, marginBottom: 5 }}>
-          Een site die zich aanpast
+          A site that adapts
         </div>
         <div style={{ color: mutedFg, fontSize: 10.5, marginBottom: 10, lineHeight: 1.4 }}>
-          Dezelfde blokken, een andere look &amp; feel.
+          The same blocks, a different look &amp; feel.
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 11 }}>
           <span style={{ background: primary, color: onPrimary, borderRadius: radInt, padding: "5px 10px", fontSize: 10, fontWeight: 600 }}>Demo</span>
-          <span style={{ background: "transparent", color: fg, border: `1px solid ${border}`, borderRadius: radInt, padding: "5px 10px", fontSize: 10, fontWeight: 600 }}>Meer</span>
+          <span style={{ background: "transparent", color: fg, border: `1px solid ${border}`, borderRadius: radInt, padding: "5px 10px", fontSize: 10, fontWeight: 600 }}>More</span>
         </div>
         <div style={{ background: card, border: `1px solid ${border}`, borderRadius: radCard, boxShadow: shadow, padding: "9px 10px" }}>
-          <div style={{ fontFamily: fontH, fontWeight: Number(hWeight) || 700, fontSize: 11, marginBottom: 2 }}>34% meer leads</div>
-          <div style={{ color: mutedFg, fontSize: 9.5 }}>Gemiddeld na 90 dagen.</div>
+          <div style={{ fontFamily: fontH, fontWeight: Number(hWeight) || 700, fontSize: 11, marginBottom: 2 }}>34% more leads</div>
+          <div style={{ color: mutedFg, fontSize: 9.5 }}>On average after 90 days.</div>
         </div>
       </div>
     </div>
@@ -94,7 +94,7 @@ export function PresetGallery({ tenantId, design }: Props) {
       const r = await applyDesignPresetAction(tenantId, id);
       setBusyId(null);
       if (r.ok) {
-        setMsg({ id, text: "Toegepast ✓", ok: true });
+        setMsg({ id, text: "Applied ✓", ok: true });
         router.refresh();
       } else {
         setMsg({ id, text: r.error, ok: false });
@@ -147,9 +147,9 @@ export function PresetGallery({ tenantId, design }: Props) {
                       color: isActive ? "#4f46e5" : "#fff",
                     }}
                   >
-                    {busyId === p.id ? "Bezig…" : isActive ? "Opnieuw toepassen" : "Toepassen"}
+                    {busyId === p.id ? "Working…" : isActive ? "Reapply" : "Apply"}
                   </button>
-                  {isActive && <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Actief</span>}
+                  {isActive && <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Active</span>}
                   {msg && msg.id === p.id && (
                     <span style={{ fontSize: 11, color: msg.ok ? "#16a34a" : "#b91c1c" }}>{msg.text}</span>
                   )}
@@ -160,9 +160,9 @@ export function PresetGallery({ tenantId, design }: Props) {
         })}
       </div>
       <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 16, maxWidth: "70ch" }}>
-        Een preset zet de volledige look in één keer: kleuren, typografie, knoppen, radius, header/footer én de
-        site-brede block-tokens die op elk content-blok en adaptieve slot doorwerken. Je kunt daarna in de
-        Blocks-, Advanced- of Typography-tab nog losse tokens bijstellen.
+        A preset sets the entire look in one go. Colors, typography, buttons, radius, header/footer, and the
+        site-wide block tokens that carry through to every content block and adaptive slot. You can then fine-tune
+        individual tokens in the Blocks, Advanced, or Typography tab.
       </p>
     </div>
   );

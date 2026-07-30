@@ -965,7 +965,7 @@ export function ThemeGallery({ tenantId, activeTheme }: ThemeGalleryProps) {
               textTransform: "uppercase", letterSpacing: "0.06em",
               margin: "0 0 0.625rem",
             }}>
-              Step 1 — Choose a style family
+              Step 1. Choose a style family
             </p>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
@@ -1023,7 +1023,7 @@ export function ThemeGallery({ tenantId, activeTheme }: ThemeGalleryProps) {
               textTransform: "uppercase", letterSpacing: "0.06em",
               margin: "0 0 0.75rem",
             }}>
-              Step 2 — Choose a preset
+              Step 2. Choose a preset
             </p>
 
             {error && (

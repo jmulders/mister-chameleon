@@ -54,8 +54,8 @@ export function TenantCalendarClient({
       {!platformConfigured && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
           The shared platform service account isn&apos;t configured yet. Set it up under{" "}
-          <span className="font-medium">Platform → Integrations → Calendar</span> first —
-          bookings here won&apos;t work until then.
+          <span className="font-medium">Platform → Integrations → Calendar</span> first.
+          Bookings here won&apos;t work until then.
         </div>
       )}
 

@@ -126,7 +126,7 @@ export default async function FormConfigPage({ params }: PageProps) {
       <div className="space-y-1">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-neutral-900">
-            {formDef.title} — Form Configuration
+            {formDef.title} (Form Configuration)
           </h1>
           <p className="text-sm text-neutral-500">
             Per-form overrides for{" "}
@@ -186,7 +186,7 @@ export default async function FormConfigPage({ params }: PageProps) {
                   <SourceBadge source={recipientSource} />
                 </td>
                 <td className="px-4 py-2.5 text-neutral-400 truncate max-w-xs">
-                  {effRecips.length > 0 ? effRecips.join(", ") : "No recipients — emails will be skipped"}
+                  {effRecips.length > 0 ? effRecips.join(", ") : "No recipients. Emails will be skipped"}
                 </td>
               </tr>
             </tbody>
@@ -225,7 +225,7 @@ export default async function FormConfigPage({ params }: PageProps) {
           <h2 className="text-sm font-semibold text-neutral-900">Form Definition</h2>
           <p className="text-xs text-neutral-500 mt-0.5">
             Code-side defaults for this form. These are the base values before any tenant or
-            per-form overrides are applied. Read-only — changes require a code deployment.
+            per-form overrides are applied. Read-only. Changes require a code deployment.
           </p>
         </div>
         <div className="px-5 py-4 space-y-3">

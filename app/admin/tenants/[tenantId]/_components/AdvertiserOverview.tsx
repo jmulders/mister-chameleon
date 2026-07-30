@@ -90,7 +90,7 @@ export function AdvertiserOverview({
             </div>
             <div className="mt-1.5 text-xs text-neutral-400">
               ID: <code className="font-mono text-neutral-600">{tenantId}</code>
-              <span className="ml-3">Ad account — billed per impression/click against a prepaid wallet.</span>
+              <span className="ml-3">Ad account, billed per impression/click against a prepaid wallet.</span>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@ export function AdvertiserOverview({
             <StatTile
               label="Wallet balance"
               value={euros(walletBalanceCents)}
-              hint={walletEmpty ? "Empty — ads won't serve until funded." : "Available ad budget."}
+              hint={walletEmpty ? "Empty. Ads won't serve until funded." : "Available ad budget."}
               tone={walletEmpty ? "warn" : undefined}
             />
             <StatTile label="Live campaigns" value={String(activeCampaigns)} hint="Ads currently set to active." />

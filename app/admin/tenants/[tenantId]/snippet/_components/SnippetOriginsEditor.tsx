@@ -70,8 +70,8 @@ export function SnippetOriginsEditor({ tenantId, initialOrigins }: Props) {
       <div className="px-6 py-5 space-y-4">
         <div className={`rounded-lg border px-4 py-2.5 text-xs font-medium ${restricted ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
           {restricted
-            ? "Enforced — requests from any other origin are rejected (403)."
-            : "Not restricted — the key works from any origin. Add at least one domain to lock it down."}
+            ? "Enforced. Requests from any other origin are rejected (403)."
+            : "Not restricted. The key works from any origin. Add at least one domain to lock it down."}
         </div>
 
         {rows.map((row, i) => (

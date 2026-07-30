@@ -11,7 +11,7 @@ import { notFound }            from "next/navigation";
 import { getTenantById }       from "@/tenant/server";
 import { normalizeThemeKey }   from "@/tenant";
 import { isThemePresetKey }    from "@/design-system/theme/presets";
-import { getTenantRulesAction } from "@/app/admin/tenants/[tenantId]/rules/actions";
+import { getTenantRulesAction } from "@/app/admin/tenants/[tenantId]/personalization/rules/actions";
 import { ThemeRulesEditor }     from "@/app/admin/tenants/[tenantId]/design/_components/ThemeRulesEditor";
 
 export default async function ThemeSwitchingPage({

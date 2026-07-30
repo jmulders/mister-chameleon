@@ -128,7 +128,7 @@ function VariantContentForm({ value, onChange, showTokens = false, prefix }: Var
         </div>
       ) : (
         <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-          SEO fallback — do <strong>not</strong> use tokens here.
+          SEO fallback, do <strong>not</strong> use tokens here.
         </div>
       )}
 
@@ -378,7 +378,7 @@ function BlockEditor({ initial, tenantId, prefillKey, onSave, onCancel }: BlockE
 
         {variants.length === 0 && (
           <p className="text-xs text-neutral-400 py-2 italic">
-            No adaptive variants yet — add a variant to personalise this block for specific segments.
+            No adaptive variants yet. Add a variant to personalise this block for specific segments.
           </p>
         )}
 

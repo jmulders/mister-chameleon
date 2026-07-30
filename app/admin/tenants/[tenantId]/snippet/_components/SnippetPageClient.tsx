@@ -131,7 +131,7 @@ export function SnippetPageClient({
                 ? "Generate a site key to start"
                 : enabled
                 ? "The snippet is personalising visitors on your site"
-                : "Integration is paused — generate a key and enable to start"}
+                : "Integration is paused. Generate a key and enable to start"}
             </p>
           </div>
         </div>
@@ -159,7 +159,7 @@ export function SnippetPageClient({
         <div className="border-b border-neutral-100 px-6 py-4">
           <h2 className="text-sm font-semibold text-neutral-900">Site Key</h2>
           <p className="mt-0.5 text-xs text-neutral-500">
-            Your public identifier — safe to include in page HTML.
+            Your public identifier, safe to include in page HTML.
           </p>
         </div>
 
@@ -226,7 +226,7 @@ export function SnippetPageClient({
             <div>
               <h2 className="text-sm font-semibold text-neutral-900">Script Tag</h2>
               <p className="mt-0.5 text-xs text-neutral-500">
-                Paste this into your site&apos;s <code className="font-mono text-xs">&lt;head&gt;</code> — before the closing tag.
+                Paste this into your site&apos;s <code className="font-mono text-xs">&lt;head&gt;</code>, before the closing tag.
               </p>
             </div>
             <CopyButton text={scriptTag} />
@@ -282,8 +282,8 @@ export function SnippetPageClient({
                     ["hero-cta2-label",  "Secondary CTA button text",   "Hero"],
                     ["hero-cta2-href",   "Secondary CTA link URL",      "Hero"],
                     ["proof-title",      "Section heading",             "Proof"],
-                    ["proof-item-0-title","First proof point — label",  "Proof"],
-                    ["proof-item-0-text", "First proof point — text",   "Proof"],
+                    ["proof-item-0-title","First proof point (label)",  "Proof"],
+                    ["proof-item-0-text", "First proof point (text)",   "Proof"],
                     ["cta-title",        "CTA headline",                "CTA"],
                     ["cta-text",         "CTA supporting copy",         "CTA"],
                     ["cta-cta-label",    "CTA button text",             "CTA"],
@@ -336,11 +336,11 @@ export function SnippetPageClient({
             </li>
             <li className="flex gap-2">
               <span className="text-indigo-400">•</span>
-              If the decide endpoint does not respond within 1.5 s, the page reveals with original content — no user-visible delay.
+              If the decide endpoint does not respond within 1.5 s, the page reveals with original content, so there is no user-visible delay.
             </li>
             <li className="flex gap-2">
               <span className="text-indigo-400">•</span>
-              The <code className="font-mono bg-neutral-100 px-1 rounded">async</code> attribute on the script tag is required — it prevents render blocking.
+              The <code className="font-mono bg-neutral-100 px-1 rounded">async</code> attribute on the script tag is required. It prevents render blocking.
             </li>
           </ul>
         </div>

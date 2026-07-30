@@ -351,7 +351,7 @@ function ContextBlockCard({
       {/* ── Footer label ────────────────────────────────────────────────── */}
       <div className="mt-2 border-t border-neutral-100 pt-2">
         <span className="text-[11px] font-medium text-brand-400">
-          Adaptive slot — variant chosen at runtime
+          Adaptive slot, variant chosen at runtime
         </span>
       </div>
     </div>
@@ -481,7 +481,7 @@ export function BlockCatalogue({
             </span>
           </h3>
           <p className="mt-1 text-xs text-neutral-500 max-w-xl">
-            These are adaptive personalisation slots — not CMS content sections.
+            These are adaptive personalisation slots, not CMS content sections.
             The rules engine (or AI layer) selects the best variant for each visitor
             at request time.  Editors create the variants in the CMS; the platform
             decides which one to show.
@@ -519,7 +519,7 @@ export function BlockCatalogue({
           </h3>
           <p className="mt-1 text-xs text-neutral-500 max-w-xl">
             Blocks editors can place on CMS pages.  Only enabled blocks are
-            renderable — disabling a block here also prevents it rendering even if
+            renderable. Disabling a block here also prevents it rendering even if
             it exists in the CMS.  Blocks grayed out require an upgraded plan.
           </p>
         </div>

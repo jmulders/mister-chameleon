@@ -165,7 +165,7 @@ function BatchCampaignCard({ tenantId, templates }:
           <p className="font-medium text-neutral-900">Campaign sent.</p>
           <p className="mt-1 text-neutral-600">
             {summary.sent} sent · {summary.suppressed} suppressed · {summary.duplicate} skipped (dupe) · {summary.failed} failed
-            <span className="text-neutral-400"> — {summary.total} total</span>
+            <span className="text-neutral-400"> ({summary.total} total)</span>
           </p>
           {summary.failed > 0 && (
             <ul className="mt-2 list-inside list-disc text-xs text-red-600">
@@ -254,7 +254,7 @@ export function EmailPreviewClient({ tenantId, templates, formSubmit }:
             <span className="font-semibold text-neutral-900">Subject:</span>
             <span className="text-neutral-700">{res.subject}</span>
             <span className={"rounded px-1.5 py-0.5 text-xs " + (res.knownLead ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500")}>
-              {res.knownLead ? "known lead" : "no match — default"}
+              {res.knownLead ? "known lead" : "no match (default)"}
             </span>
             {res.usedBlocks.length > 0 && (
               <span className="text-xs text-neutral-400">blocks: {res.usedBlocks.join(", ")}</span>
@@ -273,7 +273,7 @@ export function EmailPreviewClient({ tenantId, templates, formSubmit }:
               </button>
             </div>
             <p className="mt-1 text-xs text-neutral-400">
-              Personalised for the recipient above, but delivered to this test inbox — no real lead is emailed.
+              Personalised for the recipient above, but delivered to this test inbox. No real lead is emailed.
             </p>
             {sendMsg && <p className={"mt-2 text-sm " + (sendMsg.ok ? "text-green-700" : "text-red-600")}>{sendMsg.text}</p>}
           </div>
@@ -284,7 +284,7 @@ export function EmailPreviewClient({ tenantId, templates, formSubmit }:
         <h3 className="text-base font-semibold text-neutral-900">Send automatically on form submit</h3>
         <p className="mt-1 max-w-2xl text-sm text-neutral-600">
           When on, a form submitter is emailed the chosen template after their submission is captured
-          (deduped per lead — a repeat submitter isn&apos;t re-mailed). Opt-in; off by default.
+          (deduped per lead, a repeat submitter isn&apos;t re-mailed). Opt-in; off by default.
         </p>
         <div className="mt-3 space-y-3">
           <label className="flex items-center gap-2 text-sm text-neutral-700">

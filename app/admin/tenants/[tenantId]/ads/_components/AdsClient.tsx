@@ -109,7 +109,7 @@ export function AdsClient({ tenantId, initial }: { tenantId: string; initial: Ad
           </div>
         </div>
         {(initial.walletBalance ?? 0) <= 0 && (
-          <p className="mt-3 text-xs text-amber-700">Wallet is empty — no ads will serve until it is funded (top up under Admin → Billing).</p>
+          <p className="mt-3 text-xs text-amber-700">Wallet is empty. No ads will serve until it is funded (top up under Admin → Billing).</p>
         )}
       </div>
 
@@ -184,7 +184,7 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
         <div>
           <h3 className="text-base font-semibold text-neutral-900">Publishers</h3>
           <p className="mt-0.5 text-sm text-neutral-500">
-            Where your impressions were served — per publisher domain, including not-yet-billed events.
+            Where your impressions were served, per publisher domain, including not-yet-billed events.
             Click a publisher to see which ads ran there.
           </p>
         </div>
@@ -220,7 +220,7 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
 
           {data.truncated && (
             <p className="mt-2 text-xs text-amber-700">
-              Showing the most recent 50,000 events — counts may be partial for this period.
+              Showing the most recent 50,000 events. Counts may be partial for this period.
             </p>
           )}
 
@@ -320,7 +320,7 @@ function SessionsCard({ tenantId, ga4Ready }: { tenantId: string; ga4Ready: bool
         <div>
           <h3 className="text-base font-semibold text-neutral-900">Ad-audience sessions</h3>
           <p className="mt-0.5 text-sm text-neutral-500">
-            Journeys of the visitors your ads reached — page path + interest keywords per session.
+            Journeys of the visitors your ads reached, page path + interest keywords per session.
           </p>
         </div>
         <button className={btnGhost} disabled={loading} onClick={load}>
@@ -332,7 +332,7 @@ function SessionsCard({ tenantId, ga4Ready }: { tenantId: string; ga4Ready: bool
 
       {sessions && sessions.length === 0 && (
         <p className="mt-4 text-sm text-neutral-400">
-          No ad-audience sessions yet — they appear once your ads are served on a publisher.
+          No ad-audience sessions yet. They appear once your ads are served on a publisher.
         </p>
       )}
 
@@ -460,7 +460,7 @@ function Ga4StatusCard({ tenantId, status }: { tenantId: string; status: Ga4AdSt
           <h3 className="text-base font-semibold text-neutral-900">GA4 for ads</h3>
           <p className="mt-0.5 text-sm text-neutral-500 max-w-2xl">
             When configured, each ad-audience session is written to your own GA4 (keyed by our first-party
-            visitor id) and the visitor's GA4 history is read back — so you can target on <code>ga4.*</code> fields
+            visitor id) and the visitor's GA4 history is read back, so you can target on <code>ga4.*</code> fields
             in an advanced rule. GA4 is free; it adds no wallet fee.
           </p>
         </div>
@@ -482,7 +482,7 @@ function Ga4StatusCard({ tenantId, status }: { tenantId: string; status: Ga4AdSt
       )}
       {writeState === "off" && readState === "off" && (
         <p className="mt-2 text-xs text-neutral-400">
-          Optional — leave off if you don't target on GA4 history. Behavioural, geo and firmographic targeting work without it.
+          Optional. Leave off if you don't target on GA4 history. Behavioural, geo and firmographic targeting work without it.
         </p>
       )}
     </div>
@@ -517,7 +517,7 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
         {hasPending && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
             <span className="size-1.5 rounded-full bg-amber-500"></span>
-            {euros(pendingTotalCents)} nog niet afgerekend
+            {euros(pendingTotalCents)} not yet billed
           </span>
         )}
       </div>
@@ -530,14 +530,14 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
       </div>
       {hasPending && (
         <p className="mt-2 text-xs text-neutral-400">
-          Cijfers zijn live. Nog niet afgerekend: {euros(pendingSpendCents)} ad-spend
-          {pendingProfilingCents > 0 ? ` + ${euros(pendingProfilingCents)} targeting fees` : ""} —
-          dit wordt bij de eerstvolgende afreken-rollup van de wallet afgeschreven.
+          Figures are live. Not yet billed: {euros(pendingSpendCents)} ad-spend
+          {pendingProfilingCents > 0 ? ` + ${euros(pendingProfilingCents)} targeting fees` : ""}.
+          This is deducted from the wallet at the next billing rollup.
         </p>
       )}
 
       {report.length === 0 ? (
-        <p className="mt-4 text-sm text-neutral-400">No data yet — impressions appear after the first served ad.</p>
+        <p className="mt-4 text-sm text-neutral-400">No data yet. Impressions appear after the first served ad.</p>
       ) : (
         <>
           <svg viewBox={`0 0 ${W} ${H}`} className="mt-4 w-full" role="img" aria-label="Impressions per day">
@@ -594,7 +594,7 @@ function EmbedCard({ siteKey, slots }: { siteKey: string | null; slots: string[]
     <div className={card}>
       <h3 className="text-base font-semibold text-neutral-900">Embed code for publishers</h3>
       <p className="mt-1 text-sm text-neutral-600 max-w-2xl">
-        Give this to a publisher / affiliate. They paste it where the ad should appear —
+        Give this to a publisher / affiliate. They paste it where the ad should appear,
         on any site, no plugin needed. WordPress and Statamic publishers can use the
         plugin / add-on instead, but this snippet works everywhere.
       </p>
@@ -742,7 +742,7 @@ function CtaList({ ctas, onChange, max = 2 }: { ctas: Cta[]; onChange: (c: Cta[]
   const upd = (i: number, patch: Partial<Cta>) => onChange(ctas.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   return (
     <div>
-      <label className={label}>Buttons — the first link becomes the tracked click URL</label>
+      <label className={label}>Buttons (the first link becomes the tracked click URL)</label>
       <div className="space-y-2">
         {ctas.map((c, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -977,7 +977,7 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
       <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className={label}>Name</label>
-          <input className={input} value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Acme hero — launch" />
+          <input className={input} value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Acme hero (launch)" />
         </div>
         <div>
           <label className={label}>Slot</label>
@@ -1009,7 +1009,7 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
               </div>
             </>
           ) : (
-            <p className="text-xs text-amber-700">The creative JSON below is invalid — fix it to use the form editor.</p>
+            <p className="text-xs text-amber-700">The creative JSON below is invalid. Fix it to use the form editor.</p>
           )}
           <details className="mt-3">
             <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Advanced (raw JSON)</summary>
@@ -1127,14 +1127,14 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
           <p className="mt-2 text-[11px] text-neutral-400">
             Uses the visitor's interest/journey profile, country and (when enabled) company. Targeting adds a
             small fee per unique visitor/day, on top of CPM/CPC: €0.02 behavioural, €0.01 geo, €0.03 firmographic.
-            Firmographic (industry / size / company) requires IP→company enrichment to be switched on — until
+            Firmographic (industry / size / company) requires IP→company enrichment to be switched on. Until
             then those ads simply don't serve.
           </p>
 
           <details className="mt-3">
             <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Advanced rule (optional)</summary>
             <p className="mt-1 text-[11px] text-neutral-400">
-              A full decision-engine RuleCondition (JSON) — AND/OR/NOT over the platform's rule fields
+              A full decision-engine RuleCondition (JSON), AND/OR/NOT over the platform's rule fields
               (e.g. <code>funnelStage</code>, <code>companyIndustry</code>, <code>countryCode</code>).
               AND-combined with the fields above. Evaluated against a cost-safe context (no extra paid lookups).
             </p>
@@ -1172,7 +1172,7 @@ function AdThemeCard({ tenantId, initial, pending, run }:
     <div className={card}>
       <h3 className="text-base font-semibold text-neutral-900">Account theme</h3>
       <p className="mt-1 max-w-2xl text-sm text-neutral-600">
-        The base look for all your ads (colours, fonts, radius) — currently <span className="font-medium">{current}</span>.
+        The base look for all your ads (colours, fonts, radius), currently <span className="font-medium">{current}</span>.
         Each ad&apos;s &quot;Styling (design tokens)&quot; section overrides this per creative.
       </p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -1207,7 +1207,7 @@ function AdRateCardCard({ tenantId, initial, pending, run }:
         <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-500">platform-only</span>
       </div>
       <p className="mt-1 max-w-2xl text-sm text-neutral-600">
-        The CPM/CPC this advertiser pays — advertisers can't change it. Leave a field blank to inherit the
+        The CPM/CPC this advertiser pays. Advertisers can't change it. Leave a field blank to inherit the
         global rate-card ({euros(initial.rateCard.cpmCents)}/1000, {euros(initial.rateCard.cpcCents)}/click).
       </p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -1244,8 +1244,8 @@ function SlotsCard({ tenantId, initial, pending, run }:
       <h3 className="text-base font-semibold text-neutral-900">Slots</h3>
       <p className="mt-1 text-sm text-neutral-600 max-w-2xl">
         Which adaptive slot types your account offers to publishers. Only enabled slots appear in the
-        embed code and can hold ads. These are the same six adaptive slots the platform personalises —
-        here they are filled with your ads instead.
+        embed code and can hold ads. These are the same six adaptive slots the platform personalises.
+        Here they are filled with your ads instead.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {SLOTS.map((s) => {
@@ -1261,7 +1261,7 @@ function SlotsCard({ tenantId, initial, pending, run }:
         })}
       </div>
       {active.size === 0 && (
-        <p className="mt-2 text-xs text-amber-700">No slots enabled — publishers have nothing to embed and no ads will serve.</p>
+        <p className="mt-2 text-xs text-amber-700">No slots enabled. Publishers have nothing to embed and no ads will serve.</p>
       )}
     </div>
   );

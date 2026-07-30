@@ -225,23 +225,23 @@ export function TenantEmailTransportClient({
                   <>
                     <span className="font-medium">Use platform default</span>
                     <span className="text-neutral-500">
-                      {" — falls back to "}
+                      {", falls back to "}
                       {platformTransportLabel
                         ? <span className="text-neutral-700">{platformTransportLabel}</span>
-                        : <span className="text-amber-700">platform not configured — env vars checked next</span>}
+                        : <span className="text-amber-700">platform not configured (env vars checked next)</span>}
                     </span>
                   </>
                 )}
                 {type === "resend" && (
                   <>
                     <span className="font-medium">Resend</span>
-                    <span className="text-neutral-500"> — tenant-specific Resend API key</span>
+                    <span className="text-neutral-500"> (tenant-specific Resend API key)</span>
                   </>
                 )}
                 {type === "smtp" && (
                   <>
                     <span className="font-medium">SMTP</span>
-                    <span className="text-neutral-500"> — tenant-specific SMTP server</span>
+                    <span className="text-neutral-500"> (tenant-specific SMTP server)</span>
                   </>
                 )}
               </span>

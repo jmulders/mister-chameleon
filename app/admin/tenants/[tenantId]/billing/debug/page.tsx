@@ -158,31 +158,31 @@ export default async function BillingDebugPage({
         </p>
         <div className="text-xs text-neutral-500 space-y-1.5">
           <p>
-            <strong className="text-neutral-700">CHARGED</strong> — debit_wallet RPC ran and
+            <strong className="text-neutral-700">CHARGED</strong>, debit_wallet RPC ran and
             succeeded. Credits deducted from wallet.
           </p>
           <p>
-            <strong className="text-neutral-700">CACHED</strong> — provider-cache hit.
+            <strong className="text-neutral-700">CACHED</strong>, provider-cache hit.
             No real API call; cost = 0. This is correct behaviour.
           </p>
           <p>
-            <strong className="text-neutral-700">FAILED</strong> — stage ran but returned no data,
+            <strong className="text-neutral-700">FAILED</strong>. Stage ran but returned no data,
             or the wallet debit RPC was rejected (e.g. insufficient balance).
           </p>
           <p>
-            <strong className="text-neutral-700">SIMULATED</strong> — demo or test_simulated mode.
+            <strong className="text-neutral-700">SIMULATED</strong>, demo or test_simulated mode.
             DB rows written but wallet balance unchanged.
           </p>
           <p>
-            <strong className="text-neutral-700">FREE</strong> — enrichment type is configured as
+            <strong className="text-neutral-700">FREE</strong>. Enrichment type is configured as
             non-billable (ENRICHMENT_TYPE_CONFIG[type].billable = false).
           </p>
           <p>
-            <strong className="text-neutral-700">SKIPPED</strong> — stage not in
+            <strong className="text-neutral-700">SKIPPED</strong>. Stage not in
             STAGE_LABEL_TO_EVENT_TYPE or pipeline stage was flagged as skipped.
           </p>
           <p className="pt-1 text-neutral-400">
-            ⚠ anomaly count indicates why credits may not have been charged — e.g. billing
+            ⚠ anomaly count indicates why credits may not have been charged, e.g. billing
             disabled, debit RPC unavailable, or wallet insufficient.
           </p>
         </div>

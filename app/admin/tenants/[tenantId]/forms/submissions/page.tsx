@@ -54,31 +54,31 @@ export default async function FormSubmissionsPage({
           href={`/admin/tenants/${tenantId}/forms`}
           className="hover:text-white transition-colors"
         >
-          Formulier instellingen
+          Form settings
         </Link>
         <span>/</span>
-        <span className="text-white">Inzendingen</span>
+        <span className="text-white">Submissions</span>
       </div>
 
       {/* ── Page header ───────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-white">Formulier inzendingen</h1>
+        <h1 className="text-xl font-semibold text-white">Form submissions</h1>
         <p className="text-sm text-slate-400">
-          Bekijk, zoek en exporteer inzendingen voor{" "}
+          View, search, and export submissions for{" "}
           <span className="font-medium text-slate-200">
             {tenant.name ?? tenant.tenantId}
           </span>
           .{" "}
           {retentionDays
-            ? `Inzendingen worden automatisch verwijderd na ${retentionDays} dagen (AVG-instelling).`
-            : "Geen automatische verwijdering ingesteld."}
+            ? `Submissions are automatically deleted after ${retentionDays} days (GDPR setting).`
+            : "No automatic deletion configured."}
         </p>
       </div>
 
       {/* ── Error state ───────────────────────────────────────────────────── */}
       {!submissionsResult.ok && (
         <div className="rounded-lg border border-red-700 bg-red-900/30 px-4 py-3 text-sm text-red-300">
-          Fout bij ophalen inzendingen: {submissionsResult.error}
+          Error loading submissions: {submissionsResult.error}
         </div>
       )}
 

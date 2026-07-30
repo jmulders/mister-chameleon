@@ -221,7 +221,7 @@ export async function sendBatchAction(
   const leadIds = [...new Set((input.leadIds ?? []).filter(Boolean))];
   if (leadIds.length === 0) return { ok: false, error: "Select at least one recipient." };
   if (leadIds.length > MAX_BATCH_RECIPIENTS) {
-    return { ok: false, error: `Too many recipients — max ${MAX_BATCH_RECIPIENTS} per campaign.` };
+    return { ok: false, error: `Too many recipients, max ${MAX_BATCH_RECIPIENTS} per campaign.` };
   }
 
   // Re-resolve recipients server-side from the chosen ids (don't trust client emails).

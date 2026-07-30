@@ -100,7 +100,7 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
       }));
       return [...prev, ...toAdd];
     });
-    setMsg({ text: "Example sets added below — review and Save to persist.", ok: true });
+    setMsg({ text: "Example sets added below. Review and Save to persist.", ok: true });
   }
   function applyImportedText(text: string, source: string) {
     try {
@@ -111,7 +111,7 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
       }
       setSets(parsed.map((s: BlockTokenSet) => ({ ...s, tokens: { ...(s.tokens ?? {}) } })));
       setShowJson(false);
-      setMsg({ text: `Imported ${parsed.length} set(s) from ${source} — review and Save to persist.`, ok: true });
+      setMsg({ text: `Imported ${parsed.length} set(s) from ${source}. Review and Save to persist.`, ok: true });
     } catch (e) {
       setMsg({ text: `Import failed: ${e instanceof Error ? e.message : String(e)}`, ok: false });
     }
@@ -135,7 +135,7 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
       const r = await saveBlockTokenSetsAction(tenantId, payload);
       if (r.ok) {
         setSets(payload);
-        setMsg({ text: "Saved ✓ — assign a set to any block by its key.", ok: true });
+        setMsg({ text: "Saved ✓. Assign a set to any block by its key.", ok: true });
         router.refresh();
       } else {
         setMsg({ text: r.errors.join(" "), ok: false });

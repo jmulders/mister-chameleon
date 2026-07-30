@@ -96,7 +96,7 @@ function SanitySeedSection({
       <p className="mb-4 text-xs text-neutral-500 leading-relaxed">
         Creates or replaces all marketing pages and variant documents for{" "}
         <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">{tenantId}</code>{" "}
-        in Sanity. Safe to re-run — uses{" "}
+        in Sanity. Safe to re-run. Uses{" "}
         <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">createOrReplace</code>,
         so existing content is updated, not duplicated. Stale variant documents
         that no longer exist in the seed are automatically removed.
@@ -264,7 +264,7 @@ function StoryblokSeedSection({
         page stories (home, approach, services, cases, about, contact), article stories (case studies
         and insights), and a{" "}
         <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">site-settings</code>{" "}
-        story with the navigation menu. Safe to re-run — existing stories are updated, not
+        story with the navigation menu. Safe to re-run. Existing stories are updated, not
         duplicated. Uses the Management API token and Space ID from{" "}
         <Link href="/admin/platform/integrations/cms" className="underline hover:text-neutral-700">
           Platform → CMS settings
@@ -422,13 +422,13 @@ function StatamicSeedSection({
         </span>
       </div>
       <p className="mb-4 text-xs text-neutral-500 leading-relaxed">
-        Creates or updates the three starter variant entries —{" "}
+        Creates or updates the three starter variant entries{" "}(
         <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">hero_default</code>,{" "}
         <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">proof_default</code>, and{" "}
-        <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">cta_default</code>{" "}
-        — in the connected Statamic site for{" "}
+        <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">cta_default</code>
+        {") "}in the connected Statamic site for{" "}
         <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">{tenantId}</code>.{" "}
-        Safe to re-run — existing entries are overwritten. The Statamic server must be running and
+        Safe to re-run. Existing entries are overwritten. The Statamic server must be running and
         reachable at the configured base URL.
       </p>
 

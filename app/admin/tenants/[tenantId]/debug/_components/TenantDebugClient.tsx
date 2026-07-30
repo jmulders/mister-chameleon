@@ -110,8 +110,8 @@ export function TenantDebugClient({
           <h2 className="text-sm font-semibold text-neutral-900">On-site Debug Overlay</h2>
           <p className="mt-0.5 text-xs text-neutral-500 leading-relaxed">
             Controls whether diagnostic information is rendered on the live site for this tenant.
-            The runtime context-building and decision logic always runs regardless of this setting
-            — only the rendered output is affected.
+            The runtime context-building and decision logic always runs regardless of this setting.
+            Only the rendered output is affected.
           </p>
         </div>
 
@@ -171,10 +171,10 @@ export function TenantDebugClient({
         <p className="text-xs font-semibold text-blue-700 mb-1">What does the debug overlay show?</p>
         <ul className="text-[11px] text-blue-600 leading-relaxed space-y-1 list-disc list-inside">
           <li><strong>Summary:</strong> Active tenant, CMS provider, traffic source, visit type, hero / proof / CTA variant keys, AI mode and confidence, fallback reason, theme, enabled blocks.</li>
-          <li><strong>Full (adds):</strong> All context variables grouped by source (request, session, history, enrichment, time, client, derived) — each with value, type, and rules/AI availability flags. Enrichment pipeline stage timeline, effective IP, Leadinfo, GA4 history detail.</li>
+          <li><strong>Full (adds):</strong> All context variables grouped by source (request, session, history, enrichment, time, client, derived), each with value, type, and rules/AI availability flags. Enrichment pipeline stage timeline, effective IP, Leadinfo, GA4 history detail.</li>
         </ul>
         <p className="mt-2 text-[11px] text-blue-500">
-          No secrets are ever included — API keys, write tokens, and service account credentials are not exposed in the overlay.
+          No secrets are ever included. API keys, write tokens, and service account credentials are not exposed in the overlay.
         </p>
       </div>
 

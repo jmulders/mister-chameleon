@@ -295,7 +295,7 @@ export default async function TenantContentPage({
             )}
             {!provisionedAt && (
               <p className="text-xs text-neutral-400">
-                Not yet provisioned —{" "}
+                Not yet provisioned,{" "}
                 <a href="#cms-sync" className="text-brand-600 hover:underline">
                   sync below
                 </a>
@@ -461,7 +461,7 @@ export default async function TenantContentPage({
           The personalised content for each adaptive slot is now managed on its own page.
         </p>
         <a
-          href={`/admin/tenants/${tenantId}/blocks`}
+          href={`/admin/tenants/${tenantId}/personalization/blocks`}
           className="mt-3 inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
         >
           Open Adaptive blocks →

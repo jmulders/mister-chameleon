@@ -215,7 +215,7 @@ export async function saveWalletCapAction(
     if (error) {
       // 42P01 / 42703 = migration 051 not yet applied — fail gracefully
       if (error.code === "42P01" || error.code === "42703") {
-        return { ok: false, error: "Wallet cap columns not yet available — run supabase db push." };
+        return { ok: false, error: "Wallet cap columns not yet available. Run supabase db push." };
       }
       throw new Error(`${error.message} (code: ${error.code})`);
     }
@@ -435,7 +435,7 @@ export async function addCreditsAction(
 
       if (!debitResult.success) {
         const errMsg = debitResult.error === "insufficient_balance"
-          ? "Insufficient balance — the deduction would bring the wallet below zero."
+          ? "Insufficient balance. The deduction would bring the wallet below zero."
           : debitResult.error === "wallet_not_active"
           ? "Wallet is not active (frozen or suspended). Reactivate it first."
           : debitResult.error === "wallet_not_found"
@@ -1939,7 +1939,7 @@ export async function getStripeInvoicesAction(
     if (isTestMode && stripeSecretKey.startsWith("sk_live_")) {
       return {
         ok: false,
-        error: "Stripe mode mismatch: app is in test mode but STRIPE_TEST_SECRET_KEY is a live key (sk_live_…). Use a sk_test_… key.",
+        error: "Stripe mode mismatch. The app is in test mode but STRIPE_TEST_SECRET_KEY is a live key (sk_live_…). Use a sk_test_… key.",
         customerId,
       };
     }

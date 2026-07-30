@@ -162,7 +162,7 @@ const AI_PROVIDER_DISPLAY: Record<TenantAiProviderName | "", string> = {
   "":       "— Select provider —",
   claude:   "Claude (Anthropic)",
   openai:   "OpenAI",
-  gemini:   "Gemini (Google) — mock only (adapter pending)",
+  gemini:   "Gemini (Google), mock only (adapter pending)",
 };
 
 const ALL_CMS_PROVIDERS: readonly CmsProvider[] = [
@@ -170,7 +170,7 @@ const ALL_CMS_PROVIDERS: readonly CmsProvider[] = [
 ];
 
 const CMS_PROVIDER_DISPLAY: Record<CmsProvider, string> = {
-  platform:  "Platform (built-in) — no external CMS needed",
+  platform:  "Platform (built-in), no external CMS needed",
   sanity:    "Sanity",
   storyblok: "Storyblok",
   statamic:  "Statamic",
@@ -922,7 +922,7 @@ function ProviderSlotFields({
         label="API key"
         hint={
           !state.apiKey && hasExistingKey
-            ? "Key is configured — leave blank to keep it unchanged, or enter a new key to replace it."
+            ? "Key is configured. Leave blank to keep it unchanged, or enter a new key to replace it."
             : "Stored server-side only and never returned to the browser."
         }
       >
@@ -996,7 +996,7 @@ export function TenantSettingsForm({
 
   const aiSectionHint: string | undefined =
     !canUseAi
-      ? "AI Decisioning is not enabled on this tenant's current plan — update the plan in /admin/platform/billing/plans to unlock shadow or live mode."
+      ? "AI Decisioning is not enabled on this tenant's current plan. Update the plan in /admin/platform/billing/plans to unlock shadow or live mode."
       : form.ai.mode === "shadow"
         ? "Shadow mode logs AI decisions but never serves them to visitors. Good for evaluating model quality before going live."
         : form.ai.mode === "live"
@@ -1005,9 +1005,9 @@ export function TenantSettingsForm({
 
   const cmsSectionHint: string | undefined =
     form.cms.provider === "platform"
-      ? "Platform CMS stores variant content directly in your Mister Chameleon database — no external CMS needed. Edit variants on the Content tab."
+      ? "Platform CMS stores variant content directly in your Mister Chameleon database. No external CMS needed. Edit variants on the Content tab."
       : form.cms.provider === "mock"
-        ? "Mock provider is for local development only — switch to a real CMS provider before going live."
+        ? "Mock provider is for local development only. Switch to a real CMS provider before going live."
         : !form.cms.projectId.trim()
           ? "Enter the project ID and dataset below to fully configure this CMS integration."
           : undefined;
@@ -1095,7 +1095,7 @@ export function TenantSettingsForm({
       {/* ── Identity ──────────────────────────────────────────────────────── */}
       <SectionCard
         title="Identity"
-        hint="Public-facing name, URL slug, and domain configuration. The tenant ID (below) stays fixed — these fields can all be changed after creation."
+        hint="Public-facing name, URL slug, and domain configuration. The tenant ID (below) stays fixed. These fields can all be changed after creation."
       >
         <div className="space-y-4">
           <Field
@@ -1131,7 +1131,7 @@ export function TenantSettingsForm({
 
           <Field
             label="Primary domain"
-            hint="Production hostname for domain-based routing. No protocol — e.g. acme.com, not https://acme.com."
+            hint="Production hostname for domain-based routing. No protocol (e.g. acme.com, not https://acme.com)."
           >
             <input
               type="text"
@@ -1146,7 +1146,7 @@ export function TenantSettingsForm({
 
           <Field
             label="Additional domains"
-            hint="Extra hostnames (www, staging, etc.) — one per line. Same format as primary domain."
+            hint="Extra hostnames (www, staging, etc.), one per line. Same format as primary domain."
           >
             <textarea
               value={form.identity.additionalDomains}
@@ -1174,7 +1174,7 @@ export function TenantSettingsForm({
         <div className="space-y-4">
           <Field
             label="Tenant ID"
-            hint="The stable slug used as a primary key — cannot be changed after creation."
+            hint="The stable slug used as a primary key. Cannot be changed after creation."
           >
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-mono text-neutral-500">
               {tenant.tenantId}
@@ -1299,7 +1299,7 @@ export function TenantSettingsForm({
             label="Confidence threshold"
             hint={
               form.ai.mode !== "live"
-                ? "Only applied in live mode — edit when mode is Live."
+                ? "Only applied in live mode. Edit when mode is Live."
                 : "Minimum confidence score to serve an AI plan. Range: 0–1. Platform default: 0.70."
             }
           >
@@ -1383,13 +1383,13 @@ export function TenantSettingsForm({
               Platform → CMS settings) so leaving these blank is valid for them. */}
           {form.cms.provider === "sanity" && !form.cms.projectId.trim() && (
             <div className="rounded-md border border-warning-300 bg-warning-50 px-3 py-2 text-xs text-warning-700">
-              <strong>⚠ Project ID required</strong> — Sanity pages will not load until a Project ID is configured.
+              <strong>⚠ Project ID required</strong>. Sanity pages will not load until a Project ID is configured.
               {!form.cms.dataset.trim() && " Dataset is also required."}
             </div>
           )}
           {form.cms.provider === "sanity" && form.cms.projectId.trim() && !form.cms.dataset.trim() && (
             <div className="rounded-md border border-warning-300 bg-warning-50 px-3 py-2 text-xs text-warning-700">
-              <strong>⚠ Dataset required</strong> — enter the Sanity dataset name (e.g. <code>production</code>).
+              <strong>⚠ Dataset required</strong>. Enter the Sanity dataset name (e.g. <code>production</code>).
             </div>
           )}
 
@@ -1399,7 +1399,7 @@ export function TenantSettingsForm({
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label={CMS_FIELD_LABELS[form.cms.provider].projectId}
-                  hint={form.cms.provider === "sanity" ? "Required — overrides SANITY_PROJECT_ID" : undefined}
+                  hint={form.cms.provider === "sanity" ? "Required, overrides SANITY_PROJECT_ID" : undefined}
                 >
                   <input
                     type="text"
@@ -1415,7 +1415,7 @@ export function TenantSettingsForm({
 
                 <Field
                   label={CMS_FIELD_LABELS[form.cms.provider].dataset}
-                  hint={form.cms.provider === "sanity" ? "Required — overrides SANITY_DATASET" : undefined}
+                  hint={form.cms.provider === "sanity" ? "Required, overrides SANITY_DATASET" : undefined}
                 >
                   <input
                     type="text"
@@ -1435,7 +1435,7 @@ export function TenantSettingsForm({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
                     label="API Version"
-                    hint="Optional — overrides SANITY_API_VERSION (e.g. 2024-01-01)"
+                    hint="Optional, overrides SANITY_API_VERSION (e.g. 2024-01-01)"
                   >
                     <input
                       type="text"
@@ -1450,7 +1450,7 @@ export function TenantSettingsForm({
 
                   <Field
                     label="Studio URL"
-                    hint="Optional — URL of the Sanity Studio for this tenant"
+                    hint="Optional, URL of the Sanity Studio for this tenant"
                   >
                     <input
                       type="url"
@@ -1469,7 +1469,7 @@ export function TenantSettingsForm({
               {form.cms.provider === "statamic" && (
                 <Field
                   label="Base URL"
-                  hint="Optional — overrides the platform-level Statamic base URL for this tenant"
+                  hint="Optional, overrides the platform-level Statamic base URL for this tenant"
                 >
                   <input
                     type="url"
@@ -1490,7 +1490,7 @@ export function TenantSettingsForm({
       {/* ── Languages ─────────────────────────────────────────────────────── */}
       <SectionCard
         title="Languages"
-        hint="Configure the languages for this tenant. Multi-lingual support requires Statamic — the language list is used to generate resources/sites.yaml on sync."
+        hint="Configure the languages for this tenant. Multi-lingual support requires Statamic. The language list is used to generate resources/sites.yaml on sync."
       >
         <div className="space-y-4">
           {/* Validation warning */}
@@ -1498,8 +1498,8 @@ export function TenantSettingsForm({
             form.languages.filter((l) => l.isDefault).length !== 1 && (
               <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 {form.languages.filter((l) => l.isDefault).length === 0
-                  ? "No default language set — exactly one language must be marked as default."
-                  : "Multiple default languages — exactly one language must be marked as default."}
+                  ? "No default language set. Exactly one language must be marked as default."
+                  : "Multiple default languages. Exactly one language must be marked as default."}
               </p>
             )}
 
@@ -1600,7 +1600,7 @@ export function TenantSettingsForm({
                     <label className="text-xs font-medium text-neutral-500">Visible</label>
                     <button
                       type="button"
-                      title={lang.enabled ? "Publicly visible (showSite: true)" : "Staged — not publicly visible (showSite: false)"}
+                      title={lang.enabled ? "Publicly visible (showSite: true)" : "Staged, not publicly visible (showSite: false)"}
                       onClick={() =>
                         setForm((f) => {
                           const langs = [...f.languages];
@@ -1817,7 +1817,7 @@ export function TenantSettingsForm({
                     if (result.ok) {
                       setSyncBlueprintResult({
                         ok:      true,
-                        message: `Blueprint + platform files synced — ${result.contextBlocks} context slot${result.contextBlocks !== 1 ? "s" : ""}, ${result.contentBlocks} content block${result.contentBlocks !== 1 ? "s" : ""}, ${result.fieldsetsCount} platform file${result.fieldsetsCount !== 1 ? "s" : ""}${result.sitesCount > 0 ? `, ${result.sitesCount} site${result.sitesCount !== 1 ? "s" : ""} in sites.yaml` : ""}.`,
+                        message: `Blueprint + platform files synced. ${result.contextBlocks} context slot${result.contextBlocks !== 1 ? "s" : ""}, ${result.contentBlocks} content block${result.contentBlocks !== 1 ? "s" : ""}, ${result.fieldsetsCount} platform file${result.fieldsetsCount !== 1 ? "s" : ""}${result.sitesCount > 0 ? `, ${result.sitesCount} site${result.sitesCount !== 1 ? "s" : ""} in sites.yaml` : ""}.`,
                       });
                     } else {
                       setSyncBlueprintResult({ ok: false, message: result.error });

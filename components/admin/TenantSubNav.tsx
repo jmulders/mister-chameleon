@@ -9,22 +9,24 @@ import { cn }      from "@/lib/utils";
  *
  * Two-row navigation for the tenant workspace (/admin/tenants/[tenantId]).
  *
- * Primary row — 6 grouped tabs (always visible):
- *   Overview · Configure · Content · Audience · Platform · Admin
+ * Primary row (7 grouped tabs, always visible):
+ *   Overview, Design, Content, Personalization, Audience, Platform, Admin.
  *
- * Secondary row — sub-items for the active primary group (contextual):
- *   Shown only when the active group has more than one page.
+ * Secondary row shows the sub-items of the active primary group, and only
+ * appears when that group has more than one page.
  *
- * Tab ownership:
- *   Content  — CMS · AI · Rules · Variants · Experiments · Slots · Blueprints
- *   Audience — Interests · Segments · Journey · Scoring
+ * Tab ownership (actual):
+ *   Content         CMS, Pages, Blueprints, Forms, Email, Assets, Status.
+ *   Personalization Slots, Variants, Adaptive blocks, Contextual forms, Rules,
+ *                   Experiments, AI.
+ *   Audience        Interests, Segments, Target accounts, Leads, Retargeting,
+ *                   Suppression, Attribution, Journey, Scoring.
  *
- * Note: /behavior/* routes are split across tabs by concept —
- *   behavior/journey + behavior/ (scoring) → Audience
- *   behavior/slots → Content
- *   behavior/ai-policy + behavior/field-fill → Content → AI (active highlight)
- *
- * This replaces the previous 20-tab single row that overflowed horizontally.
+ * The /behavior/* URL tree is split across tabs by concept. behavior/journey
+ * and behavior/ (Scoring) belong to Audience, behavior/slots to
+ * Personalization, and behavior/ai-policy + behavior/field-fill highlight the
+ * Personalization AI item. /forms/context is a Personalization surface even
+ * though it lives under /forms (see isGroupActive).
  */
 
 interface TenantSubNavProps {
@@ -174,47 +176,54 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       key:    "content",
       label:  "Content",
       href:   `${base}/content`,
-      prefix: `${base}/content|${base}/pages|${base}/blueprints|${base}/forms|${base}/assets|${base}/email`,
+      prefix: `${base}/content|${base}/pages|${base}/blueprints|${base}/forms|${base}/assets|${base}/email|${base}/content-status`,
       icon:   ICONS.content,
       items: [
-        { label: "CMS",        href: `${base}/content`,    activePrefix: `${base}/content` },
+        { label: "CMS",        href: `${base}/content`,    activePrefix: `${base}/content`, exact: true },
         { label: "Pages",      href: `${base}/pages`,      activePrefix: `${base}/pages` },
         { label: "Blueprints", href: `${base}/blueprints`, activePrefix: `${base}/blueprints` },
         { label: "Forms",      href: `${base}/forms`,      activePrefix: `${base}/forms` },
-        { label: "Email", href: `${base}/email`,  activePrefix: `${base}/email` },
+        { label: "Email",      href: `${base}/email`,      activePrefix: `${base}/email` },
         { label: "Assets",     href: `${base}/assets`,     activePrefix: `${base}/assets` },
+        { label: "Status",     href: `${base}/content-status`, activePrefix: `${base}/content-status` },
       ],
     },
     {
       key:    "personalization",
       label:  "Personalization",
-      href:   `${base}/behavior/slots`,
-      prefix: `${base}/behavior/slots|${base}/variants|${base}/blocks|${base}/rules|${base}/experiments|${base}/ai|${base}/context|${base}/behavior/ai-policy|${base}/behavior/field-fill`,
+      href:   `${base}/personalization/slots`,
+      // All personalisation surfaces now live under one /personalization/*
+      // namespace (see next.config redirects for the old-path 301s).
+      prefix: `${base}/personalization`,
       icon:   ICONS.personalization,
       items: [
-        { label: "Slots",           href: `${base}/behavior/slots`, activePrefix: `${base}/behavior/slots` },
-        { label: "Variants",        href: `${base}/variants`,       activePrefix: `${base}/variants` },
-        { label: "Adaptive blocks", href: `${base}/blocks`,         activePrefix: `${base}/blocks` },
-        { label: "Rules",           href: `${base}/rules`,          activePrefix: `${base}/rules` },
-        { label: "Experiments",     href: `${base}/experiments`,    activePrefix: `${base}/experiments` },
-        { label: "AI",              href: `${base}/ai`,             activePrefix: `${base}/ai`, exact: true },
+        { label: "Slots",            href: `${base}/personalization/slots`,            activePrefix: `${base}/personalization/slots` },
+        { label: "Variants",         href: `${base}/personalization/variants`,         activePrefix: `${base}/personalization/variants` },
+        { label: "Adaptive blocks",  href: `${base}/personalization/blocks`,           activePrefix: `${base}/personalization/blocks` },
+        { label: "Contextual forms", href: `${base}/personalization/contextual-forms`, activePrefix: `${base}/personalization/contextual-forms` },
+        { label: "Rules",            href: `${base}/personalization/rules`,            activePrefix: `${base}/personalization/rules` },
+        { label: "Experiments",      href: `${base}/personalization/experiments`,      activePrefix: `${base}/personalization/experiments` },
+        { label: "AI",               href: `${base}/personalization/ai`,               activePrefix: `${base}/personalization/ai`, exact: true },
       ],
     },
     {
       key:    "audience",
       label:  "Audience",
-      href:   `${base}/interest-profiles`,
-      prefix: `${base}/interest-profiles|${base}/audience-segments|${base}/behavior/journey|${base}/behavior|${base}/abm|${base}/leads|${base}/ad-sync`,
+      href:   `${base}/audience/interests`,
+      // All audience surfaces now live under one /audience/* namespace
+      // (see next.config redirects for the old-path 301s).
+      prefix: `${base}/audience`,
       icon:   ICONS.audience,
       items: [
-        { label: "Interests", href: `${base}/interest-profiles`,    activePrefix: `${base}/interest-profiles` },
-        { label: "Segments",  href: `${base}/audience-segments`,    activePrefix: `${base}/audience-segments` },
-        { label: "Target accounts", href: `${base}/abm`,            activePrefix: `${base}/abm` },
-        { label: "Leads",           href: `${base}/leads`,          activePrefix: `${base}/leads`, exact: true },
-        { label: "Retargeting",     href: `${base}/ad-sync`,        activePrefix: `${base}/ad-sync` },
-        { label: "Suppression",     href: `${base}/leads/suppression`, activePrefix: `${base}/leads/suppression` },
-        { label: "Journey",   href: `${base}/behavior/journey`,     activePrefix: `${base}/behavior/journey` },
-        { label: "Scoring",   href: `${base}/behavior`,             activePrefix: `${base}/behavior`,         exact: true },
+        { label: "Interests",       href: `${base}/audience/interests`,         activePrefix: `${base}/audience/interests` },
+        { label: "Segments",        href: `${base}/audience/segments`,          activePrefix: `${base}/audience/segments` },
+        { label: "Target accounts", href: `${base}/audience/accounts`,          activePrefix: `${base}/audience/accounts` },
+        { label: "Leads",           href: `${base}/audience/leads`,             activePrefix: `${base}/audience/leads`, exact: true },
+        { label: "Retargeting",     href: `${base}/audience/retargeting`,       activePrefix: `${base}/audience/retargeting` },
+        { label: "Suppression",     href: `${base}/audience/leads/suppression`, activePrefix: `${base}/audience/leads/suppression` },
+        { label: "Attribution",     href: `${base}/audience/leads/performance`, activePrefix: `${base}/audience/leads/performance` },
+        { label: "Journey",         href: `${base}/audience/journey`,           activePrefix: `${base}/audience/journey` },
+        { label: "Scoring",         href: `${base}/audience/scoring`,           activePrefix: `${base}/audience/scoring`, exact: true },
       ],
     },
     {
@@ -226,6 +235,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       items: [
         { label: "Integrations", href: `${base}/integrations`,          activePrefix: `${base}/integrations`, exact: true },
         { label: "Pipeline",     href: `${base}/integrations/pipeline`, activePrefix: `${base}/integrations/pipeline` },
+        { label: "Calendar",     href: `${base}/integrations/calendar`, activePrefix: `${base}/integrations/calendar` },
         { label: "Snippet",      href: `${base}/snippet`,               activePrefix: `${base}/snippet`, exact: true },
         { label: "Search",       href: `${base}/search`,                activePrefix: `${base}/search` },
         { label: "Storage",      href: `${base}/storage`,               activePrefix: `${base}/storage` },
@@ -301,12 +311,14 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
       return current ? current === item.tab : item.tabDefault === true;
     }
     if (item.label === "AI") {
+      // The AI item covers the whole AI family: the AI page plus logs, policy,
+      // field-fill and the shared context variables (all under /personalization).
       return (
-        pathname === `${base}/ai` ||
-        pathname.startsWith(`${base}/ai-`) ||
-        pathname.startsWith(`${base}/context`) ||
-        pathname.startsWith(`${base}/behavior/ai-policy`) ||
-        pathname.startsWith(`${base}/behavior/field-fill`)
+        pathname === `${base}/personalization/ai` ||
+        pathname.startsWith(`${base}/personalization/ai-logs`) ||
+        pathname.startsWith(`${base}/personalization/ai-policy`) ||
+        pathname.startsWith(`${base}/personalization/field-fill`) ||
+        pathname.startsWith(`${base}/personalization/context-variables`)
       );
     }
     return item.exact ? pathname === item.activePrefix : pathname.startsWith(item.activePrefix);

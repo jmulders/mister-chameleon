@@ -96,7 +96,7 @@ export function EmailTemplatesClient({ tenantId, overview }:
                 placeholder={t.defaultPreheader || "Short line shown next to the subject in the inbox"} />
 
               <label className={label + " mt-3"}>Blocks (in order)</label>
-              {d.blocks.length === 0 && <p className="text-xs text-amber-700">No blocks — the email would be empty. Add at least one.</p>}
+              {d.blocks.length === 0 && <p className="text-xs text-amber-700">No blocks. The email would be empty. Add at least one.</p>}
               <ul className="space-y-1.5">
                 {d.blocks.map((b, i) => (
                   <li key={i} className="rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5">
