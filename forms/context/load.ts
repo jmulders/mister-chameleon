@@ -34,9 +34,24 @@ export async function resolveContextualForm(
 
   const base = { fields: formDef.fields };
 
-  // Turnstile widget config (per-form toggle + tenant site key). Resolved
-  // independently of the overlay so both return paths carry it.
-  const turnstile = tenantId ? await resolveTurnstile(tenantId, formKey) : undefined;
+  // Per-form override drives BOTH the Turnstile toggle and the presentation
+  // layout. Load it once. Resolved independently of the overlay so both return
+  // paths carry the extras.
+  let turnstileEnabled = false;
+  let layout: ResolvedForm["layout"];
+  if (tenantId) {
+    try {
+      const override = await loadTenantFormOverrides(tenantId, formKey);
+      turnstileEnabled = override.turnstileEnabled;
+      layout = override.layout;
+    } catch {
+      /* fall back to base form */
+    }
+  }
+  const turnstile = (tenantId && turnstileEnabled)
+    ? await loadTurnstileSiteKey(tenantId)
+    : undefined;
+  const extras = { turnstile, ...(layout ? { layout } : {}) };
 
   let ctx: TenantFormContext | undefined;
   if (tenantId) {
@@ -48,25 +63,21 @@ export async function resolveContextualForm(
     }
   }
 
-  if (!ctx?.rules?.length) return { ...applyFormOverlay(base, null, undefined), turnstile };
+  if (!ctx?.rules?.length) return { ...applyFormOverlay(base, null, undefined), ...extras };
 
   const segment = resolveFormSegment(ctx.rules, signals);
   const overlay = segment ? ctx.overlays?.[formKey]?.[segment] : undefined;
-  return { ...applyFormOverlay(base, segment, overlay), turnstile };
+  return { ...applyFormOverlay(base, segment, overlay), ...extras };
 }
 
 /**
- * Resolve the Turnstile widget config for a form: present only when the per-form
- * `turnstileEnabled` override is on AND the tenant has a public site key set.
- * Returns undefined otherwise (no widget rendered). Never throws.
+ * Read the tenant's public Turnstile site key. Returns undefined when unset.
+ * Never throws. (The per-form turnstileEnabled gate is checked by the caller.)
  */
-async function resolveTurnstile(
+async function loadTurnstileSiteKey(
   tenantId: string,
-  formKey: string,
 ): Promise<{ siteKey: string } | undefined> {
   try {
-    const override = await loadTenantFormOverrides(tenantId, formKey);
-    if (!override.turnstileEnabled) return undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = (await (getDb() as any)
       .from("tenant_form_settings")
