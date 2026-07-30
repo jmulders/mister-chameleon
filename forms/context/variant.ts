@@ -25,6 +25,13 @@ import type { FormDefinition, FormField } from "@/forms/types";
 import type { FormLayout }                from "@/tenant/types";
 import type { ResolvedForm }              from "./types";
 
+/** An authored form variant: its key/label plus the content payload. */
+export interface FormVariantEntry {
+  variantKey: string;
+  label?:     string;
+  content:    FormVariantContent;
+}
+
 /** The per-visitor variant payload stored alongside adaptive-block variants. */
 export interface FormVariantContent {
   title?:          string;
