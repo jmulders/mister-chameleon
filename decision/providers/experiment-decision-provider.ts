@@ -335,5 +335,6 @@ function applyChallenger(
     ...(cp.ctaKey        ? { ctaKey:        cp.ctaKey        as ExperiencePlan["ctaKey"]        } : {}),
     ...(cp.featureKey    ? { featureKey:    cp.featureKey    as ExperiencePlan["featureKey"]    } : {}),
     ...(cp.conversionKey ? { conversionKey: cp.conversionKey as ExperiencePlan["conversionKey"] } : {}),
+    ...(cp.formVariants  ? { formVariants:  cp.formVariants  as ExperiencePlan["formVariants"]  } : {}),
   };
 }

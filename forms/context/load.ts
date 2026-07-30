@@ -13,7 +13,9 @@ import { getFormDefinition, isFormKey } from "@/forms";
 import { getTenantById } from "@/tenant/server";
 import { getDb } from "@/data/db";
 import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
+import { getAdaptiveBlockByKey } from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import { resolveFormSegment, applyFormOverlay } from "./resolve";
+import type { FormVariantContent } from "./variant";
 import type {
   FormContextSignals, ResolvedForm, TenantFormContext,
   TenantBlockContext, CtaOverlay,
@@ -68,6 +70,27 @@ export async function resolveContextualForm(
   const segment = resolveFormSegment(ctx.rules, signals);
   const overlay = segment ? ctx.overlays?.[formKey]?.[segment] : undefined;
   return { ...applyFormOverlay(base, segment, overlay), ...extras };
+}
+
+/**
+ * Load a single form variant's content from the tenant's `form:<type>`
+ * adaptive-block row (forms-as-adaptive-blocks, phase 2). Returns null when the
+ * block or the variant key is absent. Never throws. The variant payload lives in
+ * the block's flexible JSONB, so it is cast to FormVariantContent at this
+ * boundary.
+ */
+export async function loadFormVariant(
+  tenantId: string,
+  formType: string,
+  variantKey: string,
+): Promise<FormVariantContent | null> {
+  try {
+    const block = await getAdaptiveBlockByKey(`form:${formType}`, tenantId);
+    const entry = block?.adaptiveVariants?.find((v) => v.variantKey === variantKey);
+    return entry ? (entry.content as unknown as FormVariantContent) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -395,6 +395,15 @@ export interface StoredPlan {
    *   2. slot.variantKey     — page-specific fallback set by the CMS author
    */
   pageBannerKey?: string;
+
+  /**
+   * Per-form-type variant keys chosen by the engine (forms-as-adaptive-blocks).
+   * Maps a form type (contact / application / appointment) to a variant key
+   * stored in the tenant's `form:<type>` adaptive-block row. When a type is
+   * absent, the decide route falls back to the phase-1 contextual-forms
+   * resolver, so behaviour is unchanged unless a rule targets a form variant.
+   */
+  formVariants?: Record<string, string>;
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────
@@ -757,6 +766,25 @@ function validatePlan(
   if (plan.notificationKey !== undefined) {
     if (!(ALLOWED_NOTIFICATION_KEYS as string[]).includes(plan.notificationKey as string)) {
       errors.push({ ruleId, field: `${idx}.plan.notificationKey`, message: `Invalid notificationKey "${plan.notificationKey}". Allowed: ${ALLOWED_NOTIFICATION_KEYS.join(", ")}` });
+    }
+  }
+
+  // Form variants map a form TYPE to a tenant-defined variant key. Variant keys
+  // are tenant data (not a fixed platform allow-list), so we only validate the
+  // shape: known form type → non-empty string.
+  if (plan.formVariants !== undefined) {
+    const fv = plan.formVariants;
+    if (!fv || typeof fv !== "object" || Array.isArray(fv)) {
+      errors.push({ ruleId, field: `${idx}.plan.formVariants`, message: "formVariants must be an object mapping a form type to a variant key." });
+    } else {
+      const validFormTypes = ["contact", "application", "appointment"];
+      for (const [type, key] of Object.entries(fv as Record<string, unknown>)) {
+        if (!validFormTypes.includes(type)) {
+          errors.push({ ruleId, field: `${idx}.plan.formVariants.${type}`, message: `Invalid form type "${type}". Allowed: ${validFormTypes.join(", ")}` });
+        } else if (typeof key !== "string" || key.trim() === "") {
+          errors.push({ ruleId, field: `${idx}.plan.formVariants.${type}`, message: "variant key must be a non-empty string." });
+        }
+      }
     }
   }
 }
