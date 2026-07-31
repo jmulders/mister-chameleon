@@ -152,13 +152,15 @@ async function fetchFormVariants(
     const blocks = await Promise.all(
       FORM_TYPES.map((type) => getAdaptiveBlockByKey(`form:${type}`, tenantId)),
     );
+    // Include every known form type (even with zero variants) so the rules
+    // editor can always show a Form variant select — a visible, disabled select
+    // plus a hint is more discoverable than hiding the control entirely.
     FORM_TYPES.forEach((type, i) => {
-      const entries = (blocks[i]?.adaptiveVariants ?? []).map((v) => ({
+      out[type] = (blocks[i]?.adaptiveVariants ?? []).map((v) => ({
         key:    v.variantKey,
         label:  v.label || v.variantKey,
         source: "cms-tenant" as const,
       }));
-      if (entries.length > 0) out[type] = entries;
     });
   } catch (err) {
     logger.warn("[fetchVariantCatalogue] form-variant load failed; forms omitted.", { error: String(err) });
