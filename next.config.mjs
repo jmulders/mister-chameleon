@@ -230,7 +230,12 @@ const nextConfig = {
       ["ai",                  "personalization/ai"],
       ["ai-logs",             "personalization/ai-logs"],
       ["context",             "personalization/context-variables"],
-      ["forms/context",       "personalization/contextual-forms"],
+      // Contextual forms retired: forms now carry variants (per-form Variants
+      // editor) and a rule targets one via plan.formVariants. Old paths land on
+      // the forms overview. `forms/context` first (older), then the interim
+      // /personalization/contextual-forms path.
+      ["forms/context",              "forms"],
+      ["personalization/contextual-forms", "forms"],
       // Phase 2: Audience under /audience/*. behavior/journey MUST precede the
       // bare "behavior" catch-all (first matching redirect wins).
       ["behavior/journey",    "audience/journey"],

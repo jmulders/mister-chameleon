@@ -55,21 +55,14 @@ export async function resolveContextualForm(
     : undefined;
   const extras = { turnstile, ...(layout ? { layout } : {}) };
 
-  let ctx: TenantFormContext | undefined;
-  if (tenantId) {
-    try {
-      const tenant = await getTenantById(tenantId);
-      ctx = (tenant as { formContext?: TenantFormContext } | null)?.formContext;
-    } catch {
-      /* fall back to base form */
-    }
-  }
-
-  if (!ctx?.rules?.length) return { ...applyFormOverlay(base, null, undefined), ...extras };
-
-  const segment = resolveFormSegment(ctx.rules, signals);
-  const overlay = segment ? ctx.overlays?.[formKey]?.[segment] : undefined;
-  return { ...applyFormOverlay(base, segment, overlay), ...extras };
+  // The legacy per-segment overlays/rules (settings.formContext) are retired:
+  // per-visitor form selection now runs through the decision engine — a rule
+  // sets plan.formVariants[<type>] and the decide route merges the chosen
+  // variant onto this base. So here we return the base form (fields + copy from
+  // the definition) plus the presentation extras; the variant is layered on by
+  // the caller. `signals` is kept in the signature for that caller contract.
+  void signals;
+  return { ...applyFormOverlay(base, null, undefined), ...extras };
 }
 
 /**

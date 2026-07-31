@@ -200,7 +200,6 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         { label: "Slots",            href: `${base}/personalization/slots`,            activePrefix: `${base}/personalization/slots` },
         { label: "Variants",         href: `${base}/personalization/variants`,         activePrefix: `${base}/personalization/variants` },
         { label: "Adaptive blocks",  href: `${base}/personalization/blocks`,           activePrefix: `${base}/personalization/blocks` },
-        { label: "Contextual forms", href: `${base}/personalization/contextual-forms`, activePrefix: `${base}/personalization/contextual-forms` },
         { label: "Rules",            href: `${base}/personalization/rules`,            activePrefix: `${base}/personalization/rules` },
         { label: "Experiments",      href: `${base}/personalization/experiments`,      activePrefix: `${base}/personalization/experiments` },
         { label: "AI",               href: `${base}/personalization/ai`,               activePrefix: `${base}/personalization/ai`, exact: true },

@@ -521,7 +521,7 @@ export interface ExperiencePlan {
    * Per-form-type variant keys chosen by the engine (forms-as-adaptive-blocks).
    * Maps a form type (contact / application / appointment) to a variant key in
    * the tenant's `form:<type>` adaptive-block row. When a type is absent, the
-   * decide route falls back to the phase-1 contextual-forms resolver.
+   * decide route serves the form's base definition (no variant applied).
    */
   formVariants?: Record<string, string>;
 

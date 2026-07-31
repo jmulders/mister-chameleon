@@ -400,8 +400,8 @@ export interface StoredPlan {
    * Per-form-type variant keys chosen by the engine (forms-as-adaptive-blocks).
    * Maps a form type (contact / application / appointment) to a variant key
    * stored in the tenant's `form:<type>` adaptive-block row. When a type is
-   * absent, the decide route falls back to the phase-1 contextual-forms
-   * resolver, so behaviour is unchanged unless a rule targets a form variant.
+   * absent, the decide route serves the form's base definition, so behaviour is
+   * unchanged unless a rule targets a form variant.
    */
   formVariants?: Record<string, string>;
 }

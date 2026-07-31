@@ -42,6 +42,14 @@ import {
   buildPlatformCatalogue,
 } from "./variant-catalogue";
 import type { VariantCatalogue, VariantEntry, VariantSource } from "./variant-catalogue";
+import { getAdaptiveBlockByKey } from "@/lib/adaptive-blocks/adaptive-blocks-store";
+
+/**
+ * Form types that can carry authored variants. Kept in sync with the decision
+ * engine's validFormTypes (decision/rules/stored-rule.ts validatePlan) and the
+ * FormKey union — a rule may only target one of these via plan.formVariants.
+ */
+const FORM_TYPES = ["contact", "application", "appointment"] as const;
 
 // ── GROQ query ─────────────────────────────────────────────────────────────────
 
@@ -91,9 +99,13 @@ interface SanityVariantRow {
 export async function fetchVariantCatalogue(
   tenantId?: string | null,
 ): Promise<VariantCatalogue> {
+  // Form variants are tenant-authored (adaptive_blocks), independent of Sanity —
+  // load them up front so both the Sanity and the fallback path can attach them.
+  const forms = await fetchFormVariants(tenantId ?? null);
+
   // ── Fallback: no Sanity → platform-only ────────────────────────────────────
   if (!serverEnv.sanity.projectId) {
-    return buildPlatformCatalogue();
+    return { ...buildPlatformCatalogue(), forms };
   }
 
   try {
@@ -116,11 +128,42 @@ export async function fetchVariantCatalogue(
       cta:        mergeEntries(platform.cta,        ctaRows,        tenantId ?? null),
       feature:    mergeEntries(platform.feature,    featureRows,    tenantId ?? null),
       conversion: mergeEntries(platform.conversion, conversionRows, tenantId ?? null),
+      forms,
     };
   } catch (err) {
     logger.warn("[fetchVariantCatalogue] Sanity query failed; using platform catalogue only.", { error: String(err) });
-    return buildPlatformCatalogue();
+    return { ...buildPlatformCatalogue(), forms };
   }
+}
+
+/**
+ * Load the authored form variants for a tenant from the adaptive-blocks store
+ * (the `form:<type>` rows the per-form Variants editor writes). Returns a map
+ * keyed by form type, containing only the types that have ≥1 variant. Never
+ * throws — on any error it logs and returns an empty map so the rules editor
+ * still renders without form targeting.
+ */
+async function fetchFormVariants(
+  tenantId: string | null,
+): Promise<Record<string, VariantEntry[]>> {
+  if (!tenantId) return {};
+  const out: Record<string, VariantEntry[]> = {};
+  try {
+    const blocks = await Promise.all(
+      FORM_TYPES.map((type) => getAdaptiveBlockByKey(`form:${type}`, tenantId)),
+    );
+    FORM_TYPES.forEach((type, i) => {
+      const entries = (blocks[i]?.adaptiveVariants ?? []).map((v) => ({
+        key:    v.variantKey,
+        label:  v.label || v.variantKey,
+        source: "cms-tenant" as const,
+      }));
+      if (entries.length > 0) out[type] = entries;
+    });
+  } catch (err) {
+    logger.warn("[fetchVariantCatalogue] form-variant load failed; forms omitted.", { error: String(err) });
+  }
+  return out;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

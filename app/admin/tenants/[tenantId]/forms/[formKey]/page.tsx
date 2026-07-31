@@ -33,7 +33,13 @@ import {
   resetTenantFormOverrideAction,
 } from "./actions";
 import { getTenantFormSettingsAction, getTurnstileSettingsAction } from "../actions";
+import {
+  listFormVariantsAction,
+  saveFormVariantAction,
+  deleteFormVariantAction,
+} from "./form-variants-actions";
 import { FormOverrideClient }    from "./_components/FormOverrideClient";
+import { FormVariantsEditor }    from "./_components/FormVariantsEditor";
 import { resolveFormsConfig }    from "@/lib/config";
 import type { TenantFormOverrideSettings } from "@/tenant/types";
 
@@ -74,6 +80,9 @@ export default async function FormConfigPage({ params }: PageProps) {
   const turnstileHasKeys = turnstileResult.ok
     ? Boolean(turnstileResult.siteKey) && turnstileResult.hasSecret
     : false;
+
+  // Authored form variants (forms-as-adaptive-blocks, phase 2.2).
+  const formVariants = await listFormVariantsAction(tenantId, formKey);
 
   // Current override state (or defaults if none saved yet)
   const currentOverride = overrideResult.ok
@@ -118,6 +127,8 @@ export default async function FormConfigPage({ params }: PageProps) {
   // ── Bound server actions ────────────────────────────────────────────────────
   const boundSave  = saveTenantFormOverrideAction.bind(null, tenantId, formKey);
   const boundReset = resetTenantFormOverrideAction.bind(null, tenantId, formKey);
+  const boundSaveVariant   = saveFormVariantAction.bind(null, tenantId, formKey);
+  const boundDeleteVariant = deleteFormVariantAction.bind(null, tenantId, formKey);
 
   return (
     <div className="p-8 max-w-3xl space-y-8">
@@ -217,6 +228,14 @@ export default async function FormConfigPage({ params }: PageProps) {
         turnstileHasKeys={turnstileHasKeys}
         saveAction={boundSave}
         resetAction={boundReset}
+      />
+
+      {/* ── 3. Variants (forms-as-adaptive-blocks) ───────────────────────── */}
+      <FormVariantsEditor
+        definitionFields={[...formDef.fields]}
+        initialVariants={formVariants}
+        saveAction={boundSaveVariant}
+        deleteAction={boundDeleteVariant}
       />
 
       {/* ── 3. Form definition (read-only) ───────────────────────────────── */}
