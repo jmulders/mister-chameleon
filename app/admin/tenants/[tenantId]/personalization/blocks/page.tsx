@@ -41,7 +41,8 @@ export default async function TenantBlocksPage({ params }: Props) {
         <div>
           <h1 className="text-xl font-semibold text-neutral-900">Adaptive blocks</h1>
           <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
-            Manage the personalised content for each adaptive slot on this tenant&apos;s site.
+            Manage the personalised content for each adaptive slot on this tenant&apos;s site, and set
+            per slot how a variant is selected (<em>Mode</em>: AI-assisted, rules-only, or a fixed key).
             Blocks marked <strong className="font-semibold text-neutral-700">Platform default</strong> inherit
             from the shared catalog. Click <em>Customize</em> to create a tenant-specific version.
             Tenant blocks take full precedence over platform defaults.
@@ -87,6 +88,7 @@ export default async function TenantBlocksPage({ params }: Props) {
           knownKeys:   s.knownKeys,
         }))}
         allBlocks={allBlocks}
+        initialSlotModes={tenant?.adaptiveSlots ?? null}
         blockTokenSets={blockTokenSets}
       />
 
