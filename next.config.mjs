@@ -220,7 +220,11 @@ const nextConfig = {
   async redirects() {
     const t = "/admin/tenants/:tenantId";
     const moves = [
-      ["behavior/slots",      "personalization/slots"],
+      // Slot selection mode merged into the Adaptive Blocks page; the standalone
+      // Slots page is retired. Old paths land on blocks (behavior/slots first,
+      // then the interim /personalization/slots).
+      ["behavior/slots",      "personalization/blocks"],
+      ["personalization/slots", "personalization/blocks"],
       ["behavior/ai-policy",  "personalization/ai-policy"],
       ["behavior/field-fill", "personalization/field-fill"],
       ["variants",            "personalization/variants"],

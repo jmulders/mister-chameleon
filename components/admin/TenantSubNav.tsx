@@ -191,15 +191,14 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
     {
       key:    "personalization",
       label:  "Personalization",
-      href:   `${base}/personalization/slots`,
+      href:   `${base}/personalization/blocks`,
       // All personalisation surfaces now live under one /personalization/*
       // namespace (see next.config redirects for the old-path 301s).
       prefix: `${base}/personalization`,
       icon:   ICONS.personalization,
       items: [
-        { label: "Slots",            href: `${base}/personalization/slots`,            activePrefix: `${base}/personalization/slots` },
-        { label: "Variants",         href: `${base}/personalization/variants`,         activePrefix: `${base}/personalization/variants` },
         { label: "Adaptive blocks",  href: `${base}/personalization/blocks`,           activePrefix: `${base}/personalization/blocks` },
+        { label: "Variants",         href: `${base}/personalization/variants`,         activePrefix: `${base}/personalization/variants` },
         { label: "Rules",            href: `${base}/personalization/rules`,            activePrefix: `${base}/personalization/rules` },
         { label: "Experiments",      href: `${base}/personalization/experiments`,      activePrefix: `${base}/personalization/experiments` },
         { label: "AI",               href: `${base}/personalization/ai`,               activePrefix: `${base}/personalization/ai`, exact: true },

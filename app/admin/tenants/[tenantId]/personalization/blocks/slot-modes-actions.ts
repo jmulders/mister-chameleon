@@ -1,11 +1,12 @@
 "use server";
 
 /**
- * Server actions for the Adaptive Slot Mode admin page.
+ * Server actions for the per-slot selection mode, edited inline on the Adaptive
+ * Blocks page (each slot section carries its own mode control).
  *
  * Reads and writes TenantSettings.adaptiveSlots, which controls whether each
- * core content slot (hero / proof / cta) uses AI-assisted, rules-only, or
- * static selection.
+ * core content slot (hero / proof / cta / feature / conversion / notification)
+ * uses AI-assisted, rules-only, or static selection.
  *
  * ─── Storage ──────────────────────────────────────────────────────────────────
  *
@@ -79,8 +80,8 @@ export interface SaveSlotModesResult {
 /**
  * Persist the adaptive slot mode configuration for a tenant.
  *
- * Validates all three slot configs, then writes the merged settings object
- * to the data store.  Revalidates the behavior/slots page path on success.
+ * Validates all six slot configs, then writes the merged settings object
+ * to the data store.  Revalidates the Adaptive Blocks page on success.
  */
 export async function saveSlotModesAction(
   tenantId: string,
@@ -144,6 +145,6 @@ export async function saveSlotModesAction(
     return { ok: false, error: result.error };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/personalization/slots`);
+  revalidatePath(`/admin/tenants/${tenantId}/personalization/blocks`);
   return { ok: true };
 }

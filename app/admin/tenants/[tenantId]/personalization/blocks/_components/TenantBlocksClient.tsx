@@ -14,12 +14,78 @@
  *             then immediately opens the edit drawer.
  */
 
-import { useState, useCallback, useTransition } from "react";
+import { useState, useCallback, useMemo, useTransition } from "react";
 import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
 import type { BlockTokenSet }                     from "@/design-system/theme/block-token-set";
 import { activateBlockForTenantAction, deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
+import { saveSlotModesAction, type SaveSlotModesInput, type SlotModeFormValue } from "../slot-modes-actions";
 import type { AdaptiveBlockData }                from "@/cms/types";
+import type { TenantAdaptiveSlotSettings, TenantSlotMode } from "@/tenant/types";
+
+// ── Slot selection mode ─────────────────────────────────────────────────────────
+
+/** The six slots that carry a selection mode (aligned with ADAPTIVE_SLOT_REGISTRY). */
+type ModeSlotId = keyof SaveSlotModesInput;
+const MODE_SLOT_IDS: readonly ModeSlotId[] = ["hero", "proof", "cta", "feature", "conversion", "notification"];
+
+const MODE_OPTIONS: Array<{ value: TenantSlotMode; label: string; hint: string }> = [
+  { value: "ai-assisted", label: "AI-assisted", hint: "AI may pick this slot when confidence gates pass; falls back to rules." },
+  { value: "rules-only",  label: "Rules only",  hint: "Always use the rules plan key; AI is never consulted for this slot." },
+  { value: "static",      label: "Static",      hint: "Always serve the fixed key you choose, regardless of context." },
+];
+
+/** Build the editable slot-mode form from saved settings (defaults to ai-assisted). */
+function buildSlotModes(saved: TenantAdaptiveSlotSettings | null): SaveSlotModesInput {
+  const one = (id: ModeSlotId): SlotModeFormValue => ({
+    mode:      saved?.[id]?.mode      ?? "ai-assisted",
+    staticKey: saved?.[id]?.staticKey ?? "",
+  });
+  return {
+    hero: one("hero"), proof: one("proof"), cta: one("cta"),
+    feature: one("feature"), conversion: one("conversion"), notification: one("notification"),
+  };
+}
+
+// ── SlotModeControl (inline, per slot section) ──────────────────────────────────
+
+function SlotModeControl({
+  value,
+  knownKeys,
+  onChange,
+}: {
+  value:     SlotModeFormValue;
+  knownKeys: readonly string[];
+  onChange:  (patch: Partial<SlotModeFormValue>) => void;
+}) {
+  const hint = MODE_OPTIONS.find((o) => o.value === value.mode)?.hint;
+  return (
+    <div className="flex flex-wrap items-center gap-2" title={hint}>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Mode</span>
+      <select
+        value={value.mode}
+        onChange={(e) => onChange({ mode: e.target.value as TenantSlotMode })}
+        className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      >
+        {MODE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      {value.mode === "static" && (
+        <select
+          value={value.staticKey ?? ""}
+          onChange={(e) => onChange({ staticKey: e.target.value })}
+          className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          <option value="" disabled>— fixed key —</option>
+          {knownKeys.map((k) => (
+            <option key={k} value={k}>{k}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -187,6 +253,8 @@ function SlotSection({
   tenantId,
   revalidatePath,
   allBlocks,
+  modeValue,
+  onModeChange,
   onEdit,
   onCustomized,
 }: {
@@ -198,6 +266,8 @@ function SlotSection({
   tenantId:       string;
   revalidatePath: string;
   allBlocks:      AdaptiveBlockData[];
+  modeValue?:     SlotModeFormValue;
+  onModeChange?:  (patch: Partial<SlotModeFormValue>) => void;
   onEdit:         (block: AdaptiveBlockData) => void;
   onCustomized:   (block: AdaptiveBlockData) => void;
 }) {
@@ -228,16 +298,21 @@ function SlotSection({
 
   return (
     <section className="space-y-3">
-      <div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-sm font-semibold text-neutral-900">{label}</h2>
-          {customizedCount > 0 && (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${slotColors[id] ?? "bg-neutral-100 text-neutral-600 ring-neutral-200"}`}>
-              {customizedCount} customized
-            </span>
-          )}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-semibold text-neutral-900">{label}</h2>
+            {customizedCount > 0 && (
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${slotColors[id] ?? "bg-neutral-100 text-neutral-600 ring-neutral-200"}`}>
+                {customizedCount} customized
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-neutral-400 max-w-2xl">{description}</p>
         </div>
-        <p className="mt-0.5 text-xs text-neutral-400 max-w-2xl">{description}</p>
+        {modeValue && onModeChange && (
+          <SlotModeControl value={modeValue} knownKeys={knownKeys} onChange={onModeChange} />
+        )}
       </div>
       <div className="space-y-2">
         {resolved.map((r) => (
@@ -269,13 +344,40 @@ interface TenantBlocksClientProps {
   tenantId:   string;
   slots:      readonly SlotSpec[];
   allBlocks:  AdaptiveBlockData[];
+  initialSlotModes: TenantAdaptiveSlotSettings | null;
   blockTokenSets?: readonly BlockTokenSet[];
 }
 
-export function TenantBlocksClient({ tenantId, slots, allBlocks, blockTokenSets = [] }: TenantBlocksClientProps) {
+export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotModes, blockTokenSets = [] }: TenantBlocksClientProps) {
   const router          = useRouter();
   const revalidatePath  = `/admin/tenants/${tenantId}/personalization/blocks`;
   const [editing, setEditing] = useState<AdaptiveBlockData | null>(null);
+
+  // Per-slot selection mode (AI-assisted / rules-only / static), edited inline
+  // in each slot section and saved together via the bar below.
+  const savedModes = useMemo(() => buildSlotModes(initialSlotModes), [initialSlotModes]);
+  const [slotModes, setSlotModes] = useState<SaveSlotModesInput>(savedModes);
+  const [modeStatus, setModeStatus] = useState<"idle" | "success" | "error">("idle");
+  const [modeError,  setModeError]  = useState("");
+  const [savingModes, startSaveModes] = useTransition();
+  const modesDirty = useMemo(
+    () => JSON.stringify(slotModes) !== JSON.stringify(savedModes),
+    [slotModes, savedModes],
+  );
+
+  const patchMode = useCallback((slotId: ModeSlotId, patch: Partial<SlotModeFormValue>) => {
+    setModeStatus("idle");
+    setSlotModes((prev) => ({ ...prev, [slotId]: { ...prev[slotId], ...patch } }));
+  }, []);
+
+  const saveModes = useCallback(() => {
+    setModeStatus("idle");
+    startSaveModes(async () => {
+      const res = await saveSlotModesAction(tenantId, slotModes);
+      if (res.ok) { setModeStatus("success"); router.refresh(); }
+      else { setModeStatus("error"); setModeError(res.error ?? "Unknown error"); }
+    });
+  }, [tenantId, slotModes, router]);
 
   const handleSaved = useCallback(() => {
     setEditing(null);
@@ -285,22 +387,48 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, blockTokenSets 
   return (
     <>
       <div className="space-y-10">
-        {slots.map((slot) => (
-          <SlotSection
-            key={slot.id}
-            id={slot.id}
-            label={slot.label}
-            description={slot.description}
-            keyPrefix={slot.keyPrefix}
-            knownKeys={slot.knownKeys}
-            tenantId={tenantId}
-            revalidatePath={revalidatePath}
-            allBlocks={allBlocks}
-            onEdit={setEditing}
-            onCustomized={(block) => setEditing(block)}
-          />
-        ))}
+        {slots.map((slot) => {
+          const isModeSlot = (MODE_SLOT_IDS as readonly string[]).includes(slot.id);
+          return (
+            <SlotSection
+              key={slot.id}
+              id={slot.id}
+              label={slot.label}
+              description={slot.description}
+              keyPrefix={slot.keyPrefix}
+              knownKeys={slot.knownKeys}
+              tenantId={tenantId}
+              revalidatePath={revalidatePath}
+              allBlocks={allBlocks}
+              modeValue={isModeSlot ? slotModes[slot.id as ModeSlotId] : undefined}
+              onModeChange={isModeSlot ? (patch) => patchMode(slot.id as ModeSlotId, patch) : undefined}
+              onEdit={setEditing}
+              onCustomized={(block) => setEditing(block)}
+            />
+          );
+        })}
       </div>
+
+      {/* Slot-mode save bar — appears once a mode changes */}
+      {(modesDirty || modeStatus !== "idle") && (
+        <div className="sticky bottom-4 z-20 mt-6 flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+          <div className="text-xs text-neutral-500">
+            {modeStatus === "success" && !modesDirty
+              ? <span className="font-medium text-green-600">Slot modes saved.</span>
+              : modeStatus === "error"
+                ? <span className="text-red-600">{modeError}</span>
+                : "You changed how one or more slots select their variant."}
+          </div>
+          <button
+            type="button"
+            onClick={saveModes}
+            disabled={savingModes || !modesDirty}
+            className="shrink-0 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {savingModes ? "Saving…" : "Save slot modes"}
+          </button>
+        </div>
+      )}
 
       {editing && (
         <EditBlockDrawer
