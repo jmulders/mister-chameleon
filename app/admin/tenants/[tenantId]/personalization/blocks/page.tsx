@@ -13,12 +13,23 @@
 import Link                         from "next/link";
 import { ADAPTIVE_SLOT_REGISTRY }   from "@/decision/types";
 import { listAdaptiveBlocksAction }  from "@/lib/adaptive-blocks/adaptive-blocks-actions";
+import { getAdaptiveBlockByKey }     from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import { getTenantById }             from "@/tenant/server";
+import { getFormDefinition, isFormKey } from "@/forms";
 import { TenantBlocksClient }        from "./_components/TenantBlocksClient";
 
 interface Props {
   params: Promise<{ tenantId: string }>;
 }
+
+/**
+ * Form types are adaptive slots too (forms-as-adaptive-blocks): each can carry
+ * layout / copy / field variants, targeted by a rule via plan.formVariants —
+ * exactly like the content slots above. They're surfaced here for a single
+ * overview, but their variants and delivery config are edited on the form page
+ * (Content › Forms), which also owns fields, email routing, storage, Turnstile.
+ */
+const FORM_SLOT_KEYS = ["contact", "application", "appointment"] as const;
 
 export default async function TenantBlocksPage({ params }: Props) {
   const { tenantId } = await params;
@@ -32,6 +43,15 @@ export default async function TenantBlocksPage({ params }: Props) {
   const blockTokenSets = tenant?.design?.blockTokenSets ?? [];
 
   const totalCustomized = allBlocks.filter((b) => b.tenantId === tenantId).length;
+
+  // Forms overview: each form type + how many variants it has authored.
+  const formRows = await Promise.all(
+    FORM_SLOT_KEYS.filter(isFormKey).map(async (key) => {
+      const def   = getFormDefinition(key);
+      const block = await getAdaptiveBlockByKey(`form:${key}`, tenantId);
+      return { key, title: def?.title ?? key, variantCount: block?.adaptiveVariants?.length ?? 0 };
+    }),
+  );
 
   return (
     <div className="p-8 space-y-8 max-w-4xl">
@@ -91,6 +111,47 @@ export default async function TenantBlocksPage({ params }: Props) {
         initialSlotModes={tenant?.adaptiveSlots ?? null}
         blockTokenSets={blockTokenSets}
       />
+
+      {/* Forms — adaptive slots whose variants + config live on the form page */}
+      <section className="space-y-3 border-t border-neutral-200 pt-8">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-semibold text-neutral-900">Forms</h2>
+            <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-500 ring-1 ring-neutral-200">
+              managed under Content → Forms
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-neutral-400 max-w-2xl">
+            Forms are adaptive too — each type can have layout, copy, and field variants, targeted by a
+            rule just like the slots above. Variants and delivery settings (fields, email, storage) are
+            edited on each form&apos;s page.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {formRows.map((f) => (
+            <Link
+              key={f.key}
+              href={`/admin/tenants/${tenantId}/forms/${f.key}`}
+              className="group flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 transition-colors hover:border-neutral-300"
+            >
+              <code className="shrink-0 text-xs font-mono font-semibold text-neutral-800">form:{f.key}</code>
+              <span className="min-w-0 flex-1 truncate text-[11px] text-neutral-400">{f.title}</span>
+              {f.variantCount > 0 ? (
+                <span className="inline-flex items-center rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 ring-1 ring-indigo-200">
+                  {f.variantCount} variant{f.variantCount === 1 ? "" : "s"}
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 ring-1 ring-neutral-200">
+                  No variants
+                </span>
+              )}
+              <span className="shrink-0 text-[11px] font-medium text-neutral-400 group-hover:text-neutral-700">
+                Manage →
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
     </div>
   );
