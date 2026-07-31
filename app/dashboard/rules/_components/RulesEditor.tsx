@@ -1868,10 +1868,13 @@ function deriveDefaultValue(
 // ── FormVariantFields ──────────────────────────────────────────────────────────
 
 /**
- * One select per form type that has authored variants, letting a rule (or the
- * default plan) target a form variant via plan.formVariants[type]. Selecting
- * "Default form" clears that type. Renders nothing when the tenant has authored
- * no form variants, so the section only appears once forms have variants.
+ * Form-variant targeting for a plan, grouped under one collapsible "Form
+ * variants" sub-section (forms are a category of form types, not single content
+ * slots like hero/proof/cta — so they read as one block rather than loose
+ * slots). One select per form type sets plan.formVariants[type]; "Default form"
+ * clears it. A type with no authored variants is shown disabled with a hint, so
+ * the feature stays discoverable. Collapsed by default unless the rule already
+ * targets a form variant.
  */
 function FormVariantFields({
   forms,
@@ -1883,6 +1886,8 @@ function FormVariantFields({
   onChange: (next: Record<string, string> | undefined) => void;
 }) {
   const types = forms ? Object.keys(forms) : [];
+  const activeCount = types.filter((t) => !!value?.[t]).length;
+  const [open, setOpen] = useState(() => activeCount > 0);
   if (types.length === 0) return null;
 
   function setType(type: string, key: string) {
@@ -1893,35 +1898,55 @@ function FormVariantFields({
   }
 
   return (
-    <>
-      {types.map((type) => {
-        const entries = forms?.[type] ?? [];
-        const empty   = entries.length === 0;
-        return (
-          <Field
-            key={type}
-            label={`Form variant — ${type}`}
-            hint={empty
-              ? "No variants yet — add them on this form's page to target one here."
-              : "Optional — the form layout and copy shown when this rule fires."}
-          >
-            <select
-              value={value?.[type] ?? ""}
-              onChange={(e) => setType(type, e.target.value)}
-              className={selectCls}
-              disabled={empty}
-            >
-              <option value="">— Default form —</option>
-              {entries.map((entry) => (
-                <option key={entry.key} value={entry.key}>
-                  {entry.key}{entry.label && entry.label !== entry.key ? ` — ${entry.label}` : ""}
-                </option>
-              ))}
-            </select>
-          </Field>
-        );
-      })}
-    </>
+    <div className="mt-1 border-t border-neutral-200 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+          Form variants
+          {activeCount > 0 && (
+            <span className="ml-2 font-normal normal-case text-neutral-400">
+              {activeCount} targeted
+            </span>
+          )}
+        </span>
+        <span className="text-[11px] text-neutral-400">{open ? "Hide" : "Edit"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-3 flex flex-col gap-4">
+          {types.map((type) => {
+            const entries = forms?.[type] ?? [];
+            const empty   = entries.length === 0;
+            return (
+              <Field
+                key={type}
+                label={type.charAt(0).toUpperCase() + type.slice(1)}
+                hint={empty
+                  ? "No variants yet — add them on this form's page to target one here."
+                  : "Optional — the form layout and copy shown when this rule fires."}
+              >
+                <select
+                  value={value?.[type] ?? ""}
+                  onChange={(e) => setType(type, e.target.value)}
+                  className={selectCls}
+                  disabled={empty}
+                >
+                  <option value="">— Default form —</option>
+                  {entries.map((entry) => (
+                    <option key={entry.key} value={entry.key}>
+                      {entry.key}{entry.label && entry.label !== entry.key ? ` — ${entry.label}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
