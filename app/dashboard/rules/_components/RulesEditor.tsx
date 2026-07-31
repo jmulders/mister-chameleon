@@ -1882,7 +1882,7 @@ function FormVariantFields({
   value:    Record<string, string> | undefined;
   onChange: (next: Record<string, string> | undefined) => void;
 }) {
-  const types = forms ? Object.keys(forms).filter((t) => (forms[t]?.length ?? 0) > 0) : [];
+  const types = forms ? Object.keys(forms) : [];
   if (types.length === 0) return null;
 
   function setType(type: string, key: string) {
@@ -1894,26 +1894,33 @@ function FormVariantFields({
 
   return (
     <>
-      {types.map((type) => (
-        <Field
-          key={type}
-          label={`Form variant — ${type}`}
-          hint="Optional — the form layout and copy shown when this rule fires."
-        >
-          <select
-            value={value?.[type] ?? ""}
-            onChange={(e) => setType(type, e.target.value)}
-            className={selectCls}
+      {types.map((type) => {
+        const entries = forms?.[type] ?? [];
+        const empty   = entries.length === 0;
+        return (
+          <Field
+            key={type}
+            label={`Form variant — ${type}`}
+            hint={empty
+              ? "No variants yet — add them on this form's page to target one here."
+              : "Optional — the form layout and copy shown when this rule fires."}
           >
-            <option value="">— Default form —</option>
-            {(forms?.[type] ?? []).map((entry) => (
-              <option key={entry.key} value={entry.key}>
-                {entry.key}{entry.label && entry.label !== entry.key ? ` — ${entry.label}` : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
-      ))}
+            <select
+              value={value?.[type] ?? ""}
+              onChange={(e) => setType(type, e.target.value)}
+              className={selectCls}
+              disabled={empty}
+            >
+              <option value="">— Default form —</option>
+              {entries.map((entry) => (
+                <option key={entry.key} value={entry.key}>
+                  {entry.key}{entry.label && entry.label !== entry.key ? ` — ${entry.label}` : ""}
+                </option>
+              ))}
+            </select>
+          </Field>
+        );
+      })}
     </>
   );
 }
