@@ -1189,11 +1189,24 @@ function RuleCard({
                 </select>
               </Field>
 
-              {/* Form variants — target an authored form variant per form type */}
-              <FormVariantFields
-                forms={catalogue.forms}
+              {/* Form + email variants: target an authored variant per key */}
+              <VariantTargetFields
+                title="Form variants"
+                groups={catalogue.forms}
                 value={rule.plan.formVariants}
                 onChange={(next) => onChange({ plan: { ...rule.plan, formVariants: next } })}
+                formatLabel={formatFormKey}
+                emptyHint="No variants yet. Add them on the form page to target one here."
+                defaultOptionLabel="Default form"
+              />
+              <VariantTargetFields
+                title="Email variants"
+                groups={catalogue.emails}
+                value={rule.plan.emailVariants}
+                onChange={(next) => onChange({ plan: { ...rule.plan, emailVariants: next } })}
+                formatLabel={formatEmailKey}
+                emptyHint="No variants yet. Add them on the email page to target one here."
+                defaultOptionLabel="Default email"
               />
             </div>
           </div>
@@ -1326,11 +1339,24 @@ function DefaultPlanCard({
                 </select>
               </Field>
 
-              {/* Form variants — default form variant per form type */}
-              <FormVariantFields
-                forms={catalogue.forms}
+              {/* Form + email variants: default variant per key */}
+              <VariantTargetFields
+                title="Form variants"
+                groups={catalogue.forms}
                 value={plan.formVariants}
                 onChange={(next) => onChange({ formVariants: next })}
+                formatLabel={formatFormKey}
+                emptyHint="No variants yet. Add them on the form page to target one here."
+                defaultOptionLabel="Default form"
+              />
+              <VariantTargetFields
+                title="Email variants"
+                groups={catalogue.emails}
+                value={plan.emailVariants}
+                onChange={(next) => onChange({ emailVariants: next })}
+                formatLabel={formatEmailKey}
+                emptyHint="No variants yet. Add them on the email page to target one here."
+                defaultOptionLabel="Default email"
               />
             </div>
           </div>
@@ -1865,35 +1891,56 @@ function deriveDefaultValue(
  * Groups with only one source level that spans all entries skip the <optgroup>
  * wrapper (platform-only catalogue) to keep the select clean.
  */
-// ── FormVariantFields ──────────────────────────────────────────────────────────
+// ── VariantTargetFields ─────────────────────────────────────────────────────────
+
+const EMAIL_TEMPLATE_LABELS: Record<string, string> = {
+  abm_intro:            "ABM intro",
+  application_followup: "Application follow-up",
+  contact_followup:     "Contact follow-up",
+  appointment_followup: "Appointment follow-up",
+};
+
+function formatFormKey(key: string): string {
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+function formatEmailKey(key: string): string {
+  return EMAIL_TEMPLATE_LABELS[key] ?? key;
+}
 
 /**
- * Form-variant targeting for a plan, grouped under one collapsible "Form
- * variants" sub-section (forms are a category of form types, not single content
- * slots like hero/proof/cta — so they read as one block rather than loose
- * slots). One select per form type sets plan.formVariants[type]; "Default form"
- * clears it. A type with no authored variants is shown disabled with a hint, so
- * the feature stays discoverable. Collapsed by default unless the rule already
- * targets a form variant.
+ * Targeting for a family of tenant-authored variants (forms or emails), grouped
+ * under one collapsible sub-section. Forms and emails are categories of keys,
+ * not single content slots like hero/proof/cta, so they read as one block. One
+ * select per key sets plan.<family>Variants[key]. A key with no authored
+ * variants is shown disabled with a hint, so the feature stays discoverable.
+ * Collapsed by default unless the rule already targets a variant here.
  */
-function FormVariantFields({
-  forms,
+function VariantTargetFields({
+  title,
+  groups,
   value,
   onChange,
+  formatLabel,
+  emptyHint,
+  defaultOptionLabel,
 }: {
-  forms:    Record<string, VariantEntry[]> | undefined;
-  value:    Record<string, string> | undefined;
-  onChange: (next: Record<string, string> | undefined) => void;
+  title:              string;
+  groups:             Record<string, VariantEntry[]> | undefined;
+  value:              Record<string, string> | undefined;
+  onChange:           (next: Record<string, string> | undefined) => void;
+  formatLabel:        (key: string) => string;
+  emptyHint:          string;
+  defaultOptionLabel: string;
 }) {
-  const types = forms ? Object.keys(forms) : [];
-  const activeCount = types.filter((t) => !!value?.[t]).length;
+  const keys = groups ? Object.keys(groups) : [];
+  const activeCount = keys.filter((k) => !!value?.[k]).length;
   const [open, setOpen] = useState(() => activeCount > 0);
-  if (types.length === 0) return null;
+  if (keys.length === 0) return null;
 
-  function setType(type: string, key: string) {
+  function setKey(key: string, variantKey: string) {
     const next: Record<string, string> = { ...(value ?? {}) };
-    if (key) next[type] = key;
-    else delete next[type];
+    if (variantKey) next[key] = variantKey;
+    else delete next[key];
     onChange(Object.keys(next).length > 0 ? next : undefined);
   }
 
@@ -1905,7 +1952,7 @@ function FormVariantFields({
         className="flex w-full items-center justify-between text-left"
       >
         <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-          Form variants
+          {title}
           {activeCount > 0 && (
             <span className="ml-2 font-normal normal-case text-neutral-400">
               {activeCount} targeted
@@ -1917,27 +1964,25 @@ function FormVariantFields({
 
       {open && (
         <div className="mt-3 flex flex-col gap-4">
-          {types.map((type) => {
-            const entries = forms?.[type] ?? [];
+          {keys.map((key) => {
+            const entries = groups?.[key] ?? [];
             const empty   = entries.length === 0;
             return (
               <Field
-                key={type}
-                label={type.charAt(0).toUpperCase() + type.slice(1)}
-                hint={empty
-                  ? "No variants yet — add them on this form's page to target one here."
-                  : "Optional — the form layout and copy shown when this rule fires."}
+                key={key}
+                label={formatLabel(key)}
+                hint={empty ? emptyHint : "Optional. Applied when this rule fires."}
               >
                 <select
-                  value={value?.[type] ?? ""}
-                  onChange={(e) => setType(type, e.target.value)}
+                  value={value?.[key] ?? ""}
+                  onChange={(e) => setKey(key, e.target.value)}
                   className={selectCls}
                   disabled={empty}
                 >
-                  <option value="">— Default form —</option>
+                  <option value="">{defaultOptionLabel}</option>
                   {entries.map((entry) => (
                     <option key={entry.key} value={entry.key}>
-                      {entry.key}{entry.label && entry.label !== entry.key ? ` — ${entry.label}` : ""}
+                      {entry.key}{entry.label && entry.label !== entry.key ? ` (${entry.label})` : ""}
                     </option>
                   ))}
                 </select>

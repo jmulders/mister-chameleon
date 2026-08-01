@@ -84,6 +84,12 @@ export interface VariantCatalogue {
    * at least one variant for it. A rule targets one via plan.formVariants.
    */
   forms?:     Record<string, VariantEntry[]>;
+
+  /**
+   * Authored email variants, keyed by email template key (abm_intro / … ).
+   * Tenant-authored like forms; a rule targets one via plan.emailVariants.
+   */
+  emails?:    Record<string, VariantEntry[]>;
 }
 
 // ── Source labels ──────────────────────────────────────────────────────────────
@@ -212,5 +218,6 @@ export function buildPlatformCatalogue(): VariantCatalogue {
       source: "platform" as const,
     })),
     forms: {},
+    emails: {},
   };
 }

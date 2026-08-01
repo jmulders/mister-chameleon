@@ -404,6 +404,17 @@ export interface StoredPlan {
    * unchanged unless a rule targets a form variant.
    */
   formVariants?: Record<string, string>;
+
+  /**
+   * Per-email-template variant keys chosen by the engine (adaptive emails).
+   * Maps an email template key (abm_intro / contact_followup / …) to a variant
+   * key stored in the tenant's `email:<templateKey>` adaptive-block row. When a
+   * template is absent, the adaptive email uses its resolved template (tenant
+   * override over the code default), so behaviour is unchanged unless a rule
+   * targets an email variant. A variant may override the subject, preheader,
+   * and/or block set.
+   */
+  emailVariants?: Record<string, string>;
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────
@@ -783,6 +794,24 @@ function validatePlan(
           errors.push({ ruleId, field: `${idx}.plan.formVariants.${type}`, message: `Invalid form type "${type}". Allowed: ${validFormTypes.join(", ")}` });
         } else if (typeof key !== "string" || key.trim() === "") {
           errors.push({ ruleId, field: `${idx}.plan.formVariants.${type}`, message: "variant key must be a non-empty string." });
+        }
+      }
+    }
+  }
+
+  // Email variants map an email TEMPLATE key to a tenant-defined variant key.
+  // Same shape-only validation as formVariants (keys are tenant data).
+  if (plan.emailVariants !== undefined) {
+    const ev = plan.emailVariants;
+    if (!ev || typeof ev !== "object" || Array.isArray(ev)) {
+      errors.push({ ruleId, field: `${idx}.plan.emailVariants`, message: "emailVariants must be an object mapping an email template key to a variant key." });
+    } else {
+      const validTemplates = ["abm_intro", "application_followup", "contact_followup", "appointment_followup"];
+      for (const [tpl, key] of Object.entries(ev as Record<string, unknown>)) {
+        if (!validTemplates.includes(tpl)) {
+          errors.push({ ruleId, field: `${idx}.plan.emailVariants.${tpl}`, message: `Invalid email template "${tpl}". Allowed: ${validTemplates.join(", ")}` });
+        } else if (typeof key !== "string" || key.trim() === "") {
+          errors.push({ ruleId, field: `${idx}.plan.emailVariants.${tpl}`, message: "variant key must be a non-empty string." });
         }
       }
     }

@@ -62,7 +62,8 @@ export default async function TenantBlocksPage({ params }: Props) {
           <h1 className="text-xl font-semibold text-neutral-900">Adaptive blocks</h1>
           <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
             Manage the personalised content for each adaptive slot on this tenant&apos;s site, and set
-            per slot how a variant is selected (<em>Mode</em>: AI-assisted, rules-only, or a fixed key).
+            per slot how a variant is selected with the <em>Mode</em> control (AI-assisted, rules-only,
+            or a fixed key).
             Blocks marked <strong className="font-semibold text-neutral-700">Platform default</strong> inherit
             from the shared catalog. Click <em>Customize</em> to create a tenant-specific version.
             Tenant blocks take full precedence over platform defaults.
@@ -122,7 +123,7 @@ export default async function TenantBlocksPage({ params }: Props) {
             </span>
           </div>
           <p className="mt-0.5 text-xs text-neutral-400 max-w-2xl">
-            Forms are adaptive too — each type can have layout, copy, and field variants, targeted by a
+            Forms are adaptive too. Each type can have layout, copy, and field variants, targeted by a
             rule just like the slots above. Variants and delivery settings (fields, email, storage) are
             edited on each form&apos;s page.
           </p>

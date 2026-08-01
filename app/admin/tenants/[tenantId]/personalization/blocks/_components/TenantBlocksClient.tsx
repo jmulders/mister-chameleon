@@ -30,8 +30,8 @@ type ModeSlotId = keyof SaveSlotModesInput;
 const MODE_SLOT_IDS: readonly ModeSlotId[] = ["hero", "proof", "cta", "feature", "conversion", "notification"];
 
 const MODE_OPTIONS: Array<{ value: TenantSlotMode; label: string; hint: string }> = [
-  { value: "ai-assisted", label: "AI-assisted", hint: "AI may pick this slot when confidence gates pass; falls back to rules." },
-  { value: "rules-only",  label: "Rules only",  hint: "Always use the rules plan key; AI is never consulted for this slot." },
+  { value: "ai-assisted", label: "AI-assisted", hint: "AI may pick this slot when confidence gates pass, and falls back to rules." },
+  { value: "rules-only",  label: "Rules only",  hint: "Always use the rules plan key. AI is never consulted for this slot." },
   { value: "static",      label: "Static",      hint: "Always serve the fixed key you choose, regardless of context." },
 ];
 
@@ -77,7 +77,7 @@ function SlotModeControl({
           onChange={(e) => onChange({ staticKey: e.target.value })}
           className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
-          <option value="" disabled>— fixed key —</option>
+          <option value="" disabled>Choose a fixed key</option>
           {knownKeys.map((k) => (
             <option key={k} value={k}>{k}</option>
           ))}

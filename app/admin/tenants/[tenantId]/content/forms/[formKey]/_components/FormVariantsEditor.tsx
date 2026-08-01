@@ -280,8 +280,8 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
           <select className={input} value={draft.template}
             onChange={(e) => setDraft({ ...draft, template: e.target.value as Template })}>
             <option value="single">Single column</option>
-            <option value="split-left">Split — contact panel left</option>
-            <option value="split-right">Split — contact panel right</option>
+            <option value="split-left">Split with contact panel left</option>
+            <option value="split-right">Split with contact panel right</option>
           </select>
         </Field>
 
@@ -312,7 +312,7 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
             <span className="text-xs font-medium text-neutral-700">
               Fields
               <span className="ml-2 font-normal text-neutral-400">
-                {fieldsCustomised ? `customised — ${includedCount} shown` : "all fields (default)"}
+                {fieldsCustomised ? `customised (${includedCount} shown)` : "all fields (default)"}
               </span>
             </span>
             <span className="text-xs text-neutral-400">{showFields ? "Hide" : "Edit"}</span>
@@ -331,7 +331,7 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
                     checked={r.include}
                     disabled={r.required}
                     onChange={(e) => patchRow(i, { include: e.target.checked })}
-                    title={r.required ? "Required — always included" : "Include this field"}
+                    title={r.required ? "Required, always included" : "Include this field"}
                     className="h-4 w-4 accent-neutral-900 disabled:opacity-50"
                   />
                   <span className="w-28 shrink-0 font-mono text-[11px] text-neutral-600" title={`${r.key} (${r.type})`}>
