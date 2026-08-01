@@ -336,5 +336,6 @@ function applyChallenger(
     ...(cp.featureKey    ? { featureKey:    cp.featureKey    as ExperiencePlan["featureKey"]    } : {}),
     ...(cp.conversionKey ? { conversionKey: cp.conversionKey as ExperiencePlan["conversionKey"] } : {}),
     ...(cp.formVariants  ? { formVariants:  cp.formVariants  as ExperiencePlan["formVariants"]  } : {}),
+    ...(cp.emailVariants ? { emailVariants: cp.emailVariants as ExperiencePlan["emailVariants"] } : {}),
   };
 }

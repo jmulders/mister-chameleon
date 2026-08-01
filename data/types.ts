@@ -362,6 +362,8 @@ export interface PlanExperimentRow {
     conversionKey?: string;
     /** Per-form-type variant keys (forms-as-adaptive-blocks). */
     formVariants?:  Record<string, string>;
+    /** Per-email-template variant keys (adaptive emails). */
+    emailVariants?: Record<string, string>;
   };
   /** Lifecycle state */
   status: "draft" | "active" | "paused" | "ended";

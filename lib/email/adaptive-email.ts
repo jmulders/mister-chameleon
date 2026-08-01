@@ -27,6 +27,8 @@ import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
 import { createCMSProvider } from "@/cms";
 import { renderBlockHtml } from "@/lib/snippet/render-block-html";
 import { getAbmLeadByHandle, getAbmLeadById } from "@/lib/abm/abm-store";
+import { getAdaptiveBlockByKey } from "@/lib/adaptive-blocks/adaptive-blocks-store";
+import type { EmailVariantContent } from "./email-variant";
 import { makeUnsubscribeToken } from "./unsubscribe-token";
 import { sanitizeEmailHtml } from "./sanitize-email-html";
 import { resolvePublicBaseUrl } from "@/lib/base-url";
@@ -63,6 +65,9 @@ export const EMAIL_TEMPLATES: Record<EmailTemplateKey, EmailTemplate> = {
   appointment_followup: { label: "Appointment follow-up", blocks: ["hero", "cta", "footer"],          subject: "Let's get your call set, {name}", preheader: "About your requested call with {company}." },
 };
 
+/** The email template keys, as an array (for validation + the rules catalogue). */
+export const EMAIL_TEMPLATE_KEYS = Object.keys(EMAIL_TEMPLATES) as EmailTemplateKey[];
+
 /**
  * Blocks an email template may include: adaptive content blocks (content comes
  * from the adaptive blocks library) plus the email-native "footer" (sender line
@@ -75,23 +80,47 @@ export const EMAIL_BLOCK_KEYS = ["hero", "proof", "cta", "feature", "conversion"
  * layered over the code default. Subject, preheader, and the block set/order are
  * overridable — the adaptive block CONTENT still comes from the blocks library.
  */
+/** Keep only well-formed block entries: known adaptive keys, or text/html objects. */
+export function filterValidEmailBlocks(blocks: readonly EmailBlockEntry[] | undefined): EmailBlockEntry[] {
+  return (blocks ?? []).filter(
+    (b) => (typeof b === "object" && b !== null
+              && (("text" in b && typeof b.text === "string") || ("html" in b && typeof b.html === "string")))
+      || (typeof b === "string" && (EMAIL_BLOCK_KEYS as readonly string[]).includes(b)),
+  );
+}
+
 export function resolveEmailTemplate(
   tenant: { emailTemplates?: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> } | null,
   key: EmailTemplateKey,
 ): EmailTemplate {
   const base = EMAIL_TEMPLATES[key];
   const ov   = tenant?.emailTemplates?.[key];
-  const validBlocks = (ov?.blocks ?? []).filter(
-    (b) => (typeof b === "object" && b !== null
-              && (("text" in b && typeof b.text === "string") || ("html" in b && typeof b.html === "string")))
-      || (typeof b === "string" && (EMAIL_BLOCK_KEYS as readonly string[]).includes(b)),
-  );
+  const validBlocks = filterValidEmailBlocks(ov?.blocks);
   return {
     label:     base.label,
     subject:   ov?.subject && ov.subject.trim() ? ov.subject.trim() : base.subject,
     preheader: ov?.preheader && ov.preheader.trim() ? ov.preheader.trim() : base.preheader,
     blocks:    validBlocks.length > 0 ? validBlocks : base.blocks,
   };
+}
+
+/**
+ * Load a single email variant's content from the tenant's `email:<templateKey>`
+ * adaptive-block row (rule-selected email variants). Returns null when the block
+ * or variant key is absent. Never throws.
+ */
+export async function loadEmailVariant(
+  tenantId:    string,
+  templateKey: string,
+  variantKey:  string,
+): Promise<EmailVariantContent | null> {
+  try {
+    const block = await getAdaptiveBlockByKey(`email:${templateKey}`, tenantId);
+    const entry = block?.adaptiveVariants?.find((v) => v.variantKey === variantKey);
+    return entry ? (entry.content as unknown as EmailVariantContent) : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface EmailRecipient {
@@ -188,8 +217,9 @@ export async function renderAdaptiveEmail(params: {
 
   const tenant = await getTenantById(params.tenantId);
   if (!tenant) throw new Error("Tenant not found.");
-  // Effective template = per-tenant override (subject + block set) over the default.
-  const tmpl = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> }, params.templateKey);
+  // Effective template = per-tenant override (subject + block set) over the
+  // default. A rule-selected variant (below, once we have the plan) layers on top.
+  let tmpl = resolveEmailTemplate(tenant as { emailTemplates?: Record<string, { subject?: string; blocks?: EmailBlockEntry[]; preheader?: string }> }, params.templateKey);
   const locale = params.locale ?? DEFAULT_LOCALE;
 
   // 1. Identity → known ABM lead (explicit id, else deterministic email handle).
@@ -225,6 +255,23 @@ export async function renderAdaptiveEmail(params: {
     params.tenantId,
   );
   const plan = await provider.getHomepagePlan(ctx);
+
+  // 3b. Rule-selected email variant: when a rule set plan.emailVariants for this
+  //     template, layer its subject / preheader / block-set over the resolved
+  //     template. Block CONTENT still comes from the plan + blocks library below.
+  const variantKey = plan.emailVariants?.[params.templateKey];
+  if (variantKey) {
+    const variant = await loadEmailVariant(params.tenantId, params.templateKey, variantKey);
+    if (variant) {
+      const vBlocks = filterValidEmailBlocks(variant.blocks);
+      tmpl = {
+        ...tmpl,
+        subject:   variant.subject?.trim()   ? variant.subject.trim()   : tmpl.subject,
+        preheader: variant.preheader?.trim() ? variant.preheader.trim() : tmpl.preheader,
+        blocks:    vBlocks.length > 0 ? vBlocks : tmpl.blocks,
+      };
+    }
+  }
 
   // 4/5. Fetch winning variant content per template block and render it.
   const cms = createCMSProvider(tenant.cms, params.tenantId, locale);

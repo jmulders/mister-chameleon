@@ -526,6 +526,14 @@ export interface ExperiencePlan {
   formVariants?: Record<string, string>;
 
   /**
+   * Per-email-template variant keys chosen by the engine (adaptive emails).
+   * Maps an email template key to a variant key in the tenant's
+   * `email:<templateKey>` adaptive-block row. When a template is absent, the
+   * adaptive email uses its resolved template (no variant applied).
+   */
+  emailVariants?: Record<string, string>;
+
+  /**
    * Context-driven theme override.
    *
    * When set by a ThemeRule (date/time/campaign), this key overrides the
