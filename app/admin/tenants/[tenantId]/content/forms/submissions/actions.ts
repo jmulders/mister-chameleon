@@ -17,7 +17,7 @@ import {
   type FormSubmissionRow,
   type ListFormSubmissionsInput,
 } from "@/data/repositories/form-submissions-repository";
-import { getTenantFormSettingsAction } from "@/app/admin/tenants/[tenantId]/forms/actions";
+import { getTenantFormSettingsAction } from "@/app/admin/tenants/[tenantId]/content/forms/actions";
 import { DEFAULT_TENANT_FORM_SETTINGS } from "@/tenant/types";
 import type { TenantFormSettings }       from "@/tenant/types";
 import { logger }                        from "@/lib/logger";
@@ -119,7 +119,7 @@ export async function deleteFormSubmissionAction(
       return { ok: false, error: result.error };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms/submissions`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms/submissions`);
     return { ok: true };
   } catch (err) {
     logger.error("[submissions-actions] deleteFormSubmissionAction failed", {
@@ -246,7 +246,7 @@ export async function saveRetentionSettingAction(
       return { ok: false, error: `Save failed: ${error.message}` };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms`);
     return { ok: true };
   } catch (err) {
     logger.error("[submissions-actions] saveRetentionSettingAction failed", {

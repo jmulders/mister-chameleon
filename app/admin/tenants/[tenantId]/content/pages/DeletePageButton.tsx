@@ -21,7 +21,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { deletePageAction } from "../actions";
+import { deletePageAction } from "../../actions";
 
 interface DeletePageButtonProps {
   /** The tenant that owns this page (from route params — server-supplied). */

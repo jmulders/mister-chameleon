@@ -7,7 +7,7 @@
  * ─── Access control ───────────────────────────────────────────────────────────
  *
  *   These actions are called from the per-form config page
- *   (/admin/tenants/[tenantId]/forms/[formKey]).  Authorization is enforced by
+ *   (/admin/tenants/[tenantId]/content/forms/[formKey]).  Authorization is enforced by
  *   the parent layout.tsx (assertTenantAccess) — only authenticated tenant admins
  *   can reach this page.
  *
@@ -158,8 +158,8 @@ export async function saveTenantFormOverrideAction(
       return { ok: false, error: result.error.message };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms/${formKey}`);
-    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms/${formKey}`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms`);
     return { ok: true };
   } catch (err) {
     const msg = String(err);
@@ -197,8 +197,8 @@ export async function resetTenantFormOverrideAction(
       return { ok: false, error: result.error.message };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms/${formKey}`);
-    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms/${formKey}`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms`);
     return { ok: true };
   } catch (err) {
     const msg = String(err);

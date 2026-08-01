@@ -1,7 +1,7 @@
 /**
  * Admin — Formulier Inzendingen
  *
- * Accessible at /admin/tenants/[tenantId]/forms/submissions.
+ * Accessible at /admin/tenants/[tenantId]/content/forms/submissions.
  *
  * Server component — pre-fetches the first page of submissions and passes
  * everything to the SubmissionsClient for interactive filtering/pagination.
@@ -14,7 +14,7 @@ import Link           from "next/link";
 import { getTenantById }   from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
 import { listFormSubmissionsAction } from "./actions";
-import { getTenantFormSettingsAction } from "@/app/admin/tenants/[tenantId]/forms/actions";
+import { getTenantFormSettingsAction } from "@/app/admin/tenants/[tenantId]/content/forms/actions";
 import { SubmissionsClient } from "./_components/SubmissionsClient";
 
 export default async function FormSubmissionsPage({
@@ -51,7 +51,7 @@ export default async function FormSubmissionsPage({
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 text-sm text-slate-400">
         <Link
-          href={`/admin/tenants/${tenantId}/forms`}
+          href={`/admin/tenants/${tenantId}/content/forms`}
           className="hover:text-white transition-colors"
         >
           Form settings

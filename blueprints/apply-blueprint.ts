@@ -326,10 +326,10 @@ export async function applyBlueprint(
 
   // ── Step 6: Revalidate admin pages ────────────────────────────────────────
 
-  revalidatePath(`/admin/tenants/${tenantId}/blueprints`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/blueprints`);
   revalidatePath(`/admin/tenants/${tenantId}/behavior`);
   revalidatePath(`/admin/tenants/${tenantId}/rules`);
-  revalidatePath(`/admin/tenants/${tenantId}/pages`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/pages`);
   revalidatePath(`/admin/tenants/${tenantId}/content`);
 
   return {

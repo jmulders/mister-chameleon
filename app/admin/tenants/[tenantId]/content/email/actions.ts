@@ -157,7 +157,7 @@ export async function saveEmailTemplatesAction(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await saveTenant({ ...tenant, emailTemplates: clean } as any);
-  revalidatePath(`/admin/tenants/${tenantId}/email`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/email`);
   return { ok: true };
 }
 
@@ -253,6 +253,6 @@ export async function setFormSubmitTriggerAction(
   if (!tenant) return { ok: false, error: "Tenant not found." };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await saveTenant({ ...tenant, adaptiveEmail: { onFormSubmit: { enabled: input.enabled, templateKey: input.templateKey } } } as any);
-  revalidatePath(`/admin/tenants/${tenantId}/email`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/email`);
   return { ok: true };
 }

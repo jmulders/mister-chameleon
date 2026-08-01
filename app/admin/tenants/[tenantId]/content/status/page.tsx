@@ -153,7 +153,7 @@ export default async function TenantContentStatusPage({
           </Text>
         </div>
         <Link
-          href={`/admin/tenants/${tenantId}/pages`}
+          href={`/admin/tenants/${tenantId}/content/pages`}
           className="inline-flex h-8 items-center rounded-md bg-brand-500 px-3 text-xs font-medium text-white hover:bg-brand-600 transition-colors"
         >
           Manage pages →
@@ -248,7 +248,7 @@ export default async function TenantContentStatusPage({
               <p className="py-4 text-center text-sm text-neutral-400">
                 No pages found for this tenant.{" "}
                 <Link
-                  href={`/admin/tenants/${tenantId}/pages/new`}
+                  href={`/admin/tenants/${tenantId}/content/pages/new`}
                   className="text-brand-600 hover:underline"
                 >
                   Create the first page →
@@ -294,7 +294,7 @@ export default async function TenantContentStatusPage({
                         </td>
                         <td className="px-3 py-2 text-right">
                           <Link
-                            href={`/admin/tenants/${tenantId}/pages/${page.id}`}
+                            href={`/admin/tenants/${tenantId}/content/pages/${page.id}`}
                             className="text-xs text-neutral-400 hover:text-brand-700 transition-colors"
                           >
                             Edit →
@@ -310,7 +310,7 @@ export default async function TenantContentStatusPage({
             {pages.length > 5 && (
               <div className="mt-3 text-right">
                 <Link
-                  href={`/admin/tenants/${tenantId}/pages`}
+                  href={`/admin/tenants/${tenantId}/content/pages`}
                   className="text-xs text-brand-600 hover:underline"
                 >
                   View all {pages.length} pages →

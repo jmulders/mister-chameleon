@@ -373,7 +373,7 @@ export function AssetPickerModal({
                 <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 text-xs text-neutral-400 shrink-0">
                   <span>{filtered.length} asset{filtered.length !== 1 ? "s" : ""}</span>
                   <a
-                    href={`/admin/tenants/${tenantId}/assets`}
+                    href={`/admin/tenants/${tenantId}/content/assets`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-brand-600 hover:underline"

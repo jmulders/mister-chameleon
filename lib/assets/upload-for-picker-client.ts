@@ -16,7 +16,7 @@ import type { TenantAsset } from "./tenant-assets";
 import {
   createAssetUploadUrlAction,
   registerUploadedAssetAction,
-} from "@/app/admin/tenants/[tenantId]/assets/actions";
+} from "@/app/admin/tenants/[tenantId]/content/assets/actions";
 
 // Files at/above this size (or any video) take the direct-to-storage path.
 const DIRECT_THRESHOLD = 4 * 1024 * 1024; // 4 MB

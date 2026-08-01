@@ -1149,7 +1149,7 @@ function SiteInitReportPanel({ tenantId, report, warnings }: SiteInitReportPanel
                 </code>
                 {page.pageId && page.status !== "skipped" && (
                   <Link
-                    href={`/admin/tenants/${tenantId}/pages/${page.pageId}`}
+                    href={`/admin/tenants/${tenantId}/content/pages/${page.pageId}`}
                     className="text-[10px] text-neutral-400 transition-colors hover:text-brand-700"
                   >
                     Edit →
@@ -1198,7 +1198,7 @@ function SiteInitReportPanel({ tenantId, report, warnings }: SiteInitReportPanel
             </Link>
           ) : (
             <Link
-              href={`/admin/tenants/${tenantId}/pages`}
+              href={`/admin/tenants/${tenantId}/content/pages`}
               className="text-xs font-medium text-brand-600 transition-colors hover:text-brand-800"
             >
               View all pages →

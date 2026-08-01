@@ -1,7 +1,7 @@
 /**
  * Admin — New page (from preset)
  *
- * Route: /admin/tenants/[tenantId]/pages/new
+ * Route: /admin/tenants/[tenantId]/content/pages/new
  *
  * Server component that:
  *   1. Reads all registered presets from the central registry.
@@ -10,7 +10,7 @@
  *
  * On submit the client component calls the bound action, which persists the
  * new page to the store and returns the new pageId.  The client then navigates
- * directly to the new page's editor (/admin/tenants/[tenantId]/pages/[pageId]).
+ * directly to the new page's editor (/admin/tenants/[tenantId]/content/pages/[pageId]).
  */
 
 import Link                        from "next/link";
@@ -40,7 +40,7 @@ export default async function NewTenantPagePage({
       {/* Back link */}
       <div className="mb-4">
         <Link
-          href={`/admin/tenants/${tenantId}/pages`}
+          href={`/admin/tenants/${tenantId}/content/pages`}
           className="text-xs text-neutral-400 transition-colors hover:text-brand-700"
         >
           ← Back to pages

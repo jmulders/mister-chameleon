@@ -1,7 +1,7 @@
 /**
  * Admin — Per-Form Configuration
  *
- * Accessible at /admin/tenants/[tenantId]/forms/[formKey].
+ * Accessible at /admin/tenants/[tenantId]/content/forms/[formKey].
  * Linked from the "Configure" button in the Registered Forms table.
  *
  * ─── What this page does ──────────────────────────────────────────────────────

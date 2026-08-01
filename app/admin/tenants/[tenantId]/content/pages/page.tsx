@@ -104,7 +104,7 @@ function PageRow({
       {/* Edit action */}
       <td className="px-4 py-3 text-right">
         <Link
-          href={`/admin/tenants/${tenantId}/pages/${page.id}`}
+          href={`/admin/tenants/${tenantId}/content/pages/${page.id}`}
           className="text-xs text-neutral-400 hover:text-brand-700 transition-colors"
           aria-label={`Edit ${page.title}`}
         >

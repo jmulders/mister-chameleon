@@ -127,8 +127,8 @@ export async function createPageFromPresetAction(
 
   await savePage(page);
 
-  revalidatePath(`/admin/tenants/${tenantId}/pages`);
-  revalidatePath(`/admin/tenants/${tenantId}/pages/${newId}`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/pages`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/pages/${newId}`);
 
   return { ok: true, pageId: newId };
 }
