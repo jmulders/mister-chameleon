@@ -6,60 +6,7 @@
  */
 
 import type { FormField } from "@/forms";
-import type {
-  FormContextRule,
-  FormContextConditions,
-  FormContextSignals,
-  FormOverlay,
-  ResolvedForm,
-} from "./types";
-
-function norm(v: string | null | undefined): string {
-  return (v ?? "").trim().toLowerCase();
-}
-
-/** Does a single rule's conditions all match the request signals? */
-export function ruleMatches(cond: FormContextConditions, signals: FormContextSignals): boolean {
-  const path    = norm(signals.path || "/");
-  const query   = signals.query ?? {};
-  const country = norm(signals.country);
-
-  if (cond.pathStartsWith && !path.startsWith(norm(cond.pathStartsWith))) return false;
-  if (cond.pathExact && path !== norm(cond.pathExact)) return false;
-
-  if (cond.utmSource   && norm(query.utm_source)   !== norm(cond.utmSource))   return false;
-  if (cond.utmMedium   && norm(query.utm_medium)   !== norm(cond.utmMedium))   return false;
-  if (cond.utmCampaign && norm(query.utm_campaign) !== norm(cond.utmCampaign)) return false;
-
-  if (cond.queryKey) {
-    const actual = norm(query[cond.queryKey.trim().toLowerCase()] ?? query[cond.queryKey]);
-    if (norm(cond.queryValue) !== actual) return false;
-  }
-
-  if (cond.country && norm(cond.country) !== country) return false;
-
-  return true;
-}
-
-/**
- * Resolve the winning segment for a request. Enabled rules are evaluated in
- * ascending `priority` (ties keep array order); the first match wins.
- * Returns null when nothing matched (caller falls back to the base form).
- */
-export function resolveFormSegment(
-  rules: readonly FormContextRule[],
-  signals: FormContextSignals,
-): string | null {
-  const ordered = [...rules]
-    .filter((r) => r.enabled !== false)
-    .map((r, i) => ({ r, i }))
-    .sort((a, b) => (a.r.priority - b.r.priority) || (a.i - b.i));
-
-  for (const { r } of ordered) {
-    if (ruleMatches(r.conditions, signals)) return r.segment;
-  }
-  return null;
-}
+import type { FormOverlay, ResolvedForm } from "./types";
 
 /**
  * Apply an overlay on top of the base field set, producing the final

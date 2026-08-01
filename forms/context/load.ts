@@ -1,10 +1,11 @@
 /**
  * Contextual forms — server-side resolution.
  *
- * Combines the tenant's stored rules/overlays (settings.formContext) with the
- * base FormDefinition and the request signals to produce the ready-to-render
- * form. Used by both the render endpoint and the submit handler so they always
- * agree on the same segment (and therefore the same field set).
+ * Builds the ready-to-render form from the base FormDefinition plus per-form
+ * presentation extras (Turnstile, layout). Per-visitor variant selection is
+ * handled by the decision engine (a rule sets plan.formVariants and the decide
+ * route layers the chosen variant on top), so this module no longer reads the
+ * retired settings.formContext rules/overlays.
  */
 
 import "server-only";
