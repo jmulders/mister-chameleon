@@ -17,12 +17,18 @@
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import type { EmailVariantEntry, EmailVariantContent } from "@/lib/email/email-variant";
+import type { EmailBlockEntry } from "@/lib/email/adaptive-email";
 import {
   saveEmailVariantAction,
   deleteEmailVariantAction,
 } from "../email-variants-actions";
+import { HtmlBlockEditor } from "./HtmlBlockEditor";
 
 type Result = { ok: true } | { ok: false; error: string };
+
+const isText = (b: EmailBlockEntry): b is { text: string } => typeof b === "object" && b !== null && "text" in b;
+const isHtml = (b: EmailBlockEntry): b is { html: string } => typeof b === "object" && b !== null && "html" in b;
+const btnGhost = "inline-flex items-center rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40";
 
 export interface EmailTemplateMeta {
   key:            string;
@@ -84,7 +90,7 @@ function TemplateVariants({
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const blank = () => ({
     variantKey: "", label: "", subject: "", preheader: "",
-    blocks: {} as Record<string, boolean>,
+    blocks: [] as EmailBlockEntry[],
   });
   const [draft, setDraft]   = useState(blank);
   const [showAdd, setShowAdd] = useState(false);
@@ -94,24 +100,38 @@ function TemplateVariants({
 
   function edit(v: EmailVariantEntry) {
     const c = v.content;
-    const blocks: Record<string, boolean> = {};
-    for (const b of c.blocks ?? []) if (typeof b === "string") blocks[b] = true;
     setEditingKey(v.variantKey);
     setDraft({
       variantKey: v.variantKey, label: v.label ?? "",
-      subject: c.subject ?? "", preheader: c.preheader ?? "", blocks,
+      subject: c.subject ?? "", preheader: c.preheader ?? "", blocks: [...(c.blocks ?? [])],
     });
     setShowAdd(true); setError(null); setSaved(false);
   }
 
   function reset() { setEditingKey(null); setDraft(blank()); setShowAdd(false); }
 
+  // Block-list mutators (adaptive keys + free text + rich HTML, in order).
+  const setBlocks = (updater: (cur: EmailBlockEntry[]) => EmailBlockEntry[]) =>
+    setDraft((d) => ({ ...d, blocks: updater(d.blocks) }));
+  const addKeyBlock = (k: string) => { if (k) setBlocks((cur) => (cur.includes(k) ? cur : [...cur, k])); };
+  const addText  = () => setBlocks((cur) => [...cur, { text: "" }]);
+  const addHtml  = () => setBlocks((cur) => [...cur, { html: "" }]);
+  const setText  = (i: number, text: string) => setBlocks((cur) => cur.map((b, idx) => (idx === i ? { text } : b)));
+  const setHtml  = (i: number, html: string) => setBlocks((cur) => cur.map((b, idx) => (idx === i ? { html } : b)));
+  const removeBlock = (i: number) => setBlocks((cur) => cur.filter((_, idx) => idx !== i));
+  const moveBlock = (i: number, dir: -1 | 1) => setBlocks((cur) => {
+    const j = i + dir;
+    if (j < 0 || j >= cur.length) return cur;
+    const next = [...cur];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
+
   function toContent(): EmailVariantContent {
-    const blocks = blockKeys.filter((k) => draft.blocks[k]);
     return {
       subject:   draft.subject.trim()   || undefined,
       preheader: draft.preheader.trim() || undefined,
-      ...(blocks.length > 0 ? { blocks } : {}),
+      ...(draft.blocks.length > 0 ? { blocks: draft.blocks } : {}),
     };
   }
 
@@ -202,28 +222,53 @@ function TemplateVariants({
               onChange={(e) => setDraft({ ...draft, preheader: e.target.value })}
               placeholder="Inbox preview text" />
           </Field>
-          <Field label="Blocks">
-            <div className="flex flex-wrap gap-2">
-              {blockKeys.map((k) => {
-                const on = !!draft.blocks[k];
-                return (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setDraft({ ...draft, blocks: { ...draft.blocks, [k]: !on } })}
-                    className={[
-                      "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                      on ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300",
-                    ].join(" ")}
-                  >
-                    {k}
-                  </button>
-                );
-              })}
+          <Field label="Blocks (in order)">
+            {draft.blocks.length === 0 && (
+              <p className="text-[11px] text-neutral-400">
+                Leave empty to use the template default ({template.defaultBlocks.join(", ") || "none"}).
+              </p>
+            )}
+            <ul className="space-y-1.5">
+              {draft.blocks.map((b, i) => (
+                <li key={i} className="rounded-md border border-neutral-200 bg-white px-2.5 py-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-400">{i + 1}.</span>
+                    <span className="flex-1 text-sm text-neutral-700">
+                      {typeof b === "string"
+                        ? <span className="capitalize">{b}</span>
+                        : <span className="text-indigo-700">{isHtml(b) ? "HTML" : "Text"}</span>}
+                    </span>
+                    <button type="button" className={btnGhost} disabled={i === 0} onClick={() => moveBlock(i, -1)}>↑</button>
+                    <button type="button" className={btnGhost} disabled={i === draft.blocks.length - 1} onClick={() => moveBlock(i, 1)}>↓</button>
+                    <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => removeBlock(i)}>Remove</button>
+                  </div>
+                  {isText(b) && (
+                    <textarea className={`${input} mt-2`} rows={3} value={b.text}
+                      onChange={(e) => setText(i, e.target.value)}
+                      placeholder="Type your own copy here. Supports {name} and {company}." />
+                  )}
+                  {isHtml(b) && (
+                    <div className="mt-2"><HtmlBlockEditor value={b.html} onChange={(h) => setHtml(i, h)} /></div>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {blockKeys.filter((k) => !draft.blocks.includes(k)).length > 0 && (
+                <select
+                  className={`${input} max-w-[200px]`}
+                  value=""
+                  onChange={(e) => { addKeyBlock(e.target.value); e.currentTarget.value = ""; }}
+                >
+                  <option value="">Add adaptive block</option>
+                  {blockKeys.filter((k) => !draft.blocks.includes(k)).map((k) => (
+                    <option key={k} value={k} className="capitalize">{k}</option>
+                  ))}
+                </select>
+              )}
+              <button type="button" className={btnGhost} onClick={addText}>Add text</button>
+              <button type="button" className={btnGhost} onClick={addHtml}>Add HTML</button>
             </div>
-            <p className="mt-1 text-[11px] text-neutral-400">
-              Leave all off to use the template default ({template.defaultBlocks.join(", ") || "none"}).
-            </p>
           </Field>
 
           <div className="flex items-center gap-3">
