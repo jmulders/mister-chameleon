@@ -236,10 +236,19 @@ const nextConfig = {
       ["context",             "personalization/context-variables"],
       // Contextual forms retired: forms now carry variants (per-form Variants
       // editor) and a rule targets one via plan.formVariants. Old paths land on
-      // the forms overview. `forms/context` first (older), then the interim
-      // /personalization/contextual-forms path.
-      ["forms/context",              "forms"],
-      ["personalization/contextual-forms", "forms"],
+      // the forms overview (now under /content/forms). `forms/context` first
+      // (older), then the interim /personalization/contextual-forms path — both
+      // MUST precede the bare "forms" move below (first matching redirect wins).
+      ["forms/context",                    "content/forms"],
+      ["personalization/contextual-forms", "content/forms"],
+      // Phase 3: Content pages consolidated under /content/* (CMS stays at
+      // /content as the group root).
+      ["pages",          "content/pages"],
+      ["blueprints",     "content/blueprints"],
+      ["forms",          "content/forms"],
+      ["email",          "content/email"],
+      ["assets",         "content/assets"],
+      ["content-status", "content/status"],
       // Phase 2: Audience under /audience/*. behavior/journey MUST precede the
       // bare "behavior" catch-all (first matching redirect wins).
       ["behavior/journey",    "audience/journey"],

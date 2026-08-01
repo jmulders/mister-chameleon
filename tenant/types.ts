@@ -126,7 +126,7 @@ export interface TenantFeatureFlags {
  *
  *   Unlike TenantConfig (which lives in mister-chameleon-config.ts), these
  *   settings are edited by tenant admins at runtime through the admin UI
- *   at /admin/tenants/[tenantId]/forms.  No deployment is required to change them.
+ *   at /admin/tenants/[tenantId]/content/forms.  No deployment is required to change them.
  */
 export interface TenantFormSettings {
   /**
@@ -237,7 +237,7 @@ export const DEFAULT_TENANT_FORM_SETTINGS: TenantFormSettings = {
  *
  * ─── Stored in DB, not in code ─────────────────────────────────────────────
  *
- *   Managed via the admin UI at /admin/tenants/[tenantId]/forms/[formKey].
+ *   Managed via the admin UI at /admin/tenants/[tenantId]/content/forms/[formKey].
  *   No deployment required to change per-form behaviour.
  */
 export interface TenantFormOverrideSettings {

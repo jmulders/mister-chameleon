@@ -152,7 +152,7 @@ export function RegisteredFormsTable({
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <a
-                      href={`/admin/tenants/${tenantId}/forms/${form.key}`}
+                      href={`/admin/tenants/${tenantId}/content/forms/${form.key}`}
                       className="text-xs text-neutral-400 hover:text-neutral-700 underline"
                       aria-label={`Configure ${form.title}`}
                     >

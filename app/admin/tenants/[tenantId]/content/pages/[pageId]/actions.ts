@@ -44,8 +44,8 @@ async function loadAndVerify(
 }
 
 function revalidateTenantPaths(tenantId: string, pageId: string): void {
-  revalidatePath(`/admin/tenants/${tenantId}/pages`);
-  revalidatePath(`/admin/tenants/${tenantId}/pages/${pageId}`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/pages`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/pages/${pageId}`);
   // Also revalidate legacy paths so stale cache entries are cleared.
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);

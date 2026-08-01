@@ -176,7 +176,7 @@ export async function uploadAssetAction(
     });
 
     // ── Revalidate ────────────────────────────────────────────────────────────
-    revalidatePath(`/admin/tenants/${tenantId}/assets`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/assets`);
 
     return { success: true, assetId: asset.id, publicUrl: asset.publicUrl };
   } catch (err) {
@@ -293,7 +293,7 @@ export async function registerUploadedAssetAction(input: {
       assetType:      input.mimeType.startsWith("video/") ? "video" : "image",
     });
 
-    revalidatePath(`/admin/tenants/${input.tenantId}/assets`);
+    revalidatePath(`/admin/tenants/${input.tenantId}/content/assets`);
     return { success: true, assetId: asset.id, publicUrl: asset.publicUrl };
   } catch (err) {
     rethrowNextInternal(err);
@@ -320,7 +320,7 @@ export async function updateAssetMetaAction(
     const client = makeServiceClient();
     await updateAsset(client, tenantId, assetId, input);
 
-    revalidatePath(`/admin/tenants/${tenantId}/assets`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/assets`);
     return { success: true };
   } catch (err) {
     rethrowNextInternal(err);
@@ -346,7 +346,7 @@ export async function deleteAssetAction(
     const client = makeServiceClient();
     await deleteAsset(client, tenantId, assetId);
 
-    revalidatePath(`/admin/tenants/${tenantId}/assets`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/assets`);
     return { success: true };
   } catch (err) {
     rethrowNextInternal(err);

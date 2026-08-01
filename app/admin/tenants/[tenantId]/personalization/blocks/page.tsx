@@ -131,7 +131,7 @@ export default async function TenantBlocksPage({ params }: Props) {
           {formRows.map((f) => (
             <Link
               key={f.key}
-              href={`/admin/tenants/${tenantId}/forms/${f.key}`}
+              href={`/admin/tenants/${tenantId}/content/forms/${f.key}`}
               className="group flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 transition-colors hover:border-neutral-300"
             >
               <code className="shrink-0 text-xs font-mono font-semibold text-neutral-800">form:{f.key}</code>

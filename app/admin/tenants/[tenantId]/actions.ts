@@ -3179,6 +3179,6 @@ export async function deletePageAction(
 
   // The list is a Server Component — revalidate so the row disappears without
   // the client having to refetch or reload.
-  revalidatePath(`/admin/tenants/${tenantId}/pages`);
+  revalidatePath(`/admin/tenants/${tenantId}/content/pages`);
   return { ok: true };
 }

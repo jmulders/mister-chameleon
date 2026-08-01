@@ -110,7 +110,7 @@ export function NewPageForm({ presets, tenantId, onSubmit }: NewPageFormProps) {
     startTransition(async () => {
       const result = await onSubmit(formData);
       if (result.ok && result.pageId) {
-        router.push(`/admin/tenants/${tenantId}/pages/${result.pageId}`);
+        router.push(`/admin/tenants/${tenantId}/content/pages/${result.pageId}`);
       } else {
         setError(result.error ?? "Failed to create page. Please try again.");
       }

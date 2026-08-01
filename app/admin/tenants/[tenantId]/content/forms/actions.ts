@@ -330,7 +330,7 @@ export async function saveTenantFormSettingsAction(
       return { ok: false, error: `Failed to save: ${error.message}` };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms`);
     return { ok: true };
   } catch (err) {
     logger.error("[forms-settings-actions] Unexpected error saving form settings", {
@@ -413,7 +413,7 @@ export async function saveTurnstileSettingsAction(
       )) as { error: { message: string } | null };
     if (error) return { ok: false, error: `Failed to save: ${error.message}` };
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms`);
     return { ok: true };
   } catch (err) {
     logger.error("[forms-settings-actions] Failed to save Turnstile settings", { tenantId, error: String(err) });
@@ -589,7 +589,7 @@ export async function resetTenantEmailTransportAction(
       return { ok: false, error: `Failed to reset: ${error.message}` };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms`);
     return { ok: true };
   } catch (err) {
     logger.error("[email-transport-actions] Unexpected error resetting transport", {
@@ -788,7 +788,7 @@ export async function saveTenantEmailTransportAction(
       return { ok: false, error: `Failed to save: ${error.message}` };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/forms`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms`);
     return { ok: true };
   } catch (err) {
     logger.error("[email-transport-actions] Unexpected error saving email transport", {

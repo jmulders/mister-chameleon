@@ -24,7 +24,7 @@
  *   circular dependency (page-store/types imports from @/page-config).
  *
  *   The EditablePage instantiation logic lives in the server action:
- *   app/admin/tenants/[tenantId]/pages/new/actions.ts
+ *   app/admin/tenants/[tenantId]/content/pages/new/actions.ts
  *
  * ─── Block safety ────────────────────────────────────────────────────────────
  *

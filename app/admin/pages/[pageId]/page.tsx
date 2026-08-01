@@ -5,7 +5,7 @@
  * page by id (without a tenant filter), reads its tenantId, and redirects
  * to the canonical tenant-scoped editor at:
  *
- *   /admin/tenants/[tenantId]/pages/[pageId]
+ *   /admin/tenants/[tenantId]/content/pages/[pageId]
  *
  * This keeps existing bookmarks and any server-action revalidatePath calls
  * targeting the old route working while the real editing UI lives under the
@@ -26,5 +26,5 @@ export default async function AdminPageEditorRedirectPage({
   const page = await getPageById(pageId);
   if (!page) notFound();
 
-  redirect(`/admin/tenants/${page.tenantId}/pages/${pageId}`);
+  redirect(`/admin/tenants/${page.tenantId}/content/pages/${pageId}`);
 }

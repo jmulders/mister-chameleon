@@ -149,7 +149,7 @@ export default async function TenantPageEditorPage({
       {/* Back link */}
       <div className="mb-4">
         <Link
-          href={`/admin/tenants/${tenantId}/pages`}
+          href={`/admin/tenants/${tenantId}/content/pages`}
           className="text-xs text-neutral-400 transition-colors hover:text-brand-700"
         >
           ← All pages

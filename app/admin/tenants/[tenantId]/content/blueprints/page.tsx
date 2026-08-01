@@ -4,7 +4,7 @@
  * Marketplace view of all available blueprints for a tenant.
  * Operators can preview and activate a blueprint from here.
  *
- * Route: /admin/tenants/[tenantId]/blueprints
+ * Route: /admin/tenants/[tenantId]/content/blueprints
  */
 
 import { notFound }             from "next/navigation";

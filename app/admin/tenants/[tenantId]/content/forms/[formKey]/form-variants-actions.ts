@@ -73,7 +73,7 @@ export async function saveFormVariantAction(
       adaptiveVariants: next,
     });
     if (!res.ok) return { ok: false, error: res.error };
-    revalidatePath(`/admin/tenants/${tenantId}/forms/${formType}`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms/${formType}`);
     return { ok: true };
   } catch (err) {
     logger.error("[form-variants] save failed", { tenantId, formType, error: String(err) });
@@ -100,7 +100,7 @@ export async function deleteFormVariantAction(
       adaptiveVariants: next,
     });
     if (!res.ok) return { ok: false, error: res.error };
-    revalidatePath(`/admin/tenants/${tenantId}/forms/${formType}`);
+    revalidatePath(`/admin/tenants/${tenantId}/content/forms/${formType}`);
     return { ok: true };
   } catch (err) {
     logger.error("[form-variants] delete failed", { tenantId, formType, error: String(err) });

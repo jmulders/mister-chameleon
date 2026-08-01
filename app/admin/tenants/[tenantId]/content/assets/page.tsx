@@ -1,5 +1,5 @@
 /**
- * /admin/tenants/[tenantId]/assets
+ * /admin/tenants/[tenantId]/content/assets
  *
  * Tenant Asset Library — browse, upload, and manage tenant-scoped media assets.
  *

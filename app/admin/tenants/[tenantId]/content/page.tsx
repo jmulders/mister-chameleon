@@ -365,7 +365,7 @@ export default async function TenantContentPage({
             </span>
           </p>
           <Link
-            href={`${base}/content-status`}
+            href={`${base}/content/status`}
             className="text-[11px] text-brand-600 hover:underline"
           >
             Full content stats →
