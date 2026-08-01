@@ -106,32 +106,6 @@ export interface TenantFormContext {
   readonly overlays: Readonly<Record<string, Readonly<Record<string, FormOverlay>>>>;
 }
 
-// ── Contextual CTA / block overlays ─────────────────────────────────────────────
-
-/**
- * Per-segment override for a contextual CTA/content block. Every field is
- * optional — omit to inherit the block's own authored value.
- */
-export interface CtaOverlay {
-  readonly title?:       string;
-  readonly description?: string;
-  /** Primary button label override. */
-  readonly ctaLabel?:    string;
-  /** Primary button href override (relative or absolute). */
-  readonly ctaHref?:     string;
-}
-
-/**
- * Tenant-level contextual CTA/block config, stored at settings.blockContext.
- * Reuses the SAME rules as forms (settings.formContext.rules) to pick a segment;
- * overlays are keyed by an author-chosen block key, then by segment id.
- * Absent = blocks render exactly as authored.
- */
-export interface TenantBlockContext {
-  /** overlays[contextKey][segmentId] = CtaOverlay */
-  readonly overlays: Readonly<Record<string, Readonly<Record<string, CtaOverlay>>>>;
-}
-
 // ── Signals used at resolve time ────────────────────────────────────────────────
 
 /** The request signals a rule is evaluated against. */

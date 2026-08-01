@@ -2803,13 +2803,6 @@ export interface TenantSettings {
   readonly emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }>;
 
   /**
-   * Contextual CTAs/content blocks: per-block, per-segment overrides (heading,
-   * text, button label/href). Reuses the same rules as formContext to pick the
-   * segment. Absent = blocks render as authored. Stored in settings.blockContext.
-   */
-  readonly blockContext?: import("@/forms/context/types").TenantBlockContext;
-
-  /**
    * Asset storage override for this tenant.
    *
    * When set, the specified provider is used instead of the platform-wide
