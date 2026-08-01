@@ -2786,14 +2786,6 @@ export interface TenantSettings {
   readonly adRateCard?: { readonly cpmCents?: number; readonly cpcCents?: number };
 
   /**
-   * Contextual forms: operator rules (URL/UTM/query/country → segment) plus
-   * per-form, per-segment overlays (heading, intro, submit label, thank-you
-   * message, and an optional field-set override). Absent = forms render from
-   * their base FormDefinition unchanged. Stored in settings.formContext.
-   */
-  readonly formContext?: import("@/forms/context/types").TenantFormContext;
-
-  /**
    * Per-tenant adaptive-email template overrides, keyed by template key. Each
    * entry may override the subject line and/or the block set (which adaptive
    * blocks, in what order). Block CONTENT still comes from the adaptive blocks
@@ -2801,13 +2793,6 @@ export interface TenantSettings {
    * settings.emailTemplates.
    */
   readonly emailTemplates?: Record<string, { subject?: string; blocks?: string[]; preheader?: string }>;
-
-  /**
-   * Contextual CTAs/content blocks: per-block, per-segment overrides (heading,
-   * text, button label/href). Reuses the same rules as formContext to pick the
-   * segment. Absent = blocks render as authored. Stored in settings.blockContext.
-   */
-  readonly blockContext?: import("@/forms/context/types").TenantBlockContext;
 
   /**
    * Asset storage override for this tenant.
