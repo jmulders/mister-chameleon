@@ -43,6 +43,7 @@ import {
 } from "./variant-catalogue";
 import type { VariantCatalogue, VariantEntry, VariantSource } from "./variant-catalogue";
 import { getAdaptiveBlockByKey } from "@/lib/adaptive-blocks/adaptive-blocks-store";
+import { EMAIL_TEMPLATE_KEYS } from "@/lib/email/adaptive-email";
 
 /**
  * Form types that can carry authored variants. Kept in sync with the decision
@@ -99,13 +100,16 @@ interface SanityVariantRow {
 export async function fetchVariantCatalogue(
   tenantId?: string | null,
 ): Promise<VariantCatalogue> {
-  // Form variants are tenant-authored (adaptive_blocks), independent of Sanity —
-  // load them up front so both the Sanity and the fallback path can attach them.
-  const forms = await fetchFormVariants(tenantId ?? null);
+  // Form + email variants are tenant-authored (adaptive_blocks), independent of
+  // Sanity — load them up front so both the Sanity and fallback paths attach them.
+  const [forms, emails] = await Promise.all([
+    fetchAdaptiveVariants(tenantId ?? null, FORM_TYPES, "form"),
+    fetchAdaptiveVariants(tenantId ?? null, EMAIL_TEMPLATE_KEYS, "email"),
+  ]);
 
   // ── Fallback: no Sanity → platform-only ────────────────────────────────────
   if (!serverEnv.sanity.projectId) {
-    return { ...buildPlatformCatalogue(), forms };
+    return { ...buildPlatformCatalogue(), forms, emails };
   }
 
   try {
@@ -129,41 +133,41 @@ export async function fetchVariantCatalogue(
       feature:    mergeEntries(platform.feature,    featureRows,    tenantId ?? null),
       conversion: mergeEntries(platform.conversion, conversionRows, tenantId ?? null),
       forms,
+      emails,
     };
   } catch (err) {
     logger.warn("[fetchVariantCatalogue] Sanity query failed; using platform catalogue only.", { error: String(err) });
-    return { ...buildPlatformCatalogue(), forms };
+    return { ...buildPlatformCatalogue(), forms, emails };
   }
 }
 
 /**
- * Load the authored form variants for a tenant from the adaptive-blocks store
- * (the `form:<type>` rows the per-form Variants editor writes). Returns a map
- * keyed by form type, containing only the types that have ≥1 variant. Never
- * throws — on any error it logs and returns an empty map so the rules editor
- * still renders without form targeting.
+ * Load tenant-authored variants for a family of adaptive-block keys (forms use
+ * the `form:<type>` rows, emails the `email:<template>` rows). Returns a map
+ * keyed by the family key, always including every known key (even with zero
+ * variants) so the rules editor can render a visible, disabled select plus a
+ * hint rather than hiding the control. Never throws.
  */
-async function fetchFormVariants(
+async function fetchAdaptiveVariants(
   tenantId: string | null,
+  keys:     readonly string[],
+  prefix:   "form" | "email",
 ): Promise<Record<string, VariantEntry[]>> {
   if (!tenantId) return {};
   const out: Record<string, VariantEntry[]> = {};
   try {
     const blocks = await Promise.all(
-      FORM_TYPES.map((type) => getAdaptiveBlockByKey(`form:${type}`, tenantId)),
+      keys.map((key) => getAdaptiveBlockByKey(`${prefix}:${key}`, tenantId)),
     );
-    // Include every known form type (even with zero variants) so the rules
-    // editor can always show a Form variant select — a visible, disabled select
-    // plus a hint is more discoverable than hiding the control entirely.
-    FORM_TYPES.forEach((type, i) => {
-      out[type] = (blocks[i]?.adaptiveVariants ?? []).map((v) => ({
+    keys.forEach((key, i) => {
+      out[key] = (blocks[i]?.adaptiveVariants ?? []).map((v) => ({
         key:    v.variantKey,
         label:  v.label || v.variantKey,
         source: "cms-tenant" as const,
       }));
     });
   } catch (err) {
-    logger.warn("[fetchVariantCatalogue] form-variant load failed; forms omitted.", { error: String(err) });
+    logger.warn(`[fetchVariantCatalogue] ${prefix}-variant load failed; omitted.`, { error: String(err) });
   }
   return out;
 }
