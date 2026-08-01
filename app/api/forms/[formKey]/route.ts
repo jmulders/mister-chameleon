@@ -84,6 +84,9 @@ import { logger }                       from "@/lib/logger";
 import { markProfileConverted }         from "@/lib/lead-base/visitor-profiles-store";
 import { captureInboundLead, extractSubmittedEmail } from "@/lib/lead-base/inbound-capture";
 import { sendConversion }                from "@/lib/ad-sync/conversion-engine";
+import { sendAdaptiveEmail }             from "@/lib/email/send-adaptive-email";
+import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@/lib/email/adaptive-email";
+import { getAdaptiveBlockByKey }         from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import { getActiveTenant, getTenantBySiteKey } from "@/tenant/server";
 import { isSnippetOriginAllowed }       from "@/lib/snippet/origin-allowlist";
 import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
@@ -496,14 +499,35 @@ async function handlePost(
         : Promise.resolve(),
 
       (effectiveConfirm && formDef.action.sendConfirmation)
-        ? dispatchSubmitterConfirmation({
-            formDef,
-            values: validation.values,
-            tenantTransport,
-            platformEmailConfig,
-          }).then((result) => {
+        ? (async () => {
+            const staticSend = () => dispatchSubmitterConfirmation({
+              formDef, values: validation.values, tenantTransport, platformEmailConfig,
+            });
+            // Adaptive confirmation: when the form type maps to an adaptive email
+            // template (contact -> contact_followup, etc.) AND the tenant has
+            // authored variants for it, send the confirmation through the adaptive
+            // pipeline so a rule can pick a subject/variant per recipient. This is
+            // opt-in by authoring variants; otherwise the static template is used.
+            const templateKey = `${formDef.key}_followup`;
+            let result: { ok: boolean; error?: string } = { ok: true };
+            if (tenantId && (EMAIL_TEMPLATE_KEYS as readonly string[]).includes(templateKey)) {
+              const [block, submitterEmail] = [
+                await getAdaptiveBlockByKey(`email:${templateKey}`, tenantId).catch(() => null),
+                extractSubmittedEmail(validation.values),
+              ];
+              if (block?.adaptiveVariants?.length && submitterEmail) {
+                const res = await sendAdaptiveEmail({
+                  tenantId, recipient: { email: submitterEmail }, templateKey: templateKey as EmailTemplateKey,
+                });
+                result = res.ok ? { ok: true } : await staticSend();
+              } else {
+                result = await staticSend();
+              }
+            } else {
+              result = await staticSend();
+            }
             if (!result.ok) logger.warn("[forms] Confirmation failed", { formKey: effectiveKey, error: result.error });
-          })
+          })()
         : Promise.resolve(),
     ] : []),
 
