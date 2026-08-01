@@ -23,9 +23,28 @@ import {
 } from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import type { AdaptiveVariantContent, AdaptiveVariantEntry } from "@/cms/types";
 import type { FormVariantContent, FormVariantEntry } from "@/forms/context/variant";
+import { generateFormCopy, type FormCopy } from "@/ai/copy-generator";
+import type { VariantTone } from "@/ai/variant-meta";
 import { logger } from "@/lib/logger";
 
 type Result = { ok: true } | { ok: false; error: string };
+
+/** AI-draft the copy for a form variant from a short audience brief. */
+export async function draftFormVariantAction(
+  tenantId:  string,
+  formType:  string,
+  audience:  string,
+  tone?:     VariantTone,
+): Promise<{ ok: true; copy: FormCopy } | { ok: false; error: string }> {
+  void tenantId;
+  if (!audience.trim()) return { ok: false, error: "Describe the audience first." };
+  try {
+    return await generateFormCopy({ formType, audience: audience.trim(), tone });
+  } catch (err) {
+    logger.error("[form-variants] draft failed", { formType, error: String(err) });
+    return { ok: false, error: "Draft failed" };
+  }
+}
 
 /** List the variants authored for a form type (empty when none exist yet). */
 export async function listFormVariantsAction(

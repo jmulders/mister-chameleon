@@ -19,9 +19,13 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import type { FormVariantEntry, FormVariantContent } from "@/forms/context/variant";
 import type { FormField } from "@/forms/types";
+import type { VariantTone } from "@/ai/variant-meta";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Template = "single" | "split-left" | "split-right";
+type DraftResult = { ok: true; copy: { title: string; intro: string; submitLabel: string; successMessage: string } } | { ok: false; error: string };
+
+const TONES: VariantTone[] = ["educational", "inspiring", "direct", "persuasive", "credibility", "urgency"];
 
 /** One editable row in the field-set editor, seeded from a definition field. */
 interface FieldRow {
@@ -38,6 +42,7 @@ interface Props {
   initialVariants:  FormVariantEntry[];
   saveAction:   (entry: FormVariantEntry) => Promise<Result>;
   deleteAction: (variantKey: string) => Promise<Result>;
+  draftAction:  (audience: string, tone?: VariantTone) => Promise<DraftResult>;
 }
 
 const input =
@@ -120,8 +125,12 @@ function buildFields(rows: FieldRow[], defFields: FormField[]): FormField[] {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function FormVariantsEditor({ definitionFields, initialVariants, saveAction, deleteAction }: Props) {
+export function FormVariantsEditor({ definitionFields, initialVariants, saveAction, deleteAction, draftAction }: Props) {
   const [variants, setVariants] = useState<FormVariantEntry[]>(initialVariants);
+  const [aiAudience, setAiAudience] = useState("");
+  const [aiTone, setAiTone]         = useState<VariantTone | "">("");
+  const [aiError, setAiError]       = useState<string | null>(null);
+  const [aiPending, startAi]        = useTransition();
   const blankDraft = () => ({
     variantKey: "", label: "", template: "single" as Template,
     title: "", intro: "", submitLabel: "", successMessage: "",
@@ -151,6 +160,16 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
   }
 
   function reset() { setEditingKey(null); setDraft(blankDraft()); setShowFields(false); }
+
+  function aiDraft() {
+    if (!aiAudience.trim()) { setAiError("Describe the audience first."); return; }
+    setAiError(null);
+    startAi(async () => {
+      const res = await draftAction(aiAudience.trim(), aiTone || undefined);
+      if (!res.ok) { setAiError(res.error); return; }
+      setDraft((d) => ({ ...d, title: res.copy.title, intro: res.copy.intro, submitLabel: res.copy.submitLabel, successMessage: res.copy.successMessage }));
+    });
+  }
 
   // ── Field-row mutators ──────────────────────────────────────────────────────
   function patchRow(idx: number, patch: Partial<FieldRow>) {
@@ -262,6 +281,27 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
       <div className="px-5 py-4 space-y-4 border-t border-neutral-100 bg-neutral-50/40">
         <div className="text-xs font-semibold text-neutral-700">
           {editingKey ? `Edit variant "${editingKey}"` : "Add a variant"}
+        </div>
+
+        {/* AI draft */}
+        <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
+          <div className="text-[11px] font-semibold text-indigo-700 mb-1.5">Draft with AI</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input className={`${input} min-w-[12rem] flex-1`} value={aiAudience}
+              onChange={(e) => setAiAudience(e.target.value)}
+              placeholder="Who is this for? e.g. enterprise buyer comparing vendors" />
+            <select className={`${input} max-w-[9rem]`} value={aiTone}
+              onChange={(e) => setAiTone(e.target.value as VariantTone | "")}>
+              <option value="">Tone (auto)</option>
+              {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button type="button" onClick={aiDraft} disabled={aiPending}
+              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+              {aiPending ? "Drafting" : "Draft copy"}
+            </button>
+          </div>
+          {aiError && <p className="mt-1 text-xs text-red-600">{aiError}</p>}
+          <p className="mt-1 text-[11px] text-indigo-500/80">Fills the heading, intro, submit label, and thank-you message. Edit before saving.</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

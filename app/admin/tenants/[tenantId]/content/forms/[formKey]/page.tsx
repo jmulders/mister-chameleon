@@ -37,6 +37,7 @@ import {
   listFormVariantsAction,
   saveFormVariantAction,
   deleteFormVariantAction,
+  draftFormVariantAction,
 } from "./form-variants-actions";
 import { FormOverrideClient }    from "./_components/FormOverrideClient";
 import { FormVariantsEditor }    from "./_components/FormVariantsEditor";
@@ -129,6 +130,7 @@ export default async function FormConfigPage({ params }: PageProps) {
   const boundReset = resetTenantFormOverrideAction.bind(null, tenantId, formKey);
   const boundSaveVariant   = saveFormVariantAction.bind(null, tenantId, formKey);
   const boundDeleteVariant = deleteFormVariantAction.bind(null, tenantId, formKey);
+  const boundDraftVariant  = draftFormVariantAction.bind(null, tenantId, formKey);
 
   return (
     <div className="p-8 max-w-3xl space-y-8">
@@ -236,6 +238,7 @@ export default async function FormConfigPage({ params }: PageProps) {
         initialVariants={formVariants}
         saveAction={boundSaveVariant}
         deleteAction={boundDeleteVariant}
+        draftAction={boundDraftVariant}
       />
 
       {/* ── 3. Form definition (read-only) ───────────────────────────────── */}

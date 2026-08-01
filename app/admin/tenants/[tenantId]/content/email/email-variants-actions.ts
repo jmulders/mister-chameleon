@@ -24,9 +24,28 @@ import {
 } from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import type { AdaptiveVariantContent, AdaptiveVariantEntry } from "@/cms/types";
 import type { EmailVariantContent, EmailVariantEntry } from "@/lib/email/email-variant";
+import { generateEmailCopy, type EmailCopy } from "@/ai/copy-generator";
+import type { VariantTone } from "@/ai/variant-meta";
 import { logger } from "@/lib/logger";
 
 type Result = { ok: true } | { ok: false; error: string };
+
+/** AI-draft the subject and preview text for an email variant from a brief. */
+export async function draftEmailVariantAction(
+  tenantId:      string,
+  templateLabel: string,
+  audience:      string,
+  tone?:         VariantTone,
+): Promise<{ ok: true; copy: EmailCopy } | { ok: false; error: string }> {
+  void tenantId;
+  if (!audience.trim()) return { ok: false, error: "Describe the audience first." };
+  try {
+    return await generateEmailCopy({ templateLabel, audience: audience.trim(), tone });
+  } catch (err) {
+    logger.error("[email-variants] draft failed", { templateLabel, error: String(err) });
+    return { ok: false, error: "Draft failed" };
+  }
+}
 
 /** List the variants authored for an email template (empty when none exist). */
 export async function listEmailVariantsAction(
