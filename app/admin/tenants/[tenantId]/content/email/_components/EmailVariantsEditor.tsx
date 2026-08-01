@@ -21,14 +21,10 @@ import type { EmailBlockEntry } from "@/lib/email/adaptive-email";
 import {
   saveEmailVariantAction,
   deleteEmailVariantAction,
-  draftEmailVariantAction,
 } from "../email-variants-actions";
 import { HtmlBlockEditor } from "./HtmlBlockEditor";
-import type { VariantTone } from "@/ai/variant-meta";
 
 type Result = { ok: true } | { ok: false; error: string };
-
-const TONES: VariantTone[] = ["educational", "inspiring", "direct", "persuasive", "credibility", "urgency"];
 
 const isText = (b: EmailBlockEntry): b is { text: string } => typeof b === "object" && b !== null && "text" in b;
 const isHtml = (b: EmailBlockEntry): b is { html: string } => typeof b === "object" && b !== null && "html" in b;
@@ -101,20 +97,6 @@ function TemplateVariants({
   const [error, setError]   = useState<string | null>(null);
   const [saved, setSaved]   = useState(false);
   const [isPending, start]  = useTransition();
-  const [aiAudience, setAiAudience] = useState("");
-  const [aiTone, setAiTone]         = useState<VariantTone | "">("");
-  const [aiError, setAiError]       = useState<string | null>(null);
-  const [aiPending, startAi]        = useTransition();
-
-  function aiDraft() {
-    if (!aiAudience.trim()) { setAiError("Describe the audience first."); return; }
-    setAiError(null);
-    startAi(async () => {
-      const res = await draftEmailVariantAction(tenantId, template.label, aiAudience.trim(), aiTone || undefined);
-      if (!res.ok) { setAiError(res.error); return; }
-      setDraft((d) => ({ ...d, subject: res.copy.subject, preheader: res.copy.preheader }));
-    });
-  }
 
   function edit(v: EmailVariantEntry) {
     const c = v.content;
@@ -218,27 +200,6 @@ function TemplateVariants({
         <div className="mt-3 space-y-3 rounded-lg border border-neutral-200 bg-neutral-50/50 p-4">
           <div className="text-xs font-semibold text-neutral-700">
             {editingKey ? `Edit variant "${editingKey}"` : "Add a variant"}
-          </div>
-
-          {/* AI draft */}
-          <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
-            <div className="text-[11px] font-semibold text-indigo-700 mb-1.5">Draft with AI</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input className={`${input} min-w-[12rem] flex-1`} value={aiAudience}
-                onChange={(e) => setAiAudience(e.target.value)}
-                placeholder="Who is this for? e.g. high-intent enterprise lead" />
-              <select className={`${input} max-w-[9rem]`} value={aiTone}
-                onChange={(e) => setAiTone(e.target.value as VariantTone | "")}>
-                <option value="">Tone (auto)</option>
-                {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <button type="button" onClick={aiDraft} disabled={aiPending}
-                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
-                {aiPending ? "Drafting" : "Draft copy"}
-              </button>
-            </div>
-            {aiError && <p className="mt-1 text-xs text-red-600">{aiError}</p>}
-            <p className="mt-1 text-[11px] text-indigo-500/80">Fills the subject and preview text. Edit before saving.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Variant key">
