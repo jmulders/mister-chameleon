@@ -44,6 +44,8 @@ import { normalizeTenant } from "@/tenant/normalize";
 import { DEV_TENANT_COOKIE } from "@/tenant/dev-tenant-cookie";
 import { setDevTenantAction, clearDevTenantAction } from "../actions";
 import { TenantDebugClient } from "./_components/TenantDebugClient";
+import { FailureSignalsPanel } from "./_components/FailureSignalsPanel";
+import { getFailureSummary, getFailureSignals } from "@/lib/observability/failure-signal-store";
 
 export default async function TenantDebugPage({
   params,
@@ -68,6 +70,12 @@ export default async function TenantDebugPage({
       : null;
   const isActiveDevTenant = devActiveTenantId === tenantId;
 
+  // ── Failure signals (observability) ────────────────────────────────────────
+  const [failureSummary, failureSignals] = await Promise.all([
+    getFailureSummary(tenantId),
+    getFailureSignals(tenantId),
+  ]);
+
   return (
     <div className="p-8 max-w-2xl space-y-10">
 
@@ -88,6 +96,9 @@ export default async function TenantDebugPage({
           debugLevel={debugLevel}
         />
       </section>
+
+      {/* ── 1b. Failure signals (observability) ───────────────────────────── */}
+      <FailureSignalsPanel summary={failureSummary} recent={failureSignals} />
 
       {/* ── 2. Dev Controls (development only) ───────────────────────────── */}
       {process.env.NODE_ENV === "development" && (
