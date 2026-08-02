@@ -33,6 +33,7 @@ import { loadTenantRulesConfig, tenantRulesConfigKey, tenantRulesCacheTag } from
 import { generatePresetRulesConfig, mergePresetRules } from "@/decision/rules/generate-preset-rules";
 import { getDb } from "@/data/db";
 import { fetchVariantCatalogue } from "@/decision/rules/fetch-variant-catalogue";
+import { buildTenantExport } from "@/lib/tenant-export/build-tenant-export";
 
 // ── Typed query helpers ────────────────────────────────────────────────────────
 //
@@ -205,6 +206,39 @@ export async function saveTenantRulesAction(
   revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
   revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
+}
+
+// ── Export tenant data (portability) ──────────────────────────────────────────
+
+/**
+ * Export a tenant's accumulated personalization value (rules/segmentation,
+ * variants, visitor profiles + interest history) as a downloadable JSON string.
+ *
+ * Read-only: mutates nothing. The client turns the returned string into a file
+ * download. Backs the "take your work with you" export — a portability
+ * guarantee and a no-lock-in sales argument.
+ */
+export async function exportTenantDataAction(
+  tenantId: string,
+): Promise<{ ok: true; json: string; filename: string } | { ok: false; error: string }> {
+  if (!tenantId) {
+    return { ok: false, error: "tenantId must be a non-empty string" };
+  }
+
+  try {
+    const data = await buildTenantExport(tenantId);
+    const stamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    return {
+      ok:       true,
+      json:     JSON.stringify(data, null, 2),
+      filename: `mister-chameleon-export_${tenantId}_${stamp}.json`,
+    };
+  } catch (err) {
+    return {
+      ok:    false,
+      error: `Export failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }
 
 // ── Toggle global rules enabled ───────────────────────────────────────────────
