@@ -83,27 +83,59 @@ function asSingle<T>(result: unknown): SingleResult<T> { return result as Single
  * Validation runs OUTSIDE the cache because it depends on the caller's extraKeys
  * and is cheap CPU with no I/O. Keyed per tenant, tagged for instant
  * invalidation on save, with a short TTL backstop for direct DB edits.
+ *
+ * ─── Multi-tenant safety (defense in depth) ───────────────────────────────────
+ *
+ *   The cache is keyed per tenant (tenantId is a keyPart AND the invalidation
+ *   tag is tenant-scoped), so two tenants can never share a cache entry by
+ *   construction. But a cross-tenant leak is the worst possible bug here — it is
+ *   silent and throws no error — so we do not rely on the key alone. The cached
+ *   read also returns the row's own stored `key`, and we assert it matches the
+ *   tenant we were asked about BEFORE returning. If a cache entry were ever
+ *   mis-keyed, this turns "tenant A sees tenant B's rules" into a safe null
+ *   (→ default experience) plus a loud log, instead of a leak nobody notices.
  */
 function readRawTenantConfig(tenantId: string): Promise<Record<string, unknown> | null> {
+  const expectedKey = tenantRulesConfigKey(tenantId);
+
   return unstable_cache(
     async () => {
       try {
-        const { data, error } = asSingle<{ config: Record<string, unknown> }>(
+        const { data, error } = asSingle<{ config: Record<string, unknown>; key: string }>(
           await getDb()
             .from("rules_config")
-            .select("config")
-            .eq("key", tenantRulesConfigKey(tenantId))
+            .select("config, key")
+            .eq("key", expectedKey)
             .maybeSingle(),
         );
         if (error || !data) return null;
-        return data.config as Record<string, unknown>;
+        // Carry the row's own key through the cache boundary so the caller can
+        // verify tenant ownership even on a cache hit.
+        return { config: data.config, key: data.key };
       } catch {
         return null;
       }
     },
     ["rules-config", tenantId],
     { tags: [tenantRulesCacheTag(tenantId)], revalidate: 120 },
-  )();
+  )().then((row) => {
+    if (!row) return null;
+
+    // Ownership guard: never hand back a row whose stored key does not belong to
+    // the tenant we were asked about. Under normal operation this is always
+    // true; if it is ever false, the cache mis-served another tenant's entry and
+    // we refuse to return it.
+    if (row.key !== expectedKey) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[load-tenant-rules] cross-tenant cache key mismatch: asked for "${expectedKey}", ` +
+          `cache returned "${row.key}". Serving default (no rules) for safety.`,
+      );
+      return null;
+    }
+
+    return row.config as Record<string, unknown>;
+  });
 }
 
 export async function loadTenantRulesConfig(

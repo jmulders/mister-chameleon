@@ -49,11 +49,13 @@ export function GlobalRulesToggle({ initialEnabled, setEnabledAction }: GlobalRu
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-0.5">
-          <p className="text-sm font-semibold text-neutral-900">Rules engine</p>
+          <p className="text-sm font-semibold text-neutral-900">
+            Rules engine — revert to default experience
+          </p>
           <p className="text-xs text-neutral-500">
             {enabled
-              ? "Rules are evaluated for every visitor request. Individual rules below can also be toggled."
-              : "All rules are disabled for this tenant. Visitors will always receive the default plan."}
+              ? "Rules are evaluated for every visitor request. Turn this off to instantly serve this tenant the default, non-personalized experience — no deploy required, effective on the next page view."
+              : "Personalization is off for this tenant. Every visitor receives the default, non-personalized experience. Turning this back on re-enables the rules below immediately."}
           </p>
         </div>
 
