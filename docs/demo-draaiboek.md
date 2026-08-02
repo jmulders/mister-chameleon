@@ -137,6 +137,37 @@ beide en bedient er maar één goed. Goede tweede: **nieuw tegenover terugkerend
 Op je eigen site werken de drie publieksrollen (marketeer / bureau-eigenaar /
 technisch verantwoordelijke).
 
+## Praktisch — zo start je elke demo (dev)
+
+**Demo 1 — het idee (platform-site, échte regels).**
+1. Open de platform-gehoste site met de tenant + panel aan:
+   `…?tenant=mister-chameleon&scenario=true`. (Lokaal in dev verschijnt het panel
+   vanzelf; op een deploy-URL zet je `?scenario=true` erbij, of de env
+   `NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1`.)
+2. Open het scenario control panel en **geef de muis uit handen.**
+3. Kies een rol — **Marketeer / Bureau-eigenaar / Technisch verantwoordelijke.**
+   Verwacht (alleen hero + cta wisselen, de rest blijft staan):
+   - Marketeer → hero *consideration* + cta *demo*
+   - Bureau-eigenaar → hero *linkedin/vision* + cta *platform*
+   - Technisch → hero *google/probleem* + cta *meeting*
+   - Uit / reset → default: hero *direct brand* + cta *guide*
+4. Geen wissel te zien? De rules-config-cache (~120s) kan na de directe
+   DB-schrijf nog oud zijn — sla één regel op in de admin (Personalization →
+   Rules → opslaan) om te force-invalideren, of wacht ~2 minuten. Dit staat op
+   **dev**.
+
+**De mirror — hun eigen site (de afsluiter).**
+1. Log in als admin (de mirror vereist een admin-sessie).
+2. Ga naar `/admin/demo/new` → tab **Mirror** → plak de URL van de prospect (of
+   misterchameleon.nl) → aanmaken.
+3. Je krijgt een `/demo/[id]/live`-link: hun eigen pagina, geïnstrumenteerd met
+   `data-mc-slot`, de snippet **én het scenario-panel**. Open die link en wissel
+   van scenario — hun eigen koppen en beelden bewegen mee zonder dat je iets aan
+   hun site raakt.
+4. Let op: de mirror gebruikt ingesloten slot-content + demo-plannen (bewust
+   demomodus, want de prospect-tenant heeft geen regels). Prima voor de mirror —
+   het idee-bewijs draait op de platform-site (Demo 1) op de **échte** regels.
+
 ## Afsluiting
 
 Herhaal de openingszin, nu getoond in plaats van verteld. Vraag of hij het in zijn
