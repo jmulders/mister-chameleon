@@ -12,18 +12,33 @@
  * NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1. Client-only (via een ssr:false mount).
  */
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { activateScenario, clearScenario } from "./scenario-store";
+import { activateScenario, clearScenario, getScenarioState, subscribeToScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF";
 
-const ROLES: Array<{ key: string; label: string }> = [
-  { key: "demo_role_marketeer", label: "Marketer" },
-  { key: "demo_role_bureau",    label: "Agency owner" },
-  { key: "demo_role_technisch", label: "Technical lead" },
+const ROLES: Array<{ key: string; label: string; segment: string }> = [
+  { key: "demo_role_marketeer", label: "Marketer",       segment: "demo-role-marketeer" },
+  { key: "demo_role_bureau",    label: "Agency owner",   segment: "demo-role-bureau" },
+  { key: "demo_role_technisch", label: "Technical lead", segment: "demo-role-technisch" },
 ];
+
+/**
+ * Derive the active role from the live scenario state instead of a local
+ * useState. This keeps the top-bar highlight in sync no matter who changed the
+ * store — the time slider (left panel), the operator panel, or this switcher.
+ * We match on the applied audience segment, not on presetKey, so the highlight
+ * survives actions that overwrite presetKey (e.g. the time slider sets it to
+ * "demo_time" while the role's segment stays in the overrides).
+ */
+function activeRoleFromState(): string | null {
+  const seg = getScenarioState().overrides?.audienceSegmentIds;
+  const asText = Array.isArray(seg) ? seg.join(",") : (typeof seg === "string" ? seg : "");
+  if (!asText) return null;
+  return ROLES.find((r) => asText.includes(r.segment))?.key ?? null;
+}
 
 function demoEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -36,7 +51,11 @@ function demoEnabled(): boolean {
 export function DemoRoleSwitcher() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [active, setActive] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(() => activeRoleFromState());
+
+  // Follow the shared store: any change (this switcher, the time slider, or the
+  // operator panel) re-derives the active role so the highlight stays truthful.
+  useEffect(() => subscribeToScenario(() => setActive(activeRoleFromState())), []);
 
   if (!demoEnabled()) return null;
 
@@ -47,8 +66,7 @@ export function DemoRoleSwitcher() {
     } else {
       clearScenario();
     }
-    setActive(key);
-    // Re-render server-side met de nieuwe mc_scenario-cookie → echte regels.
+    // setActive volgt via de store-subscription; hier alleen de server-refresh.
     startTransition(() => router.refresh());
   }
 
