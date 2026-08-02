@@ -320,6 +320,18 @@ BEGIN
 EXCEPTION WHEN undefined_column OR undefined_table OR foreign_key_violation THEN NULL;
 END $$;
 
+-- Ensure the (tenant_id, slug) unique arbiter exists before the ON CONFLICT seed.
+-- When behavior_sequence_patterns pre-existed from an earlier run WITHOUT this
+-- constraint, CREATE TABLE IF NOT EXISTS above was a no-op and the arbiter is
+-- missing → the ON CONFLICT (tenant_id, slug) below would raise 42P10.
+DO $$
+BEGIN
+  ALTER TABLE behavior_sequence_patterns ADD COLUMN IF NOT EXISTS slug text;
+  CREATE UNIQUE INDEX IF NOT EXISTS behavior_sequence_patterns_tenant_slug_uidx
+    ON behavior_sequence_patterns (tenant_id, slug);
+EXCEPTION WHEN undefined_table THEN NULL;
+END $$;
+
 -- Sequence pattern: about → pricing (intent escalation)
 DO $$
 BEGIN
