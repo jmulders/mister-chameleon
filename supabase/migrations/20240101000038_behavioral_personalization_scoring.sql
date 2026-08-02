@@ -71,6 +71,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS behavior_sequence_patterns_tenant_slug_uidx
 -- new columns (base_score, name) would hit 23502. Give them safe defaults.
 -- Guarded per column → a no-op on a database where the column doesn't exist.
 DO $$ BEGIN ALTER TABLE behavior_scoring_rules    ALTER COLUMN score SET DEFAULT 0;  EXCEPTION WHEN undefined_column OR undefined_table THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE behavior_scoring_rules    ALTER COLUMN label SET DEFAULT ''; EXCEPTION WHEN undefined_column OR undefined_table THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE behavior_sequence_patterns ALTER COLUMN label SET DEFAULT ''; EXCEPTION WHEN undefined_column OR undefined_table THEN NULL; END $$;
 
 
