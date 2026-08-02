@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getScenarioState, subscribeToScenario, activateScenario } from "./scenario-store";
+import { isDemoChromeCollapsed, subscribeDemoChrome } from "./demo-ui-store";
 import type { ScenarioOverrides } from "./scenario-store";
 
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF", MUTED = "#8FB0AE";
@@ -41,10 +42,15 @@ export function DemoProfilePanel() {
   const router = useRouter();
   const [state, setState] = useState(() => getScenarioState());
   const [pending, setPending] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => isDemoChromeCollapsed());
 
   useEffect(() => subscribeToScenario(() => setState(getScenarioState())), []);
+  // Fold together with the top bar via the shared collapse store.
+  useEffect(() => subscribeDemoChrome(setCollapsed), []);
 
   if (!demoEnabled()) return null;
+  // When collapsed, the top-bar "🎭 Demo" handle brings everything back.
+  if (collapsed) return null;
 
   const o = state.overrides ?? {};
   const role = o.audienceSegmentIds ? (ROLE_LABELS[o.audienceSegmentIds] ?? o.audienceSegmentIds) : "—";

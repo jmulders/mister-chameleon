@@ -15,6 +15,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { activateScenario, clearScenario, getScenarioState, subscribeToScenario } from "./scenario-store";
+import { isDemoChromeCollapsed, setDemoChromeCollapsed, subscribeDemoChrome } from "./demo-ui-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF";
@@ -52,12 +53,36 @@ export function DemoRoleSwitcher() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [active, setActive] = useState<string | null>(() => activeRoleFromState());
+  const [collapsed, setCollapsed] = useState<boolean>(() => isDemoChromeCollapsed());
 
   // Follow the shared store: any change (this switcher, the time slider, or the
   // operator panel) re-derives the active role so the highlight stays truthful.
   useEffect(() => subscribeToScenario(() => setActive(activeRoleFromState())), []);
+  // Follow the shared collapse state so top-bar and left panel fold together.
+  useEffect(() => subscribeDemoChrome(setCollapsed), []);
 
   if (!demoEnabled()) return null;
+
+  // Collapsed: hide the bar (and the left panel, which follows the same store);
+  // leave only a small handle top-right to bring everything back.
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setDemoChromeCollapsed(false)}
+        style={{
+          position: "fixed", top: 14, right: 16, zIndex: 10001,
+          border: "none", borderRadius: 999, padding: "8px 14px",
+          background: NAVY, color: ICE, fontSize: 12, fontWeight: 700,
+          cursor: "pointer", boxShadow: "0 6px 24px rgba(0,0,0,0.28)",
+          fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+        }}
+        aria-label="Show demo controls"
+      >
+        🎭 Demo
+      </button>
+    );
+  }
 
   function apply(key: string | null) {
     if (key) {
@@ -121,6 +146,19 @@ export function DemoRoleSwitcher() {
       </span>
       {ROLES.map((r) => pill(r.label, r.key))}
       {pill("Default", null)}
+      <button
+        type="button"
+        onClick={() => setDemoChromeCollapsed(true)}
+        title="Hide demo controls"
+        aria-label="Hide demo controls"
+        style={{
+          marginLeft: 2, width: 26, height: 26, borderRadius: 999, border: "none",
+          background: "rgba(255,255,255,0.10)", color: ICE, fontSize: 15,
+          fontWeight: 700, lineHeight: "22px", cursor: "pointer",
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
