@@ -14,6 +14,11 @@ Er zijn twee losse demo's — verwar ze niet:
 Je eigen site overtuigt van het **idee**; hun eigen site (via mirror) overtuigt
 van de **toepassing**.
 
+> **De klantdeck (`mister-chameleon-klant.pptx`) is achtervang, geen opening.**
+> De demo is het instrument; zes slides vooraf zijn zes minuten waarin je aan het
+> vertellen bent in plaats van hem te laten klikken. Gebruik de deck voor context
+> of als de demo niet kan — niet als vast intro.
+
 Bijgewerkt: 2 augustus 2026.
 
 ---
