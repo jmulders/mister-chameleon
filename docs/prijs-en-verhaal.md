@@ -1,4 +1,10 @@
-# Verkoopvoorstel — Mister Chameleon
+# Interne gespreksleidraad — prijs & verhaal
+
+> **⚠️ INTERN — niet meesturen naar klanten.** Dit document bevat wat een
+> directeur overtuigt, de instructie om zijn formulering over te nemen, het advies
+> geen half jaar te verkopen, en de volledige prijsvork inclusief pilotkorting.
+> Dat onderhandelt voor de klant als het per ongeluk meegaat. Een apart, publiek
+> **klantdocument** maken we later — dit is de leidraad achter de hand.
 
 Wat we doen, wat het kost, en hoe de samenwerking loopt. Uitgangspunten voor het
 eerste klantgesprek. Bijgewerkt: 2 augustus 2026.
