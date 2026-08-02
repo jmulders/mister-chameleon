@@ -52,8 +52,9 @@
  *
  * ─── Timeout & fail-safe ─────────────────────────────────────────────────────
  *
- *   If the decide endpoint does not respond within 1500 ms, the snippet
- *   reveals the page with the original CMS content — no user-visible delay.
+ *   If the decision has not arrived within 700 ms the snippet reveals the page
+ *   with the original CMS content, and a later decision is dropped so there is
+ *   never a jump. The request itself is aborted after 1500 ms as a hard cap.
  *
  * ─── Session identity ────────────────────────────────────────────────────────
  *
@@ -226,7 +227,14 @@ export function buildSnippetSource(decideUrl: string): string {
   }
 
   // ── 2. FOOC prevention — hide page until swap is done ────────────────────────
-  var TIMEOUT_MS = 1500;
+  // REVEAL_MS: how long the page stays hidden waiting for the decision. After it
+  // the page is revealed with whatever is applied so far (the default when the
+  // decision has not arrived), and a later decision is dropped — so the visitor
+  // never sees a jump from the default to a personalised message. CALL_MS is the
+  // hard upper bound on the request itself, so a hanging endpoint cannot keep the
+  // fetch alive forever.
+  var REVEAL_MS = 700;
+  var CALL_MS   = 1500;
   var revealed = false;
   function reveal() {
     if (revealed) return;
@@ -234,7 +242,9 @@ export function buildSnippetSource(decideUrl: string): string {
     document.documentElement.style.opacity = '';
   }
   document.documentElement.style.opacity = '0';
-  var timer = setTimeout(reveal, TIMEOUT_MS);
+  var timer = setTimeout(reveal, REVEAL_MS);
+  var mcAbort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var callTimer = mcAbort ? setTimeout(function () { try { mcAbort.abort(); } catch (e) {} }, CALL_MS) : null;
 
   // ── 3. Collect visitor signals ───────────────────────────────────────────────
   function getCookie(name) {
@@ -338,6 +348,7 @@ export function buildSnippetSource(decideUrl: string): string {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ siteKey: siteKey, context: context, blocks: blockKeys, consent: consent }),
+    signal: mcAbort ? mcAbort.signal : undefined,
   })
   .then(function(res) {
     if (!res.ok) return null;
@@ -345,7 +356,9 @@ export function buildSnippetSource(decideUrl: string): string {
   })
   .then(function(data) {
     // ── 5 & 6. Apply the response ────────────────────────────────────────────────
-    if (!data || !data.slots) return;
+    // Jump guard: if the page has already been revealed (the decision arrived
+    // after REVEAL_MS), the default is visible — applying now would jump. Drop it.
+    if (revealed || !data || !data.slots) return;
     var slots     = data.slots;
     var selectors = data.selectors || {};
 
@@ -395,6 +408,9 @@ export function buildSnippetSource(decideUrl: string): string {
           }
         }
         if (typeof block.html === 'string') {
+          // Reserve the block's current footprint before swapping so a different
+          // variant height cannot collapse it and shift the content below (CLS).
+          try { c.style.minHeight = c.offsetHeight + 'px'; } catch (e) {}
           c.innerHTML = block.html;
           // Wire any form injected by this block (submit → cross-origin POST).
           try { mcWireForms(c); } catch (e) { /* forms optional */ }
@@ -421,6 +437,7 @@ export function buildSnippetSource(decideUrl: string): string {
   })
   .finally(function() {
     clearTimeout(timer);
+    if (callTimer) clearTimeout(callTimer);
     reveal();
   });
 })();

@@ -27,7 +27,8 @@
  *   4. Consent-hook: filter `mcc_should_enqueue` om het laden achter toestemming
  *      te zetten (haakpunt voor Complianz/Cookiebot/CookieYes).
  *
- *   De snippet zelf regelt FOOC-preventie, de 1500 ms fail-safe en CORS.
+ *   De snippet zelf regelt FOOC-preventie, de 700 ms reveal (1500 ms als harde
+ *   bovengrens op de aanroep) en CORS.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -288,7 +289,7 @@ add_action( 'wp_head', function () {
 		return;
 	}
 	// Whole-page reveal for element-level (data-mc-slot) swaps.
-	echo "<script id=\"mcc-antiflicker\">document.documentElement.style.opacity='0';setTimeout(function(){document.documentElement.style.opacity='';},1500);</script>\n";
+	echo "<script id=\"mcc-antiflicker\">document.documentElement.style.opacity='0';setTimeout(function(){document.documentElement.style.opacity='';},700);</script>\n";
 
 	// Block-scoped anti-flicker (Optimizely / VWO style). Adaptive BLOCKS
 	// (data-mc-block) are hidden until the snippet swaps their content in the
@@ -297,7 +298,7 @@ add_action( 'wp_head', function () {
 	// with a safety timeout so a block is never left hidden if the snippet is slow
 	// or never loads (then the default is shown, as intended).
 	echo "<style id=\"mcc-block-antiflicker\">[data-mc-block]{visibility:hidden}</style>\n";
-	echo "<script id=\"mcc-block-reveal\">(function(){function show(b){b.style.visibility='visible';}function showAll(){var n=document.querySelectorAll('[data-mc-block]');for(var i=0;i<n.length;i++)show(n[i]);}function wire(){var b=document.querySelectorAll('[data-mc-block]');for(var i=0;i<b.length;i++){(function(x){if(typeof MutationObserver!=='undefined'){var mo=new MutationObserver(function(){show(x);mo.disconnect();});mo.observe(x,{childList:true,subtree:true});}})(b[i]);}}if(document.readyState!=='loading'){wire();}else{document.addEventListener('DOMContentLoaded',wire);}setTimeout(showAll,1500);})();</script>\n";
+	echo "<script id=\"mcc-block-reveal\">(function(){function show(b){b.style.visibility='visible';}function showAll(){var n=document.querySelectorAll('[data-mc-block]');for(var i=0;i<n.length;i++)show(n[i]);}function wire(){var b=document.querySelectorAll('[data-mc-block]');for(var i=0;i<b.length;i++){(function(x){if(typeof MutationObserver!=='undefined'){var mo=new MutationObserver(function(){show(x);mo.disconnect();});mo.observe(x,{childList:true,subtree:true});}})(b[i]);}}if(document.readyState!=='loading'){wire();}else{document.addEventListener('DOMContentLoaded',wire);}setTimeout(showAll,700);})();</script>\n";
 }, 1 );
 
 add_action( 'wp_enqueue_scripts', function () {
