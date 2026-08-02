@@ -1,70 +1,71 @@
-# Demo copy — the three roles (concept)
+# Demo-copy — de drie rollen (concept)
 
-Concept copy for the misterchameleon.nl demo, one set per role. **First draft — the
-merkstrateeg owns the final wording** (the variants *are* the positioning). English,
-to match the platform UI; localise to Dutch if the audience calls for it.
+Concept-copy voor de misterchameleon.nl-demo, één set per rol. **Eerste versie — de
+merkstrateeg bepaalt de definitieve woorden** (de varianten *zíjn* de positionering).
+Website-teksten in het **Nederlands** (de demo-UI zelf blijft Engels).
 
-**How to use it.** Each role's rule already points at an existing variant key. Paste
-the copy below into the CMS (Statamic) for that key, and the demo stops being bare:
-switching role in the top switcher swaps the hero + cta to role-tailored copy, while
-the rest of the page (proof, sections) stays. Keep every hero the **same length /
-shape** so the page doesn't jump when it swaps.
+**Hoe te gebruiken.** Elke rol-regel wijst al naar een bestaande variant-key. Plak de
+copy hieronder in de CMS (Statamic) op die key, en de demo is niet langer kaal: van rol
+wisselen in de schakelaar bovenin verwisselt de **hero + cta** naar rol-copy, terwijl de
+rest van de pagina (proof, secties) blijft staan. Houd elke hero **even lang / dezelfde
+vorm** zodat de pagina niet springt bij het wisselen.
 
-The through-line across all four: **the colour changes, not the animal** — same
-promise (one site that adapts per visitor, measurably), a different entry point.
+De rode draad over alle vier: **de kleur verandert, niet het dier** — dezelfde belofte
+(één site die zich per bezoeker gedraagt, meetbaar), een andere ingang.
 
 ---
 
-## Default — the baseline everyone sees first
+## Default — wat iedereen eerst ziet
 
 *Keys: hero `hero_direct_brand` · cta `cta_guide` · proof `proof_default`*
 
-- **Hero title:** One website. Every visitor.
-- **Hero subtitle:** Your site keeps its promise — and adapts its entry point to who's
-  reading. Same message, a different way in.
-- **CTA:** See how it works
-- **Proof line:** Server-side, measurable, and privacy-first — your data stays in Europe.
+- **Hero-kop:** Eén website. Elke bezoeker.
+- **Hero-subtekst:** Je site houdt zijn belofte — en past de ingang aan wie er leest.
+  Dezelfde boodschap, een andere manier binnen.
+- **CTA:** Bekijk hoe het werkt
+- **Proof-regel:** Server-side, meetbaar en privacy-bewust — je data staat in Europa.
 
 ---
 
-## Marketer (at an end client)
+## Marketeer (bij een eindklant)
 
 *Keys: hero `hero_consideration` · cta `cta_demo`*
 
-- **Hero title:** Your ads are sharp. Your landing page isn't.
-- **Hero subtitle:** You target precisely — then everyone lands on the same page, in the
-  same order. We make the landing match the ad, and you measure whether it pays off.
-- **CTA:** Book a demo
+- **Hero-kop:** Je advertenties zijn scherp. Je landingspagina niet.
+- **Hero-subtekst:** Je richt precies — en dan komt iedereen op dezelfde pagina, in
+  dezelfde volgorde. Wij laten de landing aansluiten op de advertentie, en je meet zelf
+  of het loont.
+- **CTA:** Plan een demo
 
-## Agency owner
+## Bureau-eigenaar
 
 *Keys: hero `hero_linkedin_vision` · cta `cta_platform`*
 
-- **Hero title:** A version per visitor — for every client site, without building landing
-  pages.
-- **Hero subtitle:** One layer over the sites you already manage. Set it up once from the
-  positioning, steer it monthly. A new retainer line that's stewardship, not production.
-- **CTA:** Explore the platform
+- **Hero-kop:** Een versie per bezoeker — voor elke klantsite, zonder landingspagina's te
+  bouwen.
+- **Hero-subtekst:** Eén laag over de sites die je al beheert. Eén keer inrichten vanuit
+  de positionering, maandelijks bijsturen. Een nieuwe retainerregel die bewaking is, geen
+  productie.
+- **CTA:** Ontdek het platform
 
-## Technical lead
+## Technisch verantwoordelijke
 
 *Keys: hero `hero_google_problem` · cta `cta_meeting`*
 
-- **Hero title:** One line of code. Server-side. No flicker.
-- **Hero subtitle:** The decision runs on the server within a 700 ms budget, with a safe
-  default — if it ever fails, the visitor simply gets your normal page. No profiles tied
-  to a name; data in Europe.
-- **CTA:** Talk to us
+- **Hero-kop:** Eén regel code. Server-side. Geen geflikker.
+- **Hero-subtekst:** De beslissing valt server-side binnen een 700ms-budget, met een
+  veilige default — gaat het ooit mis, dan krijgt de bezoeker gewoon je normale pagina.
+  Geen persoonsgegevens die we bewaren; data in Europa.
+- **CTA:** Praat met ons
 
 ---
 
-## Notes
+## Notities
 
-- The three role rules keep **proof and the rest of the page on the default** — only
-  hero + cta change per role. That's deliberate (the advisor's "alleen hero en cta
-  wisselen").
-- These keys are **shared** with other rules on the demo tenant. On a demo tenant that's
-  fine; on a real customer you'd give each role its **own** variant key so shared
-  variants aren't affected.
-- The `interestPrimary` shown in the profile panel per role: Marketer → *conversion*,
-  Agency owner → *partnership*, Technical lead → *integration*. Adjust to taste.
+- De drie rol-regels houden **proof en de rest van de pagina op de default** — alleen
+  hero + cta wisselen per rol. Dat is bewust ("alleen hero en cta wisselen").
+- Deze keys zijn **gedeeld** met andere regels op de demo-tenant. Op een demo-tenant is
+  dat prima; bij een echte klant geef je elke rol zijn **eigen** variant-key zodat gedeelde
+  varianten niet meebewegen.
+- De `interestPrimary` die het profielpaneel per rol toont: Marketeer → *conversion*,
+  Bureau-eigenaar → *partnership*, Technisch → *integration*. Naar smaak aan te passen.
