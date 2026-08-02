@@ -140,18 +140,27 @@ technisch verantwoordelijke).
 ## Praktisch — zo start je elke demo (dev)
 
 **Demo 1 — het idee (platform-site, échte regels).**
-1. Open de platform-gehoste site met de tenant + panel aan:
-   `…?tenant=mister-chameleon&scenario=true`. (Lokaal in dev verschijnt het panel
-   vanzelf; op een deploy-URL zet je `?scenario=true` erbij, of de env
-   `NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1`.)
-2. Open het scenario control panel en **geef de muis uit handen.**
-3. Kies een rol — **Marketeer / Bureau-eigenaar / Technisch verantwoordelijke.**
-   Verwacht (alleen hero + cta wisselen, de rest blijft staan):
-   - Marketeer → hero *consideration* + cta *demo*
-   - Bureau-eigenaar → hero *linkedin/vision* + cta *platform*
-   - Technisch → hero *google/probleem* + cta *meeting*
-   - Uit / reset → default: hero *direct brand* + cta *guide*
-4. Geen wissel te zien? De rules-config-cache (~120s) kan na de directe
+1. Open de platform-gehoste site met de tenant + demo-modus aan:
+   `…?tenant=mister-chameleon&scenario=true` (of `&demo=1`). Lokaal in dev staat
+   demo-modus vanzelf aan; op een deploy-URL zet je `?scenario=true`/`?demo=1`
+   erbij, of de env `NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1`.
+2. **Bovenin verschijnt de schone rollen-schakelaar:** "Wie ben je?" met de drie
+   rollen + "Standaard". Dát is wat je de prospect voorschuift — niet het volle
+   operator-paneel rechtsonder (dat blijft er voor jezelf). Geef de muis uit
+   handen.
+3. Laat hem een rol kiezen (UI is Engels) — **Marketer / Agency owner /
+   Technical lead** (+ **Default** om terug te zetten). Alleen hero + cta
+   wisselen, de rest blijft staan:
+   - Marketer → hero *consideration* + cta *demo*
+   - Agency owner → hero *linkedin/vision* + cta *platform*
+   - Technical lead → hero *google/probleem* + cta *meeting*
+   - Default → hero *direct brand* + cta *guide*
+4. **Linksonder loopt het profielpaneel mee** ("What the site knows"): rol,
+   interesse, fase en intent — in gewone taal, live. Dáárin zit ook de
+   **tijdschuif** (*Day / Evening / Weekend*): schuif de tijd en de pagina
+   beweegt mee. Dit is je moeilijkst uit te leggen eigenschap — in beeld tien
+   seconden.
+5. Geen wissel te zien? De rules-config-cache (~120s) kan na de directe
    DB-schrijf nog oud zijn — sla één regel op in de admin (Personalization →
    Rules → opslaan) om te force-invalideren, of wacht ~2 minuten. Dit staat op
    **dev**.
