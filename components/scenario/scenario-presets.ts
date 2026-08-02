@@ -657,6 +657,14 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
     color:       "purple",
     overrides: {
       audienceSegmentIds: "demo-role-marketeer",
+      // Confidence/intent hoog genoeg zetten zodat de slot-gating de wissel niet
+      // terugdraait naar default (anders lijkt de demo "kaal" / onveranderd).
+      funnelStage:        "consideration",
+      intentScore:        55,
+      engagementScore:    45,
+      confidenceBand:     "high",
+      overallConfidence:  0.8,
+      interestConfidence: 0.8,
     },
   },
 
@@ -668,6 +676,12 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
     color:       "blue",
     overrides: {
       audienceSegmentIds: "demo-role-bureau",
+      funnelStage:        "consideration",
+      intentScore:        55,
+      engagementScore:    45,
+      confidenceBand:     "high",
+      overallConfidence:  0.8,
+      interestConfidence: 0.8,
     },
   },
 
@@ -679,6 +693,12 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
     color:       "green",
     overrides: {
       audienceSegmentIds: "demo-role-technisch",
+      funnelStage:        "consideration",
+      intentScore:        55,
+      engagementScore:    45,
+      confidenceBand:     "high",
+      overallConfidence:  0.8,
+      interestConfidence: 0.8,
     },
   },
 };
