@@ -63,6 +63,7 @@ import { Header, Footer } from "@/components/layout";
 import { PreviewBar } from "@/components/preview/PreviewBar";
 import { StatamicPreviewWatcher } from "@/components/preview/StatamicPreviewWatcher";
 import { ScenarioControlMount } from "@/components/scenario/ScenarioControlMount";
+import { DemoRoleSwitcherMount } from "@/components/scenario/DemoRoleSwitcherMount";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
 import { getActiveTenant } from "@/tenant/server";
@@ -146,6 +147,7 @@ export default async function SiteLayout({
         or ?scenario=true is in the URL. Rendered after all page content.
       */}
       <ScenarioControlMount />
+      <DemoRoleSwitcherMount />
       {/*
         PageTracker fires a `page_view` event on every client-side route change.
         Placed in the shared layout so it runs on ALL (site) pages — homepage,
