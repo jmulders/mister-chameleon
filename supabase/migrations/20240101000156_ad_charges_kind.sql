@@ -17,6 +17,18 @@ ALTER TABLE public.ad_profiling_charges
 ALTER TABLE public.ad_profiling_charges
   DROP CONSTRAINT IF EXISTS ad_profiling_charges_ad_tenant_id_session_id_charge_date_key;
 
-ALTER TABLE public.ad_profiling_charges
-  ADD CONSTRAINT ad_profiling_charges_dedup_key
-  UNIQUE (ad_tenant_id, session_id, charge_date, kind);
+-- ADD CONSTRAINT has no IF NOT EXISTS, so guard it: skip when the constraint
+-- already exists (e.g. a prior partial run), which otherwise raises 42P07.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ad_profiling_charges_dedup_key'
+      AND conrelid = 'public.ad_profiling_charges'::regclass
+  ) THEN
+    ALTER TABLE public.ad_profiling_charges
+      ADD CONSTRAINT ad_profiling_charges_dedup_key
+      UNIQUE (ad_tenant_id, session_id, charge_date, kind);
+  END IF;
+EXCEPTION WHEN undefined_table THEN NULL;
+END $$;
