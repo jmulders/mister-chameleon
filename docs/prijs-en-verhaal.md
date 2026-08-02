@@ -115,6 +115,38 @@ campagnespecifieke inhoud nodig heeft, dan is de nette oplossing een variant met
 een **einddatum die zichzelf opruimt** — maar dat bouw je pas als een klant er
 twee keer om heeft gevraagd, niet vooruitlopend.
 
+## Denk in kwartalen — de horizon
+
+Het instrument heeft tijd nodig; denk in het ritme waar het in past.
+
+- **Kwartaal 0 — inrichting.** Segmenten vanuit de positionering, varianten voor
+  de meedoende blokken, regels, holdout aan, koppeling en meetopzet. 2–3 weken
+  doorlooptijd, €4–6k eenmalig (lager als het op een positioneringstraject
+  aansluit).
+- **Kwartaal 1 — het loopt, je weet nog niets.** Bijstellen: drempels te ruim of
+  te krap, segmenten die leeg blijven, condities die te breed vuren. De eerste
+  campagne haakt aan en is meteen je eerste toets op de segmentatie. Aan het eind
+  kun je zeggen hoe het verkeer zich verdeelt — nog geen uitspraak over effect.
+- **Kwartaal 2 — halfjaarpunt.** Genoeg data om structureel zwakke varianten te
+  vervangen; de holdout geeft richting, nog geen cijfer. Wees eerlijk: bij een
+  B2B-klant met beperkt verkeer is een half jaar vaak net te kort voor een hard
+  antwoord.
+- **Kwartaal 3–4 — het rendement.** Segmentatie gecorrigeerd, zwakke varianten
+  eruit, holdout genoeg gedraaid. Bij het jaargesprek laat je zien wat is
+  aangepast, wat dat deed en wat je volgend jaar wilt proberen. Het gesprek
+  verschuift van *of het werkt* naar *wat we nu nog kunnen winnen*.
+
+**Wat het kost over de horizon.** Half jaar (setup + 6 mnd): **€13–20k**. Jaar
+(setup + 12 mnd): **€22–35k**, afhankelijk van het maandtarief.
+
+**Wat dat betekent voor de afspraak.** Verkoop **geen half jaar** — een
+halfjaarcontract eindigt precies op het punt waar je nog geen antwoord hebt, en
+dan zegt de klant op omdat hij niets heeft gezien. Verkoop **een jaar met een
+uitstapmoment na zes maanden**: dat verlaagt de drempel én geeft het instrument
+de tijd die het nodig heeft. En zeg bij de start hardop dat **het eerste kwartaal
+inrichten en leren is, niet oogsten** — dan is de verwachting goed gezet en hoef
+je in maand vier niets recht te praten.
+
 ## Bij het eerste gesprek
 
 Let op of hij het zo teruggeeft. **Als hij het in zijn eigen woorden anders
