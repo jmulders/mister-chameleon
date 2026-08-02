@@ -23,13 +23,13 @@
 
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import {
   type StoredRulesConfig,
   validateStoredConfig,
   SEED_RULES_CONFIG,
 } from "@/decision/rules/stored-rule";
-import { loadTenantRulesConfig, tenantRulesConfigKey } from "@/decision/rules/load-tenant-rules";
+import { loadTenantRulesConfig, tenantRulesConfigKey, tenantRulesCacheTag } from "@/decision/rules/load-tenant-rules";
 import { generatePresetRulesConfig, mergePresetRules } from "@/decision/rules/generate-preset-rules";
 import { getDb } from "@/data/db";
 import { fetchVariantCatalogue } from "@/decision/rules/fetch-variant-catalogue";
@@ -203,6 +203,7 @@ export async function saveTenantRulesAction(
   }
 
   revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+  revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
 }
 
@@ -253,6 +254,7 @@ export async function setTenantRulesEnabledAction(
   }
 
   revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+  revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
 }
 
@@ -294,6 +296,7 @@ export async function resetTenantRulesAction(
   }
 
   revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+  revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
 }
 
