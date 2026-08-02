@@ -208,6 +208,16 @@ export interface ScenarioOverrides {
    */
   _scenarioKey?: string;
 
+  /**
+   * Opt-in to the demo-plan BYPASS. Default (undefined/false) = the demo runs on
+   * the SAME code path as a real customer: the scenario overrides the context and
+   * the real rule engine produces the plan. Set to true only as a fallback for a
+   * tenant that has no matching rules yet — then the pipeline serves the hardcoded
+   * DEMO_SCENARIO_PLANS entry instead. Keeping this off is what stops the demo
+   * from silently diverging from real behaviour.
+   */
+  bypass?: boolean;
+
   // ── Audience segment override ───────────────────────────────────────────────
   /**
    * Override the evaluated audience segment IDs for this visitor.
