@@ -58,7 +58,7 @@ export function RuleFireStatsPanel({ rules, stats }: RuleFireStatsPanelProps) {
           Regel-vuringen (laatste {stats.windowDays} dagen)
         </h2>
         <span className="text-xs text-neutral-500">
-          {stats.total.toLocaleString("nl-NL")} vuringen{stats.truncated ? "+" : ""}
+          {stats.total.toLocaleString("nl-NL")} vuringen
         </span>
       </div>
       <p className="mb-4 text-xs text-neutral-500">

@@ -1,17 +1,17 @@
 /**
- * Rule Fire Store — "do the rules actually do anything?"
+ * Rule Fire Store — "do the rules actually fire?" (daily aggregation)
  *
- * The complement to the score-distribution panel. Distribution tells you the
+ * The complement to the score-distribution panel: distribution tells you the
  * input discriminates; this tells you each rule actually fires (or never does).
- * A rule that never fires — because its threshold is unreachable, or a higher-
- * priority rule always wins first — looks fine in the list but is dead.
  *
- * Append-only: one row per rule match on the decide path, aggregated by count.
- * Writes are fire-and-forget (recordRuleFire) so they add no latency and, if the
- * table doesn't exist yet (pre-migration), fail silently — never breaking decide.
+ * Storage is a per-rule, per-day counter (rule_fire_daily), NOT an append log.
+ * An append log would be a hot-path write producing tens of millions of rows a
+ * month at scale; a daily counter answers the same diagnostic question for at
+ * most (#rules × #days) rows. The increment is a single atomic upsert via the
+ * increment_rule_fire() SQL function, so concurrent fires can't lose counts.
  *
- * Table: public.rule_fire_events (migration 162). Aggregation fetches the window
- * and counts in-process (capped), which is fine for a diagnostic.
+ * recordRuleFire is fire-and-forget: never awaited on the hot path, never throws,
+ * and a missing table/function (pre-migration) is a silent no-op.
  */
 
 import "server-only";
@@ -19,12 +19,10 @@ import "server-only";
 import { getDb } from "@/data/db";
 import { logger } from "@/lib/logger";
 
-/** Cap on rows scanned when aggregating (diagnostic, not exact accounting). */
-export const RULE_FIRE_SCAN_CAP = 100_000;
-
 export interface RuleFireCount {
   ruleId:      string;
   count:       number;
+  /** Last day (YYYY-MM-DD) this rule fired within the window, or null. */
   lastFiredAt: string | null;
 }
 
@@ -33,70 +31,75 @@ export interface RuleFireStats {
   total:       number;
   generatedAt: string;
   byRule:      RuleFireCount[];
-  /** True when the scan hit the cap (counts are a lower bound). */
-  truncated:   boolean;
 }
 
 /**
- * Record one rule fire. Fire-and-forget; never awaited on the hot path and
- * never throws. Silent no-op if the table is absent (pre-migration).
+ * Add one to today's counter for (tenant, rule). Fire-and-forget; never awaited
+ * on the hot path and never throws. Silent no-op if the function/table is absent
+ * (pre-migration).
  */
 export async function recordRuleFire(tenantId: string, ruleId: string): Promise<void> {
   if (!tenantId || !ruleId) return;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (getDb() as any)
-      .from("rule_fire_events")
-      .insert({ tenant_id: tenantId, rule_id: ruleId });
+    const { error } = await (getDb() as any).rpc("increment_rule_fire", {
+      p_tenant_id: tenantId,
+      p_rule_id:   ruleId,
+    });
+    if (error) {
+      logger.debug("[observability] increment_rule_fire failed (pre-migration?)", { error: error.message });
+    }
   } catch (err) {
-    logger.debug("[observability] recordRuleFire failed (table may be pre-migration)", {
+    logger.debug("[observability] recordRuleFire failed", {
       err: err instanceof Error ? err.message : String(err),
     });
   }
 }
 
+function daysAgoISODate(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 /**
- * Aggregate rule fires for a tenant over the last `windowDays`. Returns a
- * per-rule count + last-fired timestamp. Never throws; empty on failure or
- * pre-migration.
+ * Aggregate rule fires for a tenant over the last `windowDays` from the daily
+ * counters. Never throws; empty on failure or pre-migration.
  */
 export async function getRuleFireStats(tenantId: string, windowDays = 30): Promise<RuleFireStats> {
   const generatedAt = new Date().toISOString();
-  const empty: RuleFireStats = { windowDays, total: 0, generatedAt, byRule: [], truncated: false };
+  const empty: RuleFireStats = { windowDays, total: 0, generatedAt, byRule: [] };
   if (!tenantId) return empty;
 
   try {
-    const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = daysAgoISODate(windowDays);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (getDb() as any)
-      .from("rule_fire_events")
-      .select("rule_id, occurred_at")
+      .from("rule_fire_daily")
+      .select("rule_id, day, count")
       .eq("tenant_id", tenantId)
-      .gte("occurred_at", cutoff)
-      .order("occurred_at", { ascending: false })
-      .limit(RULE_FIRE_SCAN_CAP);
+      .gte("day", cutoff);
 
     if (error || !data) return empty;
 
-    const rows = data as { rule_id: string; occurred_at: string }[];
+    const rows = data as { rule_id: string; day: string; count: number }[];
     const map = new Map<string, { count: number; last: string }>();
+    let total = 0;
     for (const r of rows) {
+      const c = Number(r.count) || 0;
+      total += c;
       const cur = map.get(r.rule_id);
-      if (cur) cur.count += 1;
-      else map.set(r.rule_id, { count: 1, last: r.occurred_at }); // rows are newest-first, so first seen = last fired
+      if (cur) {
+        cur.count += c;
+        if (r.day > cur.last) cur.last = r.day;
+      } else {
+        map.set(r.rule_id, { count: c, last: r.day });
+      }
     }
 
     const byRule: RuleFireCount[] = [...map.entries()]
       .map(([ruleId, v]) => ({ ruleId, count: v.count, lastFiredAt: v.last }))
       .sort((a, b) => b.count - a.count);
 
-    return {
-      windowDays,
-      total:       rows.length,
-      generatedAt,
-      byRule,
-      truncated:   rows.length >= RULE_FIRE_SCAN_CAP,
-    };
+    return { windowDays, total, generatedAt, byRule };
   } catch (err) {
     logger.debug("[observability] getRuleFireStats failed", {
       err: err instanceof Error ? err.message : String(err),
@@ -105,16 +108,16 @@ export async function getRuleFireStats(tenantId: string, windowDays = 30): Promi
   }
 }
 
-/** Delete rule-fire rows older than `days`. Fail-open. Returns rows removed. */
-export async function purgeOldRuleFireEvents(days = 90): Promise<number> {
+/** Delete daily counters older than `days`. Fail-open. Returns rows removed. */
+export async function purgeOldRuleFireDays(days = 90): Promise<number> {
   try {
-    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = daysAgoISODate(days);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (getDb() as any)
-      .from("rule_fire_events")
+      .from("rule_fire_daily")
       .delete()
-      .lt("occurred_at", cutoff)
-      .select("id");
+      .lt("day", cutoff)
+      .select("tenant_id");
     if (error || !data) return 0;
     return (data as unknown[]).length;
   } catch {
