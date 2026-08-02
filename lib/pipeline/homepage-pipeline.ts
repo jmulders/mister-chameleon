@@ -38,6 +38,7 @@ import { RulesDecisionProvider, ExperimentDecisionProvider } from "@/decision";
 import { loadTenantRulesConfig }           from "@/decision/rules/load-tenant-rules";
 import { fetchVariantCatalogue }           from "@/decision/rules/fetch-variant-catalogue";
 import type { DecisionProvider }           from "@/decision/providers/decision-provider";
+import type { ExperiencePlan }             from "@/decision/types";
 import { buildDecisionContext }            from "@/decision/context/build-decision-context";
 import type { EnrichmentDebugInfo }        from "@/decision/context/build-decision-context";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
@@ -126,6 +127,43 @@ import { SANITY_REVALIDATE_SECONDS }       from "@/cms/providers/sanity-client";
 import { resolveContextBlockVariant }      from "@/page-config/block-variants";
 
 // ── GA4 service account helper ────────────────────────────────────────────────
+
+/**
+ * Hard time budget for the server-side decision. The per-stage try/catch blocks
+ * below handle ERRORS (they fall back to the default plan), but they do not cap
+ * SLOWNESS: a hanging dependency (CMS, enrichment, an AI-assisted slot) could
+ * otherwise stall the whole server render. This budget guarantees the page never
+ * waits longer than a fixed window for the decision — on timeout it serves the
+ * DEFAULT experience (the same one a no-consent visitor gets), never a blank.
+ *
+ * Set generously: this is a hang-preventer, not a latency tuner. Tune via env if
+ * a tenant's normal decision legitimately runs longer.
+ */
+const DECIDE_BUDGET_MS = Number(process.env.MC_DECIDE_BUDGET_MS) || 2000;
+
+/**
+ * Wrap a decision provider so getHomepagePlan can never exceed DECIDE_BUDGET_MS.
+ * On timeout it resolves to DEFAULT_HOMEPAGE_PLAN and logs a warning, so the
+ * degradation is both safe (default content) and observable (you know it fired).
+ */
+function withDecisionBudget(provider: DecisionProvider, tenantId: string): DecisionProvider {
+  return {
+    getHomepagePlan: (input) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const budget = new Promise<ExperiencePlan>((resolve) => {
+        timer = setTimeout(() => {
+          logger.warn("[pipeline] decision budget exceeded; serving default plan", {
+            tenantId, budgetMs: DECIDE_BUDGET_MS,
+          });
+          resolve(DEFAULT_HOMEPAGE_PLAN);
+        }, DECIDE_BUDGET_MS);
+      });
+      return Promise.race([provider.getHomepagePlan(input), budget]).finally(() => {
+        if (timer) clearTimeout(timer);
+      });
+    },
+  };
+}
 
 function parseServiceAccount(
   json: string | null | undefined,
@@ -802,7 +840,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     ?? getSegmentDemoPlan(scenarioOverrides?.audienceSegmentIds);
   const effectiveDecisionProvider: DecisionProvider = demoPlan
     ? { getHomepagePlan: async () => demoPlan }
-    : decisionProvider;
+    : withDecisionBudget(decisionProvider, tenantConfig.tenantId);
 
   if (demoPlan) {
     logger.debug("[pipeline] Demo scenario bypass active", {
