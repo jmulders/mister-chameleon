@@ -1,6 +1,42 @@
-# Prijs en verhaal
+# Verkoopvoorstel — Mister Chameleon
 
-Uitgangspunten voor het eerste klantgesprek. Bijgewerkt: 2 augustus 2026.
+Wat we doen, wat het kost, en hoe de samenwerking loopt. Uitgangspunten voor het
+eerste klantgesprek. Bijgewerkt: 2 augustus 2026.
+
+---
+
+## Wat we doen
+
+Eén website die zich **per bezoeker** gedraagt. Dezelfde belofte, een andere
+ingang — **de kleur verandert, niet het dier.** De inkoper, de sollicitant en de
+terugkerende klant komen op dezelfde pagina, maar krijgen de hero, het bewijs en
+de call-to-action die bij hén past; de rest van de pagina blijft staan. Zo is het
+géén verzameling versnipperde landingspagina's, maar één site die meebeweegt.
+
+Concreet leveren we:
+
+- **De inrichting vanuit de positionering.** Segmenten bepalen, varianten
+  schrijven voor de blokken die meedoen (hero, bewijs, cta, en waar zinvol
+  formulier en bevestigingsmail), de regels inrichten die context aan variant
+  koppelen, en de holdout + meetopzet neerzetten.
+- **De levering zonder nieuwe site.** Eén snippet in de `<head>` (of een plugin)
+  maakt de bestaande site adaptief. De beslissing valt **server-side**, met een
+  **veilige default**: zonder signaal of bij een storing krijgt de bezoeker gewoon
+  de standaardcontent. Voor de bezoeker gebeurt de wissel onzichtbaar tussen twee
+  paginaladingen.
+- **De meetbaarheid.** Een deel van de bezoekers krijgt bewust de gewone site
+  (holdout), zodat je kunt zien of het uitmaakt. Plus per-as scoreverdeling en
+  regel-vuringen: doet de invoer iets, en doen de regels iets.
+- **Privacy als onderscheid.** Data in de EER (Ierland), verrijking alleen met
+  toestemming, een meestuurbare verwerkersovereenkomst.
+- **Het doorlopende werk.** Maandelijks bijsturen en bewaken, campagnes aanhaken
+  op de conditielaag, en een kwartaalgesprek waarin je laat zien wat de holdout
+  opleverde. Zie "Zo ziet een maand eruit" en `operating-model-en-rollen.md`.
+
+**De opbrengst in één zin:** de juiste boodschap op de plek waar de beslissing
+valt, meetbaar — en een **rem op campagnedrift**, want een campagne die geen enkele
+bestaande variant kan dragen, is een signaal (afdrijven of een nieuw segment),
+geen bouwtaak.
 
 ---
 
