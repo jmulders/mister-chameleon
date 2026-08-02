@@ -33,10 +33,12 @@ import { VariantUsagePanel }   from "./_components/VariantUsagePanel";
 import { SeedPresetRulesButton } from "./_components/SeedPresetRulesButton";
 import { RulesMatrix }         from "./_components/RulesMatrix";
 import { ScoreDistributionPanel } from "./_components/ScoreDistributionPanel";
+import { RuleFireStatsPanel }    from "./_components/RuleFireStatsPanel";
 import { Text }                from "@/components/primitives/Text";
 import { fetchVariantCatalogue }      from "@/decision/rules/fetch-variant-catalogue";
 import { computeVariantUsage, resolveContentBudget } from "@/decision/rules/variant-usage";
 import { getScoreDistribution }       from "@/lib/lead-base/score-distribution";
+import { getRuleFireStats }           from "@/lib/observability/rule-fire-store";
 import { getPlatformContentBudgetSettings }          from "@/platform/platform-store";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -55,11 +57,12 @@ export default async function TenantRulesPage({
   const tenant = normalizeTenant(rawTenant);
 
   // Load this tenant's rules, variant catalogue, and content budget in parallel.
-  const [result, variantCatalogue, budgetResult, scoreDistribution] = await Promise.all([
+  const [result, variantCatalogue, budgetResult, scoreDistribution, ruleFireStats] = await Promise.all([
     getTenantRulesAction(tenantId),
     fetchVariantCatalogue(tenantId),
     getPlatformContentBudgetSettings(),
     getScoreDistribution(tenantId),
+    getRuleFireStats(tenantId),
   ]);
 
   // Bind the tenant-scoped server actions so RulesEditor can call them without
@@ -126,6 +129,14 @@ export default async function TenantRulesPage({
       {/* ── Score distribution over real sessions (diagnostics) ───────────── */}
       <div className="mt-8">
         <ScoreDistributionPanel distribution={scoreDistribution} />
+      </div>
+
+      {/* ── Rule-fire counts — do the rules actually fire? ────────────────── */}
+      <div className="mt-8">
+        <RuleFireStatsPanel
+          rules={result.config.rules.map((r) => ({ id: r.id, label: r.label }))}
+          stats={ruleFireStats}
+        />
       </div>
     </div>
   );

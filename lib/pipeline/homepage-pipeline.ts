@@ -315,7 +315,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const isControl = servesDefaultExperience(personalizationGroup);
 
   const baseDecisionProvider = new ExperimentDecisionProvider(
-    new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl),
+    new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl, tenantConfig.tenantId),
     sessionId,
     experimentsEnabled,
     tenantConfig.tenantId,
