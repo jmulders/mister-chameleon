@@ -30,6 +30,7 @@
     "restore": "tsx scripts/restore.ts",
     "reencrypt:email": "tsx scripts/reencrypt-email-secrets.ts",
     "reencrypt:email:apply": "tsx scripts/reencrypt-email-secrets.ts --apply",
+    "bench:decide": "tsx scripts/bench-decide.ts",
     "seed:variants": "npx tsx cms/seed/platform-seed.ts",
     "seed:variants:dry": "npx tsx cms/seed/platform-seed.ts --dry-run",
     "seed:marketing": "npx tsx cms/seed/marketing-site-seed.ts",
