@@ -839,8 +839,14 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // The context overrides (funnelStage, intentScore, etc.) still apply via
   // applyScenarioToHistory / applyScenarioToDecisionContext above — the debug
   // panel will reflect the effective context correctly.
-  const demoPlan = getDemoScenarioPlan(scenarioOverrides?._scenarioKey)
-    ?? getSegmentDemoPlan(scenarioOverrides?.audienceSegmentIds);
+  // Bypass is OFF by default: the scenario overrides the CONTEXT (above) and the
+  // real rule engine produces the plan — the same code path a real customer runs,
+  // so the demo can't silently diverge. Only when `bypass: true` is explicitly set
+  // (fallback for a tenant with no rules yet) do we serve the hardcoded demo plan.
+  const demoPlan = scenarioOverrides?.bypass === true
+    ? (getDemoScenarioPlan(scenarioOverrides?._scenarioKey)
+        ?? getSegmentDemoPlan(scenarioOverrides?.audienceSegmentIds))
+    : null;
   const effectiveDecisionProvider: DecisionProvider = demoPlan
     ? { getHomepagePlan: async () => demoPlan }
     : withDecisionBudget(decisionProvider, tenantConfig.tenantId);
