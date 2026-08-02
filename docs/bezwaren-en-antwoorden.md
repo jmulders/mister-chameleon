@@ -13,7 +13,7 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 1 | AI is op de *beslissing* gericht — te vroeg, geen moat | AI omgericht op het **schrijven van varianten**, niet op de keuze. `copy-generator` teruggedraaid; `variant-generator` (hero/proof/cta-copy) blijft. | Opgelost |
-| 2 | Self-serve vs. agency — je kiest self-serve op basis van niets | Route-keuze gemaakt: **agency-led**. AI-copy (feedce79) geparkeerd, niet uitgebreid. Adaptieve bevestiging (d1e937b1) is route-neutraal en live. | Opgelost |
+| 2 | Self-serve vs. agency — je kiest self-serve op basis van niets | AI-copy (feedce79) geparkeerd, niet uitgebreid; adaptieve bevestiging (d1e937b1) is route-neutraal en live. **Maar parkeren is geen routekeuze** — het criterium is de vraag die een koper terugstelt, en die gesprekken zijn er nog niet geweest. Als dit als "opgelost" staat, is de keuze alsnog aan het toetsenbord gemaakt. | **Open** |
 | 3 | "Productierijp" is een overclaim | Rijpheidskaart met **falsifieerbaar criterium** (echte productiedata + tijd + faalsignaal); interne lens i.p.v. externe claim; observability als eerste reparatieregel. | Opgelost |
 
 ## Betrouwbaarheid en faalgedrag
@@ -21,6 +21,7 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 4 | Wat gebeurt er als de beslissing faalt? | Per kanaal uitgewerkt: snippet/WP wisselen client-side, default staat in de HTML, onthullen na **700 ms**, afbreken na 1500 ms → traag/fout/weg eindigen allemaal op de veilige default. Voor server-render een harde timeout `withDecisionBudget` gebouwd. | Opgelost |
+| 4b | **Waarneembaarheid ontbreekt** — faalgeval 4 (geldig-maar-fout), en het stille falen van formulieropslag, mailverzending en decide. Dit stond als reparatiepunt 1 bovenaan de rijpheidskaart. | **Nog niet opgelost.** #14 raakt de *diagnose* (scoreverdeling gebouwd, regel-vuringen open), maar het **faalsignaal** op opslag/mail/decide is een aparte laag die er nog niet is. Dit is de eerste ontbrekende categorie, niet cosmetica. | **Open** |
 | 5 | "Server-side + geen flikkering" klopt niet op 2/3 kanalen | Positionering gecorrigeerd naar **"server-side beslissing, geen sprong, veilige default"**. | Opgelost |
 | 6 | Onthul-timing te traag (1500 ms) | Teruggebracht naar **700 ms**, met min-height/CLS-afhandeling tegen springen. | Opgelost |
 | 15 | Hoe makkelijk kan een klant stoppen zonder dat de site breekt? | **Stoppen = een storing**, en die eindigt veilig: snippet eruit of platform stil → de CMS-/redacteurscontent blijft staan (progressive enhancement met `data-mc-slot`). Geen lege blokken, niets terug te bouwen. | Gepareerd |
@@ -38,7 +39,7 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
-| 12a | Kun je per tenant uitrollen of gaat alles in één keer? | Eén platform → **atomaire deploy, iedereen tegelijk**. Mitigatie: staging/preview-check vóór promoten. | Gepareerd |
+| 12a | Kun je per tenant uitrollen of gaat alles in één keer? | Eén platform → **atomaire deploy, iedereen tegelijk**. Staging/preview is normale hygiëne, **geen beheersmaatregel voor blast radius** — de echte demping zit in de kill-switch (12b) en instant rollback (12c). | Gepareerd |
 | 12b | Is er een schakelaar die één klant per direct terugzet op de standaard zonder deploy? | **Ja** — `rulesEnabled=false` → default plan, `revalidateTag` maakt het direct actief zonder deploy. UI-tekst aangescherpt tot expliciete nood-schakelaar. | Opgelost |
 | 12c | Hoe lang duurt terugdraaien om 22.00 uur? | **Seconden** — Vercel Instant Rollback (onveranderlijke deploys, pointer-wissel). Per-klant-probleem: de kill-switch hierboven. | Gepareerd |
 
@@ -46,23 +47,24 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
-| 13a | IP-verrijking is niet "onpersoonlijk"; IP = persoonsgegeven; geen cookies helpt ePrivacy niet AVG; server-side verandert niets | Onderbouwd in `docs/legal/grondslag-verrijking.md`. Kern: verrijking is bij ons **consent-gated** (firmografie alleen bij `enrichment`-toestemming) — strenger dan gerechtvaardigd belang, en precies het onderscheid t.o.v. de US-platformen. | Opgelost |
+| 13a | IP-verrijking is niet "onpersoonlijk"; IP = persoonsgegeven; geen cookies helpt ePrivacy niet AVG; server-side verandert niets | Onderbouwd in `docs/legal/grondslag-verrijking.md`. Verrijking is **consent-gated** (firmografie alleen bij `enrichment`-toestemming). **Nuance:** toestemming is niet automatisch strenger dan gerechtvaardigd belang — het heeft eigen eisen, moet intrekbaar zijn mét verwijdering als gevolg, en het **IP wordt al vóór de toestemmingsvraag verwerkt**, wat óók een grondslag nodig heeft. Verdedigbaar, niet triviaal. | Opgelost (te toetsen) |
 | 13b | Rol: verwerker vs. **gezamenlijke verantwoordelijkheid** bij verrijking | Expliciet benoemd in de DPB (art. 8). Beheersmaatregel: de klant zet verrijking **per tenant zelf aan** en kiest per bron → ondersteunt de verwerker-rol. Rest-risico juridisch te toetsen. | Opgelost (te toetsen) |
-| 13c | Lever een DPB, subverwerkerslijst, waar staat de data, bewaartermijn, grondslag | Alle vier gemaakt in `docs/legal/`: DPB + subverwerkerslijst + grondslag/LIA. Data: EER (Vercel fra1 / Supabase EER — te bevestigen). Bewaartermijn: **90 dagen rollend**, auto-purge. | Opgelost (verificaties open) |
-| 16b | Wat gebeurt er met persoonsgegevens na opzegging, binnen welke termijn? (verplichting) | In de DPB (Annex I): profielen verlopen **rollend na 90 dagen**; na opzegging verwijderd/geretourneerd binnen **[X] dagen** — getal moet jij zetten (advies 30). | Open (getal zetten) |
+| 13c | Lever een DPB, subverwerkerslijst, waar staat de data, bewaartermijn, grondslag | Alle vier gemaakt in `docs/legal/`. Bewaartermijn: **90 dagen rollend**, auto-purge. Data staat in de **EER — Supabase West-Europa (Ierland, eu-west-1)**, bevestigd. | Opgelost |
+| 16b | Wat gebeurt er met persoonsgegevens na opzegging, binnen welke termijn? (verplichting) | **Gebouwd:** default **30 dagen**, per tenant instelbaar met een startdatum (Tenant → Settings → "Data retention after termination"); DPB verwijst ernaar. Profielen verlopen sowieso rollend na 90 dagen. | Opgelost |
 
 ## Portabiliteit en diagnose
 
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 16a | De opgebouwde waarde (varianten, regels, profielen, interessegeschiedenis) blijft bij jou = lock-in; een exportknop is ook een verkoopargument | **Exportknop gebouwd**: één JSON-download met regels/segmentatie, varianten en bezoekersprofielen (incl. interesses), volledig client-side. Zit in de rules-toolbar. | Opgelost |
-| 14 | Filteren op scores diagnosticeert niets; je hebt de **verdeling van scores over echte sessies** nodig + per regel hoe vaak hij vuurde | Feasibility bepaald: de **scoreverdeling** is een goedkope read uit `visitor_profiles` (bouwbaar als paneel). **Regel-vuringen** worden nu nergens bewaard → vergen een schrijf op de hot path (async insert of dagelijkse rollup): ontwerpkeuze, geen "even aanzetten". | Open (keuze + bouw) |
+| 14 | Filteren op scores diagnosticeert niets; je hebt de **verdeling van scores over echte sessies** nodig + per regel hoe vaak hij vuurde | **Scoreverdeling-paneel gebouwd** (per as over echte sessies, met flag als een as niet discrimineert of bijna geen signaal heeft). **Regel-vuringen** nog open: die worden nergens bewaard → vergen een schrijf op de hot path (async insert of dagelijkse rollup), een ontwerpkeuze. | Deels (paneel klaar, vuringen open) |
 
 ---
 
-## Nog open (keuze of meting bij Jasper)
+## Nog open — met de reden waarom
 
-- **Score-diagnostics** (#14): akkoord op het scoreverdeling-paneel (read-only, veilig) en de bewaarwijze voor regel-vuringen kiezen.
-- **Twee-tenant + p95-meting** (#10): de outage-/vertragingstest die twee tenants tegelijk raakt en de p95-latentie + CPU-ms per beslissing vastlegt.
-- **Bewaartermijn na opzegging** (#16b): het aantal dagen zetten in de DPB.
-- **Juridische toetsing** (#13): de conceptdocumenten in `docs/legal/` langs een privacyjurist.
+- **Routekeuze self-serve vs. agency (#2) — het zwaarste punt.** Open omdat het criterium een *koper* is, niet een commit. Parkeren van feedce79 is geen keuze; die valt pas als een klant de vraag terugstelt. Kan niet aan het toetsenbord opgelost worden — vereist het eerste gesprek (Olyslager).
+- **Waarneembaarheid / faalsignaal (#4b) — reparatiepunt 1.** Open omdat er nog geen laag is die het stille falen van formulieropslag, mailverzending en decide zichtbaar maakt. De diagnose-kant (scoreverdeling) staat; het faalsignaal is een aparte bouw.
+- **Regel-vuringen (#14, tweede helft).** Open omdat tellen een schrijf op de hot path vraagt (async insert of dagelijkse rollup) — een ontwerpkeuze met een kostenkant, geen "even aanzetten". Wacht op jouw keuze van de bewaarwijze.
+- **Productie-p95 op echt verkeer (#10).** De *compute*-p95 is gemeten (0,086 ms, `npm run bench:decide`, 0 lekken). Open blijft de p95 mét netwerk op de live site — dat kan alleen op echt verkeer.
+- **Juridische toetsing (#13).** Open omdat de conceptdocumenten in `docs/legal/` per definitie langs een privacyjurist moeten vóór gebruik.

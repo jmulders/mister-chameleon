@@ -14,7 +14,7 @@ Laatst bijgewerkt: 2 augustus 2026
 | Subverwerker | Functie | Persoonsgegevens | Locatie / regio | Doorgifte buiten EER |
 |---|---|---|---|---|
 | **Vercel Inc.** | Hosting + serverless compute | IP-adres, verzoekmetadata (transient) | VS-bedrijf; deploy in EER-regio (Frankfurt `fra1` aanbevolen) | Ja — SCC's / DPF verifiëren |
-| **Supabase** | PostgreSQL-database + opslag | Bezoekersprofielen, formulierinzendingen, ABM-leads | EER-regio (**projectregio bevestigen in dashboard**) | Nee, mits EER-project |
+| **Supabase** | PostgreSQL-database + opslag | Bezoekersprofielen, formulierinzendingen, ABM-leads | **EER — Ierland (eu-west-1)** | Nee |
 | **Resend** | Transactionele/adaptieve e-mail | Ontvanger-e-mailadres + e-mailinhoud | **Verwerkingsregio verifiëren** | Waarschijnlijk — verifiëren |
 | **Anthropic** | AI-generatie van *variantcopy* | **Geen bezoeker-PII** — alleen contentprompts voor marketingtekst | VS | Ja — DPF/SCC's; scope beperkt tot copy |
 

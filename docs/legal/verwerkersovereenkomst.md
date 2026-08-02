@@ -199,8 +199,8 @@ verifiëren per subverwerker.*
 **Locatie van de gegevens**
 
 - **Compute (applicatie):** Vercel, EER-regio (aanbevolen: Frankfurt `fra1`).
-- **Database en opslag:** Supabase (PostgreSQL), EER-regio. *Bevestig de
-  projectregio in het Supabase-dashboard vóór ondertekening.*
+- **Database en opslag:** Supabase (PostgreSQL), **EER — West-Europa (Ierland,
+  eu-west-1)**.
 - **E-mail:** Resend (transactioneel). *Verifieer verwerkingsregio.*
 - **Verrijking en CRM:** diverse, deels buiten de EER — zie Annex II.
 
