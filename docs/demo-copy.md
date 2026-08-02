@@ -14,7 +14,8 @@ teksten in de CMS-beheeromgeving.
 Elke rol-regel wijst naar een variant-key. Van rol wisselen in de schakelaar bovenin
 verwisselt de hero en de cta naar rol-copy, terwijl de rest van de pagina blijft staan.
 Elke hero is ongeveer even lang gehouden zodat de pagina niet springt bij het wisselen.
-Aanspreekvorm is u/uw, gelijk aan de rest van de pagina.
+Aanspreekvorm is je/jij. Let op: de rest van de pagina (proof, features) staat nog op
+u/uw. Als je die toon wilt doortrekken, kan dat in dezelfde home-content.
 
 De rode draad over alle vier. De kleur verandert, niet het dier. Zelfde belofte, andere
 ingang.
@@ -37,6 +38,10 @@ Bekijk hoe het werkt
 
 **Proof-regel**
 Server-side en meetbaar. Je data staat in Europa.
+
+**CTA-sectie (cta_guide)**
+Klaar om je homepage relevant te maken? Inrichten kost een middag. Plan een gesprek en we
+laten zien hoe het voor je site werkt.
 
 ---
 
