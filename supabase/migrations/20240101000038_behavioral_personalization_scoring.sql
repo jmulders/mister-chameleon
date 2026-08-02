@@ -31,6 +31,50 @@
 --   seq_re_<pattern>           — Real Estate sequences
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- ── 0. Schema self-heal (idempotent) ─────────────────────────────────────────
+--
+-- This migration seeds with the WIDE schema (key/name/description/base_score/…)
+-- that later migrations (029/070) introduce. On a database where those hadn't
+-- landed yet, the seeds below crash with 42703 (missing column) or 42P10
+-- (missing ON CONFLICT arbiter). Ensure every column and unique index the seeds
+-- rely on exists first — all IF NOT EXISTS, so this is safe on every database.
+-- In particular, `name` is not added by 028/029, so we add it here.
+
+ALTER TABLE behavior_scoring_rules
+  ADD COLUMN IF NOT EXISTS key           text,
+  ADD COLUMN IF NOT EXISTS name          text,
+  ADD COLUMN IF NOT EXISTS description   text,
+  ADD COLUMN IF NOT EXISTS page_category text,
+  ADD COLUMN IF NOT EXISTS base_score    numeric(10,3),
+  ADD COLUMN IF NOT EXISTS decay_profile text    NOT NULL DEFAULT 'standard',
+  ADD COLUMN IF NOT EXISTS is_active     boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS priority      integer NOT NULL DEFAULT 100;
+
+CREATE UNIQUE INDEX IF NOT EXISTS behavior_scoring_rules_tenant_key_uidx
+  ON behavior_scoring_rules (tenant_id, key) WHERE key IS NOT NULL;
+
+ALTER TABLE behavior_sequence_patterns
+  ADD COLUMN IF NOT EXISTS slug                    text,
+  ADD COLUMN IF NOT EXISTS key                     text,
+  ADD COLUMN IF NOT EXISTS name                    text,
+  ADD COLUMN IF NOT EXISTS description             text,
+  ADD COLUMN IF NOT EXISTS confidence_contribution numeric(4,3) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cross_session           boolean      NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_active               boolean      NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS priority                integer      NOT NULL DEFAULT 100;
+
+CREATE UNIQUE INDEX IF NOT EXISTS behavior_sequence_patterns_tenant_slug_uidx
+  ON behavior_sequence_patterns (tenant_id, slug);
+
+-- Legacy NOT-NULL columns that predate this wide seed (score on scoring_rules,
+-- label on sequence_patterns) have no default, so inserts that only populate the
+-- new columns (base_score, name) would hit 23502. Give them safe defaults.
+-- Guarded per column → a no-op on a database where the column doesn't exist.
+DO $$ BEGIN ALTER TABLE behavior_scoring_rules    ALTER COLUMN score SET DEFAULT 0;  EXCEPTION WHEN undefined_column OR undefined_table THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE behavior_scoring_rules    ALTER COLUMN label SET DEFAULT ''; EXCEPTION WHEN undefined_column OR undefined_table THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE behavior_sequence_patterns ALTER COLUMN label SET DEFAULT ''; EXCEPTION WHEN undefined_column OR undefined_table THEN NULL; END $$;
+
+
 -- ── 1. Decay Profiles ─────────────────────────────────────────────────────────
 --
 -- Rationale:
