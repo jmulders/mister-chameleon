@@ -13,7 +13,7 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 1 | AI is op de *beslissing* gericht — te vroeg, geen moat | AI omgericht op het **schrijven van varianten**, niet op de keuze. `copy-generator` teruggedraaid; `variant-generator` (hero/proof/cta-copy) blijft. | Opgelost |
-| 2 | Self-serve vs. agency — je kiest self-serve op basis van niets | AI-copy (feedce79) geparkeerd, niet uitgebreid; adaptieve bevestiging (d1e937b1) is route-neutraal en live. **Maar parkeren is geen routekeuze** — het criterium is de vraag die een koper terugstelt, en die gesprekken zijn er nog niet geweest. Als dit als "opgelost" staat, is de keuze alsnog aan het toetsenbord gemaakt. | **Open** |
+| 2 | Self-serve vs. agency — je kiest self-serve op basis van niets | AI-copy (feedce79) geparkeerd; adaptieve bevestiging (d1e937b1) route-neutraal en live. Self-service is nu als **schakelaar** ingebouwd (per tenant, default uit) — het *mechanisme* bestaat dus, maar dat is geen keuze. **Parkeren is geen routekeuze**; het criterium is de vraag die een koper terugstelt, en die gesprekken zijn er nog niet geweest. | **Open** |
 | 3 | "Productierijp" is een overclaim | Rijpheidskaart met **falsifieerbaar criterium** (echte productiedata + tijd + faalsignaal); interne lens i.p.v. externe claim; observability als eerste reparatieregel. | Opgelost |
 
 ## Betrouwbaarheid en faalgedrag
@@ -21,7 +21,7 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 4 | Wat gebeurt er als de beslissing faalt? | Per kanaal uitgewerkt: snippet/WP wisselen client-side, default staat in de HTML, onthullen na **700 ms**, afbreken na 1500 ms → traag/fout/weg eindigen allemaal op de veilige default. Voor server-render een harde timeout `withDecisionBudget` gebouwd. | Opgelost |
-| 4b | **Waarneembaarheid ontbreekt** — faalgeval 4 (geldig-maar-fout), en het stille falen van formulieropslag, mailverzending en decide. Dit stond als reparatiepunt 1 bovenaan de rijpheidskaart. | **Nog niet opgelost.** #14 raakt de *diagnose* (scoreverdeling gebouwd, regel-vuringen open), maar het **faalsignaal** op opslag/mail/decide is een aparte laag die er nog niet is. Dit is de eerste ontbrekende categorie, niet cosmetica. | **Open** |
+| 4b | **Waarneembaarheid ontbreekt** — faalgeval 4 (geldig-maar-fout), en het stille falen van formulieropslag, mailverzending en decide. Dit stond als reparatiepunt 1 bovenaan de rijpheidskaart. | **Gebouwd:** aparte faalsignaal-laag die opslag-, mail- en decide-fouten vastlegt (fail-open recorder op alle drie de punten) + health-paneel op de debug-pagina (groen/amber per laag). Reparatiepunt 1 afgehandeld. | Opgelost |
 | 5 | "Server-side + geen flikkering" klopt niet op 2/3 kanalen | Positionering gecorrigeerd naar **"server-side beslissing, geen sprong, veilige default"**. | Opgelost |
 | 6 | Onthul-timing te traag (1500 ms) | Teruggebracht naar **700 ms**, met min-height/CLS-afhandeling tegen springen. | Opgelost |
 | 15 | Hoe makkelijk kan een klant stoppen zonder dat de site breekt? | **Stoppen = een storing**, en die eindigt veilig: snippet eruit of platform stil → de CMS-/redacteurscontent blijft staan (progressive enhancement met `data-mc-slot`). Geen lege blokken, niets terug te bouwen. | Gepareerd |
@@ -57,14 +57,13 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 16a | De opgebouwde waarde (varianten, regels, profielen, interessegeschiedenis) blijft bij jou = lock-in; een exportknop is ook een verkoopargument | **Exportknop gebouwd**: één JSON-download met regels/segmentatie, varianten en bezoekersprofielen (incl. interesses), volledig client-side. Zit in de rules-toolbar. | Opgelost |
-| 14 | Filteren op scores diagnosticeert niets; je hebt de **verdeling van scores over echte sessies** nodig + per regel hoe vaak hij vuurde | **Scoreverdeling-paneel gebouwd** (per as over echte sessies, met flag als een as niet discrimineert of bijna geen signaal heeft). **Regel-vuringen** nog open: die worden nergens bewaard → vergen een schrijf op de hot path (async insert of dagelijkse rollup), een ontwerpkeuze. | Deels (paneel klaar, vuringen open) |
+| 14 | Filteren op scores diagnosticeert niets; je hebt de **verdeling van scores over echte sessies** nodig + per regel hoe vaak hij vuurde | **Beide gebouwd:** scoreverdeling-paneel (per as, met flag als een as niet discrimineert) + regel-vuringen (append-log via fire-and-forget insert, migratie 162, aggregatie-paneel dat ook **nooit-gevuurde** regels toont). Regel-vuringen live na `npm run db:migrate`. | Opgelost (vuringen live na migratie) |
 
 ---
 
 ## Nog open — met de reden waarom
 
-- **Routekeuze self-serve vs. agency (#2) — het zwaarste punt.** Open omdat het criterium een *koper* is, niet een commit. Parkeren van feedce79 is geen keuze; die valt pas als een klant de vraag terugstelt. Kan niet aan het toetsenbord opgelost worden — vereist het eerste gesprek (Olyslager).
-- **Waarneembaarheid / faalsignaal (#4b) — reparatiepunt 1.** Open omdat er nog geen laag is die het stille falen van formulieropslag, mailverzending en decide zichtbaar maakt. De diagnose-kant (scoreverdeling) staat; het faalsignaal is een aparte bouw.
-- **Regel-vuringen (#14, tweede helft).** Open omdat tellen een schrijf op de hot path vraagt (async insert of dagelijkse rollup) — een ontwerpkeuze met een kostenkant, geen "even aanzetten". Wacht op jouw keuze van de bewaarwijze.
-- **Productie-p95 op echt verkeer (#10).** De *compute*-p95 is gemeten (0,086 ms, `npm run bench:decide`, 0 lekken). Open blijft de p95 mét netwerk op de live site — dat kan alleen op echt verkeer.
+- **Routekeuze self-serve vs. agency (#2) — het zwaarste punt.** Open omdat het criterium een *koper* is, niet een commit. De self-service-schakelaar bestaat nu (per tenant, default uit), maar dat is het mechanisme, niet de keuze. Die valt pas als een klant de vraag terugstelt — vereist het eerste gesprek (Olyslager).
+- **Productie-p95 op echt verkeer (#10).** De *compute*-p95 is gemeten (0,083 ms, `npm run bench:decide`, 0 lekken over 50.000 paren). Open blijft de p95 mét netwerk op de live site — dat kan alleen op echt verkeer.
+- **Migratie draaien voor regel-vuringen (#14).** De code staat; `npm run db:migrate` (dev, dan prod) activeert de `rule_fire_events`-tabel. Tot dan tonen de tellingen nul.
 - **Juridische toetsing (#13).** Open omdat de conceptdocumenten in `docs/legal/` per definitie langs een privacyjurist moeten vóór gebruik.
