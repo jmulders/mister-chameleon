@@ -25,9 +25,10 @@
 import { notFound }      from "next/navigation";
 import { getTenantById } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
-import { getTenantRulesAction, saveTenantRulesAction, resetTenantRulesAction, setTenantRulesEnabledAction, seedPresetRulesAction } from "./actions";
+import { getTenantRulesAction, saveTenantRulesAction, resetTenantRulesAction, setTenantRulesEnabledAction, seedPresetRulesAction, exportTenantDataAction } from "./actions";
 import { RulesEditor }         from "@/app/dashboard/rules/_components/RulesEditor";
 import { GlobalRulesToggle }   from "./_components/GlobalRulesToggle";
+import { ExportTenantDataButton } from "./_components/ExportTenantDataButton";
 import { VariantUsagePanel }   from "./_components/VariantUsagePanel";
 import { SeedPresetRulesButton } from "./_components/SeedPresetRulesButton";
 import { RulesMatrix }         from "./_components/RulesMatrix";
@@ -66,6 +67,7 @@ export default async function TenantRulesPage({
   const boundReset          = resetTenantRulesAction.bind(null, tenantId);
   const boundSetEnabled     = setTenantRulesEnabledAction.bind(null, tenantId);
   const boundSeedPresets    = seedPresetRulesAction.bind(null, tenantId);
+  const boundExport         = exportTenantDataAction.bind(null, tenantId);
 
   if (!result.ok) {
     return (
@@ -95,7 +97,10 @@ export default async function TenantRulesPage({
           initialEnabled={rulesEnabled}
           setEnabledAction={boundSetEnabled}
         />
-        <SeedPresetRulesButton seedAction={boundSeedPresets} />
+        <div className="flex items-center gap-3">
+          <ExportTenantDataButton exportAction={boundExport} />
+          <SeedPresetRulesButton seedAction={boundSeedPresets} />
+        </div>
       </div>
 
       <RulesEditor
