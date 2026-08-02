@@ -11,6 +11,7 @@
 
 import { randomBytes }             from "node:crypto";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
+import { isSelfServiceEnabled }    from "@/lib/self-service/self-service-store";
 import { listAdaptiveBlocks }      from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import { upsertAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import {
@@ -35,6 +36,11 @@ export async function generateVariantAction(
   | { ok: false; error: string }
 > {
   await getRequiredAdminSession();
+  // Self-service gate: AI variant generation is a self-service authoring feature.
+  // Agency-led tenants (default) can't reach it; the switch in Settings turns it on.
+  if (!(await isSelfServiceEnabled(tenantId))) {
+    return { ok: false, error: "Self-service staat uit voor deze tenant (agency-led). Zet 'Self-service mode' aan bij Settings om zelf varianten te genereren." };
+  }
   const count = await countForSlot(tenantId, brief.slot);
   const res   = await generateVariant(brief);
   if (!res.ok) return res;
@@ -49,6 +55,11 @@ export async function saveGeneratedVariantAction(
   decision:  GeneratedVariant["decision"],
 ): Promise<{ ok: true; id: string; key: string } | { ok: false; error: string }> {
   await getRequiredAdminSession();
+
+  // Self-service gate (defense in depth — mirrors generateVariantAction).
+  if (!(await isSelfServiceEnabled(tenantId))) {
+    return { ok: false, error: "Self-service staat uit voor deze tenant (agency-led)." };
+  }
 
   // Hard cap — keep the candidate set lean (and the rules overview manageable).
   const count = await countForSlot(tenantId, slot);

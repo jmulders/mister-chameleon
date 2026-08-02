@@ -13,7 +13,7 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 1 | AI is op de *beslissing* gericht — te vroeg, geen moat | AI omgericht op het **schrijven van varianten**, niet op de keuze. `copy-generator` teruggedraaid; `variant-generator` (hero/proof/cta-copy) blijft. | Opgelost |
-| 2 | Self-serve vs. agency — je kiest self-serve op basis van niets | AI-copy (feedce79) geparkeerd; adaptieve bevestiging (d1e937b1) route-neutraal en live. Self-service is nu als **schakelaar** ingebouwd (per tenant, default uit) — het *mechanisme* bestaat dus, maar dat is geen keuze. **Parkeren is geen routekeuze**; het criterium is de vraag die een koper terugstelt, en die gesprekken zijn er nog niet geweest. | **Open** |
+| 2 | Self-serve vs. agency — je kiest self-serve op basis van niets | Self-service is nu een **werkende schakelaar** (per tenant, default uit): aan → de tenant kan zelf varianten met AI genereren (`blocks/generate` is erop gegated, server + UI); uit → agency-led, het bureau schrijft de varianten. Het *mechanisme* werkt dus voor de toekomst — maar dat is geen routekeuze. **Parkeren/klaarzetten is geen keuze**; het criterium is de vraag die een koper terugstelt, en die gesprekken zijn er nog niet geweest. | **Open** |
 | 3 | "Productierijp" is een overclaim | Rijpheidskaart met **falsifieerbaar criterium** (echte productiedata + tijd + faalsignaal); interne lens i.p.v. externe claim; observability als eerste reparatieregel. | Opgelost |
 
 ## Betrouwbaarheid en faalgedrag
