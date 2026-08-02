@@ -643,6 +643,44 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
       longTermAffinityScore:20,
     },
   },
+
+  // ── Demo-rollen (misterchameleon.nl / platform-demo) ────────────────────────
+  // Elke rol zet alleen `audienceSegmentIds`, waarop de gelijknamige regel
+  // (demo.role_*) matcht en een andere hero + cta geeft — de rest van de pagina
+  // blijft staan. Draait op het echte regel-pad (geen bypass). Geef de schakelaar
+  // uit handen en laat de prospect zelf van rol wisselen.
+  demo_role_marketeer: {
+    key:         "demo_role_marketeer",
+    label:       "Rol — Marketeer (eindklant)",
+    description: "Marketeer bij een eindklant. Hero + cta gericht op de marketeer.",
+    icon:        "📣",
+    color:       "purple",
+    overrides: {
+      audienceSegmentIds: "demo-role-marketeer",
+    },
+  },
+
+  demo_role_bureau: {
+    key:         "demo_role_bureau",
+    label:       "Rol — Bureau-eigenaar",
+    description: "Eigenaar van een bureau. Hero + cta gericht op de bureau-eigenaar.",
+    icon:        "🏢",
+    color:       "blue",
+    overrides: {
+      audienceSegmentIds: "demo-role-bureau",
+    },
+  },
+
+  demo_role_technisch: {
+    key:         "demo_role_technisch",
+    label:       "Rol — Technisch verantwoordelijke",
+    description: "Technisch verantwoordelijke. Hero + cta gericht op de techneut.",
+    icon:        "🛠️",
+    color:       "green",
+    overrides: {
+      audienceSegmentIds: "demo-role-technisch",
+    },
+  },
 };
 
 // ── Ordered list for UI display ───────────────────────────────────────────────
