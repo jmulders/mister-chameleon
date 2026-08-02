@@ -12,18 +12,34 @@
  * NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1. Client-only (via een ssr:false mount).
  */
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { activateScenario, clearScenario } from "./scenario-store";
+import { activateScenario, clearScenario, getScenarioState, subscribeToScenario } from "./scenario-store";
+import { isDemoChromeCollapsed, setDemoChromeCollapsed, subscribeDemoChrome } from "./demo-ui-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF";
 
-const ROLES: Array<{ key: string; label: string }> = [
-  { key: "demo_role_marketeer", label: "Marketer" },
-  { key: "demo_role_bureau",    label: "Agency owner" },
-  { key: "demo_role_technisch", label: "Technical lead" },
+const ROLES: Array<{ key: string; label: string; segment: string }> = [
+  { key: "demo_role_marketeer", label: "Marketer",       segment: "demo-role-marketeer" },
+  { key: "demo_role_bureau",    label: "Agency owner",   segment: "demo-role-bureau" },
+  { key: "demo_role_technisch", label: "Technical lead", segment: "demo-role-technisch" },
 ];
+
+/**
+ * Derive the active role from the live scenario state instead of a local
+ * useState. This keeps the top-bar highlight in sync no matter who changed the
+ * store — the time slider (left panel), the operator panel, or this switcher.
+ * We match on the applied audience segment, not on presetKey, so the highlight
+ * survives actions that overwrite presetKey (e.g. the time slider sets it to
+ * "demo_time" while the role's segment stays in the overrides).
+ */
+function activeRoleFromState(): string | null {
+  const seg = getScenarioState().overrides?.audienceSegmentIds;
+  const asText = Array.isArray(seg) ? seg.join(",") : (typeof seg === "string" ? seg : "");
+  if (!asText) return null;
+  return ROLES.find((r) => asText.includes(r.segment))?.key ?? null;
+}
 
 function demoEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -36,9 +52,37 @@ function demoEnabled(): boolean {
 export function DemoRoleSwitcher() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [active, setActive] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(() => activeRoleFromState());
+  const [collapsed, setCollapsed] = useState<boolean>(() => isDemoChromeCollapsed());
+
+  // Follow the shared store: any change (this switcher, the time slider, or the
+  // operator panel) re-derives the active role so the highlight stays truthful.
+  useEffect(() => subscribeToScenario(() => setActive(activeRoleFromState())), []);
+  // Follow the shared collapse state so top-bar and left panel fold together.
+  useEffect(() => subscribeDemoChrome(setCollapsed), []);
 
   if (!demoEnabled()) return null;
+
+  // Collapsed: hide the bar (and the left panel, which follows the same store);
+  // leave only a small handle top-right to bring everything back.
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setDemoChromeCollapsed(false)}
+        style={{
+          position: "fixed", top: 14, right: 16, zIndex: 10001,
+          border: "none", borderRadius: 999, padding: "8px 14px",
+          background: NAVY, color: ICE, fontSize: 12, fontWeight: 700,
+          cursor: "pointer", boxShadow: "0 6px 24px rgba(0,0,0,0.28)",
+          fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+        }}
+        aria-label="Show demo controls"
+      >
+        🎭 Demo
+      </button>
+    );
+  }
 
   function apply(key: string | null) {
     if (key) {
@@ -47,8 +91,7 @@ export function DemoRoleSwitcher() {
     } else {
       clearScenario();
     }
-    setActive(key);
-    // Re-render server-side met de nieuwe mc_scenario-cookie → echte regels.
+    // setActive volgt via de store-subscription; hier alleen de server-refresh.
     startTransition(() => router.refresh());
   }
 
@@ -103,6 +146,19 @@ export function DemoRoleSwitcher() {
       </span>
       {ROLES.map((r) => pill(r.label, r.key))}
       {pill("Default", null)}
+      <button
+        type="button"
+        onClick={() => setDemoChromeCollapsed(true)}
+        title="Hide demo controls"
+        aria-label="Hide demo controls"
+        style={{
+          marginLeft: 2, width: 26, height: 26, borderRadius: 999, border: "none",
+          background: "rgba(255,255,255,0.10)", color: ICE, fontSize: 15,
+          fontWeight: 700, lineHeight: "22px", cursor: "pointer",
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
