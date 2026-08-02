@@ -29,15 +29,22 @@ CREATE INDEX IF NOT EXISTS rule_fire_daily_tenant_day_idx
 
 ALTER TABLE public.rule_fire_daily ENABLE ROW LEVEL SECURITY;
 
--- Atomic "add one to today's counter for this (tenant, rule)". Kept as a SQL
--- function so the hot-path recorder is a single round-trip with no read-modify-
--- write race.
-CREATE OR REPLACE FUNCTION public.increment_rule_fire(p_tenant_id text, p_rule_id text)
+-- Atomic "add N to the counter for this (tenant, rule, day)". The recorder
+-- buffers fires in memory and flushes once per minute, so this is called at most
+-- once per rule per minute (per instance) with the batched count — no per-fire
+-- write and no hot-row lock contention on the decide path. p_count/p_day default
+-- to a single fire today for backward compatibility.
+CREATE OR REPLACE FUNCTION public.increment_rule_fire(
+  p_tenant_id text,
+  p_rule_id   text,
+  p_count     integer DEFAULT 1,
+  p_day       date    DEFAULT current_date
+)
 RETURNS void
 LANGUAGE sql
 AS $$
   INSERT INTO public.rule_fire_daily (tenant_id, rule_id, day, count)
-  VALUES (p_tenant_id, p_rule_id, current_date, 1)
+  VALUES (p_tenant_id, p_rule_id, p_day, p_count)
   ON CONFLICT (tenant_id, rule_id, day)
-  DO UPDATE SET count = public.rule_fire_daily.count + 1;
+  DO UPDATE SET count = public.rule_fire_daily.count + EXCLUDED.count;
 $$;
