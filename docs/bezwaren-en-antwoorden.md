@@ -57,7 +57,7 @@ antwoord staat, geen bouwwerk nodig · **Open** = keuze of meting bij Jasper.
 | # | Bezwaar | Antwoord / oplossing | Status |
 |---|---|---|---|
 | 16a | De opgebouwde waarde (varianten, regels, profielen, interessegeschiedenis) blijft bij jou = lock-in; een exportknop is ook een verkoopargument | **Exportknop gebouwd**: één JSON-download met regels/segmentatie, varianten en bezoekersprofielen (incl. interesses), volledig client-side. Zit in de rules-toolbar. | Opgelost |
-| 14 | Filteren op scores diagnosticeert niets; je hebt de **verdeling van scores over echte sessies** nodig + per regel hoe vaak hij vuurde | **Beide gebouwd + live op dev:** scoreverdeling-paneel (per as, met flag als een as niet discrimineert) + regel-vuringen (append-log, aggregatie-paneel dat ook **nooit-gevuurde** regels toont). `rule_fire_events` is via de Supabase-connector op dev aangemaakt en het scoring-insert-pad is end-to-end geverifieerd. Prod bij release. | Opgelost (live op dev) |
+| 14 | Filteren op scores diagnosticeert niets; je hebt de **verdeling van scores over echte sessies** nodig + per regel hoe vaak hij vuurde | **Beide gebouwd + live op dev:** scoreverdeling-paneel (per as, met flag als een as niet discrimineert) + regel-vuringen. Na terechte kritiek (append-log = tientallen miljoenen rijen/maand op het hete pad) omgebouwd naar een **dagteller per regel** (atomaire upsert via `increment_rule_fire`), wat de opslag terugbrengt tot ≤ (regels × dagen). End-to-end geverifieerd op dev. Prod bij release. | Opgelost (live op dev) |
 
 ---
 
