@@ -42,6 +42,39 @@ Opgesteld 19 juli 2026. Vier categorieën, oplopend van "moet gefixt" naar "road
 
 ---
 
+## E. Voor september — routekeuze (niet vanavond)
+
+Naar aanleiding van het advies van 1 augustus. Dit is strategie, geen bouwwerk, en hoort
+op de septemberlijst naast de andere routes. Bewust níét in de klantdeck of het gesprek
+van vandaag.
+
+**De derde route: sitebouw als distributie.** Vandaag is de propositie "je hebt geen
+nieuwe website nodig, je bestaande site wordt slimmer" — lage drempel,
+marketingverantwoordelijke, maandbedrag. Daarnaast bestaat een aparte route: elke nieuwe
+site die we bouwen is standaard adaptief, dus niemand hoeft personalisatie apart te kopen,
+het komt mee. Andere koper, ander bedrag, andere verkoopmotie. Dit is de goedkoopste weg
+naar een geïnstalleerde basis en precies waarom Olyslager de logische eerste is (daar wordt
+de site sowieso gebouwd). De twee routes mogen niet in dezelfde deck of hetzelfde gesprek.
+
+**Concrete septembervraag.** Niet alleen wie het koopt, maar of de adaptieve laag een
+dienst is die je apart verkoopt of een eigenschap van elke site die we bouwen. Het tweede
+is commercieel makkelijker en levert minder marge per klant. Echte afweging, geen detail.
+
+**Rijpheidstabel — één rij omzetten.** De sitebouwer stond op "eerst uitzoeken of er een
+klantsite op draait, dan schrappen", op de aanname dat het onderhoud kost zonder
+strategisch rendement. Zodra sitebouw de route is, is het geen kostenpost maar het
+distributiekanaal. Zet die rij om naar "houden, want dit is hoe klanten binnenkomen". Dit
+advies (waarschijnlijk schrappen) is hiermee ingetrokken. Nog aan te passen in de interne
+deck (`mister-chameleon-intern.pptx`).
+
+**Wat het niet verandert.** Gebouwd zijn is niet hetzelfde als gekozen hebben. Het
+onderhoud van drie bibliotheken loopt door of we deze route nu bewandelen of niet — dat het
+bestaat maakt de keuze goedkoper, niet overbodig. En de verdedigbaarheid zit in de
+adaptieve laag en het denkwerk, niet in bouwsnelheid (die prijs zakt weg zodra concurrenten
+het ook kunnen).
+
+---
+
 ## Voorgestelde volgorde
 
 Van concreet-en-nu naar groot-en-strategisch:

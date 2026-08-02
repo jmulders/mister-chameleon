@@ -109,6 +109,20 @@ neerzetten. We stellen een site samen uit bestaande blokken, vullen de teksten, 
 add-on met adaptieve blokken staat er meteen bovenop. Zo levert elke nieuwe site vanaf
 dag één personalisatie, zonder los maatwerk.
 
+Let op, dit is een aparte route, geen uitbreiding van de propositie van vandaag. Vandaag
+zeggen we: je hebt geen nieuwe website nodig, je bestaande site wordt slimmer. Lage
+drempel, marketingverantwoordelijke, maandbedrag. De sitebouw-route zegt iets anders: wij
+bouwen je nieuwe site sneller en hij is meteen adaptief. Dat is een websiteproject, andere
+koper, ander bedrag, andere verkoopmotie. Beide kunnen, maar niet in dezelfde deck en niet
+in hetzelfde gesprek. Deze route staat op de septemberlijst, naast de andere routes, en
+gaat vanavond niet de klantdeck in.
+
+De echte kracht van de sitebouw-route is distributie. Als elke nieuwe site die we bouwen
+standaard adaptief is, hoeft niemand personalisatie apart te kopen, het komt mee. De klant
+vroeg al om een website, en de adaptieve laag is dan geen aparte beslissing maar een
+eigenschap. Dat is de goedkoopste weg naar een eerste live installatie, en precies waarom
+Olyslager de logische eerste is: daar wordt de site sowieso gebouwd.
+
 De voordelen op een rij.
 
 Snelheid. Een nieuwe website bouw je uit kant-en-klare blokken in plaats van vanaf nul.
@@ -129,14 +143,24 @@ verbouwen. Handig voor campagnes, doelgroepen en seizoenen.
 Meetbaar. Omdat varianten los staan, zie je welke variant werkt en kun je bijsturen op
 data in plaats van op onderbuik.
 
-Herbruikbaar over klanten heen. Een blok dat zich bewijst bij de ene site, zet je zo in
-bij de volgende. De bibliotheek wordt met elke opdracht sterker.
+Herbruikbaar over klanten heen, maar alleen de vorm. Een blok dat je ergens gebruikt, zet
+je zo in bij de volgende klant. Let op: de opmaak reist mee, het bewijs niet. Wat bij
+klant A werkte, werkte voor hún publiek en hún propositie. Presenteer dat niet als bewezen
+bij klant B, dat is precies de overclaim die we uit de deck houden. De bibliotheek wordt
+sterker in vorm, niet in bewijskracht.
 
-Werkt op meerdere CMS-en. De blokken en varianten draaien op het ingebouwde platform en
-op externe CMS-en, dus je zit niet vast aan één systeem.
+Werkt op meerdere CMS-en, met een kanttekening. De blokken draaien op het ingebouwde
+platform en op externe CMS-en, dus je zit niet vast aan één systeem. Maar drie
+bibliotheken onderhouden is echt werk. Dat is verdedigbaar zodra sitebouw een gekozen
+route is, en een onderhoudslast zonder strategisch rendement zolang het een
+retrofit-product blijft. Kies dus bewust wat je ermee doet.
 
-Lagere kosten per site. Minder maatwerk per opdracht betekent dat een adaptieve website
-haalbaar wordt voor klanten die anders nooit aan personalisatie zouden beginnen.
+Kosten per site, met een waarschuwing. Minder maatwerk maakt een adaptieve website
+haalbaar voor klanten die er anders niet aan zouden beginnen. Maar snel worden in het
+bouwen van standaardsites is snel worden in precies het deel waarvan de prijs wegzakt.
+Lagere kosten per site betekent op termijn ook lagere prijs per site, want je concurrent
+kan dat straks ook. Het verdedigbare deel blijft de adaptieve laag en het denkwerk
+erachter, niet de snelheid.
 
 ## Notities
 
