@@ -20,12 +20,12 @@ Bijgewerkt: 2 augustus 2026.
 
 ## ⚠️ Twee harde randvoorwaarden
 
-1. **Zelfde codepad als een echte klant — geen aparte demomodus.** Het scenario
-   control panel moet de **context** overschrijven zodat de **échte regels**
-   draaien, níét een kant-en-klaar plan injecteren dat de regel-engine bypasst
-   (`getDemoScenarioPlan`). Draait de demo op een bypass, dan gaat hij stil kapot
-   bij de eerste wijziging — en dan sta je bij een prospect met iets wat het
-   vorige week nog deed.
+1. **Zelfde codepad als een echte klant — geen aparte demomodus.** ✅ *Opgelost:*
+   de demo-plan-bypass staat nu **default uit** (opt-in via `bypass: true`). Een
+   scenario overschrijft alleen de **context**; de **échte regels** produceren de
+   variant — hetzelfde codepad als een echte klant. De bypass blijft als bewuste
+   fallback voor een tenant zonder regels. Vereiste: misterchameleon.nl heeft
+   regels + varianten die op de scenario-context matchen (zie taak "demo-content").
 2. **Geen gepersonaliseerde link als les.** Een link die de site hem bij naam of
    bedrijf laat ontvangen is op jóuw site een leuke binnenkomer — maar zeg er
    meteen bij dat je dit bij hém juist níét zou doen. Anders leert je demo precies
