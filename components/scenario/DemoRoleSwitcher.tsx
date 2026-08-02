@@ -20,9 +20,9 @@ import { SCENARIO_PRESETS } from "./scenario-presets";
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF";
 
 const ROLES: Array<{ key: string; label: string }> = [
-  { key: "demo_role_marketeer", label: "Marketeer" },
-  { key: "demo_role_bureau",    label: "Bureau-eigenaar" },
-  { key: "demo_role_technisch", label: "Technisch" },
+  { key: "demo_role_marketeer", label: "Marketer" },
+  { key: "demo_role_bureau",    label: "Agency owner" },
+  { key: "demo_role_technisch", label: "Technical lead" },
 ];
 
 function demoEnabled(): boolean {
@@ -99,10 +99,10 @@ export function DemoRoleSwitcher() {
       aria-label="Demo — kies een rol"
     >
       <span style={{ color: ICE, fontSize: 12, fontWeight: 700, marginRight: 4 }}>
-        Wie ben je?
+        Who are you?
       </span>
       {ROLES.map((r) => pill(r.label, r.key))}
-      {pill("Standaard", null)}
+      {pill("Default", null)}
     </div>
   );
 }
