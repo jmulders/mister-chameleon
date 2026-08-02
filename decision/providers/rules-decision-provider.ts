@@ -208,9 +208,17 @@ export class RulesDecisionProvider implements DecisionProvider {
    */
   private readonly _forceDefaultPlan: boolean;
 
-  constructor(storedConfig?: StoredRulesConfig, forceDefaultPlan = false) {
+  /**
+   * Optional tenant id. When set, each rule match is recorded (fire-and-forget)
+   * to the rule-fire log for the "do the rules actually fire" diagnostic. When
+   * omitted (e.g. benchmarks, file-based runtime), no fire is recorded.
+   */
+  private readonly _tenantId: string | undefined;
+
+  constructor(storedConfig?: StoredRulesConfig, forceDefaultPlan = false, tenantId?: string) {
     this._storedConfig     = storedConfig;
     this._forceDefaultPlan = forceDefaultPlan;
+    this._tenantId         = tenantId;
   }
 
   /**
@@ -321,6 +329,16 @@ export class RulesDecisionProvider implements DecisionProvider {
           precedenceLevel:   matchedStored?.precedenceLevel,
           matchedContextIds: this.lastMatchedContextIds,
         };
+
+        // Rule-fire diagnostic: record which rule fired (fire-and-forget, never
+        // awaited, never throws). Only when a tenantId is supplied. Dynamically
+        // imported so the pure engine (and benchmarks) stay decoupled from the DB.
+        if (this._tenantId) {
+          const tid = this._tenantId;
+          void import("@/lib/observability/rule-fire-store")
+            .then((m) => m.recordRuleFire(tid, matched.id))
+            .catch(() => { /* pre-migration / no DB: ignore */ });
+        }
 
         const plan: ExperiencePlan = {
           ...matched.plan,

@@ -199,8 +199,8 @@ verifiëren per subverwerker.*
 **Locatie van de gegevens**
 
 - **Compute (applicatie):** Vercel, EER-regio (aanbevolen: Frankfurt `fra1`).
-- **Database en opslag:** Supabase (PostgreSQL), EER-regio. *Bevestig de
-  projectregio in het Supabase-dashboard vóór ondertekening.*
+- **Database en opslag:** Supabase (PostgreSQL), **EER — West-Europa (Ierland,
+  eu-west-1)**.
 - **E-mail:** Resend (transactioneel). *Verifieer verwerkingsregio.*
 - **Verrijking en CRM:** diverse, deels buiten de EER — zie Annex II.
 
@@ -215,8 +215,12 @@ verifiëren per subverwerker.*
 - **Formulierinzendingen / ABM-leads:** bewaard volgens de afspraak met de Klant;
   ABM-leads kennen een eigen `expires_at`.
 
-Na beëindiging worden de persoonsgegevens van de Klant binnen [30] dagen
-verwijderd of geretourneerd, tenzij een wettelijke bewaarplicht anders vereist.
+Na beëindiging worden de persoonsgegevens van de Klant **standaard binnen 30
+dagen** verwijderd of geretourneerd, tenzij een wettelijke bewaarplicht anders
+vereist. Deze termijn is **per tenant instelbaar** (met een startdatum vanaf
+wanneer een gewijzigde termijn geldt) in de admin onder Tenant → Settings →
+"Data retention after termination"; de daar vastgelegde termijn is de
+overeengekomen termijn voor deze Klant.
 
 ## Annex II — Subverwerkers
 

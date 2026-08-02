@@ -33,6 +33,10 @@ import {
 } from "@/lib/admin-auth/authorization";
 import { TenantSettingsForm }  from "../TenantSettingsForm";
 import { DeleteTenantPanel }   from "../_components/DeleteTenantPanel";
+import { RetentionPolicyPanel } from "../_components/RetentionPolicyPanel";
+import { getRetentionPolicyAction, setRetentionPolicyAction } from "./retention-actions";
+import { SelfServiceToggle } from "../_components/SelfServiceToggle";
+import { getSelfServiceEnabledAction, setSelfServiceEnabledAction } from "./self-service-actions";
 import type { TenantSettings } from "@/tenant/server";
 import { getEffectivePlan }    from "@/billing/plan-enforcement";
 
@@ -86,11 +90,16 @@ export default async function TenantSettingsPage({
   const session       = await getRequiredAdminSession();
   const adminIsSuper  = isSuperAdmin(session);
 
-  const [tenant, effectivePlan] = await Promise.all([
+  const [tenant, effectivePlan, retentionPolicy, selfServiceEnabled] = await Promise.all([
     getTenantById(tenantId),
     getEffectivePlan(tenantId),
+    getRetentionPolicyAction(tenantId),
+    getSelfServiceEnabledAction(tenantId),
   ]);
   if (!tenant) notFound();
+
+  const boundSetRetention   = setRetentionPolicyAction.bind(null, tenantId);
+  const boundSetSelfService = setSelfServiceEnabledAction.bind(null, tenantId);
 
   const existingKeys = recordExistingKeys(tenant);
   const safeTenant   = stripSecrets(tenant);
@@ -118,6 +127,22 @@ export default async function TenantSettingsPage({
           abExperiments: true,
         }}
       />
+
+      {/* Self-service mode */}
+      <div className="mt-8">
+        <SelfServiceToggle
+          initialEnabled={selfServiceEnabled}
+          setEnabledAction={boundSetSelfService}
+        />
+      </div>
+
+      {/* Data retention after termination */}
+      <div className="mt-8">
+        <RetentionPolicyPanel
+          initialPolicy={retentionPolicy}
+          setAction={boundSetRetention}
+        />
+      </div>
 
       {/* Danger zone — super-admin only */}
       {adminIsSuper && (

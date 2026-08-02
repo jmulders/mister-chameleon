@@ -21,6 +21,7 @@ import { logger } from "@/lib/logger";
 import { renderAdaptiveEmail, type EmailRecipient, type EmailTemplateKey } from "./adaptive-email";
 import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
 import { loadTenantEmailTransport } from "@/forms/load-tenant-email-transport";
+import { recordFailureSignal } from "@/lib/observability/failure-signal-store";
 import { getPlatformEmailSettings } from "@/platform/platform-store";
 import { listSuppressedEmails } from "@/lib/lead-base/suppression-store";
 import { resolveEmailConfig } from "@/lib/config";
@@ -113,6 +114,10 @@ export async function sendAdaptiveEmail(params: SendAdaptiveEmailParams): Promis
     transport,
   );
   await logSend(params, to, res.ok ? "sent" : "failed", res.ok ? null : res.error, rendered.subject);
+  if (!res.ok) {
+    // Failure signal — mail silently failing is one of the three quiet-death paths.
+    await recordFailureSignal({ tenantId: params.tenantId, surface: "mail", message: res.error ?? "send failed" });
+  }
   return res.ok ? { ok: true } : { ok: false, error: res.error };
 }
 

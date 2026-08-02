@@ -49,6 +49,7 @@ import type { CmsFallbackKeys }            from "@/experience";
 import { applyConfidenceGating }           from "@/decision/apply-confidence-gating";
 import { emptyJourneyState }              from "@/lib/journey/types";
 import { DEFAULT_HOMEPAGE_PLAN }          from "@/decision/rules/homepage-rules";
+import { recordFailureSignal }            from "@/lib/observability/failure-signal-store";
 import { resolveSession }                  from "@/data/session";
 import { fetchRecentJourneyEvents }        from "@/lib/journey/fetch-journey-state";
 import { buildFullContextSnapshot }        from "@/context/debug-snapshot";
@@ -155,6 +156,8 @@ function withDecisionBudget(provider: DecisionProvider, tenantId: string): Decis
           logger.warn("[pipeline] decision budget exceeded; serving default plan", {
             tenantId, budgetMs: DECIDE_BUDGET_MS,
           });
+          // Failure signal — decide stalled past budget and fell back to default.
+          void recordFailureSignal({ tenantId, surface: "decide", message: `decision budget exceeded (${DECIDE_BUDGET_MS}ms)` });
           resolve(DEFAULT_HOMEPAGE_PLAN);
         }, DECIDE_BUDGET_MS);
       });
@@ -312,7 +315,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const isControl = servesDefaultExperience(personalizationGroup);
 
   const baseDecisionProvider = new ExperimentDecisionProvider(
-    new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl),
+    new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl, tenantConfig.tenantId),
     sessionId,
     experimentsEnabled,
     tenantConfig.tenantId,

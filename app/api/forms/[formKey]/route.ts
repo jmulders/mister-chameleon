@@ -71,6 +71,7 @@ import {
   dispatchCMSEmailActions,
 }                                       from "@/forms/email";
 import { storeSubmission }              from "@/forms/storage";
+import { recordFailureSignal }          from "@/lib/observability/failure-signal-store";
 import {
   checkHoneypot,
   checkRateLimit,
@@ -452,6 +453,10 @@ async function handlePost(
               formKey: effectiveKey,
               error:   result.error,
             });
+            // Failure signal — silent submission loss is the worst quiet death.
+            if (tenantId) {
+              void recordFailureSignal({ tenantId, surface: "storage", message: result.error ?? "storage failed" });
+            }
           }
         })
       : Promise.resolve(),
