@@ -42,36 +42,40 @@ Opgesteld 19 juli 2026. Vier categorieën, oplopend van "moet gefixt" naar "road
 
 ---
 
-## E. Voor september — routekeuze (niet vanavond)
+## E. Routekeuze — sitebouw als distributie
 
-Naar aanleiding van het advies van 1 augustus. Dit is strategie, geen bouwwerk, en hoort
-op de septemberlijst naast de andere routes. Bewust níét in de klantdeck of het gesprek
-van vandaag.
+Naar aanleiding van het advies van 1 augustus.
 
-**De derde route: sitebouw als distributie.** Vandaag is de propositie "je hebt geen
-nieuwe website nodig, je bestaande site wordt slimmer" — lage drempel,
-marketingverantwoordelijke, maandbedrag. Daarnaast bestaat een aparte route: elke nieuwe
-site die we bouwen is standaard adaptief, dus niemand hoeft personalisatie apart te kopen,
-het komt mee. Andere koper, ander bedrag, andere verkoopmotie. Dit is de goedkoopste weg
-naar een geïnstalleerde basis en precies waarom Olyslager de logische eerste is (daar wordt
-de site sowieso gebouwd). De twee routes mogen niet in dezelfde deck of hetzelfde gesprek.
+**Besloten (1 augustus).**
 
-**Concrete septembervraag.** Niet alleen wie het koopt, maar of de adaptieve laag een
-dienst is die je apart verkoopt of een eigenschap van elke site die we bouwen. Het tweede
-is commercieel makkelijker en levert minder marge per klant. Echte afweging, geen detail.
+- **De sitebouwer blijft.** Stond eerder op "eerst uitzoeken of er een klantsite op draait,
+  dan schrappen", op de aanname dat het onderhoud kost zonder strategisch rendement. Dat
+  advies is ingetrokken. Zodra sitebouw een route is, is de bibliotheek geen kostenpost maar
+  het distributiekanaal. De rij staat nu op "houden, want dit is hoe klanten binnenkomen".
+- **Sitebouw is erkend als echte, derde route.** Elke nieuwe site die we bouwen is standaard
+  adaptief, dus niemand hoeft personalisatie apart te kopen — het komt mee. De klant vroeg al
+  om een website; de adaptieve laag is dan geen aparte beslissing maar een eigenschap. Dat is
+  de goedkoopste weg naar een eerste live installatie, en precies waarom Olyslager de logische
+  eerste is: daar wordt de site sowieso gebouwd.
 
-**Rijpheidstabel — één rij omzetten.** De sitebouwer stond op "eerst uitzoeken of er een
-klantsite op draait, dan schrappen", op de aanname dat het onderhoud kost zonder
-strategisch rendement. Zodra sitebouw de route is, is het geen kostenpost maar het
-distributiekanaal. Zet die rij om naar "houden, want dit is hoe klanten binnenkomen". Dit
-advies (waarschijnlijk schrappen) is hiermee ingetrokken. Nog aan te passen in de interne
-deck (`mister-chameleon-intern.pptx`).
+**Randvoorwaarden bij die route (blijven staan).**
 
-**Wat het niet verandert.** Gebouwd zijn is niet hetzelfde als gekozen hebben. Het
-onderhoud van drie bibliotheken loopt door of we deze route nu bewandelen of niet — dat het
-bestaat maakt de keuze goedkoper, niet overbodig. En de verdedigbaarheid zit in de
-adaptieve laag en het denkwerk, niet in bouwsnelheid (die prijs zakt weg zodra concurrenten
-het ook kunnen).
+- **Niet in dezelfde deck of hetzelfde gesprek als de propositie van vandaag.** Vandaag:
+  "je hebt geen nieuwe website nodig, je bestaande site wordt slimmer" — lage drempel,
+  marketingverantwoordelijke, maandbedrag. De sitebouw-route: "wij bouwen je nieuwe site
+  sneller en hij is meteen adaptief" — websiteproject, andere koper, ander bedrag, andere
+  verkoopmotie. Beide kunnen, niet door elkaar.
+- **Vorm reist mee, bewijs niet.** Een blok hergebruiken mag; wat bij klant A werkte, is niet
+  bewezen bij klant B. De bibliotheek wordt sterker in vorm, niet in bewijskracht.
+- **Snelheid is niet het verdedigbare deel.** Snel worden in standaardsites is snel worden in
+  precies het deel waarvan de prijs wegzakt zodra concurrenten het ook kunnen. Verdedigbaar
+  blijft de adaptieve laag en het denkwerk erachter.
+- **Gebouwd is niet gekozen.** Het onderhoud van drie bibliotheken loopt door of we de route
+  nu bewandelen of niet — dat het bestaat maakt de keuze goedkoper, niet overbodig.
+
+**Nog te kiezen (september).** Niet alleen wie het koopt, maar of de adaptieve laag een dienst
+is die je apart verkoopt of een eigenschap van elke site die we bouwen. Het tweede is
+commercieel makkelijker en levert minder marge per klant. Echte afweging, geen detail.
 
 ---
 
