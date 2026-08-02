@@ -1,196 +1,151 @@
 # Demo-draaiboek — Mister Chameleon
 
-Stap-voor-stap draaiboek voor een volledige demo van het platform op de
-Mister Chameleon-website. Bedoeld als script achter de hand: links de handeling,
-rechts wat je vertelt en wat de kijker op het scherm ziet gebeuren.
+Wat een demo overtuigend maakt is niet wat hij laat zien maar **wie hem bedient**.
+Zodra de prospect zélf klikt en het ziet veranderen, gelooft hij het. Zolang jij
+klikt, kijkt hij naar een presentatie. Dus: **overhandig de schakelaar.**
 
-Bijgewerkt: 2 augustus 2026. Tenant: `mister-chameleon`.
+We hebben het scenario control panel al — een zichtbare schakelaar in beeld
+waarmee je van context wisselt. Die geef je uit handen.
 
----
+Twee niveaus:
+- **Je eigen site (misterchameleon.nl) overtuigt van het idee.**
+- **Hun eigen site, via mirror-modus, overtuigt van de toepassing** — dat is de
+  afsluiter.
 
-## 0. De rode draad (zeg dit vooraf)
-
-> "Wij hebben vier soorten klanten en één website. Iedereen komt nu op dezelfde
-> pagina met hetzelfde verhaal in dezelfde volgorde — de inkoper leest eerst wat
-> de sollicitant zou moeten lezen. Dat kost geld op de plek waar de beslissing
-> valt. Ik laat je zien hoe dezelfde site zich per bezoeker anders gedraagt, en
-> — belangrijker — hoe we meten of dat uitmaakt."
-
-Houd die zin vast. De hele demo is die zin, bewezen.
+Bijgewerkt: 2 augustus 2026.
 
 ---
 
-## 1. Voorbereiding (5 minuten vóór de call)
+## ⚠️ Twee harde randvoorwaarden (lezen vóór je iets inricht)
 
-1. Zorg dat je op de **dev**-omgeving zit (of een demo-tenant), niet op een
-   klant-productiesite.
-2. Open twee tabbladen: **(A)** de Mister Chameleon-website, **(B)** de admin
-   (`/admin/tenants/mister-chameleon`).
-3. Open het **Scenario Control Panel** op de site (de client-side control die de
-   `mc_scenario`-cookie schrijft). Hiermee wissel je live van persona zonder de
-   code of de database te raken.
-4. Zet de debug-overlay op **summary** (Admin → Debug) zodat je tijdens de demo
-   kunt laten zien wélke regel vuurde en waaróm — maar houd hem klein.
-5. Ververs één keer "koud" (scenario leeg) zodat je met de **standaardervaring**
-   begint.
-
----
-
-## 2. De kern-demo: één site, vier bezoekers
-
-Dit is het hart. Doe het rustig en herhaal steeds hetzelfde patroon:
-**persona kiezen → verversen → benoemen wat er verandert.**
-
-### 2a. De baseline (standaardervaring)
-
-- **Doen:** scenario leeg, ververs de homepage.
-- **Zeggen:** "Dit is wat iedereen vandaag ziet. Onthoud de kop, de volgorde en
-  de knop." De inhoud die je ziet komt uit het CMS van de klant — dat is de
-  veilige default. Als ons platform wegvalt, is dít wat er staat. Er breekt
-  niets.
-
-### 2b. Persona 1 — de inkoper / enterprise-prospect
-
-- **Doen:** Scenario Control → activeer een zakelijk/enterprise-scenario (bv.
-  segment `enterprise-prospect` of `high-intent`). Ververs.
-- **Zeggen:** "Zelfde URL, zelfde pagina. Maar de kop, het bewijs en de knop
-  staan nu in de volgorde die een inkoper overtuigt — en het thema is
-  meegeschoven." Wijs de veranderde hero, proof en CTA aan (de `data-mc-slot`-
-  elementen).
-- **Laat zien in debug:** welke regel vuurde en welke variant per slot gekozen is.
-
-### 2c. Persona 2 — de sollicitant (careers)
-
-- **Doen:** activeer een careers/sollicitant-scenario. Ververs.
-- **Zeggen:** "Andere bezoeker, andere beslissing. Nu leidt de pagina met de
-  vacature-boodschap in plaats van de zakelijke — precies het omgekeerde van wat
-  de inkoper zag."
-
-### 2d. Persona 3 — de bekende klant / retentie
-
-- **Doen:** activeer `crm-known` of `returning-engager`. Ververs.
-- **Zeggen:** "Deze kennen we al (bekend in het CRM). We verspillen geen ruimte
-  meer aan acquisitie-boodschappen; we tonen wat past bij iemand die al klant is."
-
-### 2e. Persona 4 — herkomst-gedreven (LinkedIn / betaald verkeer)
-
-- **Doen:** activeer `linkedin-traffic` of `paid-acquisition`. Ververs.
-- **Zeggen:** "We adverteren gericht en weten dus wie er binnenkomt. De landing
-  sluit nu aan op de advertentie, zonder aparte landingspagina die niemand
-  bijhoudt."
-
-> **Belangrijk voor de directeur in de zaal:** benoem hier dat het scenario de
-> regel-engine bewust *bypasst* voor een schone demo (deterministisch), maar dat
-> in productie exact dezelfde uitkomst uit de regels + scores + verrijking rolt.
-
-### 2f. De holdout — het stuk dat overtuigt
-
-- **Zeggen:** "Een deel van de echte bezoekers krijgt bewust de oude versie.
-  Niet omdat we twijfelen, maar zodat we kunnen meten of het uitmaakt. Dít is het
-  stuk dat een directeur overtuigt — niet de personalisatie, maar dat het
-  meetbaar is."
-- **Laat zien:** Admin → Personalization → Experiments (challenger/holdout).
+1. **Zelfde codepad als een echte klant — geen aparte demomodus.** Het scenario
+   control panel moet de **context** overschrijven zodat de **échte regels**
+   draaien, níét een kant-en-klaar plan injecteren dat de regel-engine bypasst.
+   Draait de demo op een bypass, dan gaat hij stilletjes kapot bij de eerste
+   wijziging — en dan sta je bij een prospect met iets wat het vorige week nog
+   deed. (Technisch: gebruik de context-override-tak, niet `getDemoScenarioPlan`.)
+2. **Geen gepersonaliseerde link als les.** Een link die de site hem bij naam of
+   bedrijf laat ontvangen is op jóuw site een leuke binnenkomer — maar zeg er
+   meteen bij dat je dit bij hém juist níét zou doen. Anders leert je demo precies
+   het verkeerde.
 
 ---
 
-## 3. Onder de motorkap: hoe de beslissing valt
+## De metafoor — de kleur verandert, niet het dier
 
-Wissel naar het admin-tabblad. Vertel de keten in één adem:
-**bezoeker → context → beslissing → variant → meten.**
+Het beste gebruik van de kameleon is bijna het omgekeerde van wat mensen
+verwachten. Een kameleon verandert niet van **dier** — hij blijft dezelfde
+kameleon, alleen zijn **kleur** past zich aan. Dat is precies de propositie: **de
+boodschap blijft, de vorm past zich aan de context.** Dat is het anti-drift-
+argument, en het zit al in de naam. Laat je in de demo zien dat de pagina van
+kleur verschiet maar de belofte gelijk blijft, dan heb je in één beeld uitgelegd
+waarom dit géén versnipperde landingspagina's zijn.
 
-- **Context:** welke signalen we per bezoeker hebben (gedrag, tijd, herkomst en —
-  met toestemming — bedrijf via IP-verrijking). Toon Scenario Control's enrichers
-  (IP/Geo, Company, OpenKVK, Leadinfo, HubSpot, GA4) die je aan/uit kunt zetten.
-- **Beslissing:** server-side, met een veilige default en een hard tijdsbudget —
-  de pagina "springt" niet en valt nooit leeg.
-- **Privacy als onderscheid:** verrijking is *consent-gated* en de data staat in
-  de EER (Ierland). Dat is het verschil met de Amerikaanse platformen.
+**Praktisch: doe één ding en niet meer.** Bij het wisselen van context laat je de
+pagina niet knipperen maar in **kleur en beeld overvloeien**, zoals een kameleon
+dat doet — traag genoeg om te zien, snel genoeg om niet storend te zijn. **Alleen
+in de demo**, want bij een echte bezoeker gebeurt het onzichtbaar tussen twee
+paginaladingen. Zeg dat er meteen bij, anders denkt iemand dat het live ook zo
+werkt.
 
----
+**Waarvoor je oppast:** de kameleon als **personage** — een pratend beestje, een
+mascotte, meebewegende ogen. Dat wordt schattig en ondermijnt precies waar je
+serieus in moet zijn: privacy, betrouwbaarheid, meetbaarheid. Een mascotte maakt
+het speelgoed.
 
-## 4. Tab-voor-tab (wat je laat zien en wat het op de site doet)
-
-Loop deze in deze volgorde; het bouwt het verhaal op van "wat de bezoeker krijgt"
-naar "waarom" naar "bewijs".
-
-### Personalisatie (de kern)
-
-- **Rules** — "Hier bepalen we: als dit signaal, dan deze variant." Laat één
-  regel zien die net vuurde in de demo. Scroll naar de **score-distributie** (of
-  het scoremodel echt onderscheidt over echte sessies) en **regel-vuringen**
-  (welke regels vuren, en welke nooit — dus dood zijn). Dit is je meet- en
-  onderhoudsgereedschap.
-- **Adaptive blocks** — "Dit zijn de content-varianten zelf, per slot (hero,
-  proof, cta) en per formulier." Toon een variant en de status (Customized /
-  Platform default). Noem de **AI-generator** (brief → gevalideerde
-  variant-draft) als optionele versneller — maar alleen als self-service aanstaat.
-- **Experiments** — A/B op planniveau: bucket 0 krijgt het plan, bucket 1 het
-  plan + challenger. "Complete, samenhangende varianten van de journey, niet losse
-  knopjes."
-- **AI-policy / Field Fill / Decisions / AI-logs** — leg het onderscheid uit:
-  *shadow* (AI draait mee maar wordt alleen gelogd) vs *live* (bij genoeg
-  vertrouwen geserveerd, anders valt het veilig terug op de CMS-tekst). Decisions
-  en AI-logs zijn puur inzicht.
-- **Context variables** — de signalen die regels/AI mogen gebruiken (let op:
-  platform-breed).
-- **Variants** — read-only overzicht: welke variant op welke pagina, en welke
-  keys dood zijn.
-
-### Publiek & leads
-
-- **Audience → Interests / Scoring / Segments** — hoe een bezoeker een score en
-  een segment krijgt (interesseprofielen, scoringsregels, sequences, decay).
-- **Audience → Leads (Lead Base)** — het profielregister anoniem→herkend→bekend→
-  klant, met verwijderen (erasure) en export.
-- **Audience → Target accounts (ABM)** — persoonlijke links per doelaccount.
-- **Audience → Retargeting (Ad Sync)** — segmenten naar Google/Meta/LinkedIn,
-  server-side gehasht, consent-gated.
-- **Audience → Journey** — read-only visualisatie van de sessie-journey (mooi in
-  een strategiegesprek).
-
-### Content, design & vorm
-
-- **Content** — CMS-first: status, "Open in CMS", forms-afhandeling, assets,
-  blueprints, adaptieve e-mail (preview).
-- **Design** + **Theme switching** — het thema/typografie/tokens, en hoe een
-  regel een thema aan een bezoeker koppelt. Koppel dit aan wat ze in 2b–2e zagen
-  meeschuiven.
-
-### Integraties, setup & operations
-
-- **Integrations** — CMS, CRM (HubSpot), AI-mode, enrichment (MaxMind), domeinen.
-- **Snippet** — "Dit ene script-tag in de `<head>` maakt een bestaande site
-  adaptief. Geen nieuwe website." Toon de `data-mc-slot`-conventie.
-- **Settings** — features aan/uit, retentietermijn, self-service-toggle, plan.
-- **Setup** — go-live checklist, site aanmaken, domeinen.
-- **Search** — Meilisearch-reindex.
-- **Storage / Users / Debug** — provisioning, toegang, en de debug-overlay + het
-  faalsignaal-paneel (opslag/mail/decide) waarmee je stille fouten ziet.
-
-### Ads-net (optioneel, als het gesprek daarom vraagt)
-
-- **Ads** + **Publishers** — de tenant als advertentie-account en de
-  revenue-share-kant. Sla over tenzij relevant.
+**De schaduwkant, om te kunnen pareren:** een kameleon past zich aan om níét
+gezien te worden — dat raakt de angst dat je bezoekers manipuleert. Maakt iemand
+dat grapje, dan is je antwoord: **je past de kleur aan, niet het dier** — dezelfde
+belofte, andere ingang. En een deel van de bezoekers krijgt bewust de gewone site,
+zodat je kunt zien of het klopt.
 
 ---
 
-## 5. Bewijs & betrouwbaarheid (de directeur-slides, kort)
+## Deel A — je eigen site: het idee (jij geeft de muis uit handen)
 
-- **Meetbaar:** holdout + score-distributie + regel-vuringen = je ziet of de
-  invoer onderscheidt én of de regels iets doen.
-- **Snel & veilig:** server-side beslissing binnen een 700ms-budget, veilige
-  default, per-tenant nood-schakelaar (terug naar standaard zonder deploy),
-  instant rollback.
-- **Privacy:** EER (Ierland), consent-gated verrijking, meestuurbare
-  verwerkersovereenkomst.
+Richt `misterchameleon.nl` in met de schakelaar zichtbaar in beeld en **laat de
+prospect zelf wisselen.**
+
+**Drie rollen die echt jouw publiek zijn:**
+- marketeer bij een eindklant
+- bureau-eigenaar
+- technisch verantwoordelijke
+
+Elke rol krijgt een **andere hero, ander bewijs en een andere cta** — en **de
+rest van de pagina blijft staan.** Dat laatste is cruciaal: verandert alles, dan
+lijkt het een andere website en verdwijnt het idee.
+
+**Twee dingen die alleen op je eigen site kunnen:**
+
+- **Live profielpaneel.** Terwijl iemand doorklikt, toon je in een hoek wat de
+  site denkt te weten: welke interesse oploopt, welke context nu geldt. Je
+  moeilijkst uit te leggen eigenschap — in beeld meteen duidelijk. Op een
+  klantsite ongemakkelijk, op je eigen site transparantie.
+- **Tijdschuif.** Zet de context op avond of weekend en laat de pagina
+  meebewegen. Tastbaar, niet na te bootsen met screenshots, en meteen duidelijk
+  dat het om méér gaat dan campagnebronnen.
+
+**Sluit Deel A af met de storingsknop.** Platform uit, ververs, gewone pagina.
+Dat is de geruststelling waar iedereen stiekem op wacht.
 
 ---
 
-## 6. Afsluiting
+## Deel B — hun eigen site via mirror: de toepassing (de afsluiter)
 
-Herhaal de openingszin, nu bewezen: "Vier soorten klanten, één website — en we
-kunnen meten dat het uitmaakt." Vraag of hij het in zijn eigen woorden teruggeeft;
-als zijn formulering beter is dan deze, neem die over.
+Mirror-modus = hun content, onze omgeving. Ze zien hun eigen koppen en beelden
+veranderen zonder dat we iets aan hun site raken. `misterchameleon.nl` houd je
+achter de hand om te repeteren en als terugval als de mirror niet lukt.
 
-**Let op tijdens de call:** verkoop geen software en dienst apart. Eén verhaal,
-één bedrag (setup + maandbedrag; pilot met vaste einddatum en vervolgtarief).
+Bouw hem in zeven stappen. **Na stap 4 stop je met vertellen** — de vraag die zij
+stellen is het doel, niet de demo.
+
+1. **Begin met niets aan.** Toon hun site zoals hij nu is: "Dit is wat de
+   sollicitant ziet, dit is wat de klant ziet — hetzelfde." Laat het hangen.
+2. **Advertentie ernaast.** Een van hun eigen campagnes, met de belofte erin. En
+   dan de landing. **Het gat tussen die twee is je hele verkoopverhaal** — niet
+   uitleggen.
+3. **Zet één context aan.** Ververs als bezoeker uit die campagne. Alleen **hero
+   en cta** veranderen — niet meer dan twee blokken, anders wordt het een
+   goocheltruc en gaat de aandacht naar de techniek.
+4. **Tweede context ernaast.** Twee schermen, dezelfde URL, twee bezoekers:
+   **sollicitant tegenover klant.** Meteen begrijpelijk. → *Stop met vertellen.*
+5. **Open de regels.** Drie regels, in gewone taal. "Dit is de hele
+   configuratie." Geen zwarte doos. Hier komt vaak de eerste echte vraag.
+6. **Holdout aan.** Een deel krijgt bewust de gewone site. "Je hoeft mij niet te
+   geloven, je meet het zelf." Wees eerlijk over hoe lang dat duurt bij hún
+   verkeer.
+7. **Platform uit.** Ververs. De normale pagina staat er gewoon. De afsluiter:
+   de onuitgesproken angst is dat het stukgaat — die neem je hiermee weg.
+
+---
+
+## Personas
+
+De sterkste tegenstelling is **sollicitant tegenover klant**: iedereen begrijpt
+die zonder uitleg, ze liggen emotioneel ver uit elkaar, en bijna elke B2B-site
+heeft beide en bedient er maar één goed. Een goede tweede is **nieuw tegenover
+terugkerend** (voor de derde keer op de site en nog steeds de introductie in
+plaats van de casus).
+
+## Wat je NIET laat zien
+
+Verrijking, AI, adaptieve e-mail, formuliervarianten. Allemaal indrukwekkend,
+allemaal een afleiding — en de helft is te nieuw om te beloven.
+
+## Als ze doorvragen — onder de motorkap
+
+Pas ná hun vraag, en alleen zoveel als de vraag verlangt: **Rules** (de regel die
+vuurde + score-verdeling + regel-vuringen), **Blocks & varianten** (varianten
+komen per kwartaal bij, niet per campagne), **Holdout/Experiments** (meten of het
+uitmaakt). De volledige tab-voor-tab staat in `mister-chameleon-demo.pptx` —
+naslag, geen demo-script.
+
+---
+
+## Afsluiting
+
+Herhaal de openingszin, nu getoond in plaats van verteld. Vraag of hij het in
+zijn eigen woorden teruggeeft; is die beter, neem hem over.
+
+**Verwachting zetten:** het eerste kwartaal is inrichten en leren, niet oogsten;
+en verkoop een jaar met een uitstapmoment na zes maanden, geen half jaar.
