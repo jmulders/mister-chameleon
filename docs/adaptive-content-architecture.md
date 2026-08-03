@@ -49,9 +49,13 @@ zijn eigen platform-gehoste site uit zijn eigen CMS — zonder dat het botst.
 
 ## Aanbevolen inrichting per klanttype
 
-- **Snippet-only** (zoals nascita, of een adverteerder): laat de varianten in het platform
-  staan. Zet desnoods `cms_provider = 'platform'`, maar door platform-first werkt het al
-  zodra de varianten in `platform_cms_content` staan. Je beheert ze in de Content-tab.
+- **Snippet-only** (zoals nascita, of een adverteerder): zet de varianten in
+  `platform_cms_content` (Content-tab). Door platform-first serveert de snippet die
+  automatisch. **Zet `cms_provider` NIET op `platform`.** Laat 'm op null/Sanity: dan blijft
+  de externe CMS de fallback voor keys die je nog niet gemigreerd hebt. Zet je 'm wél op
+  `platform`, dan wordt de fallback óók de (deels lege) platform-store en krijg je lege
+  slots voor niet-gemigreerde keys — het "soms wel, soms niet"-gedrag. Pas de provider pas
+  aan als je élke door de regels kiesbare key naar het platform hebt gemigreerd.
 - **Platform-gehost met eigen CMS**: de tenant-CMS levert alles; niks te doen aan de
   snippet-kant.
 - **Beide**: allebei bovenstaande naast elkaar. Geen conflict.

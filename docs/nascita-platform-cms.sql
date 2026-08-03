@@ -1,10 +1,15 @@
--- Nascita: van Sanity naar platform-CMS (snippet-slots uit het platform) — NL-teksten
+-- Nascita: variant-content in de platform-store (snippet-slots platform-first) — NL-teksten
 -- Draai op PROD (project kdhfpvjeriszteqhpgll). Idempotent.
 --
--- 1. cms_provider op 'platform' (optioneel na de platform-first code-deploy, maar netjes).
--- 2. Slot-varianten (Nederlands) in platform_cms_content, bewerkbaar in de Content-tab.
-
-update tenant_settings set cms_provider = 'platform' where tenant_id = 'nascita';
+-- BELANGRIJK: zet cms_provider NIET op 'platform'. Door de platform-first-code leest de
+-- snippet deze platform-varianten al automatisch als eerste, en gebruikt hij de tenant-CMS
+-- (Sanity) als vangnet voor keys die hier nog niet staan. Zet je de provider op 'platform',
+-- dan wordt óók de fallback de (deels lege) platform-store, en krijg je lege slots voor
+-- niet-gemigreerde keys ("soms wel, soms niet"). Laat cms_provider dus op null/Sanity staan.
+--
+-- Deze varianten zijn bewerkbaar in de Content-tab van de admin. Wil je nascita 100%
+-- platform-native, migreer dan alle overige keys die de regels kunnen kiezen en pas daarna
+-- eventueel cms_provider aan.
 
 insert into platform_cms_content (tenant_id, variant_type, variant_key, content) values
   ('nascita','hero','hero_direct_brand','{"tag":"Bedrijfstransformatie die beklijft","title":"Je volgende hoofdstuk begint met de juiste strategie.","subtitle":"Nascita werkt samen met directieteams aan transformaties die blijven hangen. Van strategie tot uitvoering staan we naast je, niet alleen ervoor.","ctas":[{"label":"Start het gesprek","href":"/contact","variant":"primary"},{"label":"Ontdek onze aanpak","href":"/approach","variant":"secondary"}]}'::jsonb),
