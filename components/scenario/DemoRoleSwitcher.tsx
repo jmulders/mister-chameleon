@@ -18,6 +18,7 @@ import { activateScenario, clearScenario, getScenarioState, subscribeToScenario 
 import { isDemoChromeCollapsed, setDemoChromeCollapsed, subscribeDemoChrome } from "./demo-ui-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 import { useIsMobile } from "./use-is-mobile";
+import { useTopBannerInset } from "./use-top-banner-inset";
 
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF";
 
@@ -56,6 +57,7 @@ export function DemoRoleSwitcher() {
   const [active, setActive] = useState<string | null>(() => activeRoleFromState());
   const [collapsed, setCollapsed] = useState<boolean>(() => isDemoChromeCollapsed());
   const isMobile = useIsMobile();
+  const topInset = useTopBannerInset();
 
   // Follow the shared store: any change (this switcher, the time slider, or the
   // operator panel) re-derives the active role so the highlight stays truthful.
@@ -73,7 +75,7 @@ export function DemoRoleSwitcher() {
         type="button"
         onClick={() => setDemoChromeCollapsed(false)}
         style={{
-          position: "fixed", top: 14, right: 16, zIndex: 10001,
+          position: "fixed", top: 14 + topInset, right: 16, zIndex: 10001,
           border: "none", borderRadius: 999, padding: "8px 14px",
           background: NAVY, color: ICE, fontSize: 12, fontWeight: 700,
           cursor: "pointer", boxShadow: "0 6px 24px rgba(0,0,0,0.28)",
@@ -127,7 +129,7 @@ export function DemoRoleSwitcher() {
     <div
       style={{
         position: "fixed",
-        top: isMobile ? 8 : 14,
+        top: (isMobile ? 8 : 14) + topInset,
         left: isMobile ? 8 : "50%",
         right: isMobile ? 8 : undefined,
         transform: isMobile ? "none" : "translateX(-50%)",
