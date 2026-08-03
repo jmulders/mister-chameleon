@@ -226,15 +226,26 @@ export function buildSnippetSource(decideUrl: string): string {
     }
   }
 
-  // ── 2. FOOC prevention — hide page until swap is done ────────────────────────
-  // REVEAL_MS: how long the page stays hidden waiting for the decision. After it
-  // the page is revealed with whatever is applied so far (the default when the
-  // decision has not arrived), and a later decision is dropped — so the visitor
-  // never sees a jump from the default to a personalised message. CALL_MS is the
-  // hard upper bound on the request itself, so a hanging endpoint cannot keep the
-  // fetch alive forever.
-  var REVEAL_MS = 700;
-  var CALL_MS   = 1500;
+  // ── 2. FOOC prevention — hide page briefly, then apply when ready ────────────
+  // REVEAL_MS: how long the page stays hidden waiting for the decision. When the
+  // decision arrives within this window, the swap happens before the reveal so
+  // there is no flash. When it arrives LATER (cold serverless start, slow first
+  // connection on a low-traffic site), the page is revealed with the default and
+  // the personalisation is applied as soon as it lands — a late swap is better
+  // than never personalising. CALL_MS is the hard upper bound on the request
+  // itself so a genuinely hung endpoint cannot keep the fetch alive forever; it
+  // must be generous enough to survive a cold start + slow TLS handshake.
+  // Per-embed override via script-tag attributes, e.g.
+  //   <script ... data-site-key="…" data-mc-reveal-ms="1200" data-mc-call-ms="6000">
+  // Falls back to the defaults; clamped to sane bounds. Lets a slow-backend or
+  // low-traffic tenant give the cold-start decide more room without a code change.
+  function mcTiming(attr, def, max) {
+    var v = selfScript ? parseInt(selfScript.getAttribute(attr) || '', 10) : NaN;
+    if (!(v === v) || v < 0) return def; // NaN or negative → default
+    return v > max ? max : v;
+  }
+  var REVEAL_MS = mcTiming('data-mc-reveal-ms', 700, 5000);
+  var CALL_MS   = mcTiming('data-mc-call-ms', 4000, 15000);
   var revealed = false;
   function reveal() {
     if (revealed) return;
@@ -356,9 +367,11 @@ export function buildSnippetSource(decideUrl: string): string {
   })
   .then(function(data) {
     // ── 5 & 6. Apply the response ────────────────────────────────────────────────
-    // Jump guard: if the page has already been revealed (the decision arrived
-    // after REVEAL_MS), the default is visible — applying now would jump. Drop it.
-    if (revealed || !data || !data.slots) return;
+    // Apply whenever the decision arrives. If it came in before REVEAL_MS the swap
+    // happens while the page is still hidden (no flash). If it came in later —
+    // common on a cold serverless start or slow first connection — we still apply
+    // it: a late swap to the personalised message is better than never showing it.
+    if (!data || !data.slots) return;
     var slots     = data.slots;
     var selectors = data.selectors || {};
 

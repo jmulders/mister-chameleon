@@ -347,6 +347,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   const [confirmReset, setConfirmReset] = useState(false);
   const [packFilter, setPackFilter]     = useState<string>("all");
   const [tierFilter, setTierFilter]     = useState<string>("all");
+  const [variantFilter, setVariantFilter] = useState<string>("all");
   const [showContextLib, setShowContextLib] = useState(false);
   // ── Bulk selection state ───────────────────────────────────────────────────
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set());
@@ -549,11 +550,27 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   const isOverLimit   = maxRules !== undefined && enabledCount > maxRules;
   const isAtLimit     = maxRules !== undefined && enabledCount >= maxRules;
 
+  // All variant/adaptive-slot keys any rule points at (heroKey, proofKey, ctaKey,
+  // featureKey, conversionKey, notificationKey — any *Key on the plan). Powers the
+  // "filter by variant" dropdown so you can see which rules use a given block.
+  const planVariantKeys = (plan: Record<string, unknown>): string[] =>
+    Object.entries(plan)
+      .filter(([k, v]) => k.endsWith("Key") && typeof v === "string" && v !== "")
+      .map(([, v]) => v as string);
+
+  const usedVariantKeys = Array.from(
+    new Set(rules.flatMap((r) => planVariantKeys(r.plan as unknown as Record<string, unknown>))),
+  ).sort();
+
   const filteredRules = sortedRules.filter((r) => {
     if (packFilter !== "all" && r.packId !== packFilter) return false;
     if (tierFilter !== "all") {
       const effectiveTier = r.precedenceLevel ?? inferPrecedenceLevel(r.priority);
       if (effectiveTier !== tierFilter) return false;
+    }
+    if (variantFilter !== "all"
+        && !planVariantKeys(r.plan as unknown as Record<string, unknown>).includes(variantFilter)) {
+      return false;
     }
     return true;
   });
@@ -664,10 +681,23 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
               <option key={level} value={level}>{meta.label}</option>
             ))}
           </select>
-          {(packFilter !== "all" || tierFilter !== "all") && (
+          {usedVariantKeys.length > 0 && (
+            <select
+              value={variantFilter}
+              onChange={(e) => setVariantFilter(e.target.value)}
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              aria-label="Filter by adaptive block / variant"
+            >
+              <option value="all">All blocks &amp; variants</option>
+              {usedVariantKeys.map((k) => (
+                <option key={k} value={k}>{k}</option>
+              ))}
+            </select>
+          )}
+          {(packFilter !== "all" || tierFilter !== "all" || variantFilter !== "all") && (
             <button
               type="button"
-              onClick={() => { setPackFilter("all"); setTierFilter("all"); }}
+              onClick={() => { setPackFilter("all"); setTierFilter("all"); setVariantFilter("all"); }}
               className="text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
             >
               Clear filters
