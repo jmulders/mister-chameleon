@@ -35,6 +35,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantBySiteKey } from "@/tenant/server";
 import { createCMSProvider } from "@/cms";
+import { platformFirstVariants } from "@/cms/providers/platform-first-variants";
+import type { VariantResolver } from "@/cms/providers/platform-first-variants";
 import { resolveSession } from "@/data/session";
 import { fetchVisitorHistory } from "@/context/fetch-visitor-history";
 import { emptyHistory } from "@/context/visitor-history";
@@ -157,14 +159,14 @@ function toContent(slot: SlotType, data: unknown): Content {
 }
 
 /** Fetch a single slot's variant content by key. */
-async function fetchVariant(cms: ReturnType<typeof createCMSProvider>, slot: SlotType, key: string): Promise<unknown> {
+async function fetchVariant(cms: VariantResolver, slot: SlotType, key: string): Promise<unknown> {
   switch (slot) {
-    case "hero": return cms.getHeroVariant(key).catch(() => null);
-    case "proof": return cms.getProofVariant(key).catch(() => null);
-    case "cta": return cms.getCTAVariant(key).catch(() => null);
-    case "feature": return cms.getFeatureVariant(key).catch(() => null);
-    case "conversion": return cms.getConversionVariant(key).catch(() => null);
-    case "notification": return cms.getNotificationVariant(key).catch(() => null);
+    case "hero": return cms.getHeroVariant(key);
+    case "proof": return cms.getProofVariant(key);
+    case "cta": return cms.getCTAVariant(key);
+    case "feature": return cms.getFeatureVariant(key);
+    case "conversion": return cms.getConversionVariant(key);
+    case "notification": return cms.getNotificationVariant(key);
   }
 }
 
@@ -209,7 +211,7 @@ export async function POST(request: NextRequest) {
 
   const tenantId = tenant.tenantId;
   const locale = isSupportedLocale(page.locale ?? "") ? (page.locale as string) : DEFAULT_LOCALE;
-  const cms = createCMSProvider(tenant.cms, tenantId, locale);
+  const cms = platformFirstVariants(tenantId, createCMSProvider(tenant.cms, tenantId, locale));
 
   // Helper: build the default-variant response (used for bots and on failure).
   const respondDefault = async () => {

@@ -1,31 +1,77 @@
--- Demo op prod zetten voor tenant "statamic"
+-- Demo op prod zetten voor tenant "statamic" — VOLLEDIGE config (alle Quick Presets + 3 rollen)
 -- Draai dit op de PROD-database (project kdhfpvjeriszteqhpgll) via de Supabase SQL-editor
 -- of je eigen db-tooling. Idempotent: veilig om nogmaals te draaien.
 --
 -- Wat het doet:
---   1. Maakt/overschrijft rules_config 'homepage_statamic' met de 3 schone rol-regels
---      (distincte prioriteiten 0/1/2 — dubbele prioriteit laat de validator de HELE
---      config afkeuren). Neemt defaultPlan/schemaVersion over van homepage_mister-chameleon.
+--   1. Maakt/overschrijft rules_config 'homepage_statamic' met:
+--        - de 41 preset-regels uit homepage_mister-chameleon (elke Quick Preset een variant), en
+--        - de 3 rol-regels (marketeer/bureau/technisch),
+--      allemaal HERNUMMERD naar unieke, opeenvolgende prioriteiten (rol-regels 0/1/2 vooraan).
+--      Belangrijk: dubbele prioriteit laat de validator de HELE config afkeuren.
 --   2. Voegt de 3 demo-rol-segmenten toe voor tenant 'statamic'.
 --
--- Let op: de rol-COPY (hero/cta-teksten) zit in de Statamic-content (mister-chameleon-cms,
--- home.md) en moet apart mee met de CMS-deploy. En de app-code (rollen-schakelaar,
--- profielpaneel, inklap, presets) moet gedeployed zijn.
+-- Vereist dat homepage_mister-chameleon op prod de 41 preset-regels bevat (dat is zo).
+-- De variant-COPY (hero/proof/cta-teksten, incl. careers + alle fallbacks) zit in de
+-- Statamic-content (mister-chameleon-cms, home.md) en moet apart mee met de CMS-deploy.
 
--- 1. Rules-config voor statamic
+-- 1a. Zorg dat de rij bestaat (skelet uit mister-chameleon: defaultPlan/schemaVersion).
 insert into rules_config (key, config)
-select 'homepage_statamic',
+select 'homepage_statamic', config from rules_config where key = 'homepage_mister-chameleon'
+on conflict (key) do nothing;
+
+-- 1b. Rules-config voor statamic (volledige set, hernummerd)
+update rules_config target
+set config = jsonb_set(
   jsonb_set(
-    jsonb_set(config, '{rulesEnabled}', 'true'::jsonb),
-    '{rules}',
-    '[
-      {"id":"demo.role_marketeer","plan":{"ctaKey":"cta_demo","reason":"Demo-rol marketeer","heroKey":"hero_consideration","proofKey":"proof_default"},"label":"Demo-rol — Marketeer (eindklant)","reason":"Demo-rol: marketeer bij een eindklant.","source":"blueprint","enabled":true,"priority":0,"condition":{"type":"field","field":"audienceSegmentIds","value":"demo-role-marketeer","operator":"contains"},"precedenceLevel":"medium_segmentation"},
-      {"id":"demo.role_bureau","plan":{"ctaKey":"cta_platform","reason":"Demo-rol bureau","heroKey":"hero_linkedin_vision","proofKey":"proof_default"},"label":"Demo-rol — Bureau-eigenaar","reason":"Demo-rol: bureau-eigenaar.","source":"blueprint","enabled":true,"priority":1,"condition":{"type":"field","field":"audienceSegmentIds","value":"demo-role-bureau","operator":"contains"},"precedenceLevel":"medium_segmentation"},
-      {"id":"demo.role_technisch","plan":{"ctaKey":"cta_meeting","reason":"Demo-rol technisch","heroKey":"hero_google_problem","proofKey":"proof_default"},"label":"Demo-rol — Technisch verantwoordelijke","reason":"Demo-rol: technisch verantwoordelijke.","source":"blueprint","enabled":true,"priority":2,"condition":{"type":"field","field":"audienceSegmentIds","value":"demo-role-technisch","operator":"contains"},"precedenceLevel":"medium_segmentation"}
-    ]'::jsonb
+    coalesce(
+      (select config from rules_config where key = 'homepage_statamic'),
+      (select config from rules_config where key = 'homepage_mister-chameleon')
+    ),
+    '{rulesEnabled}', 'true'::jsonb
+  ),
+  '{rules}',
+  (
+    select jsonb_agg(jsonb_set(elem.rule, '{priority}', to_jsonb(elem.newprio)) order by elem.sortkey)
+    from (
+      select rr.rule, rr.rn::numeric as sortkey, (rr.rn - 1)::int as newprio
+      from (select value as rule, row_number() over () rn
+            from jsonb_array_elements('[
+              {"id":"demo.role_marketeer","plan":{"ctaKey":"cta_demo","reason":"Demo-rol marketeer","heroKey":"hero_consideration","proofKey":"proof_default"},"label":"Demo-rol — Marketeer (eindklant)","reason":"Demo-rol: marketeer bij een eindklant.","source":"blueprint","enabled":true,"priority":0,"condition":{"type":"field","field":"audienceSegmentIds","value":"demo-role-marketeer","operator":"contains"},"precedenceLevel":"medium_segmentation"},
+              {"id":"demo.role_bureau","plan":{"ctaKey":"cta_platform","reason":"Demo-rol bureau","heroKey":"hero_linkedin_vision","proofKey":"proof_default"},"label":"Demo-rol — Bureau-eigenaar","reason":"Demo-rol: bureau-eigenaar.","source":"blueprint","enabled":true,"priority":0,"condition":{"type":"field","field":"audienceSegmentIds","value":"demo-role-bureau","operator":"contains"},"precedenceLevel":"medium_segmentation"},
+              {"id":"demo.role_technisch","plan":{"ctaKey":"cta_meeting","reason":"Demo-rol technisch","heroKey":"hero_google_problem","proofKey":"proof_default"},"label":"Demo-rol — Technisch verantwoordelijke","reason":"Demo-rol: technisch verantwoordelijke.","source":"blueprint","enabled":true,"priority":0,"condition":{"type":"field","field":"audienceSegmentIds","value":"demo-role-technisch","operator":"contains"},"precedenceLevel":"medium_segmentation"}
+            ]'::jsonb)) rr
+      union all
+      select pr.rule, (100 + pr.rk)::numeric, (2 + pr.rk)::int
+      from (select r as rule, row_number() over (order by (r->>'priority')::int) rk
+            from rules_config c, lateral jsonb_array_elements(c.config->'rules') r
+            where c.key = 'homepage_mister-chameleon') pr
+    ) elem
   )
-from rules_config where key = 'homepage_mister-chameleon'
-on conflict (key) do update set config = excluded.config;
+)
+where target.key = 'homepage_statamic';
+
+-- 1c. Herpunt de presets die een gedeelde hero hadden naar hun eigen distincte hero,
+--     zodat elke Quick Preset visueel verschilt. (Deze hero-keys zijn in de app-code
+--     geregistreerd in ALLOWED_HERO_KEYS; die deploy moet dus mee.)
+update rules_config
+set config = jsonb_set(config, '{rules}',
+  (select jsonb_agg(
+     case r->>'id'
+       when 'preset.trial_ready'          then jsonb_set(r,'{plan,heroKey}','"hero_trial_ready"')
+       when 'preset.returning_visitor'    then jsonb_set(r,'{plan,heroKey}','"hero_returning"')
+       when 'preset.enterprise_prospect'  then jsonb_set(r,'{plan,heroKey}','"hero_enterprise"')
+       when 'preset.form_dropoff'         then jsonb_set(r,'{plan,heroKey}','"hero_form_dropoff"')
+       when 'preset.customer_expansion'   then jsonb_set(r,'{plan,heroKey}','"hero_customer_expansion"')
+       when 'preset.post_conversion'      then jsonb_set(r,'{plan,heroKey}','"hero_post_conversion"')
+       when 'preset.high_friction'        then jsonb_set(r,'{plan,heroKey}','"hero_high_friction"')
+       when 'preset.churn_risk'           then jsonb_set(r,'{plan,heroKey}','"hero_churn_risk"')
+       when 'preset.careers_job_interest' then jsonb_set(r,'{plan,heroKey}','"hero_careers_job_interest"')
+       when 'preset.careers_submitted'    then jsonb_set(r,'{plan,heroKey}','"hero_careers_submitted"')
+       else r
+     end order by ord)
+   from jsonb_array_elements(config->'rules') with ordinality as t(r, ord))
+)
+where key = 'homepage_statamic';
 
 -- 2. Demo-rol-segmenten voor tenant statamic
 insert into audience_segments (id, tenant_id, key, label, description, criteria, is_active)
@@ -35,7 +81,7 @@ values
   (gen_random_uuid(), 'statamic', 'demo-role-technisch', 'Demo — Technisch verantwoordelijke',   'Demo-rol voor de rollen-schakelaar.', '{}'::jsonb, true)
 on conflict (tenant_id, key) do nothing;
 
--- 3. Verificatie
-select r->>'id' as rule_id, (r->>'priority')::int as prio, r->'plan'->>'heroKey' as hero
-from rules_config c, lateral jsonb_array_elements(c.config->'rules') r
-where c.key = 'homepage_statamic' order by prio;
+-- 3. Verificatie (verwacht: 44 regels, 44 unieke prioriteiten; rol-regels op 0/1/2)
+select jsonb_array_length(config->'rules') as n_rules,
+       (select count(distinct (r->>'priority')::int) from jsonb_array_elements(config->'rules') r) as distinct_prios
+from rules_config where key = 'homepage_statamic';

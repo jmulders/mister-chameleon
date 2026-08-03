@@ -79,6 +79,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient }              from "@supabase/supabase-js";
 import { getTenantBySiteKey }        from "@/tenant/server";
 import { createCMSProvider }         from "@/cms";
+import { platformFirstVariants }     from "@/cms/providers/platform-first-variants";
 import { resolveSession }            from "@/data/session";
 import { fetchVisitorHistory }       from "@/context/fetch-visitor-history";
 import { emptyHistory }              from "@/context/visitor-history";
@@ -644,14 +645,16 @@ export async function POST(request: NextRequest) {
     if (bypassPlan) {
       try {
         const cms = createCMSProvider(tenant.cms, tenantId, locale);
+        // Snippet variants come from the platform store first (see platformFirstVariants).
+        const variants = platformFirstVariants(tenantId, cms);
 
         const [heroData, ctaData, proofData, featureData, conversionData, notificationData] = await Promise.all([
-          bypassPlan.heroKey         ? cms.getHeroVariant(bypassPlan.heroKey).catch(() => null)               : null,
-          bypassPlan.ctaKey          ? cms.getCTAVariant(bypassPlan.ctaKey).catch(() => null)                 : null,
-          bypassPlan.proofKey        ? cms.getProofVariant(bypassPlan.proofKey).catch(() => null)             : null,
-          bypassPlan.featureKey      ? cms.getFeatureVariant(bypassPlan.featureKey).catch(() => null)         : null,
-          bypassPlan.conversionKey   ? cms.getConversionVariant(bypassPlan.conversionKey).catch(() => null)   : null,
-          bypassPlan.notificationKey ? cms.getNotificationVariant(bypassPlan.notificationKey).catch(() => null) : null,
+          bypassPlan.heroKey         ? variants.getHeroVariant(bypassPlan.heroKey)               : null,
+          bypassPlan.ctaKey          ? variants.getCTAVariant(bypassPlan.ctaKey)                 : null,
+          bypassPlan.proofKey        ? variants.getProofVariant(bypassPlan.proofKey)             : null,
+          bypassPlan.featureKey      ? variants.getFeatureVariant(bypassPlan.featureKey)         : null,
+          bypassPlan.conversionKey   ? variants.getConversionVariant(bypassPlan.conversionKey)   : null,
+          bypassPlan.notificationKey ? variants.getNotificationVariant(bypassPlan.notificationKey) : null,
         ]);
 
         const slots: SlotMap = {};
@@ -844,16 +847,19 @@ export async function POST(request: NextRequest) {
 
     const plan = await decisionProvider.getHomepagePlan(input);
 
-    // ── Fetch variant content from CMS ─────────────────────────────────────────
-    const cms = createCMSProvider(tenant.cms, tenantId, locale);
+    // ── Fetch variant content ──────────────────────────────────────────────────
+    // Adaptive variants for the snippet come from the platform store first, then
+    // fall back to the tenant's own CMS (see platformFirstVariants).
+    const cms      = createCMSProvider(tenant.cms, tenantId, locale);
+    const variants = platformFirstVariants(tenantId, cms);
 
     const [heroData, ctaData, proofData, featureData, conversionData, notificationData] = await Promise.all([
-      plan.heroKey         ? cms.getHeroVariant(plan.heroKey).catch(() => null)               : null,
-      plan.ctaKey          ? cms.getCTAVariant(plan.ctaKey).catch(() => null)                 : null,
-      plan.proofKey        ? cms.getProofVariant(plan.proofKey).catch(() => null)             : null,
-      plan.featureKey      ? cms.getFeatureVariant(plan.featureKey).catch(() => null)         : null,
-      plan.conversionKey   ? cms.getConversionVariant(plan.conversionKey).catch(() => null)   : null,
-      plan.notificationKey ? cms.getNotificationVariant(plan.notificationKey).catch(() => null) : null,
+      plan.heroKey         ? variants.getHeroVariant(plan.heroKey)               : null,
+      plan.ctaKey          ? variants.getCTAVariant(plan.ctaKey)                 : null,
+      plan.proofKey        ? variants.getProofVariant(plan.proofKey)             : null,
+      plan.featureKey      ? variants.getFeatureVariant(plan.featureKey)         : null,
+      plan.conversionKey   ? variants.getConversionVariant(plan.conversionKey)   : null,
+      plan.notificationKey ? variants.getNotificationVariant(plan.notificationKey) : null,
     ]);
 
     // ── Map variant fields to slot map ─────────────────────────────────────────
