@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { activateScenario, clearScenario, getScenarioState, subscribeToScenario } from "./scenario-store";
 import { isDemoChromeCollapsed, setDemoChromeCollapsed, subscribeDemoChrome } from "./demo-ui-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
+import { useIsMobile } from "./use-is-mobile";
 
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF";
 
@@ -54,6 +55,7 @@ export function DemoRoleSwitcher() {
   const [pending, startTransition] = useTransition();
   const [active, setActive] = useState<string | null>(() => activeRoleFromState());
   const [collapsed, setCollapsed] = useState<boolean>(() => isDemoChromeCollapsed());
+  const isMobile = useIsMobile();
 
   // Follow the shared store: any change (this switcher, the time slider, or the
   // operator panel) re-derives the active role so the highlight stays truthful.
@@ -106,8 +108,8 @@ export function DemoRoleSwitcher() {
         style={{
           border: "none",
           borderRadius: 999,
-          padding: "8px 16px",
-          fontSize: 14,
+          padding: isMobile ? "7px 12px" : "8px 16px",
+          fontSize: isMobile ? 13 : 14,
           fontWeight: 600,
           cursor: pending ? "wait" : "pointer",
           background: isActive ? TEAL : "rgba(255,255,255,0.10)",
@@ -125,23 +127,32 @@ export function DemoRoleSwitcher() {
     <div
       style={{
         position: "fixed",
-        top: 14,
-        left: "50%",
-        transform: "translateX(-50%)",
+        top: isMobile ? 8 : 14,
+        left: isMobile ? 8 : "50%",
+        right: isMobile ? 8 : undefined,
+        transform: isMobile ? "none" : "translateX(-50%)",
         zIndex: 10001,
         display: "flex",
         alignItems: "center",
+        justifyContent: "center",
+        flexWrap: isMobile ? "wrap" : "nowrap",
         gap: 6,
         background: NAVY,
-        padding: "6px 8px 6px 14px",
-        borderRadius: 999,
+        padding: isMobile ? "8px 10px" : "6px 8px 6px 14px",
+        borderRadius: isMobile ? 16 : 999,
         boxShadow: "0 6px 24px rgba(0,0,0,0.28)",
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-        maxWidth: "96vw",
+        maxWidth: isMobile ? undefined : "96vw",
       }}
       aria-label="Demo — kies een rol"
     >
-      <span style={{ color: ICE, fontSize: 12, fontWeight: 700, marginRight: 4 }}>
+      <span
+        style={{
+          color: ICE, fontSize: 12, fontWeight: 700, marginRight: 4,
+          width: isMobile ? "100%" : undefined,
+          textAlign: isMobile ? "center" : undefined,
+        }}
+      >
         Who are you?
       </span>
       {ROLES.map((r) => pill(r.label, r.key))}
