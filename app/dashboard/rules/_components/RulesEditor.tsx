@@ -182,6 +182,17 @@ const HERO_KEY_LABELS: Record<HeroVariantKey, string> = {
   hero_careers_job_match:    "Careers Job Match — role-led messaging",
   hero_careers_high_intent:  "Careers High Intent — direct apply CTA",
   hero_careers_reassurance:  "Careers Reassurance — drop-off recovery",
+  // ── Per-preset demo variants ─────────────────────────────────────────────
+  hero_trial_ready:          "Trial Ready — proefperiode staat klaar",
+  hero_returning:            "Returning — welkom terug",
+  hero_enterprise:           "Enterprise — personalisatie op schaal",
+  hero_form_dropoff:         "Form Drop-off — nog vragen?",
+  hero_customer_expansion:   "Customer Expansion — meer uit je site",
+  hero_post_conversion:      "Post-Conversion — bedankt, we gaan aan de slag",
+  hero_high_friction:        "High Friction — even vastgelopen",
+  hero_churn_risk:           "Churn Risk — we zien je graag blijven",
+  hero_careers_job_interest: "Careers Job Interest — deze rol past",
+  hero_careers_submitted:    "Careers Submitted — sollicitatie ontvangen",
 };
 
 const PROOF_KEY_LABELS: Record<ProofVariantKey, string> = {
