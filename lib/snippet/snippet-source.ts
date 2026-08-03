@@ -235,8 +235,17 @@ export function buildSnippetSource(decideUrl: string): string {
   // than never personalising. CALL_MS is the hard upper bound on the request
   // itself so a genuinely hung endpoint cannot keep the fetch alive forever; it
   // must be generous enough to survive a cold start + slow TLS handshake.
-  var REVEAL_MS = 700;
-  var CALL_MS   = 4000;
+  // Per-embed override via script-tag attributes, e.g.
+  //   <script ... data-site-key="…" data-mc-reveal-ms="1200" data-mc-call-ms="6000">
+  // Falls back to the defaults; clamped to sane bounds. Lets a slow-backend or
+  // low-traffic tenant give the cold-start decide more room without a code change.
+  function mcTiming(attr, def, max) {
+    var v = selfScript ? parseInt(selfScript.getAttribute(attr) || '', 10) : NaN;
+    if (!(v === v) || v < 0) return def; // NaN or negative → default
+    return v > max ? max : v;
+  }
+  var REVEAL_MS = mcTiming('data-mc-reveal-ms', 700, 5000);
+  var CALL_MS   = mcTiming('data-mc-call-ms', 4000, 15000);
   var revealed = false;
   function reveal() {
     if (revealed) return;
