@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getScenarioState, subscribeToScenario, activateScenario } from "./scenario-store";
 import { isDemoChromeCollapsed, subscribeDemoChrome } from "./demo-ui-store";
+import { useIsMobile } from "./use-is-mobile";
 import type { ScenarioOverrides } from "./scenario-store";
 
 const NAVY = "#0E2A38", TEAL = "#0FA3A3", ICE = "#CFE8E6", WHITE = "#FFFFFF", MUTED = "#8FB0AE";
@@ -43,6 +44,7 @@ export function DemoProfilePanel() {
   const [state, setState] = useState(() => getScenarioState());
   const [pending, setPending] = useState(false);
   const [collapsed, setCollapsed] = useState(() => isDemoChromeCollapsed());
+  const isMobile = useIsMobile();
 
   useEffect(() => subscribeToScenario(() => setState(getScenarioState())), []);
   // Fold together with the top bar via the shared collapse store.
@@ -96,8 +98,14 @@ export function DemoProfilePanel() {
   return (
     <div
       style={{
-        position: "fixed", bottom: 16, left: 16, zIndex: 10001, width: 232,
-        background: NAVY, color: WHITE, borderRadius: 14, padding: 14,
+        position: "fixed",
+        bottom: isMobile ? 10 : 16,
+        left: isMobile ? 10 : 16,
+        right: isMobile ? 10 : undefined,
+        zIndex: 10001,
+        width: isMobile ? "auto" : 232,
+        maxWidth: isMobile ? 300 : undefined,
+        background: NAVY, color: WHITE, borderRadius: 14, padding: isMobile ? 12 : 14,
         boxShadow: "0 6px 24px rgba(0,0,0,0.28)",
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
       }}
