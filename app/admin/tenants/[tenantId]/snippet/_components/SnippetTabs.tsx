@@ -17,14 +17,16 @@ import { useState } from "react";
 import { SnippetPageClient } from "./SnippetPageClient";
 import { SnippetSelectorsEditor } from "./SnippetSelectorsEditor";
 import { SnippetOriginsEditor } from "./SnippetOriginsEditor";
+import { SnippetTimingEditor } from "./SnippetTimingEditor";
 import { HowItWorksContent } from "./HowItWorksContent";
 
-type Tab = "install" | "selectors" | "security" | "how-it-works";
+type Tab = "install" | "selectors" | "security" | "timing" | "how-it-works";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "install",       label: "Install"       },
   { id: "selectors",     label: "Selectors"     },
   { id: "security",      label: "Security"      },
+  { id: "timing",        label: "Timing"        },
   { id: "how-it-works",  label: "How it works"  },
 ];
 
@@ -36,6 +38,8 @@ interface SnippetTabsProps {
   snippetSrc:  string;
   selectorMap: Record<string, string>;
   allowedOrigins: readonly string[];
+  revealMs:    number | null;
+  callMs:      number | null;
   slotSuggestions: readonly string[];
   initialTab?: Tab;
 }
@@ -48,6 +52,8 @@ export function SnippetTabs({
   snippetSrc,
   selectorMap,
   allowedOrigins,
+  revealMs,
+  callMs,
   slotSuggestions,
   initialTab = "install",
 }: SnippetTabsProps) {
@@ -89,6 +95,8 @@ export function SnippetTabs({
           enabled={enabled}
           generatedAt={generatedAt}
           snippetSrc={snippetSrc}
+          revealMs={revealMs}
+          callMs={callMs}
         />
       )}
 
@@ -104,6 +112,14 @@ export function SnippetTabs({
         <SnippetOriginsEditor
           tenantId={tenantId}
           initialOrigins={allowedOrigins}
+        />
+      )}
+
+      {activeTab === "timing" && (
+        <SnippetTimingEditor
+          tenantId={tenantId}
+          initialRevealMs={revealMs}
+          initialCallMs={callMs}
         />
       )}
 
