@@ -50,6 +50,29 @@ set config = jsonb_set(
 )
 where target.key = 'homepage_statamic';
 
+-- 1c. Herpunt de presets die een gedeelde hero hadden naar hun eigen distincte hero,
+--     zodat elke Quick Preset visueel verschilt. (Deze hero-keys zijn in de app-code
+--     geregistreerd in ALLOWED_HERO_KEYS; die deploy moet dus mee.)
+update rules_config
+set config = jsonb_set(config, '{rules}',
+  (select jsonb_agg(
+     case r->>'id'
+       when 'preset.trial_ready'          then jsonb_set(r,'{plan,heroKey}','"hero_trial_ready"')
+       when 'preset.returning_visitor'    then jsonb_set(r,'{plan,heroKey}','"hero_returning"')
+       when 'preset.enterprise_prospect'  then jsonb_set(r,'{plan,heroKey}','"hero_enterprise"')
+       when 'preset.form_dropoff'         then jsonb_set(r,'{plan,heroKey}','"hero_form_dropoff"')
+       when 'preset.customer_expansion'   then jsonb_set(r,'{plan,heroKey}','"hero_customer_expansion"')
+       when 'preset.post_conversion'      then jsonb_set(r,'{plan,heroKey}','"hero_post_conversion"')
+       when 'preset.high_friction'        then jsonb_set(r,'{plan,heroKey}','"hero_high_friction"')
+       when 'preset.churn_risk'           then jsonb_set(r,'{plan,heroKey}','"hero_churn_risk"')
+       when 'preset.careers_job_interest' then jsonb_set(r,'{plan,heroKey}','"hero_careers_job_interest"')
+       when 'preset.careers_submitted'    then jsonb_set(r,'{plan,heroKey}','"hero_careers_submitted"')
+       else r
+     end order by ord)
+   from jsonb_array_elements(config->'rules') with ordinality as t(r, ord))
+)
+where key = 'homepage_statamic';
+
 -- 2. Demo-rol-segmenten voor tenant statamic
 insert into audience_segments (id, tenant_id, key, label, description, criteria, is_active)
 values
