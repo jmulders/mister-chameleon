@@ -62,6 +62,8 @@ const BUILTIN_TEMPLATES: BuiltinTemplate[] = [
   { id: "night",        label: "Night time",                  description: "22:00 – 06:00 local time" },
   { id: "evening",      label: "Evening",                     description: "18:00 – 22:00 local time" },
   { id: "morning",      label: "Morning",                     description: "06:00 – 10:00 local time" },
+  { id: "day",          label: "Daytime",                     description: "Ochtend + middag (06:00 – 18:00)" },
+  { id: "weekend",      label: "Weekend",                     description: "Zaterdag en zondag" },
   { id: "any-campaign", label: "Any UTM campaign",            description: "Any visitor with a utm_campaign parameter" },
   { id: "mobile",       label: "Mobile visitors",             description: "Phones and tablets" },
 ];

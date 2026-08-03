@@ -1634,6 +1634,8 @@ const BUILTIN_TEMPLATE_LABELS: Readonly<Record<string, string>> = {
   "night":        "Night time",
   "evening":      "Evening",
   "morning":      "Morning",
+  "day":          "Daytime",
+  "weekend":      "Weekend",
   "any-campaign": "Any UTM campaign",
   "mobile":       "Mobile visitors",
 };

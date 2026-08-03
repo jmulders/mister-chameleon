@@ -90,6 +90,8 @@ export const BUILTIN_THEME_CONDITION_MAP: Readonly<Record<string, RuleCondition>
   "night":        { type: "field", field: "timeOfDay",    operator: "equals", value: "night" },
   "evening":      { type: "field", field: "timeOfDay",    operator: "equals", value: "evening" },
   "morning":      { type: "field", field: "timeOfDay",    operator: "equals", value: "morning" },
+  "day":          { type: "field", field: "timeOfDay",    operator: "in",     value: ["morning", "afternoon"] },
+  "weekend":      { type: "field", field: "isWeekend",    operator: "equals", value: true },
   "any-campaign": { type: "field", field: "utmCampaign",  operator: "exists" },
   "mobile":       { type: "field", field: "device",       operator: "equals", value: "mobile" },
 } as const;
@@ -105,6 +107,8 @@ export const BUILTIN_THEME_PRIORITY_MAP: Readonly<Record<string, number>> = {
   "night":        55,
   "evening":      60,
   "morning":      65,
+  "day":          68,
+  "weekend":      70,
   "mobile":       100,
 } as const;
 
