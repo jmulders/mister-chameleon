@@ -306,7 +306,9 @@ export async function POST(request: NextRequest) {
     });
 
     const decisionProvider = new ExperimentDecisionProvider(
-      new RulesDecisionProvider(rulesConfig ?? undefined),
+      // tenantId → matched rules are recorded (fire-and-forget) so the admin
+      // rule-fire statistics also reflect this slot API (Statamic addon) traffic.
+      new RulesDecisionProvider(rulesConfig ?? undefined, undefined, tenantId),
       sessionId,
       tenant.experiments?.enabled ?? true,
       tenantId,
