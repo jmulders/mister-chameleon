@@ -75,7 +75,7 @@ export function DemoRoleSwitcher() {
         type="button"
         onClick={() => setDemoChromeCollapsed(false)}
         style={{
-          position: "fixed", top: 14 + topInset, right: 16, zIndex: 10001,
+          position: "fixed", top: 14 + topInset, left: 16, zIndex: 10001,
           border: "none", borderRadius: 999, padding: "8px 14px",
           background: NAVY, color: ICE, fontSize: 12, fontWeight: 700,
           cursor: "pointer", boxShadow: "0 6px 24px rgba(0,0,0,0.28)",
