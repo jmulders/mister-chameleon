@@ -96,7 +96,18 @@ export type HeroVariantKey =
   | "hero_careers_default"       // awareness: brand intro, culture showcase
   | "hero_careers_job_match"     // explorer / job-interest: role-led messaging
   | "hero_careers_high_intent"   // high intent: urgency + direct apply CTA
-  | "hero_careers_reassurance";  // drop-off recovery: remove friction, build trust
+  | "hero_careers_reassurance"   // drop-off recovery: remove friction, build trust
+  // Per-preset demo variants (distinct hero per Quick Preset)
+  | "hero_trial_ready"
+  | "hero_returning"
+  | "hero_enterprise"
+  | "hero_form_dropoff"
+  | "hero_customer_expansion"
+  | "hero_post_conversion"
+  | "hero_high_friction"
+  | "hero_churn_risk"
+  | "hero_careers_job_interest"
+  | "hero_careers_submitted";
 
 /**
  * Runtime tuple of all valid hero variant key strings.
@@ -120,6 +131,17 @@ export const HERO_VARIANT_KEYS: readonly HeroVariantKey[] = [
   "hero_careers_job_match",
   "hero_careers_high_intent",
   "hero_careers_reassurance",
+  // Per-preset demo variants
+  "hero_trial_ready",
+  "hero_returning",
+  "hero_enterprise",
+  "hero_form_dropoff",
+  "hero_customer_expansion",
+  "hero_post_conversion",
+  "hero_high_friction",
+  "hero_churn_risk",
+  "hero_careers_job_interest",
+  "hero_careers_submitted",
 ] as const;
 
 // ── Proof variant keys ────────────────────────────────────────────────────────

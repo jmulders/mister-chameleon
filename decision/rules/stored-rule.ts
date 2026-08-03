@@ -544,6 +544,17 @@ export const ALLOWED_HERO_KEYS: readonly HeroVariantKey[] = [
   "hero_careers_job_match",
   "hero_careers_high_intent",
   "hero_careers_reassurance",
+  // Per-preset demo variants (distinct hero per Quick Preset)
+  "hero_trial_ready",
+  "hero_returning",
+  "hero_enterprise",
+  "hero_form_dropoff",
+  "hero_customer_expansion",
+  "hero_post_conversion",
+  "hero_high_friction",
+  "hero_churn_risk",
+  "hero_careers_job_interest",
+  "hero_careers_submitted",
 ] as const;
 
 export const ALLOWED_PROOF_KEYS: readonly ProofVariantKey[] = [
