@@ -77,6 +77,16 @@ Naar aanleiding van het advies van 1 augustus.
 is die je apart verkoopt of een eigenschap van elke site die we bouwen. Het tweede is
 commercieel makkelijker en levert minder marge per klant. Echte afweging, geen detail.
 
+**Besloten (2 augustus) — content-herkomst.** De adaptieve varianten voor het snippet
+(externe sites) komen platform-native: de snippet-decide leest ze eerst uit de
+platform-store, met fallback naar de tenant-CMS. Geïmplementeerd in
+`cms/providers/platform-first-variants.ts`. Zie `docs/adaptive-content-architecture.md`.
+Voor september blijft één keuze open: bieden we de externe-CMS-koppeling (Sanity/Statamic/
+Storyblok voor variant-content) actief aan als betaalde optie, of houden we hem als
+uitzondering en zetten we platform-native als de standaard neer? Drie bibliotheken
+onderhouden is echt werk — verdedigbaar zodra een klant erom betaalt, kostenpost zolang
+niemand erom vraagt.
+
 ---
 
 ## Voorgestelde volgorde

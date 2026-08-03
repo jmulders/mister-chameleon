@@ -44,7 +44,8 @@ set config = jsonb_set(
       select pr.rule, (100 + pr.rk)::numeric, (2 + pr.rk)::int
       from (select r as rule, row_number() over (order by (r->>'priority')::int) rk
             from rules_config c, lateral jsonb_array_elements(c.config->'rules') r
-            where c.key = 'homepage_mister-chameleon') pr
+            where c.key = 'homepage_mister-chameleon'
+              and r->>'id' not like 'preset.careers%') pr  -- careers uit de product-demo
     ) elem
   )
 )
@@ -65,8 +66,6 @@ set config = jsonb_set(config, '{rules}',
        when 'preset.post_conversion'      then jsonb_set(r,'{plan,heroKey}','"hero_post_conversion"')
        when 'preset.high_friction'        then jsonb_set(r,'{plan,heroKey}','"hero_high_friction"')
        when 'preset.churn_risk'           then jsonb_set(r,'{plan,heroKey}','"hero_churn_risk"')
-       when 'preset.careers_job_interest' then jsonb_set(r,'{plan,heroKey}','"hero_careers_job_interest"')
-       when 'preset.careers_submitted'    then jsonb_set(r,'{plan,heroKey}','"hero_careers_submitted"')
        else r
      end order by ord)
    from jsonb_array_elements(config->'rules') with ordinality as t(r, ord))
