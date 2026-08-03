@@ -19,6 +19,9 @@ interface SnippetPageClientProps {
   enabled:     boolean;
   generatedAt: string | null;
   snippetSrc:  string;
+  /** Per-tenant snippet timing, baked into the embed as data-mc-* when set. */
+  revealMs?:   number | null;
+  callMs?:     number | null;
 }
 
 // ── Helper: copy to clipboard ──────────────────────────────────────────────────
@@ -67,6 +70,8 @@ function CopyButton({ text }: { text: string }) {
 export function SnippetPageClient({
   tenantId,
   siteKey: initialSiteKey,
+  revealMs,
+  callMs,
   enabled: initialEnabled,
   generatedAt: initialGeneratedAt,
   snippetSrc,
@@ -77,8 +82,13 @@ export function SnippetPageClient({
   const [error,       setError]       = useState<string | null>(null);
   const [isPending,   startTransition] = useTransition();
 
+  // Per-tenant timing overrides, when set, are baked into the embed so the copied
+  // script tag carries them (the snippet.js file itself is generic and cached).
+  const timingAttrs =
+    (typeof revealMs === "number" ? `\n  data-mc-reveal-ms="${revealMs}"` : "") +
+    (typeof callMs   === "number" ? `\n  data-mc-call-ms="${callMs}"`     : "");
   const scriptTag = siteKey
-    ? `<script\n  src="${snippetSrc}"\n  data-site-key="${siteKey}"\n  async\n></script>`
+    ? `<script\n  src="${snippetSrc}"\n  data-site-key="${siteKey}"${timingAttrs}\n  async\n></script>`
     : null;
 
   // ── Generate / Regenerate site key ──────────────────────────────────────────
