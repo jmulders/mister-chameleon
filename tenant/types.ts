@@ -2914,4 +2914,21 @@ export interface TenantSnippetSettings {
    * per-site-key rate limiting — not an airtight guarantee.
    */
   allowedSnippetOrigins?: readonly string[];
+
+  /**
+   * How long (ms) the snippet keeps the page hidden waiting for the decision
+   * before revealing the default. A late decision is still applied (a swap),
+   * so this only controls how long we wait to avoid a visible swap. Baked into
+   * the embed as `data-mc-reveal-ms`. Absent → snippet default (700).
+   * Clamped in the snippet to 0–5000.
+   */
+  revealMs?: number;
+
+  /**
+   * Hard upper bound (ms) on the decide request before the snippet aborts it.
+   * Raise it for a slow or low-traffic backend where the cold-start decide +
+   * first TLS handshake can exceed the default. Baked into the embed as
+   * `data-mc-call-ms`. Absent → snippet default (4000). Clamped to 500–15000.
+   */
+  callMs?: number;
 }

@@ -46,6 +46,8 @@ export default async function SnippetPage({
   const generatedAt  = tenant.snippet?.siteKeyGeneratedAt ?? null;
   const selectorMap  = tenant.snippet?.selectorMap ?? {};
   const allowedOrigins = tenant.snippet?.allowedSnippetOrigins ?? [];
+  const revealMs     = tenant.snippet?.revealMs ?? null;
+  const callMs       = tenant.snippet?.callMs ?? null;
 
   return (
     <div className="p-8 max-w-4xl">
@@ -65,6 +67,8 @@ export default async function SnippetPage({
         snippetSrc={snippetSrc}
         selectorMap={selectorMap}
         allowedOrigins={allowedOrigins}
+        revealMs={revealMs}
+        callMs={callMs}
         slotSuggestions={SLOT_SUGGESTIONS}
       />
     </div>
