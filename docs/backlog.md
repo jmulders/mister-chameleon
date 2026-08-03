@@ -77,6 +77,41 @@ Naar aanleiding van het advies van 1 augustus.
 is die je apart verkoopt of een eigenschap van elke site die we bouwen. Het tweede is
 commercieel makkelijker en levert minder marge per klant. Echte afweging, geen detail.
 
+**Besloten (2 augustus) — content-herkomst.** De adaptieve varianten voor het snippet
+(externe sites) komen platform-native: de snippet-decide leest ze eerst uit de
+platform-store, met fallback naar de tenant-CMS. Geïmplementeerd in
+`cms/providers/platform-first-variants.ts`. Zie `docs/adaptive-content-architecture.md`.
+Platform-native is daarmee de **default**.
+
+**Nog te kiezen (september) — wat doen we met de externe-CMS-koppeling?** Het kunnen
+leveren van variant-content uit een externe CMS (Sanity/Statamic/Storyblok). Drie opties.
+
+*Optie A — houden en actief aanbieden.* Klanten mogen hun eigen CMS houden voor de
+adaptieve content; wij koppelen. Logische vorm: alleen boven een bepaald pakket of tegen
+meerprijs.
+- Voor: sterkste "je hoeft niks te migreren, ook je content niet"-argument; past bureaus
+  en enterprises die hun redactie niet opgeven; extra omzetregel.
+- Tegen: je onderhoudt drie koppelingen als product (doorlopend werk); meer support en
+  meer dat kan breken in het hete pad; je moet het écht verkopen om het terug te verdienen.
+
+*Optie B — alleen platform-native, koppeling uitfaseren.* Eén verhaal: adaptieve content
+maak je bij ons.
+- Voor: minste onderhoud; simpelste propositie en demo; geen driewegverwarring meer.
+- Tegen: je verliest het argument dat de klant ook zijn content niet hoeft te verplaatsen;
+  minder aantrekkelijk voor partijen met een grote bestaande redactie.
+
+*Optie C — houden maar niet verkopen.* Laat de koppeling bestaan voor het platform-gehoste
+model (hele site incl. varianten uit hun CMS), maar zet 'm niet als verkoopargument neer.
+- Voor: geen kostenpost die je actief moet terugverdienen; blijft beschikbaar als een klant
+  er echt om vraagt.
+- Tegen: je onderhoudt iets dat je niet te gelde maakt; "grijze" positie die makkelijk
+  verwatert, want niemand is eigenaar van de keuze.
+
+De kern: drie CMS-bibliotheken onderhouden is doorlopend werk — verdedigbaar zodra een klant
+ervoor betaalt (A), kostenpost zolang niemand erom vraagt (C), of weg te snijden voor rust
+(B). Het hangt aan de betaal-/pakketkeuze én aan hoeveel prospects écht hun eigen CMS willen
+houden; dat laatste wordt meetbaar zodra je de eerste gesprekken voert.
+
 ---
 
 ## Voorgestelde volgorde
