@@ -839,7 +839,10 @@ export async function POST(request: NextRequest) {
 
     const experimentsEnabled = tenant.experiments?.enabled ?? true;
     const decisionProvider   = new ExperimentDecisionProvider(
-      new RulesDecisionProvider(tenantRulesConfig ?? undefined),
+      // Pass tenantId so each matched rule is recorded (fire-and-forget) — this
+      // feeds the rule-fire statistics on the admin Rules page for snippet-only
+      // tenants too, not just the platform-hosted path.
+      new RulesDecisionProvider(tenantRulesConfig ?? undefined, undefined, tenantId),
       sessionId,
       experimentsEnabled,
       tenantId,
