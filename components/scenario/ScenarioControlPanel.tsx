@@ -63,6 +63,7 @@ import {
   type ScenarioOverrides,
 } from "./scenario-store";
 import { SCENARIO_PRESET_LIST } from "./scenario-presets";
+import { DemoStageSection } from "./DemoStageSection";
 import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows";
 import { applyScenarioOverride } from "./apply-scenario-override";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
@@ -1972,6 +1973,7 @@ function DemoFlowsTab({
 // ── Main Panel ────────────────────────────────────────────────────────────────
 
 const TABS = [
+  { key: "demo",     label: "Demo" },
   { key: "context",  label: "Context" },
   { key: "why",      label: "Why This?" },
   { key: "state",    label: "Live State" },
@@ -2007,7 +2009,7 @@ export function ScenarioControlPanel() {
       const stored = localStorage.getItem("mc_scenario_panel_tab") as TabKey | null;
       if (stored && TABS.some((t) => t.key === stored)) return stored;
     } catch { /* localStorage unavailable */ }
-    return "context";
+    return "demo";
   });
 
   const setTab = useCallback((next: TabKey) => {
@@ -2475,6 +2477,9 @@ export function ScenarioControlPanel() {
 
           {/* Tab content */}
           <div style={{ overflowY: "auto", flex: 1, padding: "12px 12px" }}>
+            {tab === "demo" && (
+              <DemoStageSection scenario={scenario} onApply={triggerRefresh} />
+            )}
             {tab === "context" && (
               <ContextTab
                 scenario={scenario}
