@@ -692,7 +692,7 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
   {
     key:              "entryPath",
     label:            "Entry path (landing page)",
-    description:      "Pathname of the session's first page view, persisted sticky. Lets a later view target \"kwam binnen op een dieptepagina\" (e.g. entryPath != \"/\").",
+    description:      "Pathname of the session's first page view, persisted sticky. Lets a later view target \"entered on a deep page\" (e.g. entryPath != \"/\").",
     type:             "string",
     source:           "page",
     operators:        OPS_STRING,

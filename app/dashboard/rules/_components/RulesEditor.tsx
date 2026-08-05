@@ -2427,7 +2427,7 @@ function VariantTargetFields({
   );
 }
 
-// ── SetContextFields ("Context zetten") ──────────────────────────────────────────
+// ── SetContextFields ("Set context") ──────────────────────────────────────────────
 
 /**
  * Editor for plan.setContext — the context a rule writes when it fires ("regels
@@ -2478,7 +2478,7 @@ function SetContextFields({
         className="flex w-full items-center justify-between text-left"
       >
         <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-          Context zetten
+          Set context
           {rows.length > 0 && (
             <span className="ml-2 font-normal normal-case text-neutral-400">
               {rows.length} {rows.length === 1 ? "write" : "writes"}
