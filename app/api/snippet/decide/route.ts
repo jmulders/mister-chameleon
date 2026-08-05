@@ -89,6 +89,7 @@ import {
 }                                    from "@/decision";
 import { loadTenantRulesConfig }     from "@/decision/rules/load-tenant-rules";
 import { buildDecisionContext }      from "@/decision/context/build-decision-context";
+import { isBotUserAgent }            from "@/decision/context/detect-bot";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import type { TenantSettings }       from "@/tenant/types";
 import type { HeroBlockData, CTABlockData, ProofBlockData, FeatureBlockData, ConversionBlockData, NotificationBlockData } from "@/cms/types";
@@ -842,7 +843,15 @@ export async function POST(request: NextRequest) {
       // Pass tenantId so each matched rule is recorded (fire-and-forget) — this
       // feeds the rule-fire statistics on the admin Rules page for snippet-only
       // tenants too, not just the platform-hosted path.
-      new RulesDecisionProvider(tenantRulesConfig ?? undefined, undefined, tenantId, sessionId),
+      // Serving exclusion: clear UA bots get the default experience (no
+      // personalization). Measurement exclusion (UA OR cloud) is handled via
+      // ctx.isBot in the engine / profile recorder.
+      new RulesDecisionProvider(
+        tenantRulesConfig ?? undefined,
+        isBotUserAgent(request.headers.get("user-agent")),
+        tenantId,
+        sessionId,
+      ),
       sessionId,
       experimentsEnabled,
       tenantId,

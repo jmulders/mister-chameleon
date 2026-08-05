@@ -357,7 +357,9 @@ export class RulesDecisionProvider implements DecisionProvider {
         // Rule-fire diagnostic: record which rule fired (fire-and-forget, never
         // awaited, never throws). Only when a tenantId is supplied. Dynamically
         // imported so the pure engine (and benchmarks) stay decoupled from the DB.
-        if (this._tenantId) {
+        // Bots (UA-bot OR cloud IP, i.e. ctx.isBot) are excluded so they never
+        // pollute the rule-fire measurement (spec §6).
+        if (this._tenantId && !ctx.isBot) {
           const tid = this._tenantId;
           void import("@/lib/observability/rule-fire-store")
             .then((m) => m.recordRuleFire(tid, matched.id))
