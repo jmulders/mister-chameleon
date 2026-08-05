@@ -460,6 +460,9 @@ export function deriveClientState(
     deduplicatedEventCount:   serverJourney?.deduplicatedEventCount   ?? 0,
     // Sequence engine v2 — carry from server; not recomputable client-side.
     sequenceConfidenceContribution: serverJourney?.sequenceConfidenceContribution ?? 0,
+    // Rule-written sticky context — carry from server; the client merge never
+    // writes it (sticky persistence is server-side only).
+    ruleContext:              serverJourney?.ruleContext ?? {},
   };
 
   // Compute confidence from the derived state.

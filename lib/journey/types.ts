@@ -368,6 +368,13 @@ export interface AdaptiveGating {
  *   repeatSessionBonus    — 0–1 bonus that rises when events span multiple calendar
  *                           days (returning visitor behaviour). Feeds into confidence.
  */
+/**
+ * Sticky context map written by rules. Persisted in
+ * visitor_behavior_state.rule_context (jsonb). Values are scalar so they can be
+ * compared by rule conditions and JSON-serialised without loss.
+ */
+export type RuleContextValues = Record<string, string | number | boolean>;
+
 export interface JourneyState {
   // Timestamps
   firstSeenAt:          string | null;
@@ -515,6 +522,17 @@ export interface JourneyState {
   sequenceConfidenceContribution: number;
 
   /**
+   * Sticky context written by rules ("regels die context schrijven").
+   *
+   * Map of `{ key: string|number|boolean }`. Holds both own flags (e.g.
+   * `gericht_binnengekomen`) and overrides of derived registry fields (e.g.
+   * `funnelStage`). Loaded as an overlay over the derived context before rule
+   * evaluation; only sticky writes are persisted here. Fail-open: `{}` when the
+   * column is absent or the visitor has no rule-written context yet.
+   */
+  ruleContext:          RuleContextValues;
+
+  /**
    * Multi-dimensional confidence model.
    * Populated by fetchJourneyState() via computeBehaviorConfidence().
    * Use this to gate adaptive experience decisions.
@@ -586,6 +604,7 @@ export function emptyJourneyState(): JourneyState {
     funnelStageConfidence: 0.5,
     matchedSequences:               [],
     sequenceConfidenceContribution: 0,
+    ruleContext:           {},
     confidence:            emptyConfidence(),
     fromDatabase:          false,
   };
@@ -656,6 +675,13 @@ export interface BehaviorStateRow {
    * Null / absent when no custom contributions have been defined.
    */
   sequence_confidence_contribution?: number | null;
+
+  // ── Rule context writes (nullable — migration 0164) ───────────────────────
+  /**
+   * Sticky context written by rules ({ key: string|number|boolean }).
+   * Absent on rows created before migration 0164 — coalesced to {} on read.
+   */
+  rule_context?: RuleContextValues | null;
 }
 
 /**
@@ -700,6 +726,7 @@ export function rowToJourneyState(row: BehaviorStateRow): JourneyState {
     funnelStageConfidence: Number(row.funnel_stage_confidence) || 0.5,
     matchedSequences:               row.matched_sequences ?? [],
     sequenceConfidenceContribution: row.sequence_confidence_contribution ?? 0,
+    ruleContext:           row.rule_context ?? {},
     confidence:            emptyConfidence(), // replaced by fetchJourneyState()
     fromDatabase:          true,
   };
