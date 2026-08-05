@@ -43,7 +43,7 @@
  *   Saving calls saveRulesAction() which writes to decision/rules/runtime-rules.json.
  */
 
-import { useState, useCallback, useId } from "react";
+import { useState, useCallback, useId, useRef, useEffect } from "react";
 import {
   saveRulesAction,
   resetRulesAction,
@@ -385,10 +385,25 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
     [markDirty],
   );
 
+  // Card DOM nodes keyed by rule id, so a freshly-added rule can be scrolled
+  // into view. A "pending scroll" id is set on add and consumed by the effect
+  // below once the new card has rendered.
+  const cardRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingScrollId) return;
+    const el = cardRefs.current.get(pendingScrollId);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPendingScrollId(null);
+  }, [pendingScrollId]);
+
   const addRule = useCallback(() => {
-    setRules((prev) => [...prev, newEditableRule(prev)]);
+    const rule = newEditableRule(rules); // _editOpen: true → new rule renders expanded
+    setRules((prev) => [...prev, rule]);
+    setPendingScrollId(rule.id);          // scroll to it once rendered
     markDirty();
-  }, [markDirty]);
+  }, [rules, markDirty]);
 
   const moveRule = useCallback(
     (id: string, direction: "up" | "down") => {
@@ -822,6 +837,10 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
               onSelect={() => toggleSelect(rule.id)}
               onToggleEnabled={() => toggleEnabled(rule.id)}
               isAtLimit={isAtLimit}
+              cardRef={(el) => {
+                if (el) cardRefs.current.set(rule.id, el);
+                else    cardRefs.current.delete(rule.id);
+              }}
             />
           ))}
         </div>
@@ -932,6 +951,7 @@ interface RuleCardProps {
   onSelect:        () => void;
   onToggleEnabled: () => void;
   isAtLimit:       boolean;
+  cardRef?:        (el: HTMLDivElement | null) => void;
 }
 
 function RuleCard({
@@ -947,6 +967,7 @@ function RuleCard({
   onSelect,
   onToggleEnabled,
   isAtLimit,
+  cardRef,
 }: RuleCardProps) {
   const isFirst        = index === 0;
   const isLast         = index === total - 1;
@@ -954,7 +975,7 @@ function RuleCard({
   const conditionLabel = formatCondition(rule.condition);
 
   return (
-    <div className={`rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden transition-opacity${isDisabled ? " opacity-60" : ""}`}>
+    <div ref={cardRef} className={`rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden transition-opacity${isDisabled ? " opacity-60" : ""}`}>
       {/* ── Summary row ───────────────────────────────────────────────── */}
       <div className="flex items-start gap-3 px-4 py-3">
         {/* Selection checkbox — nudge down so it aligns with the first text line */}
