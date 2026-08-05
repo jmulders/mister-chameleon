@@ -282,15 +282,64 @@ export interface ContextLibraryCondition {
   minConfidence?: number;
 }
 
+/**
+ * A condition that reads a rule-written context flag from `ctx.ruleContext`
+ * (the sticky overlay persisted in visitor_behavior_state.rule_context).
+ *
+ * This is how a later paginaweergave/regel reads a flag an earlier rule wrote
+ * (e.g. `gericht_binnengekomen`). It reads the raw overlay directly — it does
+ * NOT go through FIELD_REGISTRY — so flag names are free-form, not registry keys.
+ * (Overriding a derived registry field is a separate mechanism: the field's
+ * resolver consults `ctx.ruleContext[fieldKey]`; see spec §4.)
+ *
+ * @example
+ *   { type: "flag", name: "gericht_binnengekomen", value: true }
+ *   { type: "flag", name: "hoge_intentie", operator: "exists" }
+ */
+export interface FlagCondition {
+  type: "flag";
+  /** Flag name — a key in `ctx.ruleContext`. Free-form, not a registry key. */
+  name: string;
+  /**
+   * Comparison operator.
+   * @default "equals"
+   * Also supports "exists" / "not_exists" to test presence of the flag.
+   */
+  operator?: FieldOperator;
+  /**
+   * The value to compare against. Omit for "exists" / "not_exists".
+   */
+  value?: string | number | boolean;
+}
+
 /** Any condition that can appear in a StoredRule or as a GroupCondition child. */
 export type RuleCondition =
   | FieldCondition
   | NamedCondition
   | ContextCondition
   | ContextLibraryCondition
+  | FlagCondition
   | GroupCondition;
 
 // ── Stored plan ────────────────────────────────────────────────────────────────
+
+/**
+ * A single context variable a rule writes when it matches ("regels die context
+ * schrijven"). The `key` is either an own flag name (read back via a
+ * FlagCondition) or a FIELD_REGISTRY field key (overriding that field's derived
+ * value for the session; see spec §4).
+ *
+ * `sticky` (default true) persists the write to
+ * visitor_behavior_state.rule_context so a later paginaweergave/regel reads it.
+ * A non-sticky write lives only within the current request's evaluation.
+ */
+export interface RuleContextWrite {
+  /** Flag name or registry field key (override). */
+  key:     string;
+  value:   string | number | boolean;
+  /** Default true — persists for the session. */
+  sticky?: boolean;
+}
 
 /**
  * The variant key triple (+ optional theme override) stored inside a rule
@@ -415,6 +464,17 @@ export interface StoredPlan {
    * and/or block set.
    */
   emailVariants?: Record<string, string>;
+
+  /**
+   * Context writes applied when this rule matches ("regels die context
+   * schrijven"). Optional effect alongside (or instead of) the variant choice —
+   * a pure "tag-only" rule carries `setContext` and no meaningful variant.
+   *
+   * In the 2-phase evaluation (spec §5) these are applied in phase A over the
+   * overlay before the variant is chosen in phase B; sticky writes are persisted
+   * after the response. Absent = no context effect (current behaviour).
+   */
+  setContext?: RuleContextWrite[];
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────

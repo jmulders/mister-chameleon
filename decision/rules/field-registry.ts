@@ -177,6 +177,35 @@ export type RuleEvaluationContext = DecisionInput & {
    * crm.planTier, crm.dealStage — all used by CRM rule field resolvers below.
    */
   crmMergedState?: import("@/lib/crm").CrmMergedState | null;
+
+  /**
+   * Sticky context written by earlier rules ("regels die context schrijven"),
+   * laid as an overlay over the derived context before rule evaluation.
+   *
+   * Two read routes (spec §4):
+   *   1. Own flags → read by a FlagCondition straight from this map.
+   *   2. Registry-field overrides → a resolver checks `ctx.ruleContext[fieldKey]`
+   *      first and, when present, returns the override instead of the normal
+   *      derivation.
+   *
+   * Loaded from visitor_behavior_state.rule_context (JourneyState.ruleContext).
+   * Null / absent when the visitor has no rule-written context yet.
+   */
+  ruleContext?: Record<string, string | number | boolean> | null;
+
+  /**
+   * Landing page for the session — the pathname of the first view, persisted
+   * sticky so later views can read "kwam binnen op een dieptepagina".
+   * On the first view equals `pathname`; on later views read from the overlay.
+   */
+  entryPath?: string | null;
+
+  /**
+   * True when the request looks like a crawler/bot (UA heuristic +
+   * enrichment.isCloudProvider as a proxy). Bots are excluded from
+   * variant-serving and from rule-fire / score measurement.
+   */
+  isBot?: boolean | null;
 };
 
 // ── Field metadata types ───────────────────────────────────────────────────────

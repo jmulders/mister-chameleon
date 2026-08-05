@@ -56,6 +56,7 @@ import type { VisitorContext } from "@/context/types";
 import type { VisitorHistory } from "@/context/visitor-history";
 import type { SlotCandidates } from "@/ai/variant-meta";
 import type { ThemePresetKey } from "@/design-system/theme/presets";
+import type { RuleContextWrite } from "@/decision/rules/stored-rule";
 
 // ── Hero variant keys ─────────────────────────────────────────────────────────
 
@@ -599,6 +600,13 @@ export interface ExperiencePlan {
    * Set by the rule engine from StoredPlan.pricingCtaMode.
    */
   pricingCtaMode?: "trial" | "demo" | "onboarding" | "expansion" | "none";
+
+  /**
+   * Context writes carried through the compose layer ("regels die context
+   * schrijven"). Copied from StoredPlan.setContext so the sticky-persist step
+   * (spec §5.4) can apply them after the response. Absent = no context effect.
+   */
+  setContext?: RuleContextWrite[];
 
   /**
    * Human-readable explanation of why this plan was selected.
