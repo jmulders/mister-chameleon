@@ -55,7 +55,7 @@ export function ExportTenantDataButton({ exportAction }: ExportTenantDataButtonP
         {isPending ? "Exporting…" : "Export tenant data"}
       </button>
       <span className="text-xs text-neutral-400">
-        Rules, variants &amp; visitor profiles as JSON — your work, portable.
+        Rules, variants &amp; visitor profiles as JSON. Your work, portable.
       </span>
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>

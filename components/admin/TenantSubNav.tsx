@@ -200,6 +200,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
         { label: "Adaptive blocks",  href: `${base}/personalization/blocks`,           activePrefix: `${base}/personalization/blocks` },
         { label: "Variants",         href: `${base}/personalization/variants`,         activePrefix: `${base}/personalization/variants` },
         { label: "Rules",            href: `${base}/personalization/rules`,            activePrefix: `${base}/personalization/rules` },
+        { label: "Stats",            href: `${base}/personalization/stats`,            activePrefix: `${base}/personalization/stats` },
         { label: "Experiments",      href: `${base}/personalization/experiments`,      activePrefix: `${base}/personalization/experiments` },
         { label: "AI",               href: `${base}/personalization/ai`,               activePrefix: `${base}/personalization/ai`, exact: true },
       ],

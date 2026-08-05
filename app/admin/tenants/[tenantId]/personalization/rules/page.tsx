@@ -29,17 +29,8 @@ import { getTenantRulesAction, saveTenantRulesAction, resetTenantRulesAction, se
 import { RulesEditor }         from "@/app/dashboard/rules/_components/RulesEditor";
 import { GlobalRulesToggle }   from "./_components/GlobalRulesToggle";
 import { ExportTenantDataButton } from "./_components/ExportTenantDataButton";
-import { VariantUsagePanel }   from "./_components/VariantUsagePanel";
 import { SeedPresetRulesButton } from "./_components/SeedPresetRulesButton";
-import { RulesMatrix }         from "./_components/RulesMatrix";
-import { ScoreDistributionPanel } from "./_components/ScoreDistributionPanel";
-import { RuleFireStatsPanel }    from "./_components/RuleFireStatsPanel";
-import { Text }                from "@/components/primitives/Text";
 import { fetchVariantCatalogue }      from "@/decision/rules/fetch-variant-catalogue";
-import { computeVariantUsage, resolveContentBudget } from "@/decision/rules/variant-usage";
-import { getScoreDistribution }       from "@/lib/lead-base/score-distribution";
-import { getRuleFireStats }           from "@/lib/observability/rule-fire-store";
-import { getPlatformContentBudgetSettings }          from "@/platform/platform-store";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -56,13 +47,12 @@ export default async function TenantRulesPage({
 
   const tenant = normalizeTenant(rawTenant);
 
-  // Load this tenant's rules, variant catalogue, and content budget in parallel.
-  const [result, variantCatalogue, budgetResult, scoreDistribution, ruleFireStats] = await Promise.all([
+  // Load this tenant's rules and variant catalogue in parallel. The diagnostic
+  // panels (usage, matrix, score distribution, rule-fire) now live on the Stats
+  // sub-tab (../stats).
+  const [result, variantCatalogue] = await Promise.all([
     getTenantRulesAction(tenantId),
     fetchVariantCatalogue(tenantId),
-    getPlatformContentBudgetSettings(),
-    getScoreDistribution(tenantId),
-    getRuleFireStats(tenantId),
   ]);
 
   // Bind the tenant-scoped server actions so RulesEditor can call them without
@@ -89,12 +79,6 @@ export default async function TenantRulesPage({
   // rulesEnabled defaults to true when absent (backward compatible).
   const rulesEnabled = result.config.rulesEnabled !== false;
 
-  // Compute variant usage stats from the loaded config + catalogue.
-  const usage  = computeVariantUsage(result.config, variantCatalogue);
-  const budget = resolveContentBudget(
-    budgetResult.ok ? (budgetResult.data ?? {}) : {},
-  );
-
   return (
     <div className="p-8">
       {/* ── Toolbar — global toggle op een eigen regel, data-acties rechts eronder ── */}
@@ -103,7 +87,7 @@ export default async function TenantRulesPage({
           initialEnabled={rulesEnabled}
           setEnabledAction={boundSetEnabled}
         />
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-start justify-end gap-3">
           <ExportTenantDataButton exportAction={boundExport} />
           <SeedPresetRulesButton seedAction={boundSeedPresets} />
         </div>
@@ -115,29 +99,6 @@ export default async function TenantRulesPage({
         saveAction={boundSave}
         resetAction={boundReset}
       />
-
-      {/* ── Variant usage panel — shown below the editor ──────────────────── */}
-      <div className="mt-8">
-        <VariantUsagePanel usage={usage} budget={budget} />
-      </div>
-
-      {/* ── Slot assignment matrix ────────────────────────────────────────── */}
-      <div className="mt-8">
-        <RulesMatrix config={result.config} />
-      </div>
-
-      {/* ── Score distribution over real sessions (diagnostics) ───────────── */}
-      <div className="mt-8">
-        <ScoreDistributionPanel distribution={scoreDistribution} />
-      </div>
-
-      {/* ── Rule-fire counts — do the rules actually fire? ────────────────── */}
-      <div className="mt-8">
-        <RuleFireStatsPanel
-          rules={result.config.rules.map((r) => ({ id: r.id, label: r.label }))}
-          stats={ruleFireStats}
-        />
-      </div>
     </div>
   );
 }
