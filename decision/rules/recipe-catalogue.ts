@@ -61,7 +61,7 @@ export const RECIPE_GROUPS: Readonly<Record<RecipeGroup, { label: string; blurb:
   funnel:    { label: "Funnel stage",   blurb: "Where the visitor is in their journey." },
   channel:   { label: "Traffic source", blurb: "How the visitor arrived on the site." },
   interest:  { label: "Interest",       blurb: "What the visitor has been reading this session." },
-  behaviour: { label: "Behaviour",      blurb: "What the visitor has done — forms, friction, conversion." },
+  behaviour: { label: "Behaviour",      blurb: "What the visitor has done, across forms, friction, and conversion." },
   entry:     { label: "Targeted entry", blurb: "Visitors flagged as arriving with clear intent." },
   time:      { label: "Time",           blurb: "Day of the week or part of the day." },
 } as const;
@@ -152,7 +152,7 @@ const RECIPE_DEFS: readonly RecipeDef[] = [
     title: "Welcome a first-time visitor",
     description: "Someone visiting for the first time, with no behavioural signal yet.",
     icon: "👋", group: "funnel", tier: "decorative", packId: "pack_funnel_stage",
-    reason: "First visit — no behavioural signal. Brand intro experience.",
+    reason: "First visit, no behavioural signal. Brand intro experience.",
   },
   {
     key: "consideration", presetKey: "consideration",
@@ -180,30 +180,30 @@ const RECIPE_DEFS: readonly RecipeDef[] = [
     title: "Guide a new customer through onboarding",
     description: "An existing customer whose journey stage is customer/onboarding.",
     icon: "🎉", group: "funnel", tier: "hard_state", packId: "pack_funnel_stage",
-    reason: "Existing customer in onboarding — lifecycle experience.",
+    reason: "Existing customer in onboarding. Lifecycle experience.",
   },
 
   // ── Traffic source ──────────────────────────────────────────────────────────
   {
     key: "google_campaign", presetKey: "google_campaign",
     title: "Greet visitors arriving from Google",
-    description: "Traffic from a Google search or brand campaign — match the search intent.",
+    description: "Traffic from a Google search or brand campaign, matching the search intent.",
     icon: "🔎", group: "channel", tier: "medium_segmentation", packId: "pack_campaigns",
-    reason: "Arrived via Google — problem-aware hero matches search intent.",
+    reason: "Arrived via Google. Problem-aware hero matches search intent.",
   },
   {
     key: "linkedin_traffic", presetKey: "linkedin_traffic",
     title: "Greet visitors arriving from LinkedIn",
-    description: "Traffic from LinkedIn — lead with a vision, thought-leadership framing.",
+    description: "Traffic from LinkedIn, with a vision-led, thought-leadership framing.",
     icon: "💼", group: "channel", tier: "medium_segmentation", packId: "pack_traffic_source",
-    reason: "Arrived via LinkedIn — vision hero for thought-leadership and social intent.",
+    reason: "Arrived via LinkedIn. Vision hero for thought-leadership and social intent.",
   },
   {
     key: "enterprise_prospect", presetKey: "enterprise_prospect",
     title: "Impress an enterprise prospect",
-    description: "A LinkedIn visitor already in the consideration stage — a likely enterprise buyer.",
+    description: "A LinkedIn visitor already in the consideration stage, a likely enterprise buyer.",
     icon: "🏢", group: "channel", tier: "medium_segmentation", packId: "pack_traffic_source",
-    reason: "LinkedIn visit in consideration stage — vision-led experience.",
+    reason: "LinkedIn visit in consideration stage. Vision-led experience.",
     proxyNote: "\"Enterprise\" is inferred from LinkedIn + consideration stage, not from firmographics.",
   },
 
@@ -255,23 +255,23 @@ const RECIPE_DEFS: readonly RecipeDef[] = [
   {
     key: "form_dropoff", presetKey: "form_dropoff",
     title: "Win back a form abandoner",
-    description: "Started a form but didn't submit it — re-engage with reassurance.",
+    description: "Started a form but didn't submit it. Re-engage with reassurance.",
     icon: "📝", group: "behaviour", tier: "high_intent", packId: "pack_behaviour",
-    reason: "Started the form but abandoned — re-engage with reassurance.",
+    reason: "Started the form but abandoned it. Re-engage with reassurance.",
   },
   {
     key: "high_friction", presetKey: "high_friction",
     title: "Simplify things for a struggling visitor",
-    description: "A high friction score — reduce overwhelm and simplify the decision.",
+    description: "A high friction score, so reduce overwhelm and simplify the decision.",
     icon: "⚠️", group: "behaviour", tier: "medium_segmentation", packId: "pack_behaviour",
-    reason: "High friction score — simplify the decision path.",
+    reason: "High friction score. Simplify the decision path.",
   },
   {
     key: "post_conversion", presetKey: "post_conversion",
     title: "Celebrate a fresh conversion",
-    description: "Just submitted a form — drop the sales pressure and welcome them.",
+    description: "Just submitted a form. Drop the sales pressure and welcome them.",
     icon: "✅", group: "behaviour", tier: "hard_state", packId: "pack_funnel_stage",
-    reason: "Form just submitted — post-conversion celebration & onboarding.",
+    reason: "Form just submitted. Post-conversion celebration and onboarding.",
   },
 
   // ── Targeted entry (reads a flag written by the measurement rule) ─────────────
@@ -280,13 +280,13 @@ const RECIPE_DEFS: readonly RecipeDef[] = [
     title: "Reward high intent on arrival",
     description:
       "Visitors flagged as arriving with clear intent (the gericht_binnengekomen flag " +
-      "set by the measurement rule) — lead straight with the intent experience.",
+      "set by the measurement rule). Lead straight with the intent experience.",
     icon: "🎯", group: "entry", tier: "high_intent", packId: "pack_behaviour",
-    reason: "Flagged gericht_binnengekomen on arrival — lead with the intent experience.",
+    reason: "Flagged gericht_binnengekomen on arrival. Lead with the intent experience.",
     condition: { type: "flag", name: "gericht_binnengekomen", value: true },
     planFromPreset: "high_intent",
     proxyNote:
-      "Requires the \"Gericht binnengekomen (meet)\" rule to be active — it writes the flag this recipe reads.",
+      "Requires the \"Gericht binnengekomen (meet)\" rule to be active, since it writes the flag this recipe reads.",
   },
 
   // ── Time ──────────────────────────────────────────────────────────────────────
@@ -295,7 +295,7 @@ const RECIPE_DEFS: readonly RecipeDef[] = [
     title: "Show a different message at the weekend",
     description: "Anyone visiting on Saturday or Sunday (tenant local time).",
     icon: "📅", group: "time", tier: "decorative", packId: "pack_funnel_stage",
-    reason: "Weekend visit — low-signal time-based hint.",
+    reason: "Weekend visit. Low-signal time-based hint.",
     condition: { type: "field", field: "isWeekend", operator: "equals", value: true },
     planFromPreset: "consideration",
   },
@@ -304,7 +304,7 @@ const RECIPE_DEFS: readonly RecipeDef[] = [
     title: "Show a different message in the evening",
     description: "Anyone visiting between 18:00 and 21:59 (tenant local time).",
     icon: "🌙", group: "time", tier: "decorative", packId: "pack_funnel_stage",
-    reason: "Evening visit — low-signal time-based hint.",
+    reason: "Evening visit. Low-signal time-based hint.",
     condition: { type: "field", field: "timeOfDay", operator: "equals", value: "evening" },
     planFromPreset: "consideration",
   },
