@@ -2344,6 +2344,7 @@ function SetContextFields({
 
           {rows.map((row, i) => {
             const isOverride = OVERRIDE_KEY_SUGGESTIONS.includes(row.key);
+            const fieldDef   = isOverride ? FIELD_REGISTRY[row.key as RuleFieldKey] : undefined;
             return (
               <div key={i} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
@@ -2361,23 +2362,68 @@ function SetContextFields({
 
                 <Field
                   label="Key"
-                  hint={isOverride ? "Overrides a derived field (advanced)." : "Own flag name. Internal keys (__) are reserved."}
+                  hint={isOverride ? undefined : "Own flag name. Internal keys (__) are reserved."}
                 >
                   <input
                     type="text"
                     value={row.key}
                     list={listId}
                     placeholder="gericht_binnengekomen"
-                    onChange={(e) => updateRow(i, { key: sanitizeContextKey(e.target.value) })}
+                    onChange={(e) => {
+                      const key = sanitizeContextKey(e.target.value);
+                      const def = OVERRIDE_KEY_SUGGESTIONS.includes(key)
+                        ? FIELD_REGISTRY[key as RuleFieldKey]
+                        : undefined;
+                      const patch: Partial<RuleContextWrite> = { key };
+                      // When the key becomes a registry override, seed a value that
+                      // fits the field kind if the current one doesn't (avoids a
+                      // boolean landing on a categorical field like funnelStage).
+                      if (def) {
+                        const v = row.value;
+                        const fits =
+                          def.kind === "number"      ? typeof v === "number" :
+                          def.kind === "boolean"     ? typeof v === "boolean" :
+                          def.kind === "categorical" ? typeof v === "string" && (!def.allowedValues || def.allowedValues.includes(v)) :
+                          typeof v === "string";
+                        if (!fits) patch.value = deriveDefaultValue(def, "equals") as string | number | boolean;
+                      }
+                      updateRow(i, patch);
+                    }}
                     className={inputCls}
                   />
                 </Field>
 
+                {/* Override warning — writing a registry field bypasses its derivation. */}
+                {fieldDef && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <span aria-hidden className="mt-px">⚠</span>
+                    <span>
+                      Override of derived field <span className="font-mono font-semibold">{row.key}</span> ({fieldDef.label}).
+                      This bypasses the normal derivation for the session — advanced use only.
+                    </span>
+                  </div>
+                )}
+
                 <Field label="Value">
-                  <ScalarValueInput
-                    value={row.value}
-                    onChange={(v) => updateRow(i, { value: v ?? "" })}
-                  />
+                  {fieldDef ? (
+                    // Registry override — drive the widget off the field kind so a
+                    // fixed-value field (e.g. funnelStage) becomes an allowedValues
+                    // dropdown and a boolean/number gets the right input.
+                    <FieldValueInput
+                      fieldDef={fieldDef}
+                      operator="equals"
+                      value={row.value}
+                      onChange={(v) => {
+                        const scalar = Array.isArray(v) ? v[0] : v;
+                        updateRow(i, { value: (scalar ?? "") as string | number | boolean });
+                      }}
+                    />
+                  ) : (
+                    <ScalarValueInput
+                      value={row.value}
+                      onChange={(v) => updateRow(i, { value: v ?? "" })}
+                    />
+                  )}
                 </Field>
 
                 <div className="flex flex-wrap items-center gap-4">
