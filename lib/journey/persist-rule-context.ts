@@ -50,6 +50,29 @@ export interface StickyContextWrite {
   monotone?: boolean;
 }
 
+/**
+ * Merge sticky `writes` onto an existing rule_context map, honouring per-key
+ * monotone (write-once) semantics. Pure — no I/O; exported for direct testing
+ * and reused by persistRuleContext.
+ *
+ *   - non-monotone write → last-write-wins.
+ *   - monotone write     → kept only when the key is absent; an existing value
+ *                          (persisted or set by an earlier write in the batch)
+ *                          is preserved.
+ */
+export function mergeStickyWrites(
+  existing: RuleContextValues | null | undefined,
+  writes:   readonly StickyContextWrite[],
+): RuleContextValues {
+  const merged: RuleContextValues = { ...(existing ?? {}) };
+  for (const w of writes) {
+    const exists = Object.prototype.hasOwnProperty.call(merged, w.key);
+    if (w.monotone && exists) continue; // write-once — keep the existing value
+    merged[w.key] = w.value;
+  }
+  return merged;
+}
+
 type StateRow = {
   id:           string;
   visitor_id:   string | null;
@@ -113,12 +136,7 @@ export async function persistRuleContext(
     const row    = existing.data?.[0] ?? null;
 
     // Merge honouring per-key monotone (write-once) semantics.
-    const merged: RuleContextValues = { ...(row?.rule_context ?? {}) };
-    for (const w of writes) {
-      const exists = Object.prototype.hasOwnProperty.call(merged, w.key);
-      if (w.monotone && exists) continue; // write-once — keep the existing value
-      merged[w.key] = w.value;
-    }
+    const merged = mergeStickyWrites(row?.rule_context, writes);
 
     // Nothing new to write (e.g. all writes were monotone no-ops) — skip the DB.
     const changed = Object.keys(merged).length !== Object.keys(row?.rule_context ?? {}).length
