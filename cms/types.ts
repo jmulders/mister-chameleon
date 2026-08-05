@@ -69,6 +69,12 @@ export interface HeroBannerImage {
   url: string;
   /** Alt text for accessibility */
   alt: string;
+  /**
+   * CSS `object-position` for the background crop (e.g. "center", "top",
+   * "50% 20%"). Keeps the subject in frame when the hero is heavily cropped
+   * (full-viewport-height backgrounds). Defaults to "center" when absent.
+   */
+  objectPosition?: string;
 }
 
 /**

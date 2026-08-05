@@ -177,18 +177,30 @@ function Toggle({
 
 // ── Sub-component: image picker ────────────────────────────────────────────────
 
+/** 3×3 focal-point grid → CSS object-position keyword. */
+const FOCAL_POINTS: { value: string; label: string }[] = [
+  { value: "left top",    label: "Top left" },     { value: "center top",    label: "Top" },     { value: "right top",    label: "Top right" },
+  { value: "left center", label: "Left" },         { value: "center",        label: "Center" },  { value: "right center", label: "Right" },
+  { value: "left bottom", label: "Bottom left" },  { value: "center bottom", label: "Bottom" },   { value: "right bottom", label: "Bottom right" },
+];
+
 function ImagePicker({
   tenantId,
   url,
   alt,
+  objectPosition,
   onUrlChange,
   onAltChange,
+  onObjectPositionChange,
 }: {
   tenantId: string;
   url: string;
   alt: string;
+  /** Current object-position; the focal-point grid only shows when a change handler is passed. */
+  objectPosition?: string;
   onUrlChange: (v: string) => void;
   onAltChange: (v: string) => void;
+  onObjectPositionChange?: (v: string) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -209,6 +221,7 @@ function ImagePicker({
                   src={url}
                   alt={alt || "Selected image"}
                   className="w-full h-full object-cover"
+                  style={{ objectPosition }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
                   <span className="text-white text-xs font-semibold">Change image</span>
@@ -237,6 +250,36 @@ function ImagePicker({
           </button>
         )}
       </div>
+
+      {/* Focal point — which part stays in view when the hero crops the image */}
+      {url && onObjectPositionChange && (
+        <div>
+          <label className="block text-xs font-medium text-neutral-700 mb-1.5">Focal point</label>
+          <div className="grid w-[4.5rem] grid-cols-3 gap-1">
+            {FOCAL_POINTS.map((fp) => {
+              const active = (objectPosition || "center") === fp.value;
+              return (
+                <button
+                  key={fp.value}
+                  type="button"
+                  title={fp.label}
+                  aria-label={`Focal point: ${fp.label}`}
+                  aria-pressed={active}
+                  onClick={() => onObjectPositionChange(fp.value)}
+                  className={`aspect-square rounded-sm border transition-colors ${
+                    active
+                      ? "border-brand-500 bg-brand-500"
+                      : "border-neutral-300 bg-neutral-100 hover:border-brand-400"
+                  }`}
+                />
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[10px] text-neutral-400">
+            Keeps the subject in frame when the hero crops the image (e.g. full-height backgrounds).
+          </p>
+        </div>
+      )}
 
       {/* Alt text */}
       <div>
@@ -768,6 +811,9 @@ export function EditBlockDrawer({
   const [imageAlt, setImageAlt] = useState(
     existingMedia?.kind === "image" ? existingMedia.alt : "",
   );
+  const [imageObjectPosition, setImageObjectPosition] = useState(
+    (existingMedia?.kind === "image" ? existingMedia.objectPosition : undefined) ?? "center",
+  );
 
   // Video — source
   const [videoSource, setVideoSource] = useState<VideoSource>(
@@ -945,7 +991,15 @@ export function EditBlockDrawer({
 
   function buildMedia(): HeroBannerMedia | undefined {
     if (mediaType === "image" && imageUrl) {
-      return { kind: "image", url: imageUrl, alt: imageAlt } satisfies HeroBannerImage;
+      return {
+        kind: "image",
+        url: imageUrl,
+        alt: imageAlt,
+        // Omit the default ("center") so existing content stays byte-identical.
+        ...(imageObjectPosition && imageObjectPosition !== "center"
+          ? { objectPosition: imageObjectPosition }
+          : {}),
+      } satisfies HeroBannerImage;
     }
     if (mediaType === "video") {
       if (videoSource === "upload" && videoUrl) {
@@ -1308,8 +1362,10 @@ export function EditBlockDrawer({
                 tenantId={tenantId}
                 url={imageUrl}
                 alt={imageAlt}
+                objectPosition={imageObjectPosition}
                 onUrlChange={setImageUrl}
                 onAltChange={setImageAlt}
+                onObjectPositionChange={setImageObjectPosition}
               />
             )}
 
