@@ -51,6 +51,7 @@ import {
 import type {
   StoredRulesConfig,
   StoredRule,
+  StoredPlan,
   StoredDefaultPlan,
   RuleCondition,
   FieldCondition,
@@ -313,6 +314,23 @@ const COMMON_FIELD_KEYS: readonly RuleFieldKey[] = [
   "isReturningVisitor",
   "isBot",
 ];
+
+/**
+ * A short, human-readable summary of what a rule's plan does — the "THEN" half
+ * of the live sentence preview. Variant keys, then any context writes.
+ */
+function formatPlanSummary(plan: StoredPlan): string {
+  const parts = [`hero ${plan.heroKey}`, `proof ${plan.proofKey}`, `cta ${plan.ctaKey}`];
+  if (plan.featureKey)      parts.push(`feature ${plan.featureKey}`);
+  if (plan.conversionKey)   parts.push(`conversion ${plan.conversionKey}`);
+  if (plan.themeKey)        parts.push(`theme ${plan.themeKey}`);
+  let summary = parts.join(" · ");
+  const writes = plan.setContext ?? [];
+  if (writes.length > 0) {
+    summary += " · set " + writes.map((w) => `${w.key}=${String(w.value)}`).join(", ");
+  }
+  return summary;
+}
 
 // ── Operator labels ────────────────────────────────────────────────────────────
 
@@ -1140,11 +1158,19 @@ function RuleCard({
       {/* ── Edit panel ────────────────────────────────────────────────── */}
       {rule._editOpen && (
         <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5">
-          {/* Advanced-options toggle — reveals packs/precedence, extended
+          {/* Live sentence preview (left) + advanced-options toggle (right).
+              The preview reads the rule as a plain "When … → …" sentence and
+              updates as you edit. The toggle reveals packs/precedence, extended
               variant slots, form/email targeting, context writes and uncommon
               condition types. */}
-          <div className="mb-4 flex justify-end">
-            <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-neutral-500">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs leading-relaxed text-neutral-600">
+              <span className="mr-1 font-semibold uppercase tracking-wide text-neutral-400">When</span>
+              {conditionLabel}
+              <span className="mx-1.5 font-semibold text-brand-600">→</span>
+              {formatPlanSummary(rule.plan)}
+            </div>
+            <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 pt-1 text-xs font-medium text-neutral-500">
               <input
                 type="checkbox"
                 checked={advanced}
