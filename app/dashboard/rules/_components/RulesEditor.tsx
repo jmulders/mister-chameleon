@@ -107,6 +107,8 @@ import {
 } from "@/decision/rules/rule-packs";
 import type { PrecedenceLevel } from "@/decision/rules/rule-packs";
 import { PRESET_CONDITIONS } from "@/decision/rules/preset-conditions";
+import { RecipeGallery } from "./RecipeGallery";
+import type { RecipeRuleDraft } from "./RecipeGallery";
 
 // ── Internal editor model ──────────────────────────────────────────────────────
 //
@@ -418,6 +420,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   const [tierFilter, setTierFilter]     = useState<string>("all");
   const [variantFilter, setVariantFilter] = useState<string>("all");
   const [showContextLib, setShowContextLib] = useState(false);
+  const [galleryOpen, setGalleryOpen]       = useState(false);
   // ── Bulk selection state ───────────────────────────────────────────────────
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set());
   const [bulkPackId,  setBulkPackId]      = useState<string>("");
@@ -473,6 +476,28 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
     setPendingScrollId(rule.id);          // scroll to it once rendered
     markDirty();
   }, [rules, markDirty]);
+
+  // Add a rule from a recipe (template-first flow). The gallery has already
+  // allocated a unique priority and scoped the plan to the tenant catalogue, so
+  // the result is valid-by-construction.
+  const addRecipeRule = useCallback((draft: RecipeRuleDraft) => {
+    const rule: EditableRule = {
+      id:              `homepage.recipe_${draft.recipe.key}_${Date.now()}`,
+      priority:        draft.priority,
+      precedenceLevel: draft.recipe.tier,
+      packId:          draft.recipe.packId,
+      label:           draft.recipe.title,
+      condition:       draft.recipe.condition,
+      plan:            draft.plan,
+      reason:          draft.recipe.reason,
+      enabled:         true,
+      source:          "tenant",
+      _editOpen:       true,
+    };
+    setRules((prev) => [...prev, rule]);
+    setPendingScrollId(rule.id);
+    markDirty();
+  }, [markDirty]);
 
   const moveRule = useCallback(
     (id: string, direction: "up" | "down") => {
@@ -730,7 +755,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
             </button>
             <button
               type="button"
-              onClick={addRule}
+              onClick={() => setGalleryOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 transition-colors"
             >
               <span aria-hidden className="text-neutral-400">+</span>
@@ -963,6 +988,16 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           </div>
         </div>
       )}
+
+      {/* ── Template-first "Add rule" gallery ───────────────────────────── */}
+      <RecipeGallery
+        open={galleryOpen}
+        catalogue={catalogue}
+        existingRules={rules}
+        onClose={() => setGalleryOpen(false)}
+        onAdvanced={addRule}
+        onCreate={addRecipeRule}
+      />
     </div>
   );
 }
