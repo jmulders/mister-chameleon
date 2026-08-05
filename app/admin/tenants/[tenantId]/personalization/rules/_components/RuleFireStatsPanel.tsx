@@ -26,7 +26,7 @@ interface RuleFireStatsPanelProps {
 function fmt(iso: string | null): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("nl-NL");
+    return new Date(iso).toLocaleString("en-US");
   } catch {
     return iso;
   }
@@ -55,20 +55,20 @@ export function RuleFireStatsPanel({ rules, stats }: RuleFireStatsPanelProps) {
     <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-5">
       <div className="mb-1 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-neutral-900">
-          Regel-vuringen (laatste {stats.windowDays} dagen)
+          Rule firings (last {stats.windowDays} days)
         </h2>
         <span className="text-xs text-neutral-500">
-          {stats.total.toLocaleString("nl-NL")} vuringen
+          {stats.total.toLocaleString("en-US")} firings
         </span>
       </div>
       <p className="mb-4 text-xs text-neutral-500">
-        Of de regels iets doen — de tegenhanger van de scoreverdeling. Een regel
-        die nooit vuurt ziet er prima uit in de lijst, maar is dood.
+        Whether the rules do anything — the counterpart to the score
+        distribution. A rule that never fires looks fine in the list but is dead.
       </p>
 
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-6 text-center text-sm text-neutral-500">
-          Nog geen regels om te tonen.
+          No rules to show yet.
         </p>
       ) : (
         <>
@@ -88,7 +88,7 @@ export function RuleFireStatsPanel({ rules, stats }: RuleFireStatsPanelProps) {
                     />
                   </div>
                   <span className={`w-28 shrink-0 text-[11px] tabular-nums ${dead ? "text-amber-700" : "text-neutral-500"}`}>
-                    {dead ? "nooit gevuurd" : `${r.count.toLocaleString("nl-NL")} · ${fmt(r.last).split(" ")[0]}`}
+                    {dead ? "never fired" : `${r.count.toLocaleString("en-US")} · ${fmt(r.last).split(" ")[0]}`}
                   </span>
                 </div>
               );
@@ -97,7 +97,7 @@ export function RuleFireStatsPanel({ rules, stats }: RuleFireStatsPanelProps) {
 
           {neverFired > 0 && (
             <p className="mt-3 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
-              {neverFired} regel{neverFired === 1 ? "" : "s"} vuurde niet in dit venster — controleer drempel of prioriteit.
+              {neverFired} rule{neverFired === 1 ? "" : "s"} did not fire in this window — check the threshold or priority.
             </p>
           )}
         </>
