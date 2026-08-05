@@ -973,7 +973,7 @@ export function EditBlockDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     title, subtitle, tag, layoutVariant, contentAlign,
-    mediaType, imageUrl, imageAlt, videoSource, videoUrl, videoPoster,
+    mediaType, imageUrl, imageAlt, imageObjectPosition, videoSource, videoUrl, videoPoster,
     videoMuted, videoControls, videoId, videoAutoplay, videoLoop,
     ctas, items, slides, carouselAutoplay, tokenSet, tokens,
   ]);
