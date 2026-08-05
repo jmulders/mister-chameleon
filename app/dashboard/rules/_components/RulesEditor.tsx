@@ -984,6 +984,33 @@ interface RuleCardProps {
   cardRef?:        (el: HTMLDivElement | null) => void;
 }
 
+// ── Advanced-feature detection (progressive disclosure) ─────────────────────────
+
+/** True when any leaf in the condition tree is not a plain field condition. */
+function conditionHasNonFieldLeaf(c: RuleCondition): boolean {
+  if (c.type === "group") return c.conditions.some(conditionHasNonFieldLeaf);
+  return c.type !== "field";
+}
+
+/**
+ * True when a rule already uses an "advanced" feature — an extended variant
+ * slot, form/email targeting, context writes, a pack/precedence override, or a
+ * non-field condition type. Used to auto-open the Advanced panel so nothing in
+ * use is ever hidden behind the toggle.
+ */
+function ruleUsesAdvanced(rule: StoredRule): boolean {
+  const p = rule.plan;
+  if (
+    p.featureKey || p.conversionKey || p.notificationKey || p.pageBannerKey ||
+    p.themeKey || p.pricingEmphasis || p.pricingCtaMode
+  ) return true;
+  if (p.formVariants  && Object.keys(p.formVariants).length  > 0) return true;
+  if (p.emailVariants && Object.keys(p.emailVariants).length > 0) return true;
+  if (p.setContext    && p.setContext.length > 0)                 return true;
+  if (rule.packId || rule.precedenceLevel)                       return true;
+  return conditionHasNonFieldLeaf(rule.condition);
+}
+
 function RuleCard({
   rule,
   index,
@@ -1003,6 +1030,12 @@ function RuleCard({
   const isLast         = index === total - 1;
   const isDisabled     = rule.enabled === false;
   const conditionLabel = formatCondition(rule.condition);
+
+  // Progressive disclosure: advanced sections (packs/precedence, extended
+  // variant slots, form/email targeting, context writes, uncommon condition
+  // types) stay hidden until toggled — but auto-open when the rule already uses
+  // one so nothing in use is concealed. Presentation only; data is untouched.
+  const [advanced, setAdvanced] = useState(() => ruleUsesAdvanced(rule));
 
   return (
     <div ref={cardRef} className={`rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden transition-opacity${isDisabled ? " opacity-60" : ""}`}>
@@ -1086,6 +1119,21 @@ function RuleCard({
       {/* ── Edit panel ────────────────────────────────────────────────── */}
       {rule._editOpen && (
         <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5">
+          {/* Advanced-options toggle — reveals packs/precedence, extended
+              variant slots, form/email targeting, context writes and uncommon
+              condition types. */}
+          <div className="mb-4 flex justify-end">
+            <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-neutral-500">
+              <input
+                type="checkbox"
+                checked={advanced}
+                onChange={(e) => setAdvanced(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-neutral-300 text-brand-600 focus:ring-brand-500"
+              />
+              Advanced options
+            </label>
+          </div>
+
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {/* Left column: identity + conditions */}
             <div className="flex flex-col gap-4">
@@ -1122,38 +1170,43 @@ function RuleCard({
                 />
               </Field>
 
-              <Field label="Rule pack" hint="Organisational group for admin filtering. Does not affect evaluation.">
-                <select
-                  value={rule.packId ?? ""}
-                  onChange={(e) => onChange({ packId: e.target.value || undefined })}
-                  className={selectCls}
-                >
-                  <option value="">— None —</option>
-                  {Object.values(RULE_PACK_REGISTRY).map((pack) => (
-                    <option key={pack.id} value={pack.id}>{pack.label}</option>
-                  ))}
-                </select>
-              </Field>
+              {advanced && (
+                <Field label="Rule pack" hint="Organisational group for admin filtering. Does not affect evaluation.">
+                  <select
+                    value={rule.packId ?? ""}
+                    onChange={(e) => onChange({ packId: e.target.value || undefined })}
+                    className={selectCls}
+                  >
+                    <option value="">— None —</option>
+                    {Object.values(RULE_PACK_REGISTRY).map((pack) => (
+                      <option key={pack.id} value={pack.id}>{pack.label}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
 
-              <Field label="Precedence tier" hint="Overrides the tier inferred from priority. Leave blank to infer automatically.">
-                <select
-                  value={rule.precedenceLevel ?? ""}
-                  onChange={(e) =>
-                    onChange({ precedenceLevel: (e.target.value as PrecedenceLevel) || undefined })
-                  }
-                  className={selectCls}
-                >
-                  <option value="">— Infer from priority —</option>
-                  {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
-                    <option key={level} value={level}>
-                      {meta.label} ({meta.range[0]}–{meta.range[1]})
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              {advanced && (
+                <Field label="Precedence tier" hint="Overrides the tier inferred from priority. Leave blank to infer automatically.">
+                  <select
+                    value={rule.precedenceLevel ?? ""}
+                    onChange={(e) =>
+                      onChange({ precedenceLevel: (e.target.value as PrecedenceLevel) || undefined })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">— Infer from priority —</option>
+                    {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
+                      <option key={level} value={level}>
+                        {meta.label} ({meta.range[0]}–{meta.range[1]})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
 
               <FlatGroupEditor
                 condition={rule.condition}
+                advanced={advanced}
                 onChange={(condition) => onChange({ condition })}
               />
             </div>
@@ -1240,6 +1293,7 @@ function RuleCard({
                 </select>
               </Field>
 
+              {advanced && (<>
               {/* Extended slots */}
               <Field label="Feature variant" hint="Optional — leave blank to omit this slot.">
                 <select
@@ -1306,6 +1360,7 @@ function RuleCard({
                 value={rule.plan.setContext}
                 onChange={(next) => onChange({ plan: { ...rule.plan, setContext: next } })}
               />
+              </>)}
             </div>
           </div>
 
@@ -1489,9 +1544,11 @@ function DefaultPlanCard({
 function FlatGroupEditor({
   condition,
   onChange,
+  advanced = false,
 }: {
   condition: RuleCondition;
   onChange:  (c: RuleCondition) => void;
+  advanced?: boolean;
 }) {
   const group = toEditorGroup(condition);
 
@@ -1588,6 +1645,7 @@ function FlatGroupEditor({
             isOnly={!isMulti}
             showLogicLabel={isMulti && i > 0}
             logic={group.logic}
+            advanced={advanced}
             onChange={(next) => handleLeafChange(i, next)}
             onRemove={() => handleRemoveLeaf(i)}
           />
@@ -1625,6 +1683,7 @@ function ConditionRow({
   isOnly,
   showLogicLabel,
   logic,
+  advanced,
   onChange,
   onRemove,
 }: {
@@ -1633,6 +1692,7 @@ function ConditionRow({
   isOnly:         boolean;
   showLogicLabel: boolean;
   logic:          "and" | "or";
+  advanced:       boolean;
   onChange:       (l: EditorLeaf) => void;
   onRemove:       () => void;
 }) {
@@ -1666,19 +1726,31 @@ function ConditionRow({
 
       {/* Condition card */}
       <div className="rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden">
-        {/* Header: type selector + remove */}
+        {/* Header: type selector (advanced) + remove */}
         <div className="flex items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2">
-          <select
-            value={leaf.type}
-            onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context" | "flag")}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            aria-label="Condition type"
-          >
-            <option value="field">Field condition</option>
-            <option value="named">Named condition</option>
-            <option value="context">Context condition</option>
-            <option value="flag">Flag condition</option>
-          </select>
+          {advanced ? (
+            <select
+              value={leaf.type}
+              onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context" | "flag")}
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              aria-label="Condition type"
+            >
+              <option value="field">Field condition</option>
+              <option value="named">Named condition</option>
+              <option value="context">Context condition</option>
+              <option value="flag">Flag condition</option>
+            </select>
+          ) : (
+            // Calm view: field conditions only. Named/Context/Flag types live
+            // behind the Advanced toggle. A static label keeps the header honest
+            // for the rare rule that already uses another type.
+            <span className="text-xs font-medium text-neutral-500">
+              {leaf.type === "field"   ? "Field condition"
+               : leaf.type === "named"   ? "Named condition"
+               : leaf.type === "context" ? "Context condition"
+               : "Flag condition"}
+            </span>
+          )}
 
           {!isOnly && (
             <button
