@@ -84,9 +84,13 @@ Tenants worden op drie manieren bediend:
 
 **Prod-veiligheid**
 - Directe writes naar de prod-database worden geblokkeerd. **Omzeil dat niet** —
-  lever SQL aan die de gebruiker zelf draait, of laat migraties via de deploy lopen.
-- Migraties worden via de deploy toegepast; check
-  `supabase_migrations.schema_migrations` of iets al geregistreerd staat.
+  lever SQL aan die de gebruiker zelf draait.
+- Migraties worden **handmatig** toegepast via `npm run db:migrate`
+  (`scripts/migrate.ts`, ledger `public._migrations`) — niet via de deploy. De
+  CI-job `supabase db push` (`production.yml`) is momenteel **niet werkend**;
+  reken er niet op. Check daarom `public._migrations` (op `filename`), niet
+  alleen `supabase_migrations.schema_migrations`, of iets al geregistreerd staat.
+  Zie `docs/migratie-registratie-163-164.md` en `docs/migratie-ledger-reconcile.md`.
 
 ## Supabase
 
