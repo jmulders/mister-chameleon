@@ -195,7 +195,7 @@ export type RuleEvaluationContext = DecisionInput & {
 
   /**
    * Landing page for the session — the pathname of the first view, persisted
-   * sticky so later views can read "kwam binnen op een dieptepagina".
+   * sticky so later views can read "entered on a deep page".
    * On the first view equals `pathname`; on later views read from the overlay.
    */
   entryPath?: string | null;
@@ -687,7 +687,7 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
 
   entryPath: {
     label:       "Entry path (landing page)",
-    description: "Pathname of the session's first page view, persisted sticky. Lets a later view target \"kwam binnen op een dieptepagina\" (e.g. entryPath != \"/\").",
+    description: "Pathname of the session's first page view, persisted sticky. Lets a later view target \"entered on a deep page\" (e.g. entryPath != \"/\").",
     group:       "device_session",
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,
