@@ -48,9 +48,80 @@ const EMPTY: FormState = {
   linkedinUrl: "", targetPath: "/", vanityPath: "", segmentHint: "", status: "active",
 };
 
+type SetField = <K extends keyof FormState>(k: K, v: FormState[K]) => void;
+
+function formFromLead(lead: AbmLead): FormState {
+  return {
+    id:          lead.id,
+    identifier:  lead.identifier,
+    firstName:   lead.profile.firstName   ?? "",
+    name:        lead.profile.name        ?? "",
+    email:       lead.profile.email       ?? "",
+    company:     lead.profile.company     ?? "",
+    role:        lead.profile.role        ?? "",
+    industry:    lead.profile.industry    ?? "",
+    companySize: lead.profile.companySize ?? "",
+    linkedinUrl: lead.profile.linkedinUrl ?? "",
+    targetPath:  lead.targetPath,
+    vanityPath:  lead.vanityPath ?? "",
+    segmentHint: lead.segmentHint ?? "",
+    status:      lead.status,
+  };
+}
+
 export interface SegmentOption {
   key:   string;
   label: string;
+}
+
+/**
+ * The shared field grid, used by both the top "Add a lead" form and the inline
+ * per-row edit form. Presentational only — all state lives in the parent.
+ */
+function LeadFields({ form, set, segments }: {
+  form:     FormState;
+  set:      SetField;
+  segments: SegmentOption[];
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={LABEL}>First name</label><input className={INPUT} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="John" /></div>
+        <div><label className={LABEL}>Full name</label><input className={INPUT} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="John Doe" /></div>
+        <div><label className={LABEL}>Email <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="john@acme.com" /></div>
+        <div><label className={LABEL}>Company</label><input className={INPUT} value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Acme BV" /></div>
+        <div><label className={LABEL}>Role</label><input className={INPUT} value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Head of Growth" /></div>
+        <div><label className={LABEL}>Industry</label><input className={INPUT} value={form.industry} onChange={(e) => set("industry", e.target.value)} placeholder="Logistics" /></div>
+        <div><label className={LABEL}>Company size</label><input className={INPUT} value={form.companySize} onChange={(e) => set("companySize", e.target.value)} placeholder="51-200" /></div>
+      </div>
+      <div><label className={LABEL}>LinkedIn URL <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.linkedinUrl} onChange={(e) => set("linkedinUrl", e.target.value)} /></div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={LABEL}>Target page</label><input className={INPUT} value={form.targetPath} onChange={(e) => set("targetPath", e.target.value)} placeholder="/pricing" /></div>
+        <div><label className={LABEL}>Vanity path <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.vanityPath} onChange={(e) => set("vanityPath", e.target.value)} placeholder="/offer-for-john" /></div>
+        <div>
+          <label className={LABEL}>Audience segment <span className="text-neutral-400">(optional)</span></label>
+          <select className={INPUT} value={form.segmentHint} onChange={(e) => set("segmentHint", e.target.value)}>
+            <option value="">· None ·</option>
+            {segments.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+            {form.segmentHint && !segments.some((s) => s.key === form.segmentHint) && (
+              <option value={form.segmentHint}>{form.segmentHint} (not in list)</option>
+            )}
+          </select>
+        </div>
+        <div>
+          <label className={LABEL}>Status</label>
+          <select className={INPUT} value={form.status} onChange={(e) => set("status", e.target.value as AbmLeadStatus)}>
+            <option value="active">active</option>
+            <option value="paused">paused</option>
+            <option value="expired">expired</option>
+          </select>
+        </div>
+      </div>
+    </>
+  );
 }
 
 export function AbmClient({
@@ -65,18 +136,25 @@ export function AbmClient({
   segments:             SegmentOption[];
 }) {
   const [leads, setLeads]   = useState<AbmLead[]>(initialLeads);
-  const [form, setForm]     = useState<FormState>(EMPTY);
   const [csv, setCsv]       = useState("");
   const [importTarget, setImportTarget] = useState("/");
   const [msg, setMsg]       = useState<string | null>(null);
   const [pending, start]    = useTransition();
 
+  // ── Add form (top) ──────────────────────────────────────────────────────────
+  const [addForm, setAddForm] = useState<FormState>(EMPTY);
+  const addSet: SetField = (k, v) => setAddForm((f) => ({ ...f, [k]: v }));
+
+  // ── Inline edit form (one row at a time) ────────────────────────────────────
+  const [editForm, setEditForm]   = useState<FormState | null>(null);
+  const [editMsg,  setEditMsg]    = useState<string | null>(null);
+  const editSet: SetField = (k, v) => setEditForm((f) => (f ? { ...f, [k]: v } : f));
+  const editingId = editForm?.id ?? null;
+
   // Per-lead visit timeline (lazy-loaded on expand; only one lead at a time).
   const [expandedId, setExpandedId]     = useState<string | null>(null);
   const [visits, setVisits]             = useState<AbmLeadVisit[]>([]);
   const [visitsLoading, setVisitsLoading] = useState(false);
-
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const leadsPager = usePagination(leads, 25);
 
@@ -97,53 +175,58 @@ export function AbmClient({
     return `${baseUrl}/go/${lead.identifier}`;
   }
 
+  // Open the inline editor for a lead (or close it if it's already open).
   function edit(lead: AbmLead) {
-    setForm({
-      id:          lead.id,
-      identifier:  lead.identifier,
-      firstName:   lead.profile.firstName   ?? "",
-      name:        lead.profile.name        ?? "",
-      email:       lead.profile.email       ?? "",
-      company:     lead.profile.company     ?? "",
-      role:        lead.profile.role        ?? "",
-      industry:    lead.profile.industry    ?? "",
-      companySize: lead.profile.companySize ?? "",
-      linkedinUrl: lead.profile.linkedinUrl ?? "",
-      targetPath:  lead.targetPath,
-      vanityPath:  lead.vanityPath ?? "",
-      segmentHint: lead.segmentHint ?? "",
-      status:      lead.status,
-    });
-    setMsg(null);
+    if (editingId === lead.id) { setEditForm(null); setEditMsg(null); return; }
+    setEditForm(formFromLead(lead));
+    setEditMsg(null);
   }
 
-  function save() {
+  function cancelEdit() {
+    setEditForm(null);
+    setEditMsg(null);
+  }
+
+  /** Build the server-action payload from a form. */
+  function payloadFrom(form: FormState) {
+    return {
+      id:          form.id,
+      identifier:  form.identifier || undefined,
+      targetPath:  form.targetPath,
+      vanityPath:  form.vanityPath,
+      segmentHint: form.segmentHint,
+      status:      form.status,
+      profile: {
+        ...(form.firstName   ? { firstName:   form.firstName }   : {}),
+        ...(form.name        ? { name:        form.name }        : {}),
+        ...(form.email       ? { email:       form.email }       : {}),
+        ...(form.company     ? { company:     form.company }     : {}),
+        ...(form.role        ? { role:        form.role }        : {}),
+        ...(form.industry    ? { industry:    form.industry }    : {}),
+        ...(form.companySize ? { companySize: form.companySize } : {}),
+        ...(form.linkedinUrl ? { linkedinUrl: form.linkedinUrl } : {}),
+      },
+    };
+  }
+
+  function saveAdd() {
     start(async () => {
-      const res = await saveAbmLeadAction(tenantId, {
-        id:          form.id,
-        identifier:  form.identifier || undefined,
-        targetPath:  form.targetPath,
-        vanityPath:  form.vanityPath,
-        segmentHint: form.segmentHint,
-        status:      form.status,
-        profile: {
-          ...(form.firstName   ? { firstName:   form.firstName }   : {}),
-          ...(form.name        ? { name:        form.name }        : {}),
-          ...(form.email       ? { email:       form.email }       : {}),
-          ...(form.company     ? { company:     form.company }     : {}),
-          ...(form.role        ? { role:        form.role }        : {}),
-          ...(form.industry    ? { industry:    form.industry }    : {}),
-          ...(form.companySize ? { companySize: form.companySize } : {}),
-          ...(form.linkedinUrl ? { linkedinUrl: form.linkedinUrl } : {}),
-        },
-      });
+      const res = await saveAbmLeadAction(tenantId, payloadFrom(addForm));
       if (!res.ok) { setMsg(res.error); return; }
-      setLeads((cur) => {
-        const without = cur.filter((l) => l.id !== res.lead.id);
-        return [res.lead, ...without];
-      });
-      setForm(EMPTY);
+      setLeads((cur) => [res.lead, ...cur.filter((l) => l.id !== res.lead.id)]);
+      setAddForm(EMPTY);
       setMsg("Saved.");
+    });
+  }
+
+  function saveEdit() {
+    if (!editForm) return;
+    start(async () => {
+      const res = await saveAbmLeadAction(tenantId, payloadFrom(editForm));
+      if (!res.ok) { setEditMsg(res.error); return; }
+      // Update the row in place so it stays where the user is looking.
+      setLeads((cur) => cur.map((l) => (l.id === res.lead.id ? res.lead : l)));
+      setEditMsg("Saved.");
     });
   }
 
@@ -151,6 +234,7 @@ export function AbmClient({
     start(async () => {
       await deleteAbmLeadAction(tenantId, id);
       setLeads((cur) => cur.filter((l) => l.id !== id));
+      if (editingId === id) cancelEdit();
     });
   }
 
@@ -166,52 +250,14 @@ export function AbmClient({
 
   return (
     <div className="space-y-8">
-      {/* ── Add / edit ─────────────────────────────────────────────── */}
+      {/* ── Add ────────────────────────────────────────────────────── */}
       <section className="rounded-lg border border-neutral-200 p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-neutral-900">
-          {form.id ? "Edit lead" : "Add a lead"}
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className={LABEL}>First name</label><input className={INPUT} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="John" /></div>
-          <div><label className={LABEL}>Full name</label><input className={INPUT} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="John Doe" /></div>
-          <div><label className={LABEL}>Email <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="john@acme.com" /></div>
-          <div><label className={LABEL}>Company</label><input className={INPUT} value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Acme BV" /></div>
-          <div><label className={LABEL}>Role</label><input className={INPUT} value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Head of Growth" /></div>
-          <div><label className={LABEL}>Industry</label><input className={INPUT} value={form.industry} onChange={(e) => set("industry", e.target.value)} placeholder="Logistics" /></div>
-          <div><label className={LABEL}>Company size</label><input className={INPUT} value={form.companySize} onChange={(e) => set("companySize", e.target.value)} placeholder="51-200" /></div>
-        </div>
-        <div><label className={LABEL}>LinkedIn URL <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.linkedinUrl} onChange={(e) => set("linkedinUrl", e.target.value)} /></div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className={LABEL}>Target page</label><input className={INPUT} value={form.targetPath} onChange={(e) => set("targetPath", e.target.value)} placeholder="/pricing" /></div>
-          <div><label className={LABEL}>Vanity path <span className="text-neutral-400">(optional)</span></label><input className={INPUT} value={form.vanityPath} onChange={(e) => set("vanityPath", e.target.value)} placeholder="/offer-for-john" /></div>
-          <div>
-            <label className={LABEL}>Audience segment <span className="text-neutral-400">(optional)</span></label>
-            <select className={INPUT} value={form.segmentHint} onChange={(e) => set("segmentHint", e.target.value)}>
-              <option value="">· None ·</option>
-              {segments.map((s) => (
-                <option key={s.key} value={s.key}>{s.label}</option>
-              ))}
-              {form.segmentHint && !segments.some((s) => s.key === form.segmentHint) && (
-                <option value={form.segmentHint}>{form.segmentHint} (not in list)</option>
-              )}
-            </select>
-          </div>
-          <div>
-            <label className={LABEL}>Status</label>
-            <select className={INPUT} value={form.status} onChange={(e) => set("status", e.target.value as AbmLeadStatus)}>
-              <option value="active">active</option>
-              <option value="paused">paused</option>
-              <option value="expired">expired</option>
-            </select>
-          </div>
-        </div>
-
+        <h2 className="text-sm font-semibold text-neutral-900">Add a lead</h2>
+        <LeadFields form={addForm} set={addSet} segments={segments} />
         <div className="flex items-center gap-3">
-          <button onClick={save} disabled={pending} className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
-            {pending ? "Saving…" : form.id ? "Update lead" : "Add lead"}
+          <button onClick={saveAdd} disabled={pending} className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+            {pending ? "Saving…" : "Add lead"}
           </button>
-          {form.id && <button onClick={() => setForm(EMPTY)} className="text-xs text-neutral-500 hover:text-neutral-800">Cancel edit</button>}
           {msg && <span className="text-xs text-neutral-500">{msg}</span>}
         </div>
       </section>
@@ -267,9 +313,30 @@ export function AbmClient({
                     </div>
                   </div>
                   <button onClick={() => navigator.clipboard?.writeText(linkFor(lead))} className="text-xs text-neutral-500 hover:text-neutral-900">Copy link</button>
-                  <button onClick={() => edit(lead)} className="text-xs text-neutral-500 hover:text-neutral-900">Edit</button>
+                  <button
+                    onClick={() => edit(lead)}
+                    aria-expanded={editingId === lead.id}
+                    className={`text-xs ${editingId === lead.id ? "font-semibold text-neutral-900" : "text-neutral-500 hover:text-neutral-900"}`}
+                  >
+                    {editingId === lead.id ? "Close" : "Edit"}
+                  </button>
                   <button onClick={() => remove(lead.id)} disabled={pending} className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">Delete</button>
                 </div>
+
+                {/* Inline edit form, expanded directly under the row being edited. */}
+                {editingId === lead.id && editForm && (
+                  <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4 space-y-4">
+                    <div className="text-xs font-semibold text-neutral-700">Edit lead</div>
+                    <LeadFields form={editForm} set={editSet} segments={segments} />
+                    <div className="flex items-center gap-3">
+                      <button onClick={saveEdit} disabled={pending} className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+                        {pending ? "Saving…" : "Update lead"}
+                      </button>
+                      <button onClick={cancelEdit} className="text-xs text-neutral-500 hover:text-neutral-800">Cancel</button>
+                      {editMsg && <span className="text-xs text-neutral-500">{editMsg}</span>}
+                    </div>
+                  </div>
+                )}
 
                 {expandedId === lead.id && (
                   <div className="mt-2 ml-7 border-l border-neutral-100 pl-3">
