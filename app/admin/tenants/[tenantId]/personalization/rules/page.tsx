@@ -103,7 +103,7 @@ export default async function TenantRulesPage({
           initialEnabled={rulesEnabled}
           setEnabledAction={boundSetEnabled}
         />
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-start justify-end gap-3">
           <ExportTenantDataButton exportAction={boundExport} />
           <SeedPresetRulesButton seedAction={boundSeedPresets} />
         </div>
