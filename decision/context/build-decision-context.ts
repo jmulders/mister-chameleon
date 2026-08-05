@@ -96,6 +96,7 @@ import type { CrmProvider } from "@/enrichment/providers/crm";
 import { createCompanyEnricher, StubCompanyProvider } from "@/enrichment/providers/company";
 import type { CompanyProvider } from "@/enrichment/providers/company";
 import { normalizeCrmProfile, mergeCrmWithBehavior } from "@/lib/crm";
+import { detectIsBot } from "./detect-bot";
 
 // ── Params ─────────────────────────────────────────────────────────────────────
 
@@ -558,6 +559,23 @@ export async function buildDecisionContext(
   // Pathname — extracted separately (not part of VisitorContext today).
   const pathname = getPathnameFromRequest(request);
 
+  // ── Rule-context overlay (regels die context schrijven, §4/§6) ──────────────
+  //
+  // Sticky context written by earlier rules, loaded from the persisted journey
+  // state. Laid over the derived context so FlagConditions and field overrides
+  // read it (via resolveFieldValue). Null when the visitor has none yet.
+  const ruleContext = history.journey?.ruleContext ?? null;
+
+  // entryPath — the session's landing page. Read the sticky value persisted on
+  // the first view (rule_context.__entryPath); on the first view none exists yet
+  // so it falls back to the current pathname. The engine persists __entryPath
+  // after the response (see the 2-phase evaluation).
+  const persistedEntryPath = ruleContext?.__entryPath;
+  const entryPath =
+    (typeof persistedEntryPath === "string" ? persistedEntryPath : null) ??
+    pathname ??
+    null;
+
   // ── C. Behavior / history (from VisitorHistory) ─────────────────────────────
   //
   // pageViewCount, ctaClickCount, hasClickedCta, lastHeroKey, lastCtaKey,
@@ -821,6 +839,10 @@ export async function buildDecisionContext(
         crmMergedState: history.journey
           ? mergeCrmWithBehavior(normalizeCrmProfile(cachedEnrichment), history.journey)
           : null,
+        // Rule-context overlay + read fields (regels die context schrijven).
+        ruleContext,
+        entryPath,
+        isBot: detectIsBot(visitorContext.userAgent, cachedEnrichment.isCloudProvider),
       };
 
       let cachedDerived: ReturnType<typeof computeDerivedContext>;
@@ -1252,6 +1274,10 @@ export async function buildDecisionContext(
     seasonalEvent: finalSeasonalEvent,
     // Client / device context (UA-parsed + browser-collected from mc_cc cookie)
     clientContext,
+    // Rule-context overlay + read fields (regels die context schrijven).
+    ruleContext,
+    entryPath,
+    isBot: detectIsBot(visitorContext.userAgent, enrichment.isCloudProvider),
   };
 
   // ── Derived context ───────────────────────────────────────────────────────────

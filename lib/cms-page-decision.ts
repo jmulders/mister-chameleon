@@ -73,6 +73,7 @@ import { loadTenantRulesConfig }   from "@/decision/rules/load-tenant-rules";
 import type { StoredRulesConfig }  from "@/decision/rules/stored-rule"; // used by _fileRulesConfig
 import { fetchVariantCatalogue }   from "@/decision/rules/fetch-variant-catalogue";
 import { buildDecisionContext }    from "@/decision/context/build-decision-context";
+import { isBotUserAgent }          from "@/decision/context/detect-bot";
 import {
   resolveActiveKnownLead,
   injectKnownLeadContext,
@@ -332,8 +333,13 @@ export async function resolveSlugPageConfig(
     // Rules → Experiments → (optionally) AI — mirrors the homepage stack but
     // without the enrichment pipeline.
     const experimentsEnabled = tenant?.experiments?.enabled ?? true;
+    // Serving exclusion: clear UA bots get the default experience. Separate from
+    // `isControl` so the holdout distribution is unaffected (bot measurement
+    // exclusion lives in recordVisitorProfile).
+    const forceDefaultForBot = isControl || isBotUserAgent(request.headers.get("user-agent"));
+
     const baseDecisionProvider = new ExperimentDecisionProvider(
-      new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl),
+      new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantId, sessionId),
       sessionId,
       experimentsEnabled,
       tenantId,

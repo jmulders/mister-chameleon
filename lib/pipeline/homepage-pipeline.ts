@@ -41,6 +41,7 @@ import type { DecisionProvider }           from "@/decision/providers/decision-p
 import type { ExperiencePlan }             from "@/decision/types";
 import { buildDecisionContext }            from "@/decision/context/build-decision-context";
 import type { EnrichmentDebugInfo }        from "@/decision/context/build-decision-context";
+import { isBotUserAgent }                  from "@/decision/context/detect-bot";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createCMSProvider, createPreviewCMSProvider, createDraftStatamicProvider } from "@/cms";
 import { getDraft } from "@/lib/statamic-draft-store";
@@ -314,8 +315,13 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // "control" directly, or the cap silently stops being enforced.
   const isControl = servesDefaultExperience(personalizationGroup);
 
+  // Serving exclusion: clear User-Agent bots get the default experience (no
+  // personalization). Kept separate from `isControl` so the holdout distribution
+  // is unaffected — bot measurement exclusion is handled in recordVisitorProfile.
+  const forceDefaultForBot = isControl || isBotUserAgent(h.get("user-agent"));
+
   const baseDecisionProvider = new ExperimentDecisionProvider(
-    new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl, tenantConfig.tenantId),
+    new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantConfig.tenantId, sessionId),
     sessionId,
     experimentsEnabled,
     tenantConfig.tenantId,

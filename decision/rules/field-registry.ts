@@ -177,6 +177,35 @@ export type RuleEvaluationContext = DecisionInput & {
    * crm.planTier, crm.dealStage — all used by CRM rule field resolvers below.
    */
   crmMergedState?: import("@/lib/crm").CrmMergedState | null;
+
+  /**
+   * Sticky context written by earlier rules ("regels die context schrijven"),
+   * laid as an overlay over the derived context before rule evaluation.
+   *
+   * Two read routes (spec §4):
+   *   1. Own flags → read by a FlagCondition straight from this map.
+   *   2. Registry-field overrides → a resolver checks `ctx.ruleContext[fieldKey]`
+   *      first and, when present, returns the override instead of the normal
+   *      derivation.
+   *
+   * Loaded from visitor_behavior_state.rule_context (JourneyState.ruleContext).
+   * Null / absent when the visitor has no rule-written context yet.
+   */
+  ruleContext?: Record<string, string | number | boolean> | null;
+
+  /**
+   * Landing page for the session — the pathname of the first view, persisted
+   * sticky so later views can read "kwam binnen op een dieptepagina".
+   * On the first view equals `pathname`; on later views read from the overlay.
+   */
+  entryPath?: string | null;
+
+  /**
+   * True when the request looks like a crawler/bot (UA heuristic +
+   * enrichment.isCloudProvider as a proxy). Bots are excluded from
+   * variant-serving and from rule-fire / score measurement.
+   */
+  isBot?: boolean | null;
 };
 
 // ── Field metadata types ───────────────────────────────────────────────────────
@@ -313,10 +342,13 @@ export type RuleFieldKey =
   | "utmContent"
   | "utmTerm"
   | "referrerDomain"
+  | "hasCampaignParam"
   // Device / session
   | "device"
   | "visitType"
   | "pathname"
+  | "entryPath"
+  | "isBot"
   // Behaviour / history
   | "pageViewCount"
   | "ctaClickCount"
@@ -610,6 +642,18 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     resolve:     (ctx) => ctx.referrerDomain,
   },
 
+  hasCampaignParam: {
+    label:       "Has campaign parameter",
+    description: "True when the visit carries a utm_campaign — a more readable alternative to \"utmCampaign not_exists\" in rule conditions.",
+    group:       "traffic",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => {
+      const c = ctx.utmCampaign;
+      return typeof c === "string" && c.trim() !== "";
+    },
+  },
+
   // ── Device / session ─────────────────────────────────────────────────────────
 
   device: {
@@ -639,6 +683,24 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,
     resolve:     (ctx) => ctx.pathname ?? null,
+  },
+
+  entryPath: {
+    label:       "Entry path (landing page)",
+    description: "Pathname of the session's first page view, persisted sticky. Lets a later view target \"kwam binnen op een dieptepagina\" (e.g. entryPath != \"/\").",
+    group:       "device_session",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.entryPath ?? null,
+  },
+
+  isBot: {
+    label:       "Is bot / crawler",
+    description: "True when the request looks like a crawler/bot (User-Agent heuristic + cloud-provider IP as a proxy). Use \"isBot = false\" to exclude bots from a rule.",
+    group:       "device_session",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => ctx.isBot ?? null,
   },
 
   // ── Behaviour / history ───────────────────────────────────────────────────────
@@ -2298,4 +2360,55 @@ export function getFieldDefinition(key: string): FieldDefinition {
   const def = (FIELD_REGISTRY as Record<string, FieldDefinition | undefined>)[key];
   if (!def) throw new Error(`[field-registry] Unknown rule field: "${key}"`);
   return def;
+}
+
+// ── Overlay-aware field resolution (regels die context schrijven, §4) ────────────
+
+/**
+ * Whether an overlay override value is type-compatible with a field's kind.
+ * Mirrors the value-type rules in validateFieldCondition() so an override is
+ * accepted only when it could have been a valid FieldCondition value.
+ */
+function isValidOverride(v: unknown, def: FieldDefinition): v is string | number | boolean {
+  switch (def.kind) {
+    case "number":
+      return typeof v === "number" && Number.isFinite(v);
+    case "boolean":
+      return typeof v === "boolean";
+    case "categorical":
+      return typeof v === "string" && (!def.allowedValues || def.allowedValues.includes(v));
+    case "nullable_string":
+      return typeof v === "string";
+  }
+}
+
+/**
+ * Resolve a field's live value, honouring a rule-written override in
+ * `ctx.ruleContext` (the sticky overlay). See spec §4.
+ *
+ * When `ctx.ruleContext` carries an own key equal to `field`, its value is
+ * validated against the field's `kind` (and `allowedValues` for categorical).
+ * A valid override wins and is returned directly — the write is **non-recursive**:
+ * the field's normal resolver is not run, so an override never triggers a
+ * re-derivation. An absent or type-invalid override falls through to
+ * `def.resolve(ctx)` (fail-open).
+ *
+ * This is the single resolution entry point the rules engine and the trace layer
+ * use, so every field becomes override-aware without touching individual
+ * resolvers.
+ */
+export function resolveFieldValue(
+  field: string,
+  def:   FieldDefinition,
+  ctx:   RuleEvaluationContext,
+): FieldRuntimeValue {
+  const overlay = ctx.ruleContext;
+  if (overlay && Object.prototype.hasOwnProperty.call(overlay, field)) {
+    const override = overlay[field];
+    if (isValidOverride(override, def)) {
+      return override;
+    }
+    // Type-invalid override — ignore and fall back to the normal derivation.
+  }
+  return def.resolve(ctx);
 }

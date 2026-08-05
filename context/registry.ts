@@ -344,6 +344,18 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
   },
 
   {
+    key:              "hasCampaignParam",
+    label:            "Has campaign parameter",
+    description:      "True when the visit carries a utm_campaign — a readable alternative to \"utmCampaign not_exists\" in rule conditions.",
+    type:             "boolean",
+    source:           "request",
+    operators:        OPS_BOOLEAN,
+    availableToRules: true,
+    availableToAI:    false,
+    exampleValue:     false,
+  },
+
+  {
     key:              "ipAddress",
     label:            "IP address",
     description:      "Visitor IP address resolved from the incoming request headers (x-forwarded-for or socket remote address). Used for geo / company enrichment; not sent to AI providers.",
@@ -675,6 +687,30 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
     availableToRules: true,
     availableToAI:    false,
     exampleValue:     "/",
+  },
+
+  {
+    key:              "entryPath",
+    label:            "Entry path (landing page)",
+    description:      "Pathname of the session's first page view, persisted sticky. Lets a later view target \"kwam binnen op een dieptepagina\" (e.g. entryPath != \"/\").",
+    type:             "string",
+    source:           "page",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    false,
+    exampleValue:     "/pricing",
+  },
+
+  {
+    key:              "isBot",
+    label:            "Is bot / crawler",
+    description:      "True when the request looks like a crawler/bot (User-Agent heuristic + cloud-provider IP as a proxy). Bots are excluded from variant-serving and measurement.",
+    type:             "boolean",
+    source:           "request",
+    operators:        OPS_BOOLEAN,
+    availableToRules: true,
+    availableToAI:    false,
+    exampleValue:     false,
   },
 
   {

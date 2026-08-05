@@ -63,6 +63,7 @@ import type { ClientContext }        from "@/context/client-context";
 import type { DerivedContext }       from "@/context/derived-context";
 import type { IntentContext }        from "@/context/intent-context";
 import { emptyIntentContext }        from "@/context/intent-context";
+import { detectIsBot }               from "./context/detect-bot";
 import type { InterestScore, InterestContextVars } from "@/interest-profiles/types";
 
 // ── DecisionContext type ───────────────────────────────────────────────────────
@@ -367,6 +368,18 @@ export function buildDecisionContext(
     //   const finalCtx = applyAudienceSegments(ctx, ids);
     // or pass the pre-evaluated result directly here.
     audienceSegmentIds: opts.audienceSegmentIds ?? null,
+
+    // ── Rule-context overlay + read fields (regels die context schrijven) ─────
+    // Sticky context written by earlier rules, loaded from the journey state and
+    // laid over the derived context (read via resolveFieldValue / FlagCondition).
+    ruleContext: opts.history.journey?.ruleContext ?? null,
+    // entryPath: sticky landing page (rule_context.__entryPath), falling back to
+    // the current pathname on the first view before it has been persisted.
+    entryPath:
+      (typeof opts.history.journey?.ruleContext?.__entryPath === "string"
+        ? (opts.history.journey.ruleContext.__entryPath as string)
+        : null) ?? opts.pathname ?? null,
+    isBot: detectIsBot(opts.visitorContext.userAgent, opts.enrichment?.isCloudProvider),
   };
 }
 

@@ -88,6 +88,7 @@ import {
   SEED_RULES_CONFIG,
   type StoredRulesConfig,
   type StoredRule,
+  type RuleContextWrite,
 } from "../rules/stored-rule";
 import type { RuleEvaluationContext } from "../rules/field-registry";
 import {
@@ -215,10 +216,24 @@ export class RulesDecisionProvider implements DecisionProvider {
    */
   private readonly _tenantId: string | undefined;
 
-  constructor(storedConfig?: StoredRulesConfig, forceDefaultPlan = false, tenantId?: string) {
+  /**
+   * Optional session id. When set together with a tenantId, sticky context
+   * writes collected during phase A of evaluation are persisted to
+   * visitor_behavior_state.rule_context (fire-and-forget). When omitted (e.g.
+   * benchmarks, file-based runtime), no context is persisted.
+   */
+  private readonly _sessionId: string | undefined;
+
+  constructor(
+    storedConfig?:    StoredRulesConfig,
+    forceDefaultPlan = false,
+    tenantId?:        string,
+    sessionId?:       string,
+  ) {
     this._storedConfig     = storedConfig;
     this._forceDefaultPlan = forceDefaultPlan;
     this._tenantId         = tenantId;
+    this._sessionId        = sessionId;
   }
 
   /**
@@ -277,6 +292,14 @@ export class RulesDecisionProvider implements DecisionProvider {
   public lastDisabledRuleIds: string[] = [];
 
   /**
+   * Sticky context writes applied in phase A of the most recent call ("regels
+   * die context schrijven"). Empty when no rule wrote sticky context. Persisted
+   * fire-and-forget when a sessionId + tenantId are available; also exposed for
+   * debug panels and tests.
+   */
+  public lastStickyContextWrites: RuleContextWrite[] = [];
+
+  /**
    * Resolve a homepage ExperiencePlan for the given input.
    *
    * Accepts DecisionInput (the required interface type) or a
@@ -291,6 +314,7 @@ export class RulesDecisionProvider implements DecisionProvider {
     this.lastRulesEnabled     = null;
     this.lastDisabledRuleIds  = [];
     this.lastMatchedContextIds = [];
+    this.lastStickyContextWrites = [];
 
     try {
       const { rules, storedRuleMap, defaultPlan, rulesEnabled, source } =
@@ -333,7 +357,9 @@ export class RulesDecisionProvider implements DecisionProvider {
         // Rule-fire diagnostic: record which rule fired (fire-and-forget, never
         // awaited, never throws). Only when a tenantId is supplied. Dynamically
         // imported so the pure engine (and benchmarks) stay decoupled from the DB.
-        if (this._tenantId) {
+        // Bots (UA-bot OR cloud IP, i.e. ctx.isBot) are excluded so they never
+        // pollute the rule-fire measurement (spec §6).
+        if (this._tenantId && !ctx.isBot) {
           const tid = this._tenantId;
           void import("@/lib/observability/rule-fire-store")
             .then((m) => m.recordRuleFire(tid, matched.id))
@@ -403,6 +429,15 @@ export class RulesDecisionProvider implements DecisionProvider {
     storedRuleMap: ReadonlyMap<string, StoredRule>,
     rulesSource:  "db" | "runtime" | "seed",
   ): HomepageRule | null {
+    // ── Phase A: context writes (regels die context schrijven, §5) ─────────────
+    //
+    // Apply setContext from every matching rule, in priority order, mutating the
+    // overlay so later rules in this pass (and phase B's variant choice) see the
+    // writes. These rules do NOT stop evaluation. Sticky writes are collected for
+    // persistence; non-sticky writes live only within this request.
+    this.applyContextWrites(ctx, rules, storedRuleMap);
+
+    // ── Phase B: variant selection (first-match-by-priority) ───────────────────
     for (const rule of rules) {
       // ── Per-rule enabled check ──────────────────────────────────────────────
       if (rule.enabled === false) {
@@ -441,6 +476,84 @@ export class RulesDecisionProvider implements DecisionProvider {
     }
 
     return null;
+  }
+
+  /**
+   * Phase A of evaluation — apply context writes from every matching rule.
+   *
+   * The overlay (`ctx.ruleContext`) is cloned to a mutable object so writes are
+   * visible to later rules in this pass without mutating the persisted journey
+   * state. For each enabled rule that matches AND carries `setContext`, its
+   * writes are applied in order:
+   *   - monotone write → skipped when the key already has a value (write-once).
+   *   - otherwise       → last-write-wins.
+   * Sticky writes (sticky !== false) are collected and persisted fire-and-forget.
+   *
+   * Also seeds the sticky `__entryPath` on the first view (when the overlay has
+   * none yet and a pathname is known) so later views can read entryPath (§6).
+   */
+  private applyContextWrites(
+    ctx:           RuleEvaluationContext,
+    rules:         readonly HomepageRule[],
+    storedRuleMap: ReadonlyMap<string, StoredRule>,
+  ): void {
+    // Clone so phase-A writes never mutate the persisted JourneyState.ruleContext.
+    const overlay: Record<string, string | number | boolean> = { ...(ctx.ruleContext ?? {}) };
+    ctx.ruleContext = overlay;
+
+    const sticky: RuleContextWrite[] = [];
+
+    const applyWrite = (w: RuleContextWrite): void => {
+      const exists = Object.prototype.hasOwnProperty.call(overlay, w.key);
+      if (w.monotone && exists) return; // write-once — never overwrite
+      overlay[w.key] = w.value;
+      if (w.sticky !== false) sticky.push(w);
+    };
+
+    // Seed the sticky landing page (write-once) before rule writes.
+    if (typeof ctx.pathname === "string" && ctx.pathname !== "" &&
+        !Object.prototype.hasOwnProperty.call(overlay, "__entryPath")) {
+      applyWrite({ key: "__entryPath", value: ctx.pathname, sticky: true, monotone: true });
+    }
+
+    for (const rule of rules) {
+      if (rule.enabled === false) continue; // phase B logs disabled rules
+      // setContext lives on the raw StoredRule (HomepageRule.plan is narrowed).
+      // Hardcoded HomepageRule predicates are absent from the map → no writes.
+      const writes = storedRuleMap.get(rule.id)?.plan.setContext;
+      if (!writes || writes.length === 0) continue;
+
+      let matched = false;
+      try {
+        matched = rule.match(ctx);
+      } catch {
+        // A throwing predicate is skipped here; phase B logs it.
+        continue;
+      }
+      if (!matched) continue;
+
+      for (const w of writes) applyWrite(w);
+    }
+
+    this.lastStickyContextWrites = sticky;
+    this.persistStickyWrites(sticky);
+  }
+
+  /**
+   * Persist sticky context writes to visitor_behavior_state.rule_context.
+   *
+   * Fire-and-forget, never awaited, never throws — mirrors the rule-fire
+   * recorder. Dynamically imported so the pure engine (and benchmarks) stay
+   * decoupled from the DB. No-op unless both a sessionId and tenantId are set.
+   */
+  private persistStickyWrites(writes: readonly RuleContextWrite[]): void {
+    if (writes.length === 0) return;
+    if (!this._tenantId || !this._sessionId) return;
+    const sid = this._sessionId;
+    const tid = this._tenantId;
+    void import("@/lib/journey/persist-rule-context")
+      .then((m) => m.persistRuleContext(sid, tid, writes))
+      .catch(() => { /* pre-migration / no DB: ignore */ });
   }
 
   /**

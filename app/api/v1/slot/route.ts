@@ -43,6 +43,7 @@ import { emptyHistory } from "@/context/visitor-history";
 import { RulesDecisionProvider, ExperimentDecisionProvider } from "@/decision";
 import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
 import { buildDecisionContext } from "@/decision/context/build-decision-context";
+import { isBotUserAgent }       from "@/decision/context/detect-bot";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import type { TenantSettings } from "@/tenant/types";
 import type {
@@ -308,7 +309,15 @@ export async function POST(request: NextRequest) {
     const decisionProvider = new ExperimentDecisionProvider(
       // tenantId → matched rules are recorded (fire-and-forget) so the admin
       // rule-fire statistics also reflect this slot API (Statamic addon) traffic.
-      new RulesDecisionProvider(rulesConfig ?? undefined, undefined, tenantId),
+      // Serving exclusion: clear UA bots get the default experience. This
+      // complements the adapter-supplied `visitor.is_bot` gate above for callers
+      // that don't set it. Measurement exclusion (UA OR cloud) uses ctx.isBot.
+      new RulesDecisionProvider(
+        rulesConfig ?? undefined,
+        isBotUserAgent(request.headers.get("user-agent")),
+        tenantId,
+        sessionId,
+      ),
       sessionId,
       tenant.experiments?.enabled ?? true,
       tenantId,

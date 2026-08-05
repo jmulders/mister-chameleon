@@ -45,6 +45,7 @@
 import { evaluateCondition } from "./stored-rule";
 import {
   FIELD_REGISTRY,
+  resolveFieldValue,
   type RuleEvaluationContext,
   type RuleFieldKey,
   type FieldOperator,
@@ -314,7 +315,9 @@ function traceField(
 
   if (INCLUDE_ACTUAL) {
     try {
-      actual = def.resolve(ctx);
+      // Mirror the engine: honour a rule-written override from ctx.ruleContext
+      // so the trace's "actual" matches what evaluateCondition() saw (§4).
+      actual = resolveFieldValue(field, def, ctx);
     } catch (err) {
       resolveError = err instanceof Error ? err.message : String(err);
     }

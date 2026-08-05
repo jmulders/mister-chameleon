@@ -129,7 +129,10 @@ export async function recordVisitorProfile(args: {
       geoCountry:      ctx.enrichment?.countryCode      ?? null,
       geoRegion:       ctx.enrichment?.region           ?? null,
       abmLeadId:       args.abmLeadId ?? null,
-      personalizationGroup: args.personalizationGroup ?? null,
+      // Exclude bots (UA-bot OR cloud IP) from the A/B holdout distribution so
+      // the control/personalized lift baseline stays a random human sample
+      // (spec §6). A bot's group is simply not recorded.
+      personalizationGroup: ctx.isBot ? null : (args.personalizationGroup ?? null),
       // First-touch attribution (how they arrived). Stored first-touch by the store.
       utmSource:       ctx.utmSource      ?? null,
       utmMedium:       ctx.utmMedium      ?? null,
