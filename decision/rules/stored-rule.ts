@@ -85,6 +85,7 @@ import {
   NUMERIC_OPERATORS,
   STRING_ONLY_OPERATORS,
   ALL_FIELD_KEYS,
+  resolveFieldValue,
 } from "./field-registry";
 import type {
   RuleFieldKey,
@@ -887,6 +888,57 @@ function validatePlan(
       }
     }
   }
+
+  // setContext — rule-written context (regels die context schrijven, §4).
+  // Each write: non-empty key, scalar value, optional boolean sticky. When the
+  // key is a registry field (an override), the value is validated against that
+  // field's kind + allowedValues, exactly like a FieldCondition value.
+  if (plan.setContext !== undefined) {
+    const sc = plan.setContext;
+    if (!Array.isArray(sc)) {
+      errors.push({ ruleId, field: `${idx}.plan.setContext`, message: "setContext must be an array of { key, value, sticky? } writes." });
+    } else {
+      const fieldKeys = ALL_FIELD_KEYS as string[];
+      sc.forEach((rawWrite, i) => {
+        const w = rawWrite as Record<string, unknown> | null;
+        if (!w || typeof w !== "object" || Array.isArray(w)) {
+          errors.push({ ruleId, field: `${idx}.plan.setContext[${i}]`, message: "each setContext entry must be an object." });
+          return;
+        }
+        if (typeof w.key !== "string" || w.key.trim() === "") {
+          errors.push({ ruleId, field: `${idx}.plan.setContext[${i}].key`, message: "setContext key must be a non-empty string." });
+          return;
+        }
+        const vt = typeof w.value;
+        if (vt !== "string" && vt !== "number" && vt !== "boolean") {
+          errors.push({ ruleId, field: `${idx}.plan.setContext[${i}].value`, message: "setContext value must be a string, number, or boolean." });
+          return;
+        }
+        if (w.sticky !== undefined && typeof w.sticky !== "boolean") {
+          errors.push({ ruleId, field: `${idx}.plan.setContext[${i}].sticky`, message: "setContext sticky must be a boolean." });
+        }
+        // Registry-field override: value must match the field's kind/allowedValues.
+        if (fieldKeys.includes(w.key)) {
+          const def = FIELD_REGISTRY[w.key as RuleFieldKey];
+          const v   = w.value;
+          const ok =
+            def.kind === "number"          ? typeof v === "number" && Number.isFinite(v) :
+            def.kind === "boolean"         ? typeof v === "boolean" :
+            def.kind === "categorical"     ? typeof v === "string" && (!def.allowedValues || def.allowedValues.includes(v)) :
+            /* nullable_string */            typeof v === "string";
+          if (!ok) {
+            const allowed = def.kind === "categorical" && def.allowedValues
+              ? ` Allowed: ${def.allowedValues.join(", ")}` : "";
+            errors.push({
+              ruleId,
+              field:   `${idx}.plan.setContext[${i}].value`,
+              message: `Override of field "${w.key}" (${def.kind}) has an incompatible value.${allowed}`,
+            });
+          }
+        }
+      });
+    }
+  }
 }
 
 /** Maximum nesting depth for GroupCondition trees. */
@@ -977,7 +1029,78 @@ function validateCondition(
     return;
   }
 
-  errors.push({ ruleId, field: `${idx}.condition.type`, message: `Unknown condition type "${c.type}". Must be "field", "named", "context", "context_library", or "group".` });
+  if (c.type === "flag") {
+    validateFlagCondition(c, idx, ruleId, errors);
+    return;
+  }
+
+  errors.push({ ruleId, field: `${idx}.condition.type`, message: `Unknown condition type "${c.type}". Must be "field", "named", "context", "context_library", "flag", or "group".` });
+}
+
+/**
+ * Validate a FlagCondition (reads a rule-written flag from ctx.ruleContext).
+ * Flag names are free-form (not registry keys), so only the shape is checked:
+ * a non-empty name, a valid operator, and a value that matches the operator.
+ * Array (`in`/`not_in`) operators are not supported for flags — flag values are
+ * scalar.
+ */
+function validateFlagCondition(
+  c:      Record<string, unknown>,
+  idx:    string,
+  ruleId: string | undefined,
+  errors: ValidationError[],
+): void {
+  if (typeof c.name !== "string" || c.name.trim() === "") {
+    errors.push({ ruleId, field: `${idx}.condition.name`, message: "flag condition requires a non-empty \"name\"." });
+    return;
+  }
+
+  const operatorRaw = c.operator ?? "equals";
+  if (!(FIELD_OPERATORS as readonly string[]).includes(operatorRaw as string)) {
+    errors.push({ ruleId, field: `${idx}.condition.operator`, message: `Invalid operator "${operatorRaw}". Allowed: ${FIELD_OPERATORS.join(", ")}` });
+    return;
+  }
+  const operator = operatorRaw as FieldOperator;
+
+  // Array operators are meaningless for scalar flags.
+  if (ARRAY_VALUE_OPERATORS.has(operator)) {
+    errors.push({ ruleId, field: `${idx}.condition.operator`, message: `Operator "${operator}" is not supported for flag conditions (flag values are scalar).` });
+    return;
+  }
+
+  // Existence operators require no value.
+  if (NO_VALUE_OPERATORS.has(operator)) {
+    if (c.value !== undefined && c.value !== null) {
+      errors.push({ ruleId, field: `${idx}.condition.value`, message: `Operator "${operator}" must not have a value.` });
+    }
+    return;
+  }
+
+  // All remaining operators require a value.
+  if (c.value === undefined || c.value === null) {
+    errors.push({ ruleId, field: `${idx}.condition.value`, message: `Operator "${operator}" requires a value.` });
+    return;
+  }
+
+  if (NUMERIC_OPERATORS.has(operator)) {
+    if (typeof c.value !== "number") {
+      errors.push({ ruleId, field: `${idx}.condition.value`, message: `Operator "${operator}" requires a numeric value.` });
+    }
+    return;
+  }
+
+  if (STRING_ONLY_OPERATORS.has(operator)) {
+    if (typeof c.value !== "string") {
+      errors.push({ ruleId, field: `${idx}.condition.value`, message: `Operator "${operator}" requires a string value.` });
+    }
+    return;
+  }
+
+  // equals / not_equals: value must be a scalar (string | number | boolean).
+  const t = typeof c.value;
+  if (t !== "string" && t !== "number" && t !== "boolean") {
+    errors.push({ ruleId, field: `${idx}.condition.value`, message: "flag condition value must be a string, number, or boolean." });
+  }
 }
 
 function validateFieldCondition(
@@ -1198,11 +1321,32 @@ function evalNode(condition: RuleCondition, ctx: RuleEvaluationContext): boolean
   if (condition.type === "context_library") {
     return evalContextLibraryCondition(condition, ctx);
   }
+  if (condition.type === "flag") {
+    return evalFlagCondition(condition, ctx);
+  }
   if (condition.type === "group") {
     return evalGroupCondition(condition, ctx);
   }
   // Unreachable in a well-formed tree — TypeScript exhaustiveness guard.
   return false;
+}
+
+/**
+ * Evaluate a FlagCondition by reading a rule-written flag straight from the
+ * sticky overlay (ctx.ruleContext) — no FIELD_REGISTRY lookup, since flag names
+ * are free-form (regels die context schrijven, §4).
+ *
+ * The operator defaults to "equals"; exists / not_exists test presence of the
+ * flag. Reuses applyOperator so behaviour matches field conditions exactly (an
+ * absent flag reads as undefined, so equals is false and not_exists is true).
+ */
+function evalFlagCondition(
+  condition: FlagCondition,
+  ctx:       RuleEvaluationContext,
+): boolean {
+  const { name, operator = "equals", value } = condition;
+  const actual = ctx.ruleContext ? ctx.ruleContext[name] : undefined;
+  return applyOperator(actual, operator, value);
 }
 
 function evalFieldCondition(
@@ -1220,9 +1364,11 @@ function evalFieldCondition(
 
   // Resolve the live field value.  Wrap separately so a resolver bug surfaces
   // with the field name, not just an opaque runtime error.
+  // resolveFieldValue() applies a rule-written override from ctx.ruleContext
+  // when one is present and type-valid (regels die context schrijven, §4).
   let actual: FieldRuntimeValue;
   try {
-    actual = def.resolve(ctx);
+    actual = resolveFieldValue(field, def, ctx);
   } catch (resolveErr) {
     logger.warn("[decision] Field resolver threw — treating field as absent", {
       field,

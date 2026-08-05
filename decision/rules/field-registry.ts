@@ -342,10 +342,13 @@ export type RuleFieldKey =
   | "utmContent"
   | "utmTerm"
   | "referrerDomain"
+  | "hasCampaignParam"
   // Device / session
   | "device"
   | "visitType"
   | "pathname"
+  | "entryPath"
+  | "isBot"
   // Behaviour / history
   | "pageViewCount"
   | "ctaClickCount"
@@ -639,6 +642,18 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     resolve:     (ctx) => ctx.referrerDomain,
   },
 
+  hasCampaignParam: {
+    label:       "Has campaign parameter",
+    description: "True when the visit carries a utm_campaign — a more readable alternative to \"utmCampaign not_exists\" in rule conditions.",
+    group:       "traffic",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => {
+      const c = ctx.utmCampaign;
+      return typeof c === "string" && c.trim() !== "";
+    },
+  },
+
   // ── Device / session ─────────────────────────────────────────────────────────
 
   device: {
@@ -668,6 +683,24 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,
     resolve:     (ctx) => ctx.pathname ?? null,
+  },
+
+  entryPath: {
+    label:       "Entry path (landing page)",
+    description: "Pathname of the session's first page view, persisted sticky. Lets a later view target \"kwam binnen op een dieptepagina\" (e.g. entryPath != \"/\").",
+    group:       "device_session",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.entryPath ?? null,
+  },
+
+  isBot: {
+    label:       "Is bot / crawler",
+    description: "True when the request looks like a crawler/bot (User-Agent heuristic + cloud-provider IP as a proxy). Use \"isBot = false\" to exclude bots from a rule.",
+    group:       "device_session",
+    kind:        "boolean",
+    operators:   OPS_BOOLEAN,
+    resolve:     (ctx) => ctx.isBot ?? null,
   },
 
   // ── Behaviour / history ───────────────────────────────────────────────────────
@@ -2327,4 +2360,55 @@ export function getFieldDefinition(key: string): FieldDefinition {
   const def = (FIELD_REGISTRY as Record<string, FieldDefinition | undefined>)[key];
   if (!def) throw new Error(`[field-registry] Unknown rule field: "${key}"`);
   return def;
+}
+
+// ── Overlay-aware field resolution (regels die context schrijven, §4) ────────────
+
+/**
+ * Whether an overlay override value is type-compatible with a field's kind.
+ * Mirrors the value-type rules in validateFieldCondition() so an override is
+ * accepted only when it could have been a valid FieldCondition value.
+ */
+function isValidOverride(v: unknown, def: FieldDefinition): v is string | number | boolean {
+  switch (def.kind) {
+    case "number":
+      return typeof v === "number" && Number.isFinite(v);
+    case "boolean":
+      return typeof v === "boolean";
+    case "categorical":
+      return typeof v === "string" && (!def.allowedValues || def.allowedValues.includes(v));
+    case "nullable_string":
+      return typeof v === "string";
+  }
+}
+
+/**
+ * Resolve a field's live value, honouring a rule-written override in
+ * `ctx.ruleContext` (the sticky overlay). See spec §4.
+ *
+ * When `ctx.ruleContext` carries an own key equal to `field`, its value is
+ * validated against the field's `kind` (and `allowedValues` for categorical).
+ * A valid override wins and is returned directly — the write is **non-recursive**:
+ * the field's normal resolver is not run, so an override never triggers a
+ * re-derivation. An absent or type-invalid override falls through to
+ * `def.resolve(ctx)` (fail-open).
+ *
+ * This is the single resolution entry point the rules engine and the trace layer
+ * use, so every field becomes override-aware without touching individual
+ * resolvers.
+ */
+export function resolveFieldValue(
+  field: string,
+  def:   FieldDefinition,
+  ctx:   RuleEvaluationContext,
+): FieldRuntimeValue {
+  const overlay = ctx.ruleContext;
+  if (overlay && Object.prototype.hasOwnProperty.call(overlay, field)) {
+    const override = overlay[field];
+    if (isValidOverride(override, def)) {
+      return override;
+    }
+    // Type-invalid override — ignore and fall back to the normal derivation.
+  }
+  return def.resolve(ctx);
 }
