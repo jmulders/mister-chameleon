@@ -293,6 +293,27 @@ const GROUP_LABELS: Record<FieldGroup, string> = {
   audience:       "Audience Segments",
 };
 
+/**
+ * A short, curated shortlist of the most-used fields, surfaced in a "Common"
+ * optgroup at the top of the field picker so non-technical authors don't have
+ * to scan the full ~150-field list. Every key here also still appears in its
+ * normal category below under "All fields". Order is intentional.
+ */
+const COMMON_FIELD_KEYS: readonly RuleFieldKey[] = [
+  "channelGroup",
+  "source",
+  "entryPath",
+  "pathname",
+  "device",
+  "visitType",
+  "hasCampaignParam",
+  "pageViewCount",
+  "funnelStage",
+  "contentInterestCategory",
+  "isReturningVisitor",
+  "isBot",
+];
+
 // ── Operator labels ────────────────────────────────────────────────────────────
 
 const OPERATOR_LABELS: Record<FieldOperator, string> = {
@@ -2080,13 +2101,22 @@ function FieldConditionEditor({
 
   return (
     <>
-      {/* Field picker — grouped by FieldGroup */}
+      {/* Field picker — a curated "Common" shortlist first, then the full
+          categorised list under "All fields". */}
       <Field label="Field">
         <select
           value={field}
           onChange={(e) => handleFieldChange(e.target.value as RuleFieldKey)}
           className={selectCls}
         >
+          <optgroup label="Common">
+            {COMMON_FIELD_KEYS.map((k) => (
+              <option key={`common-${k}`} value={k}>
+                {FIELD_REGISTRY[k].label}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="────────  All fields  ────────" />
           {(Object.entries(FIELD_KEYS_BY_GROUP) as [FieldGroup, readonly RuleFieldKey[]][]).map(
             ([group, keys]) => (
               <optgroup key={group} label={GROUP_LABELS[group]}>
