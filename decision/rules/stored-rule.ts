@@ -1698,6 +1698,14 @@ export function formatCondition(condition: RuleCondition): string {
     return ctx ? `ctx: ${ctx.label}` : `ctx: ${condition.contextId}`;
   }
 
+  if (condition.type === "flag") {
+    const op = condition.operator ?? "equals";
+    if (op === "exists" || op === "not_exists") {
+      return `flag ${condition.name} ${op}`;
+    }
+    return `flag ${condition.name} ${op} ${condition.value}`;
+  }
+
   if (condition.type === "group") {
     const sep   = ` ${condition.logic.toUpperCase()} `;
     const parts = condition.conditions.map(formatCondition);

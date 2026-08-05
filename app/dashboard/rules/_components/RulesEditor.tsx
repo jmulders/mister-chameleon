@@ -56,6 +56,8 @@ import type {
   FieldCondition,
   NamedCondition,
   ContextCondition,
+  FlagCondition,
+  RuleContextWrite,
   ConditionField,
   NamedConditionId,
   FieldConditionValue,
@@ -73,9 +75,12 @@ import { PRESET_PLANS }                           from "@/decision/rules/preset-
 import {
   FIELD_REGISTRY,
   FIELD_KEYS_BY_GROUP,
+  ALL_FIELD_KEYS,
+  FIELD_OPERATORS,
   NO_VALUE_OPERATORS,
   ARRAY_VALUE_OPERATORS,
   NUMERIC_OPERATORS,
+  STRING_ONLY_OPERATORS,
 } from "@/decision/rules/field-registry";
 import type {
   RuleFieldKey,
@@ -109,7 +114,31 @@ import { PRESET_CONDITIONS } from "@/decision/rules/preset-conditions";
 // nested group children will have those nested children stripped on load.
 
 /** A leaf is any non-group condition — the only editable unit in this UI. */
-type EditorLeaf = FieldCondition | NamedCondition | ContextCondition;
+type EditorLeaf = FieldCondition | NamedCondition | ContextCondition | FlagCondition;
+
+// ── Rule-written context keys (regels die context schrijven) ────────────────────
+//
+// Keys prefixed with "__" are internal, engine-managed (e.g. __entryPath). They
+// are reserved: the editor never lists them and strips the prefix from any typed
+// input, so team members can neither pick nor overwrite them.
+
+/** True for engine-internal keys that must not be author-editable. */
+function isReservedContextKey(key: string): boolean {
+  return key.startsWith("__");
+}
+
+/** Remove a leading "__"/"_" so authors can never enter a reserved key. */
+function sanitizeContextKey(raw: string): string {
+  return raw.replace(/^_+/, "");
+}
+
+/** Registry field keys offered as override targets in the context editors. */
+const OVERRIDE_KEY_SUGGESTIONS: readonly string[] =
+  (ALL_FIELD_KEYS as readonly string[]).filter((k) => !isReservedContextKey(k));
+
+/** Operators valid for a flag condition — scalar only, so array ops are excluded. */
+const FLAG_OPERATORS: readonly FieldOperator[] =
+  (FIELD_OPERATORS as readonly FieldOperator[]).filter((op) => !ARRAY_VALUE_OPERATORS.has(op));
 
 /**
  * The internal flat model for a rule's condition block.
@@ -127,7 +156,8 @@ function toEditorGroup(condition: RuleCondition): EditorGroup {
   if (condition.type === "group") {
     // Only include direct leaf children — nested sub-groups are not editable here.
     const leaves = condition.conditions.filter(
-      (c): c is EditorLeaf => c.type === "field" || c.type === "named" || c.type === "context",
+      (c): c is EditorLeaf =>
+        c.type === "field" || c.type === "named" || c.type === "context" || c.type === "flag",
     );
     return {
       logic:  condition.logic,
@@ -1249,6 +1279,12 @@ function RuleCard({
                 emptyHint="No variants yet. Add them on the email page to target one here."
                 defaultOptionLabel="Default email"
               />
+
+              {/* Context writes: set flags / override derived fields when this rule fires */}
+              <SetContextFields
+                value={rule.plan.setContext}
+                onChange={(next) => onChange({ plan: { ...rule.plan, setContext: next } })}
+              />
             </div>
           </div>
 
@@ -1398,6 +1434,12 @@ function DefaultPlanCard({
                 formatLabel={formatEmailKey}
                 emptyHint="No variants yet. Add them on the email page to target one here."
                 defaultOptionLabel="Default email"
+              />
+
+              {/* Context writes for the default plan */}
+              <SetContextFields
+                value={plan.setContext}
+                onChange={(next) => onChange({ setContext: next })}
               />
             </div>
           </div>
@@ -1578,11 +1620,13 @@ function ConditionRow({
     { label: string; description: string },
   ][];
 
-  const handleTypeChange = (type: "field" | "named" | "context") => {
+  const handleTypeChange = (type: "field" | "named" | "context" | "flag") => {
     if (type === "field") {
       onChange({ type: "field", field: "source", operator: "equals", value: "google" });
     } else if (type === "named") {
       onChange({ type: "named", name: "returning_cta_clicked" });
+    } else if (type === "flag") {
+      onChange({ type: "flag", name: "", operator: "equals", value: true });
     } else {
       onChange({ type: "context", contextId: ALL_CONTEXT_IDS[0] as ContextId });
     }
@@ -1605,13 +1649,14 @@ function ConditionRow({
         <div className="flex items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2">
           <select
             value={leaf.type}
-            onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context")}
+            onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context" | "flag")}
             className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             aria-label="Condition type"
           >
             <option value="field">Field condition</option>
             <option value="named">Named condition</option>
             <option value="context">Context condition</option>
+            <option value="flag">Flag condition</option>
           </select>
 
           {!isOnly && (
@@ -1686,8 +1731,201 @@ function ConditionRow({
               )}
             </Field>
           )}
+
+          {leaf.type === "flag" && (
+            <FlagConditionEditor
+              name={leaf.name}
+              operator={leaf.operator ?? "equals"}
+              value={leaf.value}
+              onChange={(name, operator, value) =>
+                onChange({ type: "flag", name, operator, value })
+              }
+            />
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── FlagConditionEditor ──────────────────────────────────────────────────────────
+
+/**
+ * Editor for a FlagCondition — reads a rule-written flag from ctx.ruleContext.
+ *
+ * Flag names are free-form (own flags like "gericht_binnengekomen"), so the name
+ * is a text input with a datalist of override-target suggestions. Reserved
+ * internal keys (prefixed "__", e.g. __entryPath) are never suggested and are
+ * stripped from typed input — team members cannot read or target them here.
+ * Operators mirror field conditions minus the array (in/not_in) operators.
+ */
+function FlagConditionEditor({
+  name,
+  operator,
+  value,
+  onChange,
+}: {
+  name:     string;
+  operator: FieldOperator;
+  value:    string | number | boolean | undefined;
+  onChange: (name: string, operator: FieldOperator, value: string | number | boolean | undefined) => void;
+}) {
+  const listId = useId();
+  const effectiveOp: FieldOperator = FLAG_OPERATORS.includes(operator) ? operator : "equals";
+
+  const handleOperatorChange = (newOp: FieldOperator) => {
+    // Adjust the value to fit the new operator: none for existence checks,
+    // number for ordering, string for substring, else keep/seed a scalar.
+    let newValue: string | number | boolean | undefined = value;
+    if (NO_VALUE_OPERATORS.has(newOp))            newValue = undefined;
+    else if (NUMERIC_OPERATORS.has(newOp))        newValue = typeof value === "number" ? value : 0;
+    else if (STRING_ONLY_OPERATORS.has(newOp))    newValue = typeof value === "string" ? value : "";
+    else if (value === undefined)                 newValue = true;
+    onChange(name, newOp, newValue);
+  };
+
+  return (
+    <>
+      <Field
+        label="Flag name"
+        hint="Own flag written by a rule (e.g. gericht_binnengekomen). Internal keys (__) are reserved."
+      >
+        <input
+          type="text"
+          value={name}
+          list={listId}
+          placeholder="gericht_binnengekomen"
+          onChange={(e) => onChange(sanitizeContextKey(e.target.value), effectiveOp, value)}
+          className={inputCls}
+        />
+        <datalist id={listId}>
+          {OVERRIDE_KEY_SUGGESTIONS.map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
+      </Field>
+
+      <Field label="Operator">
+        <select
+          value={effectiveOp}
+          onChange={(e) => handleOperatorChange(e.target.value as FieldOperator)}
+          className={selectCls}
+        >
+          {FLAG_OPERATORS.map((op) => (
+            <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
+          ))}
+        </select>
+      </Field>
+
+      {!NO_VALUE_OPERATORS.has(effectiveOp) && (
+        <Field label="Value">
+          <ScalarValueInput
+            operator={effectiveOp}
+            value={value}
+            onChange={(v) => onChange(name, effectiveOp, v)}
+          />
+        </Field>
+      )}
+    </>
+  );
+}
+
+// ── ScalarValueInput ─────────────────────────────────────────────────────────────
+
+/**
+ * Scalar value input (string | number | boolean) for flag conditions and context
+ * writes. Picks the widget from the operator (numeric/string) or an explicit
+ * `kind` override, defaulting to a text/number/boolean chooser.
+ */
+function ScalarValueInput({
+  operator,
+  value,
+  onChange,
+}: {
+  operator?: FieldOperator;
+  value:     string | number | boolean | undefined;
+  onChange:  (v: string | number | boolean | undefined) => void;
+}) {
+  // Numeric ordering operators force a number input.
+  if (operator && NUMERIC_OPERATORS.has(operator)) {
+    return (
+      <input
+        type="number"
+        value={typeof value === "number" ? value : ""}
+        placeholder="0"
+        onChange={(e) => {
+          const n = parseFloat(e.target.value);
+          onChange(Number.isFinite(n) ? n : undefined);
+        }}
+        className={inputCls}
+      />
+    );
+  }
+  // Substring operators force a string input.
+  if (operator && STRING_ONLY_OPERATORS.has(operator)) {
+    return (
+      <input
+        type="text"
+        value={typeof value === "string" ? value : ""}
+        placeholder="enter text…"
+        onChange={(e) => onChange(e.target.value)}
+        className={inputCls}
+      />
+    );
+  }
+
+  // equals / not_equals (or no operator): a type chooser + matching input, so the
+  // author controls whether the value is text, a number, or a boolean.
+  const kind: "text" | "number" | "boolean" =
+    typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "text";
+
+  const changeKind = (k: "text" | "number" | "boolean") => {
+    if (k === "boolean")      onChange(typeof value === "boolean" ? value : true);
+    else if (k === "number")  onChange(typeof value === "number" ? value : 0);
+    else                      onChange(typeof value === "string" ? value : "");
+  };
+
+  return (
+    <div className="flex gap-2">
+      <select
+        value={kind}
+        onChange={(e) => changeKind(e.target.value as "text" | "number" | "boolean")}
+        className={`${selectCls} max-w-[8rem]`}
+        aria-label="Value type"
+      >
+        <option value="text">Text</option>
+        <option value="number">Number</option>
+        <option value="boolean">Boolean</option>
+      </select>
+      {kind === "boolean" ? (
+        <select
+          value={String(value ?? "true")}
+          onChange={(e) => onChange(e.target.value === "true")}
+          className={selectCls}
+        >
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      ) : kind === "number" ? (
+        <input
+          type="number"
+          value={typeof value === "number" ? value : ""}
+          placeholder="0"
+          onChange={(e) => {
+            const n = parseFloat(e.target.value);
+            onChange(Number.isFinite(n) ? n : undefined);
+          }}
+          className={inputCls}
+        />
+      ) : (
+        <input
+          type="text"
+          value={typeof value === "string" ? value : ""}
+          placeholder="enter value…"
+          onChange={(e) => onChange(e.target.value)}
+          className={inputCls}
+        />
+      )}
     </div>
   );
 }
@@ -2030,6 +2268,153 @@ function VariantTargetFields({
               </Field>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SetContextFields ("Context zetten") ──────────────────────────────────────────
+
+/**
+ * Editor for plan.setContext — the context a rule writes when it fires ("regels
+ * die context schrijven"). Rows of (key, value, sticky, monotone).
+ *
+ *   key      — an own flag name or a registry field key to override. Reserved
+ *              internal keys ("__…") are never suggested and stripped on input.
+ *   value    — scalar (text / number / boolean).
+ *   sticky   — persists for the session (default on). Off = request-only.
+ *   monotone — write-once: never overwrites an existing value for the key, so a
+ *              latch flag does not fall back on a later view.
+ *
+ * Collapsed by default unless the rule already writes context.
+ */
+function SetContextFields({
+  value,
+  onChange,
+}: {
+  value:    RuleContextWrite[] | undefined;
+  onChange: (next: RuleContextWrite[] | undefined) => void;
+}) {
+  const listId = useId();
+  const rows = value ?? [];
+  const [open, setOpen] = useState(() => rows.length > 0);
+
+  function commit(next: RuleContextWrite[]) {
+    onChange(next.length > 0 ? next : undefined);
+  }
+
+  function updateRow(i: number, patch: Partial<RuleContextWrite>) {
+    commit(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+
+  function removeRow(i: number) {
+    commit(rows.filter((_, idx) => idx !== i));
+  }
+
+  function addRow() {
+    setOpen(true);
+    commit([...rows, { key: "", value: true, sticky: true }]);
+  }
+
+  return (
+    <div className="mt-1 border-t border-neutral-200 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+          Context zetten
+          {rows.length > 0 && (
+            <span className="ml-2 font-normal normal-case text-neutral-400">
+              {rows.length} {rows.length === 1 ? "write" : "writes"}
+            </span>
+          )}
+        </span>
+        <span className="text-[11px] text-neutral-400">{open ? "Hide" : "Edit"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-xs text-neutral-400">
+            Sets context when this rule fires — an own flag or an override of a
+            derived field. Overrides bypass the normal derivation (advanced).
+          </p>
+
+          {rows.map((row, i) => {
+            const isOverride = OVERRIDE_KEY_SUGGESTIONS.includes(row.key);
+            return (
+              <div key={i} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                    Write {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(i)}
+                    className="text-xs font-medium text-neutral-400 hover:text-red-600 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <Field
+                  label="Key"
+                  hint={isOverride ? "Overrides a derived field (advanced)." : "Own flag name. Internal keys (__) are reserved."}
+                >
+                  <input
+                    type="text"
+                    value={row.key}
+                    list={listId}
+                    placeholder="gericht_binnengekomen"
+                    onChange={(e) => updateRow(i, { key: sanitizeContextKey(e.target.value) })}
+                    className={inputCls}
+                  />
+                </Field>
+
+                <Field label="Value">
+                  <ScalarValueInput
+                    value={row.value}
+                    onChange={(v) => updateRow(i, { value: v ?? "" })}
+                  />
+                </Field>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+                    <input
+                      type="checkbox"
+                      checked={row.sticky !== false}
+                      onChange={(e) => updateRow(i, { sticky: e.target.checked })}
+                    />
+                    Sticky <span className="text-neutral-400">(persists for the session)</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+                    <input
+                      type="checkbox"
+                      checked={row.monotone === true}
+                      onChange={(e) => updateRow(i, { monotone: e.target.checked })}
+                    />
+                    Monotone <span className="text-neutral-400">(write-once, never falls back)</span>
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+
+          <datalist id={listId}>
+            {OVERRIDE_KEY_SUGGESTIONS.map((k) => (
+              <option key={k} value={k} />
+            ))}
+          </datalist>
+
+          <button
+            type="button"
+            onClick={addRow}
+            className="self-start rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
+          >
+            + Add context write
+          </button>
         </div>
       )}
     </div>
