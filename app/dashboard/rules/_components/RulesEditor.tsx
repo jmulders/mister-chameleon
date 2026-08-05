@@ -1260,47 +1260,49 @@ function RuleCard({
 
             {/* Right column: plan */}
             <div className="flex flex-col gap-4">
-              {/* Header row: label + Fill from preset */}
+              {/* Header row: label + Fill from preset (advanced power-shortcut) */}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                   Variant Plan
                 </p>
-                <select
-                  defaultValue=""
-                  onChange={(e) => {
-                    const key = e.target.value;
-                    if (!key) return;
-                    const preset = PRESET_PLANS[key];
-                    if (!preset) return;
-                    onChange({
-                      plan: {
-                        ...rule.plan,
-                        heroKey:       preset.heroKey,
-                        proofKey:      preset.proofKey,
-                        ctaKey:        preset.ctaKey,
-                        featureKey:    preset.featureKey,
-                        conversionKey: preset.conversionKey,
-                        pricingEmphasis: preset.pricingEmphasis,
-                        pricingCtaMode:  preset.pricingCtaMode,
-                      },
-                    });
-                    e.target.value = "";
-                  }}
-                  className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
-                  title="Fill all plan fields from a scenario preset"
-                >
-                  <option value="" disabled>Fill from preset…</option>
-                  <optgroup label="Generic / B2B SaaS">
-                    {PRESET_CONDITIONS.filter((p) => p.group === "generic").map((p) => (
-                      <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Careers / Werken-bij">
-                    {PRESET_CONDITIONS.filter((p) => p.group === "careers").map((p) => (
-                      <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-                    ))}
-                  </optgroup>
-                </select>
+                {advanced && (
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      const key = e.target.value;
+                      if (!key) return;
+                      const preset = PRESET_PLANS[key];
+                      if (!preset) return;
+                      onChange({
+                        plan: {
+                          ...rule.plan,
+                          heroKey:       preset.heroKey,
+                          proofKey:      preset.proofKey,
+                          ctaKey:        preset.ctaKey,
+                          featureKey:    preset.featureKey,
+                          conversionKey: preset.conversionKey,
+                          pricingEmphasis: preset.pricingEmphasis,
+                          pricingCtaMode:  preset.pricingCtaMode,
+                        },
+                      });
+                      e.target.value = "";
+                    }}
+                    className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                    title="Fill all plan fields from a scenario preset"
+                  >
+                    <option value="" disabled>Fill from preset…</option>
+                    <optgroup label="Generic / B2B SaaS">
+                      {PRESET_CONDITIONS.filter((p) => p.group === "generic").map((p) => (
+                        <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Careers">
+                      {PRESET_CONDITIONS.filter((p) => p.group === "careers").map((p) => (
+                        <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                )}
               </div>
 
               {/* Core slots */}
@@ -1641,29 +1643,31 @@ function FlatGroupEditor({
         {isMulti ? "Conditions" : "Condition"}
       </legend>
 
-      {/* ── Quick preset selector ─────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-2 -mt-1">
-        <span className="text-xs text-neutral-400">Start from a preset or build manually below.</span>
-        <select
-          defaultValue=""
-          onChange={handlePresetSelect}
-          className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-500 shadow-sm hover:border-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
-          aria-label="Apply a quick preset condition"
-          title="Replace conditions with a scenario preset"
-        >
-          <option value="" disabled>Quick preset…</option>
-          <optgroup label="Generic / B2B SaaS">
-            {genericPresets.map((p) => (
-              <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Careers / Werken-bij">
-            {careersPresets.map((p) => (
-              <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
+      {/* ── Quick preset selector (advanced power-shortcut) ───────────── */}
+      {advanced && (
+        <div className="flex items-center justify-between gap-2 -mt-1">
+          <span className="text-xs text-neutral-400">Start from a preset or build manually below.</span>
+          <select
+            defaultValue=""
+            onChange={handlePresetSelect}
+            className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-500 shadow-sm hover:border-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+            aria-label="Apply a quick preset condition"
+            title="Replace conditions with a scenario preset"
+          >
+            <option value="" disabled>Quick preset…</option>
+            <optgroup label="Generic / B2B SaaS">
+              {genericPresets.map((p) => (
+                <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Careers">
+              {careersPresets.map((p) => (
+                <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
+      )}
 
       {/* ── AND / OR logic selector (only shown for 2+ conditions) ───── */}
       {isMulti && (
