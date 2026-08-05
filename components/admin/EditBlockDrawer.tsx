@@ -177,18 +177,33 @@ function Toggle({
 
 // ── Sub-component: image picker ────────────────────────────────────────────────
 
+/** Reference desktop viewport the block preview renders at, then scales to fit. */
+const PREVIEW_VIEWPORT = { width: 1280, height: 720 } as const; // 16:9 desktop
+
+/** 3×3 focal-point grid → CSS object-position keyword. */
+const FOCAL_POINTS: { value: string; label: string }[] = [
+  { value: "left top",    label: "Top left" },     { value: "center top",    label: "Top" },     { value: "right top",    label: "Top right" },
+  { value: "left center", label: "Left" },         { value: "center",        label: "Center" },  { value: "right center", label: "Right" },
+  { value: "left bottom", label: "Bottom left" },  { value: "center bottom", label: "Bottom" },   { value: "right bottom", label: "Bottom right" },
+];
+
 function ImagePicker({
   tenantId,
   url,
   alt,
+  objectPosition,
   onUrlChange,
   onAltChange,
+  onObjectPositionChange,
 }: {
   tenantId: string;
   url: string;
   alt: string;
+  /** Current object-position; the focal-point grid only shows when a change handler is passed. */
+  objectPosition?: string;
   onUrlChange: (v: string) => void;
   onAltChange: (v: string) => void;
+  onObjectPositionChange?: (v: string) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -209,6 +224,7 @@ function ImagePicker({
                   src={url}
                   alt={alt || "Selected image"}
                   className="w-full h-full object-cover"
+                  style={{ objectPosition }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
                   <span className="text-white text-xs font-semibold">Change image</span>
@@ -237,6 +253,36 @@ function ImagePicker({
           </button>
         )}
       </div>
+
+      {/* Focal point — which part stays in view when the hero crops the image */}
+      {url && onObjectPositionChange && (
+        <div>
+          <label className="block text-xs font-medium text-neutral-700 mb-1.5">Focal point</label>
+          <div className="grid w-[4.5rem] grid-cols-3 gap-1">
+            {FOCAL_POINTS.map((fp) => {
+              const active = (objectPosition || "center") === fp.value;
+              return (
+                <button
+                  key={fp.value}
+                  type="button"
+                  title={fp.label}
+                  aria-label={`Focal point: ${fp.label}`}
+                  aria-pressed={active}
+                  onClick={() => onObjectPositionChange(fp.value)}
+                  className={`aspect-square rounded-sm border transition-colors ${
+                    active
+                      ? "border-brand-500 bg-brand-500"
+                      : "border-neutral-300 bg-neutral-100 hover:border-brand-400"
+                  }`}
+                />
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[10px] text-neutral-400">
+            Keeps the subject in frame when the hero crops the image (e.g. full-height backgrounds).
+          </p>
+        </div>
+      )}
 
       {/* Alt text */}
       <div>
@@ -768,6 +814,9 @@ export function EditBlockDrawer({
   const [imageAlt, setImageAlt] = useState(
     existingMedia?.kind === "image" ? existingMedia.alt : "",
   );
+  const [imageObjectPosition, setImageObjectPosition] = useState(
+    (existingMedia?.kind === "image" ? existingMedia.objectPosition : undefined) ?? "center",
+  );
 
   // Video — source
   const [videoSource, setVideoSource] = useState<VideoSource>(
@@ -889,6 +938,26 @@ export function EditBlockDrawer({
   const [previewSrc, setPreviewSrc]       = useState("");
   const [isPreviewStale, setPreviewStale] = useState(false);
 
+  // ── Device-frame preview scaling ───────────────────────────────────────────
+  // The preview renders the real block in an iframe. Hero backgrounds size
+  // themselves with viewport-relative height (clamp(420px, 70vh, 820px)), so a
+  // short iframe crops object-cover differently than a full-height live viewport
+  // — the classic preview/live mismatch. Fix: render the iframe at a real
+  // desktop viewport (PREVIEW_VIEWPORT) and scale it down to fit the column, so
+  // `70vh` and the clamp resolve exactly as on that desktop → identical crop.
+  const previewBoxRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+
+  useEffect(() => {
+    const el = previewBoxRef.current;
+    if (!el) return;
+    const update = () => setPreviewScale(el.clientWidth / PREVIEW_VIEWPORT.width);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [previewSrc]);
+
   useEffect(() => {
     setPreviewStale(true);
     const id = setTimeout(() => {
@@ -904,7 +973,7 @@ export function EditBlockDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     title, subtitle, tag, layoutVariant, contentAlign,
-    mediaType, imageUrl, imageAlt, videoSource, videoUrl, videoPoster,
+    mediaType, imageUrl, imageAlt, imageObjectPosition, videoSource, videoUrl, videoPoster,
     videoMuted, videoControls, videoId, videoAutoplay, videoLoop,
     ctas, items, slides, carouselAutoplay, tokenSet, tokens,
   ]);
@@ -945,7 +1014,15 @@ export function EditBlockDrawer({
 
   function buildMedia(): HeroBannerMedia | undefined {
     if (mediaType === "image" && imageUrl) {
-      return { kind: "image", url: imageUrl, alt: imageAlt } satisfies HeroBannerImage;
+      return {
+        kind: "image",
+        url: imageUrl,
+        alt: imageAlt,
+        // Omit the default ("center") so existing content stays byte-identical.
+        ...(imageObjectPosition && imageObjectPosition !== "center"
+          ? { objectPosition: imageObjectPosition }
+          : {}),
+      } satisfies HeroBannerImage;
     }
     if (mediaType === "video") {
       if (videoSource === "upload" && videoUrl) {
@@ -1308,8 +1385,10 @@ export function EditBlockDrawer({
                 tenantId={tenantId}
                 url={imageUrl}
                 alt={imageAlt}
+                objectPosition={imageObjectPosition}
                 onUrlChange={setImageUrl}
                 onAltChange={setImageAlt}
+                onObjectPositionChange={setImageObjectPosition}
               />
             )}
 
@@ -1680,14 +1759,28 @@ export function EditBlockDrawer({
                 {isPreviewStale ? "updating…" : "default variant · tenant theme"}
               </span>
             </div>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-auto bg-neutral-200 p-4">
               {previewSrc ? (
-                <iframe
-                  src={previewSrc}
-                  title="Block preview"
-                  className="h-full w-full border-0 bg-white"
-                  sandbox="allow-same-origin"
-                />
+                // Device frame: a 16:9 box scaled to the column width. The iframe
+                // renders at the real desktop viewport, then scales down — so the
+                // hero's crop matches what a visitor sees on that desktop.
+                <div
+                  ref={previewBoxRef}
+                  className="relative mx-auto w-full max-w-[1280px] overflow-hidden rounded-md border border-neutral-300 bg-white shadow-sm"
+                  style={{ aspectRatio: `${PREVIEW_VIEWPORT.width} / ${PREVIEW_VIEWPORT.height}` }}
+                >
+                  <iframe
+                    src={previewSrc}
+                    title="Block preview"
+                    className="absolute left-0 top-0 origin-top-left border-0 bg-white"
+                    style={{
+                      width:  PREVIEW_VIEWPORT.width,
+                      height: PREVIEW_VIEWPORT.height,
+                      transform: `scale(${previewScale})`,
+                    }}
+                    sandbox="allow-same-origin"
+                  />
+                </div>
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-neutral-400">
                   Loading preview…

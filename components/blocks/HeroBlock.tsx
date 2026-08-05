@@ -261,6 +261,7 @@ function HeroImage({
   sizes,
   wrapperClassName,
   imageClassName = "object-cover",
+  objectPosition,
   ariaHidden = false,
 }: {
   src: string;
@@ -268,6 +269,8 @@ function HeroImage({
   sizes: string;
   wrapperClassName: string;
   imageClassName?: string;
+  /** CSS object-position for the crop; omit for the browser default (center). */
+  objectPosition?: string;
   ariaHidden?: boolean;
 }) {
   return (
@@ -282,6 +285,7 @@ function HeroImage({
         unoptimized={!heroImageOptimizable(src)}
         aria-hidden={ariaHidden || undefined}
         className={imageClassName}
+        style={objectPosition ? { objectPosition } : undefined}
       />
     </div>
   );
@@ -450,6 +454,7 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
         sizes="100vw"
         wrapperClassName="absolute inset-0 pointer-events-none"
         imageClassName="object-cover"
+        objectPosition={media.objectPosition}
       />
     );
   }
