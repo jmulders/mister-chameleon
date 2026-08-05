@@ -333,7 +333,7 @@ export async function resolveSlugPageConfig(
     // without the enrichment pipeline.
     const experimentsEnabled = tenant?.experiments?.enabled ?? true;
     const baseDecisionProvider = new ExperimentDecisionProvider(
-      new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl),
+      new RulesDecisionProvider(tenantRulesConfig ?? undefined, isControl, tenantId, sessionId),
       sessionId,
       experimentsEnabled,
       tenantId,

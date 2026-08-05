@@ -340,6 +340,16 @@ export interface RuleContextWrite {
   value:   string | number | boolean;
   /** Default true — persists for the session. */
   sticky?: boolean;
+  /**
+   * Write-once semantics. When true, the write does NOT overwrite an existing
+   * value for `key` — neither a value already persisted for the session nor one
+   * set by an earlier rule in the same pass. Use for latch flags like
+   * `gericht_binnengekomen` that must not fall back once set, even when the
+   * entry conditions no longer hold on a later view. Default false — a
+   * non-monotone sticky write is last-write-wins and stays re-settable (e.g. a
+   * sticky `funnelStage` override).
+   */
+  monotone?: boolean;
 }
 
 /**
@@ -916,6 +926,9 @@ function validatePlan(
         }
         if (w.sticky !== undefined && typeof w.sticky !== "boolean") {
           errors.push({ ruleId, field: `${idx}.plan.setContext[${i}].sticky`, message: "setContext sticky must be a boolean." });
+        }
+        if (w.monotone !== undefined && typeof w.monotone !== "boolean") {
+          errors.push({ ruleId, field: `${idx}.plan.setContext[${i}].monotone`, message: "setContext monotone must be a boolean." });
         }
         // Registry-field override: value must match the field's kind/allowedValues.
         if (fieldKeys.includes(w.key)) {

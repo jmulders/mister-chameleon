@@ -35,6 +35,21 @@ import type { RuleContextValues } from "./types";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function dbAny() { return getDb() as any; }
 
+/**
+ * A single sticky context write to persist. Structurally compatible with the
+ * engine's RuleContextWrite (decision/rules/stored-rule) — kept as a local type
+ * so this journey-layer module does not depend on the decision layer.
+ */
+export interface StickyContextWrite {
+  key:       string;
+  value:     string | number | boolean;
+  /**
+   * Write-once: when true, an existing value for `key` is never overwritten
+   * (neither the persisted value nor an earlier write in the same batch).
+   */
+  monotone?: boolean;
+}
+
 type StateRow = {
   id:           string;
   visitor_id:   string | null;
@@ -44,10 +59,16 @@ type StateRow = {
 type DbResultMany<T> = { data: T[] | null; error: { message: string } | null };
 
 /**
- * Merges `writes` into the persisted rule_context for (tenant, session).
+ * Merges sticky `writes` into the persisted rule_context for (tenant, session).
  *
- * Last-write-wins per key: existing keys not present in `writes` are preserved,
- * keys in `writes` overwrite. An empty `writes` map is a no-op.
+ * Per-key semantics:
+ *   - non-monotone write → last-write-wins (overwrites any existing value).
+ *   - monotone write     → write-once (kept only when the key is absent; an
+ *                          existing persisted value is preserved). This is what
+ *                          keeps a latch flag like `gericht_binnengekomen` set
+ *                          even when a later view re-writes it.
+ *
+ * Keys not present in `writes` are always preserved. An empty batch is a no-op.
  *
  * When no state row exists yet (first view before updateBehaviorState() has run),
  * a minimal row is inserted carrying only the rule_context; the derive-owned
@@ -55,17 +76,17 @@ type DbResultMany<T> = { data: T[] | null; error: { message: string } | null };
  *
  * @param sessionId  The visitor's mc_session_id UUID.
  * @param tenantId   Active tenant slug.
- * @param writes     Scalar key/value pairs to merge (sticky).
+ * @param writes     Sticky writes to merge (each key/value/monotone?).
  */
 export async function persistRuleContext(
   sessionId: string,
   tenantId:  string,
-  writes:    RuleContextValues,
+  writes:    readonly StickyContextWrite[],
 ): Promise<void> {
   // Skip for unresolved tenants and empty writes.
   if (!tenantId || tenantId === "unknown") return;
   if (!sessionId) return;
-  if (!writes || Object.keys(writes).length === 0) return;
+  if (!writes || writes.length === 0) return;
 
   try {
     const db = dbAny();
@@ -90,7 +111,19 @@ export async function persistRuleContext(
     }
 
     const row    = existing.data?.[0] ?? null;
-    const merged = { ...(row?.rule_context ?? {}), ...writes };
+
+    // Merge honouring per-key monotone (write-once) semantics.
+    const merged: RuleContextValues = { ...(row?.rule_context ?? {}) };
+    for (const w of writes) {
+      const exists = Object.prototype.hasOwnProperty.call(merged, w.key);
+      if (w.monotone && exists) continue; // write-once — keep the existing value
+      merged[w.key] = w.value;
+    }
+
+    // Nothing new to write (e.g. all writes were monotone no-ops) — skip the DB.
+    const changed = Object.keys(merged).length !== Object.keys(row?.rule_context ?? {}).length
+      || writes.some((w) => !w.monotone);
+    if (row && !changed) return;
 
     const nowIso = new Date().toISOString();
 
@@ -134,7 +167,7 @@ export async function persistRuleContext(
     }
 
     logger.debug("[persist-rule-context] rule_context persisted", {
-      sessionId, tenantId, keys: Object.keys(writes),
+      sessionId, tenantId, keys: writes.map((w) => w.key),
     });
   } catch (err) {
     logger.warn("[persist-rule-context] unexpected error", {
