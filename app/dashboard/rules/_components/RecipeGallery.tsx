@@ -19,7 +19,7 @@
  * so what this component adds always passes validateStoredConfig.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   RULE_RECIPES, recipesByGroup, RECIPE_GROUPS, scopeRecipePlan,
 } from "@/decision/rules/recipe-catalogue";
@@ -74,18 +74,56 @@ export function RecipeGallery({
   const [ctaKey,   setCtaKey]   = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
 
+  const panelRef        = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  // Keep the latest onClose without re-running the focus effect on every render
+  // (the parent passes a fresh arrow each render).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   // Reset to the gallery view every time the modal is (re)opened.
   useEffect(() => {
     if (open) { setSelected(null); setMoreOpen(false); }
   }, [open]);
 
-  // Close on Escape.
+  // Focus trap: on open, remember what had focus and move focus into the modal;
+  // trap Tab / Shift+Tab within it; Escape closes; on close, restore focus.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    restoreFocusRef.current = (document.activeElement as HTMLElement | null) ?? null;
+    panelRef.current?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onCloseRef.current(); return; }
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const nodes = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null);
+      if (nodes.length === 0) { e.preventDefault(); panel.focus(); return; }
+      const first = nodes[0];
+      const last  = nodes[nodes.length - 1];
+      const active = document.activeElement;
+      const outside = !panel.contains(active) || active === panel;
+      if (e.shiftKey && (active === first || outside)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (active === last || outside)) { e.preventDefault(); first.focus(); }
+    };
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      restoreFocusRef.current?.focus?.();
+    };
+  }, [open]);
+
+  // On switching between the gallery and fill-in views, land focus at the top of
+  // the new view so keyboard users are not stranded on a control that vanished.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open, selected]);
 
   // Which recipes already exist (by condition) — drives the "Already added" chip.
   const duplicateKeys = useMemo(() => {
@@ -115,7 +153,11 @@ export function RecipeGallery({
       aria-label="Add a rule"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white shadow-xl">
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white shadow-xl focus:outline-none"
+      >
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-neutral-200 px-5 py-4">
           <div>
