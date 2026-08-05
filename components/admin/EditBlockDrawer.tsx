@@ -177,6 +177,9 @@ function Toggle({
 
 // ── Sub-component: image picker ────────────────────────────────────────────────
 
+/** Reference desktop viewport the block preview renders at, then scales to fit. */
+const PREVIEW_VIEWPORT = { width: 1280, height: 720 } as const; // 16:9 desktop
+
 /** 3×3 focal-point grid → CSS object-position keyword. */
 const FOCAL_POINTS: { value: string; label: string }[] = [
   { value: "left top",    label: "Top left" },     { value: "center top",    label: "Top" },     { value: "right top",    label: "Top right" },
@@ -934,6 +937,26 @@ export function EditBlockDrawer({
   // theme. Encodes the current (unsaved) draft as base64url in the query.
   const [previewSrc, setPreviewSrc]       = useState("");
   const [isPreviewStale, setPreviewStale] = useState(false);
+
+  // ── Device-frame preview scaling ───────────────────────────────────────────
+  // The preview renders the real block in an iframe. Hero backgrounds size
+  // themselves with viewport-relative height (clamp(420px, 70vh, 820px)), so a
+  // short iframe crops object-cover differently than a full-height live viewport
+  // — the classic preview/live mismatch. Fix: render the iframe at a real
+  // desktop viewport (PREVIEW_VIEWPORT) and scale it down to fit the column, so
+  // `70vh` and the clamp resolve exactly as on that desktop → identical crop.
+  const previewBoxRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+
+  useEffect(() => {
+    const el = previewBoxRef.current;
+    if (!el) return;
+    const update = () => setPreviewScale(el.clientWidth / PREVIEW_VIEWPORT.width);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [previewSrc]);
 
   useEffect(() => {
     setPreviewStale(true);
@@ -1736,14 +1759,28 @@ export function EditBlockDrawer({
                 {isPreviewStale ? "updating…" : "default variant · tenant theme"}
               </span>
             </div>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-auto bg-neutral-200 p-4">
               {previewSrc ? (
-                <iframe
-                  src={previewSrc}
-                  title="Block preview"
-                  className="h-full w-full border-0 bg-white"
-                  sandbox="allow-same-origin"
-                />
+                // Device frame: a 16:9 box scaled to the column width. The iframe
+                // renders at the real desktop viewport, then scales down — so the
+                // hero's crop matches what a visitor sees on that desktop.
+                <div
+                  ref={previewBoxRef}
+                  className="relative mx-auto w-full max-w-[1280px] overflow-hidden rounded-md border border-neutral-300 bg-white shadow-sm"
+                  style={{ aspectRatio: `${PREVIEW_VIEWPORT.width} / ${PREVIEW_VIEWPORT.height}` }}
+                >
+                  <iframe
+                    src={previewSrc}
+                    title="Block preview"
+                    className="absolute left-0 top-0 origin-top-left border-0 bg-white"
+                    style={{
+                      width:  PREVIEW_VIEWPORT.width,
+                      height: PREVIEW_VIEWPORT.height,
+                      transform: `scale(${previewScale})`,
+                    }}
+                    sandbox="allow-same-origin"
+                  />
+                </div>
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-neutral-400">
                   Loading preview…
