@@ -27,6 +27,7 @@ export const maxDuration = 60;
 // Volgorde is bewust: billing eerst (raakt de administratie), dan opruimen, dan sync.
 const JOBS = [
   "/api/cron/billing-renewal",
+  "/api/cron/subscription-reconcile",
   "/api/cron/form-submission-purge",
   "/api/cron/visitor-profile-purge",
   "/api/cron/ad-sync",
