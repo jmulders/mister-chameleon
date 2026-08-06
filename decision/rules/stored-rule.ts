@@ -604,6 +604,8 @@ export const ALLOWED_HERO_KEYS: readonly HeroVariantKey[] = [
   "hero_consideration",
   "hero_intent_direct",
   "hero_customer_onboarding",
+  // Vertical service-CTA blueprint (service-led businesses, e.g. Cluistra)
+  "hero_service",
   // B2B SaaS blueprint
   "hero_saas_default",
   "hero_saas_consideration",
@@ -636,6 +638,8 @@ export const ALLOWED_PROOF_KEYS: readonly ProofVariantKey[] = [
   "proof_platform",
   "proof_stats",
   "proof_reassurance",
+  // Vertical service-CTA blueprint (service-led businesses, e.g. Cluistra)
+  "proof_service",
   // B2B SaaS blueprint
   "proof_saas_default",
   "proof_saas_consideration",
@@ -656,6 +660,8 @@ export const ALLOWED_CTA_KEYS: readonly CTAVariantKey[] = [
   "cta_demo",
   "cta_onboarding",
   "cta_expansion",
+  // Vertical service-CTA blueprint (service-led businesses, e.g. Cluistra)
+  "cta_service",
   // B2B SaaS blueprint
   "cta_saas_default",
   "cta_saas_demo",

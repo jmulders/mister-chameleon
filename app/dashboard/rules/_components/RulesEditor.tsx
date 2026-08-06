@@ -202,6 +202,8 @@ const HERO_KEY_LABELS: Record<HeroVariantKey, string> = {
   hero_consideration:       "Consideration — mid-funnel evaluation",
   hero_intent_direct:       "Intent Direct — high-intent, direct apply",
   hero_customer_onboarding: "Customer Onboarding — post-conversion",
+  // ── Vertical service-CTA blueprint ────────────────────────────────────────
+  hero_service:             "Service: returning service-intent visitor",
   // ── B2B SaaS blueprint ────────────────────────────────────────────────────
   hero_saas_default:            "SaaS Default — platform intro",
   hero_saas_consideration:      "SaaS Consideration — evaluating fit",
@@ -234,6 +236,8 @@ const PROOF_KEY_LABELS: Record<ProofVariantKey, string> = {
   proof_platform:    "Platform — scale & reliability stats",
   proof_stats:       "Stats — performance metrics",
   proof_reassurance: "Reassurance — low-pressure fallback",
+  // ── Vertical service-CTA blueprint ────────────────────────────────────────
+  proof_service:     "Service: service credibility and reassurance",
   // ── B2B SaaS blueprint ────────────────────────────────────────────────────
   proof_saas_default:       "SaaS Default — platform value & credibility",
   proof_saas_consideration: "SaaS Consideration — use cases & fit signals",
@@ -254,6 +258,8 @@ const CTA_KEY_LABELS: Record<CTAVariantKey, string> = {
   cta_demo:       "Demo — bekijk een gratis demo",
   cta_onboarding: "Onboarding — start je onboarding",
   cta_expansion:  "Expansion — bekijk uitbreidingsopties",
+  // ── Vertical service-CTA blueprint ────────────────────────────────────────
+  cta_service:    "Service: book service or request a quote",
   // ── B2B SaaS blueprint ────────────────────────────────────────────────────
   cta_saas_default:    "SaaS Default — learn more / see how it works",
   cta_saas_demo:       "SaaS Demo — book a product demo",
@@ -271,6 +277,7 @@ const FEATURE_KEY_LABELS: Record<FeatureVariantKey, string> = {
   feature_grid_primary: "Feature Grid — full feature overview (awareness / orientation)",
   feature_highlights:   "Feature Highlights — condensed differentiators (mid-funnel)",
   feature_comparison:   "Feature Comparison — side-by-side plan table (high intent / trial)",
+  feature_service:      "Service: service offering and USPs",
 };
 
 const CONVERSION_KEY_LABELS: Record<ConversionVariantKey, string> = {
