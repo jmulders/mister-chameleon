@@ -34,6 +34,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { CSSProperties }      from "react";
 import { useSearchParams }         from "next/navigation";
 import { ThemeGallery }         from "./ThemeGallery";
 import { PresetBuilder }        from "./PresetBuilder";
@@ -481,6 +482,55 @@ function FamilyTypographyPanel({
 
 // ── DesignPageClient ──────────────────────────────────────────────────────────
 
+/**
+ * Compact "Currently applied" overview for the Presets tab: the active theme
+ * plus how much has been customised on top of it. Read-only summary; the actual
+ * actions are reused from where they already live (Reset design above, and the
+ * clear/remove controls on the Blocks tab).
+ */
+function CurrentlyAppliedCard({
+  activeTheme,
+  design,
+}: {
+  activeTheme?: ThemeKey | null;
+  design:       TenantDesignSettings;
+}) {
+  const themeName      = activeTheme ?? "default";
+  const siteTokenCount = Object.keys(design.defaultTokens ?? {}).length;
+  const blockSetCount  = design.blockTokenSets?.length ?? 0;
+
+  const pill: CSSProperties = {
+    display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.75rem",
+    padding: "2px 9px", borderRadius: 999, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#374151",
+  };
+
+  return (
+    <div style={{
+      marginBottom: "1rem", padding: "0.85rem 1rem", borderRadius: "0.625rem",
+      border: "1px solid #e5e7eb", background: "#fff",
+    }}>
+      <div style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>
+        Currently applied
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        <span style={{ ...pill, borderColor: "#c7d2fe", background: "#eef2ff", color: "#4338ca", fontWeight: 600 }}>
+          Theme: {themeName}
+        </span>
+        <span style={pill}>
+          Site design tokens: {siteTokenCount > 0 ? `${siteTokenCount} set` : "none"}
+        </span>
+        <span style={pill}>
+          Block token sets: {blockSetCount}
+        </span>
+      </div>
+      <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "8px 0 0" }}>
+        Reset everything to the platform default with <strong>Reset design</strong> above. Edit the site tokens and
+        block token sets on the <strong>Blocks</strong> tab.
+      </p>
+    </div>
+  );
+}
+
 export function DesignPageClient({
   tenantId,
   activeTheme,
@@ -507,12 +557,20 @@ export function DesignPageClient({
           back to a clean slate (imported token overrides mask presets). */}
       <ResetDesignButton tenantId={tenantId} />
 
+      {/* One-line orientation: what the three kinds are and where they live. */}
+      <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: "0.5rem 0 1.25rem" }}>
+        Three kinds of design settings apply here: the <strong>active theme</strong> (Presets and Builder),
+        the <strong>site design tokens</strong> applied to every block, and per-block <strong>token sets</strong>
+        {" "}(both on the Blocks tab).
+      </p>
+
       {/* ── Presets (curated themes — contextual-rule compatible) ───────────── */}
       <TabPanel id="presets" active={activeTab}>
         <TabSectionHeader
           title="Design presets"
           description="Pick a ready-made look. Each preset is a curated theme, so it also works with the Automatic-switching contextual rules. For a fully custom look, use the Builder tab."
         />
+        <CurrentlyAppliedCard activeTheme={activeTheme} design={design} />
         <ThemeGallery tenantId={tenantId} activeTheme={activeTheme} />
       </TabPanel>
 

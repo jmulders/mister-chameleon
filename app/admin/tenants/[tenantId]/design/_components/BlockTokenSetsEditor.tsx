@@ -208,6 +208,14 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
         </div>
       )}
 
+      {/* Currently applied — count of the sets defined for this tenant. Each set
+          below has its own Remove; this just makes the total legible at a glance. */}
+      {sets.length > 0 && (
+        <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", margin: "0 0 0.5rem" }}>
+          Your block token sets ({sets.length})
+        </div>
+      )}
+
       {/* Empty state */}
       {sets.length === 0 && (
         <div style={{ padding: "1.5rem", border: "1px dashed #e5e7eb", borderRadius: "0.5rem", background: "#fafafa", textAlign: "center" }}>
