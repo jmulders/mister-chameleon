@@ -11,6 +11,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
+import { detectTokenPayloadKind, wrongBoxMessage } from "@/design-system/theme/token-import-detect";
 import { applyDesignTokensAction, importDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { TenantDesignSettings } from "@/tenant/types";
 
@@ -149,6 +150,17 @@ export function PresetBuilder({ tenantId }: Props) {
   async function onImportFile(file: File) {
     setMsg(null);
     const text = await file.text();
+
+    // Reject a file that belongs in another tab, with a message that points the
+    // right way, instead of a confusing partial import or generic server error.
+    try {
+      const wrong = wrongBoxMessage(detectTokenPayloadKind(JSON.parse(text)), "preset");
+      if (wrong) { setMsg({ text: wrong, ok: false }); return; }
+    } catch {
+      setMsg({ text: "That file is not valid JSON. Export the preset again and retry.", ok: false });
+      return;
+    }
+
     // Seed the builder + preview from the file so the result is visible at once.
     // Only seed from a FLAT string map per group — a DTCG / Figma export nests
     // values ({ "$value": … }), which would corrupt the field state and crash
@@ -247,7 +259,7 @@ export function PresetBuilder({ tenantId }: Props) {
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <label style={lbl}>Or import a preset JSON (Figma / DTCG too)</label>
+          <label style={lbl}>Import theme preset (Figma / DTCG)</label>
           <label
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,

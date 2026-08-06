@@ -156,7 +156,7 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
           {showJson ? "Hide JSON" : "Import / export JSON"}
         </button>
         <label style={{ ...btnStyle("ghost"), display: "inline-flex", alignItems: "center" }}>
-          Upload JSON file
+          Import site tokens (JSON)
           <input type="file" accept="application/json,.json" style={{ display: "none" }}
             onChange={(e) => { importFromFile(e.target.files?.[0]); e.currentTarget.value = ""; }} />
         </label>
@@ -188,6 +188,11 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
       {/* JSON panel */}
       {showJson && (
         <div style={{ marginBottom: "1rem" }}>
+          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.4rem" }}>
+            Expects a single flat tokens object, for example{" "}
+            <code style={{ fontFamily: "ui-monospace, monospace" }}>{"{ \"primary\": \"#6d28d9\", \"fontBody\": \"Inter\" }"}</code>.
+            Block token sets (an array) go in the Blocks tab; a full theme preset goes in the Builder tab.
+          </div>
           <textarea
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}

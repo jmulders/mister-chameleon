@@ -33,23 +33,42 @@ export function detectTokenPayloadKind(parsed: unknown): TokenPayloadKind {
   return "unknown";
 }
 
-/** Human-readable redirect message for a payload that landed in the wrong box. */
-export function wrongBoxMessage(kind: TokenPayloadKind, expected: "array" | "tokens"): string | null {
-  if (expected === "array") {
-    if (kind === "preset") {
-      return "This looks like a design preset (theme + color/typography groups). Import it via Design → Style → “Importeer JSON”, or just apply it from the Preset gallery — not here. This box expects an array of named block token sets.";
-    }
-    if (kind === "tokens") {
-      return "This looks like a single Site design tokens object. Paste it in the “Site design tokens” panel above. This box expects an array of named sets: [{ key, name, tokens }].";
-    }
-  }
-  if (expected === "tokens") {
-    if (kind === "array") {
-      return "This looks like a Block token sets list (an array). Paste it in the “Block token sets (overrides)” panel below. This box expects a single tokens object: { primary: \"#…\", … }.";
-    }
-    if (kind === "preset") {
-      return "This looks like a design preset. Import it via Design → Style → “Importeer JSON”, or apply it from the Preset gallery. This box expects a single flat tokens object, not grouped preset sections.";
-    }
-  }
-  return null;
+/** Which of the three import boxes the file was dropped into. */
+export type ExpectedBox = "array" | "tokens" | "preset";
+
+/** Plain-language name for a detected payload, for use in messages. */
+const KIND_LABEL: Record<TokenPayloadKind, string> = {
+  array:   "a block token sets list (a JSON array)",
+  preset:  "a theme preset (theme plus color/typography groups)",
+  tokens:  "a single site design tokens object (flat key/value)",
+  unknown: "an unrecognised JSON shape",
+};
+
+/** Where each box lives, so a wrong-box message can point the right way. */
+const BOX_HOME: Record<ExpectedBox, string> = {
+  tokens: "the Advanced tab (Site design tokens)",
+  array:  "the Blocks tab (Block token sets)",
+  preset: "the Builder tab (Import theme preset)",
+};
+
+/** What each box expects, for the tail of a wrong-box message. */
+const BOX_EXPECTS: Record<ExpectedBox, string> = {
+  tokens: "a single flat tokens object: { \"primary\": \"#...\", ... }",
+  array:  "an array of named sets: [{ \"key\", \"name\", \"tokens\" }]",
+  preset: "a full theme preset with color/typography groups (our preset JSON or a Figma/DTCG export)",
+};
+
+/**
+ * Human-readable redirect message for a payload that landed in the wrong box.
+ * Returns null when the detected kind already matches the expected box (or is
+ * unrecognised), so the caller can fall through to its own validation. Admin
+ * copy: English, no em-dashes.
+ */
+export function wrongBoxMessage(kind: TokenPayloadKind, expected: ExpectedBox): string | null {
+  if (kind === "unknown" || kind === expected) return null;
+  const rightHome = BOX_HOME[kind as ExpectedBox];
+  return (
+    `This looks like ${KIND_LABEL[kind]}. Import it in ${rightHome}. ` +
+    `This box expects ${BOX_EXPECTS[expected]}.`
+  );
 }
