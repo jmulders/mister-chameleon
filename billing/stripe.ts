@@ -34,6 +34,7 @@
  */
 
 import Stripe                          from "stripe";
+import { createClient }                from "@supabase/supabase-js";
 import type { SupabaseClient }          from "@supabase/supabase-js";
 import { getPlan, BILLING_PLANS, CREDIT_BUNDLES, getResolvedPlanStripePriceId } from "./plans";
 import { addCredits, isSchemaMissingCode }        from "./usage";
@@ -590,6 +591,44 @@ export async function recordWebhookEvent(
       stripeEventId,
       ...serializeError(err),
     });
+  }
+}
+
+/**
+ * Stripe webhook health signal for the admin integrations page.
+ *
+ * Counts recently-recorded `livemode_mismatch` events. A non-zero count means
+ * Stripe events are arriving whose livemode does not match the platform's
+ * resolved mode — almost always LIVE subscription events hitting a platform that
+ * is still configured with TEST keys, so live billing is silently not processed.
+ * (The webhook route now records these instead of dropping them, so this lights
+ * up the moment it happens rather than hiding a stalled subscription for weeks.)
+ */
+export async function getStripeWebhookHealth(): Promise<{
+  mismatchCount:        number;
+  lastMismatchAt:       string | null;
+  lastMismatchLivemode: boolean | null;
+}> {
+  const empty = { mismatchCount: 0, lastMismatchAt: null, lastMismatchLivemode: null };
+  const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !key) return empty;
+  try {
+    const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data } = await client
+      .from("wallet_webhook_events")
+      .select("received_at, livemode")
+      .eq("action", "livemode_mismatch")
+      .order("received_at", { ascending: false })
+      .limit(100);
+    const rows = (data ?? []) as Array<{ received_at: string | null; livemode: boolean | null }>;
+    return {
+      mismatchCount:        rows.length,
+      lastMismatchAt:       rows[0]?.received_at ?? null,
+      lastMismatchLivemode: rows[0]?.livemode ?? null,
+    };
+  } catch {
+    return empty;
   }
 }
 

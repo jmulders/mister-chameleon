@@ -38,12 +38,34 @@
 import Link                               from "next/link";
 import { getStripePlatformSettingsAction } from "./actions";
 import { StripePlatformClient }           from "./_components/StripePlatformClient";
+import { getStripeWebhookHealth }         from "@/billing/stripe";
 
 export default async function IntegrationsStripePage() {
   const result = await getStripePlatformSettingsAction();
+  const health = await getStripeWebhookHealth();
+
+  const mismatchDate = health.lastMismatchAt
+    ? new Date(health.lastMismatchAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <div className="mx-auto max-w-xl space-y-5 p-8">
+
+      {/* Live/test mode mismatch warning — live events arriving on test keys (or
+          vice versa) are being rejected, so that billing is not being processed. */}
+      {health.mismatchCount > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Stripe events are being rejected on a live/test mode mismatch</p>
+          <p className="mt-1 text-amber-800">
+            {health.mismatchCount} recent event{health.mismatchCount === 1 ? "" : "s"} did not match the platform&apos;s
+            configured mode{mismatchDate ? ` (most recent ${mismatchDate})` : ""}.
+            {health.lastMismatchLivemode
+              ? " These are LIVE Stripe events arriving while the platform is configured with TEST keys, so live subscriptions and payments are not being tracked."
+              : " These are TEST events arriving while the platform is configured with LIVE keys."}
+            {" "}Fix the credentials below to match, and register a matching webhook endpoint in Stripe.
+          </p>
+        </div>
+      )}
 
       {/* Page header */}
       <div>
