@@ -128,9 +128,51 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
   }
 
   const fieldCount = Object.keys(tokens).length;
+  const sampleTokens = Object.entries(tokens).slice(0, 6);
 
   return (
     <div>
+      {/* Currently applied — what site tokens are set right now, with the
+          existing Clear all action reused for one-click removal. */}
+      <div style={{
+        marginBottom: "1rem", padding: "0.85rem 1rem", borderRadius: "0.625rem",
+        border: "1px solid #e5e7eb", background: "#fff",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "0.6875rem", fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "#94a3b8" }}>
+            Currently applied
+          </span>
+          <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#374151" }}>
+            {fieldCount > 0 ? `${fieldCount} site design token${fieldCount === 1 ? "" : "s"}` : "No site tokens set"}
+          </span>
+          <div style={{ flex: 1 }} />
+          {fieldCount > 0 && (
+            <button type="button" onClick={clearAll} style={btnStyle("danger")}>Clear all</button>
+          )}
+        </div>
+        {sampleTokens.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            {sampleTokens.map(([k, v]) => (
+              <span key={k} style={{
+                display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.6875rem",
+                padding: "2px 8px", borderRadius: 999, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#4b5563",
+                fontFamily: "ui-monospace, monospace",
+              }}>
+                {isColorish(v) && (
+                  <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: v, border: "1px solid rgba(0,0,0,.1)" }} />
+                )}
+                {k}: {v}
+              </span>
+            ))}
+            {fieldCount > sampleTokens.length && (
+              <span style={{ fontSize: "0.6875rem", color: "#94a3b8", alignSelf: "center" }}>
+                +{fieldCount - sampleTokens.length} more
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Toolbar */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem", alignItems: "center" }}>
         <button type="button" onClick={applyFullAurora} disabled={pending} style={btnStyle("primary", pending)}>
