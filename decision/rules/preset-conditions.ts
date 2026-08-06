@@ -176,7 +176,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "customer_onboarding",
-    label: "Customer — Onboarding",
+    label: "Customer, Onboarding",
     icon:  "🎉",
     group: "generic",
     logic: "and",
@@ -188,7 +188,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "customer_expansion",
-    label: "Customer — Expansion",
+    label: "Customer, Expansion",
     icon:  "📈",
     group: "generic",
     logic: "and",
@@ -236,7 +236,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "careers_new_visitor",
-    label: "Careers — Nieuw bezoek",
+    label: "Careers, Nieuw bezoek",
     icon:  "👋",
     group: "careers",
     logic: "and",
@@ -248,7 +248,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "careers_explorer",
-    label: "Careers — Vacature-verkenner",
+    label: "Careers, Vacature-verkenner",
     icon:  "🔍",
     group: "careers",
     logic: "and",
@@ -260,7 +260,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "careers_job_interest",
-    label: "Careers — Functie-interesse",
+    label: "Careers, Functie-interesse",
     icon:  "💼",
     group: "careers",
     logic: "and",
@@ -272,7 +272,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "careers_high_intent",
-    label: "Careers — Hoge sollicitatie-intentie",
+    label: "Careers, Hoge sollicitatie-intentie",
     icon:  "🔥",
     group: "careers",
     logic: "and",
@@ -284,7 +284,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "careers_drop_off",
-    label: "Careers — Formulier drop-off",
+    label: "Careers, Formulier drop-off",
     icon:  "📝",
     group: "careers",
     logic: "and",
@@ -297,7 +297,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "careers_submitted",
-    label: "Careers — Sollicitatie ingediend",
+    label: "Careers, Sollicitatie ingediend",
     icon:  "✅",
     group: "careers",
     logic: "and",
@@ -325,7 +325,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_pricing",
-    label: "Interest — Pricing Research",
+    label: "Interest, Pricing Research",
     icon:  "💰",
     group: "interest",
     logic: "and",
@@ -337,7 +337,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_pricing_strong",
-    label: "Interest — Pricing (Strong Signal)",
+    label: "Interest, Pricing (Strong Signal)",
     icon:  "💳",
     group: "interest",
     logic: "and",
@@ -349,7 +349,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_product",
-    label: "Interest — Product Features",
+    label: "Interest, Product Features",
     icon:  "⚙️",
     group: "interest",
     logic: "and",
@@ -361,7 +361,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_use_case",
-    label: "Interest — Use Cases / Case Studies",
+    label: "Interest, Use Cases / Case Studies",
     icon:  "📋",
     group: "interest",
     logic: "and",
@@ -373,7 +373,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_technical",
-    label: "Interest — Technical / Developer",
+    label: "Interest, Technical / Developer",
     icon:  "🛠️",
     group: "interest",
     logic: "and",
@@ -385,7 +385,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_trust",
-    label: "Interest — Trust / Security / Compliance",
+    label: "Interest, Trust / Security / Compliance",
     icon:  "🔒",
     group: "interest",
     logic: "and",
@@ -397,7 +397,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_roi",
-    label: "Interest — ROI / Business Case",
+    label: "Interest, ROI / Business Case",
     icon:  "📊",
     group: "interest",
     logic: "and",
@@ -409,7 +409,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_comparison",
-    label: "Interest — Comparing Competitors",
+    label: "Interest, Comparing Competitors",
     icon:  "⚖️",
     group: "interest",
     logic: "and",
@@ -421,7 +421,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_high_confidence",
-    label: "Interest — Any Strong Primary Interest",
+    label: "Interest, Any Strong Primary Interest",
     icon:  "🎯",
     group: "interest",
     logic: "and",
@@ -433,7 +433,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_pricing_technical",
-    label: "Interest — Pricing + Technical (Evaluator)",
+    label: "Interest, Pricing + Technical (Evaluator)",
     icon:  "🔬",
     group: "interest",
     logic: "and",
@@ -446,7 +446,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_candidate",
-    label: "Interest — Careers / Job Candidate",
+    label: "Interest, Careers / Job Candidate",
     icon:  "🎓",
     group: "interest",
     logic: "and",
@@ -458,7 +458,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_candidate_high_intent",
-    label: "Interest — Candidate High Intent",
+    label: "Interest, Candidate High Intent",
     icon:  "🏆",
     group: "interest",
     logic: "and",
@@ -470,7 +470,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_commerce_product",
-    label: "Interest — Product / Shop Intent",
+    label: "Interest, Product / Shop Intent",
     icon:  "🛍️",
     group: "interest",
     logic: "and",
@@ -481,7 +481,7 @@ export const PRESET_CONDITIONS: PresetConditionDef[] = [
 
   {
     key:   "interest_property",
-    label: "Interest — Property / Real Estate",
+    label: "Interest, Property / Real Estate",
     icon:  "🏠",
     group: "interest",
     logic: "and",

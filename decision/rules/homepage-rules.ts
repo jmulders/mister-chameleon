@@ -129,7 +129,7 @@ const LINKEDIN_RULE: HomepageRule = {
 const RETURNING_CTA_CLICKED_RULE: HomepageRule = {
   id: "homepage.returning_cta_clicked",
   priority: 5,
-  label: "Returning visitor — CTA previously clicked",
+  label: "Returning visitor, CTA previously clicked",
   match: (ctx) =>
     ctx.history.fromDatabase === true && ctx.history.hasClickedCta === true,
   plan: {
@@ -137,7 +137,7 @@ const RETURNING_CTA_CLICKED_RULE: HomepageRule = {
     proofKey: "proof_cases",
     ctaKey: "cta_meeting",
   },
-  reason: "Returning visitor who previously clicked CTA — escalated to meeting intent.",
+  reason: "Returning visitor who previously clicked CTA, escalated to meeting intent.",
 };
 
 /**
@@ -163,7 +163,7 @@ const HIGH_ENGAGEMENT_RULE: HomepageRule = {
     proofKey: "proof_vision",
     ctaKey: "cta_meeting",
   },
-  reason: "Highly engaged returning visitor (3+ page views) — platform-confidence experience.",
+  reason: "Highly engaged returning visitor (3+ page views), platform-confidence experience.",
 };
 
 // ── Interest-profile rules (medium_segmentation tier: 30–37) ─────────────────
@@ -198,7 +198,7 @@ const INTEREST_PRICING_RULE: HomepageRule = {
     proofKey: "proof_stats",
     ctaKey:   "cta_meeting",
   },
-  reason: "Visitor's primary interest profile is 'pricing' — show intent-direct hero with ROI proof.",
+  reason: "Visitor's primary interest profile is 'pricing', show intent-direct hero with ROI proof.",
 };
 
 const INTEREST_PRODUCT_RULE: HomepageRule = {
@@ -211,7 +211,7 @@ const INTEREST_PRODUCT_RULE: HomepageRule = {
     proofKey: "proof_cases",
     ctaKey:   "cta_platform",
   },
-  reason: "Visitor's primary interest is 'product' — show consideration hero with case-study proof.",
+  reason: "Visitor's primary interest is 'product', show consideration hero with case-study proof.",
 };
 
 const INTEREST_USE_CASE_RULE: HomepageRule = {
@@ -224,7 +224,7 @@ const INTEREST_USE_CASE_RULE: HomepageRule = {
     proofKey: "proof_cases",
     ctaKey:   "cta_guide",
   },
-  reason: "Visitor's primary interest is 'use-case' — show consideration hero with case-study proof and guide CTA.",
+  reason: "Visitor's primary interest is 'use-case', show consideration hero with case-study proof and guide CTA.",
 };
 
 const INTEREST_TRUST_RULE: HomepageRule = {
@@ -237,7 +237,7 @@ const INTEREST_TRUST_RULE: HomepageRule = {
     proofKey: "proof_vision",
     ctaKey:   "cta_guide",
   },
-  reason: "Visitor's primary interest is 'trust' — show brand credibility with vision-level proof.",
+  reason: "Visitor's primary interest is 'trust', show brand credibility with vision-level proof.",
 };
 
 const INTEREST_TECHNICAL_RULE: HomepageRule = {
@@ -250,7 +250,7 @@ const INTEREST_TECHNICAL_RULE: HomepageRule = {
     proofKey: "proof_platform",
     ctaKey:   "cta_platform",
   },
-  reason: "Visitor's primary interest is 'technical' — lead with problem-solution and platform proof.",
+  reason: "Visitor's primary interest is 'technical', lead with problem-solution and platform proof.",
 };
 
 const INTEREST_CANDIDATE_RULE: HomepageRule = {
@@ -263,7 +263,7 @@ const INTEREST_CANDIDATE_RULE: HomepageRule = {
     proofKey: "proof_careers_default",
     ctaKey:   "cta_careers_browse",
   },
-  reason: "Visitor's primary interest is 'candidate' — activate careers experience.",
+  reason: "Visitor's primary interest is 'candidate', activate careers experience.",
 };
 
 const INTEREST_COMMERCE_PRODUCT_RULE: HomepageRule = {
@@ -276,7 +276,7 @@ const INTEREST_COMMERCE_PRODUCT_RULE: HomepageRule = {
     proofKey: "proof_cases",
     ctaKey:   "cta_demo",
   },
-  reason: "Visitor's primary interest is 'commerce-product' — show product-consideration experience.",
+  reason: "Visitor's primary interest is 'commerce-product', show product-consideration experience.",
 };
 
 const INTEREST_PROPERTY_RULE: HomepageRule = {
@@ -289,7 +289,7 @@ const INTEREST_PROPERTY_RULE: HomepageRule = {
     proofKey: "proof_platform",
     ctaKey:   "cta_demo",
   },
-  reason: "Visitor's primary interest is 'property' — show platform-consideration experience.",
+  reason: "Visitor's primary interest is 'property', show platform-consideration experience.",
 };
 
 // ── Ordered rule set ──────────────────────────────────────────────────────────
