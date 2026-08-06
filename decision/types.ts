@@ -87,6 +87,8 @@ export type HeroVariantKey =
   | "hero_consideration"
   | "hero_intent_direct"
   | "hero_customer_onboarding"
+  // Vertical service-CTA blueprint (service-led businesses, e.g. Cluistra)
+  | "hero_service"
   // B2B SaaS blueprint
   | "hero_saas_default"
   | "hero_saas_consideration"
@@ -171,6 +173,8 @@ export type ProofVariantKey =
   | "proof_platform"
   | "proof_stats"
   | "proof_reassurance"
+  // Vertical service-CTA blueprint (service-led businesses, e.g. Cluistra)
+  | "proof_service"
   // B2B SaaS blueprint
   | "proof_saas_default"
   | "proof_saas_consideration"
@@ -230,6 +234,8 @@ export type CTAVariantKey =
   | "cta_demo"
   | "cta_onboarding"
   | "cta_expansion"
+  // Vertical service-CTA blueprint (service-led businesses, e.g. Cluistra)
+  | "cta_service"
   // B2B SaaS blueprint
   | "cta_saas_default"
   | "cta_saas_demo"
@@ -280,7 +286,9 @@ export const CTA_VARIANT_KEYS: readonly CTAVariantKey[] = [
 export type FeatureVariantKey =
   | "feature_grid_primary"
   | "feature_highlights"
-  | "feature_comparison";
+  | "feature_comparison"
+  // Vertical service-CTA blueprint (service-led businesses, e.g. Cluistra)
+  | "feature_service";
 
 /**
  * Runtime tuple of all valid feature variant key strings.
@@ -289,6 +297,7 @@ export const FEATURE_VARIANT_KEYS: readonly FeatureVariantKey[] = [
   "feature_grid_primary",
   "feature_highlights",
   "feature_comparison",
+  "feature_service",
 ] as const;
 
 // ── Notification variant keys ─────────────────────────────────────────────────
