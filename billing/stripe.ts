@@ -34,10 +34,17 @@
  */
 
 import Stripe                          from "stripe";
+import { createClient }                from "@supabase/supabase-js";
 import type { SupabaseClient }          from "@supabase/supabase-js";
 import { getPlan, BILLING_PLANS, CREDIT_BUNDLES, getResolvedPlanStripePriceId } from "./plans";
 import { addCredits, isSchemaMissingCode }        from "./usage";
 import { syncPackageKeyFromPlan }                 from "./subscriptions";
+import {
+  markTenantPastDue,
+  markTenantUnpaid,
+  sendDunningEmail,
+  getTenantDunningSettings,
+}                                                 from "./dunning";
 import { serializeError }              from "./errors";
 import {
   getStripeClient,
@@ -588,6 +595,44 @@ export async function recordWebhookEvent(
 }
 
 /**
+ * Stripe webhook health signal for the admin integrations page.
+ *
+ * Counts recently-recorded `livemode_mismatch` events. A non-zero count means
+ * Stripe events are arriving whose livemode does not match the platform's
+ * resolved mode — almost always LIVE subscription events hitting a platform that
+ * is still configured with TEST keys, so live billing is silently not processed.
+ * (The webhook route now records these instead of dropping them, so this lights
+ * up the moment it happens rather than hiding a stalled subscription for weeks.)
+ */
+export async function getStripeWebhookHealth(): Promise<{
+  mismatchCount:        number;
+  lastMismatchAt:       string | null;
+  lastMismatchLivemode: boolean | null;
+}> {
+  const empty = { mismatchCount: 0, lastMismatchAt: null, lastMismatchLivemode: null };
+  const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !key) return empty;
+  try {
+    const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data } = await client
+      .from("wallet_webhook_events")
+      .select("received_at, livemode")
+      .eq("action", "livemode_mismatch")
+      .order("received_at", { ascending: false })
+      .limit(100);
+    const rows = (data ?? []) as Array<{ received_at: string | null; livemode: boolean | null }>;
+    return {
+      mismatchCount:        rows.length,
+      lastMismatchAt:       rows[0]?.received_at ?? null,
+      lastMismatchLivemode: rows[0]?.livemode ?? null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/**
  * Handle a Stripe webhook event.
  *
  * Idempotent — safe to call multiple times with the same event.
@@ -596,6 +641,42 @@ export async function recordWebhookEvent(
  * The caller (webhook route) is responsible for calling recordWebhookEvent()
  * with the result so the audit log stays current.
  */
+/**
+ * Resolve the tenant a Stripe subscription belongs to.
+ *
+ * Prefers the `tenant_id` stamped into the subscription metadata at creation.
+ * Falls back to a lookup in our `subscriptions` table by stripe_subscription_id,
+ * then stripe_customer_id. The fallback recovers subscriptions created before the
+ * metadata was stamped (e.g. legacy trial-signup subs, where the tenant slug was
+ * only minted inside the webhook AFTER the subscription existed) so their
+ * lifecycle events stop silently no-op-ing.
+ *
+ * Also returns the existing stored plan, so callers can preserve it when the
+ * event carries no `plan_id` metadata instead of clobbering it to "starter".
+ */
+async function resolveTenantForSub(
+  client: SupabaseClient,
+  sub:    { id?: string | null; customer?: string | null; metadata?: Record<string, string | undefined> | null },
+): Promise<{ tenantId: string; existingPlan: string | null } | null> {
+  const metaTenant = sub.metadata?.tenant_id ?? null;
+  if (metaTenant) {
+    const { data } = await client
+      .from("subscriptions").select("plan").eq("tenant_id", metaTenant).maybeSingle();
+    return { tenantId: metaTenant, existingPlan: (data?.plan as string | null) ?? null };
+  }
+  if (sub.id) {
+    const { data } = await client
+      .from("subscriptions").select("tenant_id, plan").eq("stripe_subscription_id", sub.id).maybeSingle();
+    if (data?.tenant_id) return { tenantId: data.tenant_id as string, existingPlan: (data.plan as string | null) ?? null };
+  }
+  if (sub.customer) {
+    const { data } = await client
+      .from("subscriptions").select("tenant_id, plan").eq("stripe_customer_id", sub.customer).maybeSingle();
+    if (data?.tenant_id) return { tenantId: data.tenant_id as string, existingPlan: (data.plan as string | null) ?? null };
+  }
+  return null;
+}
+
 export async function handleStripeWebhook(
   client:         SupabaseClient,
   event:          Stripe.Event,
@@ -760,6 +841,21 @@ export async function handleStripeWebhook(
           if (subErr) {
             console.error("[stripe-webhook] trial_signup: subscriptions upsert failed:", subErr.message);
           }
+
+          // Stamp tenant_id + plan_id onto the Stripe subscription so ALL future
+          // lifecycle webhooks (subscription.updated on trial conversion,
+          // invoice.*) can resolve the tenant. The slug is only minted here,
+          // AFTER Stripe created the subscription, so without this back-stamp the
+          // subscription is orphaned from its own events and the trial→active /
+          // dunning transitions silently no-op. Non-fatal on failure — the DB row
+          // exists and resolveTenantForSub() also falls back to a sub-id lookup.
+          try {
+            await stripeAny().subscriptions.update(subId, {
+              metadata: { tenant_id: tenantId, plan_id, type: "trial_signup" },
+            });
+          } catch (metaErr) {
+            console.warn("[stripe-webhook] trial_signup: failed to stamp subscription metadata", metaErr);
+          }
         } else {
           console.warn("[stripe-webhook] trial_signup: no customerId or subId on session, subscription row not created", { customerId, subId });
         }
@@ -858,10 +954,11 @@ export async function handleStripeWebhook(
 
     case "customer.subscription.created": {
       const sub      = event.data.object as unknown as StripeSubscription;
-      const tenantId = sub.metadata?.tenant_id ?? null;
-      if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const resolved = await resolveTenantForSub(client, sub);
+      if (!resolved) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const tenantId = resolved.tenantId;
 
-      const planId = sub.metadata?.plan_id ?? "starter";
+      const planId = sub.metadata?.plan_id ?? resolved.existingPlan ?? "starter";
       const period = subscriptionPeriod(sub);
       await upsertSubscription(client, tenantId, {
         stripe_customer_id:     sub.customer,
@@ -884,10 +981,11 @@ export async function handleStripeWebhook(
 
     case "customer.subscription.updated": {
       const sub      = event.data.object as unknown as StripeSubscription;
-      const tenantId = sub.metadata?.tenant_id ?? null;
-      if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const resolved = await resolveTenantForSub(client, sub);
+      if (!resolved) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const tenantId = resolved.tenantId;
 
-      const planId = sub.metadata?.plan_id ?? "starter";
+      const planId = sub.metadata?.plan_id ?? resolved.existingPlan ?? "starter";
       const period = subscriptionPeriod(sub);
       await upsertSubscription(client, tenantId, {
         stripe_customer_id:     sub.customer,
@@ -946,8 +1044,9 @@ export async function handleStripeWebhook(
 
     case "customer.subscription.deleted": {
       const sub      = event.data.object as unknown as StripeSubscription;
-      const tenantId = sub.metadata?.tenant_id ?? null;
-      if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const resolved = await resolveTenantForSub(client, sub);
+      if (!resolved) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const tenantId = resolved.tenantId;
 
       await client
         .from("subscriptions")
@@ -968,8 +1067,9 @@ export async function handleStripeWebhook(
       if (!subRef) return { handled: false, action: "no_subscription", tenantId: null };
 
       const stripeObj = await stripeAny().subscriptions.retrieve(subRef) as StripeSubscription;
-      const tenantId  = stripeObj.metadata?.tenant_id ?? null;
-      if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const resolved  = await resolveTenantForSub(client, stripeObj);
+      if (!resolved) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const tenantId  = resolved.tenantId;
 
       const period = subscriptionPeriod(stripeObj);
       await upsertSubscription(client, tenantId, {
@@ -994,8 +1094,9 @@ export async function handleStripeWebhook(
       if (!subRef) return { handled: false, action: "no_subscription", tenantId: null };
 
       const stripeObj = await stripeAny().subscriptions.retrieve(subRef) as StripeSubscription;
-      const tenantId  = stripeObj.metadata?.tenant_id ?? null;
-      if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const resolved  = await resolveTenantForSub(client, stripeObj);
+      if (!resolved) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const tenantId  = resolved.tenantId;
 
       // ── Apply pending plan switch if this is the start of a new period ────────
 
@@ -1057,22 +1158,43 @@ export async function handleStripeWebhook(
       if (!subRef) return { handled: false, action: "no_subscription", tenantId: null };
 
       const stripeObj = await stripeAny().subscriptions.retrieve(subRef) as StripeSubscription;
-      const tenantId  = stripeObj.metadata?.tenant_id ?? null;
-      if (!tenantId) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const resolved  = await resolveTenantForSub(client, stripeObj);
+      if (!resolved) return { handled: false, action: "no_tenant_id", tenantId: null };
+      const tenantId  = resolved.tenantId;
 
-      await client
-        .from("subscriptions")
-        .update({ status: "past_due" })
-        .eq("tenant_id", tenantId);
-
-      // If Stripe has exhausted all retries and marked the subscription "unpaid",
-      // disable the tenant to prevent further API usage until payment is resolved.
+      // Stripe exhausted all retries and marked the subscription "unpaid" →
+      // block service until payment is resolved.
       if (stripeObj.status === "unpaid") {
+        await markTenantUnpaid(client, tenantId);
         await client
           .from("tenant_settings")
           .update({ is_active_override: false })
           .eq("tenant_id", tenantId);
         return { handled: true, action: "subscription_unpaid_tenant_disabled", tenantId };
+      }
+
+      // First / retrying failure → past_due. Previously this only set
+      // status=past_due, so payment_due_since stayed null and no dunning email
+      // ever fired for Stripe-backed subs (the cron only duns manually-charged
+      // ones). markTenantPastDue sets payment_due_since (idempotent) and
+      // sendDunningEmail sends once (guarded by dunning_email_sent_at), closing
+      // the gap so quarantine escalation and the email actually run.
+      await markTenantPastDue(client, tenantId);
+      try {
+        const planId      = resolved.existingPlan ?? stripeObj.metadata?.plan_id ?? "starter";
+        const planLabel   = planId.charAt(0).toUpperCase() + planId.slice(1);
+        const amountCents = typeof invoice.amount_due === "number" ? invoice.amount_due : 0;
+        const settings    = await getTenantDunningSettings(client, tenantId);
+        const dueSince    = new Date();
+        const quarantineEnd = new Date(dueSince.getTime() + settings.quarantine_days * 24 * 60 * 60 * 1000);
+        await sendDunningEmail(client, tenantId, {
+          planName:      planLabel,
+          amountCents,
+          dueDate:       dueSince.toISOString(),
+          quarantineEnd: quarantineEnd.toISOString(),
+        });
+      } catch (dunningErr) {
+        console.error(`[billing/stripe] dunning steps failed for tenant "${tenantId}":`, dunningErr);
       }
 
       return { handled: true, action: "subscription_past_due", tenantId };

@@ -94,20 +94,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  // ── 4. Validate livemode vs resolved mode ────────────────────────────────────
-  //
-  // mode is inferred from the publishable key prefix (pk_test_ → test).
-  // Reject events whose livemode doesn't match to prevent data contamination.
-
-  const expectedLive = mode === "live";
-  if (event.livemode !== expectedLive) {
-    const modeError = `livemode_mismatch: event.livemode=${event.livemode} but resolved mode=${mode}`;
-    console.error(`[stripe-webhook] ${modeError}`, { eventId: event.id, eventType: event.type });
-    // Return 200 so Stripe stops retrying — this is a config mismatch, not transient.
-    return NextResponse.json({ received: true, error: modeError, action: "livemode_mismatch" });
-  }
-
   // ── 4. Initialise Supabase ──────────────────────────────────────────────────
+  //
+  // Created BEFORE the livemode check so a mismatch can still be recorded for
+  // admin visibility (see below) instead of vanishing.
 
   const supabaseUrl  = process.env["NEXT_PUBLIC_SUPABASE_URL"];
   const supabaseSrvc = process.env["SUPABASE_SERVICE_ROLE_KEY"];
@@ -120,6 +110,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const client = createClient(supabaseUrl, supabaseSrvc, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // ── 5. Validate livemode vs resolved mode ────────────────────────────────────
+  //
+  // mode is inferred from the publishable key prefix (pk_test_ → test).
+  // Reject events whose livemode doesn't match to prevent data contamination.
+  // Crucially we RECORD the mismatch (rather than dropping it silently): a live
+  // subscription's events arriving while the platform is in test mode is exactly
+  // the failure that hid a stalled trial for a month. Recording it makes the
+  // admin health check below light up. Still returns 200 so Stripe stops
+  // retrying — this is a config mismatch, not a transient error.
+
+  const expectedLive = mode === "live";
+  if (event.livemode !== expectedLive) {
+    const modeError = `livemode_mismatch: event.livemode=${event.livemode} but resolved mode=${mode}`;
+    console.error(`[stripe-webhook] ${modeError}`, { eventId: event.id, eventType: event.type });
+    await recordWebhookEvent(client, event.id, event.type, event.livemode, null, false, "livemode_mismatch", modeError);
+    return NextResponse.json({ received: true, error: modeError, action: "livemode_mismatch" });
+  }
 
   // ── 5. Handle event ─────────────────────────────────────────────────────────
 
