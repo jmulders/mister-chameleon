@@ -14,7 +14,6 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image                                         from "next/image";
 import type { TenantAsset }                          from "@/lib/assets/tenant-assets";
 import type { PickerUploadResult }                   from "@/lib/assets/upload-for-picker-action";
 
@@ -327,13 +326,21 @@ export function AssetPickerModal({
                         >
                           <div className="relative w-full aspect-square bg-neutral-100">
                             {asset.mimeType?.startsWith("image/") ? (
-                              <Image
+                              /* Tenant assets can live on ANY host (Supabase
+                                 Storage, R2, external). next/image's remotePatterns
+                                 allowlist would reject non-configured hosts and
+                                 render a broken image — and it freezes animated
+                                 GIFs to their first frame. A plain <img> shows
+                                 every host and preserves animation, which is what
+                                 an admin thumbnail needs (same approach as the
+                                 external-URL preview below). */
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
                                 src={asset.publicUrl}
                                 alt={asset.altText ?? asset.fileName}
-                                fill
-                                className="object-cover"
-                                sizes="128px"
-                                unoptimized={asset.publicUrl.includes(".svg")}
+                                loading="lazy"
+                                decoding="async"
+                                className="absolute inset-0 h-full w-full object-cover"
                               />
                             ) : asset.mimeType?.startsWith("video/") ? (
                               <div className="flex flex-col items-center justify-center h-full gap-1 bg-neutral-900">
