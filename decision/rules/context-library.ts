@@ -153,7 +153,7 @@ export const CONTEXT_REGISTRY: Readonly<Record<string, ContextDefinition>> = {
   ctx_direct_traffic: {
     id:          "ctx_direct_traffic",
     label:       "Direct / unattributed traffic",
-    description: "Visitor has no detectable traffic source — typed the URL directly or attribution was stripped.",
+    description: "Visitor has no detectable traffic source, typed the URL directly or attribution was stripped.",
     tags:        ["traffic", "source"],
     condition:   { type: "group", logic: "or", conditions: [
       { type: "field", field: "source", operator: "not_exists" },
@@ -182,14 +182,14 @@ export const CONTEXT_REGISTRY: Readonly<Record<string, ContextDefinition>> = {
   ctx_returning_visitor: {
     id:          "ctx_returning_visitor",
     label:       "Returning visitor",
-    description: "Visitor has been seen before — session history record exists.",
+    description: "Visitor has been seen before, session history record exists.",
     tags:        ["visitor", "history"],
     condition:   { type: "field", field: "visitType", operator: "equals", value: "returning" },
   },
 
   ctx_returning_cta_clicked: {
     id:          "ctx_returning_cta_clicked",
-    label:       "Returning visitor — CTA previously clicked",
+    label:       "Returning visitor, CTA previously clicked",
     description: "Returning visitor whose session history shows they previously clicked a CTA on this tenant's site. Requires database-backed history.",
     tags:        ["visitor", "history", "engagement", "intent"],
     condition:   { type: "named", name: "returning_cta_clicked" },

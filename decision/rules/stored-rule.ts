@@ -141,7 +141,7 @@ export type ConditionField = RuleFieldKey;
  */
 export const NAMED_CONDITIONS = {
   returning_cta_clicked: {
-    label:       "Returning visitor — CTA previously clicked",
+    label:       "Returning visitor, CTA previously clicked",
     description: "Fires when the visitor's DB history shows hasClickedCta = true. Requires history to be loaded from the database.",
   },
   high_engagement: {
@@ -1594,7 +1594,7 @@ export const SEED_RULES_CONFIG: StoredRulesConfig = {
       priority:        5,
       precedenceLevel: "hard_state",
       packId:          "pack_behaviour",
-      label:           "Returning visitor — CTA previously clicked",
+      label:           "Returning visitor, CTA previously clicked",
       // Migrated: was { type: "named", name: "returning_cta_clicked" }
       condition:       { type: "context", contextId: "ctx_returning_cta_clicked" },
       plan: {
@@ -1602,7 +1602,7 @@ export const SEED_RULES_CONFIG: StoredRulesConfig = {
         proofKey: "proof_cases",
         ctaKey:   "cta_meeting",
       },
-      reason: "Returning visitor who previously clicked CTA — escalated to meeting intent.",
+      reason: "Returning visitor who previously clicked CTA, escalated to meeting intent.",
       source: "system",
     },
     {
@@ -1618,7 +1618,7 @@ export const SEED_RULES_CONFIG: StoredRulesConfig = {
         proofKey: "proof_vision",
         ctaKey:   "cta_meeting",
       },
-      reason: "Highly engaged returning visitor (3+ page views) — platform-confidence experience.",
+      reason: "Highly engaged returning visitor (3+ page views), platform-confidence experience.",
       source: "system",
     },
     {
