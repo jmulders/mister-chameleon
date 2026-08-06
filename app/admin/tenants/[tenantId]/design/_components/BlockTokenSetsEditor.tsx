@@ -158,7 +158,7 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
           {showJson ? "Hide JSON" : "Import / export JSON"}
         </button>
         <label style={{ ...btnStyle("ghost"), display: "inline-flex", alignItems: "center" }}>
-          Upload JSON file
+          Import block token sets (JSON)
           <input
             type="file"
             accept="application/json,.json"
@@ -192,6 +192,11 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
       {/* JSON panel */}
       {showJson && (
         <div style={{ marginBottom: "1rem" }}>
+          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.4rem" }}>
+            Expects an array of named sets, for example{" "}
+            <code style={{ fontFamily: "ui-monospace, monospace" }}>{"[{ \"key\": \"cta\", \"name\": \"CTA\", \"tokens\": { \"primary\": \"#...\" } }]"}</code>.
+            A single flat tokens object goes in the Advanced tab; a full theme preset goes in the Builder tab.
+          </div>
           <textarea
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
