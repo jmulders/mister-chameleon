@@ -80,6 +80,35 @@ interface ContentRow {
   content:      Record<string, unknown>;
 }
 
+// ── CTA content normalisation ────────────────────────────────────────────────
+
+/** Raw CTA content as authored: a `ctas: [{label, href}]` array (like hero). */
+type RawCTAContent = CTABlockData & {
+  ctas?: ReadonlyArray<{ label?: string; href?: string } | null | undefined>;
+};
+
+/**
+ * Platform CTA content is authored with a `ctas` array (the same shape as hero),
+ * but CTABlockData — and every CTA consumer (TemplateRenderer reads
+ * `contextData.cta.cta`, the snippet's renderCta, and mapCTABlockData) — expects
+ * a single `cta: {label, href}`. Without this, a platform-hosted CTA block throws
+ * "Cannot read properties of undefined (reading 'href')".
+ *
+ * The Statamic provider normalises this (ctas[0] → cta); we mirror it here so
+ * platform-served CTA content renders. An explicit, complete singular `cta` on
+ * the row wins when present; otherwise it is derived from the first `ctas` entry.
+ */
+export function normalizePlatformCTAContent(doc: RawCTAContent): CTABlockData {
+  if (doc.cta && typeof doc.cta.label === "string" && typeof doc.cta.href === "string") {
+    return doc;
+  }
+  const primary = Array.isArray(doc.ctas) ? doc.ctas.find(Boolean) : undefined;
+  return {
+    ...doc,
+    cta: { label: primary?.label ?? "", href: primary?.href ?? "#" },
+  };
+}
+
 // ── PlatformCMSProvider ───────────────────────────────────────────────────────
 
 export class PlatformCMSProvider implements CMSProvider {
@@ -129,7 +158,8 @@ export class PlatformCMSProvider implements CMSProvider {
   }
 
   async getCTAVariant(key: string): Promise<CTABlockData | null> {
-    return this.fetchVariant<CTABlockData>("cta", key);
+    const doc = await this.fetchVariant<RawCTAContent>("cta", key);
+    return doc ? normalizePlatformCTAContent(doc) : null;
   }
 
   async getFeatureVariant(key: string): Promise<FeatureBlockData | null> {
