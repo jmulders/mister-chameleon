@@ -80,7 +80,7 @@ import { createClient }              from "@supabase/supabase-js";
 import { getTenantBySiteKey }        from "@/tenant/server";
 import { createCMSProvider }         from "@/cms";
 import { platformFirstVariants }     from "@/cms/providers/platform-first-variants";
-import { getDemoContextSet }         from "@/components/scenario/demo-context-sets";
+import { getDemoContextSet, getDemoNotifSet } from "@/components/scenario/demo-context-sets";
 import { resolveSession }            from "@/data/session";
 import { fetchVisitorHistory }       from "@/context/fetch-visitor-history";
 import { emptyHistory }              from "@/context/visitor-history";
@@ -205,6 +205,13 @@ interface DecideRequest {
      * lookup so every prospect sees their own site's personalised content.
      */
     _demoId?:       string;
+    /**
+     * Live-demo notification toggle (second axis alongside _demoScenario). Maps
+     * to a DEMO_NOTIF_SETS entry (e.g. "open" / "closed") whose notification
+     * variant is layered onto the mirror-demo slots. When the tenant has a notif
+     * set and this is absent, the first entry is used so the demo always shows one.
+     */
+    _demoNotif?:    string;
   };
 }
 
@@ -664,6 +671,16 @@ export async function POST(request: NextRequest) {
       ? demoContexts.map((c) => ({ key: c.key, label: c.label, sub: c.sub, icon: c.icon }))
       : undefined;
 
+    // Optional second axis: a time-driven notification the prospect can toggle.
+    // Defaults to the first entry so the demo always shows one.
+    const demoNotifs = getDemoNotifSet(tenantId);
+    const demoNotif = demoNotifs && demoNotifs.length > 0
+      ? (demoNotifs.find((n) => n.key === context._demoNotif) ?? demoNotifs[0])
+      : null;
+    const demoNotifList = demoNotifs
+      ? demoNotifs.map((n) => ({ key: n.key, label: n.label, sub: n.sub }))
+      : undefined;
+
     const bypassPlan = demoScenario ? DEMO_SCENARIO_PLANS[demoScenario] : undefined;
     if (bypassPlan) {
       try {
@@ -735,8 +752,14 @@ export async function POST(request: NextRequest) {
           if (conv.urgencyLabel) slots["conversion-urgency-label"] = conv.urgencyLabel;
         }
 
-        if (notificationData) {
-          const notif = notificationData as import("@/cms/types").NotificationBlockData;
+        // The demo notification (time axis) is layered on top of the context and
+        // wins over any notification the plan itself carried.
+        const notifResult = demoNotif
+          ? await variants.getNotificationVariant(demoNotif.notificationKey)
+          : notificationData;
+
+        if (notifResult) {
+          const notif = notifResult as import("@/cms/types").NotificationBlockData;
           if (notif.message)  slots["notification-message"]  = notif.message;
           if (notif.severity) slots["notification-severity"] = notif.severity;
           if (notif.ctaLabel) slots["notification-cta-label"] = notif.ctaLabel;
@@ -747,11 +770,19 @@ export async function POST(request: NextRequest) {
         logger.debug("[snippet/decide] Demo bypass", {
           tenantId,
           demoScenario,
+          demoNotif:    demoNotif?.key,
           slotCount:    Object.keys(slots).length,
         });
 
         return NextResponse.json(
-          { slots, _demo: true, _scenario: demoScenario, _demoContexts: demoContextList },
+          {
+            slots,
+            _demo: true,
+            _scenario: demoScenario,
+            _demoContexts: demoContextList,
+            _demoNotifs: demoNotifList,
+            _demoNotif: demoNotif?.key,
+          },
           { status: 200, headers: CORS_HEADERS },
         );
       } catch (err) {
