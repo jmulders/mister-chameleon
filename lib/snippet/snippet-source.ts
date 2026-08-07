@@ -125,6 +125,7 @@ export function buildSnippetSource(decideUrl: string): string {
 
   // Platform origin for cross-origin form-block submits.
   var mcFormsBase = ${JSON.stringify(platformOrigin)};
+  var mcDecideUrl = ${JSON.stringify(decideUrl)};
 
   // ── Form blocks: wire submit on an injected <form data-mc-form="key"> ────────
   // The form markup is rendered server-side (with the tenant theme + contextual
@@ -354,105 +355,193 @@ export function buildSnippetSource(decideUrl: string): string {
     }
   } catch(e) {}
 
-  // ── 4. Call decide endpoint ──────────────────────────────────────────────────
-  fetch(${JSON.stringify(decideUrl)}, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ siteKey: siteKey, context: context, blocks: blockKeys, consent: consent }),
-    signal: mcAbort ? mcAbort.signal : undefined,
-  })
-  .then(function(res) {
-    if (!res.ok) return null;
-    return res.json();
-  })
-  .then(function(data) {
-    // ── 5 & 6. Apply the response ────────────────────────────────────────────────
-    // Apply whenever the decision arrives. If it came in before REVEAL_MS the swap
-    // happens while the page is still hidden (no flash). If it came in later —
-    // common on a cold serverless start or slow first connection — we still apply
-    // it: a late swap to the personalised message is better than never showing it.
+  // ── 4. Apply a decide response (content + block slots) ───────────────────────
+
+  // Content mode: swap text / innerHTML / href on marked (or selector-matched)
+  // elements. The value is a string.
+  function applyContent(slotKey, value, selectors) {
+    var elems = document.querySelectorAll('[data-mc-slot="' + slotKey + '"]');
+    for (var j = 0; j < elems.length; j++) {
+      var el = elems[j];
+      if (el.getAttribute('data-mc-html') === 'true') {
+        el.innerHTML = value;
+      } else {
+        el.textContent = value;
+      }
+    }
+
+    // Selector-based swap (tenant config) — textContent only, for safety.
+    var sel = selectors[slotKey];
+    if (sel) {
+      try {
+        var selElems = document.querySelectorAll(sel);
+        for (var s = 0; s < selElems.length; s++) {
+          selElems[s].textContent = value;
+        }
+      } catch (e) { /* invalid selector — skip */ }
+    }
+
+    // href swap
+    var hrefElems = document.querySelectorAll('[data-mc-slot-href="' + slotKey + '"]');
+    for (var k = 0; k < hrefElems.length; k++) {
+      hrefElems[k].setAttribute('href', value);
+    }
+  }
+
+  // Block mode: replace a container's innerHTML and apply design tokens as
+  // scoped CSS custom properties so the block adopts the tenant's house style.
+  function applyBlock(slotKey, block) {
+    var containers = document.querySelectorAll('[data-mc-block="' + slotKey + '"]');
+    for (var b = 0; b < containers.length; b++) {
+      var c = containers[b];
+      if (block.tokens) {
+        for (var tokenName in block.tokens) {
+          if (Object.prototype.hasOwnProperty.call(block.tokens, tokenName)) {
+            try { c.style.setProperty(tokenName, String(block.tokens[tokenName])); }
+            catch (e) { /* ignore a bad token */ }
+          }
+        }
+      }
+      if (typeof block.html === 'string') {
+        // Reserve the block's current footprint before swapping so a different
+        // variant height cannot collapse it and shift the content below (CLS).
+        try { c.style.minHeight = c.offsetHeight + 'px'; } catch (e) {}
+        c.innerHTML = block.html;
+        // Wire any form injected by this block (submit → cross-origin POST).
+        try { mcWireForms(c); } catch (e) { /* forms optional */ }
+        // Render any Cloudflare Turnstile widget the form HTML contains. A
+        // <script> inside innerHTML never runs, so load the Turnstile API
+        // ourselves and render explicitly.
+        try { mcRenderTurnstile(c); } catch (e) { /* captcha optional */ }
+      }
+    }
+  }
+
+  function mcApplyResponse(data) {
     if (!data || !data.slots) return;
     var slots     = data.slots;
     var selectors = data.selectors || {};
-
-    // Content mode: swap text / innerHTML / href on marked (or selector-matched)
-    // elements. The value is a string.
-    function applyContent(slotKey, value) {
-      var elems = document.querySelectorAll('[data-mc-slot="' + slotKey + '"]');
-      for (var j = 0; j < elems.length; j++) {
-        var el = elems[j];
-        if (el.getAttribute('data-mc-html') === 'true') {
-          el.innerHTML = value;
-        } else {
-          el.textContent = value;
-        }
-      }
-
-      // Selector-based swap (tenant config) — textContent only, for safety.
-      var sel = selectors[slotKey];
-      if (sel) {
-        try {
-          var selElems = document.querySelectorAll(sel);
-          for (var s = 0; s < selElems.length; s++) {
-            selElems[s].textContent = value;
-          }
-        } catch (e) { /* invalid selector — skip */ }
-      }
-
-      // href swap
-      var hrefElems = document.querySelectorAll('[data-mc-slot-href="' + slotKey + '"]');
-      for (var k = 0; k < hrefElems.length; k++) {
-        hrefElems[k].setAttribute('href', value);
-      }
-    }
-
-    // Block mode: replace a container's innerHTML and apply design tokens as
-    // scoped CSS custom properties so the block adopts the tenant's house style.
-    function applyBlock(slotKey, block) {
-      var containers = document.querySelectorAll('[data-mc-block="' + slotKey + '"]');
-      for (var b = 0; b < containers.length; b++) {
-        var c = containers[b];
-        if (block.tokens) {
-          for (var tokenName in block.tokens) {
-            if (Object.prototype.hasOwnProperty.call(block.tokens, tokenName)) {
-              try { c.style.setProperty(tokenName, String(block.tokens[tokenName])); }
-              catch (e) { /* ignore a bad token */ }
-            }
-          }
-        }
-        if (typeof block.html === 'string') {
-          // Reserve the block's current footprint before swapping so a different
-          // variant height cannot collapse it and shift the content below (CLS).
-          try { c.style.minHeight = c.offsetHeight + 'px'; } catch (e) {}
-          c.innerHTML = block.html;
-          // Wire any form injected by this block (submit → cross-origin POST).
-          try { mcWireForms(c); } catch (e) { /* forms optional */ }
-          // Render any Cloudflare Turnstile widget the form HTML contains. A
-          // <script> inside innerHTML never runs, so load the Turnstile API
-          // ourselves and render explicitly.
-          try { mcRenderTurnstile(c); } catch (e) { /* captcha optional */ }
-        }
-      }
-    }
-
     Object.keys(slots).forEach(function(slotKey) {
       var value = slots[slotKey];
       if (value == null) return;
       if (typeof value === 'object' && value.mode === 'block') {
         applyBlock(slotKey, value);
       } else {
-        applyContent(slotKey, value);
+        applyContent(slotKey, value, selectors);
       }
     });
-  })
-  .catch(function() {
-    // Silent fail — reveal page with original content
-  })
-  .finally(function() {
-    clearTimeout(timer);
-    if (callTimer) clearTimeout(callTimer);
-    reveal();
-  });
+  }
+
+  // ── 4b. Demo mode — live scenario switcher on the tenant's own site ──────────
+  // Enabled with ?mc_demo (=1 for the tenant's default context, or =<scenarioKey>
+  // for a specific one). Sends _demoMode=mirror to the decide endpoint, which
+  // bypasses the rule engine and returns the chosen context's slots plus the
+  // tenant's context list, from which we render a small floating switcher.
+  var mcDemoParam = getParam('mc_demo');
+  var mcDemo = (mcDemoParam !== undefined && mcDemoParam !== '0' && mcDemoParam !== 'off');
+  var mcActiveScenario =
+    (mcDemo && mcDemoParam && mcDemoParam !== '1' && mcDemoParam !== 'true' && mcDemoParam !== 'on')
+      ? mcDemoParam : null;
+
+  function mcDemoHighlight(active) {
+    var btns = document.querySelectorAll('#mc-demo-panel [data-mc-demo-key]');
+    for (var i = 0; i < btns.length; i++) {
+      var on = btns[i].getAttribute('data-mc-demo-key') === active;
+      btns[i].style.borderColor = on ? '#6366f1' : '#e5e7eb';
+      btns[i].style.background   = on ? '#eef2ff' : '#fff';
+    }
+  }
+
+  function mcBuildDemoPanel(contexts, active) {
+    if (!document.body) {
+      document.addEventListener('DOMContentLoaded', function () { mcBuildDemoPanel(contexts, active); });
+      return;
+    }
+    if (document.getElementById('mc-demo-panel')) { mcDemoHighlight(active); return; }
+    var panel = document.createElement('div');
+    panel.id = 'mc-demo-panel';
+    panel.style.cssText = 'position:fixed;z-index:2147483647;right:16px;bottom:16px;width:236px;' +
+      'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#fff;' +
+      'border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:12px;';
+    var h = document.createElement('div');
+    h.textContent = 'Demo \\u2014 visitor context';
+    h.style.cssText = 'font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;';
+    panel.appendChild(h);
+    for (var i = 0; i < contexts.length; i++) {
+      (function (c) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('data-mc-demo-key', c.key);
+        btn.style.cssText = 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;' +
+          'padding:8px 9px;margin-bottom:6px;border-radius:9px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;';
+        var ic = document.createElement('span'); ic.textContent = c.icon || '\\u2022'; ic.style.cssText = 'font-size:15px;flex:0 0 auto;';
+        var tx = document.createElement('span');
+        var l = document.createElement('span'); l.textContent = c.label; l.style.cssText = 'display:block;font-size:12px;font-weight:700;color:#111827;line-height:1.2;';
+        var s = document.createElement('span'); s.textContent = c.sub || ''; s.style.cssText = 'display:block;font-size:10px;color:#6b7280;line-height:1.2;';
+        tx.appendChild(l); tx.appendChild(s);
+        btn.appendChild(ic); btn.appendChild(tx);
+        btn.addEventListener('click', function () { mcSelectDemo(c.key); });
+        panel.appendChild(btn);
+      })(contexts[i]);
+    }
+    var foot = document.createElement('div');
+    foot.textContent = 'Live demo \\u00b7 session-scoped';
+    foot.style.cssText = 'font-size:9px;color:#9ca3af;margin-top:2px;';
+    panel.appendChild(foot);
+    document.body.appendChild(panel);
+    mcDemoHighlight(active);
+  }
+
+  function mcSelectDemo(key) {
+    mcActiveScenario = key;
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.set('mc_demo', key);
+      window.history.replaceState(null, '', u.toString());
+    } catch (e) { /* history not available — non-fatal */ }
+    mcRunDecide(false);
+  }
+
+  // ── 5. Call decide (initial reveal-bound call, and demo re-runs) ─────────────
+  function mcRunDecide(isFirst) {
+    var ctx = {};
+    for (var ck in context) {
+      if (Object.prototype.hasOwnProperty.call(context, ck)) ctx[ck] = context[ck];
+    }
+    if (mcDemo) {
+      ctx._demoMode = 'mirror';
+      if (mcActiveScenario) ctx._demoScenario = mcActiveScenario;
+    }
+    var p = fetch(mcDecideUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteKey: siteKey, context: ctx, blocks: blockKeys, consent: consent }),
+      signal: (isFirst && mcAbort) ? mcAbort.signal : undefined,
+    })
+    .then(function(res) { return res.ok ? res.json() : null; })
+    .then(function(data) {
+      // Apply whenever the decision arrives. If it came in before REVEAL_MS the
+      // swap happens while the page is still hidden (no flash); a later swap is
+      // still better than never personalising.
+      mcApplyResponse(data);
+      if (mcDemo && data && data._demoContexts) {
+        if (data._scenario) mcActiveScenario = data._scenario;
+        mcBuildDemoPanel(data._demoContexts, mcActiveScenario);
+      }
+    })
+    .catch(function() { /* silent fail — reveal page with original content */ });
+
+    if (isFirst) {
+      p.finally(function() {
+        clearTimeout(timer);
+        if (callTimer) clearTimeout(callTimer);
+        reveal();
+      });
+    }
+    return p;
+  }
+
+  mcRunDecide(true);
 })();
 `.trim();
 }

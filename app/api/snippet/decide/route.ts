@@ -80,6 +80,7 @@ import { createClient }              from "@supabase/supabase-js";
 import { getTenantBySiteKey }        from "@/tenant/server";
 import { createCMSProvider }         from "@/cms";
 import { platformFirstVariants }     from "@/cms/providers/platform-first-variants";
+import { getDemoContextSet }         from "@/components/scenario/demo-context-sets";
 import { resolveSession }            from "@/data/session";
 import { fetchVisitorHistory }       from "@/context/fetch-visitor-history";
 import { emptyHistory }              from "@/context/visitor-history";
@@ -223,6 +224,14 @@ const DEMO_SCENARIO_PLANS: Record<string, {
   form_dropout: { heroKey: "hero_consideration",      proofKey: "proof_reassurance",ctaKey: "cta_demo",       featureKey: "feature_comparison",   conversionKey: "conversion_demo",   notificationKey: "notification_returning" },
   customer:     { heroKey: "hero_customer_onboarding",proofKey: "proof_default",    ctaKey: "cta_onboarding", featureKey: "feature_highlights",   conversionKey: "conversion_contact"                          },
   expansion:    { heroKey: "hero_customer_onboarding",proofKey: "proof_stats",      ctaKey: "cta_expansion",  featureKey: "feature_grid_primary", conversionKey: "conversion_demo"                             },
+
+  // Cluistra sales-demo contexts — mirror lib/demo/demo-scenario-plans.ts and the
+  // per-tenant switcher in components/scenario/demo-context-sets.ts. Let the live
+  // snippet (?mc_demo) switch a cluistra site between its four contexts.
+  cluistra_service:     { heroKey: "hero_service",        proofKey: "proof_service",     ctaKey: "cta_service", featureKey: "feature_service" },
+  cluistra_ondernemer:  { heroKey: "hero_intent_direct",  proofKey: "proof_stats",       ctaKey: "cta_meeting", featureKey: "feature_comparison" },
+  cluistra_particulier: { heroKey: "hero_consideration",  proofKey: "proof_reassurance", ctaKey: "cta_demo",    featureKey: "feature_highlights" },
+  cluistra_default:     { heroKey: "hero_direct_brand",   proofKey: "proof_cases",       ctaKey: "cta_guide",   featureKey: "feature_grid_primary" },
 };
 
 // SlotMap (string | block value) is the shared wire contract — see
@@ -641,8 +650,21 @@ export async function POST(request: NextRequest) {
   //   skip the full rule engine and use the hardcoded blueprint plan directly.
   //   This ensures instant, reliable scenario switching in sales demos.
 
-  if (context._demoMode === "mirror" && typeof context._demoScenario === "string") {
-    const bypassPlan = DEMO_SCENARIO_PLANS[context._demoScenario];
+  if (context._demoMode === "mirror") {
+    // Tenants with a per-tenant demo context set (e.g. cluistra) drive a live
+    // switcher from the snippet: when no (or an unknown) scenario is supplied,
+    // fall back to the set's default so the first paint is a valid context, and
+    // return the context list so the snippet can render the switcher.
+    const demoContexts = getDemoContextSet(tenantId);
+    let demoScenario = typeof context._demoScenario === "string" ? context._demoScenario : null;
+    if ((!demoScenario || !DEMO_SCENARIO_PLANS[demoScenario]) && demoContexts && demoContexts.length > 0) {
+      demoScenario = (demoContexts.find((c) => c.key.endsWith("_default")) ?? demoContexts[demoContexts.length - 1]).key;
+    }
+    const demoContextList = demoContexts
+      ? demoContexts.map((c) => ({ key: c.key, label: c.label, sub: c.sub, icon: c.icon }))
+      : undefined;
+
+    const bypassPlan = demoScenario ? DEMO_SCENARIO_PLANS[demoScenario] : undefined;
     if (bypassPlan) {
       try {
         const cms = createCMSProvider(tenant.cms, tenantId, locale);
@@ -724,12 +746,12 @@ export async function POST(request: NextRequest) {
 
         logger.debug("[snippet/decide] Demo bypass", {
           tenantId,
-          demoScenario: context._demoScenario,
+          demoScenario,
           slotCount:    Object.keys(slots).length,
         });
 
         return NextResponse.json(
-          { slots, _demo: true, _scenario: context._demoScenario },
+          { slots, _demo: true, _scenario: demoScenario, _demoContexts: demoContextList },
           { status: 200, headers: CORS_HEADERS },
         );
       } catch (err) {
