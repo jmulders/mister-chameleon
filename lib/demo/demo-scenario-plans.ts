@@ -96,7 +96,53 @@ const EXPANSION_PLAN: ExperiencePlan = {
 // Includes both the canonical 6-scenario keys AND ScenarioControlPanel preset
 // key aliases so any preset produces visible variant changes.
 
+// ── Cluistra demo contexts (trailer dealer) ──────────────────────────────────
+//
+// Four sales-demo contexts for the cluistra tenant. Each maps to platform variant
+// keys that cluistra does NOT use in production (so authoring cluistra content for
+// them via platform_cms_content does not affect the live snippet default). The
+// Cluistra copy for these keys is authored per-tenant in platform_cms_content
+// (dev), as a WERKVERSIE until the CSD copy lands.
+
+const CLUISTRA_DEFAULT_PLAN: ExperiencePlan = {
+  heroKey:    "hero_direct_brand",
+  proofKey:   "proof_cases",
+  ctaKey:     "cta_guide",
+  featureKey: "feature_grid_primary",
+  reason:     "demo-scenario:cluistra_default",
+};
+
+const CLUISTRA_SERVICE_PLAN: ExperiencePlan = {
+  heroKey:    "hero_service",
+  proofKey:   "proof_service",
+  ctaKey:     "cta_service",
+  featureKey: "feature_service",
+  reason:     "demo-scenario:cluistra_service",
+};
+
+const CLUISTRA_ONDERNEMER_PLAN: ExperiencePlan = {
+  heroKey:    "hero_intent_direct",
+  proofKey:   "proof_stats",
+  ctaKey:     "cta_meeting",
+  featureKey: "feature_comparison",
+  reason:     "demo-scenario:cluistra_ondernemer",
+};
+
+const CLUISTRA_PARTICULIER_PLAN: ExperiencePlan = {
+  heroKey:    "hero_consideration",
+  proofKey:   "proof_reassurance",
+  ctaKey:     "cta_demo",
+  featureKey: "feature_highlights",
+  reason:     "demo-scenario:cluistra_particulier",
+};
+
 export const DEMO_SCENARIO_PLANS: Record<string, ExperiencePlan> = {
+  // Cluistra trailer-dealer demo contexts
+  cluistra_default:     CLUISTRA_DEFAULT_PLAN,
+  cluistra_service:     CLUISTRA_SERVICE_PLAN,
+  cluistra_ondernemer:  CLUISTRA_ONDERNEMER_PLAN,
+  cluistra_particulier: CLUISTRA_PARTICULIER_PLAN,
+
   // Canonical 6 demo scenario keys
   awareness:     AWARENESS_PLAN,
   consideration: CONSIDERATION_PLAN,

@@ -15,10 +15,15 @@
  */
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { activateScenario, clearScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
+import { getDemoContextSet } from "./demo-context-sets";
+import type { DemoContext } from "./demo-context-sets";
 import type { ScenarioState, ScenarioOverrides } from "./scenario-store";
+
+/** The display fields shared by a persona Role and a tenant DemoContext. */
+type DemoRowItem = { label: string; sub: string; icon: string; color: string; img?: string };
 
 interface Role {
   key:     string;   // SCENARIO_PRESETS key
@@ -62,10 +67,15 @@ export function DemoStageSection({
   onApply:  () => void;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
   const o = scenario.overrides ?? {};
   const active = activeSegment(o);
+
+  // Tenant-specific demo contexts (e.g. cluistra) replace the generic personas.
+  const contextSet = getDemoContextSet(searchParams.get("tenant"));
+  const activeKey  = o._scenarioKey ?? null;
 
   function pickRole(role: Role | null) {
     if (role) {
@@ -74,6 +84,20 @@ export function DemoStageSection({
     } else {
       clearScenario();
     }
+    onApply();
+    startTransition(() => router.refresh());
+  }
+
+  // Activate a tenant demo context: force its plan via the demo bypass so the page
+  // visibly switches even though the production rules need real signals.
+  function pickContext(ctx: DemoContext) {
+    activateScenario({ ...(ctx.overrides ?? {}), bypass: true }, ctx.key, ctx.label);
+    onApply();
+    startTransition(() => router.refresh());
+  }
+
+  function resetDemo() {
+    clearScenario();
     onApply();
     startTransition(() => router.refresh());
   }
@@ -98,32 +122,63 @@ export function DemoStageSection({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* ── Persona picker ─────────────────────────────────────────────────── */}
-      <div>
-        <div style={S.sectionLabel}>Who are you?</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {ROLES.map((r) => (
-            <RoleRow
-              key={r.key}
-              role={r}
-              active={active === r.segment}
-              disabled={pending}
-              onClick={() => pickRole(r)}
-            />
-          ))}
-          <DefaultRow active={!active} disabled={pending} onClick={() => pickRole(null)} />
+      {/* ── Context / persona picker ───────────────────────────────────────── */}
+      {contextSet ? (
+        <div>
+          <div style={S.sectionLabel}>Visitor context</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {contextSet.map((ctx) => (
+              <RoleRow
+                key={ctx.key}
+                role={ctx}
+                active={activeKey === ctx.key}
+                disabled={pending}
+                onClick={() => pickContext(ctx)}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={resetDemo}
+            disabled={pending}
+            style={{
+              marginTop: 8, background: "none", border: "none", padding: 0,
+              fontSize: 11, fontWeight: 600, color: "#6366f1",
+              cursor: pending ? "wait" : "pointer",
+            }}
+          >
+            Reset to real time
+          </button>
         </div>
-      </div>
+      ) : (
+        <div>
+          <div style={S.sectionLabel}>Who are you?</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {ROLES.map((r) => (
+              <RoleRow
+                key={r.key}
+                role={r}
+                active={active === r.segment}
+                disabled={pending}
+                onClick={() => pickRole(r)}
+              />
+            ))}
+            <DefaultRow active={!active} disabled={pending} onClick={() => pickRole(null)} />
+          </div>
+        </div>
+      )}
 
-      {/* ── Readout ────────────────────────────────────────────────────────── */}
-      <div style={S.readout}>
-        <div style={S.sectionLabel}>What the site knows</div>
-        <Row label="Role"     value={roleText} />
-        <Row label="Interest" value={interestText} />
-        <Row label="Stage"    value={String(stageText)} />
-        <Row label="Intent"   value={intentText} />
-        <Row label="Time"     value={timeLabel(o)} />
-      </div>
+      {/* ── Readout (generic persona path only) ────────────────────────────── */}
+      {contextSet ? null : (
+        <div style={S.readout}>
+          <div style={S.sectionLabel}>What the site knows</div>
+          <Row label="Role"     value={roleText} />
+          <Row label="Interest" value={interestText} />
+          <Row label="Stage"    value={String(stageText)} />
+          <Row label="Intent"   value={intentText} />
+          <Row label="Time"     value={timeLabel(o)} />
+        </div>
+      )}
 
       {/* ── Time simulator ─────────────────────────────────────────────────── */}
       <div>
@@ -140,7 +195,7 @@ export function DemoStageSection({
 
 // ── Sub-components ──────────────────────────────────────────────────────────────
 
-function Avatar({ role }: { role: Role }) {
+function Avatar({ role }: { role: DemoRowItem }) {
   if (role.img) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -156,7 +211,7 @@ function Avatar({ role }: { role: Role }) {
 
 function RoleRow({
   role, active, disabled, onClick,
-}: { role: Role; active: boolean; disabled: boolean; onClick: () => void }) {
+}: { role: DemoRowItem; active: boolean; disabled: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} style={S.row(active, disabled)}>
       <Avatar role={role} />
