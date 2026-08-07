@@ -442,31 +442,41 @@ export function buildSnippetSource(decideUrl: string): string {
   var mcActiveScenario =
     (mcDemo && mcDemoParam && mcDemoParam !== '1' && mcDemoParam !== 'true' && mcDemoParam !== 'on')
       ? mcDemoParam : null;
+  var mcActiveNotif = null;
 
-  function mcDemoHighlight(active) {
-    var btns = document.querySelectorAll('#mc-demo-panel [data-mc-demo-key]');
+  function mcHighlight(attr, active) {
+    var btns = document.querySelectorAll('#mc-demo-panel [' + attr + ']');
     for (var i = 0; i < btns.length; i++) {
-      var on = btns[i].getAttribute('data-mc-demo-key') === active;
+      var on = btns[i].getAttribute(attr) === active;
       btns[i].style.borderColor = on ? '#6366f1' : '#e5e7eb';
       btns[i].style.background   = on ? '#eef2ff' : '#fff';
+      btns[i].style.color        = on ? '#4338ca' : '#111827';
     }
   }
 
-  function mcBuildDemoPanel(contexts, active) {
+  function mcSubLabel(text) {
+    var el = document.createElement('div');
+    el.textContent = text;
+    el.style.cssText = 'font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#9ca3af;margin:2px 0 8px;';
+    return el;
+  }
+
+  function mcBuildDemoPanel(contexts, active, notifs, activeNotif) {
     if (!document.body) {
-      document.addEventListener('DOMContentLoaded', function () { mcBuildDemoPanel(contexts, active); });
+      document.addEventListener('DOMContentLoaded', function () { mcBuildDemoPanel(contexts, active, notifs, activeNotif); });
       return;
     }
-    if (document.getElementById('mc-demo-panel')) { mcDemoHighlight(active); return; }
+    if (document.getElementById('mc-demo-panel')) {
+      mcHighlight('data-mc-demo-key', active);
+      mcHighlight('data-mc-demo-notif-key', activeNotif);
+      return;
+    }
     var panel = document.createElement('div');
     panel.id = 'mc-demo-panel';
     panel.style.cssText = 'position:fixed;z-index:2147483647;right:16px;bottom:16px;width:236px;' +
       'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#fff;' +
       'border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:12px;';
-    var h = document.createElement('div');
-    h.textContent = 'Demo \\u2014 visitor context';
-    h.style.cssText = 'font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;';
-    panel.appendChild(h);
+    panel.appendChild(mcSubLabel('Demo \\u2014 visitor context'));
     for (var i = 0; i < contexts.length; i++) {
       (function (c) {
         var btn = document.createElement('button');
@@ -476,7 +486,7 @@ export function buildSnippetSource(decideUrl: string): string {
           'padding:8px 9px;margin-bottom:6px;border-radius:9px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;';
         var ic = document.createElement('span'); ic.textContent = c.icon || '\\u2022'; ic.style.cssText = 'font-size:15px;flex:0 0 auto;';
         var tx = document.createElement('span');
-        var l = document.createElement('span'); l.textContent = c.label; l.style.cssText = 'display:block;font-size:12px;font-weight:700;color:#111827;line-height:1.2;';
+        var l = document.createElement('span'); l.textContent = c.label; l.style.cssText = 'display:block;font-size:12px;font-weight:700;color:inherit;line-height:1.2;';
         var s = document.createElement('span'); s.textContent = c.sub || ''; s.style.cssText = 'display:block;font-size:10px;color:#6b7280;line-height:1.2;';
         tx.appendChild(l); tx.appendChild(s);
         btn.appendChild(ic); btn.appendChild(tx);
@@ -484,12 +494,35 @@ export function buildSnippetSource(decideUrl: string): string {
         panel.appendChild(btn);
       })(contexts[i]);
     }
+
+    // Optional second axis: a time-driven notification toggle (Open / Closed).
+    if (notifs && notifs.length) {
+      panel.appendChild(mcSubLabel('Notification'));
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:6px;';
+      for (var n = 0; n < notifs.length; n++) {
+        (function (nt) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.setAttribute('data-mc-demo-notif-key', nt.key);
+          b.title = nt.sub || '';
+          b.textContent = nt.label;
+          b.style.cssText = 'flex:1;padding:7px 4px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;' +
+            'font-size:11px;font-weight:700;color:#111827;cursor:pointer;';
+          b.addEventListener('click', function () { mcSelectNotif(nt.key); });
+          row.appendChild(b);
+        })(notifs[n]);
+      }
+      panel.appendChild(row);
+    }
+
     var foot = document.createElement('div');
     foot.textContent = 'Live demo \\u00b7 session-scoped';
-    foot.style.cssText = 'font-size:9px;color:#9ca3af;margin-top:2px;';
+    foot.style.cssText = 'font-size:9px;color:#9ca3af;margin-top:8px;';
     panel.appendChild(foot);
     document.body.appendChild(panel);
-    mcDemoHighlight(active);
+    mcHighlight('data-mc-demo-key', active);
+    mcHighlight('data-mc-demo-notif-key', activeNotif);
   }
 
   function mcSelectDemo(key) {
@@ -502,6 +535,11 @@ export function buildSnippetSource(decideUrl: string): string {
     mcRunDecide(false);
   }
 
+  function mcSelectNotif(key) {
+    mcActiveNotif = key;
+    mcRunDecide(false);
+  }
+
   // ── 5. Call decide (initial reveal-bound call, and demo re-runs) ─────────────
   function mcRunDecide(isFirst) {
     var ctx = {};
@@ -511,6 +549,7 @@ export function buildSnippetSource(decideUrl: string): string {
     if (mcDemo) {
       ctx._demoMode = 'mirror';
       if (mcActiveScenario) ctx._demoScenario = mcActiveScenario;
+      if (mcActiveNotif) ctx._demoNotif = mcActiveNotif;
     }
     var p = fetch(mcDecideUrl, {
       method: 'POST',
@@ -526,7 +565,8 @@ export function buildSnippetSource(decideUrl: string): string {
       mcApplyResponse(data);
       if (mcDemo && data && data._demoContexts) {
         if (data._scenario) mcActiveScenario = data._scenario;
-        mcBuildDemoPanel(data._demoContexts, mcActiveScenario);
+        if (data._demoNotif) mcActiveNotif = data._demoNotif;
+        mcBuildDemoPanel(data._demoContexts, mcActiveScenario, data._demoNotifs, mcActiveNotif);
       }
     })
     .catch(function() { /* silent fail — reveal page with original content */ });

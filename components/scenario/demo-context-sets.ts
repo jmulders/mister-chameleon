@@ -42,3 +42,31 @@ export function getDemoContextSet(tenantId: string | null | undefined): DemoCont
   if (!tenantId) return null;
   return DEMO_CONTEXT_SETS[tenantId] ?? null;
 }
+
+/**
+ * A time-driven notification state for the live demo switcher — a second, optional
+ * axis alongside the visitor context. Each maps to a notification variant key in
+ * platform_cms_content. The snippet renders these as a small toggle so a prospect
+ * can show the open / closed notification on their own site.
+ */
+export interface DemoNotif {
+  /** Toggle key sent to the decide endpoint as `_demoNotif`. */
+  key:             string;
+  label:           string;   // English demo-UI label
+  sub:             string;   // one-line description
+  /** Matches a notification variant key in platform_cms_content. */
+  notificationKey: string;
+}
+
+export const DEMO_NOTIF_SETS: Record<string, DemoNotif[]> = {
+  cluistra: [
+    { key: "open",   label: "Open",   sub: "During opening hours",  notificationKey: "notification_default" },
+    { key: "closed", label: "Closed", sub: "Outside opening hours",  notificationKey: "notification_urgency" },
+  ],
+};
+
+/** The demo notification set for a tenant, or null when the tenant has none. */
+export function getDemoNotifSet(tenantId: string | null | undefined): DemoNotif[] | null {
+  if (!tenantId) return null;
+  return DEMO_NOTIF_SETS[tenantId] ?? null;
+}
