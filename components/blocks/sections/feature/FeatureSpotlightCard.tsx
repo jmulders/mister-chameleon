@@ -8,8 +8,10 @@
  *
  * Shared by the single-offer render (FeatureGridBlock) and the multi-offer
  * slider (FeatureSpotlightSlider). Server-compatible; BlockMediaView is the only
- * client child. Media side is tenant-controlled via --feature-spotlight-media-side
- * (a CSS `order`: 1 = media after the text on the right/below, default; -1 = left).
+ * client child. Media side: per-item `mediaSide` wins ("left" -> order -1,
+ * "right" -> order 1); when absent it inherits the tenant token
+ * --feature-spotlight-media-side (default 1 = media on the right). Mobile always
+ * stacks media on top.
  */
 
 import { Stack } from "@/components/primitives/Stack";
@@ -22,10 +24,16 @@ import { isRenderableMedia } from "@/lib/media/block-media";
 export function FeatureSpotlightCard({ item, isActive = true }: { item: FeatureItem; isActive?: boolean }) {
   const hasCta = !!(item.ctaLabel && item.ctaHref);
 
+  // Per-item side wins; empty inherits the tenant token (fallback unchanged).
+  const mediaOrder: number | string =
+    item.mediaSide === "left" ? -1
+    : item.mediaSide === "right" ? 1
+    : "var(--feature-spotlight-media-side, 1)";
+
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
       {isRenderableMedia(item.media) && (
-        <div className="w-full lg:w-1/2" style={{ order: "var(--feature-spotlight-media-side, 1)" as unknown as number }}>
+        <div className="w-full lg:w-1/2" style={{ order: mediaOrder as unknown as number }}>
           <BlockMediaView media={item.media} isActive={isActive} />
         </div>
       )}

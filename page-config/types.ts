@@ -367,6 +367,11 @@ export interface FeatureItem {
   readonly ctaLabel?: string;
   /** Optional CTA href. */
   readonly ctaHref?:  string;
+  /**
+   * Which side the media sits on: "left" or "right". Empty inherits from the
+   * tenant token (--feature-spotlight-media-side). Mobile always stacks media on top.
+   */
+  readonly mediaSide?: "left" | "right";
 }
 
 /**

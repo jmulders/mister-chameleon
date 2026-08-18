@@ -8,8 +8,9 @@
  *
  * Server-compatible (no client hooks); BlockMediaView is the only client child.
  * `isActive` is forwarded to the media so off-active videos pause in the slider.
- * Media side is tenant-controlled via --proof-spotlight-media-side (a CSS `order`:
- * 1 = media after the text on the right/below, default; -1 = before, on the left).
+ * Media side: per-item `mediaSide` wins ("left" -> order -1, "right" -> order 1);
+ * when absent it inherits the tenant token --proof-spotlight-media-side (default 1
+ * = media after the text on the right). Mobile always stacks media on top.
  */
 
 import { Stack } from "@/components/primitives/Stack";
@@ -19,10 +20,16 @@ import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
 import { isRenderableMedia } from "@/lib/media/block-media";
 
 export function ProofSpotlightCard({ item, isActive = true }: { item: ProofItem; isActive?: boolean }) {
+  // Per-item side wins; empty inherits the tenant token (fallback unchanged).
+  const mediaOrder: number | string =
+    item.mediaSide === "left" ? -1
+    : item.mediaSide === "right" ? 1
+    : "var(--proof-spotlight-media-side, 1)";
+
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
       {isRenderableMedia(item.media) && (
-        <div className="w-full lg:w-1/2" style={{ order: "var(--proof-spotlight-media-side, 1)" as unknown as number }}>
+        <div className="w-full lg:w-1/2" style={{ order: mediaOrder as unknown as number }}>
           <BlockMediaView media={item.media} isActive={isActive} />
         </div>
       )}
