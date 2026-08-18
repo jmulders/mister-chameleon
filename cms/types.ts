@@ -544,15 +544,44 @@ export interface NotificationBlockData {
   ctaHref?: string;
   /**
    * Where the notification is anchored on screen.
-   *   top          — fixed banner across the full viewport top
-   *   bottom-right — floating toast in the bottom-right corner (default for toasts)
+   *   top          — fixed full-width banner across the viewport top
+   *   bottom       — fixed full-width banner across the viewport bottom
+   *   left         — floating toast pinned to the bottom-left corner
+   *   right        — floating toast pinned to the bottom-right corner
+   *   center       — centered pop-up modal with a backdrop (ESC + focus-trap)
+   *   bottom-right — legacy alias for `right`
    */
-  position?: "top" | "bottom-right";
+  position?: NotificationPosition;
   /** Whether the visitor can dismiss the notification.  Defaults to true. */
   dismissible?: boolean;
-  /** Auto-dismiss delay in milliseconds.  0 or absent = never auto-dismiss. */
+  /**
+   * Auto-dismiss delay in milliseconds.  0 or absent = never auto-dismiss.
+   * Honored for banners/toasts only — never for the center modal (a modal must
+   * be dismissed intentionally).
+   */
   autoDismissMs?: number;
+  /**
+   * How often the notification may reappear. Defaults to "always".
+   * See lib/notifications/frequency-cap.ts.
+   */
+  frequency?: import("@/lib/notifications/frequency-cap").NotificationFrequency;
+  /** Period length for frequency "once_per_period" (with `ttlUnit`). */
+  ttl?: number;
+  /** Unit for `ttl`. Defaults to "days". */
+  ttlUnit?: import("@/lib/notifications/frequency-cap").NotificationTtlUnit;
+  /**
+   * Optional campaign id / version folded into the cap key
+   * (mc_notif_v1:<id>:<campaignId>). Bump it to reset the cap when the message
+   * changes or a new campaign starts. Empty = fall back to the variant key.
+   */
+  campaignId?: string;
 }
+
+/**
+ * On-screen anchor for a notification. `bottom-right` is a legacy alias for
+ * `right`, kept so existing content keeps rendering.
+ */
+export type NotificationPosition = "top" | "bottom" | "left" | "right" | "center" | "bottom-right";
 
 // ── Union for generic handling ────────────────────────────────────────────────
 
@@ -679,6 +708,23 @@ export interface AdaptiveVariantContent {
   imageUrl?:  string;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageAlt?:  string;
+
+  // ── Notification settings (notification slot only) ──
+  // Authored in the admin; read by adaptiveToNotification. All optional.
+  /** On-screen anchor (top/bottom banners, left/right toasts, center modal). */
+  notifPosition?:      NotificationPosition;
+  /** Whether the visitor can dismiss it. Defaults to true. */
+  notifDismissible?:   boolean;
+  /** Auto-dismiss delay in ms (banners/toasts only). 0/absent = never. */
+  notifAutoDismissMs?: number;
+  /** Frequency cap. Defaults to "always". */
+  notifFrequency?:     import("@/lib/notifications/frequency-cap").NotificationFrequency;
+  /** Period length for once_per_period (with notifTtlUnit). */
+  notifTtl?:           number;
+  /** Unit for notifTtl. Defaults to "days". */
+  notifTtlUnit?:       import("@/lib/notifications/frequency-cap").NotificationTtlUnit;
+  /** Optional campaign id / version folded into the cap key. */
+  notifCampaignId?:    string;
 }
 
 /**

@@ -565,8 +565,13 @@ export class StatamicProvider implements CMSProvider {
       severity,
       ctaLabel:    primaryCta?.label ?? undefined,
       ctaHref:     primaryCta?.href  ?? undefined,
-      position:    "top",
-      dismissible: true,
+      position:    c.notifPosition ?? "top",
+      dismissible: c.notifDismissible ?? true,
+      ...(c.notifAutoDismissMs !== undefined ? { autoDismissMs: c.notifAutoDismissMs } : {}),
+      ...(c.notifFrequency ? { frequency: c.notifFrequency } : {}),
+      ...(c.notifTtl !== undefined ? { ttl: c.notifTtl } : {}),
+      ...(c.notifTtlUnit ? { ttlUnit: c.notifTtlUnit } : {}),
+      ...(c.notifCampaignId ? { campaignId: c.notifCampaignId } : {}),
     };
   }
 

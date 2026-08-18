@@ -91,6 +91,7 @@ import {
 import { loadTenantRulesConfig }     from "@/decision/rules/load-tenant-rules";
 import { buildDecisionContext }      from "@/decision/context/build-decision-context";
 import { sanitizeCustomAttributes }  from "@/decision/context/custom-attributes";
+import { ttlToMs }                   from "@/lib/notifications/frequency-cap";
 import { isBotUserAgent }            from "@/decision/context/detect-bot";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import type { TenantSettings }       from "@/tenant/types";
@@ -1078,6 +1079,13 @@ export async function POST(request: NextRequest) {
         if (notif.autoDismissMs !== undefined) {
           slots["notification-auto-dismiss-ms"] = String(notif.autoDismissMs);
         }
+        // Frequency-capping inputs for the snippet (same key scheme as the
+        // platform NotificationBlock). ttl is pre-resolved to ms server-side.
+        if (notif.id)         slots["notification-id"]        = notif.id;
+        if (notif.frequency)  slots["notification-frequency"] = notif.frequency;
+        if (notif.campaignId) slots["notification-campaign"]  = notif.campaignId;
+        const notifTtlMs = ttlToMs(notif.ttl, notif.ttlUnit);
+        if (notifTtlMs > 0)   slots["notification-ttl-ms"]    = String(notifTtlMs);
       }
     }
 
