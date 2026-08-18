@@ -227,6 +227,14 @@ export interface ScenarioOverrides {
    */
   audienceSegmentIds?: string | null;
 
+  /**
+   * Override the per-request domain attributes (ctx.customAttributes) for this
+   * visitor, so a demo can flip e.g. massa / categorie / occasion and watch the
+   * rule path react. Merged onto any real attributes at request time. When
+   * undefined (not set), only the real page-supplied attributes apply.
+   */
+  customAttributes?: Record<string, string | number | boolean>;
+
   // ── Scenario theme override ─────────────────────────────────────────────────
   /**
    * Direct theme override for scenario preview.

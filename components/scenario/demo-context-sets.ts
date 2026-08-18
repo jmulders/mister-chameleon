@@ -70,3 +70,29 @@ export function getDemoNotifSet(tenantId: string | null | undefined): DemoNotif[
   if (!tenantId) return null;
   return DEMO_NOTIF_SETS[tenantId] ?? null;
 }
+
+/**
+ * A demo control for a declared custom attribute, so the scenario panel can flip
+ * it and watch AttributeConditions react on the real rule path. `options` are the
+ * values offered (plus an implicit "unset"); a boolean attribute uses true/false.
+ */
+export interface DemoAttribute {
+  key:      string;   // matches a declared attribute name + customAttributes key
+  label:    string;   // English demo-UI label
+  kind:     "select" | "boolean";
+  options?: (string | number)[];   // for kind "select"
+}
+
+export const DEMO_ATTRIBUTE_SETS: Record<string, DemoAttribute[]> = {
+  cluistra: [
+    { key: "categorie", label: "Category", kind: "select", options: ["kipper", "transporter", "bak"] },
+    { key: "massa",     label: "Mass (kg)", kind: "select", options: [1200, 2200] },
+    { key: "occasion",  label: "Occasion", kind: "boolean" },
+  ],
+};
+
+/** The demo attribute set for a tenant, or null when the tenant has none. */
+export function getDemoAttributeSet(tenantId: string | null | undefined): DemoAttribute[] | null {
+  if (!tenantId) return null;
+  return DEMO_ATTRIBUTE_SETS[tenantId] ?? null;
+}

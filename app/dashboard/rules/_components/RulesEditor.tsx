@@ -43,7 +43,7 @@
  *   Saving calls saveRulesAction() which writes to decision/rules/runtime-rules.json.
  */
 
-import { useState, useCallback, useId, useRef, useEffect } from "react";
+import { useState, useCallback, useId, useRef, useEffect, createContext, useContext } from "react";
 import {
   saveRulesAction,
   resetRulesAction,
@@ -58,6 +58,7 @@ import type {
   NamedCondition,
   ContextCondition,
   FlagCondition,
+  AttributeCondition,
   RuleContextWrite,
   ConditionField,
   NamedConditionId,
@@ -106,6 +107,7 @@ import {
   inferPrecedenceLevel,
 } from "@/decision/rules/rule-packs";
 import type { PrecedenceLevel } from "@/decision/rules/rule-packs";
+import type { CustomAttributeDeclaration } from "@/tenant/types";
 import { PRESET_CONDITIONS } from "@/decision/rules/preset-conditions";
 import { RecipeGallery } from "./RecipeGallery";
 import type { RecipeRuleDraft } from "./RecipeGallery";
@@ -117,7 +119,7 @@ import type { RecipeRuleDraft } from "./RecipeGallery";
 // nested group children will have those nested children stripped on load.
 
 /** A leaf is any non-group condition — the only editable unit in this UI. */
-type EditorLeaf = FieldCondition | NamedCondition | ContextCondition | FlagCondition;
+type EditorLeaf = FieldCondition | NamedCondition | ContextCondition | FlagCondition | AttributeCondition;
 
 // ── Rule-written context keys (regels die context schrijven) ────────────────────
 //
@@ -160,7 +162,7 @@ function toEditorGroup(condition: RuleCondition): EditorGroup {
     // Only include direct leaf children — nested sub-groups are not editable here.
     const leaves = condition.conditions.filter(
       (c): c is EditorLeaf =>
-        c.type === "field" || c.type === "named" || c.type === "context" || c.type === "flag",
+        c.type === "field" || c.type === "named" || c.type === "context" || c.type === "flag" || c.type === "attribute",
     );
     return {
       logic:  condition.logic,
@@ -406,9 +408,24 @@ interface RulesEditorProps {
   resetAction?: () => Promise<{ ok: true } | { ok: false; error: string }>;
   /** Plan limits for this tenant — enables active-rule counter and limit enforcement. */
   planLimits?: { maxRules?: number };
+  /**
+   * Tenant-declared custom attributes (TenantSettings.customAttributes). Feeds
+   * the Attribute condition editor. Kept as its own prop, not folded into the
+   * variant catalogue: attributes are a separate axis. Empty/omitted hides the
+   * Attribute condition type from the picker.
+   */
+  attributeCatalogue?: readonly CustomAttributeDeclaration[];
 }
 
-export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits }: RulesEditorProps) {
+/**
+ * Provides the tenant's declared attributes to the deeply-nested Attribute
+ * condition editor without prop-drilling through RuleCard / FlatGroupEditor /
+ * ConditionRow.
+ */
+const AttributeCatalogueContext = createContext<readonly CustomAttributeDeclaration[]>([]);
+
+export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits, attributeCatalogue }: RulesEditorProps) {
+  const attributeDecls = attributeCatalogue ?? [];
   const catalogue     = variantCatalogue ?? buildPlatformCatalogue();
   const doSaveAction  = saveAction  ?? saveRulesAction;
   const doResetAction = resetAction ?? resetRulesAction;
@@ -692,6 +709,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   });
 
   return (
+    <AttributeCatalogueContext.Provider value={attributeDecls}>
     <div className="flex flex-col gap-8 px-8 py-8">
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
@@ -1006,6 +1024,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
         onCreate={addRecipeRule}
       />
     </div>
+    </AttributeCatalogueContext.Provider>
   );
 }
 
@@ -1794,13 +1813,23 @@ function ConditionRow({
     { label: string; description: string },
   ][];
 
-  const handleTypeChange = (type: "field" | "named" | "context" | "flag") => {
+  const attributeDecls = useContext(AttributeCatalogueContext);
+
+  const handleTypeChange = (type: "field" | "named" | "context" | "flag" | "attribute") => {
     if (type === "field") {
       onChange({ type: "field", field: "source", operator: "equals", value: "google" });
     } else if (type === "named") {
       onChange({ type: "named", name: "returning_cta_clicked" });
     } else if (type === "flag") {
       onChange({ type: "flag", name: "", operator: "equals", value: true });
+    } else if (type === "attribute") {
+      const first = attributeDecls[0];
+      onChange({
+        type: "attribute",
+        name: first?.name ?? "",
+        operator: "equals",
+        value: first?.type === "boolean" ? true : first?.type === "number" ? 0 : "",
+      });
     } else {
       onChange({ type: "context", contextId: ALL_CONTEXT_IDS[0] as ContextId });
     }
@@ -1824,7 +1853,7 @@ function ConditionRow({
           {advanced ? (
             <select
               value={leaf.type}
-              onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context" | "flag")}
+              onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context" | "flag" | "attribute")}
               className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               aria-label="Condition type"
             >
@@ -1832,6 +1861,9 @@ function ConditionRow({
               <option value="named">Named condition</option>
               <option value="context">Context condition</option>
               <option value="flag">Flag condition</option>
+              {(attributeDecls.length > 0 || leaf.type === "attribute") && (
+                <option value="attribute">Attribute condition</option>
+              )}
             </select>
           ) : (
             // Calm view: field conditions only. Named/Context/Flag types live
@@ -1841,6 +1873,7 @@ function ConditionRow({
               {leaf.type === "field"   ? "Field condition"
                : leaf.type === "named"   ? "Named condition"
                : leaf.type === "context" ? "Context condition"
+               : leaf.type === "attribute" ? "Attribute condition"
                : "Flag condition"}
             </span>
           )}
@@ -1928,6 +1961,18 @@ function ConditionRow({
               }
             />
           )}
+
+          {leaf.type === "attribute" && (
+            <AttributeConditionEditor
+              declarations={attributeDecls}
+              name={leaf.name}
+              operator={leaf.operator ?? "equals"}
+              value={leaf.value}
+              onChange={(name, operator, value) =>
+                onChange({ type: "attribute", name, operator, value })
+              }
+            />
+          )}
         </div>
       </div>
     </div>
@@ -2010,6 +2055,109 @@ function FlagConditionEditor({
             value={value}
             onChange={(v) => onChange(name, effectiveOp, v)}
           />
+        </Field>
+      )}
+    </>
+  );
+}
+
+// ── AttributeConditionEditor ─────────────────────────────────────────────────────
+
+/**
+ * Editor for an AttributeCondition — reads a per-request domain attribute from
+ * ctx.customAttributes. Unlike a flag, the name is picked from the tenant's
+ * declared attributes (not free-form). When the selected attribute declares
+ * allowedValues, the value becomes a dropdown; otherwise it is a scalar input.
+ * Operators mirror flag conditions (scalar, no array ops).
+ */
+function AttributeConditionEditor({
+  declarations,
+  name,
+  operator,
+  value,
+  onChange,
+}: {
+  declarations: readonly CustomAttributeDeclaration[];
+  name:         string;
+  operator:     FieldOperator;
+  value:        string | number | boolean | undefined;
+  onChange:     (name: string, operator: FieldOperator, value: string | number | boolean | undefined) => void;
+}) {
+  const decl = declarations.find((d) => d.name === name);
+
+  // Offer only operators that fit the declared type: existence + equality always,
+  // ordering for number, substring for string. Falls back to all scalar ops when
+  // the attribute has no declaration yet.
+  const allowedOps: readonly FieldOperator[] = FLAG_OPERATORS.filter((op) => {
+    if (!decl) return true;
+    if (NO_VALUE_OPERATORS.has(op)) return true;
+    if (NUMERIC_OPERATORS.has(op)) return decl.type === "number";
+    if (STRING_ONLY_OPERATORS.has(op)) return decl.type === "string";
+    return true; // equals / not_equals
+  });
+  const effectiveOp: FieldOperator = allowedOps.includes(operator) ? operator : "equals";
+
+  const handleOperatorChange = (newOp: FieldOperator) => {
+    let newValue: string | number | boolean | undefined = value;
+    if (NO_VALUE_OPERATORS.has(newOp))         newValue = undefined;
+    else if (NUMERIC_OPERATORS.has(newOp))     newValue = typeof value === "number" ? value : 0;
+    else if (STRING_ONLY_OPERATORS.has(newOp)) newValue = typeof value === "string" ? value : "";
+    else if (value === undefined)              newValue = decl?.type === "boolean" ? true : decl?.type === "number" ? 0 : "";
+    onChange(name, newOp, newValue);
+  };
+
+  const hasAllowed = !!decl?.allowedValues && decl.allowedValues.length > 0;
+
+  return (
+    <>
+      <Field label="Attribute" hint="A domain attribute declared under Personalization > Custom attributes.">
+        <select
+          value={name}
+          onChange={(e) => onChange(e.target.value, effectiveOp, value)}
+          className={selectCls}
+        >
+          {declarations.length === 0 && <option value="">No attributes declared</option>}
+          {declarations.map((d) => (
+            <option key={d.name} value={d.name}>{d.label ? `${d.label} (${d.name})` : d.name}</option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Operator">
+        <select
+          value={effectiveOp}
+          onChange={(e) => handleOperatorChange(e.target.value as FieldOperator)}
+          className={selectCls}
+        >
+          {allowedOps.map((op) => (
+            <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
+          ))}
+        </select>
+      </Field>
+
+      {!NO_VALUE_OPERATORS.has(effectiveOp) && (
+        <Field label="Value">
+          {hasAllowed ? (
+            <select
+              value={value === undefined ? "" : String(value)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                onChange(name, effectiveOp, decl?.type === "number" ? Number(raw) : raw);
+              }}
+              className={selectCls}
+            >
+              <option value="">Select a value</option>
+              {decl!.allowedValues!.map((v) => (
+                <option key={String(v)} value={String(v)}>{String(v)}</option>
+              ))}
+            </select>
+          ) : (
+            <ScalarValueInput
+              operator={effectiveOp}
+              value={value}
+              onChange={(v) => onChange(name, effectiveOp, v)}
+            />
+          )}
         </Field>
       )}
     </>

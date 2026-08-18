@@ -313,6 +313,38 @@ export interface FlagCondition {
   value?: string | number | boolean;
 }
 
+/**
+ * A condition that reads a per-request domain attribute from
+ * `ctx.customAttributes` (supplied by the current page via the snippet or
+ * platform page props). Modeled on FlagCondition: same operator/value shape,
+ * same matcher (reuses applyOperator); the only difference is the map it reads.
+ *
+ * Unlike a FlagCondition, custom attributes are NOT sticky and NOT rule-written:
+ * they are read-only per-request input describing what is on the page right now
+ * (e.g. a trailer model's mass or category). Attribute names are tenant-declared
+ * (see docs/custom-attributes-spec.md), not free-form.
+ *
+ * Attribute values are client-supplied and therefore spoofable: use only for
+ * content variation, never for access, pricing, or any security decision.
+ *
+ * @example
+ *   { type: "attribute", name: "categorie", value: "kipper" }
+ *   { type: "attribute", name: "massa", operator: "greater_than_or_equal", value: 2000 }
+ */
+export interface AttributeCondition {
+  type: "attribute";
+  /** Attribute name — a key in `ctx.customAttributes`. Tenant-declared. */
+  name: string;
+  /**
+   * Comparison operator.
+   * @default "equals"
+   * Also supports "exists" / "not_exists" to test presence of the attribute.
+   */
+  operator?: FieldOperator;
+  /** The value to compare against. Omit for "exists" / "not_exists". */
+  value?: string | number | boolean;
+}
+
 /** Any condition that can appear in a StoredRule or as a GroupCondition child. */
 export type RuleCondition =
   | FieldCondition
@@ -320,6 +352,7 @@ export type RuleCondition =
   | ContextCondition
   | ContextLibraryCondition
   | FlagCondition
+  | AttributeCondition
   | GroupCondition;
 
 // ── Stored plan ────────────────────────────────────────────────────────────────
@@ -1053,7 +1086,30 @@ function validateCondition(
     return;
   }
 
-  errors.push({ ruleId, field: `${idx}.condition.type`, message: `Unknown condition type "${c.type}". Must be "field", "named", "context", "context_library", "flag", or "group".` });
+  if (c.type === "attribute") {
+    validateAttributeCondition(c, idx, ruleId, errors);
+    return;
+  }
+
+  errors.push({ ruleId, field: `${idx}.condition.type`, message: `Unknown condition type "${c.type}". Must be "field", "named", "context", "context_library", "flag", "attribute", or "group".` });
+}
+
+/**
+ * Validate an AttributeCondition (reads a per-request domain attribute from
+ * ctx.customAttributes). Same shape rules as a flag: non-empty name, valid
+ * scalar operator, value type per operator. The tenant declaration (name must
+ * be declared, value must match the declared type / allowedValues) is enforced
+ * by the editor and by server-side ingestion, not here, so this stays a pure
+ * shape check with no tenant dependency.
+ */
+function validateAttributeCondition(
+  c:      Record<string, unknown>,
+  idx:    string,
+  ruleId: string | undefined,
+  errors: ValidationError[],
+): void {
+  // Identical shape rules to a flag condition (scalar value, no array operators).
+  validateFlagCondition(c, idx, ruleId, errors);
 }
 
 /**
@@ -1343,6 +1399,9 @@ function evalNode(condition: RuleCondition, ctx: RuleEvaluationContext): boolean
   if (condition.type === "flag") {
     return evalFlagCondition(condition, ctx);
   }
+  if (condition.type === "attribute") {
+    return evalAttributeCondition(condition, ctx);
+  }
   if (condition.type === "group") {
     return evalGroupCondition(condition, ctx);
   }
@@ -1365,6 +1424,22 @@ function evalFlagCondition(
 ): boolean {
   const { name, operator = "equals", value } = condition;
   const actual = ctx.ruleContext ? ctx.ruleContext[name] : undefined;
+  return applyOperator(actual, operator, value);
+}
+
+/**
+ * Evaluate an AttributeCondition by reading a per-request domain attribute
+ * straight from ctx.customAttributes (supplied by the page, filtered to the
+ * tenant declaration server-side). Identical to evalFlagCondition except for the
+ * map it reads: no FIELD_REGISTRY lookup, reuses applyOperator, an absent
+ * attribute reads as undefined.
+ */
+function evalAttributeCondition(
+  condition: AttributeCondition,
+  ctx:       RuleEvaluationContext,
+): boolean {
+  const { name, operator = "equals", value } = condition;
+  const actual = ctx.customAttributes ? ctx.customAttributes[name] : undefined;
   return applyOperator(actual, operator, value);
 }
 
@@ -1710,6 +1785,14 @@ export function formatCondition(condition: RuleCondition): string {
       return `flag ${condition.name} ${op}`;
     }
     return `flag ${condition.name} ${op} ${condition.value}`;
+  }
+
+  if (condition.type === "attribute") {
+    const op = condition.operator ?? "equals";
+    if (op === "exists" || op === "not_exists") {
+      return `attr ${condition.name} ${op}`;
+    }
+    return `attr ${condition.name} ${op} ${condition.value}`;
   }
 
   if (condition.type === "group") {

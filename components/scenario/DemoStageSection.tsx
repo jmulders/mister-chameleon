@@ -18,8 +18,8 @@ import { useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { activateScenario, clearScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
-import { getDemoContextSet } from "./demo-context-sets";
-import type { DemoContext } from "./demo-context-sets";
+import { getDemoContextSet, getDemoAttributeSet } from "./demo-context-sets";
+import type { DemoContext, DemoAttribute } from "./demo-context-sets";
 import type { ScenarioState, ScenarioOverrides } from "./scenario-store";
 
 /** The display fields shared by a persona Role and a tenant DemoContext. */
@@ -74,8 +74,27 @@ export function DemoStageSection({
   const active = activeSegment(o);
 
   // Tenant-specific demo contexts (e.g. cluistra) replace the generic personas.
-  const contextSet = getDemoContextSet(searchParams.get("tenant"));
+  const tenant     = searchParams.get("tenant");
+  const contextSet = getDemoContextSet(tenant);
+  const attrSet    = getDemoAttributeSet(tenant);
   const activeKey  = o._scenarioKey ?? null;
+  const currentAttrs = (o.customAttributes ?? {}) as Record<string, string | number | boolean>;
+
+  // Flip a demo attribute on the REAL rule path (no bypass) so AttributeConditions
+  // can fire. Setting one drops any active forced-context: attributes are a
+  // separate axis, evaluated by the real engine.
+  function setAttr(key: string, value: string | number | boolean | undefined) {
+    const next: Record<string, string | number | boolean> = { ...currentAttrs };
+    if (value === undefined) delete next[key];
+    else next[key] = value;
+    if (Object.keys(next).length > 0) {
+      activateScenario({ customAttributes: next }, "demo_attrs", "Attributes");
+    } else {
+      clearScenario();
+    }
+    onApply();
+    startTransition(() => router.refresh());
+  }
 
   function pickRole(role: Role | null) {
     if (role) {
@@ -189,7 +208,68 @@ export function DemoStageSection({
           <TimeBtn label="Weekend" disabled={pending} onClick={() => setTime("weekend")} />
         </div>
       </div>
+
+      {/* ── Attribute simulator (real rule path) ───────────────────────────── */}
+      {attrSet && attrSet.length > 0 && (
+        <div>
+          <div style={S.sectionLabel}>Page attributes</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {attrSet.map((attr) => (
+              <AttrRow
+                key={attr.key}
+                attr={attr}
+                value={currentAttrs[attr.key]}
+                disabled={pending}
+                onChange={(v) => setAttr(attr.key, v)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function AttrRow({
+  attr, value, disabled, onChange,
+}: {
+  attr:     DemoAttribute;
+  value:    string | number | boolean | undefined;
+  disabled: boolean;
+  onChange: (v: string | number | boolean | undefined) => void;
+}) {
+  // Encode the current value to a string for the <select>; "" means unset.
+  const current = value === undefined ? "" : String(value);
+  const opts = attr.kind === "boolean"
+    ? [{ label: "Yes", raw: "true" }, { label: "No", raw: "false" }]
+    : (attr.options ?? []).map((o) => ({ label: String(o), raw: String(o) }));
+
+  function decode(raw: string): string | number | boolean | undefined {
+    if (raw === "") return undefined;
+    if (attr.kind === "boolean") return raw === "true";
+    const opt = (attr.options ?? []).find((o) => String(o) === raw);
+    return typeof opt === "number" ? opt : raw;
+  }
+
+  return (
+    <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ fontSize: 11, color: "#374151" }}>{attr.label}</span>
+      <select
+        value={current}
+        disabled={disabled}
+        onChange={(e) => onChange(decode(e.target.value))}
+        style={{
+          border: "1px solid #e5e7eb", borderRadius: 8, padding: "5px 8px",
+          fontSize: 11, background: "#fff", color: "#111827",
+          cursor: disabled ? "wait" : "pointer", minWidth: 120,
+        }}
+      >
+        <option value="">Unset</option>
+        {opts.map((o) => (
+          <option key={o.raw} value={o.raw}>{o.label}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
