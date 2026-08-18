@@ -37,9 +37,16 @@ export type NotificationTtlUnit = "hours" | "days";
 /** Storage-key namespace. Bump the version suffix to invalidate all markers. */
 export const NOTIF_KEY_PREFIX = "mc_notif_v1:";
 
-/** The storage key for a notification id. */
-export function notifStorageKey(id: string): string {
-  return NOTIF_KEY_PREFIX + id;
+/**
+ * The storage key for a notification.
+ *
+ * An optional `campaignId` (or version) is folded in as
+ * `mc_notif_v1:<id>:<campaignId>`, so bumping it (a changed message or a new
+ * campaign) resets the cap. Empty → falls back to the plain variant-key form.
+ */
+export function notifStorageKey(id: string, campaignId?: string): string {
+  const c = (campaignId ?? "").trim();
+  return c ? `${NOTIF_KEY_PREFIX}${id}:${c}` : `${NOTIF_KEY_PREFIX}${id}`;
 }
 
 /** Convert a ttl + unit to milliseconds (0 when absent/invalid). */
@@ -70,19 +77,20 @@ export function isNotificationSuppressed(
   id: string,
   frequency: NotificationFrequency,
   ttlMs: number,
+  campaignId: string = "",
   now: number = Date.now(),
 ): boolean {
   if (!id || frequency === "always") return false;
 
   if (frequency === "once_per_session") {
     const s = safeStorage("session");
-    return !!s && s.getItem(notifStorageKey(id)) !== null;
+    return !!s && s.getItem(notifStorageKey(id, campaignId)) !== null;
   }
 
   // once_per_period
   const s = safeStorage("local");
   if (!s) return false;
-  const raw = s.getItem(notifStorageKey(id));
+  const raw = s.getItem(notifStorageKey(id, campaignId));
   if (raw === null) return false;
   const ts = Number(raw);
   if (!Number.isFinite(ts)) return false;
@@ -96,12 +104,13 @@ export function isNotificationSuppressed(
 export function recordNotificationDismissal(
   id: string,
   frequency: NotificationFrequency,
+  campaignId: string = "",
   now: number = Date.now(),
 ): void {
   if (!id || frequency === "always") return;
   const s = safeStorage(frequency === "once_per_session" ? "session" : "local");
   try {
-    s?.setItem(notifStorageKey(id), String(now));
+    s?.setItem(notifStorageKey(id, campaignId), String(now));
   } catch {
     // Quota or blocked storage — capping silently degrades to "always".
   }

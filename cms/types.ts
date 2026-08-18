@@ -556,6 +556,12 @@ export interface NotificationBlockData {
   ttl?: number;
   /** Unit for `ttl`. Defaults to "days". */
   ttlUnit?: import("@/lib/notifications/frequency-cap").NotificationTtlUnit;
+  /**
+   * Optional campaign id / version folded into the cap key
+   * (mc_notif_v1:<id>:<campaignId>). Bump it to reset the cap when the message
+   * changes or a new campaign starts. Empty = fall back to the variant key.
+   */
+  campaignId?: string;
 }
 
 /**

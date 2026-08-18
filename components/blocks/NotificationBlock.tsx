@@ -57,6 +57,8 @@ export interface NotificationBlockProps {
   frequency?: NotificationFrequency;
   ttl?: number;
   ttlUnit?: NotificationTtlUnit;
+  /** Optional campaign id / version folded into the cap key so a change resets it. */
+  campaignId?: string;
 }
 
 // ── Severity styles ────────────────────────────────────────────────────────────
@@ -90,6 +92,7 @@ export function NotificationBlock({
   frequency     = "always",
   ttl,
   ttlUnit,
+  campaignId    = "",
 }: NotificationBlockProps) {
   // Normalise the legacy alias.
   const pos = position === "bottom-right" ? "right" : position;
@@ -101,13 +104,13 @@ export function NotificationBlock({
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isNotificationSuppressed(id, frequency, ttlToMs(ttl, ttlUnit))) {
+    if (!isNotificationSuppressed(id, frequency, ttlToMs(ttl, ttlUnit), campaignId)) {
       setVisible(true);
     }
-  }, [id, frequency, ttl, ttlUnit]);
+  }, [id, frequency, ttl, ttlUnit, campaignId]);
 
   const dismiss = () => {
-    recordNotificationDismissal(id, frequency);
+    recordNotificationDismissal(id, frequency, campaignId);
     setVisible(false);
   };
 

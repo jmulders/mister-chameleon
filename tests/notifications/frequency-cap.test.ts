@@ -76,13 +76,26 @@ describe("once_per_period", () => {
 
   it("suppressed within the period, shown again after it elapses", () => {
     const t0 = 1_000_000_000_000;
-    recordNotificationDismissal("a", "once_per_period", t0);
+    recordNotificationDismissal("a", "once_per_period", "", t0);
     assert.equal(local.length, 1);
     // 1 hour later → still suppressed
-    assert.equal(isNotificationSuppressed("a", "once_per_period", ttlMs, t0 + 3_600_000), true);
+    assert.equal(isNotificationSuppressed("a", "once_per_period", ttlMs, "", t0 + 3_600_000), true);
     // just before ttl → suppressed
-    assert.equal(isNotificationSuppressed("a", "once_per_period", ttlMs, t0 + ttlMs - 1), true);
+    assert.equal(isNotificationSuppressed("a", "once_per_period", ttlMs, "", t0 + ttlMs - 1), true);
     // after ttl → shown again
-    assert.equal(isNotificationSuppressed("a", "once_per_period", ttlMs, t0 + ttlMs + 1), false);
+    assert.equal(isNotificationSuppressed("a", "once_per_period", ttlMs, "", t0 + ttlMs + 1), false);
+  });
+});
+
+describe("campaignId", () => {
+  it("folds into the key and a changed campaign resets the cap", () => {
+    assert.equal(notifStorageKey("a", "v2"), NOTIF_KEY_PREFIX + "a:v2");
+    // Dismiss under campaign v1.
+    recordNotificationDismissal("a", "once_per_session", "v1");
+    assert.equal(isNotificationSuppressed("a", "once_per_session", 0, "v1"), true);
+    // A new campaign (v2) is not suppressed — the cap resets.
+    assert.equal(isNotificationSuppressed("a", "once_per_session", 0, "v2"), false);
+    // Empty campaign falls back to the plain variant key (independent of v1).
+    assert.equal(isNotificationSuppressed("a", "once_per_session", 0, ""), false);
   });
 });
