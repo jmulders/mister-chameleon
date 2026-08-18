@@ -98,11 +98,14 @@ export type HeroLayoutVariant =
 /**
  * Layout variant for the Proof context slot block.
  *
- *   proof_stats   — headline metric row (e.g. "10M+ users" items) — default
- *   proof_logos   — client / partner / integration logo strip
- *   proof_quotes  — grid of short testimonial quote cards
+ *   proof_stats     — headline metric row (e.g. "10M+ users" items) — default
+ *   proof_logos     — client / partner / integration logo strip
+ *   proof_quotes    — grid of short testimonial quote cards
+ *   proof_spotlight — one case in the spotlight: media (photo / video) alongside a
+ *                     quote/story with a relationship eyebrow and attribution;
+ *                     slider when there are several. Uses the shared media core.
  */
-export type ProofLayoutVariant = "proof_stats" | "proof_logos" | "proof_quotes";
+export type ProofLayoutVariant = "proof_stats" | "proof_logos" | "proof_quotes" | "proof_spotlight";
 
 /**
  * Layout variant for the CTA context slot block.
@@ -139,7 +142,7 @@ export type HeaderLayoutVariant = "header_default" | "header_centered" | "header
 
 const CONTEXT_VARIANT_SETS: Record<string, readonly string[]> = {
   hero:   ["hero_default",  "hero_split",   "hero_proof",  "hero_background", "hero_minimal_dark", "hero_split_clean", "hero_dark_split", "hero_editorial", "hero_page_banner", "hero_carousel"] satisfies readonly HeroLayoutVariant[],
-  proof:  ["proof_stats",   "proof_logos",  "proof_quotes"]                   satisfies readonly ProofLayoutVariant[],
+  proof:  ["proof_stats",   "proof_logos",  "proof_quotes", "proof_spotlight"] satisfies readonly ProofLayoutVariant[],
   cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact"] satisfies readonly CtaLayoutVariant[],
   header: ["header_default","header_centered","header_cta","header_triband"]  satisfies readonly HeaderLayoutVariant[],
 };
@@ -202,6 +205,7 @@ export type TextSectionVariant =
 export type FeatureGridVariant =
   | "feature_grid_3up" | "feature_grid_4up" | "feature_grid_cards" | "feature_grid_checklist"
   | "feature_grid_dark" | "feature_grid_spacious"                    // premium family variants
+  | "feature_spotlight"                                              // media + offer (price/CTA optional)
   | "default" | "cards" | "compact" | "icons-left"; // legacy aliases
 
 /**
@@ -540,6 +544,7 @@ const BLOCK_VARIANT_SETS: Partial<Record<ContentBlockType, readonly string[]>> =
   featureGrid: [
     "feature_grid_3up", "feature_grid_4up", "feature_grid_cards", "feature_grid_checklist", // canonical
     "feature_grid_dark", "feature_grid_spacious",                                            // premium family variants
+    "feature_spotlight",                                                                     // media + offer
     "default", "cards", "compact", "icons-left",                                             // legacy aliases
   ] satisfies readonly FeatureGridVariant[],
 

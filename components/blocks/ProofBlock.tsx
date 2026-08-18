@@ -6,6 +6,10 @@ import { Grid } from "@/components/primitives/Grid";
 import { Text } from "@/components/primitives/Text";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { ProofLayoutVariant } from "@/page-config/block-variants";
+import type { ProofItem } from "@/cms/types";
+import { isRenderableMedia } from "@/lib/media/block-media";
+import { ProofSpotlightCard } from "@/components/blocks/proof/ProofSpotlightCard";
+import { ProofSpotlightSlider } from "@/components/blocks/proof/ProofSpotlightSlider";
 
 /**
  * ProofBlock
@@ -38,12 +42,7 @@ import type { ProofLayoutVariant } from "@/page-config/block-variants";
  *   --proof-quote-color      Pull-quote mark colour override (proof_quotes variant)
  */
 
-export interface ProofItem {
-  /** Bold label — a metric, quote anchor, or capability statement */
-  title: string;
-  /** One-to-two sentence supporting copy */
-  text: string;
-}
+export type { ProofItem };
 
 export interface ProofBlockProps {
   /** Section heading displayed above the proof items */
@@ -197,6 +196,38 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
                 ))}
               </Grid>
             )}
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── proof_spotlight ──────────────────────────────────────────────────────────
+  //
+  // One case in the spotlight: media (photo or video) alongside a quote/story,
+  // with a relationship eyebrow (kind) and split attribution (name / role /
+  // organisation). Uses the shared media core. This branch renders the first item
+  // as a single spotlight; the multi-item slider is added in a later step.
+  //
+  // Media side is tenant-controlled via --proof-spotlight-media-side (a CSS
+  // `order`: 1 = media after the text on the right/below, default; -1 = before,
+  // on the left/above).
+
+  if (layout === "proof_spotlight") {
+    // A case is renderable when it has a quote/story or media.
+    const cases = items.filter((it) => (it.text && it.text.trim() !== "") || isRenderableMedia(it.media));
+    return (
+      <Section spacing="lg" style={{ background: "var(--section-subtle-bg)" }}>
+        <Container size="lg">
+          <Stack gap={10} style={{ gap: "var(--block-content-gap)" }}>
+            {title && (
+              <Text variant="caption" color="subtle" align="center" className="tracking-wider uppercase">
+                {title}
+              </Text>
+            )}
+
+            {cases.length === 1 && <ProofSpotlightCard item={cases[0]} />}
+            {cases.length > 1 && <ProofSpotlightSlider items={cases} />}
           </Stack>
         </Container>
       </Section>

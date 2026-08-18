@@ -40,6 +40,9 @@ import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { FeatureGridVariant } from "@/page-config/block-variants";
 import type { FeatureGridBlockData, BlockCTA } from "@/page-config";
 import { resolveSurface, type BlockSurface } from "@/lib/surface";
+import { isRenderableMedia } from "@/lib/media/block-media";
+import { FeatureSpotlightCard } from "./feature/FeatureSpotlightCard";
+import { FeatureSpotlightSlider } from "./feature/FeatureSpotlightSlider";
 
 // ── Feature icon system ────────────────────────────────────────────────────────
 //
@@ -216,6 +219,34 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
     resolved === "feature_grid_spacious"  ? "feature_grid_spacious":
     resolved
   ) as FeatureGridVariant;
+
+  // ── feature_spotlight variant ───────────────────────────────────────────────
+  //
+  // One highlighted offer: media alongside title + copy + optional price + CTA.
+  // Slider when there are several. Uses the shared media core. `description`
+  // doubles as the copy; price and CTA are independent (any combination is tidy).
+
+  if (resolved === "feature_spotlight") {
+    const offers = items.filter((it) => (it.title && it.title.trim() !== "") || isRenderableMedia(it.media));
+    return (
+      <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--feature-grid-bg)", ...DIVIDER_SECTION_STYLE }}>
+        <Container size="lg">
+          <Stack gap={12} style={{ gap: "var(--block-content-gap)" }}>
+            {heading && (
+              <Text variant="h2" align="center" style={HEADING_STYLE}>
+                {heading}
+              </Text>
+            )}
+
+            {offers.length === 1 && <FeatureSpotlightCard item={offers[0]} />}
+            {offers.length > 1 && <FeatureSpotlightSlider items={[...offers]} />}
+
+            {cta && <FeatureGridCTA cta={cta} />}
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
 
   // ── feature_grid_4up variant ────────────────────────────────────────────────
   //

@@ -283,3 +283,59 @@ export const WithCTALink: Story = {
     variant: "icons-left",
   },
 };
+
+// ── feature_spotlight stories ──────────────────────────────────────────────────
+
+const spotlightPhotoMedia = {
+  kind: "image" as const, source: "asset" as const,
+  url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=80", fit: "cover" as const,
+};
+
+const spotlightPriceAndCta: FeatureGridBlockData = {
+  heading: "Uitgelicht aanbod",
+  features: [{
+    title: "Bakwagen op maat", description: "Robuuste bakwagen, geremd, klaar voor zwaar werk. Achteraf om te bouwen in onze werkplaats.",
+    price: "vanaf €1.250", ctaLabel: "Offerte aanvragen", ctaHref: "/contact", media: spotlightPhotoMedia,
+  }],
+};
+
+const spotlightPriceOnly: FeatureGridBlockData = {
+  heading: "Alleen prijs, geen knop",
+  features: [{ title: "Tuinaanhanger", description: "Licht en wendbaar voor thuis en tuin.", price: "vanaf €650", media: spotlightPhotoMedia }],
+};
+
+const spotlightCtaOnly: FeatureGridBlockData = {
+  heading: "Alleen knop, geen prijs",
+  features: [{ title: "Maatwerk", description: "Vertel ons wat u nodig heeft, wij bouwen het.", ctaLabel: "Start maatwerk", ctaHref: "/contact", media: spotlightPhotoMedia }],
+};
+
+const spotlightBare: FeatureGridBlockData = {
+  heading: "Geen prijs, geen knop",
+  features: [{ title: "Onze werkplaats", description: "Onderhoud, reparatie en ombouw onder een dak.", media: spotlightPhotoMedia }],
+};
+
+const spotlightSlider: FeatureGridBlockData = {
+  heading: "Meerdere aanbiedingen",
+  features: [spotlightPriceAndCta.features![0], spotlightCtaOnly.features![0], spotlightBare.features![0]],
+};
+
+export const SpotlightPriceAndCta: Story = {
+  name: "Spotlight — price + CTA",
+  args: { data: spotlightPriceAndCta, variant: "feature_spotlight" },
+};
+export const SpotlightPriceOnly: Story = {
+  name: "Spotlight — price only",
+  args: { data: spotlightPriceOnly, variant: "feature_spotlight" },
+};
+export const SpotlightCtaOnly: Story = {
+  name: "Spotlight — CTA only",
+  args: { data: spotlightCtaOnly, variant: "feature_spotlight" },
+};
+export const SpotlightBare: Story = {
+  name: "Spotlight — no price, no CTA",
+  args: { data: spotlightBare, variant: "feature_spotlight" },
+};
+export const SpotlightSlider: Story = {
+  name: "Spotlight — slider (3 offers)",
+  args: { data: spotlightSlider, variant: "feature_spotlight" },
+};

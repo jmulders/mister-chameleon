@@ -41,6 +41,40 @@ const quoteItems = [
   },
 ];
 
+const spotlightPhotoItems = [
+  {
+    title: "",
+    text:  "Onze aanhanger stond binnen een dag klaar, precies op maat voor ons werk. De service maakt echt het verschil.",
+    name:  "Marien de Vries",
+    role:  "Eigenaar",
+    organisation: "Transport Jansen",
+    kind:  "klant" as const,
+    media: {
+      kind:   "image" as const,
+      source: "asset" as const,
+      url:    "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=80",
+      fit:    "cover" as const,
+    },
+  },
+];
+
+const spotlightVideoItems = [
+  {
+    title: "",
+    text:  "In de werkplaats bouwen we elke aanhanger om naar wens. Bekijk hoe dat werkt.",
+    name:  "Cluistra werkplaats",
+    role:  "Eigen ombouw",
+    kind:  "partner" as const,
+    media: {
+      kind:    "video" as const,
+      source:  "youtube" as const,
+      id:      "aqz-KE-bpKQ",
+      poster:  "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=80",
+      autoplay: false,
+    },
+  },
+];
+
 // ── Meta ──────────────────────────────────────────────────────────────────────
 
 const meta: Meta<typeof ProofBlock> = {
@@ -94,6 +128,24 @@ export const Quotes: Story = {
     title:         "What our customers say",
     items:         quoteItems,
     layoutVariant: "proof_quotes",
+  },
+};
+
+export const SpotlightPhoto: Story = {
+  name: "Spotlight — photo case",
+  args: {
+    title:         "Ervaringen van onze klanten",
+    items:         spotlightPhotoItems,
+    layoutVariant: "proof_spotlight",
+  },
+};
+
+export const SpotlightVideo: Story = {
+  name: "Spotlight — YouTube facade",
+  args: {
+    title:         "Uit de werkplaats",
+    items:         spotlightVideoItems,
+    layoutVariant: "proof_spotlight",
   },
 };
 

@@ -46,6 +46,7 @@
  */
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import type { ReactNode } from "react";
 import type { SliderMediaItem } from "@/page-config";
 import { Text }       from "@/components/primitives/Text";
 import { SliderSlide } from "./SliderSlide";
@@ -74,20 +75,42 @@ function ChevronRight() {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-interface MediaSliderProps {
-  slides:   SliderMediaItem[];
-  heading?: string;
+/** A generic slide: a stable key + a renderer that receives whether it is active. */
+export interface MediaSliderItem {
+  key:    string;
+  render: (isActive: boolean) => ReactNode;
 }
 
-export function MediaSlider({ slides, heading }: MediaSliderProps) {
+interface MediaSliderProps {
+  /** Listing media slides (default path). Rendered via SliderSlide. */
+  slides?:   SliderMediaItem[];
+  /** Generic slide entries (spotlight cards). Takes precedence over `slides`. */
+  items?:    MediaSliderItem[];
+  heading?:  string;
+  /**
+   * When true, only the active slide receives isActive=true (so off-active videos
+   * pause). Defaults to false, which preserves the existing listing behaviour
+   * (every slide is treated as active, exactly as before).
+   */
+  pauseInactive?: boolean;
+}
+
+export function MediaSlider({ slides, items, heading, pauseInactive = false }: MediaSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
 
   const [active,  setActive]  = useState(0);
   const [atStart, setAtStart] = useState(true);
   const [atEnd,   setAtEnd]   = useState(false);
 
-  const count        = slides.length;
+  // Unify both input shapes into a single list of { key, render(isActive) }.
+  const entries: MediaSliderItem[] = items ?? (slides ?? []).map((slide, i) => ({
+    key:    slide.key ?? String(i),
+    render: (isActive: boolean) => <SliderSlide slide={slide} isActive={isActive} />,
+  }));
+
+  const count        = entries.length;
   const showControls = count > 1;
+  const activeFor    = (i: number) => (pauseInactive ? i === active : true);
 
   // ── Track active slide + arrow visibility ─────────────────────────────────
   //
@@ -190,14 +213,14 @@ export function MediaSlider({ slides, heading }: MediaSliderProps) {
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
         aria-label="Mediaslider"
       >
-        {slides.map((slide, i) => (
+        {entries.map((entry, i) => (
           <div
-            key={slide.key ?? i}
+            key={entry.key}
             // w-full + flex-shrink-0: exactly one slide per view, no peeking.
             // snap-start: left edge of each slide is a snap point.
             className="w-full flex-shrink-0 snap-start"
           >
-            <SliderSlide slide={slide} />
+            {entry.render(activeFor(i))}
           </div>
         ))}
       </div>
@@ -230,7 +253,7 @@ export function MediaSlider({ slides, heading }: MediaSliderProps) {
 
           {/* Dot indicators */}
           <div className="flex items-center gap-2" role="tablist" aria-label="Slides">
-            {slides.map((_, i) => (
+            {entries.map((_, i) => (
               <button
                 key={i}
                 type="button"
