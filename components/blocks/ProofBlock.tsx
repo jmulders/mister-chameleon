@@ -7,8 +7,9 @@ import { Text } from "@/components/primitives/Text";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { ProofLayoutVariant } from "@/page-config/block-variants";
 import type { ProofItem } from "@/cms/types";
-import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
 import { isRenderableMedia } from "@/lib/media/block-media";
+import { ProofSpotlightCard } from "@/components/blocks/proof/ProofSpotlightCard";
+import { ProofSpotlightSlider } from "@/components/blocks/proof/ProofSpotlightSlider";
 
 /**
  * ProofBlock
@@ -213,7 +214,8 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
   // on the left/above).
 
   if (layout === "proof_spotlight") {
-    const item = items[0];
+    // A case is renderable when it has a quote/story or media.
+    const cases = items.filter((it) => (it.text && it.text.trim() !== "") || isRenderableMedia(it.media));
     return (
       <Section spacing="lg" style={{ background: "var(--section-subtle-bg)" }}>
         <Container size="lg">
@@ -224,50 +226,8 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
               </Text>
             )}
 
-            {item && (
-              <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
-                {isRenderableMedia(item.media) && (
-                  <div className="w-full lg:w-1/2" style={{ order: "var(--proof-spotlight-media-side, 1)" as unknown as number }}>
-                    <BlockMediaView media={item.media} />
-                  </div>
-                )}
-
-                <Stack gap={4} className="w-full lg:flex-1">
-                  {item.kind && (
-                    <Text variant="caption" color="subtle" className="tracking-wider uppercase">
-                      {item.kind}
-                    </Text>
-                  )}
-
-                  <span
-                    className="text-4xl leading-none select-none"
-                    style={{ color: "var(--proof-quote-color, var(--primary))" }}
-                    aria-hidden="true"
-                  >
-                    &ldquo;
-                  </span>
-
-                  <Text variant="h3" color="default" className="italic leading-relaxed" style={{ fontWeight: "normal" }}>
-                    {item.text}
-                  </Text>
-
-                  {(item.name || item.role || item.organisation) && (
-                    <Stack gap={0}>
-                      {item.name && (
-                        <Text variant="body" style={{ fontWeight: "var(--font-subheading-weight)" }}>
-                          {item.name}
-                        </Text>
-                      )}
-                      {(item.role || item.organisation) && (
-                        <Text variant="body-sm" color="subtle">
-                          {[item.role, item.organisation].filter(Boolean).join(" · ")}
-                        </Text>
-                      )}
-                    </Stack>
-                  )}
-                </Stack>
-              </div>
-            )}
+            {cases.length === 1 && <ProofSpotlightCard item={cases[0]} />}
+            {cases.length > 1 && <ProofSpotlightSlider items={cases} />}
           </Stack>
         </Container>
       </Section>

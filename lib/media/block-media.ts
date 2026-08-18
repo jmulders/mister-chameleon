@@ -35,6 +35,13 @@ export interface BlockMedia {
   autoplay?: boolean;
   /** object-fit for images. "cover" (default) for photos, "contain" for logos. */
   fit?: "cover" | "contain";
+  /** Alt text for images (accessibility). */
+  alt?: string;
+}
+
+/** Platform-default poster for a YouTube video (its own thumbnail) when none is set. */
+export function youtubeThumbUrl(id: string): string {
+  return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
 }
 
 /** True when the media has enough to render (an image/video with a real source). */

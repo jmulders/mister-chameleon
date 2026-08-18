@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { BlockMedia } from "@/lib/media/block-media";
-import { youtubeEmbedSrc, vimeoEmbedSrc, MEDIA_IFRAME_ALLOW } from "@/lib/media/block-media";
+import { youtubeEmbedSrc, vimeoEmbedSrc, youtubeThumbUrl, MEDIA_IFRAME_ALLOW } from "@/lib/media/block-media";
 
 export function BlockMediaView({
   media,
@@ -33,7 +33,7 @@ export function BlockMediaView({
   const objectFit = media.fit ?? "cover";
 
   const frameClass = `relative w-full overflow-hidden rounded-xl ${className ?? ""}`;
-  const frameStyle = { aspectRatio: "16 / 9", background: "var(--proof-spotlight-media-bg, var(--section-subtle-bg, #f4f4f5))" } as const;
+  const frameStyle = { aspectRatio: "16 / 9", background: "var(--block-media-bg, var(--section-subtle-bg, #f4f4f5))" } as const;
 
   // ── Image ────────────────────────────────────────────────────────────────────
   if (media.kind === "image") {
@@ -43,7 +43,7 @@ export function BlockMediaView({
           // eslint-disable-next-line @next/next/no-img-element -- tenant asset on any host; next/image not guaranteed to allow it
           <img
             src={media.url}
-            alt=""
+            alt={media.alt ?? ""}
             className="absolute inset-0 h-full w-full"
             style={{ objectFit }}
             loading="lazy"
@@ -131,6 +131,9 @@ function EmbedFacade({
     ? youtubeEmbedSrc(id, { autoplay: true })
     : vimeoEmbedSrc(id, { autoplay: true });
 
+  // No poster set → fall back to the platform default (YouTube's own thumbnail).
+  const posterSrc = poster || (source === "youtube" && id ? youtubeThumbUrl(id) : undefined);
+
   if (shouldLoad && id) {
     return (
       <iframe
@@ -151,9 +154,9 @@ function EmbedFacade({
       aria-label="Video afspelen"
       className="group absolute inset-0 h-full w-full cursor-pointer"
     >
-      {poster && (
+      {posterSrc && (
         // eslint-disable-next-line @next/next/no-img-element -- poster asset on any host
-        <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+        <img src={posterSrc} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
       )}
       <span className="absolute inset-0 flex items-center justify-center bg-black/25 transition-colors group-hover:bg-black/35">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg">
