@@ -90,6 +90,7 @@ import {
 }                                    from "@/decision";
 import { loadTenantRulesConfig }     from "@/decision/rules/load-tenant-rules";
 import { buildDecisionContext }      from "@/decision/context/build-decision-context";
+import { sanitizeCustomAttributes }  from "@/decision/context/custom-attributes";
 import { isBotUserAgent }            from "@/decision/context/detect-bot";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import type { TenantSettings }       from "@/tenant/types";
@@ -212,6 +213,13 @@ interface DecideRequest {
      * set and this is absent, the first entry is used so the demo always shows one.
      */
     _demoNotif?:    string;
+    /**
+     * Per-request domain attributes for the current page (e.g. a trailer model's
+     * { massa, categorie, occasion }), read by an AttributeCondition. Untrusted /
+     * spoofable: sanitised and filtered to the tenant declaration server-side
+     * before it reaches rule evaluation.
+     */
+    customAttributes?: Record<string, unknown>;
   };
 }
 
@@ -889,6 +897,9 @@ export async function POST(request: NextRequest) {
       pageType:    "cms_page",
       sessionId,
       timezone:    tenant.timezone ?? null,
+      // Untrusted page-supplied attributes → sanitised and filtered to the
+      // tenant's declared attributes before they can affect any rule.
+      customAttributes: sanitizeCustomAttributes(context.customAttributes, tenant.customAttributes),
     });
 
     const experimentsEnabled = tenant.experiments?.enabled ?? true;

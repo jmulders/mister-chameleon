@@ -342,6 +342,52 @@ export function buildSnippetSource(decideUrl: string): string {
       : ('mc_' + Date.now() + '_' + Math.random().toString(36).slice(2));
   } catch(e) {}
 
+  // ── Custom attributes ────────────────────────────────────────────────────────
+  // Per-request domain attributes the tenant declares on the page, from two
+  // sources merged (window.mcAttributes first, then data-mc-attr-<name> in the
+  // DOM which wins). Sanitised here (name charset, count + value-length caps) and
+  // again server-side, where only tenant-declared names survive. For content
+  // variation only — the server treats these as untrusted.
+  try {
+    var mcAttrs = {};
+    var mcAttrCount = 0;
+    var MC_ATTR_MAX = 24;
+    function mcAddAttr(rawName, rawValue) {
+      if (mcAttrCount >= MC_ATTR_MAX) return;
+      if (typeof rawName !== 'string') return;
+      var name = rawName.trim().toLowerCase();
+      if (!/^[a-z0-9_-]{1,40}$/.test(name)) return;
+      var v = rawValue;
+      if (typeof v === 'string') { v = v.slice(0, 128); }
+      else if (typeof v === 'number' || typeof v === 'boolean') { /* keep */ }
+      else if (v == null) { return; }
+      else { return; }
+      if (!Object.prototype.hasOwnProperty.call(mcAttrs, name)) mcAttrCount++;
+      mcAttrs[name] = v;
+    }
+    // Source 1: window.mcAttributes (a flat object).
+    if (window.mcAttributes && typeof window.mcAttributes === 'object') {
+      for (var an in window.mcAttributes) {
+        if (Object.prototype.hasOwnProperty.call(window.mcAttributes, an)) mcAddAttr(an, window.mcAttributes[an]);
+      }
+    }
+    // Source 2: data-mc-attr-<name>="<value>" anywhere in the DOM (later wins).
+    // CSS cannot wildcard an attribute NAME, so scan elements once, stopping
+    // early once the cap is reached.
+    var allEls = document.getElementsByTagName('*');
+    for (var e = 0; e < allEls.length && mcAttrCount < MC_ATTR_MAX; e++) {
+      var attrs = allEls[e].attributes;
+      if (!attrs) continue;
+      for (var a = 0; a < attrs.length; a++) {
+        var an2 = attrs[a].name;
+        if (an2.indexOf('data-mc-attr-') === 0) {
+          mcAddAttr(an2.slice('data-mc-attr-'.length), attrs[a].value);
+        }
+      }
+    }
+    if (mcAttrCount > 0) context.customAttributes = mcAttrs;
+  } catch(e) {}
+
   // Collect the whole-block containers present on the page (data-mc-block="…"),
   // so the endpoint renders each requested variant as a self-contained block
   // instead of the per-element content slots.
