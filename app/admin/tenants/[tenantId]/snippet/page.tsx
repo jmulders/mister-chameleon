@@ -57,6 +57,14 @@ export default async function SnippetPage({
           Add one script tag to your site&apos;s <code className="font-mono text-xs bg-neutral-100 px-1 py-0.5 rounded">&lt;head&gt;</code>.
           The snippet personalises your existing pages in real-time, with no server-side changes required.
         </p>
+        <p className="mt-2 text-xs text-neutral-500">
+          To match rules on page attributes, declare them under{" "}
+          <a href={`/admin/tenants/${tenantId}/personalization/attributes`} className="font-medium text-indigo-600 hover:underline">
+            Personalization &rarr; Custom attributes
+          </a>{" "}
+          and supply them on the page with{" "}
+          <code className="font-mono text-xs bg-neutral-100 px-1 py-0.5 rounded">data-mc-attr-&lt;name&gt;</code>.
+        </p>
       </div>
 
       <SnippetTabs
