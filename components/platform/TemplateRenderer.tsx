@@ -370,6 +370,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
       {/* ── Notification overlay (rendered once, outside page flow) ──────── */}
       {effectiveContextData.notification && (
         <NotificationBlock
+          id={effectiveContextData.notification.id}
           message={effectiveContextData.notification.message}
           severity={effectiveContextData.notification.severity}
           ctaLabel={effectiveContextData.notification.ctaLabel}
@@ -377,6 +378,9 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
           position={effectiveContextData.notification.position}
           dismissible={effectiveContextData.notification.dismissible}
           autoDismissMs={effectiveContextData.notification.autoDismissMs}
+          frequency={effectiveContextData.notification.frequency}
+          ttl={effectiveContextData.notification.ttl}
+          ttlUnit={effectiveContextData.notification.ttlUnit}
         />
       )}
 
