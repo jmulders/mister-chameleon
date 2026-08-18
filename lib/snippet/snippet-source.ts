@@ -85,6 +85,8 @@
  *   `<script src="https://app.misterchameleon.com/api/snippet.js"
  *           data-site-key="sk_live_abc123" async></script>`
  */
+import { NOTIF_KEY_PREFIX } from "@/lib/notifications/frequency-cap";
+
 export function buildSnippetSource(decideUrl: string): string {
   // Platform origin (e.g. https://app.misterchameleon.com) derived from the
   // decide URL, so injected form blocks can submit cross-origin to /api/forms.
@@ -476,6 +478,48 @@ export function buildSnippetSource(decideUrl: string): string {
         applyContent(slotKey, value, selectors);
       }
     });
+    try { mcApplyNotificationCapping(slots); } catch (e) { /* capping is best-effort */ }
+  }
+
+  // ── Notification frequency capping (same key scheme as the platform block) ────
+  // The tenant marks their notification container with data-mc-notification and
+  // (optionally) a dismiss control inside it with data-mc-notification-dismiss.
+  // On load we hide the container when the notification is still capped; otherwise
+  // we wire the dismiss control to record the dismissal (functional storage, no
+  // tracking). No host element → no-op. Key: mc_notif_v1:<id>[:<campaign>].
+  function mcApplyNotificationCapping(slots) {
+    var id = slots['notification-id'];
+    if (!id) return;
+    var host = document.querySelector('[data-mc-notification]');
+    if (!host) return;
+
+    var frequency = slots['notification-frequency'] || 'always';
+    var campaign  = slots['notification-campaign'] || '';
+    var ttlMs     = parseInt(slots['notification-ttl-ms'] || '0', 10) || 0;
+    var key       = ${JSON.stringify(NOTIF_KEY_PREFIX)} + id + (campaign ? ':' + campaign : '');
+
+    function store() { return frequency === 'once_per_session' ? window.sessionStorage : window.localStorage; }
+    function suppressed() {
+      if (frequency === 'always') return false;
+      try {
+        var raw = store().getItem(key);
+        if (frequency === 'once_per_session') return raw !== null;
+        if (raw === null) return false;
+        var ts = Number(raw);
+        return (ts === ts) && (Date.now() - ts) < ttlMs; // ts===ts guards NaN
+      } catch (e) { return false; }
+    }
+
+    if (suppressed()) { host.style.display = 'none'; return; }
+
+    function doDismiss() {
+      try { if (frequency !== 'always') store().setItem(key, String(Date.now())); } catch (e) {}
+      host.style.display = 'none';
+    }
+    var dismissers = host.querySelectorAll('[data-mc-notification-dismiss]');
+    for (var i = 0; i < dismissers.length; i++) {
+      dismissers[i].addEventListener('click', function (e) { e.preventDefault(); doDismiss(); });
+    }
   }
 
   // ── 4b. Demo mode — live scenario switcher on the tenant's own site ──────────
