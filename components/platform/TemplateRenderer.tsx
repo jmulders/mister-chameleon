@@ -213,6 +213,11 @@ function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenConte
           title:       item.title,
           description: item.body,
           icon:        item.icon,
+          // Spotlight fields — passed through so feature_spotlight can render them.
+          media:       item.media,
+          price:       item.price,
+          ctaLabel:    item.ctaLabel,
+          ctaHref:     item.ctaHref,
         })),
       };
       return (

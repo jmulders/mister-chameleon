@@ -94,6 +94,7 @@ import {
 import { isContextSlotBlockType } from "../mappers/statamic/context-slot-block";
 import { StatamicClient, createStatamicClient } from "./statamic-client";
 import { logger } from "@/lib/logger";
+import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 import type { ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type { TenantSettings } from "@/tenant/types";
 
@@ -478,6 +479,12 @@ export class StatamicProvider implements CMSProvider {
       items: (c.items ?? []).map((item) => ({
         title: item.title ?? "",
         text:  item.text ?? item.body ?? "",
+        // Spotlight fields — carried through so proof_spotlight can render them.
+        ...(heroBannerMediaToBlockMedia(item.media) ? { media: heroBannerMediaToBlockMedia(item.media) } : {}),
+        ...(item.name         ? { name:         item.name }         : {}),
+        ...(item.role         ? { role:         item.role }         : {}),
+        ...(item.organisation ? { organisation: item.organisation } : {}),
+        ...(item.kind         ? { kind:         item.kind }         : {}),
       })),
       ...this.variantTokenRef(c),
     };
@@ -509,6 +516,11 @@ export class StatamicProvider implements CMSProvider {
         title: item.title ?? "",
         body:  item.body ?? item.text ?? "",
         icon:  undefined,
+        // Spotlight fields — carried through so feature_spotlight can render them.
+        ...(heroBannerMediaToBlockMedia(item.media) ? { media: heroBannerMediaToBlockMedia(item.media) } : {}),
+        ...(item.price    ? { price:    item.price }    : {}),
+        ...(item.ctaLabel ? { ctaLabel: item.ctaLabel } : {}),
+        ...(item.ctaHref  ? { ctaHref:  item.ctaHref }  : {}),
       })),
       ...this.variantTokenRef(c),
     };

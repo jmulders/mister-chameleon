@@ -386,6 +386,19 @@ export interface FeatureItem {
    * Convention: use a slug-style string, e.g. "lightning", "shield", "chart".
    */
   icon?: string;
+
+  // ── Spotlight fields (feature_spotlight only; grid variants ignore them) ──
+  // Optional + backward-compatible. Adapted to page-config FeatureItem by
+  // TemplateRenderer so FeatureGridBlock's feature_spotlight can render them.
+
+  /** Media shown alongside the offer (image or YouTube/Vimeo/asset video). */
+  media?:    import("@/lib/media/block-media").BlockMedia;
+  /** Optional price line (e.g. "vanaf €1.250"). */
+  price?:    string;
+  /** Optional CTA button label. Rendered only when both label and href are set. */
+  ctaLabel?: string;
+  /** Optional CTA href. */
+  ctaHref?:  string;
 }
 
 /**
@@ -584,6 +597,26 @@ export interface AdaptiveVariantItem {
   cta?:      string;
   /** CTA-link voor de kaart */
   ctaHref?:  string;
+
+  // ── Spotlight fields (proof_spotlight / feature_spotlight) ──
+  // Optioneel + backward-compatible. Media wordt in de editor via SlideMediaEditor
+  // ingevoerd (HeroBannerMedia-vorm, inclusief YouTube/Vimeo-id) en bij het mappen
+  // naar ProofItem/FeatureItem omgezet naar BlockMedia.
+
+  /** Media naast de quote/aanbod (afbeelding of YouTube/Vimeo/asset-video). */
+  media?:        HeroBannerMedia;
+  /** proof_spotlight: naam bij de quote (bijv. "Marien de Vries"). */
+  name?:         string;
+  /** proof_spotlight: rol/functie (bijv. "Eigenaar"). */
+  role?:         string;
+  /** proof_spotlight: organisatie (bijv. "Transport Jansen"). */
+  organisation?: string;
+  /** proof_spotlight: relatie-label als eyebrow. */
+  kind?:         "klant" | "partner" | "leverancier" | "medewerker";
+  /** feature_spotlight: optionele prijsregel (bijv. "vanaf €1.250"). */
+  price?:        string;
+  /** feature_spotlight: CTA-label (los van het generieke `cta`-veld). */
+  ctaLabel?:     string;
 }
 
 export interface AdaptiveVariantContent {
