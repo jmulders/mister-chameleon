@@ -486,6 +486,7 @@ export class StatamicProvider implements CMSProvider {
         ...(item.role         ? { role:         item.role }         : {}),
         ...(item.organisation ? { organisation: item.organisation } : {}),
         ...(item.kind         ? { kind:         item.kind }         : {}),
+        ...(item.mediaSide    ? { mediaSide:    item.mediaSide }    : {}),
       })),
       ...this.variantTokenRef(c),
     };
@@ -524,6 +525,7 @@ export class StatamicProvider implements CMSProvider {
         // ctaLabel is absent, so one CTA input serves both.
         ...((item.ctaLabel ?? item.cta) ? { ctaLabel: item.ctaLabel ?? item.cta } : {}),
         ...(item.ctaHref ? { ctaHref: item.ctaHref } : {}),
+        ...(item.mediaSide ? { mediaSide: item.mediaSide } : {}),
       })),
       ...this.variantTokenRef(c),
     };

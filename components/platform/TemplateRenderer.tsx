@@ -218,6 +218,7 @@ function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenConte
           price:       item.price,
           ctaLabel:    item.ctaLabel,
           ctaHref:     item.ctaHref,
+          mediaSide:   item.mediaSide,
         })),
       };
       return (
