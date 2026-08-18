@@ -98,6 +98,7 @@ export default async function TenantRulesPage({
         variantCatalogue={variantCatalogue}
         saveAction={boundSave}
         resetAction={boundReset}
+        attributeCatalogue={rawTenant.customAttributes}
       />
     </div>
   );
