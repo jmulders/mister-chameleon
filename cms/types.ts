@@ -305,6 +305,11 @@ export interface ProofItem {
   organisation?: string;
   /** Relationship label shown as an eyebrow. Dutch website copy. */
   kind?: "klant" | "partner" | "leverancier" | "medewerker";
+  /**
+   * Which side the media sits on: "left" or "right". Empty inherits from the
+   * tenant token (--proof-spotlight-media-side). Mobile always stacks media on top.
+   */
+  mediaSide?: "left" | "right";
 }
 
 /**
@@ -399,6 +404,11 @@ export interface FeatureItem {
   ctaLabel?: string;
   /** Optional CTA href. */
   ctaHref?:  string;
+  /**
+   * Which side the media sits on: "left" or "right". Empty inherits from the
+   * tenant token (--feature-spotlight-media-side). Mobile always stacks media on top.
+   */
+  mediaSide?: "left" | "right";
 }
 
 /**
@@ -646,6 +656,11 @@ export interface AdaptiveVariantItem {
   price?:        string;
   /** feature_spotlight: CTA-label (los van het generieke `cta`-veld). */
   ctaLabel?:     string;
+  /**
+   * Media-zijde voor deze spotlight-kaart: "left" of "right". Leeg = erven van
+   * de tenant-token (--proof-spotlight-media-side / --feature-spotlight-media-side).
+   */
+  mediaSide?:    "left" | "right";
 }
 
 export interface AdaptiveVariantContent {
