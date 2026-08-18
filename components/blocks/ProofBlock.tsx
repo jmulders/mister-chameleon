@@ -6,6 +6,9 @@ import { Grid } from "@/components/primitives/Grid";
 import { Text } from "@/components/primitives/Text";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { ProofLayoutVariant } from "@/page-config/block-variants";
+import type { ProofItem } from "@/cms/types";
+import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
+import { isRenderableMedia } from "@/lib/media/block-media";
 
 /**
  * ProofBlock
@@ -38,12 +41,7 @@ import type { ProofLayoutVariant } from "@/page-config/block-variants";
  *   --proof-quote-color      Pull-quote mark colour override (proof_quotes variant)
  */
 
-export interface ProofItem {
-  /** Bold label — a metric, quote anchor, or capability statement */
-  title: string;
-  /** One-to-two sentence supporting copy */
-  text: string;
-}
+export type { ProofItem };
 
 export interface ProofBlockProps {
   /** Section heading displayed above the proof items */
@@ -196,6 +194,79 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
                   </Stack>
                 ))}
               </Grid>
+            )}
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── proof_spotlight ──────────────────────────────────────────────────────────
+  //
+  // One case in the spotlight: media (photo or video) alongside a quote/story,
+  // with a relationship eyebrow (kind) and split attribution (name / role /
+  // organisation). Uses the shared media core. This branch renders the first item
+  // as a single spotlight; the multi-item slider is added in a later step.
+  //
+  // Media side is tenant-controlled via --proof-spotlight-media-side (a CSS
+  // `order`: 1 = media after the text on the right/below, default; -1 = before,
+  // on the left/above).
+
+  if (layout === "proof_spotlight") {
+    const item = items[0];
+    return (
+      <Section spacing="lg" style={{ background: "var(--section-subtle-bg)" }}>
+        <Container size="lg">
+          <Stack gap={10} style={{ gap: "var(--block-content-gap)" }}>
+            {title && (
+              <Text variant="caption" color="subtle" align="center" className="tracking-wider uppercase">
+                {title}
+              </Text>
+            )}
+
+            {item && (
+              <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
+                {isRenderableMedia(item.media) && (
+                  <div className="w-full lg:w-1/2" style={{ order: "var(--proof-spotlight-media-side, 1)" as unknown as number }}>
+                    <BlockMediaView media={item.media} />
+                  </div>
+                )}
+
+                <Stack gap={4} className="w-full lg:flex-1">
+                  {item.kind && (
+                    <Text variant="caption" color="subtle" className="tracking-wider uppercase">
+                      {item.kind}
+                    </Text>
+                  )}
+
+                  <span
+                    className="text-4xl leading-none select-none"
+                    style={{ color: "var(--proof-quote-color, var(--primary))" }}
+                    aria-hidden="true"
+                  >
+                    &ldquo;
+                  </span>
+
+                  <Text variant="h3" color="default" className="italic leading-relaxed" style={{ fontWeight: "normal" }}>
+                    {item.text}
+                  </Text>
+
+                  {(item.name || item.role || item.organisation) && (
+                    <Stack gap={0}>
+                      {item.name && (
+                        <Text variant="body" style={{ fontWeight: "var(--font-subheading-weight)" }}>
+                          {item.name}
+                        </Text>
+                      )}
+                      {(item.role || item.organisation) && (
+                        <Text variant="body-sm" color="subtle">
+                          {[item.role, item.organisation].filter(Boolean).join(" · ")}
+                        </Text>
+                      )}
+                    </Stack>
+                  )}
+                </Stack>
+              </div>
             )}
           </Stack>
         </Container>

@@ -291,6 +291,20 @@ export interface ProofItem {
   title: string;
   /** One-to-two sentence supporting copy */
   text: string;
+
+  // ── Spotlight fields (proof_spotlight only; ignored by stats/logos/quotes) ──
+  // All optional and backward-compatible: existing proof variants never read them.
+
+  /** Media shown alongside the quote/story (image or YouTube/Vimeo/asset video). */
+  media?: import("@/lib/media/block-media").BlockMedia;
+  /** Attribution: person or entity name (e.g. "Marien de Vries"). */
+  name?: string;
+  /** Attribution: role or function (e.g. "Eigenaar"). */
+  role?: string;
+  /** Attribution: organisation (e.g. "Transport Jansen"). */
+  organisation?: string;
+  /** Relationship label shown as an eyebrow. Dutch website copy. */
+  kind?: "klant" | "partner" | "leverancier" | "medewerker";
 }
 
 /**
