@@ -2345,6 +2345,29 @@ export interface TenantCalendarSettings {
   readonly bookingHoursEnd?: number;
 }
 
+/**
+ * A tenant-declared domain attribute usable in an AttributeCondition. Declaring
+ * an attribute makes it available to the rule editor and lets the page supply it
+ * (data-mc-attr-<name> / window.mcAttributes). Attribute values are client-
+ * supplied and spoofable: content variation only, never access / pricing /
+ * security. See docs/custom-attributes-spec.md.
+ */
+export interface CustomAttributeDeclaration {
+  /** Attribute name. Lowercase [a-z0-9_-], 1..40 chars. Matches customAttributes[name]. */
+  readonly name: string;
+  /** Value type. Supplied values are coerced to this and dropped if they cannot be. */
+  readonly type: "string" | "number" | "boolean";
+  /** Optional English label shown in the admin UI (falls back to the name). */
+  readonly label?: string;
+  /** Optional operator description shown in the editor. */
+  readonly description?: string;
+  /**
+   * Optional allowlist of values (for "string" / "number"). When set, the editor
+   * offers these as a dropdown and the server drops any supplied value not in it.
+   */
+  readonly allowedValues?: readonly (string | number)[];
+}
+
 export interface TenantSettings {
   readonly tenantId:          string;
 
@@ -2744,6 +2767,20 @@ export interface TenantSettings {
    * Configure via /admin/tenants/[tenantId]/snippet.
    */
   readonly snippet?: TenantSnippetSettings;
+
+  /**
+   * Tenant-declared domain attributes usable in rule conditions (an
+   * AttributeCondition), e.g. Cluistra: massa / categorie / occasion. Declaring
+   * an attribute here is what lets a page supply it (data-mc-attr-<name> or
+   * window.mcAttributes) and a rule match on it, without adding a named field to
+   * the shared FIELD_REGISTRY. Undeclared attribute names are ignored server-side.
+   *
+   * Values are client-supplied and spoofable: content variation only, never
+   * access / pricing / security. See docs/custom-attributes-spec.md.
+   *
+   * Configure via /admin/tenants/[tenantId]/personalization.
+   */
+  readonly customAttributes?: readonly CustomAttributeDeclaration[];
 
   /**
    * Ad-network role. When "advertiser", this tenant's siteKey is embedded by

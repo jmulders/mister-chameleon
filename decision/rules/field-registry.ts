@@ -194,6 +194,21 @@ export type RuleEvaluationContext = DecisionInput & {
   ruleContext?: Record<string, string | number | boolean> | null;
 
   /**
+   * Per-request domain attributes supplied by the current page (snippet payload
+   * or platform page props), e.g. a trailer model's { massa, categorie, occasion }.
+   * Read by an AttributeCondition.
+   *
+   * Unlike `ruleContext`, this is READ-ONLY per-request INPUT: rules never write
+   * it, nothing is persisted to visitor_behavior_state, there is no sticky or
+   * monotone layer. It describes what is on the page now, like `pathname` or
+   * `referrer`. Only tenant-declared attribute names are honored server-side.
+   *
+   * Values are client-supplied and spoofable: use for content variation only,
+   * never for access, pricing, or security. See docs/custom-attributes-spec.md.
+   */
+  customAttributes?: Record<string, string | number | boolean> | null;
+
+  /**
    * Landing page for the session — the pathname of the first view, persisted
    * sticky so later views can read "entered on a deep page".
    * On the first view equals `pathname`; on later views read from the overlay.
