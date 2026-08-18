@@ -518,9 +518,11 @@ export class StatamicProvider implements CMSProvider {
         icon:  undefined,
         // Spotlight fields — carried through so feature_spotlight can render them.
         ...(heroBannerMediaToBlockMedia(item.media) ? { media: heroBannerMediaToBlockMedia(item.media) } : {}),
-        ...(item.price    ? { price:    item.price }    : {}),
-        ...(item.ctaLabel ? { ctaLabel: item.ctaLabel } : {}),
-        ...(item.ctaHref  ? { ctaHref:  item.ctaHref }  : {}),
+        ...(item.price ? { price: item.price } : {}),
+        // Reuse the base CTA fields (cta / ctaHref) when the spotlight-specific
+        // ctaLabel is absent, so one CTA input serves both.
+        ...((item.ctaLabel ?? item.cta) ? { ctaLabel: item.ctaLabel ?? item.cta } : {}),
+        ...(item.ctaHref ? { ctaHref: item.ctaHref } : {}),
       })),
       ...this.variantTokenRef(c),
     };
