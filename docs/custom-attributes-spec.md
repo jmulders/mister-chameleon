@@ -1,6 +1,9 @@
 # Spec: custom-attributen (generieke domein-attributen in condities)
 
-Status: ontwerp. Aparte branch `feat/custom-attributes-spec`. Nog niet gebouwd.
+Status: gebouwd (stap 1 t/m 8) op branch `feat/custom-attributes-spec`. Dev-seed
+voor Cluistra (declaratie + demo-regel `cluistra.attr_ondernemer`) staat op dev;
+de prod-declaratie + demo-regel worden los als SQL aangeleverd
+(`cluistra-prod-custom-attributes.sql`), niet als directe write.
 
 ## 1. Uitgangspunt en motivatie
 
