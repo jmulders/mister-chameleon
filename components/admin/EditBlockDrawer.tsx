@@ -681,13 +681,19 @@ function CtaRow({
 function ItemRow({
   item,
   idx,
+  tenantId,
+  slotId,
   onChange,
+  onMediaChange,
   onRemove,
 }: {
-  item:     AdaptiveVariantItem;
-  idx:      number;
-  onChange: (idx: number, field: keyof AdaptiveVariantItem, value: string) => void;
-  onRemove: (idx: number) => void;
+  item:          AdaptiveVariantItem;
+  idx:           number;
+  tenantId:      string;
+  slotId:        string;
+  onChange:      (idx: number, field: keyof AdaptiveVariantItem, value: string) => void;
+  onMediaChange: (idx: number, media: HeroBannerMedia | undefined) => void;
+  onRemove:      (idx: number) => void;
 }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-2">
@@ -754,6 +760,58 @@ function ItemRow({
           />
         </div>
       </div>
+
+      {/* ── Spotlight fields (proof_spotlight / feature_spotlight) ──────────── */}
+      <details className="rounded-md border border-neutral-200 bg-white p-2">
+        <summary className="cursor-pointer text-[11px] font-medium text-neutral-600">
+          Spotlight (media + {slotId === "proof" ? "attribution" : "offer"})
+        </summary>
+        <div className="mt-2 space-y-2">
+          <div>
+            <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Media</label>
+            <SlideMediaEditor
+              tenantId={tenantId}
+              media={item.media}
+              onChange={(m) => onMediaChange(idx, m)}
+            />
+          </div>
+
+          {slotId === "proof" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Name</label>
+                <input type="text" value={item.name ?? ""} onChange={(e) => onChange(idx, "name", e.target.value)} placeholder="Marien de Vries" className={SMALL_INPUT_CLS} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Role</label>
+                <input type="text" value={item.role ?? ""} onChange={(e) => onChange(idx, "role", e.target.value)} placeholder="Eigenaar" className={SMALL_INPUT_CLS} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Organisation</label>
+                <input type="text" value={item.organisation ?? ""} onChange={(e) => onChange(idx, "organisation", e.target.value)} placeholder="Transport Jansen" className={SMALL_INPUT_CLS} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Kind (eyebrow)</label>
+                <select value={item.kind ?? ""} onChange={(e) => onChange(idx, "kind", e.target.value)} className={SMALL_INPUT_CLS}>
+                  <option value="">None</option>
+                  <option value="klant">klant</option>
+                  <option value="partner">partner</option>
+                  <option value="leverancier">leverancier</option>
+                  <option value="medewerker">medewerker</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {slotId === "feature" && (
+            <div>
+              <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Price (optional)</label>
+              <input type="text" value={item.price ?? ""} onChange={(e) => onChange(idx, "price", e.target.value)} placeholder="vanaf €1.250" className={SMALL_INPUT_CLS} />
+              <p className="mt-1 text-[10px] text-neutral-400">The offer CTA uses the CTA label + URL above. Price and CTA are each optional.</p>
+            </div>
+          )}
+        </div>
+      </details>
     </div>
   );
 }
@@ -992,6 +1050,9 @@ export function EditBlockDrawer({
   }
   function handleItemRemove(idx: number) {
     setItems((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function handleItemMediaChange(idx: number, media: HeroBannerMedia | undefined) {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, media } : it)));
   }
 
   function handleSlideChange(idx: number, field: keyof HeroSlideData, value: string) {
@@ -1490,7 +1551,10 @@ export function EditBlockDrawer({
                   key={idx}
                   item={item}
                   idx={idx}
+                  tenantId={tenantId}
+                  slotId={slotId}
                   onChange={handleItemChange}
+                  onMediaChange={handleItemMediaChange}
                   onRemove={handleItemRemove}
                 />
               ))}
