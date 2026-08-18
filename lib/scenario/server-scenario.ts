@@ -447,5 +447,20 @@ export function applyScenarioToDecisionContext(
     } as unknown as RuleEvaluationContext;
   }
 
+  // ── 6. Custom attribute overrides ────────────────────────────────────────
+  //
+  // Merge scenario-supplied domain attributes onto ctx.customAttributes so a
+  // demo can flip e.g. massa / categorie / occasion and watch AttributeConditions
+  // react on the real rule path. Merged over any real page-supplied attributes.
+  if (overrides.customAttributes && Object.keys(overrides.customAttributes).length > 0) {
+    effective = {
+      ...effective,
+      customAttributes: {
+        ...(effective.customAttributes ?? {}),
+        ...overrides.customAttributes,
+      },
+    } as unknown as RuleEvaluationContext;
+  }
+
   return effective;
 }
