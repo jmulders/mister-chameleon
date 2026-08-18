@@ -353,6 +353,20 @@ export interface FeatureItem {
   readonly description: string;
   /** Icon identifier — resolved by the icon registry in the component layer */
   readonly icon?:       string;
+
+  // ── Spotlight fields (feature_spotlight only; grid variants ignore them) ──
+  // All optional and backward-compatible. `description` doubles as the copy text
+  // (no second text field). price and cta are independent: either may be absent
+  // and the layout stays tidy in all four combinations.
+
+  /** Media shown alongside the offer (image or YouTube/Vimeo/asset video). */
+  readonly media?:    import("@/lib/media/block-media").BlockMedia;
+  /** Optional price line (e.g. "vanaf €1.250"). Website copy, so free-form text. */
+  readonly price?:    string;
+  /** Optional CTA button label. Rendered only when both label and href are set. */
+  readonly ctaLabel?: string;
+  /** Optional CTA href. */
+  readonly ctaHref?:  string;
 }
 
 /**

@@ -205,6 +205,7 @@ export type TextSectionVariant =
 export type FeatureGridVariant =
   | "feature_grid_3up" | "feature_grid_4up" | "feature_grid_cards" | "feature_grid_checklist"
   | "feature_grid_dark" | "feature_grid_spacious"                    // premium family variants
+  | "feature_spotlight"                                              // media + offer (price/CTA optional)
   | "default" | "cards" | "compact" | "icons-left"; // legacy aliases
 
 /**
@@ -543,6 +544,7 @@ const BLOCK_VARIANT_SETS: Partial<Record<ContentBlockType, readonly string[]>> =
   featureGrid: [
     "feature_grid_3up", "feature_grid_4up", "feature_grid_cards", "feature_grid_checklist", // canonical
     "feature_grid_dark", "feature_grid_spacious",                                            // premium family variants
+    "feature_spotlight",                                                                     // media + offer
     "default", "cards", "compact", "icons-left",                                             // legacy aliases
   ] satisfies readonly FeatureGridVariant[],
 
