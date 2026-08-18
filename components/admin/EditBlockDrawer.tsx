@@ -688,15 +688,17 @@ function ItemRow({
   slotId,
   onChange,
   onMediaChange,
+  onMediaSideChange,
   onRemove,
 }: {
   item:          AdaptiveVariantItem;
   idx:           number;
   tenantId:      string;
   slotId:        string;
-  onChange:      (idx: number, field: keyof AdaptiveVariantItem, value: string) => void;
-  onMediaChange: (idx: number, media: HeroBannerMedia | undefined) => void;
-  onRemove:      (idx: number) => void;
+  onChange:         (idx: number, field: keyof AdaptiveVariantItem, value: string) => void;
+  onMediaChange:    (idx: number, media: HeroBannerMedia | undefined) => void;
+  onMediaSideChange: (idx: number, side: "left" | "right" | undefined) => void;
+  onRemove:         (idx: number) => void;
 }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-2">
@@ -777,6 +779,20 @@ function ItemRow({
               media={item.media}
               onChange={(m) => onMediaChange(idx, m)}
             />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Media side</label>
+            <select
+              value={item.mediaSide ?? ""}
+              onChange={(e) => onMediaSideChange(idx, e.target.value === "" ? undefined : (e.target.value as "left" | "right"))}
+              className={SMALL_INPUT_CLS}
+            >
+              <option value="">Default (inherit)</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+            <p className="mt-1 text-[10px] text-neutral-400">Default follows the tenant setting. Left or right overrides it for this item.</p>
           </div>
 
           {slotId === "proof" && (
@@ -1064,6 +1080,16 @@ export function EditBlockDrawer({
   }
   function handleItemMediaChange(idx: number, media: HeroBannerMedia | undefined) {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, media } : it)));
+  }
+  function handleItemMediaSideChange(idx: number, side: "left" | "right" | undefined) {
+    // Default (undefined) writes no value, so the item keeps inheriting the tenant token.
+    setItems((prev) => prev.map((it, i) => {
+      if (i !== idx) return it;
+      const next = { ...it };
+      if (side) next.mediaSide = side;
+      else delete next.mediaSide;
+      return next;
+    }));
   }
 
   function handleSlideChange(idx: number, field: keyof HeroSlideData, value: string) {
@@ -1575,6 +1601,7 @@ export function EditBlockDrawer({
                   slotId={slotId}
                   onChange={handleItemChange}
                   onMediaChange={handleItemMediaChange}
+                  onMediaSideChange={handleItemMediaSideChange}
                   onRemove={handleItemRemove}
                 />
               ))}
