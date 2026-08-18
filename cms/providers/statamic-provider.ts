@@ -474,8 +474,9 @@ export class StatamicProvider implements CMSProvider {
     if (!data || !data.isActive) return null;
     const c = data.defaultVariant;
     return {
-      id:    data.key,
-      title: c.title,
+      id:            data.key,
+      layoutVariant: c.layoutVariant,
+      title:         c.title,
       items: (c.items ?? []).map((item) => ({
         title: item.title ?? "",
         text:  item.text ?? item.body ?? "",
