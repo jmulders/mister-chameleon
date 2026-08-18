@@ -99,6 +99,18 @@ Doordat alleen GEDECLAREERDE attributen worden gehonoreerd, blijft de
 editor-lijst gezaghebbend en kan een pagina geen willekeurige, regel-beinvloedende
 keys injecteren.
 
+### Vertrouwensmodel (belangrijk)
+
+Attribuut-waarden zijn CLIENT-SUPPLIED en dus SPOOFBAAR. De snippet leest ze uit
+de DOM of `window.mcAttributes`; iedereen kan die waarden aanpassen (devtools, een
+eigen request naar de decide-endpoint). De declaratie-filter beperkt WELKE namen en
+types binnenkomen, maar valideert niet dat een waarde WAAR is.
+
+Gebruik attributen daarom uitsluitend voor CONTENT-VARIATIE (welke hero/proof/cta
+een bezoeker ziet). Nooit voor toegang, autorisatie, prijsbepaling, kortingen of
+enige security-beslissing. Zulke beslissingen horen server-side, tegen
+vertrouwde bronnen, buiten dit mechanisme.
+
 ## 5. Tenant-declaratie (admin-config)
 
 Nieuw op `TenantSettings` (`tenant/types.ts`), opgeslagen in
@@ -119,10 +131,12 @@ export interface CustomAttributeDeclaration {
 customAttributes?: CustomAttributeDeclaration[];
 ```
 
-Admin-UI (Engels): een sectie "Custom attributes" (onder Snippet of onder
-Personalization) waar de tenant attributen toevoegt/bewerkt: naam, type,
-optionele allowedValues, label, description. De rule-editor toont deze lijst en
-valideert waarden ertegen.
+Admin-UI (Engels): een sectie "Custom attributes" onder **Personalization** waar
+de tenant attributen toevoegt/bewerkt: naam, type, optionele allowedValues, label,
+description. De rule-editor toont deze lijst en valideert waarden ertegen.
+
+Onder **Snippet** komt een enkele hint-regel die naar Personalization verwijst en
+de `data-mc-attr-<naam>`-conventie noemt (geen editor, alleen een pointer).
 
 ## 6. Conditie-type: `AttributeCondition`
 
@@ -166,11 +180,12 @@ export interface AttributeCondition {
   attributen in plaats van een vrij tekstveld met datalist. Operator: dezelfde
   `<select>` over `FLAG_OPERATORS`. Waarde: `ScalarValueInput`, beperkt tot het
   gedeclareerde type en `allowedValues` waar aanwezig.
-- `attributeCatalogue: CustomAttributeDeclaration[]` als nieuwe prop op
+- `attributeCatalogue: CustomAttributeDeclaration[]` als nieuwe, LOSSE prop op
   `RulesEditorProps` (regel 396), doorgegeven vanaf de admin-pagina
   (`app/admin/tenants/[tenantId]/personalization/rules/page.tsx`, rond regel 96)
   naar `RuleCard` -> `FlatGroupEditor` -> `ConditionRow` -> `AttributeConditionEditor`.
-  Alternatief: opvouwen in `VariantCatalogue` (het bestaande tenant-datakanaal).
+  Bewust NIET opvouwen in `VariantCatalogue`: attributen zijn een aparte as en
+  houden hun eigen, expliciete prop.
 - Type-picker (regel 1831) krijgt een optie "Attribute condition", alleen
   zichtbaar als de tenant >= 1 attribuut declareert. `handleTypeChange` (regel
   1802) maakt een blanco `{ type: "attribute", name: <eerste gedeclareerde>,
