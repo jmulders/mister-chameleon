@@ -14,9 +14,10 @@
  *             then immediately opens the edit drawer.
  */
 
-import { useState, useCallback, useMemo, useTransition } from "react";
+import { useState, useCallback, useMemo, useTransition, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
+import { BlockPreviewModal }                     from "@/components/admin/BlockPreviewModal";
 import type { BlockTokenSet }                     from "@/design-system/theme/block-token-set";
 import { activateBlockForTenantAction, deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import { saveSlotModesAction, type SaveSlotModesInput, type SlotModeFormValue } from "../slot-modes-actions";
@@ -98,6 +99,13 @@ interface ResolvedBlock {
   platformBlock?: AdaptiveBlockData;
 }
 
+// The block a read-only preview should render.
+interface PreviewTarget {
+  blockKey:    string;
+  variant:     AdaptiveBlockData["defaultVariant"];
+  statusLabel: string;
+}
+
 // ── BlockRow ──────────────────────────────────────────────────────────────────
 
 function BlockRow({
@@ -106,17 +114,29 @@ function BlockRow({
   revalidatePath,
   onEdit,
   onCustomized,
+  onPreview,
 }: {
   resolved:       ResolvedBlock;
   tenantId:       string;
   revalidatePath: string;
   onEdit:         (block: AdaptiveBlockData) => void;
   onCustomized:   (block: AdaptiveBlockData) => void;
+  onPreview:      (payload: PreviewTarget) => void;
 }) {
   const router = useRouter();
   const [forking, startFork] = useTransition();
   const [resetting, startReset] = useTransition();
-  const block = resolved.tenantBlock ?? resolved.platformBlock;
+  // The block a read-only preview would render: the tenant variant when
+  // customized, else the platform-default variant. "missing" has no source.
+  const block       = resolved.tenantBlock ?? resolved.platformBlock;
+  const canPreview   = !!block;
+  const statusLabel  = resolved.status === "customized" ? "tenant variant"
+    : resolved.status === "platform" ? "platform default" : "not configured";
+
+  function openPreview() {
+    if (!block) return;
+    onPreview({ blockKey: resolved.blockKey, variant: block.defaultVariant, statusLabel });
+  }
 
   function handleReset() {
     const id = resolved.tenantBlock?.id;
@@ -169,14 +189,28 @@ function BlockRow({
   }[resolved.status];
 
   return (
-    <div className={[
-      "group flex items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
-      resolved.status === "customized"
-        ? "border-brand-200 bg-brand-50/30 hover:border-brand-300"
-        : resolved.status === "platform"
-          ? "border-neutral-200 bg-white hover:border-neutral-300"
-          : "border-dashed border-neutral-200 bg-neutral-50/50",
-    ].join(" ")}>
+    <div
+      className={[
+        "group flex items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
+        canPreview ? "cursor-pointer" : "",
+        resolved.status === "customized"
+          ? "border-brand-200 bg-brand-50/30 hover:border-brand-300"
+          : resolved.status === "platform"
+            ? "border-neutral-200 bg-white hover:border-neutral-300"
+            : "border-dashed border-neutral-200 bg-neutral-50/50",
+      ].join(" ")}
+      // The whole row opens a read-only preview (keyboard-accessible). Action
+      // buttons stopPropagation so they never trigger this.
+      {...(canPreview ? {
+        role: "button" as const,
+        tabIndex: 0,
+        "aria-label": `Preview ${resolved.blockKey}`,
+        onClick: openPreview,
+        onKeyDown: (e: ReactKeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPreview(); }
+        },
+      } : {})}
+    >
 
       <code className="min-w-0 flex-1 truncate text-xs font-mono font-semibold text-neutral-800">
         {resolved.blockKey}
@@ -192,12 +226,27 @@ function BlockRow({
 
       {statusBadge}
 
+      {/* Preview (eye) — discoverable even without the row click. */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); openPreview(); }}
+        disabled={!canPreview}
+        title={canPreview ? "Preview this block" : "No preview — this block is not configured"}
+        aria-label={`Preview ${resolved.blockKey}`}
+        className="shrink-0 rounded-md border border-neutral-200 bg-white p-1.5 text-neutral-500 transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+
       {/* Actions */}
       {resolved.status === "customized" && resolved.tenantBlock && (
         <>
           <button
             type="button"
-            onClick={() => onEdit(resolved.tenantBlock!)}
+            onClick={(e) => { e.stopPropagation(); onEdit(resolved.tenantBlock!); }}
             className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 opacity-0 transition-all hover:border-brand-300 hover:text-brand-600 group-hover:opacity-100"
           >
             Edit
@@ -205,7 +254,7 @@ function BlockRow({
           {resolved.platformBlock && (
             <button
               type="button"
-              onClick={handleReset}
+              onClick={(e) => { e.stopPropagation(); handleReset(); }}
               disabled={resetting}
               title="Discard this tenant's customization and fall back to the platform default"
               className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-500 opacity-0 transition-all hover:border-red-300 hover:text-red-600 group-hover:opacity-100 disabled:opacity-40"
@@ -219,7 +268,7 @@ function BlockRow({
       {resolved.status === "platform" && (
         <button
           type="button"
-          onClick={handleCustomize}
+          onClick={(e) => { e.stopPropagation(); handleCustomize(); }}
           disabled={forking}
           className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 opacity-0 transition-all hover:border-brand-300 hover:text-brand-700 group-hover:opacity-100 disabled:opacity-40"
         >
@@ -230,7 +279,7 @@ function BlockRow({
       {resolved.status === "missing" && (
         <button
           type="button"
-          onClick={handleCustomize}
+          onClick={(e) => { e.stopPropagation(); handleCustomize(); }}
           disabled={forking}
           className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 opacity-0 transition-all hover:bg-amber-100 group-hover:opacity-100 disabled:opacity-40"
         >
@@ -257,6 +306,7 @@ function SlotSection({
   onModeChange,
   onEdit,
   onCustomized,
+  onPreview,
 }: {
   id:             string;
   label:          string;
@@ -270,6 +320,7 @@ function SlotSection({
   onModeChange?:  (patch: Partial<SlotModeFormValue>) => void;
   onEdit:         (block: AdaptiveBlockData) => void;
   onCustomized:   (block: AdaptiveBlockData) => void;
+  onPreview:      (payload: PreviewTarget) => void;
 }) {
   const tenantMap   = new Map(
     allBlocks.filter((b) => b.tenantId === tenantId && b.key.startsWith(keyPrefix)).map((b) => [b.key, b]),
@@ -323,6 +374,7 @@ function SlotSection({
             revalidatePath={revalidatePath}
             onEdit={onEdit}
             onCustomized={onCustomized}
+            onPreview={onPreview}
           />
         ))}
       </div>
@@ -352,6 +404,7 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotMode
   const router          = useRouter();
   const revalidatePath  = `/admin/tenants/${tenantId}/personalization/blocks`;
   const [editing, setEditing] = useState<AdaptiveBlockData | null>(null);
+  const [previewing, setPreviewing] = useState<PreviewTarget | null>(null);
 
   // Per-slot selection mode (AI-assisted / rules-only / static), edited inline
   // in each slot section and saved together via the bar below.
@@ -404,6 +457,7 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotMode
               onModeChange={isModeSlot ? (patch) => patchMode(slot.id as ModeSlotId, patch) : undefined}
               onEdit={setEditing}
               onCustomized={(block) => setEditing(block)}
+              onPreview={setPreviewing}
             />
           );
         })}
@@ -438,6 +492,16 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotMode
           blockTokenSets={blockTokenSets}
           onClose={() => setEditing(null)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {previewing && (
+        <BlockPreviewModal
+          tenantId={tenantId}
+          blockKey={previewing.blockKey}
+          variant={previewing.variant}
+          statusLabel={previewing.statusLabel}
+          onClose={() => setPreviewing(null)}
         />
       )}
     </>
