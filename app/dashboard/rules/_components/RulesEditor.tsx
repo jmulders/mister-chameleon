@@ -2083,8 +2083,19 @@ function AttributeConditionEditor({
   value:        string | number | boolean | undefined;
   onChange:     (name: string, operator: FieldOperator, value: string | number | boolean | undefined) => void;
 }) {
-  const effectiveOp: FieldOperator = FLAG_OPERATORS.includes(operator) ? operator : "equals";
   const decl = declarations.find((d) => d.name === name);
+
+  // Offer only operators that fit the declared type: existence + equality always,
+  // ordering for number, substring for string. Falls back to all scalar ops when
+  // the attribute has no declaration yet.
+  const allowedOps: readonly FieldOperator[] = FLAG_OPERATORS.filter((op) => {
+    if (!decl) return true;
+    if (NO_VALUE_OPERATORS.has(op)) return true;
+    if (NUMERIC_OPERATORS.has(op)) return decl.type === "number";
+    if (STRING_ONLY_OPERATORS.has(op)) return decl.type === "string";
+    return true; // equals / not_equals
+  });
+  const effectiveOp: FieldOperator = allowedOps.includes(operator) ? operator : "equals";
 
   const handleOperatorChange = (newOp: FieldOperator) => {
     let newValue: string | number | boolean | undefined = value;
@@ -2118,7 +2129,7 @@ function AttributeConditionEditor({
           onChange={(e) => handleOperatorChange(e.target.value as FieldOperator)}
           className={selectCls}
         >
-          {FLAG_OPERATORS.map((op) => (
+          {allowedOps.map((op) => (
             <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
           ))}
         </select>
