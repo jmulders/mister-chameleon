@@ -29,7 +29,9 @@ import type {
   HeroBannerVideoYouTube,
   HeroBannerVideoVimeo,
   HeroBannerMedia,
+  NotificationPosition,
 } from "@/cms/types";
+import type { NotificationFrequency, NotificationTtlUnit } from "@/lib/notifications/frequency-cap";
 import type {
   VariantDecisionMeta,
   IntentLevel,
@@ -892,6 +894,17 @@ export function EditBlockDrawer({
   const [tokens, setTokens]     = useState<CuratedBlockTokens>(
     block.defaultVariant.tokens ?? {},
   );
+
+  // ── Notification settings (notification slot only) ──
+  const [notifPosition, setNotifPosition]     = useState<NotificationPosition>(block.defaultVariant.notifPosition ?? "top");
+  const [notifDismissible, setNotifDismissible] = useState<boolean>(block.defaultVariant.notifDismissible ?? true);
+  const [notifAutoDismissMs, setNotifAutoDismissMs] = useState<string>(
+    block.defaultVariant.notifAutoDismissMs !== undefined ? String(block.defaultVariant.notifAutoDismissMs) : "",
+  );
+  const [notifFrequency, setNotifFrequency] = useState<NotificationFrequency>(block.defaultVariant.notifFrequency ?? "always");
+  const [notifTtl, setNotifTtl]             = useState<string>(block.defaultVariant.notifTtl !== undefined ? String(block.defaultVariant.notifTtl) : "");
+  const [notifTtlUnit, setNotifTtlUnit]     = useState<NotificationTtlUnit>(block.defaultVariant.notifTtlUnit ?? "days");
+  const [notifCampaign, setNotifCampaign]   = useState<string>(block.defaultVariant.notifCampaignId ?? "");
   // Opt-in per-block design override. Default ON only when the block already
   // carries a token set or inline tokens; otherwise the block inherits the site
   // theme and the override editor stays hidden.
@@ -1083,6 +1096,15 @@ export function EditBlockDrawer({
       ...(Object.keys(decisionMeta).length ? { decisionMeta } : {}),
       ...(tokenSet ? { tokenSet } : {}),
       ...(Object.keys(tokens).length ? { tokens } : {}),
+      // Notification settings — persisted only for the notification slot.
+      ...(slotId === "notification" ? {
+        notifPosition,
+        notifDismissible,
+        ...(notifAutoDismissMs.trim() !== "" ? { notifAutoDismissMs: Number(notifAutoDismissMs) } : {}),
+        notifFrequency,
+        ...(notifFrequency === "once_per_period" && notifTtl.trim() !== "" ? { notifTtl: Number(notifTtl), notifTtlUnit } : {}),
+        ...(notifCampaign.trim() !== "" ? { notifCampaignId: notifCampaign.trim() } : {}),
+      } : {}),
     };
   }
 
@@ -1494,6 +1516,77 @@ export function EditBlockDrawer({
                   onRemove={handleItemRemove}
                 />
               ))}
+            </fieldset>
+          )}
+
+          {/* ── Notification settings (notification slot only) ──────────────── */}
+          {slotId === "notification" && (
+            <fieldset className="space-y-3 rounded-lg border border-neutral-200 p-4">
+              <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                Notification
+              </legend>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Position</label>
+                  <select value={notifPosition} onChange={(e) => setNotifPosition(e.target.value as NotificationPosition)} className={SMALL_INPUT_CLS}>
+                    <option value="top">Top banner</option>
+                    <option value="bottom">Bottom banner</option>
+                    <option value="left">Left toast</option>
+                    <option value="right">Right toast</option>
+                    <option value="center">Center modal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Frequency</label>
+                  <select value={notifFrequency} onChange={(e) => setNotifFrequency(e.target.value as NotificationFrequency)} className={SMALL_INPUT_CLS}>
+                    <option value="always">Always</option>
+                    <option value="once_per_session">Once per session</option>
+                    <option value="once_per_period">Once per period</option>
+                  </select>
+                </div>
+              </div>
+
+              {notifFrequency === "once_per_period" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Period</label>
+                    <input type="number" min="1" value={notifTtl} onChange={(e) => setNotifTtl(e.target.value)} placeholder="7" className={SMALL_INPUT_CLS} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Unit</label>
+                    <select value={notifTtlUnit} onChange={(e) => setNotifTtlUnit(e.target.value as NotificationTtlUnit)} className={SMALL_INPUT_CLS}>
+                      <option value="hours">hours</option>
+                      <option value="days">days</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Auto-dismiss (ms)</label>
+                  <input
+                    type="number" min="0" value={notifAutoDismissMs}
+                    onChange={(e) => setNotifAutoDismissMs(e.target.value)}
+                    placeholder={notifPosition === "center" ? "n/a for modal" : "0 = never"}
+                    disabled={notifPosition === "center"}
+                    className={SMALL_INPUT_CLS}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Campaign id (optional)</label>
+                  <input type="text" value={notifCampaign} onChange={(e) => setNotifCampaign(e.target.value)} placeholder="spring-2026" className={SMALL_INPUT_CLS} />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-[11px] text-neutral-600">
+                <input type="checkbox" checked={notifDismissible} onChange={(e) => setNotifDismissible(e.target.checked)} />
+                Dismissible (the center modal is always closable)
+              </label>
+              <p className="text-[10px] text-neutral-400">
+                Auto-dismiss applies to banners and toasts only. Bump the campaign id to reset the frequency cap after a message change.
+              </p>
             </fieldset>
           )}
 

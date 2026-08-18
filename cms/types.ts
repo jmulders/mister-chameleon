@@ -675,6 +675,23 @@ export interface AdaptiveVariantContent {
   imageUrl?:  string;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageAlt?:  string;
+
+  // ── Notification settings (notification slot only) ──
+  // Authored in the admin; read by adaptiveToNotification. All optional.
+  /** On-screen anchor (top/bottom banners, left/right toasts, center modal). */
+  notifPosition?:      NotificationPosition;
+  /** Whether the visitor can dismiss it. Defaults to true. */
+  notifDismissible?:   boolean;
+  /** Auto-dismiss delay in ms (banners/toasts only). 0/absent = never. */
+  notifAutoDismissMs?: number;
+  /** Frequency cap. Defaults to "always". */
+  notifFrequency?:     import("@/lib/notifications/frequency-cap").NotificationFrequency;
+  /** Period length for once_per_period (with notifTtlUnit). */
+  notifTtl?:           number;
+  /** Unit for notifTtl. Defaults to "days". */
+  notifTtlUnit?:       import("@/lib/notifications/frequency-cap").NotificationTtlUnit;
+  /** Optional campaign id / version folded into the cap key. */
+  notifCampaignId?:    string;
 }
 
 /**
