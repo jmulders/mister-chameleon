@@ -41,6 +41,7 @@ import type {
 } from "@/ai/variant-meta";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
+import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
 
 // ── AI / Decision option lists ──────────────────────────────────────────────────
 
@@ -1033,10 +1034,7 @@ export function EditBlockDrawer({
     setPreviewStale(true);
     const id = setTimeout(() => {
       try {
-        const json  = JSON.stringify(buildVariant());
-        const b64url = btoa(String.fromCharCode(...new TextEncoder().encode(json)))
-          .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-        setPreviewSrc(`/tenant-block-preview/${tenantId}?key=${encodeURIComponent(block.key)}&v=${b64url}`);
+        setPreviewSrc(buildBlockPreviewSrc(tenantId, block.key, buildVariant()));
       } catch { /* keep the previous preview on encode failure */ }
       setPreviewStale(false);
     }, 350);
