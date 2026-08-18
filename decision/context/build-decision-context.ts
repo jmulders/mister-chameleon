@@ -351,6 +351,14 @@ export interface BuildDecisionContextParams {
    * });
    */
   onDebugInfo?: (info: EnrichmentDebugInfo) => void;
+
+  /**
+   * Per-request domain attributes supplied by the page (snippet payload or
+   * platform page props), set on `ctx.customAttributes` for AttributeConditions.
+   * Callers must sanitise and filter this against the tenant declaration first
+   * (see sanitizeCustomAttributes); this builder stores it verbatim.
+   */
+  customAttributes?: Record<string, string | number | boolean> | null;
 }
 
 // ── EnrichmentDebugInfo ────────────────────────────────────────────────────────
@@ -475,6 +483,7 @@ export async function buildDecisionContext(
     ipCompanyCrmEnricher,
     stagedEnrichers,
     seedEnrichment,
+    customAttributes = null,
     deferSlowEnrichmentOnMiss = false,
     scheduleBackgroundWork,
     timezone            = null,
@@ -1276,6 +1285,9 @@ export async function buildDecisionContext(
     clientContext,
     // Rule-context overlay + read fields (regels die context schrijven).
     ruleContext,
+    // Per-request domain attributes (read by an AttributeCondition). Sanitised
+    // and filtered against the tenant declaration by the caller.
+    customAttributes,
     entryPath,
     isBot: detectIsBot(visitorContext.userAgent, enrichment.isCloudProvider),
   };
