@@ -75,10 +75,10 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "hero_carousel",     label: "Carousel" },
   ],
   proof: [
-    { value: "proof_stats",   label: "Stats" },
-    { value: "proof_logos",   label: "Logo strip" },
-    { value: "proof_quotes",  label: "Quotes" },
-    { value: "proof_columns", label: "Columns" },
+    { value: "proof_stats",     label: "Stats" },
+    { value: "proof_logos",     label: "Logo strip" },
+    { value: "proof_quotes",    label: "Quotes" },
+    { value: "proof_spotlight", label: "Spotlight (media beside text)" },
   ],
   cta: [
     { value: "cta_card",   label: "Card" },
@@ -87,9 +87,13 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "cta_split",  label: "Split" },
   ],
   feature: [
-    { value: "feature_grid",    label: "Grid" },
-    { value: "feature_list",    label: "List" },
-    { value: "feature_columns", label: "Columns" },
+    { value: "feature_grid_3up",       label: "Grid (3 columns)" },
+    { value: "feature_grid_4up",       label: "Grid (4 columns)" },
+    { value: "feature_grid_cards",     label: "Cards" },
+    { value: "feature_grid_checklist", label: "Checklist" },
+    { value: "feature_grid_spacious",  label: "Spacious" },
+    { value: "feature_grid_dark",      label: "Dark" },
+    { value: "feature_spotlight",      label: "Spotlight (media beside text)" },
   ],
   conversion: [
     { value: "conversion_cta",  label: "CTA" },
