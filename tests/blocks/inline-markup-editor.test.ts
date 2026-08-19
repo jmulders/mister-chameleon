@@ -51,6 +51,11 @@ describe("editorNodeToMarkdown", () => {
     assert.equal(editorNodeToMarkdown(node as unknown as Node), "- x\n- *y*");
   });
 
+  it("detects a <ul> nested inside a block <div> (execCommand shape)", () => {
+    const node = root([el("div", [el("ul", [el("li", [text("first")]), el("li", [text("second")])])])]);
+    assert.equal(editorNodeToMarkdown(node as unknown as Node), "- first\n- second");
+  });
+
   it("serialises links and hard breaks; unwraps unsupported spans", () => {
     const node = root([el("div", [el("a", [text("link")], { href: "https://x" })])]);
     assert.equal(editorNodeToMarkdown(node as unknown as Node), "[link](https://x)");

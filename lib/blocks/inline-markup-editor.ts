@@ -74,51 +74,66 @@ function serializeInline(node: Node): string {
   return out;
 }
 
-/**
- * contentEditable DOM -> Markdown subset. Top-level block elements (<div>, <p>)
- * become paragraphs; <ul>/<ol> become "- " lines; loose inline/text nodes are
- * treated as one paragraph.
- */
-export function editorNodeToMarkdown(root: Node): string {
-  const blocks: string[] = [];
-  let looseInline = "";
+const BLOCK_TAGS = new Set(["div", "p", "ul", "ol", "li"]);
 
-  const flushLoose = () => {
-    if (looseInline.trim() !== "") blocks.push(looseInline);
-    looseInline = "";
+/** True when a node contains block-level children (so we must recurse, not inline). */
+function hasBlockChild(node: Node): boolean {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === 1 && BLOCK_TAGS.has((child as HTMLElement).nodeName.toLowerCase())) return true;
+  }
+  return false;
+}
+
+/** Collect Markdown blocks from a node's children (recursive over block structure). */
+function collectBlocks(node: Node): string[] {
+  const blocks: string[] = [];
+  let loose = "";
+  const flush = () => {
+    if (loose.trim() !== "") blocks.push(loose);
+    loose = "";
   };
 
-  root.childNodes.forEach((node) => {
-    if (node.nodeType === 3 /* text */) {
-      looseInline += node.textContent ?? "";
+  Array.from(node.childNodes).forEach((child) => {
+    if (child.nodeType === 3 /* text */) {
+      loose += child.textContent ?? "";
       return;
     }
-    if (node.nodeType !== 1) return;
+    if (child.nodeType !== 1) return;
 
-    const el = node as HTMLElement;
+    const el = child as HTMLElement;
     const tag = el.nodeName.toLowerCase();
 
     if (tag === "ul" || tag === "ol") {
-      flushLoose();
+      flush();
       const items: string[] = [];
-      el.childNodes.forEach((li) => {
+      Array.from(el.childNodes).forEach((li) => {
         if (li.nodeName.toLowerCase() === "li") items.push(`- ${serializeInline(li).trim()}`);
       });
       if (items.length) blocks.push(items.join("\n"));
     } else if (tag === "div" || tag === "p") {
-      flushLoose();
-      blocks.push(serializeInline(el));
+      flush();
+      // A block wrapper may itself contain a list or nested blocks (execCommand
+      // often nests <ul> inside the current <div>), so recurse when needed.
+      if (hasBlockChild(el)) blocks.push(...collectBlocks(el));
+      else blocks.push(serializeInline(el));
     } else if (tag === "br") {
-      looseInline += "\n";
+      loose += "\n";
     } else {
-      // Inline element sitting at the top level.
-      looseInline += serializeInline(el);
+      // Inline element sitting at the block level.
+      loose += serializeInline(el);
     }
   });
-  flushLoose();
+  flush();
+  return blocks;
+}
 
-  // Each block is a paragraph; join with a blank line and collapse extra breaks.
-  return blocks
+/**
+ * contentEditable DOM -> Markdown subset. Block elements (<div>, <p>) become
+ * paragraphs; <ul>/<ol> become "- " lines (detected at any depth); loose
+ * inline/text nodes are treated as one paragraph.
+ */
+export function editorNodeToMarkdown(root: Node): string {
+  return collectBlocks(root)
     .map((b) => b.replace(/\n{2,}/g, "\n"))
     .join("\n\n")
     .replace(/\n{3,}/g, "\n\n")
