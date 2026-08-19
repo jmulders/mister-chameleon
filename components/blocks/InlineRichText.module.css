@@ -1,0 +1,15 @@
+/* Marks for compiled inline rich copy. The compiler emits only strong/em/a/br,
+   so this just styles those; typography (size/weight/colour) is inherited from
+   the surrounding block. Tailwind preflight strips <a> underlines, so restore
+   them here. */
+
+.rich a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.rich strong {
+  font-weight: 700;
+}
+.rich em {
+  font-style: italic;
+}

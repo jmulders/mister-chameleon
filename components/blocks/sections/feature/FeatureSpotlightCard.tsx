@@ -19,6 +19,7 @@ import { Text } from "@/components/primitives/Text";
 import { Button } from "@/components/ui/Button";
 import type { FeatureItem } from "@/page-config";
 import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
+import { InlineRichText } from "@/components/blocks/InlineRichText";
 import { isRenderableMedia } from "@/lib/media/block-media";
 
 export function FeatureSpotlightCard({ item, isActive = true }: { item: FeatureItem; isActive?: boolean }) {
@@ -45,7 +46,7 @@ export function FeatureSpotlightCard({ item, isActive = true }: { item: FeatureI
 
         {item.description && (
           <Text variant="body" color="muted" className="leading-relaxed">
-            {item.description}
+            <InlineRichText source={item.description} />
           </Text>
         )}
 

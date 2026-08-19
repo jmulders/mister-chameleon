@@ -13,8 +13,11 @@
  * the tenant's active theme), so the block adopts the tenant's look while still
  * rendering acceptably if a variable is missing.
  *
- * All variant text is HTML-escaped — it originates in the tenant's CMS, but we
- * treat it as untrusted and never inject raw markup.
+ * All variant text is treated as untrusted. Titles, labels, and most fields are
+ * HTML-escaped. The four descriptive copy fields (hero subtitle, proof text,
+ * feature body, cta text) go through renderInlineMarkup, which is itself
+ * escape-first and emits only an allowlist of inline tags — so raw markup is
+ * never injected on either path.
  */
 
 import type {
@@ -27,6 +30,7 @@ import type {
 } from "@/cms/types";
 import type { ResolvedForm } from "@/forms/context/types";
 import type { FormField } from "@/forms/types";
+import { renderInlineMarkup } from "@/lib/blocks/inline-markup";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,7 +87,7 @@ function renderHero(d: HeroBlockData): string {
           ? `<h1 style="font-family:inherit;font-size:clamp(28px,5vw,46px);line-height:1.1;font-weight:800;margin:0 0 14px;">${escapeHtml(d.title)}</h1>`
           : "") +
         (d.subtitle
-          ? `<p style="color:var(--hero-subtitle-color,#94a3b8);font-size:clamp(16px,2.2vw,19px);line-height:1.5;max-width:64ch;margin:0 auto 24px;">${escapeHtml(d.subtitle)}</p>`
+          ? `<p style="color:var(--hero-subtitle-color,#94a3b8);font-size:clamp(16px,2.2vw,19px);line-height:1.5;max-width:64ch;margin:0 auto 24px;">${renderInlineMarkup(d.subtitle)}</p>`
           : "") +
         (buttons ? `<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">${buttons}</div>` : "") +
       `</div>` +
@@ -99,7 +103,7 @@ function renderProof(d: ProofBlockData): string {
         `<div style="flex:1 1 240px;background:var(--card-bg,#fff);border:1px solid var(--card-border,#e2e8f0);` +
         `border-radius:var(--card-radius,14px);padding:20px 22px;">` +
           (i.title ? `<div style="font-size:24px;font-weight:800;color:var(--primary,#4f46e5);margin-bottom:6px;">${escapeHtml(i.title)}</div>` : "") +
-          (i.text ? `<div style="font-size:14px;line-height:1.55;color:var(--muted-foreground,#64748b);">${escapeHtml(i.text)}</div>` : "") +
+          (i.text ? `<div style="font-size:14px;line-height:1.55;color:var(--muted-foreground,#64748b);">${renderInlineMarkup(i.text)}</div>` : "") +
         `</div>`,
     )
     .join("");
@@ -119,7 +123,7 @@ function renderCta(d: CTABlockData): string {
     `<section style="background:var(--section-cta-bg,var(--primary,#4f46e5));color:var(--primary-text,#fff);">` +
       `<div style="${WRAP}text-align:center;">` +
         (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,4vw,34px);font-weight:800;margin:0 0 12px;">${escapeHtml(d.title)}</h2>` : "") +
-        (d.text ? `<p style="font-size:clamp(15px,2.2vw,18px);line-height:1.5;opacity:.92;max-width:56ch;margin:0 auto 22px;">${escapeHtml(d.text)}</p>` : "") +
+        (d.text ? `<p style="font-size:clamp(15px,2.2vw,18px);line-height:1.5;opacity:.92;max-width:56ch;margin:0 auto 22px;">${renderInlineMarkup(d.text)}</p>` : "") +
         (cta && cta.label
           ? `<a href="${safeHref(cta.href)}" style="display:inline-block;background:var(--card-bg,#fff);color:var(--primary,#4f46e5);` +
             `padding:13px 26px;border-radius:var(--btn-radius,var(--radius-interactive,8px));font-weight:700;font-size:15px;text-decoration:none;">${escapeHtml(cta.label)}</a>`
@@ -137,7 +141,7 @@ function renderFeature(d: FeatureBlockData): string {
         `<div style="flex:1 1 260px;background:var(--card-bg,#fff);border:1px solid var(--card-border,#e2e8f0);` +
         `border-radius:var(--card-radius,14px);padding:22px 24px;">` +
           (i.title ? `<div style="font-size:17px;font-weight:700;color:var(--text,#0f172a);margin-bottom:8px;">${escapeHtml(i.title)}</div>` : "") +
-          (i.body ? `<div style="font-size:14.5px;line-height:1.55;color:var(--muted-foreground,#64748b);">${escapeHtml(i.body)}</div>` : "") +
+          (i.body ? `<div style="font-size:14.5px;line-height:1.55;color:var(--muted-foreground,#64748b);">${renderInlineMarkup(i.body)}</div>` : "") +
         `</div>`,
     )
     .join("");

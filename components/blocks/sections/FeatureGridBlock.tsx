@@ -31,6 +31,7 @@
 
 import type React from "react";
 import { Container } from "@/components/primitives/Container";
+import { InlineRichText } from "@/components/blocks/InlineRichText";
 import { Section } from "@/components/primitives/Section";
 import { Grid } from "@/components/primitives/Grid";
 import { Stack } from "@/components/primitives/Stack";
@@ -303,7 +304,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                       {feature.title}
                     </Text>
                     <Text variant="body-sm" color="muted">
-                      {feature.description}
+                      <InlineRichText source={feature.description} />
                     </Text>
                   </Stack>
                 ))}
@@ -362,7 +363,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                         {feature.title}
                       </Text>
                       <Text variant="body-sm" color="muted">
-                        {feature.description}
+                        <InlineRichText source={feature.description} />
                       </Text>
                     </Stack>
                   </div>
@@ -430,7 +431,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                       {feature.title}
                     </Text>
                     <Text variant="body-sm" color="muted">
-                      {feature.description}
+                      <InlineRichText source={feature.description} />
                     </Text>
                   </Stack>
                 ))}
@@ -493,7 +494,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                       {feature.title}
                     </Text>
                     <Text variant="body-sm" color="muted">
-                      {feature.description}
+                      <InlineRichText source={feature.description} />
                     </Text>
                   </Stack>
                 ))}
@@ -560,7 +561,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                       {feature.title}
                     </Text>
                     <Text variant="body-sm" color="muted">
-                      {feature.description}
+                      <InlineRichText source={feature.description} />
                     </Text>
                   </Stack>
                 ))}
@@ -624,7 +625,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                       {feature.title}
                     </Text>
                     <Text variant="body-sm" color="muted">
-                      {feature.description}
+                      <InlineRichText source={feature.description} />
                     </Text>
                   </Stack>
                 ))}
@@ -688,7 +689,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     {feature.title}
                   </Text>
                   <Text variant="body-sm" color="muted">
-                    {feature.description}
+                    <InlineRichText source={feature.description} />
                   </Text>
                 </Stack>
               ))}

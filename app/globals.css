@@ -391,3 +391,22 @@
 .mc-rich-text tr:nth-child(even) td {
   background: color-mix(in srgb, var(--bg-subtle) 40%, transparent);
 }
+
+/* ── RichCopyEditor (admin) ──────────────────────────────────────────────── */
+/* WYSIWYG contentEditable for the inline rich-copy fields in the block drawer. */
+.mc-rich-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+.mc-rich-editor a {
+  text-decoration: underline;
+  color: #2563eb;
+}
+.mc-rich-editor ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.mc-rich-editor strong { font-weight: 700; }
+.mc-rich-editor em { font-style: italic; }

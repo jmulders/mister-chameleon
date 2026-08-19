@@ -42,6 +42,8 @@ import type {
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
+import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
+import { RichCopyEditor } from "@/components/admin/RichCopyEditor";
 
 // ── AI / Decision option lists ──────────────────────────────────────────────────
 
@@ -740,11 +742,11 @@ function ItemRow({
       </div>
       <div>
         <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Text / body</label>
-        <textarea
+        <RichCopyEditor
           value={item.text ?? item.body ?? ""}
-          onChange={(e) => onChange(idx, "text", e.target.value)}
-          rows={2}
-          className={`${SMALL_INPUT_CLS} resize-none`}
+          onChange={(md) => onChange(idx, "text", md)}
+          ariaLabel={`Item ${idx + 1} text`}
+          placeholder="Supporting copy. Select text to make it bold, italic, or a link."
         />
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -1168,15 +1170,22 @@ export function EditBlockDrawer({
   // save path AND the live preview, so what you preview is exactly what saves.
   function buildVariant(): AdaptiveVariantContent {
     const media = buildMedia();
+    // Save-time normalisation of the inline rich-copy fields (defense in depth;
+    // rendering re-validates too): canonicalise and strip invalid-scheme links.
+    const normalizedItems = items.map((it) => ({
+      ...it,
+      ...(it.text !== undefined ? { text: normalizeInlineMarkup(it.text) } : {}),
+      ...(it.body !== undefined ? { body: normalizeInlineMarkup(it.body) } : {}),
+    }));
     return {
       title,
-      subtitle,
+      subtitle: normalizeInlineMarkup(subtitle),
       ...(tag           ? { tag }                               : {}),
       ...(layoutVariant ? { layoutVariant }                     : {}),
       ...(contentAlign !== "left" ? { contentAlign }            : {}),
       ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant })) } : {}),
       ...(media         ? { media }                             : {}),
-      ...(items.length  ? { items }                             : {}),
+      ...(items.length  ? { items: normalizedItems }            : {}),
       // Persist slides only for the carousel layout — keeps other layouts'
       // payloads clean and avoids stale slide data lingering after a layout
       // switch away from the carousel.
@@ -1304,14 +1313,25 @@ export function EditBlockDrawer({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-700 mb-1">Subtitle</label>
-              <textarea
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                rows={3}
-                placeholder="Supporting paragraph beneath the headline."
-                className={`${INPUT_CLS} resize-none`}
-              />
+              <label className="block text-xs font-medium text-neutral-700 mb-1">
+                {slotId === "cta" ? "Text" : "Subtitle"}
+              </label>
+              {slotId === "hero" || slotId === "cta" ? (
+                <RichCopyEditor
+                  value={subtitle}
+                  onChange={setSubtitle}
+                  ariaLabel={slotId === "cta" ? "CTA text" : "Hero subtitle"}
+                  placeholder="Supporting copy. Select text to make it bold, italic, or a link."
+                />
+              ) : (
+                <textarea
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  rows={3}
+                  placeholder="Supporting paragraph beneath the headline."
+                  className={`${INPUT_CLS} resize-none`}
+                />
+              )}
             </div>
 
             <div>
