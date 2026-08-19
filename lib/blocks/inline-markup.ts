@@ -72,8 +72,10 @@ export function renderInlineRun(raw: string): string {
 
   // Italic: *text* — conservative. Both neighbours of the content must be
   // non-space and it may not be part of a ** run, so stray single asterisks in
-  // legacy copy ("3 * 4", "a * b") never turn into emphasis.
-  s = s.replace(/(^|[^*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?!\*)/g, "$1<em>$2</em>");
+  // legacy copy ("3 * 4", "a * b") never turn into emphasis. Lookbehind-free
+  // (the trailing \S is inside the capture) so Safari < 16.4 can parse it — this
+  // compiler runs client-side on public sites.
+  s = s.replace(/(^|[^*])\*(?=\S)([^*\n]*?\S)\*(?!\*)/g, "$1<em>$2</em>");
 
   // Links: [text](url). Drop the link syntax (keep the text) when the URL scheme
   // is not allowlisted; otherwise emit a rel="noopener" anchor. The URL pattern
