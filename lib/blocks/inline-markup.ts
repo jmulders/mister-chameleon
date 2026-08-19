@@ -7,10 +7,14 @@
  * Nothing else: no headings, images, colours, or font sizes, so authored copy
  * cannot fight the block typography.
  *
+ * Output is INLINE-SAFE: only <strong>, <em>, <a>, and <br> tags are emitted.
+ * Paragraphs are separated by a double <br> and list items by a bullet glyph, so
+ * the result drops straight into any existing text element (a <p>, heading, or
+ * span) at every block layout without invalid block-in-inline nesting.
+ *
  * SECURITY — safe by construction:
  *   renderInlineMarkup ESCAPES all text first, then emits ONLY our own known
- *   tags (b/strong via <strong>, i/em via <em>, <a>, <br>, <p>, <ul>, <li>).
- *   Raw HTML in the source can never survive as markup, so there is no
+ *   tags. Raw HTML in the source can never survive as markup, so there is no
  *   HTML-parsing sanitiser to get wrong. Links are scheme-validated (http(s),
  *   mailto, tel, root-relative, #) and always carry rel="noopener"; javascript:,
  *   data:, vbscript: and protocol-relative (//) URLs are dropped to plain text.
@@ -21,7 +25,7 @@
  *   - renderInlineMarkup(src): run on RENDER (platform blocks + snippet HTML).
  *
  * Backward-compatible: existing plain-text copy contains no markup, so it renders
- * as a single escaped paragraph exactly as before.
+ * as escaped inline text exactly as before.
  *
  * Isomorphic + dependency-free: pure string -> string, so the SAME function runs
  * on the server (snippet HTML, SSR) and in client components (the spotlight
@@ -78,35 +82,37 @@ function renderInline(raw: string): string {
   return s;
 }
 
+/** Bullet prefix for list items (glyph + non-breaking space). */
+const BULLET = "\u2022\u00a0"; // bullet + non-breaking space
+
 /**
- * Compile the inline-Markdown subset to safe inline HTML. Returns "" for empty
- * input. Never returns unescaped author text or any tag outside the allowlist.
+ * Compile the inline-Markdown subset to safe INLINE HTML (only strong/em/a/br).
+ * Returns "" for empty input. Never returns unescaped author text or any tag
+ * outside the allowlist. See the module header for the paragraph/list encoding.
  */
 export function renderInlineMarkup(src: string | null | undefined): string {
   if (!src) return "";
   const text = String(src).replace(/\r\n?/g, "\n").trim();
   if (!text) return "";
 
-  // Paragraphs are separated by a blank line.
-  const blocks = text.split(/\n{2,}/);
-
-  return blocks
+  // Paragraphs are separated by a blank line, joined back with a double break.
+  return text
+    .split(/\n{2,}/)
     .map((block) => {
       const lines = block.split("\n");
       const isList = lines.length > 0 && lines.every((l) => /^\s*-\s+/.test(l));
 
       if (isList) {
-        const items = lines
-          .map((l) => `<li>${renderInline(l.replace(/^\s*-\s+/, ""))}</li>`)
-          .join("");
-        return `<ul>${items}</ul>`;
+        // Bulleted lines — inline-safe, one hard break between items.
+        return lines
+          .map((l) => BULLET + renderInline(l.replace(/^\s*-\s+/, "")))
+          .join("<br>");
       }
 
       // A paragraph: single newlines become hard breaks.
-      const inner = lines.map((l) => renderInline(l)).join("<br>");
-      return `<p>${inner}</p>`;
+      return lines.map((l) => renderInline(l)).join("<br>");
     })
-    .join("");
+    .join("<br><br>");
 }
 
 /**

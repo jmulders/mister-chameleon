@@ -1,5 +1,6 @@
 import type React from "react";
 import { Container } from "@/components/primitives/Container";
+import { InlineRichText } from "@/components/blocks/InlineRichText";
 import { Section } from "@/components/primitives/Section";
 import { Stack } from "@/components/primitives/Stack";
 import { Text } from "@/components/primitives/Text";
@@ -103,7 +104,7 @@ export function CTABlock({ title, text, cta, ctaKey, layoutVariant: rawLayout }:
                   className="max-w-xl text-lg"
                   style={{ color: "var(--section-cta-body)" }}
                 >
-                  {text}
+                  <InlineRichText source={text} />
                 </Text>
               </Stack>
             </div>
@@ -175,7 +176,7 @@ export function CTABlock({ title, text, cta, ctaKey, layoutVariant: rawLayout }:
                 align="center"
                 className="max-w-lg"
               >
-                {text}
+                <InlineRichText source={text} />
               </Text>
               <TrackedCTAButton
                 href={cta.href}
@@ -243,7 +244,7 @@ export function CTABlock({ title, text, cta, ctaKey, layoutVariant: rawLayout }:
             className="max-w-lg text-lg"
             style={{ color: "var(--section-cta-body)" }}
           >
-            {text}
+            <InlineRichText source={text} />
           </Text>
 
           {/*

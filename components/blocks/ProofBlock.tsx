@@ -1,5 +1,6 @@
 import type React from "react";
 import { Container } from "@/components/primitives/Container";
+import { InlineRichText } from "@/components/blocks/InlineRichText";
 import { Section } from "@/components/primitives/Section";
 import { Stack } from "@/components/primitives/Stack";
 import { Grid } from "@/components/primitives/Grid";
@@ -291,7 +292,7 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
                     {item.title}
                   </Text>
                   <Text variant="body-sm" color="muted" align="center">
-                    {item.text}
+                    <InlineRichText source={item.text} />
                   </Text>
                 </Stack>
               ))}

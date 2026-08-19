@@ -17,6 +17,7 @@ import { Stack } from "@/components/primitives/Stack";
 import { Text } from "@/components/primitives/Text";
 import type { ProofItem } from "@/cms/types";
 import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
+import { InlineRichText } from "@/components/blocks/InlineRichText";
 import { isRenderableMedia } from "@/lib/media/block-media";
 
 export function ProofSpotlightCard({ item, isActive = true }: { item: ProofItem; isActive?: boolean }) {
@@ -50,7 +51,7 @@ export function ProofSpotlightCard({ item, isActive = true }: { item: ProofItem;
         </span>
 
         <Text variant="h3" color="default" className="italic leading-relaxed" style={{ fontWeight: "normal" }}>
-          {item.text}
+          <InlineRichText source={item.text} />
         </Text>
 
         {(item.name || item.role || item.organisation) && (

@@ -1,6 +1,7 @@
 import type React from "react";
 import Image from "next/image";
 import { Container } from "@/components/primitives/Container";
+import { InlineRichText } from "@/components/blocks/InlineRichText";
 import { Section } from "@/components/primitives/Section";
 import { Stack } from "@/components/primitives/Stack";
 import { Text } from "@/components/primitives/Text";
@@ -672,7 +673,7 @@ export function HeroBlock({
                 className="text-lg"
                 style={{ color: "var(--hero-subtitle-color)" }}
               >
-                {subtitle}
+                <InlineRichText source={subtitle} />
               </Text>
 
               {/* CTA buttons */}
@@ -740,7 +741,7 @@ export function HeroBlock({
                   className="max-w-lg text-lg text-left"
                   style={{ color: "var(--hero-subtitle-color)" }}
                 >
-                  {subtitle}
+                  <InlineRichText source={subtitle} />
                 </Text>
                 <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
                 {ctas.length > 0 && (
@@ -896,7 +897,7 @@ export function HeroBlock({
                 className="max-w-2xl text-lg"
                 style={{ color: "var(--hero-subtitle-color)" }}
               >
-                {subtitle}
+                <InlineRichText source={subtitle} />
               </Text>
               <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
             </Stack>
@@ -1001,7 +1002,7 @@ export function HeroBlock({
               className="max-w-xl text-lg"
               style={{ color: "var(--hero-subtitle-color, #94a3b8)" }}
             >
-              {subtitle}
+              <InlineRichText source={subtitle} />
             </Text>
 
             <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
@@ -1070,7 +1071,7 @@ export function HeroBlock({
                   className="max-w-lg text-lg text-left"
                   style={{ color: "var(--text-muted, #64748b)" }}
                 >
-                  {subtitle}
+                  <InlineRichText source={subtitle} />
                 </Text>
                 <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
                 {ctas.length > 0 && (
@@ -1185,7 +1186,7 @@ export function HeroBlock({
                   className="max-w-lg text-lg text-left"
                   style={{ color: "var(--hero-subtitle-color)" }}
                 >
-                  {subtitle}
+                  <InlineRichText source={subtitle} />
                 </Text>
                 <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
               </Stack>
@@ -1305,7 +1306,7 @@ export function HeroBlock({
               className="max-w-2xl text-lg"
               style={{ color: "var(--text-muted, #64748b)" }}
             >
-              {subtitle}
+              <InlineRichText source={subtitle} />
             </Text>
 
             <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
@@ -1404,7 +1405,7 @@ export function HeroBlock({
                       className="max-w-lg"
                       style={{ color: "var(--hero-subtitle-color)" }}
                     >
-                      {subtitle}
+                      <InlineRichText source={subtitle} />
                     </Text>
                   )}
                   {ctas.length > 0 && (
@@ -1450,7 +1451,7 @@ export function HeroBlock({
                   className="max-w-2xl"
                   style={{ color: "var(--hero-subtitle-color)" }}
                 >
-                  {subtitle}
+                  <InlineRichText source={subtitle} />
                 </Text>
               )}
               {ctas.length > 0 && (
@@ -1529,7 +1530,7 @@ export function HeroBlock({
             className="max-w-2xl text-lg"
             style={{ color: "var(--hero-subtitle-color)" }}
           >
-            {subtitle}
+            <InlineRichText source={subtitle} />
           </Text>
 
           {/* CTA buttons — 0, 1, or 2 rendered */}

@@ -10,57 +10,57 @@ import assert           from "node:assert/strict";
 import { renderInlineMarkup, normalizeInlineMarkup } from "../../lib/blocks/inline-markup.ts";
 
 describe("renderInlineMarkup — formatting", () => {
-  it("bold and italic", () => {
-    assert.equal(renderInlineMarkup("**bold**"), "<p><strong>bold</strong></p>");
-    assert.equal(renderInlineMarkup("*italic*"), "<p><em>italic</em></p>");
-    assert.equal(renderInlineMarkup("a **b** and *c*"), "<p>a <strong>b</strong> and <em>c</em></p>");
+  it("bold and italic (inline-safe, no block tags)", () => {
+    assert.equal(renderInlineMarkup("**bold**"), "<strong>bold</strong>");
+    assert.equal(renderInlineMarkup("*italic*"), "<em>italic</em>");
+    assert.equal(renderInlineMarkup("a **b** and *c*"), "a <strong>b</strong> and <em>c</em>");
   });
 
   it("conservative italic — stray single asterisks stay literal", () => {
-    assert.equal(renderInlineMarkup("3 * 4 = 12"), "<p>3 * 4 = 12</p>");
-    assert.equal(renderInlineMarkup("a * b"), "<p>a * b</p>");
-    assert.equal(renderInlineMarkup("* leading"), "<p>* leading</p>");
+    assert.equal(renderInlineMarkup("3 * 4 = 12"), "3 * 4 = 12");
+    assert.equal(renderInlineMarkup("a * b"), "a * b");
+    assert.equal(renderInlineMarkup("* leading"), "* leading");
     // a real emphasis with non-space neighbours still works
-    assert.equal(renderInlineMarkup("say *hi* now"), "<p>say <em>hi</em> now</p>");
+    assert.equal(renderInlineMarkup("say *hi* now"), "say <em>hi</em> now");
   });
 
-  it("paragraphs, hard breaks and lists", () => {
-    assert.equal(renderInlineMarkup("one\n\ntwo"), "<p>one</p><p>two</p>");
-    assert.equal(renderInlineMarkup("line1\nline2"), "<p>line1<br>line2</p>");
-    assert.equal(renderInlineMarkup("- a\n- b"), "<ul><li>a</li><li>b</li></ul>");
-    assert.equal(renderInlineMarkup("- **x**\n- y"), "<ul><li><strong>x</strong></li><li>y</li></ul>");
+  it("paragraphs (double break), hard breaks and bulleted lists", () => {
+    assert.equal(renderInlineMarkup("one\n\ntwo"), "one<br><br>two");
+    assert.equal(renderInlineMarkup("line1\nline2"), "line1<br>line2");
+    assert.equal(renderInlineMarkup("- a\n- b"), "\u2022\u00a0a<br>\u2022\u00a0b");
+    assert.equal(renderInlineMarkup("- **x**\n- y"), "\u2022\u00a0<strong>x</strong><br>\u2022\u00a0y");
   });
 
   it("links: valid schemes get rel=noopener", () => {
-    assert.equal(renderInlineMarkup("[docs](https://x.com/a)"), '<p><a href="https://x.com/a" rel="noopener">docs</a></p>');
-    assert.equal(renderInlineMarkup("[home](/cases)"), '<p><a href="/cases" rel="noopener">home</a></p>');
-    assert.equal(renderInlineMarkup("[mail](mailto:a@b.com)"), '<p><a href="mailto:a@b.com" rel="noopener">mail</a></p>');
+    assert.equal(renderInlineMarkup("[docs](https://x.com/a)"), '<a href="https://x.com/a" rel="noopener">docs</a>');
+    assert.equal(renderInlineMarkup("[home](/cases)"), '<a href="/cases" rel="noopener">home</a>');
+    assert.equal(renderInlineMarkup("[mail](mailto:a@b.com)"), '<a href="mailto:a@b.com" rel="noopener">mail</a>');
   });
 });
 
 describe("renderInlineMarkup — safety", () => {
   it("escapes raw HTML in the source (no tags survive)", () => {
-    assert.equal(renderInlineMarkup("<script>alert(1)</script>"), "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
-    assert.equal(renderInlineMarkup('a <b onclick="x">c'), "<p>a &lt;b onclick=&quot;x&quot;&gt;c</p>");
+    assert.equal(renderInlineMarkup("<script>alert(1)</script>"), "&lt;script&gt;alert(1)&lt;/script&gt;");
+    assert.equal(renderInlineMarkup('a <b onclick="x">c'), "a &lt;b onclick=&quot;x&quot;&gt;c");
   });
 
   it("drops javascript:, data:, vbscript: and protocol-relative links to plain text", () => {
-    assert.equal(renderInlineMarkup("[x](javascript:alert(1))"), "<p>x</p>");
-    assert.equal(renderInlineMarkup("[x](data:text/html,evil)"), "<p>x</p>");
-    assert.equal(renderInlineMarkup("[x](vbscript:msgbox)"), "<p>x</p>");
-    assert.equal(renderInlineMarkup("[x](//evil.com)"), "<p>x</p>");
+    assert.equal(renderInlineMarkup("[x](javascript:alert(1))"), "x");
+    assert.equal(renderInlineMarkup("[x](data:text/html,evil)"), "x");
+    assert.equal(renderInlineMarkup("[x](vbscript:msgbox)"), "x");
+    assert.equal(renderInlineMarkup("[x](//evil.com)"), "x");
   });
 
   it("a quote inside a link URL cannot break out of the href attribute", () => {
     // The double quote is escaped before the link transform runs.
-    assert.equal(renderInlineMarkup('[x](https://a.com/")'), '<p><a href="https://a.com/&quot;" rel="noopener">x</a></p>');
+    assert.equal(renderInlineMarkup('[x](https://a.com/")'), '<a href="https://a.com/&quot;" rel="noopener">x</a>');
   });
 
   it("empty / whitespace / plain text", () => {
     assert.equal(renderInlineMarkup(""), "");
     assert.equal(renderInlineMarkup(null), "");
     assert.equal(renderInlineMarkup("   "), "");
-    assert.equal(renderInlineMarkup("Gewoon platte tekst."), "<p>Gewoon platte tekst.</p>");
+    assert.equal(renderInlineMarkup("Gewoon platte tekst."), "Gewoon platte tekst.");
   });
 });
 
