@@ -8,10 +8,13 @@
  * than the simplified snippet HTML, so layout variants, media, and carousels
  * appear exactly as visitors would see them.
  *
- * Hero reuses the production adapter (adaptiveVariantToHeroBlockData). Proof /
- * CTA / feature map their fields to the corresponding *BlockData shape. The
- * block's own tokenRef (tokenSet / inline tokens) is carried through so the
- * per-block design override is applied in the preview too.
+ * Hero reuses the production adapter (adaptiveVariantToHeroBlockData). Proof and
+ * feature reuse the SHARED per-item mappers (adaptiveItemToProofItem /
+ * adaptiveItemToFeatureItem) that the Statamic provider uses, so spotlight media,
+ * attribution, price/CTA and mediaSide render identically here and on the live
+ * site. CTA maps its own fields. The block's own tokenRef (tokenSet / inline
+ * tokens) is carried through so the per-block design override applies in the
+ * preview too.
  *
  * Conversion and notification are overlays with a different data contract and
  * are not previewed here — callers get `null` and should show a placeholder.
@@ -21,6 +24,7 @@ import type { AdaptiveVariantContent } from "@/cms/types";
 import type { ContextSlotData } from "@/page-config";
 import type { BlockTokenRef } from "@/design-system/theme/block-token-set";
 import { adaptiveVariantToHeroBlockData } from "./resolve-adaptive-variant";
+import { adaptiveItemToProofItem, adaptiveItemToFeatureItem } from "@/lib/blocks/adaptive-item-to-block";
 
 /** Build a BlockTokenRef from a variant's token fields, or undefined when none. */
 function tokenRefFromVariant(content: AdaptiveVariantContent): BlockTokenRef | undefined {
@@ -53,7 +57,7 @@ export function adaptiveVariantToContextEntry(
         proof: {
           id:    blockKey,
           title: content.title ?? "",
-          items: (content.items ?? []).map((i) => ({ title: i.title ?? "", text: i.text ?? "" })),
+          items: (content.items ?? []).map(adaptiveItemToProofItem),
           ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
           ...withRef,
         },
@@ -76,11 +80,7 @@ export function adaptiveVariantToContextEntry(
         feature: {
           id:    blockKey,
           title: content.title ?? "",
-          items: (content.items ?? []).map((i) => ({
-            title: i.title ?? "",
-            body:  i.text ?? "",
-            ...(i.imageUrl ? { icon: i.imageUrl } : {}),
-          })),
+          items: (content.items ?? []).map(adaptiveItemToFeatureItem),
           ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
           ...withRef,
         },
