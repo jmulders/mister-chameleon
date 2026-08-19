@@ -59,8 +59,12 @@ function isSafeUrl(url: string): boolean {
  */
 const LINK_RE = /\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g;
 
-/** Apply the inline transforms (bold, italic, links) to one already-line-split run. */
-function renderInline(raw: string): string {
+/**
+ * Apply the inline transforms (bold, italic, links) to one already-line-split
+ * run. Exported for the drawer editor, which reuses the exact inline rules when
+ * turning stored Markdown back into editable HTML.
+ */
+export function renderInlineRun(raw: string): string {
   let s = escapeHtml(raw);
 
   // Bold: **text** (no inner *, must open on a non-space).
@@ -105,12 +109,12 @@ export function renderInlineMarkup(src: string | null | undefined): string {
       if (isList) {
         // Bulleted lines — inline-safe, one hard break between items.
         return lines
-          .map((l) => BULLET + renderInline(l.replace(/^\s*-\s+/, "")))
+          .map((l) => BULLET + renderInlineRun(l.replace(/^\s*-\s+/, "")))
           .join("<br>");
       }
 
       // A paragraph: single newlines become hard breaks.
-      return lines.map((l) => renderInline(l)).join("<br>");
+      return lines.map((l) => renderInlineRun(l)).join("<br>");
     })
     .join("<br><br>");
 }
