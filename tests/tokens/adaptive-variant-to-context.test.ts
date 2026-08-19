@@ -62,7 +62,7 @@ describe("adaptiveVariantToContextEntry", () => {
     assert.deepEqual(out!.cta!.cta, { label: "Go", href: "/signup" });
   });
 
-  it("maps a feature variant's items to {title,body,icon}", () => {
+  it("maps a feature variant's items via the shared mapper (icon not derived from imageUrl)", () => {
     const content: AdaptiveVariantContent = {
       title:    "Features",
       subtitle: "",
@@ -70,7 +70,65 @@ describe("adaptiveVariantToContextEntry", () => {
     };
     const out = adaptiveVariantToContextEntry("feature", content, "feature_default");
     assert.ok(out?.feature);
-    assert.deepEqual(out!.feature!.items, [{ title: "Fast", body: "Edge-native", icon: "bolt" }]);
+    // Uses the same mapper as the live provider, which sets icon: undefined —
+    // imageUrl is not surfaced as an icon (production never did), so preview == live.
+    assert.deepEqual(out!.feature!.items, [{ title: "Fast", body: "Edge-native", icon: undefined }]);
+  });
+
+  it("carries proof spotlight fields (media, attribution, mediaSide) — matches the live provider", () => {
+    const content: AdaptiveVariantContent = {
+      title:    "Proof",
+      subtitle: "",
+      items:    [{
+        text:         "Great result",
+        media:        { kind: "image", url: "https://x/p.jpg", alt: "p" },
+        name:         "Marien",
+        role:         "Eigenaar",
+        organisation: "Transport Jansen",
+        kind:         "klant",
+        mediaSide:    "left",
+      }],
+      layoutVariant: "proof_spotlight",
+    };
+    const out = adaptiveVariantToContextEntry("proof", content, "proof_default");
+    assert.deepEqual(out!.proof!.items, [{
+      title:        "",
+      text:         "Great result",
+      media:        { kind: "image", source: "asset", url: "https://x/p.jpg", alt: "p", fit: "cover" },
+      name:         "Marien",
+      role:         "Eigenaar",
+      organisation: "Transport Jansen",
+      kind:         "klant",
+      mediaSide:    "left",
+    }]);
+  });
+
+  it("carries feature spotlight fields (media, price, cta, mediaSide) — matches the live provider", () => {
+    const content: AdaptiveVariantContent = {
+      title:    "Feature",
+      subtitle: "",
+      items:    [{
+        title:     "Offer",
+        body:      "Copy",
+        media:     { kind: "video", video: { source: "youtube", videoId: "abc123" } },
+        price:     "vanaf EUR 1.250",
+        ctaLabel:  "Bekijk",
+        ctaHref:   "/demo",
+        mediaSide: "right",
+      }],
+      layoutVariant: "feature_spotlight",
+    };
+    const out = adaptiveVariantToContextEntry("feature", content, "feature_highlights");
+    assert.deepEqual(out!.feature!.items, [{
+      title:     "Offer",
+      body:      "Copy",
+      icon:      undefined,
+      media:     { kind: "video", source: "youtube", id: "abc123", autoplay: undefined },
+      price:     "vanaf EUR 1.250",
+      ctaLabel:  "Bekijk",
+      ctaHref:   "/demo",
+      mediaSide: "right",
+    }]);
   });
 
   it("returns null for slot types without a live preview path", () => {
