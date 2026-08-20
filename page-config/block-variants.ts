@@ -120,10 +120,20 @@ export type ProofLayoutVariant = "proof_stats" | "proof_logos" | "proof_quotes" 
  *                        1–2 CTAs right. Good for in-page promotional banners.
  *   cta_banner_compact — notification-bar style on brand background; maximum
  *                        vertical compactness for alert-style banners.
+ *
+ * Full-section + premium (rendered via CtaSectionBlock, shared with the content
+ * block so the adaptive CTA slot does not diverge):
+ *   cta_media_first    — background image with an overlaid headline + CTA
+ *   cta_soft           — very light neutral section, understated
+ *   cta_glow           — near-black section with a soft brand radial glow
+ *
+ * cta_newsletter is intentionally NOT part of the adaptive set: it is an email
+ * capture with a form action, wired to the form-slot mechanism separately.
  */
 export type CtaLayoutVariant =
   | "cta_banner" | "cta_split" | "cta_card"
-  | "cta_banner_default" | "cta_banner_compact";
+  | "cta_banner_default" | "cta_banner_compact"
+  | "cta_media_first" | "cta_soft" | "cta_glow";
 
 /**
  * Layout variant for the Header layout component.
@@ -143,7 +153,7 @@ export type HeaderLayoutVariant = "header_default" | "header_centered" | "header
 const CONTEXT_VARIANT_SETS: Record<string, readonly string[]> = {
   hero:   ["hero_default",  "hero_split",   "hero_proof",  "hero_background", "hero_minimal_dark", "hero_split_clean", "hero_dark_split", "hero_editorial", "hero_page_banner", "hero_carousel"] satisfies readonly HeroLayoutVariant[],
   proof:  ["proof_stats",   "proof_logos",  "proof_quotes", "proof_spotlight"] satisfies readonly ProofLayoutVariant[],
-  cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact"] satisfies readonly CtaLayoutVariant[],
+  cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact", "cta_media_first", "cta_soft", "cta_glow"] satisfies readonly CtaLayoutVariant[],
   header: ["header_default","header_centered","header_cta","header_triband"]  satisfies readonly HeaderLayoutVariant[],
 };
 

@@ -647,6 +647,13 @@ export interface BlockCTA {
   readonly label:    string;
   readonly href:     string;
   readonly variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
+  /**
+   * Optional decision-layer variant key (e.g. "cta_meeting"). When present the
+   * button is rendered with click attribution (a `cta_click` tracking event via
+   * TrackedCTAButton); when absent it renders as a plain link button. Set by the
+   * adaptive CTA slot so its clicks are attributed like the old CTABlock did.
+   */
+  readonly ctaKey?:  string;
 }
 
 // ── About ─────────────────────────────────────────────────────────────────────
@@ -1264,8 +1271,8 @@ export interface SearchBlockData {
 export interface CtaSectionBlockData {
   readonly title?:        string;
   readonly description?:  string;
-  readonly primaryCta?:   { readonly label: string; readonly href: string };
-  readonly secondaryCta?: { readonly label: string; readonly href: string };
+  readonly primaryCta?:   BlockCTA;
+  readonly secondaryCta?: BlockCTA;
   /**
    * Deprecated / inert. Formerly opted a CTA block into per-segment overlays
    * (settings.blockContext), a subsystem that has been retired. The field is
