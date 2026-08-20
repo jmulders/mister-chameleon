@@ -78,6 +78,7 @@ import { CTAGroup }   from "@/components/molecules";
 import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { CtaSectionVariant } from "@/page-config/block-variants";
 import type { CtaSectionBlockData, BlockCTA } from "@/page-config";
+import { InlineRichText } from "@/components/blocks/InlineRichText";
 import { NewsletterForm } from "./_NewsletterForm";
 
 /** Applies block-style-profile heading tracking and transform to headings. */
@@ -147,7 +148,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
               )}
               {description && (
                 <Text variant="body-sm" color="muted" className="mt-0.5">
-                  {description}
+                  <InlineRichText source={description} />
                 </Text>
               )}
             </div>
@@ -190,7 +191,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
                     className="ml-2 font-normal text-sm"
                     style={{ color: "var(--section-cta-body)" }}
                   >
-                    {description}
+                    <InlineRichText source={description} />
                   </span>
                 )}
               </p>
@@ -249,7 +250,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
                     className="max-w-xl"
                     style={{ color: "var(--section-cta-body)" }}
                   >
-                    {description}
+                    <InlineRichText source={description} />
                   </Text>
                 )}
               </Stack>
@@ -315,7 +316,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
                   align="center"
                   className="max-w-lg"
                 >
-                  {description}
+                  <InlineRichText source={description} />
                 </Text>
               )}
               {ctas.length > 0 && (
@@ -384,7 +385,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
                 className="max-w-xl"
                 style={{ color: "var(--section-cta-body)" }}
               >
-                {description}
+                <InlineRichText source={description} />
               </Text>
             )}
             {ctas.length > 0 && (
@@ -461,7 +462,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
                 className="max-w-xl"
                 style={{ color: "var(--section-cta-body, rgba(255,255,255,0.7))" }}
               >
-                {description}
+                <InlineRichText source={description} />
               </Text>
             )}
             {ctas.length > 0 && (
@@ -515,7 +516,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
                 align="center"
                 className="max-w-xl"
               >
-                {description}
+                <InlineRichText source={description} />
               </Text>
             )}
             {ctas.length > 0 && (
@@ -568,7 +569,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
               )}
               {description && (
                 <Text variant="body" color="muted" className="mt-2 max-w-sm">
-                  {description}
+                  <InlineRichText source={description} />
                 </Text>
               )}
             </div>
@@ -634,7 +635,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
               className="max-w-xl"
               style={{ color: "var(--section-cta-body)" }}
             >
-              {description}
+              <InlineRichText source={description} />
             </Text>
           )}
 
