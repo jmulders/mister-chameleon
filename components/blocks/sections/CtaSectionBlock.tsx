@@ -623,8 +623,9 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
               )}
             </div>
 
-            {/* Email capture form — client component (owns the onSubmit handler) */}
-            <NewsletterForm />
+            {/* Email capture form: client component submitting via the shared
+                tenant-form pipeline. No formKey renders nothing (graceful). */}
+            <NewsletterForm formKey={data.formKey} />
 
           </div>
         </Container>

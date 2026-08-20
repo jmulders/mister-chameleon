@@ -76,6 +76,7 @@ export function adaptiveVariantToContextEntry(
           ...(buttons.length ? { ctas: buttons } : {}),
           ...(media          ? { media }         : {}),
           ...(content.mediaSide ? { mediaSide: content.mediaSide } : {}),
+          ...(content.formKey ? { formKey: content.formKey } : {}),
           ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
           ...withRef,
         },

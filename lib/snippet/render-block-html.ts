@@ -396,20 +396,27 @@ function renderFormField(f: FormField): string {
 }
 
 /** The working, token-styled <form> card (fields + honeypot + Turnstile + submit). */
-function renderFormElement(form: ResolvedForm, formKey: string): string {
+function renderFormElement(form: ResolvedForm, formKey: string, opts?: { compact?: boolean }): string {
   const fields      = (form.fields ?? []).map(renderFormField).join("");
-  const submitLabel = form.submitLabel || "Submit";
+  const compact     = opts?.compact === true;
+  const submitLabel = form.submitLabel || (compact ? "Subscribe" : "Submit");
   const submitStyle =
     "display:block;width:100%;padding:12px 22px;border:1px solid transparent;" +
     "border-radius:var(--btn-radius,var(--radius-interactive,8px));background:var(--primary,#4f46e5);" +
     "color:var(--primary-text,#fff);font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;";
+  // Compact (cta_newsletter): no card chrome, no title/intro. The surrounding CTA
+  // section already carries the heading + description; here we only need the input,
+  // optional Turnstile, and submit, wired identically (data-mc-form + .cf-turnstile).
+  const formStyle = compact
+    ? ""
+    : `background:var(--card-bg,#fff);border:1px solid var(--card-border,var(--border,#e2e8f0));` +
+      `border-radius:var(--card-radius,14px);padding:clamp(20px,4vw,32px);`;
   return (
     `<form data-mc-form="${escapeHtml(formKey)}"` +
       `${form.redirectPath ? ` data-mc-redirect="${escapeHtml(form.redirectPath)}"` : ""} novalidate ` +
-      `style="background:var(--card-bg,#fff);border:1px solid var(--card-border,var(--border,#e2e8f0));` +
-      `border-radius:var(--card-radius,14px);padding:clamp(20px,4vw,32px);">` +
-      (form.title ? `<h2 style="font-family:inherit;font-size:clamp(20px,3vw,26px);font-weight:800;margin:0 0 8px;">${escapeHtml(form.title)}</h2>` : "") +
-      (form.intro ? `<p style="font-size:15px;line-height:1.5;color:var(--muted-foreground,#64748b);margin:0 0 20px;">${escapeHtml(form.intro)}</p>` : "") +
+      `style="${formStyle}">` +
+      (!compact && form.title ? `<h2 style="font-family:inherit;font-size:clamp(20px,3vw,26px);font-weight:800;margin:0 0 8px;">${escapeHtml(form.title)}</h2>` : "") +
+      (!compact && form.intro ? `<p style="font-size:15px;line-height:1.5;color:var(--muted-foreground,#64748b);margin:0 0 20px;">${escapeHtml(form.intro)}</p>` : "") +
       // Honeypot — must stay empty (server rejects when filled).
       `<input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">` +
       fields +
@@ -469,6 +476,32 @@ export function renderForm(form: ResolvedForm, formKey: string): string {
         cols +
       `</div>` +
     `</div></section>`
+  );
+}
+
+/**
+ * Render the cta_newsletter variant: heading + description on one side, an inline
+ * email-capture form on the other. The form is a resolved tenant form, wired by
+ * the snippet runtime exactly like a form block (data-mc-form + .cf-turnstile), so
+ * it submits through /api/forms/[formKey] with the full pipeline.
+ *
+ * When `form` is null (no formKey chosen, or resolution failed) it renders the
+ * heading only, mirroring the platform NewsletterForm's graceful degradation.
+ */
+export function renderCtaNewsletter(d: CTABlockData, form: ResolvedForm | null): string {
+  const heading =
+    (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,3.4vw,30px);font-weight:800;margin:0 0 10px;color:var(--text,#0f172a);">${escapeHtml(d.title)}</h2>` : "") +
+    (d.text ? `<p style="font-size:clamp(15px,2.2vw,17px);line-height:1.5;color:var(--muted-foreground,#64748b);margin:0;max-width:44ch;">${renderInlineMarkup(d.text)}</p>` : "");
+  const formCol = form ? renderFormElement(form, d.formKey ?? "", { compact: true }) : "";
+
+  return (
+    `<section style="background:var(--section-subtle-bg,var(--bg,#fff));color:var(--text,#0f172a);` +
+      `border-top:1px solid var(--section-subtle-border,var(--border,#e2e8f0));border-bottom:1px solid var(--section-subtle-border,var(--border,#e2e8f0));">` +
+      `<div style="${WRAP}display:flex;flex-wrap:wrap;gap:clamp(20px,4vw,48px);align-items:center;justify-content:space-between;">` +
+        `<div style="flex:1 1 320px;min-width:0;">${heading}</div>` +
+        (formCol ? `<div style="flex:0 1 400px;min-width:280px;">${formCol}</div>` : "") +
+      `</div>` +
+    `</section>`
   );
 }
 

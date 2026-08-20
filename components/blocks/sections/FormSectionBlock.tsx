@@ -66,17 +66,10 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { getFormDefinition, isFormKey } from "@/forms";
 import type { FormField } from "@/forms";
-import type { ResolvedForm } from "@/forms/context/types";
-import { trackEvent } from "@/tracking/track-event";
-import {
-  pushToJourneyStore,
-  generateEventId,
-  getJourneyStoreVisitorId,
-} from "@/tracking/journey-store";
-import { hasConsent } from "@/tracking/consent-store";
+import { useTenantForm } from "@/components/blocks/forms/useTenantForm";
+import { TurnstileWidget } from "@/components/blocks/forms/TurnstileWidget";
 
 // Must match HONEYPOT_FIELD in forms/spam.ts — kept here to avoid importing
 // a server-only module into a client component.
@@ -103,18 +96,10 @@ interface FormSectionBlockProps {
 
 // ── Submit state ──────────────────────────────────────────────────────────────
 
-type SubmitState =
-  | { status: "idle" }
-  | { status: "submitting" }
-  | { status: "success";  message: string }
-  | { status: "fieldErrors"; errors: Record<string, string> }
-  | { status: "error";    message: string };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlockProps) {
-  const pathname = usePathname();
-  const router   = useRouter();
   const resolved = resolveBlockVariant("formSection", rawVariant) as FormSectionVariant;
   // Normalise canonical spec names → implementation keys.
   // form_inline → default | form_panel → card | form_split stays as form_split
@@ -141,78 +126,17 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   // using the geo header) and returns copy/field overrides. Until it arrives
   // (or when no rule matches) the base definition + CMS copy are used, so the
   // form is always rendered — the overlay just swaps values in when ready.
-  const [overlay, setOverlay] = useState<ResolvedForm | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const query: Record<string, string> = {};
-    try {
-      new URLSearchParams(window.location.search).forEach((v, k) => { query[k.toLowerCase()] = v; });
-    } catch { /* ignore */ }
-    fetch(`/api/forms/${data.formKey}/context`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ path: pathname, query }),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (!cancelled && j && j.ok && j.form) setOverlay(j.form as ResolvedForm);
-      })
-      .catch(() => { /* keep base form */ });
-    return () => { cancelled = true; };
-  }, [data.formKey, pathname]);
+  // Shared tenant-form pipeline: contextual overlay + submit + state + analytics.
+  const { resolvedForm: overlay, submitState, errorRevision, submit: handleSubmit, fireFormEvent } =
+    useTenantForm(data.formKey, { fallbackSuccessMessage: data.successMessage });
 
   // ── Effective copy + fields: overlay override → CMS copy → definition ─────
   const title          = overlay?.title          ?? data.title          ?? formDef?.title;
   const intro          = overlay?.intro          ?? data.intro          ?? formDef?.description;
   const submitLabel    = overlay?.submitLabel    ?? data.submitLabel    ?? "Submit";
-  const successMessage = overlay?.successMessage ?? data.successMessage ?? formDef?.action.successMessage
-    ?? "Thank you — your submission has been received.";
   const effectiveFields: readonly FormField[] = overlay?.fields ?? formDef?.fields ?? [];
-  // Segment thank-you page: redirect target after a successful submit (overlay
-  // override → form definition default). Only relative paths are honoured.
-  const redirectPath = overlay?.redirectPath ?? formDef?.action.redirectPath;
 
-  // ── Tracking helper ────────────────────────────────────────────────────────
-  //
-  // Mirrors the consent-bypass pattern used in PageTracker and TrackedCTAButton:
-  //   • Normal path  (consent granted): delegate to trackEvent (local + DB write).
-  //   • No-consent path               : push directly to window.__journey for the
-  //     Live State panel, and POST to /api/scenario/event for DB persistence.
-  const fireFormEvent = useCallback((eventType: "form_start" | "form_submit") => {
-    const payload = {
-      form_key:   data.formKey,
-      page_path:  pathname,
-      visitor_id: getJourneyStoreVisitorId() ?? undefined,
-    };
 
-    if (hasConsent("analytics") && hasConsent("personalization")) {
-      trackEvent(eventType, payload);
-    } else {
-      pushToJourneyStore(generateEventId(), eventType, {
-        ...payload,
-        occurred_at:    new Date().toISOString(),
-        scenario_panel: true,
-      });
-      fetch("/api/scenario/event", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          eventType,
-          pagePath:   pathname,
-          eventValue: data.formKey,
-        }),
-        credentials: "include",
-      }).catch(() => {/* fire-and-forget */});
-    }
-  }, [data.formKey, pathname]);
-
-  // ── Submit state ───────────────────────────────────────────────────────────
-  const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
-
-  // Incremented each time field errors are set — even when the same errors
-  // re-occur on a second attempt.  Used as a stable useEffect dependency in
-  // FormFields to trigger focus-first-error without over-firing.
-  const [errorRevision, setErrorRevision] = useState(0);
 
   // Special-case: interactive ROI calculator
   if (data.formKey === "roi-calculator") {
@@ -222,62 +146,6 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   // Guard: nothing to render when formKey is not registered
   if (!formDef) return null;
 
-  // ── Submit handler ─────────────────────────────────────────────────────────
-  //
-  // Collects field values from the form element, POSTs JSON to the platform
-  // submit endpoint, and transitions submit state based on the response.
-
-  async function handleSubmit(values: Record<string, string>): Promise<void> {
-    setSubmitState({ status: "submitting" });
-
-    try {
-      const res = await fetch(`/api/forms/${formDef!.key}`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(values),
-      });
-
-      const json = await res.json() as unknown;
-
-      if (!isResponseShape(json)) {
-        setSubmitState({ status: "error", message: "Submission failed. Please try again." });
-        return;
-      }
-
-      if (json.ok) {
-        fireFormEvent("form_submit");
-        // Segment thank-you page: redirect when configured, else show inline.
-        if (redirectPath && redirectPath.startsWith("/") && !redirectPath.startsWith("//")) {
-          router.push(redirectPath);
-          return;
-        }
-        setSubmitState({
-          status:  "success",
-          message: (json as { ok: true; message: string }).message ?? successMessage,
-        });
-        return;
-      }
-
-      // Validation errors (422)
-      if ("errors" in json && json.errors && typeof json.errors === "object") {
-        setSubmitState({
-          status: "fieldErrors",
-          errors: json.errors as Record<string, string>,
-        });
-        setErrorRevision(r => r + 1);
-        return;
-      }
-
-      // Other 4xx / 5xx
-      const errorMessage = "error" in json && typeof json.error === "string"
-        ? json.error
-        : "Submission failed. Please try again.";
-      setSubmitState({ status: "error", message: errorMessage });
-
-    } catch {
-      setSubmitState({ status: "error", message: "Network error. Please check your connection and try again." });
-    }
-  }
 
   // ── Success state ─────────────────────────────────────────────────────────
   if (submitState.status === "success") {
@@ -553,47 +421,6 @@ function FormFields({
   turnstileSiteKey,
 }: FormFieldsProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const turnstileRef = useRef<HTMLDivElement>(null);
-
-  // Load the Cloudflare Turnstile API once and render the widget explicitly.
-  // The widget injects a hidden `cf-turnstile-response` input, captured on submit.
-  useEffect(() => {
-    if (!turnstileSiteKey || !turnstileRef.current) return;
-    const el = turnstileRef.current;
-    let cancelled = false;
-    type TurnstileApi = { render: (e: HTMLElement, o: { sitekey: string }) => void };
-    const w = window as unknown as {
-      turnstile?: TurnstileApi;
-      __mcTsQueue?: Array<() => void>;
-      __mcTsLoading?: boolean;
-      __mcTsOnload?: () => void;
-    };
-    const render = () => {
-      if (cancelled || !w.turnstile?.render) return;
-      if (el.getAttribute("data-mc-rendered")) return;
-      try {
-        w.turnstile.render(el, { sitekey: turnstileSiteKey });
-        el.setAttribute("data-mc-rendered", "1");
-      } catch { /* ignore a bad widget */ }
-    };
-    if (w.turnstile?.render) { render(); return; }
-    w.__mcTsQueue = w.__mcTsQueue ?? [];
-    w.__mcTsQueue.push(render);
-    if (!w.__mcTsLoading) {
-      w.__mcTsLoading = true;
-      w.__mcTsOnload = () => {
-        const q = w.__mcTsQueue ?? [];
-        w.__mcTsQueue = [];
-        q.forEach((fn) => { try { fn(); } catch { /* noop */ } });
-      };
-      const s = document.createElement("script");
-      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__mcTsOnload&render=explicit";
-      s.async = true;
-      s.defer = true;
-      document.head.appendChild(s);
-    }
-    return () => { cancelled = true; };
-  }, [turnstileSiteKey]);
 
   // Fire form_start exactly once when the visitor first focuses any field.
   // Using a ref (not state) to avoid re-renders on focus.
@@ -707,9 +534,8 @@ function FormFields({
         ))}
 
         {/* Cloudflare Turnstile widget — rendered when a site key is configured. */}
-        {turnstileSiteKey && (
-          <div ref={turnstileRef} className="cf-turnstile" data-sitekey={turnstileSiteKey} />
-        )}
+        <TurnstileWidget siteKey={turnstileSiteKey} className="cf-turnstile" />
+
 
         {/* Submit button — uses Button atom for consistent token-driven styling */}
         <div className="pt-2">
@@ -1294,6 +1120,3 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
  * Loose type guard: asserts that the API response JSON has at minimum an `ok`
  * boolean.  Further narrowing happens at the call site.
  */
-function isResponseShape(value: unknown): value is { ok: boolean } {
-  return typeof value === "object" && value !== null && "ok" in value;
-}
