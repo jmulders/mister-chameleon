@@ -23,8 +23,10 @@
 import type {
   HeroBlockData,
   ProofBlockData,
+  ProofItem,
   CTABlockData,
   FeatureBlockData,
+  FeatureItem,
   ConversionBlockData,
   NotificationBlockData,
 } from "@/cms/types";
@@ -104,7 +106,67 @@ function renderHero(d: HeroBlockData): string {
   );
 }
 
+// ── Spotlight variants (proof_spotlight / feature_spotlight) ────────────────────
+//
+// Mirror the platform ProofSpotlightCard / FeatureSpotlightCard: media beside the
+// text, media side via CSS order, wraps (stacks) on mobile. Reuses ctaMediaInner
+// (image / asset video / YouTube-Vimeo click-to-load facade wired by the snippet
+// runtime), exactly like the CTA and notification media paths. Only taken when at
+// least one item carries renderable media; without media renderProof/renderFeature
+// keep their original card-grid output (byte-identical).
+
+/** A spotlight media column sized 16/9, positioned by mediaSide via CSS order. */
+function spotlightMediaCol(media: BlockMedia, mediaSide: "left" | "right" | undefined, sideVar: string): string {
+  const order = mediaSide === "left" ? "-1" : mediaSide === "right" ? "1" : sideVar;
+  return (
+    `<div style="flex:1 1 300px;order:${order};position:relative;aspect-ratio:16/9;overflow:hidden;` +
+    `border-radius:var(--card-radius,14px);background:#000;">${ctaMediaInner(media)}</div>`
+  );
+}
+
+/** Vertical gap between stacked spotlight rows. */
+const SPOTLIGHT_GAP = `<div style="height:clamp(32px,5vw,56px);"></div>`;
+
+function renderProofSpotlightItem(i: ProofItem): string {
+  const mediaCol = isRenderableMedia(i.media)
+    ? spotlightMediaCol(i.media, i.mediaSide, "var(--proof-spotlight-media-side, 1)")
+    : "";
+  const attribution = (i.name || i.role || i.organisation)
+    ? `<div style="margin-top:16px;">` +
+        (i.name ? `<div style="font-weight:700;color:var(--text,#0f172a);">${escapeHtml(i.name)}</div>` : "") +
+        ((i.role || i.organisation)
+          ? `<div style="font-size:14px;color:var(--muted-foreground,#64748b);">${escapeHtml([i.role, i.organisation].filter(Boolean).join(" · "))}</div>`
+          : "") +
+      `</div>`
+    : "";
+  const textCol =
+    `<div style="flex:1 1 300px;">` +
+      `<div aria-hidden="true" style="font-size:40px;line-height:1;color:var(--proof-quote-color,var(--primary,#4f46e5));">&ldquo;</div>` +
+      (i.text ? `<div style="font-size:clamp(18px,2.4vw,22px);line-height:1.5;font-style:italic;color:var(--text,#0f172a);margin-top:6px;">${renderInlineMarkup(i.text)}</div>` : "") +
+      attribution +
+    `</div>`;
+  return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:clamp(24px,4vw,48px);">${mediaCol}${textCol}</div>`;
+}
+
+function renderProofSpotlight(d: ProofBlockData): string {
+  const items = (d.items ?? []).filter((i) => i && (i.text || i.title || isRenderableMedia(i.media)));
+  const rows = items.map(renderProofSpotlightItem).join(SPOTLIGHT_GAP);
+  return (
+    `<section style="background:var(--bg,#fff);color:var(--text,#0f172a);">` +
+      `<div style="${WRAP}">` +
+        (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,3.5vw,32px);font-weight:800;text-align:center;margin:0 0 28px;">${escapeHtml(d.title)}</h2>` : "") +
+        rows +
+      `</div>` +
+    `</section>`
+  );
+}
+
 function renderProof(d: ProofBlockData): string {
+  // proof_spotlight with media: render the media/quote split (mirrors the
+  // platform). Without media (or any other layout) keep the card grid below.
+  if (d.layoutVariant === "proof_spotlight" && (d.items ?? []).some((i) => isRenderableMedia(i?.media))) {
+    return renderProofSpotlight(d);
+  }
   const items = (d.items ?? []).filter((i) => i && (i.title || i.text));
   const cards = items
     .map(
@@ -275,7 +337,41 @@ function renderCta(d: CTABlockData): string {
   );
 }
 
+function renderFeatureSpotlightItem(i: FeatureItem): string {
+  const mediaCol = isRenderableMedia(i.media)
+    ? spotlightMediaCol(i.media, i.mediaSide, "var(--feature-spotlight-media-side, 1)")
+    : "";
+  const hasCta = !!(i.ctaLabel && i.ctaHref);
+  const textCol =
+    `<div style="flex:1 1 300px;">` +
+      (i.title ? `<h3 style="font-family:inherit;font-size:clamp(20px,2.6vw,26px);font-weight:700;margin:0 0 10px;color:var(--text,#0f172a);">${escapeHtml(i.title)}</h3>` : "") +
+      (i.body ? `<div style="font-size:clamp(15px,2.2vw,17px);line-height:1.6;color:var(--muted-foreground,#64748b);">${renderInlineMarkup(i.body)}</div>` : "") +
+      (i.price ? `<div style="font-size:20px;font-weight:700;margin-top:12px;color:var(--text,#0f172a);">${escapeHtml(i.price)}</div>` : "") +
+      (hasCta ? `<div style="margin-top:16px;">${button(i.ctaLabel!, i.ctaHref, "primary")}</div>` : "") +
+    `</div>`;
+  return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:clamp(24px,4vw,48px);">${mediaCol}${textCol}</div>`;
+}
+
+function renderFeatureSpotlight(d: FeatureBlockData): string {
+  const items = (d.items ?? []).filter((i) => i && (i.title || i.body || isRenderableMedia(i.media)));
+  const rows = items.map(renderFeatureSpotlightItem).join(SPOTLIGHT_GAP);
+  return (
+    `<section style="background:var(--feature-grid-bg,var(--bg-subtle,#f8fafc));color:var(--text,#0f172a);">` +
+      `<div style="${WRAP}">` +
+        (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,3.5vw,32px);font-weight:800;text-align:center;margin:0 0 8px;">${escapeHtml(d.title)}</h2>` : "") +
+        (d.subtitle ? `<p style="text-align:center;color:var(--muted-foreground,#64748b);font-size:16px;max-width:60ch;margin:0 auto 28px;">${escapeHtml(d.subtitle)}</p>` : "") +
+        rows +
+      `</div>` +
+    `</section>`
+  );
+}
+
 function renderFeature(d: FeatureBlockData): string {
+  // feature_spotlight with media: render the media/offer split (mirrors the
+  // platform). Without media (or any other layout) keep the card grid below.
+  if (d.layoutVariant === "feature_spotlight" && (d.items ?? []).some((i) => isRenderableMedia(i?.media))) {
+    return renderFeatureSpotlight(d);
+  }
   const items = (d.items ?? []).filter((i) => i && (i.title || i.body));
   const cards = items
     .map(

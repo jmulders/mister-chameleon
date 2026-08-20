@@ -77,4 +77,49 @@ describe("renderBlockHtml", () => {
     assert.equal(renderBlockHtml("feature", {}), null);
     assert.equal(renderBlockHtml("hero", { ctas: [] }), null);
   });
+
+  // ── Spotlight media parity (proof_spotlight / feature_spotlight) ──────────────
+
+  it("proof_spotlight without media is byte-identical to the card grid", () => {
+    const items = [{ title: "98%", text: "tevreden" }];
+    const spot = renderBlockHtml("proof", { id: "p", layoutVariant: "proof_spotlight", title: "T", items });
+    const grid = renderBlockHtml("proof", { id: "p", layoutVariant: "proof_stats", title: "T", items });
+    assert.equal(spot, grid);
+  });
+
+  it("proof_spotlight with media renders the media/quote split with a facade", () => {
+    const html = renderBlockHtml("proof", {
+      id: "p", layoutVariant: "proof_spotlight", title: "Cases",
+      items: [{
+        text: "Geweldige service", name: "Jan", role: "Eigenaar", organisation: "ACME",
+        media: { kind: "video", source: "youtube", id: "aqz-KE-bpKQ" }, mediaSide: "right",
+      }],
+    })!;
+    assert.ok(html.includes("data-mc-video-facade"), "video facade present");
+    assert.ok(html.includes("youtube-nocookie.com"), "nocookie embed src");
+    assert.ok(!html.includes("<iframe"), "no iframe before click");
+    assert.ok(html.includes("order:1;"), "mediaSide right maps to order 1");
+    assert.ok(html.includes("Geweldige service") && html.includes("Eigenaar · ACME"), "quote + attribution");
+  });
+
+  it("feature_spotlight without media is byte-identical to the card grid", () => {
+    const items = [{ title: "Pakket A", body: "beschrijving" }];
+    const spot = renderBlockHtml("feature", { id: "f", layoutVariant: "feature_spotlight", title: "T", items });
+    const grid = renderBlockHtml("feature", { id: "f", layoutVariant: "feature_grid_3up", title: "T", items });
+    assert.equal(spot, grid);
+  });
+
+  it("feature_spotlight with media renders the media/offer split", () => {
+    const html = renderBlockHtml("feature", {
+      id: "f", layoutVariant: "feature_spotlight", title: "Aanbod",
+      items: [{
+        title: "Pakket A", body: "alles inbegrepen", price: "vanaf EUR 1.250",
+        ctaLabel: "Boek", ctaHref: "/boek",
+        media: { kind: "image", url: "https://ex.com/a.jpg", alt: "x" }, mediaSide: "left",
+      }],
+    })!;
+    assert.ok(html.includes('src="https://ex.com/a.jpg"'), "image rendered");
+    assert.ok(html.includes("order:-1;"), "mediaSide left maps to order -1");
+    assert.ok(html.includes("vanaf EUR 1.250") && html.includes(">Boek<"), "price + CTA");
+  });
 });
