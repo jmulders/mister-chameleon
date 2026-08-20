@@ -323,11 +323,23 @@ function renderNotification(d: NotificationBlockData): string {
   const cta = d.ctaLabel
     ? ` <a href="${safeHref(d.ctaHref)}" style="color:${accent};font-weight:700;text-decoration:underline;">${escapeHtml(d.ctaLabel)}</a>`
     : "";
+  // Optional media beside the message. mediaSide places it left (default) or right
+  // via flex order. YouTube/Vimeo reuse the click-to-load facade (data-mc-video-
+  // facade) wired by the snippet runtime. Without media the output below is
+  // byte-identical to before (mediaCol is "" and the span keeps its original form).
+  const hasMedia   = isRenderableMedia(d.media);
+  const mediaOrder = d.mediaSide === "right" ? 1 : -1;
+  const mediaCol   = hasMedia && d.media
+    ? `<div style="flex:0 0 auto;order:${mediaOrder};position:relative;width:72px;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#000;">${ctaMediaInner(d.media)}</div>`
+    : "";
+  const messageSpan = hasMedia
+    ? `<span style="flex:1 1 auto;min-width:0;">${escapeHtml(d.message)}${cta}</span>`
+    : `<span>${escapeHtml(d.message)}${cta}</span>`;
   return (
     `<div style="box-sizing:border-box;background:var(--card-bg,#fff);border:1px solid var(--card-border,#e2e8f0);` +
     `border-left:4px solid ${accent};border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:10px;` +
     `font-family:inherit;color:var(--text,#0f172a);font-size:14.5px;line-height:1.5;">` +
-      `<span>${escapeHtml(d.message)}${cta}</span>` +
+      mediaCol + messageSpan +
     `</div>`
   );
 }
