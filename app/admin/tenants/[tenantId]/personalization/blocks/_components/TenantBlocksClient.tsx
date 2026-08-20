@@ -10,8 +10,10 @@
  *   - "Platform default"   — using platform block (customize button)
  *   - "Not configured"     — no block exists at all (create button)
  *
- * Customize = calls activateBlockForTenantAction to fork a tenant copy,
- *             then immediately opens the edit drawer.
+ * Customize / Create open the edit drawer seeded with the platform-default
+ * variant as an unsaved draft. NO tenant row is written on open: the drawer's
+ * Save upserts on (key, tenant) and creates the tenant row only then. So a
+ * Customize you cancel leaves the block on the platform default.
  */
 
 import { useState, useCallback, useMemo, useTransition, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -19,7 +21,7 @@ import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
 import { BlockPreviewModal }                     from "@/components/admin/BlockPreviewModal";
 import type { BlockTokenSet }                     from "@/design-system/theme/block-token-set";
-import { activateBlockForTenantAction, deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
+import { deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import { saveSlotModesAction, type SaveSlotModesInput, type SlotModeFormValue } from "../slot-modes-actions";
 import type { AdaptiveBlockData }                from "@/cms/types";
 import type { TenantAdaptiveSlotSettings, TenantSlotMode } from "@/tenant/types";
@@ -124,7 +126,6 @@ function BlockRow({
   onPreview:      (payload: PreviewTarget) => void;
 }) {
   const router = useRouter();
-  const [forking, startFork] = useTransition();
   const [resetting, startReset] = useTransition();
   // The block a read-only preview would render: the tenant variant when
   // customized, else the platform-default variant. "missing" has no source.
@@ -151,23 +152,26 @@ function BlockRow({
   }
 
   function handleCustomize() {
-    startFork(async () => {
-      const res = await activateBlockForTenantAction(
-        resolved.blockKey,
+    // Open the edit drawer seeded with the platform-default variant as an
+    // UNSAVED draft. No tenant row is written here: the drawer's Save action
+    // upserts on (key, tenant) and creates the tenant row only then, so a
+    // Customize you cancel leaves the block on the platform default.
+    if (resolved.platformBlock) {
+      // Customize an inherited platform block: start from its content, but as a
+      // new tenant row (id cleared so Save inserts instead of updating the
+      // platform row).
+      onCustomized({ ...resolved.platformBlock, id: "", tenantId });
+    } else {
+      // Create a not-configured block from scratch.
+      onCustomized({
+        id:               "",
+        key:              resolved.blockKey,
         tenantId,
-        true,
-        revalidatePath,
-      );
-      if (res.ok) {
-        // Fetch the newly created tenant block from the action result
-        // activateBlockForTenantAction returns { ok, id } — we build a minimal
-        // block to open the drawer; the drawer will re-save with real content.
-        const base = resolved.platformBlock ?? resolved.tenantBlock;
-        if (base) {
-          onCustomized({ ...base, id: res.id, tenantId });
-        }
-      }
-    });
+        isActive:         true,
+        defaultVariant:   { title: "", subtitle: "" },
+        adaptiveVariants: [],
+      });
+    }
   }
 
   const statusBadge = {
@@ -269,10 +273,9 @@ function BlockRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); handleCustomize(); }}
-          disabled={forking}
-          className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 opacity-0 transition-all hover:border-brand-300 hover:text-brand-700 group-hover:opacity-100 disabled:opacity-40"
+          className="shrink-0 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-600 opacity-0 transition-all hover:border-brand-300 hover:text-brand-700 group-hover:opacity-100"
         >
-          {forking ? "…" : "Customize"}
+          Customize
         </button>
       )}
 
@@ -280,10 +283,9 @@ function BlockRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); handleCustomize(); }}
-          disabled={forking}
-          className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 opacity-0 transition-all hover:bg-amber-100 group-hover:opacity-100 disabled:opacity-40"
+          className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 opacity-0 transition-all hover:bg-amber-100 group-hover:opacity-100"
         >
-          {forking ? "…" : "Create"}
+          Create
         </button>
       )}
 
