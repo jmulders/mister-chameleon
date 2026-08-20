@@ -525,6 +525,7 @@ export class StatamicProvider implements CMSProvider {
       title:        c.title,
       text:         c.subtitle,
       ctas:         c.ctas ?? [],
+      ...(c.formKey ? { formKey: c.formKey } : {}),
     };
   }
 
