@@ -61,11 +61,18 @@ export function CTAGroup({
     <div className={`flex flex-wrap gap-3 ${alignClass} ${className ?? ""}`}>
       {ctas.map((cta, index) => {
         const isPrimary = index === 0;
+        // Per-button style wins over variant / position default. Absent -> unchanged.
+        const styleVariant = cta.style
+          ? ({ solid: "primary", outline: "outline", ghost: "ghost" } as const)[cta.style]
+          : undefined;
 
         // Inverted: first button is solid inverted (white bg on brand section),
         // subsequent buttons are ghost with muted text.
         if (inverted) {
-          const invertedStyle = isPrimary
+          const invVariant = styleVariant ?? (isPrimary ? "primary" : "ghost");
+          // The solid inverted treatment (white bg) only applies to a solid/primary
+          // button; outline/ghost buttons keep their own variant appearance.
+          const invertedStyle = invVariant === "primary"
             ? {
                 backgroundColor: "var(--card-bg)",
                 color:           "var(--primary-active)",
@@ -84,13 +91,13 @@ export function CTAGroup({
                 ctaKey={cta.ctaKey}
                 position="cta_block"
                 size={size}
-                variant={isPrimary ? "primary" : "ghost"}
+                variant={invVariant}
                 style={invertedStyle}
               />
             );
           }
           return (
-            <Button key={index} as="a" href={cta.href} size={size} variant={isPrimary ? "primary" : "ghost"} style={invertedStyle}>
+            <Button key={index} as="a" href={cta.href} size={size} variant={invVariant} style={invertedStyle}>
               {cta.label}
             </Button>
           );
@@ -98,7 +105,7 @@ export function CTAGroup({
 
         // Standard: resolve variant from cta data, falling back to
         // primary for index 0, outline for subsequent CTAs.
-        const stdVariant = cta.variant ?? (isPrimary ? "primary" : "outline");
+        const stdVariant = styleVariant ?? cta.variant ?? (isPrimary ? "primary" : "outline");
         if (cta.ctaKey) {
           // TrackedCTAButton has no "link" variant; fall back to ghost for it.
           const trackedVariant = stdVariant === "link" ? "ghost" : stdVariant;

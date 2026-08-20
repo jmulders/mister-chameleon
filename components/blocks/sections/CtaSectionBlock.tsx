@@ -79,6 +79,8 @@ import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { CtaSectionVariant } from "@/page-config/block-variants";
 import type { CtaSectionBlockData, BlockCTA } from "@/page-config";
 import { InlineRichText } from "@/components/blocks/InlineRichText";
+import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
+import { isRenderableMedia } from "@/lib/media/block-media";
 import { NewsletterForm } from "./_NewsletterForm";
 
 /** Applies block-style-profile heading tracking and transform to headings. */
@@ -335,23 +337,70 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
   // a dark overlay ensures the text and button remain readable. Suitable for
   // conversion sections on landing pages where a visual impact is desired.
 
+  // cta_media_split — media (image or video) beside the text + buttons. Neutral
+  // section; media side follows per-block mediaSide, else the tenant token.
+  // Mobile stacks (media on top).
+  if (variant === "cta_media_split") {
+    const mediaOrder: number | string =
+      data.mediaSide === "left" ? -1
+      : data.mediaSide === "right" ? 1
+      : "var(--cta-media-side, 1)";
+    return (
+      <Section spacing="lg">
+        <Container size="lg">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
+            {isRenderableMedia(data.media) && (
+              <div className="w-full lg:w-1/2" style={{ order: mediaOrder as unknown as number }}>
+                <BlockMediaView media={data.media} />
+              </div>
+            )}
+            <Stack gap={5} className="w-full lg:flex-1">
+              {title && (
+                <Text
+                  variant="h2"
+                  balance
+                  className="max-w-xl"
+                  style={{ fontFamily: "var(--font-heading)", fontWeight: "var(--font-heading-weight)", ...HEADING_STYLE }}
+                >
+                  {title}
+                </Text>
+              )}
+              {description && (
+                <Text variant="body" color="muted" className="max-w-xl leading-relaxed">
+                  <InlineRichText source={description} />
+                </Text>
+              )}
+              {ctas.length > 0 && <CTAGroup ctas={ctas} size="md" />}
+            </Stack>
+          </div>
+        </Container>
+      </Section>
+    );
+  }
+
   if (variant === "cta_media_first") {
-    const { imageUrl, imageAlt } = data;
+    const { imageUrl, imageAlt, media } = data;
     return (
       <Section
         spacing="xl"
         className="relative overflow-hidden"
         style={{ background: "var(--neutral-900, #111827)" }}
       >
-        {/* Background image */}
-        {imageUrl && (
+        {/* Background media: a shared BlockMedia (image OR video) when present,
+            else the legacy imageUrl. Absolutely positioned + dimmed under the
+            overlay so the overlaid content stays legible. */}
+        {isRenderableMedia(media) ? (
+          <div className="pointer-events-none absolute inset-0 opacity-40 [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_video]:h-full [&_video]:w-full [&_video]:object-cover [&>*]:h-full">
+            <BlockMediaView media={media} />
+          </div>
+        ) : imageUrl ? (
           <img
             src={imageUrl}
             alt={imageAlt ?? ""}
             aria-hidden={!imageAlt || undefined}
             className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"
           />
-        )}
+        ) : null}
 
         {/* Dark overlay gradient for text legibility */}
         <div

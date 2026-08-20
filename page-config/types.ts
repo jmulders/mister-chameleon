@@ -648,6 +648,12 @@ export interface BlockCTA {
   readonly href:     string;
   readonly variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
   /**
+   * Optional per-button visual style. When set it wins over `variant` and the
+   * position-based default: solid -> primary, outline -> outline, ghost -> ghost.
+   * Absent means the existing behavior (no regression for CTAs without a style).
+   */
+  readonly style?:   "solid" | "outline" | "ghost";
+  /**
    * Optional decision-layer variant key (e.g. "cta_meeting"). When present the
    * button is rendered with click attribution (a `cta_click` tracking event via
    * TrackedCTAButton); when absent it renders as a plain link button. Set by the
@@ -1273,6 +1279,17 @@ export interface CtaSectionBlockData {
   readonly description?:  string;
   readonly primaryCta?:   BlockCTA;
   readonly secondaryCta?: BlockCTA;
+  /**
+   * Optional media (image or video) shown by the media variants (cta_media_split
+   * beside the text, cta_media_first as the background). Reuses the shared
+   * BlockMedia / BlockMediaView stack from the spotlight work.
+   */
+  readonly media?:        import("@/lib/media/block-media").BlockMedia;
+  /**
+   * Which side the media sits on in cta_media_split: "left" or "right". Empty
+   * inherits the tenant token (--cta-media-side). Mobile always stacks.
+   */
+  readonly mediaSide?:    "left" | "right";
   /**
    * Deprecated / inert. Formerly opted a CTA block into per-segment overlays
    * (settings.blockContext), a subsystem that has been retired. The field is
