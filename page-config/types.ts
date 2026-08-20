@@ -648,6 +648,12 @@ export interface BlockCTA {
   readonly href:     string;
   readonly variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
   /**
+   * Optional per-button visual style. When set it wins over `variant` and the
+   * position-based default: solid -> primary, outline -> outline, ghost -> ghost.
+   * Absent means the existing behavior (no regression for CTAs without a style).
+   */
+  readonly style?:   "solid" | "outline" | "ghost";
+  /**
    * Optional decision-layer variant key (e.g. "cta_meeting"). When present the
    * button is rendered with click attribution (a `cta_click` tracking event via
    * TrackedCTAButton); when absent it renders as a plain link button. Set by the
