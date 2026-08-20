@@ -28,6 +28,7 @@
  */
 
 import { Button }      from "@/components/ui/Button";
+import { TrackedCTAButton } from "@/components/tracking/TrackedCTAButton";
 import type { BlockCTA } from "@/page-config";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -64,25 +65,32 @@ export function CTAGroup({
         // Inverted: first button is solid inverted (white bg on brand section),
         // subsequent buttons are ghost with muted text.
         if (inverted) {
-          return (
-            <Button
-              key={index}
-              as="a"
-              href={cta.href}
-              size={size}
-              variant={isPrimary ? "primary" : "ghost"}
-              style={
-                isPrimary
-                  ? {
-                      backgroundColor: "var(--card-bg)",
-                      color:           "var(--primary-active)",
-                      borderRadius:    "var(--radius-interactive)",
-                    }
-                  : {
-                      color: "var(--section-cta-body)",
-                    }
+          const invertedStyle = isPrimary
+            ? {
+                backgroundColor: "var(--card-bg)",
+                color:           "var(--primary-active)",
+                borderRadius:    "var(--radius-interactive)",
               }
-            >
+            : {
+                color: "var(--section-cta-body)",
+              };
+          // A ctaKey opts this button into click attribution (adaptive CTA slot).
+          if (cta.ctaKey) {
+            return (
+              <TrackedCTAButton
+                key={index}
+                href={cta.href}
+                label={cta.label}
+                ctaKey={cta.ctaKey}
+                position="cta_block"
+                size={size}
+                variant={isPrimary ? "primary" : "ghost"}
+                style={invertedStyle}
+              />
+            );
+          }
+          return (
+            <Button key={index} as="a" href={cta.href} size={size} variant={isPrimary ? "primary" : "ghost"} style={invertedStyle}>
               {cta.label}
             </Button>
           );
@@ -90,14 +98,24 @@ export function CTAGroup({
 
         // Standard: resolve variant from cta data, falling back to
         // primary for index 0, outline for subsequent CTAs.
+        const stdVariant = cta.variant ?? (isPrimary ? "primary" : "outline");
+        if (cta.ctaKey) {
+          // TrackedCTAButton has no "link" variant; fall back to ghost for it.
+          const trackedVariant = stdVariant === "link" ? "ghost" : stdVariant;
+          return (
+            <TrackedCTAButton
+              key={index}
+              href={cta.href}
+              label={cta.label}
+              ctaKey={cta.ctaKey}
+              position="cta_block"
+              size={size}
+              variant={trackedVariant}
+            />
+          );
+        }
         return (
-          <Button
-            key={index}
-            as="a"
-            href={cta.href}
-            size={size}
-            variant={cta.variant ?? (isPrimary ? "primary" : "outline")}
-          >
+          <Button key={index} as="a" href={cta.href} size={size} variant={stdVariant}>
             {cta.label}
           </Button>
         );

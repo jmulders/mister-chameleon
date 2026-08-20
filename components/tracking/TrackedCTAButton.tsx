@@ -78,6 +78,8 @@ interface TrackedCTAButtonProps {
   position?: string;
   /** Visual variant forwarded to Button. Defaults to "primary". */
   variant?: "primary" | "secondary" | "outline" | "ghost";
+  /** Button size forwarded to Button. Defaults to "lg" (unchanged for existing callers). */
+  size?: "sm" | "md" | "lg";
   /** Additional Tailwind classes forwarded to Button. */
   className?: string;
   /**
@@ -95,6 +97,7 @@ export function TrackedCTAButton({
   ctaKey,
   position,
   variant = "primary",
+  size = "lg",
   className,
   style,
 }: TrackedCTAButtonProps) {
@@ -139,7 +142,7 @@ export function TrackedCTAButton({
   return (
     <Button
       as={Link}
-      size="lg"
+      size={size}
       variant={variant}
       href={href}
       className={className}
