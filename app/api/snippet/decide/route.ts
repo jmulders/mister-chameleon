@@ -104,6 +104,7 @@ import { resolvePageMeta }           from "@/tracking/page-meta-map";
 import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
 import type { SlotMap, BlockSlot }   from "@/lib/snippet/decide-response";
 import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
+import { withBookDemoFallback }      from "@/lib/snippet/book-demo-fallback";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
@@ -1072,7 +1073,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (conversionData) {
-      const conv = conversionData as ConversionBlockData;
+      // book-demo has no snippet booking widget; inject a localized button to the
+      // hosted /book-demo page when the author supplied no CTA (author CTA wins).
+      const conv = withBookDemoFallback(
+        conversionData as ConversionBlockData,
+        locale,
+        new URL(request.url).origin,
+      );
       if (conv.renderMode === "block" && conv.blockHtml) {
         slots["conversion"] = toBlockSlot(conv.blockHtml, conv.tokenRef);
       } else if (emitBlockInto(slots, "conversion", conv)) {
