@@ -106,13 +106,21 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "feature_grid_dark",      label: "Dark" },
     { value: "feature_spotlight",      label: "Spotlight (media beside text)" },
   ],
-  conversion: [
-    { value: "conversion_cta",  label: "CTA" },
-    { value: "conversion_form", label: "Form" },
-  ],
+  // Conversion has no layout-variant axis: the block's behavior is driven by its
+  // formKey (e.g. "book-demo" -> booking embed), and there is no
+  // resolveContextBlockVariant("conversion", ...) slot. The old conversion_cta /
+  // conversion_form options were dead (nothing read them), so no options are
+  // offered; the layout-variant control is hidden for this slot.
+  //
+  // Notification layoutVariant drives SEVERITY (adaptiveToNotification derives it
+  // from the key: contains "warning"/"success"/"promo", else "info"). Position is
+  // a separate field (notifPosition). The old bar/modal options set neither, so
+  // they are replaced by the real severity choices.
   notification: [
-    { value: "notification_bar",   label: "Bar" },
-    { value: "notification_modal", label: "Modal" },
+    { value: "notification_info",    label: "Info" },
+    { value: "notification_warning", label: "Warning" },
+    { value: "notification_success", label: "Success" },
+    { value: "notification_promo",   label: "Promo" },
   ],
 };
 
@@ -1366,9 +1374,11 @@ export function EditBlockDrawer({
             <legend className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Layout</legend>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-700 mb-1">Layout variant</label>
-                {layoutOptions.length > 0 ? (
+              {/* Layout variant is shown only for slots that have curated options.
+                  Slots without a layout axis (e.g. conversion) show no control. */}
+              {layoutOptions.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">Layout variant</label>
                   <select
                     value={layoutVariant}
                     onChange={(e) => setLayout(e.target.value)}
@@ -1379,16 +1389,8 @@ export function EditBlockDrawer({
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={layoutVariant}
-                    onChange={(e) => setLayout(e.target.value)}
-                    placeholder="layout_key"
-                    className={INPUT_CLS}
-                  />
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Content alignment is read only by the Hero block (HeroBlock.tsx).
                   On other slots it does nothing, so it is shown for hero only. */}
