@@ -123,7 +123,8 @@ export type ProofLayoutVariant = "proof_stats" | "proof_logos" | "proof_quotes" 
  *
  * Full-section + premium (rendered via CtaSectionBlock, shared with the content
  * block so the adaptive CTA slot does not diverge):
- *   cta_media_first    — background image with an overlaid headline + CTA
+ *   cta_media_split    — media (image or video) beside the text + buttons
+ *   cta_media_first    — media (image or video) as the background, overlaid CTA
  *   cta_soft           — very light neutral section, understated
  *   cta_glow           — near-black section with a soft brand radial glow
  *
@@ -133,7 +134,7 @@ export type ProofLayoutVariant = "proof_stats" | "proof_logos" | "proof_quotes" 
 export type CtaLayoutVariant =
   | "cta_banner" | "cta_split" | "cta_card"
   | "cta_banner_default" | "cta_banner_compact"
-  | "cta_media_first" | "cta_soft" | "cta_glow";
+  | "cta_media_split" | "cta_media_first" | "cta_soft" | "cta_glow";
 
 /**
  * Layout variant for the Header layout component.
@@ -153,7 +154,7 @@ export type HeaderLayoutVariant = "header_default" | "header_centered" | "header
 const CONTEXT_VARIANT_SETS: Record<string, readonly string[]> = {
   hero:   ["hero_default",  "hero_split",   "hero_proof",  "hero_background", "hero_minimal_dark", "hero_split_clean", "hero_dark_split", "hero_editorial", "hero_page_banner", "hero_carousel"] satisfies readonly HeroLayoutVariant[],
   proof:  ["proof_stats",   "proof_logos",  "proof_quotes", "proof_spotlight"] satisfies readonly ProofLayoutVariant[],
-  cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact", "cta_media_first", "cta_soft", "cta_glow"] satisfies readonly CtaLayoutVariant[],
+  cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact", "cta_media_split", "cta_media_first", "cta_soft", "cta_glow"] satisfies readonly CtaLayoutVariant[],
   header: ["header_default","header_centered","header_cta","header_triband"]  satisfies readonly HeaderLayoutVariant[],
 };
 
@@ -285,7 +286,7 @@ export type FaqSectionVariant =
  *                   no separate href-based CTA — form action driven. Content Blog family.
  */
 export type CtaSectionVariant =
-  | "cta_banner" | "cta_split" | "cta_card" | "cta_media_first" // full-section family
+  | "cta_banner" | "cta_split" | "cta_card" | "cta_media_split" | "cta_media_first" // full-section family
   | "cta_banner_default" | "cta_banner_compact"                  // compact banner family
   | "cta_glow" | "cta_soft" | "cta_newsletter"                  // premium / specialty variants
   | "default" | "brand" | "dark";                                // legacy aliases
@@ -570,7 +571,7 @@ const BLOCK_VARIANT_SETS: Partial<Record<ContentBlockType, readonly string[]>> =
   ] satisfies readonly FaqSectionVariant[],
 
   ctaSection: [
-    "cta_banner", "cta_split", "cta_card", "cta_media_first", // canonical full-section
+    "cta_banner", "cta_split", "cta_card", "cta_media_split", "cta_media_first", // canonical full-section
     "cta_banner_default", "cta_banner_compact",                // canonical compact banner
     "cta_glow", "cta_soft", "cta_newsletter",                 // premium / specialty variants
     "default", "brand", "dark",                                // legacy aliases

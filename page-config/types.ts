@@ -1280,6 +1280,17 @@ export interface CtaSectionBlockData {
   readonly primaryCta?:   BlockCTA;
   readonly secondaryCta?: BlockCTA;
   /**
+   * Optional media (image or video) shown by the media variants (cta_media_split
+   * beside the text, cta_media_first as the background). Reuses the shared
+   * BlockMedia / BlockMediaView stack from the spotlight work.
+   */
+  readonly media?:        import("@/lib/media/block-media").BlockMedia;
+  /**
+   * Which side the media sits on in cta_media_split: "left" or "right". Empty
+   * inherits the tenant token (--cta-media-side). Mobile always stacks.
+   */
+  readonly mediaSide?:    "left" | "right";
+  /**
    * Deprecated / inert. Formerly opted a CTA block into per-segment overlays
    * (settings.blockContext), a subsystem that has been retired. The field is
    * kept for backward compatibility with existing content but is now ignored —

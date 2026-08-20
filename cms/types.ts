@@ -53,6 +53,11 @@ export interface HeroCTAItem {
    * "secondary" to position 1.
    */
   variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
+  /**
+   * Per-button style for the CTA slot buttons: solid / outline / ghost.
+   * Maps to BlockCTA.style; wins over `variant` when set.
+   */
+  style?: "solid" | "outline" | "ghost";
 }
 
 // ── Hero / page banner media ──────────────────────────────────────────────────
@@ -369,6 +374,16 @@ export interface CTABlockData {
   text: string;
   /** Primary call-to-action */
   cta: CTAData;
+  /**
+   * Up to 2 styled buttons (primary + secondary). When present it supersedes the
+   * single `cta` on the platform render path; `cta` stays for the snippet path
+   * and backward compatibility.
+   */
+  ctas?: import("@/page-config/types").BlockCTA[];
+  /** Media for the cta_media_split / cta_media_first variants (image or video). */
+  media?: import("@/lib/media/block-media").BlockMedia;
+  /** Media side for cta_media_split: "left" | "right". Empty inherits the token. */
+  mediaSide?: "left" | "right";
 }
 
 // ── Feature block ─────────────────────────────────────────────────────────────
@@ -683,6 +698,11 @@ export interface AdaptiveVariantContent {
    * Afwezig = tekst-only block.
    */
   media?: HeroBannerMedia;
+  /**
+   * Blok-niveau media-zijde voor de cta_media_split-variant: "left" | "right".
+   * Leeg = erven van de tenant-token (--cta-media-side). Mobiel stapelt altijd.
+   */
+  mediaSide?: "left" | "right";
   /**
    * Inhoud-items voor multi-kolom slots (proof, feature).
    * Typisch 3 items; elk item beschrijft één kaart/kolom.
