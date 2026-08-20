@@ -206,8 +206,8 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
   // ── proof_spotlight ──────────────────────────────────────────────────────────
   //
   // One case in the spotlight: media (photo or video) alongside a quote/story,
-  // with a relationship eyebrow (kind) and split attribution (name / role /
-  // organisation). Uses the shared media core. This branch renders the first item
+  // with split attribution (name / role / organisation). Uses the shared media
+  // core. This branch renders the first item
   // as a single spotlight; the multi-item slider is added in a later step.
   //
   // Media side is tenant-controlled via --proof-spotlight-media-side (a CSS
