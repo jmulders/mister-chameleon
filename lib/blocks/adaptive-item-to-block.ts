@@ -30,7 +30,6 @@ export function adaptiveItemToProofItem(item: AdaptiveVariantItem): ProofItem {
     ...(item.name         ? { name:         item.name }         : {}),
     ...(item.role         ? { role:         item.role }         : {}),
     ...(item.organisation ? { organisation: item.organisation } : {}),
-    ...(item.kind         ? { kind:         item.kind }         : {}),
     ...(item.mediaSide    ? { mediaSide:    item.mediaSide }    : {}),
   };
 }

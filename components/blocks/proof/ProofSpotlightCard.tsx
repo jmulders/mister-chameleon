@@ -1,8 +1,8 @@
 /**
  * ProofSpotlightCard
  *
- * One spotlight case: media (photo or video) alongside a quote/story, with a
- * relationship eyebrow (kind) and split attribution (name / role / organisation).
+ * One spotlight case: media (photo or video) alongside a quote/story, with split
+ * attribution (name / role / organisation).
  * Shared by the single-case render (ProofBlock) and the multi-case slider
  * (ProofSpotlightSlider), so the card markup lives in one place.
  *
@@ -36,12 +36,6 @@ export function ProofSpotlightCard({ item, isActive = true }: { item: ProofItem;
       )}
 
       <Stack gap={4} className="w-full lg:flex-1">
-        {item.kind && (
-          <Text variant="caption" color="subtle" className="tracking-wider uppercase">
-            {item.kind}
-          </Text>
-        )}
-
         <span
           className="text-4xl leading-none select-none"
           style={{ color: "var(--proof-quote-color, var(--primary))" }}

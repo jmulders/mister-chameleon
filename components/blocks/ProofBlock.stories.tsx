@@ -48,7 +48,6 @@ const spotlightPhotoItems = [
     name:  "Marien de Vries",
     role:  "Eigenaar",
     organisation: "Transport Jansen",
-    kind:  "klant" as const,
     media: {
       kind:   "image" as const,
       source: "asset" as const,

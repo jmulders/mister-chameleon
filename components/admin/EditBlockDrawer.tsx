@@ -819,16 +819,6 @@ function ItemRow({
                 <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Organisation</label>
                 <input type="text" value={item.organisation ?? ""} onChange={(e) => onChange(idx, "organisation", e.target.value)} placeholder="Transport Jansen" className={SMALL_INPUT_CLS} />
               </div>
-              <div>
-                <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Kind (eyebrow)</label>
-                <select value={item.kind ?? ""} onChange={(e) => onChange(idx, "kind", e.target.value)} className={SMALL_INPUT_CLS}>
-                  <option value="">None</option>
-                  <option value="klant">klant</option>
-                  <option value="partner">partner</option>
-                  <option value="leverancier">leverancier</option>
-                  <option value="medewerker">medewerker</option>
-                </select>
-              </div>
             </div>
           )}
 

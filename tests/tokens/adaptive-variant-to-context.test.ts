@@ -85,7 +85,6 @@ describe("adaptiveVariantToContextEntry", () => {
         name:         "Marien",
         role:         "Eigenaar",
         organisation: "Transport Jansen",
-        kind:         "klant",
         mediaSide:    "left",
       }],
       layoutVariant: "proof_spotlight",
@@ -98,7 +97,6 @@ describe("adaptiveVariantToContextEntry", () => {
       name:         "Marien",
       role:         "Eigenaar",
       organisation: "Transport Jansen",
-      kind:         "klant",
       mediaSide:    "left",
     }]);
   });
