@@ -45,6 +45,7 @@ import type { FormDefinition, FormKey } from "@/forms/types";
 import { CONTACT_FORM }     from "@/forms/definitions/contact";
 import { APPLICATION_FORM } from "@/forms/definitions/application";
 import { APPOINTMENT_FORM } from "@/forms/definitions/appointment";
+import { NEWSLETTER_FORM }  from "@/forms/definitions/newsletter";
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ const FORM_REGISTRY: Record<FormKey, FormDefinition> = {
   contact:     CONTACT_FORM,
   application: APPLICATION_FORM,
   appointment: APPOINTMENT_FORM,
+  newsletter:  NEWSLETTER_FORM,
 };
 
 // ── Public helpers ────────────────────────────────────────────────────────────
