@@ -397,7 +397,11 @@ export function createPreviewCMSProvider(
  *                 given, variant content is fetched from that host instead of env
  *                 STATAMIC_API_URL.
  */
-export function createDraftStatamicProvider(blocks: unknown[], baseUrl?: string): CMSProvider {
+export function createDraftStatamicProvider(
+  blocks: unknown[],
+  baseUrl?: string,
+  tenantId?: string | null,
+): CMSProvider {
   // Context slots only carry a variant_key anchor; the actual hero/feature/cta/
   // proof/conversion content lives in separate Statamic entries that must be
   // fetched. Point the client at the SAME Statamic that served the draft so that
@@ -407,7 +411,11 @@ export function createDraftStatamicProvider(blocks: unknown[], baseUrl?: string)
   const client = trimmed
     ? new StatamicClient(trimmed, serverEnv.statamic.apiKey)
     : undefined;
-  return new StatamicProvider(client, blocks);
+  // Pass the tenant id so adaptive_blocks resolve to THIS tenant's customized
+  // row (getAdaptiveBlockByKey(key, tenantId)) instead of falling back to the
+  // platform-default (tenant_id IS NULL) row — otherwise Live Preview shows the
+  // platform default for customized blocks.
+  return new StatamicProvider(client, blocks, tenantId);
 }
 
 // ── Internal helper ───────────────────────────────────────────────────────────
