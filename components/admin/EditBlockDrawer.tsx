@@ -78,6 +78,7 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "hero_dark_split",   label: "Dark split" },
     { value: "hero_editorial",    label: "Editorial" },
     { value: "hero_carousel",     label: "Carousel" },
+    { value: "hero_page_banner",  label: "Page banner" },
   ],
   proof: [
     { value: "proof_stats",     label: "Stats" },
