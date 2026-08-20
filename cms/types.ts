@@ -303,8 +303,6 @@ export interface ProofItem {
   role?: string;
   /** Attribution: organisation (e.g. "Transport Jansen"). */
   organisation?: string;
-  /** Relationship label shown as an eyebrow. Dutch website copy. */
-  kind?: "klant" | "partner" | "leverancier" | "medewerker";
   /**
    * Which side the media sits on: "left" or "right". Empty inherits from the
    * tenant token (--proof-spotlight-media-side). Mobile always stacks media on top.
@@ -650,8 +648,6 @@ export interface AdaptiveVariantItem {
   role?:         string;
   /** proof_spotlight: organisatie (bijv. "Transport Jansen"). */
   organisation?: string;
-  /** proof_spotlight: relatie-label als eyebrow. */
-  kind?:         "klant" | "partner" | "leverancier" | "medewerker";
   /** feature_spotlight: optionele prijsregel (bijv. "vanaf €1.250"). */
   price?:        string;
   /** feature_spotlight: CTA-label (los van het generieke `cta`-veld). */
