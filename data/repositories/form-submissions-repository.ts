@@ -42,6 +42,56 @@ import { getDb } from "../db";
 import { logger } from "@/lib/logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RepositoryResult } from "./sessions-repository";
+import { encryptPayload, decryptPayload, emailHash } from "@/lib/forms-crypto";
+
+// Regex for detecting an email-looking value when computing the lookup hash.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Find the submitted email in a values map so it can be hashed for lookup.
+ * Prefers an email-named field; falls back to the first email-looking value.
+ * Kept local (a few lines) to avoid coupling the data layer to the heavier
+ * lead-capture module; mirrors extractSubmittedEmail's heuristic.
+ */
+function emailFromValues(values: Record<string, string>): string | null {
+  for (const [k, v] of Object.entries(values)) {
+    if (typeof v === "string" && /e-?mail/i.test(k) && EMAIL_RE.test(v.trim())) {
+      return v.trim();
+    }
+  }
+  for (const v of Object.values(values)) {
+    if (typeof v === "string" && EMAIL_RE.test(v.trim())) return v.trim();
+  }
+  return null;
+}
+
+/**
+ * Decode a raw DB row's stored payload into plaintext values.
+ *
+ * Prefers the encrypted `payload_enc` column (decrypt then JSON.parse). Falls
+ * back to the legacy plaintext `payload` jsonb for rows written before the
+ * backfill. On any decrypt/parse failure it logs and returns the legacy payload
+ * (or {}) so a read NEVER surfaces raw ciphertext to a caller.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function decodeValues(db: any): Record<string, string> {
+  const enc = db?.payload_enc;
+  if (typeof enc === "string" && enc.length > 0) {
+    try {
+      const parsed = JSON.parse(decryptPayload(enc)) as unknown;
+      if (parsed && typeof parsed === "object") {
+        return parsed as Record<string, string>;
+      }
+    } catch (err) {
+      logger.error("[form-submissions-repository] payload decrypt/parse failed", {
+        id:    db?.id != null ? String(db.id) : "",
+        error: String(err),
+      });
+    }
+    // Never return the ciphertext itself; fall through to the legacy column.
+  }
+  return (db?.payload ?? {}) as Record<string, string>;
+}
 
 // ── Row type ──────────────────────────────────────────────────────────────────
 
@@ -80,7 +130,7 @@ function mapRow(db: any): FormSubmissionRow {
     id:         db?.id != null ? String(db.id) : "",
     created_at: db?.submitted_at ?? "",
     form_key:   db?.form_key ?? "",
-    values:     (db?.payload ?? {}) as Record<string, string>,
+    values:     decodeValues(db),
     session_id: db?.session_id ?? null,
     tenant_id:  db?.tenant_id ?? null,
   };
@@ -154,15 +204,22 @@ export interface FormSubmissionsPage {
 export async function saveFormSubmission(
   input: SaveFormSubmissionInput,
 ): Promise<RepositoryResult<FormSubmissionRow>> {
+  // Encrypt the whole payload at rest. The plaintext `payload` column keeps an
+  // empty object so its NOT NULL constraint holds while no personal data lives
+  // there; the real data goes into payload_enc. email_hash enables lookup by
+  // email without decrypting rows.
+  const email = emailFromValues(input.values);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (getDb() as any)
     .from("form_submissions")
     .insert({
-      form_key:   input.formKey,
-      payload:    input.values,
-      session_id: input.sessionId ?? null,
-      tenant_id:  input.tenantId  ?? null,
-      pathname:   input.pathname  ?? null,
+      form_key:    input.formKey,
+      payload:     {},
+      payload_enc: encryptPayload(JSON.stringify(input.values)),
+      email_hash:  email ? emailHash(email) : null,
+      session_id:  input.sessionId ?? null,
+      tenant_id:   input.tenantId  ?? null,
+      pathname:    input.pathname  ?? null,
     })
     .select()
     .single();
@@ -213,8 +270,14 @@ export async function listFormSubmissions(
     }
 
     if (input.search) {
-      // Search across the JSONB payload column cast to text.
-      query = query.ilike("payload::text", `%${input.search}%`);
+      // Payloads are encrypted at rest, so free-text substring search across the
+      // content is no longer possible. Search is an exact email lookup via the
+      // deterministic email_hash column instead. A non-email term simply matches
+      // no rows.
+      const term = input.search.trim();
+      if (term) {
+        query = query.eq("email_hash", emailHash(term));
+      }
     }
 
     query = query.range(offset, offset + limit - 1);
