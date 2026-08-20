@@ -58,6 +58,8 @@ interface CTA {
   label:   string;
   href:    string;
   variant: "primary" | "secondary" | "outline" | "ghost";
+  /** Per-button style for the CTA slot: solid / outline / ghost. Empty = legacy variant. */
+  style?:  "solid" | "outline" | "ghost";
 }
 
 type VideoSource = "upload" | "youtube" | "vimeo";
@@ -90,7 +92,8 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "cta_card",           label: "Card" },
     { value: "cta_soft",           label: "Soft" },
     { value: "cta_glow",           label: "Glow" },
-    { value: "cta_media_first",    label: "Media first" },
+    { value: "cta_media_split",    label: "Media split" },
+    { value: "cta_media_first",    label: "Media background" },
   ],
   feature: [
     { value: "feature_grid_3up",       label: "Grid (3 columns)" },
@@ -673,14 +676,14 @@ function CtaRow({
         </div>
       </div>
       <div>
-        <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Style</label>
+        <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">Button style</label>
         <select
-          value={cta.variant}
-          onChange={(e) => onChange(idx, "variant", e.target.value)}
+          value={cta.style ?? ""}
+          onChange={(e) => onChange(idx, "style", e.target.value)}
           className={SMALL_INPUT_CLS}
         >
-          <option value="primary">Primary</option>
-          <option value="secondary">Secondary</option>
+          <option value="">Default</option>
+          <option value="solid">Solid</option>
           <option value="outline">Outline</option>
           <option value="ghost">Ghost</option>
         </select>
@@ -929,7 +932,14 @@ export function EditBlockDrawer({
       label:   c.label   ?? "",
       href:    c.href    ?? "",
       variant: (c.variant as CTA["variant"]) ?? "primary",
+      ...(c.style ? { style: c.style as CTA["style"] } : {}),
     })),
+  );
+
+  // Block-level media side for the cta_media_split variant (mirrors the spotlight
+  // token approach). Empty inherits the tenant token.
+  const [ctaMediaSide, setCtaMediaSide] = useState<"" | "left" | "right">(
+    (block.defaultVariant.mediaSide as "left" | "right" | undefined) ?? "",
   );
 
   // ── Items (proof / feature) ────────────────────────────────────────────────
@@ -1177,8 +1187,9 @@ export function EditBlockDrawer({
       ...(tag           ? { tag }                               : {}),
       ...(layoutVariant ? { layoutVariant }                     : {}),
       ...(contentAlign !== "left" ? { contentAlign }            : {}),
-      ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant })) } : {}),
+      ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant, ...(c.style ? { style: c.style } : {}) })) } : {}),
       ...(media         ? { media }                             : {}),
+      ...(slotId === "cta" && ctaMediaSide ? { mediaSide: ctaMediaSide } : {}),
       ...(items.length  ? { items: normalizedItems }            : {}),
       // Persist slides only for the carousel layout — keeps other layouts'
       // payloads clean and avoids stale slide data lingering after a layout
@@ -1560,6 +1571,24 @@ export function EditBlockDrawer({
                   onMuted={setVideoMuted}
                   onControls={setVideoControls}
                 />
+              </div>
+            )}
+
+            {/* Media side — only affects the cta_media_split variant. */}
+            {slotId === "cta" && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  Media side <span className="font-normal text-neutral-400">(cta_media_split)</span>
+                </label>
+                <select
+                  value={ctaMediaSide}
+                  onChange={(e) => setCtaMediaSide(e.target.value as "" | "left" | "right")}
+                  className={INPUT_CLS}
+                >
+                  <option value="">Default (inherit)</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
               </div>
             )}
           </fieldset>
