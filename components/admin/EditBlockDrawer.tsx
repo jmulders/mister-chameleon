@@ -83,10 +83,14 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "proof_spotlight", label: "Spotlight (media beside text)" },
   ],
   cta: [
-    { value: "cta_card",   label: "Card" },
-    { value: "cta_banner", label: "Banner" },
-    { value: "cta_inline", label: "Inline" },
-    { value: "cta_split",  label: "Split" },
+    { value: "cta_banner",         label: "Banner" },
+    { value: "cta_banner_default", label: "Banner (default)" },
+    { value: "cta_banner_compact", label: "Banner compact" },
+    { value: "cta_split",          label: "Split" },
+    { value: "cta_card",           label: "Card" },
+    { value: "cta_soft",           label: "Soft" },
+    { value: "cta_glow",           label: "Glow" },
+    { value: "cta_media_first",    label: "Media first" },
   ],
   feature: [
     { value: "feature_grid_3up",       label: "Grid (3 columns)" },
