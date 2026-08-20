@@ -59,8 +59,11 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   // env STATAMIC_API_URL, which may point at an older deployment and would leave
   // context slots empty in the preview.
   let base = "";
+  // Hoisted so the draft provider below can resolve adaptive_blocks for THIS
+  // tenant (not the platform default).
+  let tenantId: string | null = null;
   try {
-    const { tenantId } = await getActiveTenant();
+    ({ tenantId } = await getActiveTenant());
     // Resolve the CMS base PER TENANT. Order matters and is multi-tenant-safe:
     //   1. Static tenant registry — synchronous, always present, and each tenant
     //      pins its own `cms.statamicBaseUrl` (cms.misterchameleon.nl / cms.steunles.nl).
@@ -148,7 +151,7 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   const safeBlocks = stripAutoplay(rawBlocks) as unknown[];
   const blocks = safeBlocks as Array<Record<string, unknown>>;
 
-  const draftProvider = createDraftStatamicProvider(safeBlocks, base);
+  const draftProvider = createDraftStatamicProvider(safeBlocks, base, tenantId);
 
   let page: PageData | null = await draftProvider.getPageBySlug(slug, locale);
   if (!page) {

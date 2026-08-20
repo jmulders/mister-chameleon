@@ -390,7 +390,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // temporarily empty (e.g. editor cleared all blocks).  Only fall back to the
   // regular/preview provider when no draft token was present at all.
   const cmsProvider = draftEntry !== null
-    ? createDraftStatamicProvider(draftEntry.blocks)
+    ? createDraftStatamicProvider(draftEntry.blocks, undefined, tenantConfig.tenantId)
     : isPreview
       ? createPreviewCMSProvider(tenant?.cms, tenantConfig.tenantId, locale)
       : createCMSProvider(tenant?.cms, tenantConfig.tenantId, locale);
