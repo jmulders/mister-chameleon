@@ -1291,6 +1291,12 @@ export interface CtaSectionBlockData {
    */
   readonly mediaSide?:    "left" | "right";
   /**
+   * Registered tenant form key for the cta_newsletter variant. When set, the
+   * inline newsletter form (NewsletterForm) submits through /api/forms/[formKey],
+   * reusing the full forms pipeline. Empty renders no form (graceful degradation).
+   */
+  readonly formKey?:      string;
+  /**
    * Deprecated / inert. Formerly opted a CTA block into per-segment overlays
    * (settings.blockContext), a subsystem that has been retired. The field is
    * kept for backward compatibility with existing content but is now ignored —

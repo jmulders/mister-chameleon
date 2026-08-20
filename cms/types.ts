@@ -384,6 +384,12 @@ export interface CTABlockData {
   media?: import("@/lib/media/block-media").BlockMedia;
   /** Media side for cta_media_split: "left" | "right". Empty inherits the token. */
   mediaSide?: "left" | "right";
+  /**
+   * Registered tenant form key for the cta_newsletter variant. When set, the
+   * inline newsletter form submits through /api/forms/[formKey]. Empty renders
+   * no form (graceful degradation).
+   */
+  formKey?: string;
 }
 
 // ── Feature block ─────────────────────────────────────────────────────────────
@@ -703,6 +709,11 @@ export interface AdaptiveVariantContent {
    * Leeg = erven van de tenant-token (--cta-media-side). Mobiel stapelt altijd.
    */
   mediaSide?: "left" | "right";
+  /**
+   * Registered tenant form key for the cta_newsletter CTA variant. The inline
+   * newsletter form submits through /api/forms/[formKey]. Empty renders no form.
+   */
+  formKey?: string;
   /**
    * Inhoud-items voor multi-kolom slots (proof, feature).
    * Typisch 3 items; elk item beschrijft één kaart/kolom.

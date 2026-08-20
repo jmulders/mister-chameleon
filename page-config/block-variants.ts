@@ -127,14 +127,15 @@ export type ProofLayoutVariant = "proof_stats" | "proof_logos" | "proof_quotes" 
  *   cta_media_first    — media (image or video) as the background, overlaid CTA
  *   cta_soft           — very light neutral section, understated
  *   cta_glow           — near-black section with a soft brand radial glow
- *
- * cta_newsletter is intentionally NOT part of the adaptive set: it is an email
- * capture with a form action, wired to the form-slot mechanism separately.
+ *   cta_newsletter     — inline email capture, submitting through a registered
+ *                        tenant form (/api/forms/[formKey]). Available on the
+ *                        adaptive slot and the content library; the chosen form
+ *                        is authored per variant (CtaSectionBlockData.formKey).
  */
 export type CtaLayoutVariant =
   | "cta_banner" | "cta_split" | "cta_card"
   | "cta_banner_default" | "cta_banner_compact"
-  | "cta_media_split" | "cta_media_first" | "cta_soft" | "cta_glow";
+  | "cta_media_split" | "cta_media_first" | "cta_soft" | "cta_glow" | "cta_newsletter";
 
 /**
  * Layout variant for the Header layout component.
@@ -154,7 +155,7 @@ export type HeaderLayoutVariant = "header_default" | "header_centered" | "header
 const CONTEXT_VARIANT_SETS: Record<string, readonly string[]> = {
   hero:   ["hero_default",  "hero_split",   "hero_proof",  "hero_background", "hero_minimal_dark", "hero_split_clean", "hero_dark_split", "hero_editorial", "hero_page_banner", "hero_carousel"] satisfies readonly HeroLayoutVariant[],
   proof:  ["proof_stats",   "proof_logos",  "proof_quotes", "proof_spotlight"] satisfies readonly ProofLayoutVariant[],
-  cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact", "cta_media_split", "cta_media_first", "cta_soft", "cta_glow"] satisfies readonly CtaLayoutVariant[],
+  cta:    ["cta_banner", "cta_split", "cta_card", "cta_banner_default", "cta_banner_compact", "cta_media_split", "cta_media_first", "cta_soft", "cta_glow", "cta_newsletter"] satisfies readonly CtaLayoutVariant[],
   header: ["header_default","header_centered","header_cta","header_triband"]  satisfies readonly HeaderLayoutVariant[],
 };
 

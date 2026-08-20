@@ -498,6 +498,7 @@ export class StatamicProvider implements CMSProvider {
       ...(buttons.length ? { ctas: buttons } : {}),
       ...(media          ? { media }         : {}),
       ...(c.mediaSide    ? { mediaSide: c.mediaSide } : {}),
+      ...(c.formKey      ? { formKey: c.formKey } : {}),
       ...this.variantTokenRef(c),
     };
   }

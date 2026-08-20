@@ -46,9 +46,11 @@ export interface CTABlockProps {
   media?: BlockMedia;
   /** Media side for cta_media_split: "left" | "right". Empty inherits the token. */
   mediaSide?: "left" | "right";
+  /** Registered tenant form key for the cta_newsletter variant. */
+  formKey?: string;
 }
 
-export function CTABlock({ title, text, cta, ctaKey, layoutVariant: rawLayout, ctas, media, mediaSide }: CTABlockProps) {
+export function CTABlock({ title, text, cta, ctaKey, layoutVariant: rawLayout, ctas, media, mediaSide, formKey }: CTABlockProps) {
   const layout = resolveContextBlockVariant("cta", rawLayout) as CtaLayoutVariant;
 
   // Prefer the explicit buttons list; fall back to the single primary cta. The
@@ -64,6 +66,7 @@ export function CTABlock({ title, text, cta, ctaKey, layoutVariant: rawLayout, c
     ...(buttons[1] ? { secondaryCta: buttons[1] } : {}),
     ...(media      ? { media }                    : {}),
     ...(mediaSide  ? { mediaSide }                : {}),
+    ...(formKey    ? { formKey }                  : {}),
   };
 
   return <CtaSectionBlock data={data} variant={layout} />;

@@ -43,6 +43,7 @@ import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/bl
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
 import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
+import { getAllFormDefinitions } from "@/forms";
 import { RichCopyEditor } from "@/components/admin/RichCopyEditor";
 
 // ── AI / Decision option lists ──────────────────────────────────────────────────
@@ -94,6 +95,7 @@ const LAYOUT_OPTIONS: Record<string, Array<{ value: string; label: string }>> = 
     { value: "cta_glow",           label: "Glow" },
     { value: "cta_media_split",    label: "Media split" },
     { value: "cta_media_first",    label: "Media background" },
+    { value: "cta_newsletter",     label: "Newsletter" },
   ],
   feature: [
     { value: "feature_grid_3up",       label: "Grid (3 columns)" },
@@ -942,6 +944,11 @@ export function EditBlockDrawer({
     (block.defaultVariant.mediaSide as "left" | "right" | undefined) ?? "",
   );
 
+  // Registered tenant form for the cta_newsletter variant. Empty renders no form.
+  const [ctaFormKey, setCtaFormKey] = useState<string>(
+    (block.defaultVariant.formKey as string | undefined) ?? "",
+  );
+
   // ── Items (proof / feature) ────────────────────────────────────────────────
 
   const [items, setItems] = useState<AdaptiveVariantItem[]>(
@@ -1190,6 +1197,7 @@ export function EditBlockDrawer({
       ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant, ...(c.style ? { style: c.style } : {}) })) } : {}),
       ...(media         ? { media }                             : {}),
       ...(slotId === "cta" && ctaMediaSide ? { mediaSide: ctaMediaSide } : {}),
+      ...(slotId === "cta" && layoutVariant === "cta_newsletter" && ctaFormKey ? { formKey: ctaFormKey } : {}),
       ...(items.length  ? { items: normalizedItems }            : {}),
       // Persist slides only for the carousel layout — keeps other layouts'
       // payloads clean and avoids stale slide data lingering after a layout
@@ -1589,6 +1597,29 @@ export function EditBlockDrawer({
                   <option value="left">Left</option>
                   <option value="right">Right</option>
                 </select>
+              </div>
+            )}
+
+            {/* Form — only affects the cta_newsletter variant. The inline signup
+                submits through the selected registered tenant form. */}
+            {slotId === "cta" && layoutVariant === "cta_newsletter" && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  Form <span className="font-normal text-neutral-400">(cta_newsletter)</span>
+                </label>
+                <select
+                  value={ctaFormKey}
+                  onChange={(e) => setCtaFormKey(e.target.value)}
+                  className={INPUT_CLS}
+                >
+                  <option value="">No form (hidden)</option>
+                  {getAllFormDefinitions().map((f) => (
+                    <option key={f.key} value={f.key}>{f.title} ({f.key})</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-neutral-400">
+                  Submissions go to the standard forms pipeline (encrypted storage, optional Turnstile, confirmation email).
+                </p>
               </div>
             )}
           </fieldset>
