@@ -111,7 +111,7 @@ import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCom
 import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
-import { renderBlockHtml, renderForm } from "@/lib/snippet/render-block-html";
+import { renderBlockHtml, renderForm, renderCtaNewsletter } from "@/lib/snippet/render-block-html";
 import { resolveContextualForm, loadFormVariant } from "@/forms/context/load";
 import { resolvePresentedFields }     from "@/forms/context/variant";
 import { getFormDefinition }          from "@/forms";
@@ -976,6 +976,18 @@ export async function POST(request: NextRequest) {
       return true;
     };
 
+    // Contextual signals shared by the cta_newsletter form and the form blocks
+    // below, so a resolved form gets the same segment/Turnstile treatment.
+    const formSignals = {
+      path:    context.path,
+      query: {
+        ...(context.utm_source   ? { utm_source:   context.utm_source }   : {}),
+        ...(context.utm_medium   ? { utm_medium:   context.utm_medium }   : {}),
+        ...(context.utm_campaign ? { utm_campaign: context.utm_campaign } : {}),
+      },
+      country: request.headers.get("x-vercel-ip-country") || null,
+    };
+
     if (heroData) {
       const hero = heroData as HeroBlockData;
       if (hero.renderMode === "block" && hero.blockHtml) {
@@ -1020,6 +1032,19 @@ export async function POST(request: NextRequest) {
       const cta = ctaData as CTABlockData;
       if (cta.renderMode === "block" && cta.blockHtml) {
         slots["cta"] = toBlockSlot(cta.blockHtml, cta.tokenRef);
+      } else if (cta.layoutVariant === "cta_newsletter") {
+        // Newsletter CTA: resolve the chosen tenant form here (snippet-resolve-in-
+        // decide) and render an inline signup wired like a form block. Without a
+        // valid formKey it degrades to heading-only.
+        let resolvedForm: import("@/forms/context/types").ResolvedForm | null = null;
+        if (cta.formKey && isFormKey(cta.formKey)) {
+          try { resolvedForm = await resolveContextualForm(tenantId, cta.formKey, formSignals); }
+          catch { resolvedForm = null; }
+        }
+        const html = renderCtaNewsletter(cta, resolvedForm);
+        slots["cta"] = Object.keys(blockThemeTokens).length > 0
+          ? { mode: "block", html, tokens: blockThemeTokens }
+          : { mode: "block", html };
       } else if (emitBlockInto(slots, "cta", cta)) {
         // rendered as a whole block on demand
       } else {
@@ -1095,15 +1120,6 @@ export async function POST(request: NextRequest) {
     // the tenant's theme tokens and the segment-resolved copy/fields.
     const formBlockKeys = [...requestedBlocks].filter((k) => k.startsWith("form:"));
     if (formBlockKeys.length > 0) {
-      const formSignals = {
-        path:    context.path,
-        query: {
-          ...(context.utm_source   ? { utm_source:   context.utm_source }   : {}),
-          ...(context.utm_medium   ? { utm_medium:   context.utm_medium }   : {}),
-          ...(context.utm_campaign ? { utm_campaign: context.utm_campaign } : {}),
-        },
-        country: request.headers.get("x-vercel-ip-country") || null,
-      };
       for (const blockKey of formBlockKeys) {
         const formKey = blockKey.slice("form:".length).trim();
         if (!isFormKey(formKey)) continue;
