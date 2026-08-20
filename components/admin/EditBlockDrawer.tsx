@@ -1193,7 +1193,7 @@ export function EditBlockDrawer({
       subtitle: normalizeInlineMarkup(subtitle),
       ...(tag           ? { tag }                               : {}),
       ...(layoutVariant ? { layoutVariant }                     : {}),
-      ...(contentAlign !== "left" ? { contentAlign }            : {}),
+      ...(slotId === "hero" && contentAlign !== "left" ? { contentAlign } : {}),
       ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant, ...(c.style ? { style: c.style } : {}) })) } : {}),
       ...(media         ? { media }                             : {}),
       ...((slotId === "cta" || slotId === "notification") && ctaMediaSide ? { mediaSide: ctaMediaSide } : {}),
@@ -1390,18 +1390,22 @@ export function EditBlockDrawer({
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-neutral-700 mb-1">Content alignment</label>
-                <select
-                  value={contentAlign}
-                  onChange={(e) => setAlign(e.target.value as "left" | "center" | "right")}
-                  className={INPUT_CLS}
-                >
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
+              {/* Content alignment is read only by the Hero block (HeroBlock.tsx).
+                  On other slots it does nothing, so it is shown for hero only. */}
+              {slotId === "hero" && (
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">Content alignment</label>
+                  <select
+                    value={contentAlign}
+                    onChange={(e) => setAlign(e.target.value as "left" | "center" | "right")}
+                    className={INPUT_CLS}
+                  >
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </div>
+              )}
             </div>
           </fieldset>
 
