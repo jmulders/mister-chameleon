@@ -392,6 +392,8 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
           ttl={effectiveContextData.notification.ttl}
           ttlUnit={effectiveContextData.notification.ttlUnit}
           campaignId={effectiveContextData.notification.campaignId}
+          media={effectiveContextData.notification.media}
+          mediaSide={effectiveContextData.notification.mediaSide}
         />
       )}
 

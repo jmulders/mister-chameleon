@@ -30,6 +30,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { NotificationPosition } from "@/cms/types";
+import type { BlockMedia } from "@/lib/media/block-media";
+import { isRenderableMedia } from "@/lib/media/block-media";
+import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
 import {
   isNotificationSuppressed,
   recordNotificationDismissal,
@@ -59,6 +62,10 @@ export interface NotificationBlockProps {
   ttlUnit?: NotificationTtlUnit;
   /** Optional campaign id / version folded into the cap key so a change resets it. */
   campaignId?: string;
+  /** Optional media (image or video) shown beside the message. Absent = text-only. */
+  media?: BlockMedia;
+  /** Which side the media sits on. Defaults to "left". Ignored when there is no media. */
+  mediaSide?: "left" | "right";
 }
 
 // ── Severity styles ────────────────────────────────────────────────────────────
@@ -93,6 +100,8 @@ export function NotificationBlock({
   ttl,
   ttlUnit,
   campaignId    = "",
+  media,
+  mediaSide     = "left",
 }: NotificationBlockProps) {
   // Normalise the legacy alias.
   const pos = position === "bottom-right" ? "right" : position;
@@ -158,6 +167,18 @@ export function NotificationBlock({
     </button>
   ) : null;
 
+  // Media beside the message. When there is no renderable media every branch below
+  // falls back to its original text-only markup (no layout change, no regression).
+  // The media column is sized per position; `mediaSide` places it left/right.
+  const hasMedia  = isRenderableMedia(media);
+  const sideRight = mediaSide === "right";
+  const mediaCol = (widthClass: string) =>
+    hasMedia && media ? (
+      <div className={`shrink-0 ${widthClass}`}>
+        <BlockMediaView media={media} className="rounded-lg" />
+      </div>
+    ) : null;
+
   // ── Center modal ─────────────────────────────────────────────────────────────
   if (isModal) {
     return (
@@ -172,11 +193,27 @@ export function NotificationBlock({
           tabIndex={-1}
           className={`relative z-10 flex max-w-md flex-col gap-3 rounded-2xl px-6 py-5 shadow-2xl outline-none ${styles.wrapper}`}
         >
-          <div className="flex items-start gap-3">
-            <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
-            {closeBtn}
-          </div>
-          {cta && <div className="self-start">{cta}</div>}
+          {hasMedia ? (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+              {!sideRight && mediaCol("w-full sm:w-44")}
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
+                  {closeBtn}
+                </div>
+                {cta && <div className="self-start">{cta}</div>}
+              </div>
+              {sideRight && mediaCol("w-full sm:w-44")}
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start gap-3">
+                <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
+                {closeBtn}
+              </div>
+              {cta && <div className="self-start">{cta}</div>}
+            </>
+          )}
         </div>
       </div>
     );
@@ -185,6 +222,18 @@ export function NotificationBlock({
   // ── Full-width banner (top / bottom) ─────────────────────────────────────────
   if (pos === "top" || pos === "bottom") {
     const edge = pos === "top" ? "top-0" : "bottom-0";
+    if (hasMedia) {
+      return (
+        <div role="alert" aria-live="polite"
+          className={`fixed left-0 right-0 ${edge} z-[9999] flex items-center gap-4 px-4 py-2 text-sm font-medium shadow-md ${styles.wrapper}`}>
+          {!sideRight && mediaCol("w-24")}
+          <span className="flex-1 text-center leading-snug">{message}</span>
+          {cta}
+          {sideRight && mediaCol("w-24")}
+          {closeBtn}
+        </div>
+      );
+    }
     return (
       <div role="alert" aria-live="polite"
         className={`fixed left-0 right-0 ${edge} z-[9999] flex items-center justify-center gap-4 px-4 py-2.5 text-sm font-medium shadow-md ${styles.wrapper}`}>
@@ -201,7 +250,9 @@ export function NotificationBlock({
     <div role="alert" aria-live="polite"
       className={`fixed bottom-5 ${corner} z-[9999] flex max-w-sm flex-col gap-2 rounded-xl px-4 py-3 shadow-xl text-sm font-medium ${styles.wrapper}`}>
       <div className="flex items-start gap-3">
+        {!sideRight && mediaCol("w-20")}
         <p className="flex-1 leading-snug">{message}</p>
+        {sideRight && mediaCol("w-20")}
         {closeBtn}
       </div>
       {cta && <div className="self-start">{cta}</div>}
