@@ -604,6 +604,18 @@ export interface NotificationBlockData {
    * changes or a new campaign starts. Empty = fall back to the variant key.
    */
   campaignId?: string;
+  /**
+   * Optional media (image or video) shown beside the message across every
+   * position (banner / toast / modal). Reuses the shared BlockMedia /
+   * BlockMediaView stack. Absent = the notification renders exactly as before
+   * (text-only, no layout change).
+   */
+  media?: import("@/lib/media/block-media").BlockMedia;
+  /**
+   * Which side the media sits on: "left" or "right" (default "left"). Applied via
+   * flex order so the DOM order is unchanged. Ignored when there is no media.
+   */
+  mediaSide?: "left" | "right";
 }
 
 /**

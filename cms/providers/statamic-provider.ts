@@ -546,6 +546,7 @@ export class StatamicProvider implements CMSProvider {
       lv.includes("promo")   ? "promo"   : "info";
 
     const primaryCta = c.ctas?.[0];
+    const media = heroBannerMediaToBlockMedia(c.media);
     return {
       id:          data.key,
       message:     c.title,
@@ -559,6 +560,8 @@ export class StatamicProvider implements CMSProvider {
       ...(c.notifTtl !== undefined ? { ttl: c.notifTtl } : {}),
       ...(c.notifTtlUnit ? { ttlUnit: c.notifTtlUnit } : {}),
       ...(c.notifCampaignId ? { campaignId: c.notifCampaignId } : {}),
+      ...(media          ? { media }               : {}),
+      ...(c.mediaSide    ? { mediaSide: c.mediaSide } : {}),
     };
   }
 
