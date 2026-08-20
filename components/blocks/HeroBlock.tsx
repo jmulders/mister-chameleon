@@ -12,6 +12,8 @@ import type { HeroLayoutVariant } from "@/page-config/block-variants";
 import type { HeroBannerMedia, HeroSlideData } from "@/cms/types";
 import { HeroCarousel } from "@/components/blocks/HeroCarousel";
 import { HeroBackgroundEmbed } from "@/components/blocks/HeroBackgroundEmbed";
+import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
+import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 
 /**
  * HeroBlock
@@ -294,6 +296,8 @@ function HeroImage({
 
 function HeroMediaContent({ media }: { media: HeroBannerMedia }) {
   // ── Image ──────────────────────────────────────────────────────────────────
+  // Hero images stay on next/image: the hero is the LCP element, so it keeps its
+  // priority preload + optimization (BlockMediaView uses a lazy plain <img>).
   if (media.kind === "image") {
     return (
       <HeroImage
@@ -305,79 +309,14 @@ function HeroMediaContent({ media }: { media: HeroBannerMedia }) {
     );
   }
 
-  const { video } = media;
-
-  // ── Uploaded / self-hosted video ───────────────────────────────────────────
-  if (video.source === "upload") {
-    return (
-      <video
-        src={video.url}
-        poster={video.poster}
-        // muted is implicitly required when autoplay is set; honour both flags
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore — React types don't accept undefined for muted
-        muted={video.muted ?? video.autoplay ?? false}
-        autoPlay={video.autoplay ?? false}
-        loop={video.loop ?? false}
-        controls={video.controls ?? false}
-        playsInline
-        className="h-full w-full object-cover"
-      />
-    );
-  }
-
-  // ── YouTube embed ──────────────────────────────────────────────────────────
-  if (video.source === "youtube") {
-    // Use the privacy-enhanced nocookie domain to avoid third-party cookies
-    // until the user clicks play.
-    const params = new URLSearchParams({
-      rel:            "0",   // no related videos from other channels
-      modestbranding: "1",   // minimal YouTube branding
-    });
-    if (video.autoplay) {
-      params.set("autoplay", "1");
-      params.set("mute",     "1"); // browsers require muted for autoplay
-    }
-    if (video.loop) {
-      params.set("loop",     "1");
-      params.set("playlist", video.videoId); // required by YouTube for loop to work
-    }
-    return (
-      <iframe
-        src={`https://www.youtube-nocookie.com/embed/${video.videoId}?${params}`}
-        title="YouTube video player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        loading="lazy"
-        className="absolute inset-0 h-full w-full border-0"
-      />
-    );
-  }
-
-  // ── Vimeo embed ────────────────────────────────────────────────────────────
-  if (video.source === "vimeo") {
-    const params = new URLSearchParams({ dnt: "1" });
-    if (video.autoplay) {
-      params.set("autoplay", "1");
-      params.set("muted",    "1"); // Vimeo uses "muted" (not "mute")
-    }
-    if (video.loop) {
-      params.set("loop", "1");
-    }
-    return (
-      <iframe
-        src={`https://player.vimeo.com/video/${video.videoId}?${params}`}
-        title="Vimeo video player"
-        allow="autoplay; fullscreen; picture-in-picture"
-        allowFullScreen
-        loading="lazy"
-        className="absolute inset-0 h-full w-full border-0"
-      />
-    );
-  }
-
-  // Unreachable — all union branches are handled above.
-  return null;
+  // ── Video ────────────────────────────────────────────────────────────────────
+  // Side-panel video renders through the shared BlockMediaView stack (fill mode):
+  // YouTube/Vimeo become a privacy-first click-to-load facade (unless autoplay),
+  // uploads use the shared <video>. Full-bleed backgrounds keep their own bespoke
+  // renderer (HeroBackgroundMedia); this only covers the inline/side-panel media.
+  const blockMedia = heroBannerMediaToBlockMedia(media);
+  if (!blockMedia) return null;
+  return <BlockMediaView media={blockMedia} fill />;
 }
 
 /**

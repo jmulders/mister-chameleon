@@ -24,16 +24,28 @@ export function BlockMediaView({
   media,
   isActive = true,
   className,
+  fill = false,
 }: {
   media:     BlockMedia;
   isActive?: boolean;
   className?: string;
+  /**
+   * Fill the parent container instead of imposing the default 16/9 frame. Off by
+   * default, so every existing caller (CTA / proof / feature / notification) is
+   * byte-identical. Used by the hero side-panel media, whose height is driven by
+   * the surrounding layout rather than a fixed aspect ratio.
+   */
+  fill?:     boolean;
 }) {
   const source = media.source ?? "asset";
   const objectFit = media.fit ?? "cover";
 
-  const frameClass = `relative w-full overflow-hidden rounded-xl ${className ?? ""}`;
-  const frameStyle = { aspectRatio: "16 / 9", background: "var(--block-media-bg, var(--section-subtle-bg, #f4f4f5))" } as const;
+  const frameClass = fill
+    ? `relative h-full w-full overflow-hidden ${className ?? ""}`
+    : `relative w-full overflow-hidden rounded-xl ${className ?? ""}`;
+  const frameStyle = fill
+    ? { background: "var(--block-media-bg, var(--section-subtle-bg, #f4f4f5))" } as const
+    : { aspectRatio: "16 / 9", background: "var(--block-media-bg, var(--section-subtle-bg, #f4f4f5))" } as const;
 
   // ── Image ────────────────────────────────────────────────────────────────────
   if (media.kind === "image") {
