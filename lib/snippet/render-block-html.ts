@@ -41,6 +41,7 @@ import {
   MEDIA_IFRAME_ALLOW,
   type BlockMedia,
 } from "@/lib/media/block-media";
+import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 import type { BlockCTA } from "@/page-config/types";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -82,7 +83,36 @@ function button(label: string, href: unknown, variant: "primary" | "ghost" = "pr
 
 // ── Per-block renderers ───────────────────────────────────────────────────────
 
-function renderHero(d: HeroBlockData): string {
+// ── Hero ────────────────────────────────────────────────────────────────────
+//
+// The snippet honours the hero layoutVariant for the media-bearing layouts (the
+// split family, background, page banner) and renders the carousel as its first
+// slide statically. Every text-only / no-media hero falls through to
+// renderHeroBase, which is byte-identical to the previous single-layout output
+// (no regression). Media reuses the shared stack: heroBannerMediaToBlockMedia
+// converts the legacy HeroBannerMedia to BlockMedia, then ctaMediaInner renders
+// it (image / asset video / YouTube-Vimeo click-to-load facade wired by
+// mcWireVideoFacades). Background video is a muted autoplay embed (not a facade),
+// matching the platform intent for full-bleed backgrounds.
+
+/** Uppercase pill badge for the hero tag (matches renderHeroBase). */
+function heroTagBadge(tag: string): string {
+  return (
+    `<span style="display:inline-block;background:var(--accent,rgba(255,255,255,.12));color:var(--primary,#c7d2fe);` +
+    `border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:16px;">${escapeHtml(tag)}</span>`
+  );
+}
+
+/** Primary + ghost hero CTA buttons (matches renderHeroBase). */
+function heroButtonsHtml(d: HeroBlockData): string {
+  return (d.ctas ?? [])
+    .filter((c) => c && c.label)
+    .map((c, i) => button(c.label!, c.href, i === 0 ? "primary" : "ghost"))
+    .join("");
+}
+
+/** The original single centered hero layout. Kept byte-identical for no-media heroes. */
+function renderHeroBase(d: HeroBlockData): string {
   const ctas = (d.ctas ?? []).filter((c) => c && c.label);
   const buttons = ctas
     .map((c, i) => button(c.label!, c.href, i === 0 ? "primary" : "ghost"))
@@ -104,6 +134,108 @@ function renderHero(d: HeroBlockData): string {
       `</div>` +
     `</section>`
   );
+}
+
+/** hero_split family: media beside the text + CTAs; wraps (stacks) on mobile. */
+function renderHeroSplit(d: HeroBlockData, media: BlockMedia): string {
+  const buttons = heroButtonsHtml(d);
+  return (
+    `<section style="background:var(--hero-bg,#0f172a);color:var(--hero-title-color,#fff);">` +
+      `<div style="${WRAP}display:flex;flex-wrap:wrap;align-items:center;gap:clamp(24px,4vw,48px);">` +
+        `<div style="flex:1 1 320px;min-width:0;">` +
+          (d.tag ? heroTagBadge(d.tag) : "") +
+          (d.title ? `<h1 style="font-family:inherit;font-size:clamp(28px,4.5vw,44px);line-height:1.1;font-weight:800;margin:0 0 14px;">${escapeHtml(d.title)}</h1>` : "") +
+          (d.subtitle ? `<p style="color:var(--hero-subtitle-color,#94a3b8);font-size:clamp(16px,2.2vw,19px);line-height:1.5;max-width:48ch;margin:0 0 24px;">${renderInlineMarkup(d.subtitle)}</p>` : "") +
+          (buttons ? `<div style="display:flex;flex-wrap:wrap;gap:12px;">${buttons}</div>` : "") +
+        `</div>` +
+        `<div style="flex:1 1 320px;position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:var(--card-radius,14px);background:#000;">${ctaMediaInner(media)}</div>` +
+      `</div>` +
+    `</section>`
+  );
+}
+
+/** Full-bleed hero background media (muted autoplay video, not a facade) + overlay. */
+function heroBackgroundMediaInner(media: BlockMedia): string {
+  const source = media.source ?? "asset";
+  const fill   = `position:absolute;inset:0;width:100%;height:100%;`;
+  if (media.kind === "image") {
+    return `<img src="${safeHref(media.url)}" alt="${escapeHtml(media.alt ?? "")}" loading="lazy" style="${fill}object-fit:cover;">`;
+  }
+  if (source === "asset") {
+    const poster = media.poster ? ` poster="${safeHref(media.poster)}"` : "";
+    return `<video src="${safeHref(media.url)}"${poster} autoplay muted loop playsinline style="${fill}object-fit:cover;"></video>`;
+  }
+  // YouTube / Vimeo background: muted autoplay embed (no click facade for a
+  // full-bleed background, per the platform intent).
+  const src = source === "youtube"
+    ? youtubeEmbedSrc(media.id ?? "", { autoplay: true })
+    : vimeoEmbedSrc(media.id ?? "", { autoplay: true });
+  return `<iframe src="${escapeHtml(src)}" allow="${escapeHtml(MEDIA_IFRAME_ALLOW)}" style="${fill}border:0;" title="Background video"></iframe>`;
+}
+
+function renderHeroBackground(d: HeroBlockData, media: BlockMedia): string {
+  const buttons = heroButtonsHtml(d);
+  return (
+    `<section style="position:relative;overflow:hidden;background:var(--hero-bg,#0f172a);color:#fff;">` +
+      `<div aria-hidden="true" style="position:absolute;inset:0;">${heroBackgroundMediaInner(media)}</div>` +
+      `<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.4) 0%,rgba(0,0,0,.65) 100%);"></div>` +
+      `<div style="${WRAP}position:relative;text-align:center;">` +
+        (d.tag ? heroTagBadge(d.tag) : "") +
+        (d.title ? `<h1 style="font-family:inherit;font-size:clamp(28px,5vw,46px);line-height:1.1;font-weight:800;margin:0 0 14px;">${escapeHtml(d.title)}</h1>` : "") +
+        (d.subtitle ? `<p style="font-size:clamp(16px,2.2vw,19px);line-height:1.5;opacity:.92;max-width:60ch;margin:0 auto 24px;">${renderInlineMarkup(d.subtitle)}</p>` : "") +
+        (buttons ? `<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">${buttons}</div>` : "") +
+      `</div>` +
+    `</section>`
+  );
+}
+
+/** hero_page_banner: compact page header with media on a side. */
+function renderHeroPageBanner(d: HeroBlockData, media: BlockMedia): string {
+  const buttons = heroButtonsHtml(d);
+  return (
+    `<section style="background:var(--hero-bg,#0f172a);color:#fff;">` +
+      `<div style="box-sizing:border-box;max-width:1120px;margin:0 auto;padding:clamp(20px,4vw,36px) clamp(16px,4vw,32px);font-family:inherit;` +
+      `display:flex;flex-wrap:wrap;align-items:center;gap:clamp(20px,4vw,40px);justify-content:space-between;">` +
+        `<div style="flex:1 1 320px;min-width:0;">` +
+          (d.tag ? heroTagBadge(d.tag) : "") +
+          (d.title ? `<h1 style="font-family:inherit;font-size:clamp(22px,3.2vw,32px);line-height:1.15;font-weight:800;margin:0 0 8px;">${escapeHtml(d.title)}</h1>` : "") +
+          (d.subtitle ? `<p style="color:var(--hero-subtitle-color,#94a3b8);font-size:clamp(15px,2vw,17px);line-height:1.5;margin:0 0 16px;">${renderInlineMarkup(d.subtitle)}</p>` : "") +
+          (buttons ? `<div style="display:flex;flex-wrap:wrap;gap:10px;">${buttons}</div>` : "") +
+        `</div>` +
+        `<div style="flex:0 1 340px;min-width:240px;position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:var(--card-radius,14px);background:#000;">${ctaMediaInner(media)}</div>` +
+      `</div>` +
+    `</section>`
+  );
+}
+
+function renderHero(d: HeroBlockData): string {
+  const layout = d.layoutVariant ?? "";
+
+  // Carousel: render the first slide statically (no autoplay runtime on the
+  // snippet). The slide becomes a hero_split when it has media, else the base.
+  if (layout === "hero_carousel" && d.slides && d.slides.length > 0) {
+    const s = d.slides[0];
+    const slideHero: HeroBlockData = {
+      id:            d.id,
+      title:         s.heading ?? d.title,
+      subtitle:      s.subheading ?? d.subtitle,
+      tag:           d.tag,
+      ctas:          s.ctaLabel && s.ctaUrl ? [{ label: s.ctaLabel, href: s.ctaUrl }] : d.ctas,
+      ...(s.media ? { media: s.media } : {}),
+      layoutVariant: s.media ? "hero_split" : "",
+    };
+    return renderHero(slideHero);
+  }
+
+  // Media-bearing layouts. No renderable media falls through to the base render,
+  // so text-only heroes stay byte-identical.
+  const media = heroBannerMediaToBlockMedia(d.media);
+  if (isRenderableMedia(media)) {
+    if (layout === "hero_split" || layout === "hero_split_clean" || layout === "hero_dark_split") return renderHeroSplit(d, media);
+    if (layout === "hero_background") return renderHeroBackground(d, media);
+    if (layout === "hero_page_banner") return renderHeroPageBanner(d, media);
+  }
+  return renderHeroBase(d);
 }
 
 // ── Spotlight variants (proof_spotlight / feature_spotlight) ────────────────────

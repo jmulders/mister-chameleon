@@ -122,4 +122,45 @@ describe("renderBlockHtml", () => {
     assert.ok(html.includes("order:-1;"), "mediaSide left maps to order -1");
     assert.ok(html.includes("vanaf EUR 1.250") && html.includes(">Boek<"), "price + CTA");
   });
+
+  // ── Hero layout parity on the snippet ────────────────────────────────────────
+
+  const heroBase = { id: "h", title: "T", subtitle: "S", tag: "New", ctas: [{ label: "Go", href: "/go" }] };
+
+  it("text-only heroes are byte-identical across every layoutVariant", () => {
+    const baseline = renderBlockHtml("hero", { ...heroBase, layoutVariant: "" });
+    for (const lv of ["hero_default", "hero_split", "hero_background", "hero_page_banner", "hero_editorial"]) {
+      assert.equal(renderBlockHtml("hero", { ...heroBase, layoutVariant: lv }), baseline, `layout ${lv}`);
+    }
+  });
+
+  it("hero_split with media renders a facade split (no iframe before click)", () => {
+    const html = renderBlockHtml("hero", {
+      ...heroBase, layoutVariant: "hero_split",
+      media: { kind: "video", video: { source: "youtube", videoId: "aqz-KE-bpKQ" } },
+    })!;
+    assert.ok(html.includes("data-mc-video-facade"), "facade");
+    assert.ok(html.includes("youtube-nocookie.com"), "nocookie");
+    assert.ok(!html.includes("<iframe"), "no iframe before click");
+    assert.ok(html.includes("display:flex"), "split layout");
+  });
+
+  it("hero_background video is a muted autoplay embed, not a facade", () => {
+    const html = renderBlockHtml("hero", {
+      ...heroBase, layoutVariant: "hero_background",
+      media: { kind: "video", video: { source: "youtube", videoId: "aqz-KE-bpKQ" } },
+    })!;
+    assert.ok(html.includes("<iframe") && html.includes("autoplay=1") && html.includes("mute=1"), "autoplay muted embed");
+    assert.ok(!html.includes("data-mc-video-facade"), "no facade for background");
+    assert.ok(html.includes("linear-gradient"), "overlay");
+  });
+
+  it("hero_carousel renders the first slide statically", () => {
+    const html = renderBlockHtml("hero", {
+      ...heroBase, layoutVariant: "hero_carousel",
+      slides: [{ heading: "Slide 1", subheading: "Sub 1", media: { kind: "image", url: "https://ex.com/s.jpg", alt: "" } }],
+    })!;
+    assert.ok(html.includes("Slide 1"), "first slide heading");
+    assert.ok(html.includes('src="https://ex.com/s.jpg"'), "first slide media");
+  });
 });
