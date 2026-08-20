@@ -129,6 +129,36 @@ export function buildSnippetSource(decideUrl: string): string {
   var mcFormsBase = ${JSON.stringify(platformOrigin)};
   var mcDecideUrl = ${JSON.stringify(decideUrl)};
 
+  // ── Video facades: privacy-first click-to-load for CTA media blocks ──────────
+  // A CTA media variant injects a <button data-mc-video-facade data-mc-embed-src
+  // data-mc-allow> that shows ONLY the poster. No YouTube/Vimeo iframe or request
+  // fires until the visitor clicks — mirroring the platform BlockMediaView facade.
+  // On click we swap the facade for the embed iframe (the src is already the
+  // nocookie / dnt privacy URL built server-side).
+  function mcWireVideoFacades(root) {
+    var facades = (root || document).querySelectorAll('[data-mc-video-facade]');
+    for (var i = 0; i < facades.length; i++) {
+      (function (btn) {
+        if (btn.getAttribute('data-mc-wired')) return;
+        btn.setAttribute('data-mc-wired', '1');
+        btn.addEventListener('click', function () {
+          var src = btn.getAttribute('data-mc-embed-src');
+          // Only ever load a plain https embed URL (built by our own helpers).
+          if (!src || !/^https:\\/\\//i.test(src)) return;
+          var iframe = document.createElement('iframe');
+          iframe.setAttribute('src', src);
+          iframe.setAttribute('title', 'Video');
+          iframe.setAttribute('allow', btn.getAttribute('data-mc-allow') || '');
+          iframe.setAttribute('allowfullscreen', '');
+          iframe.setAttribute('loading', 'lazy');
+          iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+          var parent = btn.parentNode;
+          if (parent) { parent.replaceChild(iframe, btn); }
+        });
+      })(facades[i]);
+    }
+  }
+
   // ── Form blocks: wire submit on an injected <form data-mc-form="key"> ────────
   // The form markup is rendered server-side (with the tenant theme + contextual
   // copy/fields); here we intercept submit, POST cross-origin to the platform
@@ -457,6 +487,8 @@ export function buildSnippetSource(decideUrl: string): string {
         c.innerHTML = block.html;
         // Wire any form injected by this block (submit → cross-origin POST).
         try { mcWireForms(c); } catch (e) { /* forms optional */ }
+        // Wire any CTA video facade (click-to-load, privacy-first).
+        try { mcWireVideoFacades(c); } catch (e) { /* media optional */ }
         // Render any Cloudflare Turnstile widget the form HTML contains. A
         // <script> inside innerHTML never runs, so load the Turnstile API
         // ourselves and render explicitly.
