@@ -1196,7 +1196,7 @@ export function EditBlockDrawer({
       ...(contentAlign !== "left" ? { contentAlign }            : {}),
       ...(ctas.length   ? { ctas: ctas.map((c) => ({ label: c.label, href: c.href, variant: c.variant, ...(c.style ? { style: c.style } : {}) })) } : {}),
       ...(media         ? { media }                             : {}),
-      ...(slotId === "cta" && ctaMediaSide ? { mediaSide: ctaMediaSide } : {}),
+      ...((slotId === "cta" || slotId === "notification") && ctaMediaSide ? { mediaSide: ctaMediaSide } : {}),
       ...(slotId === "cta" && layoutVariant === "cta_newsletter" && ctaFormKey ? { formKey: ctaFormKey } : {}),
       ...(items.length  ? { items: normalizedItems }            : {}),
       // Persist slides only for the carousel layout — keeps other layouts'
@@ -1754,6 +1754,24 @@ export function EditBlockDrawer({
               <p className="text-[10px] text-neutral-400">
                 Auto-dismiss applies to banners and toasts only. Bump the campaign id to reset the frequency cap after a message change.
               </p>
+
+              <div>
+                <label className="block text-[10px] font-medium text-neutral-500 mb-0.5">
+                  Media side <span className="font-normal text-neutral-400">(when media is set)</span>
+                </label>
+                <select
+                  value={ctaMediaSide}
+                  onChange={(e) => setCtaMediaSide(e.target.value as "" | "left" | "right")}
+                  className={SMALL_INPUT_CLS}
+                >
+                  <option value="">Default (left)</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+                <p className="mt-0.5 text-[10px] text-neutral-400">
+                  Add an image or video in the Media section above; it renders beside the message across every position.
+                </p>
+              </div>
             </fieldset>
           )}
 
