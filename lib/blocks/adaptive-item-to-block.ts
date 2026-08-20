@@ -16,8 +16,31 @@
  * cycle.
  */
 
-import type { AdaptiveVariantItem, ProofItem, FeatureItem } from "@/cms/types";
+import type { AdaptiveVariantItem, ProofItem, FeatureItem, HeroCTAItem } from "@/cms/types";
+import type { BlockCTA } from "@/page-config/types";
 import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
+
+/**
+ * Adaptive CTA items -> BlockCTA[] for the CTA slot (max 2 styled buttons).
+ * Carries the per-button style and variant; attaches the plan's ctaKey to the
+ * primary button for click attribution. Shared by adaptiveToCTA (live provider)
+ * and adaptiveVariantToContextEntry (preview) so both stay identical.
+ */
+export function adaptiveCtasToButtons(
+  ctas: readonly HeroCTAItem[] | undefined,
+  primaryCtaKey?: string,
+): BlockCTA[] {
+  return (ctas ?? [])
+    .filter((c) => c.label && c.href)
+    .slice(0, 2)
+    .map((c, i) => ({
+      label: c.label,
+      href:  c.href,
+      ...(c.style   ? { style:   c.style }   : {}),
+      ...(c.variant ? { variant: c.variant } : {}),
+      ...(i === 0 && primaryCtaKey ? { ctaKey: primaryCtaKey } : {}),
+    }));
+}
 
 /** AdaptiveVariantItem -> ProofItem (proof_spotlight carries media + attribution). */
 export function adaptiveItemToProofItem(item: AdaptiveVariantItem): ProofItem {

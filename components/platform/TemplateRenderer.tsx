@@ -197,6 +197,9 @@ function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenConte
           title={t(contextData.cta.title) ?? contextData.cta.title}
           text={t(contextData.cta.text) ?? contextData.cta.text}
           cta={contextData.cta.cta}
+          ctas={contextData.cta.ctas}
+          media={contextData.cta.media}
+          mediaSide={contextData.cta.mediaSide}
           ctaKey={contextData.cta.ctaKey}
           layoutVariant={contextData.cta.layoutVariant}
           {...layoutOverride}

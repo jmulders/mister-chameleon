@@ -24,7 +24,8 @@ import type { AdaptiveVariantContent } from "@/cms/types";
 import type { ContextSlotData } from "@/page-config";
 import type { BlockTokenRef } from "@/design-system/theme/block-token-set";
 import { adaptiveVariantToHeroBlockData } from "./resolve-adaptive-variant";
-import { adaptiveItemToProofItem, adaptiveItemToFeatureItem } from "@/lib/blocks/adaptive-item-to-block";
+import { adaptiveItemToProofItem, adaptiveItemToFeatureItem, adaptiveCtasToButtons } from "@/lib/blocks/adaptive-item-to-block";
+import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 
 /** Build a BlockTokenRef from a variant's token fields, or undefined when none. */
 function tokenRefFromVariant(content: AdaptiveVariantContent): BlockTokenRef | undefined {
@@ -63,17 +64,23 @@ export function adaptiveVariantToContextEntry(
         },
       };
 
-    case "cta":
+    case "cta": {
+      const buttons = adaptiveCtasToButtons(content.ctas);
+      const media   = heroBannerMediaToBlockMedia(content.media);
       return {
         cta: {
           id:    blockKey,
           title: content.title ?? "",
           text:  content.subtitle ?? "",
           cta:   { label: content.ctas?.[0]?.label ?? "", href: content.ctas?.[0]?.href ?? "#" },
+          ...(buttons.length ? { ctas: buttons } : {}),
+          ...(media          ? { media }         : {}),
+          ...(content.mediaSide ? { mediaSide: content.mediaSide } : {}),
           ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
           ...withRef,
         },
       };
+    }
 
     case "feature":
       return {

@@ -94,7 +94,8 @@ import {
 import { isContextSlotBlockType } from "../mappers/statamic/context-slot-block";
 import { StatamicClient, createStatamicClient } from "./statamic-client";
 import { logger } from "@/lib/logger";
-import { adaptiveItemToProofItem, adaptiveItemToFeatureItem } from "@/lib/blocks/adaptive-item-to-block";
+import { adaptiveItemToProofItem, adaptiveItemToFeatureItem, adaptiveCtasToButtons } from "@/lib/blocks/adaptive-item-to-block";
+import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 import type { ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type { TenantSettings } from "@/tenant/types";
 
@@ -486,12 +487,17 @@ export class StatamicProvider implements CMSProvider {
     if (!data || !data.isActive) return null;
     const c = data.defaultVariant;
     const primaryCta = c.ctas?.[0];
+    const buttons = adaptiveCtasToButtons(c.ctas);
+    const media   = heroBannerMediaToBlockMedia(c.media);
     return {
       id:           data.key,
       layoutVariant: c.layoutVariant,
       title:        c.title,
       text:         c.subtitle,
       cta:          { label: primaryCta?.label ?? "", href: primaryCta?.href ?? "#" },
+      ...(buttons.length ? { ctas: buttons } : {}),
+      ...(media          ? { media }         : {}),
+      ...(c.mediaSide    ? { mediaSide: c.mediaSide } : {}),
       ...this.variantTokenRef(c),
     };
   }
