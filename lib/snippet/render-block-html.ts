@@ -31,6 +31,15 @@ import type {
 import type { ResolvedForm } from "@/forms/context/types";
 import type { FormField } from "@/forms/types";
 import { renderInlineMarkup } from "@/lib/blocks/inline-markup";
+import {
+  isRenderableMedia,
+  youtubeEmbedSrc,
+  vimeoEmbedSrc,
+  youtubeThumbUrl,
+  MEDIA_IFRAME_ALLOW,
+  type BlockMedia,
+} from "@/lib/media/block-media";
+import type { BlockCTA } from "@/page-config/types";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -117,7 +126,140 @@ function renderProof(d: ProofBlockData): string {
   );
 }
 
+// ── CTA media variants ────────────────────────────────────────────────────────
+//
+// cta_media_split and cta_media_first mirror the React CtaSectionBlock variants
+// (see components/blocks/sections/CtaSectionBlock.tsx). They reuse the same pure
+// media helpers (youtubeEmbedSrc / vimeoEmbedSrc / youtubeThumbUrl /
+// MEDIA_IFRAME_ALLOW) and renderInlineMarkup as the platform. YouTube/Vimeo use a
+// privacy facade: the poster is shown and NO third-party iframe/request fires
+// until the visitor clicks — the snippet runtime wires the click-to-load (see
+// lib/snippet/snippet-source.ts, wireVideoFacades). Base CTA is byte-identical.
+
+/** Map a CTA's style/variant to solid | outline | ghost, mirroring CTAGroup. */
+function ctaButtonKind(cta: BlockCTA, isPrimary: boolean): "solid" | "outline" | "ghost" {
+  if (cta.style) return cta.style;
+  switch (cta.variant) {
+    case "outline": return "outline";
+    case "ghost":
+    case "link":    return "ghost";
+    case "primary":
+    case "secondary": return "solid";
+    default: return isPrimary ? "solid" : "outline";
+  }
+}
+
+/** One styled CTA anchor, mirroring the CTAGroup button styles (inline for the snippet). */
+function ctaButton(cta: BlockCTA, isPrimary: boolean, inverted: boolean): string {
+  const kind = ctaButtonKind(cta, isPrimary);
+  const base =
+    "display:inline-block;padding:13px 26px;border-radius:var(--btn-radius,var(--radius-interactive,8px));" +
+    "font-weight:700;font-size:15px;text-decoration:none;line-height:1;";
+  let skin: string;
+  if (kind === "solid") {
+    skin = inverted
+      ? "background:var(--card-bg,#fff);color:var(--primary,#4f46e5);border:1px solid transparent;"
+      : "background:var(--primary,#4f46e5);color:var(--primary-text,#fff);border:1px solid transparent;";
+  } else if (kind === "outline") {
+    skin = inverted
+      ? "background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);"
+      : "background:transparent;color:var(--primary,#4f46e5);border:1px solid var(--primary,#4f46e5);";
+  } else {
+    skin = inverted
+      ? "background:transparent;color:#fff;border:1px solid transparent;"
+      : "background:transparent;color:var(--primary,#4f46e5);border:1px solid transparent;";
+  }
+  return `<a href="${safeHref(cta.href)}" style="${base}${skin}">${escapeHtml(cta.label)}</a>`;
+}
+
+/** The buttons row for a CTA: up to 2 from `ctas`, else the single base `cta`. */
+function ctaButtonsHtml(d: CTABlockData, inverted: boolean, align: "start" | "center"): string {
+  const list: BlockCTA[] = (d.ctas ?? []).filter((c) => c && c.label && c.href).slice(0, 2);
+  if (list.length === 0 && d.cta?.label) list.push({ label: d.cta.label, href: d.cta.href });
+  if (list.length === 0) return "";
+  const buttons = list.map((c, i) => ctaButton(c, i === 0, inverted)).join("");
+  const justify = align === "center" ? "center" : "flex-start";
+  return `<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:${justify};">${buttons}</div>`;
+}
+
+/** Absolute-fill media markup (image / asset video / YouTube-Vimeo facade). */
+function ctaMediaInner(media: BlockMedia): string {
+  const source = media.source ?? "asset";
+  const fit    = media.fit ?? "cover";
+  const fill   = `position:absolute;inset:0;width:100%;height:100%;`;
+
+  if (media.kind === "image") {
+    return `<img src="${safeHref(media.url)}" alt="${escapeHtml(media.alt ?? "")}" loading="lazy" style="${fill}object-fit:${fit};">`;
+  }
+  if (source === "asset") {
+    const poster = media.poster ? ` poster="${safeHref(media.poster)}"` : "";
+    return `<video src="${safeHref(media.url)}"${poster} controls playsinline style="${fill}object-fit:${fit};background:#000;"></video>`;
+  }
+
+  // YouTube / Vimeo privacy facade: poster (authored poster first, else the
+  // YouTube thumbnail) + play button, NO iframe until the snippet runtime swaps
+  // it in on click (data-mc-video-facade).
+  const embedSrc  = source === "youtube" ? youtubeEmbedSrc(media.id ?? "", { autoplay: true }) : vimeoEmbedSrc(media.id ?? "", { autoplay: true });
+  const posterSrc = media.poster || (source === "youtube" && media.id ? youtubeThumbUrl(media.id) : "");
+  const posterImg = posterSrc ? `<img src="${safeHref(posterSrc)}" alt="" loading="lazy" style="${fill}object-fit:cover;">` : "";
+  const play =
+    `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);">` +
+      `<span style="display:flex;width:64px;height:64px;align-items:center;justify-content:center;border-radius:9999px;background:rgba(255,255,255,.9);box-shadow:0 8px 24px rgba(0,0,0,.3);">` +
+        `<svg width="24" height="24" viewBox="0 0 24 24" fill="#111827" aria-hidden="true" style="margin-left:3px;"><path d="M8 5v14l11-7z"/></svg>` +
+      `</span>` +
+    `</span>`;
+  return (
+    `<button type="button" data-mc-video-facade data-mc-embed-src="${escapeHtml(embedSrc)}" data-mc-allow="${escapeHtml(MEDIA_IFRAME_ALLOW)}" ` +
+    `aria-label="Play video" style="${fill}padding:0;border:0;background:transparent;cursor:pointer;">${posterImg}${play}</button>`
+  );
+}
+
+/** cta_media_split — media beside the text + buttons; mediaSide via order; wraps on mobile. */
+function renderCtaMediaSplit(d: CTABlockData): string {
+  const order = d.mediaSide === "left" ? -1 : d.mediaSide === "right" ? 1 : 0;
+  const mediaCol = isRenderableMedia(d.media)
+    ? `<div style="flex:1 1 300px;order:${order};position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:var(--card-radius,14px);background:#000;">${ctaMediaInner(d.media)}</div>`
+    : "";
+  return (
+    `<section style="background:var(--bg,#fff);color:var(--text,#0f172a);">` +
+      `<div style="${WRAP}">` +
+        `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:clamp(24px,4vw,48px);">` +
+          mediaCol +
+          `<div style="flex:1 1 300px;">` +
+            (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,3.5vw,32px);font-weight:800;margin:0 0 12px;">${escapeHtml(d.title)}</h2>` : "") +
+            (d.text ? `<p style="font-size:clamp(15px,2.2vw,18px);line-height:1.55;color:var(--muted-foreground,#64748b);margin:0 0 20px;max-width:56ch;">${renderInlineMarkup(d.text)}</p>` : "") +
+            ctaButtonsHtml(d, false, "start") +
+          `</div>` +
+        `</div>` +
+      `</div>` +
+    `</section>`
+  );
+}
+
+/** cta_media_first — media as a dimmed background with overlaid text + buttons. */
+function renderCtaMediaFirst(d: CTABlockData): string {
+  const bg = isRenderableMedia(d.media)
+    ? `<div aria-hidden="true" style="position:absolute;inset:0;opacity:.4;">${ctaMediaInner(d.media)}</div>`
+    : "";
+  return (
+    `<section style="position:relative;overflow:hidden;background:var(--neutral-900,#111827);color:#fff;">` +
+      bg +
+      `<div aria-hidden="true" style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.3) 0%,rgba(0,0,0,.6) 100%);"></div>` +
+      `<div style="${WRAP}position:relative;text-align:center;">` +
+        (d.title ? `<h2 style="font-family:inherit;font-size:clamp(24px,4.5vw,40px);font-weight:800;margin:0 0 14px;">${escapeHtml(d.title)}</h2>` : "") +
+        (d.text ? `<p style="font-size:clamp(15px,2.2vw,19px);line-height:1.55;opacity:.92;max-width:56ch;margin:0 auto 22px;">${renderInlineMarkup(d.text)}</p>` : "") +
+        `<div style="display:flex;justify-content:center;">${ctaButtonsHtml(d, true, "center")}</div>` +
+      `</div>` +
+    `</section>`
+  );
+}
+
 function renderCta(d: CTABlockData): string {
+  // Media variants mirror the React CtaSectionBlock; every other layout keeps the
+  // exact base CTA output below (byte-identical).
+  if (d.layoutVariant === "cta_media_split") return renderCtaMediaSplit(d);
+  if (d.layoutVariant === "cta_media_first") return renderCtaMediaFirst(d);
+
   const cta = d.cta;
   return (
     `<section style="background:var(--section-cta-bg,var(--primary,#4f46e5));color:var(--primary-text,#fff);">` +
