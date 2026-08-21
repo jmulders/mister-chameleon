@@ -16,8 +16,11 @@
  * tokens) is carried through so the per-block design override applies in the
  * preview too.
  *
- * Conversion and notification are overlays with a different data contract and
- * are not previewed here — callers get `null` and should show a placeholder.
+ * Conversion and notification are overlays with a different data contract
+ * (ConversionBlockData / NotificationBlockData, not ContextSlotData), so this
+ * adapter returns `null` for them. They DO get a live preview, rendered directly
+ * with ConversionBlock / NotificationBlock in the block preview route via the
+ * shared mappers in lib/blocks/adaptive-variant-to-overlay.ts.
  */
 
 import type { AdaptiveVariantContent } from "@/cms/types";
@@ -95,7 +98,8 @@ export function adaptiveVariantToContextEntry(
       };
 
     default:
-      // conversion / notification — overlay contract, no live preview here.
+      // conversion / notification — overlay contract (not ContextSlotData).
+      // Previewed directly in the block preview route, not through this adapter.
       return null;
   }
 }

@@ -2,10 +2,20 @@
  * Tenant block — live preview surface (iframe target)
  *
  * Renders a SINGLE adaptive block at full fidelity using the real production
- * block components (HeroBlock / ProofBlock / CTABlock / FeatureGridBlock via
- * AdaptiveSlotPreview), so the block editor drawer can show a live, accurate
- * preview — including layout variant, media, carousel, and per-block design
- * tokens — exactly as a visitor would see it.
+ * block components, so the block editor drawer can show a live, accurate
+ * preview (layout variant, media, carousel, per-block design tokens) exactly as
+ * a visitor would see it.
+ *
+ *   hero / proof / cta / feature  render through AdaptiveSlotPreview (they are
+ *                                 ContextSlotData shapes).
+ *   conversion / notification     render directly with ConversionBlock /
+ *                                 NotificationBlock, because they are overlays
+ *                                 with their own data contract, not context
+ *                                 slots. The notification is anchored inside a
+ *                                 bounded stage (preview mode) so the otherwise
+ *                                 fixed overlay is visible; the book-demo
+ *                                 conversion shows a static placeholder instead
+ *                                 of the live availability calendar.
  *
  * The in-progress (unsaved) variant is passed base64url-encoded in `?v`, and the
  * block key in `?key`. The tenant's fully-resolved theme is applied as inline
@@ -16,14 +26,20 @@
  * is therefore enforced explicitly here.
  */
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ComponentProps } from "react";
 import { notFound } from "next/navigation";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 import { getTenantById } from "@/tenant/server";
 import { resolveThemeForTenant, resolvedThemeToCSS, cssDeclarationsToRecord } from "@/tenant/resolve-theme";
 import { AdaptiveSlotPreview } from "@/components/platform/TemplateRenderer";
 import { adaptiveVariantToContextEntry } from "@/lib/tokens/adaptive-variant-to-context";
-import type { AdaptiveVariantContent } from "@/cms/types";
+import {
+  adaptiveVariantToConversionData,
+  adaptiveVariantToNotificationData,
+} from "@/lib/blocks/adaptive-variant-to-overlay";
+import { ConversionBlock } from "@/components/blocks/ConversionBlock";
+import { NotificationBlock } from "@/components/blocks/NotificationBlock";
+import type { AdaptiveVariantContent, NotificationBlockData } from "@/cms/types";
 import type { ContextSlotData, ContextSlotId } from "@/page-config";
 
 export const dynamic = "force-dynamic";
@@ -72,22 +88,82 @@ export default async function BlockPreviewPage({ params, searchParams }: Props) 
     themeVars = cssDeclarationsToRecord(resolvedThemeToCSS(resolveThemeForTenant(tenant, null)));
   } catch { /* fall back to the block components' own defaults */ }
 
-  const entry          = adaptiveVariantToContextEntry(slotId, content, key);
   const blockTokenSets = tenant.design?.blockTokenSets ?? [];
 
   return (
     <div data-site style={themeVars as CSSProperties} className="min-h-screen bg-white text-neutral-900">
-      {entry ? (
-        <AdaptiveSlotPreview
-          slotId={slotId as ContextSlotId}
-          contextData={entry as ContextSlotData}
-          blockTokenSets={blockTokenSets}
-        />
-      ) : (
-        <div className="flex min-h-screen items-center justify-center p-8 text-center text-sm text-neutral-500">
-          No live preview for this block type yet — content and design tokens still save normally.
-        </div>
-      )}
+      {renderPreview(slotId, content, key, blockTokenSets)}
+    </div>
+  );
+}
+
+// ── Per-slot preview render ────────────────────────────────────────────────────
+
+function renderPreview(
+  slotId: string,
+  content: AdaptiveVariantContent,
+  key: string,
+  blockTokenSets: ComponentProps<typeof AdaptiveSlotPreview>["blockTokenSets"],
+) {
+  // Conversion and notification are overlays with their own data contract (not
+  // ContextSlotData), so they render here with the real block components rather
+  // than through AdaptiveSlotPreview. See adaptiveVariantToContextEntry.
+  if (slotId === "conversion") {
+    const data = adaptiveVariantToConversionData(content, key);
+    return <ConversionBlock data={data} preview />;
+  }
+
+  if (slotId === "notification") {
+    const data = adaptiveVariantToNotificationData(content, key);
+    if (!data) return <EmptyHint text="Add a message to preview this notification." />;
+    return <NotificationOverlayPreview data={data} />;
+  }
+
+  // Hero / proof / cta / feature render at full fidelity through the production
+  // block components via the shared context adapter.
+  const entry = adaptiveVariantToContextEntry(slotId, content, key);
+  if (!entry) return <EmptyHint text="No live preview for this block type yet. Content and design tokens still save normally." />;
+  return (
+    <AdaptiveSlotPreview
+      slotId={slotId as ContextSlotId}
+      contextData={entry as ContextSlotData}
+      blockTokenSets={blockTokenSets}
+    />
+  );
+}
+
+/**
+ * Bounded stage for the notification overlay. On the live site the notification
+ * is `position: fixed` against the viewport; here it renders with `preview` set,
+ * which anchors it (`absolute`) inside this bounded, `relative` stage so it is
+ * fully visible in the drawer iframe. A caption states where it floats live.
+ */
+function NotificationOverlayPreview({ data }: { data: NotificationBlockData }) {
+  const pos = data.position ?? "top";
+  const posLabel: Record<string, string> = {
+    top:            "fixed banner across the top",
+    bottom:         "fixed banner across the bottom",
+    left:           "floating toast, bottom-left corner",
+    right:          "floating toast, bottom-right corner",
+    "bottom-right": "floating toast, bottom-right corner",
+    center:         "centered modal with a backdrop",
+  };
+  return (
+    <div className="p-6">
+      <p className="mb-3 text-xs text-neutral-500">
+        Preview shown in place. On the live site this floats as a {posLabel[pos] ?? pos}.
+      </p>
+      <div className="relative h-[70vh] min-h-[420px] w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
+        <NotificationBlock {...data} preview />
+      </div>
+    </div>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-8 text-center text-sm text-neutral-500">
+      {text}
     </div>
   );
 }
