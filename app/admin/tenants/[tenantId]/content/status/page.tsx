@@ -13,9 +13,10 @@
  */
 
 import Link        from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTenantById }   from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
+import { isPlatformCmsProvider } from "@/tenant/cms-model";
 import { getPagesByTenant } from "@/page-store";
 import { Badge }   from "@/components/ui/Badge";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -105,6 +106,14 @@ export default async function TenantContentStatusPage({
 
   const tenant = normalizeTenant(rawTenant);
 
+  // Content-status is a platform-CMS-only surface (same rule as the page-variants
+  // diagnostics). External-CMS tenants (addon / plugin / snippet) do not get this
+  // page: the route redirects to the personalization overview so the URL shows
+  // nothing. The nav item is hidden for them too (TenantSubNav, platformCms flag).
+  if (!isPlatformCmsProvider(tenant.cms.provider)) {
+    redirect(`/admin/tenants/${tenantId}/personalization/blocks`);
+  }
+
   // ── Derived stats ─────────────────────────────────────────────────────────
 
   const totalPages = pages.length;
@@ -163,7 +172,7 @@ export default async function TenantContentStatusPage({
       {/* Summary stats */}
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Total pages" value={totalPages} />
-        <StatCard label="Total blocks" value={totalBlocks} sub={`avg ${totalPages ? (totalBlocks / totalPages).toFixed(1) : "—"} per page`} />
+        <StatCard label="Total blocks" value={totalBlocks} sub={totalPages ? `avg ${(totalBlocks / totalPages).toFixed(1)} per page` : "no pages yet"} />
         <StatCard label="Templates" value={Object.keys(byTemplate).length} sub="distinct templates used" />
         <StatCard
           label="CMS"

@@ -293,16 +293,23 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
     },
   ];
 
-  // The page-variants diagnostics is a platform-CMS-only surface: hide its nav
-  // item for external-CMS tenants (the route is guarded server-side too).
+  // Platform-CMS-only surfaces: hide their nav items for external-CMS tenants
+  // (each route is guarded server-side too, so a hidden item is not reachable by
+  // URL). "Variants" is the page-variants diagnostics (Personalization); "Status"
+  // is the content-status inventory (Content). Both require the platform to own
+  // the pages.
   const baseGroups = isAdvertiser ? advertiserGroups : fullGroups;
   const groups = platformCms
     ? baseGroups
-    : baseGroups.map((g) =>
-        g.key === "personalization"
-          ? { ...g, items: g.items.filter((it) => it.label !== "Variants") }
-          : g,
-      );
+    : baseGroups.map((g) => {
+        if (g.key === "personalization") {
+          return { ...g, items: g.items.filter((it) => it.label !== "Variants") };
+        }
+        if (g.key === "content") {
+          return { ...g, items: g.items.filter((it) => it.label !== "Status") };
+        }
+        return g;
+      });
 
   // ── Active group detection ─────────────────────────────────────────────────
 
