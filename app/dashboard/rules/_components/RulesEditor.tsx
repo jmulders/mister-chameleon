@@ -95,6 +95,7 @@ import type {
   CTAVariantKey,
   FeatureVariantKey,
   ConversionVariantKey,
+  NotificationVariantKey,
 } from "@/decision/types";
 import {
   CONTEXT_REGISTRY,
@@ -291,6 +292,13 @@ const CONVERSION_KEY_LABELS: Record<ConversionVariantKey, string> = {
   conversion_contact: "Conversion Contact — contact / enquiry form",
 };
 
+const NOTIFICATION_KEY_LABELS: Record<NotificationVariantKey, string> = {
+  notification_default:   "Notification Default: standard announcement bar",
+  notification_offer:     "Notification Offer: promotional offer message",
+  notification_urgency:   "Notification Urgency: time-sensitive or scarcity message",
+  notification_returning: "Notification Returning: welcome-back message for returning visitors",
+};
+
 // ── Field group labels (for <optgroup> headings) ───────────────────────────────
 
 const GROUP_LABELS: Record<FieldGroup, string> = {
@@ -335,6 +343,7 @@ function formatPlanSummary(plan: StoredPlan): string {
   const parts = [`hero ${plan.heroKey}`, `proof ${plan.proofKey}`, `cta ${plan.ctaKey}`];
   if (plan.featureKey)      parts.push(`feature ${plan.featureKey}`);
   if (plan.conversionKey)   parts.push(`conversion ${plan.conversionKey}`);
+  if (plan.notificationKey) parts.push(`notification ${plan.notificationKey}`);
   if (plan.themeKey)        parts.push(`theme ${plan.themeKey}`);
   let summary = parts.join(" · ");
   const writes = plan.setContext ?? [];
@@ -355,6 +364,7 @@ function formatPlanSentence(plan: StoredPlan): string {
   const parts = [`hero: ${plan.heroKey}`, `proof: ${plan.proofKey}`, `cta: ${plan.ctaKey}`];
   if (plan.featureKey)    parts.push(`feature: ${plan.featureKey}`);
   if (plan.conversionKey) parts.push(`conversion: ${plan.conversionKey}`);
+  if (plan.notificationKey) parts.push(`notification: ${plan.notificationKey}`);
   if (plan.themeKey)      parts.push(`theme: ${plan.themeKey}`);
   return joinWithAnd(parts);
 }
@@ -1283,8 +1293,9 @@ function RuleCard({
           <PlanBadge block="hero"  value={rule.plan.heroKey} />
           <PlanBadge block="proof" value={rule.plan.proofKey} />
           <PlanBadge block="cta"   value={rule.plan.ctaKey} />
-          {rule.plan.featureKey    && <PlanBadge block="feature"    value={rule.plan.featureKey} />}
-          {rule.plan.conversionKey && <PlanBadge block="conversion" value={rule.plan.conversionKey} />}
+          {rule.plan.featureKey      && <PlanBadge block="feature"      value={rule.plan.featureKey} />}
+          {rule.plan.conversionKey   && <PlanBadge block="conversion"   value={rule.plan.conversionKey} />}
+          {rule.plan.notificationKey && <PlanBadge block="notification" value={rule.plan.notificationKey} />}
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
@@ -1494,6 +1505,26 @@ function RuleCard({
                     ))}
                   </select>
                 </Field>
+
+                <Field label="Notification variant" hint="Optional. Leave blank to omit this slot.">
+                  <select
+                    value={rule.plan.notificationKey ?? ""}
+                    onChange={(e) =>
+                      onChange({
+                        plan: {
+                          ...rule.plan,
+                          notificationKey: (e.target.value as NotificationVariantKey) || undefined,
+                        },
+                      })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">None (slot omitted)</option>
+                    {catalogue.notification.map((entry) => (
+                      <option key={entry.key} value={entry.key}>{entry.label}</option>
+                    ))}
+                  </select>
+                </Field>
               </div>
 
               <VariantTargetFields
@@ -1647,8 +1678,9 @@ function DefaultPlanCard({
           <PlanBadge block="hero"  value={plan.heroKey} />
           <PlanBadge block="proof" value={plan.proofKey} />
           <PlanBadge block="cta"   value={plan.ctaKey} />
-          {plan.featureKey    && <PlanBadge block="feature"    value={plan.featureKey} />}
-          {plan.conversionKey && <PlanBadge block="conversion" value={plan.conversionKey} />}
+          {plan.featureKey      && <PlanBadge block="feature"      value={plan.featureKey} />}
+          {plan.conversionKey   && <PlanBadge block="conversion"   value={plan.conversionKey} />}
+          {plan.notificationKey && <PlanBadge block="notification" value={plan.notificationKey} />}
         </div>
         <button
           type="button"
@@ -1726,6 +1758,20 @@ function DefaultPlanCard({
                 >
                   <option value="">— None (slot omitted) —</option>
                   {catalogue.conversion.map((entry) => (
+                    <option key={entry.key} value={entry.key}>{entry.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Notification variant" hint="Optional. Omit to skip this slot.">
+                <select
+                  value={plan.notificationKey ?? ""}
+                  onChange={(e) =>
+                    onChange({ notificationKey: (e.target.value as NotificationVariantKey) || undefined })
+                  }
+                  className={selectCls}
+                >
+                  <option value="">None (slot omitted)</option>
+                  {catalogue.notification.map((entry) => (
                     <option key={entry.key} value={entry.key}>{entry.label}</option>
                   ))}
                 </select>
@@ -3222,14 +3268,15 @@ function ContextLibraryPanel({ onClose }: { onClose: () => void }) {
 
 // ── PlanBadge ──────────────────────────────────────────────────────────────────
 
-type PlanSlot = "hero" | "proof" | "cta" | "feature" | "conversion";
+type PlanSlot = "hero" | "proof" | "cta" | "feature" | "conversion" | "notification";
 
 const BADGE_COLORS: Record<PlanSlot, string> = {
-  hero:       "bg-violet-50 text-violet-700 border-violet-200",
-  proof:      "bg-sky-50    text-sky-700    border-sky-200",
-  cta:        "bg-amber-50  text-amber-700  border-amber-200",
-  feature:    "bg-emerald-50 text-emerald-700 border-emerald-200",
-  conversion: "bg-rose-50   text-rose-700   border-rose-200",
+  hero:         "bg-violet-50 text-violet-700 border-violet-200",
+  proof:        "bg-sky-50    text-sky-700    border-sky-200",
+  cta:          "bg-amber-50  text-amber-700  border-amber-200",
+  feature:      "bg-emerald-50 text-emerald-700 border-emerald-200",
+  conversion:   "bg-rose-50   text-rose-700   border-rose-200",
+  notification: "bg-indigo-50 text-indigo-700 border-indigo-200",
 };
 
 function PlanBadge({ block, value }: { block: PlanSlot; value: string }) {
