@@ -3,8 +3,9 @@
  *
  * A single control that clears every visual design override on the tenant —
  * theme, token overrides, site default tokens, block token sets, custom fonts,
- * selected style family and typography-override flag — back to the platform
- * default, via resetDesignAction.
+ * and the typography-override flag — back to the platform default, via
+ * resetDesignAction. (The legacy selectedStyleFamily field, if set, is dropped
+ * too as part of the full design replace.)
  *
  * Why it's here: importing a JSON token file (Advanced / Builder) writes token
  * overrides that sit at the highest specificity, so they keep masking any preset
@@ -15,7 +16,7 @@
  * resetDesignAction.
  *
  * Rendered on every Design tab (above the tab panels) so it's reachable whether
- * the operator got stuck in Style, Builder or Advanced.
+ * the operator got stuck in Presets, Builder or Advanced.
  */
 
 "use client";

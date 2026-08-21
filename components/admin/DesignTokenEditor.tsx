@@ -1278,8 +1278,9 @@ export function DesignTokenEditor({
     // CRITICAL: Only include fields belonging to sections that are rendered in
     // this editor instance.  If every field is always sent, a save from the
     // Typography tab would write the stale `form.theme` captured at page-load,
-    // potentially reverting a theme change made via the Style tab (ThemeGallery)
-    // without a page reload.  The same applies to color overrides, radius, etc.
+    // potentially reverting a theme change made by applying a preset on the
+    // Presets tab without a page reload.  The same applies to color overrides,
+    // radius, etc.
     //
     // Rule: a field group is included in the payload only when its corresponding
     // section is visible (show(…) is true).  When `visibleSections` is absent

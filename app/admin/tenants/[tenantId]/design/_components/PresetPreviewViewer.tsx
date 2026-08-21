@@ -93,9 +93,9 @@ function resolvePages(presetKey: ThemePresetKey): readonly PresetPreviewPage[] {
 
 // ── CSS Mini-preview (fallback) ────────────────────────────────────────────────
 //
-// Mirrors the MiniPreview in ThemeGallery.tsx — duplicated here so this
-// component is self-contained and can be imported without ThemeGallery.
-// Shows key visual tokens (hero colour, primary, card radius, CTA) as a
+// A self-contained CSS mini-preview so this component carries no dependency on
+// the preset gallery. Shows key visual tokens (hero colour, primary, card
+// radius, CTA) as a
 // simple three-strip layout that differentiates themes visually.
 
 interface MiniTokens {
