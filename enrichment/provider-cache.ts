@@ -76,6 +76,14 @@ export class ProviderCache<V> {
   private readonly store = new Map<string, CacheEntry<V>>();
 
   /**
+   * In-flight loads keyed exactly like `store`. Used by `getOrLoad` so that
+   * concurrent misses on the same key share ONE loader call (and therefore one
+   * upstream request) instead of each firing their own. Populated only while a
+   * load is running and cleared as soon as it settles (resolve or reject).
+   */
+  private readonly inFlight = new Map<string, Promise<V>>();
+
+  /**
    * @param ttlMs — Time-to-live in milliseconds.  Entries older than this
    *                are treated as misses and evicted on next access.
    */
@@ -103,6 +111,64 @@ export class ProviderCache<V> {
   /** Store a value for `key`, replacing any existing entry. */
   set(key: string, value: V): void {
     this.store.set(key, { value, cachedAt: Date.now() });
+  }
+
+  /**
+   * Return a fresh cached value for `key`, or run `loader` to produce one,
+   * coalescing concurrent misses so the loader (and its upstream call) runs at
+   * most once per key while it is in flight.
+   *
+   * Semantics:
+   *   • Fresh TTL hit               → return the cached value immediately.
+   *   • A load already in flight     → return that same promise (coalesce). The
+   *                                    loader does NOT run a second time.
+   *   • Otherwise                    → run `loader`; on success `set(key, value)`
+   *                                    (subject to `opts.shouldCache`) and resolve
+   *                                    every waiter with the same value.
+   *
+   * Errors are never cached: if `loader` rejects, the in-flight entry is cleared
+   * and the rejection is propagated to every waiter, so a later call retries.
+   *
+   * `opts.shouldCache(value)` lets a caller coalesce a result without writing it
+   * to the TTL store (e.g. providers that intentionally do not negative-cache an
+   * empty result). It defaults to always caching, which preserves the plain
+   * "cache whatever the loader returns" behavior, including legitimate no-match
+   * values. It is consulted only on success; a rejection is never cached.
+   *
+   * This method is additive: `get` / `set` / `has` / `prune` / `stats` behave
+   * exactly as before.
+   */
+  async getOrLoad(
+    key: string,
+    loader: () => Promise<V>,
+    opts?: { shouldCache?: (value: V) => boolean },
+  ): Promise<V> {
+    const cached = this.get(key);
+    if (cached.hit) return cached.value;
+
+    const existing = this.inFlight.get(key);
+    if (existing) return existing;
+
+    const shouldCache = opts?.shouldCache;
+    const promise = (async () => {
+      const value = await loader();
+      if (!shouldCache || shouldCache(value)) {
+        this.set(key, value);
+      }
+      return value;
+    })();
+
+    // Register the in-flight promise synchronously (before the first await
+    // yields) so concurrent callers coalesce onto it.
+    this.inFlight.set(key, promise);
+    try {
+      return await promise;
+    } finally {
+      // Clear the slot whether it resolved or rejected. On success the value is
+      // now in the TTL store (a later call is a plain hit); on failure nothing
+      // is cached, so a later call re-runs the loader.
+      this.inFlight.delete(key);
+    }
   }
 
   /** Return true when a fresh entry exists for `key`. */
