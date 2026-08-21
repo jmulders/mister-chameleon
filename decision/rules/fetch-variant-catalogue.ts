@@ -116,22 +116,24 @@ export async function fetchVariantCatalogue(
     const client = createSanityClient();
 
     // Fetch all five slot types in parallel.
-    const [heroRows, proofRows, ctaRows, featureRows, conversionRows] = await Promise.all([
-      fetchSlotVariants(client, "heroVariant",       tenantId ?? null),
-      fetchSlotVariants(client, "proofVariant",      tenantId ?? null),
-      fetchSlotVariants(client, "ctaVariant",        tenantId ?? null),
-      fetchSlotVariants(client, "featureVariant",    tenantId ?? null),
-      fetchSlotVariants(client, "conversionVariant", tenantId ?? null),
+    const [heroRows, proofRows, ctaRows, featureRows, conversionRows, notificationRows] = await Promise.all([
+      fetchSlotVariants(client, "heroVariant",         tenantId ?? null),
+      fetchSlotVariants(client, "proofVariant",        tenantId ?? null),
+      fetchSlotVariants(client, "ctaVariant",          tenantId ?? null),
+      fetchSlotVariants(client, "featureVariant",      tenantId ?? null),
+      fetchSlotVariants(client, "conversionVariant",   tenantId ?? null),
+      fetchSlotVariants(client, "notificationVariant", tenantId ?? null),
     ]);
 
     const platform = buildPlatformCatalogue();
 
     return {
-      hero:       mergeEntries(platform.hero,       heroRows,       tenantId ?? null),
-      proof:      mergeEntries(platform.proof,      proofRows,      tenantId ?? null),
-      cta:        mergeEntries(platform.cta,        ctaRows,        tenantId ?? null),
-      feature:    mergeEntries(platform.feature,    featureRows,    tenantId ?? null),
-      conversion: mergeEntries(platform.conversion, conversionRows, tenantId ?? null),
+      hero:         mergeEntries(platform.hero,         heroRows,         tenantId ?? null),
+      proof:        mergeEntries(platform.proof,        proofRows,        tenantId ?? null),
+      cta:          mergeEntries(platform.cta,          ctaRows,          tenantId ?? null),
+      feature:      mergeEntries(platform.feature,      featureRows,      tenantId ?? null),
+      conversion:   mergeEntries(platform.conversion,   conversionRows,   tenantId ?? null),
+      notification: mergeEntries(platform.notification, notificationRows, tenantId ?? null),
       forms,
       emails,
     };

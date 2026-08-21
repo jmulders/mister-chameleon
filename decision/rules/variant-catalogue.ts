@@ -33,6 +33,7 @@ import {
   ALLOWED_CTA_KEYS,
   ALLOWED_FEATURE_KEYS,
   ALLOWED_CONVERSION_KEYS,
+  ALLOWED_NOTIFICATION_KEYS,
 } from "./stored-rule";
 
 // ── VariantSource ──────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ export interface VariantCatalogue {
   cta:        VariantEntry[];
   feature:    VariantEntry[];
   conversion: VariantEntry[];
+  notification: VariantEntry[];
   /**
    * Authored form variants, keyed by form type (contact / application /
    * appointment). Unlike the slots above, these are entirely tenant-authored
@@ -201,6 +203,13 @@ const PLATFORM_CONVERSION_LABELS: Record<string, string> = {
   conversion_contact: "Conversion Contact — contact / enquiry form",
 };
 
+const PLATFORM_NOTIFICATION_LABELS: Record<string, string> = {
+  notification_default:   "Notification Default: standard announcement bar",
+  notification_offer:     "Notification Offer: promotional offer message",
+  notification_urgency:   "Notification Urgency: time-sensitive or scarcity message",
+  notification_returning: "Notification Returning: welcome-back message for returning visitors",
+};
+
 /**
  * Build a VariantCatalogue containing only the platform-defined variants.
  * This is the fallback when Sanity is not configured.
@@ -230,6 +239,11 @@ export function buildPlatformCatalogue(): VariantCatalogue {
     conversion: ALLOWED_CONVERSION_KEYS.map((k) => ({
       key:    k,
       label:  PLATFORM_CONVERSION_LABELS[k] ?? k,
+      source: "platform" as const,
+    })),
+    notification: ALLOWED_NOTIFICATION_KEYS.map((k) => ({
+      key:    k,
+      label:  PLATFORM_NOTIFICATION_LABELS[k] ?? k,
       source: "platform" as const,
     })),
     forms: {},
