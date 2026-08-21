@@ -23,6 +23,8 @@ interface SubmissionsClientProps {
   tenantId:     string;
   /** Unique form keys for the filter dropdown. */
   formKeys:     string[];
+  /** Form key to pre-select the filter on (from the ?formKey= param). Empty = all. */
+  initialFormKey?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -53,9 +55,13 @@ export function SubmissionsClient({
   initialTotal,
   tenantId,
   formKeys,
+  initialFormKey = "",
 }: SubmissionsClientProps) {
   // ── Filter state ────────────────────────────────────────────────────────────
-  const [filterFormKey, setFilterFormKey] = useState<string>("");
+  // Pre-select the form filter when opened scoped from the Forms page. The
+  // initialRows were already server-filtered on the same key, so no re-fetch is
+  // needed on mount; switching via the dropdown re-fetches as usual.
+  const [filterFormKey, setFilterFormKey] = useState<string>(initialFormKey);
   const [filterFrom,    setFilterFrom]    = useState<string>("");
   const [filterTo,      setFilterTo]      = useState<string>("");
   const [filterSearch,  setFilterSearch]  = useState<string>("");
