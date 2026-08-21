@@ -217,6 +217,7 @@ export default async function FormConfigPage({ params }: PageProps) {
 
       {/* ── 2. Override settings ─────────────────────────────────────────── */}
       <FormOverrideClient
+        tenantId={tenantId}
         initialOverride={currentOverride}
         tenantNotify={formDef.action.notifyBackoffice}
         tenantConfirm={tenantSettings.sendConfirmationEmails}
@@ -232,6 +233,7 @@ export default async function FormConfigPage({ params }: PageProps) {
 
       {/* ── 3. Variants (forms-as-adaptive-blocks) ───────────────────────── */}
       <FormVariantsEditor
+        tenantId={tenantId}
         definitionFields={[...formDef.fields]}
         initialVariants={formVariants}
         saveAction={boundSaveVariant}
