@@ -359,13 +359,78 @@ function formatPlanSentence(plan: StoredPlan): string {
   return joinWithAnd(parts);
 }
 
+// Readable operator words for the summary sentence (presentation only; the
+// shared formatCondition keeps its own wording for debug output).
+const READABLE_OPERATORS: Record<FieldOperator, string> = {
+  equals:                "is",
+  not_equals:            "is not",
+  in:                    "is one of",
+  not_in:                "is not one of",
+  greater_than:          "is greater than",
+  greater_than_or_equal: "is at least",
+  less_than:             "is less than",
+  less_than_or_equal:    "is at most",
+  contains:              "contains",
+  not_contains:          "does not contain",
+  exists:                "is set",
+  not_exists:            "is not set",
+};
+
+function readableValue(value: unknown): string {
+  if (Array.isArray(value)) return (value as (string | number)[]).join(", ");
+  return String(value ?? "");
+}
+
+function readableLeaf(label: string, op: FieldOperator, value: unknown): string {
+  const word = READABLE_OPERATORS[op] ?? op;
+  return op === "exists" || op === "not_exists"
+    ? `${label} ${word}`
+    : `${label} ${word} ${readableValue(value)}`;
+}
+
+/**
+ * Presentation-only readable rendering of a condition for the summary sentence:
+ * uses field labels, readable operator words ("is" not "equals"), and no
+ * "ctx:" / "flag" / "attr" prefixes. Does NOT touch the shared formatCondition,
+ * which stays the source of truth for storage-adjacent debug output.
+ */
+function formatConditionReadable(condition: RuleCondition): string {
+  switch (condition.type) {
+    case "field":
+      return readableLeaf(
+        FIELD_REGISTRY[condition.field]?.label ?? condition.field,
+        condition.operator ?? "equals",
+        condition.value,
+      );
+    case "flag":
+    case "attribute":
+      return readableLeaf(condition.name, condition.operator ?? "equals", condition.value);
+    case "named":
+      // NAMED_CONDITIONS label is already human and prefix-free.
+      return formatCondition(condition);
+    case "context": {
+      // Drop the "ctx: " prefix the shared formatter adds.
+      const s = formatCondition(condition);
+      return s.startsWith("ctx: ") ? s.slice(5) : s;
+    }
+    case "group": {
+      const sep   = condition.logic === "or" ? " or " : " and ";
+      const parts = condition.conditions.map(formatConditionReadable);
+      return parts.length === 1 ? parts[0] : parts.join(sep);
+    }
+    default:
+      // context_library and any future types: fall back to the shared formatter.
+      return formatCondition(condition as RuleCondition);
+  }
+}
+
 /**
  * Read the rule as a plain-language sentence for the read-only summary at the top
- * of the card. Reuses formatCondition (unchanged) for the "when" half and the
- * plan keys for the "show" half.
+ * of the card. Uses the presentation-only formatConditionReadable for the "when"
+ * half and the plan keys for the "show" half.
  */
 function formatRuleSentence(condition: RuleCondition, plan: StoredPlan): string {
-  return `When ${formatCondition(condition)}, show ${formatPlanSentence(plan)}.`;
+  return `When ${formatConditionReadable(condition)}, show ${formatPlanSentence(plan)}.`;
 }
 
 // ── Operator labels ────────────────────────────────────────────────────────────
