@@ -254,6 +254,7 @@ describe("scopeVariantSlot / scopeRecipePlan", () => {
       cta:        [entry("cta_meeting")],                         // cta present
       feature:    [],
       conversion: [],
+      notification: [],
     };
     const { plan, fallbacks } = scopeRecipePlan(recipe.defaultPlan, catalogue);
     assert.equal(plan.heroKey, "hero_intent_direct");
