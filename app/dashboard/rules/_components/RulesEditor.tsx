@@ -1480,7 +1480,7 @@ function RuleCard({
                   ) : (
                     <span className="text-xs text-neutral-400">Priority {rule.priority} is free.</span>
                   )}
-                  {nextFreePriority !== rule.priority && (
+                  {priorityTaken && nextFreePriority !== rule.priority && (
                     <button
                       type="button"
                       onClick={() => onChange({ priority: nextFreePriority })}
