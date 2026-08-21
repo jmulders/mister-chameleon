@@ -6,9 +6,11 @@
  * keyed by a STABLE per-notification id and suppress the notification while the
  * session or period lasts.
  *
- *   always          — no storage; always shown.
- *   once_per_session — sessionStorage; suppressed until the tab/session closes.
- *   once_per_period  — localStorage; suppressed until `ttl` has elapsed.
+ *   always           - sessionStorage; shown every session until dismissed, then
+ *                      suppressed for the rest of that session (a manual dismissal
+ *                      writes the marker; with no marker it shows every pageview).
+ *   once_per_session - sessionStorage; suppressed until the tab/session closes.
+ *   once_per_period  - localStorage; suppressed until `ttl` has elapsed.
  *
  * Storage is FUNCTIONAL, not tracking: the only value stored is a dismissal
  * timestamp keyed by the notification id. No visitor identity, no PII.
@@ -80,9 +82,13 @@ export function isNotificationSuppressed(
   campaignId: string = "",
   now: number = Date.now(),
 ): boolean {
-  if (!id || frequency === "always") return false;
+  if (!id) return false;
 
-  if (frequency === "once_per_session") {
+  // "always" and "once_per_session" both suppress once a session marker exists.
+  // For "always" the marker is written only on a manual dismissal, so with no
+  // marker it still shows on every pageview (the prior default). This makes a
+  // dismissal of an "always" notification stick for the rest of the session.
+  if (frequency === "always" || frequency === "once_per_session") {
     const s = safeStorage("session");
     return !!s && s.getItem(notifStorageKey(id, campaignId)) !== null;
   }
@@ -99,7 +105,11 @@ export function isNotificationSuppressed(
 
 /**
  * Record a dismissal so the notification stays hidden per its frequency.
- * A no-op for "always". Writes the timestamp to session or local storage.
+ *
+ * "always" now writes a sessionStorage marker too, so a manual dismissal
+ * suppresses the notification for the rest of the session (not just the current
+ * pageview). once_per_period uses localStorage; always / once_per_session use
+ * sessionStorage.
  */
 export function recordNotificationDismissal(
   id: string,
@@ -107,11 +117,11 @@ export function recordNotificationDismissal(
   campaignId: string = "",
   now: number = Date.now(),
 ): void {
-  if (!id || frequency === "always") return;
-  const s = safeStorage(frequency === "once_per_session" ? "session" : "local");
+  if (!id) return;
+  const s = safeStorage(frequency === "once_per_period" ? "local" : "session");
   try {
     s?.setItem(notifStorageKey(id, campaignId), String(now));
   } catch {
-    // Quota or blocked storage — capping silently degrades to "always".
+    // Quota or blocked storage: capping silently degrades to "always".
   }
 }
