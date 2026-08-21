@@ -41,6 +41,8 @@ import { PresetBuilder }        from "./PresetBuilder";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
 import { SiteDesignTokensEditor } from "./SiteDesignTokensEditor";
+import { DesignTokenSetsLibrary } from "./DesignTokenSetsLibrary";
+import type { DesignTokenSet } from "@/lib/design-token-sets/design-token-sets-store";
 import { ResetDesignButton }    from "./ResetDesignButton";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
 import { saveVisualTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
@@ -102,6 +104,8 @@ export interface DesignPageClientProps {
   tenantId:     string;
   activeTheme?: ThemeKey | null;
   design:       TenantDesignSettings;
+  /** Saved design token sets (library) available to this tenant. */
+  tokenSets:    DesignTokenSet[];
 }
 
 // ── Active tab resolution ─────────────────────────────────────────────────────
@@ -535,6 +539,7 @@ export function DesignPageClient({
   tenantId,
   activeTheme,
   design,
+  tokenSets,
 }: DesignPageClientProps) {
   // Driven by the shared sub-nav links (?tab=…); "presets" when absent/unknown.
   const tabParam  = useSearchParams().get("tab");
@@ -675,6 +680,18 @@ export function DesignPageClient({
           visibleSections={["preset", "colors", "radius", "spacing", "borders", "shadows", "motion", "components", "json"]}
           hideHeader
         />
+
+        <div style={{ marginTop: "2rem" }}>
+          <TabSectionHeader
+            title="Saved token sets"
+            description="Save the current token overrides as a reusable named set, then apply, rename, or delete them. Applying a set writes it to this tenant's token overrides."
+          />
+          <DesignTokenSetsLibrary
+            tenantId={tenantId}
+            currentTokens={(design.tokenOverrides ?? {}) as Record<string, unknown>}
+            initialSets={tokenSets}
+          />
+        </div>
       </TabPanel>
     </div>
   );

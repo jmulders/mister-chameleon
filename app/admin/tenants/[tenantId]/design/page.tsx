@@ -16,6 +16,7 @@ import { Suspense }      from "react";
 import { notFound }      from "next/navigation";
 import { getTenantById } from "@/tenant/server";
 import { normalizeThemeKey } from "@/tenant";
+import { listDesignTokenSets } from "@/lib/design-token-sets/design-token-sets-store";
 import { DesignPageClient }  from "./_components/DesignPageClient";
 
 export default async function TenantDesignPage({
@@ -26,6 +27,9 @@ export default async function TenantDesignPage({
   const { tenantId } = await params;
   const tenant = await getTenantById(tenantId);
   if (!tenant) notFound();
+
+  // Saved token sets for this tenant (plus platform-wide sets).
+  const tokenSets = await listDesignTokenSets(tenantId);
 
   // Normalize the stored theme key before passing to client components.
   // normalizeThemeKey() applies the LEGACY_THEME_MAP and falls back to
@@ -47,6 +51,7 @@ export default async function TenantDesignPage({
           tenantId={tenantId}
           activeTheme={safeThemeKey}
           design={safeDesign}
+          tokenSets={tokenSets}
         />
       </Suspense>
 
