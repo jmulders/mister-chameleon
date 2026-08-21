@@ -629,17 +629,22 @@ export function buildCompanyCrmChain(
           return cachedMatch.value;
         }
 
-        const result = await hubspot.matchByDomain(domain);
+        // Coalesce concurrent misses for the same domain so parallel visitors do
+        // not each fire the HubSpot search. matchByDomain returns a
+        // { crmMatched: false } sentinel on a no-match or error (never throws),
+        // which getOrLoad caches for the 2 h TTL exactly as before.
+        return hubspotDomainCache.getOrLoad(domainKey, async () => {
+          const result = await hubspot.matchByDomain(domain);
 
-        if (isDev) {
-          console.debug("[hubspot-crm-stage] domain match result", {
-            crmMatched:   result.crmMatched  ?? null,
-            crmCompanyId: result.crmCompanyId ?? null,
-          });
-        }
+          if (isDev) {
+            console.debug("[hubspot-crm-stage] domain match result", {
+              crmMatched:   result.crmMatched  ?? null,
+              crmCompanyId: result.crmCompanyId ?? null,
+            });
+          }
 
-        hubspotDomainCache.set(domainKey, result);
-        return result;
+          return result;
+        });
       },
     });
   }
