@@ -282,14 +282,14 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
     "category": "Neutrals & Stone",
     "baseTheme": "custom",
     "swatch": {
-      "primary": "#8f8877e",
+      "primary": "#8f8877",
       "background": "#f0ebe0",
       "foreground": "#3a362e",
       "accent": "#cfc6b6"
     },
     "tokenOverrides": {
       "color": {
-        "primary": "#8f8877e",
+        "primary": "#8f8877",
         "primaryHover": "#767065",
         "onPrimary": "#ffffff",
         "secondary": "#cfc6b6",
@@ -304,7 +304,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
         "link": "#6d6659",
         "success": "#3f8a6a",
         "danger": "#b4534a",
-        "gradient": "linear-gradient(135deg, #8f8877e 0%, #cfc6b6 120%)",
+        "gradient": "linear-gradient(135deg, #8f8877 0%, #cfc6b6 120%)",
         "gradientHero": "linear-gradient(180deg, #3a362e 0%, #5c554a 55%, #8f877e 100%)"
       },
       "typography": {
@@ -351,7 +351,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
         "headerBorder": "#dbd4c5",
         "footerBg": "#3a362e",
         "footerFg": "#e6e0d2",
-        "footerBorder": "#8f8877e",
+        "footerBorder": "#8f8877",
         "navLinkSize": "0.95rem",
         "navLinkWeight": "600",
         "navLinkTracking": "0",
@@ -359,7 +359,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       },
       "focus": {
         "ringWidth": "3px",
-        "ringColor": "#8f8877e"
+        "ringColor": "#8f8877"
       }
     }
   },
