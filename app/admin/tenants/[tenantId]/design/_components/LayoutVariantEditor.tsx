@@ -28,7 +28,8 @@
  *   Reads current values from `design` prop (TenantDesignSettings).
  *   Saves via saveVisualTokensAction — same action used by the token editor.
  *   Empty-string ("") tells the action to clear the override, reverting to
- *   the active theme family's default.
+ *   the applied preset's default (a featured family default when the preset has
+ *   one, otherwise the neutral hardcoded fallback).
  */
 
 "use client";
@@ -44,7 +45,6 @@ import {
   isFooterVariantOverridden,
   isFooterDensityOverridden,
 } from "@/design-system/theme/style-defaults";
-import { isFeaturedFamilyKey } from "@/design-system/theme/theme-families.config";
 import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.config";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -411,7 +411,7 @@ function VariantCard({ isActive, isAuto, onSelect, label, description, preview }
               fontSize: "0.625rem", fontWeight: 500,
               background: "#f0fdf4", color: "#16a34a", flexShrink: 0,
             }}>
-              Family default
+              Default
             </span>
           )}
         </div>
@@ -543,23 +543,25 @@ export function LayoutVariantEditor({ tenantId, design }: LayoutVariantEditorPro
 
   // ── Active family resolution ───────────────────────────────────────────────
   //
-  // Priority: selectedStyleFamily stored on design > infer from active theme preset.
+  // The active family is derived from the applied theme preset. A preset with no
+  // featured family (e.g. a colour preset applied as theme "custom") yields null,
+  // and the layout defaults fall back to the neutral hardcoded values below.
   // Only FeaturedFamilyKey entries have structural config entries.
 
-  const activeFamilyKey: FeaturedFamilyKey | null = (() => {
-    const stored = design.selectedStyleFamily;
-    if (stored && isFeaturedFamilyKey(stored)) return stored as FeaturedFamilyKey;
-    if (design.theme) return getFeaturedFamilyForPreset(String(design.theme));
-    return null;
-  })();
+  const activeFamilyKey: FeaturedFamilyKey | null =
+    design.theme ? getFeaturedFamilyForPreset(String(design.theme)) : null;
 
   const familyDefaults = activeFamilyKey ? getFamilyLayoutDefaults(activeFamilyKey) : null;
 
-  // Effective defaults (used in "Auto" labels and status lines).
+  // Effective defaults (used in "Auto" labels and status lines). When no featured
+  // family is active these are the neutral hardcoded fallbacks.
   const defaultHeaderVariant: HeaderVariant = familyDefaults?.headerVariant ?? "flyout";
   const defaultFooterVariant: FooterVariant = familyDefaults?.footerVariant ?? "minimal";
   const defaultFooterDensity: FooterDensity = familyDefaults?.footerDensity ?? "compact";
   const familyLabel: string                 = familyDefaults?.familyLabel   ?? "";
+  // Neutral wording for the status/reset affordances when there is no family.
+  const inheritedNote = familyLabel ? `Inherited from ${familyLabel}` : "Default";
+  const resetTarget   = familyLabel ? `${familyLabel} default` : "default";
 
   // Override detection — compares stored values against family defaults.
   const headerIsOverridden  = isHeaderVariantOverridden(design.headerVariant, activeFamilyKey);
@@ -627,46 +629,44 @@ export function LayoutVariantEditor({ tenantId, design }: LayoutVariantEditorPro
       <div>
         <SectionLabel>Header variant</SectionLabel>
         <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: "0 0 0.75rem" }}>
-          Controls the navigation style and header background. "Auto" uses the default for your active theme family.
+          Controls the navigation style and header background. "Auto" uses the default for the applied preset.
         </p>
 
         {/* Inherited / override status indicator */}
-        {familyLabel && (
-          <div style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-            {!headerIsOverridden ? (
+        <div style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+          {!headerIsOverridden ? (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              fontSize: "0.75rem", color: "#16a34a", fontWeight: 500,
+            }}>
+              <span style={{ opacity: 0.7 }}>✦</span>
+              {inheritedNote}: <strong>{defaultHeaderVariant}</strong>
+            </span>
+          ) : (
+            <>
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: "4px",
-                fontSize: "0.75rem", color: "#16a34a", fontWeight: 500,
+                padding: "1px 8px", borderRadius: "9999px",
+                fontSize: "0.6875rem", fontWeight: 600,
+                background: "#fff7ed", color: "#c2410c",
+                border: "1px solid #fed7aa",
               }}>
-                <span style={{ opacity: 0.7 }}>✦</span>
-                Inherited from {familyLabel}: <strong>{defaultHeaderVariant}</strong>
+                Override active
               </span>
-            ) : (
-              <>
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: "4px",
-                  padding: "1px 8px", borderRadius: "9999px",
-                  fontSize: "0.6875rem", fontWeight: 600,
-                  background: "#fff7ed", color: "#c2410c",
-                  border: "1px solid #fed7aa",
-                }}>
-                  Override active
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setHeaderVal("auto")}
-                  style={{
-                    fontSize: "0.6875rem", color: "#6b7280", fontWeight: 500,
-                    background: "none", border: "none", cursor: "pointer",
-                    textDecoration: "underline", padding: 0,
-                  }}
-                >
-                  Reset to {familyLabel} default ({defaultHeaderVariant})
-                </button>
-              </>
-            )}
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => setHeaderVal("auto")}
+                style={{
+                  fontSize: "0.6875rem", color: "#6b7280", fontWeight: 500,
+                  background: "none", border: "none", cursor: "pointer",
+                  textDecoration: "underline", padding: 0,
+                }}
+              >
+                Reset to {resetTarget} ({defaultHeaderVariant})
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Auto option (reset) */}
         <div style={{ marginBottom: "0.625rem" }}>
@@ -719,42 +719,40 @@ export function LayoutVariantEditor({ tenantId, design }: LayoutVariantEditorPro
         </p>
 
         {/* Inherited / override status indicator */}
-        {familyLabel && (
-          <div style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-            {!footerIsOverridden ? (
+        <div style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+          {!footerIsOverridden ? (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "4px",
+              fontSize: "0.75rem", color: "#16a34a", fontWeight: 500,
+            }}>
+              <span style={{ opacity: 0.7 }}>✦</span>
+              {inheritedNote}: <strong>{defaultFooterVariant}</strong>
+            </span>
+          ) : (
+            <>
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: "4px",
-                fontSize: "0.75rem", color: "#16a34a", fontWeight: 500,
+                padding: "1px 8px", borderRadius: "9999px",
+                fontSize: "0.6875rem", fontWeight: 600,
+                background: "#fff7ed", color: "#c2410c",
+                border: "1px solid #fed7aa",
               }}>
-                <span style={{ opacity: 0.7 }}>✦</span>
-                Inherited from {familyLabel}: <strong>{defaultFooterVariant}</strong>
+                Override active
               </span>
-            ) : (
-              <>
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: "4px",
-                  padding: "1px 8px", borderRadius: "9999px",
-                  fontSize: "0.6875rem", fontWeight: 600,
-                  background: "#fff7ed", color: "#c2410c",
-                  border: "1px solid #fed7aa",
-                }}>
-                  Override active
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setFooterVal("auto")}
-                  style={{
-                    fontSize: "0.6875rem", color: "#6b7280", fontWeight: 500,
-                    background: "none", border: "none", cursor: "pointer",
-                    textDecoration: "underline", padding: 0,
-                  }}
-                >
-                  Reset to {familyLabel} default ({defaultFooterVariant})
-                </button>
-              </>
-            )}
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => setFooterVal("auto")}
+                style={{
+                  fontSize: "0.6875rem", color: "#6b7280", fontWeight: 500,
+                  background: "none", border: "none", cursor: "pointer",
+                  textDecoration: "underline", padding: 0,
+                }}
+              >
+                Reset to {resetTarget} ({defaultFooterVariant})
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Auto option (reset) */}
         <div style={{ marginBottom: "0.625rem" }}>
@@ -817,7 +815,7 @@ export function LayoutVariantEditor({ tenantId, design }: LayoutVariantEditorPro
             />
           </div>
           {/* Density override status */}
-          {familyLabel && densityIsOverridden && (
+          {densityIsOverridden && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: "4px",
@@ -837,13 +835,13 @@ export function LayoutVariantEditor({ tenantId, design }: LayoutVariantEditorPro
                   textDecoration: "underline", padding: 0,
                 }}
               >
-                Reset to {familyLabel} default ({defaultFooterDensity})
+                Reset to {resetTarget} ({defaultFooterDensity})
               </button>
             </div>
           )}
-          {familyLabel && !densityIsOverridden && (
+          {!densityIsOverridden && (
             <span style={{ fontSize: "0.6875rem", color: "#16a34a", fontWeight: 500 }}>
-              <span style={{ opacity: 0.7 }}>✦</span> Inherited from {familyLabel}: {defaultFooterDensity}
+              <span style={{ opacity: 0.7 }}>✦</span> {inheritedNote}: {defaultFooterDensity}
             </span>
           )}
         </div>
@@ -854,7 +852,7 @@ export function LayoutVariantEditor({ tenantId, design }: LayoutVariantEditorPro
         <SectionLabel>Navigation typography</SectionLabel>
         <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: "0 0 0.75rem" }}>
           Override font size, weight, and letter-spacing for header nav links and footer nav links.
-          Leave blank to use the active theme family's defaults.
+          Leave blank to use the applied preset's defaults.
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
