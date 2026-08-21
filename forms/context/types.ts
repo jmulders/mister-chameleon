@@ -13,6 +13,7 @@
  */
 
 import type { FormField } from "@/forms";
+import type { BlockMedia } from "@/lib/media/block-media";
 
 // ── Rule conditions ────────────────────────────────────────────────────────────
 
@@ -93,7 +94,10 @@ export interface ResolvedForm {
     readonly contactPanel?: {
       readonly name?:     string;
       readonly role?:     string;
+      /** @deprecated Legacy flat image URL. New saves write `media`; kept for backward-compat render. */
       readonly photoUrl?: string;
+      /** Shared block media (image / video with facade). Preferred over photoUrl. */
+      readonly media?:    BlockMedia;
       readonly phone?:    string;
       readonly email?:    string;
     };
