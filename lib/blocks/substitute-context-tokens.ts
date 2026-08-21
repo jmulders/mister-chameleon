@@ -113,3 +113,33 @@ export function substituteContextTokens(
     return neutralizeMarkup(value);
   });
 }
+
+/**
+ * Apply token substitution to the descriptive copy fields of a block's data
+ * (subtitle, text, and items[].text / items[].body) before it is rendered.
+ *
+ * Runs at the data level so the inline-markup compiler and the block components
+ * stay context-free. Returns a shallow copy; non-string fields are untouched.
+ */
+export function substituteBlockCopy<T>(
+  data: T,
+  ctx: RuleEvaluationContext,
+  customKeys?: Iterable<string>,
+): T {
+  if (!data || typeof data !== "object") return data;
+  const sub = (s: unknown) => (typeof s === "string" ? substituteContextTokens(s, ctx, customKeys) : s);
+
+  const out = { ...(data as Record<string, unknown>) };
+  if (typeof out.subtitle === "string") out.subtitle = sub(out.subtitle);
+  if (typeof out.text === "string") out.text = sub(out.text);
+  if (Array.isArray(out.items)) {
+    out.items = out.items.map((it) => {
+      if (!it || typeof it !== "object") return it;
+      const item = { ...(it as Record<string, unknown>) };
+      if (typeof item.text === "string") item.text = sub(item.text);
+      if (typeof item.body === "string") item.body = sub(item.body);
+      return item;
+    });
+  }
+  return out as T;
+}
