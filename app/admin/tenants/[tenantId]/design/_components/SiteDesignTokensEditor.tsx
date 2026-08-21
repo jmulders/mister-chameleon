@@ -79,7 +79,11 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
       // Reject grouped presets pasted here (they need the preset import path).
       const kind = detectTokenPayloadKind(parsed);
       if (kind === "preset") {
-        throw new Error(wrongBoxMessage("preset", "tokens") ?? "This looks like a design preset. Use the preset import.");
+        throw new Error(
+          "This looks like a grouped theme preset (a theme plus color/typography groups). " +
+          "Import it in the Builder tab (Import theme preset) or the Saved token sets panel on the Advanced tab. " +
+          "This box expects a single flat tokens object: { \"primary\": \"#...\", ... }.",
+        );
       }
       setTokens({ ...(parsed as Record<string, string>) });
       setShowJson(false);
@@ -177,7 +181,7 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
           {showJson ? "Hide JSON" : "Import / export JSON"}
         </button>
         <label style={{ ...btnStyle("ghost"), display: "inline-flex", alignItems: "center" }}>
-          Import site tokens (JSON)
+          Import block tokens (flat JSON)
           <input type="file" accept="application/json,.json" style={{ display: "none" }}
             onChange={(e) => { importFromFile(e.target.files?.[0]); e.currentTarget.value = ""; }} />
         </label>
@@ -205,6 +209,16 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
         Only when a specific block needs to differ do you assign a <em>Block token set</em> (below),
         which overrides these defaults for that one block.
       </div>
+
+      {/* Format note: flat block tokens here vs a grouped theme preset elsewhere */}
+      <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: "0 0 1rem", lineHeight: 1.5 }}>
+        These are flat, block-level tokens (<code style={{ fontFamily: "ui-monospace, monospace" }}>{"{ \"primary\": \"#...\", ... }"}</code>)
+        that set the default look of every block. For a full theme preset (a{" "}
+        <code style={{ fontFamily: "ui-monospace, monospace" }}>theme</code> plus grouped{" "}
+        <code style={{ fontFamily: "ui-monospace, monospace" }}>color</code> /{" "}
+        <code style={{ fontFamily: "ui-monospace, monospace" }}>typography</code> and header/footer chrome),
+        use the Builder tab or the Saved token sets panel on the Advanced tab.
+      </p>
 
       {/* JSON panel */}
       {showJson && (

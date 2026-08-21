@@ -132,6 +132,14 @@ export function DesignTokenSetsLibrary({ tenantId, currentTokens, initialSets }:
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-5">
+      {/* Format note: grouped theme presets here vs flat block tokens elsewhere */}
+      <p className="mb-4 text-xs text-neutral-500 leading-relaxed">
+        This accepts the grouped theme-preset format
+        (<code className="font-mono">{'{ "theme": "...", "color": {...}, "typography": {...}, ... }'}</code>),
+        the overarching design system and header/footer chrome. For flat, per-block tokens use the
+        SITE DESIGN TOKENS box on the Blocks tab.
+      </p>
+
       {/* Save current tokens */}
       <div className="mb-5">
         <label className="block text-xs font-medium text-neutral-700 mb-1">Save current tokens as set</label>
@@ -157,14 +165,14 @@ export function DesignTokenSetsLibrary({ tenantId, currentTokens, initialSets }:
           </button>
           <label className="inline-flex items-center gap-1.5 text-xs text-neutral-600">
             <input type="checkbox" checked={pasteOn} onChange={(e) => setPasteOn(e.target.checked)} />
-            Save from pasted JSON instead
+            Save from pasted grouped theme-preset JSON instead
           </label>
         </div>
         {pasteOn && (
           <textarea
             value={pasteJson}
             onChange={(e) => setPasteJson(e.target.value)}
-            placeholder='{"color": {"primary": "#112233"}}'
+            placeholder='grouped theme-preset JSON, e.g. {"theme": "aurora-purple-gold", "color": {"primary": "#112233"}, "typography": {"fontHeading": "Inter"}}'
             rows={5}
             className="mt-2 w-full rounded-md border border-neutral-300 px-2.5 py-2 font-mono text-xs"
           />
