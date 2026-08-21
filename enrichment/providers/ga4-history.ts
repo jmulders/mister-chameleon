@@ -150,31 +150,35 @@ async function getAccessToken(sa: ServiceAccountJson): Promise<string> {
   const cached   = tokenCache.get(cacheKey);
   if (cached.hit) return cached.value;
 
-  const jwt = createServiceAccountJwt(sa);
+  // Coalesce concurrent token exchanges for the same service account so parallel
+  // GA4 lookups share a single OAuth round-trip. getOrLoad caches the token on
+  // success; a failed exchange throws and is not cached (a later call retries).
+  return tokenCache.getOrLoad(cacheKey, async () => {
+    const jwt = createServiceAccountJwt(sa);
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method:  "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body:    new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion:  jwt,
-    }),
-    signal: AbortSignal.timeout(8_000),
-    cache:  "no-store",
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method:  "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body:    new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion:  jwt,
+      }),
+      signal: AbortSignal.timeout(8_000),
+      cache:  "no-store",
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`GA4 OAuth token exchange failed (HTTP ${response.status}): ${text.slice(0, 200)}`);
+    }
+
+    const data = (await response.json()) as { access_token?: string };
+    if (!data.access_token) {
+      throw new Error("GA4 OAuth token exchange returned no access_token");
+    }
+
+    return data.access_token;
   });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`GA4 OAuth token exchange failed (HTTP ${response.status}): ${text.slice(0, 200)}`);
-  }
-
-  const data = (await response.json()) as { access_token?: string };
-  if (!data.access_token) {
-    throw new Error("GA4 OAuth token exchange returned no access_token");
-  }
-
-  tokenCache.set(cacheKey, data.access_token);
-  return data.access_token;
 }
 
 // ── GA4 Data API query ─────────────────────────────────────────────────────────
@@ -484,15 +488,52 @@ export function createGa4HistoryEnricher(
         lookbackDays,
       });
 
-      let report: Ga4ReportResponse;
+      // ── Query GA4, aggregate, cache (coalesced) ────────────────────────────
+      //
+      // getOrLoad coalesces concurrent misses for the same property:visitor so
+      // only one GA4 Data API query runs; the aggregated output is cached
+      // unconditionally on success (an empty result is cached exactly as before).
+      // A query failure throws and is not cached, keeping the existing warn.
       try {
-        report = await queryGa4Report(
-          propertyId,
-          visitorIdDimension,
-          visitorId,
-          lookbackDays,
-          accessToken,
-        );
+        const output = await cache.getOrLoad(cacheKey, async () => {
+          const report = await queryGa4Report(
+            propertyId,
+            visitorIdDimension,
+            visitorId,
+            lookbackDays,
+            accessToken,
+          );
+
+          // ── Aggregate rows → output ──────────────────────────────────────
+          const rows = report.rows ?? [];
+          const agg  = aggregateGa4Rows(rows);
+
+          // Always log lookup results. rowsReturned: 0 here is the key indicator
+          // that GA4 has not yet associated any events with this visitorId user property.
+          logger.debug("[ga4-history] GA4 Data API result", {
+            visitorId,
+            propertyId,
+            rowsReturned:          rows.length,
+            rowCount:              report.rowCount ?? 0,
+            gaSessionCount:        agg.gaSessionCount ?? null,
+            // Current session (most recent date row)
+            gaCurrentCity:         agg.gaCurrentCity ?? null,
+            gaCurrentRegion:       agg.gaCurrentRegion ?? null,
+            gaCurrentCountry:      agg.gaCurrentCountry ?? null,
+            gaCurrentChannelGroup: agg.gaCurrentChannelGroup ?? null,
+            // Previous session (second most recent date row; null when only one row)
+            gaLastKnownCity:       agg.gaLastKnownCity ?? null,
+            gaLastKnownRegion:     agg.gaLastKnownRegion ?? null,
+            gaLastKnownCountry:    agg.gaLastKnownCountry ?? null,
+            gaLastChannelGroup:    agg.gaLastChannelGroup ?? null,
+            hasData:               rows.length > 0,
+            hasPreviousSession:    rows.length >= 2,
+          });
+
+          return agg;
+        });
+
+        return output;
       } catch (err) {
         logger.warn("[ga4-history] GA4 Data API query failed", {
           visitorId,
@@ -501,36 +542,6 @@ export function createGa4HistoryEnricher(
         });
         return {};
       }
-
-      // ── Aggregate rows → output ────────────────────────────────────────────
-      const rows   = report.rows ?? [];
-      const output = aggregateGa4Rows(rows);
-
-      // Always log lookup results — rowsReturned: 0 here is the key indicator
-      // that GA4 has not yet associated any events with this visitorId user property.
-      logger.debug("[ga4-history] GA4 Data API result", {
-        visitorId,
-        propertyId,
-        rowsReturned:          rows.length,
-        rowCount:              report.rowCount ?? 0,
-        gaSessionCount:        output.gaSessionCount ?? null,
-        // Current session (most recent date row)
-        gaCurrentCity:         output.gaCurrentCity ?? null,
-        gaCurrentRegion:       output.gaCurrentRegion ?? null,
-        gaCurrentCountry:      output.gaCurrentCountry ?? null,
-        gaCurrentChannelGroup: output.gaCurrentChannelGroup ?? null,
-        // Previous session (second most recent date row; null when only one row)
-        gaLastKnownCity:       output.gaLastKnownCity ?? null,
-        gaLastKnownRegion:     output.gaLastKnownRegion ?? null,
-        gaLastKnownCountry:    output.gaLastKnownCountry ?? null,
-        gaLastChannelGroup:    output.gaLastChannelGroup ?? null,
-        hasData:               rows.length > 0,
-        hasPreviousSession:    rows.length >= 2,
-      });
-
-      // ── Cache and return ───────────────────────────────────────────────────
-      cache.set(cacheKey, output);
-      return output;
     },
   };
 }
