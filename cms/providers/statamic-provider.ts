@@ -95,6 +95,7 @@ import { isContextSlotBlockType } from "../mappers/statamic/context-slot-block";
 import { StatamicClient, createStatamicClient } from "./statamic-client";
 import { logger } from "@/lib/logger";
 import { adaptiveItemToProofItem, adaptiveItemToFeatureItem, adaptiveCtasToButtons } from "@/lib/blocks/adaptive-item-to-block";
+import { adaptiveVariantToConversionData, adaptiveVariantToNotificationData } from "@/lib/blocks/adaptive-variant-to-overlay";
 import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 import type { ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type { TenantSettings } from "@/tenant/types";
@@ -518,52 +519,16 @@ export class StatamicProvider implements CMSProvider {
 
   private adaptiveToConversion(data: AdaptiveBlockData | null): ConversionBlockData | null {
     if (!data || !data.isActive) return null;
-    const c = data.defaultVariant;
-    return {
-      id:           data.key,
-      layoutVariant: c.layoutVariant,
-      title:        c.title,
-      text:         c.subtitle,
-      ctas:         c.ctas ?? [],
-      ...(c.formKey ? { formKey: c.formKey } : {}),
-    };
+    // Delegate the variant → data mapping to the shared mapper (also used by the
+    // admin block preview route) so both paths stay in lock-step.
+    return adaptiveVariantToConversionData(data.defaultVariant, data.key);
   }
 
   private adaptiveToNotification(data: AdaptiveBlockData | null): NotificationBlockData | null {
     if (!data || !data.isActive) return null;
-    const c = data.defaultVariant;
-    // `title` is the notification message — required field.
-    if (!c.title) return null;
-
-    // Derive severity from the layoutVariant key:
-    //   "notification_warning" → "warning"
-    //   "notification_success" → "success"
-    //   "notification_promo"   → "promo"
-    //   anything else          → "info"  (safe default)
-    const lv = c.layoutVariant ?? "";
-    const severity: NotificationBlockData["severity"] =
-      lv.includes("warning") ? "warning" :
-      lv.includes("success") ? "success" :
-      lv.includes("promo")   ? "promo"   : "info";
-
-    const primaryCta = c.ctas?.[0];
-    const media = heroBannerMediaToBlockMedia(c.media);
-    return {
-      id:          data.key,
-      message:     c.title,
-      severity,
-      ctaLabel:    primaryCta?.label ?? undefined,
-      ctaHref:     primaryCta?.href  ?? undefined,
-      position:    c.notifPosition ?? "top",
-      dismissible: c.notifDismissible ?? true,
-      ...(c.notifAutoDismissMs !== undefined ? { autoDismissMs: c.notifAutoDismissMs } : {}),
-      ...(c.notifFrequency ? { frequency: c.notifFrequency } : {}),
-      ...(c.notifTtl !== undefined ? { ttl: c.notifTtl } : {}),
-      ...(c.notifTtlUnit ? { ttlUnit: c.notifTtlUnit } : {}),
-      ...(c.notifCampaignId ? { campaignId: c.notifCampaignId } : {}),
-      ...(media          ? { media }               : {}),
-      ...(c.mediaSide    ? { mediaSide: c.mediaSide } : {}),
-    };
+    // Delegate the variant → data mapping to the shared mapper (also used by the
+    // admin block preview route). Returns null when the message is empty.
+    return adaptiveVariantToNotificationData(data.defaultVariant, data.key);
   }
 
   async getNotificationVariant(key: string): Promise<NotificationBlockData | null> {
