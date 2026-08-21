@@ -62,6 +62,7 @@ export default async function TenantDebugPage({
   // ── Debug overlay settings ─────────────────────────────────────────────────
   const showDebugOverlay = tenant.debug?.showDebugOverlay ?? false;
   const debugLevel       = tenant.debug?.debugLevel       ?? "full";
+  const showScenarioControl = tenant.debug?.showScenarioControl ?? false;
 
   // ── Dev override state (development only) ──────────────────────────────────
   const devActiveTenantId: string | null =
@@ -94,6 +95,7 @@ export default async function TenantDebugPage({
           tenantId={tenantId}
           showDebugOverlay={showDebugOverlay}
           debugLevel={debugLevel}
+          showScenarioControl={showScenarioControl}
         />
       </section>
 

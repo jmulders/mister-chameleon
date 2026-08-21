@@ -65,7 +65,7 @@ import { StatamicPreviewWatcher } from "@/components/preview/StatamicPreviewWatc
 import { ScenarioControlMount } from "@/components/scenario/ScenarioControlMount";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
-import { getActiveTenant } from "@/tenant/server";
+import { getActiveTenant, getTenantById } from "@/tenant/server";
 
 export default async function SiteLayout({
   children,
@@ -91,6 +91,20 @@ export default async function SiteLayout({
     tenantId = tenant.tenantId;
   } catch {
     // Non-fatal — layout must never crash due to tenant resolution failure.
+  }
+
+  // Scenario console gate: the operator/demo console is mounted site-wide only
+  // when the tenant has turned it on (debug.showScenarioControl). getActiveTenant
+  // is DB-free and does not carry debug settings, so read them here; default off
+  // so it never appears unintentionally on a live tenant.
+  let showScenarioControl = false;
+  if (tenantId !== "unknown") {
+    try {
+      const settings = await getTenantById(tenantId);
+      showScenarioControl = settings?.debug?.showScenarioControl === true;
+    } catch {
+      // Non-fatal — leave the console off when settings can't be read.
+    }
   }
 
   return (
@@ -141,11 +155,12 @@ export default async function SiteLayout({
       */}
       <StatamicPreviewWatcher />
       {/*
-        ScenarioControlPanel — floating debug/scenario overlay.
-        Self-guards visibility: only shows in dev or when NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1
-        or ?scenario=true is in the URL. Rendered after all page content.
+        ScenarioControlPanel — floating operator/demo console.
+        Mounted only when the tenant enabled it (debug.showScenarioControl). Once
+        mounted it still self-guards client-side (dev / NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1
+        / ?scenario=true, plus auto-open on an active scenario).
       */}
-      <ScenarioControlMount />
+      {showScenarioControl && <ScenarioControlMount />}
       {/*
         PageTracker fires a `page_view` event on every client-side route change.
         Placed in the shared layout so it runs on ALL (site) pages — homepage,
