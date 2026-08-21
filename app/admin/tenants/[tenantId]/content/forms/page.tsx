@@ -167,15 +167,25 @@ export default async function TenantFormsPage({
     <div className="p-8 max-w-3xl space-y-8">
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold text-neutral-900">Form Settings</h1>
-        <p className="text-sm text-neutral-500">
-          Configure email delivery, notifications, and form behavior for{" "}
-          <span className="font-medium text-neutral-700">
-            {tenant.name ?? tenant.tenantId}
-          </span>
-          .
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold text-neutral-900">Form Settings</h1>
+          <p className="text-sm text-neutral-500">
+            Configure email delivery, notifications, and form behavior for{" "}
+            <span className="font-medium text-neutral-700">
+              {tenant.name ?? tenant.tenantId}
+            </span>
+            .
+          </p>
+        </div>
+        {/* Discoverable entry point to the submissions inbox (same tenant scope). */}
+        <Link
+          href={`/admin/tenants/${tenant.tenantId}/content/forms/submissions`}
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+        >
+          View submissions
+          <span aria-hidden="true">&rarr;</span>
+        </Link>
       </div>
 
       {/* ── 1. Effective Status Summary ──────────────────────────────────── */}
