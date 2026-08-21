@@ -28,6 +28,7 @@
  */
 
 import type { ThemeKey, TenantTokenOverrides } from "./types";
+import { LAB_PRESET_CARDS } from "./design-presets-lab";
 
 export interface DesignPresetCard {
   /** Stable id (used as the gallery key + analytics). */
@@ -36,6 +37,8 @@ export interface DesignPresetCard {
   readonly name: string;
   /** One-line description of the personality / best-fit use. */
   readonly description: string;
+  /** Grouping label for the Presets tab (e.g. "General", "Warm & Earthy"). */
+  readonly category: string;
   /** Base ThemeKey to set on the tenant. "custom" = tokens fully define the look. */
   readonly baseTheme: ThemeKey;
   /** Grouped token overrides — written to design.tokenOverrides on apply. */
@@ -54,6 +57,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "indigo-saas",
     name: "Indigo SaaS",
     description: "Clean, modern, product-led SaaS. Indigo on white, Inter, balanced corners.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#4f46e5", background: "#ffffff", foreground: "#0f172a", accent: "#eef2ff" },
     tokenOverrides: {
@@ -69,6 +73,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "editorial-serif",
     name: "Editorial Serif",
     description: "High-end editorial. Warm cream, ink text, Cormorant serif headings, hairline rules.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#1f2937", background: "#faf6ef", foreground: "#2b2620", accent: "#f3efe7" },
     tokenOverrides: {
@@ -84,6 +89,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "industrial-strong",
     name: "Industrial Strong",
     description: "Manufacturing & logistics. Red on stone, UPPERCASE headings, zero radius, hard borders.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#dc2626", background: "#f5f3ef", foreground: "#1c1917", accent: "#f5f3ef" },
     tokenOverrides: {
@@ -99,6 +105,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "minimal-mono",
     name: "Minimal Mono",
     description: "Pure structure, no colour. Zinc monochrome, near-zero radius, thin lines, whitespace.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#18181b", background: "#ffffff", foreground: "#18181b", accent: "#f4f4f5" },
     tokenOverrides: {
@@ -114,6 +121,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "bold-dark",
     name: "Bold Dark",
     description: "High-energy launches. Near-black canvas, amber accent, glow, balanced radius.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#f59e0b", background: "#0a0a0f", foreground: "#f4f4f5", accent: "#1c1917" },
     tokenOverrides: {
@@ -129,6 +137,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "healthcare-calm",
     name: "Healthcare Calm",
     description: "Healthcare & wellness. Cyan on sky-blue, soft rounded corners, airy and light.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#0891b2", background: "#f0f9ff", foreground: "#0c4a6e", accent: "#ecfeff" },
     tokenOverrides: {
@@ -144,6 +153,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "corporate-navy",
     name: "Corporate Navy",
     description: "Trust & authority for professional services. Navy blue, sharp corners, DM Sans.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#1e3a8a", background: "#ffffff", foreground: "#0f172a", accent: "#eff6ff" },
     tokenOverrides: {
@@ -159,6 +169,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "playful-startup",
     name: "Playful Startup",
     description: "Consumer apps & EdTech. Vivid violet + pink, big soft corners, expressive Space Grotesk.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#7c3aed", background: "#ffffff", foreground: "#1e1b4b", accent: "#f5f3ff" },
     tokenOverrides: {
@@ -174,6 +185,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "premium-luxury",
     name: "Premium Luxury",
     description: "Prestige brands. Deep gold on warm cream, refined serif headings, pill buttons.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#a87c2a", background: "#fbf8f1", foreground: "#2d2a24", accent: "#f7f1e3" },
     tokenOverrides: {
@@ -189,6 +201,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "modern-green",
     name: "Modern Green",
     description: "Growth & sustainability. Emerald, fresh and friendly, Manrope, balanced radius.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#059669", background: "#ffffff", foreground: "#052e16", accent: "#ecfdf5" },
     tokenOverrides: {
@@ -204,6 +217,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "aurora-purple",
     name: "Aurora Purple",
     description: "Purple brand with a hero gradient fading from deep purple to bright violet. Space Grotesk headings, soft corners, purple glow.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#7c3aed", background: "#faf5ff", foreground: "#2e1065", accent: "#d946ef" },
     tokenOverrides: {
@@ -223,6 +237,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     id: "aurora-purple-gold",
     name: "Aurora Purple Gold",
     description: "Aurora Purple with a complementary gold accent — soft-gold eyebrow badge + gold secondary, a thin gold rule under the dark header. Purple + gold = classic premium.",
+    category: "General",
     baseTheme: "custom",
     swatch: { primary: "#7c3aed", background: "#faf5ff", foreground: "#2e1065", accent: "#d4af37" },
     tokenOverrides: {
@@ -244,7 +259,9 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
       focus: { ringWidth: "3px", ringColor: "#7c3aed" },
     },
   },
-] as const;
+  // The 30 LAB Colour presets, grouped into their four categories.
+  ...LAB_PRESET_CARDS,
+];
 
 /** Look up a preset by id. */
 export function getDesignPreset(id: string): DesignPresetCard | undefined {

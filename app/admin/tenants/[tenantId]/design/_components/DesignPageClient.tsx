@@ -37,6 +37,7 @@ import { useState, useTransition } from "react";
 import type { CSSProperties }      from "react";
 import { useSearchParams }         from "next/navigation";
 import { ThemeGallery }         from "./ThemeGallery";
+import { PresetGallery }        from "./PresetGallery";
 import { PresetBuilder }        from "./PresetBuilder";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
@@ -577,6 +578,14 @@ export function DesignPageClient({
         />
         <CurrentlyAppliedCard activeTheme={activeTheme} design={design} />
         <ThemeGallery tenantId={tenantId} activeTheme={activeTheme} />
+
+        <div style={{ marginTop: "2rem" }}>
+          <TabSectionHeader
+            title="Colour presets"
+            description="Ready-made colour looks, grouped by category. Applying one sets the complete look (colours, typography, buttons, radius, chrome, and the site-wide block tokens the adaptive blocks inherit)."
+          />
+          <PresetGallery tenantId={tenantId} design={design} />
+        </div>
       </TabPanel>
 
       {/* ── Builder ─────────────────────────────────────────────────────────── */}

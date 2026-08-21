@@ -102,16 +102,10 @@ export function PresetGallery({ tenantId, design }: Props) {
     });
   }
 
-  return (
-    <div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {DESIGN_PRESET_GALLERY.map((p) => {
+  // Categories in gallery order (existing "General" first, then the LAB groups).
+  const categories = [...new Set(DESIGN_PRESET_GALLERY.map((p) => p.category))];
+
+  const renderCard = (p: DesignPresetCard) => {
           const isActive = !!activePrimary && p.swatch.primary.toLowerCase() === activePrimary;
           return (
             <div
@@ -157,8 +151,24 @@ export function PresetGallery({ tenantId, design }: Props) {
               </div>
             </div>
           );
-        })}
-      </div>
+  };
+
+  return (
+    <div>
+      {categories.map((cat) => (
+        <div key={cat} style={{ marginBottom: 28 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 10px" }}>{cat}</h3>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {DESIGN_PRESET_GALLERY.filter((p) => p.category === cat).map(renderCard)}
+          </div>
+        </div>
+      ))}
       <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 16, maxWidth: "70ch" }}>
         A preset sets the entire look in one go. Colors, typography, buttons, radius, header/footer, and the
         site-wide block tokens that carry through to every content block and adaptive slot. You can then fine-tune
