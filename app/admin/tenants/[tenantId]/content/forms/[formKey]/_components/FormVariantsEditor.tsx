@@ -19,6 +19,10 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import type { FormVariantEntry, FormVariantContent } from "@/forms/context/variant";
 import type { FormField } from "@/forms/types";
+import type { HeroBannerMedia } from "@/cms/types";
+import { SlideMediaEditor } from "@/components/admin/media/MediaEditor";
+import { heroBannerMediaToBlockMedia, blockMediaToHeroBannerMedia } from "@/lib/media/hero-banner-to-block-media";
+import { legacyPhotoUrlToBlockMedia } from "@/lib/media/block-media";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Template = "single" | "split-left" | "split-right";
@@ -34,6 +38,8 @@ interface FieldRow {
 }
 
 interface Props {
+  /** Tenant slug, for the shared media editor's asset picker. */
+  tenantId:         string;
   definitionFields: FormField[];
   initialVariants:  FormVariantEntry[];
   saveAction:   (entry: FormVariantEntry) => Promise<Result>;
@@ -120,12 +126,12 @@ function buildFields(rows: FieldRow[], defFields: FormField[]): FormField[] {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function FormVariantsEditor({ definitionFields, initialVariants, saveAction, deleteAction }: Props) {
+export function FormVariantsEditor({ tenantId, definitionFields, initialVariants, saveAction, deleteAction }: Props) {
   const [variants, setVariants] = useState<FormVariantEntry[]>(initialVariants);
   const blankDraft = () => ({
     variantKey: "", label: "", template: "single" as Template,
     title: "", intro: "", submitLabel: "", successMessage: "",
-    cpName: "", cpRole: "", cpPhoto: "", cpPhone: "", cpEmail: "",
+    cpName: "", cpRole: "", cpMedia: undefined as HeroBannerMedia | undefined, cpPhone: "", cpEmail: "",
     fields: seedRows(definitionFields, undefined),
   });
   const [draft, setDraft]           = useState(blankDraft);
@@ -143,7 +149,7 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
       variantKey: v.variantKey, label: v.label ?? "",
       template: (c.layout?.template ?? "single") as Template,
       title: c.title ?? "", intro: c.intro ?? "", submitLabel: c.submitLabel ?? "", successMessage: c.successMessage ?? "",
-      cpName: cp?.name ?? "", cpRole: cp?.role ?? "", cpPhoto: cp?.photoUrl ?? "", cpPhone: cp?.phone ?? "", cpEmail: cp?.email ?? "",
+      cpName: cp?.name ?? "", cpRole: cp?.role ?? "", cpMedia: blockMediaToHeroBannerMedia(cp?.media ?? legacyPhotoUrlToBlockMedia(cp?.photoUrl)), cpPhone: cp?.phone ?? "", cpEmail: cp?.email ?? "",
       fields: seedRows(definitionFields, c.fields),
     });
     setShowFields(!!c.fields && c.fields.length > 0);
@@ -174,7 +180,7 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
           contactPanel: {
             name:     draft.cpName.trim()  || undefined,
             role:     draft.cpRole.trim()  || undefined,
-            photoUrl: draft.cpPhoto.trim() || undefined,
+            ...(heroBannerMediaToBlockMedia(draft.cpMedia) ? { media: heroBannerMediaToBlockMedia(draft.cpMedia) } : {}),
             phone:    draft.cpPhone.trim() || undefined,
             email:    draft.cpEmail.trim() || undefined,
           },
@@ -293,12 +299,16 @@ export function FormVariantsEditor({ definitionFields, initialVariants, saveActi
         <Field label="Thank-you message"><input className={input} value={draft.successMessage} onChange={(e) => setDraft({ ...draft, successMessage: e.target.value })} /></Field>
 
         {draft.template !== "single" && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Contact name"><input className={input} value={draft.cpName} onChange={(e) => setDraft({ ...draft, cpName: e.target.value })} /></Field>
-            <Field label="Contact role"><input className={input} value={draft.cpRole} onChange={(e) => setDraft({ ...draft, cpRole: e.target.value })} /></Field>
-            <Field label="Photo URL"><input className={input} value={draft.cpPhoto} onChange={(e) => setDraft({ ...draft, cpPhoto: e.target.value })} /></Field>
-            <Field label="Phone"><input className={input} value={draft.cpPhone} onChange={(e) => setDraft({ ...draft, cpPhone: e.target.value })} /></Field>
-            <Field label="Email"><input className={input} value={draft.cpEmail} onChange={(e) => setDraft({ ...draft, cpEmail: e.target.value })} /></Field>
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Contact name"><input className={input} value={draft.cpName} onChange={(e) => setDraft({ ...draft, cpName: e.target.value })} /></Field>
+              <Field label="Contact role"><input className={input} value={draft.cpRole} onChange={(e) => setDraft({ ...draft, cpRole: e.target.value })} /></Field>
+              <Field label="Phone"><input className={input} value={draft.cpPhone} onChange={(e) => setDraft({ ...draft, cpPhone: e.target.value })} /></Field>
+              <Field label="Email"><input className={input} value={draft.cpEmail} onChange={(e) => setDraft({ ...draft, cpEmail: e.target.value })} /></Field>
+            </div>
+            <Field label="Photo or video">
+              <SlideMediaEditor tenantId={tenantId} media={draft.cpMedia} onChange={(m) => setDraft({ ...draft, cpMedia: m })} />
+            </Field>
           </div>
         )}
 

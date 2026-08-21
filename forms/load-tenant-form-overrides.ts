@@ -36,6 +36,7 @@ import { getDb }                              from "@/data/db";
 import { logger }                             from "@/lib/logger";
 import type { TenantFormOverrideSettings }    from "@/tenant/types";
 import { DEFAULT_FORM_OVERRIDE_SETTINGS }     from "@/tenant/types";
+import { sanitizeBlockMedia }                 from "@/lib/media/block-media";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -154,10 +155,15 @@ function parseLayout(raw: unknown): TenantFormOverrideSettings["layout"] {
   const cp = r.contactPanel && typeof r.contactPanel === "object"
     ? (r.contactPanel as Record<string, unknown>)
     : {};
+  // Keep photoUrl (legacy) and media (new) as separate fields. The renderer
+  // prefers media and falls back to the round-avatar photoUrl, so media is NOT
+  // synthesised from photoUrl here.
+  const media = sanitizeBlockMedia(cp.media);
   const contactPanel = {
     name:     str(cp.name),
     role:     str(cp.role),
     photoUrl: str(cp.photoUrl),
+    ...(media ? { media } : {}),
     phone:    str(cp.phone),
     email:    str(cp.email),
   };

@@ -32,6 +32,7 @@
 
 import type { TenantTheme } from "@/design-system/theme/tenant-theme";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
+import type { BlockMedia } from "@/lib/media/block-media";
 
 // Re-export so consumers can import TenantTheme from "@/tenant" directly.
 export type { TenantTheme };
@@ -321,7 +322,10 @@ export interface FormLayout {
   contactPanel?: {
     name?:     string;
     role?:     string;
+    /** @deprecated Legacy flat image URL. New saves write `media`; kept for backward-compat render. */
     photoUrl?: string;
+    /** Shared block media (image / video with facade). Preferred over photoUrl. */
+    media?:    BlockMedia;
     phone?:    string;
     email?:    string;
   };

@@ -29,6 +29,10 @@
 
 import { useState, useTransition }    from "react";
 import type { TenantFormOverrideSettings } from "@/tenant/types";
+import type { HeroBannerMedia }       from "@/cms/types";
+import { SlideMediaEditor }           from "@/components/admin/media/MediaEditor";
+import { heroBannerMediaToBlockMedia, blockMediaToHeroBannerMedia } from "@/lib/media/hero-banner-to-block-media";
+import { legacyPhotoUrlToBlockMedia } from "@/lib/media/block-media";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,6 +47,8 @@ interface FormOverrideClientProps {
   defStore:           boolean;
   /** Whether the tenant has Turnstile site + secret keys configured (for a hint). */
   turnstileHasKeys?:  boolean;
+  /** Tenant slug, for the shared media editor's asset picker. */
+  tenantId:           string;
   saveAction:  (overrides: Partial<TenantFormOverrideSettings>) => Promise<{ ok: true } | { ok: false; error: string }>;
   resetAction: ()                                               => Promise<{ ok: true } | { ok: false; error: string }>;
 }
@@ -59,6 +65,7 @@ export function FormOverrideClient({
   defConfirm,
   defStore,
   turnstileHasKeys,
+  tenantId,
   saveAction,
   resetAction,
 }: FormOverrideClientProps) {
@@ -74,7 +81,10 @@ export function FormOverrideClient({
   const cp0 = initialOverride.layout?.contactPanel;
   const [cpName,  setCpName]  = useState(cp0?.name     ?? "");
   const [cpRole,  setCpRole]  = useState(cp0?.role     ?? "");
-  const [cpPhoto, setCpPhoto] = useState(cp0?.photoUrl ?? "");
+  // Media editor draft, seeded from the saved media or a legacy photoUrl.
+  const [cpMedia, setCpMedia] = useState<HeroBannerMedia | undefined>(
+    () => blockMediaToHeroBannerMedia(cp0?.media ?? legacyPhotoUrlToBlockMedia(cp0?.photoUrl)),
+  );
   const [cpPhone, setCpPhone] = useState(cp0?.phone    ?? "");
   const [cpEmail, setCpEmail] = useState(cp0?.email    ?? "");
   const [recipients,      setRecipients]      = useState(initialOverride.customRecipients.join(", "));
@@ -115,7 +125,7 @@ export function FormOverrideClient({
               contactPanel: {
                 name:     cpName.trim()  || undefined,
                 role:     cpRole.trim()  || undefined,
-                photoUrl: cpPhoto.trim() || undefined,
+                ...(heroBannerMediaToBlockMedia(cpMedia) ? { media: heroBannerMediaToBlockMedia(cpMedia) } : {}),
                 phone:    cpPhone.trim() || undefined,
                 email:    cpEmail.trim() || undefined,
               },
@@ -150,7 +160,7 @@ export function FormOverrideClient({
         setStoreEnabled(true);
         setTurnstileEnabled(false);
         setLayoutTemplate("single");
-        setCpName(""); setCpRole(""); setCpPhoto(""); setCpPhone(""); setCpEmail("");
+        setCpName(""); setCpRole(""); setCpMedia(undefined); setCpPhone(""); setCpEmail("");
         setRecipients("");
         setCustomSubject("");
         setCustomSender("");
@@ -295,26 +305,31 @@ export function FormOverrideClient({
           </div>
 
           {layoutTemplate !== "single" && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {([
-                ["Name", cpName, setCpName, "Jane Smith"],
-                ["Role", cpRole, setCpRole, "Sales manager"],
-                ["Photo URL", cpPhoto, setCpPhoto, "https://…/photo.jpg"],
-                ["Phone", cpPhone, setCpPhone, "033 246 10 00"],
-                ["Email", cpEmail, setCpEmail, "info@example.com"],
-              ] as const).map(([label, val, set, ph]) => (
-                <div key={label}>
-                  <label className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
-                  <input
-                    type="text"
-                    value={val}
-                    onChange={(e) => set(e.target.value)}
-                    placeholder={ph}
-                    disabled={isBusy}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1"
-                  />
-                </div>
-              ))}
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  ["Name", cpName, setCpName, "Jane Smith"],
+                  ["Role", cpRole, setCpRole, "Sales manager"],
+                  ["Phone", cpPhone, setCpPhone, "033 246 10 00"],
+                  ["Email", cpEmail, setCpEmail, "info@example.com"],
+                ] as const).map(([label, val, set, ph]) => (
+                  <div key={label}>
+                    <label className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
+                    <input
+                      type="text"
+                      value={val}
+                      onChange={(e) => set(e.target.value)}
+                      placeholder={ph}
+                      disabled={isBusy}
+                      className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1.5">Photo or video</label>
+                <SlideMediaEditor tenantId={tenantId} media={cpMedia} onChange={setCpMedia} />
+              </div>
             </div>
           )}
         </div>

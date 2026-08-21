@@ -25,6 +25,7 @@ import { logger }                             from "@/lib/logger";
 import type { TenantFormOverrideSettings, FormLayout } from "@/tenant/types";
 import { DEFAULT_FORM_OVERRIDE_SETTINGS }     from "@/tenant/types";
 import { loadTenantFormOverrides }            from "@/forms/load-tenant-form-overrides";
+import { sanitizeBlockMedia }                 from "@/lib/media/block-media";
 
 /** Sanitise a form layout from admin input (phase 1). Returns undefined when unusable. */
 function sanitiseLayout(raw: FormLayout | undefined): FormLayout | undefined {
@@ -39,10 +40,12 @@ function sanitiseLayout(raw: FormLayout | undefined): FormLayout | undefined {
   const clean = (v: unknown, max: number) =>
     typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
   const cp = raw.contactPanel ?? {};
+  const media = sanitizeBlockMedia(cp.media);
   const contactPanel = {
     name:     clean(cp.name, 120),
     role:     clean(cp.role, 120),
     photoUrl: clean(cp.photoUrl, 500),
+    ...(media ? { media } : {}),
     phone:    clean(cp.phone, 40),
     email:    clean(cp.email, 200),
   };

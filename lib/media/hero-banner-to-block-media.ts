@@ -30,3 +30,33 @@ export function heroBannerMediaToBlockMedia(m: HeroBannerMedia | undefined | nul
   }
   return undefined;
 }
+
+/**
+ * Inverse of heroBannerMediaToBlockMedia: rebuild the editor's HeroBannerMedia
+ * shape from a stored BlockMedia, so a saved contactPanel.media can seed
+ * SlideMediaEditor. BlockMedia does not carry loop/muted/controls, so those fall
+ * back to the editor's own defaults on load.
+ */
+export function blockMediaToHeroBannerMedia(m: BlockMedia | undefined | null): HeroBannerMedia | undefined {
+  if (!m) return undefined;
+
+  if (m.kind === "image") {
+    if (!m.url) return undefined;
+    return { kind: "image", url: m.url, alt: m.alt ?? "" };
+  }
+
+  const source = m.source ?? "asset";
+  if (source === "asset") {
+    if (!m.url) return undefined;
+    return { kind: "video", video: { source: "upload", url: m.url, ...(m.poster ? { poster: m.poster } : {}), autoplay: !!m.autoplay } };
+  }
+  if (source === "youtube") {
+    if (!m.id) return undefined;
+    return { kind: "video", video: { source: "youtube", videoId: m.id, ...(m.autoplay ? { autoplay: true } : {}) } };
+  }
+  if (source === "vimeo") {
+    if (!m.id) return undefined;
+    return { kind: "video", video: { source: "vimeo", videoId: m.id, ...(m.autoplay ? { autoplay: true } : {}) } };
+  }
+  return undefined;
+}

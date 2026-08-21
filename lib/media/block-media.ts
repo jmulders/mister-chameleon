@@ -39,6 +39,16 @@ export interface BlockMedia {
   alt?: string;
 }
 
+/**
+ * Turn a legacy flat photo URL into an image BlockMedia (or undefined). Used to
+ * seed the shared media editor from a form contact-panel's deprecated photoUrl,
+ * so an existing image is editable in the new media control.
+ */
+export function legacyPhotoUrlToBlockMedia(url: string | null | undefined): BlockMedia | undefined {
+  const u = (url ?? "").trim();
+  return u ? { kind: "image", source: "asset", url: u, fit: "cover" } : undefined;
+}
+
 /** Platform-default poster for a YouTube video (its own thumbnail) when none is set. */
 export function youtubeThumbUrl(id: string): string {
   return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
@@ -50,6 +60,46 @@ export function isRenderableMedia(media: BlockMedia | null | undefined): media i
   const source = media.source ?? "asset";
   if (source === "asset") return typeof media.url === "string" && media.url.trim() !== "";
   return typeof media.id === "string" && media.id.trim() !== "";
+}
+
+/**
+ * Validate an untrusted value into a BlockMedia (or undefined).
+ *
+ * Whitelists `kind`/`source`/`fit`, trims and length-caps the string fields,
+ * coerces `autoplay` to a boolean, and drops anything that is not renderable
+ * (see isRenderableMedia). Used by the form load/save parsers so a stored
+ * contactPanel.media is always in a known-good shape.
+ */
+export function sanitizeBlockMedia(raw: unknown): BlockMedia | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+
+  const kind: BlockMedia["kind"] | undefined =
+    r.kind === "video" ? "video" : r.kind === "image" ? "image" : undefined;
+  if (!kind) return undefined;
+
+  const source: BlockMedia["source"] =
+    r.source === "youtube" || r.source === "vimeo" ? r.source : "asset";
+
+  const str = (v: unknown, max: number): string | undefined => {
+    if (typeof v !== "string") return undefined;
+    const t = v.trim();
+    return t ? t.slice(0, max) : undefined;
+  };
+
+  const media: BlockMedia = { kind, source };
+  const url    = str(r.url, 2000);
+  const id     = str(r.id, 200);
+  const poster = str(r.poster, 2000);
+  const alt    = str(r.alt, 300);
+  if (url)    media.url = url;
+  if (id)     media.id = id;
+  if (poster) media.poster = poster;
+  if (alt)    media.alt = alt;
+  if (typeof r.autoplay === "boolean") media.autoplay = r.autoplay;
+  if (r.fit === "contain" || r.fit === "cover") media.fit = r.fit;
+
+  return isRenderableMedia(media) ? media : undefined;
 }
 
 /** Privacy-first YouTube embed URL (nocookie host). Autoplay implies muted. */
