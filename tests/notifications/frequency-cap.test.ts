@@ -47,10 +47,24 @@ describe("frequency-cap helpers", () => {
 });
 
 describe("always", () => {
-  it("is never suppressed and records nothing", () => {
+  it("shows every pageview until dismissed, then suppressed for the session", () => {
+    // No marker yet: shown.
     assert.equal(isNotificationSuppressed("a", "always", 0), false);
+    // A manual dismissal writes a session marker (not local).
     recordNotificationDismissal("a", "always");
-    assert.equal(session.length + local.length, 0);
+    assert.equal(session.length, 1);
+    assert.equal(local.length, 0);
+    // Suppressed within the same session.
+    assert.equal(isNotificationSuppressed("a", "always", 0), true);
+    // Clearing sessionStorage (a new session) shows it again.
+    session.clear();
+    assert.equal(isNotificationSuppressed("a", "always", 0), false);
+  });
+
+  it("is per-id: dismissing one always-notification does not suppress another", () => {
+    recordNotificationDismissal("a", "always");
+    assert.equal(isNotificationSuppressed("a", "always", 0), true);
+    assert.equal(isNotificationSuppressed("b", "always", 0), false);
   });
 });
 

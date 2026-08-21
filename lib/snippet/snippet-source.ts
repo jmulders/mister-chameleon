@@ -530,12 +530,14 @@ export function buildSnippetSource(decideUrl: string): string {
     var ttlMs     = parseInt(slots['notification-ttl-ms'] || '0', 10) || 0;
     var key       = ${JSON.stringify(NOTIF_KEY_PREFIX)} + id + (campaign ? ':' + campaign : '');
 
-    function store() { return frequency === 'once_per_session' ? window.sessionStorage : window.localStorage; }
+    // always / once_per_session use sessionStorage; once_per_period uses localStorage.
+    function store() { return frequency === 'once_per_period' ? window.localStorage : window.sessionStorage; }
     function suppressed() {
-      if (frequency === 'always') return false;
       try {
         var raw = store().getItem(key);
-        if (frequency === 'once_per_session') return raw !== null;
+        // "always" is suppressed only after a manual dismissal in this session;
+        // with no marker it shows on every pageview, same as before.
+        if (frequency === 'always' || frequency === 'once_per_session') return raw !== null;
         if (raw === null) return false;
         var ts = Number(raw);
         return (ts === ts) && (Date.now() - ts) < ttlMs; // ts===ts guards NaN
@@ -545,7 +547,9 @@ export function buildSnippetSource(decideUrl: string): string {
     if (suppressed()) { host.style.display = 'none'; return; }
 
     function doDismiss() {
-      try { if (frequency !== 'always') store().setItem(key, String(Date.now())); } catch (e) {}
+      // Write a marker for every frequency (including "always") so a manual
+      // dismissal suppresses the notification for the rest of the session.
+      try { store().setItem(key, String(Date.now())); } catch (e) {}
       host.style.display = 'none';
     }
     var dismissers = host.querySelectorAll('[data-mc-notification-dismiss]');
