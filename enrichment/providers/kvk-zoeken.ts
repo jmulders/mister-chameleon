@@ -203,34 +203,37 @@ async function fetchKvkCandidates(
   }
 
   try {
-    const url = new URL(`${apiBase}/zoeken`);
-    url.searchParams.set("naam", q);
-    url.searchParams.set("resultatenPerPagina", "10");
-    if (city) url.searchParams.set("plaats", city);
+    // Coalesce concurrent misses for the same name/city so only one caller hits
+    // the KvK API; getOrLoad caches the result, including a legitimate empty
+    // array (also on a non-ok response, as before). A network error throws and is
+    // not cached (see catch below).
+    return await candidatesCache.getOrLoad(cacheKey, async () => {
+      const url = new URL(`${apiBase}/zoeken`);
+      url.searchParams.set("naam", q);
+      url.searchParams.set("resultatenPerPagina", "10");
+      if (city) url.searchParams.set("plaats", city);
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        Accept:  "application/json",
-        apikey:  apiKey,
-      },
-      signal: AbortSignal.timeout(6_000),
-      cache:  "no-store",
+      const response = await fetch(url.toString(), {
+        headers: {
+          Accept:  "application/json",
+          apikey:  apiKey,
+        },
+        signal: AbortSignal.timeout(6_000),
+        cache:  "no-store",
+      });
+
+      if (!response.ok) {
+        if (isDev) console.debug("[kvk-zoeken] API error", { status: response.status, naam });
+        return [];
+      }
+
+      const data = (await response.json()) as KvkZoekenResponse;
+      const results = data.resultaten ?? [];
+
+      if (isDev) console.debug("[kvk-zoeken] fetch", { naam, city, count: results.length });
+
+      return results;
     });
-
-    if (!response.ok) {
-      if (isDev) console.debug("[kvk-zoeken] API error", { status: response.status, naam });
-      candidatesCache.set(cacheKey, []);
-      return [];
-    }
-
-    const data = (await response.json()) as KvkZoekenResponse;
-    const results = data.resultaten ?? [];
-
-    if (isDev) console.debug("[kvk-zoeken] fetch", { naam, city, count: results.length });
-
-    candidatesCache.set(cacheKey, results);
-    return results;
-
   } catch (err) {
     if (isDev) console.debug("[kvk-zoeken] fetch error", { naam, err });
     return [];

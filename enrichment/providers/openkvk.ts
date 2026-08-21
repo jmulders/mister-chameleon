@@ -534,6 +534,10 @@ export class OpenKvKProvider {
     }
 
     try {
+      // Coalesce concurrent misses for the same query so only one caller runs the
+      // (multi-request) probe chain; getOrLoad caches the result, including a
+      // legitimate empty array. A thrown error is not cached (see catch below).
+      return await candidatesCache.getOrLoad(cacheKey, async () => {
       const stripped = q
         .replace(/\s+(B\.?V\.?|N\.?V\.?|V\.?O\.?F\.?|B\.V|N\.V|VOF|BV|NV|CV|Inc\.?|Ltd\.?|S\.A\.?|GmbH)\.?\s*$/i, "")
         .trim();
@@ -588,9 +592,11 @@ export class OpenKvKProvider {
         }
       }
 
-      candidatesCache.set(cacheKey, results);
       return results;
+      });
     } catch (err) {
+      // Transient error: getOrLoad already discarded the in-flight load without
+      // caching, so a later call retries. Preserve the empty-array fail-safe.
       const msg = err instanceof Error ? err.message : String(err);
       if (this.isDev) {
         console.debug("[openkvk] fetch error", { query: q, error: msg });
