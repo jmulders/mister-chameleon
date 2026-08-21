@@ -19,7 +19,7 @@ import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/bl
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { EXAMPLE_SITE_DESIGN_TOKENS } from "@/design-system/theme/block-token-set-examples";
 import { detectTokenPayloadKind, wrongBoxMessage } from "@/design-system/theme/token-import-detect";
-import { saveDefaultTokensAction, applyDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
+import { saveDefaultTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
 
 const SURFACE_OPTIONS = ["", ...VALID_SURFACE_ROLES] as const;
 
@@ -62,24 +62,6 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
   function loadExample() {
     setTokens({ ...(EXAMPLE_SITE_DESIGN_TOKENS as Record<string, string>) });
     setMsg({ text: "Loaded “Aurora Purple Gold” tokens into the editor. Review and Save to apply site-wide.", ok: true });
-  }
-
-  /**
-   * One-click COMPLETE look: apply the Aurora Purple Gold preset (chrome:
-   * header/footer, colors, typography, radius) AND the site-wide block tokens.
-   * Sequential (preset → tokens) so the second write doesn't clobber the first.
-   */
-  function applyFullAurora() {
-    setMsg(null);
-    startTransition(async () => {
-      // applyDesignPresetAction now applies the preset chrome AND derives the
-      // matching site-wide block tokens in one atomic save.
-      const presetRes = await applyDesignPresetAction(tenantId, "aurora-purple-gold");
-      if (!presetRes.ok) { setMsg({ text: presetRes.error, ok: false }); return; }
-      setTokens({ ...(EXAMPLE_SITE_DESIGN_TOKENS as Record<string, string>) });
-      setMsg({ text: "Applied ✓. Aurora Purple Gold preset + site tokens are live.", ok: true });
-      router.refresh();
-    });
   }
 
   function clearAll() {
@@ -175,9 +157,6 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
 
       {/* Toolbar */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem", alignItems: "center" }}>
-        <button type="button" onClick={applyFullAurora} disabled={pending} style={btnStyle("primary", pending)}>
-          ✨ Apply Aurora Purple Gold (complete look)
-        </button>
         <button type="button" onClick={loadExample} style={btnStyle("ghost")}>Load tokens into editor</button>
         {tokenSets && tokenSets.length > 0 && (
           <select

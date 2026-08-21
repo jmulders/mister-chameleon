@@ -1000,6 +1000,32 @@ export interface AdaptiveBlockInsert {
   adaptive_variants?: Record<string, unknown>[];
 }
 
+// ── design_token_sets ─────────────────────────────────────────────────────────
+
+/** A row in `design_token_sets` (reusable token-override library). */
+export interface DesignTokenSetRow {
+  id:                  string;
+  created_at:          string;
+  updated_at:          string;
+  tenant_id:           string | null;
+  name:                string;
+  tokens:              Record<string, unknown>;        // DesignTokenUploadInput shape
+  base_theme:          string | null;
+  typography_override: Record<string, unknown> | null; // typography group overrides
+}
+
+/** Insert/upsert payload for `design_token_sets`. */
+export interface DesignTokenSetInsert {
+  id?:                  string;
+  created_at?:          string;
+  updated_at?:          string;
+  tenant_id?:           string | null;
+  name:                 string;
+  tokens:               Record<string, unknown>;
+  base_theme?:          string | null;
+  typography_override?: Record<string, unknown> | null;
+}
+
 // ── Database schema (Supabase client generic) ─────────────────────────────────
 
 /**
