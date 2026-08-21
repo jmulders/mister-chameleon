@@ -16,7 +16,7 @@
  * Customize you cancel leaves the block on the platform default.
  */
 
-import { useState, useCallback, useMemo, useTransition, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useState, useCallback, useMemo, useTransition, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
 import { BlockPreviewModal }                     from "@/components/admin/BlockPreviewModal";
@@ -340,6 +340,16 @@ function SlotSection({
 
   const customizedCount = resolved.filter((r) => r.status === "customized").length;
 
+  // ── Within-tab search + status filter (no pagination) ───────────────────────
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | BlockStatus>("all");
+  const query = search.trim().toLowerCase();
+  const filtered = resolved.filter((r) => {
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (query && !r.blockKey.toLowerCase().includes(query)) return false;
+    return true;
+  });
+
   const slotColors: Record<string, string> = {
     hero:         "bg-brand-50 text-brand-700 ring-brand-200",
     proof:        "bg-teal-50 text-teal-700 ring-teal-200",
@@ -367,8 +377,32 @@ function SlotSection({
           <SlotModeControl value={modeValue} knownKeys={knownKeys} onChange={onModeChange} />
         )}
       </div>
+
+      {/* Search + status filter (scoped to this slot). */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search block key…"
+          aria-label={`Search ${label} block keys`}
+          className="min-w-0 flex-1 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as "all" | BlockStatus)}
+          aria-label={`Filter ${label} by status`}
+          className="rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm text-neutral-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+        >
+          <option value="all">All</option>
+          <option value="customized">Customized</option>
+          <option value="platform">Platform default</option>
+          <option value="missing">Not configured</option>
+        </select>
+      </div>
+
       <div className="space-y-2">
-        {resolved.map((r) => (
+        {filtered.map((r) => (
           <BlockRow
             key={r.blockKey}
             resolved={r}
@@ -379,6 +413,11 @@ function SlotSection({
             onPreview={onPreview}
           />
         ))}
+        {filtered.length === 0 && (
+          <p className="rounded-md border border-dashed border-neutral-200 px-3 py-6 text-center text-xs text-neutral-400">
+            No blocks match the current search or filter.
+          </p>
+        )}
       </div>
     </section>
   );
@@ -439,31 +478,113 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotMode
     router.refresh();
   }, [router]);
 
+  // ── Tabs: one per slot, only the active slot's blocks render ────────────────
+  const STORAGE_KEY = `mc-blocks-tab-${tenantId}`;
+  const [activeSlot, setActiveSlot] = useState<string>(slots[0]?.id ?? "");
+  // Restore the last-viewed tab on mount (kept out of the initial render to avoid
+  // a hydration mismatch), so an edit + refresh does not jump back to the first tab.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved && slots.some((s) => s.id === saved)) setActiveSlot(saved);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const selectSlot = useCallback((id: string) => {
+    setActiveSlot(id);
+    try { window.localStorage.setItem(STORAGE_KEY, id); } catch { /* ignore */ }
+  }, [STORAGE_KEY]);
+
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  function onTabKeyDown(e: ReactKeyboardEvent<HTMLButtonElement>, idx: number) {
+    let next = idx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % slots.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + slots.length) % slots.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = slots.length - 1;
+    else return;
+    e.preventDefault();
+    selectSlot(slots[next].id);
+    tabRefs.current[next]?.focus();
+  }
+
+  // Per-slot totals + customized count for the tab badges.
+  const slotCounts = useMemo(() => {
+    const map: Record<string, { total: number; customized: number }> = {};
+    for (const slot of slots) {
+      const tenantKeys = new Set(
+        allBlocks.filter((b) => b.tenantId === tenantId && b.key.startsWith(slot.keyPrefix)).map((b) => b.key),
+      );
+      map[slot.id] = {
+        total:      slot.knownKeys.length,
+        customized: slot.knownKeys.filter((k) => tenantKeys.has(k)).length,
+      };
+    }
+    return map;
+  }, [slots, allBlocks, tenantId]);
+
+  const activeSpec = slots.find((s) => s.id === activeSlot) ?? slots[0];
+
   return (
     <>
-      <div className="space-y-10">
-        {slots.map((slot) => {
-          const isModeSlot = (MODE_SLOT_IDS as readonly string[]).includes(slot.id);
+      {/* ── Slot tabs ─────────────────────────────────────────────────────── */}
+      <div role="tablist" aria-label="Block slots" className="flex flex-wrap gap-1 border-b border-neutral-200">
+        {slots.map((slot, idx) => {
+          const selected = slot.id === activeSpec?.id;
+          const c = slotCounts[slot.id] ?? { total: 0, customized: 0 };
           return (
-            <SlotSection
+            <button
               key={slot.id}
-              id={slot.id}
-              label={slot.label}
-              description={slot.description}
-              keyPrefix={slot.keyPrefix}
-              knownKeys={slot.knownKeys}
-              tenantId={tenantId}
-              revalidatePath={revalidatePath}
-              allBlocks={allBlocks}
-              modeValue={isModeSlot ? slotModes[slot.id as ModeSlotId] : undefined}
-              onModeChange={isModeSlot ? (patch) => patchMode(slot.id as ModeSlotId, patch) : undefined}
-              onEdit={setEditing}
-              onCustomized={(block) => setEditing(block)}
-              onPreview={setPreviewing}
-            />
+              ref={(el) => { tabRefs.current[idx] = el; }}
+              type="button"
+              role="tab"
+              id={`blocks-tab-${slot.id}`}
+              aria-selected={selected}
+              aria-controls={`blocks-panel-${slot.id}`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => selectSlot(slot.id)}
+              onKeyDown={(e) => onTabKeyDown(e, idx)}
+              className={`-mb-px rounded-t-lg border-b-2 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 ${
+                selected
+                  ? "border-brand-500 text-brand-700"
+                  : "border-transparent text-neutral-500 hover:text-neutral-800"
+              }`}
+            >
+              {slot.label} <span className="text-neutral-400">· {c.total}</span>
+              {c.customized > 0 && (
+                <span className="ml-1 text-[11px] font-normal text-neutral-400">({c.customized} customized)</span>
+              )}
+            </button>
           );
         })}
       </div>
+
+      {/* ── Active slot panel ─────────────────────────────────────────────── */}
+      {activeSpec && (
+        <div
+          role="tabpanel"
+          id={`blocks-panel-${activeSpec.id}`}
+          aria-labelledby={`blocks-tab-${activeSpec.id}`}
+          className="mt-5"
+        >
+          <SlotSection
+            key={activeSpec.id}
+            id={activeSpec.id}
+            label={activeSpec.label}
+            description={activeSpec.description}
+            keyPrefix={activeSpec.keyPrefix}
+            knownKeys={activeSpec.knownKeys}
+            tenantId={tenantId}
+            revalidatePath={revalidatePath}
+            allBlocks={allBlocks}
+            modeValue={(MODE_SLOT_IDS as readonly string[]).includes(activeSpec.id) ? slotModes[activeSpec.id as ModeSlotId] : undefined}
+            onModeChange={(MODE_SLOT_IDS as readonly string[]).includes(activeSpec.id) ? (patch) => patchMode(activeSpec.id as ModeSlotId, patch) : undefined}
+            onEdit={setEditing}
+            onCustomized={(block) => setEditing(block)}
+            onPreview={setPreviewing}
+          />
+        </div>
+      )}
 
       {/* Slot-mode save bar — appears once a mode changes */}
       {(modesDirty || modeStatus !== "idle") && (
