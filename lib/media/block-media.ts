@@ -39,6 +39,16 @@ export interface BlockMedia {
   alt?: string;
 }
 
+/**
+ * Turn a legacy flat photo URL into an image BlockMedia (or undefined). Used to
+ * seed the shared media editor from a form contact-panel's deprecated photoUrl,
+ * so an existing image is editable in the new media control.
+ */
+export function legacyPhotoUrlToBlockMedia(url: string | null | undefined): BlockMedia | undefined {
+  const u = (url ?? "").trim();
+  return u ? { kind: "image", source: "asset", url: u, fit: "cover" } : undefined;
+}
+
 /** Platform-default poster for a YouTube video (its own thumbnail) when none is set. */
 export function youtubeThumbUrl(id: string): string {
   return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
