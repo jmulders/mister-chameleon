@@ -343,6 +343,30 @@ function formatPlanSummary(plan: StoredPlan): string {
   return summary;
 }
 
+/** Join phrases as "a, b and c" for the plain-language rule sentence. */
+function joinWithAnd(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+/** A compact "slot: key" plan phrase for the summary sentence (presentation only). */
+function formatPlanSentence(plan: StoredPlan): string {
+  const parts = [`hero: ${plan.heroKey}`, `proof: ${plan.proofKey}`, `cta: ${plan.ctaKey}`];
+  if (plan.featureKey)    parts.push(`feature: ${plan.featureKey}`);
+  if (plan.conversionKey) parts.push(`conversion: ${plan.conversionKey}`);
+  if (plan.themeKey)      parts.push(`theme: ${plan.themeKey}`);
+  return joinWithAnd(parts);
+}
+
+/**
+ * Read the rule as a plain-language sentence for the read-only summary at the top
+ * of the card. Reuses formatCondition (unchanged) for the "when" half and the
+ * plan keys for the "show" half.
+ */
+function formatRuleSentence(condition: RuleCondition, plan: StoredPlan): string {
+  return `When ${formatCondition(condition)}, show ${formatPlanSentence(plan)}.`;
+}
+
 // ── Operator labels ────────────────────────────────────────────────────────────
 
 const OPERATOR_LABELS: Record<FieldOperator, string> = {
@@ -1218,20 +1242,34 @@ function RuleCard({
 
       {/* ── Edit panel ────────────────────────────────────────────────── */}
       {rule._editOpen && (
-        <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5">
-          {/* Live sentence preview (left) + advanced-options toggle (right).
-              The preview reads the rule as a plain "When … → …" sentence and
-              updates as you edit. The toggle reveals packs/precedence, extended
-              variant slots, form/email targeting, context writes and uncommon
-              condition types. */}
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs leading-relaxed text-neutral-600">
-              <span className="mr-1 font-semibold uppercase tracking-wide text-neutral-400">When</span>
-              {conditionLabel}
-              <span className="mx-1.5 font-semibold text-brand-600">→</span>
-              {formatPlanSummary(rule.plan)}
-            </div>
-            <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 pt-1 text-xs font-medium text-neutral-500">
+        <div className="space-y-6 border-t border-neutral-100 bg-white px-5 py-6">
+
+          {/* Header: rule name + tier chip + enabled toggle + advanced options */}
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              value={rule.label}
+              onChange={(e) => onChange({ label: e.target.value })}
+              placeholder="Rule name"
+              aria-label="Rule name"
+              className="min-w-[14rem] flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-base font-medium text-neutral-900 outline-none hover:border-neutral-200 focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
+            />
+            <TierChip priority={rule.priority} precedenceLevel={rule.precedenceLevel} />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!isDisabled}
+              onClick={onToggleEnabled}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                isDisabled
+                  ? "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${isDisabled ? "bg-neutral-400" : "bg-emerald-500"}`} />
+              {isDisabled ? "Disabled" : "Enabled"}
+            </button>
+            <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 text-xs font-medium text-neutral-500">
               <input
                 type="checkbox"
                 checked={advanced}
@@ -1242,131 +1280,66 @@ function RuleCard({
             </label>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {/* Left column: identity + conditions */}
-            <div className="flex flex-col gap-4">
-              <Field label="Label">
-                <input
-                  type="text"
-                  value={rule.label}
-                  onChange={(e) => onChange({ label: e.target.value })}
-                  placeholder="e.g. Google traffic on mobile"
-                  className={inputCls}
-                />
-              </Field>
+          {/* Read-only plain-language summary, live as you edit */}
+          <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm leading-relaxed text-neutral-700">
+            {formatRuleSentence(rule.condition, rule.plan)}
+          </p>
 
-              <Field label="Priority" hint="Lower number = higher priority. Must be unique.">
-                <input
-                  type="number"
-                  value={rule.priority}
-                  min={1}
-                  max={9999}
-                  onChange={(e) =>
-                    onChange({ priority: Math.max(1, parseInt(e.target.value, 10) || 1) })
-                  }
-                  className={inputCls}
-                />
-              </Field>
+          {/* ── When ────────────────────────────────────────────────────────── */}
+          <section className="space-y-3">
+            <SectionTitle>When</SectionTitle>
+            <FlatGroupEditor
+              condition={rule.condition}
+              advanced={advanced}
+              onChange={(condition) => onChange({ condition })}
+            />
+          </section>
 
-              <Field label="Reason" hint="Shown in debug output and analytics events.">
-                <input
-                  type="text"
-                  value={rule.reason}
-                  onChange={(e) => onChange({ reason: e.target.value })}
-                  placeholder="e.g. Traffic source indicates search/problem intent."
-                  className={inputCls}
-                />
-              </Field>
-
+          {/* ── Then show ───────────────────────────────────────────────────── */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <SectionTitle>Then show</SectionTitle>
               {advanced && (
-                <Field label="Rule pack" hint="Organisational group for admin filtering. Does not affect evaluation.">
-                  <select
-                    value={rule.packId ?? ""}
-                    onChange={(e) => onChange({ packId: e.target.value || undefined })}
-                    className={selectCls}
-                  >
-                    <option value="">— None —</option>
-                    {Object.values(RULE_PACK_REGISTRY).map((pack) => (
-                      <option key={pack.id} value={pack.id}>{pack.label}</option>
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    const key = e.target.value;
+                    if (!key) return;
+                    const preset = PRESET_PLANS[key];
+                    if (!preset) return;
+                    onChange({
+                      plan: {
+                        ...rule.plan,
+                        heroKey:       preset.heroKey,
+                        proofKey:      preset.proofKey,
+                        ctaKey:        preset.ctaKey,
+                        featureKey:    preset.featureKey,
+                        conversionKey: preset.conversionKey,
+                        pricingEmphasis: preset.pricingEmphasis,
+                        pricingCtaMode:  preset.pricingCtaMode,
+                      },
+                    });
+                    e.target.value = "";
+                  }}
+                  className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                  title="Fill all plan fields from a scenario preset"
+                >
+                  <option value="" disabled>Fill from preset</option>
+                  <optgroup label="Generic / B2B SaaS">
+                    {PRESET_CONDITIONS.filter((p) => p.group === "generic").map((p) => (
+                      <option key={p.key} value={p.key}>{p.label}</option>
                     ))}
-                  </select>
-                </Field>
-              )}
-
-              {advanced && (
-                <Field label="Precedence tier" hint="Overrides the tier inferred from priority. Leave blank to infer automatically.">
-                  <select
-                    value={rule.precedenceLevel ?? ""}
-                    onChange={(e) =>
-                      onChange({ precedenceLevel: (e.target.value as PrecedenceLevel) || undefined })
-                    }
-                    className={selectCls}
-                  >
-                    <option value="">— Infer from priority —</option>
-                    {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
-                      <option key={level} value={level}>
-                        {meta.label} ({meta.range[0]}–{meta.range[1]})
-                      </option>
+                  </optgroup>
+                  <optgroup label="Careers">
+                    {PRESET_CONDITIONS.filter((p) => p.group === "careers").map((p) => (
+                      <option key={p.key} value={p.key}>{p.label}</option>
                     ))}
-                  </select>
-                </Field>
+                  </optgroup>
+                </select>
               )}
-
-              <FlatGroupEditor
-                condition={rule.condition}
-                advanced={advanced}
-                onChange={(condition) => onChange({ condition })}
-              />
             </div>
 
-            {/* Right column: plan */}
-            <div className="flex flex-col gap-4">
-              {/* Header row: label + Fill from preset (advanced power-shortcut) */}
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Variant Plan
-                </p>
-                {advanced && (
-                  <select
-                    defaultValue=""
-                    onChange={(e) => {
-                      const key = e.target.value;
-                      if (!key) return;
-                      const preset = PRESET_PLANS[key];
-                      if (!preset) return;
-                      onChange({
-                        plan: {
-                          ...rule.plan,
-                          heroKey:       preset.heroKey,
-                          proofKey:      preset.proofKey,
-                          ctaKey:        preset.ctaKey,
-                          featureKey:    preset.featureKey,
-                          conversionKey: preset.conversionKey,
-                          pricingEmphasis: preset.pricingEmphasis,
-                          pricingCtaMode:  preset.pricingCtaMode,
-                        },
-                      });
-                      e.target.value = "";
-                    }}
-                    className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
-                    title="Fill all plan fields from a scenario preset"
-                  >
-                    <option value="" disabled>Fill from preset…</option>
-                    <optgroup label="Generic / B2B SaaS">
-                      {PRESET_CONDITIONS.filter((p) => p.group === "generic").map((p) => (
-                        <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Careers">
-                      {PRESET_CONDITIONS.filter((p) => p.group === "careers").map((p) => (
-                        <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                )}
-              </div>
-
-              {/* Core slots */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label="Hero variant">
                 <select
                   value={rule.plan.heroKey}
@@ -1402,50 +1375,51 @@ function RuleCard({
                   <VariantOptions entries={catalogue.cta} />
                 </select>
               </Field>
+            </div>
 
-              {advanced && (<>
-              {/* Extended slots */}
-              <Field label="Feature variant" hint="Optional — leave blank to omit this slot.">
-                <select
-                  value={rule.plan.featureKey ?? ""}
-                  onChange={(e) =>
-                    onChange({
-                      plan: {
-                        ...rule.plan,
-                        featureKey: (e.target.value as FeatureVariantKey) || undefined,
-                      },
-                    })
-                  }
-                  className={selectCls}
-                >
-                  <option value="">— None (slot omitted) —</option>
-                  {catalogue.feature.map((entry) => (
-                    <option key={entry.key} value={entry.key}>{entry.label}</option>
-                  ))}
-                </select>
-              </Field>
+            {advanced && (<>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Feature variant" hint="Optional. Leave blank to omit this slot.">
+                  <select
+                    value={rule.plan.featureKey ?? ""}
+                    onChange={(e) =>
+                      onChange({
+                        plan: {
+                          ...rule.plan,
+                          featureKey: (e.target.value as FeatureVariantKey) || undefined,
+                        },
+                      })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">None (slot omitted)</option>
+                    {catalogue.feature.map((entry) => (
+                      <option key={entry.key} value={entry.key}>{entry.label}</option>
+                    ))}
+                  </select>
+                </Field>
 
-              <Field label="Conversion variant" hint="Optional — leave blank to omit this slot.">
-                <select
-                  value={rule.plan.conversionKey ?? ""}
-                  onChange={(e) =>
-                    onChange({
-                      plan: {
-                        ...rule.plan,
-                        conversionKey: (e.target.value as ConversionVariantKey) || undefined,
-                      },
-                    })
-                  }
-                  className={selectCls}
-                >
-                  <option value="">— None (slot omitted) —</option>
-                  {catalogue.conversion.map((entry) => (
-                    <option key={entry.key} value={entry.key}>{entry.label}</option>
-                  ))}
-                </select>
-              </Field>
+                <Field label="Conversion variant" hint="Optional. Leave blank to omit this slot.">
+                  <select
+                    value={rule.plan.conversionKey ?? ""}
+                    onChange={(e) =>
+                      onChange({
+                        plan: {
+                          ...rule.plan,
+                          conversionKey: (e.target.value as ConversionVariantKey) || undefined,
+                        },
+                      })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">None (slot omitted)</option>
+                    {catalogue.conversion.map((entry) => (
+                      <option key={entry.key} value={entry.key}>{entry.label}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
 
-              {/* Form + email variants: target an authored variant per key */}
               <VariantTargetFields
                 title="Form variants"
                 groups={catalogue.forms}
@@ -1465,16 +1439,77 @@ function RuleCard({
                 defaultOptionLabel="Default email"
               />
 
-              {/* Context writes: set flags / override derived fields when this rule fires */}
               <SetContextFields
                 value={rule.plan.setContext}
                 onChange={(next) => onChange({ plan: { ...rule.plan, setContext: next } })}
               />
-              </>)}
-            </div>
-          </div>
+            </>)}
+          </section>
 
-          <div className="mt-5 flex justify-end border-t border-neutral-200 pt-4">
+          {/* ── Priority ────────────────────────────────────────────────────── */}
+          <section className="space-y-3">
+            <SectionTitle>Priority</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Priority" hint="Lower number = higher priority. Must be unique.">
+                <input
+                  type="number"
+                  value={rule.priority}
+                  min={1}
+                  max={9999}
+                  onChange={(e) =>
+                    onChange({ priority: Math.max(1, parseInt(e.target.value, 10) || 1) })
+                  }
+                  className={inputCls}
+                />
+              </Field>
+
+              <Field label="Reason" hint="Shown in debug output and analytics events.">
+                <input
+                  type="text"
+                  value={rule.reason}
+                  onChange={(e) => onChange({ reason: e.target.value })}
+                  placeholder="e.g. Traffic source indicates search or problem intent."
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+
+            {advanced && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Rule pack" hint="Organisational group for admin filtering. Does not affect evaluation.">
+                  <select
+                    value={rule.packId ?? ""}
+                    onChange={(e) => onChange({ packId: e.target.value || undefined })}
+                    className={selectCls}
+                  >
+                    <option value="">None</option>
+                    {Object.values(RULE_PACK_REGISTRY).map((pack) => (
+                      <option key={pack.id} value={pack.id}>{pack.label}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Precedence tier" hint="Overrides the tier inferred from priority. Leave blank to infer automatically.">
+                  <select
+                    value={rule.precedenceLevel ?? ""}
+                    onChange={(e) =>
+                      onChange({ precedenceLevel: (e.target.value as PrecedenceLevel) || undefined })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">Infer from priority</option>
+                    {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
+                      <option key={level} value={level}>
+                        {meta.label} ({meta.range[0]}-{meta.range[1]})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            )}
+          </section>
+
+          <div className="flex justify-end border-t border-neutral-200 pt-4">
             <button
               type="button"
               onClick={onDelete}
@@ -3021,6 +3056,15 @@ function Field({
       <div id={id}>{children}</div>
       {hint && <p className="text-xs text-neutral-400">{hint}</p>}
     </div>
+  );
+}
+
+/** Small uppercase heading for the When / Then show / Priority sections. */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+      {children}
+    </h4>
   );
 }
 
