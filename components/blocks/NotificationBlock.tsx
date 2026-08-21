@@ -66,6 +66,14 @@ export interface NotificationBlockProps {
   media?: BlockMedia;
   /** Which side the media sits on. Defaults to "left". Ignored when there is no media. */
   mediaSide?: "left" | "right";
+  /**
+   * Admin preview mode (default false). When true the notification renders
+   * in-flow inside its bounded parent instead of pinned to the viewport:
+   * `position: fixed` becomes `absolute`, the frequency cap is bypassed so it is
+   * always shown, auto-dismiss is disabled, and dismissing does not write to
+   * storage. Has no effect on the live site (callers never set it there).
+   */
+  preview?: boolean;
 }
 
 // ── Severity styles ────────────────────────────────────────────────────────────
@@ -102,33 +110,43 @@ export function NotificationBlock({
   campaignId    = "",
   media,
   mediaSide     = "left",
+  preview       = false,
 }: NotificationBlockProps) {
   // Normalise the legacy alias.
   const pos = position === "bottom-right" ? "right" : position;
   const isModal = pos === "center";
 
+  // Anchoring: pinned to the viewport on the live site, contained within the
+  // bounded parent in admin preview (so the overlay is visible in the iframe).
+  const anchor = preview ? "absolute" : "fixed";
+
   // Start hidden; reveal on mount only when not suppressed. This avoids a flash
   // of a capped notification (storage is client-only) and SSR renders nothing.
-  const [visible, setVisible] = useState(false);
+  // In preview mode start visible and bypass the cap entirely.
+  const [visible, setVisible] = useState(preview);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (preview) { setVisible(true); return; }
     if (!isNotificationSuppressed(id, frequency, ttlToMs(ttl, ttlUnit), campaignId)) {
       setVisible(true);
     }
-  }, [id, frequency, ttl, ttlUnit, campaignId]);
+  }, [preview, id, frequency, ttl, ttlUnit, campaignId]);
 
   const dismiss = () => {
-    recordNotificationDismissal(id, frequency, campaignId);
+    // Never persist a dismissal from the admin preview — it must not suppress
+    // the real notification for the visitor.
+    if (!preview) recordNotificationDismissal(id, frequency, campaignId);
     setVisible(false);
   };
 
-  // Auto-dismiss — banners/toasts only.
+  // Auto-dismiss — banners/toasts only. Disabled in preview so the block stays
+  // on screen for inspection.
   useEffect(() => {
-    if (!visible || isModal || !autoDismissMs || autoDismissMs <= 0) return;
+    if (!visible || isModal || preview || !autoDismissMs || autoDismissMs <= 0) return;
     const t = setTimeout(() => setVisible(false), autoDismissMs);
     return () => clearTimeout(t);
-  }, [visible, isModal, autoDismissMs]);
+  }, [visible, isModal, preview, autoDismissMs]);
 
   // Modal a11y: ESC to close + a simple focus-trap within the dialog.
   useEffect(() => {
@@ -182,7 +200,7 @@ export function NotificationBlock({
   // ── Center modal ─────────────────────────────────────────────────────────────
   if (isModal) {
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className={`${anchor} inset-0 z-[9999] flex items-center justify-center p-4`}>
         {/* Backdrop */}
         <div className="absolute inset-0 bg-black/40" onClick={dismiss} aria-hidden="true" />
         <div
@@ -225,7 +243,7 @@ export function NotificationBlock({
     if (hasMedia) {
       return (
         <div role="alert" aria-live="polite"
-          className={`fixed left-0 right-0 ${edge} z-[9999] flex items-center gap-4 px-4 py-2 text-sm font-medium shadow-md ${styles.wrapper}`}>
+          className={`${anchor} left-0 right-0 ${edge} z-[9999] flex items-center gap-4 px-4 py-2 text-sm font-medium shadow-md ${styles.wrapper}`}>
           {!sideRight && mediaCol("w-24")}
           <span className="flex-1 text-center leading-snug">{message}</span>
           {cta}
@@ -236,7 +254,7 @@ export function NotificationBlock({
     }
     return (
       <div role="alert" aria-live="polite"
-        className={`fixed left-0 right-0 ${edge} z-[9999] flex items-center justify-center gap-4 px-4 py-2.5 text-sm font-medium shadow-md ${styles.wrapper}`}>
+        className={`${anchor} left-0 right-0 ${edge} z-[9999] flex items-center justify-center gap-4 px-4 py-2.5 text-sm font-medium shadow-md ${styles.wrapper}`}>
         <span className="text-center leading-snug">{message}</span>
         {cta}
         {closeBtn && <span className="ml-auto">{closeBtn}</span>}
@@ -248,7 +266,7 @@ export function NotificationBlock({
   const corner = pos === "left" ? "left-5" : "right-5";
   return (
     <div role="alert" aria-live="polite"
-      className={`fixed bottom-5 ${corner} z-[9999] flex max-w-sm flex-col gap-2 rounded-xl px-4 py-3 shadow-xl text-sm font-medium ${styles.wrapper}`}>
+      className={`${anchor} bottom-5 ${corner} z-[9999] flex max-w-sm flex-col gap-2 rounded-xl px-4 py-3 shadow-xl text-sm font-medium ${styles.wrapper}`}>
       <div className="flex items-start gap-3">
         {!sideRight && mediaCol("w-20")}
         <p className="flex-1 leading-snug">{message}</p>
