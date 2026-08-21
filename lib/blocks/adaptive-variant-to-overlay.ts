@@ -44,7 +44,7 @@ export function adaptiveVariantToNotificationData(
   c: AdaptiveVariantContent,
   key: string,
 ): NotificationBlockData | null {
-  // `title` is the notification message — required field.
+  // `title` is the notification message (required field).
   if (!c.title) return null;
 
   // Derive severity from the layoutVariant key:
