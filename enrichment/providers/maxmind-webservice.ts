@@ -94,9 +94,15 @@ export function createMaxMindWebServiceStagedEnricher(
         if (cached.hit) { ctx?.setCacheSource("provider-cache"); return cached.value; }
       }
       ctx?.setCacheSource("fresh");
-      const result = await provider.lookup(effectiveIp);
-      if (effectiveIp && Object.keys(result).length > 0) cache.set(effectiveIp, result);
-      return result;
+      // No IP: nothing to cache or coalesce on.
+      if (!effectiveIp) return provider.lookup(effectiveIp);
+      // Coalesce concurrent misses for the same IP; only non-empty results are
+      // stored (empties still coalesce but are not negative-cached).
+      return cache.getOrLoad(
+        effectiveIp,
+        () => provider.lookup(effectiveIp),
+        { shouldCache: (r) => Object.keys(r).length > 0 },
+      );
     },
   };
 }
