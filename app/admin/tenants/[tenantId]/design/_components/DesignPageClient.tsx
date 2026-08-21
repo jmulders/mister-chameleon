@@ -4,7 +4,7 @@
  * Client-side tab shell for the tenant design page.  Splits the design system
  * into focused tabs:
  *
- *   Presets    — curated themes (contextual-rule compatible)
+ *   Presets    — complete-look presets, grouped by category
  *   Builder    — compose a custom look with a live preview
  *   Layout     — header / footer structural variants
  *   Typography — font stacks, role mapping, and sizing controls
@@ -36,7 +36,6 @@
 import { useState, useTransition } from "react";
 import type { CSSProperties }      from "react";
 import { useSearchParams }         from "next/navigation";
-import { ThemeGallery }         from "./ThemeGallery";
 import { PresetGallery }        from "./PresetGallery";
 import { PresetBuilder }        from "./PresetBuilder";
 import { LayoutVariantEditor }  from "./LayoutVariantEditor";
@@ -55,7 +54,6 @@ import {
   isBodyFontOverridden,
   shortFontName,
 } from "@/design-system/theme/style-defaults";
-import { isFeaturedFamilyKey } from "@/design-system/theme/theme-families.config";
 import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.config";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -172,14 +170,15 @@ function TabSectionHeader({ title, description }: { title: string; description: 
 // ── Override model ─────────────────────────────────────────────────────────────
 //
 //   OFF (default / overrideEnabled === false):
-//     The active theme family's typography is used as-is.  tokenOverrides.typography
-//     values are stored but NOT applied at runtime.  Fields below are locked.
-//     Switching theme families always produces visually distinct typography.
+//     The applied preset's typography is used as-is (a featured family's fonts
+//     when the preset has one, otherwise the base-theme fonts).
+//     tokenOverrides.typography values are stored but NOT applied at runtime.
+//     Fields below are locked.
 //
 //   ON (overrideEnabled === true):
-//     tokenOverrides.typography values are merged on top of the family defaults
+//     tokenOverrides.typography values are merged on top of the preset defaults
 //     at the highest specificity layer.  Fields below are editable.
-//     Override persists across theme switches until explicitly cleared.
+//     Override persists across preset switches until explicitly cleared.
 //
 // ── Actions ────────────────────────────────────────────────────────────────────
 //
@@ -224,13 +223,11 @@ function FamilyTypographyPanel({
   const [actionDone, setActionDone] = useState<"reset" | "toggled" | null>(null);
 
   // ── Derive active family (informational display only) ─────────────────────
-  // Even when null the toggle is still rendered and functional.
-  const activeFamilyKey: FeaturedFamilyKey | null = (() => {
-    const stored = design.selectedStyleFamily;
-    if (stored && isFeaturedFamilyKey(stored)) return stored as FeaturedFamilyKey;
-    if (design.theme) return getFeaturedFamilyForPreset(String(design.theme));
-    return null;
-  })();
+  // The active family is derived from the applied theme preset. A preset with
+  // no featured family (e.g. a colour preset applied as theme "custom") yields
+  // null; the toggle is still rendered and functional in that case.
+  const activeFamilyKey: FeaturedFamilyKey | null =
+    design.theme ? getFeaturedFamilyForPreset(String(design.theme)) : null;
 
   const familyDefaults = activeFamilyKey ? getFamilyTypographyDefaults(activeFamilyKey) : null;
   const familyLabel    = activeFamilyKey
@@ -380,10 +377,10 @@ function FamilyTypographyPanel({
           </span>
         )}
 
-        {/* No family selected — informational note */}
+        {/* No featured family — fonts come from the applied preset */}
         {!familyLabel && (
           <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
-            No style family active. Select one in the Style tab
+            Fonts come from the applied preset
           </span>
         )}
 
@@ -449,8 +446,8 @@ function FamilyTypographyPanel({
           lineHeight: 1.5,
         }}>
           {familyLabel
-            ? "The font editor below is locked. Enable override to customise font stacks for this tenant. Switching to a different style family always updates typography automatically."
-            : "Enable override to manually set font stacks. You can also select a style family in the Style tab to get sensible typography defaults."}
+            ? "The font editor below is locked. Enable the override to customise font stacks for this tenant."
+            : "Fonts come from the applied preset. Enable the override to customise individual stacks."}
         </p>
       )}
 
@@ -570,22 +567,14 @@ export function DesignPageClient({
         {" "}(both on the Blocks tab).
       </p>
 
-      {/* ── Presets (curated themes — contextual-rule compatible) ───────────── */}
+      {/* ── Presets (complete-look presets, grouped by category) ────────────── */}
       <TabPanel id="presets" active={activeTab}>
         <TabSectionHeader
           title="Design presets"
-          description="Pick a ready-made look. Each preset is a curated theme, so it also works with the Automatic-switching contextual rules. For a fully custom look, use the Builder tab."
+          description="Pick a ready-made look, grouped by category. Applying one sets the complete look (colours, typography, buttons, radius, chrome, and the site-wide block tokens the adaptive blocks inherit). For a fully custom look, use the Builder tab."
         />
         <CurrentlyAppliedCard activeTheme={activeTheme} design={design} />
-        <ThemeGallery tenantId={tenantId} activeTheme={activeTheme} />
-
-        <div style={{ marginTop: "2rem" }}>
-          <TabSectionHeader
-            title="Colour presets"
-            description="Ready-made colour looks, grouped by category. Applying one sets the complete look (colours, typography, buttons, radius, chrome, and the site-wide block tokens the adaptive blocks inherit)."
-          />
-          <PresetGallery tenantId={tenantId} design={design} />
-        </div>
+        <PresetGallery tenantId={tenantId} design={design} />
       </TabPanel>
 
       {/* ── Builder ─────────────────────────────────────────────────────────── */}
@@ -610,7 +599,7 @@ export function DesignPageClient({
       <TabPanel id="typography" active={activeTab}>
         <TabSectionHeader
           title="Typography"
-          description="By default the active style family controls all fonts. Enable the override toggle to customise individual font stacks for this tenant."
+          description="Fonts come from the applied preset. Enable the override toggle to customise individual font stacks for this tenant."
         />
 
         {/*
