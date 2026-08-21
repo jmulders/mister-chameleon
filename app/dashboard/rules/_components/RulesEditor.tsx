@@ -2315,6 +2315,134 @@ function ScalarValueInput({
  *                     nullable_string / other          → <input type="text">
  *                     exists / not_exists              → no value input shown
  */
+/**
+ * FieldPicker
+ *
+ * Searchable, grouped combobox for the ~180 registry fields. Replaces a flat
+ * <select>. The trigger shows a group breadcrumb ("Behaviour › Visit type"); the
+ * popover offers a search box and the fields grouped by FIELD_KEYS_BY_GROUP, with
+ * a curated "Common" shortlist first. Keyboard: open with Enter/Space/ArrowDown,
+ * type to filter, ArrowUp/Down to move, Enter to select, Escape to close.
+ */
+function FieldPicker({ value, onChange }: { value: RuleFieldKey; onChange: (k: RuleFieldKey) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIdx, setActiveIdx] = useState(0);
+  const rootRef  = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const def = FIELD_REGISTRY[value];
+  const q   = query.trim().toLowerCase();
+  const matches = (k: RuleFieldKey) =>
+    !q ||
+    FIELD_REGISTRY[k].label.toLowerCase().includes(q) ||
+    GROUP_LABELS[FIELD_REGISTRY[k].group].toLowerCase().includes(q) ||
+    k.toLowerCase().includes(q);
+
+  const sections: Array<{ label: string; keys: RuleFieldKey[] }> = [];
+  const common = COMMON_FIELD_KEYS.filter(matches);
+  if (common.length) sections.push({ label: "Common", keys: [...common] });
+  for (const [group, keys] of Object.entries(FIELD_KEYS_BY_GROUP) as [FieldGroup, readonly RuleFieldKey[]][]) {
+    const filtered = keys.filter(matches);
+    if (filtered.length) sections.push({ label: GROUP_LABELS[group], keys: [...filtered] });
+  }
+  const rows = sections.flatMap((s) => s.keys.map((key) => ({ key, section: s.label })));
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  useEffect(() => {
+    if (open) { setQuery(""); setActiveIdx(0); const t = setTimeout(() => inputRef.current?.focus(), 0); return () => clearTimeout(t); }
+  }, [open]);
+  useEffect(() => { setActiveIdx(0); }, [query]);
+
+  const choose = (k: RuleFieldKey) => { onChange(k); setOpen(false); };
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowDown")      { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, rows.length - 1)); }
+    else if (e.key === "ArrowUp")   { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter")     { e.preventDefault(); const r = rows[activeIdx]; if (r) choose(r.key); }
+    else if (e.key === "Escape")    { e.preventDefault(); setOpen(false); }
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => { if (!open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpen(true); } }}
+        className={`${selectCls} flex items-center justify-between text-left`}
+      >
+        <span className="truncate">
+          {def ? (
+            <>
+              <span className="text-neutral-400">{GROUP_LABELS[def.group]}</span>
+              <span className="mx-1 text-neutral-300">&rsaquo;</span>
+              <span className="text-neutral-900">{def.label}</span>
+            </>
+          ) : "Choose a field"}
+        </span>
+        <span aria-hidden="true" className="ml-2 shrink-0 text-neutral-400">&#9662;</span>
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg">
+          <div className="p-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search fields"
+              aria-label="Search fields"
+              className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+          <ul role="listbox" aria-label="Fields" className="max-h-64 overflow-auto px-1 pb-2">
+            {rows.length === 0 && (
+              <li className="px-3 py-4 text-center text-xs text-neutral-400">No fields match.</li>
+            )}
+            {rows.map((row, idx) => {
+              const prev = rows[idx - 1];
+              const showHeader = !prev || prev.section !== row.section;
+              const active   = idx === activeIdx;
+              const selected = row.key === value;
+              return (
+                <li key={`${row.section}-${row.key}`} role="presentation">
+                  {showHeader && (
+                    <div className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                      {row.section}
+                    </div>
+                  )}
+                  <div
+                    role="option"
+                    aria-selected={selected}
+                    onMouseEnter={() => setActiveIdx(idx)}
+                    onClick={() => choose(row.key)}
+                    className={`cursor-pointer rounded-md px-2.5 py-1.5 text-sm ${active ? "bg-brand-50 text-brand-800" : "text-neutral-700"} ${selected ? "font-medium" : ""}`}
+                  >
+                    {FIELD_REGISTRY[row.key].label}
+                    {selected && <span className="ml-1.5 text-xs text-brand-500">selected</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FieldConditionEditor({
   field,
   operator,
@@ -2356,34 +2484,9 @@ function FieldConditionEditor({
 
   return (
     <>
-      {/* Field picker — a curated "Common" shortlist first, then the full
-          categorised list under "All fields". */}
+      {/* Searchable, grouped field picker with a group breadcrumb in the trigger. */}
       <Field label="Field">
-        <select
-          value={field}
-          onChange={(e) => handleFieldChange(e.target.value as RuleFieldKey)}
-          className={selectCls}
-        >
-          <optgroup label="Common">
-            {COMMON_FIELD_KEYS.map((k) => (
-              <option key={`common-${k}`} value={k}>
-                {FIELD_REGISTRY[k].label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="────────  All fields  ────────" />
-          {(Object.entries(FIELD_KEYS_BY_GROUP) as [FieldGroup, readonly RuleFieldKey[]][]).map(
-            ([group, keys]) => (
-              <optgroup key={group} label={GROUP_LABELS[group]}>
-                {keys.map((k) => (
-                  <option key={k} value={k}>
-                    {FIELD_REGISTRY[k].label}
-                  </option>
-                ))}
-              </optgroup>
-            ),
-          )}
-        </select>
+        <FieldPicker value={field as RuleFieldKey} onChange={handleFieldChange} />
         {fieldDef && (
           <p className="mt-1 text-xs text-neutral-400">{fieldDef.description}</p>
         )}
