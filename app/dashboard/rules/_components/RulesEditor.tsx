@@ -107,6 +107,7 @@ import {
   inferPrecedenceLevel,
 } from "@/decision/rules/rule-packs";
 import type { PrecedenceLevel } from "@/decision/rules/rule-packs";
+import { allocateUniquePriority } from "@/decision/rules/allocate-priority";
 import type { CustomAttributeDeclaration } from "@/tenant/types";
 import { PRESET_CONDITIONS } from "@/decision/rules/preset-conditions";
 import { RecipeGallery } from "./RecipeGallery";
@@ -980,6 +981,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
               onSelect={() => toggleSelect(rule.id)}
               onToggleEnabled={() => toggleEnabled(rule.id)}
               isAtLimit={isAtLimit}
+              siblingRules={rules.filter((r) => r.id !== rule.id).map((r) => ({ priority: r.priority }))}
               cardRef={(el) => {
                 if (el) cardRefs.current.set(rule.id, el);
                 else    cardRefs.current.delete(rule.id);
@@ -1105,6 +1107,8 @@ interface RuleCardProps {
   onSelect:        () => void;
   onToggleEnabled: () => void;
   isAtLimit:       boolean;
+  /** Priorities of every OTHER rule, for the live priority collision hint. */
+  siblingRules:    readonly { priority: number }[];
   cardRef?:        (el: HTMLDivElement | null) => void;
 }
 
@@ -1148,12 +1152,19 @@ function RuleCard({
   onSelect,
   onToggleEnabled,
   isAtLimit,
+  siblingRules,
   cardRef,
 }: RuleCardProps) {
   const isFirst        = index === 0;
   const isLast         = index === total - 1;
   const isDisabled     = rule.enabled === false;
   const conditionLabel = formatCondition(rule.condition);
+
+  // Live priority hint: is this number already used, and what is the next free
+  // number within this rule's tier (reuses allocateUniquePriority).
+  const priorityTier   = rule.precedenceLevel ?? inferPrecedenceLevel(rule.priority) ?? "decorative";
+  const priorityTaken  = siblingRules.some((r) => r.priority === rule.priority);
+  const nextFreePriority = allocateUniquePriority(siblingRules, priorityTier);
 
   // Progressive disclosure: advanced sections (packs/precedence, extended
   // variant slots, form/email targeting, context writes, uncommon condition
@@ -1461,6 +1472,24 @@ function RuleCard({
                   }
                   className={inputCls}
                 />
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {priorityTaken ? (
+                    <span className="text-xs font-medium text-amber-600">
+                      Priority {rule.priority} is already used by another rule.
+                    </span>
+                  ) : (
+                    <span className="text-xs text-neutral-400">Priority {rule.priority} is free.</span>
+                  )}
+                  {nextFreePriority !== rule.priority && (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ priority: nextFreePriority })}
+                      className="rounded border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+                    >
+                      Use next free: {nextFreePriority}
+                    </button>
+                  )}
+                </div>
               </Field>
 
               <Field label="Reason" hint="Shown in debug output and analytics events.">
@@ -1769,15 +1798,25 @@ function FlatGroupEditor({
       {isMulti && (
         <div className="flex items-center gap-2 rounded-md bg-neutral-50 border border-neutral-200 px-3 py-2">
           <span className="text-xs text-neutral-500 font-medium shrink-0">Match</span>
-          <select
-            value={group.logic}
-            onChange={(e) => handleLogicChange(e.target.value as "and" | "or")}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            aria-label="Logic operator"
-          >
-            <option value="and">ALL</option>
-            <option value="or">ANY</option>
-          </select>
+          <div role="radiogroup" aria-label="Match all or any conditions" className="inline-flex rounded-md border border-neutral-300 bg-white p-0.5">
+            {(["and", "or"] as const).map((lg) => {
+              const active = group.logic === lg;
+              return (
+                <button
+                  key={lg}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => handleLogicChange(lg)}
+                  className={`rounded px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    active ? "bg-brand-600 text-white" : "text-neutral-600 hover:text-neutral-900"
+                  }`}
+                >
+                  {lg === "and" ? "All" : "Any"}
+                </button>
+              );
+            })}
+          </div>
           <span className="text-xs text-neutral-500 shrink-0">of the following conditions</span>
         </div>
       )}
