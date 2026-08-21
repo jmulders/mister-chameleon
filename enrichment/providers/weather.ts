@@ -282,12 +282,15 @@ export function createWeatherStagedEnricher(
       }
 
       try {
-        const output = await fetchOpenMeteo(lat, lng, isDev);
-
-        if (!output) return {};
-
-        cache.set(cacheKey, output);
-        return output;
+        // Coalesce concurrent misses for the same rounded lat/lng so only one
+        // Open-Meteo call runs. shouldCache keeps the existing behavior of not
+        // caching a no-result (an empty object still coalesces but is not stored,
+        // so a later call retries); a real fetch error throws and is not cached.
+        return await cache.getOrLoad(
+          cacheKey,
+          async () => (await fetchOpenMeteo(lat, lng, isDev)) ?? {},
+          { shouldCache: (o) => Object.keys(o).length > 0 },
+        );
       } catch (err) {
         if (isDev) {
           console.debug(
@@ -295,7 +298,7 @@ export function createWeatherStagedEnricher(
             err instanceof Error ? err.message : String(err),
           );
         }
-        // Fail-safe: never reject — let the pipeline continue.
+        // Fail-safe: never reject, let the pipeline continue.
         return {};
       }
     },

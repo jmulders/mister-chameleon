@@ -354,14 +354,20 @@ export function createIpInfoStagedEnricher(
 
       // ── Live API call ─────────────────────────────────────────────────────
       ctx?.setCacheSource("fresh");
-      const result = await provider.lookup(effectiveIp);
 
-      // Store in cache when the lookup returned useful data and an IP is known.
-      if (effectiveIp && Object.keys(result).length > 0) {
-        cache.set(effectiveIp, result);
+      // No IP: nothing to cache or coalesce on, call through directly.
+      if (!effectiveIp) {
+        return provider.lookup(effectiveIp);
       }
 
-      return result;
+      // Coalesce concurrent misses for the same IP so only one upstream call
+      // runs. shouldCache keeps the existing behavior of NOT storing an empty
+      // result (only non-empty lookups are cached); empties still coalesce.
+      return cache.getOrLoad(
+        effectiveIp,
+        () => provider.lookup(effectiveIp),
+        { shouldCache: (r) => Object.keys(r).length > 0 },
+      );
     },
   };
 }

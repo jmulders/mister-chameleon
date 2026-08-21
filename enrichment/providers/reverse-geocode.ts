@@ -547,16 +547,21 @@ export function createReverseGeocodeStagedEnricher(
 
       // ── Provider chain ──────────────────────────────────────────────────────
       try {
-        const result = await runProviderChain(providers, lat, lng, isDev);
-
-        if (!result) return {};
-
-        // Store in cache
-        cache.set(key, result);
+        // Coalesce concurrent misses for the same rounded lat/lng so only one
+        // provider-chain run happens. A no-result (or error) throws so it is not
+        // cached (matching the previous behavior of re-querying next time); a
+        // successful address is cached by getOrLoad. toEnrichmentOutput stays
+        // outside the coalesced value so it is applied once on both hit and miss.
+        const result = await cache.getOrLoad(key, async () => {
+          const r = await runProviderChain(providers, lat, lng, isDev);
+          if (!r) throw new Error("reverse-geocode: no result");
+          return r;
+        });
 
         return toEnrichmentOutput(result);
       } catch {
-        // Absorb unexpected errors — never propagate to the pipeline.
+        // Absorb no-result and unexpected errors (never propagate to the
+        // pipeline, and never cache them).
         return {};
       }
     },
