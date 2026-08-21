@@ -1462,10 +1462,8 @@ function RuleCard({
                   <VariantOptions entries={catalogue.cta} />
                 </select>
               </Field>
-            </div>
 
-            {advanced && (<>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {advanced && (<>
                 <Field label="Feature variant" hint="Optional. Leave blank to omit this slot.">
                   <select
                     value={rule.plan.featureKey ?? ""}
@@ -1525,8 +1523,10 @@ function RuleCard({
                     ))}
                   </select>
                 </Field>
-              </div>
+              </>)}
+            </div>
 
+            {advanced && (<>
               <VariantTargetFields
                 title="Form variants"
                 groups={catalogue.forms}
@@ -1692,19 +1692,17 @@ function DefaultPlanCard({
       </div>
 
       {editOpen && (
-        <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <Field label="Reason" hint="Shown in debug output and analytics events.">
-                <input
-                  type="text"
-                  value={plan.reason}
-                  onChange={(e) => onChange({ reason: e.target.value })}
-                  className={inputCls}
-                />
-              </Field>
-            </div>
-            <div className="flex flex-col gap-4">
+        <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5 space-y-5">
+          <Field label="Reason" hint="Shown in debug output and analytics events.">
+            <input
+              type="text"
+              value={plan.reason}
+              onChange={(e) => onChange({ reason: e.target.value })}
+              className={inputCls}
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {/* Core slots */}
               <Field label="Hero variant">
                 <select
@@ -1776,9 +1774,10 @@ function DefaultPlanCard({
                   ))}
                 </select>
               </Field>
+          </div>
 
-              {/* Form + email variants: default variant per key */}
-              <VariantTargetFields
+          {/* Form + email variants: default variant per key */}
+          <VariantTargetFields
                 title="Form variants"
                 groups={catalogue.forms}
                 value={plan.formVariants}
@@ -1797,13 +1796,11 @@ function DefaultPlanCard({
                 defaultOptionLabel="Default email"
               />
 
-              {/* Context writes for the default plan */}
-              <SetContextFields
-                value={plan.setContext}
-                onChange={(next) => onChange({ setContext: next })}
-              />
-            </div>
-          </div>
+          {/* Context writes for the default plan */}
+          <SetContextFields
+            value={plan.setContext}
+            onChange={(next) => onChange({ setContext: next })}
+          />
         </div>
       )}
     </div>
