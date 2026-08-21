@@ -35,9 +35,10 @@
  *   • Statamic  — platform DB (pages synced at provision time)
  */
 
-import { notFound }           from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTenantById }      from "@/tenant/server";
 import { normalizeTenant }    from "@/tenant/normalize";
+import { isPlatformCmsProvider } from "@/tenant/cms-model";
 import { Text }               from "@/components/primitives/Text";
 import { fetchVariantCatalogue }    from "@/decision/rules/fetch-variant-catalogue";
 import { fetchPagesWithVariants }   from "@/decision/rules/fetch-pages-with-variants";
@@ -58,6 +59,13 @@ export default async function VariantsPage({
   const rawTenant = await getTenantById(tenantId);
   if (!rawTenant) notFound();
   const tenant = normalizeTenant(rawTenant);
+
+  // Page-variants diagnostics only apply when the platform itself manages the
+  // pages. External-CMS tenants (addon / plugin / snippet) do not get this page:
+  // the route redirects to the personalization overview so the URL shows nothing.
+  if (!isPlatformCmsProvider(tenant.cms.provider)) {
+    redirect(`/admin/tenants/${tenantId}/personalization/blocks`);
+  }
 
   const [pages, catalogue] = await Promise.all([
     fetchPagesWithVariants(tenantId, tenant.cms.provider),

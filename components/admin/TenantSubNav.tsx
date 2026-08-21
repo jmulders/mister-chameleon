@@ -39,6 +39,12 @@ interface TenantSubNavProps {
    * of Platform).
    */
   isAdvertiser?: boolean;
+  /**
+   * True when the platform itself manages this tenant's pages (CMS provider
+   * "platform"). External-CMS tenants do not get platform-only surfaces like the
+   * page-variants diagnostics, so the "Variants" item is hidden for them.
+   */
+  platformCms?: boolean;
 }
 
 interface SubItem {
@@ -137,7 +143,7 @@ const ICONS = {
   ),
 };
 
-export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: TenantSubNavProps) {
+export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platformCms = false }: TenantSubNavProps) {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
   const base         = `/admin/tenants/${tenantId}`;
@@ -288,7 +294,16 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false }: Ten
     },
   ];
 
-  const groups = isAdvertiser ? advertiserGroups : fullGroups;
+  // The page-variants diagnostics is a platform-CMS-only surface: hide its nav
+  // item for external-CMS tenants (the route is guarded server-side too).
+  const baseGroups = isAdvertiser ? advertiserGroups : fullGroups;
+  const groups = platformCms
+    ? baseGroups
+    : baseGroups.map((g) =>
+        g.key === "personalization"
+          ? { ...g, items: g.items.filter((it) => it.label !== "Variants") }
+          : g,
+      );
 
   // ── Active group detection ─────────────────────────────────────────────────
 
