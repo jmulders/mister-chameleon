@@ -6,7 +6,7 @@
  *
  * Four tabs are exposed to operators:
  *
- *   Style              — stepped family → preset → live preview flow (default)
+ *   Presets            — categorized complete-look preset gallery (default)
  *   Automatic switching — contextual rule → theme mappings
  *   Typography          — font stack, role mappings, and base sizing
  *   Advanced            — full token editor + JSON import/export
