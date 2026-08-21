@@ -133,7 +133,7 @@ export class LeadinfoProvider {
       console.debug("[leadinfo] substituting local IP", { original: ip, effective: effectiveIp });
     }
 
-    // ── Cache check (in-process, then persistent DB) ─────────────────────────
+    // ── In-process fast-path (keeps the hit debug log) ───────────────────────
     const cachedResult = lookupCache.get(effectiveIp);
     if (cachedResult.hit) {
       if (this.isDev) {
@@ -142,84 +142,18 @@ export class LeadinfoProvider {
       return cachedResult.value;
     }
 
-    if (this.persistentCache) {
-      const persisted = await this.persistentCache.get(effectiveIp);
-      if (persisted) {
-        if (this.isDev) {
-          console.debug("[leadinfo] persistent cache hit", { ip: effectiveIp });
-        }
-        lookupCache.set(effectiveIp, persisted.output); // warm the in-process cache
-        return persisted.output;
-      }
-    }
-
+    // ── Coalesced miss path ──────────────────────────────────────────────────
+    //
+    // getOrLoad ensures that concurrent lookups for the same IP share ONE run of
+    // the loader below, so parallel requests neither both call the paid Leadinfo
+    // API nor both write the persistent DB cache. The loader throws on a
+    // transient error so it is never cached (a later call retries); a legitimate
+    // no-match returns `{}` and is cached exactly as before.
     try {
-      const url = `${this.apiBase}/identify?ip=${encodeURIComponent(effectiveIp)}`;
-
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          Accept:        "application/json",
-        },
-        signal: AbortSignal.timeout(4_000),
-        cache:  "no-store",
-        next:   { revalidate: 0 },
-      });
-
-      // 404 = IP not identified — not an error; cache the empty result
-      if (response.status === 404) {
-        if (this.isDev) {
-          console.debug("[leadinfo] no company for IP", effectiveIp);
-        }
-        lookupCache.set(effectiveIp, {});
-        void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: null });
-        return {};
-      }
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => "");
-        console.warn(
-          `[leadinfo] API error ${response.status} for IP "${effectiveIp}": ${text.slice(0, 200)}`,
-        );
-        return {};
-      }
-
-      const data = (await response.json()) as LeadinfoResponse;
-
-      if (!data.company) {
-        lookupCache.set(effectiveIp, {});
-        void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: data });
-        return {};
-      }
-
-      const result: Partial<EnrichmentOutput> = {
-        companyMatchSource:     "leadinfo",
-        companyMatchConfidence: 0.75,
-      };
-
-      if (data.company.name)     result.companyName    = data.company.name;
-      if (data.company.website)  result.companyDomain  = data.company.website.replace(/^https?:\/\//i, "").replace(/\/$/, "");
-      if (data.company.industry) result.companyIndustry = data.company.industry;
-      if (data.company.size)     result.companySize    = data.company.size;
-
-      // Geo fallback — only when prior stages haven't resolved these
-      if (data.location?.country) result.countryCode = data.location.country.toUpperCase();
-      if (data.location?.city)    result.city        = data.location.city;
-      if (data.location?.region)  result.region      = data.location.region;
-
-      if (this.isDev) {
-        console.debug("[leadinfo] result", {
-          ip:      effectiveIp,
-          company: result.companyName,
-          domain:  result.companyDomain,
-        });
-      }
-
-      // Cache successful result (in-process + persistent, with the raw payload)
-      lookupCache.set(effectiveIp, result);
-      void this.persistentCache?.set(effectiveIp, { matched: true, output: result, raw: data });
-      return result;
+      return await lookupCache.getOrLoad(effectiveIp, () => this.loadFromSources(effectiveIp));
     } catch (err) {
+      // Fail-safe contract: lookup() never rejects, and a transient error is not
+      // cached (getOrLoad already cleared the in-flight slot).
       const msg = err instanceof Error ? err.message : String(err);
       if (this.isDev) {
         console.debug("[leadinfo] lookup error", { ip: effectiveIp, error: msg });
@@ -228,6 +162,91 @@ export class LeadinfoProvider {
       }
       return {};
     }
+  }
+
+  /**
+   * Resolve an IP from the persistent DB cache or the paid Leadinfo API.
+   *
+   * Runs inside `getOrLoad`, so its side effects (the paid fetch and the
+   * persistent-cache write) happen at most once per in-flight group. Returns
+   * `{}` for a legitimate no-match (404 / no company) so getOrLoad caches it;
+   * THROWS on a transient error (non-ok response or network failure) so nothing
+   * is cached and a later call retries.
+   */
+  private async loadFromSources(effectiveIp: string): Promise<Partial<EnrichmentOutput>> {
+    // ── Persistent DB cache (second tier) ────────────────────────────────────
+    if (this.persistentCache) {
+      const persisted = await this.persistentCache.get(effectiveIp);
+      if (persisted) {
+        if (this.isDev) {
+          console.debug("[leadinfo] persistent cache hit", { ip: effectiveIp });
+        }
+        // getOrLoad warms the in-process cache with the returned value.
+        return persisted.output;
+      }
+    }
+
+    const url = `${this.apiBase}/identify?ip=${encodeURIComponent(effectiveIp)}`;
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        Accept:        "application/json",
+      },
+      signal: AbortSignal.timeout(4_000),
+      cache:  "no-store",
+      next:   { revalidate: 0 },
+    });
+
+    // 404 = IP not identified (not an error); cache the empty result.
+    if (response.status === 404) {
+      if (this.isDev) {
+        console.debug("[leadinfo] no company for IP", effectiveIp);
+      }
+      void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: null });
+      return {};
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      // Transient error: throw so it is not cached in either tier.
+      throw new Error(`API error ${response.status} for IP "${effectiveIp}": ${text.slice(0, 200)}`);
+    }
+
+    const data = (await response.json()) as LeadinfoResponse;
+
+    if (!data.company) {
+      void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: data });
+      return {};
+    }
+
+    const result: Partial<EnrichmentOutput> = {
+      companyMatchSource:     "leadinfo",
+      companyMatchConfidence: 0.75,
+    };
+
+    if (data.company.name)     result.companyName    = data.company.name;
+    if (data.company.website)  result.companyDomain  = data.company.website.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+    if (data.company.industry) result.companyIndustry = data.company.industry;
+    if (data.company.size)     result.companySize    = data.company.size;
+
+    // Geo fallback: only when prior stages haven't resolved these
+    if (data.location?.country) result.countryCode = data.location.country.toUpperCase();
+    if (data.location?.city)    result.city        = data.location.city;
+    if (data.location?.region)  result.region      = data.location.region;
+
+    if (this.isDev) {
+      console.debug("[leadinfo] result", {
+        ip:      effectiveIp,
+        company: result.companyName,
+        domain:  result.companyDomain,
+      });
+    }
+
+    // Persist the successful result (with the raw payload). getOrLoad handles
+    // the in-process cache write.
+    void this.persistentCache?.set(effectiveIp, { matched: true, output: result, raw: data });
+    return result;
   }
 }
 
