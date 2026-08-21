@@ -13,7 +13,7 @@
  *              vimeo    : video ID + autoplay/loop
  */
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useTransition, useEffect, useRef, useMemo } from "react";
 import { upsertAdaptiveBlockAction }             from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import { loadAssetsForPickerAction }             from "@/lib/assets/asset-picker-action";
 import { uploadForPickerClient }                 from "@/lib/assets/upload-for-picker-client";
@@ -45,6 +45,8 @@ import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
 import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
 import { getAllFormDefinitions } from "@/forms";
 import { RichCopyEditor } from "@/components/admin/RichCopyEditor";
+import { buildVariableCatalogue, type VariableEntry } from "@/lib/blocks/substitute-context-tokens";
+import type { CustomAttributeDeclaration } from "@/tenant/types";
 import { LayoutVariantPicker } from "@/components/admin/LayoutVariantPicker";
 import { SlideMediaEditor, ImagePicker, VideoOptions } from "@/components/admin/media/MediaEditor";
 
@@ -293,6 +295,7 @@ function ItemRow({
   idx,
   tenantId,
   slotId,
+  variables,
   onChange,
   onMediaChange,
   onMediaSideChange,
@@ -302,6 +305,7 @@ function ItemRow({
   idx:           number;
   tenantId:      string;
   slotId:        string;
+  variables:     readonly VariableEntry[];
   onChange:         (idx: number, field: keyof AdaptiveVariantItem, value: string) => void;
   onMediaChange:    (idx: number, media: HeroBannerMedia | undefined) => void;
   onMediaSideChange: (idx: number, side: "left" | "right" | undefined) => void;
@@ -348,6 +352,7 @@ function ItemRow({
           onChange={(md) => onChange(idx, "text", md)}
           ariaLabel={`Item ${idx + 1} text`}
           placeholder="Supporting copy. Select text to make it bold, italic, or a link."
+          variables={variables}
         />
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -442,6 +447,8 @@ interface EditBlockDrawerProps {
   onSaved:        () => void;
   /** Tenant's named block-token sets (design.blockTokenSets) for the picker. */
   blockTokenSets?: readonly BlockTokenSet[];
+  /** Tenant's declared custom attributes, for the "Insert variable" catalogue. */
+  customAttributes?: readonly CustomAttributeDeclaration[];
 }
 
 export function EditBlockDrawer({
@@ -451,9 +458,17 @@ export function EditBlockDrawer({
   onClose,
   onSaved,
   blockTokenSets = [],
+  customAttributes = [],
 }: EditBlockDrawerProps) {
   const slotId        = slotFromKey(block.key);
   const layoutOptions = LAYOUT_OPTIONS[slotId] ?? [];
+
+  // Insertable context-variable catalogue: the built-in subset plus this tenant's
+  // string-typed custom attributes. Fed to every RichCopyEditor in the drawer.
+  const variableCatalogue = useMemo(
+    () => buildVariableCatalogue(customAttributes),
+    [customAttributes],
+  );
 
   // Token groups relevant to THIS block: all universal groups + only the
   // block-specific group for the current slot (hide the others).
@@ -927,6 +942,7 @@ export function EditBlockDrawer({
                   onChange={setSubtitle}
                   ariaLabel={slotId === "cta" ? "CTA text" : "Hero subtitle"}
                   placeholder="Supporting copy. Select text to make it bold, italic, or a link."
+                  variables={variableCatalogue}
                 />
               ) : (
                 <textarea
@@ -1261,6 +1277,7 @@ export function EditBlockDrawer({
                   idx={idx}
                   tenantId={tenantId}
                   slotId={slotId}
+                  variables={variableCatalogue}
                   onChange={handleItemChange}
                   onMediaChange={handleItemMediaChange}
                   onMediaSideChange={handleItemMediaSideChange}
