@@ -107,6 +107,7 @@ import {
   inferPrecedenceLevel,
 } from "@/decision/rules/rule-packs";
 import type { PrecedenceLevel } from "@/decision/rules/rule-packs";
+import { allocateUniquePriority } from "@/decision/rules/allocate-priority";
 import type { CustomAttributeDeclaration } from "@/tenant/types";
 import { PRESET_CONDITIONS } from "@/decision/rules/preset-conditions";
 import { RecipeGallery } from "./RecipeGallery";
@@ -341,6 +342,95 @@ function formatPlanSummary(plan: StoredPlan): string {
     summary += " · set " + writes.map((w) => `${w.key}=${String(w.value)}`).join(", ");
   }
   return summary;
+}
+
+/** Join phrases as "a, b and c" for the plain-language rule sentence. */
+function joinWithAnd(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+/** A compact "slot: key" plan phrase for the summary sentence (presentation only). */
+function formatPlanSentence(plan: StoredPlan): string {
+  const parts = [`hero: ${plan.heroKey}`, `proof: ${plan.proofKey}`, `cta: ${plan.ctaKey}`];
+  if (plan.featureKey)    parts.push(`feature: ${plan.featureKey}`);
+  if (plan.conversionKey) parts.push(`conversion: ${plan.conversionKey}`);
+  if (plan.themeKey)      parts.push(`theme: ${plan.themeKey}`);
+  return joinWithAnd(parts);
+}
+
+// Readable operator words for the summary sentence (presentation only; the
+// shared formatCondition keeps its own wording for debug output).
+const READABLE_OPERATORS: Record<FieldOperator, string> = {
+  equals:                "is",
+  not_equals:            "is not",
+  in:                    "is one of",
+  not_in:                "is not one of",
+  greater_than:          "is greater than",
+  greater_than_or_equal: "is at least",
+  less_than:             "is less than",
+  less_than_or_equal:    "is at most",
+  contains:              "contains",
+  not_contains:          "does not contain",
+  exists:                "is set",
+  not_exists:            "is not set",
+};
+
+function readableValue(value: unknown): string {
+  if (Array.isArray(value)) return (value as (string | number)[]).join(", ");
+  return String(value ?? "");
+}
+
+function readableLeaf(label: string, op: FieldOperator, value: unknown): string {
+  const word = READABLE_OPERATORS[op] ?? op;
+  return op === "exists" || op === "not_exists"
+    ? `${label} ${word}`
+    : `${label} ${word} ${readableValue(value)}`;
+}
+
+/**
+ * Presentation-only readable rendering of a condition for the summary sentence:
+ * uses field labels, readable operator words ("is" not "equals"), and no
+ * "ctx:" / "flag" / "attr" prefixes. Does NOT touch the shared formatCondition,
+ * which stays the source of truth for storage-adjacent debug output.
+ */
+function formatConditionReadable(condition: RuleCondition): string {
+  switch (condition.type) {
+    case "field":
+      return readableLeaf(
+        FIELD_REGISTRY[condition.field]?.label ?? condition.field,
+        condition.operator ?? "equals",
+        condition.value,
+      );
+    case "flag":
+    case "attribute":
+      return readableLeaf(condition.name, condition.operator ?? "equals", condition.value);
+    case "named":
+      // NAMED_CONDITIONS label is already human and prefix-free.
+      return formatCondition(condition);
+    case "context": {
+      // Drop the "ctx: " prefix the shared formatter adds.
+      const s = formatCondition(condition);
+      return s.startsWith("ctx: ") ? s.slice(5) : s;
+    }
+    case "group": {
+      const sep   = condition.logic === "or" ? " or " : " and ";
+      const parts = condition.conditions.map(formatConditionReadable);
+      return parts.length === 1 ? parts[0] : parts.join(sep);
+    }
+    default:
+      // context_library and any future types: fall back to the shared formatter.
+      return formatCondition(condition as RuleCondition);
+  }
+}
+
+/**
+ * Read the rule as a plain-language sentence for the read-only summary at the top
+ * of the card. Uses the presentation-only formatConditionReadable for the "when"
+ * half and the plan keys for the "show" half.
+ */
+function formatRuleSentence(condition: RuleCondition, plan: StoredPlan): string {
+  return `When ${formatConditionReadable(condition)}, show ${formatPlanSentence(plan)}.`;
 }
 
 // ── Operator labels ────────────────────────────────────────────────────────────
@@ -956,6 +1046,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
               onSelect={() => toggleSelect(rule.id)}
               onToggleEnabled={() => toggleEnabled(rule.id)}
               isAtLimit={isAtLimit}
+              siblingRules={rules.filter((r) => r.id !== rule.id).map((r) => ({ priority: r.priority }))}
               cardRef={(el) => {
                 if (el) cardRefs.current.set(rule.id, el);
                 else    cardRefs.current.delete(rule.id);
@@ -1081,6 +1172,8 @@ interface RuleCardProps {
   onSelect:        () => void;
   onToggleEnabled: () => void;
   isAtLimit:       boolean;
+  /** Priorities of every OTHER rule, for the live priority collision hint. */
+  siblingRules:    readonly { priority: number }[];
   cardRef?:        (el: HTMLDivElement | null) => void;
 }
 
@@ -1124,12 +1217,19 @@ function RuleCard({
   onSelect,
   onToggleEnabled,
   isAtLimit,
+  siblingRules,
   cardRef,
 }: RuleCardProps) {
   const isFirst        = index === 0;
   const isLast         = index === total - 1;
   const isDisabled     = rule.enabled === false;
   const conditionLabel = formatCondition(rule.condition);
+
+  // Live priority hint: is this number already used, and what is the next free
+  // number within this rule's tier (reuses allocateUniquePriority).
+  const priorityTier   = rule.precedenceLevel ?? inferPrecedenceLevel(rule.priority) ?? "decorative";
+  const priorityTaken  = siblingRules.some((r) => r.priority === rule.priority);
+  const nextFreePriority = allocateUniquePriority(siblingRules, priorityTier);
 
   // Progressive disclosure: advanced sections (packs/precedence, extended
   // variant slots, form/email targeting, context writes, uncommon condition
@@ -1218,20 +1318,34 @@ function RuleCard({
 
       {/* ── Edit panel ────────────────────────────────────────────────── */}
       {rule._editOpen && (
-        <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5">
-          {/* Live sentence preview (left) + advanced-options toggle (right).
-              The preview reads the rule as a plain "When … → …" sentence and
-              updates as you edit. The toggle reveals packs/precedence, extended
-              variant slots, form/email targeting, context writes and uncommon
-              condition types. */}
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs leading-relaxed text-neutral-600">
-              <span className="mr-1 font-semibold uppercase tracking-wide text-neutral-400">When</span>
-              {conditionLabel}
-              <span className="mx-1.5 font-semibold text-brand-600">→</span>
-              {formatPlanSummary(rule.plan)}
-            </div>
-            <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 pt-1 text-xs font-medium text-neutral-500">
+        <div className="space-y-6 border-t border-neutral-100 bg-white px-5 py-6">
+
+          {/* Header: rule name + tier chip + enabled toggle + advanced options */}
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              value={rule.label}
+              onChange={(e) => onChange({ label: e.target.value })}
+              placeholder="Rule name"
+              aria-label="Rule name"
+              className="min-w-[14rem] flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-base font-medium text-neutral-900 outline-none hover:border-neutral-200 focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
+            />
+            <TierChip priority={rule.priority} precedenceLevel={rule.precedenceLevel} />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!isDisabled}
+              onClick={onToggleEnabled}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                isDisabled
+                  ? "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${isDisabled ? "bg-neutral-400" : "bg-emerald-500"}`} />
+              {isDisabled ? "Disabled" : "Enabled"}
+            </button>
+            <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 text-xs font-medium text-neutral-500">
               <input
                 type="checkbox"
                 checked={advanced}
@@ -1242,131 +1356,66 @@ function RuleCard({
             </label>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {/* Left column: identity + conditions */}
-            <div className="flex flex-col gap-4">
-              <Field label="Label">
-                <input
-                  type="text"
-                  value={rule.label}
-                  onChange={(e) => onChange({ label: e.target.value })}
-                  placeholder="e.g. Google traffic on mobile"
-                  className={inputCls}
-                />
-              </Field>
+          {/* Read-only plain-language summary, live as you edit */}
+          <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm leading-relaxed text-neutral-700">
+            {formatRuleSentence(rule.condition, rule.plan)}
+          </p>
 
-              <Field label="Priority" hint="Lower number = higher priority. Must be unique.">
-                <input
-                  type="number"
-                  value={rule.priority}
-                  min={1}
-                  max={9999}
-                  onChange={(e) =>
-                    onChange({ priority: Math.max(1, parseInt(e.target.value, 10) || 1) })
-                  }
-                  className={inputCls}
-                />
-              </Field>
+          {/* ── When ────────────────────────────────────────────────────────── */}
+          <section className="space-y-3">
+            <SectionTitle>When</SectionTitle>
+            <FlatGroupEditor
+              condition={rule.condition}
+              advanced={advanced}
+              onChange={(condition) => onChange({ condition })}
+            />
+          </section>
 
-              <Field label="Reason" hint="Shown in debug output and analytics events.">
-                <input
-                  type="text"
-                  value={rule.reason}
-                  onChange={(e) => onChange({ reason: e.target.value })}
-                  placeholder="e.g. Traffic source indicates search/problem intent."
-                  className={inputCls}
-                />
-              </Field>
-
+          {/* ── Then show ───────────────────────────────────────────────────── */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <SectionTitle>Then show</SectionTitle>
               {advanced && (
-                <Field label="Rule pack" hint="Organisational group for admin filtering. Does not affect evaluation.">
-                  <select
-                    value={rule.packId ?? ""}
-                    onChange={(e) => onChange({ packId: e.target.value || undefined })}
-                    className={selectCls}
-                  >
-                    <option value="">— None —</option>
-                    {Object.values(RULE_PACK_REGISTRY).map((pack) => (
-                      <option key={pack.id} value={pack.id}>{pack.label}</option>
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    const key = e.target.value;
+                    if (!key) return;
+                    const preset = PRESET_PLANS[key];
+                    if (!preset) return;
+                    onChange({
+                      plan: {
+                        ...rule.plan,
+                        heroKey:       preset.heroKey,
+                        proofKey:      preset.proofKey,
+                        ctaKey:        preset.ctaKey,
+                        featureKey:    preset.featureKey,
+                        conversionKey: preset.conversionKey,
+                        pricingEmphasis: preset.pricingEmphasis,
+                        pricingCtaMode:  preset.pricingCtaMode,
+                      },
+                    });
+                    e.target.value = "";
+                  }}
+                  className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                  title="Fill all plan fields from a scenario preset"
+                >
+                  <option value="" disabled>Fill from preset</option>
+                  <optgroup label="Generic / B2B SaaS">
+                    {PRESET_CONDITIONS.filter((p) => p.group === "generic").map((p) => (
+                      <option key={p.key} value={p.key}>{p.label}</option>
                     ))}
-                  </select>
-                </Field>
-              )}
-
-              {advanced && (
-                <Field label="Precedence tier" hint="Overrides the tier inferred from priority. Leave blank to infer automatically.">
-                  <select
-                    value={rule.precedenceLevel ?? ""}
-                    onChange={(e) =>
-                      onChange({ precedenceLevel: (e.target.value as PrecedenceLevel) || undefined })
-                    }
-                    className={selectCls}
-                  >
-                    <option value="">— Infer from priority —</option>
-                    {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
-                      <option key={level} value={level}>
-                        {meta.label} ({meta.range[0]}–{meta.range[1]})
-                      </option>
+                  </optgroup>
+                  <optgroup label="Careers">
+                    {PRESET_CONDITIONS.filter((p) => p.group === "careers").map((p) => (
+                      <option key={p.key} value={p.key}>{p.label}</option>
                     ))}
-                  </select>
-                </Field>
+                  </optgroup>
+                </select>
               )}
-
-              <FlatGroupEditor
-                condition={rule.condition}
-                advanced={advanced}
-                onChange={(condition) => onChange({ condition })}
-              />
             </div>
 
-            {/* Right column: plan */}
-            <div className="flex flex-col gap-4">
-              {/* Header row: label + Fill from preset (advanced power-shortcut) */}
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Variant Plan
-                </p>
-                {advanced && (
-                  <select
-                    defaultValue=""
-                    onChange={(e) => {
-                      const key = e.target.value;
-                      if (!key) return;
-                      const preset = PRESET_PLANS[key];
-                      if (!preset) return;
-                      onChange({
-                        plan: {
-                          ...rule.plan,
-                          heroKey:       preset.heroKey,
-                          proofKey:      preset.proofKey,
-                          ctaKey:        preset.ctaKey,
-                          featureKey:    preset.featureKey,
-                          conversionKey: preset.conversionKey,
-                          pricingEmphasis: preset.pricingEmphasis,
-                          pricingCtaMode:  preset.pricingCtaMode,
-                        },
-                      });
-                      e.target.value = "";
-                    }}
-                    className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-600 hover:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
-                    title="Fill all plan fields from a scenario preset"
-                  >
-                    <option value="" disabled>Fill from preset…</option>
-                    <optgroup label="Generic / B2B SaaS">
-                      {PRESET_CONDITIONS.filter((p) => p.group === "generic").map((p) => (
-                        <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Careers">
-                      {PRESET_CONDITIONS.filter((p) => p.group === "careers").map((p) => (
-                        <option key={p.key} value={p.key}>{p.icon} {p.label}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                )}
-              </div>
-
-              {/* Core slots */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label="Hero variant">
                 <select
                   value={rule.plan.heroKey}
@@ -1402,50 +1451,51 @@ function RuleCard({
                   <VariantOptions entries={catalogue.cta} />
                 </select>
               </Field>
+            </div>
 
-              {advanced && (<>
-              {/* Extended slots */}
-              <Field label="Feature variant" hint="Optional — leave blank to omit this slot.">
-                <select
-                  value={rule.plan.featureKey ?? ""}
-                  onChange={(e) =>
-                    onChange({
-                      plan: {
-                        ...rule.plan,
-                        featureKey: (e.target.value as FeatureVariantKey) || undefined,
-                      },
-                    })
-                  }
-                  className={selectCls}
-                >
-                  <option value="">— None (slot omitted) —</option>
-                  {catalogue.feature.map((entry) => (
-                    <option key={entry.key} value={entry.key}>{entry.label}</option>
-                  ))}
-                </select>
-              </Field>
+            {advanced && (<>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Feature variant" hint="Optional. Leave blank to omit this slot.">
+                  <select
+                    value={rule.plan.featureKey ?? ""}
+                    onChange={(e) =>
+                      onChange({
+                        plan: {
+                          ...rule.plan,
+                          featureKey: (e.target.value as FeatureVariantKey) || undefined,
+                        },
+                      })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">None (slot omitted)</option>
+                    {catalogue.feature.map((entry) => (
+                      <option key={entry.key} value={entry.key}>{entry.label}</option>
+                    ))}
+                  </select>
+                </Field>
 
-              <Field label="Conversion variant" hint="Optional — leave blank to omit this slot.">
-                <select
-                  value={rule.plan.conversionKey ?? ""}
-                  onChange={(e) =>
-                    onChange({
-                      plan: {
-                        ...rule.plan,
-                        conversionKey: (e.target.value as ConversionVariantKey) || undefined,
-                      },
-                    })
-                  }
-                  className={selectCls}
-                >
-                  <option value="">— None (slot omitted) —</option>
-                  {catalogue.conversion.map((entry) => (
-                    <option key={entry.key} value={entry.key}>{entry.label}</option>
-                  ))}
-                </select>
-              </Field>
+                <Field label="Conversion variant" hint="Optional. Leave blank to omit this slot.">
+                  <select
+                    value={rule.plan.conversionKey ?? ""}
+                    onChange={(e) =>
+                      onChange({
+                        plan: {
+                          ...rule.plan,
+                          conversionKey: (e.target.value as ConversionVariantKey) || undefined,
+                        },
+                      })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">None (slot omitted)</option>
+                    {catalogue.conversion.map((entry) => (
+                      <option key={entry.key} value={entry.key}>{entry.label}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
 
-              {/* Form + email variants: target an authored variant per key */}
               <VariantTargetFields
                 title="Form variants"
                 groups={catalogue.forms}
@@ -1465,16 +1515,95 @@ function RuleCard({
                 defaultOptionLabel="Default email"
               />
 
-              {/* Context writes: set flags / override derived fields when this rule fires */}
               <SetContextFields
                 value={rule.plan.setContext}
                 onChange={(next) => onChange({ plan: { ...rule.plan, setContext: next } })}
               />
-              </>)}
-            </div>
-          </div>
+            </>)}
+          </section>
 
-          <div className="mt-5 flex justify-end border-t border-neutral-200 pt-4">
+          {/* ── Priority ────────────────────────────────────────────────────── */}
+          <section className="space-y-3">
+            <SectionTitle>Priority</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Priority" hint="Lower number = higher priority. Must be unique.">
+                <input
+                  type="number"
+                  value={rule.priority}
+                  min={1}
+                  max={9999}
+                  onChange={(e) =>
+                    onChange({ priority: Math.max(1, parseInt(e.target.value, 10) || 1) })
+                  }
+                  className={inputCls}
+                />
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {priorityTaken ? (
+                    <span className="text-xs font-medium text-amber-600">
+                      Priority {rule.priority} is already used by another rule.
+                    </span>
+                  ) : (
+                    <span className="text-xs text-neutral-400">Priority {rule.priority} is free.</span>
+                  )}
+                  {priorityTaken && nextFreePriority !== rule.priority && (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ priority: nextFreePriority })}
+                      className="rounded border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+                    >
+                      Use next free: {nextFreePriority}
+                    </button>
+                  )}
+                </div>
+              </Field>
+
+              <Field label="Reason" hint="Shown in debug output and analytics events.">
+                <input
+                  type="text"
+                  value={rule.reason}
+                  onChange={(e) => onChange({ reason: e.target.value })}
+                  placeholder="e.g. Traffic source indicates search or problem intent."
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+
+            {advanced && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Rule pack" hint="Organisational group for admin filtering. Does not affect evaluation.">
+                  <select
+                    value={rule.packId ?? ""}
+                    onChange={(e) => onChange({ packId: e.target.value || undefined })}
+                    className={selectCls}
+                  >
+                    <option value="">None</option>
+                    {Object.values(RULE_PACK_REGISTRY).map((pack) => (
+                      <option key={pack.id} value={pack.id}>{pack.label}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Precedence tier" hint="Overrides the tier inferred from priority. Leave blank to infer automatically.">
+                  <select
+                    value={rule.precedenceLevel ?? ""}
+                    onChange={(e) =>
+                      onChange({ precedenceLevel: (e.target.value as PrecedenceLevel) || undefined })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="">Infer from priority</option>
+                    {(Object.entries(PRECEDENCE_TIERS) as [PrecedenceLevel, typeof PRECEDENCE_TIERS[PrecedenceLevel]][]).map(([level, meta]) => (
+                      <option key={level} value={level}>
+                        {meta.label} ({meta.range[0]}-{meta.range[1]})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            )}
+          </section>
+
+          <div className="flex justify-end border-t border-neutral-200 pt-4">
             <button
               type="button"
               onClick={onDelete}
@@ -1734,15 +1863,25 @@ function FlatGroupEditor({
       {isMulti && (
         <div className="flex items-center gap-2 rounded-md bg-neutral-50 border border-neutral-200 px-3 py-2">
           <span className="text-xs text-neutral-500 font-medium shrink-0">Match</span>
-          <select
-            value={group.logic}
-            onChange={(e) => handleLogicChange(e.target.value as "and" | "or")}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            aria-label="Logic operator"
-          >
-            <option value="and">ALL</option>
-            <option value="or">ANY</option>
-          </select>
+          <div role="radiogroup" aria-label="Match all or any conditions" className="inline-flex rounded-md border border-neutral-300 bg-white p-0.5">
+            {(["and", "or"] as const).map((lg) => {
+              const active = group.logic === lg;
+              return (
+                <button
+                  key={lg}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => handleLogicChange(lg)}
+                  className={`rounded px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    active ? "bg-brand-600 text-white" : "text-neutral-600 hover:text-neutral-900"
+                  }`}
+                >
+                  {lg === "and" ? "All" : "Any"}
+                </button>
+              );
+            })}
+          </div>
           <span className="text-xs text-neutral-500 shrink-0">of the following conditions</span>
         </div>
       )}
@@ -2280,6 +2419,134 @@ function ScalarValueInput({
  *                     nullable_string / other          → <input type="text">
  *                     exists / not_exists              → no value input shown
  */
+/**
+ * FieldPicker
+ *
+ * Searchable, grouped combobox for the ~180 registry fields. Replaces a flat
+ * <select>. The trigger shows a group breadcrumb ("Behaviour › Visit type"); the
+ * popover offers a search box and the fields grouped by FIELD_KEYS_BY_GROUP, with
+ * a curated "Common" shortlist first. Keyboard: open with Enter/Space/ArrowDown,
+ * type to filter, ArrowUp/Down to move, Enter to select, Escape to close.
+ */
+function FieldPicker({ value, onChange }: { value: RuleFieldKey; onChange: (k: RuleFieldKey) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIdx, setActiveIdx] = useState(0);
+  const rootRef  = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const def = FIELD_REGISTRY[value];
+  const q   = query.trim().toLowerCase();
+  const matches = (k: RuleFieldKey) =>
+    !q ||
+    FIELD_REGISTRY[k].label.toLowerCase().includes(q) ||
+    GROUP_LABELS[FIELD_REGISTRY[k].group].toLowerCase().includes(q) ||
+    k.toLowerCase().includes(q);
+
+  const sections: Array<{ label: string; keys: RuleFieldKey[] }> = [];
+  const common = COMMON_FIELD_KEYS.filter(matches);
+  if (common.length) sections.push({ label: "Common", keys: [...common] });
+  for (const [group, keys] of Object.entries(FIELD_KEYS_BY_GROUP) as [FieldGroup, readonly RuleFieldKey[]][]) {
+    const filtered = keys.filter(matches);
+    if (filtered.length) sections.push({ label: GROUP_LABELS[group], keys: [...filtered] });
+  }
+  const rows = sections.flatMap((s) => s.keys.map((key) => ({ key, section: s.label })));
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  useEffect(() => {
+    if (open) { setQuery(""); setActiveIdx(0); const t = setTimeout(() => inputRef.current?.focus(), 0); return () => clearTimeout(t); }
+  }, [open]);
+  useEffect(() => { setActiveIdx(0); }, [query]);
+
+  const choose = (k: RuleFieldKey) => { onChange(k); setOpen(false); };
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowDown")      { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, rows.length - 1)); }
+    else if (e.key === "ArrowUp")   { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter")     { e.preventDefault(); const r = rows[activeIdx]; if (r) choose(r.key); }
+    else if (e.key === "Escape")    { e.preventDefault(); setOpen(false); }
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => { if (!open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpen(true); } }}
+        className={`${selectCls} flex items-center justify-between text-left`}
+      >
+        <span className="truncate">
+          {def ? (
+            <>
+              <span className="text-neutral-400">{GROUP_LABELS[def.group]}</span>
+              <span className="mx-1 text-neutral-300">&rsaquo;</span>
+              <span className="text-neutral-900">{def.label}</span>
+            </>
+          ) : "Choose a field"}
+        </span>
+        <span aria-hidden="true" className="ml-2 shrink-0 text-neutral-400">&#9662;</span>
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg">
+          <div className="p-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search fields"
+              aria-label="Search fields"
+              className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+          <ul role="listbox" aria-label="Fields" className="max-h-64 overflow-auto px-1 pb-2">
+            {rows.length === 0 && (
+              <li className="px-3 py-4 text-center text-xs text-neutral-400">No fields match.</li>
+            )}
+            {rows.map((row, idx) => {
+              const prev = rows[idx - 1];
+              const showHeader = !prev || prev.section !== row.section;
+              const active   = idx === activeIdx;
+              const selected = row.key === value;
+              return (
+                <li key={`${row.section}-${row.key}`} role="presentation">
+                  {showHeader && (
+                    <div className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                      {row.section}
+                    </div>
+                  )}
+                  <div
+                    role="option"
+                    aria-selected={selected}
+                    onMouseEnter={() => setActiveIdx(idx)}
+                    onClick={() => choose(row.key)}
+                    className={`cursor-pointer rounded-md px-2.5 py-1.5 text-sm ${active ? "bg-brand-50 text-brand-800" : "text-neutral-700"} ${selected ? "font-medium" : ""}`}
+                  >
+                    {FIELD_REGISTRY[row.key].label}
+                    {selected && <span className="ml-1.5 text-xs text-brand-500">selected</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FieldConditionEditor({
   field,
   operator,
@@ -2321,34 +2588,9 @@ function FieldConditionEditor({
 
   return (
     <>
-      {/* Field picker — a curated "Common" shortlist first, then the full
-          categorised list under "All fields". */}
+      {/* Searchable, grouped field picker with a group breadcrumb in the trigger. */}
       <Field label="Field">
-        <select
-          value={field}
-          onChange={(e) => handleFieldChange(e.target.value as RuleFieldKey)}
-          className={selectCls}
-        >
-          <optgroup label="Common">
-            {COMMON_FIELD_KEYS.map((k) => (
-              <option key={`common-${k}`} value={k}>
-                {FIELD_REGISTRY[k].label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="────────  All fields  ────────" />
-          {(Object.entries(FIELD_KEYS_BY_GROUP) as [FieldGroup, readonly RuleFieldKey[]][]).map(
-            ([group, keys]) => (
-              <optgroup key={group} label={GROUP_LABELS[group]}>
-                {keys.map((k) => (
-                  <option key={k} value={k}>
-                    {FIELD_REGISTRY[k].label}
-                  </option>
-                ))}
-              </optgroup>
-            ),
-          )}
-        </select>
+        <FieldPicker value={field as RuleFieldKey} onChange={handleFieldChange} />
         {fieldDef && (
           <p className="mt-1 text-xs text-neutral-400">{fieldDef.description}</p>
         )}
@@ -3021,6 +3263,15 @@ function Field({
       <div id={id}>{children}</div>
       {hint && <p className="text-xs text-neutral-400">{hint}</p>}
     </div>
+  );
+}
+
+/** Small uppercase heading for the When / Then show / Priority sections. */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+      {children}
+    </h4>
   );
 }
 
