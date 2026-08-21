@@ -16,13 +16,22 @@ import { normalizeTenant } from "@/tenant/normalize";
 import { listFormSubmissionsAction } from "./actions";
 import { getTenantFormSettingsAction } from "@/app/admin/tenants/[tenantId]/content/forms/actions";
 import { SubmissionsClient } from "./_components/SubmissionsClient";
+import { getAllFormDefinitions } from "@/forms";
+import { isFormKey } from "@/forms/registry";
 
 export default async function FormSubmissionsPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ tenantId: string }>;
+  params:       Promise<{ tenantId: string }>;
+  searchParams: Promise<{ formKey?: string }>;
 }) {
   const { tenantId } = await params;
+  const { formKey: rawFormKey } = await searchParams;
+
+  // Pre-filter on a form type when the page is opened scoped from the Forms page
+  // (…/submissions?formKey=<key>). Only accept a registered key.
+  const initialFormKey = rawFormKey && isFormKey(rawFormKey) ? rawFormKey : "";
 
   const rawTenant = await getTenantById(tenantId);
   if (!rawTenant) notFound();
@@ -31,15 +40,16 @@ export default async function FormSubmissionsPage({
 
   // ── Parallel data fetch ──────────────────────────────────────────────────────
   const [submissionsResult, settingsResult] = await Promise.all([
-    listFormSubmissionsAction(tenantId, { page: 1 }),
+    listFormSubmissionsAction(tenantId, { page: 1, ...(initialFormKey ? { formKey: initialFormKey } : {}) }),
     getTenantFormSettingsAction(tenantId),
   ]);
 
   const initialRows  = submissionsResult.ok ? submissionsResult.rows  : [];
   const initialTotal = submissionsResult.ok ? submissionsResult.total : 0;
 
-  // Collect unique form keys from the first page for the filter dropdown.
-  const formKeys = Array.from(new Set(initialRows.map((r) => r.form_key))).sort();
+  // All registered form keys, so the dropdown can switch to any type even when
+  // the page opened pre-filtered on one.
+  const formKeys = getAllFormDefinitions().map((d) => d.key).sort();
 
   const retentionDays = settingsResult.ok
     ? (settingsResult.settings.submissionRetentionDays ?? null)
@@ -88,6 +98,7 @@ export default async function FormSubmissionsPage({
         initialTotal={initialTotal}
         tenantId={tenantId}
         formKeys={formKeys}
+        initialFormKey={initialFormKey}
       />
     </div>
   );

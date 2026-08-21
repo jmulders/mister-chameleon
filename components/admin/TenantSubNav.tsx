@@ -189,7 +189,6 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
         { label: "Pages",      href: `${base}/content/pages`,      activePrefix: `${base}/content/pages` },
         { label: "Blueprints", href: `${base}/content/blueprints`, activePrefix: `${base}/content/blueprints` },
         { label: "Forms",      href: `${base}/content/forms`,      activePrefix: `${base}/content/forms` },
-        { label: "Submissions", href: `${base}/content/forms/submissions`, activePrefix: `${base}/content/forms/submissions` },
         { label: "Email",      href: `${base}/content/email`,      activePrefix: `${base}/content/email` },
         { label: "Assets",     href: `${base}/content/assets`,     activePrefix: `${base}/content/assets` },
         { label: "Status",     href: `${base}/content/status`,     activePrefix: `${base}/content/status` },
@@ -335,14 +334,6 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
         pathname.startsWith(`${base}/personalization/ai-policy`) ||
         pathname.startsWith(`${base}/personalization/field-fill`) ||
         pathname.startsWith(`${base}/personalization/context-variables`)
-      );
-    }
-    if (item.label === "Forms") {
-      // Forms covers its own config plus per-form overrides, but NOT the
-      // submissions inbox, which has its own sibling item below.
-      return (
-        pathname.startsWith(`${base}/content/forms`) &&
-        !pathname.startsWith(`${base}/content/forms/submissions`)
       );
     }
     return item.exact ? pathname === item.activePrefix : pathname.startsWith(item.activePrefix);
