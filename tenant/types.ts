@@ -1469,6 +1469,15 @@ export interface TenantDebugSettings {
    * (matches the pre-feature behaviour where the full panel was always shown).
    */
   readonly debugLevel: "off" | "summary" | "full";
+
+  /**
+   * When true, the operator/demo scenario console (bottom-right) is mounted
+   * site-wide for this tenant. Absent/false (the default) keeps it off so it
+   * never appears unintentionally on a live tenant. This is the main switch;
+   * the client-side /demo-controls toggle and auto-open on an active scenario
+   * still apply as a second layer once the console is mounted.
+   */
+  readonly showScenarioControl?: boolean;
 }
 
 // ── Experiments settings ──────────────────────────────────────────────────────

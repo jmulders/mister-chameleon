@@ -29,9 +29,10 @@ import type { SaveDebugSettingsResult }         from "../actions";
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface TenantDebugClientProps {
-  tenantId:         string;
-  showDebugOverlay: boolean;
-  debugLevel:       "off" | "summary" | "full";
+  tenantId:            string;
+  showDebugOverlay:    boolean;
+  debugLevel:          "off" | "summary" | "full";
+  showScenarioControl: boolean;
 }
 
 type SaveState =
@@ -64,16 +65,23 @@ const DEBUG_LEVELS: { value: "off" | "summary" | "full"; label: string; note: st
 
 export function TenantDebugClient({
   tenantId,
-  showDebugOverlay: initialShowOverlay,
-  debugLevel:       initialDebugLevel,
+  showDebugOverlay:    initialShowOverlay,
+  debugLevel:          initialDebugLevel,
+  showScenarioControl: initialShowScenario,
 }: TenantDebugClientProps) {
   const [showOverlay, setShowOverlay] = useState(initialShowOverlay);
   const [debugLevel,  setDebugLevel]  = useState<"off" | "summary" | "full">(initialDebugLevel);
+  const [showScenario, setShowScenario] = useState(initialShowScenario);
   const [saveState,   setSaveState]   = useState<SaveState>({ mode: "idle" });
   const [isPending,   startTransition] = useTransition();
 
   function handleShowOverlayChange(v: boolean) {
     setShowOverlay(v);
+    setSaveState({ mode: "idle" });
+  }
+
+  function handleShowScenarioChange(v: boolean) {
+    setShowScenario(v);
     setSaveState({ mode: "idle" });
   }
 
@@ -89,6 +97,7 @@ export function TenantDebugClient({
       const result: SaveDebugSettingsResult = await saveTenantDebugSettingsAction(tenantId, {
         showDebugOverlay: showOverlay,
         debugLevel,
+        showScenarioControl: showScenario,
       });
 
       if (result.ok) {
@@ -107,11 +116,11 @@ export function TenantDebugClient({
       {/* ── Section card ──────────────────────────────────────────────────── */}
       <div className="rounded-lg border border-neutral-200 bg-white p-5">
         <div className="mb-4">
-          <h2 className="text-sm font-semibold text-neutral-900">On-site Debug Overlay</h2>
+          <h2 className="text-sm font-semibold text-neutral-900">On-site operator overlays</h2>
           <p className="mt-0.5 text-xs text-neutral-500 leading-relaxed">
-            Controls whether diagnostic information is rendered on the live site for this tenant.
-            The runtime context-building and decision logic always runs regardless of this setting.
-            Only the rendered output is affected.
+            Operator-only overlays rendered on the live site for this tenant: the debug overlay and
+            the scenario console. The runtime context-building and decision logic always runs
+            regardless of these settings. Only the rendered overlays are affected.
           </p>
         </div>
 
@@ -163,6 +172,18 @@ export function TenantDebugClient({
               </label>
             ))}
           </div>
+        </div>
+
+        {/* ── Scenario console ──────────────────────────────────────────── */}
+        <div className="mt-5 border-t border-neutral-100 pt-5">
+          <Toggle
+            id="showScenarioControl"
+            checked={showScenario}
+            onChange={handleShowScenarioChange}
+            disabled={isDisabled}
+            label="Show scenario control"
+            description="Mounts the operator / demo console (bottom-right) site-wide for this tenant, for switching personas and simulating context on the live pages. Off by default; it still self-guards to dev / an active scenario once mounted."
+          />
         </div>
       </div>
 
