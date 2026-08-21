@@ -128,8 +128,16 @@ export async function getActiveStorageAdapter(): Promise<StorageAdapter> {
   } else if (activeProvider === "sanity_assets") {
     providerType = "sanity_assets";
   } else {
-    // Auto-detect: R2 env vars → Sanity → Supabase.
-    if (serverEnv.r2.isConfigured) {
+    // Auto-detect (no explicit activeProvider): prefer R2 whenever it is
+    // configured, via env OR the platform DB config (cloudflareR2 block). The DB
+    // path matters because prod configures R2 in platform_settings, not env; a
+    // previous version only checked env and so silently fell through to Supabase.
+    // Sanity / Supabase remain reachable by setting activeProvider explicitly.
+    const r2Db = storageCfg.cloudflareR2;
+    const r2ConfiguredViaDb = Boolean(
+      r2Db?.accountId && r2Db?.accessKeyId && r2Db?.secretAccessKey && r2Db?.bucketName && r2Db?.publicUrl,
+    );
+    if (serverEnv.r2.isConfigured || r2ConfiguredViaDb) {
       providerType = "cloudflare_r2";
     } else {
       // Check if Sanity is configured (env or platform_settings).
