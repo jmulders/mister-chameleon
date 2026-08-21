@@ -45,6 +45,7 @@ import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
 import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
 import { getAllFormDefinitions } from "@/forms";
 import { RichCopyEditor } from "@/components/admin/RichCopyEditor";
+import { LayoutVariantPicker } from "@/components/admin/LayoutVariantPicker";
 
 // ── AI / Decision option lists ──────────────────────────────────────────────────
 
@@ -1374,42 +1375,36 @@ export function EditBlockDrawer({
           <fieldset className="space-y-3">
             <legend className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Layout</legend>
 
-            <div className="grid grid-cols-2 gap-3">
-              {/* Layout variant is shown only for slots that have curated options.
-                  Slots without a layout axis (e.g. conversion) show no control. */}
-              {layoutOptions.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-neutral-700 mb-1">Layout variant</label>
-                  <select
-                    value={layoutVariant}
-                    onChange={(e) => setLayout(e.target.value)}
-                    className={INPUT_CLS}
-                  >
-                    <option value="">— default —</option>
-                    {layoutOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+            {/* Layout variant is shown only for slots that have curated options.
+                Slots without a layout axis (e.g. conversion) show no control. */}
+            {layoutOptions.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1.5">Layout variant</label>
+                <LayoutVariantPicker
+                  slotId={slotId}
+                  options={layoutOptions}
+                  value={layoutVariant}
+                  onChange={setLayout}
+                />
+              </div>
+            )}
 
-              {/* Content alignment is read only by the Hero block (HeroBlock.tsx).
-                  On other slots it does nothing, so it is shown for hero only. */}
-              {slotId === "hero" && (
-                <div>
-                  <label className="block text-xs font-medium text-neutral-700 mb-1">Content alignment</label>
-                  <select
-                    value={contentAlign}
-                    onChange={(e) => setAlign(e.target.value as "left" | "center" | "right")}
-                    className={INPUT_CLS}
-                  >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
-                  </select>
-                </div>
-              )}
-            </div>
+            {/* Content alignment is read only by the Hero block (HeroBlock.tsx).
+                On other slots it does nothing, so it is shown for hero only. */}
+            {slotId === "hero" && (
+              <div className="max-w-[12rem]">
+                <label className="block text-xs font-medium text-neutral-700 mb-1">Content alignment</label>
+                <select
+                  value={contentAlign}
+                  onChange={(e) => setAlign(e.target.value as "left" | "center" | "right")}
+                  className={INPUT_CLS}
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+            )}
           </fieldset>
 
           {/* ── Slides (carousel) ───────────────────────────────────────── */}

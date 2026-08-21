@@ -968,3 +968,27 @@ export function getVariantOptions(
     previewType:      v.previewType ?? "",
   }));
 }
+
+// ── Flat variant-key lookup ─────────────────────────────────────────────────────
+
+// Map every variant key to its definition across all block families. First
+// occurrence wins, so a key shared between a slot and its section block (e.g.
+// cta vs ctaSection) resolves to the earlier (slot) definition.
+const VARIANT_DEF_BY_KEY: Readonly<Record<string, VariantDefinition>> = (() => {
+  const out: Record<string, VariantDefinition> = {};
+  for (const entry of BLOCK_VARIANT_REGISTER) {
+    for (const v of entry.variants) {
+      if (!(v.key in out)) out[v.key] = v;
+    }
+  }
+  return out;
+})();
+
+/**
+ * Look up a single variant definition by its key, across all block families.
+ * Returns undefined for an unregistered key (callers fall back to a generic
+ * label / preview). Used by admin variant pickers.
+ */
+export function getVariantDefByKey(key: string): VariantDefinition | undefined {
+  return VARIANT_DEF_BY_KEY[key];
+}
