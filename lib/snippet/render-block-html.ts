@@ -679,9 +679,13 @@ function renderContactPanel(p: NonNullable<NonNullable<ResolvedForm["layout"]>["
       `<span aria-hidden="true" style="flex:0 0 auto;opacity:.8;">${icon}</span>${inner}</div>`;
   return (
     `<div style="align-self:center;">` +
-      (p.photoUrl
-        ? `<img src="${safeHref(p.photoUrl)}" alt="" style="width:104px;height:104px;border-radius:9999px;object-fit:cover;margin-bottom:18px;">`
-        : "") +
+      (isRenderableMedia(p.media)
+        // New shared media: a bounded panel frame (image or video facade).
+        ? `<div style="width:100%;max-width:320px;position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:14px;background:#000;margin-bottom:18px;">${ctaMediaInner(p.media)}</div>`
+        : p.photoUrl
+          // Legacy photoUrl: keep the round avatar.
+          ? `<img src="${safeHref(p.photoUrl)}" alt="" style="width:104px;height:104px;border-radius:9999px;object-fit:cover;margin-bottom:18px;">`
+          : "") +
       (p.name ? `<div style="font-family:inherit;font-size:clamp(18px,2.4vw,22px);font-weight:800;">${escapeHtml(p.name)}</div>` : "") +
       (p.role ? `<div style="font-size:14px;color:var(--muted-foreground,#64748b);margin-top:2px;">${escapeHtml(p.role)}</div>` : "") +
       (p.phone ? row("&#9742;", `<a href="tel:${escapeHtml(p.phone)}" style="color:inherit;text-decoration:none;">${escapeHtml(p.phone)}</a>`) : "") +

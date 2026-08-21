@@ -78,6 +78,8 @@ import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { FormSectionVariant } from "@/page-config/block-variants";
 import type { FormBlockData } from "@/page-config";
 import { Container }  from "@/components/primitives/Container";
+import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
+import { isRenderableMedia } from "@/lib/media/block-media";
 import { Section }    from "@/components/primitives/Section";
 import { Stack }      from "@/components/primitives/Stack";
 import { Text }       from "@/components/primitives/Text";
@@ -219,10 +221,16 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     const panel = cp ? (
       <div className="lg:w-1/3 lg:shrink-0">
         <div className="flex flex-col gap-2">
-          {cp.photoUrl && (
+          {isRenderableMedia(cp.media) ? (
+            // New shared media: a bounded panel frame (image or video with facade).
+            <div className="mb-2 w-full max-w-xs overflow-hidden rounded-xl">
+              <BlockMediaView media={cp.media} />
+            </div>
+          ) : cp.photoUrl ? (
+            // Legacy photoUrl: keep the round avatar.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={cp.photoUrl} alt="" className="h-24 w-24 rounded-full object-cover" />
-          )}
+          ) : null}
           {cp.name && (
             <div style={{ color: "var(--text)", fontFamily: "var(--font-heading)", fontWeight: "var(--font-heading-weight)", fontSize: "1.25rem" }}>
               {cp.name}
