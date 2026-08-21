@@ -113,6 +113,7 @@ import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
 import { renderBlockHtml, renderForm, renderCtaNewsletter } from "@/lib/snippet/render-block-html";
+import { substituteBlockCopy } from "@/lib/blocks/substitute-context-tokens";
 import { resolveContextualForm, loadFormVariant } from "@/forms/context/load";
 import { resolvePresentedFields }     from "@/forms/context/variant";
 import { getFormDefinition }          from "@/forms";
@@ -968,7 +969,9 @@ export async function POST(request: NextRequest) {
     }
     const emitBlockInto = (map: SlotMap, key: string, data: unknown): boolean => {
       if (!requestedBlocks.has(key)) return false;
-      const html = renderBlockHtml(key, data);
+      // Substitute {context variables} in the block copy against this visitor's
+      // decision context before rendering (same behaviour as the platform path).
+      const html = renderBlockHtml(key, substituteBlockCopy(data, input));
       if (!html) return false;
       const slot: BlockSlot = Object.keys(blockThemeTokens).length > 0
         ? { mode: "block", html, tokens: blockThemeTokens }

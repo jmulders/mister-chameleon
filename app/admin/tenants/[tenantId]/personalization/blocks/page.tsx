@@ -111,6 +111,7 @@ export default async function TenantBlocksPage({ params }: Props) {
         allBlocks={allBlocks}
         initialSlotModes={tenant?.adaptiveSlots ?? null}
         blockTokenSets={blockTokenSets}
+        customAttributes={tenant?.customAttributes ?? []}
       />
 
       {/* Forms — adaptive slots whose variants + config live on the form page */}
