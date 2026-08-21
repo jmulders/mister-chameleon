@@ -9,12 +9,12 @@
  * ─── Field metadata ─────────────────────────────────────────────────────────────
  *
  *   All field labels, valid operators, and allowed values come from
- *   FIELD_REGISTRY (decision/rules/field-registry.ts) — the single source of
+ *   FIELD_REGISTRY (decision/rules/field-registry.ts) - the single source of
  *   truth shared with the validator and the runtime evaluator.
  *
  * ─── Multi-condition model ─────────────────────────────────────────────────────
  *
- *   Internally the editor works with an EditorGroup — a flat list of leaf
+ *   Internally the editor works with an EditorGroup - a flat list of leaf
  *   conditions (field or named) plus an AND / OR logic selector.
  *
  *   On save the group is serialised back to the most compact RuleCondition:
@@ -117,10 +117,10 @@ import type { RecipeRuleDraft } from "./RecipeGallery";
 // ── Internal editor model ──────────────────────────────────────────────────────
 //
 // The editor always works with a flat list of leaf conditions.  No nested groups
-// are exposed in this editor — a GroupCondition arriving from storage that contains
+// are exposed in this editor - a GroupCondition arriving from storage that contains
 // nested group children will have those nested children stripped on load.
 
-/** A leaf is any non-group condition — the only editable unit in this UI. */
+/** A leaf is any non-group condition - the only editable unit in this UI. */
 type EditorLeaf = FieldCondition | NamedCondition | ContextCondition | FlagCondition | AttributeCondition;
 
 // ── Rule-written context keys (regels die context schrijven) ────────────────────
@@ -143,15 +143,15 @@ function sanitizeContextKey(raw: string): string {
 const OVERRIDE_KEY_SUGGESTIONS: readonly string[] =
   (ALL_FIELD_KEYS as readonly string[]).filter((k) => !isReservedContextKey(k));
 
-/** Operators valid for a flag condition — scalar only, so array ops are excluded. */
+/** Operators valid for a flag condition - scalar only, so array ops are excluded. */
 const FLAG_OPERATORS: readonly FieldOperator[] =
   (FIELD_OPERATORS as readonly FieldOperator[]).filter((op) => !ARRAY_VALUE_OPERATORS.has(op));
 
 /**
  * The internal flat model for a rule's condition block.
  *
- * `logic`  — "and" → all leaves must match; "or" → any leaf must match.
- * `leaves` — ordered list of field / named conditions.  Always ≥ 1 entry.
+ * `logic`  - "and" → all leaves must match; "or" → any leaf must match.
+ * `leaves` - ordered list of field / named conditions.  Always ≥ 1 entry.
  */
 type EditorGroup = {
   logic:  "and" | "or";
@@ -161,7 +161,7 @@ type EditorGroup = {
 /** Convert any stored RuleCondition to the flat EditorGroup model. */
 function toEditorGroup(condition: RuleCondition): EditorGroup {
   if (condition.type === "group") {
-    // Only include direct leaf children — nested sub-groups are not editable here.
+    // Only include direct leaf children - nested sub-groups are not editable here.
     const leaves = condition.conditions.filter(
       (c): c is EditorLeaf =>
         c.type === "field" || c.type === "named" || c.type === "context" || c.type === "flag" || c.type === "attribute",
@@ -171,7 +171,7 @@ function toEditorGroup(condition: RuleCondition): EditorGroup {
       leaves: leaves.length > 0 ? [...leaves] : [defaultLeaf()],
     };
   }
-  // field or named — single-leaf group
+  // field or named - single-leaf group
   return { logic: "and", leaves: [condition as EditorLeaf] };
 }
 
@@ -201,95 +201,95 @@ type EditableRule = StoredRule & {
 
 const HERO_KEY_LABELS: Record<HeroVariantKey, string> = {
   // ── Platform defaults ──────────────────────────────────────────────────────
-  hero_default:             "Default — generic awareness entry",
-  hero_google_problem:      "Google Problem — search / solution intent",
-  hero_linkedin_vision:     "LinkedIn Vision — thought-leadership intent",
-  hero_direct_brand:        "Direct Brand — unattributed / returning",
-  hero_consideration:       "Consideration — mid-funnel evaluation",
-  hero_intent_direct:       "Intent Direct — high-intent, direct apply",
-  hero_customer_onboarding: "Customer Onboarding — post-conversion",
+  hero_default:             "Default · generic awareness entry",
+  hero_google_problem:      "Google Problem · search / solution intent",
+  hero_linkedin_vision:     "LinkedIn Vision · thought-leadership intent",
+  hero_direct_brand:        "Direct Brand · unattributed / returning",
+  hero_consideration:       "Consideration · mid-funnel evaluation",
+  hero_intent_direct:       "Intent Direct · high-intent, direct apply",
+  hero_customer_onboarding: "Customer Onboarding · post-conversion",
   // ── Vertical service-CTA blueprint ────────────────────────────────────────
   hero_service:             "Service: returning service-intent visitor",
   // ── B2B SaaS blueprint ────────────────────────────────────────────────────
-  hero_saas_default:            "SaaS Default — platform intro",
-  hero_saas_consideration:      "SaaS Consideration — evaluating fit",
-  hero_saas_intent:             "SaaS Intent — ready to trial",
-  hero_saas_trial:              "SaaS Trial — start free trial",
-  hero_saas_customer_onboarding:"SaaS Onboarding — activation mode",
+  hero_saas_default:            "SaaS Default · platform intro",
+  hero_saas_consideration:      "SaaS Consideration · evaluating fit",
+  hero_saas_intent:             "SaaS Intent · ready to trial",
+  hero_saas_trial:              "SaaS Trial · start free trial",
+  hero_saas_customer_onboarding:"SaaS Onboarding · activation mode",
   // ── Careers / Werken-bij blueprint ───────────────────────────────────────
-  hero_careers_default:      "Careers Default — brand intro, culture showcase",
-  hero_careers_job_match:    "Careers Job Match — role-led messaging",
-  hero_careers_high_intent:  "Careers High Intent — direct apply CTA",
-  hero_careers_reassurance:  "Careers Reassurance — drop-off recovery",
+  hero_careers_default:      "Careers Default · brand intro, culture showcase",
+  hero_careers_job_match:    "Careers Job Match · role-led messaging",
+  hero_careers_high_intent:  "Careers High Intent · direct apply CTA",
+  hero_careers_reassurance:  "Careers Reassurance · drop-off recovery",
   // ── Per-preset demo variants ─────────────────────────────────────────────
-  hero_trial_ready:          "Trial Ready — proefperiode staat klaar",
-  hero_returning:            "Returning — welkom terug",
-  hero_enterprise:           "Enterprise — personalisatie op schaal",
-  hero_form_dropoff:         "Form Drop-off — nog vragen?",
-  hero_customer_expansion:   "Customer Expansion — meer uit je site",
-  hero_post_conversion:      "Post-Conversion — bedankt, we gaan aan de slag",
-  hero_high_friction:        "High Friction — even vastgelopen",
-  hero_churn_risk:           "Churn Risk — we zien je graag blijven",
-  hero_careers_job_interest: "Careers Job Interest — deze rol past",
-  hero_careers_submitted:    "Careers Submitted — sollicitatie ontvangen",
+  hero_trial_ready:          "Trial Ready · proefperiode staat klaar",
+  hero_returning:            "Returning · welkom terug",
+  hero_enterprise:           "Enterprise · personalisatie op schaal",
+  hero_form_dropoff:         "Form Drop-off · nog vragen?",
+  hero_customer_expansion:   "Customer Expansion · meer uit je site",
+  hero_post_conversion:      "Post-Conversion · bedankt, we gaan aan de slag",
+  hero_high_friction:        "High Friction · even vastgelopen",
+  hero_churn_risk:           "Churn Risk · we zien je graag blijven",
+  hero_careers_job_interest: "Careers Job Interest · deze rol past",
+  hero_careers_submitted:    "Careers Submitted · sollicitatie ontvangen",
 };
 
 const PROOF_KEY_LABELS: Record<ProofVariantKey, string> = {
   // ── Platform defaults ──────────────────────────────────────────────────────
-  proof_default:     "Default — general trust building",
-  proof_cases:       "Cases — concrete case studies & ROI numbers",
-  proof_vision:      "Vision — analyst quotes & industry recognition",
-  proof_platform:    "Platform — scale & reliability stats",
-  proof_stats:       "Stats — performance metrics",
-  proof_reassurance: "Reassurance — low-pressure fallback",
+  proof_default:     "Default · general trust building",
+  proof_cases:       "Cases · concrete case studies & ROI numbers",
+  proof_vision:      "Vision · analyst quotes & industry recognition",
+  proof_platform:    "Platform · scale & reliability stats",
+  proof_stats:       "Stats · performance metrics",
+  proof_reassurance: "Reassurance · low-pressure fallback",
   // ── Vertical service-CTA blueprint ────────────────────────────────────────
   proof_service:     "Service: service credibility and reassurance",
   // ── B2B SaaS blueprint ────────────────────────────────────────────────────
-  proof_saas_default:       "SaaS Default — platform value & credibility",
-  proof_saas_consideration: "SaaS Consideration — use cases & fit signals",
-  proof_saas_intent:        "SaaS Intent — ROI & conversion impact",
-  proof_saas_reassurance:   "SaaS Reassurance — safe fallback",
+  proof_saas_default:       "SaaS Default · platform value & credibility",
+  proof_saas_consideration: "SaaS Consideration · use cases & fit signals",
+  proof_saas_intent:        "SaaS Intent · ROI & conversion impact",
+  proof_saas_reassurance:   "SaaS Reassurance · safe fallback",
   // ── Careers / Werken-bij blueprint ───────────────────────────────────────
-  proof_careers_default:     "Careers Default — culture & employer credibility",
-  proof_careers_team:        "Careers Team — team spotlights & department proof",
-  proof_careers_reassurance: "Careers Reassurance — process transparency",
+  proof_careers_default:     "Careers Default · culture & employer credibility",
+  proof_careers_team:        "Careers Team · team spotlights & department proof",
+  proof_careers_reassurance: "Careers Reassurance · process transparency",
 };
 
 const CTA_KEY_LABELS: Record<CTAVariantKey, string> = {
   // ── Platform defaults ──────────────────────────────────────────────────────
-  cta_default:    "Default — low-friction awareness CTA",
-  cta_guide:      "Guide — get the free personalisation guide",
-  cta_platform:   "Platform — start building for free",
-  cta_meeting:    "Meeting — book a 20-minute intro call",
-  cta_demo:       "Demo — bekijk een gratis demo",
-  cta_onboarding: "Onboarding — start je onboarding",
-  cta_expansion:  "Expansion — bekijk uitbreidingsopties",
+  cta_default:    "Default · low-friction awareness CTA",
+  cta_guide:      "Guide · get the free personalisation guide",
+  cta_platform:   "Platform · start building for free",
+  cta_meeting:    "Meeting · book a 20-minute intro call",
+  cta_demo:       "Demo · bekijk een gratis demo",
+  cta_onboarding: "Onboarding · start je onboarding",
+  cta_expansion:  "Expansion · bekijk uitbreidingsopties",
   // ── Vertical service-CTA blueprint ────────────────────────────────────────
   cta_service:    "Service: book service or request a quote",
   // ── B2B SaaS blueprint ────────────────────────────────────────────────────
-  cta_saas_default:    "SaaS Default — learn more / see how it works",
-  cta_saas_demo:       "SaaS Demo — book a product demo",
-  cta_saas_trial:      "SaaS Trial — start free trial",
-  cta_saas_onboarding: "SaaS Onboarding — next onboarding step",
-  cta_saas_expansion:  "SaaS Expansion — expand plan",
+  cta_saas_default:    "SaaS Default · learn more / see how it works",
+  cta_saas_demo:       "SaaS Demo · book a product demo",
+  cta_saas_trial:      "SaaS Trial · start free trial",
+  cta_saas_onboarding: "SaaS Onboarding · next onboarding step",
+  cta_saas_expansion:  "SaaS Expansion · expand plan",
   // ── Careers / Werken-bij blueprint ───────────────────────────────────────
-  cta_careers_browse:  "Careers Browse — Bekijk vacatures",
-  cta_careers_apply:   "Careers Apply — Solliciteer nu",
-  cta_careers_open:    "Careers Open — Stuur open sollicitatie",
-  cta_careers_contact: "Careers Contact — Stel een vraag",
+  cta_careers_browse:  "Careers Browse · Bekijk vacatures",
+  cta_careers_apply:   "Careers Apply · Solliciteer nu",
+  cta_careers_open:    "Careers Open · Stuur open sollicitatie",
+  cta_careers_contact: "Careers Contact · Stel een vraag",
 };
 
 const FEATURE_KEY_LABELS: Record<FeatureVariantKey, string> = {
-  feature_grid_primary: "Feature Grid — full feature overview (awareness / orientation)",
-  feature_highlights:   "Feature Highlights — condensed differentiators (mid-funnel)",
-  feature_comparison:   "Feature Comparison — side-by-side plan table (high intent / trial)",
+  feature_grid_primary: "Feature Grid · full feature overview (awareness / orientation)",
+  feature_highlights:   "Feature Highlights · condensed differentiators (mid-funnel)",
+  feature_comparison:   "Feature Comparison · side-by-side plan table (high intent / trial)",
   feature_service:      "Service: service offering and USPs",
 };
 
 const CONVERSION_KEY_LABELS: Record<ConversionVariantKey, string> = {
-  conversion_signup:  "Conversion Signup — email / account signup form",
-  conversion_demo:    "Conversion Demo — demo request or booking embed",
-  conversion_contact: "Conversion Contact — contact / enquiry form",
+  conversion_signup:  "Conversion Signup · email / account signup form",
+  conversion_demo:    "Conversion Demo · demo request or booking embed",
+  conversion_contact: "Conversion Contact · contact / enquiry form",
 };
 
 const NOTIFICATION_KEY_LABELS: Record<NotificationVariantKey, string> = {
@@ -336,7 +336,7 @@ const COMMON_FIELD_KEYS: readonly RuleFieldKey[] = [
 ];
 
 /**
- * A short, human-readable summary of what a rule's plan does — the "THEN" half
+ * A short, human-readable summary of what a rule's plan does - the "THEN" half
  * of the live sentence preview. Variant keys, then any context writes.
  */
 function formatPlanSummary(plan: StoredPlan): string {
@@ -506,7 +506,7 @@ interface RulesEditorProps {
   saveAction?:  (config: unknown) => Promise<{ ok: true } | { ok: false; error: string; fieldErrors?: string[] }>;
   /** Override the default resetRulesAction with a tenant-scoped one. */
   resetAction?: () => Promise<{ ok: true } | { ok: false; error: string }>;
-  /** Plan limits for this tenant — enables active-rule counter and limit enforcement. */
+  /** Plan limits for this tenant - enables active-rule counter and limit enforcement. */
   planLimits?: { maxRules?: number };
   /**
    * Tenant-declared custom attributes (TenantSettings.customAttributes). Feeds
@@ -654,7 +654,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
       if (!rule) return prev;
       const isCurrentlyEnabled = rule.enabled !== false;
       if (!isCurrentlyEnabled) {
-        // Trying to enable — check plan limit
+        // Trying to enable - check plan limit
         const enabledCount = prev.filter((r) => r.enabled !== false).length;
         if (maxRules !== undefined && enabledCount >= maxRules) {
           setLimitError(
@@ -784,7 +784,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   const isAtLimit     = maxRules !== undefined && enabledCount >= maxRules;
 
   // All variant/adaptive-slot keys any rule points at (heroKey, proofKey, ctaKey,
-  // featureKey, conversionKey, notificationKey — any *Key on the plan). Powers the
+  // featureKey, conversionKey, notificationKey - any *Key on the plan). Powers the
   // "filter by variant" dropdown so you can see which rules use a given block.
   const planVariantKeys = (plan: Record<string, unknown>): string[] =>
     Object.entries(plan)
@@ -817,7 +817,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           <h1 className="text-xl font-semibold text-neutral-900">Decision Rules</h1>
           <p className="text-sm text-neutral-500">
             Rules that map visitor signals to content variants, adaptive slots, and
-            theme overrides. Evaluated across all page templates in priority order —
+            theme overrides. Evaluated across all page templates in priority order ·
             first match wins.
           </p>
         </div>
@@ -873,7 +873,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
               type="button"
               onClick={() => setShowContextLib((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 shadow-sm hover:bg-neutral-50 transition-colors"
-              title="Context Library — named reusable predicates"
+              title="Context Library · named reusable predicates"
             >
               <span aria-hidden className="text-neutral-400">≡</span>
               Contexts
@@ -943,7 +943,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
         {isOverLimit && (
           <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
             <p className="font-medium text-red-800">
-              Over plan limit — {enabledCount - maxRules!} rule{enabledCount - maxRules! === 1 ? "" : "s"} over your allowance of {maxRules} active.
+              Over plan limit · {enabledCount - maxRules!} rule{enabledCount - maxRules! === 1 ? "" : "s"} over your allowance of {maxRules} active.
             </p>
             <p className="mt-1 text-xs text-red-700">
               Disable {enabledCount - maxRules!} rule{enabledCount - maxRules! === 1 ? "" : "s"} to stay within your plan, or upgrade.
@@ -1002,7 +1002,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                 {Object.values(RULE_PACK_REGISTRY).map((pack) => (
                   <option key={pack.id} value={pack.id}>{pack.label}</option>
                 ))}
-                <option value="__clear">— Remove from pack —</option>
+                <option value="__clear">· Remove from pack ·</option>
               </select>
               <button
                 type="button"
@@ -1196,7 +1196,7 @@ function conditionHasNonFieldLeaf(c: RuleCondition): boolean {
 }
 
 /**
- * True when a rule already uses an "advanced" feature — an extended variant
+ * True when a rule already uses an "advanced" feature - an extended variant
  * slot, form/email targeting, context writes, a pack/precedence override, or a
  * non-field condition type. Used to auto-open the Advanced panel so nothing in
  * use is ever hidden behind the toggle.
@@ -1243,7 +1243,7 @@ function RuleCard({
 
   // Progressive disclosure: advanced sections (packs/precedence, extended
   // variant slots, form/email targeting, context writes, uncommon condition
-  // types) stay hidden until toggled — but auto-open when the rule already uses
+  // types) stay hidden until toggled - but auto-open when the rule already uses
   // one so nothing in use is concealed. Presentation only; data is untouched.
   const [advanced, setAdvanced] = useState(() => ruleUsesAdvanced(rule));
 
@@ -1251,7 +1251,7 @@ function RuleCard({
     <div ref={cardRef} className={`rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden transition-opacity${isDisabled ? " opacity-60" : ""}`}>
       {/* ── Summary row ───────────────────────────────────────────────── */}
       <div className="flex items-start gap-3 px-4 py-3">
-        {/* Selection checkbox — nudge down so it aligns with the first text line */}
+        {/* Selection checkbox · nudge down so it aligns with the first text line */}
         <input
           type="checkbox"
           checked={isSelected}
@@ -1288,7 +1288,7 @@ function RuleCard({
           </p>
         </div>
 
-        {/* Plan badges — only show at xl+ so they don't crowd narrower viewports */}
+        {/* Plan badges · only show at xl+ so they don't crowd narrower viewports */}
         <div className="hidden xl:flex items-start gap-1.5 shrink-0 flex-wrap max-w-xs justify-end">
           <PlanBadge block="hero"  value={rule.plan.heroKey} />
           <PlanBadge block="proof" value={rule.plan.proofKey} />
@@ -1304,7 +1304,7 @@ function RuleCard({
             type="button"
             onClick={onToggleEnabled}
             title={isDisabled
-              ? (isAtLimit ? "Plan limit reached — disable another rule first" : "Enable this rule")
+              ? (isAtLimit ? "Plan limit reached · disable another rule first" : "Enable this rule")
               : "Disable this rule"
             }
             className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
@@ -1462,10 +1462,8 @@ function RuleCard({
                   <VariantOptions entries={catalogue.cta} />
                 </select>
               </Field>
-            </div>
 
-            {advanced && (<>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {advanced && (<>
                 <Field label="Feature variant" hint="Optional. Leave blank to omit this slot.">
                   <select
                     value={rule.plan.featureKey ?? ""}
@@ -1525,8 +1523,10 @@ function RuleCard({
                     ))}
                   </select>
                 </Field>
-              </div>
+              </>)}
+            </div>
 
+            {advanced && (<>
               <VariantTargetFields
                 title="Form variants"
                 groups={catalogue.forms}
@@ -1668,7 +1668,7 @@ function DefaultPlanCard({
     <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
         <span className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full border border-dashed border-neutral-300 text-xs font-mono text-neutral-400">
-          —
+          ·
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-neutral-900">Default (no match)</p>
@@ -1692,19 +1692,17 @@ function DefaultPlanCard({
       </div>
 
       {editOpen && (
-        <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <Field label="Reason" hint="Shown in debug output and analytics events.">
-                <input
-                  type="text"
-                  value={plan.reason}
-                  onChange={(e) => onChange({ reason: e.target.value })}
-                  className={inputCls}
-                />
-              </Field>
-            </div>
-            <div className="flex flex-col gap-4">
+        <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-5 space-y-5">
+          <Field label="Reason" hint="Shown in debug output and analytics events.">
+            <input
+              type="text"
+              value={plan.reason}
+              onChange={(e) => onChange({ reason: e.target.value })}
+              className={inputCls}
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {/* Core slots */}
               <Field label="Hero variant">
                 <select
@@ -1734,7 +1732,7 @@ function DefaultPlanCard({
                 </select>
               </Field>
               {/* Extended slots */}
-              <Field label="Feature variant" hint="Optional — omit to skip this slot.">
+              <Field label="Feature variant" hint="Optional · omit to skip this slot.">
                 <select
                   value={plan.featureKey ?? ""}
                   onChange={(e) =>
@@ -1742,13 +1740,13 @@ function DefaultPlanCard({
                   }
                   className={selectCls}
                 >
-                  <option value="">— None (slot omitted) —</option>
+                  <option value="">None (slot omitted)</option>
                   {catalogue.feature.map((entry) => (
                     <option key={entry.key} value={entry.key}>{entry.label}</option>
                   ))}
                 </select>
               </Field>
-              <Field label="Conversion variant" hint="Optional — omit to skip this slot.">
+              <Field label="Conversion variant" hint="Optional · omit to skip this slot.">
                 <select
                   value={plan.conversionKey ?? ""}
                   onChange={(e) =>
@@ -1756,7 +1754,7 @@ function DefaultPlanCard({
                   }
                   className={selectCls}
                 >
-                  <option value="">— None (slot omitted) —</option>
+                  <option value="">None (slot omitted)</option>
                   {catalogue.conversion.map((entry) => (
                     <option key={entry.key} value={entry.key}>{entry.label}</option>
                   ))}
@@ -1776,9 +1774,10 @@ function DefaultPlanCard({
                   ))}
                 </select>
               </Field>
+          </div>
 
-              {/* Form + email variants: default variant per key */}
-              <VariantTargetFields
+          {/* Form + email variants: default variant per key */}
+          <VariantTargetFields
                 title="Form variants"
                 groups={catalogue.forms}
                 value={plan.formVariants}
@@ -1797,13 +1796,11 @@ function DefaultPlanCard({
                 defaultOptionLabel="Default email"
               />
 
-              {/* Context writes for the default plan */}
-              <SetContextFields
-                value={plan.setContext}
-                onChange={(next) => onChange({ setContext: next })}
-              />
-            </div>
-          </div>
+          {/* Context writes for the default plan */}
+          <SetContextFields
+            value={plan.setContext}
+            onChange={(next) => onChange({ setContext: next })}
+          />
         </div>
       )}
     </div>
@@ -1819,7 +1816,7 @@ function DefaultPlanCard({
  * logic toggle at the top when more than one condition is present.
  *
  * The internal EditorGroup model is derived from the incoming RuleCondition prop
- * on every render — the parent holds the source-of-truth condition and all
+ * on every render - the parent holds the source-of-truth condition and all
  * mutations propagate upward via onChange.
  *
  * Save behaviour:
@@ -1970,9 +1967,9 @@ function FlatGroupEditor({
  * remove button, then the appropriate body: FieldConditionEditor for field
  * conditions or a named-condition selector for named ones.
  *
- * `isOnly`           — true when this is the only condition in the group;
+ * `isOnly`           - true when this is the only condition in the group;
  *                      hides the Remove button (can't reduce to zero conditions).
- * `showLogicLabel`   — true for all rows after the first when multi-condition;
+ * `showLogicLabel`   - true for all rows after the first when multi-condition;
  *                      renders a small AND/OR badge as a visual separator.
  */
 function ConditionRow({
@@ -2167,12 +2164,12 @@ function ConditionRow({
 // ── FlagConditionEditor ──────────────────────────────────────────────────────────
 
 /**
- * Editor for a FlagCondition — reads a rule-written flag from ctx.ruleContext.
+ * Editor for a FlagCondition - reads a rule-written flag from ctx.ruleContext.
  *
  * Flag names are free-form (own flags like "gericht_binnengekomen"), so the name
  * is a text input with a datalist of override-target suggestions. Reserved
  * internal keys (prefixed "__", e.g. __entryPath) are never suggested and are
- * stripped from typed input — team members cannot read or target them here.
+ * stripped from typed input - team members cannot read or target them here.
  * Operators mirror field conditions minus the array (in/not_in) operators.
  */
 function FlagConditionEditor({
@@ -2249,7 +2246,7 @@ function FlagConditionEditor({
 // ── AttributeConditionEditor ─────────────────────────────────────────────────────
 
 /**
- * Editor for an AttributeCondition — reads a per-request domain attribute from
+ * Editor for an AttributeCondition - reads a per-request domain attribute from
  * ctx.customAttributes. Unlike a flag, the name is picked from the tenant's
  * declared attributes (not free-form). When the selected attribute declares
  * allowedValues, the value becomes a dropdown; otherwise it is a scalar input.
@@ -2454,10 +2451,10 @@ function ScalarValueInput({
 /**
  * Registry-driven field condition editor.
  *
- * Field picker    — groups all FIELD_REGISTRY entries into <optgroup> sections.
- * Operator picker — constrained to operators valid for the selected field
+ * Field picker    - groups all FIELD_REGISTRY entries into <optgroup> sections.
+ * Operator picker - constrained to operators valid for the selected field
  *                   (from fieldDef.operators).
- * Value input     — adapts to field kind and operator:
+ * Value input     - adapts to field kind and operator:
  *                     categorical + equals/not_equals  → <select> from allowedValues
  *                     boolean                          → <select> true / false
  *                     number or ordering operator      → <input type="number">
@@ -2657,7 +2654,7 @@ function FieldConditionEditor({
         </select>
       </Field>
 
-      {/* Value input — hidden for existence operators */}
+      {/* Value input · hidden for existence operators */}
       {!NO_VALUE_OPERATORS.has(effectiveOp) && (
         <Field
           label="Value"
@@ -2698,7 +2695,7 @@ function FieldValueInput({
   value:    FieldConditionValue | undefined;
   onChange: (v: FieldConditionValue | undefined) => void;
 }) {
-  // in / not_in — comma-separated text input; value is stored as string[]
+  // in / not_in - comma-separated text input; value is stored as string[]
   if (ARRAY_VALUE_OPERATORS.has(operator)) {
     const displayValue = Array.isArray(value)
       ? (value as (string | number)[]).join(", ")
@@ -2717,7 +2714,7 @@ function FieldValueInput({
     );
   }
 
-  // boolean — select true / false
+  // boolean - select true / false
   if (fieldDef.kind === "boolean") {
     return (
       <select
@@ -2731,7 +2728,7 @@ function FieldValueInput({
     );
   }
 
-  // numeric ordering operators — number input
+  // numeric ordering operators - number input
   if (fieldDef.kind === "number" || NUMERIC_OPERATORS.has(operator)) {
     return (
       <input
@@ -2747,7 +2744,7 @@ function FieldValueInput({
     );
   }
 
-  // categorical with equals / not_equals — select from allowedValues
+  // categorical with equals / not_equals - select from allowedValues
   if (
     fieldDef.kind === "categorical" &&
     fieldDef.allowedValues &&
@@ -2766,7 +2763,7 @@ function FieldValueInput({
     );
   }
 
-  // nullable_string and all other cases — text input
+  // nullable_string and all other cases - text input
   return (
     <input
       type="text"
@@ -2892,7 +2889,7 @@ function VariantTargetFields({
                   <option value="">{defaultOptionLabel}</option>
                   {entries.map((entry) => (
                     <option key={entry.key} value={entry.key}>
-                      {entry.key}{entry.label && entry.label !== entry.key ? ` (${entry.label})` : ""}
+                      {entry.key}{entry.label && entry.label !== entry.key ? ` · ${entry.label}` : ""}
                     </option>
                   ))}
                 </select>
@@ -2908,14 +2905,14 @@ function VariantTargetFields({
 // ── SetContextFields ("Set context") ──────────────────────────────────────────────
 
 /**
- * Editor for plan.setContext — the context a rule writes when it fires ("regels
+ * Editor for plan.setContext - the context a rule writes when it fires ("regels
  * die context schrijven"). Rows of (key, value, sticky, monotone).
  *
- *   key      — an own flag name or a registry field key to override. Reserved
+ *   key      - an own flag name or a registry field key to override. Reserved
  *              internal keys ("__…") are never suggested and stripped on input.
- *   value    — scalar (text / number / boolean).
- *   sticky   — persists for the session (default on). Off = request-only.
- *   monotone — write-once: never overwrites an existing value for the key, so a
+ *   value    - scalar (text / number / boolean).
+ *   sticky   - persists for the session (default on). Off = request-only.
+ *   monotone - write-once: never overwrites an existing value for the key, so a
  *              latch flag does not fall back on a later view.
  *
  * Collapsed by default unless the rule already writes context.
@@ -2969,7 +2966,7 @@ function SetContextFields({
       {open && (
         <div className="mt-3 flex flex-col gap-3">
           <p className="text-xs text-neutral-400">
-            Sets context when this rule fires — an own flag or an override of a
+            Sets context when this rule fires · an own flag or an override of a
             derived field. Overrides bypass the normal derivation (advanced).
           </p>
 
@@ -3024,20 +3021,20 @@ function SetContextFields({
                   />
                 </Field>
 
-                {/* Override warning — writing a registry field bypasses its derivation. */}
+                {/* Override warning · writing a registry field bypasses its derivation. */}
                 {fieldDef && (
                   <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                     <span aria-hidden className="mt-px">⚠</span>
                     <span>
                       Override of derived field <span className="font-mono font-semibold">{row.key}</span> ({fieldDef.label}).
-                      This bypasses the normal derivation for the session — advanced use only.
+                      This bypasses the normal derivation for the session · advanced use only.
                     </span>
                   </div>
                 )}
 
                 <Field label="Value">
                   {fieldDef ? (
-                    // Registry override — drive the widget off the field kind so a
+                    // Registry override - drive the widget off the field kind so a
                     // fixed-value field (e.g. funnelStage) becomes an allowedValues
                     // dropdown and a boolean/number gets the right input.
                     <FieldValueInput
@@ -3111,7 +3108,7 @@ function VariantOptions({ entries }: { entries: VariantEntry[] }) {
       <>
         {entries.map((e) => (
           <option key={e.key} value={e.key}>
-            {e.key} — {e.label}
+            {e.key} · {e.label}
           </option>
         ))}
       </>
@@ -3127,7 +3124,7 @@ function VariantOptions({ entries }: { entries: VariantEntry[] }) {
           <optgroup key={src} label={SOURCE_LABELS[src]}>
             {group.map((e) => (
               <option key={e.key} value={e.key}>
-                {e.key} — {e.label}
+                {e.key} · {e.label}
               </option>
             ))}
           </optgroup>
@@ -3218,7 +3215,7 @@ function ContextLibraryPanel({ onClose }: { onClose: () => void }) {
         <div>
           <h3 className="text-sm font-semibold text-neutral-800">Context Library</h3>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Reusable named predicates — reference them in rules with a &ldquo;Context condition&rdquo;.
+            Reusable named predicates · reference them in rules with a &ldquo;Context condition&rdquo;.
             Evaluated once per request and cached.
           </p>
         </div>

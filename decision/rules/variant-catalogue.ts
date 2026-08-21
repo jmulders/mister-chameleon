@@ -14,9 +14,9 @@
  *   This module defines a VariantCatalogue that merges both sources and labels
  *   each entry by its origin:
  *
- *     platform    — shipped with the platform codebase (always available)
- *     cms-tenant  — created in Sanity for a specific tenant
- *     cms-shared  — created in Sanity without a tenantId (available to all tenants)
+ *     platform    - shipped with the platform codebase (always available)
+ *     cms-tenant  - created in Sanity for a specific tenant
+ *     cms-shared  - created in Sanity without a tenantId (available to all tenants)
  *
  * ─── Usage ────────────────────────────────────────────────────────────────────
  *
@@ -24,7 +24,7 @@
  *   to obtain the full catalogue and pass it to <RulesEditor variantCatalogue={…} />.
  *
  *   When `variantCatalogue` is absent (e.g. Sanity not configured), RulesEditor
- *   falls back to the platform-only lists — exactly the prior behaviour.
+ *   falls back to the platform-only lists - exactly the prior behaviour.
  */
 
 import {
@@ -41,9 +41,9 @@ import {
 /**
  * The origin of a variant entry in the catalogue.
  *
- * "platform"   — Hard-coded in the platform codebase (ALLOWED_*_KEYS).
- * "cms-tenant" — Published in Sanity, scoped to a specific tenant.
- * "cms-shared" — Published in Sanity, shared across all tenants (no tenantId).
+ * "platform"   - Hard-coded in the platform codebase (ALLOWED_*_KEYS).
+ * "cms-tenant" - Published in Sanity, scoped to a specific tenant.
+ * "cms-shared" - Published in Sanity, shared across all tenants (no tenantId).
  */
 export type VariantSource = "platform" | "cms-tenant" | "cms-shared";
 
@@ -52,9 +52,9 @@ export type VariantSource = "platform" | "cms-tenant" | "cms-shared";
 /**
  * A single variant option within a slot (hero / proof / cta).
  *
- * `key`    — The string stored in the plan (e.g. "hero_direct_brand").
- * `label`  — Human-readable description shown in the select.
- * `source` — Where the variant originates ("platform" | "cms-tenant" | "cms-shared").
+ * `key`    - The string stored in the plan (e.g. "hero_direct_brand").
+ * `label`  - Human-readable description shown in the select.
+ * `source` - Where the variant originates ("platform" | "cms-tenant" | "cms-shared").
  */
 export interface VariantEntry {
   key:    string;
@@ -69,7 +69,7 @@ export interface VariantEntry {
  * Passed from server pages into <RulesEditor /> as a prop.
  *
  * Core slots (hero / proof / cta) are always populated.
- * Extended slots (feature / conversion) are optional — present when the
+ * Extended slots (feature / conversion) are optional - present when the
  * platform-defined keys plus any CMS-authored variants are available.
  */
 export interface VariantCatalogue {
@@ -82,7 +82,7 @@ export interface VariantCatalogue {
   /**
    * Authored form variants, keyed by form type (contact / application /
    * appointment). Unlike the slots above, these are entirely tenant-authored
-   * (no platform defaults) — a type is present only when the tenant has saved
+   * (no platform defaults) - a type is present only when the tenant has saved
    * at least one variant for it. A rule targets one via plan.formVariants.
    */
   forms?:     Record<string, VariantEntry[]>;
@@ -115,92 +115,92 @@ export const SOURCE_LABELS: Record<VariantSource, string> = {
  */
 const PLATFORM_HERO_LABELS: Record<string, string> = {
   // Platform defaults
-  hero_default:             "Default — generic awareness entry",
-  hero_google_problem:      "Google Problem — search / solution intent",
-  hero_linkedin_vision:     "LinkedIn Vision — thought-leadership intent",
-  hero_direct_brand:        "Direct Brand — unattributed / returning",
-  hero_consideration:       "Consideration — mid-funnel evaluation",
-  hero_intent_direct:       "Intent Direct — high-intent, direct apply",
-  hero_customer_onboarding: "Customer Onboarding — post-conversion",
+  hero_default:             "Default · generic awareness entry",
+  hero_google_problem:      "Google Problem · search / solution intent",
+  hero_linkedin_vision:     "LinkedIn Vision · thought-leadership intent",
+  hero_direct_brand:        "Direct Brand · unattributed / returning",
+  hero_consideration:       "Consideration · mid-funnel evaluation",
+  hero_intent_direct:       "Intent Direct · high-intent, direct apply",
+  hero_customer_onboarding: "Customer Onboarding · post-conversion",
   hero_service:             "Service: returning service-intent visitor",
   // B2B SaaS blueprint
-  hero_saas_default:             "SaaS Default — platform intro",
-  hero_saas_consideration:       "SaaS Consideration — evaluating fit",
-  hero_saas_intent:              "SaaS Intent — ready to trial",
-  hero_saas_trial:               "SaaS Trial — start free trial",
-  hero_saas_customer_onboarding: "SaaS Onboarding — activation mode",
+  hero_saas_default:             "SaaS Default · platform intro",
+  hero_saas_consideration:       "SaaS Consideration · evaluating fit",
+  hero_saas_intent:              "SaaS Intent · ready to trial",
+  hero_saas_trial:               "SaaS Trial · start free trial",
+  hero_saas_customer_onboarding: "SaaS Onboarding · activation mode",
   // Careers / Werken-bij blueprint
-  hero_careers_default:      "Careers Default — brand intro, culture showcase",
-  hero_careers_job_match:    "Careers Job Match — role-led messaging",
-  hero_careers_high_intent:  "Careers High Intent — direct apply CTA",
-  hero_careers_reassurance:  "Careers Reassurance — drop-off recovery",
+  hero_careers_default:      "Careers Default · brand intro, culture showcase",
+  hero_careers_job_match:    "Careers Job Match · role-led messaging",
+  hero_careers_high_intent:  "Careers High Intent · direct apply CTA",
+  hero_careers_reassurance:  "Careers Reassurance · drop-off recovery",
   // Per-preset demo variants
-  hero_trial_ready:          "Trial Ready — proefperiode staat klaar",
-  hero_returning:            "Returning — welkom terug",
-  hero_enterprise:           "Enterprise — personalisatie op schaal",
-  hero_form_dropoff:         "Form Drop-off — nog vragen?",
-  hero_customer_expansion:   "Customer Expansion — meer uit je site",
-  hero_post_conversion:      "Post-Conversion — bedankt, we gaan aan de slag",
-  hero_high_friction:        "High Friction — even vastgelopen",
-  hero_churn_risk:           "Churn Risk — we zien je graag blijven",
-  hero_careers_job_interest: "Careers Job Interest — deze rol past",
-  hero_careers_submitted:    "Careers Submitted — sollicitatie ontvangen",
+  hero_trial_ready:          "Trial Ready · proefperiode staat klaar",
+  hero_returning:            "Returning · welkom terug",
+  hero_enterprise:           "Enterprise · personalisatie op schaal",
+  hero_form_dropoff:         "Form Drop-off · nog vragen?",
+  hero_customer_expansion:   "Customer Expansion · meer uit je site",
+  hero_post_conversion:      "Post-Conversion · bedankt, we gaan aan de slag",
+  hero_high_friction:        "High Friction · even vastgelopen",
+  hero_churn_risk:           "Churn Risk · we zien je graag blijven",
+  hero_careers_job_interest: "Careers Job Interest · deze rol past",
+  hero_careers_submitted:    "Careers Submitted · sollicitatie ontvangen",
 };
 
 const PLATFORM_PROOF_LABELS: Record<string, string> = {
   // Platform defaults
-  proof_default:     "Default — general trust building",
-  proof_cases:       "Cases — concrete case studies & ROI numbers",
-  proof_vision:      "Vision — analyst quotes & industry recognition",
-  proof_platform:    "Platform — scale & reliability stats",
-  proof_stats:       "Stats — performance metrics",
-  proof_reassurance: "Reassurance — low-pressure fallback",
+  proof_default:     "Default · general trust building",
+  proof_cases:       "Cases · concrete case studies & ROI numbers",
+  proof_vision:      "Vision · analyst quotes & industry recognition",
+  proof_platform:    "Platform · scale & reliability stats",
+  proof_stats:       "Stats · performance metrics",
+  proof_reassurance: "Reassurance · low-pressure fallback",
   proof_service:     "Service: service credibility and reassurance",
   // B2B SaaS blueprint
-  proof_saas_default:       "SaaS Default — platform value & credibility",
-  proof_saas_consideration: "SaaS Consideration — use cases & fit signals",
-  proof_saas_intent:        "SaaS Intent — ROI & conversion impact",
-  proof_saas_reassurance:   "SaaS Reassurance — safe fallback",
+  proof_saas_default:       "SaaS Default · platform value & credibility",
+  proof_saas_consideration: "SaaS Consideration · use cases & fit signals",
+  proof_saas_intent:        "SaaS Intent · ROI & conversion impact",
+  proof_saas_reassurance:   "SaaS Reassurance · safe fallback",
   // Careers / Werken-bij blueprint
-  proof_careers_default:     "Careers Default — culture & employer credibility",
-  proof_careers_team:        "Careers Team — team spotlights & department proof",
-  proof_careers_reassurance: "Careers Reassurance — process transparency",
+  proof_careers_default:     "Careers Default · culture & employer credibility",
+  proof_careers_team:        "Careers Team · team spotlights & department proof",
+  proof_careers_reassurance: "Careers Reassurance · process transparency",
 };
 
 const PLATFORM_CTA_LABELS: Record<string, string> = {
   // Platform defaults
-  cta_default:    "Default — low-friction awareness CTA",
-  cta_guide:      "Guide — get the free personalisation guide",
-  cta_platform:   "Platform — start building for free",
-  cta_meeting:    "Meeting — book a 20-minute intro call",
-  cta_demo:       "Demo — bekijk een gratis demo",
-  cta_onboarding: "Onboarding — start je onboarding",
-  cta_expansion:  "Expansion — bekijk uitbreidingsopties",
+  cta_default:    "Default · low-friction awareness CTA",
+  cta_guide:      "Guide · get the free personalisation guide",
+  cta_platform:   "Platform · start building for free",
+  cta_meeting:    "Meeting · book a 20-minute intro call",
+  cta_demo:       "Demo · bekijk een gratis demo",
+  cta_onboarding: "Onboarding · start je onboarding",
+  cta_expansion:  "Expansion · bekijk uitbreidingsopties",
   cta_service:    "Service: book service or request a quote",
   // B2B SaaS blueprint
-  cta_saas_default:    "SaaS Default — learn more / see how it works",
-  cta_saas_demo:       "SaaS Demo — book a product demo",
-  cta_saas_trial:      "SaaS Trial — start free trial",
-  cta_saas_onboarding: "SaaS Onboarding — next onboarding step",
-  cta_saas_expansion:  "SaaS Expansion — expand plan",
+  cta_saas_default:    "SaaS Default · learn more / see how it works",
+  cta_saas_demo:       "SaaS Demo · book a product demo",
+  cta_saas_trial:      "SaaS Trial · start free trial",
+  cta_saas_onboarding: "SaaS Onboarding · next onboarding step",
+  cta_saas_expansion:  "SaaS Expansion · expand plan",
   // Careers / Werken-bij blueprint
-  cta_careers_browse:  "Careers Browse — Bekijk vacatures",
-  cta_careers_apply:   "Careers Apply — Solliciteer nu",
-  cta_careers_open:    "Careers Open — Stuur open sollicitatie",
-  cta_careers_contact: "Careers Contact — Stel een vraag",
+  cta_careers_browse:  "Careers Browse · Bekijk vacatures",
+  cta_careers_apply:   "Careers Apply · Solliciteer nu",
+  cta_careers_open:    "Careers Open · Stuur open sollicitatie",
+  cta_careers_contact: "Careers Contact · Stel een vraag",
 };
 
 const PLATFORM_FEATURE_LABELS: Record<string, string> = {
-  feature_grid_primary: "Feature Grid — full feature overview (awareness / orientation)",
-  feature_highlights:   "Feature Highlights — condensed differentiators (mid-funnel)",
-  feature_comparison:   "Feature Comparison — side-by-side plan table (high intent / trial)",
+  feature_grid_primary: "Feature Grid · full feature overview (awareness / orientation)",
+  feature_highlights:   "Feature Highlights · condensed differentiators (mid-funnel)",
+  feature_comparison:   "Feature Comparison · side-by-side plan table (high intent / trial)",
   feature_service:      "Service: service offering and USPs",
 };
 
 const PLATFORM_CONVERSION_LABELS: Record<string, string> = {
-  conversion_signup:  "Conversion Signup — email / account signup form",
-  conversion_demo:    "Conversion Demo — demo request or booking embed",
-  conversion_contact: "Conversion Contact — contact / enquiry form",
+  conversion_signup:  "Conversion Signup · email / account signup form",
+  conversion_demo:    "Conversion Demo · demo request or booking embed",
+  conversion_contact: "Conversion Contact · contact / enquiry form",
 };
 
 const PLATFORM_NOTIFICATION_LABELS: Record<string, string> = {
