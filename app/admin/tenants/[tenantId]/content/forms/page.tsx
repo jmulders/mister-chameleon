@@ -178,12 +178,12 @@ export default async function TenantFormsPage({
             .
           </p>
         </div>
-        {/* Discoverable entry point to the submissions inbox (same tenant scope). */}
+        {/* All-submissions entry point (per-form links live in the forms table). */}
         <Link
           href={`/admin/tenants/${tenant.tenantId}/content/forms/submissions`}
           className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
         >
-          View submissions
+          All submissions
           <span aria-hidden="true">&rarr;</span>
         </Link>
       </div>
