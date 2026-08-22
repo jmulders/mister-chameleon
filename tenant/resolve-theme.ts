@@ -603,6 +603,12 @@ export function resolveThemeForTenant(
     const layoutOv = to.layout as Readonly<Record<string, string>> | undefined;
     if (layoutOv?.headerFg) {
       vars["--nav-link"] = layoutOv.headerFg;
+      // The dropdown item text and the mobile-menu links read --nav-dropdown-text,
+      // which is otherwise pinned to the base theme's muted grey and never follows
+      // a preset. Re-pin it to the header foreground too so the main-menu dropdowns
+      // and the mobile menu take the preset colour with readable contrast. The
+      // hover colour (--nav-dropdown-link-hover-text -> brand) is left intact.
+      vars["--nav-dropdown-text"] = layoutOv.headerFg;
     }
     // Keep the SCROLLED header consistent with the solid header colour. Without
     // this, --header-bg-scrolled defaults to near-white, so a dark custom header
