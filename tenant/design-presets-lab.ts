@@ -46,6 +46,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Libre Baskerville', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -134,6 +135,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -222,6 +224,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'PT Serif', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -310,6 +313,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Manrope', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -398,6 +402,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -486,6 +491,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Lora', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -574,6 +580,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Manrope', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -662,6 +669,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -750,6 +758,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Space Grotesk', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -838,6 +847,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Merriweather', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -926,6 +936,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Merriweather', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1014,6 +1025,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1102,6 +1114,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1190,6 +1203,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1278,6 +1292,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Outfit', system-ui, sans-serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1366,6 +1381,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Outfit', system-ui, sans-serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1454,6 +1470,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Lora', Georgia, serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1542,6 +1559,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Outfit', system-ui, sans-serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1630,6 +1648,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Playfair Display', Georgia, serif",
         "fontBody": "'Source Sans 3', system-ui, sans-serif",
+        "fontSans": "'Source Sans 3', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1718,6 +1737,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1806,6 +1826,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Oswald', system-ui, sans-serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1894,6 +1915,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Montserrat', system-ui, sans-serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -1982,6 +2004,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2070,6 +2093,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2158,6 +2182,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Merriweather', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2246,6 +2271,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Source Serif 4', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2334,6 +2360,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Playfair Display', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2422,6 +2449,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Playfair Display', Georgia, serif",
         "fontBody": "'Source Sans 3', system-ui, sans-serif",
+        "fontSans": "'Source Sans 3', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2510,6 +2538,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Lora', Georgia, serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2598,6 +2627,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Outfit', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2686,6 +2716,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Libre Baskerville', Georgia, serif",
         "fontBody": "'Source Sans 3', system-ui, sans-serif",
+        "fontSans": "'Source Sans 3', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2774,6 +2805,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Source Serif 4', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2862,6 +2894,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Sora', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -2950,6 +2983,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Playfair Display', Georgia, serif",
         "fontBody": "'Source Sans 3', system-ui, sans-serif",
+        "fontSans": "'Source Sans 3', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3038,6 +3072,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Playfair Display', Georgia, serif",
         "fontBody": "'Source Sans 3', system-ui, sans-serif",
+        "fontSans": "'Source Sans 3', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3126,6 +3161,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Lora', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3214,6 +3250,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Source Serif 4', Georgia, serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3302,6 +3339,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Manrope', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3390,6 +3428,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Libre Baskerville', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3478,6 +3517,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Manrope', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3566,6 +3606,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Outfit', system-ui, sans-serif",
         "fontBody": "'Nunito', system-ui, sans-serif",
+        "fontSans": "'Nunito', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3654,6 +3695,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Source Serif 4', Georgia, serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3742,6 +3784,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Cormorant Garamond', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3830,6 +3873,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Oswald', system-ui, sans-serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -3918,6 +3962,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'PT Serif', Georgia, serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -4006,6 +4051,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Source Serif 4', Georgia, serif",
         "fontBody": "'Work Sans', system-ui, sans-serif",
+        "fontSans": "'Work Sans', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -4094,6 +4140,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Space Grotesk', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -4182,6 +4229,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Space Grotesk', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -4270,6 +4318,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Playfair Display', Georgia, serif",
         "fontBody": "'Mulish', system-ui, sans-serif",
+        "fontSans": "'Mulish', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
@@ -4358,6 +4407,7 @@ export const LAB_PRESET_CARDS: readonly DesignPresetCard[] = [
       "typography": {
         "fontHeading": "'Space Grotesk', system-ui, sans-serif",
         "fontBody": "'Inter', system-ui, sans-serif",
+        "fontSans": "'Inter', system-ui, sans-serif",
         "headingWeight": "700",
         "letterSpacing": "-0.01em",
         "headingTransform": "none",
