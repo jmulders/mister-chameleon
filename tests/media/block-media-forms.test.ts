@@ -44,6 +44,13 @@ describe("sanitizeBlockMedia (load/save parser input)", () => {
     const m = sanitizeBlockMedia({ kind: "image", source: "asset", url: long });
     assert.equal((m?.url ?? "").length, 2000);
   });
+
+  it("whitelists a safe object-position and drops an unsafe one", () => {
+    const ok = sanitizeBlockMedia({ kind: "image", source: "asset", url: "https://x/p.jpg", objectPosition: "left top" });
+    assert.equal(ok?.objectPosition, "left top");
+    const evil = sanitizeBlockMedia({ kind: "image", source: "asset", url: "https://x/p.jpg", objectPosition: "top; background:url(x)" });
+    assert.equal(evil?.objectPosition, undefined);
+  });
 });
 
 describe("legacy photoUrl backward-compat", () => {
@@ -90,5 +97,12 @@ describe("editor round-trip (BlockMedia <-> HeroBannerMedia)", () => {
     assert.equal(back?.source, "asset");
     assert.equal(back?.url, "https://x/v.mp4");
     assert.equal(back?.poster, "https://x/poster.jpg");
+  });
+
+  it("carries contain fit and object-position through both conversions", () => {
+    const block = { kind: "image", source: "asset", url: "https://x/p.jpg", alt: "A", fit: "contain", objectPosition: "center top" } as const;
+    const back = heroBannerMediaToBlockMedia(blockMediaToHeroBannerMedia(block));
+    assert.equal(back?.fit, "contain");
+    assert.equal(back?.objectPosition, "center top");
   });
 });

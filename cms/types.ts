@@ -80,6 +80,11 @@ export interface HeroBannerImage {
    * (full-viewport-height backgrounds). Defaults to "center" when absent.
    */
   objectPosition?: string;
+  /**
+   * object-fit for the rendered image. "cover" (default) fills the frame and
+   * crops from the focal point; "contain" shows the whole image without cropping.
+   */
+  fit?: "cover" | "contain";
 }
 
 /**

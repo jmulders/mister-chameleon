@@ -39,6 +39,7 @@ export function BlockMediaView({
 }) {
   const source = media.source ?? "asset";
   const objectFit = media.fit ?? "cover";
+  const objectPosition = media.objectPosition || undefined;
 
   const frameClass = fill
     ? `relative h-full w-full overflow-hidden ${className ?? ""}`
@@ -57,7 +58,7 @@ export function BlockMediaView({
             src={media.url}
             alt={media.alt ?? ""}
             className="absolute inset-0 h-full w-full"
-            style={{ objectFit }}
+            style={{ objectFit, objectPosition }}
             loading="lazy"
           />
         )}
@@ -69,7 +70,7 @@ export function BlockMediaView({
   if (source === "asset") {
     return (
       <div className={frameClass} style={frameStyle}>
-        <AssetVideo url={media.url} poster={media.poster} autoplay={!!media.autoplay} isActive={isActive} objectFit={objectFit} />
+        <AssetVideo url={media.url} poster={media.poster} autoplay={!!media.autoplay} isActive={isActive} objectFit={objectFit} objectPosition={objectPosition} />
       </div>
     );
   }
@@ -91,9 +92,9 @@ export function BlockMediaView({
 // ── Uploaded video ────────────────────────────────────────────────────────────────
 
 function AssetVideo({
-  url, poster, autoplay, isActive, objectFit,
+  url, poster, autoplay, isActive, objectFit, objectPosition,
 }: {
-  url?: string; poster?: string; autoplay: boolean; isActive: boolean; objectFit: "cover" | "contain";
+  url?: string; poster?: string; autoplay: boolean; isActive: boolean; objectFit: "cover" | "contain"; objectPosition?: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
 
@@ -121,7 +122,7 @@ function AssetVideo({
       playsInline
       preload="none"
       className="absolute inset-0 h-full w-full"
-      style={{ objectFit }}
+      style={{ objectFit, objectPosition }}
     />
   );
 }

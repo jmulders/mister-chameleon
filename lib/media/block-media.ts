@@ -35,8 +35,26 @@ export interface BlockMedia {
   autoplay?: boolean;
   /** object-fit for images. "cover" (default) for photos, "contain" for logos. */
   fit?: "cover" | "contain";
+  /**
+   * CSS `object-position` (e.g. "left top", "center", "50% 20%"). With `fit`
+   * "cover" it controls which part stays in frame when the image is cropped.
+   * Defaults to "center" when absent.
+   */
+  objectPosition?: string;
   /** Alt text for images (accessibility). */
   alt?: string;
+}
+
+/**
+ * Safe CSS object-position: keyword/percentage values only, so a stored value
+ * can be interpolated into an inline style (snippet HTML) without CSS injection.
+ * Returns undefined for anything outside the allowed character set.
+ */
+export function safeObjectPosition(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim();
+  if (!t || t.length > 40) return undefined;
+  return /^[a-z0-9 %.]+$/i.test(t) ? t : undefined;
 }
 
 /**
@@ -98,6 +116,8 @@ export function sanitizeBlockMedia(raw: unknown): BlockMedia | undefined {
   if (alt)    media.alt = alt;
   if (typeof r.autoplay === "boolean") media.autoplay = r.autoplay;
   if (r.fit === "contain" || r.fit === "cover") media.fit = r.fit;
+  const objectPosition = safeObjectPosition(r.objectPosition);
+  if (objectPosition) media.objectPosition = objectPosition;
 
   return isRenderableMedia(media) ? media : undefined;
 }
