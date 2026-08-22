@@ -774,6 +774,14 @@ export interface AdminUserRow {
   two_factor_enabled_at:     string | null;
   /** ISO-8601 timestamp of last successful login. */
   last_login_at:             string | null;
+  /** SHA-256 hex of the current single-use password-reset token. Null when none. */
+  reset_token_hash:          string | null;
+  /** Expiry of the current reset token (ISO-8601). Null when none. */
+  reset_token_expires_at:    string | null;
+  /** Time of the last reset request (ISO-8601). Audit + soft cooldown. */
+  reset_requested_at:        string | null;
+  /** Session epoch; bumped on password reset to invalidate existing JWT sessions. */
+  session_epoch:             number;
   /** Row creation timestamp. */
   created_at:                string;
   /** Last write timestamp. */
