@@ -30,6 +30,9 @@
 import type { ThemeKey, TenantTokenOverrides } from "./types";
 import { LAB_PRESET_CARDS } from "./design-presets-lab";
 import { LAB_HERITAGE_CARDS } from "./design-presets-lab-heritage";
+import { STATEMENT_PRESET_CARDS } from "./design-presets-statement";
+import { COLLECTION_PRESET_CARDS } from "./design-presets-collections";
+import { PRIDE_MIDNIGHT_PRESET_CARDS } from "./design-presets-pride-midnight";
 
 export interface DesignPresetCard {
   /** Stable id (used as the gallery key + analytics). */
@@ -264,6 +267,12 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
   ...LAB_PRESET_CARDS,
   // The 24 heritage-expansion presets, in the same four categories.
   ...LAB_HERITAGE_CARDS,
+  // Statement presets: Bold & Vivid, Metallic, Occasion & Themed.
+  ...STATEMENT_PRESET_CARDS,
+  // Collection presets: Brand Archetypes, Pastel Neon, Seasonal.
+  ...COLLECTION_PRESET_CARDS,
+  // Pride + Midnight presets.
+  ...PRIDE_MIDNIGHT_PRESET_CARDS,
 ];
 
 /** Look up a preset by id. */

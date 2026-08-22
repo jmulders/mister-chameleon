@@ -102,8 +102,22 @@ export function PresetGallery({ tenantId, design }: Props) {
     });
   }
 
-  // Categories in gallery order (existing "General" first, then the LAB groups).
-  const categories = [...new Set(DESIGN_PRESET_GALLERY.map((p) => p.category))];
+  // Category groups in an explicit, sensible order: the base + LAB groups first,
+  // then the statement / collection / pride-midnight expansions. Any unknown
+  // category falls to the end in first-appearance order (future-proof).
+  const CATEGORY_ORDER = [
+    "General", "Neutrals & Stone", "Warm & Earthy", "Cool & Green", "Deep & Editorial",
+    "Bold & Vivid", "Metallic", "Occasion & Themed", "Seasonal", "Pastel Neon",
+    "Brand Archetypes", "Pride", "Midnight",
+  ];
+  const present = [...new Set(DESIGN_PRESET_GALLERY.map((p) => p.category))];
+  const categories = present.slice().sort((a, b) => {
+    const ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return present.indexOf(a) - present.indexOf(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 
   const renderCard = (p: DesignPresetCard) => {
           const isActive = !!activePrimary && p.swatch.primary.toLowerCase() === activePrimary;
