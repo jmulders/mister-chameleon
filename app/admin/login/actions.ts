@@ -88,6 +88,7 @@ async function loginActionInner(
     role:          user.role,
     twoFaEnabled:  user.two_factor_enabled,
     twoFaVerified: false, // never true immediately after password check
+    epoch:         user.session_epoch ?? 0,
   };
 
   const isSecure = process.env.NODE_ENV === "production";

@@ -209,6 +209,81 @@ export async function resetAdminUserPassword(
   return !error;
 }
 
+// ── Password reset + session revocation ──────────────────────────────────────
+
+/**
+ * Returns the current session_epoch for a user (used to revoke old sessions),
+ * or null when the user does not exist.
+ */
+export async function getAdminSessionEpoch(id: string): Promise<number | null> {
+  const { data, error } = await adminTable()
+    .select("session_epoch")
+    .eq("id", id)
+    .single();
+  if (error || !data) return null;
+  return typeof data.session_epoch === "number" ? data.session_epoch : 0;
+}
+
+/**
+ * Stores a single-use password-reset token (its SHA-256 hash) with an expiry and
+ * request time. Overwrites any existing token, so the previous one stops working.
+ */
+export async function setPasswordResetToken(
+  id:        string,
+  tokenHash: string,
+  expiresAt: string,
+): Promise<boolean> {
+  const ts = now();
+  const { error } = await adminTable()
+    .update({
+      reset_token_hash:       tokenHash,
+      reset_token_expires_at: expiresAt,
+      reset_requested_at:     ts,
+      updated_at:             ts,
+    })
+    .eq("id", id);
+  return !error;
+}
+
+/**
+ * Looks up the admin user holding the given reset-token hash. Returns the full
+ * row (including expiry + session_epoch) so the caller can validate expiry and
+ * bump the epoch; returns null when no row matches.
+ */
+export async function findAdminUserByResetTokenHash(
+  tokenHash: string,
+): Promise<AdminUserRow | null> {
+  const { data, error } = await adminTable()
+    .select("*")
+    .eq("reset_token_hash", tokenHash)
+    .single();
+  if (error || !data) return null;
+  return data as AdminUserRow;
+}
+
+/**
+ * Completes a password reset: sets the new hash, clears the reset token
+ * (single-use), and bumps session_epoch to invalidate existing sessions.
+ * `currentEpoch` is the value read during token validation.
+ */
+export async function completePasswordReset(
+  id:           string,
+  passwordHash: string,
+  currentEpoch: number,
+): Promise<boolean> {
+  const { error } = await adminTable()
+    .update({
+      password_hash:          passwordHash,
+      reset_token_hash:       null,
+      reset_token_expires_at: null,
+      reset_requested_at:     null,
+      session_epoch:          currentEpoch + 1,
+      updated_at:             now(),
+    })
+    .eq("id", id);
+  return !error;
+}
+
 /** Applies a partial update to an admin user row. Internal helper. */
 async function patchAdminUser(
   id: string,

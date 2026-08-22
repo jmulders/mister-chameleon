@@ -16,7 +16,7 @@ import { Fragment }    from "react";
  * needed in individual pages.
  */
 
-const AUTH_PREFIXES = ["/admin/login", "/admin/account/security"];
+const AUTH_PREFIXES = ["/admin/login", "/admin/account/security", "/admin/forgot-password", "/admin/reset-password"];
 
 /** Convert a URL segment to a human-readable label. */
 function humanize(s: string) {
