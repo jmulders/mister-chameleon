@@ -1,40 +1,57 @@
 /**
- * Context token substitution for body copy.
+ * Context token substitution for body copy, driven by a managed copy-variable
+ * registry (TenantSettings.copyVariables).
  *
- * Replaces `{key}` / `{key|default}` tokens in authored copy with the visitor's
- * decision-context value, as a pure pre-pass run BEFORE the inline-markup
- * compiler (renderInlineMarkup). Because it runs before the escape-first
- * compiler, resolved values are HTML-escaped by that compiler; on top of that we
- * neutralize inline-markup significant characters (`* [ ] \`) here so a spoofed
- * value cannot inject markup.
+ * Each insertable {token} maps to a source (a curated built-in FIELD_REGISTRY
+ * field, or a declared custom attribute) plus an optional value map (raw ->
+ * display) and a fallback. Substitution runs as a pure pre-pass BEFORE the
+ * escape-first inline-markup compiler (renderInlineMarkup): resolved / mapped /
+ * fallback values are HTML-escaped by that compiler, and on top of that we
+ * neutralize inline-markup significant characters (`* [ ] \`) here so neither a
+ * spoofed context value nor an operator-authored map/fallback can inject markup.
  *
- * Catalogue: the insertable variables are a curated subset of CONTEXT_VARIABLES
- * (context/registry.ts) that resolve to a clean display string, plus the tenant's
- * string-typed customAttributes. Built-in values resolve via the field registry;
- * custom values resolve from ctx.customAttributes.
+ * When a tenant has no managed registry the platform uses an implicit default:
+ * the curated built-ins plus the tenant's string-typed custom attributes, so
+ * existing tenants keep working with zero configuration.
  *
  * Syntax:
- *   {key}            resolve to the context value (or strip when empty).
- *   {key|default}    resolve, or use `default` when the value is empty/missing.
- *   \{               a literal brace.
+ *   {token}            resolve to the mapped context value (or strip when empty).
+ *   {token|default}    resolve, or use `default` when the value is empty/missing.
+ *   \{                 a literal brace.
  * Unknown / hand-typed braces are left exactly as written (never mangled).
  */
 
 import { FIELD_REGISTRY } from "@/decision/rules/field-registry";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
-import { CONTEXT_VARIABLE_MAP } from "@/context/registry";
-import type { CustomAttributeDeclaration } from "@/tenant/types";
+import type { CustomAttributeDeclaration, CopyVariable, CopyVariableMapping } from "@/tenant/types";
 
 /**
- * Built-in insertable variable keys: present in both CONTEXT_VARIABLES and
- * FIELD_REGISTRY and resolving to a clean, human-readable display string.
+ * Curated built-in source keys allowed as a copy-variable source: scalar,
+ * display-friendly FIELD_REGISTRY fields only (never arrays / objects / PII).
+ * Includes machine-value fields (device, source, visitType, SBI code) that a
+ * value map turns into readable copy.
  */
-export const BUILTIN_TOKEN_KEYS = [
+export const BUILTIN_SOURCE_KEYS = [
+  "companyName", "companyIndustry", "city", "region", "countryCode",
+  "currentCity", "currentCountry", "utmCampaign", "utmTerm", "primaryInterest", "weatherSummary",
+  "device", "source", "visitType", "leadinfoBranchCode",
+] as const;
+
+const BUILTIN_SOURCE_SET: ReadonlySet<string> = new Set(BUILTIN_SOURCE_KEYS);
+
+/**
+ * Default insertable built-ins when a tenant has no managed registry: the
+ * original curated set, one-to-one (token === source key), no value maps.
+ */
+const DEFAULT_BUILTIN_TOKENS = [
   "companyName", "companyIndustry", "city", "region", "countryCode",
   "currentCity", "currentCountry", "utmCampaign", "utmTerm", "primaryInterest", "weatherSummary",
 ] as const;
 
-const BUILTIN_SET: ReadonlySet<string> = new Set(BUILTIN_TOKEN_KEYS);
+/** Human-readable label for a built-in source key (from the field registry). */
+export function builtinSourceLabel(key: string): string {
+  return FIELD_REGISTRY[key as keyof typeof FIELD_REGISTRY]?.label ?? key;
+}
 
 /** One entry in the "insert variable" catalogue. */
 export interface VariableEntry {
@@ -46,71 +63,117 @@ export interface VariableEntry {
 }
 
 /**
- * Build the unified insertable-variable catalogue: the curated built-in subset
- * of CONTEXT_VARIABLES plus the tenant's string-typed custom attributes.
+ * The default copy-variable registry: the curated built-ins plus the tenant's
+ * string-typed custom attributes. Used when no managed registry is stored, and
+ * as the seed the Variables page materializes into editable entries.
  */
-export function buildVariableCatalogue(
+export function defaultCopyVariables(
   customAttributes?: readonly CustomAttributeDeclaration[] | null,
-): VariableEntry[] {
-  const builtins: VariableEntry[] = [];
-  for (const key of BUILTIN_TOKEN_KEYS) {
-    const def = CONTEXT_VARIABLE_MAP[key];
-    if (def) builtins.push({ token: def.key, label: def.label, source: "built-in" });
-  }
-
-  const custom: VariableEntry[] = (customAttributes ?? [])
+): CopyVariable[] {
+  const builtins: CopyVariable[] = DEFAULT_BUILTIN_TOKENS.map((key) => ({
+    token: key,
+    label: builtinSourceLabel(key),
+    source: { kind: "builtin", key },
+  }));
+  const custom: CopyVariable[] = (customAttributes ?? [])
     .filter((a) => a.type === "string")
-    .map((a) => ({ token: a.name, label: a.label ?? a.name, source: "custom" as const }));
-
+    .map((a) => ({ token: a.name, label: a.label ?? a.name, source: { kind: "custom", name: a.name } as const }));
   return [...builtins, ...custom];
 }
 
-/** Strip inline-markup significant characters from a resolved value. */
+/**
+ * The effective registry for a tenant: the managed registry when it has entries,
+ * otherwise the implicit default (curated built-ins + string custom attributes).
+ */
+export function effectiveCopyVariables(
+  managed: readonly CopyVariable[] | null | undefined,
+  customAttributes?: readonly CustomAttributeDeclaration[] | null,
+): CopyVariable[] {
+  if (managed && managed.length > 0) return [...managed];
+  return defaultCopyVariables(customAttributes);
+}
+
+/** Build the "insert variable" catalogue (dropdown) from an effective registry. */
+export function buildVariableCatalogue(registry: readonly CopyVariable[]): VariableEntry[] {
+  return registry.map((v) => ({
+    token: v.token,
+    label: v.label ?? v.token,
+    source: v.source.kind === "builtin" ? "built-in" : "custom",
+  }));
+}
+
+/** Strip inline-markup significant characters from a resolved/mapped value. */
 function neutralizeMarkup(v: string): string {
   return v.replace(/[\\*[\]]/g, "");
 }
 
-/** Resolve a known token to its display value, or undefined when empty/missing. */
-function resolveToken(key: string, ctx: RuleEvaluationContext): string | undefined {
-  if (BUILTIN_SET.has(key)) {
-    const def = FIELD_REGISTRY[key as keyof typeof FIELD_REGISTRY];
-    const raw = def?.resolve?.(ctx);
-    if (raw === null || raw === undefined || raw === "") return undefined;
-    return String(raw);
+/** Coerce a resolved raw value to a non-empty display string, or undefined. */
+function coerceRaw(v: unknown): string | undefined {
+  if (v === null || v === undefined) return undefined;
+  if (typeof v === "boolean") return v ? "true" : "false";
+  const s = String(v);
+  return s === "" ? undefined : s;
+}
+
+/** Resolve the raw (unmapped) value for a variable's source, or undefined. */
+function resolveRaw(source: CopyVariable["source"], ctx: RuleEvaluationContext): string | undefined {
+  if (source.kind === "builtin") {
+    if (!BUILTIN_SOURCE_SET.has(source.key)) return undefined;
+    const def = FIELD_REGISTRY[source.key as keyof typeof FIELD_REGISTRY];
+    return coerceRaw(def?.resolve?.(ctx));
   }
-  const cv = ctx.customAttributes?.[key];
-  if (cv === null || cv === undefined || cv === "") return undefined;
-  return String(cv);
+  return coerceRaw(ctx.customAttributes?.[source.name]);
+}
+
+/** Apply the value map: exact `from` match, else the `*` default, else raw. */
+function applyValueMap(raw: string, valueMap?: readonly CopyVariableMapping[]): string {
+  if (!valueMap || valueMap.length === 0) return raw;
+  const exact = valueMap.find((m) => m.from === raw);
+  if (exact) return exact.to;
+  const star = valueMap.find((m) => m.from === "*");
+  if (star) return star.to;
+  return raw;
+}
+
+/**
+ * Resolve a variable to its final display string:
+ * raw -> valueMap (exact -> `*` default) when present, else
+ * (empty/missing) inline `{token|default}` -> entry fallback -> strip.
+ * Markup is neutralized on every branch.
+ */
+function resolveDisplay(
+  entry: CopyVariable,
+  ctx: RuleEvaluationContext,
+  inlineDefault: string | undefined,
+): string {
+  const raw = resolveRaw(entry.source, ctx);
+  if (raw !== undefined) return neutralizeMarkup(applyValueMap(raw, entry.valueMap));
+  const fallback = inlineDefault !== undefined ? inlineDefault : entry.fallback;
+  return fallback !== undefined ? neutralizeMarkup(fallback) : "";
 }
 
 const TOKEN_RE = /\\\{|\{([a-zA-Z0-9_-]+)(?:\|([^}]*))?\}/g;
 
 /**
- * Substitute context tokens in `src` against `ctx`.
- *
- * @param customKeys  The tenant's declared custom-attribute names, so a declared
- *                    attribute with an empty value is still treated as a known
- *                    token (stripped / defaulted, never shown raw). Defaults to
- *                    the keys present on ctx.customAttributes.
+ * Substitute copy-variable tokens in `src` against `ctx` using `registry`.
+ * Tokens not in the registry (or hand-typed braces) are left literal.
  */
 export function substituteContextTokens(
   src: string | null | undefined,
   ctx: RuleEvaluationContext,
-  customKeys?: Iterable<string>,
+  registry: readonly CopyVariable[],
 ): string {
   if (!src) return "";
 
-  const known = new Set<string>(BUILTIN_SET);
-  for (const k of customKeys ?? Object.keys(ctx.customAttributes ?? {})) known.add(k);
+  const byToken = new Map<string, CopyVariable>();
+  for (const v of registry) byToken.set(v.token, v);
 
   return src.replace(TOKEN_RE, (match, key: string | undefined, def: string | undefined) => {
     if (match === "\\{") return "{";
     if (key === undefined) return match;
-    if (!known.has(key)) return match; // unknown / hand-typed braces: leave literal
-
-    const value = resolveToken(key, ctx);
-    if (value === undefined) return def !== undefined ? neutralizeMarkup(def) : "";
-    return neutralizeMarkup(value);
+    const entry = byToken.get(key);
+    if (!entry) return match; // unknown / hand-typed braces: leave literal
+    return resolveDisplay(entry, ctx, def);
   });
 }
 
@@ -124,10 +187,10 @@ export function substituteContextTokens(
 export function substituteBlockCopy<T>(
   data: T,
   ctx: RuleEvaluationContext,
-  customKeys?: Iterable<string>,
+  registry: readonly CopyVariable[],
 ): T {
   if (!data || typeof data !== "object") return data;
-  const sub = (s: unknown) => (typeof s === "string" ? substituteContextTokens(s, ctx, customKeys) : s);
+  const sub = (s: unknown) => (typeof s === "string" ? substituteContextTokens(s, ctx, registry) : s);
 
   const out = { ...(data as Record<string, unknown>) };
   if (typeof out.subtitle === "string") out.subtitle = sub(out.subtitle);

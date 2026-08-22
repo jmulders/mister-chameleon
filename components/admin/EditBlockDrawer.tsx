@@ -45,8 +45,8 @@ import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
 import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
 import { getAllFormDefinitions } from "@/forms";
 import { RichCopyEditor } from "@/components/admin/RichCopyEditor";
-import { buildVariableCatalogue, type VariableEntry } from "@/lib/blocks/substitute-context-tokens";
-import type { CustomAttributeDeclaration } from "@/tenant/types";
+import { buildVariableCatalogue, effectiveCopyVariables, type VariableEntry } from "@/lib/blocks/substitute-context-tokens";
+import type { CustomAttributeDeclaration, CopyVariable } from "@/tenant/types";
 import { LayoutVariantPicker } from "@/components/admin/LayoutVariantPicker";
 import { SlideMediaEditor, ImagePicker, VideoOptions } from "@/components/admin/media/MediaEditor";
 
@@ -449,6 +449,8 @@ interface EditBlockDrawerProps {
   blockTokenSets?: readonly BlockTokenSet[];
   /** Tenant's declared custom attributes, for the "Insert variable" catalogue. */
   customAttributes?: readonly CustomAttributeDeclaration[];
+  /** Tenant's managed copy-variable registry (falls back to the default). */
+  copyVariables?: readonly CopyVariable[];
 }
 
 export function EditBlockDrawer({
@@ -459,6 +461,7 @@ export function EditBlockDrawer({
   onSaved,
   blockTokenSets = [],
   customAttributes = [],
+  copyVariables,
 }: EditBlockDrawerProps) {
   const slotId        = slotFromKey(block.key);
   const layoutOptions = LAYOUT_OPTIONS[slotId] ?? [];
@@ -466,8 +469,8 @@ export function EditBlockDrawer({
   // Insertable context-variable catalogue: the built-in subset plus this tenant's
   // string-typed custom attributes. Fed to every RichCopyEditor in the drawer.
   const variableCatalogue = useMemo(
-    () => buildVariableCatalogue(customAttributes),
-    [customAttributes],
+    () => buildVariableCatalogue(effectiveCopyVariables(copyVariables, customAttributes)),
+    [copyVariables, customAttributes],
   );
 
   // Token groups relevant to THIS block: all universal groups + only the

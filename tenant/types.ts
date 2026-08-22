@@ -2381,6 +2381,46 @@ export interface CustomAttributeDeclaration {
   readonly allowedValues?: readonly (string | number)[];
 }
 
+/**
+ * One row of a copy variable's value map: turn a raw context value into a
+ * human-readable display value. `from` "*" is the catch-all default applied to
+ * any non-empty value that no exact row matched.
+ */
+export interface CopyVariableMapping {
+  readonly from: string;
+  readonly to:   string;
+}
+
+/**
+ * A tenant-managed insertable copy variable ({token}) with optional value
+ * mapping. Operators manage these on the Variables page; the insert dropdown and
+ * the render-time substitution both read this registry. Distinct from
+ * CustomAttributeDeclaration (which declares rule-matchable attributes): a copy
+ * variable's `source` points at either a curated built-in field or a declared
+ * custom attribute, and adds display mapping + fallback on top.
+ *
+ * Values remain untrusted (visitor-influenced); substitution HTML-escapes and
+ * neutralises markup in the resolved, mapped, and fallback values alike.
+ */
+export interface CopyVariable {
+  /** The token inserted in copy as {token}. Lowercase [a-z0-9_-], 1..40 chars. */
+  readonly token: string;
+  /** English label shown in the insert dropdown (falls back to the token). */
+  readonly label?: string;
+  /**
+   * Where the raw value comes from:
+   *   - builtin: a curated FIELD_REGISTRY key (scalar, display-friendly).
+   *   - custom:  a declared custom attribute name (coerced to a string).
+   */
+  readonly source:
+    | { readonly kind: "builtin"; readonly key: string }
+    | { readonly kind: "custom";  readonly name: string };
+  /** Raw -> display value map. `from` "*" is the catch-all default. */
+  readonly valueMap?: readonly CopyVariableMapping[];
+  /** Display value used when the raw value is empty/missing (before stripping). */
+  readonly fallback?: string;
+}
+
 export interface TenantSettings {
   readonly tenantId:          string;
 
@@ -2794,6 +2834,14 @@ export interface TenantSettings {
    * Configure via /admin/tenants/[tenantId]/personalization.
    */
   readonly customAttributes?: readonly CustomAttributeDeclaration[];
+
+  /**
+   * Managed copy-variable registry: the insertable {tokens} for body copy with
+   * per-variable value mapping + fallback. When absent/empty the platform falls
+   * back to the implicit default (curated built-ins + string custom attributes).
+   * Managed on /personalization/variables. Stored in settings.copyVariables.
+   */
+  readonly copyVariables?: readonly CopyVariable[];
 
   /**
    * Ad-network role. When "advertiser", this tenant's siteKey is embedded by
