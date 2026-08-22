@@ -42,6 +42,7 @@ import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
 import { SiteDesignTokensEditor } from "./SiteDesignTokensEditor";
 import { DesignTokenSetsLibrary } from "./DesignTokenSetsLibrary";
+import { ImportThemePreset } from "./ImportThemePreset";
 import type { DesignTokenSet } from "@/lib/design-token-sets/design-token-sets-store";
 import { ResetDesignButton }    from "./ResetDesignButton";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
@@ -58,7 +59,7 @@ import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.con
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DesignTab = "presets" | "builder" | "layout" | "typography" | "blocks" | "advanced";
+type DesignTab = "presets" | "builder" | "token-sets" | "layout" | "typography" | "blocks" | "advanced";
 
 interface TabDef {
   id:          DesignTab;
@@ -76,6 +77,11 @@ const TABS: readonly TabDef[] = [
     id:          "builder",
     label:       "Builder",
     description: "Compose a custom preset with a live preview",
+  },
+  {
+    id:          "token-sets",
+    label:       "Token sets",
+    description: "Import, save, and apply grouped complete-look token JSON",
   },
   {
     id:          "layout",
@@ -586,6 +592,22 @@ export function DesignPageClient({
         <PresetBuilder tenantId={tenantId} design={design} />
       </TabPanel>
 
+      {/* ── Token sets (grouped complete-look JSON: import + saved library) ──── */}
+      <TabPanel id="token-sets" active={activeTab}>
+        <TabSectionHeader
+          title="Token sets"
+          description="One place for grouped complete-look token JSON. Import a theme preset (our JSON or a Figma / Tokens Studio export), or save the current look as a reusable set and apply, rename, or delete saved sets. Applying writes the complete look to this tenant's token overrides. For flat, per-block tokens use Site design tokens on the Blocks tab."
+        />
+        <ImportThemePreset tenantId={tenantId} />
+        <div style={{ marginTop: "2rem" }}>
+          <DesignTokenSetsLibrary
+            tenantId={tenantId}
+            currentTokens={(design.tokenOverrides ?? {}) as Record<string, unknown>}
+            initialSets={tokenSets}
+          />
+        </div>
+      </TabPanel>
+
       {/* ── Layout ──────────────────────────────────────────────────────────── */}
       <TabPanel id="layout" active={activeTab}>
         <TabSectionHeader
@@ -648,8 +670,8 @@ export function DesignPageClient({
       {/* ── Blocks (site default + per-block token sets) ─────────────────────── */}
       <TabPanel id="blocks" active={activeTab}>
         <TabSectionHeader
-          title="Site design tokens"
-          description="Your central design system. Set colors, typography, cards, buttons and more once here, and they apply automatically to every content block and adaptive slot. No per-component setup needed."
+          title="Site design tokens (flat per-block layer)"
+          description="The flat, per-block token layer (design.defaultTokens). Set colors, typography, cards, buttons and more once here, and they apply to every content block and adaptive slot. This is a flat key-value layer, distinct from the grouped complete-look token sets on the Token sets tab."
         />
         <SiteDesignTokensEditor
           tenantId={tenantId}
@@ -679,17 +701,9 @@ export function DesignPageClient({
           hideHeader
         />
 
-        <div style={{ marginTop: "2rem" }}>
-          <TabSectionHeader
-            title="Saved token sets"
-            description="Save the current token overrides as a reusable named set, then apply, rename, or delete them. Applying a set writes it to this tenant's token overrides."
-          />
-          <DesignTokenSetsLibrary
-            tenantId={tenantId}
-            currentTokens={(design.tokenOverrides ?? {}) as Record<string, unknown>}
-            initialSets={tokenSets}
-          />
-        </div>
+        <p style={{ marginTop: "1.5rem", fontSize: "0.8125rem", color: "#6b7280" }}>
+          Saved token sets moved to the Token sets tab.
+        </p>
       </TabPanel>
     </div>
   );
