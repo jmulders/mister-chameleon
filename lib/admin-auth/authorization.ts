@@ -59,6 +59,7 @@ import {
   ADMIN_TOKEN_COOKIE,
   type AdminSession,
 } from "./session";
+import { getAdminSessionEpoch } from "@/data/admin-auth";
 import { getTenantIdsForUser } from "@/data/admin-auth";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -110,6 +111,15 @@ export async function getRequiredAdminSession(): Promise<AdminSession> {
 
   if (session.twoFaEnabled && !session.twoFaVerified) {
     redirect("/admin/login/2fa");
+  }
+
+  // Session revocation: reject the token when its epoch no longer matches the
+  // stored one (a password reset bumps session_epoch). A missing user (null)
+  // also fails closed. This is the authoritative server-side gate; the Edge
+  // middleware stays JWT-only.
+  const currentEpoch = await getAdminSessionEpoch(session.sub);
+  if (currentEpoch === null || currentEpoch !== session.epoch) {
+    redirect("/admin/login");
   }
 
   return session;

@@ -63,6 +63,13 @@ export interface AdminSession {
    * when twoFaEnabled is true.
    */
   twoFaVerified: boolean;
+  /**
+   * The admin_users.session_epoch value at sign time. getRequiredAdminSession
+   * compares it against the stored epoch and rejects the session when they
+   * differ, so a password reset (which bumps the epoch) invalidates existing
+   * sessions. Absent on legacy tokens, which decode to 0.
+   */
+  epoch:         number;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -124,6 +131,7 @@ export async function verifySession(token: string): Promise<AdminSession | null>
       role:          payload["role"]          as string,
       twoFaEnabled:  Boolean(payload["twoFaEnabled"]),
       twoFaVerified: Boolean(payload["twoFaVerified"]),
+      epoch:         typeof payload["epoch"] === "number" ? payload["epoch"] as number : 0,
     };
   } catch {
     return null;
