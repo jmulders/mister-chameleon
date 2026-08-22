@@ -63,7 +63,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#4f46e5", background: "#ffffff", foreground: "#0f172a", accent: "#eef2ff" },
     tokenOverrides: {
       color: { primary: "#4f46e5", primaryHover: "#4338ca", secondary: "#06b6d4", accent: "#eef2ff", background: "#ffffff", foreground: "#0f172a", muted: "#f1f5f9", mutedForeground: "#64748b", border: "#e2e8f0", card: "#ffffff", cardForeground: "#0f172a", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Inter', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "0", headingTransform: "none" },
+      typography: { fontHeading: "'Inter', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "0", headingTransform: "none" },
       radius: { interactive: "8px", card: "12px" },
       shadow: { md: "0 6px 18px rgba(2,6,23,.08)" },
       component: { buttonPaddingX: "1.1rem", buttonPaddingY: ".62rem" },
@@ -79,7 +79,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#1f2937", background: "#faf6ef", foreground: "#2b2620", accent: "#f3efe7" },
     tokenOverrides: {
       color: { primary: "#1f2937", primaryHover: "#111827", secondary: "#9ca3af", accent: "#f3efe7", background: "#faf6ef", foreground: "#2b2620", muted: "#f1ece2", mutedForeground: "#7c7363", border: "#e3dccf", card: "#fffdf8", cardForeground: "#2b2620", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Cormorant Garamond', Georgia, serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "17px", headingWeight: "600", letterSpacing: "0", headingTransform: "none", headingLineHeight: "1.15" },
+      typography: { fontHeading: "'Cormorant Garamond', Georgia, serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "17px", headingWeight: "600", letterSpacing: "0", headingTransform: "none", headingLineHeight: "1.15" },
       radius: { interactive: "2px", card: "2px" },
       shadow: { md: "0 1px 0 rgba(43,38,32,.06)" },
       component: { buttonPaddingX: "1.3rem", buttonPaddingY: ".7rem" },
@@ -95,7 +95,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#dc2626", background: "#f5f3ef", foreground: "#1c1917", accent: "#f5f3ef" },
     tokenOverrides: {
       color: { primary: "#dc2626", primaryHover: "#b91c1c", secondary: "#1c1917", accent: "#f5f3ef", background: "#f5f3ef", foreground: "#1c1917", muted: "#e7e2da", mutedForeground: "#57534e", border: "#1c1917", card: "#ffffff", cardForeground: "#1c1917", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Oswald', 'Arial Narrow', sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: ".04em", headingTransform: "uppercase" },
+      typography: { fontHeading: "'Oswald', 'Arial Narrow', sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: ".04em", headingTransform: "uppercase" },
       radius: { interactive: "0px", card: "0px" },
       shadow: { md: "4px 4px 0 #1c1917" },
       component: { buttonPaddingX: "1.25rem", buttonPaddingY: ".7rem" },
@@ -111,7 +111,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#18181b", background: "#ffffff", foreground: "#18181b", accent: "#f4f4f5" },
     tokenOverrides: {
       color: { primary: "#18181b", primaryHover: "#000000", secondary: "#71717a", accent: "#f4f4f5", background: "#ffffff", foreground: "#18181b", muted: "#fafafa", mutedForeground: "#a1a1aa", border: "#e4e4e7", card: "#ffffff", cardForeground: "#18181b", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Inter', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "15px", headingWeight: "600", letterSpacing: "-.01em", headingTransform: "none" },
+      typography: { fontHeading: "'Inter', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "15px", headingWeight: "600", letterSpacing: "-.01em", headingTransform: "none" },
       radius: { interactive: "2px", card: "2px" },
       shadow: { md: "none" },
       component: { buttonPaddingX: "1rem", buttonPaddingY: ".55rem" },
@@ -127,7 +127,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#f59e0b", background: "#0a0a0f", foreground: "#f4f4f5", accent: "#1c1917" },
     tokenOverrides: {
       color: { primary: "#f59e0b", primaryHover: "#d97706", secondary: "#a78bfa", accent: "#1c1917", background: "#0a0a0f", foreground: "#f4f4f5", muted: "#15151f", mutedForeground: "#a1a1aa", border: "#27272a", card: "#15151f", cardForeground: "#f4f4f5", onPrimary: "#1c1917" },
-      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.01em", headingTransform: "none" },
+      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.01em", headingTransform: "none" },
       radius: { interactive: "10px", card: "14px" },
       shadow: { md: "0 0 40px rgba(245,158,11,.25)" },
       component: { buttonPaddingX: "1.2rem", buttonPaddingY: ".66rem" },
@@ -143,7 +143,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#0891b2", background: "#f0f9ff", foreground: "#0c4a6e", accent: "#ecfeff" },
     tokenOverrides: {
       color: { primary: "#0891b2", primaryHover: "#0e7490", secondary: "#34d399", accent: "#ecfeff", background: "#f0f9ff", foreground: "#0c4a6e", muted: "#e0f2fe", mutedForeground: "#0369a1", border: "#bae6fd", card: "#ffffff", cardForeground: "#0c4a6e", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Manrope', system-ui, sans-serif", fontBody: "'Manrope', system-ui, sans-serif", fontSans: "'Manrope', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "0", headingTransform: "none" },
+      typography: { fontHeading: "'Manrope', system-ui, sans-serif", fontBody: "'Manrope', system-ui, sans-serif", fontSans: "'Manrope', system-ui, sans-serif", fontUI: "'Manrope', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "0", headingTransform: "none" },
       radius: { interactive: "16px", card: "20px" },
       shadow: { md: "0 8px 24px rgba(8,145,178,.12)" },
       component: { buttonPaddingX: "1.3rem", buttonPaddingY: ".7rem" },
@@ -159,7 +159,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#1e3a8a", background: "#ffffff", foreground: "#0f172a", accent: "#eff6ff" },
     tokenOverrides: {
       color: { primary: "#1e3a8a", primaryHover: "#1e40af", secondary: "#2563eb", accent: "#eff6ff", background: "#ffffff", foreground: "#0f172a", muted: "#f1f5f9", mutedForeground: "#475569", border: "#dbe2ea", card: "#ffffff", cardForeground: "#0f172a", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'DM Sans', system-ui, sans-serif", fontBody: "'DM Sans', system-ui, sans-serif", fontSans: "'DM Sans', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.01em", headingTransform: "none" },
+      typography: { fontHeading: "'DM Sans', system-ui, sans-serif", fontBody: "'DM Sans', system-ui, sans-serif", fontSans: "'DM Sans', system-ui, sans-serif", fontUI: "'DM Sans', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.01em", headingTransform: "none" },
       radius: { interactive: "4px", card: "6px" },
       shadow: { md: "0 4px 14px rgba(15,23,42,.08)" },
       component: { buttonPaddingX: "1.15rem", buttonPaddingY: ".64rem" },
@@ -175,7 +175,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#7c3aed", background: "#ffffff", foreground: "#1e1b4b", accent: "#f5f3ff" },
     tokenOverrides: {
       color: { primary: "#7c3aed", primaryHover: "#6d28d9", secondary: "#ec4899", accent: "#f5f3ff", background: "#ffffff", foreground: "#1e1b4b", muted: "#faf5ff", mutedForeground: "#6d28d9", border: "#ede9fe", card: "#ffffff", cardForeground: "#1e1b4b", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none" },
+      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none" },
       radius: { interactive: "18px", card: "22px" },
       shadow: { md: "0 12px 30px rgba(124,58,237,.18)" },
       component: { buttonPaddingX: "1.35rem", buttonPaddingY: ".72rem" },
@@ -191,7 +191,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#a87c2a", background: "#fbf8f1", foreground: "#2d2a24", accent: "#f7f1e3" },
     tokenOverrides: {
       color: { primary: "#a87c2a", primaryHover: "#8c6420", secondary: "#2d2a24", accent: "#f7f1e3", background: "#fbf8f1", foreground: "#2d2a24", muted: "#f2ebdc", mutedForeground: "#8a8170", border: "#e6dcc6", card: "#fffdf7", cardForeground: "#2d2a24", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Cormorant Garamond', Georgia, serif", fontBody: "'Manrope', system-ui, sans-serif", fontSans: "'Manrope', system-ui, sans-serif", baseFontSize: "17px", headingWeight: "600", letterSpacing: ".01em", headingTransform: "none", headingLineHeight: "1.15" },
+      typography: { fontHeading: "'Cormorant Garamond', Georgia, serif", fontBody: "'Manrope', system-ui, sans-serif", fontSans: "'Manrope', system-ui, sans-serif", fontUI: "'Manrope', system-ui, sans-serif", baseFontSize: "17px", headingWeight: "600", letterSpacing: ".01em", headingTransform: "none", headingLineHeight: "1.15" },
       radius: { interactive: "9999px", card: "10px" },
       shadow: { md: "0 10px 30px rgba(45,42,36,.10)" },
       component: { buttonPaddingX: "1.5rem", buttonPaddingY: ".72rem" },
@@ -207,7 +207,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#059669", background: "#ffffff", foreground: "#052e16", accent: "#ecfdf5" },
     tokenOverrides: {
       color: { primary: "#059669", primaryHover: "#047857", secondary: "#34d399", accent: "#ecfdf5", background: "#ffffff", foreground: "#052e16", muted: "#f0fdf4", mutedForeground: "#15803d", border: "#d1fae5", card: "#ffffff", cardForeground: "#052e16", onPrimary: "#ffffff" },
-      typography: { fontHeading: "'Manrope', system-ui, sans-serif", fontBody: "'Manrope', system-ui, sans-serif", fontSans: "'Manrope', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "800", letterSpacing: "-.01em", headingTransform: "none" },
+      typography: { fontHeading: "'Manrope', system-ui, sans-serif", fontBody: "'Manrope', system-ui, sans-serif", fontSans: "'Manrope', system-ui, sans-serif", fontUI: "'Manrope', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "800", letterSpacing: "-.01em", headingTransform: "none" },
       radius: { interactive: "10px", card: "14px" },
       shadow: { md: "0 8px 22px rgba(5,150,105,.14)" },
       component: { buttonPaddingX: "1.2rem", buttonPaddingY: ".66rem" },
@@ -223,7 +223,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#7c3aed", background: "#faf5ff", foreground: "#2e1065", accent: "#d946ef" },
     tokenOverrides: {
       color: { primary: "#7c3aed", primaryHover: "#6d28d9", secondary: "#d946ef", accent: "#f3e8ff", background: "#faf5ff", foreground: "#2e1065", muted: "#f3e8ff", mutedForeground: "#6d28d9", border: "#e9d5ff", card: "#ffffff", cardForeground: "#2e1065", onPrimary: "#ffffff", link: "#9333ea", success: "#10b981", danger: "#e11d48", gradient: "linear-gradient(135deg, #7c3aed 0%, #d946ef 100%)", gradientHero: "linear-gradient(180deg, #1a0533 0%, #4c1d95 52%, #7c3aed 100%)" },
-      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none", headingLineHeight: "1.08" },
+      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none", headingLineHeight: "1.08" },
       radius: { interactive: "14px", card: "18px" },
       shadow: { md: "0 14px 36px rgba(124,58,237,.20)" },
       border: { width: "1px" },
@@ -243,7 +243,7 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
     swatch: { primary: "#7c3aed", background: "#faf5ff", foreground: "#2e1065", accent: "#d4af37" },
     tokenOverrides: {
       color: { primary: "#7c3aed", primaryHover: "#6d28d9", secondary: "#d4af37", accent: "#fdf3d7", background: "#faf5ff", foreground: "#2e1065", muted: "#f3e8ff", mutedForeground: "#6d28d9", border: "#e9d5ff", card: "#ffffff", cardForeground: "#2e1065", onPrimary: "#ffffff", link: "#9333ea", success: "#10b981", danger: "#e11d48", gradient: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)", gradientHero: "linear-gradient(180deg, #1a0533 0%, #4c1d95 52%, #7c3aed 100%)" },
-      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none", headingLineHeight: "1.08" },
+      typography: { fontHeading: "'Space Grotesk', system-ui, sans-serif", fontBody: "'Inter', system-ui, sans-serif", fontSans: "'Inter', system-ui, sans-serif", fontUI: "'Inter', system-ui, sans-serif", baseFontSize: "16px", headingWeight: "700", letterSpacing: "-.02em", headingTransform: "none", headingLineHeight: "1.08" },
       radius: { interactive: "14px", card: "18px" },
       shadow: { md: "0 14px 36px rgba(124,58,237,.20)" },
       border: { width: "1px" },
