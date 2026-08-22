@@ -46,7 +46,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createCMSProvider, createPreviewCMSProvider, createDraftStatamicProvider } from "@/cms";
 import { getDraft } from "@/lib/statamic-draft-store";
 import { composeHomepageExperience }       from "@/experience";
-import { substituteBlockCopy }             from "@/lib/blocks/substitute-context-tokens";
+import { substituteBlockCopy, effectiveCopyVariables } from "@/lib/blocks/substitute-context-tokens";
 import type { CmsFallbackKeys }            from "@/experience";
 import { applyConfidenceGating }           from "@/decision/apply-confidence-gating";
 import { emptyJourneyState }              from "@/lib/journey/types";
@@ -878,13 +878,14 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
 
   // Substitute {context variables} in the descriptive copy against the visitor's
   // decision context, at the data level so the block components stay context-free.
+  const copyVars = effectiveCopyVariables(tenant?.copyVariables, tenant?.customAttributes);
   const experience = {
     ...composed.experience,
-    hero:  substituteBlockCopy(composed.experience.hero,  input),
-    proof: substituteBlockCopy(composed.experience.proof, input),
-    cta:   substituteBlockCopy(composed.experience.cta,   input),
-    ...(composed.experience.feature    ? { feature:    substituteBlockCopy(composed.experience.feature,    input) } : {}),
-    ...(composed.experience.conversion ? { conversion: substituteBlockCopy(composed.experience.conversion, input) } : {}),
+    hero:  substituteBlockCopy(composed.experience.hero,  input, copyVars),
+    proof: substituteBlockCopy(composed.experience.proof, input, copyVars),
+    cta:   substituteBlockCopy(composed.experience.cta,   input, copyVars),
+    ...(composed.experience.feature    ? { feature:    substituteBlockCopy(composed.experience.feature,    input, copyVars) } : {}),
+    ...(composed.experience.conversion ? { conversion: substituteBlockCopy(composed.experience.conversion, input, copyVars) } : {}),
   };
 
   // ── Confidence gating ─────────────────────────────────────────────────────

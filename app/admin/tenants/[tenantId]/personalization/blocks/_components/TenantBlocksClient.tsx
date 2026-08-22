@@ -24,7 +24,7 @@ import type { BlockTokenSet }                     from "@/design-system/theme/bl
 import { deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import { saveSlotModesAction, type SaveSlotModesInput, type SlotModeFormValue } from "../slot-modes-actions";
 import type { AdaptiveBlockData }                from "@/cms/types";
-import type { TenantAdaptiveSlotSettings, TenantSlotMode, CustomAttributeDeclaration } from "@/tenant/types";
+import type { TenantAdaptiveSlotSettings, TenantSlotMode, CustomAttributeDeclaration, CopyVariable } from "@/tenant/types";
 
 // ── Slot selection mode ─────────────────────────────────────────────────────────
 
@@ -440,9 +440,10 @@ interface TenantBlocksClientProps {
   initialSlotModes: TenantAdaptiveSlotSettings | null;
   blockTokenSets?: readonly BlockTokenSet[];
   customAttributes?: readonly CustomAttributeDeclaration[];
+  copyVariables?: readonly CopyVariable[];
 }
 
-export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotModes, blockTokenSets = [], customAttributes = [] }: TenantBlocksClientProps) {
+export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotModes, blockTokenSets = [], customAttributes = [], copyVariables }: TenantBlocksClientProps) {
   const router          = useRouter();
   const revalidatePath  = `/admin/tenants/${tenantId}/personalization/blocks`;
   const [editing, setEditing] = useState<AdaptiveBlockData | null>(null);
@@ -615,6 +616,7 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotMode
           revalidatePath={revalidatePath}
           blockTokenSets={blockTokenSets}
           customAttributes={customAttributes}
+          copyVariables={copyVariables}
           onClose={() => setEditing(null)}
           onSaved={handleSaved}
         />
