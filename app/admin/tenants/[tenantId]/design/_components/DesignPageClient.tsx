@@ -43,6 +43,7 @@ import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
 import { SiteDesignTokensEditor } from "./SiteDesignTokensEditor";
 import { DesignTokenSetsLibrary } from "./DesignTokenSetsLibrary";
 import { ImportThemePreset } from "./ImportThemePreset";
+import { PresetColourExplorer } from "./PresetColourExplorer";
 import type { DesignTokenSet } from "@/lib/design-token-sets/design-token-sets-store";
 import { ResetDesignButton }    from "./ResetDesignButton";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
@@ -580,6 +581,7 @@ export function DesignPageClient({
           description="Pick a ready-made look, grouped by category. Applying one sets the complete look (colours, typography, buttons, radius, chrome, and the site-wide block tokens the adaptive blocks inherit). For a fully custom look, use the Builder tab."
         />
         <CurrentlyAppliedCard activeTheme={activeTheme} design={design} />
+        <PresetColourExplorer tenantId={tenantId} />
         <PresetGallery tenantId={tenantId} design={design} />
       </TabPanel>
 
