@@ -59,8 +59,8 @@ export function SectionTabs({ tabs, quickLinks = [] }: SectionTabsProps) {
                       "after:rounded-full after:bg-[var(--primary)]",
                     ]
                   : [
-                      "text-[var(--text-muted)]",
-                      "hover:text-[var(--header-fg,var(--text))]",
+                      "text-[var(--nav-link,var(--header-fg,var(--text)))]",
+                      "hover:text-[var(--nav-link-hover,var(--text-brand))]",
                     ],
               )}
             >
@@ -81,8 +81,12 @@ export function SectionTabs({ tabs, quickLinks = [] }: SectionTabsProps) {
               rel={link.openInNewTab ? "noopener noreferrer" : undefined}
               className={cn(
                 "rounded px-2.5 py-1 transition-colors duration-150",
-                "text-[var(--text-muted)] hover:text-[var(--header-fg,var(--text))]",
-                "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))]",
+                "text-[var(--nav-link,var(--header-fg,var(--text)))] hover:text-[var(--nav-link-hover,var(--text-brand))]",
+                // Preset-driven subtle hover pill. --nav-dropdown-link-hover-bg is
+                // pinned dark by the base theme (Layer A), so use --primary-subtle
+                // directly, which follows the preset primary (light tint on light
+                // presets, dark tint on dark presets).
+                "hover:bg-[var(--primary-subtle)]",
                 "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
               )}
             >
