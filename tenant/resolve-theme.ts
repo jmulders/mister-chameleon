@@ -609,6 +609,15 @@ export function resolveThemeForTenant(
       // and the mobile menu take the preset colour with readable contrast. The
       // hover colour (--nav-dropdown-link-hover-text -> brand) is left intact.
       vars["--nav-dropdown-text"] = layoutOv.headerFg;
+      // The dropdown / mobile panel background (--nav-dropdown-bg) is pinned by the
+      // base theme (Layer A: navDropdownBg ?? cardBg) and does not follow the
+      // preset, so a light preset got a dark panel under the (now preset) text
+      // -> dark-on-dark. Pin the panel to the preset headerBg so it forms a
+      // coherent contrast pair with the headerFg text (light preset -> light
+      // panel + dark text; dark preset -> dark panel + light text).
+      if (layoutOv.headerBg) {
+        vars["--nav-dropdown-bg"] = layoutOv.headerBg;
+      }
     }
     // Keep the SCROLLED header consistent with the solid header colour. Without
     // this, --header-bg-scrolled defaults to near-white, so a dark custom header
