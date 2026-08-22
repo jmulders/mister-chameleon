@@ -11,7 +11,7 @@
  * tab and can be applied like any set), with all four font vars set.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
 import {
@@ -21,6 +21,9 @@ import {
 import type { HueFamily } from "@/lib/color";
 import { applyDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
 import { saveDesignTokenSetAction, applyDesignTokenSetAction } from "../token-set-actions";
+import { PalettePreview } from "./PalettePreview";
+
+const OPEN_STORAGE_KEY = "mc-find-by-colour-open";
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const RESULT_LIMIT = 8;
@@ -67,17 +70,23 @@ function ColourField({
   );
 }
 
-function Swatch({ colors }: { colors: string[] }) {
-  return (
-    <div style={{ display: "flex", height: 28, borderRadius: 6, overflow: "hidden", border: "1px solid #e5e7eb" }}>
-      {colors.map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}
-    </div>
-  );
-}
-
 export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
+  // Collapsed by default so the gallery is visible immediately; the open/closed
+  // state is remembered for the session.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    try { if (sessionStorage.getItem(OPEN_STORAGE_KEY) === "1") setOpen(true); } catch { /* ignore */ }
+  }, []);
+  function toggleOpen() {
+    setOpen((prev) => {
+      const next = !prev;
+      try { sessionStorage.setItem(OPEN_STORAGE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   const [primary, setPrimary]       = useState<RoleState>({ on: true, hex: "#2563eb" });
   const [background, setBackground] = useState<RoleState>({ on: false, hex: "#f5f8ff" });
@@ -141,18 +150,28 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
     });
   }
 
-  const customSwatch = chosen
-    ? [chosen.primary, chosen.background ?? "#ffffff", chosen.foreground ?? "#111111", chosen.accent ?? chosen.primary]
-    : [];
-
   return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 20, background: "#fcfcfd" }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 2 }}>Find by colour</div>
-      <p style={{ fontSize: 12, color: "#6b7280", marginTop: 0, marginBottom: 12 }}>
-        Pick colours you like. Presets are ranked by colour similarity. If none fit, create a custom preset from your colours.
-      </p>
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, marginBottom: 20, background: "#fcfcfd" }}>
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Find by colour</span>
+        <span style={{ fontSize: 12, color: "#6b7280" }}>
+          {open ? "Ranking presets by colour" : "Pick colours to rank presets by similarity"}
+        </span>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280" }} aria-hidden="true">{open ? "▾" : "▸"}</span>
+      </button>
 
-      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+      {open && (
+        <div style={{ padding: "0 16px 16px" }}>
+          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 0, marginBottom: 12 }}>
+            Pick colours you like. Presets are ranked by colour similarity. If none fit, create a custom preset from your colours.
+          </p>
+
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
         {/* Colour composer */}
         <div>
           <ColourField label="Primary" required state={primary} onChange={setPrimary} />
@@ -195,7 +214,7 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
             {results.map(({ preset, deltaE, label }) => (
               <div key={preset.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 10, background: "#fff" }}>
-                <Swatch colors={[preset.swatch.primary, preset.swatch.background, preset.swatch.foreground, preset.swatch.accent]} />
+                <PalettePreview swatch={preset.swatch} />
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 8, gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{preset.name}</span>
                   <span style={{ fontSize: 10, color: "#6b7280", whiteSpace: "nowrap" }}>{label} ({deltaE.toFixed(1)})</span>
@@ -224,7 +243,9 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
           <p style={{ fontSize: 11, color: "#6b7280", marginTop: 0, marginBottom: 10 }}>
             Builds a complete look from your colours (structure seeded from the closest match) and saves it as a token set on the Token sets tab, with the fonts below applied across the whole UI.
           </p>
-          <div style={{ marginBottom: 10, maxWidth: 320 }}><Swatch colors={customSwatch} /></div>
+          <div style={{ marginBottom: 10, maxWidth: 360 }}>
+            <PalettePreview swatch={{ primary: chosen.primary, background: chosen.background ?? "#ffffff", accent: chosen.accent ?? chosen.primary, foreground: chosen.foreground ?? "#111111" }} />
+          </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={{ fontSize: 12, color: "#374151" }}>
               <span style={{ display: "block", marginBottom: 2 }}>Heading font</span>
@@ -247,6 +268,8 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
               {pending ? "Saving..." : "Save as token set"}
             </button>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { DESIGN_PRESET_GALLERY, type DesignPresetCard } from "@/tenant/design-presets-gallery";
 import { applyDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { TenantDesignSettings } from "@/tenant/types";
+import { PalettePreview } from "./PalettePreview";
 
 interface Props {
   tenantId: string;
@@ -134,15 +135,11 @@ export function PresetGallery({ tenantId, design }: Props) {
             >
               <MiniPreview p={p} />
               <div style={{ padding: "11px 12px", borderTop: "1px solid #eef1f4" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <strong style={{ fontSize: 13 }}>{p.name}</strong>
-                  <span style={{ display: "flex", gap: 3 }}>
-                    {[p.swatch.primary, p.swatch.background, p.swatch.foreground, p.swatch.accent].map((c, i) => (
-                      <i key={i} style={{ width: 13, height: 13, borderRadius: 3, background: c, border: "1px solid rgba(0,0,0,.1)", display: "inline-block" }} />
-                    ))}
-                  </span>
+                <strong style={{ fontSize: 13, display: "block" }}>{p.name}</strong>
+                <div style={{ margin: "8px 0 10px" }}>
+                  <PalettePreview swatch={p.swatch} />
                 </div>
-                <p style={{ fontSize: 11.5, color: "#64748b", margin: "5px 0 10px", lineHeight: 1.4 }}>{p.description}</p>
+                <p style={{ fontSize: 11.5, color: "#64748b", margin: "0 0 10px", lineHeight: 1.4 }}>{p.description}</p>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <button
                     type="button"
