@@ -171,6 +171,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
       items: [
         { label: "Presets",    href: `${base}/design`,                  activePrefix: `${base}/design`, tab: "presets", tabDefault: true },
         { label: "Builder",    href: `${base}/design?tab=builder`,      activePrefix: `${base}/design`, tab: "builder" },
+        { label: "Token sets", href: `${base}/design?tab=token-sets`,   activePrefix: `${base}/design`, tab: "token-sets" },
         { label: "Layout",     href: `${base}/design?tab=layout`,       activePrefix: `${base}/design`, tab: "layout" },
         { label: "Typography", href: `${base}/design?tab=typography`,   activePrefix: `${base}/design`, tab: "typography" },
         { label: "Blocks",     href: `${base}/design?tab=blocks`,       activePrefix: `${base}/design`, tab: "blocks" },

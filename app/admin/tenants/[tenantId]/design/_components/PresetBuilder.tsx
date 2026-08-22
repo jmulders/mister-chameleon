@@ -11,8 +11,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
-import { detectTokenPayloadKind, wrongBoxMessage } from "@/design-system/theme/token-import-detect";
-import { applyDesignTokensAction, importDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
+import { applyDesignTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
 import type { TenantDesignSettings } from "@/tenant/types";
 
 interface Props {
@@ -147,84 +146,6 @@ export function PresetBuilder({ tenantId }: Props) {
     );
   }, [g, onPrimary]);
 
-  async function onImportFile(file: File) {
-    setMsg(null);
-    const text = await file.text();
-
-    // Reject a file that belongs in another tab, with a message that points the
-    // right way, instead of a confusing partial import or generic server error.
-    try {
-      const wrong = wrongBoxMessage(detectTokenPayloadKind(JSON.parse(text)), "preset");
-      if (wrong) { setMsg({ text: wrong, ok: false }); return; }
-    } catch {
-      setMsg({ text: "That file is not valid JSON. Export the preset again and retry.", ok: false });
-      return;
-    }
-
-    // Seed the builder + preview from the file so the result is visible at once.
-    // Only seed from a FLAT string map per group — a DTCG / Figma export nests
-    // values ({ "$value": … }), which would corrupt the field state and crash
-    // the render. For those, we skip the optimistic seed and let the server
-    // action apply the converted tokens (the public site still updates).
-    const flat = (v: unknown): Record<string, string> | null => {
-      if (!v || typeof v !== "object" || Array.isArray(v)) return null;
-      const out: Record<string, string> = {};
-      for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
-        if (typeof val !== "string") return null;
-        out[k] = val;
-      }
-      return out;
-    };
-    try {
-      const o = JSON.parse(text) as Record<string, unknown>;
-      setG((prev) => {
-        const merge = (cur: Record<string, string>, next: unknown) => {
-          const f = flat(next);
-          return f ? { ...cur, ...f } : cur;
-        };
-        // IMPORTANT: return EVERY group. Omitting a group (e.g. border) drops it
-        // from state → the live-preview useMemo reads `g.border.width` on
-        // undefined and crashes the page ("Cannot read properties of undefined").
-        return {
-          color:      merge(prev.color,      o.color),
-          typography: merge(prev.typography, o.typography),
-          radius:     merge(prev.radius,     o.radius),
-          shadow:     merge(prev.shadow,     o.shadow),
-          button:     merge(prev.button,     o.button),
-          layout:     merge(prev.layout,     o.layout),
-          spacing:    merge(prev.spacing,    o.spacing),
-          border:     merge(prev.border,     o.border),
-          motion:     merge(prev.motion,     o.motion),
-          focus:      merge(prev.focus,      o.focus),
-        };
-      });
-    } catch {
-      // Non-fatal — the server action returns the precise JSON error below.
-    }
-    startTransition(async () => {
-      try {
-        const r = await importDesignPresetAction(tenantId, text);
-        if (r.ok) {
-          // Deliberately NOT calling router.refresh(): re-rendering this admin
-          // page right after a full token replace has triggered an edge-case
-          // crash. The tokens are saved; the operator views the public site to
-          // see them. (router stays imported for future use.)
-          setMsg({ text: `Imported${r.name ? `: ${r.name}` : ""} ✓. Saved. Open the public site to see it.`, ok: true });
-        } else {
-          setMsg({ text: r.errors.join(" "), ok: false });
-        }
-      } catch {
-        // A thrown error here (vs an {ok:false} result) is almost always a stale
-        // server-action reference after a redeploy — the POST 404s. Surface the
-        // fix instead of letting it crash to a raw 404 page.
-        setMsg({
-          text: "Import failed. Likely an expired session after a new deploy. Refresh the page (⌘/Ctrl-Shift-R) and try again.",
-          ok: false,
-        });
-      }
-    });
-  }
-
   function save() {
     setMsg(null);
     const payload = {
@@ -256,34 +177,6 @@ export function PresetBuilder({ tenantId }: Props) {
           <select style={sel} value={base} onChange={(e) => pickBase(e.target.value)}>
             {DESIGN_PRESET_GALLERY.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-        </div>
-
-        <div style={{ marginBottom: 8 }}>
-          <label style={lbl}>Import theme preset (Figma / DTCG)</label>
-          <label
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              fontSize: 13, fontWeight: 600, padding: "9px 16px", borderRadius: 9,
-              border: "1px solid #4f46e5", background: "#eef2ff", color: "#4f46e5",
-              cursor: pending ? "wait" : "pointer", opacity: pending ? 0.6 : 1,
-            }}
-          >
-            <span aria-hidden="true">📂</span> Choose preset JSON…
-            <input
-              type="file"
-              accept=".json,application/json"
-              disabled={pending}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImportFile(f); e.target.value = ""; }}
-              style={{ display: "none" }}
-            />
-          </label>
-          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-            Our preset JSON or a Figma/Tokens Studio export, applied as a complete look (replaces the current tokens).
-          </div>
-          {pending && <div style={{ fontSize: 11, color: "#6366f1", marginTop: 4 }}>Importing…</div>}
-          {msg && (
-            <div style={{ fontSize: 11, color: msg.ok ? "#16a34a" : "#b91c1c", marginTop: 4 }}>{msg.text}</div>
-          )}
         </div>
 
         <div style={sub}>Colors</div>
