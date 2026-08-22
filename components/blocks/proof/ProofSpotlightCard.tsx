@@ -36,15 +36,7 @@ export function ProofSpotlightCard({ item, isActive = true }: { item: ProofItem;
       )}
 
       <Stack gap={4} className="w-full lg:flex-1">
-        <span
-          className="text-4xl leading-none select-none"
-          style={{ color: "var(--proof-quote-color, var(--primary))" }}
-          aria-hidden="true"
-        >
-          &ldquo;
-        </span>
-
-        <Text variant="h3" color="default" className="italic leading-relaxed" style={{ fontWeight: "normal" }}>
+        <Text variant="h3" color="default" className="leading-relaxed" style={{ fontWeight: "normal" }}>
           <InlineRichText source={item.text} />
         </Text>
 
