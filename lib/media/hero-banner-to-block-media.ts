@@ -12,7 +12,14 @@ export function heroBannerMediaToBlockMedia(m: HeroBannerMedia | undefined | nul
 
   if (m.kind === "image") {
     if (!m.url) return undefined;
-    return { kind: "image", source: "asset", url: m.url, alt: m.alt, fit: "cover" };
+    return {
+      kind: "image",
+      source: "asset",
+      url: m.url,
+      alt: m.alt,
+      fit: m.fit ?? "cover",
+      ...(m.objectPosition ? { objectPosition: m.objectPosition } : {}),
+    };
   }
 
   const v = m.video;
@@ -42,7 +49,15 @@ export function blockMediaToHeroBannerMedia(m: BlockMedia | undefined | null): H
 
   if (m.kind === "image") {
     if (!m.url) return undefined;
-    return { kind: "image", url: m.url, alt: m.alt ?? "" };
+    return {
+      kind: "image",
+      url: m.url,
+      alt: m.alt ?? "",
+      // "cover" is the implicit default; only carry the non-default fit so a
+      // legacy image round-trips to its minimal shape.
+      ...(m.fit === "contain" ? { fit: "contain" as const } : {}),
+      ...(m.objectPosition ? { objectPosition: m.objectPosition } : {}),
+    };
   }
 
   const source = m.source ?? "asset";

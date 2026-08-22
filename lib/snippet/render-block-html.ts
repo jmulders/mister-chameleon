@@ -38,6 +38,7 @@ import {
   youtubeEmbedSrc,
   vimeoEmbedSrc,
   youtubeThumbUrl,
+  safeObjectPosition,
   MEDIA_IFRAME_ALLOW,
   type BlockMedia,
 } from "@/lib/media/block-media";
@@ -380,14 +381,16 @@ function ctaButtonsHtml(d: CTABlockData, inverted: boolean, align: "start" | "ce
 function ctaMediaInner(media: BlockMedia): string {
   const source = media.source ?? "asset";
   const fit    = media.fit ?? "cover";
+  const pos    = safeObjectPosition(media.objectPosition);
+  const posCss = pos ? `object-position:${pos};` : "";
   const fill   = `position:absolute;inset:0;width:100%;height:100%;`;
 
   if (media.kind === "image") {
-    return `<img src="${safeHref(media.url)}" alt="${escapeHtml(media.alt ?? "")}" loading="lazy" style="${fill}object-fit:${fit};">`;
+    return `<img src="${safeHref(media.url)}" alt="${escapeHtml(media.alt ?? "")}" loading="lazy" style="${fill}object-fit:${fit};${posCss}">`;
   }
   if (source === "asset") {
     const poster = media.poster ? ` poster="${safeHref(media.poster)}"` : "";
-    return `<video src="${safeHref(media.url)}"${poster} controls playsinline style="${fill}object-fit:${fit};background:#000;"></video>`;
+    return `<video src="${safeHref(media.url)}"${poster} controls playsinline style="${fill}object-fit:${fit};${posCss}background:#000;"></video>`;
   }
 
   // YouTube / Vimeo privacy facade: poster (authored poster first, else the
