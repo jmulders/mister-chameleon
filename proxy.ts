@@ -99,16 +99,20 @@ import {
 
 // ── Admin route helpers ───────────────────────────────────────────────────────
 
-const ADMIN_PREFIX      = "/admin";
-const ADMIN_LOGIN       = "/admin/login";
-const ADMIN_LOGIN_2FA   = "/admin/login/2fa";
+const ADMIN_PREFIX       = "/admin";
+const ADMIN_LOGIN        = "/admin/login";
+const ADMIN_LOGIN_2FA    = "/admin/login/2fa";
+const ADMIN_FORGOT_PW    = "/admin/forgot-password";
+const ADMIN_RESET_PW     = "/admin/reset-password";
 
 /** True for any /admin/* path that does NOT require a session. */
 function isAdminPublicPath(pathname: string): boolean {
   return pathname === ADMIN_LOGIN ||
          pathname.startsWith(ADMIN_LOGIN + "/") ||
          pathname === ADMIN_LOGIN_2FA ||
-         pathname.startsWith(ADMIN_LOGIN_2FA + "/");
+         pathname.startsWith(ADMIN_LOGIN_2FA + "/") ||
+         pathname === ADMIN_FORGOT_PW ||
+         pathname === ADMIN_RESET_PW;
 }
 
 /** True for any /admin/* path (public or protected). */
