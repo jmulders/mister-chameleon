@@ -175,7 +175,7 @@ export function ImagePicker({
             })}
           </div>
           <p className="mt-1 text-[10px] text-neutral-400">
-            Keeps the subject in frame when the hero crops the image (e.g. full-height backgrounds).
+            Keeps the subject in frame when Cover crops the image.
           </p>
         </div>
       )}
@@ -388,6 +388,8 @@ export function SlideMediaEditor({
   const [mediaType, setMediaType]     = useState<"none" | "image" | "video">(media?.kind ?? "none");
   const [imageUrl, setImageUrl]       = useState(initImg?.url ?? "");
   const [imageAlt, setImageAlt]       = useState(initImg?.alt ?? "");
+  const [imageFit, setImageFit]       = useState<"cover" | "contain">(initImg?.fit ?? "cover");
+  const [imageObjectPosition, setImageObjectPosition] = useState(initImg?.objectPosition ?? "");
   const [videoSource, setVideoSource] = useState<VideoSource>(initVid?.source ?? "upload");
   const [videoUrl, setVideoUrl]       = useState(initVid?.source === "upload" ? initVid.url : "");
   const [videoPoster, setVideoPoster] = useState(initVid?.source === "upload" ? (initVid.poster ?? "") : "");
@@ -409,7 +411,14 @@ export function SlideMediaEditor({
   useEffect(() => {
     let next: HeroBannerMedia | undefined;
     if (mediaType === "image" && imageUrl) {
-      next = { kind: "image", url: imageUrl, alt: imageAlt } satisfies HeroBannerImage;
+      next = {
+        kind: "image",
+        url:  imageUrl,
+        alt:  imageAlt,
+        // "cover" is the default; only persist the non-default fit.
+        ...(imageFit === "contain" ? { fit: "contain" as const } : {}),
+        ...(imageObjectPosition ? { objectPosition: imageObjectPosition } : {}),
+      } satisfies HeroBannerImage;
     } else if (mediaType === "video") {
       if (videoSource === "upload" && videoUrl) {
         next = {
@@ -437,7 +446,7 @@ export function SlideMediaEditor({
       }
     }
     onChangeRef.current(next);
-  }, [mediaType, imageUrl, imageAlt, videoSource, videoUrl, videoPoster, videoId, autoplay, loop, muted, controls]);
+  }, [mediaType, imageUrl, imageAlt, imageFit, imageObjectPosition, videoSource, videoUrl, videoPoster, videoId, autoplay, loop, muted, controls]);
 
   return (
     <div className="space-y-3">
@@ -451,13 +460,33 @@ export function SlideMediaEditor({
       </div>
 
       {mediaType === "image" && (
-        <ImagePicker
-          tenantId={tenantId}
-          url={imageUrl}
-          alt={imageAlt}
-          onUrlChange={setImageUrl}
-          onAltChange={setImageAlt}
-        />
+        <div className="space-y-3">
+          <ImagePicker
+            tenantId={tenantId}
+            url={imageUrl}
+            alt={imageAlt}
+            objectPosition={imageObjectPosition}
+            onUrlChange={setImageUrl}
+            onAltChange={setImageAlt}
+            // Focal point only matters when the image is cropped (cover).
+            onObjectPositionChange={imageFit === "cover" ? setImageObjectPosition : undefined}
+          />
+          {imageUrl && (
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1.5">Fit</label>
+              <div className="flex gap-1.5">
+                {(["cover", "contain"] as const).map((f) => (
+                  <button key={f} type="button" onClick={() => setImageFit(f)} className={TOGGLE_BTN(imageFit === f)}>
+                    {f === "cover" ? "Cover (crop to fill)" : "Contain (show whole image)"}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-neutral-400">
+                Cover fills the frame and crops from the focal point. Contain shows the whole image without cropping.
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {mediaType === "video" && (
