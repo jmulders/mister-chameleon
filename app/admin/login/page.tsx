@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loginAction } from "./actions";
 
 /**
@@ -13,11 +14,11 @@ import { loginAction } from "./actions";
  */
 
 interface Props {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; reset?: string }>;
 }
 
 export default async function AdminLoginPage({ searchParams }: Props) {
-  const { error, next } = await searchParams;
+  const { error, next, reset } = await searchParams;
 
   const errorMessage =
     error === "invalid_credentials"
@@ -40,6 +41,13 @@ export default async function AdminLoginPage({ searchParams }: Props) {
             Mister Chameleon Platform
           </p>
         </div>
+
+        {/* Reset success banner */}
+        {reset && !errorMessage && (
+          <div className="mb-4 rounded-lg border border-green-500/40 bg-green-950/50 px-4 py-3 text-sm text-green-300">
+            Your password has been reset. Sign in with your new password.
+          </div>
+        )}
 
         {/* Error banner */}
         {errorMessage && (
@@ -95,6 +103,12 @@ export default async function AdminLoginPage({ searchParams }: Props) {
           >
             Sign in
           </button>
+
+          <p className="pt-1 text-center text-sm">
+            <Link href="/admin/forgot-password" className="text-slate-400 hover:text-slate-200 transition-colors">
+              Forgot password?
+            </Link>
+          </p>
         </form>
       </div>
     </div>
