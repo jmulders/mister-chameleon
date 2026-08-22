@@ -29,6 +29,7 @@
 
 import type { ThemeKey, TenantTokenOverrides } from "./types";
 import { LAB_PRESET_CARDS } from "./design-presets-lab";
+import { LAB_HERITAGE_CARDS } from "./design-presets-lab-heritage";
 
 export interface DesignPresetCard {
   /** Stable id (used as the gallery key + analytics). */
@@ -259,8 +260,10 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
       focus: { ringWidth: "3px", ringColor: "#7c3aed" },
     },
   },
-  // The 30 LAB Colour presets, grouped into their four categories.
+  // The 50 LAB Colour presets, grouped into their four categories.
   ...LAB_PRESET_CARDS,
+  // The 24 heritage-expansion presets, in the same four categories.
+  ...LAB_HERITAGE_CARDS,
 ];
 
 /** Look up a preset by id. */
