@@ -25,17 +25,36 @@ import { FIELD_REGISTRY } from "@/decision/rules/field-registry";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import type { CustomAttributeDeclaration, CopyVariable, CopyVariableMapping } from "@/tenant/types";
 
+/** FIELD_REGISTRY kinds that resolve to a scalar, display-friendly value. */
+const SCALAR_SOURCE_KINDS: ReadonlySet<string> = new Set([
+  "categorical", "nullable_string", "number", "boolean",
+]);
+
 /**
- * Curated built-in source keys allowed as a copy-variable source: scalar,
- * display-friendly FIELD_REGISTRY fields only (never arrays / objects / PII).
- * Includes machine-value fields (device, source, visitType, SBI code) that a
- * value map turns into readable copy.
+ * FIELD_REGISTRY keys excluded as copy-variable sources despite a scalar kind:
+ * PII / exact location, opaque or internal IDs, and segment-id collections.
+ * These never make sensible visible copy and must not be insertable.
  */
-export const BUILTIN_SOURCE_KEYS = [
-  "companyName", "companyIndustry", "city", "region", "countryCode",
-  "currentCity", "currentCountry", "utmCampaign", "utmTerm", "primaryInterest", "weatherSummary",
-  "device", "source", "visitType", "leadinfoBranchCode",
-] as const;
+export const SOURCE_DENYLIST: ReadonlySet<string> = new Set([
+  "latitude", "longitude",       // exact coordinates (precise location / PII)
+  "audienceSegmentIds",          // segment IDs (opaque, collection-backed)
+  "tenantId", "crmContactId",    // internal / CRM identifiers
+  "leadinfoCocNumber",           // company registration number (opaque ID)
+  "templateKey",                 // internal routing key, not visitor-facing copy
+]);
+
+/**
+ * Built-in source keys allowed for a copy variable: every FIELD_REGISTRY field
+ * with a scalar kind (categorical / nullable_string / number / boolean), minus
+ * the denylist. Labels come from FIELD_REGISTRY[key].label. Any future non-scalar
+ * kind is excluded automatically.
+ */
+export const BUILTIN_SOURCE_KEYS: readonly string[] =
+  Object.entries(FIELD_REGISTRY)
+    .filter(([key, def]) =>
+      SCALAR_SOURCE_KINDS.has((def as { kind?: string }).kind ?? "") && !SOURCE_DENYLIST.has(key),
+    )
+    .map(([key]) => key);
 
 const BUILTIN_SOURCE_SET: ReadonlySet<string> = new Set(BUILTIN_SOURCE_KEYS);
 

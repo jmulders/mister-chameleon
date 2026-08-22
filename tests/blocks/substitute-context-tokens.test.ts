@@ -9,7 +9,10 @@ import {
   buildVariableCatalogue,
   defaultCopyVariables,
   effectiveCopyVariables,
+  BUILTIN_SOURCE_KEYS,
+  SOURCE_DENYLIST,
 } from "../../lib/blocks/substitute-context-tokens.ts";
+import { FIELD_REGISTRY } from "../../decision/rules/field-registry.ts";
 import type { RuleEvaluationContext } from "../../decision/rules/field-registry.ts";
 import type { CopyVariable } from "../../tenant/types.ts";
 
@@ -118,5 +121,39 @@ describe("registry defaults + catalogue", () => {
       { token: "companyName", label: "Company name", source: "built-in" },
       { token: "plan", label: "Plan", source: "custom" },
     ]);
+  });
+});
+
+describe("BUILTIN_SOURCE_KEYS (scalar allowlist + denylist)", () => {
+  const set = new Set(BUILTIN_SOURCE_KEYS);
+
+  it("includes the broad scalar field set across kinds", () => {
+    // Far more than the old 15 hand-picked keys.
+    assert.ok(BUILTIN_SOURCE_KEYS.length > 100, `expected >100, got ${BUILTIN_SOURCE_KEYS.length}`);
+    const expected = [
+      "companyName",          // nullable_string
+      "device", "source", "visitType", "contentInterestCategory", // categorical
+      "countryCode", "leadinfoBranchCode", "primaryInterest",      // nullable_string
+      "isReturningVisitor",   // boolean
+      "gaSessionCount", "interestConfidence",                      // number
+    ];
+    for (const k of expected) assert.ok(set.has(k), `expected source to include "${k}"`);
+  });
+
+  it("excludes denylisted PII / opaque-id / collection fields", () => {
+    const denied = ["latitude", "longitude", "audienceSegmentIds", "tenantId", "crmContactId", "leadinfoCocNumber", "templateKey"];
+    for (const k of denied) {
+      assert.ok(SOURCE_DENYLIST.has(k), `denylist should list "${k}"`);
+      assert.ok(!set.has(k), `source must not include denylisted "${k}"`);
+    }
+  });
+
+  it("only contains scalar-kind FIELD_REGISTRY fields", () => {
+    const scalar = new Set(["categorical", "nullable_string", "number", "boolean"]);
+    for (const k of BUILTIN_SOURCE_KEYS) {
+      const def = FIELD_REGISTRY[k as keyof typeof FIELD_REGISTRY] as { kind?: string } | undefined;
+      assert.ok(def, `"${k}" must exist in FIELD_REGISTRY`);
+      assert.ok(scalar.has(def!.kind ?? ""), `"${k}" must have a scalar kind, got ${def!.kind}`);
+    }
   });
 });
