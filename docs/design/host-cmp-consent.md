@@ -186,6 +186,14 @@ Persistence is upgraded only once personalization (and, for firmographics,
 enrichment) is granted. The tenant privacy ceiling (`allow*`) still caps every
 category on top.
 
+The one cookie set without consent is `mc_ws`: a short-lived (30 minute)
+web-session cookie used only to count usage (the billing unit). It is not a
+cross-session identity (it expires with the visit, unlike the 30-day
+`mc_session_id`), carries no behaviour, and is treated as essential /
+legitimate-interest for usage metering rather than personalization. As with the
+rest of the boundary, the tenant's DPO / lawyer must confirm this essential-cookie
+exception for their jurisdiction.
+
 ### Legal caveat (must be confirmed by the tenant's DPO / lawyer)
 
 This boundary is our **engineering interpretation** of where personal data begins,
