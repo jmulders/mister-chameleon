@@ -76,22 +76,26 @@ const WRAP =
  * the injected block adopt the host page's own colours instead of imposing the
  * tenant palette. Emitted on a wrapper div around the block, so it cascades into
  * every `var(--token, fallback)` the templates use:
- *   - text tokens  -> inherit     (host text colour wins)
+ *   - text tokens  -> currentColor (so `color:var(--text)` becomes
+ *     `color:currentColor`, i.e. the host's inherited text colour wins). We must
+ *     use currentColor, not the `inherit` keyword: a custom property set to
+ *     `inherit` resolves to the ANCESTOR's value of that same property, not to the
+ *     consuming element's inherited colour.
  *   - surfaces     -> transparent (host background shows through)
- *   - borders/accents -> currentColor (visible, but follows the host text)
- *   - buttons become outlined (transparent fill, inherited text, currentColor
+ *   - borders/accents -> currentColor (visible, follows the host text colour)
+ *   - buttons become outlined (transparent fill, host text, currentColor
  *     border) via the --btn-inherit-* / --btn-border shadow vars below, which are
  *     unset in normal mode so button output stays byte-identical off this path.
  * Semantic literals with no var (media scrims, notification severity, the field
  * error red) are intentionally left alone.
  */
 export const INHERIT_HOST_STYLE_VARS =
-  "--text:inherit;--foreground:inherit;--card-foreground:inherit;--popover-foreground:inherit;" +
-  "--muted-foreground:inherit;--hero-title-color:inherit;--hero-subtitle-color:inherit;--primary-text:inherit;" +
+  "--text:currentColor;--foreground:currentColor;--card-foreground:currentColor;--popover-foreground:currentColor;" +
+  "--muted-foreground:currentColor;--hero-title-color:currentColor;--hero-subtitle-color:currentColor;--primary-text:currentColor;" +
   "--bg:transparent;--bg-subtle:transparent;--section-subtle-bg:transparent;--card-bg:transparent;" +
   "--hero-bg:transparent;--section-cta-bg:transparent;--feature-grid-bg:transparent;--neutral-900:transparent;--accent:transparent;" +
   "--primary:currentColor;--proof-quote-color:currentColor;--border:currentColor;--card-border:currentColor;--section-subtle-border:currentColor;" +
-  "--btn-inherit-bg:transparent;--btn-inherit-fg:inherit;--btn-border:currentColor;";
+  "--btn-inherit-bg:transparent;--btn-inherit-fg:currentColor;--btn-border:currentColor;";
 
 /** Wrap block HTML in the inherit-host-style scope when the mode is on; otherwise pass through. */
 function applyInherit(html: string, opts?: RenderOptions): string {

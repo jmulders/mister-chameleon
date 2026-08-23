@@ -22,8 +22,11 @@ describe("renderBlockHtml inherit mode", () => {
     const html = renderBlockHtml("cta", cta, { inherit: true })!;
     assert.ok(html.startsWith(`<div style="${INHERIT_HOST_STYLE_VARS}">`), "expected inherit wrapper");
     assert.ok(html.endsWith("</div>"));
-    // The scope sets host-inheriting values.
-    assert.ok(INHERIT_HOST_STYLE_VARS.includes("--text:inherit"));
+    // The scope sets host-inheriting values (currentColor for text, transparent
+    // for surfaces) — not the `inherit` keyword, which would resolve a custom
+    // property to its ancestor's value instead of the element's colour.
+    assert.ok(INHERIT_HOST_STYLE_VARS.includes("--text:currentColor"));
+    assert.ok(!INHERIT_HOST_STYLE_VARS.includes("--text:inherit"));
     assert.ok(INHERIT_HOST_STYLE_VARS.includes("--hero-bg:transparent"));
     assert.ok(INHERIT_HOST_STYLE_VARS.includes("--btn-inherit-bg:transparent"));
   });
