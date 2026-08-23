@@ -214,17 +214,7 @@ export function buildSnippetSource(decideUrl: string): string {
       });
     });
   }
-  // Synchronous persistence decision for the visitor id: only an explicit deny
-  // (publisher signal or GPC/DNT) forces an ephemeral, unstored id.
-  function mcConsentDeniedSync() {
-    try {
-      var attr = selfScript ? selfScript.getAttribute('data-mc-consent') : null;
-      if (attr === 'denied' || window.mcConsent === false) return true;
-    } catch(e) {}
-    return mcGpcDnt();
-  }
-  var consent = null;                          // resolved asynchronously before the first decide
-  var consentPersist = !mcConsentDeniedSync(); // visitor-id persistence (privacy-first only on explicit deny)
+  var consent = null; // resolved asynchronously before the first decide
 
   // Platform origin for cross-origin form-block submits.
   var mcFormsBase = ${JSON.stringify(platformOrigin)};
@@ -402,15 +392,12 @@ export function buildSnippetSource(decideUrl: string): string {
     } catch(e) { return undefined; }
   }
 
-  // ── Stable first-party visitor id ────────────────────────────────────────────
-  // Without a persistent id every pageview looks like a new visitor to the
-  // platform, so behavioural context (returning, interest, journey) never
-  // accumulates and only the default variant is ever served. We mint one id and
-  // keep it: localStorage first (survives across sessions), a 1-year first-party
-  // cookie as fallback when storage is blocked. Same-origin platform sites may
-  // already carry an mc_sid cookie — prefer that so identity stays consistent.
-  // This id lives entirely inside the snippet, which the WordPress plugin only
-  // loads after consent (mcc_should_enqueue), so it is consent-gated by design.
+  // ── Visitor id, split on the anonymity boundary ──────────────────────────────
+  // The anonymous decision runs with an EPHEMERAL, per-pageview id that is never
+  // stored and reads no persistent identifier. A persistent, cross-session id
+  // (localStorage mc_vid, or a 1-year first-party cookie fallback, or a same-origin
+  // platform mc_sid) is only read/written once personalization consent is
+  // granted (see the resolve step below), so no persistent id exists without it.
   function newId() {
     try {
       if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -418,11 +405,12 @@ export function buildSnippetSource(decideUrl: string): string {
     return 'mc_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   }
   function getOrCreateVisitorId(persist) {
+    // Anonymous: ephemeral per-pageview id — never stored, reads nothing persistent.
+    if (!persist) return newId();
+    // Persistent (personalization consent granted): reuse a same-origin platform
+    // session cookie if present, else localStorage, else a 1-year cookie fallback.
     var existing = getCookie('mc_sid');
     if (existing) return existing;
-    // Cookieless mode (no consent): mint an ephemeral, per-pageview id — never
-    // stored — so ads still serve/dedupe but no cross-session profile forms.
-    if (!persist) return newId();
     try {
       var stored = window.localStorage.getItem('mc_vid');
       if (stored) return stored;
@@ -441,7 +429,9 @@ export function buildSnippetSource(decideUrl: string): string {
       return id;
     }
   }
-  var visitorId = getOrCreateVisitorId(consentPersist);
+  // Start anonymous: ephemeral id for the first (anonymous) decision. Upgraded to
+  // the persistent id in the consent-resolve callback when personalization is granted.
+  var visitorId = getOrCreateVisitorId(false);
 
   var context = {
     path:     window.location.pathname,
@@ -809,7 +799,18 @@ export function buildSnippetSource(decideUrl: string): string {
   }
 
   // Resolve host consent (bounded by the call budget), then run the first decide.
-  mcResolveConsent(function(c) { consent = c; mcRunDecide(true); });
+  // Only on granted personalization do we upgrade to (and persist) the stable id;
+  // otherwise the decision stays on the ephemeral anonymous id and nothing is stored.
+  mcResolveConsent(function(c) {
+    consent = c;
+    if (c && c.personalization) {
+      var persistentId = getOrCreateVisitorId(true);
+      visitorId = persistentId;
+      context.sessionId = persistentId;
+      context.visitorId = persistentId;
+    }
+    mcRunDecide(true);
+  });
 })();
 `.trim();
 }
