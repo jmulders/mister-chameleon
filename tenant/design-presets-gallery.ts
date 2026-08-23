@@ -33,6 +33,7 @@ import { LAB_HERITAGE_CARDS } from "./design-presets-lab-heritage";
 import { STATEMENT_PRESET_CARDS } from "./design-presets-statement";
 import { COLLECTION_PRESET_CARDS } from "./design-presets-collections";
 import { PRIDE_MIDNIGHT_PRESET_CARDS } from "./design-presets-pride-midnight";
+import { TEAMNL_PRESET_CARDS } from "./design-presets-teamnl";
 
 export interface DesignPresetCard {
   /** Stable id (used as the gallery key + analytics). */
@@ -273,6 +274,8 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
   ...COLLECTION_PRESET_CARDS,
   // Pride + Midnight presets.
   ...PRIDE_MIDNIGHT_PRESET_CARDS,
+  // TeamNL Oranje — official Holland Orange (Occasion & Themed).
+  ...TEAMNL_PRESET_CARDS,
 ];
 
 /** Look up a preset by id. */
