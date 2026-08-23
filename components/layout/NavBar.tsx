@@ -342,6 +342,9 @@ export function UtilityBar({
           className={cn(
             "ml-2 inline-flex items-center justify-center rounded-md px-4 py-1.5",
             "text-sm font-semibold text-white shadow-sm transition-colors hover:opacity-90",
+            // This CTA is an <a> outside the <nav>, so it does not inherit the
+            // --font-ui base rule; pin it so the label follows the preset font.
+            "[font-family:var(--font-ui)]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2",
           )}
           style={{ backgroundColor: "var(--btn-bg, var(--primary))" }}
