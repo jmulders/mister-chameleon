@@ -193,3 +193,38 @@ export async function saveSnippetTimingAction(
 
   return { ok: true };
 }
+
+// ── Consent source ─────────────────────────────────────────────────────────────
+
+/**
+ * Set how the visitor's consent (read from the host page by the snippet) is
+ * applied when the host sends no signal: "auto" (deny by default, privacy-first)
+ * or "always" (grant by default, for hosts that gate loading behind their own
+ * consent banner). See TenantSnippetSettings.consentSource.
+ */
+export async function saveSnippetConsentSourceAction(
+  tenantId: string,
+  consentSource: "auto" | "always",
+): Promise<SnippetActionResult> {
+  const session = await getRequiredAdminSession();
+  await assertTenantAccess(session, tenantId);
+
+  if (consentSource !== "auto" && consentSource !== "always") {
+    return { ok: false, error: "Invalid consent source." };
+  }
+
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+
+  await saveTenant({
+    ...tenant,
+    snippet: {
+      ...tenant.snippet,
+      consentSource,
+    },
+  });
+
+  revalidatePath(`/admin/tenants/${tenantId}/snippet`);
+
+  return { ok: true };
+}

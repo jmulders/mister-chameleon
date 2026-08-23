@@ -48,6 +48,7 @@ export default async function SnippetPage({
   const allowedOrigins = tenant.snippet?.allowedSnippetOrigins ?? [];
   const revealMs     = tenant.snippet?.revealMs ?? null;
   const callMs       = tenant.snippet?.callMs ?? null;
+  const consentSource = tenant.snippet?.consentSource ?? "auto";
 
   return (
     <div className="p-8 max-w-4xl">
@@ -77,6 +78,7 @@ export default async function SnippetPage({
         allowedOrigins={allowedOrigins}
         revealMs={revealMs}
         callMs={callMs}
+        consentSource={consentSource}
         slotSuggestions={SLOT_SUGGESTIONS}
       />
     </div>
