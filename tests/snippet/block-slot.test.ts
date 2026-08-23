@@ -47,5 +47,19 @@ describe("toBlockSlot", () => {
     assert.equal(slot.mode, "block");
     assert.equal(slot.html, "<div>Hi</div>");
     assert.equal("tokens" in slot, false);
+    assert.equal("fx" in slot, false);
+  });
+
+  it("emits fx (class hooks + params + data attrs) when given an effect ref", () => {
+    const slot = toBlockSlot("<div>Hi</div>", undefined, { effects: [{ effect: "reveal", params: { distance: 40 } }] });
+    assert.ok(slot.fx, "fx present");
+    assert.ok(slot.fx!.className.includes("mc-fx-reveal"));
+    assert.equal(slot.fx!.data?.["data-mc-fx-ids"], "reveal");
+    assert.equal(slot.fx!.style?.["--mc-fx-distance"], "40px");
+  });
+
+  it("omits fx when the effect ref is empty or disabled", () => {
+    assert.equal("fx" in toBlockSlot("<div>Hi</div>", undefined, { effects: [] }), false);
+    assert.equal("fx" in toBlockSlot("<div>Hi</div>", undefined, { disabled: true, effects: [{ effect: "reveal" }] }), false);
   });
 });

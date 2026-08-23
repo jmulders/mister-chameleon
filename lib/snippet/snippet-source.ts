@@ -86,14 +86,40 @@
  *           data-site-key="sk_live_abc123" async></script>`
  */
 import { NOTIF_KEY_PREFIX } from "@/lib/notifications/frequency-cap";
+import { EFFECT_RUNTIME_CSS, effectRuntimeJs } from "@/design-system/effects/effect-runtime";
 
 export function buildSnippetSource(decideUrl: string): string {
   // Platform origin (e.g. https://app.misterchameleon.com) derived from the
   // decide URL, so injected form blocks can submit cross-origin to /api/forms.
   const platformOrigin = decideUrl.replace(/\/api\/snippet\/decide.*$/, "");
+  // Declarative block-effects assets, shared with the platform runtime (derived
+  // from the effect registry). Injected into the host page + played by the
+  // vanilla runtime, so snippet tenants get the same effects.
+  const effectCss = JSON.stringify(EFFECT_RUNTIME_CSS);
+  const effectPlayerJs = effectRuntimeJs();
   return `
 (function() {
   'use strict';
+
+  // ── Block-effects player (versioned, registry-driven) ────────────────────────
+  // Defines window.__mcFxPlay(root); shared twin of the platform runtime. The CSS
+  // is injected + the player is called only when a block actually carries effects.
+  ${effectPlayerJs}
+  var mcHasFx = false;
+  function mcEnsureEffectStyle() {
+    if (document.getElementById('mc-fx-style')) return;
+    var st = document.createElement('style');
+    st.id = 'mc-fx-style';
+    st.textContent = ${effectCss};
+    (document.head || document.documentElement).appendChild(st);
+  }
+  function mcSetupEffects() {
+    if (!mcHasFx) return;
+    mcEnsureEffectStyle();
+    var de = document.documentElement;
+    if ((' ' + de.className + ' ').indexOf(' mc-fx-ready ') < 0) de.className += (de.className ? ' ' : '') + 'mc-fx-ready';
+    try { if (window.__mcFxPlay) window.__mcFxPlay(); } catch (e) {}
+  }
 
   // ── 1. Read site key from own script tag ─────────────────────────────────────
   var scripts = document.querySelectorAll('script[data-site-key]');
@@ -563,6 +589,16 @@ export function buildSnippetSource(decideUrl: string): string {
     var containers = document.querySelectorAll('[data-mc-block="' + slotKey + '"]');
     for (var b = 0; b < containers.length; b++) {
       var c = containers[b];
+      // Declarative effects: class hooks + param CSS vars + data-mc-fx-* attrs.
+      // The versioned player (mcPlayEffects) animates them after apply.
+      if (block.fx) {
+        try {
+          if (block.fx.className) c.className += (c.className ? ' ' : '') + block.fx.className;
+          if (block.fx.style) { for (var fv in block.fx.style) { if (Object.prototype.hasOwnProperty.call(block.fx.style, fv)) c.style.setProperty(fv, String(block.fx.style[fv])); } }
+          if (block.fx.data) { for (var fa in block.fx.data) { if (Object.prototype.hasOwnProperty.call(block.fx.data, fa)) c.setAttribute(fa, String(block.fx.data[fa])); } }
+          mcHasFx = true;
+        } catch (e) { /* effects are best-effort, never block content */ }
+      }
       if (block.tokens) {
         for (var tokenName in block.tokens) {
           if (Object.prototype.hasOwnProperty.call(block.tokens, tokenName)) {
@@ -603,6 +639,8 @@ export function buildSnippetSource(decideUrl: string): string {
     });
     try { mcApplyNotificationCapping(slots); } catch (e) { /* capping is best-effort */ }
     try { mcApplyNotificationMedia(slots); } catch (e) { /* media is best-effort */ }
+    // Declarative block effects: inject CSS + play, only when a block had effects.
+    try { mcSetupEffects(); } catch (e) { /* effects are best-effort */ }
   }
 
   // ── Notification media (image / video facade) ────────────────────────────────
