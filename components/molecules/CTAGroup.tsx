@@ -21,8 +21,8 @@
  *     Delegated entirely to Button atom.
  *
  *   Inverted (inverted = true):
- *     --card-bg           Primary CTA background
- *     --primary-active    Primary CTA text colour
+ *     --cta-button-bg     Primary CTA background   (falls back to --card-bg)
+ *     --cta-button-text   Primary CTA text colour  (falls back to --primary-active)
  *     --section-cta-body  Secondary CTA text colour
  *     --radius-interactive Primary CTA border-radius (overrides atom default)
  */
@@ -74,8 +74,11 @@ export function CTAGroup({
           // button; outline/ghost buttons keep their own variant appearance.
           const invertedStyle = invVariant === "primary"
             ? {
-                backgroundColor: "var(--card-bg)",
-                color:           "var(--primary-active)",
+                // Default inverted treatment (white card-bg + brand text) suits a
+                // dark section. --cta-button-bg / --cta-button-text let a light
+                // gradient section swap in a solid brand button that still reads.
+                backgroundColor: "var(--cta-button-bg, var(--card-bg))",
+                color:           "var(--cta-button-text, var(--primary-active))",
                 borderRadius:    "var(--radius-interactive)",
               }
             : {

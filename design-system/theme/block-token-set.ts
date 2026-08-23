@@ -113,6 +113,8 @@ export interface CuratedBlockTokens {
   // CTA section
   ctaBg?:              string;
   ctaBodyText?:        string;
+  ctaButtonBg?:        string;
+  ctaButtonText?:      string;
 
   // Dividers
   dividerColor?:       string;
@@ -250,8 +252,10 @@ export const BLOCK_TOKEN_GROUPS: readonly BlockTokenGroup[] = [
   {
     title: "CTA section",
     fields: [
-      { key: "ctaBg",       label: "CTA bg",   kind: "color", vars: ["--section-cta-bg"] },
-      { key: "ctaBodyText", label: "CTA text", kind: "color", vars: ["--section-cta-body"] },
+      { key: "ctaBg",         label: "CTA bg",          kind: "color", vars: ["--section-cta-bg"] },
+      { key: "ctaBodyText",   label: "CTA text",        kind: "color", vars: ["--section-cta-body"] },
+      { key: "ctaButtonBg",   label: "CTA button bg",   kind: "color", vars: ["--cta-button-bg"] },
+      { key: "ctaButtonText", label: "CTA button text", kind: "color", vars: ["--cta-button-text"] },
     ],
   },
   {
