@@ -16,6 +16,7 @@
 
 import React, { useState, useTransition } from "react";
 import type { AudienceSegment }           from "@/audience-segments/types";
+import { Avatar }                          from "@/components/admin/Avatar";
 import { SEED_AUDIENCE_SEGMENTS }          from "@/audience-segments/seed";
 import {
   FlatGroupEditor,
@@ -318,6 +319,9 @@ function SegmentRow({ segment, onEdit, onToggle, onDelete, toggling, deleting, s
           "inline-block h-2 w-2 rounded-full shrink-0",
           segment.isActive ? "bg-emerald-500" : "bg-neutral-300",
         ].join(" ")} />
+
+        {/* Deterministic avatar */}
+        <Avatar name={segment.label} seed={segment.key} size="sm" />
 
         {/* Labels */}
         <div className="flex-1 min-w-0">

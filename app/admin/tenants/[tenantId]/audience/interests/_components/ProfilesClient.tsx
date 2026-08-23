@@ -22,6 +22,7 @@ import Link                          from "next/link";
 import type { AnnotatedInterestProfile } from "../actions";
 import { checkInterestProfileDependenciesAction } from "../actions";
 import type { InterestProfileFamily }    from "@/interest-profiles/types";
+import { Avatar }                        from "@/components/admin/Avatar";
 
 // ── Family display config ─────────────────────────────────────────────────────
 
@@ -152,21 +153,26 @@ function ProfileRow({ profile, tenantId, saving, checking, error, onToggle, sele
         </td>
         {/* Profile name + key + badges */}
         <td className="px-4 py-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-neutral-900">{profile.name}</p>
-            {isPlatform && (
-              <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-                Platform
-              </span>
-            )}
-            <FamilyBadge family={profile.family} />
-            {isDisabled && (
-              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">
-                Disabled for tenant
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <Avatar name={profile.name} seed={profile.key} />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-semibold text-neutral-900">{profile.name}</p>
+                {isPlatform && (
+                  <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                    Platform
+                  </span>
+                )}
+                <FamilyBadge family={profile.family} />
+                {isDisabled && (
+                  <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">
+                    Disabled for tenant
+                  </span>
+                )}
+              </div>
+              <code className="text-xs font-mono text-neutral-400">{profile.key}</code>
+            </div>
           </div>
-          <code className="text-xs font-mono text-neutral-400">{profile.key}</code>
         </td>
 
         {/* Global status */}
