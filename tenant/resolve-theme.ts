@@ -66,6 +66,7 @@ import { THEME_PRESETS }           from "@/design-system/theme/presets";
 import type { ThemePresetKey }      from "@/design-system/theme/presets";
 import { tenantThemeToVarsRecord }  from "@/design-system/theme/tenant-theme";
 import { isThemePresetKey }        from "@/design-system/theme/presets";
+import { isLight, lighten, mix, readableText, contrastRatio } from "@/lib/color";
 
 // ── Public types ───────────────────────────────────────────────────────────────
 
@@ -639,6 +640,32 @@ export function resolveThemeForTenant(
     // An explicit headerTopbandBg override (emitted above via LAYOUT_CSS_VARS) wins.
     if (layoutOv?.headerBg && !layoutOv.headerTopbandBg) {
       vars["--header-topband-bg"] = layoutOv.headerBg;
+    }
+  }
+
+  // ── Card-on-dark separation (Layer B, card-only) ────────────────────────────
+  //
+  // A custom / gallery colour override can set a dark --card-bg (color.card) that
+  // barely separates from the section it sits on (--section-subtle-bg, from
+  // color.muted). Mirror the Layer A lift here so the CTA card reads as elevated
+  // on the saved custom preset too: when the card is dark and its contrast with
+  // the subtle section is below the just-noticeable bar, lift the card to
+  // lighten(subtleBg, 0.12) and strengthen its border to mix(cardBg, text, 0.24).
+  //
+  // Curated themes already carry this lift from Layer A (CURATED_THEME_VARS is the
+  // buildThemeVarsArray output), so their contrast is already >= the bar and this
+  // is a no-op for them. Card-only: no other tokens are touched, and no stored
+  // tenant data is modified (this is a pure render-time coherence pin).
+  {
+    const cardBgV = vars["--card-bg"];
+    const subtleV = vars["--section-subtle-bg"] ?? vars["--bg-subtle"];
+    if (cardBgV && subtleV && !isLight(subtleV)) {
+      const sep = contrastRatio(cardBgV, subtleV);
+      if (sep !== null && sep < 1.25) {
+        const lifted = lighten(subtleV, 0.12);
+        vars["--card-bg"] = lifted;
+        vars["--card-border"] = mix(lifted, vars["--text"] ?? readableText(lifted), 0.24);
+      }
     }
   }
 
