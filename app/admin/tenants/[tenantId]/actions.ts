@@ -385,12 +385,17 @@ export async function applyDesignPresetAction(
     derivedOverride = EXAMPLE_SITE_DESIGN_TOKENS;
   }
 
-  const updatedDesign: TenantDesignSettings = buildCompleteLookDesign(
-    current.design,
-    preset.tokenOverrides,
-    preset.baseTheme,
-    derivedOverride,
-  );
+  const updatedDesign: TenantDesignSettings = {
+    ...buildCompleteLookDesign(
+      current.design,
+      preset.tokenOverrides,
+      preset.baseTheme,
+      derivedOverride,
+    ),
+    // Snippet inherit-host-style flag: on for the "Inherit host style" preset,
+    // cleared for every other preset so switching away turns it off.
+    inheritHostStyle: preset.inheritHostStyle ?? false,
+  };
 
   const saveResult = await saveTenant({ ...current, design: updatedDesign });
   if (!saveResult.ok) return { ok: false, error: saveResult.error };

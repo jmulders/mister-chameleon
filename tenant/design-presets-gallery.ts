@@ -55,9 +55,28 @@ export interface DesignPresetCard {
     readonly foreground: string;
     readonly accent: string;
   };
+  /**
+   * When true, applying this preset turns on design.inheritHostStyle: snippet
+   * blocks then adopt the host site's own colours instead of the tenant palette
+   * (see render-block-html.ts). Only the "Inherit host style" preset sets this.
+   */
+  readonly inheritHostStyle?: boolean;
 }
 
 export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
+  {
+    id: "inherit-host",
+    name: "Inherit host style",
+    description: "Impose no style — snippet blocks adopt the host site's own fonts, colours and backgrounds. Best for embedding on an existing branded site.",
+    category: "Host Integration",
+    baseTheme: "custom",
+    swatch: { primary: "#94a3b8", background: "#ffffff", foreground: "#334155", accent: "#e2e8f0" },
+    // Intentionally minimal: the look comes from the host page, not tenant tokens.
+    // The snippet render honours design.inheritHostStyle (set on apply) to make
+    // the host cascade win; platform-hosted rendering falls back to theme defaults.
+    tokenOverrides: {},
+    inheritHostStyle: true,
+  },
   {
     id: "indigo-saas",
     name: "Indigo SaaS",

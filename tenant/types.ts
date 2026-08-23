@@ -2148,6 +2148,17 @@ export interface TenantDesignSettings {
    */
   readonly typographyOverrideEnabled?: boolean;
   /**
+   * "Inherit host style" mode for snippet-injected blocks.
+   *
+   * When `true`, snippet blocks are rendered so the host page's own colours and
+   * backgrounds win (text -> inherit, surfaces -> transparent, borders/accents ->
+   * currentColor, buttons -> outlined) instead of imposing the tenant palette.
+   * See render-block-html.ts (INHERIT_HOST_STYLE_VARS). Set by applying the
+   * "Inherit host style" gallery preset. Only affects the snippet render path;
+   * platform-hosted tenants (React components) are unaffected.
+   */
+  readonly inheritHostStyle?: boolean;
+  /**
    * Header structural variant override.
    *
    * When set, this takes precedence over the theme family's default header

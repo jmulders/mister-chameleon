@@ -71,14 +71,51 @@ const WRAP =
   // Colours/radius still come from the tenant's design tokens (scoped vars).
   "font-family:inherit;";
 
+/**
+ * "Inherit host style" mode: a set of CSS custom-property overrides that make
+ * the injected block adopt the host page's own colours instead of imposing the
+ * tenant palette. Emitted on a wrapper div around the block, so it cascades into
+ * every `var(--token, fallback)` the templates use:
+ *   - text tokens  -> currentColor (so `color:var(--text)` becomes
+ *     `color:currentColor`, i.e. the host's inherited text colour wins). We must
+ *     use currentColor, not the `inherit` keyword: a custom property set to
+ *     `inherit` resolves to the ANCESTOR's value of that same property, not to the
+ *     consuming element's inherited colour.
+ *   - surfaces     -> transparent (host background shows through)
+ *   - borders/accents -> currentColor (visible, follows the host text colour)
+ *   - buttons become outlined (transparent fill, host text, currentColor
+ *     border) via the --btn-inherit-* / --btn-border shadow vars below, which are
+ *     unset in normal mode so button output stays byte-identical off this path.
+ * Semantic literals with no var (media scrims, notification severity, the field
+ * error red) are intentionally left alone.
+ */
+export const INHERIT_HOST_STYLE_VARS =
+  "--text:currentColor;--foreground:currentColor;--card-foreground:currentColor;--popover-foreground:currentColor;" +
+  "--muted-foreground:currentColor;--hero-title-color:currentColor;--hero-subtitle-color:currentColor;--primary-text:currentColor;" +
+  "--bg:transparent;--bg-subtle:transparent;--section-subtle-bg:transparent;--card-bg:transparent;" +
+  "--hero-bg:transparent;--section-cta-bg:transparent;--feature-grid-bg:transparent;--neutral-900:transparent;--accent:transparent;" +
+  "--primary:currentColor;--proof-quote-color:currentColor;--border:currentColor;--card-border:currentColor;--section-subtle-border:currentColor;" +
+  "--btn-inherit-bg:transparent;--btn-inherit-fg:currentColor;--btn-border:currentColor;";
+
+/** Wrap block HTML in the inherit-host-style scope when the mode is on; otherwise pass through. */
+function applyInherit(html: string, opts?: RenderOptions): string {
+  return opts?.inherit ? `<div style="${INHERIT_HOST_STYLE_VARS}">${html}</div>` : html;
+}
+
+/** Render options shared by the snippet block/form renderers. */
+export interface RenderOptions {
+  /** When true, emit blocks that inherit the host page's colours (see INHERIT_HOST_STYLE_VARS). */
+  inherit?: boolean;
+}
+
 /** A primary button. */
 function button(label: string, href: unknown, variant: "primary" | "ghost" = "primary"): string {
   const base =
     "display:inline-block;padding:12px 22px;border-radius:var(--btn-radius,var(--radius-interactive,8px));" +
     "font-weight:600;font-size:15px;text-decoration:none;line-height:1;transition:opacity .15s;";
   const style = variant === "primary"
-    ? base + "background:var(--primary,#4f46e5);color:var(--primary-text,#fff);border:1px solid transparent;"
-    : base + "background:transparent;color:var(--text,#0f172a);border:1px solid var(--border,#e2e8f0);";
+    ? base + "background:var(--btn-inherit-bg,var(--primary,#4f46e5));color:var(--btn-inherit-fg,var(--primary-text,#fff));border:1px solid var(--btn-border,transparent);"
+    : base + "background:var(--btn-inherit-bg,transparent);color:var(--btn-inherit-fg,var(--text,#0f172a));border:1px solid var(--border,#e2e8f0);";
   return `<a href="${safeHref(href)}" style="${style}">${escapeHtml(label)}</a>`;
 }
 
@@ -353,16 +390,16 @@ function ctaButton(cta: BlockCTA, isPrimary: boolean, inverted: boolean): string
   let skin: string;
   if (kind === "solid") {
     skin = inverted
-      ? "background:var(--card-bg,#fff);color:var(--primary,#4f46e5);border:1px solid transparent;"
-      : "background:var(--primary,#4f46e5);color:var(--primary-text,#fff);border:1px solid transparent;";
+      ? "background:var(--btn-inherit-bg,var(--card-bg,#fff));color:var(--btn-inherit-fg,var(--primary,#4f46e5));border:1px solid var(--btn-border,transparent);"
+      : "background:var(--btn-inherit-bg,var(--primary,#4f46e5));color:var(--btn-inherit-fg,var(--primary-text,#fff));border:1px solid var(--btn-border,transparent);";
   } else if (kind === "outline") {
     skin = inverted
-      ? "background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);"
-      : "background:transparent;color:var(--primary,#4f46e5);border:1px solid var(--primary,#4f46e5);";
+      ? "background:transparent;color:var(--btn-inherit-fg,#fff);border:1px solid var(--btn-border,rgba(255,255,255,.6));"
+      : "background:transparent;color:var(--btn-inherit-fg,var(--primary,#4f46e5));border:1px solid var(--btn-border,var(--primary,#4f46e5));";
   } else {
     skin = inverted
-      ? "background:transparent;color:#fff;border:1px solid transparent;"
-      : "background:transparent;color:var(--primary,#4f46e5);border:1px solid transparent;";
+      ? "background:transparent;color:var(--btn-inherit-fg,#fff);border:1px solid transparent;"
+      : "background:transparent;color:var(--btn-inherit-fg,var(--primary,#4f46e5));border:1px solid transparent;";
   }
   return `<a href="${safeHref(cta.href)}" style="${base}${skin}">${escapeHtml(cta.label)}</a>`;
 }
@@ -464,8 +501,8 @@ function renderCta(d: CTABlockData): string {
         (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,4vw,34px);font-weight:800;margin:0 0 12px;">${escapeHtml(d.title)}</h2>` : "") +
         (d.text ? `<p style="font-size:clamp(15px,2.2vw,18px);line-height:1.5;opacity:.92;max-width:56ch;margin:0 auto 22px;">${renderInlineMarkup(d.text)}</p>` : "") +
         (cta && cta.label
-          ? `<a href="${safeHref(cta.href)}" style="display:inline-block;background:var(--card-bg,#fff);color:var(--primary,#4f46e5);` +
-            `padding:13px 26px;border-radius:var(--btn-radius,var(--radius-interactive,8px));font-weight:700;font-size:15px;text-decoration:none;">${escapeHtml(cta.label)}</a>`
+          ? `<a href="${safeHref(cta.href)}" style="display:inline-block;background:var(--btn-inherit-bg,var(--card-bg,#fff));color:var(--btn-inherit-fg,var(--primary,#4f46e5));` +
+            `border:1px solid var(--btn-border,transparent);padding:13px 26px;border-radius:var(--btn-radius,var(--radius-interactive,8px));font-weight:700;font-size:15px;text-decoration:none;">${escapeHtml(cta.label)}</a>`
           : "") +
       `</div>` +
     `</section>`
@@ -644,9 +681,9 @@ function renderFormElement(form: ResolvedForm, formKey: string, opts?: { compact
   const compact     = opts?.compact === true;
   const submitLabel = form.submitLabel || (compact ? "Subscribe" : "Submit");
   const submitStyle =
-    "display:block;width:100%;padding:12px 22px;border:1px solid transparent;" +
-    "border-radius:var(--btn-radius,var(--radius-interactive,8px));background:var(--primary,#4f46e5);" +
-    "color:var(--primary-text,#fff);font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;";
+    "display:block;width:100%;padding:12px 22px;border:1px solid var(--btn-border,transparent);" +
+    "border-radius:var(--btn-radius,var(--radius-interactive,8px));background:var(--btn-inherit-bg,var(--primary,#4f46e5));" +
+    "color:var(--btn-inherit-fg,var(--primary-text,#fff));font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;";
   // Compact (cta_newsletter): no card chrome, no title/intro. The surrounding CTA
   // section already carries the heading + description; here we only need the input,
   // optional Turnstile, and submit, wired identically (data-mc-form + .cf-turnstile).
@@ -702,7 +739,7 @@ function renderContactPanel(p: NonNullable<NonNullable<ResolvedForm["layout"]>["
  * layout its variant selected (phase 1: single column, or a split with a contact
  * panel on the left/right). The split grid is responsive without media queries.
  */
-export function renderForm(form: ResolvedForm, formKey: string): string {
+export function renderForm(form: ResolvedForm, formKey: string, opts?: RenderOptions): string {
   const formEl  = renderFormElement(form, formKey);
   const layout  = form.layout;
   const panel   = layout?.contactPanel;
@@ -710,19 +747,20 @@ export function renderForm(form: ResolvedForm, formKey: string): string {
 
   // Single column (default) — also the fallback when a split has no panel data.
   if (!layout || layout.template === "single" || !panel) {
-    return `${wrapOpen}<div style="${WRAP}max-width:560px;">${formEl}</div></section>`;
+    return applyInherit(`${wrapOpen}<div style="${WRAP}max-width:560px;">${formEl}</div></section>`, opts);
   }
 
   const panelEl = renderContactPanel(panel);
   // split-left = panel first, split-right = form first. auto-fit keeps it side by
   // side on wide screens and stacks it on narrow ones without a media query.
   const cols = layout.template === "split-right" ? `${formEl}${panelEl}` : `${panelEl}${formEl}`;
-  return (
+  return applyInherit(
     `${wrapOpen}<div style="${WRAP}">` +
       `<div style="display:grid;gap:clamp(24px,4vw,48px);grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:stretch;">` +
         cols +
       `</div>` +
-    `</div></section>`
+    `</div></section>`,
+    opts,
   );
 }
 
@@ -735,20 +773,21 @@ export function renderForm(form: ResolvedForm, formKey: string): string {
  * When `form` is null (no formKey chosen, or resolution failed) it renders the
  * heading only, mirroring the platform NewsletterForm's graceful degradation.
  */
-export function renderCtaNewsletter(d: CTABlockData, form: ResolvedForm | null): string {
+export function renderCtaNewsletter(d: CTABlockData, form: ResolvedForm | null, opts?: RenderOptions): string {
   const heading =
     (d.title ? `<h2 style="font-family:inherit;font-size:clamp(22px,3.4vw,30px);font-weight:800;margin:0 0 10px;color:var(--text,#0f172a);">${escapeHtml(d.title)}</h2>` : "") +
     (d.text ? `<p style="font-size:clamp(15px,2.2vw,17px);line-height:1.5;color:var(--muted-foreground,#64748b);margin:0;max-width:44ch;">${renderInlineMarkup(d.text)}</p>` : "");
   const formCol = form ? renderFormElement(form, d.formKey ?? "", { compact: true }) : "";
 
-  return (
+  return applyInherit(
     `<section style="background:var(--section-subtle-bg,var(--bg,#fff));color:var(--text,#0f172a);` +
       `border-top:1px solid var(--section-subtle-border,var(--border,#e2e8f0));border-bottom:1px solid var(--section-subtle-border,var(--border,#e2e8f0));">` +
       `<div style="${WRAP}display:flex;flex-wrap:wrap;gap:clamp(20px,4vw,48px);align-items:center;justify-content:space-between;">` +
         `<div style="flex:1 1 320px;min-width:0;">${heading}</div>` +
         (formCol ? `<div style="flex:0 1 400px;min-width:280px;">${formCol}</div>` : "") +
       `</div>` +
-    `</section>`
+    `</section>`,
+    opts,
   );
 }
 
@@ -758,7 +797,7 @@ export function renderCtaNewsletter(d: CTABlockData, form: ResolvedForm | null):
  * Render a variant to self-contained HTML for the given block slot key.
  * Returns `null` for an unknown key or when the data yields no content.
  */
-export function renderBlockHtml(slotKey: string, data: unknown): string | null {
+export function renderBlockHtml(slotKey: string, data: unknown, opts?: RenderOptions): string | null {
   if (!data || typeof data !== "object") return null;
   let html: string;
   switch (slotKey) {
@@ -772,6 +811,6 @@ export function renderBlockHtml(slotKey: string, data: unknown): string | null {
   }
   // A block with no fields renders to just the empty shell — treat as nothing.
   return /<(h1|h2|p|div|span|a)[ >]/.test(html) && html.replace(/<[^>]+>/g, "").trim() !== ""
-    ? html
+    ? applyInherit(html, opts)
     : null;
 }

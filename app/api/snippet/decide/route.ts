@@ -956,6 +956,9 @@ export async function POST(request: NextRequest) {
     const requestedBlocks = new Set(
       Array.isArray(rawBlocks) ? rawBlocks.filter((b): b is string => typeof b === "string") : [],
     );
+    // "Inherit host style" tenants: render blocks so the host page's own colours
+    // win instead of the tenant palette (see render-block-html.ts).
+    const inheritHost = tenant?.design?.inheritHostStyle === true;
     let blockThemeTokens: Record<string, string> = {};
     if (requestedBlocks.size > 0) {
       try {
@@ -972,7 +975,7 @@ export async function POST(request: NextRequest) {
       if (!requestedBlocks.has(key)) return false;
       // Substitute {context variables} in the block copy against this visitor's
       // decision context before rendering (same behaviour as the platform path).
-      const html = renderBlockHtml(key, substituteBlockCopy(data, input, copyVars));
+      const html = renderBlockHtml(key, substituteBlockCopy(data, input, copyVars), { inherit: inheritHost });
       if (!html) return false;
       const slot: BlockSlot = Object.keys(blockThemeTokens).length > 0
         ? { mode: "block", html, tokens: blockThemeTokens }
@@ -1046,7 +1049,7 @@ export async function POST(request: NextRequest) {
           try { resolvedForm = await resolveContextualForm(tenantId, cta.formKey, formSignals); }
           catch { resolvedForm = null; }
         }
-        const html = renderCtaNewsletter(cta, resolvedForm);
+        const html = renderCtaNewsletter(cta, resolvedForm, { inherit: inheritHost });
         slots["cta"] = Object.keys(blockThemeTokens).length > 0
           ? { mode: "block", html, tokens: blockThemeTokens }
           : { mode: "block", html };
@@ -1166,7 +1169,7 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          const html = renderForm(resolved, formKey);
+          const html = renderForm(resolved, formKey, { inherit: inheritHost });
           slots[blockKey] = Object.keys(blockThemeTokens).length > 0
             ? { mode: "block", html, tokens: blockThemeTokens }
             : { mode: "block", html };
