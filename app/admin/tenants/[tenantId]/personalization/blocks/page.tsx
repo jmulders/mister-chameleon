@@ -14,6 +14,8 @@ import Link                         from "next/link";
 import { ADAPTIVE_SLOT_REGISTRY }   from "@/decision/types";
 import { listAdaptiveBlocksAction }  from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import { getAdaptiveBlockByKey }     from "@/lib/adaptive-blocks/adaptive-blocks-store";
+import { buildRuleUsageIndex, type RuleUsageRef } from "@/lib/adaptive-blocks/rules-usage";
+import { loadTenantRulesConfig }     from "@/decision/rules/load-tenant-rules";
 import { getTenantById }             from "@/tenant/server";
 import { getFormDefinition, isFormKey } from "@/forms";
 import { TenantBlocksClient }        from "./_components/TenantBlocksClient";
@@ -43,6 +45,14 @@ export default async function TenantBlocksPage({ params }: Props) {
   const blockTokenSets = tenant?.design?.blockTokenSets ?? [];
 
   const totalCustomized = allBlocks.filter((b) => b.tenantId === tenantId).length;
+
+  // Cross-reference the tenant's rules so each block can show "used in N rules"
+  // and the delete flow can warn before orphaning a rule. Serialise the index to
+  // a plain record for the client component (a Map is not serialisable).
+  const rulesConfig = await loadTenantRulesConfig(tenantId);
+  const ruleUsage: Record<string, RuleUsageRef[]> = Object.fromEntries(
+    buildRuleUsageIndex(rulesConfig),
+  );
 
   // Forms overview: each form type + how many variants it has authored.
   const formRows = await Promise.all(
@@ -109,6 +119,7 @@ export default async function TenantBlocksPage({ params }: Props) {
           knownKeys:   s.knownKeys,
         }))}
         allBlocks={allBlocks}
+        ruleUsage={ruleUsage}
         initialSlotModes={tenant?.adaptiveSlots ?? null}
         blockTokenSets={blockTokenSets}
         customAttributes={tenant?.customAttributes ?? []}

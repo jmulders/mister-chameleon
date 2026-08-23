@@ -22,6 +22,8 @@ import { EditBlockDrawer }                       from "@/components/admin/EditBl
 import { BlockPreviewModal }                     from "@/components/admin/BlockPreviewModal";
 import type { BlockTokenSet }                     from "@/design-system/theme/block-token-set";
 import { deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
+import type { RuleUsageRef } from "@/lib/adaptive-blocks/rules-usage";
+import Link from "next/link";
 import { saveSlotModesAction, type SaveSlotModesInput, type SlotModeFormValue } from "../slot-modes-actions";
 import type { AdaptiveBlockData }                from "@/cms/types";
 import type { TenantAdaptiveSlotSettings, TenantSlotMode, CustomAttributeDeclaration, CopyVariable } from "@/tenant/types";
@@ -114,6 +116,8 @@ function BlockRow({
   resolved,
   tenantId,
   revalidatePath,
+  rules,
+  rulesHref,
   onEdit,
   onCustomized,
   onPreview,
@@ -121,12 +125,16 @@ function BlockRow({
   resolved:       ResolvedBlock;
   tenantId:       string;
   revalidatePath: string;
+  rules:          RuleUsageRef[];
+  rulesHref:      string;
   onEdit:         (block: AdaptiveBlockData) => void;
   onCustomized:   (block: AdaptiveBlockData) => void;
   onPreview:      (payload: PreviewTarget) => void;
 }) {
   const router = useRouter();
   const [resetting, startReset] = useTransition();
+  const [showRules, setShowRules] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   // The block a read-only preview would render: the tenant variant when
   // customized, else the platform-default variant. "missing" has no source.
   const block       = resolved.tenantBlock ?? resolved.platformBlock;
@@ -142,12 +150,21 @@ function BlockRow({
   function handleReset() {
     const id = resolved.tenantBlock?.id;
     if (!id) return;
+    setDeleteError(null);
+    // When rules reference this block, spell out that deleting reverts them to the
+    // platform default (they keep resolving, just with the platform content).
+    const ruleNote = rules.length > 0
+      ? `\n\n${rules.length} rule(s) use this block:\n${rules.map((r) => `• ${r.label}`).join("\n")}\n\nDeleting reverts them to the platform default.`
+      : "";
     if (!window.confirm(
-      `Reset "${resolved.blockKey}" to the platform default? This tenant's customization for this block will be discarded.`,
+      `Reset "${resolved.blockKey}" to the platform default? This tenant's customization for this block will be discarded.${ruleNote}`,
     )) return;
     startReset(async () => {
-      const res = await deleteAdaptiveBlockAction(id, revalidatePath);
+      // confirmRevert acknowledges the note above; the server still refuses if the
+      // delete would orphan a rule (no platform fallback).
+      const res = await deleteAdaptiveBlockAction(id, revalidatePath, { confirmRevert: true });
       if (res.ok) router.refresh();
+      else setDeleteError(res.error);
     });
   }
 
@@ -193,6 +210,7 @@ function BlockRow({
   }[resolved.status];
 
   return (
+    <div className="space-y-1">
     <div
       className={[
         "group flex items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
@@ -229,6 +247,20 @@ function BlockRow({
       )}
 
       {statusBadge}
+
+      {/* Used-in-rules badge — toggles the rule list below the row. */}
+      {rules.length > 0 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setShowRules((v) => !v); }}
+          aria-expanded={showRules}
+          title="Show the rules that use this block"
+          className="shrink-0 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
+        >
+          Used in {rules.length} rule{rules.length === 1 ? "" : "s"}
+          <span aria-hidden="true">{showRules ? "▴" : "▾"}</span>
+        </button>
+      )}
 
       {/* Preview (eye) — discoverable even without the row click. */}
       <button
@@ -290,6 +322,36 @@ function BlockRow({
       )}
 
     </div>
+
+    {/* Rules that use this block (toggled by the "Used in N rules" badge). */}
+    {showRules && rules.length > 0 && (
+      <div className="rounded-md border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-[11px] text-neutral-600">
+        <p className="mb-1 font-medium text-neutral-700">
+          Used by {rules.length} rule{rules.length === 1 ? "" : "s"}:
+        </p>
+        <ul className="space-y-0.5">
+          {rules.map((r) => (
+            <li key={`${r.ruleId}-${r.field}`} className="flex items-center gap-1.5">
+              <span className="inline-block h-1 w-1 rounded-full bg-indigo-400 shrink-0" />
+              <span className="font-medium">{r.label}</span>
+              <span className="font-mono text-neutral-400">({r.field})</span>
+            </li>
+          ))}
+        </ul>
+        <Link href={rulesHref} className="mt-1.5 inline-block font-medium text-indigo-600 hover:text-indigo-700">
+          Edit rules →
+        </Link>
+      </div>
+    )}
+
+    {/* Delete guard feedback (e.g. an orphaning delete was refused). */}
+    {deleteError && (
+      <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+        {deleteError}{" "}
+        <Link href={rulesHref} className="font-medium underline">Edit rules →</Link>
+      </div>
+    )}
+    </div>
   );
 }
 
@@ -304,6 +366,7 @@ function SlotSection({
   tenantId,
   revalidatePath,
   allBlocks,
+  ruleUsage,
   modeValue,
   onModeChange,
   onEdit,
@@ -318,12 +381,14 @@ function SlotSection({
   tenantId:       string;
   revalidatePath: string;
   allBlocks:      AdaptiveBlockData[];
+  ruleUsage:      Record<string, RuleUsageRef[]>;
   modeValue?:     SlotModeFormValue;
   onModeChange?:  (patch: Partial<SlotModeFormValue>) => void;
   onEdit:         (block: AdaptiveBlockData) => void;
   onCustomized:   (block: AdaptiveBlockData) => void;
   onPreview:      (payload: PreviewTarget) => void;
 }) {
+  const rulesHref = `/admin/tenants/${tenantId}/personalization/rules`;
   const tenantMap   = new Map(
     allBlocks.filter((b) => b.tenantId === tenantId && b.key.startsWith(keyPrefix)).map((b) => [b.key, b]),
   );
@@ -340,13 +405,33 @@ function SlotSection({
 
   const customizedCount = resolved.filter((r) => r.status === "customized").length;
 
+  // Rules referencing each block: match the block key AND any adaptive sub-variant
+  // keys, deduped by rule.
+  const rulesFor = (r: ResolvedBlock): RuleUsageRef[] => {
+    const keys = new Set<string>([r.blockKey]);
+    for (const b of [r.tenantBlock, r.platformBlock]) {
+      for (const v of b?.adaptiveVariants ?? []) if (v?.variantKey) keys.add(v.variantKey);
+    }
+    const seen = new Set<string>();
+    const out: RuleUsageRef[] = [];
+    for (const k of keys) {
+      for (const ref of ruleUsage[k] ?? []) {
+        if (!seen.has(ref.ruleId)) { seen.add(ref.ruleId); out.push(ref); }
+      }
+    }
+    return out;
+  };
+  const usedInRulesCount = resolved.filter((r) => rulesFor(r).length > 0).length;
+
   // ── Within-tab search + status filter (no pagination) ───────────────────────
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | BlockStatus>("all");
+  const [onlyUsedInRules, setOnlyUsedInRules] = useState(false);
   const query = search.trim().toLowerCase();
   const filtered = resolved.filter((r) => {
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
     if (query && !r.blockKey.toLowerCase().includes(query)) return false;
+    if (onlyUsedInRules && rulesFor(r).length === 0) return false;
     return true;
   });
 
@@ -399,6 +484,21 @@ function SlotSection({
           <option value="platform">Platform default</option>
           <option value="missing">Not configured</option>
         </select>
+        <label
+          className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+            onlyUsedInRules ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-neutral-200 bg-white text-neutral-600"
+          } ${usedInRulesCount === 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+          title="Show only blocks referenced by a rule"
+        >
+          <input
+            type="checkbox"
+            checked={onlyUsedInRules}
+            disabled={usedInRulesCount === 0}
+            onChange={(e) => setOnlyUsedInRules(e.target.checked)}
+            className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Used in rules ({usedInRulesCount})
+        </label>
       </div>
 
       <div className="space-y-2">
@@ -408,6 +508,8 @@ function SlotSection({
             resolved={r}
             tenantId={tenantId}
             revalidatePath={revalidatePath}
+            rules={rulesFor(r)}
+            rulesHref={rulesHref}
             onEdit={onEdit}
             onCustomized={onCustomized}
             onPreview={onPreview}
@@ -437,13 +539,14 @@ interface TenantBlocksClientProps {
   tenantId:   string;
   slots:      readonly SlotSpec[];
   allBlocks:  AdaptiveBlockData[];
+  ruleUsage:  Record<string, RuleUsageRef[]>;
   initialSlotModes: TenantAdaptiveSlotSettings | null;
   blockTokenSets?: readonly BlockTokenSet[];
   customAttributes?: readonly CustomAttributeDeclaration[];
   copyVariables?: readonly CopyVariable[];
 }
 
-export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotModes, blockTokenSets = [], customAttributes = [], copyVariables }: TenantBlocksClientProps) {
+export function TenantBlocksClient({ tenantId, slots, allBlocks, ruleUsage, initialSlotModes, blockTokenSets = [], customAttributes = [], copyVariables }: TenantBlocksClientProps) {
   const router          = useRouter();
   const revalidatePath  = `/admin/tenants/${tenantId}/personalization/blocks`;
   const [editing, setEditing] = useState<AdaptiveBlockData | null>(null);
@@ -579,6 +682,7 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, initialSlotMode
             tenantId={tenantId}
             revalidatePath={revalidatePath}
             allBlocks={allBlocks}
+            ruleUsage={ruleUsage}
             modeValue={(MODE_SLOT_IDS as readonly string[]).includes(activeSpec.id) ? slotModes[activeSpec.id as ModeSlotId] : undefined}
             onModeChange={(MODE_SLOT_IDS as readonly string[]).includes(activeSpec.id) ? (patch) => patchMode(activeSpec.id as ModeSlotId, patch) : undefined}
             onEdit={setEditing}
