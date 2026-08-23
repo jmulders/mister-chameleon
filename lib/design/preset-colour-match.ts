@@ -157,7 +157,9 @@ export function buildCustomLookTokens(
     muted:           mix(background, foreground, 0.08),
     mutedForeground: mix(foreground, background, 0.45),
     border:          mix(background, foreground, 0.16),
-    card:            isLight(background) ? "#ffffff" : lighten(background, 0.06),
+    // On dark looks lift the card further off the background so it reads as
+    // elevated (0.06 was too subtle and cards blended into the section).
+    card:            isLight(background) ? "#ffffff" : lighten(background, 0.12),
     cardForeground:  foreground,
     link:            primary,
     success:         "#3f8a6a",

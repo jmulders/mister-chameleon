@@ -102,6 +102,24 @@ describe("theme contrast audit", () => {
     }
     assert.ok(darkPresetsChecked >= 2, `expected to check some dark presets, checked ${darkPresetsChecked}`);
   });
+
+  it("dark presets: the card separates from the section and its border is visible", () => {
+    const fails: string[] = [];
+    let checked = 0;
+    for (const k of KEYS) {
+      const record = tenantThemeToVarsRecord(THEME_PRESETS[k]);
+      const pageBg = record["--bg"];
+      if (!pageBg || isLight(pageBg)) continue;
+      checked++;
+      const post = auditPreset(k, record, ROOT, { simulatePreFix: false });
+      for (const id of ["card-vs-section", "card-border-vs-card"]) {
+        const r = post.find((x) => x.pair === id)!;
+        if (r.ratio !== null && r.ratio < 1.25) fails.push(`${k}/${id}: ${r.ratio.toFixed(2)} (${r.surface}/${r.text})`);
+      }
+    }
+    assert.ok(checked >= 2, `expected some dark presets, checked ${checked}`);
+    assert.deepEqual(fails, [], `dark card separation below 1.25:\n${fails.join("\n")}`);
+  });
 });
 
 describe("at-risk tokens are emitted concretely at [data-site]", () => {

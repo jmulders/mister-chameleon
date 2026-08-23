@@ -47,6 +47,12 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   { id: "body",        label: "Body text on page",         surface: "--bg",                text: "--text",                 min: 4.5 },
   { id: "subtle",      label: "Body text on subtle section", surface: "--section-subtle-bg", text: "--text",               min: 4.5 },
   { id: "card",        label: "Body text on card",         surface: "--card-bg",           text: "--text",                 min: 4.5 },
+
+  // ── Card separation (non-text). Not a text pair: 1.25 = just-noticeable lift.
+  // These catch the card-on-dark problem where a card is nearly the same colour
+  // as the section it sits on. Direction-independent (the ratio is symmetric).
+  { id: "card-vs-section",     label: "Card vs subtle section",   surface: "--section-subtle-bg", text: "--card-bg",     min: 1.25, fixed: true },
+  { id: "card-border-vs-card", label: "Card border vs card",      surface: "--card-bg",           text: "--card-border", min: 1.25, fixed: true },
   // Button labels are semibold UI text (large-text / UI-component tier → 3.0).
   { id: "btn-primary", label: "Primary button",            surface: "--btn-bg",            text: "--btn-text",             min: 3.0 },
   { id: "btn-secondary", label: "Secondary button",        surface: "--btn-secondary-bg",  text: "--btn-secondary-text",   min: 3.0 },
