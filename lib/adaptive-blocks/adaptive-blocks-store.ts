@@ -121,6 +121,31 @@ export async function getAdaptiveBlockByKey(
 }
 
 /**
+ * Fetch a single adaptive block by its DB id (tenant or platform row).
+ *
+ * Used by the delete guard to resolve a block's key + tenant + adaptive
+ * variants server-side before deletion, so the rule cross-reference is not
+ * dependent on client-supplied data.
+ */
+export async function getAdaptiveBlockById(id: string): Promise<AdaptiveBlockData | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = asSingle<AdaptiveBlockRow>(
+      await db.from("adaptive_blocks").select("*").eq("id", id).limit(1).maybeSingle(),
+    );
+    if (error || !data) return null;
+    return rowToAdaptiveBlock(data);
+  } catch (err) {
+    logger.warn("[AdaptiveBlocksStore] getAdaptiveBlockById error", {
+      id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+/**
  * List all platform-wide adaptive blocks (tenant_id IS NULL).
  *
  * Used by the platform-level Adaptive Blocks Catalog page

@@ -24,9 +24,12 @@ import {
   listAdaptiveBlocks,
   listPlatformBlocks,
   getAdaptiveBlockByKey,
+  getAdaptiveBlockById,
   upsertAdaptiveBlock,
   deleteAdaptiveBlock,
 } from "./adaptive-blocks-store";
+import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
+import { findRulesUsingBlock, type RuleUsageRef } from "./rules-usage";
 import type { AdaptiveBlockData } from "@/cms/types";
 
 // ── listAdaptiveBlocksAction ──────────────────────────────────────────────────
@@ -185,12 +188,63 @@ export async function seedPlatformBlocksAction(
 
 // ── deleteAdaptiveBlockAction ─────────────────────────────────────────────────
 
+export type DeleteAdaptiveBlockResult =
+  | { ok: true; reverted?: boolean }
+  | { ok: false; error: string; referencingRules?: RuleUsageRef[]; reason?: "orphan" | "revert" };
+
+/**
+ * Delete an adaptive block by DB id, guarding against orphaned rules.
+ *
+ * Before deleting, the block's variant keys are cross-referenced against the
+ * tenant's stored rules:
+ *   - No referencing rules -> delete.
+ *   - Referenced, but a platform block with the same key remains (revert): the
+ *     rules keep resolving (content reverts to the platform default). Refused
+ *     with reason "revert" until the caller passes { confirmRevert: true }.
+ *   - Referenced with no fallback (orphan): refused with reason "orphan" — the
+ *     operator must edit those rules first. Always blocked, never forced.
+ * Platform blocks (tenantId null) skip the guard — that is a platform concern.
+ */
 export async function deleteAdaptiveBlockAction(
   id:         string,
   revalidate?: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  opts?:      { confirmRevert?: boolean },
+): Promise<DeleteAdaptiveBlockResult> {
   try {
     await getRequiredAdminSession();
+
+    const block = await getAdaptiveBlockById(id);
+    const tenantId = block?.tenantId ?? null;
+    if (block && tenantId) {
+      const config = await loadTenantRulesConfig(tenantId);
+      const referencingRules = findRulesUsingBlock(block, config);
+      if (referencingRules.length > 0) {
+        const all = await listAdaptiveBlocks(tenantId, true);
+        const hasFallback = all.some(
+          (b) => b.id !== block.id && b.key === block.key && b.isActive,
+        );
+        if (!hasFallback) {
+          return {
+            ok: false,
+            reason: "orphan",
+            error: `This block is used by ${referencingRules.length} rule(s) and has no platform default to fall back to. Edit those rules before deleting.`,
+            referencingRules,
+          };
+        }
+        if (!opts?.confirmRevert) {
+          return {
+            ok: false,
+            reason: "revert",
+            error: `This block is used by ${referencingRules.length} rule(s). Deleting it reverts them to the platform default.`,
+            referencingRules,
+          };
+        }
+        const reverted = await deleteAdaptiveBlock(id);
+        if (!reverted.ok) return reverted;
+        if (revalidate) revalidatePath(revalidate);
+        return { ok: true, reverted: true };
+      }
+    }
 
     const result = await deleteAdaptiveBlock(id);
     if (!result.ok) return result;
