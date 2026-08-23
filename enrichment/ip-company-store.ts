@@ -12,6 +12,7 @@
 
 import { getDb } from "@/data/db";
 import { logger } from "@/lib/logger";
+import { ipHash } from "@/lib/ip-hash";
 import {
   isFresh, rowToOutput, buildIpCompanyRow,
   type LeadinfoPersistentCache, type IpCompanyRow,
@@ -29,7 +30,7 @@ export const ipCompanyCache: LeadinfoPersistentCache = {
       const { data } = await db()
         .from("ip_company_cache")
         .select(COLS)
-        .eq("ip", ip)
+        .eq("ip_hash", ipHash(ip))
         .maybeSingle();
       if (!data) return null;
       const row = data as IpCompanyRow;
@@ -46,7 +47,7 @@ export const ipCompanyCache: LeadinfoPersistentCache = {
     try {
       await db()
         .from("ip_company_cache")
-        .upsert(buildIpCompanyRow(ip, entry.matched, entry.output, entry.raw), { onConflict: "ip" });
+        .upsert(buildIpCompanyRow(ipHash(ip), entry.matched, entry.output, entry.raw), { onConflict: "ip_hash" });
     } catch (err) {
       logger.debug("[ip-company-cache] set failed", { error: String(err) });
     }

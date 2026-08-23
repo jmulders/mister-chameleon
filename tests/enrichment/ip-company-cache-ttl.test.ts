@@ -88,11 +88,11 @@ describe("buildIpCompanyRow", () => {
   it("maps enrichment output back to columns, keeps raw, sets refreshed_at", () => {
     const raw = { company: { name: "Acme" }, extra: "kept" };
     const built = buildIpCompanyRow(
-      "1.2.3.4", true,
+      "deadbeef", true,
       { companyName: "Acme", companyDomain: "acme.com", companyIndustry: "Software", companySize: "51-200", countryCode: "NL" },
       raw, "2026-07-24T12:00:00.000Z",
     );
-    assert.equal(built.ip, "1.2.3.4");
+    assert.equal(built.ip_hash, "deadbeef");
     assert.equal(built.matched, true);
     assert.equal(built.company_name, "Acme");
     assert.equal(built.company_domain, "acme.com");
