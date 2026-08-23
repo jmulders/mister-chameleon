@@ -72,7 +72,8 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { resolveSession, SESSION_COOKIE, WEB_SESSION_COOKIE } from "@/data/session";
+import { resolveSession, SESSION_COOKIE, WEB_SESSION_COOKIE, SEEN_COOKIE } from "@/data/session";
+import { resolveConsent } from "@/lib/consent/server-consent";
 import {
   resolveAttribution,
   ATTRIBUTION_COOKIE,
@@ -200,6 +201,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // ── Visitor session (public pages) ─────────────────────────────────────────
   const session      = resolveSession(cookieHeader);
   const attribution  = resolveAttribution(request);
+  // Anonymity boundary: the persistent visitor-identity cookies (mc_session_id 30d,
+  // mc_seen 365d) are only set with personalization consent (read from mc_consent).
+  // The billing web-session cookie (mc_ws, 30min) stays essential. Without consent
+  // the render paths already fall back to an ephemeral per-request id.
+  const consent = resolveConsent(cookieHeader);
 
   // Build modified request headers
   const requestHeaders = new Headers(request.headers);
@@ -373,6 +379,14 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   // ── Visitor session cookies ────────────────────────────────────────────────
   for (const spec of session.cookiesToSet) {
+    // Persistent identity cookies require personalization consent; the billing
+    // web-session cookie is essential and always set.
+    if (
+      !consent.personalization &&
+      (spec.name === SESSION_COOKIE || spec.name === SEEN_COOKIE)
+    ) {
+      continue;
+    }
     response.cookies.set(spec.name, spec.value, {
       maxAge:   spec.maxAge,
       path:     spec.path,
