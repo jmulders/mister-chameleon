@@ -97,9 +97,19 @@ export const INHERIT_HOST_STYLE_VARS =
   "--primary:currentColor;--proof-quote-color:currentColor;--border:currentColor;--card-border:currentColor;--section-subtle-border:currentColor;" +
   "--btn-inherit-bg:transparent;--btn-inherit-fg:currentColor;--btn-border:currentColor;";
 
+/**
+ * In inherit mode, drop the inline typographic SIZING declarations (font-size,
+ * font-weight, line-height, and the badge letter-spacing / text-transform) so the
+ * host page's CSS governs the sizes. Colours already inherit via the scope vars;
+ * font-family is already `inherit`. Only runs on the inherit path, so normal
+ * output stays byte-identical (snippet snapshot tests unaffected).
+ */
+const INHERIT_STRIP_RE = /(?:font-size|font-weight|line-height|letter-spacing|text-transform)\s*:\s*[^;"]*;?/g;
+
 /** Wrap block HTML in the inherit-host-style scope when the mode is on; otherwise pass through. */
 function applyInherit(html: string, opts?: RenderOptions): string {
-  return opts?.inherit ? `<div style="${INHERIT_HOST_STYLE_VARS}">${html}</div>` : html;
+  if (!opts?.inherit) return html;
+  return `<div style="${INHERIT_HOST_STYLE_VARS}">${html.replace(INHERIT_STRIP_RE, "")}</div>`;
 }
 
 /** Render options shared by the snippet block/form renderers. */

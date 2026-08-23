@@ -45,4 +45,21 @@ describe("renderBlockHtml inherit mode", () => {
     assert.ok(plain.includes("var(--btn-inherit-bg,var(--primary,#4f46e5))"));
     assert.ok(plain.includes("var(--btn-border,transparent)"));
   });
+
+  it("drops inline typographic sizing in inherit mode so host CSS governs sizes", () => {
+    const plain = renderBlockHtml("hero", hero)!;
+    // Normal mode keeps the sizing inline.
+    assert.match(plain, /font-size:/);
+    assert.match(plain, /font-weight:/);
+    assert.match(plain, /line-height:/);
+
+    const inherited = renderBlockHtml("hero", hero, { inherit: true })!;
+    assert.ok(!/font-size:/.test(inherited), "font-size should be stripped");
+    assert.ok(!/font-weight:/.test(inherited), "font-weight should be stripped");
+    assert.ok(!/line-height:/.test(inherited), "line-height should be stripped");
+    assert.ok(!/letter-spacing:/.test(inherited), "letter-spacing should be stripped");
+    assert.ok(!/text-transform:/.test(inherited), "text-transform should be stripped");
+    // font-family:inherit is preserved so typography still flows from the host.
+    assert.match(inherited, /font-family:inherit/);
+  });
 });
