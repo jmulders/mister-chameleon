@@ -228,9 +228,13 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   accent:                ["--accent"],
   background:            ["--background", "--bg", "--text-inverse", "--ring-offset", "--hero-light-bg"],
   foreground:            ["--foreground", "--text", "--proof-quote-color", "--bg-inverse", "--section-hero-bg", "--hero-bg", "--hero-dark-bg"],
-  muted:                 ["--muted", "--bg-subtle", "--section-subtle-bg", "--primary-subtle"],
+  // --form-bg re-pinned here (not just via theme.css --form-bg: var(--section-subtle-bg)):
+  // that indirection is declared at :root, so it captures the :root (light) value and
+  // ignores this [data-site] override, leaving the form section light-on-light under
+  // dark presets. Re-pin it (and --form-border below) so it tracks the preset.
+  muted:                 ["--muted", "--bg-subtle", "--section-subtle-bg", "--form-bg", "--primary-subtle"],
   mutedForeground:       ["--muted-foreground", "--text-muted", "--text-subtle"],
-  border:                ["--border", "--border-strong", "--card-border", "--section-subtle-border", "--proof-card-border"],
+  border:                ["--border", "--border-strong", "--card-border", "--section-subtle-border", "--form-border", "--proof-card-border"],
   input:                 ["--input"],
   ring:                  ["--ring"],
   destructive:           ["--destructive"],
