@@ -244,6 +244,83 @@
 }
 
 /*
+ * ── Block effects (declarative, versioned) ────────────────────────────────────
+ *
+ * Entrance effects (reveal / fade / slide / zoom) are applied by wrapping a block
+ * in .mc-fx .mc-fx-<id> (see BlockEffectScope). They start hidden ONLY once the
+ * runtime is ready (html.mc-fx-ready, added pre-paint by a tiny inline script),
+ * so no-JS visitors always see content. BlockEffectRuntime adds .mc-fx-in when
+ * the block scrolls into view, and CSS transitions it to the resting state.
+ *
+ * Params come in as CSS custom properties on the wrapper:
+ *   --mc-fx-duration, --mc-fx-delay, --mc-fx-distance, --mc-fx-lift.
+ *
+ * prefers-reduced-motion: everything is shown with no transform and no
+ * transition (content simply appears). Hover lift is pure CSS.
+ */
+
+/* Transition target for every entrance effect (only once the runtime is ready). */
+html.mc-fx-ready .mc-fx-reveal,
+html.mc-fx-ready .mc-fx-fade-in,
+html.mc-fx-ready .mc-fx-slide-in-up,
+html.mc-fx-ready .mc-fx-slide-in-left,
+html.mc-fx-ready .mc-fx-slide-in-right,
+html.mc-fx-ready .mc-fx-zoom-in {
+  transition:
+    opacity   var(--mc-fx-duration, 600ms) ease var(--mc-fx-delay, 0ms),
+    transform var(--mc-fx-duration, 600ms) ease var(--mc-fx-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+/* Initial (pre-reveal) state — hidden + per-effect transform. */
+html.mc-fx-ready .mc-fx-reveal:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-fade-in:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-slide-in-up:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-slide-in-left:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-slide-in-right:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-zoom-in:not(.mc-fx-in) {
+  opacity: 0;
+}
+html.mc-fx-ready .mc-fx-reveal:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-slide-in-up:not(.mc-fx-in) {
+  transform: translateY(var(--mc-fx-distance, 24px));
+}
+html.mc-fx-ready .mc-fx-slide-in-left:not(.mc-fx-in) {
+  transform: translateX(calc(-1 * var(--mc-fx-distance, 24px)));
+}
+html.mc-fx-ready .mc-fx-slide-in-right:not(.mc-fx-in) {
+  transform: translateX(var(--mc-fx-distance, 24px));
+}
+html.mc-fx-ready .mc-fx-zoom-in:not(.mc-fx-in) {
+  transform: scale(0.96);
+}
+
+/* Resting state (revealed). */
+.mc-fx-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Hover lift — emphasis, pure CSS, no runtime, always safe. */
+.mc-fx-hover-lift {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.mc-fx-hover-lift:hover {
+  transform: translateY(calc(-1 * var(--mc-fx-lift, 4px)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.mc-fx-ready [class*="mc-fx-"] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .mc-fx-hover-lift:hover {
+    transform: none;
+  }
+}
+
+/*
  * ── Rich-text body (Bard / HTML content) ─────────────────────────────────────
  *
  * Applied to the wrapper div in RichTextBlock when rendering HTML body content

@@ -51,6 +51,7 @@
 
 import type { BlockSurface }                               from "@/lib/surface";
 import type { CuratedBlockTokens, BlockTokenRef }          from "@/design-system/theme/block-token-set";
+import type { BlockEffectRef }                             from "@/design-system/effects/effect-ref";
 import type { ContextBlockKey, ContentBlockKey }          from "@/tenant";
 import type { PortableTextBlock, HeroBlockData,
               ProofBlockData, CTABlockData,
@@ -1705,6 +1706,15 @@ interface ContentBlockBase {
    */
   readonly tokenSet?: string;
   readonly tokens?:   CuratedBlockTokens;
+  /**
+   * Optional declarative block effects (entrance reveals, emphasis, later
+   * parallax / sticky / Ken Burns). References a named effect set from
+   * `design.effectSets` (by key) and/or inline per-block effects. The renderer
+   * wraps the block in a scope that emits the effect classes + params; a
+   * versioned client runtime plays the scroll/hover triggers. See
+   * design-system/effects/effect-ref.ts.
+   */
+  readonly effects?:  BlockEffectRef;
 }
 
 // ── Existing live blocks ──────────────────────────────────────────────────────

@@ -65,6 +65,7 @@ import { StatamicPreviewWatcher } from "@/components/preview/StatamicPreviewWatc
 import { ScenarioControlMount } from "@/components/scenario/ScenarioControlMount";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
+import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 
 export default async function SiteLayout({
@@ -135,6 +136,14 @@ export default async function SiteLayout({
         type="application/json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify({ tenantId }) }}
       />
+      {/*
+        Block-effects readiness flag. Added synchronously here (before the block
+        content below paints) so entrance effects can start hidden without a
+        flash. When JS is disabled this never runs, so content stays visible.
+      */}
+      <script
+        dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('mc-fx-ready')" }}
+      />
       <CartProvider>
       <Header />
       {children}
@@ -168,6 +177,11 @@ export default async function SiteLayout({
         pathname so navigating to a page already counted does not double-fire.
       */}
       <PageTracker />
+      {/*
+        BlockEffectRuntime — the versioned client player for declarative block
+        effects. Observes [data-mc-fx] wrappers and reveals them on scroll.
+      */}
+      <BlockEffectRuntime />
       </CartProvider>
     </div>
   );
