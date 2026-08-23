@@ -18,6 +18,9 @@ function card(id: string, swatch: DesignPresetCard["swatch"], over: Partial<Desi
       color: { primary: swatch.primary },
       typography: { fontHeading: "'Lora', Georgia, serif", fontBody: "'Inter', system-ui, sans-serif", headingWeight: "700" },
       radius: { card: "16px" }, shadow: { md: "0 10px 30px rgba(0,0,0,.1)" },
+      // Seed chrome: a light header + a geometry token. The colour tokens must be
+      // overridden by the palette; the geometry token (navLinkWeight) inherited.
+      layout: { headerBg: "#efe9dd", headerFg: "#3a352d", navLinkWeight: "600" },
     },
     ...over,
   } as DesignPresetCard;
@@ -104,5 +107,42 @@ describe("buildCustomLookTokens", () => {
     assert.equal(color.background, "#ffffff");
     assert.equal(color.foreground, "#111111");
     assert.equal(color.accent, "#7c3aed"); // falls back to primary
+  });
+
+  it("derives chrome from the palette (not copied from the seed), header/footer text via readableText, top band = header bg", () => {
+    // Seed GREIGE has its own light chrome; the chosen palette is a dark green look.
+    const { tokens } = buildCustomLookTokens(
+      { primary: "#16a34a", background: "#052e16", accent: "#facc15", foreground: "#ecfdf5" },
+      GREIGE, "'Inter', system-ui, sans-serif", "'Inter', system-ui, sans-serif",
+    );
+    const layout = (tokens.layout ?? {}) as Record<string, string>;
+    // Chrome tracks the chosen (dark) background, NOT the seed's light #efe9dd.
+    assert.equal(layout.headerBg, "#052e16");
+    assert.notEqual(layout.headerBg, "#efe9dd");
+    // Header text picked for contrast on the dark header.
+    assert.equal(layout.headerFg, "#ffffff");
+    // Top band defaults to the header background.
+    assert.equal(layout.headerTopbandBg, layout.headerBg);
+    // Scrolled header stays consistent with the header colour.
+    assert.equal(layout.headerBgScrolled, layout.headerBg);
+    // Footer is a recessed shade of the background, with readable text.
+    assert.ok(layout.footerBg && layout.footerBg !== layout.headerBg);
+    assert.equal(layout.footerFg, "#ffffff");
+    // Geometry/type layout tokens are still inherited from the seed.
+    assert.equal(layout.navLinkWeight, "600");
+  });
+
+  it("applies explicit chrome overrides verbatim; empty fields stay derived", () => {
+    const { tokens } = buildCustomLookTokens(
+      { primary: "#16a34a", background: "#f0fdf4", foreground: "#052e16" },
+      BLUE, "'Inter', system-ui, sans-serif", "'Inter', system-ui, sans-serif",
+      { headerBg: "#facc15" }, // explicit header only
+    );
+    const layout = (tokens.layout ?? {}) as Record<string, string>;
+    assert.equal(layout.headerBg, "#facc15");          // explicit wins
+    assert.equal(layout.headerFg, "#111111");          // readable dark on yellow
+    assert.equal(layout.headerTopbandBg, "#facc15");   // top band follows header (default)
+    // footer was left empty -> derived from the palette background, not #facc15.
+    assert.notEqual(layout.footerBg, "#facc15");
   });
 });

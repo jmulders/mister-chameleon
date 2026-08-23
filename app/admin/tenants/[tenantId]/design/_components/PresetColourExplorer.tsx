@@ -93,6 +93,12 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
   const [accent, setAccent]         = useState<RoleState>({ on: false, hex: "#7aa7f0" });
   const [foreground, setForeground] = useState<RoleState>({ on: false, hex: "#0f1e3a" });
 
+  // Optional chrome overrides. Off by default: chrome colours are derived from
+  // the chosen palette. When on, the picked value is applied verbatim.
+  const [headerBg, setHeaderBg]     = useState<RoleState>({ on: false, hex: "#ffffff" });
+  const [footerBg, setFooterBg]     = useState<RoleState>({ on: false, hex: "#f1f5f9" });
+  const [topbandBg, setTopbandBg]   = useState<RoleState>({ on: false, hex: "#ffffff" });
+
   const [lightFilter, setLightFilter] = useState<"all" | "light" | "dark">("all");
   const [hueFilter, setHueFilter]     = useState<HueFamily | "all">("all");
 
@@ -135,7 +141,12 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
   function saveCustom() {
     if (!chosen || !best) return;
     const name = customName.trim() || "Custom colour look";
-    const { tokens } = buildCustomLookTokens(chosen, best.preset, headingStack, bodyStack);
+    const chrome = {
+      ...(headerBg.on  && HEX_RE.test(headerBg.hex)  ? { headerBg:  headerBg.hex }  : {}),
+      ...(footerBg.on  && HEX_RE.test(footerBg.hex)  ? { footerBg:  footerBg.hex }  : {}),
+      ...(topbandBg.on && HEX_RE.test(topbandBg.hex) ? { topbandBg: topbandBg.hex } : {}),
+    };
+    const { tokens } = buildCustomLookTokens(chosen, best.preset, headingStack, bodyStack, chrome);
     setStatus(null);
     startTransition(async () => {
       const res = await saveDesignTokenSetAction(tenantId, { name, tokens, baseTheme: "custom" });
@@ -246,6 +257,18 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
           <div style={{ marginBottom: 10, maxWidth: 360 }}>
             <PalettePreview swatch={{ primary: chosen.primary, background: chosen.background ?? "#ffffff", accent: chosen.accent ?? chosen.primary, foreground: chosen.foreground ?? "#111111" }} />
           </div>
+
+          {/* Optional chrome overrides. Empty = derived from the palette above. */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 2 }}>Chrome colours (optional)</div>
+            <p style={{ fontSize: 11, color: "#6b7280", marginTop: 0, marginBottom: 8 }}>
+              Header, footer and top-band backgrounds. Left empty, they are derived from your palette; the text colour is chosen automatically for contrast.
+            </p>
+            <ColourField label="Header" state={headerBg} onChange={setHeaderBg} />
+            <ColourField label="Footer" state={footerBg} onChange={setFooterBg} />
+            <ColourField label="Top band" state={topbandBg} onChange={setTopbandBg} />
+          </div>
+
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={{ fontSize: 12, color: "#374151" }}>
               <span style={{ display: "block", marginBottom: 2 }}>Heading font</span>
