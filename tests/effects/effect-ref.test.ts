@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  resolveBlockEffects, effectsToAttrs, hasEffects,
+  resolveBlockEffects, effectsToAttrs, hasEffects, sanitizeEffectConfigs,
   type EffectSet, type BlockEffectConfig,
 } from "../../design-system/effects/effect-ref.ts";
 import {
@@ -116,5 +116,27 @@ describe("effectsToAttrs", () => {
     assert.equal(a.style["bogus" as string], undefined);
     assert.equal(effectsToAttrs([{ effect: "nope" }]), null);
     assert.equal(effectsToAttrs([]), null);
+  });
+});
+
+describe("sanitizeEffectConfigs (storage boundary, no raw JS)", () => {
+  it("keeps known effects, drops unknown ids and params, clamps numbers, dedupes", () => {
+    const out = sanitizeEffectConfigs([
+      { effect: "reveal", params: { distance: 999, bogus: "x" } }, // distance clamped, bogus dropped
+      { effect: "reveal" },                                        // duplicate id dropped
+      { effect: "totally-made-up" },                               // unknown dropped
+      "not-an-object",                                             // ignored
+      { effect: "hover-lift", params: { lift: 8 } },
+    ]);
+    assert.deepEqual(out.map((e) => e.effect), ["reveal", "hover-lift"]);
+    assert.equal(out[0].params?.distance, 80); // max clamp
+    assert.equal((out[0].params as Record<string, unknown>).bogus, undefined);
+    assert.equal(out[1].params?.lift, 8);
+  });
+
+  it("returns [] for non-arrays and empty input", () => {
+    assert.deepEqual(sanitizeEffectConfigs(null), []);
+    assert.deepEqual(sanitizeEffectConfigs({}), []);
+    assert.deepEqual(sanitizeEffectConfigs([]), []);
   });
 });

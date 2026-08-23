@@ -17,6 +17,7 @@ import { notFound }      from "next/navigation";
 import { getTenantById } from "@/tenant/server";
 import { normalizeThemeKey } from "@/tenant";
 import { listDesignTokenSets } from "@/lib/design-token-sets/design-token-sets-store";
+import { listDesignEffectSets } from "@/lib/design-effect-sets/effect-sets-store";
 import { DesignPageClient }  from "./_components/DesignPageClient";
 
 export default async function TenantDesignPage({
@@ -30,6 +31,8 @@ export default async function TenantDesignPage({
 
   // Saved token sets for this tenant (plus platform-wide sets).
   const tokenSets = await listDesignTokenSets(tenantId);
+  // Saved effect sets (declarative-effect library) for this tenant.
+  const effectSets = await listDesignEffectSets(tenantId);
 
   // Normalize the stored theme key before passing to client components.
   // normalizeThemeKey() applies the LEGACY_THEME_MAP and falls back to
@@ -52,6 +55,7 @@ export default async function TenantDesignPage({
           activeTheme={safeThemeKey}
           design={safeDesign}
           tokenSets={tokenSets}
+          effectSets={effectSets}
         />
       </Suspense>
 

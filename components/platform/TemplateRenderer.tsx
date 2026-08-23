@@ -64,6 +64,8 @@ import { NotificationBlock }  from "@/components/blocks/NotificationBlock";
 import { FeatureGridBlock }   from "@/components/blocks/sections/FeatureGridBlock";
 import { mapHeroBlockData } from "@/cms/mappers/content-mappers";
 import { ContentBlockRenderer } from "./ContentBlockRenderer";
+import { listDesignEffectSets } from "@/lib/design-effect-sets/effect-sets-store";
+import type { EffectSet, BlockEffectConfig } from "@/design-system/effects/effect-ref";
 import { BlockThemeScope } from "./BlockThemeScope";
 import type { BlockTokenSet, BlockTokenRef, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -365,14 +367,22 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
   // them; per-block token refs still override for their own subtree.
   let blockTokenSets: readonly BlockTokenSet[] | undefined;
   let defaultTokens: CuratedBlockTokens | undefined;
+  let effectSets: readonly EffectSet[] | undefined;
+  let defaultEffects: readonly BlockEffectConfig[] | undefined;
   try {
     const { tenantId } = await getActiveTenant();
     const tenant = tenantId ? await getTenantById(tenantId) : null;
     blockTokenSets = tenant?.design?.blockTokenSets;
     defaultTokens  = tenant?.design?.defaultTokens;
+    defaultEffects = tenant?.design?.defaultEffects;
+    // Named effect sets referenced by blocks are resolved from the library.
+    // Non-fatal: on failure blocks simply fall back to inline / default effects.
+    effectSets = tenantId ? await listDesignEffectSets(tenantId) : undefined;
   } catch {
     blockTokenSets = undefined;
     defaultTokens  = undefined;
+    effectSets     = undefined;
+    defaultEffects = undefined;
   }
 
   return (
@@ -429,6 +439,8 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
             key={`block-${index}-${item.block.id}`}
             block={item.block}
             blockTokenSets={blockTokenSets}
+            effectSets={effectSets}
+            defaultEffects={defaultEffects}
           />
         );
       })}
