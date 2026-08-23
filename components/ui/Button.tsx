@@ -161,6 +161,11 @@ export function Button({
         //
         // Fallback (600) matches the --btn-font-weight default in theme.css.
         "[font-weight:var(--btn-font-weight,600)]",
+        // Font family: the global base rule only targets <button>, so a Button
+        // rendered as an <a> (every CTA / hero / tracked button) would fall back
+        // to the document default instead of the tenant/preset UI font. Pin it to
+        // --font-ui here so all buttons follow the preset regardless of `as`.
+        "[font-family:var(--font-ui)]",
         "[text-transform:var(--btn-text-transform,none)]",
         // Letter-spacing from the button token group (default: normal — no change).
         "[letter-spacing:var(--btn-tracking,normal)]",
