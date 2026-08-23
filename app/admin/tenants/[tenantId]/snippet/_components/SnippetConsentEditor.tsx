@@ -27,7 +27,7 @@ const OPTIONS: Array<{ value: ConsentSource; title: string; hint: string }> = [
   {
     value: "auto",
     title: "Auto (deny by default)",
-    hint:  "Privacy-first. Enrichment, behavioural personalization and analytics stay off until the host CMP grants consent. Recommended for new sites.",
+    hint:  "Privacy-first. The anonymous context layer still personalizes; only persistent behaviour, enrichment and analytics stay off until the host CMP grants consent. Recommended for new sites.",
   },
   {
     value: "always",
@@ -107,7 +107,7 @@ export function SnippetConsentEditor({ tenantId, initialSource }: Props) {
         )}
 
         <ul className="space-y-2 pt-1 text-xs text-neutral-500">
-          <li className="flex gap-2"><span className="text-indigo-400">•</span> Categories: analytics (GA4/events), personalization (behaviour + journey), enrichment (IP-to-company / Leadinfo).</li>
+          <li className="flex gap-2"><span className="text-indigo-400">•</span> The anonymous context layer (device, coarse geo, source/UTM, time) always runs. Consent gates only: analytics (GA4/events), personalization (persistent cross-session behaviour + journey), enrichment (IP-to-company / Leadinfo).</li>
           <li className="flex gap-2"><span className="text-indigo-400">•</span> The tenant privacy ceiling (Settings -&gt; Privacy) can only further restrict, never expand.</li>
           <li className="flex gap-2"><span className="text-indigo-400">•</span> Publisher setup instructions are in the guide: docs/publisher-consent-handleiding.md.</li>
         </ul>

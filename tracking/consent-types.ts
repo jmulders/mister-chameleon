@@ -22,7 +22,12 @@
  *
  *   essential      — Always true. Session cookie, security. Cannot be refused.
  *   analytics      — Page view counting, event logging, GA4 forwarding.
- *   personalization— Behavioral scoring, journey state, adaptive content.
+ *   personalization— PERSISTENT, cross-session behaviour only: a persistent
+ *                    visitor identity, cross-session behaviour history / journey
+ *                    state (visitor_behavior_state), and behavioural scoring built
+ *                    from them. It does NOT gate the anonymous context layer
+ *                    (device, coarse geo, source/UTM/referrer, time), which runs
+ *                    without consent. See docs/design/host-cmp-consent.md.
  *   enrichment     — IP-to-company, Leadinfo, CRM lookups.
  *
  * ─── Precedence ──────────────────────────────────────────────────────────────
@@ -61,7 +66,9 @@ export interface ConsentState {
   hasResponded: boolean;
   /** analytics consent (page views, event logs, GA4). */
   analytics: boolean;
-  /** personalization consent (behavioral scoring, adaptive content). */
+  /** personalization consent: persistent cross-session behaviour only (visitor
+   * identity + history/journey + behavioural scoring). The anonymous context
+   * layer runs without it. */
   personalization: boolean;
   /** enrichment consent (IP-to-company, Leadinfo, CRM). */
   enrichment: boolean;

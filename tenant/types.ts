@@ -1238,10 +1238,12 @@ export interface TenantPrivacySettings {
   readonly allowAnalytics?: boolean;
 
   /**
-   * Tenant ceiling for personalization consent (behavioral scoring,
-   * journey tracking, adaptive content decisions).
-   * When false, the site always serves the default experience.
-   * Default: true.
+   * Tenant ceiling for personalization consent — PERSISTENT, cross-session
+   * behaviour only: persistent visitor identity + history/journey
+   * (visitor_behavior_state) + behavioural scoring built from them. It does NOT
+   * cap the anonymous context layer (device, coarse geo, source/UTM/referrer,
+   * time), which always runs. When false, no persistent behaviour is read or
+   * written; the anonymous layer still personalizes. Default: true.
    */
   readonly allowPersonalization?: boolean;
 
