@@ -138,6 +138,8 @@ export function effectsToAttrs(effects: readonly BlockEffectConfig[]): EffectAtt
 
   if (classes.length === 1) return null; // no known effects
 
+  const ids = classes.slice(1).map((c) => c.replace(/^mc-fx-/, ""));
+
   return {
     className: classes.join(" "),
     style,
@@ -145,6 +147,9 @@ export function effectsToAttrs(effects: readonly BlockEffectConfig[]): EffectAtt
       "data-mc-fx": "1",
       "data-mc-fx-v": String(EFFECT_SCHEMA_VERSION),
       "data-mc-fx-trigger": [...triggers].join(" "),
+      // Space-separated effect ids, so the versioned runtime can branch per
+      // effect (entrance reveal vs continuous parallax/sticky/Ken Burns).
+      "data-mc-fx-ids": ids.join(" "),
     },
   };
 }

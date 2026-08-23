@@ -10,6 +10,7 @@ import {
 } from "../../design-system/effects/effect-ref.ts";
 import {
   EFFECT_DEFINITIONS, EFFECT_SCHEMA_VERSION, effectDefinition, isKnownEffect,
+  effectGroup, isAdvancedEffect,
 } from "../../design-system/effects/effect-defs.ts";
 
 const SETS: EffectSet[] = [
@@ -29,6 +30,22 @@ describe("effect registry", () => {
     assert.ok(isKnownEffect("reveal"));
     assert.equal(isKnownEffect("nope"), false);
     assert.ok(effectDefinition("hover-lift"));
+  });
+
+  it("advanced effects are default-off + feature-detected + continuous", () => {
+    for (const id of ["parallax", "sticky", "ken-burns"]) {
+      const d = effectDefinition(id)!;
+      assert.ok(d, `${id} registered`);
+      assert.equal(d.defaultOff, true, `${id} default-off`);
+      assert.equal(d.featureDetect, true, `${id} feature-detected`);
+      assert.equal(d.group, "continuous", `${id} continuous`);
+      assert.equal(isAdvancedEffect(id), true);
+      assert.equal(effectGroup(id), "continuous");
+    }
+    // Entrance/emphasis effects are NOT default-off.
+    assert.equal(isAdvancedEffect("reveal"), false);
+    assert.equal(effectGroup("reveal"), "entrance");
+    assert.equal(effectGroup("hover-lift"), "emphasis");
   });
 });
 
@@ -82,6 +99,16 @@ describe("effectsToAttrs", () => {
     assert.equal(a.style["--mc-fx-distance"], "40px");
     assert.equal(a.style["--mc-fx-duration"], "2000ms"); // clamped to max
     assert.equal(a.style["--mc-fx-delay"], "0ms");        // default
+  });
+
+  it("emits data-mc-fx-ids and advanced params for continuous effects", () => {
+    const a = effectsToAttrs([{ effect: "parallax", params: { speed: 0.4 } }, { effect: "ken-burns" }])!;
+    assert.ok(a.className.includes("mc-fx-parallax"));
+    assert.ok(a.className.includes("mc-fx-ken-burns"));
+    assert.equal(a.data["data-mc-fx-ids"], "parallax ken-burns");
+    assert.equal(a.style["--mc-fx-parallax-speed"], "0.4");
+    assert.equal(a.style["--mc-fx-kb-scale"], "1.15");     // default
+    assert.equal(a.style["--mc-fx-kb-duration"], "12000ms"); // default
   });
 
   it("ignores unknown params and returns null for no known effects", () => {
