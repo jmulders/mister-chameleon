@@ -22,6 +22,29 @@ interface Row {
   sourceKey:  string;
   valueMap:   MapRow[];
   fallback:   string;
+  /** UI-only: true once the operator edits the token, so a source change keeps their alias. */
+  tokenTouched: boolean;
+}
+
+// Mirror the server validator (actions.ts TOKEN_RE): lowercase letters, digits, - or _, 1..40.
+const TOKEN_RE = /^[a-z0-9_-]{1,40}$/;
+
+/** A source's human label without the " (custom)" suffix used in the dropdown. */
+function sourceLabel(o: SourceOption): string {
+  return o.label.replace(/\s*\(custom\)\s*$/i, "").trim();
+}
+
+/** Derive a valid, token-safe alias from a source key. */
+function deriveToken(sourceKey: string): string {
+  return sourceKey
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function findSource(sourceOptions: SourceOption[], kind: "builtin" | "custom", key: string): SourceOption | undefined {
+  return sourceOptions.find((o) => o.kind === kind && o.key === key);
 }
 
 function toRow(v: CopyVariable): Row {
@@ -32,23 +55,28 @@ function toRow(v: CopyVariable): Row {
     sourceKey:  v.source.kind === "builtin" ? v.source.key : v.source.name,
     valueMap:   (v.valueMap ?? []).map((m) => ({ from: m.from, to: m.to })),
     fallback:   v.fallback ?? "",
+    tokenTouched: true, // existing rows have an intentional token; never auto-overwrite it
   };
 }
 
 function blankRow(sourceOptions: SourceOption[]): Row {
   const first = sourceOptions[0];
+  // Pre-fill token + label from the first source; the token stays an editable alias.
   return {
-    token:      "",
-    label:      "",
+    token:      first ? deriveToken(first.key) : "",
+    label:      first ? sourceLabel(first) : "",
     sourceKind: first?.kind ?? "builtin",
     sourceKey:  first?.key ?? "",
     valueMap:   [],
     fallback:   "",
+    tokenTouched: false,
   };
 }
 
 const inputCls =
   "w-full rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
+const inputErrCls =
+  "w-full rounded border border-red-400 px-2 py-1.5 text-sm focus:border-red-500 focus:outline-none";
 
 export function VariablesClient({
   tenantId,
@@ -72,6 +100,38 @@ export function VariablesClient({
   function addRow()             { setRows((rs) => [...rs, blankRow(sourceOptions)]); setStatus(null); }
   function removeRow(i: number) { setRows((rs) => rs.filter((_, idx) => idx !== i)); setStatus(null); }
   function materialize()        { setRows(defaultRegistry.map(toRow)); setStatus(null); }
+
+  // Choosing a Source auto-fills the label and (unless the operator has customised
+  // it) the token, which stays an editable alias.
+  function changeSource(i: number, kind: "builtin" | "custom", key: string) {
+    setRows((rs) => rs.map((r, idx) => {
+      if (idx !== i) return r;
+      const opt = findSource(sourceOptions, kind, key);
+      return {
+        ...r,
+        sourceKind: kind,
+        sourceKey:  key,
+        label:      opt ? sourceLabel(opt) : r.label,
+        token:      r.tokenTouched ? r.token : (opt ? deriveToken(opt.key) : r.token),
+      };
+    }));
+    setStatus(null);
+  }
+
+  // Client-side token validation (mirrors the server): format + uniqueness.
+  const tokenCounts = rows.reduce<Record<string, number>>((acc, r) => {
+    const t = r.token.trim().toLowerCase();
+    if (t) acc[t] = (acc[t] ?? 0) + 1;
+    return acc;
+  }, {});
+  function tokenError(r: Row): string | null {
+    const t = r.token.trim().toLowerCase();
+    if (!t) return "Token is required.";
+    if (!TOKEN_RE.test(t)) return "Use lowercase letters, digits, - or _ (1 to 40 characters).";
+    if ((tokenCounts[t] ?? 0) > 1) return "Token must be unique.";
+    return null;
+  }
+  const hasTokenErrors = rows.some((r) => tokenError(r) !== null);
 
   function patchMap(i: number, mapRows: MapRow[]) { patch(i, { valueMap: mapRows }); }
   function addMapRow(i: number) {
@@ -112,27 +172,11 @@ export function VariablesClient({
       )}
 
       <div className="flex flex-col gap-4">
-        {rows.map((row, i) => (
+        {rows.map((row, i) => {
+          const tokErr = tokenError(row);
+          return (
           <div key={i} className="rounded-lg border border-neutral-200 bg-white p-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-neutral-600">Token</span>
-                <input
-                  className={inputCls}
-                  value={row.token}
-                  placeholder="device"
-                  onChange={(e) => patch(i, { token: e.target.value })}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-neutral-600">Label (optional)</span>
-                <input
-                  className={inputCls}
-                  value={row.label}
-                  placeholder="Device"
-                  onChange={(e) => patch(i, { label: e.target.value })}
-                />
-              </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-neutral-600">Source</span>
                 <select
@@ -140,7 +184,7 @@ export function VariablesClient({
                   value={`${row.sourceKind}:${row.sourceKey}`}
                   onChange={(e) => {
                     const [kind, ...rest] = e.target.value.split(":");
-                    patch(i, { sourceKind: kind as "builtin" | "custom", sourceKey: rest.join(":") });
+                    changeSource(i, kind as "builtin" | "custom", rest.join(":"));
                   }}
                 >
                   <optgroup label="Built-in">
@@ -156,6 +200,26 @@ export function VariablesClient({
                     </optgroup>
                   )}
                 </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-neutral-600">Token (alias)</span>
+                <input
+                  className={tokErr ? inputErrCls : inputCls}
+                  value={row.token}
+                  placeholder="device"
+                  aria-invalid={tokErr ? true : undefined}
+                  onChange={(e) => patch(i, { token: e.target.value, tokenTouched: true })}
+                />
+                {tokErr && <span className="mt-1 block text-xs text-red-600">{tokErr}</span>}
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-neutral-600">Label (optional)</span>
+                <input
+                  className={inputCls}
+                  value={row.label}
+                  placeholder="Device"
+                  onChange={(e) => patch(i, { label: e.target.value })}
+                />
               </label>
             </div>
 
@@ -219,7 +283,8 @@ export function VariablesClient({
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-4 flex items-center gap-3">
@@ -243,11 +308,15 @@ export function VariablesClient({
         <button
           type="button"
           onClick={save}
-          disabled={pending}
+          disabled={pending || hasTokenErrors}
+          title={hasTokenErrors ? "Fix the token errors before saving" : undefined}
           className="rounded bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           {pending ? "Saving..." : "Save changes"}
         </button>
+        {hasTokenErrors && !status && (
+          <span className="text-sm text-red-600">Fix the token errors before saving.</span>
+        )}
         {status && (
           <span className={`text-sm ${status.kind === "ok" ? "text-green-600" : "text-red-600"}`}>
             {status.text}
