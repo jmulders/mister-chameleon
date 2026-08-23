@@ -104,26 +104,127 @@ export function buildSnippetSource(decideUrl: string): string {
   }
   if (!siteKey) return; // no site key — bail silently
 
-  // ── 1b. Consent ──────────────────────────────────────────────────────────────
-  // Personalisation profiling and firmographic enrichment only run WITH consent.
-  // Resolution order: explicit publisher signal (data-mc-consent="granted|denied"
-  // on the script tag, or window.mcConsent = true/false) → Global Privacy Control
-  // / Do-Not-Track force denied → default granted (the host is expected to load
-  // the snippet only after its own consent gate; this keeps existing embeds working).
-  // Without consent we still serve ads/variants, but geo-only: no id is stored and
-  // the server skips behavioural, firmographic and GA4.
-  function resolveConsent() {
+  // ── 1b. Consent (host CMP alignment) ─────────────────────────────────────────
+  // We forward the visitor's consent as three categories {analytics,
+  // personalization, enrichment}, read from the host page in priority order:
+  //   1. Publisher signal: data-mc-consent="granted|denied" on the script tag, or
+  //      window.mcConsent as a boolean, a {analytics,personalization,enrichment}
+  //      object, or a function/Promise returning either (async CMPs).
+  //   2. IAB TCF v2 (window.__tcfapi) purpose consents.
+  //   3. Google Consent Mode signals pushed to window.dataLayer.
+  //   4. Global Privacy Control / Do-Not-Track -> denied.
+  // No signal -> null; the server applies the tenant's default (deny for "auto",
+  // grant for "always") plus the tenant privacy ceiling. Resolution is bounded by
+  // the call budget so it never delays the first decide. Without granted consent we
+  // still serve geo-only variants/ads; the server skips behavioural, firmographic
+  // and GA4 per category.
+  var MC_FULL = { analytics: true,  personalization: true,  enrichment: true,  hasResponded: true };
+  var MC_DENY = { analytics: false, personalization: false, enrichment: false, hasResponded: true };
+  function mcNormConsent(v) {
+    if (v === true) return MC_FULL;
+    if (v === false) return MC_DENY;
+    if (v && typeof v === 'object') return {
+      analytics: !!v.analytics, personalization: !!v.personalization,
+      enrichment: !!v.enrichment, hasResponded: true,
+    };
+    return null;
+  }
+  function mcGpcDnt() {
+    try {
+      if (navigator.globalPrivacyControl === true) return true;
+      var dnt = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      if (dnt === '1' || dnt === 'yes' || dnt === true) return true;
+    } catch(e) {}
+    return false;
+  }
+  function mcReadPublisher(cb) {
     try {
       var attr = selfScript ? selfScript.getAttribute('data-mc-consent') : null;
-      if (attr === 'denied' || window.mcConsent === false) return false;
-      if (attr === 'granted' || window.mcConsent === true) return true;
-      if (navigator.globalPrivacyControl === true) return false;
-      var dnt = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
-      if (dnt === '1' || dnt === 'yes' || dnt === true) return false;
+      if (attr === 'granted') { cb(MC_FULL); return; }
+      if (attr === 'denied')  { cb(MC_DENY); return; }
+      var w = window.mcConsent;
+      if (typeof w === 'function') {
+        var r = w();
+        if (r && typeof r.then === 'function') { r.then(function(x){ cb(mcNormConsent(x)); }, function(){ cb(null); }); return; }
+        cb(mcNormConsent(r)); return;
+      }
+      if (w !== undefined) { cb(mcNormConsent(w)); return; }
     } catch(e) {}
-    return true;
+    cb(null);
   }
-  var consent = resolveConsent();
+  function mcReadTcf(cb) {
+    try {
+      if (typeof window.__tcfapi !== 'function') { cb(null); return; }
+      var settled = false;
+      window.__tcfapi('getTCData', 2, function(data, ok) {
+        if (settled) return; settled = true;
+        if (!ok || !data) { cb(null); return; }
+        if (data.gdprApplies === false) { cb(MC_FULL); return; }
+        var p = (data.purpose && data.purpose.consents) || {};
+        // Purpose -> category mapping (platform default; see the consent design doc):
+        //   7/8/9/10 measurement -> analytics; 3/4/5/6 personalisation ->
+        //   personalization; 1/2 storage + basic ads -> enrichment.
+        cb({
+          analytics:       !!(p[7] || p[8] || p[9] || p[10]),
+          personalization: !!(p[3] || p[4] || p[5] || p[6]),
+          enrichment:      !!(p[1] || p[2]),
+          hasResponded:    true,
+        });
+      });
+    } catch(e) { cb(null); }
+  }
+  function mcReadGcm() {
+    try {
+      var dl = window.dataLayer;
+      if (!dl || !dl.length) return null;
+      var state = null;
+      for (var i = 0; i < dl.length; i++) {
+        var e = dl[i];
+        // gtag('consent','default'|'update',{...}) is pushed arguments-like: [0,1,2].
+        if (e && e[0] === 'consent' && e[2] && typeof e[2] === 'object') {
+          state = state || {};
+          for (var k in e[2]) state[k] = e[2][k];
+        }
+      }
+      if (!state) return null;
+      var g = function(x) { return x === 'granted'; };
+      // Consent Mode -> category: analytics_storage -> analytics; ad_personalization
+      // -> personalization; ad_storage/ad_user_data -> enrichment.
+      return {
+        analytics:       g(state.analytics_storage),
+        personalization: g(state.ad_personalization),
+        enrichment:      g(state.ad_storage) || g(state.ad_user_data),
+        hasResponded:    true,
+      };
+    } catch(e) { return null; }
+  }
+  function mcResolveConsent(cb) {
+    var done = false;
+    function finish(c) { if (done) return; done = true; cb(c); }
+    // Never delay the first decide beyond the call budget.
+    var cap = 1500; try { cap = Math.min(CALL_MS || 1500, 1500); } catch(e) {}
+    setTimeout(function() { finish(mcGpcDnt() ? MC_DENY : null); }, cap);
+    mcReadPublisher(function(pub) {
+      if (pub) { finish(pub); return; }
+      mcReadTcf(function(tcf) {
+        if (tcf) { finish(tcf); return; }
+        var gcm = mcReadGcm();
+        if (gcm) { finish(gcm); return; }
+        finish(mcGpcDnt() ? MC_DENY : null);
+      });
+    });
+  }
+  // Synchronous persistence decision for the visitor id: only an explicit deny
+  // (publisher signal or GPC/DNT) forces an ephemeral, unstored id.
+  function mcConsentDeniedSync() {
+    try {
+      var attr = selfScript ? selfScript.getAttribute('data-mc-consent') : null;
+      if (attr === 'denied' || window.mcConsent === false) return true;
+    } catch(e) {}
+    return mcGpcDnt();
+  }
+  var consent = null;                          // resolved asynchronously before the first decide
+  var consentPersist = !mcConsentDeniedSync(); // visitor-id persistence (privacy-first only on explicit deny)
 
   // Platform origin for cross-origin form-block submits.
   var mcFormsBase = ${JSON.stringify(platformOrigin)};
@@ -340,7 +441,7 @@ export function buildSnippetSource(decideUrl: string): string {
       return id;
     }
   }
-  var visitorId = getOrCreateVisitorId(consent);
+  var visitorId = getOrCreateVisitorId(consentPersist);
 
   var context = {
     path:     window.location.pathname,
@@ -707,7 +808,8 @@ export function buildSnippetSource(decideUrl: string): string {
     return p;
   }
 
-  mcRunDecide(true);
+  // Resolve host consent (bounded by the call budget), then run the first decide.
+  mcResolveConsent(function(c) { consent = c; mcRunDecide(true); });
 })();
 `.trim();
 }

@@ -119,6 +119,7 @@ import { resolvePresentedFields }     from "@/forms/context/variant";
 import { getFormDefinition }          from "@/forms";
 import { isFormKey }                  from "@/forms/registry";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
+import { computeEffectiveConsent, consentFromSnippet, type SnippetConsentInput } from "@/lib/consent/server-consent";
 
 /**
  * Parse a `--var: value;` CSS declaration block into a record, for forwarding
@@ -160,13 +161,22 @@ interface DecideRequest {
    */
   blocks?: string[];
   /**
-   * Visitor consent for profiling, as resolved client-side by the snippet
-   * (explicit publisher signal → GPC/DNT → default). When false, the route still
-   * serves ads/variants but geo-only: no behavioural profiling, no firmographic
-   * (Leadinfo) lookup, no GA4 write/read. Absent (older snippets) is treated as
-   * granted for backward compatibility — those hosts gate loading on consent.
+   * Visitor consent for profiling, as resolved client-side by the snippet from
+   * the host CMP (publisher signal -> IAB TCF -> Google Consent Mode -> GPC/DNT).
+   *
+   *   - object  -> the three categories {analytics, personalization, enrichment}.
+   *   - boolean -> legacy payload: true = full, false = deny.
+   *   - null    -> host sent no signal; the tenant consentSource decides the
+   *                default (deny for "auto", grant for "always").
+   *   - absent  -> pre-consent snippet; treated as granted (those hosts gate
+   *                loading on their own banner).
+   *
+   * Each category gates a family of processing: analytics -> GA4/event writes;
+   * personalization -> behavioural history + journey; enrichment -> firmographic /
+   * Leadinfo / company lookup. The tenant privacy ceiling is applied on top. See
+   * docs/design/host-cmp-consent.md.
    */
-  consent?: boolean;
+  consent?: SnippetConsentInput;
   context?: {
     path?:           string;
     referrer?:       string;
@@ -297,10 +307,6 @@ export async function POST(request: NextRequest) {
   }
 
   const { siteKey, context = {} } = body as DecideRequest;
-  // Consent gate: absent = granted (older snippets; host gated loading). When
-  // false, profiling / firmographic / GA4 are skipped — ads & variants still
-  // serve geo-only. See DecideRequest.consent.
-  const consentGranted = (body as DecideRequest).consent !== false;
 
   if (!siteKey || typeof siteKey !== "string") {
     return NextResponse.json(
@@ -364,6 +370,19 @@ export async function POST(request: NextRequest) {
 
   const tenantId = tenant.tenantId;
 
+  // Consent: turn the snippet payload into effective per-category consent, applying
+  // the tenant's no-signal default (snippet.consentSource: "auto" -> deny,
+  // "always" -> grant) and then the tenant privacy ceiling. Each category gates a
+  // distinct family of processing below; ads and variants still serve geo-only
+  // when a category is denied.
+  const consent = computeEffectiveConsent(
+    consentFromSnippet((body as DecideRequest).consent, tenant.snippet?.consentSource),
+    tenant.privacy,
+  );
+  const consentAnalytics       = consent.analytics;
+  const consentPersonalization = consent.personalization;
+  const consentEnrichment      = consent.enrichment;
+
   // ── Advertiser tenants: serve ads instead of CMS variants ──────────────────
   //
   //   When the resolved tenant is an ad account, its siteKey is embedded by
@@ -406,7 +425,7 @@ export async function POST(request: NextRequest) {
     // Behavioural profiling requires consent — without it, ads still serve but
     // geo-only (no history read, no journey write).
     let behav: Awaited<ReturnType<typeof fetchAdAudience>> = null;
-    if (consentGranted) {
+    if (consentPersonalization) {
       const [b] = await Promise.all([
         fetchAdAudience(tenantId, adSessionId),
         adSessionId
@@ -438,7 +457,7 @@ export async function POST(request: NextRequest) {
     // balance. resolveAdCompany caches per visitor/day and is a no-op (null, no
     // cost) unless a Leadinfo key is configured. Skips the whole path otherwise.
     let adCompany: Awaited<ReturnType<typeof resolveAdCompany>> = null;
-    if (consentGranted && adSessionId && adOriginHost && await tenantHasFirmographicAd(tenantId)) {
+    if (consentEnrichment && adSessionId && adOriginHost && await tenantHasFirmographicAd(tenantId)) {
       if (await isPublisherApproved(tenantId, adOriginHost) && await isWalletServable(tenantId)) {
         const adIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
           ?? request.headers.get("x-real-ip") ?? null;
@@ -460,7 +479,7 @@ export async function POST(request: NextRequest) {
     // Record this ad-audience session into the tenant's own GA4 (Measurement
     // Protocol), keyed by our visitor_id, so returning visitors can be enriched
     // from GA4 later. No-op unless GA4 server tracking is configured. Fire-and-forget.
-    if (consentGranted && adSessionId) void writeAdGa4Event(tenant.ga4, adSessionId, { page: context.path ?? null, publisher: adOriginHost });
+    if (consentAnalytics && adSessionId) void writeAdGa4Event(tenant.ga4, adSessionId, { page: context.path ?? null, publisher: adOriginHost });
 
     // Advanced rule targeting: build a COST-SAFE decision context — no
     // stagedEnrichers, so buildDecisionContext uses stub providers and makes no
@@ -865,7 +884,7 @@ export async function POST(request: NextRequest) {
     const pageKeywords = Array.from(new Set([...sentKeywords, ...pageMeta.keywords]));
     // Behavioural capture requires consent. Without it we still resolve a variant,
     // but on geo/UTM-only signals (no journey write, no history read below).
-    if (consentGranted && sessionId) {
+    if (consentPersonalization && sessionId) {
       await recordJourneyEvent({
         tenantId,
         sessionId,
@@ -884,7 +903,7 @@ export async function POST(request: NextRequest) {
     // Fetch visitor history and rules config in parallel. Without consent, skip
     // history entirely so the decision runs on geo/UTM-only signals.
     const [rawHistory, tenantRulesConfig] = await Promise.all([
-      consentGranted
+      consentPersonalization
         ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
         : Promise.resolve(emptyHistory()),
       loadTenantRulesConfig(tenantId).catch(() => null),
