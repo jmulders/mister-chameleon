@@ -39,7 +39,9 @@
 
 import type { ContentBlock } from "@/page-config";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
+import type { EffectSet, BlockEffectConfig, BlockEffectRef } from "@/design-system/effects/effect-ref";
 import { BlockThemeScope } from "./BlockThemeScope";
+import { BlockEffectScope } from "./BlockEffectScope";
 import {
   TextSectionBlock,
   RichTextBlock,
@@ -86,6 +88,10 @@ interface ContentBlockRendererProps {
   block: ContentBlock;
   /** Tenant's named block-token sets, used to resolve block-level token refs. */
   blockTokenSets?: readonly BlockTokenSet[] | null;
+  /** Tenant's named effect sets, used to resolve block-level effect refs. */
+  effectSets?: readonly EffectSet[] | null;
+  /** Tenant-wide default effects, applied to blocks with no own effect ref. */
+  defaultEffects?: readonly BlockEffectConfig[] | null;
 }
 
 /**
@@ -101,7 +107,7 @@ interface ContentBlockRendererProps {
  *
  * Unknown block types return null — forward-compatible with registry growth.
  */
-export function ContentBlockRenderer({ block, blockTokenSets }: ContentBlockRendererProps) {
+export function ContentBlockRenderer({ block, blockTokenSets, effectSets, defaultEffects }: ContentBlockRendererProps) {
   const rendered = renderContentBlock(block);
   if (!rendered) return null;
 
@@ -129,13 +135,32 @@ export function ContentBlockRenderer({ block, blockTokenSets }: ContentBlockRend
       ? (dataTokens as CuratedBlockTokens)
       : undefined);
 
+  // Resolve the block's effect ref. DB-authored blocks carry `effects` as a
+  // first-class field; CMS-authored (Statamic) blocks carry it inside `data` as
+  // `effects` — support both, mirroring the token resolution above.
+  const dataEffects = data?.["effects"];
+  const effectRef: BlockEffectRef | undefined =
+    block.effects ??
+    (dataEffects && typeof dataEffects === "object" && !Array.isArray(dataEffects)
+      ? (dataEffects as BlockEffectRef)
+      : undefined);
+
+  // Effect scope sits INSIDE the token scope so the animated wrapper inherits the
+  // block's scoped CSS variables.
   return (
     <BlockThemeScope
       tokenRef={{ tokenSet, tokens }}
       sets={blockTokenSets}
       scopeId={block.id}
     >
-      {withAnchor}
+      <BlockEffectScope
+        effectRef={effectRef}
+        sets={effectSets}
+        tenantDefault={defaultEffects}
+        scopeId={block.id}
+      >
+        {withAnchor}
+      </BlockEffectScope>
     </BlockThemeScope>
   );
 }
