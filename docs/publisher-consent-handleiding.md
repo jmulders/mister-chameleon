@@ -6,15 +6,31 @@ verrijken (bijvoorbeeld bedrijfsherkenning). Dat gebeurt alleen met toestemming
 van de bezoeker. Hieronder lees je hoe je jouw bestaande cookie-consent aan ons
 doorgeeft.
 
-We werken met drie categorieen:
+## De anonieme laag draait altijd
 
-- **analytics**: paginaweergaven en events (bijv. GA4).
-- **personalization**: gedrag onthouden en content personaliseren.
+Een anonieme contextlaag draait voor iedere bezoeker, ook zonder toestemming. Die
+gebruikt alleen signalen uit het verzoek zelf, zonder persoonsgegevens en zonder
+een bezoeker over bezoeken heen te herkennen:
+
+- apparaattype, grove geo (land/regio uit de headers, het IP-adres wordt niet
+  opgeslagen), bron/UTM/referrer, en tijd.
+
+Op basis daarvan tonen we al een gepersonaliseerde variant. Er wordt in deze laag
+niets persistents opgeslagen: geen bezoekers-id, geen cookie, geen gedragshistorie.
+
+## Wat gebeurt er pas na toestemming?
+
+Toestemming gate't alleen de identificerende/persistente verwerking, in drie
+categorieen:
+
+- **analytics**: paginaweergaven en events wegschrijven (bijv. GA4).
+- **personalization**: een persistente bezoeker-identiteit + gedrag over bezoeken
+  heen onthouden (cross-sessie journey/historie) en daarop personaliseren.
 - **enrichment**: IP-naar-bedrijf / Leadinfo / firmografische verrijking.
 
-Zonder toestemming tonen we nog steeds content, maar alleen op basis van globale
-signalen (land uit het IP-adres). We schrijven dan geen gedrag weg en doen geen
-verrijking.
+Zonder toestemming blijft dus de anonieme laag draaien; cross-sessie gedrag,
+verrijking en analytics komen er pas ná toestemming bij. Het tenant-plafond
+(privacy-instellingen) kan elke categorie verder beperken.
 
 ---
 
@@ -130,13 +146,16 @@ tijdsbudget van de aanvraag (`data-mc-call-ms`).
 
 ## Wat gebeurt er bij geen of onbekende consent?
 
-- Vindt de snippet **geen enkel** signaal, dan geldt jouw ingestelde standaard:
-  bij **Auto** weigeren we (alleen geo-only content, geen verrijking of
-  gedragsopslag), bij **Always** staan we toe.
+- De **anonieme laag draait altijd** (apparaat, grove geo, bron/UTM, tijd), dus
+  ook zonder toestemming zie je een gepersonaliseerde variant.
+- Vindt de snippet **geen enkel** signaal, dan geldt jouw ingestelde standaard
+  voor de persistente/verrijkings-laag: bij **Auto** blijft die uit (geen
+  cross-sessie gedrag, geen verrijking, geen analytics), bij **Always** staat die
+  aan.
 - **Global Privacy Control** en **Do-Not-Track** in de browser gelden altijd als
-  weigering, ongeacht de modus.
-- Bij een weigering slaan we geen bezoekers-id op (geen localStorage/cookie voor
-  personalisatie).
+  weigering van de persistente laag, ongeacht de modus.
+- Bij een weigering slaan we niets persistents op: geen bezoekers-id
+  (localStorage/cookie), geen gedragshistorie, geen verrijking.
 
 ## Hoe test je het?
 
@@ -147,7 +166,9 @@ tijdsbudget van de aanvraag (`data-mc-call-ms`).
    request-body zie je het veld `consent` met de doorgegeven categorieen.
 4. Verander de waarde naar `true` (of laat je CMP toestemming geven) en herlaad.
    Het `consent`-veld moet meebewegen.
-5. Test ook de weigering: met alles op `false` mag er geen verrijking of
-   gedragsopslag plaatsvinden; content wordt dan geo-only getoond.
+5. Test ook de weigering: met alles op `false` blijft de anonieme laag
+   personaliseren, maar mag er niets persistents worden opgeslagen (geen
+   bezoekers-id, geen gedragshistorie) en geen verrijking of analytics
+   plaatsvinden.
 
 Kom je er niet uit? Neem contact op met je Mister Chameleon-contactpersoon.
