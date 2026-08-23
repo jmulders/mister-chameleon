@@ -42,6 +42,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { resolveSession }            from "@/data/session";
+import { resolveConsent }            from "@/lib/consent/server-consent";
 import { getActiveTenant }           from "@/tenant/server";
 import {
   fetchJourneyState,
@@ -59,6 +60,19 @@ export async function GET(request: NextRequest) {
 
     // Resolve active tenant for this request.
     const tenant = await getActiveTenant();
+
+    // Anonymity boundary: journey state is persistent, cross-session behaviour.
+    // Without personalization consent, return nothing and — crucially — do NOT
+    // persist the mc_session_id cookie (no persistent id for anonymous visitors).
+    // The serving paths enforce the tenant privacy ceiling; this client poll gates
+    // on the user's mc_consent choice.
+    const consent = resolveConsent(cookieHeader);
+    if (!consent.personalization) {
+      return NextResponse.json(
+        { journey: null, events: [], sessionId: null, tenantId: tenant.tenantId },
+        { status: 200, headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
     // Parallel DB lookups — neither can throw (both have internal try/catch).
     const [journey, events] = await Promise.all([

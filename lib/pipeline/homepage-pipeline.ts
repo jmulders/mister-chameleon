@@ -34,6 +34,8 @@ import { headers, cookies, draftMode }     from "next/headers";
 import { after }                            from "next/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import { fetchVisitorHistory }             from "@/context/fetch-visitor-history";
+import { emptyHistory }                    from "@/context/visitor-history";
+import { resolveConsent }                  from "@/lib/consent/server-consent";
 import { RulesDecisionProvider, ExperimentDecisionProvider } from "@/decision";
 import { loadTenantRulesConfig }           from "@/decision/rules/load-tenant-rules";
 import { fetchVariantCatalogue }           from "@/decision/rules/fetch-variant-catalogue";
@@ -229,16 +231,35 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   });
 
   // sessionId — the 30-day visitor key. Drives personalisation continuity.
-  // webSessionId — this visit, 30-minute window. The billing unit. Keep them
-  // apart: billing on the visitor key charges once for a month of visits.
-  const { sessionId, webSessionId } = resolveSession(cookieHeader);
+  // webSessionId — this visit, 30-minute window. The billing unit (essential,
+  // always resolved). Keep them apart: billing on the visitor key charges once
+  // for a month of visits.
+  const { sessionId: persistentSessionId, webSessionId } = resolveSession(cookieHeader);
 
   // ── Tenant resolution ─────────────────────────────────────────────────────
   const { tenantConfig, devTenantOverride, devOverrideSource } =
     await getActiveTenantWithDevOverride(params, "homepage");
 
+  // Full tenant settings (needed for the privacy ceiling) — resolved before the
+  // history read so the anonymity boundary can gate it.
+  const tenant = await getTenantById(tenantConfig.tenantId);
+
+  // ── Anonymity boundary ─────────────────────────────────────────────────────
+  // The anonymous context layer (device, coarse geo, source/UTM/referrer, time)
+  // always runs. Persistent, cross-session processing is gated on consent read
+  // same-origin from the mc_consent cookie, capped by the tenant privacy ceiling:
+  //   personalization -> persistent visitor id + history/journey + profile writes
+  //   enrichment      -> firmographic (IP-to-company / Leadinfo / CRM) + its seed
+  //   analytics       -> analytics event writes
+  const consent = resolveConsent(cookieHeader, tenant?.privacy ?? null);
+  // Without personalization consent, use an ephemeral per-request id: no
+  // cross-session linkage, and nothing persistent is read or written for it.
+  const sessionId = consent.personalization ? persistentSessionId : `anon_${crypto.randomUUID()}`;
+
   // ── Parallel DB kicks ─────────────────────────────────────────────────────
-  const historyPromise = fetchVisitorHistory(sessionId, tenantConfig.tenantId);
+  const historyPromise = consent.personalization
+    ? fetchVisitorHistory(sessionId, tenantConfig.tenantId)
+    : Promise.resolve(emptyHistory());
 
   const platformSettingsPromise = Promise.all([
     getPlatformEnrichmentSettings(),
@@ -267,7 +288,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     }
   })();
 
-  const tenant = await getTenantById(tenantConfig.tenantId);
+  // (tenant resolved above, before the anonymity-boundary gate)
 
   // ── Debug visibility ──────────────────────────────────────────────────────
   const debugOverlayEnabled =
@@ -537,7 +558,9 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // That saves the external lookups and avoids re-charging recognition, while
   // volatile enrichment (current geo, weather) still runs every visit. Stale or
   // absent → null → full enrichment runs and refreshes the firmographics.
-  const seedFirmographics = sessionId
+  // Firmographic reuse is a persistent, identity-keyed read — gated on enrichment
+  // consent (it also seeds the firmographic stages, which are gated below).
+  const seedFirmographics = (consent.enrichment && sessionId)
     ? await getKnownFirmographics(
         tenantConfig.tenantId,
         sessionId,
@@ -564,7 +587,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     ipOverrideEnabled: tenant?.enrichment?.testIpEnabled  ?? false,
     ipOverride:        tenant?.enrichment?.testIpAddress  ?? null,
     sessionId,
-    stagedEnrichers,
+    // Firmographic (IP-to-company / Leadinfo / CRM) staged enrichment is gated on
+    // enrichment consent; the anonymous context (header geo, device, time) always
+    // runs inside buildDecisionContext regardless.
+    stagedEnrichers: consent.enrichment ? stagedEnrichers : undefined,
     deferSlowEnrichmentOnMiss: true,
     // Guarantee the background cache-warm completes after the response flushes
     // on serverless (Vercel) rather than relying on a bare microtask.
@@ -702,17 +728,25 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // Stores the GDPR-gated output of the engines into visitor_profiles, keyed on
   // mc_session_id (the shared GA4 visitor id). Runs via after() so it never
   // blocks render. See docs/lead-base-design.md.
+  // Anonymity boundary: persist a visitor profile only with persistent-behaviour
+  // or enrichment consent (no visitor_profiles row for a purely anonymous visit),
+  // and an analytics/personalization visit event only with the matching consent.
+  const persistProfile = consent.personalization || consent.enrichment;
+  const persistEvent   = consent.analytics || consent.personalization;
   after(async () => {
-    await recordVisitorProfile({
-      tenantId:     tenantConfig.tenantId,
-      visitorKey:   sessionId,
-      cookieHeader,
-      ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
-      abmLeadId:    abmLead?.id ?? null,
-      person:       abmLeadToPerson(abmLead?.profile),
-      personalizationGroup,
-      scoreConfig:  tenant?.enrichment?.leadScoring,
-    });
+    if (persistProfile) {
+      await recordVisitorProfile({
+        tenantId:     tenantConfig.tenantId,
+        visitorKey:   sessionId,
+        cookieHeader,
+        ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
+        abmLeadId:    abmLead?.id ?? null,
+        person:       abmLeadToPerson(abmLead?.profile),
+        personalizationGroup,
+        scoreConfig:  tenant?.enrichment?.leadScoring,
+      });
+    }
+    if (!persistEvent) return;
     const reqUrl = new URL(request.url);
     await recordVisitorEvent({
       tenantId:    tenantConfig.tenantId,

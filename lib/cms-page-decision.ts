@@ -64,6 +64,8 @@ import path from "path";
 
 import { resolveSession }          from "@/data/session";
 import { fetchVisitorHistory }     from "@/context/fetch-visitor-history";
+import { emptyHistory }            from "@/context/visitor-history";
+import { resolveConsent }          from "@/lib/consent/server-consent";
 import {
   RulesDecisionProvider,
   ExperimentDecisionProvider,
@@ -238,11 +240,17 @@ export async function resolveSlugPageConfig(
   }
 
   try {
-    // ── Session resolution ────────────────────────────────────────────────────
+    // ── Session resolution + anonymity boundary ────────────────────────────────
     //
     // sessionId is the 30-day visitor key (personalisation continuity);
-    // webSessionId is this visit (the billing unit). See @/data/session.
-    const { sessionId, webSessionId } = resolveSession(cookieHeader);
+    // webSessionId is this visit (the billing unit, essential). See @/data/session.
+    // The anonymous context layer always runs; persistent, cross-session
+    // processing is gated on consent read same-origin from mc_consent (capped by
+    // the tenant privacy ceiling). Without personalization consent we use an
+    // ephemeral per-request id so nothing persistent is read or written.
+    const { sessionId: persistentSessionId, webSessionId } = resolveSession(cookieHeader);
+    const consent   = resolveConsent(cookieHeader, tenant?.privacy ?? null);
+    const sessionId = consent.personalization ? persistentSessionId : `anon_${crypto.randomUUID()}`;
 
     // ── Scenario overrides ────────────────────────────────────────────────────
     //
@@ -269,7 +277,7 @@ export async function resolveSlugPageConfig(
     // Load visitor history and rules config concurrently — both are needed for
     // buildDecisionContext and the rules provider respectively.
     const [rawHistory, tenantRulesConfig] = await Promise.all([
-      fetchVisitorHistory(sessionId, tenantId),
+      consent.personalization ? fetchVisitorHistory(sessionId, tenantId) : Promise.resolve(emptyHistory()),
       (async () => {
         try {
           const catalogue = await fetchVariantCatalogue(tenantId);
@@ -430,7 +438,9 @@ export async function resolveSlugPageConfig(
     // Load the prior stored profile and expose returning/hot/known signals before
     // segment evaluation so rules/segments can target them. Skipped for control.
     try {
-      if (!isControl) {
+      // Returning-visitor signals are a persistent, identity-keyed read — gated on
+      // persistent-behaviour or enrichment consent.
+      if (!isControl && (consent.personalization || consent.enrichment)) {
         const returningSignals = await getReturningProfileSignals(tenantId, sessionId);
         injectReturningVisitorContext(
           postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
@@ -475,17 +485,24 @@ export async function resolveSlugPageConfig(
     // Same recorder as the homepage pipeline; runs post-response, fail-open. Keeps
     // the profile fresh (last seen, behaviour, segments) and links named leads on
     // any page with adaptive slots. See docs/lead-base-design.md.
+    // Anonymity boundary: persist a profile only with persistent-behaviour or
+    // enrichment consent; a visit event only with analytics/personalization.
+    const persistProfile = consent.personalization || consent.enrichment;
+    const persistEvent   = consent.analytics || consent.personalization;
     after(async () => {
-      await recordVisitorProfile({
-        tenantId,
-        visitorKey:   sessionId,
-        cookieHeader,
-        ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
-        abmLeadId:    abmLead?.id ?? null,
-        person:       abmLeadToPerson(abmLead?.profile),
-        personalizationGroup,
-        scoreConfig:  tenant?.enrichment?.leadScoring,
-      });
+      if (persistProfile) {
+        await recordVisitorProfile({
+          tenantId,
+          visitorKey:   sessionId,
+          cookieHeader,
+          ctx:          input as unknown as import("@/decision/decision-context").DecisionContext,
+          abmLeadId:    abmLead?.id ?? null,
+          person:       abmLeadToPerson(abmLead?.profile),
+          personalizationGroup,
+          scoreConfig:  tenant?.enrichment?.leadScoring,
+        });
+      }
+      if (!persistEvent) return;
       const reqUrl = new URL(request.url);
       await recordVisitorEvent({
         tenantId,
