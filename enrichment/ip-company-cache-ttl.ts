@@ -37,9 +37,9 @@ export interface IpCompanyRow {
   refreshed_at:     string | null;
 }
 
-/** The row we upsert into ip_company_cache. */
+/** The row we upsert into ip_company_cache. `ip_hash` is a one-way digest of the IP. */
 export interface IpCompanyInsert {
-  ip:               string;
+  ip_hash:          string;
   matched:          boolean;
   company_name:     string | null;
   company_domain:   string | null;
@@ -87,16 +87,20 @@ export function rowToOutput(row: IpCompanyRow): Partial<EnrichmentOutput> {
   return out;
 }
 
-/** Build the row to upsert from a lookup result. `nowIso` is injectable for tests. */
+/**
+ * Build the row to upsert from a lookup result. `ipHash` is the one-way IP digest
+ * (see lib/ip-hash.ts) used as the key — never the raw IP. `nowIso` is injectable
+ * for tests.
+ */
 export function buildIpCompanyRow(
-  ip: string,
+  ipHash: string,
   matched: boolean,
   output: Partial<EnrichmentOutput>,
   raw: unknown,
   nowIso: string = new Date().toISOString(),
 ): IpCompanyInsert {
   return {
-    ip,
+    ip_hash: ipHash,
     matched,
     company_name:     output.companyName     ?? null,
     company_domain:   output.companyDomain   ?? null,
