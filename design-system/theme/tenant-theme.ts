@@ -42,6 +42,7 @@ import { radii } from "../tokens/radii";
 import type { RadiusKey } from "../tokens/radii";
 import { fontFamily } from "../tokens/typography";
 import { shadows } from "../tokens/shadow";
+import { isLight, lighten, mix, contrastRatio } from "@/lib/color";
 import {
   type BlockStyleProfile,
   DEFAULT_BLOCK_STYLE_PROFILE,
@@ -468,8 +469,18 @@ function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
   const ctaBodyText        = cs?.ctaBodyText          ?? colors.brand.primarySubtle;
   const subtleBg           = cs?.subtleSectionBg     ?? colors.background.bgSubtle;
   const subtleBorder       = cs?.subtleSectionBorder  ?? colors.border.border;
-  const cardBg             = cs?.cardBg              ?? "#ffffff";
-  const cardBorder         = cs?.cardBorderColor     ?? colors.border.border;
+  const rawCardBg          = cs?.cardBg              ?? "#ffffff";
+  const rawCardBorder      = cs?.cardBorderColor     ?? colors.border.border;
+  // Card-on-dark separation: on a dark theme a card that is nearly the same
+  // colour as the (subtle) section it sits on does not read as elevated (the CTA
+  // card variant is the visible symptom). When the card barely separates from
+  // that surface, lift it off the surface and strengthen its border so the card
+  // stands out. Light themes and already-separated dark cards are untouched.
+  const themeIsDark   = !isLight(colors.background.bg);
+  const cardSeparation = contrastRatio(rawCardBg, subtleBg);
+  const cardNeedsLift = themeIsDark && cardSeparation !== null && cardSeparation < 1.25;
+  const cardBg             = cardNeedsLift ? lighten(subtleBg, 0.12)               : rawCardBg;
+  const cardBorder         = cardNeedsLift ? mix(cardBg, colors.text.text, 0.24)   : rawCardBorder;
   const cardRadius         = cs?.cardRadius          ?? r.card;
   const cardShadow         = cs?.cardShadow          ?? shadows.sm;
   const quoteColor         = cs?.quoteColor          ?? colors.brand.primary;
