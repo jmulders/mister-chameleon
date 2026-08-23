@@ -156,6 +156,13 @@ function toContent(slot: SlotType, data: unknown): Content {
     if (n.severity) c.severity = n.severity;
     if (n.ctaLabel) c.cta_label = n.ctaLabel;
     if (n.ctaHref) c.cta_url = n.ctaHref;
+    // Media for the addon (same flat contract as hero's c.media). Images work
+    // directly; video facades are an addon-side follow-up.
+    const nmu = mediaUrl(n.media);
+    if (nmu) {
+      c.media = nmu;
+      c.media_side = n.mediaSide === "right" ? "right" : "left";
+    }
   }
   return c;
 }

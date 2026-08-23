@@ -602,6 +602,30 @@ export function buildSnippetSource(decideUrl: string): string {
       }
     });
     try { mcApplyNotificationCapping(slots); } catch (e) { /* capping is best-effort */ }
+    try { mcApplyNotificationMedia(slots); } catch (e) { /* media is best-effort */ }
+  }
+
+  // ── Notification media (image / video facade) ────────────────────────────────
+  // The decide response carries the notification image as pre-rendered HTML
+  // (notification-media-html, built server-side by ctaMediaInner, same as the
+  // block-HTML path). Inject it into the [data-mc-notification] host inside a sized
+  // box, placed left (default) or right per notification-media-side, then wire any
+  // video facade. Idempotent: re-runs (demo) do not duplicate the media.
+  function mcApplyNotificationMedia(slots) {
+    var html = slots['notification-media-html'];
+    if (!html) return;
+    var host = document.querySelector('[data-mc-notification]');
+    if (!host) return;
+    if (host.querySelector('[data-mc-notification-media]')) return;
+    var side = slots['notification-media-side'] === 'right' ? 'right' : 'left';
+    var box = document.createElement('div');
+    box.setAttribute('data-mc-notification-media', '');
+    box.style.cssText =
+      'flex:0 0 auto;order:' + (side === 'right' ? '1' : '-1') + ';' +
+      'position:relative;width:72px;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#000;';
+    box.innerHTML = html;
+    if (side === 'right') host.appendChild(box); else host.insertBefore(box, host.firstChild);
+    try { mcWireVideoFacades(box); } catch (e) {}
   }
 
   // ── Notification frequency capping (same key scheme as the platform block) ────

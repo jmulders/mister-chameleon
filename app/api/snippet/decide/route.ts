@@ -112,7 +112,7 @@ import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCom
 import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
-import { renderBlockHtml, renderForm, renderCtaNewsletter } from "@/lib/snippet/render-block-html";
+import { renderBlockHtml, renderForm, renderCtaNewsletter, notificationMediaHtml } from "@/lib/snippet/render-block-html";
 import { substituteBlockCopy, effectiveCopyVariables } from "@/lib/blocks/substitute-context-tokens";
 import { resolveContextualForm, loadFormVariant } from "@/forms/context/load";
 import { resolvePresentedFields }     from "@/forms/context/variant";
@@ -795,6 +795,11 @@ export async function POST(request: NextRequest) {
           if (notif.ctaLabel) slots["notification-cta-label"] = notif.ctaLabel;
           if (notif.ctaHref)  slots["notification-cta-href"]  = notif.ctaHref;
           slots["notification-dismissible"] = String(notif.dismissible ?? true);
+          const demoNotifMedia = notificationMediaHtml(notif.media);
+          if (demoNotifMedia) {
+            slots["notification-media-html"] = demoNotifMedia;
+            slots["notification-media-side"] = notif.mediaSide === "right" ? "right" : "left";
+          }
         }
 
         logger.debug("[snippet/decide] Demo bypass", {
@@ -1144,6 +1149,14 @@ export async function POST(request: NextRequest) {
         if (notif.campaignId) slots["notification-campaign"]  = notif.campaignId;
         const notifTtlMs = ttlToMs(notif.ttl, notif.ttlUnit);
         if (notifTtlMs > 0)   slots["notification-ttl-ms"]    = String(notifTtlMs);
+        // Media (image / video facade) for the client-toast path, mirroring the
+        // block-HTML renderNotification. The snippet injects this into the
+        // [data-mc-notification] host, positioned by notification-media-side.
+        const notifMediaHtml = notificationMediaHtml(notif.media);
+        if (notifMediaHtml) {
+          slots["notification-media-html"] = notifMediaHtml;
+          slots["notification-media-side"] = notif.mediaSide === "right" ? "right" : "left";
+        }
       }
     }
 

@@ -458,6 +458,17 @@ function ctaMediaInner(media: BlockMedia): string {
   );
 }
 
+/**
+ * Media HTML for a notification's flat-slot payload — the inner media markup only
+ * (image / asset video / youtube-vimeo facade), reusing the block renderer so the
+ * snippet client-toast and the addon can show the same image the block-HTML path
+ * does. Returns "" when there is no renderable media. The caller wraps it in a
+ * sized box (see renderNotification's mediaCol / the snippet client injector).
+ */
+export function notificationMediaHtml(media: BlockMedia | null | undefined): string {
+  return media && isRenderableMedia(media) ? ctaMediaInner(media) : "";
+}
+
 /** cta_media_split — media beside the text + buttons; mediaSide via order; wraps on mobile. */
 function renderCtaMediaSplit(d: CTABlockData): string {
   const order = d.mediaSide === "left" ? -1 : d.mediaSide === "right" ? 1 : 0;
