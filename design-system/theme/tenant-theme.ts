@@ -661,6 +661,26 @@ function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
     ["--feature-grid-card-shadow",  fgCardShadow],
     ["--feature-grid-icon-bg",      fgIconBg],
 
+    // ── Form component tokens ─────────────────────────────────────────────────
+    //
+    // Emitted as CONCRETE values at [data-site] so the form surface follows the
+    // preset. In theme.css these are :root indirections (--form-input-text:
+    // var(--text) etc.); a :root indirection is substituted against the :root
+    // values and inherits down, so re-pinning --text at [data-site] does NOT
+    // reach --form-input-text unless it too is re-pinned here. Without this,
+    // dark presets rendered light form text on a light :root default surface
+    // (light-on-light) and vice-versa. Same rationale as the nav/badge tokens.
+    ["--form-bg",                subtleBg],
+    ["--form-border",            subtleBorder],
+    ["--form-input-bg",          cardBg],
+    ["--form-input-border",      colors.border.borderStrong],
+    ["--form-input-radius",      r.interactive],
+    ["--form-input-text",        colors.text.text],
+    ["--form-input-placeholder", colors.text.textSubtle],
+    ["--form-input-focus-ring",  colors.brand.ring],
+    ["--form-label-color",       colors.text.text],
+    ["--form-help-color",        colors.text.textMuted],
+
     // ── Typography component tokens ───────────────────────────────────────────
     //
     // --font-sans and --font-serif are emitted only when the preset explicitly
@@ -670,6 +690,14 @@ function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
     ...(fontSans  ? [["--font-sans",  fontSans]  as [string, string]] : []),
     ...(fontSerif ? [["--font-serif", fontSerif] as [string, string]] : []),
     ...(fontMono  ? [["--font-mono",  fontMono]  as [string, string]] : []),
+    // Font ROLE tokens (--font-body/-ui/-code) are :root indirections onto the
+    // base families (var(--font-sans) / var(--font-mono)). When a preset pins a
+    // base family at [data-site], the :root role indirection still resolves to
+    // the :root base family and never sees the override — so re-pin the roles
+    // here too whenever the matching base family is set. When a family key is set
+    // its familyTypographyToVars() layer re-emits --font-body later and wins.
+    ...(fontSans  ? [["--font-body", fontSans] as [string, string], ["--font-ui", fontSans] as [string, string]] : []),
+    ...(fontMono  ? [["--font-code", fontMono] as [string, string]] : []),
     ["--font-heading",           headingFont],
     ["--font-heading-weight",    headingWeight],
     ["--font-subheading-weight", subheadingWeight],
@@ -733,6 +761,12 @@ function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
     ["--btn-secondary-bg",       colors.brand.primarySubtle],
     ["--btn-secondary-text",     colors.brand.textBrand],
     ["--btn-secondary-hover-bg", colors.brand.primarySubtle],
+
+    // Outline / ghost buttons are context-adaptive: they inherit currentColor
+    // (the surrounding section's text colour) rather than a fixed preset colour,
+    // so a single definition works on a light page and on a dark hero/cta alike.
+    // See components/ui/Button.tsx (--btn-outline-* / --btn-ghost-* default to
+    // currentColor) — no concrete colour is emitted here on purpose.
 
     // ── Block style profile ───────────────────────────────────────────────────
     //

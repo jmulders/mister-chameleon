@@ -190,7 +190,14 @@ function HeroCTARow({
   return (
     // Mobile-first: stack buttons vertically on xs; row from sm upward.
     // `w-full sm:w-auto` on each button ensures they're thumb-friendly on mobile.
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+    //
+    // color is pinned to the hero title colour so an opt-in outline/ghost CTA
+    // (which inherits currentColor) stays readable on the dark hero surface.
+    // primary/secondary set their own text colour and are unaffected.
+    <div
+      className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
+      style={{ color: "var(--hero-title-color)" }}
+    >
       {visible.map((cta, i) => (
         <TrackedCTAButton
           key={`${cta.href}-${i}`}
