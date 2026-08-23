@@ -14,9 +14,11 @@ describe("initialsFrom", () => {
     assert.equal(initialsFrom("Enterprise Buyer"), "EB");
     assert.equal(initialsFrom("high value lead"), "HV");
   });
-  it("splits on underscores and dashes (keys)", () => {
+  it("splits on underscores, dashes and other punctuation (keys)", () => {
     assert.equal(initialsFrom("enterprise_buyer"), "EB");
     assert.equal(initialsFrom("high-intent"), "HI");
+    // Standalone punctuation tokens are ignored, not used as an initial.
+    assert.equal(initialsFrom("SMB / Startup"), "SS");
   });
   it("falls back to ? for an empty name", () => {
     assert.equal(initialsFrom("   "), "?");
