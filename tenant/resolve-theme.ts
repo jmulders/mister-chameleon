@@ -312,6 +312,7 @@ const LAYOUT_CSS_VARS: Record<string, string> = {
   // Header shell
   headerBg:         "--header-bg",
   headerBgScrolled: "--header-bg-scrolled",
+  headerTopbandBg:  "--header-topband-bg",
   headerFg:         "--header-fg",
   headerBorder:     "--header-border",
   // Footer shell
@@ -629,6 +630,15 @@ export function resolveThemeForTenant(
     // the nav becomes invisible. An explicit headerBgScrolled still wins.
     if (layoutOv?.headerBg && !layoutOv.headerBgScrolled) {
       vars["--header-bg-scrolled"] = layoutOv.headerBg;
+    }
+    // Keep the section-tabs TOP BAND consistent with the header colour. Its links
+    // read --nav-link (pinned above to the header foreground), so a dark custom
+    // header (dark headerBg + white headerFg) otherwise left the band on the base
+    // --bg-subtle (light) with white text -> invisible. Pin the band to the header
+    // bg so band text and band surface form the same coherent pair as the header.
+    // An explicit headerTopbandBg override (emitted above via LAYOUT_CSS_VARS) wins.
+    if (layoutOv?.headerBg && !layoutOv.headerTopbandBg) {
+      vars["--header-topband-bg"] = layoutOv.headerBg;
     }
   }
 

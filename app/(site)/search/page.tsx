@@ -379,7 +379,11 @@ function SearchPageInner() {
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <div
         style={{
-          background: "var(--header-topband-bg, var(--bg-subtle, #f0f4f8))",
+          // Page-level hero surface: its headline uses --text, so it pairs with the
+          // page subtle background — not --header-topband-bg, which is the header's
+          // section-tabs band (paired with the header foreground) and may be pinned
+          // to a dark header colour that would go dark-on-dark with --text here.
+          background: "var(--bg-subtle, #f0f4f8)",
           borderBottom: "1px solid var(--border, #e5e7eb)",
           padding: "2.5rem 1rem 2rem",
         }}

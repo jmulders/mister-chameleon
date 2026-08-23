@@ -487,7 +487,11 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
         {sectionTabs && sectionTabs.length > 0 && (
           <div
             className="hidden md:block border-b border-[var(--header-border,var(--border))] px-4"
-            style={{ backgroundColor: "var(--header-topband-bg, var(--bg-subtle, var(--bg)))" }}
+            // Default the top band to the HEADER surface (not --bg-subtle): the band
+            // links read --nav-link (the header foreground), so pairing the band with
+            // the header bg keeps them readable on a dark custom header. An explicit
+            // --header-topband-bg (from resolve-theme / a tenant override) still wins.
+            style={{ backgroundColor: "var(--header-topband-bg, var(--header-bg, var(--bg-subtle, var(--bg))))" }}
           >
             <Container>
               <SectionTabs tabs={sectionTabs} quickLinks={quickLinks} />
