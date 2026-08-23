@@ -105,18 +105,41 @@ export const BODY_FONTS: ReadonlyArray<{ label: string; stack: string }> = [
 ];
 
 /**
+ * Optional explicit chrome (header / footer / top band) background overrides.
+ * When a field is set it is applied verbatim; when omitted the colour is derived
+ * from the chosen palette (see buildCustomLookTokens).
+ */
+export interface ChromeOverrides {
+  headerBg?:  string;
+  footerBg?:  string;
+  topbandBg?: string;
+}
+
+/**
  * Derive a complete-look token payload (DesignTokenUploadInput shape) from the
- * chosen colours. Colours are derived from the seed roles; the non-colour groups
- * (radius / shadow / spacing / component / layout / border) are seeded from the
- * closest matched preset so the look is complete and coherent; and all four font
+ * chosen colours. Colours are derived from the seed roles; and all four font
  * vars are emitted (fontHeading, and fontBody = fontSans = fontUI) so the whole
- * UI follows the body font. Returns the tokens plus a 4-colour swatch for preview.
+ * UI follows the body font.
+ *
+ * The chrome COLOURS (header / footer / top-band backgrounds, their foregrounds
+ * and borders) are derived from the chosen palette rather than copied literally
+ * from the seed preset, so the header/footer/top-band stay coherent with the
+ * colours the operator picked. Any explicit `chrome` override wins; an empty
+ * field falls back to the derived value. Header/footer text is chosen with
+ * readableText() against the resolved background, and the top band defaults to
+ * the header background. The GEOMETRY / TYPE layout tokens (header/footer style,
+ * nav weight/tracking/transform, etc.) and the other non-colour groups (radius /
+ * shadow / spacing / component / border) are still seeded from the closest
+ * matched preset so the look stays complete and coherent.
+ *
+ * Returns the tokens plus a 4-colour swatch for preview.
  */
 export function buildCustomLookTokens(
   chosen: ChosenColours,
   base: DesignPresetCard,
   headingStack: string,
   bodyStack: string,
+  chrome: ChromeOverrides = {},
 ): { tokens: Record<string, unknown>; swatch: DesignPresetCard["swatch"] } {
   const primary    = chosen.primary;
   const background = chosen.background ?? "#ffffff";
@@ -152,11 +175,40 @@ export function buildCustomLookTokens(
     fontUI:      bodyStack,
   };
 
+  // ── Chrome colours, derived from the palette (explicit override wins) ────────
+  //
+  // header/footer/top band backgrounds track the chosen page background so they
+  // stay coherent with the palette instead of the seed preset's own chrome. Their
+  // foregrounds are picked for contrast; the top band defaults to the header bg
+  // (it shares --nav-link with the header, so pairing them keeps tabs readable).
+  const headerBg    = chrome.headerBg  ?? background;
+  const headerFg    = readableText(headerBg);
+  const footerBg    = chrome.footerBg  ?? mix(background, foreground, 0.06);
+  const footerFg    = readableText(footerBg);
+  const topbandBg   = chrome.topbandBg ?? headerBg;
+
   const tokens: Record<string, unknown> = { theme: "custom", color, typography };
   const baseOverrides = base.tokenOverrides as Record<string, unknown>;
-  for (const group of ["radius", "shadow", "spacing", "component", "layout", "border"] as const) {
+  // Non-colour groups seeded verbatim from the closest preset. `layout` is
+  // handled separately below so its colour tokens can be palette-derived while
+  // its geometry/type tokens are still inherited from the seed.
+  for (const group of ["radius", "shadow", "spacing", "component", "border"] as const) {
     if (baseOverrides[group]) tokens[group] = baseOverrides[group];
   }
+
+  const seedLayout = (baseOverrides.layout ?? {}) as Record<string, unknown>;
+  tokens.layout = {
+    ...seedLayout, // keep geometry/type layout tokens (header/footer style, nav weight, etc.)
+    // ...and override the colour tokens with palette-derived (or explicit) chrome.
+    headerBg,
+    headerBgScrolled: headerBg,
+    headerFg,
+    headerBorder:     mix(headerBg, headerFg, 0.16),
+    headerTopbandBg:  topbandBg,
+    footerBg,
+    footerFg,
+    footerBorder:     mix(footerBg, footerFg, 0.16),
+  };
 
   return { tokens, swatch: { primary, background, foreground, accent } };
 }
