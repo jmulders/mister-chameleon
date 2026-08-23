@@ -309,6 +309,41 @@ html.mc-fx-ready .mc-fx-zoom-in:not(.mc-fx-in) {
   transform: translateY(calc(-1 * var(--mc-fx-lift, 4px)));
 }
 
+/*
+ * ── Advanced continuous effects (default-off, feature-detected) ────────────────
+ *
+ * These are applied ONLY when the runtime activates them: parallax and Ken Burns
+ * add a play class, sticky adds an -on class after checking position:sticky
+ * support. The runtime never activates any of them under prefers-reduced-motion,
+ * and the media block below is a hard second line of defence (animation:none,
+ * position:static) so they cannot play even if a class slips through.
+ */
+
+/* Parallax — the runtime writes --mc-fx-parallax-y from scroll position. */
+.mc-fx-parallax {
+  transform: translate3d(0, var(--mc-fx-parallax-y, 0px), 0);
+  will-change: transform;
+}
+
+/* Sticky — enabled only after the runtime confirms position:sticky support. */
+.mc-fx-sticky.mc-fx-sticky-on {
+  position: sticky;
+  top: var(--mc-fx-sticky-top, 16px);
+}
+
+/* Ken Burns — slow continuous zoom; plays only when the runtime adds -play. */
+@keyframes mc-fx-kenburns {
+  from { transform: scale(1); }
+  to   { transform: scale(var(--mc-fx-kb-scale, 1.15)); }
+}
+.mc-fx-ken-burns {
+  overflow: hidden;
+}
+.mc-fx-ken-burns.mc-fx-kb-play {
+  animation: mc-fx-kenburns var(--mc-fx-kb-duration, 12000ms) ease-in-out infinite alternate;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html.mc-fx-ready [class*="mc-fx-"] {
     opacity: 1 !important;
@@ -317,6 +352,14 @@ html.mc-fx-ready .mc-fx-zoom-in:not(.mc-fx-in) {
   }
   .mc-fx-hover-lift:hover {
     transform: none;
+  }
+  /* Advanced effects: fully off, not just dampened. */
+  .mc-fx-ken-burns,
+  .mc-fx-ken-burns.mc-fx-kb-play {
+    animation: none !important;
+  }
+  .mc-fx-sticky.mc-fx-sticky-on {
+    position: static !important;
   }
 }
 

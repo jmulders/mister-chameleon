@@ -126,6 +126,39 @@ export const EFFECT_DEFINITIONS: readonly EffectDefinition[] = [
       unit: "px", default: 4, cssVar: "--mc-fx-lift",
     }],
   },
+
+  // ── Advanced continuous effects ──────────────────────────────────────────────
+  //
+  // Heavier, movement-forward effects. All are default-off (never applied unless
+  // explicitly enabled), feature-detected by the runtime before activating, and
+  // FULLY disabled under prefers-reduced-motion (not merely dampened).
+  {
+    id: "parallax", label: "Parallax", group: "continuous",
+    description: "Shifts the block vertically as the page scrolls. Default-off, feature-detected, off under reduced-motion.",
+    trigger: "scroll", defaultOff: true, featureDetect: true,
+    params: [{
+      key: "speed", label: "Speed", type: "number", min: 0.05, max: 0.6, step: 0.05,
+      default: 0.2, cssVar: "--mc-fx-parallax-speed",
+    }],
+  },
+  {
+    id: "sticky", label: "Sticky", group: "continuous",
+    description: "Pins the block while its section scrolls past. Default-off, needs position:sticky support, off under reduced-motion.",
+    trigger: "scroll", defaultOff: true, featureDetect: true,
+    params: [{
+      key: "top", label: "Top offset", type: "number", min: 0, max: 160, step: 4,
+      unit: "px", default: 16, cssVar: "--mc-fx-sticky-top",
+    }],
+  },
+  {
+    id: "ken-burns", label: "Ken Burns", group: "continuous",
+    description: "Slow continuous zoom, best on media blocks. Default-off, feature-detected, off under reduced-motion.",
+    trigger: "load", defaultOff: true, featureDetect: true,
+    params: [
+      { key: "scale", label: "Zoom to", type: "number", min: 1.05, max: 1.4, step: 0.01, default: 1.15, cssVar: "--mc-fx-kb-scale" },
+      { key: "duration", label: "Duration", type: "number", min: 4000, max: 30000, step: 1000, unit: "ms", default: 12000, cssVar: "--mc-fx-kb-duration" },
+    ],
+  },
 ];
 
 export const EFFECT_GROUPS: ReadonlyArray<{ key: EffectGroupKey; label: string }> = [
@@ -144,4 +177,14 @@ export function effectDefinition(id: string): EffectDefinition | undefined {
 /** True when the id is a known, currently-implemented effect. */
 export function isKnownEffect(id: string): boolean {
   return BY_ID.has(id);
+}
+
+/** The group of an effect id, or undefined for unknown ids. */
+export function effectGroup(id: string): EffectGroupKey | undefined {
+  return BY_ID.get(id)?.group;
+}
+
+/** Advanced effects are default-off + feature-detected + off under reduced-motion. */
+export function isAdvancedEffect(id: string): boolean {
+  return BY_ID.get(id)?.defaultOff === true;
 }
