@@ -3040,4 +3040,24 @@ export interface TenantSnippetSettings {
    * `data-mc-call-ms`. Absent → snippet default (4000). Clamped to 500–15000.
    */
   callMs?: number;
+
+  /**
+   * How the visitor's consent (read from the host page by the snippet) is applied
+   * when the host sends NO consent signal at all.
+   *
+   *   "auto"   — deny by default (privacy-first). Enrichment, behavioural
+   *              personalization and analytics stay off until a host CMP signal
+   *              (publisher signal, IAB TCF, Google Consent Mode) or an explicit
+   *              grant says otherwise. The default for new tenants.
+   *   "always" — grant by default. For hosts that gate loading the snippet behind
+   *              their own consent banner (the pre-CMP-integration behaviour).
+   *              Existing snippet tenants are migrated to this so they do not
+   *              suddenly stop enriching/personalising.
+   *
+   * An explicit host signal (including GPC/DNT, which always denies) is honoured
+   * in BOTH modes; consentSource only decides the no-signal fallback. The tenant
+   * privacy ceiling (TenantSettings.privacy.allow*) is applied on top in both.
+   * Absent -> treated as "auto". See docs/design/host-cmp-consent.md.
+   */
+  consentSource?: "auto" | "always";
 }

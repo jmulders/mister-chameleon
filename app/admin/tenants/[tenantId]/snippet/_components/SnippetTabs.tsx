@@ -18,15 +18,17 @@ import { SnippetPageClient } from "./SnippetPageClient";
 import { SnippetSelectorsEditor } from "./SnippetSelectorsEditor";
 import { SnippetOriginsEditor } from "./SnippetOriginsEditor";
 import { SnippetTimingEditor } from "./SnippetTimingEditor";
+import { SnippetConsentEditor } from "./SnippetConsentEditor";
 import { HowItWorksContent } from "./HowItWorksContent";
 
-type Tab = "install" | "selectors" | "security" | "timing" | "how-it-works";
+type Tab = "install" | "selectors" | "security" | "timing" | "consent" | "how-it-works";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "install",       label: "Install"       },
   { id: "selectors",     label: "Selectors"     },
   { id: "security",      label: "Security"      },
   { id: "timing",        label: "Timing"        },
+  { id: "consent",       label: "Consent"       },
   { id: "how-it-works",  label: "How it works"  },
 ];
 
@@ -40,6 +42,7 @@ interface SnippetTabsProps {
   allowedOrigins: readonly string[];
   revealMs:    number | null;
   callMs:      number | null;
+  consentSource: "auto" | "always";
   slotSuggestions: readonly string[];
   initialTab?: Tab;
 }
@@ -54,6 +57,7 @@ export function SnippetTabs({
   allowedOrigins,
   revealMs,
   callMs,
+  consentSource,
   slotSuggestions,
   initialTab = "install",
 }: SnippetTabsProps) {
@@ -120,6 +124,13 @@ export function SnippetTabs({
           tenantId={tenantId}
           initialRevealMs={revealMs}
           initialCallMs={callMs}
+        />
+      )}
+
+      {activeTab === "consent" && (
+        <SnippetConsentEditor
+          tenantId={tenantId}
+          initialSource={consentSource}
         />
       )}
 

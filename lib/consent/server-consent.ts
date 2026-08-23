@@ -28,6 +28,7 @@ import {
   type ConsentState,
   CONSENT_COOKIE_NAME,
   DEFAULT_CONSENT,
+  FULL_CONSENT,
   parseConsentCookieValue,
 } from "@/tracking/consent-types";
 import type { TenantPrivacySettings } from "@/tenant/types";
@@ -111,6 +112,51 @@ export function resolveConsent(
 ): ConsentState {
   const user = readConsentFromCookieHeader(cookieHeader);
   return computeEffectiveConsent(user, tenantPrivacy);
+}
+
+// ── Snippet consent payload ───────────────────────────────────────────────────
+
+/** The `consent` field the snippet sends to /api/snippet/decide. */
+export type SnippetConsentInput =
+  | boolean
+  | { analytics?: boolean; personalization?: boolean; enrichment?: boolean; hasResponded?: boolean }
+  | null
+  | undefined;
+
+/**
+ * Turn the snippet's forwarded consent into a ConsentState, before the tenant
+ * ceiling is applied.
+ *
+ *   - object   -> the three categories, coerced to booleans.
+ *   - boolean  -> legacy payload: true = full, false = deny.
+ *   - null     -> the host sent NO signal: fall back to the tenant's
+ *                 consentSource default ("always" -> grant, else deny).
+ *   - undefined-> a pre-consent snippet that omits the field entirely: treated as
+ *                 granted for backward compatibility (those hosts gate loading on
+ *                 their own consent banner).
+ *
+ * Callers apply computeEffectiveConsent() afterwards to enforce the tenant ceiling.
+ */
+export function consentFromSnippet(
+  input: SnippetConsentInput,
+  consentSource: "auto" | "always" | undefined,
+): ConsentState {
+  if (input === true) return FULL_CONSENT;
+  if (input === false) return { ...DEFAULT_CONSENT, hasResponded: true };
+  if (input && typeof input === "object") {
+    return {
+      hasResponded:    input.hasResponded === true,
+      analytics:       input.analytics === true,
+      personalization: input.personalization === true,
+      enrichment:      input.enrichment === true,
+    };
+  }
+  if (input === null) {
+    // Host provided no signal: apply the tenant default.
+    return consentSource === "always" ? FULL_CONSENT : DEFAULT_CONSENT;
+  }
+  // Field omitted entirely (legacy snippet): backward-compatible grant.
+  return FULL_CONSENT;
 }
 
 // ── Guard helpers used in API routes ─────────────────────────────────────────
