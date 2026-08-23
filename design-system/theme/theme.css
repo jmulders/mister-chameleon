@@ -213,6 +213,20 @@
   --btn-secondary-hover-bg:    var(--primary-subtle);
   --btn-secondary-border:      transparent;
 
+  /* Outline / ghost button surface — context-adaptive by default: the text and
+     border track currentColor (the surrounding section's text colour) so the
+     same button reads correctly on a light page and on a dark hero/cta section.
+     A tenant may override any of these to pin a fixed colour. The hover tint is
+     a translucent wash of the current text colour, so it shows on any surface. */
+  --btn-outline-bg:            transparent;
+  --btn-outline-text:          currentColor;
+  --btn-outline-border:        currentColor;
+  --btn-outline-hover-bg:      color-mix(in srgb, currentColor 10%, transparent);
+  --btn-outline-hover-border:  currentColor;
+  --btn-ghost-text:            currentColor;
+  --btn-ghost-hover-bg:        color-mix(in srgb, currentColor 10%, transparent);
+  --btn-ghost-hover-text:      currentColor;
+
   /* ── 2d-ii. Badge component tokens ──────────────────────────── */
   /*
    * Dedicated tokens for badge surfaces so badge colours can diverge from

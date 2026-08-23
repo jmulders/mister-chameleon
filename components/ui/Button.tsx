@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
  *
  *  primary   --btn-bg, --btn-text, --btn-hover-bg, --btn-active-bg
  *  secondary --btn-secondary-bg, --btn-secondary-text, --btn-secondary-hover-bg
+ *  outline   --btn-outline-bg, --btn-outline-text, --btn-outline-border (+ hover)
+ *  ghost     --btn-ghost-text, --btn-ghost-hover-bg, --btn-ghost-hover-text
  *  focus     --ring
  *
  *  Resolved from tenant TenantTheme preset; falls back to theme.css :root
@@ -49,12 +51,12 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 // ── Variant classes ────────────────────────────────────────────────────────────
 //
-// primary / secondary use Tailwind's CSS-variable arbitrary-value syntax
+// All variants use Tailwind's CSS-variable arbitrary-value syntax
 // (`bg-[var(--token)]`) so the button palette responds to the tenant's saved
 // Visual Token Editor preset without any component-level knowledge of which
-// theme is active.
-//
-// outline / ghost are neutral and don't depend on brand tokens.
+// theme is active. outline / ghost consume the --btn-outline-* / --btn-ghost-*
+// token groups (emitted concretely per preset) with neutral hex fallbacks for
+// contexts rendered outside a [data-site] theme.
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: [
@@ -80,15 +82,25 @@ const variantClasses: Record<ButtonVariant, string> = {
   ].join(" "),
 
   outline: [
-    "border border-neutral-300 bg-white text-neutral-700",
-    "hover:bg-neutral-50 hover:border-neutral-400",
-    "active:bg-neutral-100",
+    // Context-adaptive via --btn-outline-* — text and border default to
+    // currentColor (the surrounding section's text colour) so the button reads
+    // correctly on a light page and a dark hero/cta alike, and follows the preset
+    // (which sets --text) on the page body. A tenant may pin fixed colours.
+    "border bg-[var(--btn-outline-bg,transparent)] text-[var(--btn-outline-text,currentColor)]",
+    "border-[var(--btn-outline-border,currentColor)]",
+    "hover:bg-[var(--btn-outline-hover-bg,color-mix(in_srgb,currentColor_10%,transparent))]",
+    "hover:border-[var(--btn-outline-hover-border,currentColor)]",
+    "active:opacity-90",
   ].join(" "),
 
   ghost: [
-    "bg-transparent text-neutral-600",
-    "hover:bg-neutral-100 hover:text-neutral-900",
-    "active:bg-neutral-200",
+    // Context-adaptive via --btn-ghost-* — text defaults to currentColor; the
+    // hover wash is a translucent tint of the current text colour, visible on
+    // any surface.
+    "bg-transparent text-[var(--btn-ghost-text,currentColor)]",
+    "hover:bg-[var(--btn-ghost-hover-bg,color-mix(in_srgb,currentColor_10%,transparent))]",
+    "hover:text-[var(--btn-ghost-hover-text,currentColor)]",
+    "active:opacity-90",
   ].join(" "),
 
   link: [

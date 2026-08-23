@@ -63,11 +63,14 @@ export async function resolve(specifier, context, nextResolve) {
 
   // ── 3. Resolve extensionless relative directory imports ──────────────────
   // e.g. import from '../queries/sanity'  →  ../queries/sanity/index.ts
-  // Only intercept when there is no file extension in the specifier.
+  // Intercept when the specifier does not already end in a real module
+  // extension. path.extname() alone is not enough: a specifier like
+  // './theme-families.config' has extname '.config' yet still needs .ts appended.
+  const MODULE_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json'];
   if (
     (specifier.startsWith('./') || specifier.startsWith('../')) &&
     context.parentURL &&
-    !path.extname(specifier)
+    !MODULE_EXTS.some((e) => specifier.endsWith(e))
   ) {
     const parent = fileURLToPath(context.parentURL);
     const base = path.resolve(path.dirname(parent), specifier);

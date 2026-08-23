@@ -188,6 +188,23 @@ export function isLight(hex: string): boolean {
   return rgb ? relativeLuminance(rgb) > 0.5 : false;
 }
 
+/**
+ * WCAG 2.x contrast ratio between two colours, 1 (identical) .. 21 (black/white).
+ * Direction-independent: (L_lighter + 0.05) / (L_darker + 0.05). Returns null
+ * when either colour cannot be parsed to an RGB hex (e.g. "transparent").
+ *
+ * Thresholds: 4.5 for normal text (AA), 3.0 for large text and UI/graphics.
+ */
+export function contrastRatio(hexA: string, hexB: string): number | null {
+  const a = hexToRgb(hexA);
+  const b = hexToRgb(hexB);
+  if (!a || !b) return null;
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 export type HueFamily =
   | "neutral" | "red" | "orange" | "yellow" | "green" | "teal" | "blue" | "purple" | "pink";
 
