@@ -34,6 +34,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantBySiteKey } from "@/tenant/server";
+import { computeEffectiveConsent, consentFromSnippet, type SnippetConsentInput } from "@/lib/consent/server-consent";
 import { createCMSProvider } from "@/cms";
 import { platformFirstVariants } from "@/cms/providers/platform-first-variants";
 import type { VariantResolver } from "@/cms/providers/platform-first-variants";
@@ -211,6 +212,16 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantId = tenant.tenantId;
+
+  // Anonymity boundary: the anonymous decision always runs; persistent behaviour
+  // (journey write + history read) is gated on personalization consent. The addon
+  // does not forward consent yet (follow-up), so an absent field falls back to the
+  // tenant consentSource default, capped by the tenant privacy ceiling.
+  const consent = computeEffectiveConsent(
+    consentFromSnippet((body as { consent?: SnippetConsentInput }).consent, tenant.snippet?.consentSource),
+    tenant.privacy,
+  );
+
   const locale = isSupportedLocale(page.locale ?? "") ? (page.locale as string) : DEFAULT_LOCALE;
   const cms = platformFirstVariants(tenantId, createCMSProvider(tenant.cms, tenantId, locale));
 
@@ -253,7 +264,11 @@ export async function POST(request: NextRequest) {
     const tokenVid = (visitor.tokens && typeof visitor.tokens === "object")
       ? (visitor.tokens as Record<string, unknown>)["mc_vid"]
       : undefined;
-    const stableId  = normaliseVisitorId(tokenVid) ?? normaliseVisitorId(visitor.fingerprint);
+    // Only bind to a persistent id with personalization consent; otherwise the
+    // anonymous decision uses an ephemeral per-request id (nothing persisted).
+    const stableId  = consent.personalization
+      ? (normaliseVisitorId(tokenVid) ?? normaliseVisitorId(visitor.fingerprint))
+      : null;
     const sessionId = stableId ?? resolveSession(null).sessionId;
 
     // ── Record a page_view so context builds for edge-mode adapters too ─────────
@@ -292,7 +307,9 @@ export async function POST(request: NextRequest) {
     }
 
     const [history, rulesConfig] = await Promise.all([
-      fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory()),
+      consent.personalization
+        ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
+        : Promise.resolve(emptyHistory()),
       loadTenantRulesConfig(tenantId).catch(() => null),
     ]);
 

@@ -60,7 +60,7 @@ const EN: ConsentTexts = {
   catMeta: {
     essential:       { label: "Strictly necessary", description: "Required for the site to work (session, your consent choice, language). Always on." },
     analytics:       { label: "Analytics",          description: "Helps us understand how visitors interact with the site (page views, events)." },
-    personalization: { label: "Personalization",    description: "Lets us tailor content and calls-to-action to your interests and behavior." },
+    personalization: { label: "Personalization",    description: "Lets us remember you across visits to tailor content to your behavior over time. Anonymous, session-only adjustments do not need this." },
     enrichment:      { label: "Enrichment",         description: "Lets us recognize your company and context to provide more relevant information." },
   },
   declaration: {
@@ -100,7 +100,7 @@ const NL: ConsentTexts = {
   catMeta: {
     essential:       { label: "Strikt noodzakelijk", description: "Nodig om de site te laten werken (sessie, uw keuze, taal). Altijd aan." },
     analytics:       { label: "Analytics",           description: "Helpt ons begrijpen hoe bezoekers de site gebruiken (paginaweergaven, gebeurtenissen)." },
-    personalization: { label: "Personalisatie",      description: "Stelt ons in staat content en call-to-actions af te stemmen op uw interesses en gedrag." },
+    personalization: { label: "Personalisatie",      description: "Laat ons u over bezoeken heen herkennen om content op uw gedrag in de tijd af te stemmen. Anonieme, sessie-only aanpassingen hebben dit niet nodig." },
     enrichment:      { label: "Verrijking",          description: "Stelt ons in staat uw bedrijf en context te herkennen voor relevantere informatie." },
   },
   declaration: {

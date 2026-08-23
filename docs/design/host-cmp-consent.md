@@ -148,3 +148,75 @@ The tenant privacy ceiling is applied on top of every cell.
 - The purpose/signal -> category mapping above is our interpretation of the TCF
   purposes and Consent Mode signals; it is the platform default and is documented
   so it can be audited.
+
+## Anonymity boundary
+
+The consent model is calibrated around one line: the **anonymous context layer**
+runs for everyone, without consent; consent gates only **identifying / persistent**
+processing. This applies on every serving path (snippet decide, `/api/v1/slot`,
+and the platform render pipeline), not just the snippet.
+
+### Two layers
+
+| Layer | Signals | Persistent? | Runs without consent? |
+| --- | --- | --- | --- |
+| Anonymous context | device type, coarse geo (from headers, IP not stored), source/UTM/referrer, time, weather (geo-only) | No | Yes, always |
+| Identifying / persistent | persistent visitor identity (mc_vid / mc_session_id), cross-session behaviour history + journey (`visitor_behavior_state`), IP-to-company / Leadinfo / CRM enrichment, analytics with identifiers | Yes | No |
+
+The anonymous decision is the same rules engine running on request/header-derived
+signals with `emptyHistory()` (no cross-session behaviour). The safe default with
+no consent is therefore the **full anonymous context layer**, not "geo-only".
+
+### What each category now gates
+
+- **personalization** -> persistent, cross-session behaviour only: the persistent
+  visitor id, the history/journey read + write (`visitor_journey_events`,
+  `visitor_behavior_state`), returning-visitor signals, and the visitor profile
+  write. It does NOT gate the anonymous context layer.
+- **enrichment** -> firmographic identity: staged IP-to-company / Leadinfo / CRM,
+  the firmographic seed/reuse, and the `ip_company_cache` (the only place a raw IP
+  is stored). Also required (with personalization) for the profile write.
+- **analytics** -> analytics event writes (GA4 / visit events).
+
+Without a positive signal, nothing persistent is read or written: the snippet
+mints an ephemeral per-pageview id and stores no `mc_vid`; the platform paths use
+an ephemeral per-request id and set no `mc_session_id`, write no
+`visitor_profiles` row, no journey/behaviour state, no `ip_company_cache`.
+Persistence is upgraded only once personalization (and, for firmographics,
+enrichment) is granted. The tenant privacy ceiling (`allow*`) still caps every
+category on top.
+
+The one cookie set without consent is `mc_ws`: a short-lived (30 minute)
+web-session cookie used only to count usage (the billing unit). It is not a
+cross-session identity (it expires with the visit, unlike the 30-day
+`mc_session_id`), carries no behaviour, and is treated as essential /
+legitimate-interest for usage metering rather than personalization. As with the
+rest of the boundary, the tenant's DPO / lawyer must confirm this essential-cookie
+exception for their jurisdiction.
+
+### Legal caveat (must be confirmed by the tenant's DPO / lawyer)
+
+This boundary is our **engineering interpretation** of where personal data begins,
+not legal advice. Two edges in particular need a tenant-specific ruling:
+
+- **IP addresses can themselves be personal data.** Under the CJEU *Breyer*
+  ruling a dynamic IP can be personal data for a party with means to identify the
+  person. We treat coarse geo derived from the IP as anonymous and never store the
+  raw IP in the anonymous layer, but whether that derivation is "anonymous enough"
+  is a legal judgement.
+- **Firmographic / company data can be personal data.** For a **sole proprietor
+  (eenmanszaak)** the company is a natural person, so IP-to-company enrichment of
+  such a visitor is personal data even though we label it "firmographic". That is
+  why firmographic enrichment sits behind the `enrichment` consent category.
+
+Each tenant's DPO / legal counsel must confirm the boundary (and the
+purpose/category mapping above) for their jurisdiction and data before relying on
+"anonymous layer runs without consent".
+
+### Out of scope (documented follow-ups)
+
+- Weather on the snippet path (it is wired on the platform staged pipeline only).
+- Per-tenant purpose/signal -> category mapping override (the platform default
+  mapping is used).
+- Statamic addon forwarding the visitor's consent to `/api/v1/slot` (until then
+  that path falls back to the tenant `consentSource` default).
