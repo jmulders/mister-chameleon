@@ -18,11 +18,11 @@
 --     3. drops the raw-ip primary key and its NOT NULL, so new rows can be
 --        written with ip = NULL (the app no longer supplies a raw IP).
 --
---   The raw `ip` column is kept for now so migration 0170 can back it out only
---   after scripts/backfill-ip-hash.ts has populated ip_hash for existing rows
---   (the digest cannot be computed in SQL — it needs the app key). Existing rows
---   read as misses until backfilled, which is safe: they are simply re-queried
---   and overwritten within the normal freshness window.
+--   The raw `ip` column is kept until migration 0170 drops it. On dev the table
+--   was empty, so this is a clean split. For PROD, follow the consolidated
+--   runbook docs/prod-sql/ip-company-cache-hmac.prod.sql, which empties the
+--   handful of disposable cache rows and applies 169 + 170 in one transaction
+--   (no per-row backfill needed — the cache simply refills, keyed, after deploy).
 --
 --   Idempotent (IF NOT EXISTS / IF EXISTS). Service-role only (RLS unchanged).
 -- ─────────────────────────────────────────────────────────────────────────────
