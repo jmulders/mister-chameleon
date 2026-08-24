@@ -27,6 +27,8 @@ import { parseAdTargeting, type AdTargeting } from "@/lib/ads/targeting";
 import { resolveAdGa4History } from "@/lib/ads/ga4";
 import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/platform-store";
 import { THEME_PRESETS, isThemePresetKey } from "@/design-system/theme/presets";
+import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
+import { isAdGalleryValue, adGalleryPresetId, buildAdGalleryDesign } from "@/lib/design/ad-theme";
 
 /** Title-case a theme key ("corporate-blue" → "Corporate blue"). */
 function themeLabel(key: string): string {
@@ -39,6 +41,20 @@ const AD_THEME_OPTIONS: { key: string; label: string }[] = [
   { key: "default", label: "Default" },
   ...Object.keys(THEME_PRESETS).map((k) => ({ key: k, label: themeLabel(k) })),
 ];
+
+/**
+ * Gallery presets grouped by card category, applied as a complete look on save —
+ * ungated, mirroring the design tab where the gallery is available to every tenant.
+ */
+function adThemeGalleryGroups(): { category: string; presets: { id: string; name: string }[] }[] {
+  const byCat = new Map<string, { id: string; name: string }[]>();
+  for (const p of DESIGN_PRESET_GALLERY) {
+    const list = byCat.get(p.category) ?? [];
+    list.push({ id: p.id, name: p.name });
+    byCat.set(p.category, list);
+  }
+  return [...byCat.entries()].map(([category, presets]) => ({ category, presets }));
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -121,8 +137,10 @@ export interface AdsOverview {
   companySuggestions:    { industries: string[]; sizes: string[] };
   /** The ad account's base theme preset (its default look; per-ad Styling overrides it). */
   themePreset:           string;
-  /** Available theme presets to choose from. */
+  /** Available curated theme presets to choose from. */
   themeOptions:          { key: string; label: string }[];
+  /** Gallery presets (grouped by card category) applied as a complete look on save. */
+  themeGalleryGroups:    { category: string; presets: { id: string; name: string }[] }[];
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -280,6 +298,7 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
     companySuggestions,
     themePreset:  (tenant?.design?.theme as string | undefined) ?? "default",
     themeOptions: AD_THEME_OPTIONS,
+    themeGalleryGroups: adThemeGalleryGroups(),
   };
 }
 
@@ -292,9 +311,27 @@ export async function fetchAdsOverviewAction(tenantId: string): Promise<AdsOverv
 export async function setAdAccountThemeAction(tenantId: string, theme: string): Promise<ActionResult> {
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
-  if (theme !== "default" && !isThemePresetKey(theme)) return { ok: false, error: "Unknown theme preset." };
   const tenant = await getTenantById(tenantId);
   if (!tenant) return { ok: false, error: "Tenant not found." };
+
+  // Gallery preset: apply it as a COMPLETE look (grouped overrides + baseTheme +
+  // derived site-wide block tokens), identical to applying it in the design tab,
+  // so ads render in that style. Ungated, mirroring the design tab.
+  if (isAdGalleryValue(theme)) {
+    const updatedDesign = buildAdGalleryDesign(tenant.design ?? { theme: "default" }, adGalleryPresetId(theme));
+    if (!updatedDesign) return { ok: false, error: "Unknown gallery preset." };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await saveTenant({ ...tenant, design: updatedDesign } as any);
+    const after = await getTenantById(tenantId);
+    if (((after?.design?.theme as string | undefined) ?? "default") !== updatedDesign.theme) {
+      return { ok: false, error: "That theme isn't available for this account's package." };
+    }
+    revalidatePath(`/admin/tenants/${tenantId}/ads`);
+    return { ok: true };
+  }
+
+  // Curated theme (unchanged): a plain design.theme key, package-gated by saveTenant.
+  if (theme !== "default" && !isThemePresetKey(theme)) return { ok: false, error: "Unknown theme preset." };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await saveTenant({ ...tenant, design: { ...(tenant.design ?? {}), theme } } as any);
   const after = await getTenantById(tenantId);
