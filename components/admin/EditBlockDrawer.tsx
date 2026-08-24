@@ -42,6 +42,8 @@ import type {
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import type { BlockEffectRef, EffectSet } from "@/design-system/effects/effect-ref";
 import { BlockEffectPicker } from "@/components/admin/effects/BlockEffectPicker";
+import { MotionPreview } from "@/components/admin/effects/MotionPreview";
+import { hasEffects } from "@/design-system/effects/effect-ref";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
 import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
@@ -608,6 +610,8 @@ export function EditBlockDrawer({
   const [effectRef, setEffectRef] = useState<BlockEffectRef | undefined>(
     block.defaultVariant.effects,
   );
+  // Bumped by "Replay motion" to re-trigger the entrance on the live preview.
+  const [motionReplay, setMotionReplay] = useState(0);
 
   // ── Notification settings (notification slot only) ──
   const [notifPosition, setNotifPosition]     = useState<NotificationPosition>(block.defaultVariant.notifPosition ?? "top");
@@ -1663,15 +1667,32 @@ export function EditBlockDrawer({
           <div className="hidden md:flex flex-1 flex-col bg-neutral-100 min-w-0">
             <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200 bg-white shrink-0">
               <span className="text-xs font-semibold text-neutral-700">Live preview</span>
-              <span className="text-[10px] text-neutral-400">
-                {isPreviewStale ? "updating…" : "default variant · tenant theme"}
-              </span>
+              <div className="flex items-center gap-3">
+                {/* Replay the current (unsaved) Motion effect on the preview. */}
+                {hasEffects(effectRef, effectSets) && (
+                  <button
+                    type="button"
+                    onClick={() => setMotionReplay((n) => n + 1)}
+                    className="rounded border border-neutral-300 px-2 py-0.5 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50"
+                  >
+                    Replay motion
+                  </button>
+                )}
+                <span className="text-[10px] text-neutral-400">
+                  {isPreviewStale ? "updating…" : "default variant · tenant theme"}
+                </span>
+              </div>
             </div>
             <div className="flex-1 overflow-auto bg-neutral-200 p-4">
               {previewSrc ? (
                 // Device frame: a 16:9 box scaled to the column width. The iframe
                 // renders at the real desktop viewport, then scales down — so the
                 // hero's crop matches what a visitor sees on that desktop.
+                // Wrapped in MotionPreview so the block's current Motion effect
+                // plays on the preview (via the shared runtime CSS) and can be
+                // replayed. The iframe is sandboxed (no scripts), so the effect is
+                // applied here in the admin, not inside the frame.
+                <MotionPreview effectRef={effectRef} effectSets={effectSets} replaySignal={motionReplay}>
                 <div
                   ref={previewBoxRef}
                   className="relative mx-auto w-full max-w-[1280px] overflow-hidden rounded-md border border-neutral-300 bg-white shadow-sm"
@@ -1689,6 +1710,7 @@ export function EditBlockDrawer({
                     sandbox="allow-same-origin"
                   />
                 </div>
+                </MotionPreview>
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-neutral-400">
                   Loading preview…
