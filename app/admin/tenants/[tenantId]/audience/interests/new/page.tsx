@@ -49,6 +49,7 @@ export default function NewTenantInterestProfilePage({
       </div>
 
       <ProfileForm
+        tenantId={tenantId}
         onSubmit={handleSubmit}
         submitLabel="Create profile"
         cancelHref={listHref}

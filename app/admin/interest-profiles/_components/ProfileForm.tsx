@@ -40,6 +40,8 @@ interface ProfileFormProps {
    * Omit for the create form.
    */
   profile?:   InterestProfile;
+  /** Tenant scope — enables the avatar image-upload option (asset library). */
+  tenantId?:  string;
   /** Called when the form is submitted. Return a { ok, error?, fieldErrors? } object. */
   onSubmit:   (values: ProfileFormValues) => Promise<{ ok: boolean; error?: string; fieldErrors?: string[] }>;
   /** Label on the submit button. Defaults to "Save". */
@@ -97,6 +99,7 @@ function TagRow({ tag, index, onChange, onRemove }: TagRowProps) {
 
 export function ProfileForm({
   profile,
+  tenantId,
   onSubmit,
   submitLabel = "Save",
   cancelHref  = "/admin/interest-profiles",
@@ -250,7 +253,7 @@ export function ProfileForm({
         <label className="text-sm font-medium text-neutral-900">
           Avatar <span className="text-neutral-400 font-normal">(optional)</span>
         </label>
-        <AvatarPicker value={avatar} onChange={setAvatar} name={name} seed={key} />
+        <AvatarPicker value={avatar} onChange={setAvatar} name={name} seed={key} tenantId={tenantId} />
       </div>
 
       {/* ── Status ───────────────────────────────────────────────────────────── */}

@@ -243,7 +243,7 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
 
       <div>
         <label className={labelCls}>Avatar (optional)</label>
-        <AvatarPicker value={avatar} onChange={setAvatar} name={label} seed={key} />
+        <AvatarPicker value={avatar} onChange={setAvatar} name={label} seed={key} tenantId={tenantId} />
       </div>
 
       <div>

@@ -255,6 +255,7 @@ export default function EditTenantInterestProfilePage({
           {/* ── Editable profile form ─────────────────────────────────────── */}
           <ProfileForm
             profile={profile}
+            tenantId={tenantId}
             onSubmit={handleSubmit}
             submitLabel="Save changes"
             cancelHref={listHref}
