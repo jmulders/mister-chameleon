@@ -1179,7 +1179,14 @@ function AdThemeCard({ tenantId, initial, pending, run }:
         <div>
           <label className={label}>Theme preset</label>
           <select className={input + " max-w-xs"} value={theme} onChange={(e) => setTheme(e.target.value)}>
-            {initial.themeOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            <optgroup label="Curated themes">
+              {initial.themeOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </optgroup>
+            {initial.themeGalleryGroups.map((g) => (
+              <optgroup key={g.category} label={`Gallery — ${g.category}`}>
+                {g.presets.map((p) => <option key={p.id} value={`gallery:${p.id}`}>{p.name}</option>)}
+              </optgroup>
+            ))}
           </select>
         </div>
         <button className={btn} disabled={pending || theme === initial.themePreset}
