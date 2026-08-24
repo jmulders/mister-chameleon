@@ -18,6 +18,7 @@ import {
   EFFECT_DEFINITIONS, EFFECT_GROUPS, effectDefinition, type EffectGroupKey,
 } from "@/design-system/effects/effect-defs";
 import type { BlockEffectConfig } from "@/design-system/effects/effect-ref";
+import { EffectSwatch } from "./EffectSwatch";
 
 export const effectInputCls = "rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
 export const effectBtn = "rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50";
@@ -97,7 +98,11 @@ export function EffectListEditor({
           return (
             <div key={cfg.effect} style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{def.label}{def.defaultOff ? <span style={{ fontSize: 10, color: "#b45309", marginLeft: 6 }}>advanced, default-off, off under reduced-motion</span> : null}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  {/* Looping demo of this effect (registry-driven); click to replay. */}
+                  <EffectSwatch config={cfg} />
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{def.label}{def.defaultOff ? <span style={{ fontSize: 10, color: "#b45309", marginLeft: 6 }}>advanced, default-off, off under reduced-motion</span> : null}</span>
+                </div>
                 <button type="button" className={effectBtn} onClick={() => remove(cfg.effect)}>Remove</button>
               </div>
               <p style={{ fontSize: 11, color: "#6b7280", margin: "4px 0 8px" }}>{def.description}</p>
