@@ -416,6 +416,18 @@ html.mc-fx-ready .mc-fx-wipe-reveal.mc-fx-in {
   will-change: transform;
 }
 
+/* Scroll-linked (default-off, feature-detected). The runtime writes inline
+   opacity (scroll-fade) or --mc-fx-scroll-scale (scroll-scale) from the scroll
+   position. Off under reduced-motion (runtime skips + the reduce block below). */
+.mc-fx-scroll-fade {
+  will-change: opacity;
+}
+.mc-fx-scroll-scale {
+  transform: scale(var(--mc-fx-scroll-scale, 1));
+  transform-origin: center;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html.mc-fx-ready [class*="mc-fx-"] {
     opacity: 1 !important;

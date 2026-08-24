@@ -268,6 +268,24 @@ export const EFFECT_DEFINITIONS: readonly EffectDefinition[] = [
       { key: "duration", label: "Duration", type: "number", min: 4000, max: 30000, step: 1000, unit: "ms", default: 12000, cssVar: "--mc-fx-kb-duration" },
     ],
   },
+  {
+    id: "scroll-fade", label: "Scroll fade", group: "continuous",
+    description: "Opacity follows the scroll position: fades in as the block scrolls up into view. Default-off, feature-detected, off under reduced-motion.",
+    trigger: "scroll", defaultOff: true, featureDetect: true,
+    params: [
+      { key: "range", label: "Range", type: "number", min: 0.2, max: 1, step: 0.05, default: 0.6, cssVar: "--mc-fx-scroll-range" },
+    ],
+  },
+  {
+    id: "scroll-scale", label: "Scroll scale", group: "continuous",
+    description: "Scale follows the scroll position: grows from the start scale to the end scale as the block scrolls up into view. Default-off, feature-detected, off under reduced-motion.",
+    trigger: "scroll", defaultOff: true, featureDetect: true,
+    params: [
+      { key: "from",  label: "From scale", type: "number", min: 0.5, max: 1,   step: 0.05, default: 0.85, cssVar: "--mc-fx-scroll-from" },
+      { key: "to",    label: "To scale",   type: "number", min: 0.5, max: 1.5, step: 0.05, default: 1,    cssVar: "--mc-fx-scroll-to" },
+      { key: "range", label: "Range",      type: "number", min: 0.2, max: 1,   step: 0.05, default: 0.6,  cssVar: "--mc-fx-scroll-range" },
+    ],
+  },
 ];
 
 export const EFFECT_GROUPS: ReadonlyArray<{ key: EffectGroupKey; label: string }> = [
