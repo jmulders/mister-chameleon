@@ -90,6 +90,8 @@ interface ContentBlockRendererProps {
   blockTokenSets?: readonly BlockTokenSet[] | null;
   /** Tenant's named effect sets, used to resolve block-level effect refs. */
   effectSets?: readonly EffectSet[] | null;
+  /** Per-block-type default effects (design.blockTypeEffects), keyed by block type. */
+  blockTypeEffects?: Partial<Record<string, readonly BlockEffectConfig[]>> | null;
   /** Tenant-wide default effects, applied to blocks with no own effect ref. */
   defaultEffects?: readonly BlockEffectConfig[] | null;
 }
@@ -107,7 +109,7 @@ interface ContentBlockRendererProps {
  *
  * Unknown block types return null — forward-compatible with registry growth.
  */
-export function ContentBlockRenderer({ block, blockTokenSets, effectSets, defaultEffects }: ContentBlockRendererProps) {
+export function ContentBlockRenderer({ block, blockTokenSets, effectSets, blockTypeEffects, defaultEffects }: ContentBlockRendererProps) {
   const rendered = renderContentBlock(block);
   if (!rendered) return null;
 
@@ -156,6 +158,7 @@ export function ContentBlockRenderer({ block, blockTokenSets, effectSets, defaul
       <BlockEffectScope
         effectRef={effectRef}
         sets={effectSets}
+        blockTypeDefault={blockTypeEffects?.[block.blockType]}
         tenantDefault={defaultEffects}
         scopeId={block.id}
       >

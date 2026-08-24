@@ -2124,14 +2124,14 @@ export interface TenantDesignSettings {
    */
   readonly defaultEffects?: readonly import("@/design-system/effects/effect-ref").BlockEffectConfig[];
   /**
-   * Per-block-type default effects, keyed by context block type (hero, proof,
-   * cta, feature, conversion, notification). Sits between the per-block instance
-   * ref and the tenant-wide default (instance ref < block-type default <
-   * tenant default). Each value is a declarative BlockEffectConfig[]; no raw JS.
-   * Set in Admin → Settings → Allowed Blocks. Lives in the design JSON — no
-   * migration.
+   * Per-block-type default effects, keyed by block type — either an adaptive slot
+   * type (hero, proof, cta, feature, conversion, notification) or a content block
+   * type (stats, featureGrid, ...). Sits between the per-block instance ref and the
+   * tenant-wide default (instance ref < block-type default < tenant default). Each
+   * value is a declarative BlockEffectConfig[]; no raw JS. Set in Admin → Settings →
+   * Allowed Blocks. Lives in the design JSON — no migration.
    */
-  readonly blockTypeEffects?: Partial<Record<ContextBlockKey, readonly import("@/design-system/effects/effect-ref").BlockEffectConfig[]>>;
+  readonly blockTypeEffects?: Partial<Record<ContextBlockKey | ContentBlockKey, readonly import("@/design-system/effects/effect-ref").BlockEffectConfig[]>>;
   /**
    * The Featured Theme Family that was explicitly selected in Design → Style.
    *
