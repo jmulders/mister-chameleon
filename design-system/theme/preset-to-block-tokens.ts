@@ -17,7 +17,52 @@
 
 import type { CuratedBlockTokens } from "./block-token-set";
 import type { TenantTokenOverrides } from "@/tenant/types";
-import { hexToRgb, relativeLuminance } from "@/lib/color";
+import {
+  hexToRgb, relativeLuminance, isLight, lighten, mix, readableText, contrastRatio,
+} from "@/lib/color";
+
+/**
+ * Card-on-dark separation for the block-token layer.
+ *
+ * A dark preset card (color.card) can sit on a dark subtle section (color.muted)
+ * with almost no separation, so the card melts into the band it sits on. The
+ * theme var layer already lifts --card-bg on [data-site] (#221), but the derived
+ * block tokens re-emit color.card raw on the more-specific site-default block
+ * scope, which masks that lift on blocks (e.g. the CtaSectionBlock card variant).
+ *
+ * Mirror the #221 logic here so the block-token layer carries the same lift:
+ * when the subtle section is dark and the card barely separates from it, lighten
+ * the card until it clears the just-noticeable bar and strengthen its border to
+ * match. The target sits a touch above #221's ~1.35 so a block card reads as
+ * clearly elevated (and, being the more-specific scope, wins consistently).
+ *
+ * Returns the lifted { cardBg, cardBorder } or null when no lift is needed or the
+ * colours cannot be parsed (non-destructive: callers keep the originals). Applied
+ * at derivation time (blockTokensFromOverrides, for newly applied presets) and at
+ * render time (the site-default block scope, for already-saved presets). Idempotent:
+ * a card already at or above the target is left untouched, so re-running is a no-op.
+ */
+const CARD_ON_DARK_SEP_TARGET = 1.4;
+
+export function liftDarkCardTokens(
+  cardBg:   string | undefined,
+  subtleBg: string | undefined,
+  text:     string | undefined,
+): { cardBg: string; cardBorder: string } | null {
+  if (!cardBg || !subtleBg) return null;
+  if (isLight(subtleBg)) return null;                 // only lift cards on dark sections
+  const sep = contrastRatio(cardBg, subtleBg);
+  if (sep === null || sep >= CARD_ON_DARK_SEP_TARGET) return null;
+  // Lift the card to a lightened shade of the subtle section, stepping up until
+  // it clears the target (a fixed step cannot guarantee the ratio on every base).
+  let lifted = lighten(subtleBg, 0.14);
+  for (let amount = 0.14; amount <= 0.4; amount += 0.06) {
+    lifted = lighten(subtleBg, amount);
+    const r = contrastRatio(lifted, subtleBg);
+    if (r !== null && r >= CARD_ON_DARK_SEP_TARGET) break;
+  }
+  return { cardBg: lifted, cardBorder: mix(lifted, text ?? readableText(lifted), 0.24) };
+}
 
 /**
  * Average WCAG relative luminance of the hex colour stops in a CSS gradient
@@ -146,6 +191,15 @@ export function blockTokensFromOverrides(
 
   // Dividers
   put("dividerColor", c.border);
+
+  // Card-on-dark: lift a dark card that barely separates from its subtle section
+  // so it reads as elevated. Mirrors the theme-var lift (#221) at derivation time,
+  // so a freshly applied preset already ships a separated card in the block layer.
+  const cardLift = liftDarkCardTokens(out.cardBg, out.bgSubtle, out.text);
+  if (cardLift) {
+    out.cardBg     = cardLift.cardBg;
+    out.cardBorder = cardLift.cardBorder;
+  }
 
   return out as CuratedBlockTokens;
 }

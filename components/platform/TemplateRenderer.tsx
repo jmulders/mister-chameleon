@@ -67,6 +67,7 @@ import { ContentBlockRenderer } from "./ContentBlockRenderer";
 import { listDesignEffectSets } from "@/lib/design-effect-sets/effect-sets-store";
 import type { EffectSet, BlockEffectConfig } from "@/design-system/effects/effect-ref";
 import { getContextualGalleryDefaultTokens } from "@/lib/theme/contextual-block-tokens";
+import { liftDarkCardTokens } from "@/design-system/theme/preset-to-block-tokens";
 import { BlockThemeScope } from "./BlockThemeScope";
 import { BlockEffectScope } from "./BlockEffectScope";
 import type { BlockTokenSet, BlockTokenRef, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
@@ -427,8 +428,21 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
     blockTypeEffects = undefined;
   }
 
+  // Card-on-dark render-time pin: an already-saved preset stores a raw dark
+  // defaultTokens.cardBg that, re-emitted on this more-specific site-default block
+  // scope, would mask the theme-var lift (#221). Lift it here too so the card reads
+  // as elevated without re-applying the preset. Newly applied presets already carry
+  // the lift from derivation, so this is an idempotent no-op for them.
+  let scopedDefaultTokens = defaultTokens;
+  if (defaultTokens) {
+    const cardLift = liftDarkCardTokens(defaultTokens.cardBg, defaultTokens.bgSubtle, defaultTokens.text);
+    if (cardLift) {
+      scopedDefaultTokens = { ...defaultTokens, cardBg: cardLift.cardBg, cardBorder: cardLift.cardBorder };
+    }
+  }
+
   return (
-    <BlockThemeScope tokenRef={{ tokens: defaultTokens }} sets={blockTokenSets} scopeId="site-default">
+    <BlockThemeScope tokenRef={{ tokens: scopedDefaultTokens }} sets={blockTokenSets} scopeId="site-default">
       {/* ── Notification overlay (rendered once, outside page flow) ──────── */}
       {effectiveContextData.notification && (
         <NotificationBlock
