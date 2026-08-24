@@ -18,6 +18,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BlockEffectConfig, EffectSet } from "@/design-system/effects/effect-ref";
 import { EffectListEditor } from "@/components/admin/effects/EffectListEditor";
+import { effectDefinition } from "@/design-system/effects/effect-defs";
 import { saveEffectSetAction, deleteEffectSetAction, setDefaultEffectsAction } from "../effect-set-actions";
 
 const inputCls = "rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
@@ -41,13 +42,26 @@ export function EffectsEditor({
   const [setName, setSetName] = useState("");
   const [setEffects, setSetEffects] = useState<BlockEffectConfig[]>([]);
 
-  function saveDefaults() {
+  // An effect picked in the Default-effects dropdown but not yet added to the list.
+  const [pendingDefault, setPendingDefault] = useState<string | null>(null);
+  // When set, an inline confirm is shown before saving an empty default list while
+  // a selection is still pending (the "selected but forgot to Add" footgun).
+  const [confirmDefault, setConfirmDefault] = useState<string | null>(null);
+
+  function doSaveDefaults(list: BlockEffectConfig[]) {
     setStatus(null);
+    setConfirmDefault(null);
     start(async () => {
-      const r = await setDefaultEffectsAction(tenantId, defaults);
+      const r = await setDefaultEffectsAction(tenantId, list);
       setStatus(r.ok ? { kind: "ok", text: "Default effects saved." } : { kind: "error", text: r.error });
       if (r.ok) router.refresh();
     });
+  }
+  function saveDefaults() {
+    // Warn (don't block) when the list is empty but a selection is still pending:
+    // the user likely meant to add it. Deliberately clearing to empty stays possible.
+    if (defaults.length === 0 && pendingDefault) { setConfirmDefault(pendingDefault); return; }
+    doSaveDefaults(defaults);
   }
   function saveSet() {
     setStatus(null);
@@ -77,7 +91,29 @@ export function EffectsEditor({
         <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px" }}>
           Applied to every block that has no effect of its own. A block or a named set below can still override this.
         </p>
-        <EffectListEditor value={defaults} onChange={setDefaults} />
+        <EffectListEditor value={defaults} onChange={setDefaults} onPendingChange={setPendingDefault} />
+
+        {confirmDefault && (
+          <div role="alertdialog" style={{ marginTop: 10, border: "1px solid #fde68a", background: "#fffbeb", borderRadius: 8, padding: "10px 12px" }}>
+            <p style={{ fontSize: 12, color: "#92400e", margin: "0 0 8px" }}>
+              You selected &quot;{effectDefinition(confirmDefault)?.label ?? confirmDefault}&quot; but haven&apos;t added it.
+              Save with no effects anyway?
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className={btnPrimary} disabled={pending}
+                onClick={() => { const next = [...defaults, { effect: confirmDefault }]; setDefaults(next); doSaveDefaults(next); }}>
+                Add and save
+              </button>
+              <button type="button" className={btn} disabled={pending} onClick={() => doSaveDefaults([])}>
+                Save with no effects
+              </button>
+              <button type="button" className={btn} disabled={pending} onClick={() => setConfirmDefault(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={{ marginTop: 10 }}>
           <button type="button" className={btnPrimary} disabled={pending} onClick={saveDefaults}>
             {pending ? "Saving..." : "Save default effects"}
@@ -109,10 +145,16 @@ export function EffectsEditor({
             <input className={inputCls} style={{ width: 260 }} value={setName} placeholder="Gentle reveal" onChange={(e) => setSetName(e.target.value)} />
           </label>
           <EffectListEditor value={setEffects} onChange={setSetEffects} />
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <button type="button" className={btnPrimary} disabled={pending || !setName.trim() || setEffects.length === 0} onClick={saveSet}>
               {pending ? "Saving..." : "Save effect set"}
             </button>
+            {/* Explain why Save is disabled so the operator knows what is missing. */}
+            {!pending && (!setName.trim() || setEffects.length === 0) && (
+              <span style={{ fontSize: 11, color: "#b45309" }}>
+                {!setName.trim() ? "Enter a name to save this set." : "Add at least one effect to save this set."}
+              </span>
+            )}
           </div>
         </div>
       </section>

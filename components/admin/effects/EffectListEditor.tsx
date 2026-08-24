@@ -13,7 +13,7 @@
  * English admin UI.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   EFFECT_DEFINITIONS, EFFECT_GROUPS, effectDefinition, type EffectGroupKey,
 } from "@/design-system/effects/effect-defs";
@@ -22,12 +22,30 @@ import type { BlockEffectConfig } from "@/design-system/effects/effect-ref";
 export const effectInputCls = "rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
 export const effectBtn = "rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50";
 
-export function EffectListEditor({ value, onChange }: { value: BlockEffectConfig[]; onChange: (v: BlockEffectConfig[]) => void }) {
-  const [addId, setAddId] = useState<string>(EFFECT_DEFINITIONS[0]?.id ?? "");
+export function EffectListEditor({
+  value, onChange, onPendingChange,
+}: {
+  value: BlockEffectConfig[];
+  onChange: (v: BlockEffectConfig[]) => void;
+  /**
+   * Fires with the dropdown effect that is SELECTED BUT NOT YET ADDED (or null).
+   * Lets the parent warn before a Save that would silently drop it. The dropdown
+   * starts on a neutral placeholder, so "pending" only means a real user choice.
+   */
+  onPendingChange?: (pendingEffectId: string | null) => void;
+}) {
+  // Neutral placeholder default: "pending" reflects a deliberate selection, not
+  // the first option being pre-picked. Reset to "" after each add.
+  const [addId, setAddId] = useState<string>("");
+
+  // A selection the user picked but has not added to the list yet.
+  const pending = addId && !value.some((e) => e.effect === addId) ? addId : null;
+  useEffect(() => { onPendingChange?.(pending); }, [pending, onPendingChange]);
 
   function add() {
     if (!addId || value.some((e) => e.effect === addId)) return;
     onChange([...value, { effect: addId }]);
+    setAddId("");
   }
   function remove(id: string) { onChange(value.filter((e) => e.effect !== id)); }
   function setParam(id: string, key: string, raw: string) {
@@ -44,8 +62,9 @@ export function EffectListEditor({ value, onChange }: { value: BlockEffectConfig
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
         <select className={effectInputCls} value={addId} onChange={(e) => setAddId(e.target.value)}>
+          <option value="">Select an effect...</option>
           {EFFECT_GROUPS.map((g) => (
             byGroup[g.key].length > 0 && (
               <optgroup key={g.key} label={g.label}>
@@ -56,8 +75,18 @@ export function EffectListEditor({ value, onChange }: { value: BlockEffectConfig
             )
           ))}
         </select>
-        <button type="button" className={effectBtn} onClick={add}>Add effect</button>
+        <button type="button" className={effectBtn} onClick={add} disabled={!addId}
+          style={!addId ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
+          Add effect
+        </button>
       </div>
+      {/* The dropdown selection is not saved until it is added to the list. */}
+      {pending && (
+        <p role="status" style={{ fontSize: 11, color: "#b45309", margin: "0 0 10px" }}>
+          Not added yet. Click Add effect to include &quot;{effectDefinition(pending)?.label ?? pending}&quot;.
+        </p>
+      )}
+      {!pending && <div style={{ height: 6 }} />}
 
       {value.length === 0 && <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>No effects yet.</p>}
 
