@@ -15,3 +15,24 @@ fields:
       instructions: "Optional. Enter the key of a design token set (defined in Admin → Design → Blocks) to restyle just this block — e.g. `dark-section`. Leave empty to inherit the site-wide design tokens."
       width: 100
       icon: tokens
+  -
+    handle: effect_set
+    field:
+      type: text
+      display: 'Motion effect set'
+      instructions: "Optional. Enter the key of a motion effect set (defined in Admin → Design → Effects) to animate just this block — e.g. `reveal-soft`. Leave empty to inherit the block-type or site-wide default motion."
+      width: 50
+  -
+    handle: effect
+    field:
+      type: text
+      display: 'Motion effect (single)'
+      instructions: "Optional alternative to a set: enter a single effect id — e.g. `reveal`, `fade-in`, `slide-in-up`, `wipe-reveal`. Ignored when a Motion effect set is set above."
+      width: 50
+  -
+    handle: effect_disabled
+    field:
+      type: toggle
+      display: 'Disable motion'
+      instructions: "Turn off all motion for this block, overriding any block-type or site-wide default. Wins over the fields above."
+      width: 100

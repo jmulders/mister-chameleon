@@ -55,6 +55,7 @@
  *   cta_href                →  cta.href
  */
 
+import type { BlockEffectRef } from "@/design-system/effects/effect-ref";
 import type {
   HeroBlockData, HeroBannerMedia, ProofBlockData, CTABlockData,
   FeatureBlockData, ConversionBlockData, AdaptiveVariantContent, AdaptiveBlockData,
@@ -707,6 +708,43 @@ function bardBodyToHtml(body: unknown): string | undefined {
  * Called by StatamicProvider.getPageBySlug() (saved page path) and by
  * buildDraftPageData() in app/(site)/[slug]/page.tsx (live preview path).
  */
+
+/**
+ * Build a BlockEffectRef from the mrc_block_design motion fields on a raw block,
+ * the parallel of the token_set field. Statamic augments select/toggle values, so
+ * accept a plain string/boolean or the `{ value }` / `{ key }` wrapper.
+ *
+ * Precedence: a disable toggle wins, then a named effect set, then a single inline
+ * effect id. Returns undefined when nothing is authored (inherit the default tier).
+ */
+export function readStatamicBlockEffectRef(block: Record<string, unknown>): BlockEffectRef | undefined {
+  const asString = (raw: unknown): string => {
+    if (typeof raw === "string") return raw.trim();
+    if (raw && typeof raw === "object") {
+      const o = raw as { value?: unknown; key?: unknown };
+      if (typeof o.value === "string") return o.value.trim();
+      if (typeof o.key === "string") return o.key.trim();
+    }
+    return "";
+  };
+  const asBool = (raw: unknown): boolean => {
+    if (typeof raw === "boolean") return raw;
+    if (typeof raw === "string") return raw === "true" || raw === "1";
+    if (raw && typeof raw === "object") {
+      const v = (raw as { value?: unknown }).value;
+      return v === true || v === "true";
+    }
+    return false;
+  };
+
+  if (asBool(block.effect_disabled)) return { disabled: true };
+  const set = asString(block.effect_set);
+  if (set) return { effectSet: set };
+  const effect = asString(block.effect);
+  if (effect) return { effects: [{ effect }] };
+  return undefined;
+}
+
 export function mapStatamicPageBlocksToSections(
   blocks: Array<Record<string, unknown>>,
   /**
@@ -1782,6 +1820,15 @@ export function mapStatamicPageBlocksToSections(
         (lastSection as PageSectionBase).tokens =
           block.tokens as PageSectionBase["tokens"];
       }
+    }
+
+    // ── Post-process: block-level motion effect ───────────────────────────────
+    // Parallel to the token set above: forward the authored motion field onto the
+    // section as a BlockEffectRef so ContentBlockRenderer applies it (an instance
+    // ref, so it wins over the block-type and tenant defaults).
+    if (lastSection) {
+      const effectRef = readStatamicBlockEffectRef(block);
+      if (effectRef) (lastSection as PageSectionBase).effects = effectRef;
     }
   }
 

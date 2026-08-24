@@ -1396,6 +1396,13 @@ export interface PageSectionBase {
    */
   tokenSet?: string;
   tokens?:   import("@/design-system/theme/block-token-set").CuratedBlockTokens;
+  /**
+   * Optional block-level motion effect — a BlockEffectRef (named effect set,
+   * inline effects, or a disable flag). Forwarded verbatim to ContentBlock.effects
+   * and applied as an instance-level effect at render (so it wins over the
+   * block-type and tenant defaults). See design-system/effects/effect-ref.ts.
+   */
+  effects?:  import("@/design-system/effects/effect-ref").BlockEffectRef;
 }
 
 // ── Page section data types ───────────────────────────────────────────────────
