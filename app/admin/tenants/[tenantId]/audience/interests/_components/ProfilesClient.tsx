@@ -154,7 +154,7 @@ function ProfileRow({ profile, tenantId, saving, checking, error, onToggle, sele
         {/* Profile name + key + badges */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-3">
-            <Avatar name={profile.name} seed={profile.key} />
+            <Avatar name={profile.name} seed={profile.key} avatar={profile.avatar} />
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-semibold text-neutral-900">{profile.name}</p>
