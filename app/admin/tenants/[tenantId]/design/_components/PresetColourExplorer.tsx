@@ -19,6 +19,7 @@ import {
   NO_MATCH_THRESHOLD, HEADING_FONTS, BODY_FONTS, type ChosenColours,
 } from "@/lib/design/preset-colour-match";
 import type { HueFamily } from "@/lib/color";
+import { contrastLevel, ratioText, paletteContrast } from "@/lib/design/contrast-warn";
 import { applyDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
 import { saveDesignTokenSetAction, applyDesignTokenSetAction } from "../token-set-actions";
 import { PalettePreview } from "./PalettePreview";
@@ -70,6 +71,37 @@ function ColourField({
   );
 }
 
+// ── Contrast warnings (WCAG 2.x, non-blocking) ────────────────────────────────
+//
+// Warn, never block: the operator can save any palette. The threshold logic
+// lives in lib/design/contrast-warn (pure, unit-tested); this component only
+// renders it. Below 4.5:1 warns (yellow), below 3:1 is a stronger warning (red).
+
+/** Inline per-pair warning shown beneath the relevant picker. Renders nothing when the pair passes. */
+function ContrastNote({ label, ratio }: { label: string; ratio: number | null }) {
+  const level = contrastLevel(ratio);
+  if (level === "ok") return null;
+  const fail  = level === "fail";
+  return (
+    <div
+      role="alert"
+      style={{
+        fontSize: 11,
+        lineHeight: 1.4,
+        color:      fail ? "#b91c1c" : "#b45309",
+        background: fail ? "#fef2f2" : "#fffbeb",
+        border:     `1px solid ${fail ? "#fecaca" : "#fde68a"}`,
+        borderRadius: 6,
+        padding: "3px 8px",
+        marginBottom: 6,
+        maxWidth: 360,
+      }}
+    >
+      {label}: {ratioText(ratio)} {fail ? "(fails 3:1, hard to read)" : "(below 4.5:1 AA)"}
+    </div>
+  );
+}
+
 export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -116,6 +148,15 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
       ...(foreground.on && HEX_RE.test(foreground.hex) ? { foreground: foreground.hex } : {}),
     };
   }, [primary, background, accent, foreground]);
+
+  // Live contrast checks on the chosen colours. Background falls back to white
+  // (the page default) when the operator has not set one; onPrimary is the text
+  // colour the theme would auto-pick for buttons on the primary (readableText).
+  const contrast = useMemo(() => paletteContrast({
+    primaryHex:    HEX_RE.test(primary.hex) ? primary.hex : null,
+    backgroundHex: background.on && HEX_RE.test(background.hex) ? background.hex : null,
+    foregroundHex: foreground.on && HEX_RE.test(foreground.hex) ? foreground.hex : null,
+  }), [primary, background, foreground]);
 
   const ranked = useMemo(() => (chosen ? rankPresets(DESIGN_PRESET_GALLERY, chosen) : []), [chosen]);
 
@@ -186,9 +227,12 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
         {/* Colour composer */}
         <div>
           <ColourField label="Primary" required state={primary} onChange={setPrimary} />
+          <ContrastNote label="Primary on background" ratio={contrast.primaryOnBg} />
+          <ContrastNote label="Button text on primary" ratio={contrast.onPrimary} />
           <ColourField label="Background" state={background} onChange={setBackground} />
           <ColourField label="Accent" state={accent} onChange={setAccent} />
           <ColourField label="Foreground" state={foreground} onChange={setForeground} />
+          <ContrastNote label="Text on background" ratio={contrast.fgOnBg} />
           {!chosen && <div style={{ fontSize: 11, color: "#b91c1c" }}>Enter a valid primary hex to search.</div>}
         </div>
 
@@ -268,6 +312,27 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
             <ColourField label="Footer" state={footerBg} onChange={setFooterBg} />
             <ColourField label="Top band" state={topbandBg} onChange={setTopbandBg} />
           </div>
+
+          {contrast.worst !== "ok" && (
+            <div
+              role="status"
+              style={{
+                marginBottom: 10,
+                fontSize: 11,
+                lineHeight: 1.4,
+                color:      contrast.worst === "fail" ? "#b91c1c" : "#b45309",
+                background: contrast.worst === "fail" ? "#fef2f2" : "#fffbeb",
+                border:     `1px solid ${contrast.worst === "fail" ? "#fecaca" : "#fde68a"}`,
+                borderRadius: 6,
+                padding: "6px 10px",
+                maxWidth: 480,
+              }}
+            >
+              {contrast.worst === "fail"
+                ? "Some colour pairs fail WCAG contrast (below 3:1). You can still save, but the text may be hard to read."
+                : "Some colour pairs are below the 4.5:1 AA threshold. You can still save; check the warnings above."}
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={{ fontSize: 12, color: "#374151" }}>
