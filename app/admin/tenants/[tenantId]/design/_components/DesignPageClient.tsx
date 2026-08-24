@@ -42,6 +42,8 @@ import { LayoutVariantEditor }  from "./LayoutVariantEditor";
 import { BlockTokenSetsEditor } from "./BlockTokenSetsEditor";
 import { SiteDesignTokensEditor } from "./SiteDesignTokensEditor";
 import { DesignTokenSetsLibrary } from "./DesignTokenSetsLibrary";
+import { EffectsEditor } from "./EffectsEditor";
+import type { EffectSet } from "@/design-system/effects/effect-ref";
 import { ImportThemePreset } from "./ImportThemePreset";
 import { PresetColourExplorer } from "./PresetColourExplorer";
 import type { DesignTokenSet } from "@/lib/design-token-sets/design-token-sets-store";
@@ -112,6 +114,8 @@ export interface DesignPageClientProps {
   design:       TenantDesignSettings;
   /** Saved design token sets (library) available to this tenant. */
   tokenSets:    DesignTokenSet[];
+  /** Saved declarative-effect sets (library) available to this tenant. */
+  effectSets:   EffectSet[];
 }
 
 // ── Active tab resolution ─────────────────────────────────────────────────────
@@ -545,6 +549,7 @@ export function DesignPageClient({
   activeTheme,
   design,
   tokenSets,
+  effectSets,
 }: DesignPageClientProps) {
   // Driven by the shared sub-nav links (?tab=…); "presets" when absent/unknown.
   const tabParam  = useSearchParams().get("tab");
@@ -687,6 +692,14 @@ export function DesignPageClient({
             description="Optional. Define reusable, named token sets (dark section, highlight, soft cards…) and assign them to a specific content block or adaptive slot by key when you want it to differ from the site defaults above. Scoped to that block only."
           />
           <BlockTokenSetsEditor tenantId={tenantId} initialSets={design.blockTokenSets} />
+        </div>
+
+        <div style={{ marginTop: "2rem" }}>
+          <TabSectionHeader
+            title="Block effects (motion)"
+            description="Declarative entrance and emphasis effects. Set default effects for every block, or build reusable named effect sets to assign per block. Advanced effects (parallax, sticky, Ken Burns) are default-off and never play under reduced-motion."
+          />
+          <EffectsEditor tenantId={tenantId} effectSets={effectSets} defaultEffects={design.defaultEffects} />
         </div>
       </TabPanel>
 

@@ -14,6 +14,43 @@ import {
   EFFECT_SCHEMA_VERSION, effectDefinition, isKnownEffect, type EffectDefinition,
 } from "./effect-defs";
 
+/**
+ * Validate + normalise an untrusted effect-config array against the registry
+ * (the storage boundary for the managed library). Drops unknown effect ids and
+ * unknown params, and clamps numeric params to their declared range. This is what
+ * enforces "declarative only, no raw JS": nothing outside the registry survives.
+ */
+export function sanitizeEffectConfigs(raw: unknown): BlockEffectConfig[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BlockEffectConfig[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const effect = (item as { effect?: unknown }).effect;
+    if (typeof effect !== "string" || !isKnownEffect(effect) || seen.has(effect)) continue;
+    const def = effectDefinition(effect)!;
+    seen.add(effect);
+    const rawParams = (item as { params?: unknown }).params;
+    const params: Record<string, string | number> = {};
+    if (rawParams && typeof rawParams === "object" && !Array.isArray(rawParams)) {
+      for (const p of def.params ?? []) {
+        const v = (rawParams as Record<string, unknown>)[p.key];
+        if (v === undefined || v === null) continue;
+        if (p.type === "number") {
+          const n = typeof v === "number" ? v : Number(v);
+          if (!Number.isFinite(n)) continue;
+          params[p.key] = Math.min(p.max ?? Infinity, Math.max(p.min ?? -Infinity, n));
+        } else {
+          const s = String(v);
+          if (p.options?.some((o) => o.value === s)) params[p.key] = s;
+        }
+      }
+    }
+    out.push(Object.keys(params).length > 0 ? { effect, params } : { effect });
+  }
+  return out;
+}
+
 /** One declarative effect applied to a block, with typed params. */
 export interface BlockEffectConfig {
   effect:  string;                                  // EffectDefinition id

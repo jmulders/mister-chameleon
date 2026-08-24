@@ -2116,6 +2116,14 @@ export interface TenantDesignSettings {
    */
   readonly defaultTokens?: CuratedBlockTokens;
   /**
+   * Tenant-wide default block effects (design-system/effects). Applied to every
+   * content block that has no effect ref of its own (lowest of the three tiers:
+   * tenant default < named effect set < per-block inline). Each entry is a
+   * declarative BlockEffectConfig ({ effect, params }); there is no raw-JS field.
+   * Set in Admin → Design → Effects.
+   */
+  readonly defaultEffects?: readonly import("@/design-system/effects/effect-ref").BlockEffectConfig[];
+  /**
    * The Featured Theme Family that was explicitly selected in Design → Style.
    *
    * This field tracks the user's intentional family choice so the admin UI can

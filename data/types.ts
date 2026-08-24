@@ -1034,6 +1034,28 @@ export interface DesignTokenSetInsert {
   typography_override?: Record<string, unknown> | null;
 }
 
+/** A row from `design_effect_sets` (migration 171). */
+export interface DesignEffectSetRow {
+  id:         string;
+  created_at: string;
+  updated_at: string;
+  tenant_id:  string | null;
+  name:       string;
+  effects:    unknown[];               // BlockEffectConfig[]
+  slots:      string[] | null;
+}
+
+/** Insert/upsert payload for `design_effect_sets`. */
+export interface DesignEffectSetInsert {
+  id?:         string;
+  created_at?: string;
+  updated_at?: string;
+  tenant_id?:  string | null;
+  name:        string;
+  effects:     unknown[];
+  slots?:      string[] | null;
+}
+
 // ── Database schema (Supabase client generic) ─────────────────────────────────
 
 /**
