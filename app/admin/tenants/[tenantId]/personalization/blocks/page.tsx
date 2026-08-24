@@ -17,6 +17,7 @@ import { getAdaptiveBlockByKey }     from "@/lib/adaptive-blocks/adaptive-blocks
 import { buildRuleUsageIndex, type RuleUsageRef } from "@/lib/adaptive-blocks/rules-usage";
 import { loadTenantRulesConfig }     from "@/decision/rules/load-tenant-rules";
 import { getTenantById }             from "@/tenant/server";
+import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-store";
 import { getFormDefinition, isFormKey } from "@/forms";
 import { TenantBlocksClient }        from "./_components/TenantBlocksClient";
 
@@ -43,6 +44,9 @@ export default async function TenantBlocksPage({ params }: Props) {
   // Named block-token sets — passed to the editor drawer's token-set picker.
   const tenant = await getTenantById(tenantId);
   const blockTokenSets = tenant?.design?.blockTokenSets ?? [];
+
+  // Named effect sets — passed to the drawer's per-block effect picker.
+  const effectSets = await listDesignEffectSets(tenantId);
 
   const totalCustomized = allBlocks.filter((b) => b.tenantId === tenantId).length;
 
@@ -122,6 +126,7 @@ export default async function TenantBlocksPage({ params }: Props) {
         ruleUsage={ruleUsage}
         initialSlotModes={tenant?.adaptiveSlots ?? null}
         blockTokenSets={blockTokenSets}
+        effectSets={effectSets}
         customAttributes={tenant?.customAttributes ?? []}
         copyVariables={tenant?.copyVariables}
       />

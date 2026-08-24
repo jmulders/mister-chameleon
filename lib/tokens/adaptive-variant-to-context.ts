@@ -26,6 +26,7 @@
 import type { AdaptiveVariantContent } from "@/cms/types";
 import type { ContextSlotData } from "@/page-config";
 import type { BlockTokenRef } from "@/design-system/theme/block-token-set";
+import type { BlockEffectRef } from "@/design-system/effects/effect-ref";
 import { adaptiveVariantToHeroBlockData } from "./resolve-adaptive-variant";
 import { adaptiveItemToProofItem, adaptiveItemToFeatureItem, adaptiveCtasToButtons } from "@/lib/blocks/adaptive-item-to-block";
 import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
@@ -41,6 +42,19 @@ function tokenRefFromVariant(content: AdaptiveVariantContent): BlockTokenRef | u
 }
 
 /**
+ * Carry the variant's block-level effect ref through to the preview, so the
+ * admin preview animates identically to the live site. Returns undefined when
+ * the variant carries no effect ref (falls back to type/tenant default).
+ */
+function effectRefFromVariant(content: AdaptiveVariantContent): BlockEffectRef | undefined {
+  const ref = content.effects;
+  if (!ref) return undefined;
+  const hasInline = !!ref.effects && ref.effects.length > 0;
+  if (!ref.effectSet && !hasInline && !ref.disabled) return undefined;
+  return ref;
+}
+
+/**
  * Map an AdaptiveVariantContent to a one-key ContextSlotData for `slotId`.
  * Returns null for slot types without a full-fidelity preview path.
  */
@@ -49,8 +63,12 @@ export function adaptiveVariantToContextEntry(
   content: AdaptiveVariantContent,
   blockKey: string,
 ): Partial<ContextSlotData> | null {
-  const tokenRef = tokenRefFromVariant(content);
-  const withRef = tokenRef ? { tokenRef } : {};
+  const tokenRef  = tokenRefFromVariant(content);
+  const effectRef = effectRefFromVariant(content);
+  const withRef = {
+    ...(tokenRef  ? { tokenRef }  : {}),
+    ...(effectRef ? { effectRef } : {}),
+  };
 
   switch (slotId) {
     case "hero":

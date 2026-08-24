@@ -68,6 +68,7 @@ import { listDesignEffectSets } from "@/lib/design-effect-sets/effect-sets-store
 import type { EffectSet, BlockEffectConfig } from "@/design-system/effects/effect-ref";
 import { getContextualGalleryDefaultTokens } from "@/lib/theme/contextual-block-tokens";
 import { BlockThemeScope } from "./BlockThemeScope";
+import { BlockEffectScope } from "./BlockEffectScope";
 import type { BlockTokenSet, BlockTokenRef, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
@@ -108,6 +109,10 @@ interface ContextSlotRendererProps {
   tokenContext?:  TokenContext;
   /** Tenant's named block-token sets — used to resolve a slot's content tokenRef. */
   blockTokenSets?: readonly BlockTokenSet[] | null;
+  /** Tenant's named effect sets — used to resolve a slot's content effectRef. */
+  effectSets?:     readonly EffectSet[] | null;
+  /** Tenant-wide default effects — the fallback tier when a slot has no effectRef. */
+  defaultEffects?: readonly BlockEffectConfig[] | null;
 }
 
 /**
@@ -150,9 +155,20 @@ function ContextSlotRenderer(props: ContextSlotRendererProps) {
     : slotId === "cta"   ? contextData.cta
     : slotId === "feature" ? contextData.feature
     : undefined;
+  // The effect scope sits INSIDE the token scope so the animated wrapper inherits
+  // the block's scoped CSS variables (mirrors ContentBlockRenderer). When the slot
+  // has no effectRef, resolveBlockEffects falls back to the tenant default; when
+  // nothing resolves, BlockEffectScope passes children through untouched.
   return (
     <BlockThemeScope tokenRef={entry?.tokenRef} sets={props.blockTokenSets} scopeId={slotId}>
-      {inner}
+      <BlockEffectScope
+        effectRef={entry?.effectRef}
+        sets={props.effectSets}
+        tenantDefault={props.defaultEffects}
+        scopeId={slotId}
+      >
+        {inner}
+      </BlockEffectScope>
     </BlockThemeScope>
   );
 }
@@ -267,13 +283,23 @@ export function AdaptiveSlotPreview({
   slotId,
   contextData,
   blockTokenSets,
+  effectSets,
+  defaultEffects,
 }: {
   slotId:          ContextSlotId;
   contextData:     ContextSlotData;
   blockTokenSets?: readonly BlockTokenSet[] | null;
+  effectSets?:     readonly EffectSet[] | null;
+  defaultEffects?: readonly BlockEffectConfig[] | null;
 }) {
   return (
-    <ContextSlotRenderer slotId={slotId} contextData={contextData} blockTokenSets={blockTokenSets} />
+    <ContextSlotRenderer
+      slotId={slotId}
+      contextData={contextData}
+      blockTokenSets={blockTokenSets}
+      effectSets={effectSets}
+      defaultEffects={defaultEffects}
+    />
   );
 }
 
@@ -436,6 +462,8 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
                 layoutVariant={slot.layoutVariant}
                 tokenContext={tokenContext}
                 blockTokenSets={blockTokenSets}
+                effectSets={effectSets}
+                defaultEffects={defaultEffects}
               />
             </BlockThemeScope>
           );
@@ -517,10 +545,20 @@ async function fetchContextDataFromSlots(
           if (adaptive && adaptive.isActive) {
             const { content } = resolveAdaptiveVariant(adaptive);
             const heroData    = adaptiveVariantToHeroBlockData(content, adaptive.key);
-            // Carry the resolved variant's block-level tokens so the renderer
-            // can scope them to this hero. Absent tokens → no wrapper.
-            const tokenRef = tokenRefFromVariant(content);
-            return { hero: { ...heroData, ctaKey: key, ...(tokenRef ? { tokenRef } : {}) } };
+            // Carry the resolved variant's block-level tokens + effects so the
+            // renderer can scope/animate this hero. Absent → no wrapper.
+            const tokenRef  = tokenRefFromVariant(content);
+            const effectRef = content.effects && (content.effects.effectSet || content.effects.effects?.length || content.effects.disabled)
+              ? content.effects
+              : undefined;
+            return {
+              hero: {
+                ...heroData,
+                ctaKey: key,
+                ...(tokenRef  ? { tokenRef }  : {}),
+                ...(effectRef ? { effectRef } : {}),
+              },
+            };
           }
           return {};
         }
