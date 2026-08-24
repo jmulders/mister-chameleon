@@ -499,6 +499,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
             block={item.block}
             blockTokenSets={blockTokenSets}
             effectSets={effectSets}
+            blockTypeEffects={blockTypeEffects}
             defaultEffects={defaultEffects}
           />
         );
