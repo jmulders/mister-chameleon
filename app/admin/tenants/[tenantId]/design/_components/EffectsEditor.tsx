@@ -145,10 +145,16 @@ export function EffectsEditor({
             <input className={inputCls} style={{ width: 260 }} value={setName} placeholder="Gentle reveal" onChange={(e) => setSetName(e.target.value)} />
           </label>
           <EffectListEditor value={setEffects} onChange={setSetEffects} />
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <button type="button" className={btnPrimary} disabled={pending || !setName.trim() || setEffects.length === 0} onClick={saveSet}>
               {pending ? "Saving..." : "Save effect set"}
             </button>
+            {/* Explain why Save is disabled so the operator knows what is missing. */}
+            {!pending && (!setName.trim() || setEffects.length === 0) && (
+              <span style={{ fontSize: 11, color: "#b45309" }}>
+                {!setName.trim() ? "Enter a name to save this set." : "Add at least one effect to save this set."}
+              </span>
+            )}
           </div>
         </div>
       </section>
