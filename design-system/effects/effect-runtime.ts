@@ -129,9 +129,59 @@ html.mc-fx-ready .mc-fx-slide-in-right:not(.mc-fx-in) {
 html.mc-fx-ready .mc-fx-zoom-in:not(.mc-fx-in) {
   transform: scale(0.96);
 }
+/* Additive entrance effects: transition opacity/transform/filter/clip-path. */
+html.mc-fx-ready .mc-fx-slide-in-down,
+html.mc-fx-ready .mc-fx-blur-in,
+html.mc-fx-ready .mc-fx-pop,
+html.mc-fx-ready .mc-fx-flip-in,
+html.mc-fx-ready .mc-fx-wipe-reveal {
+  transition:
+    opacity   var(--mc-fx-duration, 600ms) var(--mc-fx-ease, ease) var(--mc-fx-delay, 0ms),
+    transform var(--mc-fx-duration, 600ms) var(--mc-fx-ease, ease) var(--mc-fx-delay, 0ms),
+    filter    var(--mc-fx-duration, 600ms) var(--mc-fx-ease, ease) var(--mc-fx-delay, 0ms),
+    clip-path var(--mc-fx-duration, 600ms) var(--mc-fx-ease, ease) var(--mc-fx-delay, 0ms);
+  will-change: opacity, transform;
+}
+html.mc-fx-ready .mc-fx-slide-in-down:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-blur-in:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-pop:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-flip-in:not(.mc-fx-in),
+html.mc-fx-ready .mc-fx-wipe-reveal:not(.mc-fx-in) {
+  opacity: 0;
+}
+html.mc-fx-ready .mc-fx-slide-in-down:not(.mc-fx-in) {
+  transform: translateY(calc(-1 * var(--mc-fx-distance, 24px)));
+}
+html.mc-fx-ready .mc-fx-blur-in:not(.mc-fx-in) {
+  filter: blur(var(--mc-fx-blur, 8px));
+}
+html.mc-fx-ready .mc-fx-pop:not(.mc-fx-in) {
+  transform: scale(var(--mc-fx-scale-start, 0.8));
+}
+/* Pop overshoots on the way in. */
+html.mc-fx-ready .mc-fx-pop {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+html.mc-fx-ready .mc-fx-flip-in {
+  transform-style: preserve-3d;
+}
+html.mc-fx-ready .mc-fx-flip-in:not(.mc-fx-in) {
+  transform: perspective(800px) rotateX(var(--mc-fx-angle, 12deg));
+}
+/* Flip degrades to a plain fade where 3D transforms are unsupported. */
+@supports not (transform-style: preserve-3d) {
+  html.mc-fx-ready .mc-fx-flip-in:not(.mc-fx-in) { transform: none; }
+}
+html.mc-fx-ready .mc-fx-wipe-reveal:not(.mc-fx-in) {
+  clip-path: var(--mc-fx-wipe-inset, inset(0 0 100% 0));
+}
+html.mc-fx-ready .mc-fx-wipe-reveal.mc-fx-in {
+  clip-path: inset(0 0 0 0);
+}
 .mc-fx-in {
   opacity: 1;
   transform: none;
+  filter: none;
 }
 .mc-fx-hover-lift {
   transition: transform 150ms ease, box-shadow 150ms ease;
@@ -163,6 +213,8 @@ html.mc-fx-ready .mc-fx-zoom-in:not(.mc-fx-in) {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
+    filter: none !important;
+    clip-path: none !important;
   }
   .mc-fx-hover-lift:hover {
     transform: none;
