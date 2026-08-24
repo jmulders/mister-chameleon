@@ -169,14 +169,12 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
       // items render in the shared secondary row so they sit and size exactly
       // like the sub-nav on Content, Personalization, etc.
       items: [
-        { label: "Presets",    href: `${base}/design`,                  activePrefix: `${base}/design`, tab: "presets", tabDefault: true },
-        { label: "Builder",    href: `${base}/design?tab=builder`,      activePrefix: `${base}/design`, tab: "builder" },
-        { label: "Token sets", href: `${base}/design?tab=token-sets`,   activePrefix: `${base}/design`, tab: "token-sets" },
-        { label: "Layout",     href: `${base}/design?tab=layout`,       activePrefix: `${base}/design`, tab: "layout" },
-        { label: "Typography", href: `${base}/design?tab=typography`,   activePrefix: `${base}/design`, tab: "typography" },
-        { label: "Blocks",     href: `${base}/design?tab=blocks`,       activePrefix: `${base}/design`, tab: "blocks" },
-        { label: "Advanced",   href: `${base}/design?tab=advanced`,     activePrefix: `${base}/design`, tab: "advanced" },
-        { label: "Theme switching", href: `${base}/theme-switching`,    activePrefix: `${base}/theme-switching` },
+        { label: "Theme",       href: `${base}/design`,                  activePrefix: `${base}/design`, tab: "theme", tabDefault: true },
+        { label: "Customize",   href: `${base}/design?tab=customize`,     activePrefix: `${base}/design`, tab: "customize" },
+        { label: "Layout",      href: `${base}/design?tab=layout`,        activePrefix: `${base}/design`, tab: "layout" },
+        { label: "Typography",  href: `${base}/design?tab=typography`,    activePrefix: `${base}/design`, tab: "typography" },
+        { label: "Block styles", href: `${base}/design?tab=block-styles`, activePrefix: `${base}/design`, tab: "block-styles" },
+        { label: "Theme switching", href: `${base}/theme-switching`,     activePrefix: `${base}/theme-switching` },
       ],
     },
     {
