@@ -105,7 +105,8 @@ import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
 import type { SlotMap, BlockSlot }   from "@/lib/snippet/decide-response";
 import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { withBookDemoFallback }      from "@/lib/snippet/book-demo-fallback";
-import { toBlockSlot }               from "@/lib/snippet/block-slot";
+import { toBlockSlot, resolveBlockFx } from "@/lib/snippet/block-slot";
+import type { BlockEffectRef }        from "@/design-system/effects/effect-ref";
 import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-store";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
@@ -1020,6 +1021,20 @@ export async function POST(request: NextRequest) {
       const slot: BlockSlot = Object.keys(blockThemeTokens).length > 0
         ? { mode: "block", html, tokens: blockThemeTokens }
         : { mode: "block", html };
+      // Declarative effects for the whole-block path — the same four-tier chain
+      // the block-mode slots use (instance ref → block-type default → tenant
+      // default, `disabled` kills). The block data carries its own effectRef; the
+      // type default is keyed by the slot type. `fx` is applied by the snippet on
+      // the injected container and animated by the shared versioned runtime; it
+      // does not touch the reveal/timing mechanism (REVEAL_MS/CALL_MS).
+      const effectRef = (data as { effectRef?: BlockEffectRef } | null)?.effectRef ?? null;
+      const fx = resolveBlockFx(
+        effectRef,
+        snippetEffectSets,
+        snippetBlockTypeEffects?.[key as keyof typeof snippetBlockTypeEffects],
+        snippetDefaultEffects,
+      );
+      if (fx) slot.fx = fx;
       map[key] = slot;
       return true;
     };

@@ -43,6 +43,31 @@ export function cssVarsFromTokenRef(
 }
 
 /**
+ * Resolve a block's declarative effects (four tiers: instance ref → block-type
+ * default → tenant default, with `disabled` as the kill-switch) into the
+ * `BlockSlot.fx` payload the snippet applies (className + param CSS vars +
+ * data-* hooks the versioned runtime reads). Returns undefined when nothing
+ * resolves, so the caller omits `fx` and the runtime does nothing for that block.
+ *
+ * Shared by both snippet whole-block paths (block-mode `toBlockSlot` and the
+ * CMS-injected `emitBlockInto`) so they animate identically.
+ */
+export function resolveBlockFx(
+  effectRef?: BlockEffectRef | null,
+  effectSets?: readonly EffectSet[] | null,
+  blockTypeDefault?: readonly BlockEffectConfig[] | null,
+  defaultEffects?: readonly BlockEffectConfig[] | null,
+): BlockSlot["fx"] | undefined {
+  const attrs = effectsToAttrs(resolveBlockEffects(effectRef, effectSets, blockTypeDefault, defaultEffects));
+  if (!attrs) return undefined;
+  return {
+    className: attrs.className,
+    ...(Object.keys(attrs.style).length > 0 ? { style: attrs.style } : {}),
+    data: attrs.data,
+  };
+}
+
+/**
  * Build a block-mode slot value from authored HTML + a token ref.
  * `tokens` is omitted entirely when the ref produces none, keeping the payload
  * lean (and the snippet's token loop simply does nothing).
@@ -59,13 +84,7 @@ export function toBlockSlot(
   const slot: BlockSlot = { mode: "block", html };
   if (tokens) slot.tokens = tokens;
 
-  const attrs = effectsToAttrs(resolveBlockEffects(effectRef, effectSets, blockTypeDefault, defaultEffects));
-  if (attrs) {
-    slot.fx = {
-      className: attrs.className,
-      ...(Object.keys(attrs.style).length > 0 ? { style: attrs.style } : {}),
-      data: attrs.data,
-    };
-  }
+  const fx = resolveBlockFx(effectRef, effectSets, blockTypeDefault, defaultEffects);
+  if (fx) slot.fx = fx;
   return slot;
 }
