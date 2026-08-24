@@ -76,6 +76,7 @@ import {
   NOTIFICATION_VARIANT_KEYS,
 } from "../types";
 import type { ThemePresetKey } from "@/design-system/theme/presets";
+import { getDesignPreset } from "@/tenant/design-presets-gallery";
 import type { HomepageRule } from "./homepage-rules";
 import {
   FIELD_REGISTRY,
@@ -402,6 +403,15 @@ export interface StoredPlan {
    * tenant's default design.theme for the visitor's session.
    */
   themeKey?: ThemePresetKey;
+
+  /**
+   * Optional gallery-preset override for this plan (design-presets-gallery).
+   * When set the theme decision injects that gallery preset's complete look for
+   * the session — rendered identically to applying the preset in admin. Mutually
+   * exclusive in practice with themeKey; when both are set, themePresetId wins.
+   * See docs/design/theme-switching-unification-plan.md.
+   */
+  themePresetId?: string;
 
   /**
    * Controls how prominently the pricing section is displayed.
@@ -882,6 +892,13 @@ function validatePlan(
   }
   if (!(allowedCtaKeys as string[]).includes(plan.ctaKey as string)) {
     errors.push({ ruleId, field: `${idx}.plan.ctaKey`, message: `Invalid ctaKey "${plan.ctaKey}". Allowed: ${allowedCtaKeys.join(", ")}` });
+  }
+
+  // Optional gallery-preset theme override — must reference a known gallery card.
+  if (plan.themePresetId !== undefined && plan.themePresetId !== null) {
+    if (typeof plan.themePresetId !== "string" || !getDesignPreset(plan.themePresetId)) {
+      errors.push({ ruleId, field: `${idx}.plan.themePresetId`, message: `Unknown gallery preset id "${String(plan.themePresetId)}".` });
+    }
   }
 
   // Optional extended slots — validate when present

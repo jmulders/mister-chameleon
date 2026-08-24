@@ -66,6 +66,16 @@
 import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { isThemePresetKey } from "@/design-system/theme/presets";
 import type { ThemePresetKey } from "@/design-system/theme/presets";
+import { getDesignPreset } from "@/tenant/design-presets-gallery";
+
+/**
+ * The session-locked theme selection: a curated preset key or a gallery preset.
+ * The cookie value is encoded as `curated:<key>` or `gallery:<id>`; a bare value
+ * (legacy cookies) is read as a curated key.
+ */
+export type ThemeSessionSelection =
+  | { kind: "curated"; themeKey: ThemePresetKey }
+  | { kind: "gallery"; presetId: string };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -95,6 +105,43 @@ export function readThemeSessionCookie(
   const value = cookieStore.get(THEME_SESSION_COOKIE)?.value;
   if (!value) return null;
   return isThemePresetKey(value) ? value : null;
+}
+
+/**
+ * Read the locked theme SELECTION (curated or gallery) from the session cookie.
+ *
+ * Decodes `curated:<key>` / `gallery:<id>`, and a bare value as a curated key
+ * (legacy cookies). Returns null when absent or invalid (stale / tampered).
+ */
+export function readThemeSessionSelection(
+  cookieStore: ReadonlyRequestCookies,
+): ThemeSessionSelection | null {
+  const value = cookieStore.get(THEME_SESSION_COOKIE)?.value;
+  if (!value) return null;
+  if (value.startsWith("gallery:")) {
+    const id = value.slice("gallery:".length);
+    return getDesignPreset(id) ? { kind: "gallery", presetId: id } : null;
+  }
+  const key = value.startsWith("curated:") ? value.slice("curated:".length) : value;
+  return isThemePresetKey(key) ? { kind: "curated", themeKey: key } : null;
+}
+
+/**
+ * Write the theme lock cookie from a SELECTION (curated or gallery), encoding it
+ * as `curated:<key>` / `gallery:<id>`.
+ */
+export function writeThemeSessionSelection(
+  cookieStore: ReturnType<typeof import("next/headers")["cookies"]> extends Promise<infer C> ? C : never,
+  selection: ThemeSessionSelection,
+): void {
+  const value = selection.kind === "gallery" ? `gallery:${selection.presetId}` : `curated:${selection.themeKey}`;
+  cookieStore.set(THEME_SESSION_COOKIE, value, {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path:     "/",
+    maxAge:   THEME_SESSION_MAX_AGE,
+  });
 }
 
 /**
