@@ -189,6 +189,22 @@ html.mc-fx-ready .mc-fx-wipe-reveal.mc-fx-in {
 .mc-fx-hover-lift:hover {
   transform: translateY(calc(-1 * var(--mc-fx-lift, 4px)));
 }
+/* Emphasis loops — continuous, fully disabled under reduced-motion (below). */
+@keyframes mc-fx-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(var(--mc-fx-pulse-scale, 1.04)); }
+}
+.mc-fx-pulse {
+  animation: mc-fx-pulse var(--mc-fx-pulse-interval, 1600ms) ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes mc-fx-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 var(--mc-fx-glow-size, 14px) 0 var(--mc-fx-glow-color, var(--primary, #4f46e5)); }
+}
+.mc-fx-glow-pulse {
+  animation: mc-fx-glow-pulse var(--mc-fx-glow-interval, 1800ms) ease-in-out infinite;
+}
 .mc-fx-parallax {
   transform: translate3d(0, var(--mc-fx-parallax-y, 0px), 0);
   will-change: transform;
@@ -215,6 +231,7 @@ html.mc-fx-ready .mc-fx-wipe-reveal.mc-fx-in {
     transition: none !important;
     filter: none !important;
     clip-path: none !important;
+    animation: none !important;
   }
   .mc-fx-hover-lift:hover {
     transform: none;
