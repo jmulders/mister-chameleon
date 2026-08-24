@@ -74,6 +74,9 @@ import { getPackageDefinition }   from "@/tenant/packages";
 import { getPackageSeedDefaults }  from "@/tenant/package-defaults";
 import { getThemeLayoutProfile }   from "@/design-system/theme/layout-profiles";
 import type { ContextBlockKey }    from "@/tenant/types";
+import { getDesignPreset }         from "@/tenant/design-presets-gallery";
+import { buildCompleteLookDesign } from "@/lib/design/complete-look";
+import { EXAMPLE_SITE_DESIGN_TOKENS } from "@/design-system/theme/block-token-set-examples";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INPUT SHAPE
@@ -129,6 +132,13 @@ export interface OnboardingInput {
   readonly packageKey:  PackageKey;
   readonly cmsProvider: CMSProviderName;
   readonly themePreset: ThemeKey;
+  /**
+   * Optional gallery preset id. When set, the new tenant is themed with this
+   * gallery preset applied as a COMPLETE look (identical to applying it in the
+   * design tab), and `themePreset` is ignored for the design. Ungated — mirrors
+   * the design tab where the gallery is available to every tenant.
+   */
+  readonly galleryPresetId?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -301,14 +311,23 @@ export function validateOnboardingInput(
     });
   }
 
-  // ── themePreset vs package ─────────────────────────────────────────────────
-  //
-  // Non-blocking: if the requested theme is not permitted by the package, the
-  // factory substitutes "default" automatically.  The warning here tells the
-  // operator what happened so they can adjust the package or theme selection.
-  //
+  // ── theme selection vs package ─────────────────────────────────────────────
   const pkg = getPackageDefinition(input.packageKey);
-  if (!(pkg.allowedThemes as readonly string[]).includes(input.themePreset)) {
+  if (input.galleryPresetId) {
+    // Gallery preset selected: applied as a complete look, ungated (mirrors the
+    // design tab where the gallery is available to every tenant). Blocking only
+    // when the id is unknown, so we never build a half-themed tenant.
+    if (!getDesignPreset(input.galleryPresetId)) {
+      issues.push({
+        field:    "galleryPresetId",
+        message:  `Unknown gallery preset "${input.galleryPresetId}".`,
+        blocking: true,
+      });
+    }
+  } else if (!(pkg.allowedThemes as readonly string[]).includes(input.themePreset)) {
+    // Non-blocking: if the requested curated theme is not permitted by the
+    // package, the factory substitutes "default" automatically. The warning tells
+    // the operator what happened so they can adjust the package or theme.
     issues.push({
       field:    "themePreset",
       message:
@@ -405,12 +424,15 @@ export function onboardingInputToTenantSettings(
 
   const pkg = getPackageDefinition(input.packageKey);
 
-  // Resolve theme — substitute "default" when the preset is not in allowedThemes.
-  const resolvedTheme: ThemeKey = (pkg.allowedThemes as readonly string[]).includes(
-    input.themePreset,
-  )
-    ? input.themePreset
-    : "default";
+  // A gallery preset (when chosen) is applied as a complete look. It also drives
+  // the layout profile via its baseTheme; otherwise resolve the curated theme,
+  // substituting "default" when the preset is not in the package's allowedThemes.
+  const galleryPreset = input.galleryPresetId ? getDesignPreset(input.galleryPresetId) : undefined;
+  const resolvedTheme: ThemeKey = galleryPreset
+    ? (galleryPreset.baseTheme as ThemeKey)
+    : (pkg.allowedThemes as readonly string[]).includes(input.themePreset)
+      ? input.themePreset
+      : "default";
 
   // Seed conservative feature flags, block entitlements, and AI defaults from
   // the package definition.  getPackageSeedDefaults() is the single source of
@@ -449,10 +471,22 @@ export function onboardingInputToTenantSettings(
     provider: input.cmsProvider,
   };
 
-  // Design from validated theme preset.
-  const design: TenantDesignSettings = {
-    theme: resolvedTheme,
-  };
+  // Design: a gallery preset is applied as a COMPLETE look (grouped overrides +
+  // baseTheme + derived site-wide block tokens), identical to applying it in the
+  // design tab; otherwise just the validated curated theme.
+  const design: TenantDesignSettings = galleryPreset
+    ? {
+        ...buildCompleteLookDesign(
+          { theme: resolvedTheme },
+          galleryPreset.tokenOverrides,
+          galleryPreset.baseTheme,
+          input.galleryPresetId === "aurora-purple-gold" ? EXAMPLE_SITE_DESIGN_TOKENS : undefined,
+        ),
+        inheritHostStyle: galleryPreset.inheritHostStyle ?? false,
+      }
+    : {
+        theme: resolvedTheme,
+      };
 
   return {
     tenantId:   input.tenantId,

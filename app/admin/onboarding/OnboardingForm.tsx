@@ -57,6 +57,7 @@ import type { PackageKey, CMSProviderName, ThemeKey, TenantSettings } from "@/te
 import { THEME_CATALOG, THEME_PRESETS } from "@/design-system/theme/presets";
 import type { ThemePresetKey } from "@/design-system/theme/presets";
 import { ThemeSwatchGrid } from "@/components/admin/ThemeSwatchGrid";
+import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
 import { getThemeLayoutProfile } from "@/design-system/theme/layout-profiles";
 import { tenantThemeToVarsRecord } from "@/design-system/theme";
 import type { OnboardingInput } from "@/onboarding";
@@ -152,6 +153,8 @@ interface FormState {
   packageKey:  PackageKey;
   cmsProvider: CMSProviderName;
   themePreset: ThemeKey;
+  /** When set, a gallery preset is selected (applied as a complete look); themePreset is ignored. */
+  galleryPresetId: string | null;
 }
 
 const DEFAULT_FORM: FormState = {
@@ -161,7 +164,20 @@ const DEFAULT_FORM: FormState = {
   packageKey:  "starter",
   cmsProvider: "mock",
   themePreset: "default",
+  galleryPresetId: null,
 };
+
+// Gallery presets grouped by their card category (ungated — mirrors the design
+// tab, where the gallery is available to every tenant regardless of package).
+const GALLERY_GROUPS: { category: string; presets: (typeof DESIGN_PRESET_GALLERY)[number][] }[] = (() => {
+  const byCat = new Map<string, (typeof DESIGN_PRESET_GALLERY)[number][]>();
+  for (const p of DESIGN_PRESET_GALLERY) {
+    const list = byCat.get(p.category) ?? [];
+    list.push(p);
+    byCat.set(p.category, list);
+  }
+  return [...byCat.entries()].map(([category, presets]) => ({ category, presets }));
+})();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STYLE CONSTANTS
@@ -1517,6 +1533,17 @@ export function OnboardingForm() {
     setResult(null);
   }
 
+  // Theme selection (ThemeSelection pattern): a curated theme clears any gallery
+  // preset; a gallery preset is applied as a complete look on creation.
+  function selectCuratedTheme(themeKey: ThemeKey) {
+    setForm((prev) => ({ ...prev, themePreset: themeKey, galleryPresetId: null }));
+    setResult(null);
+  }
+  function selectGalleryPreset(presetId: string) {
+    setForm((prev) => ({ ...prev, galleryPresetId: presetId }));
+    setResult(null);
+  }
+
   // ── Submit ──────────────────────────────────────────────────────────────────
 
   function handleSubmit(e: React.FormEvent) {
@@ -1529,6 +1556,7 @@ export function OnboardingForm() {
       packageKey:  form.packageKey,
       cmsProvider: form.cmsProvider,
       themePreset: form.themePreset,
+      ...(form.galleryPresetId ? { galleryPresetId: form.galleryPresetId } : {}),
     };
 
     startTransition(async () => {
@@ -1589,9 +1617,9 @@ export function OnboardingForm() {
                   themeKey={entry.presetKey as ThemeKey}
                   label={entry.label}
                   description={entry.description}
-                  isSelected={form.themePreset === entry.presetKey}
+                  isSelected={!form.galleryPresetId && form.themePreset === entry.presetKey}
                   disabled={isPending}
-                  onClick={() => handleField("themePreset", entry.presetKey as ThemeKey)}
+                  onClick={() => selectCuratedTheme(entry.presetKey as ThemeKey)}
                   onPreview={() => setPreviewingTheme(entry.presetKey as ThemeKey)}
                 />
               ))}
@@ -1618,17 +1646,58 @@ export function OnboardingForm() {
                 themeKey={t.key}
                 label={t.label}
                 description={t.description}
-                isSelected={form.themePreset === t.key}
+                isSelected={!form.galleryPresetId && form.themePreset === t.key}
                 disabled={isPending}
-                onClick={() => handleField("themePreset", t.key)}
+                onClick={() => selectCuratedTheme(t.key)}
                 onPreview={() => setPreviewingTheme(t.key)}
               />
             ))}
           </div>
         </section>
 
+        {/* ── Gallery presets, grouped by category (applied as a complete look) ── */}
+        {GALLERY_GROUPS.map(({ category, presets }) => (
+          <section key={category}>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+              {category}
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {presets.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => selectGalleryPreset(p.id)}
+                  className={cn(
+                    "flex flex-col rounded-xl border bg-white p-3 text-left transition-colors",
+                    form.galleryPresetId === p.id
+                      ? "border-brand-500 ring-2 ring-brand-100"
+                      : "border-neutral-200 hover:border-neutral-300",
+                    isPending && "opacity-60",
+                  )}
+                >
+                  <div className="mb-2 flex gap-1">
+                    {[p.swatch.background, p.swatch.primary, p.swatch.accent, p.swatch.foreground].map((c, i) => (
+                      <span key={i} className="h-6 flex-1 rounded" style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                  <span className="text-sm font-semibold text-neutral-800">{p.name}</span>
+                  <span className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{p.description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+
         {/* ── Selected-theme blueprint ── updates live as you click cards ── */}
-        <ThemeBlueprintCard themeKey={form.themePreset} />
+        {form.galleryPresetId ? (
+          <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
+            Gallery preset selected. It will be applied as a complete look — colours, cards,
+            buttons and typography — when the tenant is created.
+          </div>
+        ) : (
+          <ThemeBlueprintCard themeKey={form.themePreset} />
+        )}
 
         {/* Navigation */}
         <div className="flex items-center gap-4 pt-2">
