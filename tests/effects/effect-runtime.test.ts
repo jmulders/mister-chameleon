@@ -39,6 +39,7 @@ describe("EFFECT_RUNTIME_CSS", () => {
     const selectors = [
       ".mc-fx-reveal", ".mc-fx-fade-in", ".mc-fx-slide-in-up", ".mc-fx-slide-in-left",
       ".mc-fx-slide-in-right", ".mc-fx-zoom-in", ".mc-fx-in", ".mc-fx-hover-lift",
+      ".mc-fx-slide-in-down", ".mc-fx-blur-in", ".mc-fx-pop", ".mc-fx-flip-in", ".mc-fx-wipe-reveal",
       ".mc-fx-parallax", ".mc-fx-sticky.mc-fx-sticky-on", ".mc-fx-ken-burns", "mc-fx-kenburns",
     ];
     for (const s of selectors) assert.ok(globals.includes(s), `globals.css missing ${s}`);

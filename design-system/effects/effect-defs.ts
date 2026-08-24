@@ -80,6 +80,39 @@ const DISTANCE: EffectParamDef = {
   key: "distance", label: "Distance", type: "number", min: 4, max: 80, step: 2,
   unit: "px", default: 24, cssVar: "--mc-fx-distance",
 };
+const EASING: EffectParamDef = {
+  key: "easing", label: "Easing", type: "select",
+  options: [
+    { value: "ease",        label: "Ease" },
+    { value: "ease-out",    label: "Ease out" },
+    { value: "ease-in-out", label: "Ease in-out" },
+    { value: "linear",      label: "Linear" },
+  ],
+  default: "ease", cssVar: "--mc-fx-ease",
+};
+const BLUR_START: EffectParamDef = {
+  key: "blur", label: "Blur start", type: "number", min: 2, max: 24, step: 1,
+  unit: "px", default: 8, cssVar: "--mc-fx-blur",
+};
+const SCALE_START: EffectParamDef = {
+  key: "scaleStart", label: "Scale start", type: "number", min: 0.5, max: 0.95, step: 0.05,
+  default: 0.8, cssVar: "--mc-fx-scale-start",
+};
+const FLIP_ANGLE: EffectParamDef = {
+  key: "angle", label: "Angle", type: "number", min: 4, max: 45, step: 1,
+  unit: "deg", default: 12, cssVar: "--mc-fx-angle",
+};
+const WIPE_DIRECTION: EffectParamDef = {
+  key: "direction", label: "Direction", type: "select",
+  // Option values ARE the initial clip-path inset; .mc-fx-in clears it to inset(0).
+  options: [
+    { value: "inset(0 0 100% 0)", label: "Reveal down" },
+    { value: "inset(100% 0 0 0)", label: "Reveal up" },
+    { value: "inset(0 100% 0 0)", label: "Reveal from left" },
+    { value: "inset(0 0 0 100%)", label: "Reveal from right" },
+  ],
+  default: "inset(0 0 100% 0)", cssVar: "--mc-fx-wipe-inset",
+};
 
 // ── v1 registry (reduced-motion-safe entrance + emphasis) ─────────────────────
 //
@@ -116,6 +149,31 @@ export const EFFECT_DEFINITIONS: readonly EffectDefinition[] = [
     id: "zoom-in", label: "Zoom in", group: "entrance",
     description: "Scales up slightly from 96% as the block scrolls into view.",
     trigger: "scroll", params: [DURATION, DELAY],
+  },
+  {
+    id: "slide-in-down", label: "Slide in (down)", group: "entrance",
+    description: "Slides down into place as the block scrolls into view.",
+    trigger: "scroll", params: [DISTANCE, DURATION, DELAY, EASING],
+  },
+  {
+    id: "blur-in", label: "Blur in", group: "entrance",
+    description: "Sharpens from a soft blur as the block scrolls into view.",
+    trigger: "scroll", params: [BLUR_START, DURATION, DELAY],
+  },
+  {
+    id: "pop", label: "Pop (bounce in)", group: "entrance",
+    description: "Scales up with a slight overshoot as the block scrolls into view.",
+    trigger: "scroll", params: [SCALE_START, DURATION, DELAY],
+  },
+  {
+    id: "flip-in", label: "Flip in", group: "entrance",
+    description: "Rotates into place in 3D as the block scrolls into view. Falls back to a fade where 3D transforms are unsupported.",
+    trigger: "scroll", params: [FLIP_ANGLE, DURATION, DELAY],
+  },
+  {
+    id: "wipe-reveal", label: "Wipe reveal", group: "entrance",
+    description: "Reveals the block behind a directional clip-path wipe as it scrolls into view.",
+    trigger: "scroll", params: [WIPE_DIRECTION, DURATION, DELAY],
   },
   {
     id: "hover-lift", label: "Hover lift", group: "emphasis",
