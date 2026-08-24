@@ -66,6 +66,7 @@ import { mapHeroBlockData } from "@/cms/mappers/content-mappers";
 import { ContentBlockRenderer } from "./ContentBlockRenderer";
 import { listDesignEffectSets } from "@/lib/design-effect-sets/effect-sets-store";
 import type { EffectSet, BlockEffectConfig } from "@/design-system/effects/effect-ref";
+import { getContextualGalleryDefaultTokens } from "@/lib/theme/contextual-block-tokens";
 import { BlockThemeScope } from "./BlockThemeScope";
 import type { BlockTokenSet, BlockTokenRef, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -375,6 +376,12 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
     blockTokenSets = tenant?.design?.blockTokenSets;
     defaultTokens  = tenant?.design?.defaultTokens;
     defaultEffects = tenant?.design?.defaultEffects;
+    // Item 6: when a rule/session lock contextually selected a GALLERY preset,
+    // use that preset's derived block tokens instead of the tenant's last-applied
+    // defaultTokens, so the injected preset is not masked on hero/cta/card blocks.
+    // Shared (React.cache) with app/layout's theme decision — no cookie race.
+    const injected = await getContextualGalleryDefaultTokens();
+    if (injected) defaultTokens = injected;
     // Named effect sets referenced by blocks are resolved from the library.
     // Non-fatal: on failure blocks simply fall back to inline / default effects.
     effectSets = tenantId ? await listDesignEffectSets(tenantId) : undefined;
