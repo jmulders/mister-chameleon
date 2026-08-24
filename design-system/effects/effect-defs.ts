@@ -184,6 +184,33 @@ export const EFFECT_DEFINITIONS: readonly EffectDefinition[] = [
       unit: "px", default: 4, cssVar: "--mc-fx-lift",
     }],
   },
+  {
+    id: "pulse", label: "Pulse", group: "emphasis",
+    description: "A subtle continuous scale pulse to draw attention. Fully off under reduced-motion.",
+    trigger: "load",
+    params: [
+      { key: "scale", label: "Scale", type: "number", min: 1.01, max: 1.2, step: 0.01, default: 1.04, cssVar: "--mc-fx-pulse-scale" },
+      { key: "interval", label: "Interval", type: "number", min: 600, max: 4000, step: 100, unit: "ms", default: 1600, cssVar: "--mc-fx-pulse-interval" },
+    ],
+  },
+  {
+    id: "glow-pulse", label: "Glow pulse", group: "emphasis",
+    description: "A soft box-shadow glow that pulses in a brand colour. Fully off under reduced-motion.",
+    trigger: "load",
+    params: [
+      {
+        key: "color", label: "Colour", type: "select",
+        options: [
+          { value: "var(--primary)", label: "Primary" },
+          { value: "var(--accent)",  label: "Accent" },
+          { value: "var(--secondary)", label: "Secondary" },
+        ],
+        default: "var(--primary)", cssVar: "--mc-fx-glow-color",
+      },
+      { key: "intensity", label: "Intensity", type: "number", min: 4, max: 40, step: 2, unit: "px", default: 14, cssVar: "--mc-fx-glow-size" },
+      { key: "interval", label: "Interval", type: "number", min: 600, max: 4000, step: 100, unit: "ms", default: 1800, cssVar: "--mc-fx-glow-interval" },
+    ],
+  },
 
   // ── Advanced continuous effects ──────────────────────────────────────────────
   //
