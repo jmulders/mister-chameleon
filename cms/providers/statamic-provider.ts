@@ -450,6 +450,21 @@ export class StatamicProvider implements CMSProvider {
     };
   }
 
+  /**
+   * Build a BlockEffectRef from an adaptive variant's effect ref, or undefined
+   * when the variant carries none. Spread onto the returned block data so the
+   * engine renderer can animate it (mirrors variantTokenRef).
+   */
+  private variantEffectRef(
+    c: { effects?: import("../types").AdaptiveVariantContent["effects"] },
+  ): { effectRef?: import("@/design-system/effects/effect-ref").BlockEffectRef } {
+    const ref = c.effects;
+    if (!ref) return {};
+    const hasInline = Boolean(ref.effects && ref.effects.length > 0);
+    if (!ref.effectSet && !hasInline && !ref.disabled) return {};
+    return { effectRef: ref };
+  }
+
   private adaptiveToHero(data: AdaptiveBlockData | null): HeroBlockData | null {
     if (!data || !data.isActive) return null;
     const c = data.defaultVariant;
@@ -463,6 +478,7 @@ export class StatamicProvider implements CMSProvider {
       media:        c.media,
       contentAlign: c.contentAlign,
       ...this.variantTokenRef(c),
+      ...this.variantEffectRef(c),
       // Carousel slides — required for layoutVariant === "hero_carousel".
       // Without this the homepage hero received the carousel layout but no
       // slides, so HeroBlock silently fell back to the default hero.
@@ -481,6 +497,7 @@ export class StatamicProvider implements CMSProvider {
       title:         c.title,
       items: (c.items ?? []).map(adaptiveItemToProofItem),
       ...this.variantTokenRef(c),
+      ...this.variantEffectRef(c),
     };
   }
 
@@ -501,6 +518,7 @@ export class StatamicProvider implements CMSProvider {
       ...(c.mediaSide    ? { mediaSide: c.mediaSide } : {}),
       ...(c.formKey      ? { formKey: c.formKey } : {}),
       ...this.variantTokenRef(c),
+      ...this.variantEffectRef(c),
     };
   }
 
@@ -514,6 +532,7 @@ export class StatamicProvider implements CMSProvider {
       subtitle:     c.subtitle,
       items:        (c.items ?? []).map(adaptiveItemToFeatureItem),
       ...this.variantTokenRef(c),
+      ...this.variantEffectRef(c),
     };
   }
 

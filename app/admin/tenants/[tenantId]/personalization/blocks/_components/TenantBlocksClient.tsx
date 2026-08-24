@@ -21,6 +21,7 @@ import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
 import { BlockPreviewModal }                     from "@/components/admin/BlockPreviewModal";
 import type { BlockTokenSet }                     from "@/design-system/theme/block-token-set";
+import type { EffectSet }                         from "@/design-system/effects/effect-ref";
 import { deleteAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
 import type { RuleUsageRef } from "@/lib/adaptive-blocks/rules-usage";
 import Link from "next/link";
@@ -542,11 +543,12 @@ interface TenantBlocksClientProps {
   ruleUsage:  Record<string, RuleUsageRef[]>;
   initialSlotModes: TenantAdaptiveSlotSettings | null;
   blockTokenSets?: readonly BlockTokenSet[];
+  effectSets?: readonly EffectSet[];
   customAttributes?: readonly CustomAttributeDeclaration[];
   copyVariables?: readonly CopyVariable[];
 }
 
-export function TenantBlocksClient({ tenantId, slots, allBlocks, ruleUsage, initialSlotModes, blockTokenSets = [], customAttributes = [], copyVariables }: TenantBlocksClientProps) {
+export function TenantBlocksClient({ tenantId, slots, allBlocks, ruleUsage, initialSlotModes, blockTokenSets = [], effectSets = [], customAttributes = [], copyVariables }: TenantBlocksClientProps) {
   const router          = useRouter();
   const revalidatePath  = `/admin/tenants/${tenantId}/personalization/blocks`;
   const [editing, setEditing] = useState<AdaptiveBlockData | null>(null);
@@ -719,6 +721,7 @@ export function TenantBlocksClient({ tenantId, slots, allBlocks, ruleUsage, init
           tenantId={tenantId}
           revalidatePath={revalidatePath}
           blockTokenSets={blockTokenSets}
+          effectSets={effectSets}
           customAttributes={customAttributes}
           copyVariables={copyVariables}
           onClose={() => setEditing(null)}

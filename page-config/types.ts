@@ -2395,13 +2395,13 @@ export interface CheckoutBlockData {
  */
 export interface ContextSlotData {
   /** Hero slot content + decision-engine variant key for analytics attribution */
-  readonly hero?:         HeroBlockData  & { readonly ctaKey?: string; readonly tokenRef?: BlockTokenRef };
+  readonly hero?:         HeroBlockData  & { readonly ctaKey?: string; readonly tokenRef?: BlockTokenRef; readonly effectRef?: BlockEffectRef };
   /** Proof slot content */
-  readonly proof?:        ProofBlockData & { readonly tokenRef?: BlockTokenRef };
+  readonly proof?:        ProofBlockData & { readonly tokenRef?: BlockTokenRef; readonly effectRef?: BlockEffectRef };
   /** CTA slot content + decision-engine variant key for analytics attribution */
-  readonly cta?:          CTABlockData   & { readonly ctaKey?: string; readonly tokenRef?: BlockTokenRef };
+  readonly cta?:          CTABlockData   & { readonly ctaKey?: string; readonly tokenRef?: BlockTokenRef; readonly effectRef?: BlockEffectRef };
   /** Feature grid slot content */
-  readonly feature?:      FeatureBlockData & { readonly tokenRef?: BlockTokenRef };
+  readonly feature?:      FeatureBlockData & { readonly tokenRef?: BlockTokenRef; readonly effectRef?: BlockEffectRef };
   /**
    * Conversion section content (headline + CTAs, optional booking embed).
    * When present, a ConversionBlock is rendered at the after-content position.

@@ -35,6 +35,39 @@ describe("adaptiveVariantToContextEntry", () => {
     assert.deepEqual(out!.hero!.tokenRef, { tokenSet: "brand-dark", tokens: { primary: "#123456" } });
   });
 
+  it("carries a per-block effect ref (named set) onto the entry", () => {
+    const content: AdaptiveVariantContent = {
+      title: "T", subtitle: "S",
+      effects: { effectSet: "gentle" },
+    };
+    const out = adaptiveVariantToContextEntry("hero", content, "hero_1");
+    assert.deepEqual(out!.hero!.effectRef, { effectSet: "gentle" });
+  });
+
+  it("carries the disabled kill-switch onto the entry", () => {
+    const content: AdaptiveVariantContent = {
+      title: "T", subtitle: "S",
+      effects: { disabled: true },
+    };
+    const out = adaptiveVariantToContextEntry("cta", content, "cta_1");
+    assert.deepEqual(out!.cta!.effectRef, { disabled: true });
+  });
+
+  it("omits effectRef when the variant has no effects (falls back to type/tenant default)", () => {
+    const content: AdaptiveVariantContent = { title: "T", subtitle: "S" };
+    const out = adaptiveVariantToContextEntry("feature", content, "feature_1");
+    assert.equal(out!.feature!.effectRef, undefined);
+  });
+
+  it("omits effectRef when the ref is empty (no set, no inline, not disabled)", () => {
+    const content: AdaptiveVariantContent = {
+      title: "T", subtitle: "S",
+      effects: { effects: [] },
+    };
+    const out = adaptiveVariantToContextEntry("proof", content, "proof_1");
+    assert.equal(out!.proof!.effectRef, undefined);
+  });
+
   it("maps a proof variant's items to {title,text}", () => {
     const content: AdaptiveVariantContent = {
       title:    "Proof",

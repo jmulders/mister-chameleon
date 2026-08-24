@@ -209,6 +209,8 @@ export interface HeroBlockData {
    * See design-system/theme/block-token-set.ts.
    */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Block-level declarative effect ref, carried from a resolved adaptive variant (mirrors tokenRef). */
+  effectRef?: import("@/design-system/effects/effect-ref").BlockEffectRef;
   /**
    * Layout variant for the hero block (e.g. "hero_split", "hero_background").
    * Resolved via resolveContextBlockVariant("hero", layoutVariant).
@@ -333,6 +335,8 @@ export interface ProofBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Block-level declarative effect ref, carried from a resolved adaptive variant (mirrors tokenRef). */
+  effectRef?: import("@/design-system/effects/effect-ref").BlockEffectRef;
   /** Snippet block render mode — see HeroBlockData.renderMode. */
   renderMode?: "content" | "block";
   /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
@@ -364,6 +368,8 @@ export interface CTABlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Block-level declarative effect ref, carried from a resolved adaptive variant (mirrors tokenRef). */
+  effectRef?: import("@/design-system/effects/effect-ref").BlockEffectRef;
   /** Snippet block render mode — see HeroBlockData.renderMode. */
   renderMode?: "content" | "block";
   /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
@@ -457,6 +463,8 @@ export interface FeatureBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Block-level declarative effect ref, carried from a resolved adaptive variant (mirrors tokenRef). */
+  effectRef?: import("@/design-system/effects/effect-ref").BlockEffectRef;
   /** Snippet block render mode — see HeroBlockData.renderMode. */
   renderMode?: "content" | "block";
   /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
@@ -502,6 +510,8 @@ export interface ConversionBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Block-level declarative effect ref, carried from a resolved adaptive variant (mirrors tokenRef). */
+  effectRef?: import("@/design-system/effects/effect-ref").BlockEffectRef;
   /** Snippet block render mode — see HeroBlockData.renderMode. */
   renderMode?: "content" | "block";
   /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
@@ -564,6 +574,8 @@ export interface NotificationBlockData {
   id: string;
   /** Optional block-level design tokens carried from a resolved adaptive variant. */
   tokenRef?: import("@/design-system/theme/block-token-set").BlockTokenRef;
+  /** Block-level declarative effect ref, carried from a resolved adaptive variant (mirrors tokenRef). */
+  effectRef?: import("@/design-system/effects/effect-ref").BlockEffectRef;
   /** Snippet block render mode — see HeroBlockData.renderMode. */
   renderMode?: "content" | "block";
   /** Authored HTML for block render mode — see HeroBlockData.blockHtml. */
@@ -763,6 +775,15 @@ export interface AdaptiveVariantContent {
    */
   tokenSet?:  string;
   tokens?:    import("@/design-system/theme/block-token-set").CuratedBlockTokens;
+  /**
+   * Block-level declarative effect reference for this variant. Points at a named
+   * effect set (by key, from the design_effect_sets library) and/or inline
+   * effects, with an optional `disabled` kill-switch. Resolved by
+   * resolveBlockEffects (instance ref → block-type default → tenant default), so
+   * different personalised variants can carry different motion. Mirrors the
+   * tokenSet/tokens fields above. See design-system/effects/effect-ref.ts.
+   */
+  effects?:   import("@/design-system/effects/effect-ref").BlockEffectRef;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */
   imageUrl?:  string;
   /** @deprecated Gebruik media: { kind: "image", url, alt } */

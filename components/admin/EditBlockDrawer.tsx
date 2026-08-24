@@ -40,6 +40,8 @@ import type {
   VariantTone,
 } from "@/ai/variant-meta";
 import type { BlockTokenSet, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
+import type { BlockEffectRef, EffectSet } from "@/design-system/effects/effect-ref";
+import { BlockEffectPicker } from "@/components/admin/effects/BlockEffectPicker";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
 import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
@@ -447,6 +449,8 @@ interface EditBlockDrawerProps {
   onSaved:        () => void;
   /** Tenant's named block-token sets (design.blockTokenSets) for the picker. */
   blockTokenSets?: readonly BlockTokenSet[];
+  /** Tenant's named effect sets (design_effect_sets) for the per-block effect picker. */
+  effectSets?: readonly EffectSet[];
   /** Tenant's declared custom attributes, for the "Insert variable" catalogue. */
   customAttributes?: readonly CustomAttributeDeclaration[];
   /** Tenant's managed copy-variable registry (falls back to the default). */
@@ -460,6 +464,7 @@ export function EditBlockDrawer({
   onClose,
   onSaved,
   blockTokenSets = [],
+  effectSets = [],
   customAttributes = [],
   copyVariables,
 }: EditBlockDrawerProps) {
@@ -595,6 +600,13 @@ export function EditBlockDrawer({
   const [tokenSet, setTokenSet] = useState(block.defaultVariant.tokenSet ?? "");
   const [tokens, setTokens]     = useState<CuratedBlockTokens>(
     block.defaultVariant.tokens ?? {},
+  );
+
+  // ── Block-level effect ref ─────────────────────────────────────────────────
+  // A named set / inline effects / disabled kill-switch for THIS block. Resolved
+  // as the instance tier (wins over the block-type and tenant defaults).
+  const [effectRef, setEffectRef] = useState<BlockEffectRef | undefined>(
+    block.defaultVariant.effects,
   );
 
   // ── Notification settings (notification slot only) ──
@@ -817,6 +829,7 @@ export function EditBlockDrawer({
       ...(Object.keys(decisionMeta).length ? { decisionMeta } : {}),
       ...(tokenSet ? { tokenSet } : {}),
       ...(Object.keys(tokens).length ? { tokens } : {}),
+      ...(effectRef ? { effects: effectRef } : {}),
       // Notification settings — persisted only for the notification slot.
       ...(slotId === "notification" ? {
         notifPosition,
@@ -1623,6 +1636,19 @@ export function EditBlockDrawer({
             ))}
             </div>
             )}
+          </fieldset>
+
+          {/* ── Block-level motion effects ─────────────────────────────────── */}
+          <fieldset className="space-y-3">
+            <legend className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              Motion
+            </legend>
+            <p className="text-xs text-neutral-500">
+              Declarative entrance and emphasis effects for this block. Pick a named set from the
+              library, add effects inline, disable motion entirely, or leave it on None to inherit
+              the block-type or tenant default.
+            </p>
+            <BlockEffectPicker value={effectRef} onChange={setEffectRef} effectSets={effectSets} />
           </fieldset>
 
           {error && (
