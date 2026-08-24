@@ -16,18 +16,23 @@
 import { useId } from "react";
 import { Avatar } from "./Avatar";
 import { AVATAR_COLOR_OPTIONS, type AdminAvatarConfig } from "./avatar-util";
+import { AssetPickerModal } from "./AssetPickerModal";
+import { loadAssetsForPickerAction } from "@/lib/assets/asset-picker-action";
+import { uploadForPickerClient } from "@/lib/assets/upload-for-picker-client";
 import { cn } from "@/lib/utils";
 
 const QUICK_EMOJI = ["🎯", "🚀", "💡", "⭐", "🔥", "📈", "🧭", "🛠️", "💼", "🎓", "❤️", "🌱"];
 
 export function AvatarPicker({
-  value, onChange, name, seed,
+  value, onChange, name, seed, tenantId,
 }: {
   value:    AdminAvatarConfig | null;
   onChange: (v: AdminAvatarConfig | null) => void;
   /** Preview name (for initials) + seed (for the deterministic colour). */
   name:     string;
   seed?:    string;
+  /** Tenant scope — when set, enables the image-upload option (asset library). */
+  tenantId?: string;
 }) {
   const inputId = useId();
   const emoji = value?.kind === "emoji" ? value.value : "";
@@ -64,15 +69,32 @@ export function AvatarPicker({
             />
           )}
         </div>
-        {value && (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="ml-auto rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
-          >
-            Reset to default
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {tenantId && (
+            <AssetPickerModal
+              tenantId={tenantId}
+              mode="image"
+              loadAssets={loadAssetsForPickerAction}
+              uploadAsset={uploadForPickerClient}
+              currentUrl={isImage ? value.url : undefined}
+              onSelect={(asset) => onChange({ kind: "image", url: asset.publicUrl })}
+              trigger={
+                <button type="button" className="rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50">
+                  {isImage ? "Change image" : "Upload image"}
+                </button>
+              }
+            />
+          )}
+          {value && (
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+            >
+              Reset to default
+            </button>
+          )}
+        </div>
       </div>
 
       {!isImage && (
