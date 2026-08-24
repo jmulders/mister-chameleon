@@ -36,6 +36,11 @@ describe("parity fan-out — included component tokens follow the group override
     assert.equal(vars["--nav-dropdown-link-hover-text"], PRIMARY);
   });
 
+  it("primary group re-derives --btn-ring (var(--ring)) and --hero-glow-color (var(--primary))", () => {
+    assert.equal(vars["--btn-ring"], PRIMARY);
+    assert.equal(vars["--hero-glow-color"], PRIMARY);
+  });
+
   it("muted group re-derives subtle surfaces + brand-tint accents", () => {
     for (const v of ["--feature-grid-bg", "--feature-grid-icon-bg", "--badge-primary-bg",
       "--btn-secondary-bg", "--btn-secondary-hover-bg", "--nav-dropdown-link-hover-bg"]) {
@@ -62,6 +67,31 @@ describe("parity fan-out — included component tokens follow the group override
     assert.equal(vars["--card-radius"], "20px");
     assert.equal(vars["--proof-card-radius"], "20px");
     assert.equal(vars["--feature-grid-card-radius"], "20px");
+  });
+});
+
+describe("parity fan-out — ring group re-derives the button focus ring", () => {
+  const RING = "#0055ff";
+  const { vars } = resolveThemeForTenant({
+    design: { theme: "default", tokenOverrides: { color: { ring: RING } } },
+  } as unknown as TenantSettings);
+
+  it("ring override re-derives --btn-ring", () => {
+    assert.equal(vars["--ring"], RING);
+    assert.equal(vars["--btn-ring"], RING);
+  });
+});
+
+describe("parity fan-out — elevation.cardShadow re-derives the nested card shadows", () => {
+  const SHADOW = "0 8px 24px rgba(0,0,0,0.3)";
+  const { vars } = resolveThemeForTenant({
+    design: { theme: "default", tokenOverrides: { elevation: { cardShadow: SHADOW } } },
+  } as unknown as TenantSettings);
+
+  it("cardShadow override re-derives proof + feature-grid card shadows", () => {
+    assert.equal(vars["--card-shadow"], SHADOW);
+    assert.equal(vars["--proof-card-shadow"], SHADOW);
+    assert.equal(vars["--feature-grid-card-shadow"], SHADOW);
   });
 });
 

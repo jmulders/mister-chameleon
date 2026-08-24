@@ -226,8 +226,14 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   // Parity fan-out (docs/design/root-token-propagation-audit.md): component
   // tokens that derive from --primary / --text-brand now follow a `primary`
   // override too, so an admin brand change re-derives the brand-accent surfaces.
+  // Parity fan-out: --btn-ring (var(--ring)) and --hero-glow-color (var(--primary))
+  // both derive from this group, so a `primary` brand override re-derives them.
+  // --hero-glow-color is a decorative glow accent on the dark hero (NOT text), so
+  // tracking the brand colour is correct — the inverse-surface TEXT tokens
+  // (--hero-title-color / --hero-subtitle-color) stay excluded.
   primary:               ["--primary", "--ring", "--text-brand", "--btn-bg", "--section-cta-bg",
-                          "--card-quote", "--badge-primary-text", "--btn-secondary-text", "--nav-dropdown-link-hover-text"],
+                          "--card-quote", "--badge-primary-text", "--btn-secondary-text", "--nav-dropdown-link-hover-text",
+                          "--btn-ring", "--hero-glow-color"],
   primaryHover:          ["--primary-hover", "--primary-active", "--btn-hover-bg", "--btn-active-bg"],
   secondary:             ["--secondary", "--nav-link-hover"],
   accent:                ["--accent"],
@@ -249,7 +255,8 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   border:                ["--border", "--border-strong", "--card-border", "--section-subtle-border", "--form-border", "--proof-card-border",
                           "--feature-grid-border", "--feature-grid-card-border", "--nav-dropdown-border"],
   input:                 ["--input"],
-  ring:                  ["--ring"],
+  // Parity fan-out: --btn-ring (var(--ring)) follows the focus-ring colour too.
+  ring:                  ["--ring", "--btn-ring"],
   destructive:           ["--destructive"],
   destructiveForeground: ["--destructive-foreground"],
   // Parity fan-out: nested card surfaces (feature-grid / proof cards) track --card-bg.
@@ -379,6 +386,15 @@ const ELEVATION_CSS_VARS: Record<string, string> = {
   cardShadow: "--card-shadow",
 };
 
+/**
+ * Parity fan-out for elevation (docs/design/root-token-propagation-audit.md): the
+ * nested card shadows (proof / feature-grid cards) derive from --card-shadow at
+ * :root, so a `cardShadow` override must also re-derive them.
+ */
+const ELEVATION_FANOUT: Record<string, string[]> = {
+  cardShadow: ["--proof-card-shadow", "--feature-grid-card-shadow"],
+};
+
 const FOCUS_CSS_VARS: Record<string, string> = {
   ringWidth: "--focus-ring-width",
   ringColor: "--focus-ring-color",
@@ -475,6 +491,7 @@ function resolveGroupVars(
       }
       case "elevation": {
         vars[ELEVATION_CSS_VARS[key] ?? `--elevation-${kebab}`] = value;
+        for (const extra of ELEVATION_FANOUT[key] ?? []) vars[extra] = value;
         break;
       }
       case "focus": {
