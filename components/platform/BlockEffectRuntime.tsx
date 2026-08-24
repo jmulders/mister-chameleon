@@ -93,9 +93,16 @@ export function BlockEffectRuntime() {
       );
     }
 
-    // ── Parallax (rAF-throttled scroll), wired once when the first one appears ──
-    let parallaxWired = false;
+    // ── Scroll-linked effects (rAF-throttled), wired once when the first appears ─
+    const scrollFadeEls: HTMLElement[] = [];
+    const scrollScaleEls: HTMLElement[] = [];
+    let scrollWired = false;
     let rafId = 0;
+    const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
+    // 0 when the element top is at the bottom edge, 1 after it has scrolled up by
+    // `range` * viewport — i.e. how far the element has entered the viewport.
+    const scrollProgress = (rect: DOMRect, vh: number, range: number) =>
+      clamp01((vh - rect.top) / (vh * (range > 0 ? range : 0.6)));
     const onScroll = () => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
@@ -108,11 +115,24 @@ export function BlockEffectRuntime() {
           const delta = (center - vh / 2) * -speed;
           el.style.setProperty("--mc-fx-parallax-y", `${delta.toFixed(1)}px`);
         }
+        for (const el of scrollFadeEls) {
+          const cs = getComputedStyle(el);
+          const range = parseFloat(cs.getPropertyValue("--mc-fx-scroll-range")) || 0.6;
+          el.style.opacity = scrollProgress(el.getBoundingClientRect(), vh, range).toFixed(3);
+        }
+        for (const el of scrollScaleEls) {
+          const cs = getComputedStyle(el);
+          const from = parseFloat(cs.getPropertyValue("--mc-fx-scroll-from")) || 0.85;
+          const to   = parseFloat(cs.getPropertyValue("--mc-fx-scroll-to"))   || 1;
+          const range = parseFloat(cs.getPropertyValue("--mc-fx-scroll-range")) || 0.6;
+          const p = scrollProgress(el.getBoundingClientRect(), vh, range);
+          el.style.setProperty("--mc-fx-scroll-scale", (from + (to - from) * p).toFixed(4));
+        }
       });
     };
-    function scheduleParallax(): void {
-      if (parallaxWired) { onScroll(); return; }
-      parallaxWired = true;
+    function scheduleScroll(): void {
+      if (scrollWired) { onScroll(); return; }
+      scrollWired = true;
       window.addEventListener("scroll", onScroll, { passive: true });
       window.addEventListener("resize", onScroll, { passive: true });
       onScroll();
@@ -157,7 +177,9 @@ export function BlockEffectRuntime() {
         if (group === "continuous" && !reduced) {
           if (id === "sticky") { if (canSticky) el.classList.add("mc-fx-sticky-on"); }
           else if (id === "ken-burns") { el.classList.add("mc-fx-kb-play"); }
-          else if (id === "parallax") { if (canRaf) { parallaxEls.push(el); scheduleParallax(); } }
+          else if (id === "parallax") { if (canRaf) { parallaxEls.push(el); scheduleScroll(); } }
+          else if (id === "scroll-fade") { if (canRaf) { scrollFadeEls.push(el); scheduleScroll(); } }
+          else if (id === "scroll-scale") { if (canRaf) { scrollScaleEls.push(el); scheduleScroll(); } }
         }
       }
       if (!hasEntrance) return;
@@ -212,7 +234,7 @@ export function BlockEffectRuntime() {
       mo.disconnect();
       window.clearTimeout(failsafe);
       document.removeEventListener("visibilitychange", onVisible);
-      if (parallaxWired) {
+      if (scrollWired) {
         window.removeEventListener("scroll", onScroll);
         window.removeEventListener("resize", onScroll);
         if (rafId) cancelAnimationFrame(rafId);
