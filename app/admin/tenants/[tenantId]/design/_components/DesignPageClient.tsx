@@ -62,7 +62,7 @@ import type { FeaturedFamilyKey } from "@/design-system/theme/theme-families.con
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DesignTab = "presets" | "builder" | "token-sets" | "layout" | "typography" | "blocks" | "advanced";
+type DesignTab = "theme" | "customize" | "layout" | "typography" | "block-styles";
 
 interface TabDef {
   id:          DesignTab;
@@ -72,19 +72,14 @@ interface TabDef {
 
 const TABS: readonly TabDef[] = [
   {
-    id:          "presets",
-    label:       "Presets",
-    description: "Pick a curated design preset (contextual-rule compatible)",
+    id:          "theme",
+    label:       "Theme",
+    description: "Pick a curated look, explore by colour, and see what is applied",
   },
   {
-    id:          "builder",
-    label:       "Builder",
-    description: "Compose a custom preset with a live preview",
-  },
-  {
-    id:          "token-sets",
-    label:       "Token sets",
-    description: "Import, save, and apply grouped complete-look token JSON",
+    id:          "customize",
+    label:       "Customize",
+    description: "Build a custom look, import/save token sets, and fine-tune every token",
   },
   {
     id:          "layout",
@@ -97,14 +92,9 @@ const TABS: readonly TabDef[] = [
     description: "Fonts, sizes, and line height",
   },
   {
-    id:          "blocks",
-    label:       "Blocks",
-    description: "Reusable per-block token sets for content and adaptive blocks",
-  },
-  {
-    id:          "advanced",
-    label:       "Advanced",
-    description: "Full token editor (colors, spacing, radius, and more)",
+    id:          "block-styles",
+    label:       "Block styles",
+    description: "Per-block design tokens, reusable token sets, and motion effects",
   },
 ] as const;
 
@@ -551,9 +541,9 @@ export function DesignPageClient({
   tokenSets,
   effectSets,
 }: DesignPageClientProps) {
-  // Driven by the shared sub-nav links (?tab=…); "presets" when absent/unknown.
+  // Driven by the shared sub-nav links (?tab=…); "theme" when absent/unknown.
   const tabParam  = useSearchParams().get("tab");
-  const activeTab: DesignTab = isDesignTab(tabParam) ? tabParam : "presets";
+  const activeTab: DesignTab = isDesignTab(tabParam) ? tabParam : "theme";
 
   // ── Typography override state ─────────────────────────────────────────────
   //
@@ -574,43 +564,58 @@ export function DesignPageClient({
 
       {/* One-line orientation: what the three kinds are and where they live. */}
       <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: "0.5rem 0 1.25rem" }}>
-        Three kinds of design settings apply here: the <strong>active theme</strong> (Presets and Builder),
+        Three kinds of design settings apply here: the <strong>active theme</strong> (Theme and Customize),
         the <strong>site design tokens</strong> applied to every block, and per-block <strong>token sets</strong>
-        {" "}(both on the Blocks tab).
+        {" "}(both on the Block styles tab).
       </p>
 
-      {/* ── Presets (complete-look presets, grouped by category) ────────────── */}
-      <TabPanel id="presets" active={activeTab}>
+      {/* ── Theme (curated + gallery presets, colour explorer, applied) ─────── */}
+      <TabPanel id="theme" active={activeTab}>
         <TabSectionHeader
           title="Design presets"
-          description="Pick a ready-made look, grouped by category. Applying one sets the complete look (colours, typography, buttons, radius, chrome, and the site-wide block tokens the adaptive blocks inherit). For a fully custom look, use the Builder tab."
+          description="Pick a ready-made look, grouped by category. Applying one sets the complete look (colours, typography, buttons, radius, chrome, and the site-wide block tokens the adaptive blocks inherit). For a fully custom look, use the Customize tab."
         />
         <CurrentlyAppliedCard activeTheme={activeTheme} design={design} />
         <PresetColourExplorer tenantId={tenantId} />
         <PresetGallery tenantId={tenantId} design={design} />
       </TabPanel>
 
-      {/* ── Builder ─────────────────────────────────────────────────────────── */}
-      <TabPanel id="builder" active={activeTab}>
+      {/* ── Customize (builder + token sets + advanced token editor) ────────── */}
+      <TabPanel id="customize" active={activeTab}>
+        {/* Preset builder — live custom look */}
         <TabSectionHeader
           title="Preset builder"
           description="Compose a custom look with colour pickers and selectors. The preview updates live; Save writes the tokens to this tenant (theme = custom)."
         />
         <PresetBuilder tenantId={tenantId} design={design} />
-      </TabPanel>
 
-      {/* ── Token sets (grouped complete-look JSON: import + saved library) ──── */}
-      <TabPanel id="token-sets" active={activeTab}>
-        <TabSectionHeader
-          title="Token sets"
-          description="One place for grouped complete-look token JSON. Import a theme preset (our JSON or a Figma / Tokens Studio export), or save the current look as a reusable set and apply, rename, or delete saved sets. Applying writes the complete look to this tenant's token overrides. For flat, per-block tokens use Site design tokens on the Blocks tab."
-        />
-        <ImportThemePreset tenantId={tenantId} />
-        <div style={{ marginTop: "2rem" }}>
-          <DesignTokenSetsLibrary
+        {/* Token sets — grouped complete-look JSON: import + saved library */}
+        <div style={{ marginTop: "2.5rem" }}>
+          <TabSectionHeader
+            title="Token sets"
+            description="One place for grouped complete-look token JSON. Import a theme preset (our JSON or a Figma / Tokens Studio export), or save the current look as a reusable set and apply, rename, or delete saved sets. Applying writes the complete look to this tenant's token overrides. For flat, per-block tokens use Site design tokens on the Block styles tab."
+          />
+          <ImportThemePreset tenantId={tenantId} />
+          <div style={{ marginTop: "2rem" }}>
+            <DesignTokenSetsLibrary
+              tenantId={tenantId}
+              currentTokens={(design.tokenOverrides ?? {}) as Record<string, unknown>}
+              initialSets={tokenSets}
+            />
+          </div>
+        </div>
+
+        {/* Advanced token editor — fine-tune every token */}
+        <div style={{ marginTop: "2.5rem" }}>
+          <TabSectionHeader
+            title="Advanced token editor"
+            description="Fine-tune every design token (colors, border radius, spacing, shadows, motion, and components). Power-user territory. Changes override the active preset."
+          />
+          <DesignTokenEditor
             tenantId={tenantId}
-            currentTokens={(design.tokenOverrides ?? {}) as Record<string, unknown>}
-            initialSets={tokenSets}
+            currentDesign={design}
+            visibleSections={["preset", "colors", "radius", "spacing", "borders", "shadows", "motion", "components", "json"]}
+            hideHeader
           />
         </div>
       </TabPanel>
@@ -619,7 +624,7 @@ export function DesignPageClient({
       <TabPanel id="layout" active={activeTab}>
         <TabSectionHeader
           title="Layout variants"
-          description="Choose the structural shape of the header and footer. Separate from color tokens. Color overrides live in the Advanced tab."
+          description="Choose the structural shape of the header and footer. Separate from color tokens. Color overrides live in the Customize tab."
         />
         <LayoutVariantEditor tenantId={tenantId} design={design} />
       </TabPanel>
@@ -674,11 +679,11 @@ export function DesignPageClient({
         )}
       </TabPanel>
 
-      {/* ── Blocks (site default + per-block token sets) ─────────────────────── */}
-      <TabPanel id="blocks" active={activeTab}>
+      {/* ── Block styles (site default + per-block token sets + effects) ─────── */}
+      <TabPanel id="block-styles" active={activeTab}>
         <TabSectionHeader
           title="Site design tokens (flat per-block layer)"
-          description="The flat, per-block token layer (design.defaultTokens). Set colors, typography, cards, buttons and more once here, and they apply to every content block and adaptive slot. This is a flat key-value layer, distinct from the grouped complete-look token sets on the Token sets tab."
+          description="The flat, per-block token layer (design.defaultTokens). Set colors, typography, cards, buttons and more once here, and they apply to every content block and adaptive slot. This is a flat key-value layer, distinct from the grouped complete-look token sets on the Customize tab."
         />
         <SiteDesignTokensEditor
           tenantId={tenantId}
@@ -701,24 +706,6 @@ export function DesignPageClient({
           />
           <EffectsEditor tenantId={tenantId} effectSets={effectSets} defaultEffects={design.defaultEffects} />
         </div>
-      </TabPanel>
-
-      {/* ── Advanced ────────────────────────────────────────────────────────── */}
-      <TabPanel id="advanced" active={activeTab}>
-        <TabSectionHeader
-          title="Advanced token editor"
-          description="Fine-tune every design token (colors, border radius, spacing, shadows, motion, and components). Power-user territory. Changes override the active preset."
-        />
-        <DesignTokenEditor
-          tenantId={tenantId}
-          currentDesign={design}
-          visibleSections={["preset", "colors", "radius", "spacing", "borders", "shadows", "motion", "components", "json"]}
-          hideHeader
-        />
-
-        <p style={{ marginTop: "1.5rem", fontSize: "0.8125rem", color: "#6b7280" }}>
-          Saved token sets moved to the Token sets tab.
-        </p>
       </TabPanel>
     </div>
   );
