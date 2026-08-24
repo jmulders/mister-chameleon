@@ -30,7 +30,9 @@
  *   onContextToggle    — called when a context block is toggled
  *   onContentToggle    — called when a content block is toggled
  *   contentBlockHints  — package-requirement text per block key (e.g. "Pro only")
- *   storybookBaseUrl   — Storybook origin; defaults to http://localhost:6006
+ *   storybookBaseUrl   — deployed Storybook origin. Defaults to
+ *                        NEXT_PUBLIC_STORYBOOK_URL; when unset, no Storybook link
+ *                        is rendered (no http://localhost fallback in the UI).
  */
 
 import { useState }               from "react";
@@ -59,7 +61,10 @@ export interface BlockCatalogueProps {
   onContentToggle:    (key: ContentBlockKey, enabled: boolean) => void;
   /** Package-requirement text per content block — e.g. "Pro only", "Growth or Pro". */
   contentBlockHints:  Partial<Record<ContentBlockKey, string>>;
-  /** Base URL for Storybook deep-links. Defaults to http://localhost:6006. */
+  /**
+   * Deployed Storybook origin for deep-links. Defaults to NEXT_PUBLIC_STORYBOOK_URL.
+   * When unset the Storybook link is not rendered (no http://localhost fallback).
+   */
   storybookBaseUrl?:  string;
 }
 
@@ -213,7 +218,7 @@ function ContentBlockCard({
   checked:          boolean;
   hint:             string;
   onToggle:         (enabled: boolean) => void;
-  storybookBaseUrl: string;
+  storybookBaseUrl?: string;
 }) {
   const catalogueEntry = getBlockCatalogueEntry(def.key as ContentBlockKey);
   const storybookUrl   = buildStorybookUrl(def.key as ContentBlockKey, storybookBaseUrl);
@@ -375,7 +380,7 @@ function CategoryGroup({
   enabledContent:    readonly ContentBlockKey[];
   onContentToggle:   (key: ContentBlockKey, enabled: boolean) => void;
   contentBlockHints: Partial<Record<ContentBlockKey, string>>;
-  storybookBaseUrl:  string;
+  storybookBaseUrl?: string;
 }) {
   const meta = CATEGORY_META[category];
   if (!meta) return null;
@@ -441,7 +446,7 @@ export function BlockCatalogue({
   onContextToggle,
   onContentToggle,
   contentBlockHints,
-  storybookBaseUrl = "http://localhost:6006",
+  storybookBaseUrl = process.env.NEXT_PUBLIC_STORYBOOK_URL,
 }: BlockCatalogueProps) {
 
   // ── Derive content blocks grouped by category ─────────────────────────────

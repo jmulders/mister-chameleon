@@ -245,23 +245,27 @@ export function getBlockCatalogueEntry(key: ContentBlockKey): BlockCatalogueEntr
 /**
  * Builds the full Storybook autodocs URL for a block.
  *
- * Returns `null` when no story exists for this block.
+ * Returns `null` when no story exists for this block, OR when no base URL is
+ * configured. There is deliberately NO localhost fallback: a deployed Storybook
+ * origin must be passed explicitly (from NEXT_PUBLIC_STORYBOOK_URL), so the UI
+ * never renders a dead http://localhost link in production.
  *
  * @param key       ContentBlockKey to look up.
- * @param baseUrl   Storybook base URL. Defaults to `"http://localhost:6006"`.
+ * @param baseUrl   Storybook origin, e.g. NEXT_PUBLIC_STORYBOOK_URL. When empty
+ *                  or unset, returns null (no link).
  *
  * @example
- *   buildStorybookUrl("featureGrid")
- *   // "http://localhost:6006/?path=/docs/blocks-sections-featuregrid--docs"
- *
+ *   buildStorybookUrl("featureGrid")                 // null (no base configured)
  *   buildStorybookUrl("featureGrid", "https://storybook.example.com")
  *   // "https://storybook.example.com/?path=/docs/blocks-sections-featuregrid--docs"
  */
 export function buildStorybookUrl(
-  key:     ContentBlockKey,
-  baseUrl = "http://localhost:6006",
+  key:      ContentBlockKey,
+  baseUrl?: string,
 ): string | null {
+  const base = baseUrl?.trim().replace(/\/+$/, "");
+  if (!base) return null;
   const entry = (CONTENT_BLOCK_CATALOGUE as Record<string, BlockCatalogueEntry>)[key];
   if (!entry?.storybookSlug) return null;
-  return `${baseUrl}/?path=/docs/${entry.storybookSlug}--docs`;
+  return `${base}/?path=/docs/${entry.storybookSlug}--docs`;
 }
