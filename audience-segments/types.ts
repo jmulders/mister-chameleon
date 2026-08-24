@@ -34,6 +34,8 @@
  * A single audience segment row as used in application code.
  * camelCase field names — converted from the snake_case DB row.
  */
+import type { AdminAvatarConfig } from "@/components/admin/avatar-util";
+
 export interface AudienceSegment {
   id:          string;
   tenantId:    string;
@@ -43,6 +45,8 @@ export interface AudienceSegment {
   /** RuleCondition tree — evaluated at runtime. */
   criteria:    Record<string, unknown>;
   isActive:    boolean;
+  /** Optional avatar override (emoji + colour or image). Absent → deterministic badge. */
+  avatar?:     AdminAvatarConfig;
   createdAt:   string;
   updatedAt:   string;
 }
@@ -57,6 +61,7 @@ export interface AudienceSegmentInput {
   description?: string | null;
   criteria:    Record<string, unknown>;
   isActive?:   boolean;
+  avatar?:     AdminAvatarConfig | null;
 }
 
 /**
@@ -68,6 +73,7 @@ export interface AudienceSegmentPatch {
   description?: string | null;
   criteria?:    Record<string, unknown>;
   isActive?:    boolean;
+  avatar?:      AdminAvatarConfig | null;
 }
 
 // ── DB row type ───────────────────────────────────────────────────────────────
@@ -84,6 +90,8 @@ export interface AudienceSegmentRow {
   description: string | null;
   criteria:    Record<string, unknown>;
   is_active:   boolean;
+  /** jsonb; validated into AdminAvatarConfig by the repository. */
+  avatar:      unknown;
   created_at:  string;
   updated_at:  string;
 }

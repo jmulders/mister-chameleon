@@ -20,6 +20,8 @@
 
 import { useState, useTransition } from "react";
 import type { InterestProfile, InterestTag } from "@/interest-profiles/types";
+import { AvatarPicker } from "@/components/admin/AvatarPicker";
+import type { AdminAvatarConfig } from "@/components/admin/avatar-util";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +31,7 @@ export interface ProfileFormValues {
   description: string;
   tags:        Array<{ keyword: string; weight: number }>;
   is_active:   boolean;
+  avatar:      AdminAvatarConfig | null;
 }
 
 interface ProfileFormProps {
@@ -106,6 +109,7 @@ export function ProfileForm({
   const [name,        setName]        = useState(profile?.name        ?? "");
   const [description, setDescription] = useState(profile?.description ?? "");
   const [isActive,    setIsActive]    = useState(profile?.isActive    ?? true);
+  const [avatar,      setAvatar]      = useState<AdminAvatarConfig | null>(profile?.avatar ?? null);
   const [tags,        setTags]        = useState<Array<{ keyword: string; weight: number }>>(
     profile?.tags ? [...profile.tags] : [],
   );
@@ -145,6 +149,7 @@ export function ProfileForm({
 
     startTransition(async () => {
       const result = await onSubmit({
+        avatar,
         key:         key.trim().toLowerCase(),
         name:        name.trim(),
         description: description.trim(),
@@ -238,6 +243,14 @@ export function ProfileForm({
           maxLength={500}
           className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
         />
+      </div>
+
+      {/* ── Avatar ───────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-neutral-900">
+          Avatar <span className="text-neutral-400 font-normal">(optional)</span>
+        </label>
+        <AvatarPicker value={avatar} onChange={setAvatar} name={name} seed={key} />
       </div>
 
       {/* ── Status ───────────────────────────────────────────────────────────── */}

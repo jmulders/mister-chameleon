@@ -132,6 +132,8 @@ export interface InterestProfile {
   readonly description?:           string;
   readonly tags:                   readonly InterestTag[];
   readonly isActive:               boolean;
+  /** Optional avatar override (emoji + colour or image). Absent → deterministic badge. */
+  readonly avatar?:                import("@/components/admin/avatar-util").AdminAvatarConfig;
   /** Business domain grouping. Absent for tenant-created profiles that skip the field. */
   readonly family?:                InterestProfileFamily;
   /** Site model keys this profile is designed for (informational; not enforced at runtime). */
@@ -209,6 +211,8 @@ export interface InterestProfileRow {
   family:                  string | null;
   recommended_site_models: string[];
   default_status:          string;
+  /** jsonb; validated into AdminAvatarConfig by the repository. */
+  avatar:                  unknown;
   created_at:              string;
   updated_at:              string;
 }
@@ -225,6 +229,7 @@ export interface InterestProfileInsert {
   family?:                  string | null;
   recommended_site_models?: string[];
   default_status?:          string;
+  avatar?:                  unknown;
   created_at?:              string;
   updated_at?:              string;
 }

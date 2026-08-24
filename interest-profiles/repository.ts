@@ -10,6 +10,7 @@ import "server-only";
 
 import { getDb }                      from "@/data/db";
 import { logger }                     from "@/lib/logger";
+import { parseAvatarConfig }          from "@/components/admin/avatar-util";
 import { INTEREST_PROFILE_CATALOG }   from "./catalog";
 import type {
   InterestProfile,
@@ -81,6 +82,7 @@ function fromRow(row: InterestProfileRow): InterestProfile {
     recommendedSiteModels: row.recommended_site_models ?? [],
     defaultStatus:         toDefaultStatus(row.default_status ?? null),
     tenantId:              row.tenant_id ?? undefined,
+    ...(parseAvatarConfig(row.avatar) ? { avatar: parseAvatarConfig(row.avatar)! } : {}),
   };
 }
 
@@ -257,6 +259,7 @@ export async function createInterestProfile(
       tenant_id:               input.tenant_id ?? null,
       recommended_site_models: input.recommended_site_models ?? [],
       default_status:          input.default_status ?? "active",
+      avatar:                  parseAvatarConfig(input.avatar),
     };
     const result = asSingle<InterestProfileRow>(
       await getDb()
@@ -287,14 +290,18 @@ export async function updateInterestProfile(
   id:    string,
   patch: Partial<Pick<InterestProfileInsert,
     "name" | "description" | "tags" | "is_active" |
-    "family" | "recommended_site_models" | "default_status"
+    "family" | "recommended_site_models" | "default_status" | "avatar"
   >>,
 ): Promise<RepositoryResult<InterestProfile>> {
   try {
+    // Validate the avatar (if present) so bad data never reaches the column.
+    const cleanPatch = "avatar" in patch
+      ? { ...patch, avatar: parseAvatarConfig(patch.avatar) }
+      : patch;
     const result = asSingle<InterestProfileRow>(
       await getDb()
         .from("interest_profiles")
-        .update({ ...patch, updated_at: new Date().toISOString() } as never)
+        .update({ ...cleanPatch, updated_at: new Date().toISOString() } as never)
         .eq("id", id as never)
         .select()
         .maybeSingle(),

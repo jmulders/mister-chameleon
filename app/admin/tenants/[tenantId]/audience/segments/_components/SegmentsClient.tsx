@@ -17,6 +17,8 @@
 import React, { useState, useTransition } from "react";
 import type { AudienceSegment }           from "@/audience-segments/types";
 import { Avatar }                          from "@/components/admin/Avatar";
+import { AvatarPicker }                    from "@/components/admin/AvatarPicker";
+import type { AdminAvatarConfig }          from "@/components/admin/avatar-util";
 import { SEED_AUDIENCE_SEGMENTS }          from "@/audience-segments/seed";
 import {
   FlatGroupEditor,
@@ -140,6 +142,7 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
   const [description, setDescription] = useState(initial?.description ?? "");
   const [criteria,    setCriteria]    = useState<RuleCondition>(() => initialCondition(initial));
   const [isActive,    setIsActive]    = useState(initial?.isActive !== false);
+  const [avatar,      setAvatar]      = useState<AdminAvatarConfig | null>(initial?.avatar ?? null);
 
   const [error,     setError]       = useState("");
   const [isPending, startTransition] = useTransition();
@@ -172,6 +175,7 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
           description: description.trim() || null,
           criteria:    criteriaObj,
           isActive,
+          avatar,
         });
       } else {
         result = await updateAudienceSegmentAction(tenantId, {
@@ -180,6 +184,7 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
           description: description.trim() || null,
           criteria:    criteriaObj,
           isActive,
+          avatar,
         });
       }
 
@@ -234,6 +239,11 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
           rows={3}
           className={`${inputCls} min-h-[4.5rem] resize-y leading-relaxed`}
         />
+      </div>
+
+      <div>
+        <label className={labelCls}>Avatar (optional)</label>
+        <AvatarPicker value={avatar} onChange={setAvatar} name={label} seed={key} />
       </div>
 
       <div>
@@ -320,8 +330,8 @@ function SegmentRow({ segment, onEdit, onToggle, onDelete, toggling, deleting, s
           segment.isActive ? "bg-emerald-500" : "bg-neutral-300",
         ].join(" ")} />
 
-        {/* Deterministic avatar */}
-        <Avatar name={segment.label} seed={segment.key} size="sm" />
+        {/* Configured avatar (emoji/image) or deterministic fallback */}
+        <Avatar name={segment.label} seed={segment.key} avatar={segment.avatar} size="sm" />
 
         {/* Labels */}
         <div className="flex-1 min-w-0">

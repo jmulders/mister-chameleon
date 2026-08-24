@@ -43,3 +43,66 @@ export function initialsFrom(name: string): string {
 export function avatarColorClass(seed: string): string {
   return AVATAR_PALETTE[hashString(seed || "") % AVATAR_PALETTE.length];
 }
+
+// ── Configurable avatar ─────────────────────────────────────────────────────────
+//
+// An operator may override the deterministic badge with an emoji (+ background
+// colour) or an uploaded image. Absent → the deterministic name/seed badge.
+
+/**
+ * A stored avatar override. Discriminated by `kind`; absent/null means the
+ * deterministic avatar. Persisted as-is in the `avatar` JSONB column on
+ * audience_segments / interest_profiles.
+ */
+export type AdminAvatarConfig =
+  | { kind: "emoji"; value: string; color?: string }
+  | { kind: "image"; url: string };
+
+/**
+ * Selectable background tints for an emoji avatar, keyed by a stable name so the
+ * stored value survives palette tweaks. `null` key = "auto" (derive the tint
+ * deterministically from the seed).
+ */
+export const AVATAR_COLOR_OPTIONS: readonly { key: string; bgClass: string; label: string }[] = [
+  { key: "slate",   bgClass: "bg-slate-100",   label: "Slate" },
+  { key: "rose",    bgClass: "bg-rose-100",    label: "Rose" },
+  { key: "orange",  bgClass: "bg-orange-100",  label: "Orange" },
+  { key: "amber",   bgClass: "bg-amber-100",   label: "Amber" },
+  { key: "emerald", bgClass: "bg-emerald-100", label: "Emerald" },
+  { key: "teal",    bgClass: "bg-teal-100",    label: "Teal" },
+  { key: "sky",     bgClass: "bg-sky-100",     label: "Sky" },
+  { key: "blue",    bgClass: "bg-blue-100",    label: "Blue" },
+  { key: "indigo",  bgClass: "bg-indigo-100",  label: "Indigo" },
+  { key: "violet",  bgClass: "bg-violet-100",  label: "Violet" },
+  { key: "fuchsia", bgClass: "bg-fuchsia-100", label: "Fuchsia" },
+  { key: "pink",    bgClass: "bg-pink-100",    label: "Pink" },
+];
+
+/** Background tint class for an emoji avatar: the chosen colour, else derived from the seed. */
+export function avatarEmojiBgClass(color: string | undefined, seed: string): string {
+  const opt = color ? AVATAR_COLOR_OPTIONS.find((o) => o.key === color) : undefined;
+  if (opt) return opt.bgClass;
+  // Auto: reuse the deterministic palette but keep only the background tint.
+  return avatarColorClass(seed || "").split(" ").find((c) => c.startsWith("bg-")) ?? "bg-slate-100";
+}
+
+/**
+ * Validate an untrusted stored/submitted avatar value into an AdminAvatarConfig,
+ * or null (→ deterministic). Used by the save actions (server) and the repository
+ * read path, so bad data never reaches the renderer.
+ */
+export function parseAvatarConfig(raw: unknown): AdminAvatarConfig | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  if (o.kind === "emoji" && typeof o.value === "string" && o.value.trim()) {
+    const color = typeof o.color === "string" && AVATAR_COLOR_OPTIONS.some((c) => c.key === o.color)
+      ? (o.color as string)
+      : undefined;
+    // Cap the emoji length defensively (an emoji can be several code points).
+    return { kind: "emoji", value: [...o.value.trim()].slice(0, 4).join(""), ...(color ? { color } : {}) };
+  }
+  if (o.kind === "image" && typeof o.url === "string" && o.url.trim()) {
+    return { kind: "image", url: o.url.trim() };
+  }
+  return null;
+}

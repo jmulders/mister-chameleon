@@ -22,6 +22,7 @@ import type {
   AudienceSegmentInput,
   AudienceSegmentPatch,
 } from "@/audience-segments/types";
+import type { AdminAvatarConfig } from "@/components/admin/avatar-util";
 import { SEED_AUDIENCE_SEGMENTS } from "@/audience-segments/seed";
 import {
   findDependentRules,
@@ -47,6 +48,7 @@ export interface AudienceSegmentCreateInput {
   description?: string | null;
   criteria:    Record<string, unknown>;
   isActive?:   boolean;
+  avatar?:     AdminAvatarConfig | null;
 }
 
 export async function createAudienceSegmentAction(
@@ -72,6 +74,7 @@ export async function createAudienceSegmentAction(
     description: input.description?.trim() || null,
     criteria:    input.criteria,
     isActive,
+    avatar:      input.avatar ?? null,
   });
 
   if (!result.ok) return { ok: false, error: result.error };

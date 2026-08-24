@@ -9,6 +9,7 @@
 import "server-only";
 
 import { getDb }  from "@/data/db";
+import { parseAvatarConfig } from "@/components/admin/avatar-util";
 import type {
   AudienceSegment,
   AudienceSegmentInput,
@@ -43,6 +44,7 @@ function fromRow(row: AudienceSegmentRow): AudienceSegment {
     description: row.description ?? null,
     criteria:    row.criteria ?? {},
     isActive:    row.is_active,
+    ...(parseAvatarConfig(row.avatar) ? { avatar: parseAvatarConfig(row.avatar)! } : {}),
     createdAt:   row.created_at,
     updatedAt:   row.updated_at,
   };
@@ -127,6 +129,7 @@ export async function createAudienceSegment(
     description: input.description ?? null,
     criteria:    input.criteria,
     is_active:   input.isActive ?? true,
+    avatar:      parseAvatarConfig(input.avatar),
   };
 
   const res = asSingle<AudienceSegmentRow>(
@@ -155,6 +158,7 @@ export async function updateAudienceSegment(
   if ("description" in patch) row.description = patch.description ?? null;
   if ("criteria"    in patch) row.criteria    = patch.criteria;
   if ("isActive"    in patch) row.is_active   = patch.isActive;
+  if ("avatar"      in patch) row.avatar      = parseAvatarConfig(patch.avatar);
 
   const res = asSingle<AudienceSegmentRow>(
     await db

@@ -41,6 +41,7 @@ import {
   setTenantProfileOverride,
 } from "@/interest-profiles/repository";
 import type { InterestProfile, InterestTag } from "@/interest-profiles/types";
+import { parseAvatarConfig }                 from "@/components/admin/avatar-util";
 import { getDb }                             from "@/data/db";
 import {
   findDependentRules,
@@ -274,6 +275,7 @@ export async function createTenantInterestProfileAction(
     description: rawDesc || null,
     tags,
     is_active:   isActive,
+    avatar:      parseAvatarConfig(raw.avatar),
   });
 
   if (!result.ok) {
@@ -345,6 +347,11 @@ export async function updateTenantInterestProfileAction(
     const newActive = raw.is_active !== false;
     patch.is_active = newActive;
 
+  }
+
+  // ── avatar (optional; null/invalid → clears to the deterministic badge) ───────
+  if ("avatar" in raw) {
+    patch.avatar = parseAvatarConfig(raw.avatar);
   }
 
   if (errors.length > 0) {
