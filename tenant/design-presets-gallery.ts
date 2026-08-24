@@ -28,6 +28,9 @@
  */
 
 import type { ThemeKey, TenantTokenOverrides } from "./types";
+import { THEME_PRESETS, isThemePresetKey } from "@/design-system/theme/presets";
+import type { ThemePresetKey } from "@/design-system/theme/presets";
+import { tenantThemeToVarsRecord } from "@/design-system/theme/tenant-theme";
 import { LAB_PRESET_CARDS } from "./design-presets-lab";
 import { LAB_HERITAGE_CARDS } from "./design-presets-lab-heritage";
 import { STATEMENT_PRESET_CARDS } from "./design-presets-statement";
@@ -297,7 +300,74 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
   ...TEAMNL_PRESET_CARDS,
 ];
 
-/** Look up a preset by id. */
+/** Look up a preset by id. Resolves synthetic `curated:<key>` bridge ids too. */
 export function getDesignPreset(id: string): DesignPresetCard | undefined {
+  const bridged = synthCuratedGalleryPreset(id);
+  if (bridged) return bridged;
   return DESIGN_PRESET_GALLERY.find((p) => p.id === id);
+}
+
+// ── Curated → gallery bridge ──────────────────────────────────────────────────
+//
+// The contextual theme model has two shapes: curated `themeKey`s (the original
+// theme-rule model) and gallery presets (id + baseTheme + tokenOverrides). A
+// curated theme K is exactly a gallery preset with `baseTheme: K` and NO token
+// overrides — applying it sets design.theme = K with nothing extra, so it renders
+// pixel-identically to selecting the curated themeKey.
+//
+// This bridge lets an existing curated selection/rule be expressed in the gallery
+// model without changing its rendering, so old rules can migrate to the unified
+// gallery picker. Untouched `themeKey` rules keep resolving through the curated
+// path — the bridge adds a representation, it does not replace anything.
+
+/** Prefix marking a synthetic gallery id that stands for a curated theme. */
+export const CURATED_GALLERY_PREFIX = "curated:";
+
+/** The synthetic gallery id for a curated theme key (e.g. "curated:modern-saas"). */
+export function curatedGalleryId(themeKey: ThemePresetKey): string {
+  return `${CURATED_GALLERY_PREFIX}${themeKey}`;
+}
+
+/** Extract the curated theme key from a synthetic gallery id, or null. */
+export function curatedKeyFromGalleryId(id: string): ThemePresetKey | null {
+  if (!id.startsWith(CURATED_GALLERY_PREFIX)) return null;
+  const key = id.slice(CURATED_GALLERY_PREFIX.length);
+  return isThemePresetKey(key) ? key : null;
+}
+
+/**
+ * Synthesize the gallery-preset card that represents a curated theme, or
+ * undefined when `id` is not a valid `curated:<key>` bridge id. Injection uses
+ * only `baseTheme` (= the curated key) and the empty `tokenOverrides`, so it
+ * renders identically to the curated theme; the swatch/name are for the picker.
+ */
+export function synthCuratedGalleryPreset(id: string): DesignPresetCard | undefined {
+  const key = curatedKeyFromGalleryId(id);
+  if (!key) return undefined;
+  const vars = tenantThemeToVarsRecord(THEME_PRESETS[key]);
+  return {
+    id,
+    name:        THEME_PRESETS[key].meta?.name ?? key,
+    description: "Curated theme, expressed as a gallery preset (renders identically).",
+    category:    "Curated",
+    baseTheme:   key as ThemeKey,
+    tokenOverrides: {},
+    swatch: {
+      primary:    vars["--primary"]    ?? "#4f46e5",
+      background: vars["--background"] ?? vars["--bg"]   ?? "#ffffff",
+      foreground: vars["--foreground"] ?? vars["--text"] ?? "#111111",
+      accent:     vars["--accent"]     ?? vars["--primary"] ?? "#4f46e5",
+    },
+  };
+}
+
+/**
+ * Bridge a curated theme key to its gallery selection (the shape the theme rule
+ * editor / decision use). Returns null when the key is not a curated theme.
+ */
+export function bridgeThemeKeyToGallery(
+  themeKey: string,
+): { kind: "gallery"; presetId: string } | null {
+  if (!isThemePresetKey(themeKey)) return null;
+  return { kind: "gallery", presetId: curatedGalleryId(themeKey) };
 }

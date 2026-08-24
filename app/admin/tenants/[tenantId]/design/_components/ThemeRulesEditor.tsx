@@ -35,7 +35,7 @@ import React, { useState, useTransition, useMemo } from "react";
 import type { StoredRulesConfig, RuleCondition } from "@/decision/rules/stored-rule";
 import type { ThemePresetKey }                    from "@/design-system/theme/presets";
 import { THEME_CATALOG }                          from "@/design-system/theme/presets";
-import { DESIGN_PRESET_GALLERY }                  from "@/tenant/design-presets-gallery";
+import { DESIGN_PRESET_GALLERY, curatedGalleryId, curatedKeyFromGalleryId, getDesignPreset } from "@/tenant/design-presets-gallery";
 import { CONTEXT_DEFINITIONS, CONTEXT_FAMILIES }  from "@/context/library/definitions";
 import type { ContextFamilyKey }                  from "@/context/library/types";
 import {
@@ -104,7 +104,9 @@ const GALLERY_BY_CATEGORY: ReadonlyArray<{ category: string; items: typeof DESIG
 function selectionSwatch(token: string): string | null {
   if (!token) return null;
   if (token.startsWith("gallery:")) {
-    const card = DESIGN_PRESET_GALLERY.find((c) => c.id === token.slice(8));
+    // getDesignPreset resolves both real gallery cards and synthetic
+    // `curated:<key>` bridge ids, so a bridged selection shows its true colour.
+    const card = getDesignPreset(token.slice(8));
     return card?.swatch.primary ?? "#6366f1";
   }
   return themeSwatch(token as ThemePresetKey);
@@ -717,6 +719,18 @@ export function ThemeRulesEditor({
                   )}
                   {row.saveState === "ok"    && <span className="text-xs text-green-600">✓ Saved</span>}
                   {row.saveState === "error" && <span className="text-xs text-red-600">Save failed</span>}
+                  {/* Bridge: a curated themeKey selection can be expressed as its
+                      gallery equivalent (renders identically) so it joins the
+                      unified gallery model. Only shown while still curated. */}
+                  {!row.selectionDraft.startsWith("gallery:") && (
+                    <button
+                      type="button"
+                      onClick={() => setRowDraft(row.ruleId, `gallery:${curatedGalleryId(row.selectionDraft as ThemePresetKey)}`)}
+                      className="mt-0.5 block text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+                    >
+                      Convert to gallery
+                    </button>
+                  )}
                 </div>
 
                 {/* Theme selector + save */}
@@ -735,6 +749,15 @@ export function ThemeRulesEditor({
                         currentSwatch ? "pl-6 pr-2" : "px-2"
                       }`}
                     >
+                      {/* A bridged curated selection (gallery:curated:<key>) is not
+                          a real gallery card, so surface it as its own option. */}
+                      {curatedKeyFromGalleryId(row.selectionDraft.replace(/^gallery:/, "")) && (
+                        <optgroup label="Curated (bridged to gallery)">
+                          <option value={row.selectionDraft}>
+                            {getDesignPreset(row.selectionDraft.replace(/^gallery:/, ""))?.name ?? row.selectionDraft}
+                          </option>
+                        </optgroup>
+                      )}
                       <optgroup label="Curated themes">
                         {THEME_OPTIONS.map((t) => (
                           <option key={t.value} value={t.value}>{t.label}</option>
