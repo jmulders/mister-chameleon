@@ -1717,23 +1717,33 @@ const BUILTIN_TEMPLATE_LABELS: Readonly<Record<string, string>> = {
 export async function addThemeMappingAction(
   tenantId: string,
   source:   string,
-  themeKey: import("@/design-system/theme/presets").ThemePresetKey,
+  themeKey: import("@/design-system/theme/presets").ThemePresetKey | null,
+  themePresetId?: string | null,
 ): Promise<{
   ok:     boolean;
   rule?:  { id: string; label: string; priority: number; enabled: boolean };
   errors?: string[];
 }> {
-  if (!tenantId || !source || !themeKey) {
-    return { ok: false, errors: ["tenantId, source, and themeKey are required."] };
+  if (!tenantId || !source || (!themeKey && !themePresetId)) {
+    return { ok: false, errors: ["tenantId, source, and a theme (curated or gallery) are required."] };
   }
 
-  // Validate themeKey
-  const { isThemePresetKey } =
-    await import("@/design-system/theme/presets") as
-      typeof import("@/design-system/theme/presets");
-  if (!isThemePresetKey(themeKey)) {
-    return { ok: false, errors: [`Invalid themeKey: "${themeKey}".`] };
+  // Validate the theme outcome — a curated key or a gallery preset id.
+  if (themePresetId) {
+    const { getDesignPreset } = await import("@/tenant/design-presets-gallery");
+    if (!getDesignPreset(themePresetId)) return { ok: false, errors: [`Unknown gallery preset: "${themePresetId}".`] };
+  } else {
+    const { isThemePresetKey } =
+      await import("@/design-system/theme/presets") as
+        typeof import("@/design-system/theme/presets");
+    if (!isThemePresetKey(themeKey!)) return { ok: false, errors: [`Invalid themeKey: "${themeKey}".`] };
   }
+  // Plan theme fields (one of themeKey / themePresetId); used at every build site.
+  const themeFields = themePresetId ? { themePresetId } : { themeKey: themeKey! };
+  // For updates: clear any prior theme outcome before setting the chosen one.
+  const clearedPlan = (p: import("@/decision/rules/stored-rule").StoredPlan): import("@/decision/rules/stored-rule").StoredPlan => {
+    const c = { ...p }; delete c.themeKey; delete c.themePresetId; return c;
+  };
 
   const { getTenantRulesAction, saveTenantRulesAction } =
     await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
@@ -1754,7 +1764,7 @@ export async function addThemeMappingAction(
     if (!existing) {
       return { ok: false, errors: [`Rule "${ruleId}" not found.`] };
     }
-    targetRule   = { ...existing, plan: { ...existing.plan, themeKey } };
+    targetRule   = { ...existing, plan: { ...clearedPlan(existing.plan), ...themeFields } };
     updatedRules = current.config.rules.map((r) => r.id === ruleId ? targetRule : r);
 
   } else if (source.startsWith("builtin:")) {
@@ -1770,7 +1780,7 @@ export async function addThemeMappingAction(
 
     if (existing) {
       // Update themeKey on the existing rule
-      targetRule   = { ...existing, plan: { ...existing.plan, themeKey } };
+      targetRule   = { ...existing, plan: { ...clearedPlan(existing.plan), ...themeFields } };
       updatedRules = current.config.rules.map((r) => r.id === builtinId ? targetRule : r);
     } else {
       // Create a new StoredRule for this built-in condition.
@@ -1790,7 +1800,7 @@ export async function addThemeMappingAction(
           heroKey:  dp.heroKey,
           proofKey: dp.proofKey,
           ctaKey:   dp.ctaKey,
-          themeKey,
+          ...themeFields,
         },
         priority,
         reason:    `Auto-created built-in theme mapping for "${templateId}"`,
@@ -1941,7 +1951,8 @@ export async function addContextLibraryThemeMappingAction(
   params: {
     contextIds:      string[];
     minConfidence:   number;
-    themeKey:        import("@/design-system/theme/presets").ThemePresetKey;
+    themeKey?:       import("@/design-system/theme/presets").ThemePresetKey | null;
+    themePresetId?:  string | null;
     label:           string;
     priority?:       number;
     extraCondition?: import("@/decision/rules/stored-rule").RuleCondition;
@@ -1951,21 +1962,25 @@ export async function addContextLibraryThemeMappingAction(
   rule?:  { id: string; label: string; priority: number; enabled: boolean };
   errors?: string[];
 }> {
-  const { contextIds, minConfidence, themeKey, label, extraCondition } = params;
+  const { contextIds, minConfidence, themeKey, themePresetId, label, extraCondition } = params;
   const priority = params.priority ?? 80;
 
   if (!tenantId) return { ok: false, errors: ["tenantId is required."] };
   if (!contextIds || contextIds.length === 0)
     return { ok: false, errors: ["At least one contextId is required."] };
-  if (!themeKey)     return { ok: false, errors: ["themeKey is required."] };
+  if (!themeKey && !themePresetId) return { ok: false, errors: ["A theme (curated or gallery) is required."] };
   if (!label?.trim()) return { ok: false, errors: ["label is required."] };
 
-  const { isThemePresetKey } =
-    await import("@/design-system/theme/presets") as
-      typeof import("@/design-system/theme/presets");
-  if (!isThemePresetKey(themeKey)) {
-    return { ok: false, errors: [`Invalid themeKey: "${themeKey}".`] };
+  if (themePresetId) {
+    const { getDesignPreset } = await import("@/tenant/design-presets-gallery");
+    if (!getDesignPreset(themePresetId)) return { ok: false, errors: [`Unknown gallery preset: "${themePresetId}".`] };
+  } else {
+    const { isThemePresetKey } =
+      await import("@/design-system/theme/presets") as
+        typeof import("@/design-system/theme/presets");
+    if (!isThemePresetKey(themeKey!)) return { ok: false, errors: [`Invalid themeKey: "${themeKey}".`] };
   }
+  const themeFields = themePresetId ? { themePresetId } : { themeKey: themeKey! };
 
   const { getTenantRulesAction, saveTenantRulesAction } =
     await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
@@ -2007,7 +2022,7 @@ export async function addContextLibraryThemeMappingAction(
     id:        ruleId,
     label:     label.trim(),
     condition,
-    plan:      { heroKey: dp.heroKey, proofKey: dp.proofKey, ctaKey: dp.ctaKey, themeKey },
+    plan:      { heroKey: dp.heroKey, proofKey: dp.proofKey, ctaKey: dp.ctaKey, ...themeFields },
     priority:  effectivePriority,
     reason:    `Context Library theme mapping for: ${contextIds.join(", ")}`,
     enabled:   true,

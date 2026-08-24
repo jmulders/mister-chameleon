@@ -223,13 +223,13 @@ export function ThemeRulesEditor({
   const [addMode,          setAddMode]          = useState<AddMode>("raw");
   // RAW mode
   const [addSource,        setAddSource]        = useState<string>("");
-  const [addTheme,         setAddTheme]         = useState<ThemePresetKey | "">("");
+  const [addTheme,         setAddTheme]         = useState<string>("");
   // CTX / CTX+ mode
   const [ctxFamily,        setCtxFamily]        = useState<ContextFamilyKey | "all">("all");
   const [ctxSelectedIds,   setCtxSelectedIds]   = useState<Set<string>>(new Set());
   const [ctxMinConf,       setCtxMinConf]       = useState<number>(60);  // 0–100 displayed, stored as 0–1
   const [ctxLabel,         setCtxLabel]         = useState<string>("");
-  const [ctxTheme,         setCtxTheme]         = useState<ThemePresetKey | "">("");
+  const [ctxTheme,         setCtxTheme]         = useState<string>("");
   const [ctxPriority,      setCtxPriority]      = useState<number>(80);
   // CTX+ additional raw source
   const [ctxPlusSource,    setCtxPlusSource]    = useState<string>("");
@@ -323,7 +323,8 @@ export function ThemeRulesEditor({
       if (!addSource || !addTheme) {
         setAddState("error"); setAddError("Select a rule/condition and a theme."); return;
       }
-      result = await addThemeMappingAction(tenantId, addSource, addTheme as ThemePresetKey);
+      const sel = selectionToPlan(addTheme);
+      result = await addThemeMappingAction(tenantId, addSource, sel.themeKey ?? null, sel.themePresetId ?? null);
 
     } else {
       // CTX or CTX+ mode
@@ -334,11 +335,13 @@ export function ThemeRulesEditor({
         setAddState("error"); setAddError("Select a theme to apply."); return;
       }
       const effectiveLabel = ctxLabel.trim() || `Context: ${[...ctxSelectedIds].slice(0, 2).join(", ")}`;
+      const sel = selectionToPlan(ctxTheme);
 
       result = await addContextLibraryThemeMappingAction(tenantId, {
         contextIds:    [...ctxSelectedIds],
         minConfidence: ctxMinConf / 100,
-        themeKey:      ctxTheme as ThemePresetKey,
+        themeKey:      sel.themeKey ?? null,
+        themePresetId: sel.themePresetId ?? null,
         label:         effectiveLabel,
         priority:      ctxPriority,
       });
@@ -845,11 +848,11 @@ function ThemeSelect({
   onChange,
   label,
 }: {
-  value:    ThemePresetKey | "";
-  onChange: (v: ThemePresetKey | "") => void;
+  value:    string;
+  onChange: (v: string) => void;
   label:    string;
 }) {
-  const swatch = value ? (THEME_OPTIONS.find((t) => t.value === value)?.swatchColor ?? null) : null;
+  const swatch = value ? selectionSwatch(value) : null;
   return (
     <div className="flex-1 min-w-[180px]">
       <label className="mb-1 block text-xs text-neutral-500">{label}</label>
@@ -862,14 +865,23 @@ function ThemeSelect({
         )}
         <select
           value={value}
-          onChange={(e) => onChange(e.target.value as ThemePresetKey | "")}
+          onChange={(e) => onChange(e.target.value)}
           className={`w-full rounded-md border border-neutral-300 bg-white py-1.5 text-sm text-neutral-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
             swatch ? "pl-8 pr-3" : "px-3"
           }`}
         >
           <option value="">Select a theme…</option>
-          {THEME_OPTIONS.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
+          <optgroup label="Curated themes">
+            {THEME_OPTIONS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </optgroup>
+          {GALLERY_BY_CATEGORY.map((g) => (
+            <optgroup key={g.category} label={`Gallery — ${g.category}`}>
+              {g.items.map((c) => (
+                <option key={c.id} value={`gallery:${c.id}`}>{c.name}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
