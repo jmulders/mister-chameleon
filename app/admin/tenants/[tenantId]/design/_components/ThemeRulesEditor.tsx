@@ -35,13 +35,14 @@ import React, { useState, useTransition, useMemo } from "react";
 import type { StoredRulesConfig, RuleCondition } from "@/decision/rules/stored-rule";
 import type { ThemePresetKey }                    from "@/design-system/theme/presets";
 import { THEME_CATALOG }                          from "@/design-system/theme/presets";
+import { DESIGN_PRESET_GALLERY }                  from "@/tenant/design-presets-gallery";
 import { CONTEXT_DEFINITIONS, CONTEXT_FAMILIES }  from "@/context/library/definitions";
 import type { ContextFamilyKey }                  from "@/context/library/types";
 import {
   addThemeMappingAction,
   removeThemeMappingAction,
   setThemeMappingEnabledAction,
-  saveRuleThemeKeyAction,
+  saveRuleThemeSelectionAction,
   addContextLibraryThemeMappingAction,
 } from "@/app/admin/tenants/[tenantId]/actions";
 
@@ -81,6 +82,38 @@ function themeSwatch(key: ThemePresetKey | "" | undefined): string | null {
 }
 function themeLabel(key: ThemePresetKey | "" | undefined): string | null {
   return key ? (THEME_OPTIONS.find((t) => t.value === key)?.label ?? key) : null;
+}
+
+// ── Theme selection tokens (item 6: curated key OR gallery preset) ────────────
+//
+// A rule's theme outcome is either a curated ThemePresetKey or a gallery preset.
+// In the row picker both are offered; the <select> value is a token:
+//   "<curatedKey>"       — a curated theme
+//   "gallery:<presetId>" — a gallery preset (grouped by category)
+
+/** Gallery presets grouped by their card.category, for the picker optgroups. */
+const GALLERY_BY_CATEGORY: ReadonlyArray<{ category: string; items: typeof DESIGN_PRESET_GALLERY }> = (() => {
+  const map = new Map<string, typeof DESIGN_PRESET_GALLERY[number][]>();
+  for (const c of DESIGN_PRESET_GALLERY) {
+    if (!map.has(c.category)) map.set(c.category, []);
+    map.get(c.category)!.push(c);
+  }
+  return [...map.entries()].map(([category, items]) => ({ category, items }));
+})();
+
+function selectionSwatch(token: string): string | null {
+  if (!token) return null;
+  if (token.startsWith("gallery:")) {
+    const card = DESIGN_PRESET_GALLERY.find((c) => c.id === token.slice(8));
+    return card?.swatch.primary ?? "#6366f1";
+  }
+  return themeSwatch(token as ThemePresetKey);
+}
+
+/** Decode a picker token into the plan fields saveRuleThemeSelectionAction expects. */
+function selectionToPlan(token: string): { themeKey?: ThemePresetKey | null; themePresetId?: string | null } {
+  if (token.startsWith("gallery:")) return { themePresetId: token.slice(8), themeKey: null };
+  return { themeKey: (token || null) as ThemePresetKey | null, themePresetId: null };
 }
 
 // ── Condition introspection (client-side) ─────────────────────────────────────
@@ -123,15 +156,16 @@ function extractContextLibraryIds(condition: RuleCondition | undefined): string[
 // ── Local state model ─────────────────────────────────────────────────────────
 
 interface MappingRow {
-  ruleId:        string;
-  label:         string;
-  priority:      number;
-  themeKey:      ThemePresetKey;
-  themeKeyDraft: ThemePresetKey;
-  enabled:       boolean;
-  triggerMode:   TriggerMode;
-  contextIds?:   string[];
-  saveState?:    "saving" | "ok" | "error";
+  ruleId:         string;
+  label:          string;
+  priority:       number;
+  /** Theme-selection token: a curated key or "gallery:<id>". */
+  selection:      string;
+  selectionDraft: string;
+  enabled:        boolean;
+  triggerMode:    TriggerMode;
+  contextIds?:    string[];
+  saveState?:     "saving" | "ok" | "error";
 }
 
 // ── Add-form mode ─────────────────────────────────────────────────────────────
@@ -167,18 +201,21 @@ export function ThemeRulesEditor({
   const [mappings, setMappings] = useState<MappingRow[]>(() => {
     const sourceRules = rulesConfig?.rules ?? [];
     return sourceRules
-      .filter((r) => !!r.plan.themeKey)
+      .filter((r) => !!r.plan.themeKey || !!r.plan.themePresetId)
       .sort((a, b) => a.priority - b.priority)
-      .map((r) => ({
-        ruleId:        r.id,
-        label:         r.label,
-        priority:      r.priority,
-        themeKey:      r.plan.themeKey as ThemePresetKey,
-        themeKeyDraft: r.plan.themeKey as ThemePresetKey,
-        enabled:       r.enabled !== false,
-        triggerMode:   classifyCondition(r.condition),
-        contextIds:    extractContextLibraryIds(r.condition),
-      }));
+      .map((r) => {
+        const selection = r.plan.themePresetId ? `gallery:${r.plan.themePresetId}` : (r.plan.themeKey as string);
+        return {
+          ruleId:         r.id,
+          label:          r.label,
+          priority:       r.priority,
+          selection,
+          selectionDraft: selection,
+          enabled:        r.enabled !== false,
+          triggerMode:    classifyCondition(r.condition),
+          contextIds:     extractContextLibraryIds(r.condition),
+        };
+      });
   });
 
   // ── Add-form state ─────────────────────────────────────────────────────────
@@ -223,24 +260,24 @@ export function ThemeRulesEditor({
 
   // ── Per-row handlers ───────────────────────────────────────────────────────
 
-  function setRowDraft(ruleId: string, value: ThemePresetKey) {
+  function setRowDraft(ruleId: string, value: string) {
     setMappings((prev) =>
-      prev.map((m) => m.ruleId === ruleId ? { ...m, themeKeyDraft: value, saveState: undefined } : m),
+      prev.map((m) => m.ruleId === ruleId ? { ...m, selectionDraft: value, saveState: undefined } : m),
     );
   }
 
   function saveRowTheme(ruleId: string) {
     const row = mappings.find((m) => m.ruleId === ruleId);
-    if (!row || row.themeKeyDraft === row.themeKey) return;
+    if (!row || row.selectionDraft === row.selection) return;
     setMappings((prev) =>
       prev.map((m) => m.ruleId === ruleId ? { ...m, saveState: "saving" } : m),
     );
     startTransition(async () => {
-      const result = await saveRuleThemeKeyAction(tenantId, ruleId, row.themeKeyDraft);
+      const result = await saveRuleThemeSelectionAction(tenantId, ruleId, selectionToPlan(row.selectionDraft));
       setMappings((prev) =>
         prev.map((m) =>
           m.ruleId === ruleId
-            ? { ...m, themeKey: result.ok ? row.themeKeyDraft : m.themeKey, saveState: result.ok ? "ok" : "error" }
+            ? { ...m, selection: result.ok ? row.selectionDraft : m.selection, saveState: result.ok ? "ok" : "error" }
             : m,
         ),
       );
@@ -310,15 +347,16 @@ export function ThemeRulesEditor({
     if (result.ok && result.rule) {
       const newTriggerMode: TriggerMode = addMode === "raw" ? "raw_condition"
         : addMode === "context_plus" ? "context_plus_condition" : "context_match";
+      const addSelection = String(addMode === "raw" ? addTheme : ctxTheme);
       const newRow: MappingRow = {
-        ruleId:        result.rule.id,
-        label:         result.rule.label,
-        priority:      result.rule.priority,
-        themeKey:      (addMode === "raw" ? addTheme : ctxTheme) as ThemePresetKey,
-        themeKeyDraft: (addMode === "raw" ? addTheme : ctxTheme) as ThemePresetKey,
-        enabled:       result.rule.enabled,
-        triggerMode:   newTriggerMode,
-        contextIds:    addMode !== "raw" ? [...ctxSelectedIds] : [],
+        ruleId:         result.rule.id,
+        label:          result.rule.label,
+        priority:       result.rule.priority,
+        selection:      addSelection,
+        selectionDraft: addSelection,
+        enabled:        result.rule.enabled,
+        triggerMode:    newTriggerMode,
+        contextIds:     addMode !== "raw" ? [...ctxSelectedIds] : [],
       };
       setMappings((prev) => {
         const idx = prev.findIndex((m) => m.ruleId === newRow.ruleId);
@@ -643,9 +681,9 @@ export function ThemeRulesEditor({
 
           {/* Rows */}
           {mappings.map((row) => {
-            const isDirty       = row.themeKeyDraft !== row.themeKey;
+            const isDirty       = row.selectionDraft !== row.selection;
             const isSaving      = row.saveState === "saving";
-            const currentSwatch = themeSwatch(row.themeKeyDraft);
+            const currentSwatch = selectionSwatch(row.selectionDraft);
             const badge         = MODE_BADGE[row.triggerMode];
 
             return (
@@ -688,14 +726,23 @@ export function ThemeRulesEditor({
                       />
                     )}
                     <select
-                      value={row.themeKeyDraft}
-                      onChange={(e) => setRowDraft(row.ruleId, e.target.value as ThemePresetKey)}
+                      value={row.selectionDraft}
+                      onChange={(e) => setRowDraft(row.ruleId, e.target.value)}
                       className={`w-full rounded-md border border-neutral-300 bg-white py-1 text-xs text-neutral-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
                         currentSwatch ? "pl-6 pr-2" : "px-2"
                       }`}
                     >
-                      {THEME_OPTIONS.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
+                      <optgroup label="Curated themes">
+                        {THEME_OPTIONS.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </optgroup>
+                      {GALLERY_BY_CATEGORY.map((g) => (
+                        <optgroup key={g.category} label={`Gallery — ${g.category}`}>
+                          {g.items.map((c) => (
+                            <option key={c.id} value={`gallery:${c.id}`}>{c.name}</option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </div>

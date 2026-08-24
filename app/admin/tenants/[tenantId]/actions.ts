@@ -1544,6 +1544,68 @@ export async function saveRuleThemeKeyAction(
   return { ok: true };
 }
 
+/**
+ * Set a rule's theme outcome to EITHER a curated theme key OR a gallery preset
+ * (item 6). Exactly one of `themeKey` / `themePresetId` should be non-null; the
+ * other is cleared. Both null clears the theme outcome. Validates the value and
+ * clears the mc_theme session lock so the next load re-evaluates.
+ */
+export async function saveRuleThemeSelectionAction(
+  tenantId: string,
+  ruleId:   string,
+  selection: {
+    themeKey?:      import("@/design-system/theme/presets").ThemePresetKey | null;
+    themePresetId?: string | null;
+  },
+): Promise<{ ok: boolean; errors?: string[] }> {
+  if (!tenantId || !ruleId) return { ok: false, errors: ["tenantId and ruleId are required."] };
+
+  const { getTenantRulesAction, saveTenantRulesAction } =
+    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
+  const current = await getTenantRulesAction(tenantId);
+  if (!current.ok) return { ok: false, errors: [`Failed to load rules: ${current.error}`] };
+  const rule = current.config.rules.find((r) => r.id === ruleId);
+  if (!rule) return { ok: false, errors: [`Rule "${ruleId}" not found.`] };
+
+  const themeKey      = selection.themeKey ?? null;
+  const themePresetId = selection.themePresetId ?? null;
+
+  if (themeKey !== null) {
+    const { isThemePresetKey } = await import("@/design-system/theme/presets");
+    if (!isThemePresetKey(themeKey)) return { ok: false, errors: [`Invalid themeKey: "${themeKey}".`] };
+  }
+  if (themePresetId !== null) {
+    const { getDesignPreset } = await import("@/tenant/design-presets-gallery");
+    if (!getDesignPreset(themePresetId)) return { ok: false, errors: [`Unknown gallery preset: "${themePresetId}".`] };
+  }
+
+  const updatedRules = current.config.rules.map((r) => {
+    if (r.id !== ruleId) return r;
+    const plan = { ...r.plan };
+    delete plan.themeKey;
+    delete plan.themePresetId;
+    if (themePresetId !== null)  plan.themePresetId = themePresetId;
+    else if (themeKey !== null)  plan.themeKey = themeKey;
+    return { ...r, plan };
+  });
+
+  const saveResult = await saveTenantRulesAction(tenantId, { ...current.config, rules: updatedRules });
+  if (!saveResult.ok) {
+    const errs: string[] = "fieldErrors" in saveResult && saveResult.fieldErrors ? saveResult.fieldErrors : [saveResult.error];
+    return { ok: false, errors: errs };
+  }
+
+  try {
+    const { clearThemeSessionCookie } = await import("@/lib/theme-session");
+    const cookieStore = await cookies();
+    clearThemeSessionCookie(cookieStore as Parameters<typeof clearThemeSessionCookie>[0]);
+  } catch { /* non-critical */ }
+
+  revalidatePath(`/admin/tenants/${tenantId}/design`);
+  return { ok: true };
+}
+
 // ── saveThemeRulesAction ───────────────────────────────────────────────────────
 
 /**
