@@ -223,24 +223,37 @@ const COLOR_CSS_VARS: Record<string, string[]> = {
   // --bg-subtle, not the canonical --primary/--foreground/… names). Without
   // these aliases a custom token override only reached a few elements (the
   // header) while buttons, cards and section backgrounds kept the base theme.
-  primary:               ["--primary", "--ring", "--text-brand", "--btn-bg", "--section-cta-bg"],
+  // Parity fan-out (docs/design/root-token-propagation-audit.md): component
+  // tokens that derive from --primary / --text-brand now follow a `primary`
+  // override too, so an admin brand change re-derives the brand-accent surfaces.
+  primary:               ["--primary", "--ring", "--text-brand", "--btn-bg", "--section-cta-bg",
+                          "--card-quote", "--badge-primary-text", "--btn-secondary-text", "--nav-dropdown-link-hover-text"],
   primaryHover:          ["--primary-hover", "--primary-active", "--btn-hover-bg", "--btn-active-bg"],
   secondary:             ["--secondary", "--nav-link-hover"],
   accent:                ["--accent"],
-  background:            ["--background", "--bg", "--text-inverse", "--ring-offset", "--hero-light-bg"],
+  background:            ["--background", "--bg", "--text-inverse", "--ring-offset", "--hero-light-bg",
+                          "--proof-bg"], // parity fan-out: proof section tracks --bg
   foreground:            ["--foreground", "--text", "--proof-quote-color", "--bg-inverse", "--section-hero-bg", "--hero-bg", "--hero-dark-bg"],
   // --form-bg re-pinned here (not just via theme.css --form-bg: var(--section-subtle-bg)):
   // that indirection is declared at :root, so it captures the :root (light) value and
   // ignores this [data-site] override, leaving the form section light-on-light under
   // dark presets. Re-pin it (and --form-border below) so it tracks the preset.
-  muted:                 ["--muted", "--bg-subtle", "--section-subtle-bg", "--form-bg", "--primary-subtle"],
+  // Parity fan-out: feature-grid subtle surfaces track --section-subtle-bg, and
+  // the brand-tint accents (badge/secondary/nav-dropdown hover bg) track
+  // --primary-subtle — both owned by this `muted` group.
+  muted:                 ["--muted", "--bg-subtle", "--section-subtle-bg", "--form-bg", "--primary-subtle",
+                          "--feature-grid-bg", "--feature-grid-icon-bg",
+                          "--badge-primary-bg", "--btn-secondary-bg", "--btn-secondary-hover-bg", "--nav-dropdown-link-hover-bg"],
   mutedForeground:       ["--muted-foreground", "--text-muted", "--text-subtle"],
-  border:                ["--border", "--border-strong", "--card-border", "--section-subtle-border", "--form-border", "--proof-card-border"],
+  // Parity fan-out: feature-grid + nav-dropdown borders track the border group.
+  border:                ["--border", "--border-strong", "--card-border", "--section-subtle-border", "--form-border", "--proof-card-border",
+                          "--feature-grid-border", "--feature-grid-card-border", "--nav-dropdown-border"],
   input:                 ["--input"],
   ring:                  ["--ring"],
   destructive:           ["--destructive"],
   destructiveForeground: ["--destructive-foreground"],
-  card:                  ["--card", "--card-bg"],
+  // Parity fan-out: nested card surfaces (feature-grid / proof cards) track --card-bg.
+  card:                  ["--card", "--card-bg", "--feature-grid-card-bg", "--proof-card-bg"],
   cardForeground:        ["--card-foreground"],
   popover:               ["--popover"],
   popoverForeground:     ["--popover-foreground"],
@@ -303,6 +316,16 @@ const RADIUS_CSS_VARS: Record<string, string> = {
   interactive: "--radius-interactive",
   card:        "--radius-card",
   popover:     "--radius-popover",
+};
+
+/**
+ * Parity fan-out for radii (docs/design/root-token-propagation-audit.md): the
+ * component radii derive from the base radius token at :root, so a `radius`
+ * override must also re-derive them. `radius.card` re-derives the card-family
+ * component radii alongside --radius-card.
+ */
+const RADIUS_FANOUT: Record<string, string[]> = {
+  card: ["--card-radius", "--proof-card-radius", "--feature-grid-card-radius"],
 };
 
 /**
@@ -415,6 +438,7 @@ function resolveGroupVars(
       case "radius": {
         const cssVar = RADIUS_CSS_VARS[key];
         vars[cssVar ?? `--radius-${kebab}`] = value;
+        for (const extra of RADIUS_FANOUT[key] ?? []) vars[extra] = value;
         break;
       }
 
