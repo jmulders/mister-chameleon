@@ -710,6 +710,24 @@ export function resolveThemeForTenant(
     }
   }
 
+  // ── Secondary-button readability (light-on-light) ───────────────────────────
+  //
+  // The secondary button pairs --btn-secondary-bg (brand tint, from the `muted`
+  // group fan-out) with --btn-secondary-text (brand primary, from the `primary`
+  // group). On a light tint plus a light/amber primary that pairing is
+  // light-on-light (the "Lees cases" hero button is the visible symptom). Keep the
+  // brand text only while it stays legible on the resolved tint (>= 4.5:1), else
+  // flip to a readable colour. Mirror of the tenant-theme.ts derivation on the
+  // custom/gallery override path; the tint surface itself is left unchanged.
+  {
+    const secBg = vars["--btn-secondary-bg"] ?? vars["--muted"] ?? vars["--bg-subtle"];
+    const secText = vars["--btn-secondary-text"];
+    if (secBg && secText) {
+      const ratio = contrastRatio(secText, secBg);
+      if (ratio !== null && ratio < 4.5) vars["--btn-secondary-text"] = readableText(secBg);
+    }
+  }
+
   return { key, vars };
 }
 

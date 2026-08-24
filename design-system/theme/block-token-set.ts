@@ -30,6 +30,7 @@
 
 import type { CSSProperties } from "react";
 import { type BlockSurface, resolveSurface } from "@/lib/surface";
+import { contrastRatio, readableText } from "@/lib/color";
 
 // ── Curated token surface ──────────────────────────────────────────────────────
 
@@ -348,6 +349,20 @@ export function blockTokensToStyle(
     const value = tokens[field.key];
     if (typeof value !== "string" || !value.trim()) continue;
     for (const cssVar of field.vars) style[cssVar] = value;
+  }
+
+  // Secondary-button readability: when this scope sets both the secondary tint
+  // (--btn-secondary-bg, from primarySubtle) and its brand text
+  // (--btn-secondary-text, from textBrand), keep the brand text only while it
+  // stays legible on the tint (>= 4.5:1), else flip to a readable colour. This
+  // mirrors the theme-path derivation at the block-token layer, so the more-
+  // specific site-default block scope does not re-introduce a light-on-light
+  // button on top of the theme-var fix. Only acts on measurable hex values.
+  const secBg = style["--btn-secondary-bg"];
+  const secText = style["--btn-secondary-text"];
+  if (typeof secBg === "string" && typeof secText === "string") {
+    const ratio = contrastRatio(secText, secBg);
+    if (ratio !== null && ratio < 4.5) style["--btn-secondary-text"] = readableText(secBg);
   }
 
   return style as CSSProperties;

@@ -42,7 +42,7 @@ import { radii } from "../tokens/radii";
 import type { RadiusKey } from "../tokens/radii";
 import { fontFamily } from "../tokens/typography";
 import { shadows } from "../tokens/shadow";
-import { isLight, lighten, mix, contrastRatio } from "@/lib/color";
+import { isLight, lighten, mix, contrastRatio, readableText } from "@/lib/color";
 import {
   type BlockStyleProfile,
   DEFAULT_BLOCK_STYLE_PROFILE,
@@ -483,6 +483,17 @@ function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
   const cardBorder         = cardNeedsLift ? mix(cardBg, colors.text.text, 0.24)   : rawCardBorder;
   const cardRadius         = cs?.cardRadius          ?? r.card;
   const cardShadow         = cs?.cardShadow          ?? shadows.sm;
+  // Secondary-button readability: the secondary button pairs its brand-tint
+  // surface (--btn-secondary-bg = primarySubtle) with brand text
+  // (--btn-secondary-text = textBrand). On a light tint plus a light/amber brand
+  // that pairing is light-on-light (the "Lees cases" hero button is the visible
+  // symptom). Keep the brand text only while it stays legible on the tint
+  // (>= 4.5:1), else flip to a readable colour. The tint surface is unchanged.
+  const secBtnBg           = colors.brand.primarySubtle;
+  const secBtnRatio        = contrastRatio(colors.brand.textBrand, secBtnBg);
+  const secBtnText         = secBtnRatio !== null && secBtnRatio >= 4.5
+    ? colors.brand.textBrand
+    : readableText(secBtnBg);
   const quoteColor         = cs?.quoteColor          ?? colors.brand.primary;
 
   // Hero expansion
@@ -769,9 +780,9 @@ function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
     //
     // Same rationale as badge: concrete hex values prevent the :root purple
     // fallback from showing on secondary buttons in any preset.
-    ["--btn-secondary-bg",       colors.brand.primarySubtle],
-    ["--btn-secondary-text",     colors.brand.textBrand],
-    ["--btn-secondary-hover-bg", colors.brand.primarySubtle],
+    ["--btn-secondary-bg",       secBtnBg],
+    ["--btn-secondary-text",     secBtnText],
+    ["--btn-secondary-hover-bg", secBtnBg],
 
     // Outline / ghost buttons are context-adaptive: they inherit currentColor
     // (the surrounding section's text colour) rather than a fixed preset colour,
