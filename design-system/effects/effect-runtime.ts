@@ -39,6 +39,31 @@ export function effectRuntimeJs(): string {
     var canObs = "IntersectionObserver" in window;
     var canRaf = typeof requestAnimationFrame === "function";
     var canSticky = false; try { canSticky = !!(window.CSS && CSS.supports && CSS.supports("position","sticky")); } catch(e){}
+    // Reveal an entrance block; a stagger wrapper reveals its prepared children.
+    function revealFx(el){
+      if (el.getAttribute && el.getAttribute("data-mc-fx-stagger") === "1") {
+        var kids = el.children;
+        for (var s = 0; s < kids.length; s++) { if (kids[s].getAttribute("data-mc-fx-stagger-child")) addClass(kids[s], "mc-fx-in"); }
+      }
+      addClass(el, "mc-fx-in");
+    }
+    // Give each direct child the chosen base entrance class + an incremental delay.
+    function setupStagger(el){
+      el.setAttribute("data-mc-fx-stagger", "1");
+      var cs = getComputedStyle(el);
+      var step = parseFloat(cs.getPropertyValue("--mc-fx-stagger-step")) || 80;
+      var max = parseInt(cs.getPropertyValue("--mc-fx-stagger-max"), 10) || 12;
+      var rawBase = (cs.getPropertyValue("--mc-fx-stagger-base") || "").replace(/^\\s+|\\s+$/g, "");
+      var base = (GROUPS[rawBase] === "entrance" && rawBase !== "stagger") ? rawBase : "reveal";
+      var cap = max < 1 ? 1 : max;
+      var kids = el.children;
+      for (var s = 0; s < kids.length; s++) {
+        if (s >= cap) break;
+        kids[s].setAttribute("data-mc-fx-stagger-child", "1");
+        addClass(kids[s], "mc-fx"); addClass(kids[s], "mc-fx-" + base);
+        if (!reduced) kids[s].style.transitionDelay = (s * step) + "ms";
+      }
+    }
     var entrance = [], parallax = [];
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
@@ -50,6 +75,7 @@ export function effectRuntimeJs(): string {
       var hasEntrance = false;
       for (var k = 0; k < ids.length; k++) {
         var id = ids[k]; if (!id) continue;
+        if (id === "stagger") { hasEntrance = true; setupStagger(el); continue; }
         var g = GROUPS[id];
         if (g === "entrance") { hasEntrance = true; }
         else if (g === "continuous" && !reduced) {
@@ -58,11 +84,11 @@ export function effectRuntimeJs(): string {
           else if (id === "parallax") { if (canRaf) parallax.push(el); }
         }
       }
-      if (hasEntrance) { if (canObs) entrance.push(el); else addClass(el, "mc-fx-in"); }
+      if (hasEntrance) { if (canObs) entrance.push(el); else revealFx(el); }
     }
     if (entrance.length && canObs) {
       var io = new IntersectionObserver(function(ents){
-        for (var e = 0; e < ents.length; e++) { if (ents[e].isIntersecting) { addClass(ents[e].target, "mc-fx-in"); io.unobserve(ents[e].target); } }
+        for (var e = 0; e < ents.length; e++) { if (ents[e].isIntersecting) { revealFx(ents[e].target); io.unobserve(ents[e].target); } }
       }, { rootMargin: "0px 0px -10% 0px", threshold: 0.05 });
       for (var m = 0; m < entrance.length; m++) io.observe(entrance[m]);
     }
@@ -204,6 +230,12 @@ html.mc-fx-ready .mc-fx-wipe-reveal.mc-fx-in {
 }
 .mc-fx-glow-pulse {
   animation: mc-fx-glow-pulse var(--mc-fx-glow-interval, 1800ms) ease-in-out infinite;
+}
+/* Stagger: the runtime gives each direct child the chosen base entrance class and
+   a per-child transition-delay, then reveals them together. The wrapper is not
+   hidden itself. Reduced-motion shows all children at once (reduce block below). */
+.mc-fx-stagger > [data-mc-fx-stagger-child] {
+  will-change: opacity, transform;
 }
 .mc-fx-parallax {
   transform: translate3d(0, var(--mc-fx-parallax-y, 0px), 0);
