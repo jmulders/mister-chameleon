@@ -17,7 +17,7 @@
  * runtime guards against.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   resolveBlockEffects, effectsToAttrs,
   type BlockEffectRef, type EffectSet,
@@ -54,26 +54,38 @@ export function MotionPreview({
     [effectRef, effectSets],
   );
 
-  const [revealed, setRevealed] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Re-play whenever the effect changes or the Replay signal bumps. Reset to the
-  // hidden state, let it paint, then reveal so the entrance transition runs again.
+  // Re-play whenever the effect changes or the Replay signal bumps.
+  //
+  // The reveal is driven imperatively on the node: remove mc-fx-in, force a
+  // reflow so the browser records the hidden state as the transition's starting
+  // point, then add mc-fx-in so the entrance transition runs. This is the canonical
+  // "restart a CSS transition" technique, and — unlike requestAnimationFrame — it
+  // does not depend on the element visibly animating: rAF is paused for the
+  // drawer's scaled-down preview column (and for a backgrounded tab), so the old
+  // rAF-based reveal could never fire and "Replay motion" looked inert.
+  //
+  // The rendered className never carries mc-fx-in, so React reconciliation leaves
+  // the imperatively-added class alone; whenever the className prop DOES change
+  // (a new effect => new attrs), this effect re-runs and re-adds it.
   useEffect(() => {
     ensureEffectRuntimeCss();
-    if (!attrs) { setRevealed(true); return; }
+    const el = rootRef.current;
+    if (!el) return;
+    el.classList.remove("mc-fx-in");
+    if (!attrs) { el.classList.add("mc-fx-in"); return; } // no effect: nothing to hide
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    if (reduced) { setRevealed(true); return; } // end state, no auto-play
-    setRevealed(false);
-    const raf1 = requestAnimationFrame(() => requestAnimationFrame(() => setRevealed(true)));
-    return () => cancelAnimationFrame(raf1);
+    if (reduced) { el.classList.add("mc-fx-in"); return; } // end state, no auto-play
+    void el.offsetWidth;            // force a reflow so the hidden state is the transition's "before"
+    el.classList.add("mc-fx-in");   // reveal -> the entrance transition runs
   }, [attrs, replaySignal]);
 
-  const className = ["mc-fx-preview", attrs?.className, revealed ? "mc-fx-in" : ""]
-    .filter(Boolean)
-    .join(" ");
+  const className = ["mc-fx-preview", attrs?.className].filter(Boolean).join(" ");
 
   return (
     <div
+      ref={rootRef}
       className={className}
       style={attrs?.style as React.CSSProperties | undefined}
       {...(attrs?.data ?? {})}
