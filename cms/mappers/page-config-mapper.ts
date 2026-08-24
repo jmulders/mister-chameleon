@@ -107,12 +107,13 @@ export function mapSectionsToContentBlocks(sections: PageSectionData[]): Content
       // the anchor and scope the block's tokens.
       const base = section as import("../types").PageSectionBase;
       const hasTokens = Boolean(base.tokens && Object.keys(base.tokens).length > 0);
-      if (base.anchorId || base.tokenSet || hasTokens) {
+      if (base.anchorId || base.tokenSet || hasTokens || base.effects) {
         blocks.push({
           ...block,
           ...(base.anchorId ? { anchorId: base.anchorId } : {}),
           ...(base.tokenSet ? { tokenSet: base.tokenSet } : {}),
           ...(hasTokens ? { tokens: base.tokens } : {}),
+          ...(base.effects ? { effects: base.effects } : {}),
         } as ContentBlock);
       } else {
         blocks.push(block);
@@ -1066,12 +1067,13 @@ function buildPageItemsFromSections(
         const base = section as import("../types").PageSectionBase;
         const hasTokens = Boolean(base.tokens && Object.keys(base.tokens).length > 0);
         const withTokens: ContentBlock =
-          (base.anchorId || base.tokenSet || hasTokens)
+          (base.anchorId || base.tokenSet || hasTokens || base.effects)
             ? ({
                 ...block,
                 ...(base.anchorId ? { anchorId: base.anchorId } : {}),
                 ...(base.tokenSet ? { tokenSet: base.tokenSet } : {}),
                 ...(hasTokens ? { tokens: base.tokens } : {}),
+                ...(base.effects ? { effects: base.effects } : {}),
               } as ContentBlock)
             : block;
         items.push({ kind: "block", block: withTokens });
