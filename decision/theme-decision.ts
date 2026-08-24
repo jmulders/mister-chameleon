@@ -70,6 +70,7 @@ import type { StoredRule, StoredRulesConfig } from "./rules/stored-rule";
 import type { RuleEvaluationContext } from "./rules/field-registry";
 import { evaluateCondition }    from "./rules/stored-rule";
 import { isThemePresetKey }     from "@/design-system/theme/presets";
+import { getDesignPreset }      from "@/tenant/design-presets-gallery";
 import { logger }               from "@/lib/logger";
 
 // ── Built-in theme condition templates ───────────────────────────────────────
@@ -340,6 +341,14 @@ export interface ThemeDecisionTrace {
   /** The theme that was ultimately resolved. */
   resolvedTheme:    ThemePresetKey;
   /**
+   * When the winning selection is a gallery preset (design-presets-gallery),
+   * its id. `app/layout` injects that preset's complete look instead of the
+   * curated `resolvedTheme`. Null for curated selections. (`resolvedTheme` still
+   * carries a valid curated key — the gallery card's baseTheme when curated, else
+   * the tenant default — so curated consumers keep working.)
+   */
+  resolvedPresetId?: string | null;
+  /**
    * Whether the resolved theme came from an existing session lock cookie
    * rather than fresh rule evaluation.
    */
@@ -500,7 +509,54 @@ export function resolveThemeDecision(
   tenantDefault: ThemePresetKey,
   sessionTheme?: ThemePresetKey | null,
   utmCampaign?:  string | null,
+  sessionPresetId?: string | null,
 ): ThemeDecisionTrace {
+  // Does any priority < 10 rule (curated OR gallery) target an active UTM field?
+  // Used to decide whether an existing session lock (curated or gallery) should
+  // be bypassed for a campaign landing. Shared by both lock branches below.
+  const hasUtmOverrideRuleFn = (): boolean => {
+    const activeUtmFields = new Set<string>();
+    if (ctx.utmSource)   activeUtmFields.add("utmSource");
+    if (ctx.utmMedium)   activeUtmFields.add("utmMedium");
+    if (ctx.utmCampaign ?? utmCampaign) activeUtmFields.add("utmCampaign");
+    if (ctx.utmContent)  activeUtmFields.add("utmContent");
+    if (ctx.utmTerm)     activeUtmFields.add("utmTerm");
+    if (activeUtmFields.size === 0) return false;
+    return (config?.rules ?? []).some((r) => {
+      if (r.enabled === false || r.priority >= 10) return false;
+      if (!r.plan.themeKey && !r.plan.themePresetId) return false;
+      const condStr = JSON.stringify(r.condition);
+      return (
+        (activeUtmFields.has("utmSource")   && condStr.includes("utmSource"))   ||
+        (activeUtmFields.has("utmMedium")   && condStr.includes("utmMedium"))   ||
+        (activeUtmFields.has("utmCampaign") && condStr.includes("utmCampaign")) ||
+        (activeUtmFields.has("utmContent")  && condStr.includes("utmContent"))  ||
+        (activeUtmFields.has("utmTerm")     && condStr.includes("utmTerm"))
+      );
+    });
+  };
+
+  // ── Gallery session lock ─────────────────────────────────────────────────────
+  // A prior page view locked a gallery preset. Respect it unless a campaign
+  // override applies. (Curated locks are handled by the sessionTheme branch below.)
+  if (sessionPresetId && getDesignPreset(sessionPresetId)) {
+    if (!hasUtmOverrideRuleFn()) {
+      const card = getDesignPreset(sessionPresetId)!;
+      return {
+        tenantDefault,
+        matchedRuleId:             null,
+        matchedRuleLabel:          null,
+        resolvedTheme:             isThemePresetKey(card.baseTheme) ? card.baseTheme : tenantDefault,
+        resolvedPresetId:          sessionPresetId,
+        sessionLocked:             true,
+        lockSource:                "existing",
+        matchedPriority:           null,
+        triggerMode:               "session_lock",
+        matchedContextLibraryIds:  [],
+        candidates:                [],
+      };
+    }
+  }
   // ── Session lock check ──────────────────────────────────────────────────────
   //
   // If the visitor already has a locked theme from a prior page view in this
@@ -577,7 +633,10 @@ export function resolveThemeDecision(
 
   // ── Filter to rules that carry a theme outcome ──────────────────────────────
   const themeRules = config.rules
-    .filter((r) => r.enabled !== false && r.plan.themeKey && isThemePresetKey(r.plan.themeKey))
+    .filter((r) => r.enabled !== false && (
+      (r.plan.themeKey && isThemePresetKey(r.plan.themeKey)) ||
+      (r.plan.themePresetId && !!getDesignPreset(r.plan.themePresetId))
+    ))
     .sort((a, b) => a.priority - b.priority);
 
   if (themeRules.length === 0) {
@@ -613,12 +672,22 @@ export function resolveThemeDecision(
       });
     }
 
+    // A gallery rule carries themePresetId; a curated rule carries themeKey.
+    // resolvedTheme always stays a valid curated key (gallery card's baseTheme
+    // when curated, else the tenant default) so curated consumers keep working.
+    const galleryCard = rule.plan.themePresetId ? getDesignPreset(rule.plan.themePresetId) : undefined;
+    const resolvedPresetId = galleryCard ? rule.plan.themePresetId! : null;
+    const candidateTheme: ThemePresetKey =
+      (rule.plan.themeKey && isThemePresetKey(rule.plan.themeKey))
+        ? rule.plan.themeKey
+        : (galleryCard && isThemePresetKey(galleryCard.baseTheme) ? galleryCard.baseTheme : tenantDefault);
+
     // Track for the candidates list regardless of outcome
     candidates.push({
       ruleId:                   rule.id,
       label:                    rule.label,
       priority:                 rule.priority,
-      themeKey:                 rule.plan.themeKey as ThemePresetKey,
+      themeKey:                 candidateTheme,
       triggerMode:              ruleTriggerMode,
       evaluated,
       matched,
@@ -629,12 +698,13 @@ export function resolveThemeDecision(
 
     if (!evaluated || !matched) continue;
 
-    const resolvedTheme = rule.plan.themeKey as ThemePresetKey;
+    const resolvedTheme = candidateTheme;
 
     logger.debug(`[theme-decision] Rule matched (priority ${rule.priority})`, {
       ruleId:        rule.id,
       ruleLabel:     rule.label,
       resolvedTheme,
+      resolvedPresetId,
       triggerMode:   ruleTriggerMode,
     });
 
@@ -643,6 +713,7 @@ export function resolveThemeDecision(
       matchedRuleId:             rule.id,
       matchedRuleLabel:          rule.label,
       resolvedTheme,
+      resolvedPresetId,
       sessionLocked:             false,
       lockSource:                sessionTheme ? "campaign-override" : "new",
       matchedPriority:           rule.priority,

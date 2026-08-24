@@ -12,7 +12,9 @@ import { CookiePreferences }     from "@/components/tracking/CookiePreferences";
 import { buildTimeContext }      from "@/context/time";
 import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
 import { resolveThemeDecision }  from "@/decision/theme-decision";
-import { readThemeSessionCookie, writeThemeSessionCookie } from "@/lib/theme-session";
+import { readThemeSessionSelection, writeThemeSessionSelection } from "@/lib/theme-session";
+import { getDesignPreset } from "@/tenant/design-presets-gallery";
+import { buildCompleteLookDesign } from "@/lib/design/complete-look";
 import { DEV_TENANT_COOKIE }     from "@/tenant/dev-tenant-cookie";
 import { emptyHistory }          from "@/context/visitor-history";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
@@ -211,6 +213,8 @@ export default async function RootLayout({
   // (App Router layouts cannot read searchParams directly; middleware is the
   // standard solution for surfacing query params in the Server Component tree).
   let contextualThemeKey: ThemePresetKey | null = null;
+  // When a gallery preset is contextually selected (rule or session lock), its id.
+  let contextualPresetId: string | null = null;
   // Debug trace object — populated inside the try block, consumed after it.
   let themeDecisionTrace: import("@/decision/theme-decision").ThemeDecisionTrace | null = null;
 
@@ -298,9 +302,9 @@ export default async function RootLayout({
 
     // Read the session-locked theme only when no scenario is active.
     // When a scenario IS active, pass null to force fresh rule evaluation.
-    const sessionTheme = scenarioOverrides
-      ? null
-      : readThemeSessionCookie(cookieStore);
+    const sessionSelection = scenarioOverrides ? null : readThemeSessionSelection(cookieStore);
+    const sessionTheme    = sessionSelection?.kind === "curated" ? sessionSelection.themeKey : null;
+    const sessionPresetId = sessionSelection?.kind === "gallery" ? sessionSelection.presetId : null;
 
     const storedConfig = await loadTenantRulesConfig(tenantConfig.tenantId);
 
@@ -353,16 +357,19 @@ export default async function RootLayout({
 
     // Pass utmCampaign separately — resolveThemeDecision uses it to decide
     // whether a campaign-priority rule should bypass an existing session lock.
-    const themeTrace = resolveThemeDecision(storedConfig, effectiveThemeCtx, defaultThemeKey, sessionTheme, utmCampaign);
+    const themeTrace = resolveThemeDecision(storedConfig, effectiveThemeCtx, defaultThemeKey, sessionTheme, utmCampaign, sessionPresetId);
     themeDecisionTrace = themeTrace;
 
     if (!themeTrace.sessionLocked && !scenarioOverrides) {
-      // Freshly evaluated (and no scenario active) — lock the theme for this session.
-      // When a scenario IS active we deliberately skip writing mc_theme so the
-      // session lock doesn't "bake in" the scenario-driven theme choice.  The real
-      // theme re-evaluates correctly once the scenario is cleared.
+      // Freshly evaluated (and no scenario active) — lock the selection for this
+      // session (curated key or gallery preset id). Scenario active -> skip write.
       try {
-        writeThemeSessionCookie(cookieStore as Parameters<typeof writeThemeSessionCookie>[0], themeTrace.resolvedTheme);
+        writeThemeSessionSelection(
+          cookieStore as Parameters<typeof writeThemeSessionSelection>[0],
+          themeTrace.resolvedPresetId
+            ? { kind: "gallery", presetId: themeTrace.resolvedPresetId }
+            : { kind: "curated", themeKey: themeTrace.resolvedTheme },
+        );
       } catch {
         // Non-critical: if writing the cookie fails, next request re-evaluates
       }
@@ -384,6 +391,12 @@ export default async function RootLayout({
     // propagate correctly.
     if (!themeTrace.sessionLocked && themeTrace.resolvedTheme !== defaultThemeKey) {
       contextualThemeKey = themeTrace.resolvedTheme;
+    }
+
+    // A gallery preset is purely contextual (no DB default to be stale against),
+    // so apply it whenever the decision resolved one — including a session lock.
+    if (themeTrace.resolvedPresetId) {
+      contextualPresetId = themeTrace.resolvedPresetId;
     }
 
     // ── Scenario direct theme override ───────────────────────────────────────
@@ -462,7 +475,15 @@ export default async function RootLayout({
     (cmsDefaultKey && isThemePresetKey(cmsDefaultKey) ? cmsDefaultKey : null) ??
     "modern-saas"
   ) as ThemePresetKey;
-  const finalThemeKey: ThemePresetKey = contextualThemeKey ?? _defaultThemeKey;
+  // Contextual gallery preset (item 6): when a rule / session lock selected a
+  // gallery preset, inject its complete look so the page renders IDENTICALLY to
+  // having applied that preset in admin. Layer A uses the card's baseTheme; Layer
+  // B (below) resolves a virtual design built the same way applyDesignPresetAction
+  // builds it.
+  const galleryCard = contextualPresetId ? getDesignPreset(contextualPresetId) : undefined;
+  const finalThemeKey: ThemePresetKey = galleryCard
+    ? (galleryCard.baseTheme as ThemePresetKey)   // may be "custom" -> falls to tenantConfig.theme below
+    : (contextualThemeKey ?? _defaultThemeKey);
   const finalThemePreset = isThemePresetKey(finalThemeKey)
     ? THEME_PRESETS[finalThemeKey]
     : tenantConfig.theme;
@@ -515,7 +536,13 @@ export default async function RootLayout({
   //
   // We build the CSS block directly from resolvedTheme.vars (rather than via
   // resolvedThemeToCSS) so we can use SITE_SELECTOR instead of :root.
-  const resolvedTheme = resolveThemeForTenant(tenantSettings, contextualThemeKey);
+  // For a contextual gallery preset, resolve a VIRTUAL design built identically
+  // to applyDesignPresetAction (design.theme = baseTheme, tokenOverrides = the
+  // card's overrides), so Layer B == the applied preset. Otherwise the normal path.
+  const layerBSettings = galleryCard && tenantSettings
+    ? { ...tenantSettings, design: buildCompleteLookDesign(tenantSettings.design, galleryCard.tokenOverrides, galleryCard.baseTheme) }
+    : tenantSettings;
+  const resolvedTheme = resolveThemeForTenant(layerBSettings, galleryCard ? null : contextualThemeKey);
   const resolvedVarEntries = Object.entries(resolvedTheme.vars);
   const tokenOverrideCSS = resolvedVarEntries.length > 0
     ? `${SITE_SELECTOR}{${resolvedVarEntries.map(([k, v]) => `${k}:${v}`).join(";")}}`
