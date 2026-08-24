@@ -18,6 +18,9 @@ import {
 }                          from "@/design-system/theme/block-token-set";
 import type { BlockTokenRef } from "@/design-system/theme/block-token-set";
 import type { BlockSlot }      from "@/lib/snippet/decide-response";
+import {
+  resolveBlockEffects, effectsToAttrs, type BlockEffectRef, type EffectSet, type BlockEffectConfig,
+} from "@/design-system/effects/effect-ref";
 
 /**
  * Resolve a block's token ref to the CSS custom properties it drives.
@@ -47,7 +50,21 @@ export function cssVarsFromTokenRef(
 export function toBlockSlot(
   html: string,
   ref?: BlockTokenRef | null,
+  effectRef?: BlockEffectRef | null,
+  effectSets?: readonly EffectSet[] | null,
+  defaultEffects?: readonly BlockEffectConfig[] | null,
 ): BlockSlot {
   const tokens = cssVarsFromTokenRef(ref);
-  return tokens ? { mode: "block", html, tokens } : { mode: "block", html };
+  const slot: BlockSlot = { mode: "block", html };
+  if (tokens) slot.tokens = tokens;
+
+  const attrs = effectsToAttrs(resolveBlockEffects(effectRef, effectSets, defaultEffects));
+  if (attrs) {
+    slot.fx = {
+      className: attrs.className,
+      ...(Object.keys(attrs.style).length > 0 ? { style: attrs.style } : {}),
+      data: attrs.data,
+    };
+  }
+  return slot;
 }

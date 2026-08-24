@@ -29,6 +29,17 @@ export interface BlockSlot {
   mode: "block";
   html: string;
   tokens?: Record<string, string>;
+  /**
+   * Optional declarative block effects (design-system/effects). The snippet
+   * applies `fx.className` + `fx.style` (param CSS vars) + `fx.data` (data-mc-fx-*)
+   * to the block container, then its versioned player animates it. Omitted when
+   * the block has no effects.
+   */
+  fx?: {
+    className: string;
+    style?: Record<string, string>;
+    data?:  Record<string, string>;
+  };
 }
 
 export type SlotValue = string | BlockSlot;
