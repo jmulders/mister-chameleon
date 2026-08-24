@@ -23,15 +23,17 @@ import {
 } from "@/design-system/effects/effect-ref";
 
 interface BlockEffectScopeProps {
-  effectRef?:     BlockEffectRef | null;
-  sets?:          readonly EffectSet[] | null;
-  tenantDefault?: readonly BlockEffectConfig[] | null;
-  scopeId?:       string;
-  children:       ReactNode;
+  effectRef?:        BlockEffectRef | null;
+  sets?:             readonly EffectSet[] | null;
+  /** Per-block-type default (design.blockTypeEffects), the tier below the instance ref. */
+  blockTypeDefault?: readonly BlockEffectConfig[] | null;
+  tenantDefault?:    readonly BlockEffectConfig[] | null;
+  scopeId?:          string;
+  children:          ReactNode;
 }
 
-export function BlockEffectScope({ effectRef, sets, tenantDefault, scopeId, children }: BlockEffectScopeProps) {
-  const effects = resolveBlockEffects(effectRef, sets, tenantDefault);
+export function BlockEffectScope({ effectRef, sets, blockTypeDefault, tenantDefault, scopeId, children }: BlockEffectScopeProps) {
+  const effects = resolveBlockEffects(effectRef, sets, blockTypeDefault, tenantDefault);
   const attrs = effectsToAttrs(effects);
   if (!attrs) return <>{children}</>;
   return (

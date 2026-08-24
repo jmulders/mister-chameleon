@@ -111,6 +111,8 @@ interface ContextSlotRendererProps {
   blockTokenSets?: readonly BlockTokenSet[] | null;
   /** Tenant's named effect sets — used to resolve a slot's content effectRef. */
   effectSets?:     readonly EffectSet[] | null;
+  /** Per-block-type default effects (design.blockTypeEffects), keyed by slot type. */
+  blockTypeEffects?: Partial<Record<string, readonly BlockEffectConfig[]>> | null;
   /** Tenant-wide default effects — the fallback tier when a slot has no effectRef. */
   defaultEffects?: readonly BlockEffectConfig[] | null;
 }
@@ -164,6 +166,7 @@ function ContextSlotRenderer(props: ContextSlotRendererProps) {
       <BlockEffectScope
         effectRef={entry?.effectRef}
         sets={props.effectSets}
+        blockTypeDefault={props.blockTypeEffects?.[slotId]}
         tenantDefault={props.defaultEffects}
         scopeId={slotId}
       >
@@ -284,12 +287,14 @@ export function AdaptiveSlotPreview({
   contextData,
   blockTokenSets,
   effectSets,
+  blockTypeEffects,
   defaultEffects,
 }: {
   slotId:          ContextSlotId;
   contextData:     ContextSlotData;
   blockTokenSets?: readonly BlockTokenSet[] | null;
   effectSets?:     readonly EffectSet[] | null;
+  blockTypeEffects?: Partial<Record<string, readonly BlockEffectConfig[]>> | null;
   defaultEffects?: readonly BlockEffectConfig[] | null;
 }) {
   return (
@@ -298,6 +303,7 @@ export function AdaptiveSlotPreview({
       contextData={contextData}
       blockTokenSets={blockTokenSets}
       effectSets={effectSets}
+      blockTypeEffects={blockTypeEffects}
       defaultEffects={defaultEffects}
     />
   );
@@ -396,12 +402,14 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
   let defaultTokens: CuratedBlockTokens | undefined;
   let effectSets: readonly EffectSet[] | undefined;
   let defaultEffects: readonly BlockEffectConfig[] | undefined;
+  let blockTypeEffects: Partial<Record<string, readonly BlockEffectConfig[]>> | undefined;
   try {
     const { tenantId } = await getActiveTenant();
     const tenant = tenantId ? await getTenantById(tenantId) : null;
     blockTokenSets = tenant?.design?.blockTokenSets;
     defaultTokens  = tenant?.design?.defaultTokens;
     defaultEffects = tenant?.design?.defaultEffects;
+    blockTypeEffects = tenant?.design?.blockTypeEffects;
     // Item 6: when a rule/session lock contextually selected a GALLERY preset,
     // use that preset's derived block tokens instead of the tenant's last-applied
     // defaultTokens, so the injected preset is not masked on hero/cta/card blocks.
@@ -416,6 +424,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
     defaultTokens  = undefined;
     effectSets     = undefined;
     defaultEffects = undefined;
+    blockTypeEffects = undefined;
   }
 
   return (
@@ -463,6 +472,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
                 tokenContext={tokenContext}
                 blockTokenSets={blockTokenSets}
                 effectSets={effectSets}
+                blockTypeEffects={blockTypeEffects}
                 defaultEffects={defaultEffects}
               />
             </BlockThemeScope>

@@ -52,13 +52,14 @@ export function toBlockSlot(
   ref?: BlockTokenRef | null,
   effectRef?: BlockEffectRef | null,
   effectSets?: readonly EffectSet[] | null,
+  blockTypeDefault?: readonly BlockEffectConfig[] | null,
   defaultEffects?: readonly BlockEffectConfig[] | null,
 ): BlockSlot {
   const tokens = cssVarsFromTokenRef(ref);
   const slot: BlockSlot = { mode: "block", html };
   if (tokens) slot.tokens = tokens;
 
-  const attrs = effectsToAttrs(resolveBlockEffects(effectRef, effectSets, defaultEffects));
+  const attrs = effectsToAttrs(resolveBlockEffects(effectRef, effectSets, blockTypeDefault, defaultEffects));
   if (attrs) {
     slot.fx = {
       className: attrs.className,

@@ -58,6 +58,7 @@ import type {
 } from "@/tenant";
 import { THEME_CATALOG } from "@/design-system/theme/presets";
 import { BlockCatalogue }  from "./_components/BlockCatalogue";
+import { BlockTypeEffectsEditor } from "@/components/admin/effects/BlockTypeEffectsEditor";
 
 // ── Local aliases ──────────────────────────────────────────────────────────────
 
@@ -1794,6 +1795,20 @@ export function TenantSettingsForm({
           }
           contentBlockHints={CONTENT_BLOCK_HINTS}
         />
+
+        {/* Per-block-type default motion effects. Saves independently of this
+            form (its own focused action), like the Design effects editor. */}
+        <div className="mt-6 border-t border-neutral-200 pt-5">
+          <p className="text-sm font-medium text-neutral-800">Default motion per block type</p>
+          <p className="mt-0.5 mb-3 text-xs text-neutral-500 max-w-2xl">
+            Give every block of a type the same entrance or emphasis effect by default. A block with
+            its own effect overrides this; empty falls back to the tenant-wide default.
+          </p>
+          <BlockTypeEffectsEditor
+            tenantId={tenant.tenantId}
+            initial={tenant.design?.blockTypeEffects ?? {}}
+          />
+        </div>
 
         {/* Statamic Blueprint Sync — only visible when the tenant uses Statamic */}
         {form.cms.provider === "statamic" && (

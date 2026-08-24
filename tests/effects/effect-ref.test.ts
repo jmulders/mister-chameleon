@@ -49,24 +49,36 @@ describe("effect registry", () => {
   });
 });
 
-describe("resolveBlockEffects (three tiers)", () => {
-  it("inline wins over set and tenant default", () => {
-    const r = resolveBlockEffects({ effectSet: "gentle", effects: [{ effect: "zoom-in" }] }, SETS, TENANT_DEFAULT);
-    assert.deepEqual(r.map((e) => e.effect), ["zoom-in"]);
+const BLOCK_TYPE_DEFAULT: BlockEffectConfig[] = [{ effect: "zoom-in" }];
+
+describe("resolveBlockEffects (four tiers: instance -> block-type -> tenant)", () => {
+  it("inline wins over set, block-type and tenant default", () => {
+    const r = resolveBlockEffects({ effectSet: "gentle", effects: [{ effect: "hover-lift" }] }, SETS, BLOCK_TYPE_DEFAULT, TENANT_DEFAULT);
+    assert.deepEqual(r.map((e) => e.effect), ["hover-lift"]);
   });
 
-  it("named set wins over tenant default when no inline", () => {
-    const r = resolveBlockEffects({ effectSet: "gentle" }, SETS, TENANT_DEFAULT);
+  it("named set wins over block-type and tenant default when no inline", () => {
+    const r = resolveBlockEffects({ effectSet: "gentle" }, SETS, BLOCK_TYPE_DEFAULT, TENANT_DEFAULT);
     assert.deepEqual(r.map((e) => e.effect), ["fade-in"]);
   });
 
-  it("falls back to tenant default when the block has no ref", () => {
-    const r = resolveBlockEffects(undefined, SETS, TENANT_DEFAULT);
+  it("block-type default wins over tenant default when the block has no ref", () => {
+    const r = resolveBlockEffects(undefined, SETS, BLOCK_TYPE_DEFAULT, TENANT_DEFAULT);
+    assert.deepEqual(r.map((e) => e.effect), ["zoom-in"]);
+  });
+
+  it("falls back to tenant default when there is no ref and no block-type default", () => {
+    const r = resolveBlockEffects(undefined, SETS, null, TENANT_DEFAULT);
     assert.deepEqual(r.map((e) => e.effect), ["reveal"]);
   });
 
-  it("disabled turns everything off", () => {
-    const r = resolveBlockEffects({ disabled: true, effects: [{ effect: "reveal" }] }, SETS, TENANT_DEFAULT);
+  it("empty block-type default is skipped (falls through to tenant default)", () => {
+    const r = resolveBlockEffects(undefined, SETS, [], TENANT_DEFAULT);
+    assert.deepEqual(r.map((e) => e.effect), ["reveal"]);
+  });
+
+  it("disabled (instance kill-switch) turns everything off, over every default", () => {
+    const r = resolveBlockEffects({ disabled: true, effects: [{ effect: "reveal" }] }, SETS, BLOCK_TYPE_DEFAULT, TENANT_DEFAULT);
     assert.deepEqual(r, []);
   });
 
@@ -75,10 +87,11 @@ describe("resolveBlockEffects (three tiers)", () => {
     assert.deepEqual(r.map((e) => e.effect), ["reveal"]);
   });
 
-  it("hasEffects reflects resolution", () => {
+  it("hasEffects reflects resolution across the tiers", () => {
     assert.equal(hasEffects({ effects: [{ effect: "reveal" }] }, null), true);
-    assert.equal(hasEffects({ disabled: true }, null, TENANT_DEFAULT), false);
-    assert.equal(hasEffects(undefined, null, null), false);
+    assert.equal(hasEffects(undefined, null, BLOCK_TYPE_DEFAULT, null), true);   // block-type tier
+    assert.equal(hasEffects({ disabled: true }, null, BLOCK_TYPE_DEFAULT, TENANT_DEFAULT), false); // kill-switch
+    assert.equal(hasEffects(undefined, null, null, null), false);
   });
 });
 
