@@ -65,6 +65,53 @@ function impressionKey(adId: string, sessionId: string | null, minuteBucket: num
   return `imp:${adId}:${sessionId ?? "anon"}:${minuteBucket}`;
 }
 
+/**
+ * Resolve the effective "inherit host style" flag for one creative: the
+ * per-creative `inheritHost` boolean when present, otherwise the advertiser-level
+ * default. Kept pure/exported so the inherit-vs-brand decision is unit-testable.
+ */
+export function resolveAdInherit(
+  creative: Record<string, unknown> | null | undefined,
+  defaultInherit: boolean,
+): boolean {
+  const flag = (creative as { inheritHost?: unknown } | null | undefined)?.inheritHost;
+  return typeof flag === "boolean" ? flag : defaultInherit;
+}
+
+/**
+ * Render a creative to a block slot with the advertiser-brand token layer.
+ *
+ * `inherit=false` (brand mode, default): the advertiser's site-wide tokens
+ * (`siteTokens`) plus any per-creative token overrides govern the block — the
+ * existing advertiser-brand styling, unchanged.
+ *
+ * `inherit=true` (host mode): renderBlockHtml wraps the creative in
+ * INHERIT_HOST_STYLE_VARS so the host page's own colours win. The advertiser
+ * tokens are still emitted on the container (as in the snippet path) but the
+ * inherit wrapper shadows them for the block content — so this is an addition to,
+ * not a replacement of, the brand model.
+ *
+ * Pure (no DB / no side effects) so the inherit-vs-brand output is testable.
+ */
+export function buildAdSlot(
+  slotType: string,
+  creative: Record<string, unknown>,
+  siteTokens: Record<string, string> | undefined,
+  inherit: boolean,
+): BlockSlot | null {
+  const html = renderBlockHtml(slotType, creative, { inherit });
+  if (!html) return null;
+  // Per-creative design tokens (creative.tokens) override the advertiser's
+  // site-wide theme tokens on this block's container — the same mechanism CMS
+  // variant blocks use.
+  const creativeTokens = (creative as { tokens?: CuratedBlockTokens } | null)?.tokens;
+  const perCreative = cssVarsFromTokenRef({ tokens: creativeTokens }) ?? {};
+  const merged = { ...(siteTokens ?? {}), ...perCreative };
+  return Object.keys(merged).length > 0
+    ? { mode: "block", html, tokens: merged }
+    : { mode: "block", html };
+}
+
 export interface ServeAdsArgs {
   tenantId:     string;
   blockKeys:    string[];       // requested data-mc-block keys (= slot types)
@@ -76,6 +123,15 @@ export interface ServeAdsArgs {
   /** Cost-safe rule-evaluation context (built only when a rule-targeted ad exists). */
   ruleCtx?:     RuleEvaluationContext | null;
   tokens?:      Record<string, string>;
+  /**
+   * Advertiser-level default for "inherit host style" (from the advertiser
+   * tenant's design.inheritHostStyle). When true, creatives adopt the publisher
+   * page's own colours instead of the advertiser palette — the same mechanism the
+   * snippet uses (RenderOptions.inherit → INHERIT_HOST_STYLE_VARS). This is an
+   * ADDITION to the advertiser-brand model: when false (default), the advertiser's
+   * brand tokens govern as before. A per-creative `inheritHost` flag overrides it.
+   */
+  inherit?:     boolean;
 }
 
 /**
@@ -137,18 +193,14 @@ export async function serveAds(args: ServeAdsArgs): Promise<SlotMap> {
         (host ? `&pub=${encodeURIComponent(host)}` : "") +
         (args.sessionId ? `&sid=${encodeURIComponent(args.sessionId)}` : "");
       const creative = injectClickTracking(slotType, ad.creative ?? {}, trackUrl);
-      const html = renderBlockHtml(slotType, creative);
-      if (!html) continue;
 
-      // Per-creative design tokens (creative.tokens) override the advertiser's
-      // site-wide theme tokens (args.tokens) on this block's container — the same
-      // mechanism CMS variant blocks use.
-      const creativeTokens = (ad.creative as { tokens?: CuratedBlockTokens } | null)?.tokens;
-      const perCreative = cssVarsFromTokenRef({ tokens: creativeTokens }) ?? {};
-      const merged = { ...(args.tokens ?? {}), ...perCreative };
-      const slot: BlockSlot = Object.keys(merged).length > 0
-        ? { mode: "block", html, tokens: merged }
-        : { mode: "block", html };
+      // Inherit-host mode (parallel to the snippet's inherit mode): the effective
+      // flag is the per-creative override when set, otherwise the advertiser-level
+      // default. In inherit mode the host page's style wins; in brand mode
+      // (default) the advertiser's tokens govern — the existing behaviour.
+      const inherit = resolveAdInherit(ad.creative, args.inherit ?? false);
+      const slot = buildAdSlot(slotType, creative, args.tokens, inherit);
+      if (!slot) continue;
       slots[slotType] = slot;
     }
 

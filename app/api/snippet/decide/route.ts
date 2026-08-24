@@ -538,6 +538,9 @@ export async function POST(request: NextRequest) {
           audience,
           ruleCtx:      adRuleCtx,
           tokens:       adTokens,
+          // Advertiser-level "inherit host style" default (per-creative flag can
+          // override in serveAds). Mirrors the snippet's inherit mode.
+          inherit:      tenant.design?.inheritHostStyle === true,
         })
       : {};
     return NextResponse.json({ slots: adSlots, _ad: true }, { status: 200, headers: CORS_HEADERS });
