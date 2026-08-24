@@ -106,6 +106,7 @@ import type { SlotMap, BlockSlot }   from "@/lib/snippet/decide-response";
 import { isSnippetOriginAllowed }    from "@/lib/snippet/origin-allowlist";
 import { withBookDemoFallback }      from "@/lib/snippet/book-demo-fallback";
 import { toBlockSlot }               from "@/lib/snippet/block-slot";
+import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-store";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
@@ -986,6 +987,18 @@ export async function POST(request: NextRequest) {
     // "Inherit host style" tenants: render blocks so the host page's own colours
     // win instead of the tenant palette (see render-block-html.ts).
     const inheritHost = tenant?.design?.inheritHostStyle === true;
+
+    // Declarative block effects for the snippet block-mode slots. Resolution tiers
+    // (instance ref -> block-type default -> tenant default) mirror the platform
+    // renderer. Effect sets are only needed to resolve a named-set instance ref;
+    // loaded once, non-fatal (blocks fall back to type/tenant default on failure).
+    const snippetBlockTypeEffects = tenant?.design?.blockTypeEffects;
+    const snippetDefaultEffects   = tenant?.design?.defaultEffects;
+    let snippetEffectSets: Awaited<ReturnType<typeof listDesignEffectSets>> | undefined;
+    if (requestedBlocks.size > 0) {
+      try { snippetEffectSets = await listDesignEffectSets(tenantId); } catch { snippetEffectSets = undefined; }
+    }
+
     let blockThemeTokens: Record<string, string> = {};
     if (requestedBlocks.size > 0) {
       try {
@@ -1027,7 +1040,7 @@ export async function POST(request: NextRequest) {
       const hero = heroData as HeroBlockData;
       if (hero.renderMode === "block" && hero.blockHtml) {
         // Block mode: one styled block into data-mc-block="hero", tokens scoped.
-        slots["hero"] = toBlockSlot(hero.blockHtml, hero.tokenRef);
+        slots["hero"] = toBlockSlot(hero.blockHtml, hero.tokenRef, hero.effectRef, snippetEffectSets, snippetBlockTypeEffects?.hero, snippetDefaultEffects);
       } else if (emitBlockInto(slots, "hero", hero)) {
         // rendered as a whole block on demand
       } else {
@@ -1051,7 +1064,7 @@ export async function POST(request: NextRequest) {
     if (proofData) {
       const proof = proofData as ProofBlockData;
       if (proof.renderMode === "block" && proof.blockHtml) {
-        slots["proof"] = toBlockSlot(proof.blockHtml, proof.tokenRef);
+        slots["proof"] = toBlockSlot(proof.blockHtml, proof.tokenRef, proof.effectRef, snippetEffectSets, snippetBlockTypeEffects?.proof, snippetDefaultEffects);
       } else if (emitBlockInto(slots, "proof", proof)) {
         // rendered as a whole block on demand
       } else {
@@ -1066,7 +1079,7 @@ export async function POST(request: NextRequest) {
     if (ctaData) {
       const cta = ctaData as CTABlockData;
       if (cta.renderMode === "block" && cta.blockHtml) {
-        slots["cta"] = toBlockSlot(cta.blockHtml, cta.tokenRef);
+        slots["cta"] = toBlockSlot(cta.blockHtml, cta.tokenRef, cta.effectRef, snippetEffectSets, snippetBlockTypeEffects?.cta, snippetDefaultEffects);
       } else if (cta.layoutVariant === "cta_newsletter") {
         // Newsletter CTA: resolve the chosen tenant form here (snippet-resolve-in-
         // decide) and render an inline signup wired like a form block. Without a
@@ -1093,7 +1106,7 @@ export async function POST(request: NextRequest) {
     if (featureData) {
       const feat = featureData as FeatureBlockData;
       if (feat.renderMode === "block" && feat.blockHtml) {
-        slots["feature"] = toBlockSlot(feat.blockHtml, feat.tokenRef);
+        slots["feature"] = toBlockSlot(feat.blockHtml, feat.tokenRef, feat.effectRef, snippetEffectSets, snippetBlockTypeEffects?.feature, snippetDefaultEffects);
       } else if (emitBlockInto(slots, "feature", feat)) {
         // rendered as a whole block on demand
       } else {
@@ -1115,7 +1128,7 @@ export async function POST(request: NextRequest) {
         new URL(request.url).origin,
       );
       if (conv.renderMode === "block" && conv.blockHtml) {
-        slots["conversion"] = toBlockSlot(conv.blockHtml, conv.tokenRef);
+        slots["conversion"] = toBlockSlot(conv.blockHtml, conv.tokenRef, conv.effectRef, snippetEffectSets, snippetBlockTypeEffects?.conversion, snippetDefaultEffects);
       } else if (emitBlockInto(slots, "conversion", conv)) {
         // rendered as a whole block on demand
       } else {
@@ -1132,7 +1145,7 @@ export async function POST(request: NextRequest) {
     if (notificationData) {
       const notif = notificationData as NotificationBlockData;
       if (notif.renderMode === "block" && notif.blockHtml) {
-        slots["notification"] = toBlockSlot(notif.blockHtml, notif.tokenRef);
+        slots["notification"] = toBlockSlot(notif.blockHtml, notif.tokenRef, notif.effectRef, snippetEffectSets, snippetBlockTypeEffects?.notification, snippetDefaultEffects);
       } else if (emitBlockInto(slots, "notification", notif)) {
         // rendered as a whole block on demand
       } else {

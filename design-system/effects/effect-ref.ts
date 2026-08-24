@@ -79,15 +79,22 @@ export interface BlockEffectRef {
 }
 
 /**
- * Resolve the effective effect list for a block across the three tiers.
+ * Resolve the effective effect list for a block across the four tiers.
  *
  * Whole-tier precedence (highest wins, no per-effect merge, so behaviour is
- * predictable): inline effects → named set → tenant default. A `disabled: true`
- * on the block ref turns everything off. Unknown effect ids are dropped.
+ * predictable): instance inline effects → instance named set → block-type
+ * default → tenant default. A `disabled: true` on the block ref (the instance
+ * tier) turns everything off — it is the kill-switch and wins over every default.
+ * Unknown effect ids are dropped.
+ *
+ * `blockTypeDefault` is the per-block-type default (design.blockTypeEffects,
+ * keyed by block type), sitting between the instance ref and the tenant-wide
+ * default. Pass null/undefined when a type has no default.
  */
 export function resolveBlockEffects(
   ref: BlockEffectRef | null | undefined,
   sets: readonly EffectSet[] | null | undefined,
+  blockTypeDefault?: readonly BlockEffectConfig[] | null,
   tenantDefault?: readonly BlockEffectConfig[] | null,
 ): BlockEffectConfig[] {
   if (ref?.disabled) return [];
@@ -95,7 +102,8 @@ export function resolveBlockEffects(
   const inline = ref?.effects && ref.effects.length > 0 ? ref.effects : undefined;
   const named =
     ref?.effectSet && sets ? sets.find((s) => s.key === ref.effectSet)?.effects : undefined;
-  const chosen = inline ?? named ?? tenantDefault ?? [];
+  const typeDefault = blockTypeDefault && blockTypeDefault.length > 0 ? blockTypeDefault : undefined;
+  const chosen = inline ?? named ?? typeDefault ?? tenantDefault ?? [];
 
   // Drop unknown ids and de-duplicate by effect id (first occurrence wins).
   const seen = new Set<string>();
@@ -109,13 +117,14 @@ export function resolveBlockEffects(
   return out;
 }
 
-/** True when a ref (with sets / tenant default) resolves to at least one effect. */
+/** True when a ref (with sets / block-type default / tenant default) resolves to at least one effect. */
 export function hasEffects(
   ref: BlockEffectRef | null | undefined,
   sets: readonly EffectSet[] | null | undefined,
+  blockTypeDefault?: readonly BlockEffectConfig[] | null,
   tenantDefault?: readonly BlockEffectConfig[] | null,
 ): boolean {
-  return resolveBlockEffects(ref, sets, tenantDefault).length > 0;
+  return resolveBlockEffects(ref, sets, blockTypeDefault, tenantDefault).length > 0;
 }
 
 export interface EffectAttrs {

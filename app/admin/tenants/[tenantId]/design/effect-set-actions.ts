@@ -20,6 +20,13 @@ function designPath(tenantId: string): string {
   return `/admin/tenants/${tenantId}/design`;
 }
 
+/** Context block types that can carry a per-type default effect. */
+const CONTEXT_BLOCK_TYPES = ["hero", "proof", "cta", "feature", "conversion", "notification"] as const;
+type ContextBlockType = (typeof CONTEXT_BLOCK_TYPES)[number];
+function isContextBlockType(v: string): v is ContextBlockType {
+  return (CONTEXT_BLOCK_TYPES as readonly string[]).includes(v);
+}
+
 /** Create or update a tenant-scoped effect set. Effects are validated/sanitised. */
 export async function saveEffectSetAction(
   tenantId: string,
@@ -78,6 +85,43 @@ export async function setDefaultEffectsAction(
 
   const res = await saveTenant(next);
   if (!res.ok) return { ok: false, error: res.error ?? "Save failed." };
+  revalidatePath(designPath(tenantId));
+  return { ok: true };
+}
+
+/**
+ * Set (or clear) the per-block-type default effects for one context block type
+ * on design.blockTypeEffects[blockType]. Pass an empty array to clear that type.
+ * Mirrors setDefaultEffectsAction; effects are validated against the registry.
+ */
+export async function setBlockTypeEffectsAction(
+  tenantId: string,
+  blockType: string,
+  effects: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+
+  if (!isContextBlockType(blockType)) return { ok: false, error: "Unknown block type." };
+
+  const tenant = await getTenantById(tenantId);
+  if (!tenant) return { ok: false, error: "Tenant not found." };
+
+  const sanitized = sanitizeEffectConfigs(effects);
+  const current = { ...(tenant.design?.blockTypeEffects ?? {}) };
+  if (sanitized.length > 0) current[blockType] = sanitized;
+  else delete current[blockType];
+
+  const next = {
+    ...tenant,
+    design: {
+      ...tenant.design,
+      blockTypeEffects: Object.keys(current).length > 0 ? current : undefined,
+    },
+  };
+
+  const res = await saveTenant(next);
+  if (!res.ok) return { ok: false, error: res.error ?? "Save failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/settings`);
   revalidatePath(designPath(tenantId));
   return { ok: true };
 }
