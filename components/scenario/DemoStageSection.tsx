@@ -59,6 +59,14 @@ function timeLabel(o: ScenarioOverrides): string {
   return "Now (real time)";
 }
 
+/** Which Simulate-time button is active, derived the same way as timeLabel. */
+function activeTime(o: ScenarioOverrides): "day" | "evening" | "weekend" | null {
+  if (o.isWeekend) return "weekend";
+  if (o.timeOfDay === "evening" || o.timeOfDay === "night") return "evening";
+  if (o.timeOfDay) return "day";
+  return null;
+}
+
 export function DemoStageSection({
   scenario,
   onApply,
@@ -203,9 +211,9 @@ export function DemoStageSection({
       <div>
         <div style={S.sectionLabel}>Simulate time</div>
         <div style={{ display: "flex", gap: 6 }}>
-          <TimeBtn label="Day"     disabled={pending} onClick={() => setTime("day")} />
-          <TimeBtn label="Evening" disabled={pending} onClick={() => setTime("evening")} />
-          <TimeBtn label="Weekend" disabled={pending} onClick={() => setTime("weekend")} />
+          <TimeBtn label="Day"     active={activeTime(o) === "day"}     disabled={pending} onClick={() => setTime("day")} />
+          <TimeBtn label="Evening" active={activeTime(o) === "evening"} disabled={pending} onClick={() => setTime("evening")} />
+          <TimeBtn label="Weekend" active={activeTime(o) === "weekend"} disabled={pending} onClick={() => setTime("weekend")} />
         </div>
       </div>
 
@@ -326,16 +334,21 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TimeBtn({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+function TimeBtn({ label, active, disabled, onClick }: { label: string; active: boolean; disabled: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={active}
       style={{
-        flex: 1, border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 4px",
-        fontSize: 11, fontWeight: 600, cursor: disabled ? "wait" : "pointer",
-        background: "#f8fafc", color: "#374151",
+        flex: 1, borderRadius: 8, padding: "6px 4px",
+        fontSize: 11, fontWeight: active ? 700 : 600, cursor: disabled ? "wait" : "pointer",
+        // Same active treatment as the persona rows (S.row): indigo border + tint.
+        border: active ? "1.5px solid #6366f1" : "1px solid #e5e7eb",
+        background: active ? "#eef2ff" : "#f8fafc",
+        color: active ? "#4338ca" : "#374151",
+        transition: "border-color 140ms ease, background 140ms ease",
       }}
     >
       {label}
