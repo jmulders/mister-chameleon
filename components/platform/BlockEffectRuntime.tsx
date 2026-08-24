@@ -70,7 +70,15 @@ export function BlockEffectRuntime() {
     const canRaf = typeof requestAnimationFrame === "function";
     const canSticky = typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("position", "sticky");
 
-    const reveal = (el: Element) => el.classList.add("mc-fx-in");
+    // Reveal an entrance block. A stagger wrapper reveals its prepared children
+    // instead (their per-child transition-delay produces the stagger); the wrapper
+    // is also marked so the failsafe's pending() check sees it as done.
+    const reveal = (el: Element) => {
+      if (el instanceof HTMLElement && el.dataset.mcFxStagger === "1") {
+        el.querySelectorAll<HTMLElement>(":scope > [data-mc-fx-stagger-child]").forEach((c) => c.classList.add("mc-fx-in"));
+      }
+      el.classList.add("mc-fx-in");
+    };
     const entranceEls: HTMLElement[] = [];   // all entrance blocks seen (for the failsafe)
     const parallaxEls: HTMLElement[] = [];
     let io: IntersectionObserver | undefined;
@@ -110,6 +118,25 @@ export function BlockEffectRuntime() {
       onScroll();
     }
 
+    // Prepare a stagger wrapper: give each direct child (up to the max) the chosen
+    // base entrance class and an incremental transition-delay, so revealing them
+    // together produces a one-by-one reveal. reveal() targets these children.
+    function setupStagger(el: HTMLElement): void {
+      el.dataset.mcFxStagger = "1";
+      const cs = getComputedStyle(el);
+      const step = parseFloat(cs.getPropertyValue("--mc-fx-stagger-step")) || 80;
+      const max  = parseInt(cs.getPropertyValue("--mc-fx-stagger-max"), 10) || 12;
+      const rawBase = cs.getPropertyValue("--mc-fx-stagger-base").trim();
+      const base = effectGroup(rawBase) === "entrance" && rawBase !== "stagger" ? rawBase : "reveal";
+      const children = Array.from(el.children) as HTMLElement[];
+      children.forEach((child, idx) => {
+        if (idx >= Math.max(1, max)) return; // beyond the cap: leave visible, no entrance
+        child.setAttribute("data-mc-fx-stagger-child", "1");
+        child.classList.add("mc-fx", `mc-fx-${base}`);
+        if (!reduced) child.style.transitionDelay = `${idx * step}ms`;
+      });
+    }
+
     // Process one [data-mc-fx] wrapper. Idempotent via data-mc-fx-seen so the
     // MutationObserver never re-processes a block. Entrance blocks are revealed
     // immediately when in view (NOT via IO, whose first callback never fires while
@@ -124,6 +151,7 @@ export function BlockEffectRuntime() {
       const ids = (el.getAttribute("data-mc-fx-ids") ?? "").split(/\s+/).filter(Boolean);
       let hasEntrance = false;
       for (const id of ids) {
+        if (id === "stagger") { hasEntrance = true; setupStagger(el); continue; }
         const group = effectGroup(id);
         if (group === "entrance") { hasEntrance = true; continue; }
         if (group === "continuous" && !reduced) {

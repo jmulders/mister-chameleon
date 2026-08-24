@@ -374,6 +374,12 @@ html.mc-fx-ready .mc-fx-wipe-reveal.mc-fx-in {
 .mc-fx-glow-pulse {
   animation: mc-fx-glow-pulse var(--mc-fx-glow-interval, 1800ms) ease-in-out infinite;
 }
+/* Stagger: the runtime gives each direct child the chosen base entrance class and
+   a per-child transition-delay, then reveals them together. Reduced-motion shows
+   all children at once (reduce block below). */
+.mc-fx-stagger > [data-mc-fx-stagger-child] {
+  will-change: opacity, transform;
+}
 
 /*
  * ── Advanced continuous effects (default-off, feature-detected) ────────────────

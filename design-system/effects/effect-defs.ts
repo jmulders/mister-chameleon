@@ -176,6 +176,30 @@ export const EFFECT_DEFINITIONS: readonly EffectDefinition[] = [
     trigger: "scroll", params: [WIPE_DIRECTION, DURATION, DELAY],
   },
   {
+    id: "stagger", label: "Stagger children", group: "entrance",
+    description: "Reveals the block's direct children one after another (each runs the chosen base entrance). Off under reduced-motion: all children show at once.",
+    trigger: "scroll",
+    params: [
+      { key: "step", label: "Step", type: "number", min: 20, max: 400, step: 10, unit: "ms", default: 80, cssVar: "--mc-fx-stagger-step" },
+      { key: "maxChildren", label: "Max children", type: "number", min: 1, max: 40, step: 1, default: 12, cssVar: "--mc-fx-stagger-max" },
+      {
+        key: "baseEffect", label: "Base effect", type: "select",
+        options: [
+          { value: "reveal",         label: "Reveal (fade + rise)" },
+          { value: "fade-in",        label: "Fade in" },
+          { value: "slide-in-up",    label: "Slide in (up)" },
+          { value: "slide-in-down",  label: "Slide in (down)" },
+          { value: "slide-in-left",  label: "Slide in (from left)" },
+          { value: "slide-in-right", label: "Slide in (from right)" },
+          { value: "zoom-in",        label: "Zoom in" },
+          { value: "blur-in",        label: "Blur in" },
+          { value: "pop",            label: "Pop (bounce in)" },
+        ],
+        default: "reveal", cssVar: "--mc-fx-stagger-base",
+      },
+    ],
+  },
+  {
     id: "hover-lift", label: "Hover lift", group: "emphasis",
     description: "Lifts the block on hover. No scroll trigger, no reduced-motion concern.",
     trigger: "hover",
