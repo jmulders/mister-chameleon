@@ -184,10 +184,35 @@ export function BlockEffectRuntime() {
       }
       if (!hasEntrance) return;
 
-      entranceEls.push(el);
+      if (entranceEls.indexOf(el) < 0) entranceEls.push(el); // no dup on re-process (replay)
       if (reduced || !io) reveal(el);          // reduced-motion / no-IO → show now
       else if (inViewport(el)) reveal(el);     // above the fold → show now (IO-independent)
       else io.observe(el);                     // below the fold → scroll-reveal
+    }
+
+    // Re-play the entrance after a SOFT re-render (e.g. router.refresh from a
+    // scenario switch). React resets a wrapper's className to the server value,
+    // dropping the runtime-added mc-fx-in and leaving the block hidden — but our
+    // data-mc-fx-seen marker persists, so processEl would skip it (blank + no
+    // replay). When a seen entrance wrapper loses mc-fx-in, clear the marker and
+    // re-process on the NEXT frame so the hidden state paints first and the
+    // entrance transition runs again on the new content. Same never-blank
+    // guarantee as the initial-load path, now for the soft-refresh route.
+    const replayScheduled = new WeakSet<HTMLElement>();
+    function replayIfReset(el: HTMLElement): void {
+      if (!el.hasAttribute("data-mc-fx")) return;
+      if (!el.getAttribute("data-mc-fx-seen")) return;   // only blocks we already handled
+      if (el.classList.contains("mc-fx-in")) return;      // still revealed → nothing to do
+      const ids = (el.getAttribute("data-mc-fx-ids") ?? "").split(/\s+/);
+      const isEntrance = ids.some((id) => id === "stagger" || effectGroup(id) === "entrance");
+      if (!isEntrance || replayScheduled.has(el)) return;
+      replayScheduled.add(el);
+      const run = () => {
+        replayScheduled.delete(el);
+        el.removeAttribute("data-mc-fx-seen");
+        processEl(el);   // re-hidden (base class) → revealed → entrance transition replays
+      };
+      if (canRaf) requestAnimationFrame(run); else run();
     }
 
     // (1) Process everything present at mount.
@@ -198,6 +223,10 @@ export function BlockEffectRuntime() {
     //     new mc-fx wrappers would otherwise stay hidden forever.
     const mo = new MutationObserver((records) => {
       for (const rec of records) {
+        if (rec.type === "attributes") {
+          if (rec.target instanceof HTMLElement) replayIfReset(rec.target);
+          continue;
+        }
         for (const node of rec.addedNodes) {
           if (!(node instanceof HTMLElement)) continue;
           if (node.hasAttribute("data-mc-fx")) processEl(node);
@@ -205,7 +234,10 @@ export function BlockEffectRuntime() {
         }
       }
     });
-    mo.observe(document.body, { childList: true, subtree: true });
+    // attributeFilter ["class"] so a soft re-render that resets a wrapper's
+    // className (dropping mc-fx-in) triggers replayIfReset; the handler ignores
+    // non-mc-fx elements cheaply.
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
 
     // (3) When a hidden tab becomes visible, reveal anything now in view — covers
     //     IO notifications that were dropped/deferred while the document was hidden.
