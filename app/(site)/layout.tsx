@@ -137,12 +137,24 @@ export default async function SiteLayout({
         dangerouslySetInnerHTML={{ __html: JSON.stringify({ tenantId }) }}
       />
       {/*
-        Block-effects readiness flag. Added synchronously here (before the block
-        content below paints) so entrance effects can start hidden without a
-        flash. When JS is disabled this never runs, so content stays visible.
+        Block-effects readiness flag + never-blank failsafe. Added synchronously
+        here (before the block content below paints) so entrance effects can start
+        hidden without a flash. When JS is disabled this never runs, so content
+        stays visible.
+
+        Failsafe: the mc-fx-ready CSS hides every entrance block until the runtime
+        reveals it. If the runtime never runs (hydration failure), that would
+        leave the whole page blank — so this schedules removal of mc-fx-ready
+        after a timeout, which BlockEffectRuntime cancels (__mcFxClearFailsafe)
+        once it is alive. Plain inline JS, so it survives even a total React
+        hydration failure.
       */}
       <script
-        dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('mc-fx-ready')" }}
+        dangerouslySetInnerHTML={{ __html:
+          "(function(){var d=document.documentElement;d.classList.add('mc-fx-ready');" +
+          "var t=setTimeout(function(){d.classList.remove('mc-fx-ready');},2500);" +
+          "window.__mcFxClearFailsafe=function(){clearTimeout(t);};})();"
+        }}
       />
       <CartProvider>
       <Header />

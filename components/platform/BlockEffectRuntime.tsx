@@ -22,6 +22,23 @@
  *   Entrance initial-hidden CSS is gated on html.mc-fx-ready (added pre-paint), so
  *   content is always visible without JS. Advanced effects only ever run from
  *   here, so no-JS pages never animate them. Hover lift is pure CSS.
+ *
+ * ─── Never-blank guarantees ───────────────────────────────────────────────────
+ *
+ *   Because the mc-fx-ready CSS hides EVERY entrance block until it gets
+ *   `mc-fx-in`, a reveal that never happens leaves content permanently blank —
+ *   and with tenant-default effects on every block that is the whole page. Three
+ *   safeguards prevent that:
+ *     1. Blocks already IN the viewport at mount are revealed synchronously (via
+ *        getBoundingClientRect), NOT via IntersectionObserver — whose initial
+ *        callback does not fire while document.visibilityState === "hidden" (a
+ *        background-tab load), which was the blank-homepage root cause.
+ *     2. On `visibilitychange` (tab becomes visible) any still-hidden in-view
+ *        block is revealed, covering IO notifications dropped while hidden.
+ *     3. A hard failsafe timer reveals every remaining block after FAILSAFE_MS,
+ *        so nothing can stay hidden regardless of IO / scroll behaviour.
+ *   A separate inline failsafe in app/(site)/layout.tsx removes mc-fx-ready if
+ *   THIS component never runs at all (hydration failure).
  */
 
 import { useEffect } from "react";
@@ -29,57 +46,47 @@ import { effectGroup } from "@/design-system/effects/effect-defs";
 
 const SUPPORTED_VERSIONS = new Set(["1"]);
 
+/** Reveal every remaining entrance block no later than this, so content is never stuck hidden. */
+const FAILSAFE_MS = 2000;
+
+/** True when any part of the element is within the viewport (works while the tab is hidden). */
+function inViewport(el: HTMLElement): boolean {
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const vw = window.innerWidth || document.documentElement.clientWidth;
+  return r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw;
+}
+
 export function BlockEffectRuntime() {
   useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-mc-fx]"));
-    if (els.length === 0) return;
+    // Signal to the inline layout failsafe that the runtime is alive, so it does
+    // not strip mc-fx-ready out from under us.
+    (window as unknown as { __mcFxAlive?: boolean }).__mcFxAlive = true;
+    const clearInline = (window as unknown as { __mcFxClearFailsafe?: () => void }).__mcFxClearFailsafe;
+    if (typeof clearInline === "function") clearInline();
 
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const canObserve = "IntersectionObserver" in window;
     const canRaf = typeof requestAnimationFrame === "function";
     const canSticky = typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("position", "sticky");
 
-    const entranceEls: HTMLElement[] = [];
+    const reveal = (el: Element) => el.classList.add("mc-fx-in");
+    const entranceEls: HTMLElement[] = [];   // all entrance blocks seen (for the failsafe)
     const parallaxEls: HTMLElement[] = [];
-
-    for (const el of els) {
-      const version = el.getAttribute("data-mc-fx-v") ?? "1";
-      if (!SUPPORTED_VERSIONS.has(version)) { el.classList.add("mc-fx-in"); continue; }
-
-      const ids = (el.getAttribute("data-mc-fx-ids") ?? "").split(/\s+/).filter(Boolean);
-      let hasEntrance = false;
-      for (const id of ids) {
-        const group = effectGroup(id);
-        if (group === "entrance") { hasEntrance = true; continue; }
-        // Advanced continuous effects: never under reduced-motion, feature-detected.
-        if (group === "continuous" && !reduced) {
-          if (id === "sticky") { if (canSticky) el.classList.add("mc-fx-sticky-on"); }
-          else if (id === "ken-burns") { el.classList.add("mc-fx-kb-play"); }
-          else if (id === "parallax") { if (canRaf) parallaxEls.push(el); }
-        }
-      }
-
-      if (hasEntrance) {
-        if (canObserve) entranceEls.push(el);
-        else el.classList.add("mc-fx-in"); // no IO → reveal immediately
-      }
-    }
-
-    // ── Entrance reveal ──────────────────────────────────────────────────────
     let io: IntersectionObserver | undefined;
-    if (entranceEls.length > 0) {
+    if (!reduced && canObserve) {
       io = new IntersectionObserver(
         (entries) => {
           for (const e of entries) {
-            if (e.isIntersecting) { e.target.classList.add("mc-fx-in"); io!.unobserve(e.target); }
+            if (e.isIntersecting) { reveal(e.target); io!.unobserve(e.target); }
           }
         },
         { rootMargin: "0px 0px -10% 0px", threshold: 0.05 },
       );
-      for (const el of entranceEls) io.observe(el);
     }
 
-    // ── Parallax (rAF-throttled scroll) ──────────────────────────────────────
+    // ── Parallax (rAF-throttled scroll), wired once when the first one appears ──
+    let parallaxWired = false;
     let rafId = 0;
     const onScroll = () => {
       if (rafId) return;
@@ -95,15 +102,89 @@ export function BlockEffectRuntime() {
         }
       });
     };
-    if (parallaxEls.length > 0) {
+    function scheduleParallax(): void {
+      if (parallaxWired) { onScroll(); return; }
+      parallaxWired = true;
       window.addEventListener("scroll", onScroll, { passive: true });
       window.addEventListener("resize", onScroll, { passive: true });
       onScroll();
     }
 
+    // Process one [data-mc-fx] wrapper. Idempotent via data-mc-fx-seen so the
+    // MutationObserver never re-processes a block. Entrance blocks are revealed
+    // immediately when in view (NOT via IO, whose first callback never fires while
+    // the tab is hidden — the blank-homepage root cause) and observed otherwise.
+    function processEl(el: HTMLElement): void {
+      if (el.getAttribute("data-mc-fx-seen")) return;
+      el.setAttribute("data-mc-fx-seen", "1");
+
+      const version = el.getAttribute("data-mc-fx-v") ?? "1";
+      if (!SUPPORTED_VERSIONS.has(version)) { reveal(el); return; }
+
+      const ids = (el.getAttribute("data-mc-fx-ids") ?? "").split(/\s+/).filter(Boolean);
+      let hasEntrance = false;
+      for (const id of ids) {
+        const group = effectGroup(id);
+        if (group === "entrance") { hasEntrance = true; continue; }
+        if (group === "continuous" && !reduced) {
+          if (id === "sticky") { if (canSticky) el.classList.add("mc-fx-sticky-on"); }
+          else if (id === "ken-burns") { el.classList.add("mc-fx-kb-play"); }
+          else if (id === "parallax") { if (canRaf) { parallaxEls.push(el); scheduleParallax(); } }
+        }
+      }
+      if (!hasEntrance) return;
+
+      entranceEls.push(el);
+      if (reduced || !io) reveal(el);          // reduced-motion / no-IO → show now
+      else if (inViewport(el)) reveal(el);     // above the fold → show now (IO-independent)
+      else io.observe(el);                     // below the fold → scroll-reveal
+    }
+
+    // (1) Process everything present at mount.
+    document.querySelectorAll<HTMLElement>("[data-mc-fx]").forEach(processEl);
+
+    // (2) Handle blocks added later (client-side navigation / streamed content):
+    //     the layout — and this runtime — persist across (site) navigations, so
+    //     new mc-fx wrappers would otherwise stay hidden forever.
+    const mo = new MutationObserver((records) => {
+      for (const rec of records) {
+        for (const node of rec.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue;
+          if (node.hasAttribute("data-mc-fx")) processEl(node);
+          node.querySelectorAll<HTMLElement>("[data-mc-fx]").forEach(processEl);
+        }
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    // (3) When a hidden tab becomes visible, reveal anything now in view — covers
+    //     IO notifications that were dropped/deferred while the document was hidden.
+    const pending = () => entranceEls.filter((el) => !el.classList.contains("mc-fx-in"));
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      for (const el of pending()) if (inViewport(el)) { reveal(el); io?.unobserve(el); }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    // (4) Hard failsafe: after FAILSAFE_MS reveal any block that is IN VIEW but
+    //     still hidden (something went wrong — IO never fired). This guarantees
+    //     visible content is never stuck blank while preserving scroll-reveal for
+    //     below-the-fold blocks. If innerHeight is 0 (a frozen/hidden tab, where
+    //     nothing is really "in view"), reveal all pending as a last resort so a
+    //     restored tab is never blank. The inline layout failsafe covers the case
+    //     where THIS runtime never runs at all.
+    const failsafe = window.setTimeout(() => {
+      const stuck = pending();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      (vh > 0 ? stuck.filter(inViewport) : stuck).forEach(reveal);
+    }, FAILSAFE_MS);
+
     return () => {
       io?.disconnect();
-      if (parallaxEls.length > 0) {
+      mo.disconnect();
+      window.clearTimeout(failsafe);
+      document.removeEventListener("visibilitychange", onVisible);
+      if (parallaxWired) {
         window.removeEventListener("scroll", onScroll);
         window.removeEventListener("resize", onScroll);
         if (rafId) cancelAnimationFrame(rafId);
