@@ -20,7 +20,7 @@ import { cn }      from "@/lib/utils";
  *   Personalization Adaptive blocks, Variants, Rules, Attributes, Variables,
  *                   Stats, Performance, Experiments, AI.
  *   Audience        Interests, Segments, Target accounts, Leads, Retargeting,
- *                   Suppression, Journey, Scoring.
+ *                   Suppression, Webhooks, Journey, Scoring.
  *
  * The /behavior/* URL tree is split across tabs by concept. behavior/journey
  * and behavior/ (Scoring) belong to Audience, behavior/slots to
@@ -228,6 +228,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
         { label: "Leads",           href: `${base}/audience/leads`,             activePrefix: `${base}/audience/leads`, exact: true },
         { label: "Retargeting",     href: `${base}/audience/retargeting`,       activePrefix: `${base}/audience/retargeting` },
         { label: "Suppression",     href: `${base}/audience/leads/suppression`, activePrefix: `${base}/audience/leads/suppression` },
+        { label: "Webhooks",        href: `${base}/audience/leads/webhooks`,    activePrefix: `${base}/audience/leads/webhooks` },
         { label: "Journey",         href: `${base}/audience/journey`,           activePrefix: `${base}/audience/journey` },
         { label: "Scoring",         href: `${base}/audience/scoring`,           activePrefix: `${base}/audience/scoring`, exact: true },
       ],
