@@ -46,6 +46,7 @@ import { MotionPreview } from "@/components/admin/effects/MotionPreview";
 import { hasEffects } from "@/design-system/effects/effect-ref";
 import { BLOCK_TOKEN_GROUPS, VALID_SURFACE_ROLES } from "@/design-system/theme/block-token-set";
 import { buildBlockPreviewSrc } from "@/lib/blocks/block-preview-url";
+import { checkPlatformContentOverrideAction } from "@/lib/adaptive-blocks/platform-content-override";
 import { normalizeInlineMarkup } from "@/lib/blocks/inline-markup";
 import { getAllFormDefinitions } from "@/forms";
 import { RichCopyEditor } from "@/components/admin/RichCopyEditor";
@@ -472,6 +473,18 @@ export function EditBlockDrawer({
 }: EditBlockDrawerProps) {
   const slotId        = slotFromKey(block.key);
   const layoutOptions = LAYOUT_OPTIONS[slotId] ?? [];
+
+  // Read-only detection: a platform Content entry (platform_cms_content) for the
+  // same variant_type + variant_key shadows this adaptive variant live, because
+  // snippet slots resolve platform-first. Warn the operator; resolution is untouched.
+  const [contentOverridden, setContentOverridden] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    checkPlatformContentOverrideAction(tenantId, slotId, block.key)
+      .then((r) => { if (!cancelled) setContentOverridden(r.overridden); })
+      .catch(() => { /* non-fatal: no warning on failure */ });
+    return () => { cancelled = true; };
+  }, [tenantId, slotId, block.key]);
 
   // Insertable context-variable catalogue: the built-in subset plus this tenant's
   // string-typed custom attributes. Fed to every RichCopyEditor in the drawer.
@@ -914,6 +927,16 @@ export function EditBlockDrawer({
 
           {/* Left column: the form */}
           <div className="w-full md:w-[52%] md:max-w-xl overflow-y-auto px-5 py-5 space-y-6 border-r border-neutral-200">
+
+          {/* ── Platform-content override warning ────────────────────────── */}
+          {/* Snippet slots resolve platform-first, so a like-named Content entry
+              shadows this adaptive variant live. Read-only detection only. */}
+          {contentOverridden && (
+            <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+              This variant is overridden by a platform Content entry — edits here won&apos;t show live.
+              Edit it in Content, or remove the Content entry.
+            </div>
+          )}
 
           {/* ── Active toggle ────────────────────────────────────────────── */}
           <label className="flex items-center gap-3 cursor-pointer select-none">
