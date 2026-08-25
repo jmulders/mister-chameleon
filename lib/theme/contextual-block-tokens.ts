@@ -66,6 +66,7 @@ export const getContextualGalleryDefaultTokens = cache(async (): Promise<Curated
     const themeCtx: RuleEvaluationContext = {
       source: "direct", device, visitType, rawReferrer: null, referrerDomain: null,
       utmSource, utmMedium, utmCampaign, utmContent, utmTerm,
+      gclid: null, fbclid: null, msclkid: null, ttclid: null,
       userAgent: ua, resolvedAt: Date.now(), ...timeCtx,
       history: emptyHistory(), tenantId,
     };

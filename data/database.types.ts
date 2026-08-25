@@ -3296,12 +3296,14 @@ export type Database = {
           intent_score: number | null
           interests: Json
           last_seen_at: string
+          msclkid: string | null
           personalization_group: string | null
           pii: Json | null
           referrer_domain: string | null
           segment_ids: string[] | null
           status: string
           tenant_id: string
+          ttclid: string | null
           updated_at: string
           utm_campaign: string | null
           utm_content: string | null
@@ -3337,12 +3339,14 @@ export type Database = {
           intent_score?: number | null
           interests?: Json
           last_seen_at?: string
+          msclkid?: string | null
           personalization_group?: string | null
           pii?: Json | null
           referrer_domain?: string | null
           segment_ids?: string[] | null
           status?: string
           tenant_id: string
+          ttclid?: string | null
           updated_at?: string
           utm_campaign?: string | null
           utm_content?: string | null
@@ -3378,12 +3382,14 @@ export type Database = {
           intent_score?: number | null
           interests?: Json
           last_seen_at?: string
+          msclkid?: string | null
           personalization_group?: string | null
           pii?: Json | null
           referrer_domain?: string | null
           segment_ids?: string[] | null
           status?: string
           tenant_id?: string
+          ttclid?: string | null
           updated_at?: string
           utm_campaign?: string | null
           utm_content?: string | null

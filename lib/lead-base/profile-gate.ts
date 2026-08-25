@@ -73,6 +73,11 @@ export interface ProfileCandidate {
   utmContent?:     string | null;
   utmTerm?:        string | null;
   referrerDomain?: string | null;
+  /** Ad click identifiers (Google / Meta / Microsoft / TikTok). */
+  gclid?:          string | null;
+  fbclid?:         string | null;
+  msclkid?:        string | null;
+  ttclid?:         string | null;
   /** Derived coarse channel (see classifyChannel). */
   firstChannel?:   string | null;
 }
@@ -106,6 +111,10 @@ export interface GatedProfilePatch {
   utmContent?:     string | null;
   utmTerm?:        string | null;
   referrerDomain?: string | null;
+  gclid?:          string | null;
+  fbclid?:         string | null;
+  msclkid?:        string | null;
+  ttclid?:         string | null;
   firstChannel?:   string | null;
 }
 
@@ -184,6 +193,10 @@ export function gateProfileWrite(
     if (candidate.utmContent     !== undefined) patch.utmContent     = candidate.utmContent;
     if (candidate.utmTerm        !== undefined) patch.utmTerm        = candidate.utmTerm;
     if (candidate.referrerDomain !== undefined) patch.referrerDomain = candidate.referrerDomain;
+    if (candidate.gclid          !== undefined) patch.gclid          = candidate.gclid;
+    if (candidate.fbclid         !== undefined) patch.fbclid         = candidate.fbclid;
+    if (candidate.msclkid        !== undefined) patch.msclkid        = candidate.msclkid;
+    if (candidate.ttclid         !== undefined) patch.ttclid         = candidate.ttclid;
     if (candidate.firstChannel   !== undefined) patch.firstChannel   = candidate.firstChannel;
   }
 

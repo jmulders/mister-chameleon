@@ -80,6 +80,10 @@ export const BASE_CONTEXT: VisitorContext = {
   utmCampaign:     null,
   utmContent:      null,
   utmTerm:         null,
+  gclid:           null,
+  fbclid:          null,
+  msclkid:         null,
+  ttclid:          null,
   userAgent:       null,
   resolvedAt:      0,
 };

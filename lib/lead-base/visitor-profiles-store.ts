@@ -136,7 +136,7 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<Pr
 
     const { data: existing } = await db
       .from("visitor_profiles")
-      .select("visit_count, first_seen_at, identity_level, status, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer_domain, first_channel")
+      .select("visit_count, first_seen_at, identity_level, status, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer_domain, first_channel, gclid, fbclid, msclkid, ttclid")
       .eq("tenant_id", patch.tenantId)
       .eq("visitor_key", patch.visitorKey)
       .maybeSingle();
@@ -173,6 +173,10 @@ export async function upsertVisitorProfile(patch: GatedProfilePatch): Promise<Pr
       utm_content:     existing?.utm_content     ?? patch.utmContent     ?? null,
       utm_term:        existing?.utm_term        ?? patch.utmTerm        ?? null,
       referrer_domain: existing?.referrer_domain ?? patch.referrerDomain ?? null,
+      gclid:           existing?.gclid           ?? patch.gclid          ?? null,
+      fbclid:          existing?.fbclid          ?? patch.fbclid         ?? null,
+      msclkid:         existing?.msclkid         ?? patch.msclkid        ?? null,
+      ttclid:          existing?.ttclid          ?? patch.ttclid         ?? null,
       first_channel:   existing?.first_channel   ?? patch.firstChannel   ?? null,
       // Stamp the firmographics' freshness whenever a company field is (re)written.
       ...((patch.companyName !== undefined || patch.companyDomain !== undefined ||

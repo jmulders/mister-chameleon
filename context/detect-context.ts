@@ -99,6 +99,10 @@ export function detectVisitorContext(request: Request): VisitorContext {
   let urlUtmCampaign: string | null = null;
   let urlUtmContent:  string | null = null;
   let urlUtmTerm:     string | null = null;
+  let urlGclid:   string | null = null;
+  let urlFbclid:  string | null = null;
+  let urlMsclkid: string | null = null;
+  let urlTtclid:  string | null = null;
   let requestHostname = "";
 
   try {
@@ -109,6 +113,10 @@ export function detectVisitorContext(request: Request): VisitorContext {
     urlUtmCampaign = url.searchParams.get("utm_campaign") || null;
     urlUtmContent  = url.searchParams.get("utm_content")  || null;
     urlUtmTerm     = url.searchParams.get("utm_term")     || null;
+    urlGclid   = normaliseClickId(url.searchParams.get("gclid"));
+    urlFbclid  = normaliseClickId(url.searchParams.get("fbclid"));
+    urlMsclkid = normaliseClickId(url.searchParams.get("msclkid"));
+    urlTtclid  = normaliseClickId(url.searchParams.get("ttclid"));
   } catch {
     // Proceed without URL signals — all remain null
   }
@@ -174,9 +182,26 @@ export function detectVisitorContext(request: Request): VisitorContext {
     utmCampaign,
     utmContent,
     utmTerm,
+    gclid:   urlGclid,
+    fbclid:  urlFbclid,
+    msclkid: urlMsclkid,
+    ttclid:  urlTtclid,
     userAgent,
     resolvedAt: Date.now(),
   };
+}
+
+/**
+ * Normalise an ad click identifier from a query parameter.
+ *
+ * Ad platforms sometimes send very long opaque tokens; trim whitespace, drop
+ * empties, and cap the stored length so a hostile URL cannot bloat the row.
+ */
+function normaliseClickId(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, 512);
 }
 
 // ── Source resolution ─────────────────────────────────────────────────────────
