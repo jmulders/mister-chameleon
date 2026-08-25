@@ -133,14 +133,23 @@ const RULES_PATH = path.join(
  */
 function buildFromConfig(config: StoredRulesConfig, source: "db" | "runtime" | "seed"): {
   rules:          HomepageRule[];
+  webhookRules:   HomepageRule[];
   storedRuleMap:  ReadonlyMap<string, StoredRule>;
   defaultPlan:    ExperiencePlan;
   rulesEnabled:   boolean;
   source:         "db" | "runtime" | "seed";
 } {
   const sorted = [...config.rules].sort((a, b) => a.priority - b.priority);
+  // Webhook-only rules are pulled OUT of variant resolution entirely: they never
+  // enter the first-match pass or context writes, so the variant decision is
+  // exactly what it was before this rule existed. They fire in an independent
+  // pass (see getHomepagePlan). A webhook-only rule without a webhook url is a
+  // no-op and is simply not compiled into either set.
+  const variant = sorted.filter((r) => r.webhookOnly !== true);
+  const webhook = sorted.filter((r) => r.webhookOnly === true && !!r.plan.webhook?.url);
   return {
-    rules:         sorted.map(compileStoredRule),
+    rules:         variant.map(compileStoredRule),
+    webhookRules:  webhook.map(compileStoredRule),
     storedRuleMap: new Map(sorted.map((r) => [r.id, r])),
     defaultPlan:   { ...config.defaultPlan },
     rulesEnabled:  config.rulesEnabled !== false,   // default true when absent
@@ -154,6 +163,7 @@ function buildFromConfig(config: StoredRulesConfig, source: "db" | "runtime" | "
  */
 function buildRuntimeRules(): {
   rules:          HomepageRule[];
+  webhookRules:   HomepageRule[];
   storedRuleMap:  ReadonlyMap<string, StoredRule>;
   defaultPlan:    ExperiencePlan;
   rulesEnabled:   boolean;
@@ -318,7 +328,7 @@ export class RulesDecisionProvider implements DecisionProvider {
     this.lastStickyContextWrites = [];
 
     try {
-      const { rules, storedRuleMap, defaultPlan, rulesEnabled, source } =
+      const { rules, webhookRules, storedRuleMap, defaultPlan, rulesEnabled, source } =
         this._storedConfig
           ? buildFromConfig(this._storedConfig, "db")
           : buildRuntimeRules();
@@ -341,6 +351,27 @@ export class RulesDecisionProvider implements DecisionProvider {
       const ctx = input as RuleEvaluationContext;
 
       const matched = this.evaluateRules(ctx, rules, storedRuleMap, source);
+
+      // ── Independent webhook pass (webhook-only rules) ─────────────────────────
+      //
+      // Every ENABLED webhook-only rule whose condition matches fires its webhook,
+      // regardless of the variant winner above — they do not compete for the
+      // variant. Fire-and-forget, fail-open, same gates as the rule-fire
+      // diagnostic (real request, tenant, non-bot). Their matches are also
+      // recorded in the rule-fire stats, since they genuinely fired.
+      if (this._tenantId && !ctx.isBot && webhookRules.length > 0) {
+        const tid = this._tenantId;
+        for (const whRule of webhookRules) {
+          if (whRule.enabled === false) continue;
+          let hit = false;
+          try { hit = whRule.match(ctx); } catch { continue; }
+          if (!hit) continue;
+          void import("@/lib/observability/rule-fire-store")
+            .then((m) => m.recordRuleFire(tid, whRule.id))
+            .catch(() => { /* pre-migration / no DB: ignore */ });
+          this.fireMatchWebhook(tid, whRule, ctx);
+        }
+      }
 
       if (matched) {
         // Pull the raw stored rule to get pack/context metadata for the info object.
@@ -366,32 +397,11 @@ export class RulesDecisionProvider implements DecisionProvider {
             .then((m) => m.recordRuleFire(tid, matched.id))
             .catch(() => { /* pre-migration / no DB: ignore */ });
 
-          // Conditional outbound webhook: when the matched rule carries a
-          // plan.webhook, POST the match event (fire-and-forget, never blocks or
-          // affects the decision). The rule's own condition tree is the condition.
-          // Same gates as the rule-fire diagnostic: real request, tenant, non-bot.
-          const mplan = matched.plan as StoredPlan;
-          const webhookUrl = mplan.webhook?.url;
-          if (webhookUrl) {
-            void import("@/lib/webhooks/fire-rule-webhook")
-              .then((m) => m.fireRuleWebhook(webhookUrl, {
-                tenantId: tid,
-                rule: { id: matched.id, label: matched.label, priority: matched.priority },
-                plan: {
-                  heroKey: mplan.heroKey,
-                  proofKey: mplan.proofKey,
-                  ctaKey: mplan.ctaKey,
-                  ...(mplan.themeKey ? { themeKey: mplan.themeKey } : {}),
-                  ...(mplan.themePresetId ? { themePresetId: mplan.themePresetId } : {}),
-                },
-                context: {
-                  ...(ctx.pathname ? { pathname: ctx.pathname } : {}),
-                  ...(ctx.clientContext?.deviceType ? { deviceType: ctx.clientContext.deviceType } : {}),
-                  ...(ctx.audienceSegmentIds ? { audienceSegmentIds: ctx.audienceSegmentIds } : {}),
-                },
-              }))
-              .catch(() => { /* delivery is best-effort */ });
-          }
+          // Inline webhook on the WINNING variant rule ("combine variant +
+          // webhook" case): fire it when the rule that set the variant also
+          // carries a plan.webhook. Independent webhook-only rules fire in a
+          // separate pass above. No-op when the winner has no webhook.
+          this.fireMatchWebhook(tid, matched, ctx);
         }
 
         const plan: ExperiencePlan = {
@@ -417,6 +427,46 @@ export class RulesDecisionProvider implements DecisionProvider {
 
       return DEFAULT_HOMEPAGE_PLAN;
     }
+  }
+
+  /**
+   * Fire a rule's outbound webhook for a match (fire-and-forget, fail-open).
+   *
+   * Shared by two callers: the variant WINNER that carries an inline webhook
+   * ("combine variant + webhook") and each matching webhook-only rule in the
+   * independent pass. No-op when the rule has no webhook url. Dynamically imports
+   * the sender so the pure engine stays decoupled from the network layer. Never
+   * blocks, retries, or affects the decision.
+   */
+  private fireMatchWebhook(
+    tenantId: string,
+    rule:     HomepageRule,
+    ctx:      RuleEvaluationContext,
+  ): void {
+    const plan = rule.plan as StoredPlan;
+    const webhookUrl = plan.webhook?.url;
+    if (!webhookUrl) return;
+
+    void import("@/lib/webhooks/fire-rule-webhook")
+      .then((m) => m.fireRuleWebhook(webhookUrl, {
+        tenantId,
+        rule: { id: rule.id, label: rule.label, priority: rule.priority },
+        // Variant keys are present for combine rules and absent for webhook-only
+        // rules — include only what the plan actually carries.
+        plan: {
+          ...(plan.heroKey  ? { heroKey:  plan.heroKey }  : {}),
+          ...(plan.proofKey ? { proofKey: plan.proofKey } : {}),
+          ...(plan.ctaKey   ? { ctaKey:   plan.ctaKey }   : {}),
+          ...(plan.themeKey ? { themeKey: plan.themeKey } : {}),
+          ...(plan.themePresetId ? { themePresetId: plan.themePresetId } : {}),
+        },
+        context: {
+          ...(ctx.pathname ? { pathname: ctx.pathname } : {}),
+          ...(ctx.clientContext?.deviceType ? { deviceType: ctx.clientContext.deviceType } : {}),
+          ...(ctx.audienceSegmentIds ? { audienceSegmentIds: ctx.audienceSegmentIds } : {}),
+        },
+      }, { secret: plan.webhook?.secret ?? null }))
+      .catch(() => { /* delivery is best-effort */ });
   }
 
   /**

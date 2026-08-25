@@ -546,6 +546,12 @@ export interface StoredPlan {
 export interface RuleWebhook {
   /** Absolute https URL to POST the rule-match event to. */
   url: string;
+  /**
+   * Optional shared secret. When set, deliveries are HMAC-signed (an
+   * `x-mc-signature: sha256=…` header over `${timestamp}.${body}`) so the
+   * receiver can verify authenticity. Stored as operator admin config.
+   */
+  secret?: string;
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────
@@ -584,6 +590,18 @@ export interface StoredRule {
    * that were created before this field existed).
    */
   enabled?: boolean;
+
+  /**
+   * WEBHOOK-ONLY rule. When true, this rule does NOT take part in variant
+   * first-match resolution or context writes — it only fires its `plan.webhook`
+   * when its condition matches, in an independent pass where EVERY matching
+   * webhook-only rule fires (fire-and-forget, fail-open), regardless of the
+   * variant winner. Requires `plan.webhook.url`; any variant keys it carries are
+   * ignored (and not validated). Defaults to false/absent, i.e. a normal variant
+   * rule — which may still carry an inline `plan.webhook` for the "combine
+   * variant + webhook" case (that webhook fires only when the rule wins).
+   */
+  webhookOnly?: boolean;
 
   /**
    * Origin of this rule, used by the blueprint merge system.
@@ -877,11 +895,16 @@ export function validateStoredConfig(
       errors.push({ ruleId: r.id as string, field: `${idx}.enabled`, message: "enabled must be a boolean." });
     }
 
+    // webhookOnly (optional boolean — omitted means false)
+    if (r.webhookOnly !== undefined && typeof r.webhookOnly !== "boolean") {
+      errors.push({ ruleId: r.id as string, field: `${idx}.webhookOnly`, message: "webhookOnly must be a boolean." });
+    }
+
     // condition
     validateCondition(r.condition, idx, r.id as string | undefined, errors, 0);
 
-    // plan
-    validatePlan(r.plan as Record<string, unknown>, idx, r.id as string | undefined, errors, allowedHeroKeys, allowedProofKeys, allowedCtaKeys);
+    // plan — a webhook-only rule needs a webhook, not variant keys.
+    validatePlan(r.plan as Record<string, unknown>, idx, r.id as string | undefined, errors, allowedHeroKeys, allowedProofKeys, allowedCtaKeys, r.webhookOnly === true);
   }
 
   return errors;
@@ -895,20 +918,31 @@ function validatePlan(
   allowedHeroKeys:  readonly string[] = ALLOWED_HERO_KEYS,
   allowedProofKeys: readonly string[] = ALLOWED_PROOF_KEYS,
   allowedCtaKeys:   readonly string[] = ALLOWED_CTA_KEYS,
+  webhookOnly:      boolean = false,
 ): void {
   if (!plan || typeof plan !== "object") {
     errors.push({ ruleId, field: `${idx}.plan`, message: "plan is required." });
     return;
   }
 
-  if (!(allowedHeroKeys as string[]).includes(plan.heroKey as string)) {
-    errors.push({ ruleId, field: `${idx}.plan.heroKey`, message: `Invalid heroKey "${plan.heroKey}". Allowed: ${allowedHeroKeys.join(", ")}` });
-  }
-  if (!(allowedProofKeys as string[]).includes(plan.proofKey as string)) {
-    errors.push({ ruleId, field: `${idx}.plan.proofKey`, message: `Invalid proofKey "${plan.proofKey}". Allowed: ${allowedProofKeys.join(", ")}` });
-  }
-  if (!(allowedCtaKeys as string[]).includes(plan.ctaKey as string)) {
-    errors.push({ ruleId, field: `${idx}.plan.ctaKey`, message: `Invalid ctaKey "${plan.ctaKey}". Allowed: ${allowedCtaKeys.join(", ")}` });
+  // A webhook-only rule sets no variant, so the variant keys are neither
+  // required nor validated. It MUST carry a webhook (checked below) — otherwise
+  // it would match but do nothing.
+  if (webhookOnly) {
+    const wh = plan.webhook as Record<string, unknown> | null | undefined;
+    if (!wh || typeof wh !== "object" || typeof wh.url !== "string") {
+      errors.push({ ruleId, field: `${idx}.plan.webhook`, message: "a webhook-only rule requires plan.webhook.url." });
+    }
+  } else {
+    if (!(allowedHeroKeys as string[]).includes(plan.heroKey as string)) {
+      errors.push({ ruleId, field: `${idx}.plan.heroKey`, message: `Invalid heroKey "${plan.heroKey}". Allowed: ${allowedHeroKeys.join(", ")}` });
+    }
+    if (!(allowedProofKeys as string[]).includes(plan.proofKey as string)) {
+      errors.push({ ruleId, field: `${idx}.plan.proofKey`, message: `Invalid proofKey "${plan.proofKey}". Allowed: ${allowedProofKeys.join(", ")}` });
+    }
+    if (!(allowedCtaKeys as string[]).includes(plan.ctaKey as string)) {
+      errors.push({ ruleId, field: `${idx}.plan.ctaKey`, message: `Invalid ctaKey "${plan.ctaKey}". Allowed: ${allowedCtaKeys.join(", ")}` });
+    }
   }
 
   // Optional gallery-preset theme override — must reference a known gallery card.
@@ -1032,8 +1066,13 @@ function validatePlan(
     const wh = plan.webhook as Record<string, unknown> | null;
     if (!wh || typeof wh !== "object" || Array.isArray(wh)) {
       errors.push({ ruleId, field: `${idx}.plan.webhook`, message: "webhook must be an object with a url." });
-    } else if (typeof wh.url !== "string" || !isSafeWebhookUrl(wh.url)) {
-      errors.push({ ruleId, field: `${idx}.plan.webhook.url`, message: "webhook.url must be an absolute https URL to a public host." });
+    } else {
+      if (typeof wh.url !== "string" || !isSafeWebhookUrl(wh.url)) {
+        errors.push({ ruleId, field: `${idx}.plan.webhook.url`, message: "webhook.url must be an absolute https URL to a public host." });
+      }
+      if (wh.secret !== undefined && (typeof wh.secret !== "string" || wh.secret.trim() === "")) {
+        errors.push({ ruleId, field: `${idx}.plan.webhook.secret`, message: "webhook.secret, when set, must be a non-empty string." });
+      }
     }
   }
 }
