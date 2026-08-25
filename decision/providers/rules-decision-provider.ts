@@ -89,6 +89,7 @@ import {
   type StoredRulesConfig,
   type StoredRule,
   type RuleContextWrite,
+  type StoredPlan,
 } from "../rules/stored-rule";
 import type { RuleEvaluationContext } from "../rules/field-registry";
 import {
@@ -364,6 +365,33 @@ export class RulesDecisionProvider implements DecisionProvider {
           void import("@/lib/observability/rule-fire-store")
             .then((m) => m.recordRuleFire(tid, matched.id))
             .catch(() => { /* pre-migration / no DB: ignore */ });
+
+          // Conditional outbound webhook: when the matched rule carries a
+          // plan.webhook, POST the match event (fire-and-forget, never blocks or
+          // affects the decision). The rule's own condition tree is the condition.
+          // Same gates as the rule-fire diagnostic: real request, tenant, non-bot.
+          const mplan = matched.plan as StoredPlan;
+          const webhookUrl = mplan.webhook?.url;
+          if (webhookUrl) {
+            void import("@/lib/webhooks/fire-rule-webhook")
+              .then((m) => m.fireRuleWebhook(webhookUrl, {
+                tenantId: tid,
+                rule: { id: matched.id, label: matched.label, priority: matched.priority },
+                plan: {
+                  heroKey: mplan.heroKey,
+                  proofKey: mplan.proofKey,
+                  ctaKey: mplan.ctaKey,
+                  ...(mplan.themeKey ? { themeKey: mplan.themeKey } : {}),
+                  ...(mplan.themePresetId ? { themePresetId: mplan.themePresetId } : {}),
+                },
+                context: {
+                  ...(ctx.pathname ? { pathname: ctx.pathname } : {}),
+                  ...(ctx.clientContext?.deviceType ? { deviceType: ctx.clientContext.deviceType } : {}),
+                  ...(ctx.audienceSegmentIds ? { audienceSegmentIds: ctx.audienceSegmentIds } : {}),
+                },
+              }))
+              .catch(() => { /* delivery is best-effort */ });
+          }
         }
 
         const plan: ExperiencePlan = {
