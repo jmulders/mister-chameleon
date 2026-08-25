@@ -544,6 +544,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   const [packFilter, setPackFilter]     = useState<string>("all");
   const [tierFilter, setTierFilter]     = useState<string>("all");
   const [variantFilter, setVariantFilter] = useState<string>("all");
+  const [webhookFilter, setWebhookFilter] = useState<string>("all"); // all | webhook
   const [showContextLib, setShowContextLib] = useState(false);
   const [galleryOpen, setGalleryOpen]       = useState(false);
   // ── Bulk selection state ───────────────────────────────────────────────────
@@ -806,6 +807,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
         && !planVariantKeys(r.plan as unknown as Record<string, unknown>).includes(variantFilter)) {
       return false;
     }
+    if (webhookFilter === "webhook" && !r.plan?.webhook?.url) return false;
     return true;
   });
 
@@ -929,10 +931,19 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
               ))}
             </select>
           )}
-          {(packFilter !== "all" || tierFilter !== "all" || variantFilter !== "all") && (
+          <select
+            value={webhookFilter}
+            onChange={(e) => setWebhookFilter(e.target.value)}
+            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            aria-label="Filter by webhook action"
+          >
+            <option value="all">All rules</option>
+            <option value="webhook">With webhook</option>
+          </select>
+          {(packFilter !== "all" || tierFilter !== "all" || variantFilter !== "all" || webhookFilter !== "all") && (
             <button
               type="button"
-              onClick={() => { setPackFilter("all"); setTierFilter("all"); setVariantFilter("all"); }}
+              onClick={() => { setPackFilter("all"); setTierFilter("all"); setVariantFilter("all"); setWebhookFilter("all"); }}
               className="text-xs font-medium text-brand-600 hover:text-brand-800 transition-colors"
             >
               Clear filters
@@ -1279,6 +1290,14 @@ function RuleCard({
             )}
             {rule.packId && RULE_PACK_REGISTRY[rule.packId] && (
               <PackBadge packId={rule.packId} />
+            )}
+            {rule.plan?.webhook?.url && (
+              <span
+                className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700"
+                title={rule.webhookOnly ? "Webhook-only rule (does not set a variant)" : "Fires an outbound webhook when it wins"}
+              >
+                {rule.webhookOnly ? "Webhook-only" : "Webhook"}
+              </span>
             )}
             <TierChip priority={rule.priority} precedenceLevel={rule.precedenceLevel} />
           </div>

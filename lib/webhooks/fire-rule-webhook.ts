@@ -10,6 +10,7 @@
  * module only delivers the event when the engine says the rule matched.
  */
 
+import { createHmac } from "node:crypto";
 import { logger } from "@/lib/logger";
 import { isSafeWebhookUrl } from "./webhook-url";
 
@@ -29,8 +30,16 @@ export interface RuleWebhookEvent {
  * POST a rule-match event to `url`. Fire-and-forget; safe to call without await.
  * Silently no-ops on an unsafe URL (defence in depth — config validation already
  * rejects these) or any network error.
+ *
+ * When `opts.secret` is set, the request is signed like the lead webhook: an
+ * `x-mc-timestamp` header plus `x-mc-signature: sha256=<hmac>` over
+ * `${timestamp}.${body}`, so the receiver can verify authenticity.
  */
-export async function fireRuleWebhook(url: string, event: RuleWebhookEvent): Promise<void> {
+export async function fireRuleWebhook(
+  url:   string,
+  event: RuleWebhookEvent,
+  opts:  { secret?: string | null } = {},
+): Promise<void> {
   try {
     if (!isSafeWebhookUrl(url)) {
       logger.warn("[rule-webhook] blocked unsafe url", { tenantId: event.tenantId });
@@ -42,17 +51,26 @@ export async function fireRuleWebhook(url: string, event: RuleWebhookEvent): Pro
       occurredAt: new Date().toISOString(),
       ...event,
     };
+    const body = JSON.stringify(payload);
+
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      "user-agent":   "MisterChameleon-RuleWebhook/1.0",
+    };
+    if (opts.secret) {
+      const timestamp = new Date().toISOString();
+      const signature = createHmac("sha256", opts.secret).update(`${timestamp}.${body}`).digest("hex");
+      headers["x-mc-timestamp"] = timestamp;
+      headers["x-mc-signature"] = `sha256=${signature}`;
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         method:  "POST",
-        headers: {
-          "content-type": "application/json",
-          "user-agent":   "MisterChameleon-RuleWebhook/1.0",
-        },
-        body:   JSON.stringify(payload),
+        headers,
+        body,
         signal: controller.signal,
       });
       if (!res.ok) {

@@ -1,16 +1,18 @@
 /**
  * Admin — Tenant Workspace › Audience › Webhooks
  *
- * One read-only overview of every outbound webhook, across both mechanisms:
- * the lead-qualification webhook (CRM sync, fires on upward qualification) and
- * rule-triggered webhooks (fire on rule match). Shows trigger, conditions,
- * destination and delivery status, and cross-links to each edit surface. It does
- * not change how any webhook fires. See docs/lead-base-design.md.
+ * One overview of every outbound webhook, across both mechanisms: the
+ * lead-qualification webhook (CRM sync, fires on upward qualification) and
+ * rule-triggered webhooks (fire on rule match). Independent webhook rules are
+ * created/edited here; variant rules that also carry a webhook are shown
+ * read-only with a link to the Rules editor. See docs/lead-base-design.md.
  */
 
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { listOutboundWebhooksAction } from "./actions";
+import { getConditionFieldOptions } from "@/lib/webhooks/condition-field-options";
+import { WebhookRulesManager } from "./_components/WebhookRulesManager";
 import type { WebhookDelivery } from "@/lib/lead-base/webhook-deliveries-store";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +86,12 @@ export default async function WebhooksOverviewPage({
   const { leadQual, ruleWebhooks } = await listOutboundWebhooksAction(tenantId);
   const base = `/admin/tenants/${tenantId}`;
 
+  // Independent webhook rules are edited here; combine rules (variant + inline
+  // webhook) are edited in the Rules editor.
+  const webhookOnlyRules = ruleWebhooks.filter((w) => w.webhookOnly);
+  const combineRules     = ruleWebhooks.filter((w) => !w.webhookOnly);
+  const fieldOptions     = getConditionFieldOptions();
+
   const total = (leadQual.url ? 1 : 0) + ruleWebhooks.length;
 
   return (
@@ -134,26 +142,44 @@ export default async function WebhooksOverviewPage({
         </div>
       </section>
 
-      {/* ── Rule-triggered webhooks ────────────────────────────────────────── */}
+      {/* ── Independent webhook rules (editable here) ──────────────────────── */}
       <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <TypeBadge kind="rule" />
-            <h2 className="mt-2 text-sm font-semibold text-neutral-900">Rule-triggered webhooks</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              <span className="font-medium text-neutral-700">Trigger:</span> the rule matches for a (non-bot) visitor.
-              Configured per rule under Rules → Advanced. Fire-and-forget: individual deliveries are not logged, so no
-              per-delivery history is shown here.
-            </p>
-          </div>
-          <Link href={`${base}/personalization/rules`} className="shrink-0 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50">
-            Edit rules →
-          </Link>
+        <div>
+          <TypeBadge kind="rule" />
+          <h2 className="mt-2 text-sm font-semibold text-neutral-900">Independent webhook rules</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            <span className="font-medium text-neutral-700">Trigger:</span> the condition matches for a (non-bot) visitor.
+            Each matching rule fires independently and never affects which variant a visitor sees. Fire-and-forget:
+            individual deliveries are not logged here.
+          </p>
         </div>
+        <div className="mt-4">
+          <WebhookRulesManager
+            tenantId={tenantId}
+            rules={webhookOnlyRules}
+            fields={fieldOptions}
+            rulesHref={`${base}/personalization/rules`}
+          />
+        </div>
+      </section>
 
-        {ruleWebhooks.length === 0 ? (
-          <p className="mt-4 text-xs text-neutral-400">No rules have a webhook configured.</p>
-        ) : (
+      {/* ── Variant + webhook rules (read-only; edited in Rules) ───────────── */}
+      {combineRules.length > 0 && (
+        <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <TypeBadge kind="rule" />
+              <h2 className="mt-2 text-sm font-semibold text-neutral-900">Variant rules that also fire a webhook</h2>
+              <p className="mt-1 text-sm text-neutral-500">
+                These rules set a personalization variant AND fire a webhook when they win the first-match decision.
+                They are edited in the Rules editor.
+              </p>
+            </div>
+            <Link href={`${base}/personalization/rules`} className="shrink-0 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50">
+              Edit rules →
+            </Link>
+          </div>
+
           <div className="mt-4 overflow-hidden rounded-lg border border-neutral-200">
             <table className="w-full text-left text-sm">
               <thead>
@@ -162,41 +188,25 @@ export default async function WebhooksOverviewPage({
                   <th className="px-3 py-2 font-medium">Conditions</th>
                   <th className="px-3 py-2 font-medium">Destination</th>
                   <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
-                {ruleWebhooks.map((w) => (
+                {combineRules.map((w) => (
                   <tr key={w.ruleId} className="border-b border-neutral-100 last:border-0 align-top">
                     <td className="px-3 py-2.5">
                       <p className="font-medium text-neutral-800">{w.label}</p>
                       <p className="text-xs text-neutral-400">Priority {w.priority}</p>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <code className="text-xs font-mono text-neutral-600">{w.conditionSummary}</code>
-                    </td>
+                    <td className="px-3 py-2.5"><code className="text-xs font-mono text-neutral-600">{w.conditionSummary}</code></td>
                     <td className="px-3 py-2.5 max-w-[240px]"><Url url={w.url} /></td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      {w.enabled ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-200">
-                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Enabled
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500 ring-1 ring-inset ring-neutral-200">
-                          <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" /> Disabled
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <Link href={`${base}/personalization/rules`} className="text-xs font-medium text-brand-600 hover:text-brand-800">Edit →</Link>
-                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-neutral-500">{w.enabled ? "Enabled" : "Disabled"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
