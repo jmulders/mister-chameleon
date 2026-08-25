@@ -11,17 +11,17 @@ import type { TenantPrivacySettings } from "../../tenant/types.ts";
 describe("consentFromSnippet", () => {
   it("maps a category object to booleans", () => {
     const c = consentFromSnippet({ analytics: true, personalization: false, enrichment: true, hasResponded: true }, "auto");
-    assert.deepEqual(c, { hasResponded: true, analytics: true, personalization: false, enrichment: true });
+    assert.deepEqual(c, { hasResponded: true, analytics: true, personalization: false, enrichment: true, advertising: false });
   });
 
   it("maps legacy booleans", () => {
-    assert.deepEqual(consentFromSnippet(true, "auto"), { hasResponded: true, analytics: true, personalization: true, enrichment: true });
-    assert.deepEqual(consentFromSnippet(false, "always"), { hasResponded: true, analytics: false, personalization: false, enrichment: false });
+    assert.deepEqual(consentFromSnippet(true, "auto"), { hasResponded: true, analytics: true, personalization: true, enrichment: true, advertising: true });
+    assert.deepEqual(consentFromSnippet(false, "always"), { hasResponded: true, analytics: false, personalization: false, enrichment: false, advertising: false });
   });
 
   it("null (no host signal) denies under auto", () => {
     const c = consentFromSnippet(null, "auto");
-    assert.deepEqual(c, { hasResponded: false, analytics: false, personalization: false, enrichment: false });
+    assert.deepEqual(c, { hasResponded: false, analytics: false, personalization: false, enrichment: false, advertising: false });
   });
 
   it("null (no host signal) grants under always", () => {

@@ -146,12 +146,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   //   (site) tenant so bidding optimises on it. Fail-open.
   if (tenantId) {
     try {
-      const { sessionId } = resolveSession((await headers()).get("cookie"));
+      const cookieHeader = (await headers()).get("cookie");
+      const { sessionId } = resolveSession(cookieHeader);
       await reportInboundConversion({
         tenantId,
         sessionId,
         targetPath: "/book-demo",
         eventName:  "Demo",
+        cookieHeader,
         values: {
           name,
           email,

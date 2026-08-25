@@ -307,6 +307,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       tenantId,
       sessionId,
       targetPath: pathname,
+      cookieHeader: request.headers.get("cookie"),
       values: {
         name:    formFields.name,
         email:   formFields.email,

@@ -22,7 +22,7 @@ export interface ConsentTexts {
     moreLink:      string;
   };
   /** Category label + description, used by both the banner and the declaration. */
-  catMeta: Record<"essential" | "analytics" | "personalization" | "enrichment", { label: string; description: string }>;
+  catMeta: Record<"essential" | "analytics" | "personalization" | "enrichment" | "advertising", { label: string; description: string }>;
   declaration: {
     acceptAll:          string;
     rejectNonEssential: string;
@@ -62,6 +62,7 @@ const EN: ConsentTexts = {
     analytics:       { label: "Analytics",          description: "Helps us understand how visitors interact with the site (page views, events)." },
     personalization: { label: "Personalization",    description: "Lets us remember you across visits to tailor content to your behavior over time. Anonymous, session-only adjustments do not need this." },
     enrichment:      { label: "Enrichment",         description: "Lets us recognize your company and context to provide more relevant information." },
+    advertising:     { label: "Advertising",        description: "Lets us share ad click identifiers with advertising platforms (Google, Meta) so a conversion can be matched to the ad you clicked. No advertising data is shared without this." },
   },
   declaration: {
     acceptAll:          "Accept all",
@@ -102,6 +103,7 @@ const NL: ConsentTexts = {
     analytics:       { label: "Analytics",           description: "Helpt ons begrijpen hoe bezoekers de site gebruiken (paginaweergaven, gebeurtenissen)." },
     personalization: { label: "Personalisatie",      description: "Laat ons u over bezoeken heen herkennen om content op uw gedrag in de tijd af te stemmen. Anonieme, sessie-only aanpassingen hebben dit niet nodig." },
     enrichment:      { label: "Verrijking",          description: "Stelt ons in staat uw bedrijf en context te herkennen voor relevantere informatie." },
+    advertising:     { label: "Advertenties",        description: "Laat ons advertentie-klik-ID's delen met advertentieplatforms (Google, Meta) zodat een conversie kan worden gekoppeld aan de advertentie waarop u klikte. Zonder deze keuze worden geen advertentiegegevens gedeeld." },
   },
   declaration: {
     acceptAll:          "Alles accepteren",

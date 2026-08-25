@@ -75,6 +75,7 @@ const SERVER_SNAPSHOT: ConsentState = {
   analytics:       false,
   personalization: false,
   enrichment:      false,
+  advertising:     false,
 };
 
 function getServerConsent(): ConsentState {
@@ -92,7 +93,7 @@ export interface ConsentBannerProps {
   locale?:      string;
 }
 
-const OPTIONAL_CATEGORIES = ["analytics", "personalization", "enrichment"] as const;
+const OPTIONAL_CATEGORIES = ["analytics", "personalization", "enrichment", "advertising"] as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export function ConsentBanner({ title, description, locale }: ConsentBannerProps
     analytics:       false,
     personalization: false,
     enrichment:      false,
+    advertising:     false,
   });
 
   const handleAcceptAll = useCallback(() => {
@@ -126,7 +128,7 @@ export function ConsentBanner({ title, description, locale }: ConsentBannerProps
   }, [customState]);
 
   const toggleCategory = useCallback(
-    (id: "analytics" | "personalization" | "enrichment") => {
+    (id: "analytics" | "personalization" | "enrichment" | "advertising") => {
       setCustomState((prev) => ({ ...prev, [id]: !prev[id] }));
     },
     [],

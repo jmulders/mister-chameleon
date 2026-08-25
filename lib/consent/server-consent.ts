@@ -97,6 +97,7 @@ export function computeEffectiveConsent(
     analytics:       (tenantPrivacy.allowAnalytics       !== false) && userConsent.analytics,
     personalization: (tenantPrivacy.allowPersonalization !== false) && userConsent.personalization,
     enrichment:      (tenantPrivacy.allowEnrichment      !== false) && userConsent.enrichment,
+    advertising:     (tenantPrivacy.allowAdvertising     !== false) && userConsent.advertising,
   };
 }
 
@@ -119,7 +120,7 @@ export function resolveConsent(
 /** The `consent` field the snippet sends to /api/snippet/decide. */
 export type SnippetConsentInput =
   | boolean
-  | { analytics?: boolean; personalization?: boolean; enrichment?: boolean; hasResponded?: boolean }
+  | { analytics?: boolean; personalization?: boolean; enrichment?: boolean; advertising?: boolean; hasResponded?: boolean }
   | null
   | undefined;
 
@@ -149,6 +150,7 @@ export function consentFromSnippet(
       analytics:       input.analytics === true,
       personalization: input.personalization === true,
       enrichment:      input.enrichment === true,
+      advertising:     input.advertising === true,
     };
   }
   if (input === null) {

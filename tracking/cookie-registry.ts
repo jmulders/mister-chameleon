@@ -50,9 +50,14 @@ export const COOKIE_CATEGORY_META: Record<CookieCategory, { label: string; descr
     description: "Identify the company behind a visit (e.g. Leadinfo, IP-to-company) for B2B personalization.",
     consentKey:  "enrichment",
   },
+  advertising: {
+    label:       "Advertising",
+    description: "Share ad click identifiers (gclid/fbclid) with advertising platforms (Google, Meta) so a conversion can be matched to the ad you clicked.",
+    consentKey:  "advertising",
+  },
 };
 
-export const COOKIE_CATEGORY_ORDER: CookieCategory[] = ["essential", "analytics", "personalization", "enrichment"];
+export const COOKIE_CATEGORY_ORDER: CookieCategory[] = ["essential", "analytics", "personalization", "enrichment", "advertising"];
 
 export const COOKIE_REGISTRY: CookieDef[] = [
   // ── Strictly necessary ──────────────────────────────────────────────────────

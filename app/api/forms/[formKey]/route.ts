@@ -82,7 +82,8 @@ import { getDb }                        from "@/data/db";
 import { decryptSecret }                from "@/lib/email-crypto";
 import { resolveSession }               from "@/data/session";
 import { logger }                       from "@/lib/logger";
-import { markProfileConverted }         from "@/lib/lead-base/visitor-profiles-store";
+import { getProfileClickIds, markProfileConverted } from "@/lib/lead-base/visitor-profiles-store";
+import { resolveConsent }                from "@/lib/consent/server-consent";
 import { captureInboundLead, extractSubmittedEmail } from "@/lib/lead-base/inbound-capture";
 import { sendConversion }                from "@/lib/ad-sync/conversion-engine";
 import { sendAdaptiveEmail }             from "@/lib/email/send-adaptive-email";
@@ -481,11 +482,29 @@ async function handlePost(
 
     // 6a-quater. Conversion feedback — report the form-submit conversion back to
     // the configured ad platforms (Google/Meta/LinkedIn) so bidding optimizes on
-    // real leads. No-op unless conversion feedback is configured + enabled.
-    (tenantId && (() => {
-      const email = extractSubmittedEmail(validation.values);
-      return email ? sendConversion(tenantId, { email, eventName: "Lead" }, "conversion") : null;
-    })()) || Promise.resolve(),
+    // real leads. No-op unless conversion feedback is configured + enabled. The
+    // first-touch gclid/fbclid is attached ONLY under advertising/marketing
+    // consent (docs/design/advertising-consent-capi.md).
+    tenantId
+      ? (async () => {
+          const email = extractSubmittedEmail(validation.values);
+          if (!email) return;
+          const advertisingConsent = resolveConsent(reqHeaders.get("cookie")).advertising;
+          const clickIds = (advertisingConsent && sessionId)
+            ? await getProfileClickIds(tenantId, sessionId)
+            : { gclid: null, fbclid: null };
+          await sendConversion(
+            tenantId,
+            {
+              email,
+              eventName: "Lead",
+              ...(clickIds.gclid  ? { gclid:  clickIds.gclid }  : {}),
+              ...(clickIds.fbclid ? { fbclid: clickIds.fbclid } : {}),
+            },
+            "conversion",
+          );
+        })()
+      : Promise.resolve(),
 
     // 6b–c. Platform form: backoffice + confirmation ───────────────────────
     ...(formDef ? [
