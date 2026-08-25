@@ -51,7 +51,7 @@ export default async function LeadBasePage({
         description="Every visitor who arrives, tracked at some identity level. The levels are anonymous, recognised (company), known (named person), or customer. Filter, delete, and export. Pseudonymous and firmographic data only; named-contact PII lives under Target accounts. Profiles are retained for 90 days."
         actions={
           <Link
-            href={`/admin/tenants/${tenantId}/audience/leads/performance`}
+            href={`/admin/tenants/${tenantId}/personalization/performance`}
             className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
           >
             Personalization performance

@@ -251,6 +251,9 @@ const nextConfig = {
       ["content-status", "content/status"],
       // Phase 2: Audience under /audience/*. behavior/journey MUST precede the
       // bare "behavior" catch-all (first matching redirect wins).
+      // Personalization performance report moved out of Leads into the
+      // Personalization group (next to Stats). Keeps old bookmarks working.
+      ["audience/leads/performance", "personalization/performance"],
       ["behavior/journey",    "audience/journey"],
       ["interest-profiles",   "audience/interests"],
       ["audience-segments",   "audience/segments"],
