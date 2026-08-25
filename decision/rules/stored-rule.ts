@@ -77,6 +77,7 @@ import {
 } from "../types";
 import type { ThemePresetKey } from "@/design-system/theme/presets";
 import { getDesignPreset } from "@/tenant/design-presets-gallery";
+import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
 import type { HomepageRule } from "./homepage-rules";
 import {
   FIELD_REGISTRY,
@@ -529,6 +530,22 @@ export interface StoredPlan {
    * after the response. Absent = no context effect (current behaviour).
    */
   setContext?: RuleContextWrite[];
+
+  /**
+   * Optional outbound webhook fired when this rule matches on a real (non-bot)
+   * request that carries a tenantId. Fire-and-forget, POST JSON — it never blocks,
+   * retries, or affects the decision. The URL is operator-configured trusted admin
+   * input, validated to an absolute https public host (SSRF guard). This is the
+   * "conditional" webhook: the rule's own condition tree is the condition.
+   * See lib/webhooks/fire-rule-webhook.ts.
+   */
+  webhook?: RuleWebhook;
+}
+
+/** A rule-match outbound webhook target. */
+export interface RuleWebhook {
+  /** Absolute https URL to POST the rule-match event to. */
+  url: string;
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────
@@ -1006,6 +1023,17 @@ function validatePlan(
           }
         }
       });
+    }
+  }
+
+  // webhook — optional outbound webhook fired when the rule matches. URL must be
+  // an absolute https URL to a public host (SSRF guard); no other fields.
+  if (plan.webhook !== undefined) {
+    const wh = plan.webhook as Record<string, unknown> | null;
+    if (!wh || typeof wh !== "object" || Array.isArray(wh)) {
+      errors.push({ ruleId, field: `${idx}.plan.webhook`, message: "webhook must be an object with a url." });
+    } else if (typeof wh.url !== "string" || !isSafeWebhookUrl(wh.url)) {
+      errors.push({ ruleId, field: `${idx}.plan.webhook.url`, message: "webhook.url must be an absolute https URL to a public host." });
     }
   }
 }

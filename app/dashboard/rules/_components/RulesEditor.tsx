@@ -44,6 +44,7 @@
  */
 
 import { useState, useCallback, useId, useRef, useEffect, createContext, useContext } from "react";
+import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
 import {
   saveRulesAction,
   resetRulesAction,
@@ -1210,6 +1211,7 @@ function ruleUsesAdvanced(rule: StoredRule): boolean {
   if (p.formVariants  && Object.keys(p.formVariants).length  > 0) return true;
   if (p.emailVariants && Object.keys(p.emailVariants).length > 0) return true;
   if (p.setContext    && p.setContext.length > 0)                 return true;
+  if (p.webhook?.url)                                             return true;
   if (rule.packId || rule.precedenceLevel)                       return true;
   return conditionHasNonFieldLeaf(rule.condition);
 }
@@ -1550,6 +1552,27 @@ function RuleCard({
                 value={rule.plan.setContext}
                 onChange={(next) => onChange({ plan: { ...rule.plan, setContext: next } })}
               />
+
+              <Field
+                label="Outbound webhook (optional)"
+                hint="POST this rule's match event to an https URL when the rule fires. Fire-and-forget — it never blocks or changes the decision."
+              >
+                <input
+                  type="url"
+                  value={rule.plan.webhook?.url ?? ""}
+                  onChange={(e) => {
+                    const url = e.target.value.trim();
+                    onChange({ plan: { ...rule.plan, webhook: url ? { url } : undefined } });
+                  }}
+                  placeholder="https://hooks.example.com/mc/rule-matched"
+                  className={inputCls}
+                />
+                {rule.plan.webhook?.url && !isSafeWebhookUrl(rule.plan.webhook.url) && (
+                  <span className="mt-1 block text-xs font-medium text-amber-600">
+                    Must be an absolute https URL to a public host (no localhost / private IPs).
+                  </span>
+                )}
+              </Field>
             </>)}
           </section>
 
