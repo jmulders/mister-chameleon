@@ -1,15 +1,16 @@
 /**
- * Admin — Tenant Workspace › Leads › Personalization performance
+ * Admin — Tenant Workspace › Personalization › Performance
  *
  * Does personalization actually convert better? Conversion rate (form submissions)
- * of personalized vs baseline visitors, and per audience segment. See
- * docs/lead-base-design.md.
+ * of personalized vs baseline visitors, and per audience segment, plus first-touch
+ * channel attribution. This is a personalization-effectiveness report, so it lives
+ * under Personalization (next to Stats). The data actions and the report component
+ * are unchanged and still shared with the Leads context. See docs/lead-base-design.md.
  */
 
-import Link from "next/link";
-import { getPersonalizationPerformanceAction, getChannelAttributionAction } from "../actions";
+import { getPersonalizationPerformanceAction, getChannelAttributionAction } from "@/app/admin/tenants/[tenantId]/audience/leads/actions";
 import { listAudienceSegmentsAction }          from "@/app/admin/tenants/[tenantId]/audience/segments/actions";
-import { PersonalizationReport }               from "../_components/PersonalizationReport";
+import { PersonalizationReport }               from "@/app/admin/tenants/[tenantId]/audience/leads/_components/PersonalizationReport";
 
 export const dynamic = "force-dynamic";
 
@@ -44,10 +45,8 @@ export default async function PerformancePage({
   return (
     <div className="p-8 max-w-6xl space-y-5">
       <div>
-        <Link href={`/admin/tenants/${tenantId}/audience/leads`} className="text-xs text-neutral-500 hover:text-neutral-800">
-          ← Leads
-        </Link>
-        <h1 className="mt-2 text-xl font-semibold text-neutral-900">Personalization performance</h1>
+        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Personalization</p>
+        <h1 className="mt-1 text-xl font-semibold text-neutral-900">Performance</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Does adaptive content convert? Conversion rate (form submissions) for personalized
           visitors (matched a segment) vs baseline, and per segment. A randomized holdout for

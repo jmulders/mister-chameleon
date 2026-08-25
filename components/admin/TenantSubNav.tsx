@@ -17,10 +17,10 @@ import { cn }      from "@/lib/utils";
  *
  * Tab ownership (actual):
  *   Content         CMS, Pages, Blueprints, Forms, Email, Assets, Status.
- *   Personalization Slots, Variants, Adaptive blocks, Contextual forms, Rules,
- *                   Experiments, AI.
+ *   Personalization Adaptive blocks, Variants, Rules, Attributes, Variables,
+ *                   Stats, Performance, Experiments, AI.
  *   Audience        Interests, Segments, Target accounts, Leads, Retargeting,
- *                   Suppression, Attribution, Journey, Scoring.
+ *                   Suppression, Journey, Scoring.
  *
  * The /behavior/* URL tree is split across tabs by concept. behavior/journey
  * and behavior/ (Scoring) belong to Audience, behavior/slots to
@@ -208,6 +208,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
         { label: "Attributes",       href: `${base}/personalization/attributes`,       activePrefix: `${base}/personalization/attributes` },
         { label: "Variables",        href: `${base}/personalization/variables`,        activePrefix: `${base}/personalization/variables` },
         { label: "Stats",            href: `${base}/personalization/stats`,            activePrefix: `${base}/personalization/stats` },
+        { label: "Performance",      href: `${base}/personalization/performance`,      activePrefix: `${base}/personalization/performance` },
         { label: "Experiments",      href: `${base}/personalization/experiments`,      activePrefix: `${base}/personalization/experiments` },
         { label: "AI",               href: `${base}/personalization/ai`,               activePrefix: `${base}/personalization/ai`, exact: true },
       ],
@@ -227,7 +228,6 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
         { label: "Leads",           href: `${base}/audience/leads`,             activePrefix: `${base}/audience/leads`, exact: true },
         { label: "Retargeting",     href: `${base}/audience/retargeting`,       activePrefix: `${base}/audience/retargeting` },
         { label: "Suppression",     href: `${base}/audience/leads/suppression`, activePrefix: `${base}/audience/leads/suppression` },
-        { label: "Attribution",     href: `${base}/audience/leads/performance`, activePrefix: `${base}/audience/leads/performance` },
         { label: "Journey",         href: `${base}/audience/journey`,           activePrefix: `${base}/audience/journey` },
         { label: "Scoring",         href: `${base}/audience/scoring`,           activePrefix: `${base}/audience/scoring`, exact: true },
       ],
