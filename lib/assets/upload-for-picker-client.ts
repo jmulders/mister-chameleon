@@ -110,6 +110,7 @@ async function directPickerUpload(
     title:          file.name,
     altText,
     tags:           [],
+    folder:         null,
     uploadedBy:     null,
     createdAt:      now,
     updatedAt:      now,

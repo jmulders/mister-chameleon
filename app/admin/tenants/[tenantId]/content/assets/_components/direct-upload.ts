@@ -31,6 +31,7 @@ export async function directUploadAsset(opts: {
   title?:   string | null;
   altText?: string | null;
   tags?:    string[];
+  folder?:  string | null;
 }): Promise<DirectUploadResult> {
   const { tenantId, file } = opts;
 
@@ -70,6 +71,7 @@ export async function directUploadAsset(opts: {
     title:       opts.title ?? null,
     altText:     opts.altText ?? null,
     tags:        opts.tags ?? [],
+    folder:      opts.folder ?? null,
   });
   if (!registered.success) {
     return { success: false, error: registered.error ?? "Upload succeeded but registering the asset failed." };

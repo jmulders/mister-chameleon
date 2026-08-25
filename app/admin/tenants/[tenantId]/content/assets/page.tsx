@@ -31,7 +31,7 @@ import {
   getRequiredAdminSession,
   isSuperAdmin as checkIsSuperAdmin,
 } from "@/lib/admin-auth/authorization";
-import { getAssets, getAssetTags } from "@/lib/assets/tenant-assets";
+import { getAssets, getAssetTags, getAssetFolders } from "@/lib/assets/tenant-assets";
 import { AssetLibraryClient }      from "./_components/AssetLibraryClient";
 import { rethrowNextInternal } from "@/lib/server-action-guard";
 
@@ -68,14 +68,16 @@ export default async function TenantAssetsPage({ params }: PageProps) {
     { auth: { persistSession: false } },
   );
 
-  let assets:    Awaited<ReturnType<typeof getAssets>>    = [];
-  let allTags:   string[]                                  = [];
-  let loadError: LoadError | null                          = null;
+  let assets:     Awaited<ReturnType<typeof getAssets>>   = [];
+  let allTags:    string[]                                 = [];
+  let allFolders: string[]                                 = [];
+  let loadError:  LoadError | null                         = null;
 
   try {
-    [assets, allTags] = await Promise.all([
+    [assets, allTags, allFolders] = await Promise.all([
       getAssets(client, tenantId),
       getAssetTags(client, tenantId),
+      getAssetFolders(client, tenantId),
     ]);
   } catch (err) {
     rethrowNextInternal(err);
@@ -145,6 +147,7 @@ export default async function TenantAssetsPage({ params }: PageProps) {
           tenantId={tenantId}
           initialAssets={assets}
           allTags={allTags}
+          allFolders={allFolders}
         />
       )}
     </div>
