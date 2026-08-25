@@ -140,11 +140,19 @@ export async function recordVisitorProfile(args: {
       utmContent:      ctx.utmContent     ?? null,
       utmTerm:         ctx.utmTerm        ?? null,
       referrerDomain:  ctx.referrerDomain ?? null,
+      gclid:           ctx.gclid          ?? null,
+      fbclid:          ctx.fbclid         ?? null,
+      msclkid:         ctx.msclkid        ?? null,
+      ttclid:          ctx.ttclid         ?? null,
       firstChannel:    classifyChannel({
         utmSource:      ctx.utmSource,
         utmMedium:      ctx.utmMedium,
         utmCampaign:    ctx.utmCampaign,
         referrerDomain: ctx.referrerDomain,
+        gclid:          ctx.gclid,
+        fbclid:         ctx.fbclid,
+        msclkid:        ctx.msclkid,
+        ttclid:         ctx.ttclid,
       }),
     };
 

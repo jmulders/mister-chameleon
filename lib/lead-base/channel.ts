@@ -29,6 +29,8 @@ export interface AttributionSignals {
   referrerDomain?: string | null;
   gclid?:          string | null;
   fbclid?:         string | null;
+  msclkid?:        string | null;
+  ttclid?:         string | null;
 }
 
 const SEARCH_ENGINES = /(google|bing|yahoo|duckduckgo|ecosia|baidu|yandex|qwant|startpage)\./i;
@@ -41,8 +43,10 @@ export function classifyChannel(s: AttributionSignals): Channel {
   const referrer = (s.referrerDomain ?? "").toLowerCase().trim();
 
   // Ad click ids are the strongest paid signal.
-  if (s.gclid) return "paid_search";
-  if (s.fbclid) return "paid_social";
+  if (s.gclid)   return "paid_search";   // Google Ads
+  if (s.msclkid) return "paid_search";   // Microsoft Ads
+  if (s.fbclid)  return "paid_social";   // Meta / Facebook
+  if (s.ttclid)  return "paid_social";   // TikTok Ads
 
   // UTM medium is the canonical marketer-set signal.
   if (/(^|[_-])(cpc|ppc|paid|paidsearch|paid_search|sem)([_-]|$)/.test(medium)) return "paid_search";

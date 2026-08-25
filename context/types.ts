@@ -94,6 +94,18 @@ export interface VisitorContext {
   /** utm_term query parameter */
   utmTerm: string | null;
 
+  /** Google Ads click identifier (gclid query parameter) */
+  gclid: string | null;
+
+  /** Meta / Facebook click identifier (fbclid query parameter) */
+  fbclid: string | null;
+
+  /** Microsoft Ads click identifier (msclkid query parameter) */
+  msclkid: string | null;
+
+  /** TikTok click identifier (ttclid query parameter) */
+  ttclid: string | null;
+
   /** Raw User-Agent string, null if absent */
   userAgent: string | null;
 

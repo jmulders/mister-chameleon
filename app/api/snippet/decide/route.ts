@@ -185,6 +185,10 @@ interface DecideRequest {
     utm_source?:     string;
     utm_medium?:     string;
     utm_campaign?:   string;
+    gclid?:          string;
+    fbclid?:         string;
+    msclkid?:        string;
+    ttclid?:         string;
     sessionId?:      string;
     /**
      * Stable first-party visitor id minted and persisted by the snippet
@@ -494,6 +498,10 @@ export async function POST(request: NextRequest) {
         if (context.utm_source)   ruleUrl.searchParams.set("utm_source",   context.utm_source);
         if (context.utm_medium)   ruleUrl.searchParams.set("utm_medium",   context.utm_medium);
         if (context.utm_campaign) ruleUrl.searchParams.set("utm_campaign", context.utm_campaign);
+        if (context.gclid)   ruleUrl.searchParams.set("gclid",   context.gclid);
+        if (context.fbclid)  ruleUrl.searchParams.set("fbclid",  context.fbclid);
+        if (context.msclkid) ruleUrl.searchParams.set("msclkid", context.msclkid);
+        if (context.ttclid)  ruleUrl.searchParams.set("ttclid",  context.ttclid);
         const ruleRequest = new Request(ruleUrl.toString(), {
           headers: {
             "referer":                    context.referrer ?? "",
@@ -849,11 +857,16 @@ export async function POST(request: NextRequest) {
       },
     );
 
-    // Inject UTM params into the URL search params if present
+    // Inject UTM + ad click-id params into the URL search params if present, so
+    // detectVisitorContext captures them for first-touch attribution.
     const syntheticUrl = new URL(syntheticRequest.url);
     if (context.utm_source)   syntheticUrl.searchParams.set("utm_source",   context.utm_source);
     if (context.utm_medium)   syntheticUrl.searchParams.set("utm_medium",   context.utm_medium);
     if (context.utm_campaign) syntheticUrl.searchParams.set("utm_campaign", context.utm_campaign);
+    if (context.gclid)   syntheticUrl.searchParams.set("gclid",   context.gclid);
+    if (context.fbclid)  syntheticUrl.searchParams.set("fbclid",  context.fbclid);
+    if (context.msclkid) syntheticUrl.searchParams.set("msclkid", context.msclkid);
+    if (context.ttclid)  syntheticUrl.searchParams.set("ttclid",  context.ttclid);
 
     const decisionRequest = new Request(syntheticUrl.toString(), {
       headers: syntheticRequest.headers,

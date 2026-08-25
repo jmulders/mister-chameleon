@@ -272,6 +272,10 @@ export default async function RootLayout({
       utmCampaign,
       utmContent,
       utmTerm,
+      gclid:          null,
+      fbclid:         null,
+      msclkid:        null,
+      ttclid:         null,
       userAgent:      ua,
       resolvedAt:     Date.now(),
       // ── Time context (seasonal + time-of-day rules) ────────────────────────
