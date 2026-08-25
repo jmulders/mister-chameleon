@@ -16,7 +16,7 @@ import { gateProfileWrite, type ProfileCandidate } from "@/lib/lead-base/profile
 import type { ConsentState }    from "@/tracking/consent-types";
 
 function consent(parts: Partial<ConsentState> = {}): ConsentState {
-  return { hasResponded: true, analytics: false, personalization: false, enrichment: false, ...parts };
+  return { hasResponded: true, analytics: false, personalization: false, enrichment: false, advertising: false, ...parts };
 }
 
 // ── detectVisitorContext — click-id capture ───────────────────────────────────
