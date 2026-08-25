@@ -1450,5 +1450,85 @@ export const STATEMENT_PRESET_CARDS: readonly DesignPresetCard[] = [
         "ringColor": "#d81e40"
       }
     }
+  },
+  {
+    "id": "bed-head-bold",
+    "name": "Bed Head Bold",
+    "description": "Highlighter yellow, magenta-purple and hot pink. Loud, playful, salon-bold.",
+    "category": "Bold & Vivid",
+    "baseTheme": "custom",
+    "swatch": {
+      "primary": "#9B2583",
+      "background": "#F4C40F",
+      "foreground": "#16130B",
+      "accent": "#E4117C"
+    },
+    "tokenOverrides": {
+      "color": {
+        "primary": "#9B2583",
+        "primaryHover": "#7E1E6B",
+        "secondary": "#E4117C",
+        "accent": "#FBE38A",
+        "background": "#F4C40F",
+        "foreground": "#16130B",
+        "muted": "#FBD84A",
+        "mutedForeground": "#5B4A05",
+        "border": "#D9A800",
+        "card": "#FFFFFF",
+        "cardForeground": "#16130B",
+        "onPrimary": "#FFFFFF",
+        "link": "#9B2583",
+        "success": "#2E8B57",
+        "danger": "#C0245A",
+        "gradient": "linear-gradient(135deg, #9B2583 0%, #E4117C 120%)",
+        "gradientHero": "linear-gradient(180deg, #3F0D35 0%, #9B2583 55%, #E4117C 100%)"
+      },
+      "typography": {
+        "fontHeading": "'Space Grotesk', system-ui, sans-serif",
+        "fontBody": "'Inter', system-ui, sans-serif",
+        "headingWeight": "800",
+        "letterSpacing": "-.02em",
+        "headingLineHeight": "1.05",
+        "baseFontSize": "16px"
+      },
+      "radius": {
+        "interactive": "12px",
+        "card": "16px"
+      },
+      "shadow": {
+        "md": "0 14px 34px rgba(155,37,131,.24)"
+      },
+      "border": {
+        "width": "1px"
+      },
+      "spacing": {
+        "sectionPadding": "clamp(60px,9vw,140px)",
+        "container": "74rem",
+        "align": "center"
+      },
+      "component": {
+        "buttonPaddingX": "1.35rem",
+        "buttonPaddingY": ".72rem"
+      },
+      "motion": {
+        "hoverLift": "-4px"
+      },
+      "layout": {
+        "headerBg": "#16130B",
+        "headerFg": "#F4C40F",
+        "headerBorder": "#E4117C",
+        "footerBg": "#16130B",
+        "footerFg": "#FBE38A",
+        "footerBorder": "#9B2583",
+        "navLinkSize": "0.95rem",
+        "navLinkWeight": "700",
+        "navLinkTracking": "0",
+        "navTransform": "none"
+      },
+      "focus": {
+        "ringWidth": "3px",
+        "ringColor": "#9B2583"
+      }
+    }
   }
 ] as const;
