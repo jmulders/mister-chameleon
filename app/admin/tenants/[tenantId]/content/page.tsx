@@ -157,10 +157,21 @@ export default async function TenantContentPage({
   const tenant      = normalizeTenant(rawTenant);
   const isPlatformCms = (tenant.cms?.provider ?? "mock") === "platform";
 
-  // Fetch platform variants only when the Platform CMS is active.
-  const platformVariantsResult = isPlatformCms
+  // Fetch platform variants for the Platform CMS AND for external-CMS tenants
+  // (Storyblok / Statamic / Sanity): platform_cms_content resolves platform-first
+  // (cms/providers/platform-first-variants.ts), so any seeded/platform-first rows
+  // are what actually renders and must stay editable + deletable here. Skip only
+  // the mock provider, which has no platform store.
+  const cmsProviderName = tenant.cms?.provider ?? "mock";
+  const platformVariantsResult = cmsProviderName !== "mock"
     ? await listPlatformVariantsAction(tenantId)
     : null;
+
+  // External-CMS tenants only get the editor once platform rows actually exist;
+  // the Platform CMS always shows it (so an empty tenant can seed from here).
+  const hasPlatformContent =
+    platformVariantsResult?.ok === true && platformVariantsResult.variants.length > 0;
+  const showPlatformVariants = isPlatformCms || hasPlatformContent;
 
   // Capture write token presence BEFORE stripping secrets.
   const hasCmsWriteToken = Boolean(rawTenant.cms?.writeToken);
@@ -436,8 +447,17 @@ export default async function TenantContentPage({
       </div>
 
       {/* ── Platform CMS variant editor ─────────────────────────────────── */}
-      {isPlatformCms && (
+      {/* Shown for the Platform CMS, and for external-CMS tenants once platform
+          content rows exist — that content wins platform-first, so it is edited
+          and removed here. */}
+      {showPlatformVariants && (
         <div className="rounded-lg border border-neutral-200 bg-white p-5">
+          {!isPlatformCms && (
+            <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+              This tenant uses {PROVIDER_LABEL[cmsProvider]}, but these platform Content entries
+              resolve first for the snippet (platform-first). Edit or remove them here.
+            </p>
+          )}
           <PlatformVariantsClient
             tenantId={tenantId}
             initialVariants={
