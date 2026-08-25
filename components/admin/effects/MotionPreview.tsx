@@ -58,27 +58,33 @@ export function MotionPreview({
 
   // Re-play whenever the effect changes or the Replay signal bumps.
   //
-  // The reveal is driven imperatively on the node: remove mc-fx-in, force a
-  // reflow so the browser records the hidden state as the transition's starting
-  // point, then add mc-fx-in so the entrance transition runs. This is the canonical
-  // "restart a CSS transition" technique, and — unlike requestAnimationFrame — it
-  // does not depend on the element visibly animating: rAF is paused for the
-  // drawer's scaled-down preview column (and for a backgrounded tab), so the old
-  // rAF-based reveal could never fire and "Replay motion" looked inert.
+  // The entrance effects are CSS *transitions* (opacity / transform / filter /
+  // clip-path), not @keyframes animations. Restarting a transition is NOT the same
+  // as restarting an animation: simply removing mc-fx-in does not snap the element
+  // to the hidden state — it starts a 600ms transition TOWARD hidden, which the
+  // immediate re-add retargets back to shown, so the value never leaves the revealed
+  // state and nothing replays (this is why the earlier reflow-only fix looked inert
+  // in the real drawer). The double-rAF fix before that was correct for transitions
+  // but rAF is paused for the drawer's scaled-down preview column, so it never ran.
   //
-  // The rendered className never carries mc-fx-in, so React reconciliation leaves
-  // the imperatively-added class alone; whenever the className prop DOES change
-  // (a new effect => new attrs), this effect re-runs and re-adds it.
+  // Correct restart: disable the transition so the hidden state commits INSTANTLY,
+  // force a reflow to lock it in, then re-enable the transition and reveal so it
+  // animates hidden -> shown. All synchronous (no rAF), so it works regardless of
+  // rAF being paused. The rendered className never carries mc-fx-in, so React
+  // reconciliation leaves the imperatively-toggled class alone; when the className
+  // prop changes (a new effect => new attrs) this effect re-runs and re-reveals.
   useEffect(() => {
     ensureEffectRuntimeCss();
     const el = rootRef.current;
     if (!el) return;
-    el.classList.remove("mc-fx-in");
     if (!attrs) { el.classList.add("mc-fx-in"); return; } // no effect: nothing to hide
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     if (reduced) { el.classList.add("mc-fx-in"); return; } // end state, no auto-play
-    void el.offsetWidth;            // force a reflow so the hidden state is the transition's "before"
-    el.classList.add("mc-fx-in");   // reveal -> the entrance transition runs
+    el.style.transition = "none";   // disable so the hidden state applies instantly
+    el.classList.remove("mc-fx-in"); // snap to the hidden "before" state
+    void el.offsetWidth;             // commit it with no transition
+    el.style.transition = "";        // restore the CSS transition
+    el.classList.add("mc-fx-in");    // reveal -> the entrance transition runs
   }, [attrs, replaySignal]);
 
   const className = ["mc-fx-preview", attrs?.className].filter(Boolean).join(" ");
