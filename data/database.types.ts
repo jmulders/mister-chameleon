@@ -2293,6 +2293,7 @@ export type Database = {
           created_at: string
           file_name: string | null
           file_size: number | null
+          folder: string | null
           height: number | null
           id: string
           mime_type: string | null
@@ -2314,6 +2315,7 @@ export type Database = {
           created_at?: string
           file_name?: string | null
           file_size?: number | null
+          folder?: string | null
           height?: number | null
           id?: string
           mime_type?: string | null
@@ -2335,6 +2337,7 @@ export type Database = {
           created_at?: string
           file_name?: string | null
           file_size?: number | null
+          folder?: string | null
           height?: number | null
           id?: string
           mime_type?: string | null

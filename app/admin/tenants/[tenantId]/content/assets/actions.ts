@@ -140,6 +140,7 @@ export async function uploadAssetAction(
     const tags    = tagsRaw
       ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
       : [];
+    const folder  = (formData.get("folder")  as string | null)?.trim() || null;
 
     // ── Upload to storage ─────────────────────────────────────────────────────
     const client  = makeServiceClient();
@@ -167,6 +168,7 @@ export async function uploadAssetAction(
       title:         title ?? file.name,
       altText,
       tags,
+      folder,
       uploadedBy:    session.email ?? "admin",
       storageBackend,
       providerBucket,
@@ -270,6 +272,7 @@ export async function registerUploadedAssetAction(input: {
   title?:      string | null;
   altText?:    string | null;
   tags?:       string[];
+  folder?:     string | null;
 }): Promise<UploadAssetResult> {
   try {
     const session = await getRequiredAdminSession();
@@ -287,6 +290,7 @@ export async function registerUploadedAssetAction(input: {
       title:          input.title ?? input.fileName,
       altText:        input.altText ?? undefined,
       tags:           input.tags ?? [],
+      folder:         input.folder ?? null,
       uploadedBy:     session.email ?? "admin",
       storageBackend: "supabase_storage",
       providerBucket: ASSET_BUCKET,

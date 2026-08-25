@@ -52,6 +52,8 @@ export interface TenantAssetRow {
   title:            string | null;
   alt_text:         string | null;
   tags:             string[];
+  /** Virtual organization folder (org metadata only; storage stays flat). null = unfiled. */
+  folder:           string | null;
   uploaded_by:      string | null;
   created_at:       string;
   updated_at:       string;
@@ -82,6 +84,8 @@ export interface TenantAsset {
   title:          string | null;
   altText:        string | null;
   tags:           string[];
+  /** Virtual organization folder (org metadata only; storage stays flat). null = unfiled. */
+  folder:         string | null;
   uploadedBy:     string | null;
   createdAt:      string;
   updatedAt:      string;
@@ -99,6 +103,11 @@ export interface GetAssetsOptions {
   search?: string;
   /** Filter to assets that contain ALL of the specified tags. */
   tags?:   string[];
+  /**
+   * Filter by virtual folder. A string matches that folder exactly; `null`
+   * matches unfiled assets (folder IS NULL); omit for no folder filter.
+   */
+  folder?: string | null;
   /** Max results to return (default: 200). */
   limit?:  number;
   /** Offset for pagination (default: 0). */
@@ -123,6 +132,8 @@ export interface CreateAssetInput {
   title?:         string;
   altText?:       string;
   tags?:          string[];
+  /** Virtual organization folder to file the asset under on creation. */
+  folder?:        string | null;
   uploadedBy?:    string;
   /** Which storage provider holds the binary. Written by uploadToStorage(). */
   storageBackend?: string;
@@ -134,6 +145,8 @@ export interface UpdateAssetInput {
   title?:   string;
   altText?: string;
   tags?:    string[];
+  /** Move the asset to a folder (string) or unfile it (null). Omit to leave unchanged. */
+  folder?:  string | null;
 }
 
 // ── Mapper ──────────────────────────────────────────────────────────────────────
@@ -154,6 +167,7 @@ function rowToAsset(row: TenantAssetRow): TenantAsset {
     title:          row.title,
     altText:        row.alt_text,
     tags:           row.tags            ?? [],
+    folder:         row.folder          ?? null,
     uploadedBy:     row.uploaded_by,
     createdAt:      row.created_at,
     updatedAt:      row.updated_at,
@@ -174,7 +188,7 @@ export async function getAssets(
   tenantId: string,
   options:  GetAssetsOptions = {},
 ): Promise<TenantAsset[]> {
-  const { search, tags, limit = 200, offset = 0, assetType } = options;
+  const { search, tags, folder, limit = 200, offset = 0, assetType } = options;
 
   let query = client
     .from("tenant_assets")
@@ -190,6 +204,11 @@ export async function getAssets(
 
   if (tags && tags.length > 0) {
     query = query.contains("tags", tags);
+  }
+
+  // Folder filter: a name matches that folder; null matches unfiled assets.
+  if (folder !== undefined) {
+    query = folder === null ? query.is("folder", null) : query.eq("folder", folder);
   }
 
   if (assetType) {
@@ -251,6 +270,31 @@ export async function getAssetTags(
   return [...new Set(all)].sort();
 }
 
+/**
+ * Get all distinct virtual folders in use across a tenant's assets, sorted.
+ * Powers the folder browser/filter. Folders are derived from the `folder`
+ * column, so a folder exists exactly while at least one asset is filed under it.
+ */
+export async function getAssetFolders(
+  client:   SupabaseClient,
+  tenantId: string,
+): Promise<string[]> {
+  const { data, error } = await client
+    .from("tenant_assets")
+    .select("folder")
+    .eq("tenant_id", tenantId)
+    .not("folder", "is", null);
+
+  if (error) {
+    throw new Error(`getAssetFolders failed: ${error.message}`);
+  }
+
+  const all = (data as { folder: string | null }[])
+    .map((r) => r.folder)
+    .filter((f): f is string => typeof f === "string" && f.length > 0);
+  return [...new Set(all)].sort((a, b) => a.localeCompare(b));
+}
+
 // ── Mutations ───────────────────────────────────────────────────────────────────
 
 /**
@@ -276,6 +320,7 @@ export async function createAsset(
       title:           input.title           ?? null,
       alt_text:        input.altText         ?? null,
       tags:            input.tags            ?? [],
+      folder:          input.folder          ?? null,
       uploaded_by:     input.uploadedBy      ?? null,
       storage_backend: input.storageBackend  ?? null,
       provider_bucket: input.providerBucket  ?? null,
@@ -304,6 +349,7 @@ export async function updateAsset(
   if (input.title   !== undefined) patch["title"]    = input.title;
   if (input.altText !== undefined) patch["alt_text"] = input.altText;
   if (input.tags    !== undefined) patch["tags"]     = input.tags;
+  if (input.folder  !== undefined) patch["folder"]   = input.folder;
 
   const { data, error } = await client
     .from("tenant_assets")

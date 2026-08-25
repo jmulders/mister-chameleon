@@ -47,7 +47,11 @@ interface AssetLibraryClientProps {
   tenantId:      string;
   initialAssets: TenantAsset[];
   allTags:       string[];
+  allFolders:    string[];
 }
+
+/** Folder-filter sentinel for "assets not in any folder". */
+const UNFILED = "__unfiled__";
 
 // ── Component ───────────────────────────────────────────────────────────────────
 
@@ -55,12 +59,18 @@ export function AssetLibraryClient({
   tenantId,
   initialAssets,
   allTags: initialTags,
+  allFolders: initialFolders,
 }: AssetLibraryClientProps) {
   // ── State ────────────────────────────────────────────────────────────────────
   const [assets,       setAssets]       = useState<TenantAsset[]>(initialAssets);
   const [allTags,      setAllTags]      = useState<string[]>(initialTags);
+  // Folders known to the session: those in use on assets, plus any created here
+  // that don't have an asset yet. Virtual — a folder exists while it's referenced.
+  const [createdFolders, setCreatedFolders] = useState<string[]>(initialFolders);
   const [search,       setSearch]       = useState("");
   const [tagFilter,    setTagFilter]    = useState<string | null>(null);
+  const [folderFilter, setFolderFilter] = useState<string | null>(null); // null = All
+  const [newFolder,    setNewFolder]    = useState("");
   const [uploading,    setUploading]    = useState(false);
   const [uploadError,  setUploadError]  = useState<string | null>(null);
   const [editingId,    setEditingId]    = useState<string | null>(null);
@@ -70,6 +80,16 @@ export function AssetLibraryClient({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [,  startTransition] = useTransition();
+
+  // All folders to offer: those referenced by assets plus any created this
+  // session, sorted and de-duplicated.
+  const folderOptions = useMemo(() => {
+    const fromAssets = assets.map((a) => a.folder).filter((f): f is string => !!f);
+    return [...new Set([...createdFolders, ...fromAssets])].sort((a, b) => a.localeCompare(b));
+  }, [assets, createdFolders]);
+
+  // Count of unfiled assets, for the "Unfiled" filter option.
+  const unfiledCount = useMemo(() => assets.filter((a) => !a.folder).length, [assets]);
 
   // ── Filtered assets (client-side) ────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -89,8 +109,24 @@ export function AssetLibraryClient({
       result = result.filter((a) => a.tags.includes(tagFilter));
     }
 
+    if (folderFilter === UNFILED) {
+      result = result.filter((a) => !a.folder);
+    } else if (folderFilter) {
+      result = result.filter((a) => a.folder === folderFilter);
+    }
+
     return result;
-  }, [assets, search, tagFilter]);
+  }, [assets, search, tagFilter, folderFilter]);
+
+  // ── Folders ───────────────────────────────────────────────────────────────────
+
+  const handleCreateFolder = useCallback(() => {
+    const name = newFolder.trim();
+    if (!name) return;
+    setCreatedFolders((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    setFolderFilter(name);   // browse the new folder so uploads/moves land here
+    setNewFolder("");
+  }, [newFolder]);
 
   // ── Upload ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +138,11 @@ export function AssetLibraryClient({
       setUploading(true);
       setUploadError(null);
 
+      // When browsing a specific folder, new uploads are filed into it so
+      // "place into folder" is a natural part of uploading. "All"/"Unfiled"
+      // leave the asset unfiled.
+      const uploadFolder = folderFilter && folderFilter !== UNFILED ? folderFilter : null;
+
       // Upload files sequentially to avoid overwhelming the server.
       // Large files / video bypass the ~4.5 MB Server-Action cap by uploading
       // straight to storage via a signed URL; small images use the plain action.
@@ -110,13 +151,14 @@ export function AssetLibraryClient({
         try {
           const useDirect = file.size >= DIRECT_UPLOAD_THRESHOLD || file.type.startsWith("video/");
           if (useDirect) {
-            const result = await directUploadAsset({ tenantId, file, title });
+            const result = await directUploadAsset({ tenantId, file, title, folder: uploadFolder });
             if (!result.success) setUploadError(result.error ?? "Upload failed");
           } else {
             const fd = new FormData();
             fd.append("file",     file);
             fd.append("tenantId", tenantId);
             fd.append("title",    title);
+            if (uploadFolder) fd.append("folder", uploadFolder);
             const result = await uploadAssetAction(fd);
             if (!result.success) setUploadError(result.error ?? "Upload failed");
           }
@@ -137,7 +179,7 @@ export function AssetLibraryClient({
 
       setUploading(false);
     },
-    [tenantId],
+    [tenantId, folderFilter],
   );
 
   // ── Copy URL ──────────────────────────────────────────────────────────────────
@@ -173,14 +215,14 @@ export function AssetLibraryClient({
   const handleUpdateMeta = useCallback(
     async (
       assetId: string,
-      input: { title: string; altText: string; tags: string[] },
+      input: { title: string; altText: string; tags: string[]; folder: string | null },
     ) => {
       const result = await updateAssetMetaAction(tenantId, assetId, input);
       if (result.success) {
         setAssets((prev) =>
           prev.map((a) =>
             a.id === assetId
-              ? { ...a, title: input.title, altText: input.altText, tags: input.tags }
+              ? { ...a, title: input.title, altText: input.altText, tags: input.tags, folder: input.folder }
               : a,
           ),
         );
@@ -190,6 +232,11 @@ export function AssetLibraryClient({
         );
         const allNew = [...new Set(updated.flatMap((a) => a.tags))].sort();
         setAllTags(allNew);
+        // Remember a newly-typed folder so it stays selectable even if it is the
+        // only asset and later moved out.
+        if (input.folder) {
+          setCreatedFolders((prev) => (prev.includes(input.folder!) ? prev : [...prev, input.folder!]));
+        }
         setEditingId(null);
       } else {
         alert(`Update failed: ${result.error}`);
@@ -271,6 +318,47 @@ export function AssetLibraryClient({
           </select>
         )}
 
+        {/* Folder filter */}
+        <select
+          value={folderFilter ?? ""}
+          onChange={(e) => setFolderFilter(e.target.value || null)}
+          title="Filter by folder"
+          className={cn(
+            "rounded-lg border border-neutral-200 bg-white py-2 px-3 text-sm",
+            "focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400",
+          )}
+        >
+          <option value="">All folders</option>
+          <option value={UNFILED}>Unfiled ({unfiledCount})</option>
+          {folderOptions.map((f) => (
+            <option key={f} value={f}>{f}</option>
+          ))}
+        </select>
+
+        {/* New folder */}
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            value={newFolder}
+            onChange={(e) => setNewFolder(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateFolder(); } }}
+            placeholder="New folder…"
+            className={cn(
+              "w-32 rounded-lg border border-neutral-200 bg-white py-2 px-3 text-sm placeholder:text-neutral-400",
+              "focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400",
+            )}
+          />
+          <button
+            type="button"
+            onClick={handleCreateFolder}
+            disabled={!newFolder.trim()}
+            className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40"
+            title="Create folder and browse it"
+          >
+            Create
+          </button>
+        </div>
+
         {/* View mode toggle */}
         <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
           <button
@@ -350,6 +438,7 @@ export function AssetLibraryClient({
                 key={asset.id}
                 asset={asset}
                 allTags={allTags}
+                folders={folderOptions}
                 onSave={(input) => handleUpdateMeta(asset.id, input)}
                 onCancel={() => setEditingId(null)}
               />
@@ -404,6 +493,7 @@ export function AssetLibraryClient({
                   }}
                   onSaveMeta={(input) => handleUpdateMeta(asset.id, input)}
                   onCancelEdit={() => setEditingId(null)}
+                  folders={folderOptions}
                 />
               ))}
             </tbody>
@@ -509,7 +599,14 @@ function AssetCard({
         <p className="truncate text-xs font-medium text-neutral-900" title={asset.title ?? asset.fileName}>
           {asset.title ?? asset.fileName}
         </p>
-        <p className="text-[11px] text-neutral-400">{formatFileSize(asset.fileSize)}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-[11px] text-neutral-400">{formatFileSize(asset.fileSize)}</p>
+          {asset.folder && (
+            <span className="inline-flex items-center rounded bg-neutral-100 px-1 py-0.5 text-[10px] font-medium text-neutral-500" title={`Folder: ${asset.folder}`}>
+              {asset.folder}
+            </span>
+          )}
+        </div>
 
         {/* Tags */}
         {asset.tags.length > 0 && (
@@ -537,23 +634,26 @@ function AssetCard({
 function EditCard({
   asset,
   allTags,
+  folders,
   onSave,
   onCancel,
 }: {
   asset:   TenantAsset;
   allTags: string[];
-  onSave:  (input: { title: string; altText: string; tags: string[] }) => void;
+  folders: string[];
+  onSave:  (input: { title: string; altText: string; tags: string[]; folder: string | null }) => void;
   onCancel: () => void;
 }) {
   const [title,   setTitle]   = useState(asset.title   ?? "");
   const [altText, setAltText] = useState(asset.altText ?? "");
   const [tagsStr, setTagsStr] = useState(asset.tags.join(", "));
+  const [folder,  setFolder]  = useState(asset.folder ?? "");
   const [saving,  setSaving]  = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
-    await onSave({ title, altText, tags });
+    await onSave({ title, altText, tags, folder: folder.trim() || null });
     setSaving(false);
   };
 
@@ -584,7 +684,7 @@ function EditCard({
         />
       </label>
 
-      <label className="block mb-3">
+      <label className="block mb-1.5">
         <span className="text-[11px] font-medium text-neutral-600">Tags (comma-separated)</span>
         <input
           type="text"
@@ -593,6 +693,21 @@ function EditCard({
           className="mt-0.5 w-full rounded border border-neutral-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400"
           placeholder="hero, logo, team"
         />
+      </label>
+
+      <label className="block mb-3">
+        <span className="text-[11px] font-medium text-neutral-600">Folder</span>
+        <input
+          type="text"
+          list={`folders-${asset.id}`}
+          value={folder}
+          onChange={(e) => setFolder(e.target.value)}
+          className="mt-0.5 w-full rounded border border-neutral-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400"
+          placeholder="Unfiled — type or pick a folder"
+        />
+        <datalist id={`folders-${asset.id}`}>
+          {folders.map((f) => <option key={f} value={f} />)}
+        </datalist>
       </label>
 
       <div className="flex gap-2">
@@ -629,6 +744,7 @@ function AssetRow({
   onDelete,
   onSaveMeta,
   onCancelEdit,
+  folders,
 }: {
   asset:        TenantAsset;
   allTags:      string[];
@@ -638,8 +754,9 @@ function AssetRow({
   onCopy:       () => void;
   onEdit:       () => void;
   onDelete:     () => void;
-  onSaveMeta:   (input: { title: string; altText: string; tags: string[] }) => void;
+  onSaveMeta:   (input: { title: string; altText: string; tags: string[]; folder: string | null }) => void;
   onCancelEdit: () => void;
+  folders:      string[];
 }) {
   const isSvg   = asset.mimeType === "image/svg+xml";
   const isVideo = asset.assetType === "video" || asset.mimeType?.startsWith("video/") === true;
@@ -654,12 +771,13 @@ function AssetRow({
   const [title,   setTitle]   = useState(asset.title   ?? "");
   const [altText, setAltText] = useState(asset.altText ?? "");
   const [tagsStr, setTagsStr] = useState(asset.tags.join(", "));
+  const [folder,  setFolder]  = useState(asset.folder ?? "");
   const [saving,  setSaving]  = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
-    await onSaveMeta({ title, altText, tags });
+    await onSaveMeta({ title, altText, tags, folder: folder.trim() || null });
     setSaving(false);
   };
 
@@ -698,6 +816,17 @@ function AssetRow({
             placeholder="tag1, tag2"
             className="w-full rounded border border-neutral-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400"
           />
+          <input
+            type="text"
+            list={`folders-row-${asset.id}`}
+            value={folder}
+            onChange={(e) => setFolder(e.target.value)}
+            placeholder="Folder (unfiled)"
+            className="mt-1 w-full rounded border border-neutral-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400"
+          />
+          <datalist id={`folders-row-${asset.id}`}>
+            {folders.map((f) => <option key={f} value={f} />)}
+          </datalist>
         </td>
         <td className="px-4 py-3 text-right">
           <div className="flex justify-end gap-2">
