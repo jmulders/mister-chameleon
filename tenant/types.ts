@@ -1255,6 +1255,14 @@ export interface TenantPrivacySettings {
   readonly allowEnrichment?: boolean;
 
   /**
+   * Tenant ceiling for advertising / marketing consent — forwarding ad click
+   * identifiers (gclid/fbclid) to third-party conversion APIs (Google/Meta).
+   * When false, no ad id is ever sent to a CAPI regardless of user consent.
+   * Default: true.
+   */
+  readonly allowAdvertising?: boolean;
+
+  /**
    * Optional override for the consent banner title text.
    * Falls back to the platform default when absent.
    */

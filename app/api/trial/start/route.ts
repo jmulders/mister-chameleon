@@ -364,12 +364,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   //   Resolve the active (site) tenant and report against it. Fail-open.
   try {
     const siteTenant = await getActiveTenant();
-    const { sessionId } = resolveSession((await headers()).get("cookie"));
+    const cookieHeader = (await headers()).get("cookie");
+    const { sessionId } = resolveSession(cookieHeader);
     await reportInboundConversion({
       tenantId:   siteTenant.tenantId,
       sessionId,
       targetPath: "/",
       eventName:  "Trial",
+      cookieHeader,
       values:     { name, email, company },
     });
   } catch {

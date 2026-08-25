@@ -50,12 +50,19 @@ export interface ConsentCookiePayload {
   p: boolean;
   /** enrichment consent. */
   e: boolean;
+  /**
+   * advertising / marketing consent. Optional for backward compatibility: a
+   * v1 cookie written before this category existed simply omits it, and it
+   * parses as denied (privacy-first). Never bumped the schema version so old
+   * cookies keep the visitor's other choices instead of being reset.
+   */
+  ad?: boolean;
 }
 
 // ── Consent categories ────────────────────────────────────────────────────────
 
 /** The gatable consent categories used throughout the platform. */
-export type ConsentCategory = "analytics" | "personalization" | "enrichment";
+export type ConsentCategory = "analytics" | "personalization" | "enrichment" | "advertising";
 
 /**
  * Normalized consent state used internally by the consent engine.
@@ -72,6 +79,13 @@ export interface ConsentState {
   personalization: boolean;
   /** enrichment consent (IP-to-company, Leadinfo, CRM). */
   enrichment: boolean;
+  /**
+   * advertising / marketing consent: sharing data with third-party ad platforms
+   * for measurement and audiences — specifically forwarding ad click identifiers
+   * (gclid/fbclid) to Google/Meta conversion APIs. A distinct purpose from
+   * first-party analytics, so it has its own basis and is denied by default.
+   */
+  advertising: boolean;
 }
 
 /** The cookie name. Not httpOnly — readable by both client and server. */
@@ -89,6 +103,7 @@ export const DEFAULT_CONSENT: ConsentState = {
   analytics:       false,
   personalization: false,
   enrichment:      false,
+  advertising:     false,
 };
 
 /**
@@ -100,6 +115,7 @@ export const FULL_CONSENT: ConsentState = {
   analytics:       true,
   personalization: true,
   enrichment:      true,
+  advertising:     true,
 };
 
 /**
@@ -111,6 +127,7 @@ export const ESSENTIAL_CONSENT: ConsentState = {
   analytics:       false,
   personalization: false,
   enrichment:      false,
+  advertising:     false,
 };
 
 // ── Serialization helpers ─────────────────────────────────────────────────────
@@ -122,6 +139,7 @@ export function serializeConsentState(state: ConsentState): string {
     a: state.analytics,
     p: state.personalization,
     e: state.enrichment,
+    ad: state.advertising,
   };
   return JSON.stringify(payload);
 }
@@ -143,6 +161,7 @@ export function parseConsentCookieValue(raw: string | null | undefined): Consent
       analytics:       parsed.a === true,
       personalization: parsed.p === true,
       enrichment:      parsed.e === true,
+      advertising:     parsed.ad === true,
     };
   } catch {
     return DEFAULT_CONSENT;

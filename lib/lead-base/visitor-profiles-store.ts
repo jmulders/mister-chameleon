@@ -266,6 +266,44 @@ export async function markProfileConverted(tenantId: string, visitorKey: string)
   }
 }
 
+/**
+ * Read the first-touch ad click identifiers stored on a visitor's profile.
+ *
+ * Used to enrich a conversion report (enhanced conversions / CAPI) with the
+ * gclid/fbclid captured on the landing page, so ad platforms can match the
+ * conversion back to the click. The CALLER must have already verified
+ * advertising/marketing consent before invoking this — the store only reads.
+ * Returns nulls when there is no profile, no session id, or no stored click id.
+ * Fail-open.
+ */
+export async function getProfileClickIds(
+  tenantId:   string,
+  visitorKey: string,
+): Promise<{ gclid: string | null; fbclid: string | null }> {
+  const empty = { gclid: null, fbclid: null };
+  if (!visitorKey) return empty;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data } = await db
+      .from("visitor_profiles")
+      .select("gclid, fbclid")
+      .eq("tenant_id", tenantId)
+      .eq("visitor_key", visitorKey)
+      .maybeSingle();
+    if (!data) return empty;
+    return {
+      gclid:  (data.gclid  as string | null) ?? null,
+      fbclid: (data.fbclid as string | null) ?? null,
+    };
+  } catch (err) {
+    logger.warn("[lead-base] getProfileClickIds failed", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return empty;
+  }
+}
+
 export interface SegmentPerformance { segmentId: string; total: number; converted: number }
 export interface GroupStat { total: number; converted: number }
 export interface PersonalizationPerformance {

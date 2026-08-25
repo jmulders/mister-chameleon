@@ -17,7 +17,7 @@ const NOW = Date.parse("2026-06-30T12:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
 
 function consent(parts: Partial<ConsentState> = {}): ConsentState {
-  return { hasResponded: true, analytics: false, personalization: false, enrichment: false, ...parts };
+  return { hasResponded: true, analytics: false, personalization: false, enrichment: false, advertising: false, ...parts };
 }
 
 // ── leadScore ───────────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ import {
 } from "@/tracking/cookie-registry";
 import { consentTexts } from "@/tracking/consent-i18n";
 
-interface Prefs { analytics: boolean; personalization: boolean; enrichment: boolean }
+interface Prefs { analytics: boolean; personalization: boolean; enrichment: boolean; advertising: boolean }
 
 // Server + first-hydration snapshot: all categories denied. Matches the SSR HTML;
 // the real cookie is read straight after hydration by useSyncExternalStore.
@@ -47,6 +47,7 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
     analytics:       stored.analytics,
     personalization: stored.personalization,
     enrichment:      stored.enrichment,
+    advertising:     stored.advertising,
   };
 
   const value = (cat: CookieCategory): boolean =>
@@ -68,11 +69,11 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => save({ analytics: true, personalization: true, enrichment: true })}
+        <button onClick={() => save({ analytics: true, personalization: true, enrichment: true, advertising: true })}
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">
           {t.declaration.acceptAll}
         </button>
-        <button onClick={() => save({ analytics: false, personalization: false, enrichment: false })}
+        <button onClick={() => save({ analytics: false, personalization: false, enrichment: false, advertising: false })}
           className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50">
           {t.declaration.rejectNonEssential}
         </button>
