@@ -78,6 +78,7 @@ import {
 import type { ThemePresetKey } from "@/design-system/theme/presets";
 import { getDesignPreset } from "@/tenant/design-presets-gallery";
 import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
+import { PAYLOAD_FIELD_KEYS } from "@/lib/webhooks/payload-fields";
 import type { HomepageRule } from "./homepage-rules";
 import {
   FIELD_REGISTRY,
@@ -552,6 +553,13 @@ export interface RuleWebhook {
    * receiver can verify authenticity. Stored as operator admin config.
    */
   secret?: string;
+  /**
+   * Optional list of extra payload fields to include (keys from
+   * lib/webhooks/payload-fields PAYLOAD_FIELD_CATALOG). Each is added to the
+   * webhook body only when the visitor's consent permits it; the anonymous base
+   * payload is always sent. See docs/design/webhook-payload-consent.md.
+   */
+  payloadFields?: string[];
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────
@@ -1072,6 +1080,11 @@ function validatePlan(
       }
       if (wh.secret !== undefined && (typeof wh.secret !== "string" || wh.secret.trim() === "")) {
         errors.push({ ruleId, field: `${idx}.plan.webhook.secret`, message: "webhook.secret, when set, must be a non-empty string." });
+      }
+      if (wh.payloadFields !== undefined) {
+        if (!Array.isArray(wh.payloadFields) || wh.payloadFields.some((k) => typeof k !== "string" || !PAYLOAD_FIELD_KEYS.has(k))) {
+          errors.push({ ruleId, field: `${idx}.plan.webhook.payloadFields`, message: "payloadFields must be an array of known payload-field keys." });
+        }
       }
     }
   }

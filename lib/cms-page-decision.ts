@@ -347,7 +347,7 @@ export async function resolveSlugPageConfig(
     const forceDefaultForBot = isControl || isBotUserAgent(request.headers.get("user-agent"));
 
     const baseDecisionProvider = new ExperimentDecisionProvider(
-      new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantId, sessionId),
+      new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantId, sessionId, consent),
       sessionId,
       experimentsEnabled,
       tenantId,

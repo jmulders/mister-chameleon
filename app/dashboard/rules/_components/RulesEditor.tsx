@@ -45,6 +45,7 @@
 
 import { useState, useCallback, useId, useRef, useEffect, createContext, useContext } from "react";
 import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
+import { PAYLOAD_FIELD_CATALOG } from "@/lib/webhooks/payload-fields";
 import {
   saveRulesAction,
   resetRulesAction,
@@ -1581,7 +1582,8 @@ function RuleCard({
                   value={rule.plan.webhook?.url ?? ""}
                   onChange={(e) => {
                     const url = e.target.value.trim();
-                    onChange({ plan: { ...rule.plan, webhook: url ? { url } : undefined } });
+                    // Preserve secret / payloadFields when the URL changes.
+                    onChange({ plan: { ...rule.plan, webhook: url ? { ...rule.plan.webhook, url } : undefined } });
                   }}
                   placeholder="https://hooks.example.com/mc/rule-matched"
                   className={inputCls}
@@ -1590,6 +1592,35 @@ function RuleCard({
                   <span className="mt-1 block text-xs font-medium text-amber-600">
                     Must be an absolute https URL to a public host (no localhost / private IPs).
                   </span>
+                )}
+                {rule.plan.webhook?.url && (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-neutral-600">Payload fields</p>
+                    <p className="text-[11px] text-neutral-400">Added to the payload when the visitor&apos;s consent permits (firmographic = enrichment, scoring = personalization, person = personalization + enrichment).</p>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                      {PAYLOAD_FIELD_CATALOG.map((f) => {
+                        const selected = rule.plan.webhook?.payloadFields ?? [];
+                        const on = selected.includes(f.key);
+                        return (
+                          <label key={f.key} className="inline-flex items-center gap-1 text-xs text-neutral-700">
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={(e) => {
+                                const next = e.target.checked ? [...selected, f.key] : selected.filter((k) => k !== f.key);
+                                onChange({ plan: { ...rule.plan, webhook: { ...rule.plan.webhook, url: rule.plan.webhook!.url, payloadFields: next.length ? next : undefined } } });
+                              }}
+                              className="rounded border-neutral-300 text-brand-600 focus:ring-brand-500"
+                            />
+                            <span title={f.gate ? `consent-gated: ${f.gate}` : undefined}>
+                              {f.label}{f.gate && <span className="text-amber-600">*</span>}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1 text-[11px] text-neutral-400"><span className="text-amber-600">*</span> consent-gated</p>
+                  </div>
                 )}
               </Field>
             </>)}

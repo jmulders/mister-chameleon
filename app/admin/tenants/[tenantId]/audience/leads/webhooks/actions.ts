@@ -39,6 +39,8 @@ export interface RuleWebhookRow {
   webhookOnly:      boolean;
   /** Whether a signing secret is configured (never returns the secret itself). */
   hasSecret:        boolean;
+  /** Selected extra payload fields (consent-gated at fire time). */
+  payloadFields:    string[];
   conditionSummary: string;
   /** Raw condition tree, for editing a webhook-only rule in place. */
   condition:        RuleCondition;
@@ -71,6 +73,7 @@ export async function listOutboundWebhooksAction(tenantId: string): Promise<Outb
         url:              whUrl,
         webhookOnly:      r.webhookOnly === true,
         hasSecret:        !!r.plan?.webhook?.secret,
+        payloadFields:    r.plan?.webhook?.payloadFields ?? [],
         conditionSummary: summarizeCondition(r.condition),
         condition:        r.condition,
       });
@@ -89,6 +92,7 @@ export interface WebhookRuleInput {
   secret?:   string | null;
   condition: RuleCondition;
   enabled?:  boolean;
+  payloadFields?: string[];
 }
 
 /** Lowest unused priority at/above 900 — keeps webhook rules clear of variant rules. */
@@ -125,9 +129,10 @@ export async function saveWebhookRuleAction(
   }
 
   const secret = input.secret?.trim() || undefined;
+  const payloadFields = input.payloadFields?.length ? input.payloadFields : undefined;
   // Webhook-only plans carry no variant keys — validation allows that. The cast
   // is the localized exception to StoredPlan's required variant keys.
-  const plan = { webhook: { url, ...(secret ? { secret } : {}) } } as unknown as StoredPlan;
+  const plan = { webhook: { url, ...(secret ? { secret } : {}), ...(payloadFields ? { payloadFields } : {}) } } as unknown as StoredPlan;
 
   const rule: StoredRule = {
     id:          input.ruleId ?? `wh_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,

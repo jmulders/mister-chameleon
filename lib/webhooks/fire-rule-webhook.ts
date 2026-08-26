@@ -24,6 +24,12 @@ export interface RuleWebhookEvent {
   plan: Record<string, unknown>;
   /** A curated, non-PII slice of the decision context (source, device, path, …). */
   context?: Record<string, unknown>;
+  /**
+   * Operator-selected, consent-permitted lead-base fields (firmographic /
+   * scoring / person). Only present when the rule opted in AND consent allowed
+   * them; see lib/webhooks/payload-fields.
+   */
+  fields?: Record<string, unknown>;
 }
 
 /**
