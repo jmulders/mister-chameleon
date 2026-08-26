@@ -1645,6 +1645,19 @@ function RuleCard({
                   </label>
                 )}
                 {rule.plan.webhook?.url && (
+                  <label className="mt-2 flex items-start gap-2 text-xs text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={rule.plan.webhook?.fireOncePerSession === true}
+                      onChange={(e) => onChange({ plan: { ...rule.plan, webhook: { ...rule.plan.webhook, url: rule.plan.webhook!.url, fireOncePerSession: e.target.checked ? true : undefined } } })}
+                      className="mt-0.5 rounded border-neutral-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span>
+                      <span className="font-medium">Fire once per session</span> — deliver this webhook at most once per visitor session instead of on every pageview.
+                    </span>
+                  </label>
+                )}
+                {rule.plan.webhook?.url && (
                   <div className="mt-2">
                     <p className="text-xs font-medium text-neutral-600">Payload fields</p>
                     <p className="text-[11px] text-neutral-400">Added to the payload when the visitor&apos;s consent permits (firmographic = enrichment, scoring = personalization, person = personalization + enrichment).</p>
