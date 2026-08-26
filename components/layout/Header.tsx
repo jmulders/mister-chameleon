@@ -60,7 +60,7 @@ import { getSiteNavigation }  from "@/site/navigation-store";
 import { Container } from "@/components/primitives";
 import { NavBar, UtilityBar } from "./NavBar";
 import { HeaderShell } from "./HeaderShell";
-import { chromeIsDark } from "./chrome-bg";
+import { resolvedChromeIsDark, type ResolvedChrome } from "./chrome-bg";
 import { CartIconButton } from "./CartIconButton";
 import { SearchBar } from "./SearchBar";
 import { SectionTabs } from "./SectionTabs";
@@ -85,9 +85,14 @@ export interface HeaderProps {
    * Defaults to "header_default" when absent or unrecognised.
    */
   variant?: string;
+  /**
+   * The resolved per-request theme (from the shared theme decision), so the logo
+   * light/dark choice follows the painted chrome. Absent → falls back to base.
+   */
+  resolvedChrome?: ResolvedChrome | null;
 }
 
-export async function Header({ variant: rawVariant }: HeaderProps = {}) {
+export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProps = {}) {
   // `layout` starts from the explicit `variant` prop (if any) but may be
   // overridden by the CMS layout_settings global (Layer 1.5) or the tenant DB
   // design setting (Layer 2) further below.  Declared as `let` so those layers
@@ -287,7 +292,7 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   // logo. Falls back to the default logo when no dark variant exists.
   const brandLogo       = tenantSettings?.branding?.logo     ?? settings?.logo     ?? null;
   const brandLogoDark   = tenantSettings?.branding?.logoDark ?? settings?.logoDark ?? null;
-  const useDarkLogo     = chromeIsDark(tenantSettings, "header") && Boolean(brandLogoDark?.url);
+  const useDarkLogo     = resolvedChromeIsDark(tenantSettings, "header", resolvedChrome) && Boolean(brandLogoDark?.url);
   const logoUrl         = (useDarkLogo ? brandLogoDark?.url : brandLogo?.url) ?? "/logo.svg";
   const logoAlt         = (useDarkLogo ? brandLogoDark?.alt : brandLogo?.alt) ?? siteTitle;
   // Scenario CTA takes precedence over the CMS default when a demo scenario is active.

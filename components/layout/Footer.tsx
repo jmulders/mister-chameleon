@@ -32,13 +32,13 @@ import {
   FEATURED_FAMILY_CONFIGS,
   isFeaturedFamilyKey,
 } from "@/design-system/theme/theme-families.config";
-import { chromeIsDark }      from "./chrome-bg";
+import { resolvedChromeIsDark, type ResolvedChrome } from "./chrome-bg";
 import { FooterCorporate }   from "./footer/FooterCorporate";
 import { FooterBranding }    from "./footer/FooterBranding";
 import { FooterMinimal }     from "./footer/FooterMinimal";
 import { FooterBottomStrip } from "./footer/FooterBottomStrip";
 
-export async function Footer() {
+export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChrome | null } = {}) {
   const activeTenant = await getActiveTenant();
   // (cached resilient tenant lookup — see Header.tsx / tenant-store.ts)
 
@@ -56,7 +56,7 @@ export async function Footer() {
   // that return no logoDark from getSiteSettings().
   const brandLogo     = tenantSettings?.branding?.logo     ?? settings?.logo     ?? null;
   const brandLogoDark = tenantSettings?.branding?.logoDark ?? settings?.logoDark ?? null;
-  const useDarkLogo  = chromeIsDark(tenantSettings, "footer") && Boolean(brandLogoDark?.url);
+  const useDarkLogo  = resolvedChromeIsDark(tenantSettings, "footer", resolvedChrome) && Boolean(brandLogoDark?.url);
   const logoUrl      = (useDarkLogo ? brandLogoDark?.url : brandLogo?.url) ?? null;
   const logoAlt      = (useDarkLogo ? brandLogoDark?.alt : brandLogo?.alt) ?? siteTitle;
   const footerNav    = settings?.footerNavigation ?? [];
