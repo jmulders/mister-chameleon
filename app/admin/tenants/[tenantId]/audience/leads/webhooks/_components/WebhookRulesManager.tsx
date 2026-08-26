@@ -21,6 +21,7 @@ import Link from "next/link";
 import type { RuleCondition } from "@/decision/rules/stored-rule";
 import type { ConditionFieldOption } from "@/lib/webhooks/condition-field-options";
 import { saveWebhookRuleAction, deleteWebhookRuleAction, type RuleWebhookRow } from "../actions";
+import { PAYLOAD_FIELD_CATALOG } from "@/lib/webhooks/payload-fields";
 
 const NO_VALUE_OPS = new Set(["exists", "not_exists"]);
 const ARRAY_OPS    = new Set(["in", "not_in"]);
@@ -79,11 +80,18 @@ function rowsToCondition(logic: "and" | "or", rows: Row[], fieldKind: (field: st
 
 // ── Form ────────────────────────────────────────────────────────────────────────
 
-interface FormState { ruleId?: string; label: string; url: string; secret: string; logic: "and" | "or"; rows: Row[] }
+interface FormState { ruleId?: string; label: string; url: string; secret: string; logic: "and" | "or"; rows: Row[]; payloadFields: string[] }
 
 function emptyForm(): FormState {
-  return { label: "", url: "", secret: "", logic: "and", rows: [{ field: "source", operator: "equals", value: "" }] };
+  return { label: "", url: "", secret: "", logic: "and", rows: [{ field: "source", operator: "equals", value: "" }], payloadFields: [] };
 }
+
+const PAYLOAD_GROUPS: { group: "context" | "firmographic" | "scoring" | "person"; label: string; note?: string }[] = [
+  { group: "context",      label: "Context" },
+  { group: "firmographic", label: "Firmographic", note: "requires enrichment consent" },
+  { group: "scoring",      label: "Scoring",      note: "requires personalization consent" },
+  { group: "person",       label: "Person (PII)", note: "requires personalization + enrichment consent" },
+];
 
 function RuleForm({
   fields, initial, onCancel, onSave, saving,
@@ -178,6 +186,41 @@ function RuleForm({
         <span className="mt-0.5 block text-[11px] text-neutral-400">When set, deliveries carry an x-mc-signature (HMAC-SHA256) header.</span>
       </label>
 
+      <div>
+        <span className="text-xs font-medium text-neutral-600">Payload fields</span>
+        <p className="text-[11px] text-neutral-400">
+          Added to the payload alongside the anonymous base. Consent-gated fields are dropped when the visitor has not consented.
+        </p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          {PAYLOAD_GROUPS.map(({ group, label, note }) => (
+            <div key={group} className="rounded border border-neutral-200 p-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                {label}
+                {note && <span className="ml-1 font-normal normal-case text-amber-600">· {note}</span>}
+              </p>
+              <div className="mt-1 space-y-1">
+                {PAYLOAD_FIELD_CATALOG.filter((f) => f.group === group).map((f) => (
+                  <label key={f.key} className="flex items-center gap-2 text-xs text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={state.payloadFields.includes(f.key)}
+                      onChange={(e) => setState((s) => ({
+                        ...s,
+                        payloadFields: e.target.checked
+                          ? [...s.payloadFields, f.key]
+                          : s.payloadFields.filter((k) => k !== f.key),
+                      }))}
+                      className="rounded border-neutral-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    {f.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="flex gap-2">
         <button type="button" disabled={saving} onClick={() => onSave(state)}
           className="rounded bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60">
@@ -217,7 +260,7 @@ export function WebhookRulesManager({
     setError(null);
     const parsed = conditionToRows(r.condition);
     if (!parsed.editable) { setError("This rule has a nested condition — edit it in the Rules editor."); return; }
-    setEditing({ ruleId: r.ruleId, label: r.label, url: r.url, secret: "", logic: parsed.logic, rows: parsed.rows });
+    setEditing({ ruleId: r.ruleId, label: r.label, url: r.url, secret: "", logic: parsed.logic, rows: parsed.rows, payloadFields: r.payloadFields ?? [] });
   };
 
   const save = (s: FormState) => {
@@ -227,6 +270,7 @@ export function WebhookRulesManager({
       const res = await saveWebhookRuleAction(tenantId, {
         ruleId: s.ruleId, label: s.label, url: s.url,
         secret: s.secret.trim() || null, condition,
+        payloadFields: s.payloadFields,
       });
       if (res.ok) { setEditing(null); router.refresh(); }
       else setError(res.error);

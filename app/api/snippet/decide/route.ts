@@ -960,6 +960,7 @@ export async function POST(request: NextRequest) {
         isBotUserAgent(request.headers.get("user-agent")),
         tenantId,
         sessionId,
+        consent,
       ),
       sessionId,
       experimentsEnabled,

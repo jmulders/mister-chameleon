@@ -92,6 +92,8 @@ import {
   type StoredPlan,
 } from "../rules/stored-rule";
 import type { RuleEvaluationContext } from "../rules/field-registry";
+import type { ConsentState } from "@/tracking/consent-types";
+import { extractSelectedPayload, type PayloadSourceContext } from "@/lib/webhooks/payload-fields";
 import {
   generateRuleTrace,
   ruleTraceToLogMeta,
@@ -235,16 +237,25 @@ export class RulesDecisionProvider implements DecisionProvider {
    */
   private readonly _sessionId: string | undefined;
 
+  /**
+   * Optional visitor consent. Used only to gate the CONFIGURABLE webhook payload
+   * fields (firmographic/scoring/person) — never the decision. When omitted, only
+   * the anonymous base payload plus context-gated fields are sent (privacy-first).
+   */
+  private readonly _consent: ConsentState | undefined;
+
   constructor(
     storedConfig?:    StoredRulesConfig,
     forceDefaultPlan = false,
     tenantId?:        string,
     sessionId?:       string,
+    consent?:         ConsentState,
   ) {
     this._storedConfig     = storedConfig;
     this._forceDefaultPlan = forceDefaultPlan;
     this._tenantId         = tenantId;
     this._sessionId        = sessionId;
+    this._consent          = consent;
   }
 
   /**
@@ -447,10 +458,19 @@ export class RulesDecisionProvider implements DecisionProvider {
     const webhookUrl = plan.webhook?.url;
     if (!webhookUrl) return;
 
+    // Configurable payload: add the operator-selected lead-base/context fields
+    // the visitor's consent permits. Absent/denied fields are simply omitted.
+    const selected = extractSelectedPayload(
+      ctx as unknown as PayloadSourceContext,
+      plan.webhook?.payloadFields,
+      this._consent,
+    );
+
     void import("@/lib/webhooks/fire-rule-webhook")
       .then((m) => m.fireRuleWebhook(webhookUrl, {
         tenantId,
         rule: { id: rule.id, label: rule.label, priority: rule.priority },
+        ...(Object.keys(selected).length ? { fields: selected } : {}),
         // Variant keys are present for combine rules and absent for webhook-only
         // rules — include only what the plan actually carries.
         plan: {

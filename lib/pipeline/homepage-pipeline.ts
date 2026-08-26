@@ -343,7 +343,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const forceDefaultForBot = isControl || isBotUserAgent(h.get("user-agent"));
 
   const baseDecisionProvider = new ExperimentDecisionProvider(
-    new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantConfig.tenantId, sessionId),
+    new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantConfig.tenantId, sessionId, consent),
     sessionId,
     experimentsEnabled,
     tenantConfig.tenantId,
