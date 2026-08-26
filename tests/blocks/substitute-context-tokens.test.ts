@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import {
   substituteContextTokens,
   buildVariableCatalogue,
+  variablesNeedingFallbackWarning,
   defaultCopyVariables,
   effectiveCopyVariables,
   BUILTIN_SOURCE_KEYS,
@@ -170,14 +171,30 @@ describe("registry defaults + catalogue", () => {
     assert.equal(effectiveCopyVariables(undefined, []).length, 11);
   });
 
-  it("buildVariableCatalogue tags each entry by source kind", () => {
+  it("variablesNeedingFallbackWarning flags bare no-fallback tokens only", () => {
+    const cat = buildVariableCatalogue([
+      { token: "city", label: "City", source: { kind: "builtin", key: "city" } },                       // no fallback
+      { token: "companyName", label: "Company", source: { kind: "builtin", key: "companyName" }, fallback: "your company" },
+    ]);
+    const warn = (s: string) => variablesNeedingFallbackWarning(s, cat).map((v) => v.token);
+    assert.deepEqual(warn("Welkom in {city}!"), ["city"]);          // bare + no fallback → warn
+    assert.deepEqual(warn("Welkom in {city|Amsterdam}!"), []);      // inline default → no warn
+    assert.deepEqual(warn("Hi {companyName}"), []);                 // has a fallback → no warn
+    assert.deepEqual(warn("No tokens here"), []);                    // not used → no warn
+    assert.deepEqual(warn("literal \\{city}"), []);                 // escaped → no warn
+    assert.deepEqual(warn(""), []);                                  // empty copy → no warn
+  });
+
+  it("buildVariableCatalogue tags each entry by source kind + fallback presence", () => {
     const cat = buildVariableCatalogue([
       { token: "companyName", label: "Company name", source: { kind: "builtin", key: "companyName" } },
-      { token: "plan", label: "Plan", source: { kind: "custom", name: "plan" } },
+      { token: "plan", label: "Plan", source: { kind: "custom", name: "plan" }, fallback: "your plan" },
+      { token: "blank", label: "Blank", source: { kind: "custom", name: "blank" }, fallback: "  " },
     ]);
     assert.deepEqual(cat, [
-      { token: "companyName", label: "Company name", source: "built-in" },
-      { token: "plan", label: "Plan", source: "custom" },
+      { token: "companyName", label: "Company name", source: "built-in", hasFallback: false },
+      { token: "plan", label: "Plan", source: "custom", hasFallback: true },
+      { token: "blank", label: "Blank", source: "custom", hasFallback: false }, // whitespace-only = no fallback
     ]);
   });
 });

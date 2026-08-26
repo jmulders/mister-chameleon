@@ -83,6 +83,12 @@ export interface VariableEntry {
   /** Human-readable label for the menu. */
   label: string;
   source: "built-in" | "custom";
+  /**
+   * Whether the variable has a non-empty fallback. When false, an empty/missing
+   * value renders blank unless the author uses an inline `{token|default}`. The
+   * editors surface a non-blocking warning for false.
+   */
+  hasFallback: boolean;
 }
 
 /**
@@ -122,7 +128,27 @@ export function buildVariableCatalogue(registry: readonly CopyVariable[]): Varia
     token: v.token,
     label: v.label ?? v.token,
     source: v.source.kind === "builtin" ? "built-in" : "custom",
+    hasFallback: typeof v.fallback === "string" && v.fallback.trim() !== "",
   }));
+}
+
+/**
+ * The variables used as a BARE `{token}` in `value` that have no fallback.
+ *
+ * An inline `{token|default}` supplies its own fallback, so it does NOT warn —
+ * only a bare `{token}` (and never an escaped `\{token}`) counts. Powers the
+ * editor's non-blocking "no fallback set" warning.
+ */
+export function variablesNeedingFallbackWarning(
+  value: string,
+  variables: readonly VariableEntry[],
+): VariableEntry[] {
+  if (!value) return [];
+  return variables.filter((v) => {
+    if (v.hasFallback) return false;
+    const esc = v.token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?<!\\\\)\\{${esc}\\}`).test(value);
+  });
 }
 
 /** Strip inline-markup significant characters from a resolved/mapped value. */
