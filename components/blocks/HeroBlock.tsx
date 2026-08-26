@@ -12,6 +12,7 @@ import type { HeroLayoutVariant } from "@/page-config/block-variants";
 import type { HeroBannerMedia, HeroSlideData } from "@/cms/types";
 import { HeroCarousel } from "@/components/blocks/HeroCarousel";
 import { HeroBackgroundEmbed } from "@/components/blocks/HeroBackgroundEmbed";
+import { HeroBackgroundVideo } from "@/components/blocks/HeroBackgroundVideo";
 import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
 import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 
@@ -408,23 +409,22 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
 
   const { video } = media;
 
-  // ── Uploaded / self-hosted video ───────────────────────────────────────────
+  // ── Uploaded / self-hosted video — deferred, poster-first ──────────────────
+  //
+  // Rendered by <HeroBackgroundVideo>: it paints the poster (or a neutral
+  // placeholder) immediately and mounts the <video preload="metadata"> only
+  // after first paint + when in view — mirroring the YouTube/Vimeo path so a
+  // self-hosted hero video no longer leaves the background empty while it
+  // buffers. Background-safe defaults (muted, autoplay, loop) are preserved.
   if (video.source === "upload") {
     return (
-      <video
-        src={video.url}
+      <HeroBackgroundVideo
+        url={video.url}
         poster={video.poster}
-        // Background videos are always muted, autoplaying, and looping.
-        // Honour any explicit overrides but default to the background-safe values.
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore — React types don't accept undefined for muted
         muted={video.muted ?? true}
-        autoPlay={video.autoplay ?? true}
+        autoplay={video.autoplay ?? true}
         loop={video.loop ?? true}
         controls={video.controls ?? false}
-        playsInline
-        aria-hidden
-        className="absolute inset-0 h-full w-full object-cover pointer-events-none"
       />
     );
   }
