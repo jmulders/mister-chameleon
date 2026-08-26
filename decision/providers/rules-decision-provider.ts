@@ -93,7 +93,7 @@ import {
 } from "../rules/stored-rule";
 import type { RuleEvaluationContext } from "../rules/field-registry";
 import type { ConsentState } from "@/tracking/consent-types";
-import { extractSelectedPayload, type PayloadSourceContext } from "@/lib/webhooks/payload-fields";
+import { extractSelectedPayload, extractBaseContext, type PayloadSourceContext } from "@/lib/webhooks/payload-fields";
 import {
   generateRuleTrace,
   ruleTraceToLogMeta,
@@ -538,19 +538,26 @@ export class RulesDecisionProvider implements DecisionProvider {
     const webhookUrl = plan.webhook?.url;
     if (!webhookUrl) return;
 
-    // Configurable payload: add the operator-selected lead-base/context fields
-    // the visitor's consent permits. Absent/denied fields are simply omitted.
-    const selected = extractSelectedPayload(
-      ctx as unknown as PayloadSourceContext,
-      plan.webhook?.payloadFields,
-      this._consent,
+    const payloadCtx = ctx as unknown as PayloadSourceContext;
+
+    // Always-sent non-PII context slice (source, device, visitType, pathname,
+    // referrerDomain, utmSource, utmCampaign, audienceSegments) — operators get
+    // these without ticking a payload field.
+    const baseContext = extractBaseContext(payloadCtx);
+
+    // Configurable payload: the operator-selected lead-base/context fields the
+    // visitor's consent permits. Context fields already in baseContext are
+    // dropped here so nothing is delivered twice (or under a different name).
+    const selected = extractSelectedPayload(payloadCtx, plan.webhook?.payloadFields, this._consent);
+    const fields = Object.fromEntries(
+      Object.entries(selected).filter(([k]) => !(k in baseContext)),
     );
 
     void import("@/lib/webhooks/fire-rule-webhook")
       .then((m) => m.fireRuleWebhook(webhookUrl, {
         tenantId,
         rule: { id: rule.id, label: rule.label, priority: rule.priority },
-        ...(Object.keys(selected).length ? { fields: selected } : {}),
+        ...(Object.keys(fields).length ? { fields } : {}),
         // Variant keys are present for combine rules and absent for webhook-only
         // rules — include only what the plan actually carries.
         plan: {
@@ -560,11 +567,7 @@ export class RulesDecisionProvider implements DecisionProvider {
           ...(plan.themeKey ? { themeKey: plan.themeKey } : {}),
           ...(plan.themePresetId ? { themePresetId: plan.themePresetId } : {}),
         },
-        context: {
-          ...(ctx.pathname ? { pathname: ctx.pathname } : {}),
-          ...(ctx.clientContext?.deviceType ? { deviceType: ctx.clientContext.deviceType } : {}),
-          ...(ctx.audienceSegmentIds ? { audienceSegmentIds: ctx.audienceSegmentIds } : {}),
-        },
+        context: baseContext,
       }, { secret: plan.webhook?.secret ?? null }))
       .catch(() => { /* delivery is best-effort */ });
   }
