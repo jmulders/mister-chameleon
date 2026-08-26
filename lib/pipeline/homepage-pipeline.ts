@@ -97,22 +97,11 @@ import {
   getEnabledContextBlocks,
   filterSectionsByTenant,
   getTenantFeatures,
-  getTenantPipelineStages,
 } from "@/tenant/server";
 import { THEME_SESSION_COOKIE }            from "@/lib/theme-session";
 import { isThemePresetKey }                from "@/design-system/theme/presets";
 import type { ThemePresetKey }             from "@/design-system/theme/presets";
-import { buildCompanyCrmChain }            from "@/enrichment";
-import {
-  getPlatformEnrichmentSettings,
-  getPlatformCrmSettings,
-  getPlatformOpenKvKSettings,
-  getPlatformReverseGeocodeSettings,
-  getPlatformWeatherSettings,
-  getPlatformGa4HistorySettings,
-  getPlatformHolidaySettings,
-  getPlatformMaxMindSettings,
-} from "@/platform/platform-store";
+import { buildTenantStagedEnrichers }      from "@/lib/enrichment/tenant-staged-enrichers";
 import { buildHomepagePageConfig }         from "@/page-config/assemblers/homepage";
 import {
   getCmsCacheStats,
@@ -170,23 +159,6 @@ function withDecisionBudget(provider: DecisionProvider, tenantId: string): Decis
       });
     },
   };
-}
-
-function parseServiceAccount(
-  json: string | null | undefined,
-): { client_email: string; private_key: string; token_uri?: string } | null {
-  if (!json) return null;
-  try {
-    const parsed = JSON.parse(json) as Record<string, unknown>;
-    if (typeof parsed.client_email === "string" && typeof parsed.private_key === "string") {
-      return {
-        client_email: parsed.client_email,
-        private_key:  parsed.private_key,
-        ...(typeof parsed.token_uri === "string" ? { token_uri: parsed.token_uri } : {}),
-      };
-    }
-  } catch { /* invalid JSON */ }
-  return null;
 }
 
 // ── Pipeline input ────────────────────────────────────────────────────────────
@@ -261,18 +233,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     ? fetchVisitorHistory(sessionId, tenantConfig.tenantId)
     : Promise.resolve(emptyHistory());
 
-  const platformSettingsPromise = Promise.all([
-    getPlatformEnrichmentSettings(),
-    getPlatformCrmSettings(),
-    getPlatformOpenKvKSettings(),
-    getPlatformReverseGeocodeSettings(),
-    getPlatformWeatherSettings(),
-    getPlatformGa4HistorySettings(),
-    getPlatformHolidaySettings(),
-    getPlatformMaxMindSettings(),
-  ] as const);
-
-  const pipelineStagesPromise = getTenantPipelineStages(tenantConfig.tenantId);
+  // Full firmographic enrichment chain — built once and shared with the snippet
+  // decide path so both surfaces enrich identically. Loads its own platform
+  // settings + tenant stage overrides internally, so it runs in parallel here.
+  const stagedEnrichersPromise = buildTenantStagedEnrichers(tenant, tenantConfig.tenantId);
 
   const tenantRulesConfigPromise = (async () => {
     try {
@@ -420,26 +384,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const homePagePromise = cmsProvider.getPageBySlug("home", locale);
 
   // ── Await parallel results ────────────────────────────────────────────────
-  const [
-    history,
-    [
-      platformEnrichmentResult,
-      platformCrmResult,
-      platformOpenKvKResult,
-      platformReverseGeocodeResult,
-      platformWeatherResult,
-      platformGa4HistoryResult,
-      platformHolidayResult,
-      platformMaxMindResult,
-    ],
-    tenantPipelineStages,
-  ] = await Promise.all([historyPromise, platformSettingsPromise, pipelineStagesPromise]);
-
-  const pipelineStageCfg = new Map(
-    tenantPipelineStages.map((s) => [s.stageKey, s]),
-  );
-  const pipelineEnabled = (stageKey: string, fallback: boolean): boolean =>
-    pipelineStageCfg.has(stageKey) ? Boolean(pipelineStageCfg.get(stageKey)?.enabled) : fallback;
+  const [history, stagedEnrichers] = await Promise.all([
+    historyPromise,
+    stagedEnrichersPromise,
+  ]);
 
   // ── Scenario override — pass 1: history ──────────────────────────────────
   const realHistory       = history;
@@ -447,95 +395,6 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const effectiveHistory  = scenarioOverrides
     ? applyScenarioToHistory(history, scenarioOverrides)
     : history;
-
-  // ── Platform settings extraction ──────────────────────────────────────────
-  const platformEnrichment     = platformEnrichmentResult.ok     ? platformEnrichmentResult.data     : {};
-  const platformCrm            = platformCrmResult.ok            ? platformCrmResult.data            : {};
-  const platformOpenKvK        = platformOpenKvKResult.ok        ? platformOpenKvKResult.data        : {};
-  const platformReverseGeocode = platformReverseGeocodeResult.ok ? platformReverseGeocodeResult.data : {};
-  const platformWeather        = platformWeatherResult.ok        ? platformWeatherResult.data        : {};
-  const platformGa4History     = platformGa4HistoryResult.ok     ? platformGa4HistoryResult.data     : {};
-  const platformHolidays       = platformHolidayResult.ok        ? platformHolidayResult.data        : {};
-  const platformMaxMind        = platformMaxMindResult.ok        ? platformMaxMindResult.data        : {};
-
-  // ── GA4 credential resolution ─────────────────────────────────────────────
-  const ga4ServiceAccount =
-    parseServiceAccount(tenant?.ga4?.history?.serviceAccountJson) ??
-    parseServiceAccount((platformGa4History as { serviceAccountJson?: string }).serviceAccountJson);
-
-  const ga4PropertyId =
-    tenant?.ga4?.history?.propertyId?.trim() ||
-    (platformGa4History as { propertyId?: string }).propertyId?.trim() ||
-    undefined;
-
-  const ga4VisitorIdDimension =
-    tenant?.ga4?.history?.visitorIdDimension?.trim() ||
-    (platformGa4History as { visitorIdDimension?: string }).visitorIdDimension?.trim() ||
-    "visitor_id";
-
-  const ga4LookbackDays =
-    tenant?.ga4?.history?.lookbackDays ??
-    (platformGa4History as { lookbackDays?: number }).lookbackDays;
-
-  const ga4CacheTtlMs =
-    ((tenant?.ga4?.history?.cacheTtlMinutes ??
-      (platformGa4History as { cacheTtlMinutes?: number }).cacheTtlMinutes ??
-      30)) * 60_000;
-
-  // ── Staged enrichment pipeline ────────────────────────────────────────────
-  const _mmAccountId  = (platformMaxMind as { accountId?: string }).accountId?.trim();
-  const _mmLicenseKey = (platformMaxMind as { licenseKey?: string }).licenseKey?.trim();
-
-  const stagedEnrichers = buildCompanyCrmChain({
-    maxmindDbPath:               process.env.MAXMIND_DB_PATH?.trim() || undefined,
-    maxmindWebService:           _mmAccountId && _mmLicenseKey
-                                   ? { accountId: _mmAccountId, licenseKey: _mmLicenseKey }
-                                   : undefined,
-    ipinfoToken:                 (platformEnrichment as { ipinfoToken?: string }).ipinfoToken || undefined,
-    enableReverseGeocode:        pipelineEnabled("reverse-geo",
-                                   (platformReverseGeocode as { enabled?: boolean }).enabled ?? false),
-    reverseGeocodeLocationIqKey: (platformReverseGeocode as { locationIqApiKey?: string }).locationIqApiKey || undefined,
-    reverseGeocodeCacheTtlMs:    ((platformReverseGeocode as { cacheTtlHours?: number }).cacheTtlHours ?? 6) * 3_600_000,
-    enableWeather:               pipelineEnabled("weather",
-                                   (platformWeather as { enabled?: boolean }).enabled ?? false),
-    weatherCacheTtlMs:           ((platformWeather as { cacheTtlHours?: number }).cacheTtlHours ?? 1) * 3_600_000,
-    enableOpenKvK:               pipelineEnabled("openkvk",
-                                   tenant?.enrichment?.useOpenKvK ?? false),
-    openKvKMode:                 (platformOpenKvK as { mode?: "off" | "nl-only" | "always" }).mode,
-    openKvKConfidenceThreshold:  (platformOpenKvK as { confidenceThreshold?: number }).confidenceThreshold,
-    openKvKMatchingStrategy:     (platformOpenKvK as { matchingStrategy?: "networkOrg" | "companyName" | "networkDomain" }).matchingStrategy,
-    kvkApiKey:                   (platformEnrichment as { kvkApiKey?: string }).kvkApiKey || undefined,
-    ovioApiKey:                  (platformEnrichment as { ovioApiKey?: string }).ovioApiKey || undefined,
-    leadinfoApiKey:              (platformEnrichment as { leadinfoApiKey?: string }).leadinfoApiKey || undefined,
-    // Server-side Leadinfo (reverse-IP company identification) is tenant-gated
-    // via enrichment.useLeadinfo and needs a platform Leadinfo key. It shares the
-    // platform-wide IP→company cache. NOTE: verify the identify endpoint actually
-    // returns companies for your key (Platform → Integrations → Enrichment → Test
-    // Leadinfo) before relying on it — it is a paid, per-match lookup. Separately,
-    // `tenant.leadinfo.enabled` drives the client-side ping.js dashboard tracking.
-    enableLeadinfo:              pipelineEnabled("leadinfo",
-                                   tenant?.enrichment?.useLeadinfo ?? false),
-    hubspotAccessToken:          (platformCrm as { accessToken?: string }).accessToken || undefined,
-    enableHubSpot:               pipelineEnabled("hubspot",
-                                   tenant?.crm?.useCrmEnrichment ?? false),
-    // Only run GA4 history when it's enabled AND fully credentialed. Without a
-    // service account + property ID the GA4 query has nothing to authenticate
-    // with and stalls until it times out (~4s) on every request — so gate it on
-    // the credentials being present to avoid that dead weight in the hot path.
-    enableGa4History:            pipelineEnabled("ga4",
-                                   tenant?.ga4?.history?.enabled ?? false)
-                                 && !!ga4ServiceAccount && !!ga4PropertyId,
-    ga4PropertyId,
-    ga4ServiceAccount:           ga4ServiceAccount ?? undefined,
-    ga4VisitorIdDimension,
-    ga4LookbackDays,
-    ga4CacheTtlMs,
-    enableSeasonalEvents:        pipelineEnabled("seasonal",
-                                   tenant?.enrichment?.useSeasonalEvents ?? true),
-    holidayAllowedCountries:     (platformHolidays as { countriesFilter?: string }).countriesFilter || undefined,
-    isDev:                       process.env.NODE_ENV === "development",
-    stageConfig: tenantPipelineStages.length > 0 ? tenantPipelineStages : undefined,
-  });
 
   // ── Billing client ────────────────────────────────────────────────────────
   const billingClient = (() => {

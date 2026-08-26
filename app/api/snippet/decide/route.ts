@@ -75,7 +75,7 @@
  *   6. Map variant fields → flat slot map keyed by data-mc-slot conventions
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient }              from "@supabase/supabase-js";
 import { getTenantBySiteKey }        from "@/tenant/server";
 import { createCMSProvider }         from "@/cms";
@@ -89,6 +89,8 @@ import {
   ExperimentDecisionProvider,
 }                                    from "@/decision";
 import { loadTenantRulesConfig }     from "@/decision/rules/load-tenant-rules";
+import { buildTenantStagedEnrichers } from "@/lib/enrichment/tenant-staged-enrichers";
+import { getKnownFirmographics }      from "@/lib/lead-base/visitor-profiles-store";
 import { buildDecisionContext }      from "@/decision/context/build-decision-context";
 import { sanitizeCustomAttributes }  from "@/decision/context/custom-attributes";
 import { ttlToMs }                   from "@/lib/notifications/frequency-cap";
@@ -923,13 +925,27 @@ export async function POST(request: NextRequest) {
       }).catch(() => false);
     }
 
-    // Fetch visitor history and rules config in parallel. Without consent, skip
-    // history entirely so the decision runs on geo/UTM-only signals.
-    const [rawHistory, tenantRulesConfig] = await Promise.all([
+    // Fetch visitor history, rules config, the firmographic enrichment chain and
+    // any reusable firmographics in parallel. Without personalization consent,
+    // skip history so the decision runs on geo/UTM-only signals. The staged
+    // enrichers + firmographic reuse are built only with enrichment consent; the
+    // chain is the SAME one the platform-hosted homepage runs (shared builder),
+    // so a Statamic snippet visit resolves company/industry identically.
+    const [rawHistory, tenantRulesConfig, stagedEnrichers, seedFirmographics] = await Promise.all([
       consentPersonalization
         ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
         : Promise.resolve(emptyHistory()),
       loadTenantRulesConfig(tenantId).catch(() => null),
+      consentEnrichment
+        ? buildTenantStagedEnrichers(tenant, tenantId).catch(() => [])
+        : Promise.resolve([]),
+      (consentEnrichment && sessionId)
+        ? getKnownFirmographics(
+            tenantId,
+            sessionId,
+            tenant.enrichment?.firmographicFreshnessDays ?? 30,
+          ).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     const history = rawHistory;
@@ -942,6 +958,18 @@ export async function POST(request: NextRequest) {
       pageType:    "cms_page",
       sessionId,
       timezone:    tenant.timezone ?? null,
+      // Firmographic (IP→company / Leadinfo / CRM) staged enrichment — gated on
+      // enrichment consent. The anonymous context (header geo, device, source/UTM,
+      // time) always runs inside buildDecisionContext regardless. First visit on a
+      // cache miss is deferred to background work (company written to
+      // ip_company_cache for the next visit); a cache hit resolves synchronously
+      // so companyName/companyIndustry populate this response's webhook fields.
+      stagedEnrichers: consentEnrichment ? stagedEnrichers : undefined,
+      deferSlowEnrichmentOnMiss: true,
+      // Ensure the deferred cache-warm completes after the response flushes on
+      // serverless (Vercel) rather than relying on a bare microtask.
+      scheduleBackgroundWork: (fn) => after(fn),
+      ...(seedFirmographics ? { seedEnrichment: seedFirmographics } : {}),
       // Untrusted page-supplied attributes → sanitised and filtered to the
       // tenant's declared attributes before they can affect any rule.
       customAttributes: sanitizeCustomAttributes(context.customAttributes, tenant.customAttributes),
