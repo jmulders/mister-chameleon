@@ -67,6 +67,8 @@ import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
 import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getRequestThemeDecision } from "@/lib/theme/request-theme";
+import type { ResolvedChrome } from "@/components/layout/chrome-bg";
 
 export default async function SiteLayout({
   children,
@@ -107,6 +109,16 @@ export default async function SiteLayout({
       // Non-fatal — leave the console off when settings can't be read.
     }
   }
+
+  // Resolved per-request theme — shared (memoised) with the root layout that
+  // paints the chrome, so the header/footer LOGO follows the RESOLVED theme
+  // (personalisation), not the static base. Null when no contextual theme fired
+  // → the chrome is painted from the base default and the logo falls back to it.
+  const td = await getRequestThemeDecision();
+  const resolvedChrome: ResolvedChrome | null =
+    td.contextualThemeKey || td.contextualPresetId
+      ? { themeKey: td.contextualThemeKey, presetId: td.contextualPresetId }
+      : null;
 
   return (
     /*
@@ -157,9 +169,9 @@ export default async function SiteLayout({
         }}
       />
       <CartProvider>
-      <Header />
+      <Header resolvedChrome={resolvedChrome} />
       {children}
-      <Footer />
+      <Footer resolvedChrome={resolvedChrome} />
       {/*
         PreviewBar is a Client Component that establishes an SSE connection and
         triggers live page refreshes on Sanity mutations.  It is intentionally

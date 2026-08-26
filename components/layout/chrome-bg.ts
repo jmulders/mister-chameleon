@@ -15,7 +15,8 @@
  * footer background, and the right logo follows from it with zero extra wiring.
  */
 
-import { THEME_PRESETS, isThemePresetKey } from "@/design-system/theme/presets";
+import { THEME_PRESETS, isThemePresetKey, type ThemePresetKey } from "@/design-system/theme/presets";
+import { getDesignPreset } from "@/tenant/design-presets-gallery";
 import type { TenantSettings } from "@/tenant/types";
 
 /** Resolve the effective header/footer background colour for a tenant, or undefined. */
@@ -57,4 +58,73 @@ export function chromeIsDark(
   which: "header" | "footer",
 ): boolean {
   return isDarkHex(effectiveChromeBg(settings, which));
+}
+
+/**
+ * The RESOLVED per-request theme, as far as chrome darkness is concerned.
+ * Mirrors app/layout's promoted `contextualThemeKey` / `contextualPresetId`.
+ */
+export interface ResolvedChrome {
+  /** Applied curated theme key (contextual), or null → base default is painted. */
+  themeKey: ThemePresetKey | null;
+  /** Applied gallery preset id (contextual), or null. */
+  presetId: string | null;
+}
+
+/**
+ * Effective header/footer background for THIS request, following the RESOLVED
+ * theme (the same source the chrome is actually painted from) rather than the
+ * static base. This makes the logo light/dark choice track theme personalisation.
+ *
+ * Fallback chain (per surface, independent):
+ *   1. resolved gallery preset → its own layout override, then its baseTheme preset
+ *      (a gallery preset REPLACES base tenant overrides when painted, so base is skipped)
+ *   2. resolved curated theme → base tokenOverrides.layout (wins, applied last when
+ *      painted), then the resolved preset's componentStyles
+ *   3. no resolved theme → the base chain (effectiveChromeBg)
+ */
+export function resolvedChromeBg(
+  settings: TenantSettings | null | undefined,
+  which: "header" | "footer",
+  resolved?: ResolvedChrome | null,
+): string | undefined {
+  if (resolved) {
+    if (resolved.presetId) {
+      const card = getDesignPreset(resolved.presetId);
+      if (card) {
+        const ov = which === "header"
+          ? card.tokenOverrides?.layout?.headerBg
+          : card.tokenOverrides?.layout?.footerBg;
+        if (ov) return ov;
+        if (isThemePresetKey(card.baseTheme)) {
+          const cs = THEME_PRESETS[card.baseTheme].componentStyles;
+          const v = which === "header" ? cs?.headerBg : cs?.footerBg;
+          if (v) return v;
+        }
+      }
+    } else if (resolved.themeKey) {
+      // Base layout override wins (it is applied last when the theme is painted),
+      // then the resolved curated preset's own chrome.
+      const layoutOv = settings?.design?.tokenOverrides?.layout;
+      const baseOverride = which === "header" ? layoutOv?.headerBg : layoutOv?.footerBg;
+      if (baseOverride) return baseOverride;
+      const cs = THEME_PRESETS[resolved.themeKey]?.componentStyles;
+      const v = which === "header" ? cs?.headerBg : cs?.footerBg;
+      if (v) return v;
+    }
+  }
+  // No resolved theme (or it carried no chrome) → static base chain.
+  return effectiveChromeBg(settings, which);
+}
+
+/**
+ * True when the given chrome surface should use the dark-bg logo, following the
+ * RESOLVED per-request theme. Falls back to the static base when `resolved` is absent.
+ */
+export function resolvedChromeIsDark(
+  settings: TenantSettings | null | undefined,
+  which: "header" | "footer",
+  resolved?: ResolvedChrome | null,
+): boolean {
+  return isDarkHex(resolvedChromeBg(settings, which, resolved));
 }
