@@ -51,5 +51,8 @@ export async function loadAssetsForPickerAction(
     { auth: { persistSession: false } },
   );
 
-  return getAssets(client, tenantId, { assetType: "image", limit: 200 });
+  // Load ALL asset types (image + video); the AssetPickerModal filters by its
+  // mode client-side. Hardcoding "image" here starved the video picker, which
+  // then showed "No video assets in library yet" even with videos present.
+  return getAssets(client, tenantId, { limit: 200 });
 }

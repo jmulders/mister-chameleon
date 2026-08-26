@@ -315,7 +315,10 @@ export async function createAsset(
       mime_type:       input.mimeType      ?? null,
       width:           input.width         ?? null,
       height:          input.height        ?? null,
-      asset_type:      input.assetType     ?? "image",
+      // Fall back to the mime type when the caller doesn't state a type, so a
+      // video is never silently tagged "image" (which would hide it from the
+      // video picker's asset_type match).
+      asset_type:      input.assetType     ?? (input.mimeType?.startsWith("video/") ? "video" : "image"),
       sanity_asset_id: input.sanityAssetId ?? null,
       title:           input.title           ?? null,
       alt_text:        input.altText         ?? null,
