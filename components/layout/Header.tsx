@@ -275,16 +275,21 @@ export async function Header({ variant: rawVariant }: HeaderProps = {}) {
   // this is effectively a no-op: we just dereference the already-resolved value.
 
   const siteTitle       = settings?.siteTitle ?? activeTenant.name;
-  // Fallback chain: CMS logo → public/logo.svg → text title.
+  // Fallback chain: tenant branding logo → CMS logo → public/logo.svg → text title.
+  // Tenant-owned branding logos (design → Branding) are the PRIMARY source, so the
+  // light/dark switch works even for platform-hosted tenants whose cms_provider is
+  // null (e.g. statamic) and therefore return no logoDark from getSiteSettings().
   // public/logo.svg is a copy of cms/seed/assets/logo-default.svg so the header
   // always shows the brand mark even before Sanity has been seeded.
   // Dark-header → use the dark-background logo variant when one is configured.
   // "Dark" is derived from the headerBg design token's luminance (the same token
   // each preset sets), so a dark custom header automatically swaps to the light
   // logo. Falls back to the default logo when no dark variant exists.
-  const useDarkLogo     = chromeIsDark(tenantSettings, "header") && Boolean(settings?.logoDark?.url);
-  const logoUrl         = (useDarkLogo ? settings?.logoDark?.url : settings?.logo?.url) ?? "/logo.svg";
-  const logoAlt         = (useDarkLogo ? settings?.logoDark?.alt : settings?.logo?.alt) ?? siteTitle;
+  const brandLogo       = tenantSettings?.branding?.logo     ?? settings?.logo     ?? null;
+  const brandLogoDark   = tenantSettings?.branding?.logoDark ?? settings?.logoDark ?? null;
+  const useDarkLogo     = chromeIsDark(tenantSettings, "header") && Boolean(brandLogoDark?.url);
+  const logoUrl         = (useDarkLogo ? brandLogoDark?.url : brandLogo?.url) ?? "/logo.svg";
+  const logoAlt         = (useDarkLogo ? brandLogoDark?.alt : brandLogo?.alt) ?? siteTitle;
   // Scenario CTA takes precedence over the CMS default when a demo scenario is active.
   const headerCta       = scenarioCta ?? ((settings?.headerCta ?? null) as HeaderCtaData | null);
 

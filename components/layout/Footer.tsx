@@ -51,9 +51,14 @@ export async function Footer() {
   const siteTitle    = settings?.siteTitle        ?? activeTenant.name;
   // Dark footer → use the dark-background logo variant when configured. "Dark"
   // is derived from the effective footerBg (token override or theme preset).
-  const useDarkLogo  = chromeIsDark(tenantSettings, "footer") && Boolean(settings?.logoDark?.url);
-  const logoUrl      = (useDarkLogo ? settings?.logoDark?.url : settings?.logo?.url) ?? null;
-  const logoAlt      = (useDarkLogo ? settings?.logoDark?.alt : settings?.logo?.alt) ?? siteTitle;
+  // Tenant-owned branding logos (design → Branding) are the PRIMARY source, then
+  // the CMS logos — so the switch works for null-cms_provider tenants (statamic)
+  // that return no logoDark from getSiteSettings().
+  const brandLogo     = tenantSettings?.branding?.logo     ?? settings?.logo     ?? null;
+  const brandLogoDark = tenantSettings?.branding?.logoDark ?? settings?.logoDark ?? null;
+  const useDarkLogo  = chromeIsDark(tenantSettings, "footer") && Boolean(brandLogoDark?.url);
+  const logoUrl      = (useDarkLogo ? brandLogoDark?.url : brandLogo?.url) ?? null;
+  const logoAlt      = (useDarkLogo ? brandLogoDark?.alt : brandLogo?.alt) ?? siteTitle;
   const footerNav    = settings?.footerNavigation ?? [];
   const footerCols   = settings?.footerColumns;
   const contactEmail = settings?.contactEmail     ?? null;

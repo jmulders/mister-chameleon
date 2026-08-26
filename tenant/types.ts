@@ -2084,6 +2084,32 @@ export type FooterVariant = "minimal" | "corporate" | "branding";
  */
 export type FooterDensity = "compact" | "comfortable" | "spacious";
 
+/**
+ * A single brand logo image reference. Mirrors the CMS-side `SiteLogoData`
+ * (`{ url, alt }`) so it can be overlaid onto `getSiteSettings()` output without
+ * a shape conversion.
+ */
+export interface TenantLogoData {
+  /** Delivery URL of the logo image (asset library / CDN). */
+  readonly url: string;
+  /** Alt text for accessibility. */
+  readonly alt?: string;
+}
+
+/**
+ * Tenant-owned brand logos. All optional; a missing variant falls back to the
+ * next source (CMS logo, then `/logo.svg`). The chrome picks `logoDark` on a
+ * dark surface and `logo` (light/primary) otherwise, per `chromeIsDark(...)`.
+ */
+export interface TenantBrandingSettings {
+  /** Primary / light-background logo. */
+  readonly logo?:      TenantLogoData;
+  /** Logo for dark surfaces (e.g. a white/knockout variant). */
+  readonly logoDark?:  TenantLogoData;
+  /** Optional explicit light-surface variant (reserved; `logo` is the default). */
+  readonly logoLight?: TenantLogoData;
+}
+
 export interface TenantDesignSettings {
   readonly theme:           ThemeKey;
   readonly primaryColor?:   string;
@@ -2667,6 +2693,16 @@ export interface TenantSettings {
   readonly experiments?: TenantExperimentsSettings;
 
   readonly design:            TenantDesignSettings;
+
+  /**
+   * Tenant-owned brand logos, used as the PRIMARY logo source by the chrome
+   * (Header / Footer). Falls back to the CMS `getSiteSettings()` logos and then
+   * to `/logo.svg`. This makes the light/dark logo switch work for platform-
+   * hosted tenants whose cms_provider is null (e.g. statamic), which return no
+   * logoDark from the CMS. Each surface picks light vs dark independently via
+   * `chromeIsDark(...)`.
+   */
+  readonly branding?: TenantBrandingSettings;
 
   /**
    * ISO 8601 timestamp (UTC) of the most recent successful CMS provisioning run.
