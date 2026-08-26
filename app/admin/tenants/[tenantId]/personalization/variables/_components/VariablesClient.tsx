@@ -266,13 +266,23 @@ export function VariablesClient({
 
             <div className="mt-3 flex items-end gap-3">
               <label className="block flex-1">
-                <span className="mb-1 block text-xs font-medium text-neutral-600">Fallback (optional, used when the value is missing)</span>
+                <span className="mb-1 block text-xs font-medium text-neutral-600">
+                  Fallback (optional, used when the value is missing)
+                  {row.fallback.trim() === "" && (
+                    <span className="ml-1 font-normal text-amber-600" title="No fallback set">· no fallback</span>
+                  )}
+                </span>
                 <input
                   className={inputCls}
                   value={row.fallback}
                   placeholder="your device"
                   onChange={(e) => patch(i, { fallback: e.target.value })}
                 />
+                {row.fallback.trim() === "" && (
+                  <span className="mt-1 block text-[11px] text-amber-600">
+                    No fallback set — empty values render blank. Add a fallback or use <code className="font-mono">{"{token|default}"}</code> in copy.
+                  </span>
+                )}
               </label>
               <button
                 type="button"

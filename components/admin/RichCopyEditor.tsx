@@ -14,9 +14,9 @@
  * so messy execCommand output can never corrupt the stored value.
  */
 
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { markdownToEditorHtml, editorNodeToMarkdown } from "@/lib/blocks/inline-markup-editor";
-import type { VariableEntry } from "@/lib/blocks/substitute-context-tokens";
+import { variablesNeedingFallbackWarning, type VariableEntry } from "@/lib/blocks/substitute-context-tokens";
 
 const SAFE_URL = /^(https?:\/\/|mailto:|tel:|#|\/(?!\/))/i;
 
@@ -103,6 +103,13 @@ export function RichCopyEditor({
   const customVars = variables?.filter((v) => v.source === "custom") ?? [];
   const hasVars = builtinVars.length > 0 || customVars.length > 0;
 
+  // Non-blocking warning: bare {token}s in the copy whose variable has no
+  // fallback (an inline {token|default} is fine, so only a bare {token} matches).
+  const noFallbackInUse = useMemo(
+    () => (variables ? variablesNeedingFallbackWarning(value, variables) : ([] as VariableEntry[])),
+    [variables, value],
+  );
+
   return (
     <div className={className}>
       <div className="mb-1 flex items-center gap-1">
@@ -137,7 +144,12 @@ export function RichCopyEditor({
                         onClick={() => insertVariable(v.token)}
                         className="flex w-full items-baseline justify-between gap-2 px-2.5 py-1 text-left text-[11px] text-neutral-700 hover:bg-neutral-50"
                       >
-                        <span>{v.label}</span>
+                        <span>
+                          {v.label}
+                          {!v.hasFallback && (
+                            <span className="ml-1 text-amber-500" title="No fallback set — empty values render blank">•</span>
+                          )}
+                        </span>
                         <span className="font-mono text-[10px] text-neutral-400">{`{${v.token}}`}</span>
                       </button>
                     ))}
@@ -154,7 +166,12 @@ export function RichCopyEditor({
                         onClick={() => insertVariable(v.token)}
                         className="flex w-full items-baseline justify-between gap-2 px-2.5 py-1 text-left text-[11px] text-neutral-700 hover:bg-neutral-50"
                       >
-                        <span>{v.label}</span>
+                        <span>
+                          {v.label}
+                          {!v.hasFallback && (
+                            <span className="ml-1 text-amber-500" title="No fallback set — empty values render blank">•</span>
+                          )}
+                        </span>
                         <span className="font-mono text-[10px] text-neutral-400">{`{${v.token}}`}</span>
                       </button>
                     ))}
@@ -177,6 +194,11 @@ export function RichCopyEditor({
         onBlur={emit}
         className="mc-rich-editor min-h-[3.5rem] w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs text-neutral-800 leading-relaxed focus:border-brand-400 focus:outline-none"
       />
+      {noFallbackInUse.length > 0 && (
+        <p className="mt-1 text-[11px] text-amber-600">
+          No fallback set for {noFallbackInUse.map((v) => `{${v.token}}`).join(", ")} — empty values render blank; add a fallback or use <code className="font-mono">{"{token|default}"}</code>.
+        </p>
+      )}
     </div>
   );
 }
