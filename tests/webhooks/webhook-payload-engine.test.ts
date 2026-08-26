@@ -57,18 +57,22 @@ describe("webhook payload — consent gating through the engine", () => {
   it("full consent → context + firmographic + scoring + person all present", async () => {
     const body = await fire(consent({ personalization: true, enrichment: true }));
     assert.ok(body, "expected a POST body");
-    const fields = body!.fields as Record<string, unknown>;
-    assert.equal(fields.source, "direct");
+    const context = body!.context as Record<string, unknown>;
+    const fields  = body!.fields as Record<string, unknown>;
+    // Non-PII context (incl. source) is always in the base context slice, never fields.
+    assert.equal(context.source, "direct");
+    assert.equal(fields.source, undefined);
     assert.equal(fields.companyName, "Acme BV");
     assert.equal(fields.intentScore, 77);
     assert.equal(fields.personName, "Pieter de Vries");
   });
 
-  it("no consent → only the context field survives", async () => {
+  it("no consent → base context still carries source; no consent-gated fields", async () => {
     const body = await fire(consent());
     assert.ok(body, "expected a POST body");
-    const fields = body!.fields as Record<string, unknown>;
-    assert.equal(fields.source, "direct");
+    const context = body!.context as Record<string, unknown>;
+    const fields  = (body!.fields ?? {}) as Record<string, unknown>;
+    assert.equal(context.source, "direct");         // base context, always sent
     assert.equal(fields.companyName, undefined);
     assert.equal(fields.intentScore, undefined);
     assert.equal(fields.personName, undefined);
@@ -80,5 +84,44 @@ describe("webhook payload — consent gating through the engine", () => {
     assert.equal(fields.companyName, "Acme BV");
     assert.equal(fields.intentScore, undefined);   // needs personalization
     assert.equal(fields.personName, undefined);     // needs both
+  });
+});
+
+describe("webhook base context — statamic default (no payloadFields ticked)", () => {
+  it("delivers source + UTM + visitType + referrer in the base context, no selection needed", async () => {
+    const config = {
+      schemaVersion: 1, rulesEnabled: true, defaultPlan: RULES_CONFIG.defaultPlan,
+      rules: [{
+        id: "wh", priority: 900, label: "notify", webhookOnly: true,
+        condition: { type: "field", field: "source", operator: "equals", value: "direct" },
+        plan: { webhook: { url: WH_URL } }, // NO payloadFields
+        reason: "Webhook: notify",
+      }],
+    } as unknown as ConstructorParameters<typeof RulesDecisionProvider>[0];
+
+    const input = buildInput(buildJourney({}), {
+      source: "direct", utmSource: "google", utmCampaign: "spring",
+      visitType: "new", referrerDomain: "google.com",
+    });
+
+    let body: Record<string, unknown> | null = null;
+    const orig = globalThis.fetch;
+    // @ts-expect-error stub
+    globalThis.fetch = async (_u: unknown, init: { body?: string }) => { if (init?.body) body = JSON.parse(init.body); return { ok: true, status: 200 }; };
+    try {
+      // Default (no) consent — the base context is non-PII, so it is always sent.
+      await new RulesDecisionProvider(config, false, "tenant-x", "s1", consent()).getHomepagePlan(input);
+      for (let i = 0; i < 40 && body === null; i++) await new Promise((r) => setTimeout(r, 10));
+    } finally { globalThis.fetch = orig; }
+
+    const parsed = body as unknown as Record<string, unknown> | null;
+    assert.ok(parsed, "expected a POST body");
+    const context = parsed.context as Record<string, unknown>;
+    assert.equal(context.source, "direct");
+    assert.equal(context.utmSource, "google");
+    assert.equal(context.utmCampaign, "spring");
+    assert.equal(context.visitType, "new");
+    assert.equal(context.referrerDomain, "google.com");
+    assert.equal(parsed.fields, undefined); // nothing selected → no fields object
   });
 });

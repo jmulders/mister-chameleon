@@ -138,3 +138,26 @@ export function extractSelectedPayload(
   }
   return out;
 }
+
+/** The always-allowed (gate=null) context field keys — the webhook's default slice. */
+export const BASE_CONTEXT_KEYS: readonly string[] =
+  PAYLOAD_FIELDS.filter((f) => f.gate === null).map((f) => f.key);
+
+/**
+ * The webhook's default, always-sent non-PII `context` slice: every gate=null
+ * catalog field that is present in the context (source, device, visitType,
+ * pathname, referrerDomain, utmSource, utmCampaign, audienceSegments). No consent
+ * needed. Uses the SAME keys as the selectable fields, so nothing is mapped twice
+ * or under a different name.
+ */
+export function extractBaseContext(ctx: PayloadSourceContext): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const def of PAYLOAD_FIELDS) {
+    if (def.gate !== null) continue;
+    let value: unknown;
+    try { value = def.extract(ctx); } catch { continue; }
+    if (value === undefined || value === null || value === "") continue;
+    out[def.key] = value;
+  }
+  return out;
+}
