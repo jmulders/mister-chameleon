@@ -17,8 +17,12 @@
  * Syntax:
  *   {token}            resolve to the mapped context value (or strip when empty).
  *   {token|default}    resolve, or use `default` when the value is empty/missing.
+ *   {?var}…{/var}      render the enclosed part only when `var` has a non-empty
+ *                      value (raw -> valueMap, no fallback); otherwise drop it all.
  *   \{                 a literal brace.
  * Unknown / hand-typed braces are left exactly as written (never mangled).
+ * When a bare {token} strips to nothing, the surrounding whitespace is tidied
+ * (double space collapsed, dangling space before punctuation trimmed).
  */
 
 import { FIELD_REGISTRY } from "@/decision/rules/field-registry";
@@ -155,26 +159,38 @@ function applyValueMap(raw: string, valueMap?: readonly CopyVariableMapping[]): 
 }
 
 /**
- * Resolve a variable to its final display string:
- * raw -> valueMap (exact -> `*` default) when present, else
- * (empty/missing) inline `{token|default}` -> entry fallback -> strip.
- * Markup is neutralized on every branch.
+ * The value a variable would present WITHOUT any fallback: raw -> valueMap,
+ * markup-neutralized. `undefined` when the source is missing. Used by the
+ * conditional-segment test: a segment renders iff its variable has a non-empty
+ * present value (so a fallback never makes a segment appear).
  */
-function resolveDisplay(
-  entry: CopyVariable,
-  ctx: RuleEvaluationContext,
-  inlineDefault: string | undefined,
-): string {
+function presentValue(entry: CopyVariable, ctx: RuleEvaluationContext): string | undefined {
   const raw = resolveRaw(entry.source, ctx);
-  if (raw !== undefined) return neutralizeMarkup(applyValueMap(raw, entry.valueMap));
-  const fallback = inlineDefault !== undefined ? inlineDefault : entry.fallback;
-  return fallback !== undefined ? neutralizeMarkup(fallback) : "";
+  if (raw === undefined) return undefined;
+  return neutralizeMarkup(applyValueMap(raw, entry.valueMap));
 }
 
+/** Sentinel emitted where a bare token strips to nothing (no fallback/default),
+ *  so the whitespace cleanup can tidy exactly those spots and nothing else. */
+const STRIP = "\u0000";
+
 const TOKEN_RE = /\\\{|\{([a-zA-Z0-9_-]+)(?:\|([^}]*))?\}/g;
+// Conditional segment: {?var} … {/var}. Non-greedy body, backreferenced close.
+// The negative lookbehind keeps an escaped \{?…} literal (mirrors \{).
+const SEGMENT_RE = /(?<!\\)\{\?([a-zA-Z0-9_-]+)\}([\s\S]*?)\{\/\1\}/g;
 
 /**
  * Substitute copy-variable tokens in `src` against `ctx` using `registry`.
+ *
+ * Supports:
+ *   {token}            resolve, or strip to nothing (with whitespace cleanup).
+ *   {token|default}    resolve, or use `default` when the value is empty/missing.
+ *   {?var}…{/var}      render the enclosed part only when `var` has a non-empty
+ *                      present value (raw -> valueMap, no fallback); otherwise the
+ *                      whole segment (markers + inner text) is dropped. Tokens
+ *                      inside a rendered segment substitute normally.
+ *   \{                 a literal brace (also keeps \{?… literal).
+ *
  * Tokens not in the registry (or hand-typed braces) are left literal.
  */
 export function substituteContextTokens(
@@ -187,13 +203,40 @@ export function substituteContextTokens(
   const byToken = new Map<string, CopyVariable>();
   for (const v of registry) byToken.set(v.token, v);
 
-  return src.replace(TOKEN_RE, (match, key: string | undefined, def: string | undefined) => {
-    if (match === "\\{") return "{";
-    if (key === undefined) return match;
+  // ── 1. Conditional segments (recursive, so nested segments resolve too) ──────
+  const segmentPresent = (key: string): boolean => {
     const entry = byToken.get(key);
-    if (!entry) return match; // unknown / hand-typed braces: leave literal
-    return resolveDisplay(entry, ctx, def);
-  });
+    if (!entry) return false;            // unknown variable → treat as empty
+    const v = presentValue(entry, ctx);
+    return v !== undefined && v !== "";
+  };
+  const processSegments = (text: string): string =>
+    text.replace(SEGMENT_RE, (_m, key: string, inner: string) =>
+      segmentPresent(key) ? processSegments(inner) : "");
+
+  // ── 2. Tokens (emit the strip sentinel where a bare token has nothing) ───────
+  const withTokens = processSegments(src).replace(
+    TOKEN_RE,
+    (match, key: string | undefined, def: string | undefined) => {
+      if (match === "\\{") return "{";
+      if (key === undefined) return match;
+      const entry = byToken.get(key);
+      if (!entry) return match; // unknown / hand-typed braces: leave literal
+      const raw = resolveRaw(entry.source, ctx);
+      if (raw !== undefined) return neutralizeMarkup(applyValueMap(raw, entry.valueMap));
+      const fb = def !== undefined ? def : entry.fallback;
+      if (fb !== undefined) return neutralizeMarkup(fb);
+      return STRIP; // pure strip → cleaned below
+    },
+  );
+
+  // ── 3. Whitespace cleanup around stripped tokens only ────────────────────────
+  // A sentinel with a space on BOTH sides collapses to one space; otherwise it
+  // (and one adjacent space, e.g. before punctuation or at an edge) is removed.
+  // Pre-existing whitespace elsewhere is untouched.
+  return withTokens
+    .replace(/( ?)\u0000+( ?)/g, (_m, before: string, after: string) => (before && after ? " " : ""))
+    .replace(/\u0000/g, "");
 }
 
 /**
