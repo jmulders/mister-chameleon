@@ -58,6 +58,10 @@ type LeadinfoFn = ((...args: unknown[]) => void) & { q?: unknown[][]; t?: string
 // Module-level guards so React 18 strict-mode double-mounts don't inject/tap twice.
 let injected = false;
 let dlTapped = false;
+// Synchronous in-flight guard: the once-per-session flag is only set AFTER the
+// POST resolves, so without this the scan / tap / poll paths could each fire a
+// duplicate POST for the same entry before the flag lands.
+let dlPosting = false;
 
 const DL_SENT_FLAG = "mc_li_dl_sent";
 
@@ -85,14 +89,25 @@ function numAny(v: unknown): number | null {
  * POST to /api/enrichment/leadinfo to set the mc_li cookie → server-side
  * enrichment + Lead Base pick it up. No-op for accounts without the feature.
  */
-function handleDataLayerEntry(entry: unknown): void {
-  if (!entry || typeof entry !== "object") return;
+/** Extract a company name from a dataLayer entry, or null when absent. */
+function entryCompanyName(entry: unknown): string | null {
+  if (!entry || typeof entry !== "object") return null;
   const e = entry as Record<string, unknown>;
   const nested = (e.company ?? {}) as Record<string, unknown>;
-  const name = str(e.company_name) ?? str(e.companyName) ?? str(nested.name);
-  if (!name) return;
+  return str(e.company_name) ?? str(e.companyName) ?? str(nested.name);
+}
 
+function handleDataLayerEntry(entry: unknown): void {
+  const name = entryCompanyName(entry);
+  if (!name) return;
+  const e = entry as Record<string, unknown>;
+  const nested = (e.company ?? {}) as Record<string, unknown>;
+
+  // Dedup across scan / tap / poll: skip when a POST is already in flight or one
+  // already succeeded this session.
+  if (dlPosting) return;
   try { if (sessionStorage.getItem(DL_SENT_FLAG)) return; } catch { /* ignore */ }
+  dlPosting = true;
 
   const payload = {
     matched:         true,
@@ -117,7 +132,10 @@ function handleDataLayerEntry(entry: unknown): void {
     keepalive: true,
   })
     .then(() => { try { sessionStorage.setItem(DL_SENT_FLAG, "1"); } catch { /* ignore */ } })
-    .catch(() => { /* fail-open */ });
+    .catch(() => { /* fail-open */ })
+    // Reset the in-flight guard so a failed POST can be retried by a later
+    // push/poll; success is already blocked by DL_SENT_FLAG.
+    .finally(() => { dlPosting = false; });
 }
 
 export function LeadinfoProvider({ siteToken }: LeadinfoProviderProps): null {
@@ -171,6 +189,36 @@ export function LeadinfoProvider({ siteToken }: LeadinfoProviderProps): null {
         return origPush(...args);
       };
     }
+
+    // ── Polling fallback (race-proof) ─────────────────────────────────────────
+    // GTM often REPLACES dataLayer.push with its own wrapper and pushes the
+    // Leadinfo company LATE (after window-load + jQuery + the async identify),
+    // so our tap can be bypassed and the entry can land after the initial scan.
+    // Poll the live dataLayer for a company entry and fire once when it appears.
+    // The dlPosting / DL_SENT_FLAG guards keep this from double-POSTing. Fail-open.
+    let polls = 0;
+    const MAX_POLLS = 40; // ~20s at 500ms
+    const pollId = window.setInterval(() => {
+      polls += 1;
+      try {
+        let alreadySent = false;
+        try { alreadySent = sessionStorage.getItem(DL_SENT_FLAG) != null; } catch { /* ignore */ }
+        if (alreadySent) { window.clearInterval(pollId); return; }
+
+        const layer = (window as unknown as { dataLayer?: unknown[] }).dataLayer;
+        if (Array.isArray(layer)) {
+          const hit = layer.find((en) => entryCompanyName(en) != null);
+          if (hit) {
+            handleDataLayerEntry(hit);
+            window.clearInterval(pollId); // fire once, then stop
+            return;
+          }
+        }
+      } catch { /* never break GTM */ }
+      if (polls >= MAX_POLLS) window.clearInterval(pollId);
+    }, 500);
+
+    return () => window.clearInterval(pollId);
   }, [siteToken]);
 
   return null;
