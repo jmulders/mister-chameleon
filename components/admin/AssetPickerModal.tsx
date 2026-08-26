@@ -92,14 +92,15 @@ export function AssetPickerModal({
   }, [open, tab, fetchAssets]);
 
   const filtered = assets.filter((a) => {
-    // In video mode only show video assets; in image mode show everything.
-    if (isVideo) {
-      const looksLikeVideo =
-        a.mimeType?.startsWith("video/") ||
-        a.assetType === "video" ||
-        /\.(mp4|webm|mov|avi|ogv|mpeg)$/i.test(a.fileName ?? "");
-      if (!looksLikeVideo) return false;
-    }
+    // Split by mode on a mime/asset_type/filename heuristic, so a video shows up
+    // in the video picker (and stays out of the image picker) regardless of how
+    // its asset_type happens to be stored. Video mode → only videos; image mode
+    // → only non-videos.
+    const looksLikeVideo =
+      a.mimeType?.startsWith("video/") ||
+      a.assetType === "video" ||
+      /\.(mp4|webm|mov|avi|ogv|mpeg)$/i.test(a.fileName ?? "");
+    if (isVideo ? !looksLikeVideo : looksLikeVideo) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
