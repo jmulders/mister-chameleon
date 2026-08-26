@@ -83,6 +83,48 @@ const FOCAL_POINTS: { value: string; label: string }[] = [
   { value: "left bottom", label: "Bottom left" },  { value: "center bottom", label: "Bottom" },   { value: "right bottom", label: "Bottom right" },
 ];
 
+/**
+ * 3x3 focal-point picker — sets the CSS object-position keyword used when a
+ * media (image or video) is cropped to Cover. Shared by ImagePicker and
+ * VideoOptions so both surfaces get identical framing control.
+ */
+function FocalPointGrid({
+  value,
+  onChange,
+  hint,
+}: {
+  value?:   string;
+  onChange: (v: string) => void;
+  hint:     string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-neutral-700 mb-1.5">Focal point</label>
+      <div className="grid w-[4.5rem] grid-cols-3 gap-1">
+        {FOCAL_POINTS.map((fp) => {
+          const active = (value || "center") === fp.value;
+          return (
+            <button
+              key={fp.value}
+              type="button"
+              title={fp.label}
+              aria-label={`Focal point: ${fp.label}`}
+              aria-pressed={active}
+              onClick={() => onChange(fp.value)}
+              className={`aspect-square rounded-sm border transition-colors ${
+                active
+                  ? "border-brand-500 bg-brand-500"
+                  : "border-neutral-300 bg-neutral-100 hover:border-brand-400"
+              }`}
+            />
+          );
+        })}
+      </div>
+      <p className="mt-1 text-[10px] text-neutral-400">{hint}</p>
+    </div>
+  );
+}
+
 export function ImagePicker({
   tenantId,
   url,
@@ -152,32 +194,11 @@ export function ImagePicker({
 
       {/* Focal point: which part stays in view when the hero crops the image */}
       {url && onObjectPositionChange && (
-        <div>
-          <label className="block text-xs font-medium text-neutral-700 mb-1.5">Focal point</label>
-          <div className="grid w-[4.5rem] grid-cols-3 gap-1">
-            {FOCAL_POINTS.map((fp) => {
-              const active = (objectPosition || "center") === fp.value;
-              return (
-                <button
-                  key={fp.value}
-                  type="button"
-                  title={fp.label}
-                  aria-label={`Focal point: ${fp.label}`}
-                  aria-pressed={active}
-                  onClick={() => onObjectPositionChange(fp.value)}
-                  className={`aspect-square rounded-sm border transition-colors ${
-                    active
-                      ? "border-brand-500 bg-brand-500"
-                      : "border-neutral-300 bg-neutral-100 hover:border-brand-400"
-                  }`}
-                />
-              );
-            })}
-          </div>
-          <p className="mt-1 text-[10px] text-neutral-400">
-            Keeps the subject in frame when Cover crops the image.
-          </p>
-        </div>
+        <FocalPointGrid
+          value={objectPosition}
+          onChange={onObjectPositionChange}
+          hint="Keeps the subject in frame when Cover crops the image."
+        />
       )}
 
       {/* Alt text */}
@@ -202,6 +223,7 @@ export function VideoOptions({
   tenantId,
   videoUrl,
   videoPoster,
+  videoObjectPosition,
   videoId,
   autoplay,
   loop,
@@ -209,6 +231,7 @@ export function VideoOptions({
   controls,
   onVideoUrl:    setVideoUrl,
   onVideoPoster: setVideoPoster,
+  onVideoObjectPosition: setVideoObjectPosition,
   onVideoId:     setVideoId,
   onAutoplay:    setAutoplay,
   onLoop:        setLoop,
@@ -219,6 +242,8 @@ export function VideoOptions({
   tenantId:     string;
   videoUrl:     string;
   videoPoster:  string;
+  /** CSS object-position for the upload video's cover crop (framing). */
+  videoObjectPosition?: string;
   videoId:      string;
   autoplay:     boolean;
   loop:         boolean;
@@ -226,6 +251,7 @@ export function VideoOptions({
   controls:     boolean;
   onVideoUrl:    (v: string) => void;
   onVideoPoster: (v: string) => void;
+  onVideoObjectPosition?: (v: string) => void;
   onVideoId:     (v: string) => void;
   onAutoplay:    (v: boolean) => void;
   onLoop:        (v: boolean) => void;
@@ -330,6 +356,15 @@ export function VideoOptions({
               </button>
             )}
           </div>
+
+          {/* Focal point: which part stays in view when the hero crops the video */}
+          {videoUrl && setVideoObjectPosition && (
+            <FocalPointGrid
+              value={videoObjectPosition}
+              onChange={setVideoObjectPosition}
+              hint="Keeps the subject in frame when Cover crops the video."
+            />
+          )}
         </>
       )}
 
@@ -397,6 +432,7 @@ export function SlideMediaEditor({
   const [videoSource, setVideoSource] = useState<VideoSource>(initVid?.source ?? "upload");
   const [videoUrl, setVideoUrl]       = useState(initVid?.source === "upload" ? initVid.url : "");
   const [videoPoster, setVideoPoster] = useState(initVid?.source === "upload" ? (initVid.poster ?? "") : "");
+  const [videoObjectPosition, setVideoObjectPosition] = useState(initVid?.source === "upload" ? (initVid.objectPosition ?? "") : "");
   const [videoId, setVideoId]         = useState(
     initVid?.source === "youtube" || initVid?.source === "vimeo" ? initVid.videoId : "",
   );
@@ -431,6 +467,7 @@ export function SlideMediaEditor({
             source: "upload",
             url:    videoUrl,
             ...(videoPoster ? { poster: videoPoster } : {}),
+            ...(videoObjectPosition ? { objectPosition: videoObjectPosition } : {}),
             autoplay,
             loop,
             muted,
@@ -450,7 +487,7 @@ export function SlideMediaEditor({
       }
     }
     onChangeRef.current(next);
-  }, [mediaType, imageUrl, imageAlt, imageFit, imageObjectPosition, videoSource, videoUrl, videoPoster, videoId, autoplay, loop, muted, controls]);
+  }, [mediaType, imageUrl, imageAlt, imageFit, imageObjectPosition, videoSource, videoUrl, videoPoster, videoObjectPosition, videoId, autoplay, loop, muted, controls]);
 
   return (
     <div className="space-y-3">
@@ -521,6 +558,7 @@ export function SlideMediaEditor({
             tenantId={tenantId}
             videoUrl={videoUrl}
             videoPoster={videoPoster}
+            videoObjectPosition={videoObjectPosition}
             videoId={videoId}
             autoplay={autoplay}
             loop={loop}
@@ -528,6 +566,7 @@ export function SlideMediaEditor({
             controls={controls}
             onVideoUrl={setVideoUrl}
             onVideoPoster={setVideoPoster}
+            onVideoObjectPosition={setVideoObjectPosition}
             onVideoId={setVideoId}
             onAutoplay={setAutoplay}
             onLoop={setLoop}

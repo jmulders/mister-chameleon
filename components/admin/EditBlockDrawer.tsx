@@ -541,6 +541,9 @@ export function EditBlockDrawer({
   const [videoPoster, setVideoPoster]   = useState(
     existingVid?.source === "upload" ? (existingVid.poster ?? "") : "",
   );
+  const [videoObjectPosition, setVideoObjectPosition] = useState(
+    existingVid?.source === "upload" ? (existingVid.objectPosition ?? "") : "",
+  );
   const [videoMuted, setVideoMuted]     = useState(
     existingVid?.source === "upload" ? (existingVid.muted ?? true) : true,
   );
@@ -715,7 +718,7 @@ export function EditBlockDrawer({
   }, [
     title, subtitle, tag, layoutVariant, contentAlign,
     mediaType, imageUrl, imageAlt, imageObjectPosition, videoSource, videoUrl, videoPoster,
-    videoMuted, videoControls, videoId, videoAutoplay, videoLoop,
+    videoObjectPosition, videoMuted, videoControls, videoId, videoAutoplay, videoLoop,
     ctas, items, slides, carouselAutoplay, tokenSet, tokens,
   ]);
 
@@ -784,6 +787,7 @@ export function EditBlockDrawer({
           source:   "upload",
           url:      videoUrl,
           ...(videoPoster  ? { poster:   videoPoster }  : {}),
+          ...(videoObjectPosition ? { objectPosition: videoObjectPosition } : {}),
           // Always persist the booleans (including false) — a conditional spread
           // dropped `false`, so an OFF toggle reverted to its `?? true` default on
           // reload (e.g. Controls kept turning itself back on).
@@ -1209,6 +1213,7 @@ export function EditBlockDrawer({
                   tenantId={tenantId}
                   videoUrl={videoUrl}
                   videoPoster={videoPoster}
+                  videoObjectPosition={videoObjectPosition}
                   videoId={videoId}
                   autoplay={videoAutoplay}
                   loop={videoLoop}
@@ -1216,6 +1221,7 @@ export function EditBlockDrawer({
                   controls={videoControls}
                   onVideoUrl={setVideoUrl}
                   onVideoPoster={setVideoPoster}
+                  onVideoObjectPosition={setVideoObjectPosition}
                   onVideoId={setVideoId}
                   onAutoplay={setVideoAutoplay}
                   onLoop={setVideoLoop}
