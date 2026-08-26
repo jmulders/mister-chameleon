@@ -421,6 +421,7 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
       <HeroBackgroundVideo
         url={video.url}
         poster={video.poster}
+        objectPosition={video.objectPosition}
         muted={video.muted ?? true}
         autoplay={video.autoplay ?? true}
         loop={video.loop ?? true}
