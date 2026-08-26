@@ -125,3 +125,41 @@ describe("extractSelectedPayload", () => {
     assert.deepEqual(extractSelectedPayload(CTX, undefined, consent({ enrichment: true })), {});
   });
 });
+
+describe("firmographic fallback to client-side Leadinfo fields", () => {
+  // Context enriched ONLY by client-side Leadinfo (mc_li): the leadinfo* fields
+  // are set, the generic firmographic fields are not.
+  const LI_ONLY: PayloadSourceContext = {
+    enrichment: {
+      leadinfoCompanyName:    "Nakatomi BV",
+      leadinfoCompanyDomain:  "nakatomi.example",
+      leadinfoCompanyCountry: "NL",
+      leadinfoEmployees:      "51-200",
+    },
+  };
+
+  it("uses leadinfo* fields when the generic firmographic fields are absent", () => {
+    assert.deepEqual(
+      extractSelectedPayload(LI_ONLY, ["companyName", "companyDomain", "geoCountry", "companySize"], consent({ enrichment: true })),
+      { companyName: "Nakatomi BV", companyDomain: "nakatomi.example", geoCountry: "NL", companySize: "51-200" },
+    );
+  });
+
+  it("companyIndustry stays empty with client Leadinfo (no text industry, only a branch code)", () => {
+    assert.deepEqual(extractSelectedPayload(LI_ONLY, ["companyIndustry"], consent({ enrichment: true })), {});
+  });
+
+  it("still enrichment-gated: no company without enrichment consent", () => {
+    assert.deepEqual(extractSelectedPayload(LI_ONLY, ["companyName", "geoCountry"], consent()), {});
+  });
+
+  it("the generic server-side field wins when both are present", () => {
+    const both: PayloadSourceContext = {
+      enrichment: { companyName: "Acme BV", leadinfoCompanyName: "Nakatomi BV" },
+    };
+    assert.deepEqual(
+      extractSelectedPayload(both, ["companyName"], consent({ enrichment: true })),
+      { companyName: "Acme BV" },
+    );
+  });
+});
