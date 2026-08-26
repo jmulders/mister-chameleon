@@ -192,6 +192,84 @@ function buildRuntimeRules(): {
   return buildFromConfig(SEED_RULES_CONFIG, "seed");
 }
 
+// ── Compiled-rules cache ────────────────────────────────────────────────────────
+//
+// The provider is constructed per request (homepage pipeline, cms-page-decision,
+// snippet/decide), and getHomepagePlan used to compile ALL rules every call.
+// Compilation is deterministic and depends only on the StoredRulesConfig, so the
+// compiled result is cached module-level, keyed on tenant + config VERSION
+// (updatedAt, or a stable hash when absent), and reused across requests.
+//
+//   - Validation stays at SAVE time (saveTenantRulesAction / loadTenantRulesConfig)
+//     — never in this hot path.
+//   - A new config version (a save bumps updatedAt) is a cache miss → recompile.
+//   - Bounded LRU so many tenants/versions can't grow it without limit.
+//   - The compiled objects are only READ during evaluation; the default plan is
+//     cloned on return so a cached object can never be mutated across requests.
+
+interface CompiledRules {
+  rules:         HomepageRule[];
+  webhookRules:  HomepageRule[];
+  storedRuleMap: ReadonlyMap<string, StoredRule>;
+  defaultPlan:   ExperiencePlan;
+  rulesEnabled:  boolean;
+  source:        "db" | "runtime" | "seed";
+}
+
+const COMPILE_CACHE_MAX = 200;
+const compileCache = new Map<string, CompiledRules>();
+let compileCount = 0;
+
+/** Stable non-crypto hash of a config, used only when `updatedAt` is absent. */
+function stableConfigHash(config: StoredRulesConfig): string {
+  const s = JSON.stringify(config);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return `h${(h >>> 0).toString(36)}:${s.length}`;
+}
+
+function cacheGetOrBuild(key: string, build: () => CompiledRules): CompiledRules {
+  const hit = compileCache.get(key);
+  if (hit) {
+    // LRU touch: re-insert so it becomes the most-recently-used.
+    compileCache.delete(key);
+    compileCache.set(key, hit);
+    return hit;
+  }
+  const built = build();
+  compileCount++;
+  compileCache.set(key, built);
+  // Evict the oldest entries beyond the cap (Map preserves insertion order).
+  while (compileCache.size > COMPILE_CACHE_MAX) {
+    const oldest = compileCache.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    compileCache.delete(oldest);
+  }
+  return built;
+}
+
+/** runtime-rules.json version marker (mtime), so a dev edit invalidates the cache. */
+function runtimeRulesVersion(): string {
+  try { return String(fs.statSync(RULES_PATH).mtimeMs); } catch { return "0"; }
+}
+
+/** Get the compiled rules for this config version, compiling only on a miss. */
+function getCompiledRules(
+  storedConfig: StoredRulesConfig | undefined,
+  tenantId:     string | undefined,
+): CompiledRules {
+  if (storedConfig) {
+    const version = storedConfig.updatedAt ?? stableConfigHash(storedConfig);
+    return cacheGetOrBuild(`db:${tenantId ?? "-"}:${version}`, () => buildFromConfig(storedConfig, "db"));
+  }
+  return cacheGetOrBuild(`runtime:${runtimeRulesVersion()}`, buildRuntimeRules);
+}
+
+/** Test hook: how many times rules were actually compiled (cache misses). */
+export function __getRuleCompileCount(): number { return compileCount; }
+/** Test hook: clear the compiled-rules cache + reset the compile counter. */
+export function __resetRuleCompileCache(): void { compileCache.clear(); compileCount = 0; }
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export class RulesDecisionProvider implements DecisionProvider {
@@ -339,10 +417,10 @@ export class RulesDecisionProvider implements DecisionProvider {
     this.lastStickyContextWrites = [];
 
     try {
+      // Compiled once per config version and reused across requests (see the
+      // compiled-rules cache above). Validation already happened at save time.
       const { rules, webhookRules, storedRuleMap, defaultPlan, rulesEnabled, source } =
-        this._storedConfig
-          ? buildFromConfig(this._storedConfig, "db")
-          : buildRuntimeRules();
+        getCompiledRules(this._storedConfig, this._tenantId);
 
       // ── Tenant-level master switch ──────────────────────────────────────────
       this.lastRulesEnabled = rulesEnabled;
@@ -352,7 +430,8 @@ export class RulesDecisionProvider implements DecisionProvider {
           rulesSource: source,
           reason:      !rulesEnabled ? "tenant_disabled" : "session_cap_reached",
         });
-        return defaultPlan;
+        // Clone: the cached defaultPlan object must never be handed out mutable.
+        return { ...defaultPlan };
       }
 
       // Widen to RuleEvaluationContext so compiled predicates (which call
@@ -429,7 +508,8 @@ export class RulesDecisionProvider implements DecisionProvider {
         visitType:   input.visitType,
       });
 
-      return defaultPlan;
+      // Clone: never hand out the cached defaultPlan object mutable.
+      return { ...defaultPlan };
     } catch (err) {
       logger.error("[decision] Unexpected error during rule evaluation", {
         error:  err instanceof Error ? err.message : String(err),
