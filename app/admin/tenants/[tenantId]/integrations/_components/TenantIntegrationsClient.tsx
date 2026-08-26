@@ -619,6 +619,7 @@ export function TenantIntegrationsClient({
   const [enrichmentEnabled,   setEnrichmentEnabled]   = useState(initialEnrichment.enabled);
   const [useGeoEnrichment,    setUseGeoEnrichment]    = useState(initialEnrichment.useGeoEnrichment);
   const [useOpenKvK,          setUseOpenKvK]          = useState(initialEnrichment.useOpenKvK          ?? false);
+  const [useLeadinfo,         setUseLeadinfo]         = useState(initialEnrichment.useLeadinfo         ?? false);
   const [useSeasonalEvents,   setUseSeasonalEvents]   = useState(initialEnrichment.useSeasonalEvents   ?? false);
   const [testIpEnabled,       setTestIpEnabled]       = useState(initialEnrichment.testIpEnabled       ?? false);
   const [testIpAddress,       setTestIpAddress]       = useState(initialEnrichment.testIpAddress       ?? "");
@@ -715,7 +716,7 @@ export function TenantIntegrationsClient({
           useSeasonalEvents:      useSeasonalEvents,
           // Preserve existing values for flags without UI controls in this form
           useIpinfoLite:          initialEnrichment.useIpinfoLite          ?? false,
-          useLeadinfo:            initialEnrichment.useLeadinfo            ?? false,
+          useLeadinfo:            useLeadinfo,
           useIpCompanyEnrichment: initialEnrichment.useIpCompanyEnrichment ?? false,
           // Test IP override
           testIpEnabled,
@@ -1236,6 +1237,14 @@ export function TenantIntegrationsClient({
             disabled={!enrichmentEnabled || !platformEnrichmentAvailable}
             label="Use OpenKvK (Dutch company registry)"
             description="Looks up Dutch companies by name from the public OpenKvK API. No API key required. Runs for NL visitors by default (configurable in Platform → Integrations → Enrichment). Requires enrichment enabled."
+          />
+          <Toggle
+            id="leadinfo-server-enrichment"
+            checked={useLeadinfo}
+            onChange={setUseLeadinfo}
+            disabled={!enrichmentEnabled || !platformEnrichmentAvailable}
+            label="Use Leadinfo (server-side IP-to-company)"
+            description="Server-side reverse-IP company identification via Leadinfo. Populates companyName, companyIndustry, companyDomain and companySize context fields (used by rules, lead-base and rule webhooks). Requires a platform Leadinfo key (Platform → Integrations → Enrichment) and enrichment consent; business (non-cloud) IPs only. This is separate from the client-side Leadinfo tracking script below."
           />
           <Toggle
             id="seasonal-events"
