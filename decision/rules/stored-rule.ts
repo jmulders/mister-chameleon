@@ -560,6 +560,12 @@ export interface RuleWebhook {
    * payload is always sent. See docs/design/webhook-payload-consent.md.
    */
   payloadFields?: string[];
+  /**
+   * When true, this webhook fires at most ONCE per visitor session (deduped via
+   * a reserved marker in the session's rule_context). Default false = the current
+   * per-pageview behaviour (fires on every page-decision the rule wins).
+   */
+  fireOncePerSession?: boolean;
 }
 
 // ── Stored rule ────────────────────────────────────────────────────────────────
@@ -1085,6 +1091,9 @@ function validatePlan(
         if (!Array.isArray(wh.payloadFields) || wh.payloadFields.some((k) => typeof k !== "string" || !PAYLOAD_FIELD_KEYS.has(k))) {
           errors.push({ ruleId, field: `${idx}.plan.webhook.payloadFields`, message: "payloadFields must be an array of known payload-field keys." });
         }
+      }
+      if (wh.fireOncePerSession !== undefined && typeof wh.fireOncePerSession !== "boolean") {
+        errors.push({ ruleId, field: `${idx}.plan.webhook.fireOncePerSession`, message: "fireOncePerSession must be a boolean." });
       }
     }
   }

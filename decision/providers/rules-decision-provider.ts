@@ -400,6 +400,13 @@ export class RulesDecisionProvider implements DecisionProvider {
   public lastStickyContextWrites: RuleContextWrite[] = [];
 
   /**
+   * Fire-once-per-session webhook markers collected during this request's webhook
+   * passes. Persisted TOGETHER with the phase-A sticky writes in one flush per
+   * request, so the two never race on the rule_context column.
+   */
+  private _pendingFiredWrites: RuleContextWrite[] = [];
+
+  /**
    * Resolve a homepage ExperiencePlan for the given input.
    *
    * Accepts DecisionInput (the required interface type) or a
@@ -415,6 +422,7 @@ export class RulesDecisionProvider implements DecisionProvider {
     this.lastDisabledRuleIds  = [];
     this.lastMatchedContextIds = [];
     this.lastStickyContextWrites = [];
+    this._pendingFiredWrites = [];
 
     try {
       // Compiled once per config version and reused across requests (see the
@@ -498,6 +506,7 @@ export class RulesDecisionProvider implements DecisionProvider {
           ...matched.plan,
           reason: matched.reason,
         };
+        this.flushRuleContextWrites();
         return plan;
       }
 
@@ -509,6 +518,7 @@ export class RulesDecisionProvider implements DecisionProvider {
       });
 
       // Clone: never hand out the cached defaultPlan object mutable.
+      this.flushRuleContextWrites();
       return { ...defaultPlan };
     } catch (err) {
       logger.error("[decision] Unexpected error during rule evaluation", {
@@ -537,6 +547,19 @@ export class RulesDecisionProvider implements DecisionProvider {
     const plan = rule.plan as StoredPlan;
     const webhookUrl = plan.webhook?.url;
     if (!webhookUrl) return;
+
+    // Fire-once-per-session: deliver at most once per visitor session. Dedup via
+    // a reserved rule_context marker (`__wh:<ruleId>`) that rides the existing
+    // sticky-write persistence — no new column, no migration. The marker is
+    // recorded on the pending batch and flushed once per request (single writer)
+    // so it never races the phase-A sticky writes. Default off → per-pageview.
+    // Degrades to per-pageview when no sessionId is available (marker not persisted).
+    if (plan.webhook?.fireOncePerSession === true) {
+      const firedKey = `__wh:${rule.id}`;
+      if (ctx.ruleContext?.[firedKey] === true) return; // already fired this session
+      if (ctx.ruleContext) ctx.ruleContext[firedKey] = true; // in-request dedup
+      this._pendingFiredWrites.push({ key: firedKey, value: true, sticky: true, monotone: true });
+    }
 
     const payloadCtx = ctx as unknown as PayloadSourceContext;
 
@@ -717,7 +740,8 @@ export class RulesDecisionProvider implements DecisionProvider {
     }
 
     this.lastStickyContextWrites = sticky;
-    this.persistStickyWrites(sticky);
+    // Persisted later via flushRuleContextWrites() — combined with any
+    // fire-once webhook markers into a SINGLE rule_context write per request.
   }
 
   /**
@@ -735,6 +759,18 @@ export class RulesDecisionProvider implements DecisionProvider {
     void import("@/lib/journey/persist-rule-context")
       .then((m) => m.persistRuleContext(sid, tid, writes))
       .catch(() => { /* pre-migration / no DB: ignore */ });
+  }
+
+  /**
+   * Persist this request's rule_context writes in a SINGLE call: the phase-A
+   * sticky writes plus any fire-once webhook markers collected during the webhook
+   * passes. One writer per request avoids racing the rule_context column.
+   */
+  private flushRuleContextWrites(): void {
+    const writes = this._pendingFiredWrites.length > 0
+      ? [...this.lastStickyContextWrites, ...this._pendingFiredWrites]
+      : this.lastStickyContextWrites;
+    this.persistStickyWrites(writes);
   }
 
   /**
