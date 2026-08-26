@@ -1594,6 +1594,19 @@ function RuleCard({
                   </span>
                 )}
                 {rule.plan.webhook?.url && (
+                  <label className="mt-2 flex items-start gap-2 text-xs text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={rule.webhookOnly === true}
+                      onChange={(e) => onChange({ webhookOnly: e.target.checked ? true : undefined })}
+                      className="mt-0.5 rounded border-neutral-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span>
+                      <span className="font-medium">Webhook-only rule</span> — fire this webhook whenever the condition matches, but do <span className="font-medium">not</span> set a personalization variant. The rule is evaluated independently of the first-match variant decision, so it never competes with your personalization rules.
+                    </span>
+                  </label>
+                )}
+                {rule.plan.webhook?.url && (
                   <div className="mt-2">
                     <p className="text-xs font-medium text-neutral-600">Payload fields</p>
                     <p className="text-[11px] text-neutral-400">Added to the payload when the visitor&apos;s consent permits (firmographic = enrichment, scoring = personalization, person = personalization + enrichment).</p>
