@@ -285,9 +285,13 @@ export function VideoOptions({
 
           {/* Poster thumbnail */}
           <div>
-            <label className="block text-xs font-medium text-neutral-700 mb-1.5">
-              Poster / thumbnail <span className="font-normal text-neutral-400">(optional)</span>
+            <label className="block text-xs font-medium text-neutral-700 mb-1">
+              Poster / thumbnail <span className="font-normal text-brand-600">(recommended)</span>
             </label>
+            <p className="mb-1.5 text-[10px] leading-snug text-neutral-500">
+              Without a poster, a background video shows a neutral placeholder until the
+              file has loaded. Add one for an instant first frame.
+            </p>
             <AssetPickerModal
               tenantId={tenantId}
               loadAssets={loadAssetsForPickerAction}
