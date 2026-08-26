@@ -408,6 +408,57 @@ export async function applyDesignPresetAction(
   return { ok: true, presetId };
 }
 
+// ── Save tenant branding logos (light / dark) ──────────────────────────────────
+
+export type SaveBrandingResult = { success: true } | { success: false; error: string };
+
+/**
+ * Persist the tenant's brand logos. These are the PRIMARY logo source for the
+ * chrome (Header / Footer), overriding the CMS site settings. Only the two
+ * variants edited in the admin are written; an omitted variant clears that slot.
+ * validateTenantSettings enforces the { url, alt? } shape on save.
+ */
+export async function saveBrandingAction(
+  tenantId: string,
+  branding: {
+    logo?:      { url: string; alt?: string };
+    logoDark?:  { url: string; alt?: string };
+    logoLight?: { url: string; alt?: string };
+  },
+): Promise<SaveBrandingResult> {
+  try {
+    await getRequiredAdminSession();
+
+    const current = await getTenantById(tenantId);
+    if (!current) return { success: false, error: `Tenant "${tenantId}" not found.` };
+
+    // Drop empty variants so an unset logo clears rather than storing "".
+    const clean = (l?: { url: string; alt?: string }) =>
+      l?.url?.trim() ? { url: l.url.trim(), ...(l.alt?.trim() ? { alt: l.alt.trim() } : {}) } : undefined;
+    const cleaned: NonNullable<TenantSettings["branding"]> = {
+      ...(clean(branding.logo)      ? { logo:      clean(branding.logo)! }      : {}),
+      ...(clean(branding.logoDark)  ? { logoDark:  clean(branding.logoDark)! }  : {}),
+      ...(clean(branding.logoLight) ? { logoLight: clean(branding.logoLight)! } : {}),
+    };
+
+    const hasAny = Object.keys(cleaned).length > 0;
+    const updated: TenantSettings = { ...current, ...(hasAny ? { branding: cleaned } : { branding: undefined }) };
+
+    const saveResult = await saveTenant(updated);
+    if (!saveResult.ok) return { success: false, error: saveResult.error };
+
+    // Re-render the public site (chrome logo) + admin views.
+    revalidatePath("/", "layout");
+    revalidatePath(`/admin/tenants/${tenantId}`);
+    return { success: true };
+  } catch (err) {
+    rethrowNextInternal(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error("[saveBrandingAction] error", { tenantId, error: msg });
+    return { success: false, error: msg };
+  }
+}
+
 // ── Import a design preset from raw JSON (Builder "Importeer JSON") ─────────────
 
 export type ImportPresetResult =

@@ -401,6 +401,30 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
     }
   }
 
+  // ── branding (optional) ────────────────────────────────────────────────────
+  if (r.branding !== undefined) {
+    if (typeof r.branding !== "object" || r.branding === null) {
+      errors.push("branding: must be an object when present.");
+    } else {
+      const b = r.branding as Record<string, unknown>;
+      for (const key of ["logo", "logoDark", "logoLight"] as const) {
+        if (b[key] === undefined) continue;
+        const logo = b[key];
+        if (typeof logo !== "object" || logo === null) {
+          errors.push(`branding.${key}: must be an object { url, alt? } when present.`);
+          continue;
+        }
+        const l = logo as Record<string, unknown>;
+        if (typeof l.url !== "string" || l.url.trim() === "") {
+          errors.push(`branding.${key}.url: must be a non-empty string.`);
+        }
+        if (l.alt !== undefined && typeof l.alt !== "string") {
+          errors.push(`branding.${key}.alt: must be a string when present.`);
+        }
+      }
+    }
+  }
+
   // ── name (optional) ────────────────────────────────────────────────────────
   if (r.name !== undefined && typeof r.name !== "string") {
     errors.push("name: must be a string when present.");

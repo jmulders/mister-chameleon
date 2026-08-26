@@ -54,6 +54,7 @@ export default async function TenantDesignPage({
           tenantId={tenantId}
           activeTheme={safeThemeKey}
           design={safeDesign}
+          branding={tenant.branding}
           tokenSets={tokenSets}
           effectSets={effectSets}
         />
