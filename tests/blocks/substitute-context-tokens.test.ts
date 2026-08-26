@@ -67,7 +67,8 @@ describe("substituteContextTokens (registry-driven)", () => {
     assert.equal(substituteContextTokens("Hi {companyName|there}!", empty, reg), "Hi there!");
     assert.equal(substituteContextTokens("Hi {companyName}!", empty, reg), "Hi your company!");
     const noFallback: CopyVariable[] = [{ token: "companyName", label: "C", source: { kind: "builtin", key: "companyName" } }];
-    assert.equal(substituteContextTokens("Hi {companyName}!", empty, noFallback), "Hi !");
+    // A bare strip now also tidies the dangling space before the punctuation.
+    assert.equal(substituteContextTokens("Hi {companyName}!", empty, noFallback), "Hi!");
   });
 
   it("leaves unknown / hand-typed braces literal", () => {
@@ -90,6 +91,63 @@ describe("substituteContextTokens (registry-driven)", () => {
   it("returns empty string for nullish input", () => {
     assert.equal(substituteContextTokens(undefined, ctx(), REG_BUILTIN), "");
     assert.equal(substituteContextTokens(null, ctx(), REG_BUILTIN), "");
+  });
+
+  // ── Conditional segments {?var}…{/var} ──────────────────────────────────────
+
+  it("renders a {?var}…{/var} segment only when the variable is non-empty", () => {
+    const empty = ctx({ enrichment: {} } as Partial<RuleEvaluationContext>);
+    const s = "{?city}Nu ook beschikbaar in {city}{/city}";
+    assert.equal(substituteContextTokens(s, ctx(), REG_BUILTIN), "Nu ook beschikbaar in Amsterdam");
+    assert.equal(substituteContextTokens(s, empty, REG_BUILTIN), "");
+  });
+
+  it("drops the segment inside a sentence, keeping the rest", () => {
+    const empty = ctx({ enrichment: {} } as Partial<RuleEvaluationContext>);
+    const s = "Welkom{?city} in {city}{/city}!";
+    assert.equal(substituteContextTokens(s, ctx(), REG_BUILTIN), "Welkom in Amsterdam!");
+    assert.equal(substituteContextTokens(s, empty, REG_BUILTIN), "Welkom!");
+  });
+
+  it("a segment respects the value map (mapped-to-empty drops it)", () => {
+    const reg: CopyVariable[] = [
+      { token: "device", label: "D", source: { kind: "builtin", key: "device" }, valueMap: [{ from: "mobile", to: "" }] },
+    ];
+    assert.equal(substituteContextTokens("{?device}on {device}{/device}", ctx(), reg), "");
+  });
+
+  it("an unknown variable in a segment drops the segment", () => {
+    assert.equal(substituteContextTokens("a{?nope}X{/nope}b", ctx(), REG_BUILTIN), "ab");
+  });
+
+  it("supports nested segments of different variables", () => {
+    const reg: CopyVariable[] = [
+      { token: "city", label: "City", source: { kind: "builtin", key: "city" } },
+      { token: "companyName", label: "Co", source: { kind: "builtin", key: "companyName" } },
+    ];
+    const s = "{?companyName}{companyName}{?city} in {city}{/city}{/companyName}";
+    assert.equal(substituteContextTokens(s, ctx(), reg), "Acme Corp in Amsterdam");
+    const noCity = ctx({ enrichment: { companyName: "Acme Corp" } } as Partial<RuleEvaluationContext>);
+    assert.equal(substituteContextTokens(s, noCity, reg), "Acme Corp");
+  });
+
+  it("keeps \\{?…} literal (escaped segment marker)", () => {
+    assert.equal(substituteContextTokens("\\{?city}x{/city}", ctx(), REG_BUILTIN), "{?city}x{/city}");
+  });
+
+  // ── Whitespace cleanup around stripped bare tokens ──────────────────────────
+
+  it("collapses the double space and dangling space a stripped bare token leaves", () => {
+    const noFallback: CopyVariable[] = [{ token: "city", label: "C", source: { kind: "builtin", key: "city" } }];
+    const empty = ctx({ enrichment: {} } as Partial<RuleEvaluationContext>);
+    assert.equal(substituteContextTokens("Welkom {city} bezoeker", empty, noFallback), "Welkom bezoeker");
+    assert.equal(substituteContextTokens("Klaar in {city}.", empty, noFallback), "Klaar in.");
+  });
+
+  it("does not disturb whitespace when the token resolves or when no token is involved", () => {
+    const reg: CopyVariable[] = [{ token: "city", label: "C", source: { kind: "builtin", key: "city" } }];
+    assert.equal(substituteContextTokens("Welkom {city} bezoeker", ctx(), reg), "Welkom Amsterdam bezoeker");
+    assert.equal(substituteContextTokens("a  b", ctx(), reg), "a  b"); // author's double space preserved
   });
 });
 
