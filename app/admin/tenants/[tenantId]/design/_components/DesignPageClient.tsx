@@ -50,7 +50,8 @@ import type { DesignTokenSet } from "@/lib/design-token-sets/design-token-sets-s
 import { ResetDesignButton }    from "./ResetDesignButton";
 import { DesignTokenEditor }    from "@/components/admin/DesignTokenEditor";
 import { saveVisualTokensAction } from "@/app/admin/tenants/[tenantId]/actions";
-import type { TenantDesignSettings, ThemeKey } from "@/tenant/types";
+import type { TenantDesignSettings, TenantBrandingSettings, ThemeKey } from "@/tenant/types";
+import { BrandingEditor } from "./BrandingEditor";
 import {
   getFeaturedFamilyForPreset,
   getFamilyTypographyDefaults,
@@ -102,6 +103,8 @@ export interface DesignPageClientProps {
   tenantId:     string;
   activeTheme?: ThemeKey | null;
   design:       TenantDesignSettings;
+  /** Tenant-owned brand logos (light/dark), edited in the Layout tab. */
+  branding?:    TenantBrandingSettings;
   /** Saved design token sets (library) available to this tenant. */
   tokenSets:    DesignTokenSet[];
   /** Saved declarative-effect sets (library) available to this tenant. */
@@ -538,6 +541,7 @@ export function DesignPageClient({
   tenantId,
   activeTheme,
   design,
+  branding,
   tokenSets,
   effectSets,
 }: DesignPageClientProps) {
@@ -627,6 +631,14 @@ export function DesignPageClient({
           description="Choose the structural shape of the header and footer. Separate from color tokens. Color overrides live in the Customize tab."
         />
         <LayoutVariantEditor tenantId={tenantId} design={design} />
+
+        <div className="mt-8 border-t border-neutral-200 pt-8">
+          <TabSectionHeader
+            title="Branding logos"
+            description="Tenant-owned logos used by the header and footer. The dark variant shows on dark surfaces; without it, a dark header/footer keeps the light logo."
+          />
+          <BrandingEditor tenantId={tenantId} branding={branding} />
+        </div>
       </TabPanel>
 
       {/* ── Typography ──────────────────────────────────────────────────────── */}
