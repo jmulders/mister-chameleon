@@ -22,17 +22,20 @@ import React, { useEffect, useRef, useState } from "react";
 export function HeroBackgroundVideo({
   url,
   poster,
+  objectPosition,
   muted    = true,
   autoplay = true,
   loop     = true,
   controls = false,
 }: {
-  url:       string;
-  poster?:   string;
-  muted?:    boolean;
-  autoplay?: boolean;
-  loop?:     boolean;
-  controls?: boolean;
+  url:             string;
+  poster?:         string;
+  /** CSS object-position for the cover crop (framing), applied to poster + video. */
+  objectPosition?: string;
+  muted?:          boolean;
+  autoplay?:       boolean;
+  loop?:           boolean;
+  controls?:       boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -77,6 +80,7 @@ export function HeroBackgroundVideo({
           alt=""
           aria-hidden
           className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition }}
         />
       ) : (
         // No poster supplied — paint a neutral placeholder so the hero background
@@ -97,6 +101,7 @@ export function HeroBackgroundVideo({
           playsInline
           aria-hidden
           className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition }}
         />
       )}
     </div>

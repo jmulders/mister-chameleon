@@ -98,6 +98,12 @@ export interface HeroBannerVideoUpload {
   url: string;
   /** URL of the poster image shown before the video loads */
   poster?: string;
+  /**
+   * CSS object-position keyword controlling the framing when the video is
+   * cropped to cover the hero (e.g. "center", "top", "left top"). Applied to
+   * both the poster and the video. Same mechanism as the image focal point.
+   */
+  objectPosition?: string;
   /** Start playing automatically (requires muted in most browsers) */
   autoplay?: boolean;
   /** Mute the audio track */
