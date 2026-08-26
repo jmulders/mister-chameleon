@@ -44,6 +44,15 @@ export interface PayloadSourceContext {
     companySize?:    string | null;
     countryCode?:    string | null;
     region?:         string | null;
+    // Client-side Leadinfo (mc_li) writes these *separate* leadinfo* fields and
+    // deliberately does NOT overwrite the generic ones (so rules can compare
+    // leadinfoCompanyName vs companyName). The firmographic extractors below fall
+    // back to them so a client-Leadinfo-only visit still yields a company in the
+    // webhook payload.
+    leadinfoCompanyName?:    string | null;
+    leadinfoCompanyDomain?:  string | null;
+    leadinfoCompanyCountry?: string | null;
+    leadinfoEmployees?:      string | null;
   } | null;
   derived?:  { funnelStage?: string | null } | null;
   history?:  { journey?: {
@@ -75,11 +84,17 @@ const PAYLOAD_FIELDS: readonly PayloadFieldDef[] = [
   { key: "audienceSegments", label: "Audience segments", group: "context", gate: null, extract: (c) => c.audienceSegmentIds ?? null },
 
   // ── Firmographic (enrichment consent) ──
-  { key: "companyName",     label: "Company name",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyName ?? null },
-  { key: "companyDomain",   label: "Company domain",   group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyDomain ?? null },
+  // Firmographic extractors prefer the generic (server-side firmographic) fields
+  // and fall back to the client-side Leadinfo (mc_li) leadinfo* fields, so a
+  // visit enriched only by client Leadinfo still delivers a company. companySize
+  // falls back to the Leadinfo employees bucket. companyIndustry has no fallback:
+  // client Leadinfo carries only a numeric branch code (no text industry), so it
+  // stays empty rather than emitting a code.
+  { key: "companyName",     label: "Company name",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyName ?? c.enrichment?.leadinfoCompanyName ?? null },
+  { key: "companyDomain",   label: "Company domain",   group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyDomain ?? c.enrichment?.leadinfoCompanyDomain ?? null },
   { key: "companyIndustry", label: "Company industry", group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyIndustry ?? null },
-  { key: "companySize",     label: "Company size",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companySize ?? null },
-  { key: "geoCountry",      label: "Country",          group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.countryCode ?? null },
+  { key: "companySize",     label: "Company size",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companySize ?? c.enrichment?.leadinfoEmployees ?? null },
+  { key: "geoCountry",      label: "Country",          group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.countryCode ?? c.enrichment?.leadinfoCompanyCountry ?? null },
   { key: "geoRegion",       label: "Region",           group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.region ?? null },
 
   // ── Scoring / behaviour (personalization consent) ──
