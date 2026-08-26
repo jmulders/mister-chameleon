@@ -553,6 +553,21 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   const [bulkPackId,  setBulkPackId]      = useState<string>("");
   const [limitError,  setLimitError]      = useState<string | null>(null);
 
+  // ── Unsaved-changes guard ────────────────────────────────────────────────────
+  // Warn before the page unloads (refresh / close / external navigation) while
+  // there are unsaved edits, so a long rule form isn't lost by accident. Only
+  // armed while dirty; the listener is torn down as soon as changes are saved.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Legacy browsers require returnValue to be set to trigger the prompt.
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
   // ── Mutation helpers ─────────────────────────────────────────────────────────
 
   const markDirty = useCallback(() => {
@@ -814,7 +829,8 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
 
   return (
     <AttributeCatalogueContext.Provider value={attributeDecls}>
-    <div className="flex flex-col gap-8 px-8 py-8">
+    {/* pb clearance so the floating save bar never covers the last rule's controls. */}
+    <div className="flex flex-col gap-8 px-8 py-8 pb-28">
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
@@ -1137,6 +1153,28 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
         onAdvanced={addRule}
         onCreate={addRecipeRule}
       />
+
+      {/* ── Floating save bar — keeps Save reachable while editing a long rule ─ */}
+      {/* Fixed (not sticky): the dashboard shell scrolls the window while <main> */}
+      {/* keeps overflow-y-auto, which traps position:sticky — so a sticky bar    */}
+      {/* never pins. Fixed is viewport-anchored and immune to that. Anchored     */}
+      {/* bottom-right to stay clear of the left nav in every mount of this shared */}
+      {/* editor. Reuses the same SaveBar handlers as the header — no second save  */}
+      {/* path. Appears only when there are unsaved changes.                       */}
+      {isDirty && (
+        <div
+          role="region"
+          aria-label="Unsaved changes"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-white/85"
+        >
+          <SaveBar
+            isDirty={isDirty}
+            saveStatus={saveStatus}
+            onSave={handleSave}
+            onReset={() => setConfirmReset(true)}
+          />
+        </div>
+      )}
     </div>
     </AttributeCatalogueContext.Provider>
   );
