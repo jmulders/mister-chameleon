@@ -8,6 +8,10 @@
  * later decision in the SAME session (same input carrying that overlay) skips.
  * Reusing one input object across getHomepagePlan calls simulates the persisted
  * session state; a fresh input simulates a new session.
+ *
+ * The webhook POST is fire-and-forget (async), so each test uses a UNIQUE webhook
+ * URL / tenant / session and counts ONLY fetches to its own URL — a stray
+ * fire-and-forget POST leaking from a prior test case can never inflate the tally.
  */
 
 import { describe, it } from "node:test";
@@ -20,42 +24,43 @@ import type { ConsentState } from "../../tracking/consent-types.ts";
 const consent = (): ConsentState =>
   ({ hasResponded: true, analytics: false, personalization: false, enrichment: false, advertising: false });
 
-const WH_URL = "https://hooks.example.com/mc/once";
-
-function cfg(fireOnce: boolean) {
+function cfg(fireOnce: boolean, url: string) {
   return {
     schemaVersion: 1, rulesEnabled: true, defaultPlan: RULES_CONFIG.defaultPlan,
     rules: [{
       id: "wh-once", priority: 900, label: "notify", webhookOnly: true,
       condition: { type: "field", field: "source", operator: "equals", value: "direct" },
-      plan: { webhook: { url: WH_URL, ...(fireOnce ? { fireOncePerSession: true } : {}) } },
+      plan: { webhook: { url, ...(fireOnce ? { fireOncePerSession: true } : {}) } },
       reason: "Webhook: notify",
     }],
   } as unknown as ConstructorParameters<typeof RulesDecisionProvider>[0];
 }
 
+let seq = 0;
+
 /**
- * Run getHomepagePlan over the given input(s) and count POST fires.
- *
- * The fire/skip DECISION is synchronous, so every webhook that will fire is
- * enqueued by the time the getHomepagePlan awaits resolve; only the POST itself
- * (dynamic import + fetch) is async. We wait until at least `expected` POSTs have
- * landed (generous 3s cap — robust on a slow CI runner where the first cold
- * dynamic import is slow), then a grace window in which any UNEXPECTED extra fire
- * (a dedup regression) would still be counted.
+ * Run getHomepagePlan over the given input(s) and count POST fires to THIS test's
+ * unique URL. Waits until at least `expected` fires land (generous 3s cap — robust
+ * on a slow CI runner where the first cold dynamic import is slow), then a grace
+ * window in which any UNEXPECTED extra fire (a dedup regression) would still count.
  */
 async function countFires(fireOnce: boolean, inputs: unknown[], expected: number): Promise<number> {
+  const id = `t${++seq}`;
+  const url = `https://hooks.example.com/mc/${id}`;
   let posts = 0;
   const orig = globalThis.fetch;
   // @ts-expect-error minimal fetch stub
-  globalThis.fetch = async () => { posts += 1; return { ok: true, status: 200 }; };
+  globalThis.fetch = async (u: unknown) => {
+    if (String(u).includes(id)) posts += 1;
+    return { ok: true, status: 200 };
+  };
   try {
-    const provider = new RulesDecisionProvider(cfg(fireOnce), false, "tenant-x", "sess-1", consent());
+    const provider = new RulesDecisionProvider(cfg(fireOnce, url), false, `tenant-${id}`, `sess-${id}`, consent());
     for (const input of inputs) {
       await provider.getHomepagePlan(input as Parameters<typeof provider.getHomepagePlan>[0]);
     }
     for (let i = 0; i < 300 && posts < expected; i++) await new Promise((r) => setTimeout(r, 10));
-    await new Promise((r) => setTimeout(r, 150)); // grace: a would-be extra fire lands here
+    await new Promise((r) => setTimeout(r, 200)); // grace: a would-be extra fire lands here
   } finally { globalThis.fetch = orig; }
   return posts;
 }
