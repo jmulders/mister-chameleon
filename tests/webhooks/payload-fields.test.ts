@@ -163,3 +163,54 @@ describe("firmographic fallback to client-side Leadinfo fields", () => {
     );
   });
 });
+
+describe("raw Leadinfo firmographic payload fields", () => {
+  const LI_RAW: PayloadSourceContext = {
+    enrichment: {
+      leadinfoBranchCode:      "73110",
+      leadinfoBranchCodeSic87: "7311",
+      leadinfoCocNumber:       "12345678",
+      leadinfoEmployees:       "51-200",
+      leadinfoEmployeesTotal:  120,
+      leadinfoSalesVolume:     "1M-10M",
+    },
+  };
+
+  it("a context with leadinfoBranchCode set yields that value in the payload", () => {
+    assert.deepEqual(
+      extractSelectedPayload(LI_RAW, ["leadinfoBranchCode"], consent({ enrichment: true })),
+      { leadinfoBranchCode: "73110" },
+    );
+  });
+
+  it("exposes every raw Leadinfo field verbatim (incl. numeric employees total)", () => {
+    assert.deepEqual(
+      extractSelectedPayload(
+        LI_RAW,
+        ["leadinfoBranchCode", "leadinfoBranchCodeSic87", "leadinfoCocNumber", "leadinfoEmployees", "leadinfoEmployeesTotal", "leadinfoSalesVolume"],
+        consent({ enrichment: true }),
+      ),
+      {
+        leadinfoBranchCode:      "73110",
+        leadinfoBranchCodeSic87: "7311",
+        leadinfoCocNumber:       "12345678",
+        leadinfoEmployees:       "51-200",
+        leadinfoEmployeesTotal:  120,
+        leadinfoSalesVolume:     "1M-10M",
+      },
+    );
+  });
+
+  it("all raw Leadinfo fields are firmographic + enrichment-gated", () => {
+    const keys = ["leadinfoBranchCode", "leadinfoBranchCodeSic87", "leadinfoCocNumber", "leadinfoEmployees", "leadinfoEmployeesTotal", "leadinfoSalesVolume"];
+    // Catalog metadata: firmographic group, enrichment gate.
+    for (const k of keys) {
+      const def = PAYLOAD_FIELD_CATALOG.find((f) => f.key === k);
+      assert.ok(def, `catalog missing ${k}`);
+      assert.equal(def.group, "firmographic");
+      assert.equal(def.gate, "enrichment");
+    }
+    // Dropped entirely without enrichment consent.
+    assert.deepEqual(extractSelectedPayload(LI_RAW, keys, consent()), {});
+  });
+});
