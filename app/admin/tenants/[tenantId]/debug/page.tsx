@@ -44,6 +44,8 @@ import { normalizeTenant } from "@/tenant/normalize";
 import { DEV_TENANT_COOKIE } from "@/tenant/dev-tenant-cookie";
 import { setDevTenantAction, clearDevTenantAction } from "../actions";
 import { TenantDebugClient } from "./_components/TenantDebugClient";
+import { ScenarioPanelCurationClient } from "./_components/ScenarioPanelCurationClient";
+import { getDemoContextSet } from "@/components/scenario/demo-context-sets";
 import { FailureSignalsPanel } from "./_components/FailureSignalsPanel";
 import { getFailureSummary, getFailureSignals } from "@/lib/observability/failure-signal-store";
 
@@ -63,6 +65,10 @@ export default async function TenantDebugPage({
   const showDebugOverlay = tenant.debug?.showDebugOverlay ?? false;
   const debugLevel       = tenant.debug?.debugLevel       ?? "full";
   const showScenarioControl = tenant.debug?.showScenarioControl ?? false;
+
+  // ── Scenario panel curation (settings.scenarioPanel — no migration) ────────
+  const scenarioPanel = tenant.scenarioPanel;
+  const contextRoles  = getDemoContextSet(tenantId);
 
   // ── Dev override state (development only) ──────────────────────────────────
   const devActiveTenantId: string | null =
@@ -99,7 +105,27 @@ export default async function TenantDebugPage({
         />
       </section>
 
-      {/* ── 1b. Failure signals (observability) ───────────────────────────── */}
+      {/* ── 1b. Scenario panel curation ───────────────────────────────────── */}
+      <section>
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-neutral-900">Scenario Panel</h1>
+          <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
+            Curate what the scenario console offers for{" "}
+            <strong>{tenant.name ?? tenantId}</strong>. Purely a demo-console setting; it never
+            affects personalisation.
+          </p>
+        </div>
+
+        <ScenarioPanelCurationClient
+          tenantId={tenantId}
+          contextRoles={contextRoles}
+          presetKeys={[...(scenarioPanel?.presetKeys ?? [])]}
+          roleKeys={[...(scenarioPanel?.roleKeys ?? [])]}
+          timeOptions={[...(scenarioPanel?.timeOptions ?? [])]}
+        />
+      </section>
+
+      {/* ── 1c. Failure signals (observability) ───────────────────────────── */}
       <FailureSignalsPanel summary={failureSummary} recent={failureSignals} />
 
       {/* ── 2. Dev Controls (development only) ───────────────────────────── */}

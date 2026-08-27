@@ -425,6 +425,25 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
     }
   }
 
+  // ── scenarioPanel (optional) ────────────────────────────────────────────────
+  // Structural check only (arrays of strings). Keys are NOT validated against the
+  // UI preset/role/time constants — the panel is fail-open on unknown keys, and
+  // coupling the store to those constants would break on a future rename.
+  if (r.scenarioPanel !== undefined) {
+    if (typeof r.scenarioPanel !== "object" || r.scenarioPanel === null) {
+      errors.push("scenarioPanel: must be an object when present.");
+    } else {
+      const sp = r.scenarioPanel as Record<string, unknown>;
+      for (const key of ["presetKeys", "roleKeys", "timeOptions"] as const) {
+        const v = sp[key];
+        if (v === undefined) continue;
+        if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) {
+          errors.push(`scenarioPanel.${key}: must be an array of strings when present.`);
+        }
+      }
+    }
+  }
+
   // ── name (optional) ────────────────────────────────────────────────────────
   if (r.name !== undefined && typeof r.name !== "string") {
     errors.push("name: must be a string when present.");

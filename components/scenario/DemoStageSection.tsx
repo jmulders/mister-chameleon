@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { activateScenario, clearScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 import { getDemoContextSet, getDemoAttributeSet } from "./demo-context-sets";
+import { curateByKey } from "./curate-panel";
 import type { DemoContext, DemoAttribute } from "./demo-context-sets";
 import type { ScenarioState, ScenarioOverrides } from "./scenario-store";
 
@@ -35,10 +36,17 @@ interface Role {
   img?:    string;   // optional real photo (path under /public)
 }
 
-const ROLES: Role[] = [
+export const ROLES: Role[] = [
   { key: "demo_role_marketeer", segment: "demo-role-marketeer", label: "Marketer",       sub: "Marketing manager (end client)", icon: "📣", color: "#7c3aed" },
   { key: "demo_role_bureau",    segment: "demo-role-bureau",    label: "Agency owner",    sub: "Agency / bureau owner",          icon: "🏢", color: "#2563eb" },
   { key: "demo_role_technisch", segment: "demo-role-technisch", label: "Technical lead",  sub: "Technical lead / developer",     icon: "🛠️", color: "#16a34a" },
+];
+
+/** The three "Simulate time" options, curated per tenant by their `id`. */
+export const TIME_OPTIONS: { id: "day" | "evening" | "weekend"; label: string }[] = [
+  { id: "day",     label: "Day" },
+  { id: "evening", label: "Evening" },
+  { id: "weekend", label: "Weekend" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -70,9 +78,15 @@ function activeTime(o: ScenarioOverrides): "day" | "evening" | "weekend" | null 
 export function DemoStageSection({
   scenario,
   onApply,
+  roleKeys,
+  timeOptions,
 }: {
   scenario: ScenarioState;
   onApply:  () => void;
+  /** Optional tenant curation — subset of role / context-set keys to show. */
+  roleKeys?: readonly string[];
+  /** Optional tenant curation — subset of "day" | "evening" | "weekend". */
+  timeOptions?: readonly string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -154,7 +168,7 @@ export function DemoStageSection({
         <div>
           <div style={S.sectionLabel}>Visitor context</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {contextSet.map((ctx) => (
+            {curateByKey(contextSet, (c) => c.key, roleKeys).map((ctx) => (
               <RoleRow
                 key={ctx.key}
                 role={ctx}
@@ -181,7 +195,7 @@ export function DemoStageSection({
         <div>
           <div style={S.sectionLabel}>Who are you?</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {ROLES.map((r) => (
+            {curateByKey(ROLES, (r) => r.key, roleKeys).map((r) => (
               <RoleRow
                 key={r.key}
                 role={r}
@@ -211,9 +225,15 @@ export function DemoStageSection({
       <div>
         <div style={S.sectionLabel}>Simulate time</div>
         <div style={{ display: "flex", gap: 6 }}>
-          <TimeBtn label="Day"     active={activeTime(o) === "day"}     disabled={pending} onClick={() => setTime("day")} />
-          <TimeBtn label="Evening" active={activeTime(o) === "evening"} disabled={pending} onClick={() => setTime("evening")} />
-          <TimeBtn label="Weekend" active={activeTime(o) === "weekend"} disabled={pending} onClick={() => setTime("weekend")} />
+          {curateByKey(TIME_OPTIONS, (t) => t.id, timeOptions).map((opt) => (
+            <TimeBtn
+              key={opt.id}
+              label={opt.label}
+              active={activeTime(o) === opt.id}
+              disabled={pending}
+              onClick={() => setTime(opt.id)}
+            />
+          ))}
         </div>
       </div>
 

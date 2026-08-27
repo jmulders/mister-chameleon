@@ -2110,6 +2110,21 @@ export interface TenantBrandingSettings {
   readonly logoLight?: TenantLogoData;
 }
 
+/**
+ * Per-tenant curation of the dev/preview Scenario Control panel. Each list is an
+ * EXPLICIT allowlist of keys from the panel's own definitions; an absent or empty
+ * list means "show the full hardcoded list" (current behaviour). Unknown keys are
+ * ignored at render time (fail-open). Filters preserve the source list's order.
+ */
+export interface TenantScenarioPanelSettings {
+  /** Context-tab "Quick presets" — subset of SCENARIO_PRESETS keys. */
+  readonly presetKeys?:  readonly string[];
+  /** Demo-tab "Who are you?" — subset of ROLES / demo-context-set keys. */
+  readonly roleKeys?:    readonly string[];
+  /** Demo-tab "Simulate time" — subset of the time options. */
+  readonly timeOptions?: readonly ("day" | "evening" | "weekend")[];
+}
+
 export interface TenantDesignSettings {
   readonly theme:           ThemeKey;
   readonly primaryColor?:   string;
@@ -2703,6 +2718,13 @@ export interface TenantSettings {
    * `chromeIsDark(...)`.
    */
   readonly branding?: TenantBrandingSettings;
+
+  /**
+   * Per-tenant curation of the dev/preview Scenario Control panel. Each list is
+   * an EXPLICIT allowlist; when a field is absent or empty the panel shows its
+   * full hardcoded list (current behaviour). Pure demo config — no decision impact.
+   */
+  readonly scenarioPanel?: TenantScenarioPanelSettings;
 
   /**
    * ISO 8601 timestamp (UTC) of the most recent successful CMS provisioning run.
