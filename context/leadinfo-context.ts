@@ -114,8 +114,18 @@ const K_BRANCH_CODE_SIC  = "bs" as const;
 // ── Serialisation ─────────────────────────────────────────────────────────────
 
 /**
- * Serialise a LeadinfoData object to a compact URL-encoded JSON string
- * suitable for storage in a cookie value.
+ * Serialise a LeadinfoData object to a compact JSON string suitable for storage
+ * in a cookie value.
+ *
+ * Returns RAW `JSON.stringify` output — NOT URL-encoded. URL-encoding is the job
+ * of the cookie writer: the only call site (`POST /api/enrichment/leadinfo`) uses
+ * `NextResponse.cookies.set`, which URL-encodes the value exactly once. Encoding
+ * here as well produced a double-encoded cookie (`%257B%2522…`) that the
+ * server-side reader — which sees the raw Cookie-header substring and decodes
+ * only once — could not parse, leaving every leadinfo* field null. So the encode
+ * lives in exactly one place. If this is ever written to `document.cookie`
+ * directly (which does NOT auto-encode), wrap the result in encodeURIComponent at
+ * that call site.
  *
  * Null fields are omitted to keep the payload small.
  * The `matched` field is always included so the server can distinguish
@@ -139,10 +149,43 @@ export function serializeLeadinfoData(data: LeadinfoData): string {
   if (data.branchCode      !== null) compact[K_BRANCH_CODE]     = data.branchCode;
   if (data.branchCodeSic87 !== null) compact[K_BRANCH_CODE_SIC] = data.branchCodeSic87;
 
-  return encodeURIComponent(JSON.stringify(compact));
+  return JSON.stringify(compact);
 }
 
 // ── Deserialisation ────────────────────────────────────────────────────────────
+
+/**
+ * Progressively decode a cookie value into a parsed JSON object.
+ *
+ * The mc_li value can reach the parser at different encoding levels depending on
+ * the reader:
+ *   • RAW JSON            — `NextRequest.cookies.get().value` already URL-decodes once.
+ *   • Single URL-encoded  — the raw Cookie-header substring (`parseCookieField`),
+ *                           after the double-encode fix.
+ *   • Double URL-encoded  — legacy cookies written before the fix.
+ *
+ * Try JSON.parse first, then peel one URL-decode at a time (max two) until it
+ * parses. This tolerates all three levels without breaking on legacy cookies,
+ * and stops as soon as further decoding makes no difference.
+ */
+function decodeCookieJson(value: string): Record<string, unknown> | null {
+  let current = value;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return JSON.parse(current) as Record<string, unknown>;
+    } catch {
+      let decoded: string;
+      try {
+        decoded = decodeURIComponent(current);
+      } catch {
+        return null; // malformed percent-encoding — give up
+      }
+      if (decoded === current) return null; // no further decoding possible
+      current = decoded;
+    }
+  }
+  return null;
+}
 
 /**
  * Parse a `mc_li` cookie value string into a LeadinfoData object.
@@ -150,16 +193,14 @@ export function serializeLeadinfoData(data: LeadinfoData): string {
  * Returns `null` when the cookie is absent, malformed, or does not contain
  * the required `matched` field.  The caller (`buildDecisionContext`) treats
  * null as "Leadinfo has not run" and skips the merge.
+ *
+ * Tolerant of raw / single- / double-URL-encoded input (see decodeCookieJson).
  */
 export function parseLeadinfoCookie(cookieValue: string | null | undefined): LeadinfoData | null {
   if (!cookieValue) return null;
 
-  let raw: Record<string, unknown>;
-  try {
-    raw = JSON.parse(decodeURIComponent(cookieValue)) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  const raw = decodeCookieJson(cookieValue);
+  if (!raw) return null;
 
   // `matched` is required — if absent the payload is malformed.
   if (typeof raw[K_MATCHED] !== "boolean") return null;
