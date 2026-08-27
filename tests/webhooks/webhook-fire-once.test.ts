@@ -34,8 +34,17 @@ function cfg(fireOnce: boolean) {
   } as unknown as ConstructorParameters<typeof RulesDecisionProvider>[0];
 }
 
-/** Run getHomepagePlan `times` times over the given input(s) and count POST fires. */
-async function countFires(fireOnce: boolean, inputs: unknown[]): Promise<number> {
+/**
+ * Run getHomepagePlan over the given input(s) and count POST fires.
+ *
+ * The fire/skip DECISION is synchronous, so every webhook that will fire is
+ * enqueued by the time the getHomepagePlan awaits resolve; only the POST itself
+ * (dynamic import + fetch) is async. We wait until at least `expected` POSTs have
+ * landed (generous 3s cap — robust on a slow CI runner where the first cold
+ * dynamic import is slow), then a grace window in which any UNEXPECTED extra fire
+ * (a dedup regression) would still be counted.
+ */
+async function countFires(fireOnce: boolean, inputs: unknown[], expected: number): Promise<number> {
   let posts = 0;
   const orig = globalThis.fetch;
   // @ts-expect-error minimal fetch stub
@@ -45,9 +54,8 @@ async function countFires(fireOnce: boolean, inputs: unknown[]): Promise<number>
     for (const input of inputs) {
       await provider.getHomepagePlan(input as Parameters<typeof provider.getHomepagePlan>[0]);
     }
-    // Let the fire-and-forget dynamic import + fetch settle.
-    for (let i = 0; i < 60 && posts < inputs.length; i++) await new Promise((r) => setTimeout(r, 10));
-    await new Promise((r) => setTimeout(r, 50));
+    for (let i = 0; i < 300 && posts < expected; i++) await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 150)); // grace: a would-be extra fire lands here
   } finally { globalThis.fetch = orig; }
   return posts;
 }
@@ -55,19 +63,19 @@ async function countFires(fireOnce: boolean, inputs: unknown[]): Promise<number>
 describe("fireOncePerSession webhook dedup", () => {
   it("fireOnce=true → fires ONCE across N decisions in the same session", async () => {
     const input = buildInput(buildJourney({})); // one session = one reused input
-    const posts = await countFires(true, [input, input, input]);
+    const posts = await countFires(true, [input, input, input], 1);
     assert.equal(posts, 1);
   });
 
   it("fireOnce=false → fires on EVERY decision (unchanged behaviour)", async () => {
     const input = buildInput(buildJourney({}));
-    const posts = await countFires(false, [input, input, input]);
+    const posts = await countFires(false, [input, input, input], 3);
     assert.equal(posts, 3);
   });
 
   it("separate sessions each get their own single fire", async () => {
     // Distinct input objects = distinct sessions (fresh rule_context each).
-    const posts = await countFires(true, [buildInput(buildJourney({})), buildInput(buildJourney({}))]);
+    const posts = await countFires(true, [buildInput(buildJourney({})), buildInput(buildJourney({}))], 2);
     assert.equal(posts, 2);
   });
 });
