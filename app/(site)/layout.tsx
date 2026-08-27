@@ -63,6 +63,7 @@ import { Header, Footer } from "@/components/layout";
 import { PreviewBar } from "@/components/preview/PreviewBar";
 import { StatamicPreviewWatcher } from "@/components/preview/StatamicPreviewWatcher";
 import { ScenarioControlMount } from "@/components/scenario/ScenarioControlMount";
+import type { TenantScenarioPanelSettings } from "@/tenant/types";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
 import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
@@ -101,10 +102,14 @@ export default async function SiteLayout({
   // is DB-free and does not carry debug settings, so read them here; default off
   // so it never appears unintentionally on a live tenant.
   let showScenarioControl = false;
+  let scenarioPanel: TenantScenarioPanelSettings | null = null;
   if (tenantId !== "unknown") {
     try {
       const settings = await getTenantById(tenantId);
       showScenarioControl = settings?.debug?.showScenarioControl === true;
+      // Per-tenant curation of what the console offers (presets/roles/time).
+      // Absent → null → the panel shows the full built-in lists (current default).
+      scenarioPanel = settings?.scenarioPanel ?? null;
     } catch {
       // Non-fatal — leave the console off when settings can't be read.
     }
@@ -193,7 +198,7 @@ export default async function SiteLayout({
         mounted it still self-guards client-side (dev / NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1
         / ?scenario=true, plus auto-open on an active scenario).
       */}
-      {showScenarioControl && <ScenarioControlMount />}
+      {showScenarioControl && <ScenarioControlMount scenarioPanel={scenarioPanel} />}
       {/*
         PageTracker fires a `page_view` event on every client-side route change.
         Placed in the shared layout so it runs on ALL (site) pages — homepage,

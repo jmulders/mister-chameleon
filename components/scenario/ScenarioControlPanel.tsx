@@ -63,6 +63,8 @@ import {
   type ScenarioOverrides,
 } from "./scenario-store";
 import { SCENARIO_PRESET_LIST } from "./scenario-presets";
+import { curateByKey } from "./curate-panel";
+import type { TenantScenarioPanelSettings } from "@/tenant/types";
 import { DemoStageSection } from "./DemoStageSection";
 import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows";
 import { applyScenarioOverride } from "./apply-scenario-override";
@@ -727,6 +729,7 @@ function EnricherActionsSection({
 
 function ContextTab({
   scenario,
+  presetKeys,
   journey,
   autoApply,
   applying,
@@ -742,6 +745,8 @@ function ContextTab({
   isResetting = false,
 }: {
   scenario:            ScenarioState;
+  /** Optional tenant curation — subset of SCENARIO_PRESETS keys to show. */
+  presetKeys?:         readonly string[];
   journey:             JourneyState | null;
   autoApply:           boolean;
   applying:            boolean;
@@ -834,7 +839,7 @@ function ContextTab({
       {/* ── Quick Presets ──────────────────────────────────────────────────── */}
       <SectionLabel>Quick Presets</SectionLabel>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginBottom: 3 }}>
-        {SCENARIO_PRESET_LIST.map((preset) => {
+        {curateByKey(SCENARIO_PRESET_LIST, (p) => p.key, presetKeys).map((preset) => {
           const active = scenario.presetKey === preset.key;
           return (
             <button key={preset.key} onClick={() => applyPreset(preset.key)}
@@ -1982,7 +1987,7 @@ const TABS = [
 
 type TabKey = typeof TABS[number]["key"];
 
-export function ScenarioControlPanel() {
+export function ScenarioControlPanel({ scenarioPanel }: { scenarioPanel?: TenantScenarioPanelSettings | null } = {}) {
   const [mounted,   setMounted]   = useState(false);
   // Initialise synchronously from window so the panel never flashes to null
   // during router.refresh() or soft navigation re-renders.
@@ -2478,11 +2483,17 @@ export function ScenarioControlPanel() {
           {/* Tab content */}
           <div style={{ overflowY: "auto", flex: 1, padding: "12px 12px" }}>
             {tab === "demo" && (
-              <DemoStageSection scenario={scenario} onApply={triggerRefresh} />
+              <DemoStageSection
+                scenario={scenario}
+                onApply={triggerRefresh}
+                roleKeys={scenarioPanel?.roleKeys}
+                timeOptions={scenarioPanel?.timeOptions}
+              />
             )}
             {tab === "context" && (
               <ContextTab
                 scenario={scenario}
+                presetKeys={scenarioPanel?.presetKeys}
                 journey={journey}
                 autoApply={autoApply}
                 applying={applying}
