@@ -39,6 +39,7 @@ export function HeroBackgroundVideo({
 }) {
   const [mounted, setMounted] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     // Schedule work for an idle moment so it lands after first paint. Fall back
@@ -67,6 +68,21 @@ export function HeroBackgroundVideo({
     return () => io.disconnect();
   }, []);
 
+  // Once the <video> is mounted, force muted imperatively and kick off playback.
+  // React's `muted` JSX prop does NOT reliably set the DOM `.muted` property, so
+  // mobile browsers can see the element as un-muted and block autoplay. Setting
+  // `.muted = true` (+ the attribute) before calling play() guarantees the
+  // muted-autoplay policy is satisfied. A background video is always silent.
+  // play() may still be rejected (e.g. iOS Low Power Mode) — the poster stays.
+  useEffect(() => {
+    if (!mounted) return;
+    const el = videoRef.current;
+    if (!el) return;
+    el.muted = true;
+    el.setAttribute("muted", "");
+    void el.play().catch(() => { /* autoplay denied — poster remains */ });
+  }, [mounted]);
+
   return (
     <div
       ref={ref}
@@ -89,6 +105,7 @@ export function HeroBackgroundVideo({
       )}
       {mounted && (
         <video
+          ref={videoRef}
           src={url}
           poster={poster}
           preload="metadata"
