@@ -53,6 +53,14 @@ export interface PayloadSourceContext {
     leadinfoCompanyDomain?:  string | null;
     leadinfoCompanyCountry?: string | null;
     leadinfoEmployees?:      string | null;
+    // Raw Leadinfo firmographic fields — exposed verbatim as selectable payload
+    // fields so operators can forward them and translate downstream (e.g. Make).
+    // Branch codes are numeric taxonomy codes (SBI / SIC-87), not text industries.
+    leadinfoEmployeesTotal?:  number | null;
+    leadinfoSalesVolume?:     string | null;
+    leadinfoCocNumber?:       string | null;
+    leadinfoBranchCode?:      string | null;
+    leadinfoBranchCodeSic87?: string | null;
   } | null;
   derived?:  { funnelStage?: string | null } | null;
   history?:  { journey?: {
@@ -96,6 +104,19 @@ const PAYLOAD_FIELDS: readonly PayloadFieldDef[] = [
   { key: "companySize",     label: "Company size",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companySize ?? c.enrichment?.leadinfoEmployees ?? null },
   { key: "geoCountry",      label: "Country",          group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.countryCode ?? c.enrichment?.leadinfoCompanyCountry ?? null },
   { key: "geoRegion",       label: "Region",           group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.region ?? null },
+
+  // ── Raw Leadinfo firmographics (enrichment consent) ──
+  // Exposed verbatim from the client-side Leadinfo (mc_li) leadinfo* context so
+  // operators can forward the raw values and translate them downstream (e.g. the
+  // numeric SBI / SIC-87 branch codes into human industry labels in Make). Unlike
+  // the generic firmographic fields above, these read leadinfo* directly with no
+  // fallback — they ARE the raw Leadinfo values.
+  { key: "leadinfoBranchCode",      label: "Leadinfo SBI code",         group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.leadinfoBranchCode ?? null },
+  { key: "leadinfoBranchCodeSic87", label: "Leadinfo SIC-87 code",      group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.leadinfoBranchCodeSic87 ?? null },
+  { key: "leadinfoCocNumber",       label: "Leadinfo KvK number",       group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.leadinfoCocNumber ?? null },
+  { key: "leadinfoEmployees",       label: "Leadinfo employees bucket", group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.leadinfoEmployees ?? null },
+  { key: "leadinfoEmployeesTotal",  label: "Leadinfo employees total",  group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.leadinfoEmployeesTotal ?? null },
+  { key: "leadinfoSalesVolume",     label: "Leadinfo sales volume",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.leadinfoSalesVolume ?? null },
 
   // ── Scoring / behaviour (personalization consent) ──
   { key: "intentScore",    label: "Intent score",     group: "scoring", gate: "personalization", extract: (c) => c.history?.journey?.intentScore ?? null },
