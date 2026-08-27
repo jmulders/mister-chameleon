@@ -146,6 +146,38 @@ export const PAYLOAD_FIELD_CATALOG: readonly { key: string; label: string; group
 /** Set of valid payload-field keys (for validation). */
 export const PAYLOAD_FIELD_KEYS: ReadonlySet<string> = new Set(PAYLOAD_FIELDS.map((f) => f.key));
 
+/**
+ * The firmographic (company) payload-field keys — the group that only carries a
+ * value once a company has been resolved (server firmography or client-side
+ * Leadinfo). Used by the "fire-on-enrichment" coordination to recognise a
+ * "company webhook" (one whose selected fields include a company field).
+ */
+export const FIRMOGRAPHIC_PAYLOAD_KEYS: ReadonlySet<string> =
+  new Set(PAYLOAD_FIELDS.filter((f) => f.group === "firmographic").map((f) => f.key));
+
+/** Whether any of the selected payload fields is a firmographic (company) field. */
+export function payloadFieldsIncludeFirmographic(keys: readonly string[] | undefined | null): boolean {
+  if (!keys) return false;
+  for (const k of keys) if (FIRMOGRAPHIC_PAYLOAD_KEYS.has(k)) return true;
+  return false;
+}
+
+/**
+ * Whether the enrichment context already carries a resolved company — a name or
+ * domain, from either the generic server-side firmography or the client-side
+ * Leadinfo (mc_li) fields. Mirrors what the company payload extractors read, so
+ * "company present" here means the webhook would actually carry a company.
+ */
+export function hasCompanyEnrichment(enrichment: PayloadSourceContext["enrichment"]): boolean {
+  if (!enrichment) return false;
+  return Boolean(
+    enrichment.companyName
+    ?? enrichment.leadinfoCompanyName
+    ?? enrichment.companyDomain
+    ?? enrichment.leadinfoCompanyDomain,
+  );
+}
+
 /** Whether the visitor's consent permits a field with the given gate. */
 export function isPayloadFieldConsented(gate: PayloadConsentGate, consent: ConsentState | null | undefined): boolean {
   if (gate === null) return true;

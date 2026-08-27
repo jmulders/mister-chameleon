@@ -46,7 +46,7 @@
  *   - The endpoint accepts same-origin requests only (no CORS header set).
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient }               from "@supabase/supabase-js";
 import {
   serializeLeadinfoData,
@@ -347,6 +347,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     sameSite: "lax",
     secure:   isSecure,
   });
+
+  // ── Fire-on-enrichment ──────────────────────────────────────────────────────
+  //
+  // A page render for a "company webhook" (fireOncePerSession rule selecting a
+  // firmographic field) defers until the company is known. Now that a MATCHED
+  // company just arrived, run an enrichment-pass decision that fires that webhook
+  // WITH the company. Scheduled via `after()` so it never delays this response;
+  // fire-and-forget, and internally consent-gated (enrichment) + session-scoped.
+  if (data.matched && tenantId) {
+    const cookieHeader  = request.headers.get("cookie");
+    const pageUrl       = request.headers.get("referer");
+    const userAgent     = request.headers.get("user-agent");
+    const forwardedFor  = request.headers.get("x-forwarded-for");
+    after(async () => {
+      const { fireEnrichmentWebhook } = await import("@/lib/webhooks/fire-enrichment-webhook");
+      await fireEnrichmentWebhook({ tenantId, sessionId, data, cookieHeader, pageUrl, userAgent, forwardedFor });
+    });
+  }
 
   return response;
 }

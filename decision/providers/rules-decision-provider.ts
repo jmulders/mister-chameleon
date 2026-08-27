@@ -93,7 +93,7 @@ import {
 } from "../rules/stored-rule";
 import type { RuleEvaluationContext } from "../rules/field-registry";
 import type { ConsentState } from "@/tracking/consent-types";
-import { extractSelectedPayload, extractBaseContext, type PayloadSourceContext } from "@/lib/webhooks/payload-fields";
+import { extractSelectedPayload, extractBaseContext, payloadFieldsIncludeFirmographic, hasCompanyEnrichment, type PayloadSourceContext } from "@/lib/webhooks/payload-fields";
 import {
   generateRuleTrace,
   ruleTraceToLogMeta,
@@ -322,18 +322,32 @@ export class RulesDecisionProvider implements DecisionProvider {
    */
   private readonly _consent: ConsentState | undefined;
 
+  /**
+   * "Enrichment pass" mode. When true, this decision was triggered by a company
+   * being identified (POST /api/enrichment/leadinfo), NOT by a page render. In
+   * this mode the provider ONLY (re)delivers the deferred company webhooks
+   * (fireOncePerSession rules whose payload selects a firmographic field) and
+   * touches nothing else: no rule-fire stats, and only the fire-once marker is
+   * persisted — never the sticky context-writes. So the decision/variant state a
+   * page render would produce stays byte-for-byte identical; this affects webhook
+   * delivery only. Default false → every existing call-site is unchanged.
+   */
+  private readonly _enrichmentPass: boolean;
+
   constructor(
     storedConfig?:    StoredRulesConfig,
     forceDefaultPlan = false,
     tenantId?:        string,
     sessionId?:       string,
     consent?:         ConsentState,
+    enrichmentPass  = false,
   ) {
     this._storedConfig     = storedConfig;
     this._forceDefaultPlan = forceDefaultPlan;
     this._tenantId         = tenantId;
     this._sessionId        = sessionId;
     this._consent          = consent;
+    this._enrichmentPass   = enrichmentPass;
   }
 
   /**
@@ -464,9 +478,13 @@ export class RulesDecisionProvider implements DecisionProvider {
           let hit = false;
           try { hit = whRule.match(ctx); } catch { continue; }
           if (!hit) continue;
-          void import("@/lib/observability/rule-fire-store")
-            .then((m) => m.recordRuleFire(tid, whRule.id))
-            .catch(() => { /* pre-migration / no DB: ignore */ });
+          // Enrichment pass records no rule-fire stats — it is not a page render;
+          // the page render already recorded the match (see class doc).
+          if (!this._enrichmentPass) {
+            void import("@/lib/observability/rule-fire-store")
+              .then((m) => m.recordRuleFire(tid, whRule.id))
+              .catch(() => { /* pre-migration / no DB: ignore */ });
+          }
           this.fireMatchWebhook(tid, whRule, ctx);
         }
       }
@@ -491,9 +509,12 @@ export class RulesDecisionProvider implements DecisionProvider {
         // pollute the rule-fire measurement (spec §6).
         if (this._tenantId && !ctx.isBot) {
           const tid = this._tenantId;
-          void import("@/lib/observability/rule-fire-store")
-            .then((m) => m.recordRuleFire(tid, matched.id))
-            .catch(() => { /* pre-migration / no DB: ignore */ });
+          // Enrichment pass records no rule-fire stats (see class doc).
+          if (!this._enrichmentPass) {
+            void import("@/lib/observability/rule-fire-store")
+              .then((m) => m.recordRuleFire(tid, matched.id))
+              .catch(() => { /* pre-migration / no DB: ignore */ });
+          }
 
           // Inline webhook on the WINNING variant rule ("combine variant +
           // webhook" case): fire it when the rule that set the variant also
@@ -547,6 +568,37 @@ export class RulesDecisionProvider implements DecisionProvider {
     const plan = rule.plan as StoredPlan;
     const webhookUrl = plan.webhook?.url;
     if (!webhookUrl) return;
+
+    // ── Fire-on-enrichment coordination ───────────────────────────────────────
+    //
+    // A "company webhook" is a fireOncePerSession rule whose payload selects a
+    // firmographic (company) field. For those we want EXACTLY ONE enriched
+    // delivery per session, even for fast visitors whose company (client-side
+    // Leadinfo / mc_li) is only known ~15s after page render:
+    //
+    //   • Normal page render, company not resolved yet but enrichment consent
+    //     granted (so a company is still expected): DEFER — do not send, do not
+    //     latch the fire-once marker. The enrichment pass (triggered by
+    //     POST /api/enrichment/leadinfo) delivers it WITH the company and latches.
+    //     No enrichment consent → no company will ever arrive → do NOT defer; fire
+    //     now exactly as before (company fields are consent-stripped anyway).
+    //
+    //   • Enrichment pass: deliver ONLY these company webhooks. Everything else
+    //     (non-company webhooks, or company webhooks whose company is already
+    //     present) already fired on page render.
+    //
+    // This only gates webhook DELIVERY — never the decision or the variants.
+    const isCompanyWebhook =
+      plan.webhook?.fireOncePerSession === true
+      && payloadFieldsIncludeFirmographic(plan.webhook?.payloadFields);
+
+    if (this._enrichmentPass) {
+      if (!isCompanyWebhook) return; // enrichment pass fires company webhooks only
+    } else if (isCompanyWebhook) {
+      const companyPresent     = hasCompanyEnrichment((ctx as unknown as PayloadSourceContext).enrichment);
+      const enrichmentExpected = this._consent?.enrichment === true;
+      if (!companyPresent && enrichmentExpected) return; // defer to the enrichment pass
+    }
 
     // Fire-once-per-session: deliver at most once per visitor session. Dedup via
     // a reserved rule_context marker (`__wh:<ruleId>`) that rides the existing
@@ -767,6 +819,14 @@ export class RulesDecisionProvider implements DecisionProvider {
    * passes. One writer per request avoids racing the rule_context column.
    */
   private flushRuleContextWrites(): void {
+    if (this._enrichmentPass) {
+      // Enrichment-triggered decision: persist ONLY the fire-once marker(s), never
+      // the sticky context-writes. The journey/variant inputs must stay
+      // byte-for-byte identical to what a page render produces (a later render
+      // recomputes and persists those writes itself). See the _enrichmentPass doc.
+      if (this._pendingFiredWrites.length > 0) this.persistStickyWrites(this._pendingFiredWrites);
+      return;
+    }
     const writes = this._pendingFiredWrites.length > 0
       ? [...this.lastStickyContextWrites, ...this._pendingFiredWrites]
       : this.lastStickyContextWrites;
