@@ -390,6 +390,11 @@ export default async function RootLayout({
   // headers() is a cached store lookup — safe to call again outside the try block.
   const _consentHeaders  = await headers();
   const _consentPathname = _consentHeaders.get("x-pathname") ?? "";
+  // Per-request CSP nonce (set by middleware.ts). Next auto-applies it to its own
+  // hydration scripts; we apply it to the GTM inline snippet below so it survives
+  // an enforcing script-src without a bare 'unsafe-inline'. undefined when the
+  // route isn't matched by the middleware (then no nonce is needed).
+  const cspNonce = _consentHeaders.get("x-nonce") ?? undefined;
   // Never show the consent banner on admin pages or the internal block-preview
   // surface (it renders inside the editor's iframe — the cookie chrome is noise).
   const showConsentBanner =
@@ -523,6 +528,12 @@ export default async function RootLayout({
         {gtmContainerId && (
           <script
             id="gtm-base"
+            nonce={cspNonce}
+            // Next strips the nonce from the client payload (security), so the
+            // client sees nonce="" while the server rendered the real value. The
+            // server-side nonce is what the browser enforces at parse time; the
+            // client difference is expected — suppress the benign hydration diff.
+            suppressHydrationWarning
             dangerouslySetInnerHTML={{
               __html:
                 `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':` +

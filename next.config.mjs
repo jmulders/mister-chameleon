@@ -293,52 +293,23 @@ const nextConfig = {
   },
 
   async headers() {
-    // In development the Statamic CP (localhost:8000) embeds Next.js pages in
-    // Live Preview iframes.  Because the two servers run on different ports they
-    // are considered cross-origin, so X-Frame-Options: SAMEORIGIN would block
-    // the iframe.  We therefore use the more granular CSP frame-ancestors
-    // directive in dev that allows localhost:8000 explicitly, and omit
-    // X-Frame-Options (frame-ancestors takes precedence in modern browsers, but
-    // having both with conflicting values causes confusing behaviour).
+    // ── Content-Security-Policy lives in middleware.ts ─────────────────────────
     //
-    // In production framing is restricted to the same origin only, keeping the
-    // existing security posture.  X-Frame-Options is kept alongside frame-ancestors
-    // for compatibility with older proxies/CDNs that still read the legacy header.
-    const isDev = process.env.NODE_ENV === "development";
-
-    // The Statamic CP embeds Next.js pages in Live Preview iframes. The CP runs
-    // on a different origin (dev: localhost:8000; prod: the managed Ploi Cloud
-    // host *.ploi.it, or a custom STATAMIC_CP_ORIGIN such as cms.example.nl), so
-    // frame-ancestors must list those origins for the iframe to load.
-    //   - Dev:  localhost:8000
-    //   - Prod: https://*.ploi.it  + optional STATAMIC_CP_ORIGIN
-    // STATAMIC_CP_ORIGIN may list MULTIPLE custom CP origins (one per tenant CMS
-    // domain), space- or comma-separated, e.g.
-    //   "https://cms.misterchameleon.nl https://cms.steunles.nl"
-    // Each must appear in frame-ancestors or that CP's Live Preview iframe is
-    // blocked ("refused to connect"). *.ploi.it covers the managed preview hosts.
-    const cpOrigins  = (process.env.STATAMIC_CP_ORIGIN ?? "")
-      .split(/[\s,]+/)
-      .filter(Boolean)
-      .join(" ");
-    const frameAllow = isDev
-      ? "frame-ancestors 'self' http://localhost:8000"
-      : `frame-ancestors 'self' https://*.ploi.it${cpOrigins ? ` ${cpOrigins}` : ""}`;
-
+    // The full CSP (incl. frame-ancestors for the Statamic CP Live Preview iframe)
+    // is built PER REQUEST in middleware.ts, because inline scripts (Next
+    // hydration + the GTM snippet) are authorised via a per-request nonce. Setting
+    // any Content-Security-Policy here as well would emit a SECOND CSP header, and
+    // browsers enforce the intersection of all CSP headers — so the static one
+    // would silently override/negate the nonce'd one. Keep CSP in exactly one
+    // place. The static, non-nonce security headers below stay here.
+    //
+    // X-Frame-Options is intentionally omitted: it cannot express the cross-origin
+    // CP allow-list, and modern browsers use CSP frame-ancestors (middleware).
     return [
       {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          // frame-ancestors controls which origins may embed this page.
-          {
-            key: "Content-Security-Policy",
-            value: frameAllow,
-          },
-          // X-Frame-Options cannot express cross-origin allow-lists (ALLOW-FROM is
-          // deprecated and SAMEORIGIN would block the CP). Modern browsers enforce
-          // CSP frame-ancestors instead, so we omit X-Frame-Options entirely now
-          // that the CP (cross-origin) must be able to embed preview pages.
           { key: "X-XSS-Protection", value: "1; mode=block" },
           {
             key: "Referrer-Policy",
