@@ -51,7 +51,7 @@
  *   Within a parallel wave the outputs are merged in array order (deterministic).
  */
 
-import {
+import type {
   StagedEnricher,
   StagedPipelineResult,
   StageTrace,

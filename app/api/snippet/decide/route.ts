@@ -952,6 +952,9 @@ export async function POST(request: NextRequest) {
 
     const input = await buildDecisionContext({
       request:     decisionRequest,
+      // decisionRequest is synthetic (Cookie is a forbidden header and is stripped),
+      // so pass the genuine incoming Cookie header for the mc_li / mc_cc / mc_tz signals.
+      cookieHeader: request.headers.get("cookie"),
       history,
       tenantId,
       templateKey: context.path ?? "/",
