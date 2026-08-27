@@ -49,9 +49,13 @@ async function countFires(fireOnce: boolean, inputs: unknown[], expected: number
   const url = `https://hooks.example.com/mc/${id}`;
   let posts = 0;
   const orig = globalThis.fetch;
+  // Count ONLY POSTs to this test's exact webhook URL. Critical: with Supabase
+  // env configured (as on CI), the provider's rule_context persist makes real
+  // Supabase requests whose URLs embed the tenant/session ids — an `includes`
+  // filter would wrongly count those. An exact-URL match excludes them.
   // @ts-expect-error minimal fetch stub
   globalThis.fetch = async (u: unknown) => {
-    if (String(u).includes(id)) posts += 1;
+    if (String(u) === url) posts += 1;
     return { ok: true, status: 200 };
   };
   try {
