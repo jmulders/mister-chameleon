@@ -57,6 +57,20 @@ export async function resolve(specifier, context, nextResolve) {
   // ── 2. Resolve @/ aliases ────────────────────────────────────────────────
   if (specifier.startsWith('@/')) {
     const abs = path.join(PROJECT_ROOT, specifier.slice(2));
+    // An explicit-extension target (e.g. "@/data/foo.json") already points at a
+    // real file — resolve it directly before trying the extension candidates.
+    // Raw Node ESM needs an explicit "type: json" import attribute for JSON (the
+    // Next.js/tsc bundler infers it from resolveJsonModule), so inject it here to
+    // keep the app source free of bundler-specific `with { type: "json" }`.
+    try {
+      if (statSync(abs).isFile()) {
+        const url = pathToFileURL(abs).href;
+        const extra = abs.endsWith('.json') ? { importAttributes: { type: 'json' } } : {};
+        return { url, shortCircuit: true, ...extra };
+      }
+    } catch {
+      // not a direct file — fall through to extension resolution
+    }
     const resolved = resolveWithExtensions(abs);
     if (resolved) return { url: resolved, shortCircuit: true };
   }

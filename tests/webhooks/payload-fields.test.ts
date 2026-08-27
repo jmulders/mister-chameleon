@@ -214,3 +214,54 @@ describe("raw Leadinfo firmographic payload fields", () => {
     assert.deepEqual(extractSelectedPayload(LI_RAW, keys, consent()), {});
   });
 });
+
+describe("industry derived from the Leadinfo SBI code", () => {
+  const LI_SBI: PayloadSourceContext = { enrichment: { leadinfoBranchCode: "73110" } };
+
+  it("73110 → companyIndustryEn = 'Activities of advertising agencies'", () => {
+    assert.deepEqual(
+      extractSelectedPayload(LI_SBI, ["companyIndustryEn"], consent({ enrichment: true })),
+      { companyIndustryEn: "Activities of advertising agencies" },
+    );
+  });
+
+  it("73110 → companyIndustryNl = 'Activiteiten van reclamebureaus'", () => {
+    assert.deepEqual(
+      extractSelectedPayload(LI_SBI, ["companyIndustryNl"], consent({ enrichment: true })),
+      { companyIndustryNl: "Activiteiten van reclamebureaus" },
+    );
+  });
+
+  it("companyIndustry falls back to the EN name when server firmography is empty", () => {
+    assert.deepEqual(
+      extractSelectedPayload(LI_SBI, ["companyIndustry"], consent({ enrichment: true })),
+      { companyIndustry: "Activities of advertising agencies" },
+    );
+  });
+
+  it("the server-side companyIndustry wins over the SBI fallback", () => {
+    const both: PayloadSourceContext = { enrichment: { companyIndustry: "SaaS", leadinfoBranchCode: "73110" } };
+    assert.deepEqual(
+      extractSelectedPayload(both, ["companyIndustry"], consent({ enrichment: true })),
+      { companyIndustry: "SaaS" },
+    );
+  });
+
+  it("an unknown SBI code drops the derived fields (no crash, raw code still available)", () => {
+    const unknown: PayloadSourceContext = { enrichment: { leadinfoBranchCode: "00000" } };
+    assert.deepEqual(
+      extractSelectedPayload(unknown, ["companyIndustryNl", "companyIndustryEn", "companyIndustry"], consent({ enrichment: true })),
+      {},
+    );
+  });
+
+  it("the derived industry fields are firmographic + enrichment-gated", () => {
+    for (const k of ["companyIndustryNl", "companyIndustryEn"]) {
+      const def = PAYLOAD_FIELD_CATALOG.find((f) => f.key === k);
+      assert.ok(def, `catalog missing ${k}`);
+      assert.equal(def.group, "firmographic");
+      assert.equal(def.gate, "enrichment");
+    }
+    assert.deepEqual(extractSelectedPayload(LI_SBI, ["companyIndustryNl", "companyIndustryEn"], consent()), {});
+  });
+});

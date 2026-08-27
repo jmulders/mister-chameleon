@@ -22,6 +22,7 @@
  */
 
 import type { ConsentState } from "@/tracking/consent-types";
+import { lookupSbiIndustry } from "@/lib/enrichment/sbi-2025";
 
 export type PayloadFieldGroup = "context" | "firmographic" | "scoring" | "person";
 /** null = always allowed; otherwise the consent basis required. */
@@ -95,15 +96,21 @@ const PAYLOAD_FIELDS: readonly PayloadFieldDef[] = [
   // Firmographic extractors prefer the generic (server-side firmographic) fields
   // and fall back to the client-side Leadinfo (mc_li) leadinfo* fields, so a
   // visit enriched only by client Leadinfo still delivers a company. companySize
-  // falls back to the Leadinfo employees bucket. companyIndustry has no fallback:
-  // client Leadinfo carries only a numeric branch code (no text industry), so it
-  // stays empty rather than emitting a code.
+  // falls back to the Leadinfo employees bucket. companyIndustry falls back to the
+  // ENGLISH industry name derived from the Leadinfo SBI code (leadinfoBranchCode)
+  // via the SBI 2025 lookup, so a client-Leadinfo-only visit still yields a
+  // readable industry instead of an empty field.
   { key: "companyName",     label: "Company name",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyName ?? c.enrichment?.leadinfoCompanyName ?? null },
   { key: "companyDomain",   label: "Company domain",   group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyDomain ?? c.enrichment?.leadinfoCompanyDomain ?? null },
-  { key: "companyIndustry", label: "Company industry", group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyIndustry ?? null },
+  { key: "companyIndustry", label: "Company industry", group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companyIndustry ?? lookupSbiIndustry(c.enrichment?.leadinfoBranchCode)?.en ?? null },
   { key: "companySize",     label: "Company size",     group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.companySize ?? c.enrichment?.leadinfoEmployees ?? null },
   { key: "geoCountry",      label: "Country",          group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.countryCode ?? c.enrichment?.leadinfoCompanyCountry ?? null },
   { key: "geoRegion",       label: "Region",           group: "firmographic", gate: "enrichment", extract: (c) => c.enrichment?.region ?? null },
+  // Readable industry derived from the Leadinfo SBI code (leadinfoBranchCode) via
+  // the SBI 2025 lookup — NL and EN. Unknown code → null (the raw SBI code still
+  // travels in the payload, so nothing is lost).
+  { key: "companyIndustryNl", label: "Company industry (NL)", group: "firmographic", gate: "enrichment", extract: (c) => lookupSbiIndustry(c.enrichment?.leadinfoBranchCode)?.nl ?? null },
+  { key: "companyIndustryEn", label: "Company industry (EN)", group: "firmographic", gate: "enrichment", extract: (c) => lookupSbiIndustry(c.enrichment?.leadinfoBranchCode)?.en ?? null },
 
   // ── Raw Leadinfo firmographics (enrichment consent) ──
   // Exposed verbatim from the client-side Leadinfo (mc_li) leadinfo* context so
