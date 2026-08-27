@@ -119,6 +119,19 @@ export interface BuildDecisionContextParams {
   request: Request;
 
   /**
+   * Explicit Cookie header value for the cookie-derived signals (mc_li company
+   * enrichment, mc_cc client context, mc_tz timezone).
+   *
+   * `Cookie` is a forbidden header name, so it is silently stripped when a
+   * synthetic `new Request(..., { headers: { cookie } })` is built in the server
+   * runtime (undici). Call sites that construct a synthetic Request (the RSC
+   * homepage pipeline, cms-page-decision) must pass the real header here.
+   * Falls back to `request.headers.get("cookie")` when omitted, so callers that
+   * pass the genuine incoming Request (e.g. the snippet decide route) are unaffected.
+   */
+  cookieHeader?: string | null;
+
+  /**
    * Pre-fetched visitor history for this session.
    *
    * Call `fetchVisitorHistory(sessionId)` before `buildDecisionContext` and
@@ -473,6 +486,7 @@ export async function buildDecisionContext(
 ): Promise<RuleEvaluationContext> {
   const {
     request,
+    cookieHeader: cookieHeaderParam = null,
     history     = emptyHistory(),
     tenantId    = null,
     templateKey = null,
@@ -516,7 +530,10 @@ export async function buildDecisionContext(
   // The merged object is attached to the context as `clientContext` so that
   // rule resolvers and AI context extraction can access all 13 fields uniformly.
   const uaParsed  = parseUA(visitorContext.userAgent);
-  const cookieHeader = request.headers.get("cookie");
+  // Prefer the explicit cookieHeader param — `Cookie` is a forbidden header and is
+  // stripped from a synthetic Request, so request.headers.get("cookie") is empty on
+  // the RSC pipeline paths. Fall back to the request header for genuine-Request callers.
+  const cookieHeader = cookieHeaderParam ?? request.headers.get("cookie");
   const cookieVal = cookieHeader
     ? parseCookieField(cookieHeader, CLIENT_CONTEXT_COOKIE)
     : null;

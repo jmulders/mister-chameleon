@@ -399,6 +399,9 @@ export async function resolveSlugPageConfig(
     // UTM params, referrer, and all stored behavioral history.
     const rawInput = await buildDecisionContext({
       request,
+      // The Cookie header is stripped from a synthetic Request, so pass the real
+      // one for the mc_li / mc_cc / mc_tz cookie-derived signals.
+      cookieHeader,
       history,
       tenantId,
       templateKey: slug,

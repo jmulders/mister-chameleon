@@ -438,6 +438,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
 
   const rawInput = await buildDecisionContext({
     request,
+    // Pass the real Cookie header explicitly — it is stripped from the synthetic
+    // Request above (Cookie is a forbidden header), so mc_li / mc_cc / mc_tz would
+    // otherwise be invisible to the decision context on this RSC path.
+    cookieHeader,
     history:           effectiveHistory,
     tenantId:          tenantConfig.tenantId,
     templateKey:       "homepage",
