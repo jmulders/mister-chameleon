@@ -297,10 +297,6 @@ function BehaviorSettings({
     setSaveError(null);
     startTransition(async () => {
       const result = await saveDemoImporterSettingsAction({
-        analyzeHomepageOnly:  settings.analyzeHomepageOnly,
-        followNavLinks:       settings.followNavLinks,
-        maxPages:             settings.maxPages,
-        detectColors:         settings.detectColors,
         renderEnabled:        settings.renderEnabled,
         renderTimeoutMs:      settings.renderTimeoutMs,
       });
@@ -319,7 +315,7 @@ function BehaviorSettings({
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 id="behavior-heading" className="text-base font-semibold text-neutral-900">
-            Import behavior
+            Mirror rendering
           </h2>
           {updatedAt && (
             <p className="text-xs text-neutral-400 mt-0.5">
@@ -345,49 +341,6 @@ function BehaviorSettings({
 
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm divide-y divide-neutral-100">
 
-        <ToggleRow
-          label="Analyze homepage only"
-          note="Fetch only the root URL. Disable to follow navigation links."
-          checked={settings.analyzeHomepageOnly}
-          onChange={() => toggle("analyzeHomepageOnly")}
-        />
-        <ToggleRow
-          label="Follow navigation links"
-          note="Crawl up to maxPages linked from the homepage nav. Requires 'Analyze homepage only' to be off."
-          checked={settings.followNavLinks}
-          onChange={() => toggle("followNavLinks")}
-          disabled={settings.analyzeHomepageOnly}
-        />
-
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <div className="min-w-0 pr-4">
-            <p className="text-sm font-medium text-neutral-800">Max pages to inspect</p>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              Maximum pages to crawl when following navigation links (1–50).
-            </p>
-          </div>
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={settings.maxPages}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              if (!isNaN(v)) setSettings((s) => ({ ...s, maxPages: v }));
-              setSaveState("idle");
-            }}
-            className="w-16 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30 disabled:opacity-50"
-            disabled={settings.analyzeHomepageOnly && !settings.followNavLinks}
-          />
-        </div>
-
-        <ToggleRow
-          label="Detect colors"
-          note="Extract primary brand colour from meta theme-color, og:image, or favicon."
-          checked={settings.detectColors}
-          onChange={() => toggle("detectColors")}
-        />
-
         {/* ── Mirror JS-rendering (self-hosted headless Chrome) ─────────────── */}
         <ToggleRow
           label="JavaScript rendering"
@@ -401,13 +354,13 @@ function BehaviorSettings({
             <div className="min-w-0 pr-4">
               <p className="text-sm font-medium text-neutral-800">Render timeout (ms)</p>
               <p className="text-xs text-neutral-400 mt-0.5">
-                Max time to wait for the render (5000–60000). JS rendering needs longer than a plain fetch.
+                Max time to wait for the render (5000–45000, kept under the function budget). JS rendering needs longer than a plain fetch.
               </p>
             </div>
             <input
               type="number"
               min={5_000}
-              max={60_000}
+              max={45_000}
               step={1_000}
               value={settings.renderTimeoutMs}
               onChange={(e) => {
@@ -420,16 +373,25 @@ function BehaviorSettings({
           </div>
         )}
 
+        {settings.renderEnabled && (
+          <div className="px-5 py-3.5">
+            <p className="text-xs text-neutral-500">
+              <span className="font-medium text-neutral-700">Runtime:</span>{" "}
+              self-hosted headless Chrome — prod uses <code>@sparticuz/chromium-min</code>{" "}
+              (binary fetched from <code>CHROMIUM_PACK_URL</code>), dev uses a local Chrome
+              (<code>PUPPETEER_EXECUTABLE_PATH</code>). No API key. A launch/render failure is
+              non-fatal — it silently falls back to a plain fetch, so a misconfigured runtime
+              shows up as a plain (non-JS) mirror rather than an error.
+            </p>
+          </div>
+        )}
+
       </div>
     </section>
   );
 }
 
 // ── 4. Output Defaults ────────────────────────────────────────────────────────
-
-const SITE_TYPES    = ["general", "b2b_saas", "agency", "ecommerce", "recruitment"] as const;
-const SCENARIO_PACKS = ["standard-5"] as const;
-const THEME_FALLBACKS = ["neutral", "brand", "minimal"] as const;
 
 function OutputDefaults({
   initial,
@@ -448,10 +410,6 @@ function OutputDefaults({
     setSaveError(null);
     startTransition(async () => {
       const result = await saveDemoImporterSettingsAction({
-        defaultSiteType:      settings.defaultSiteType,
-        defaultPageSet:       settings.defaultPageSet,
-        defaultScenarioPack:  settings.defaultScenarioPack,
-        defaultThemeFallback: settings.defaultThemeFallback,
         expiryDays:           settings.expiryDays,
       });
       if (result.ok) {
@@ -469,7 +427,7 @@ function OutputDefaults({
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 id="output-heading" className="text-base font-semibold text-neutral-900">
-            Output defaults
+            Demo lifetime
           </h2>
           {updatedAt && (
             <p className="text-xs text-neutral-400 mt-0.5">
@@ -495,41 +453,6 @@ function OutputDefaults({
 
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm divide-y divide-neutral-100">
 
-        <SelectRow
-          label="Default site type fallback"
-          note="Used when the analyzer cannot detect the industry category."
-          value={settings.defaultSiteType}
-          options={SITE_TYPES.map((v) => ({ value: v, label: v.replace("_", " ") }))}
-          onChange={(v) => { setSettings((s) => ({ ...s, defaultSiteType: v })); setSaveState("idle"); }}
-        />
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <div className="min-w-0 pr-4">
-            <p className="text-sm font-medium text-neutral-800">Default page set</p>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              Which pages the demo viewer shows. Currently only homepage is supported.
-            </p>
-          </div>
-          <input
-            type="text"
-            value={settings.defaultPageSet}
-            readOnly
-            className="w-32 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm text-neutral-500 cursor-not-allowed"
-          />
-        </div>
-        <SelectRow
-          label="Default scenario pack"
-          note="Set of visitor scenarios to generate. Currently only standard-5 is available."
-          value={settings.defaultScenarioPack}
-          options={SCENARIO_PACKS.map((v) => ({ value: v, label: v }))}
-          onChange={(v) => { setSettings((s) => ({ ...s, defaultScenarioPack: v })); setSaveState("idle"); }}
-        />
-        <SelectRow
-          label="Default theme / header fallback"
-          note="Fallback visual style when brand colors cannot be detected."
-          value={settings.defaultThemeFallback}
-          options={THEME_FALLBACKS.map((v) => ({ value: v, label: v }))}
-          onChange={(v) => { setSettings((s) => ({ ...s, defaultThemeFallback: v })); setSaveState("idle"); }}
-        />
         <div className="flex items-center justify-between px-5 py-3.5">
           <div className="min-w-0 pr-4">
             <p className="text-sm font-medium text-neutral-800">Demo link expiry (days)</p>
@@ -737,7 +660,7 @@ function RecentRunsTable({ runs: initialRuns }: { runs: RecentRunSummary[] }) {
 
 // ── 6. Test Panel ─────────────────────────────────────────────────────────────
 
-type TestMode      = "analyze" | "dry_run" | "full" | "mirror";
+type TestMode      = "analyze" | "dry_run" | "mirror";
 type TestPhase     = "idle" | "running" | "success" | "error";
 
 interface TestResult {
@@ -894,8 +817,7 @@ function TestPanel() {
               [
                 { value: "analyze",  label: "Analyze only",  note: "No content generation" },
                 { value: "dry_run",  label: "Dry run",       note: "Full pipeline, no DB write" },
-                { value: "full",     label: "Full generation", note: "Creates a real demo" },
-                { value: "mirror",   label: "Live Mirror",   note: "Clones the real site's look" },
+                { value: "mirror",   label: "Live Mirror",   note: "Creates a real Mirror demo" },
               ] as { value: TestMode; label: string; note: string }[]
             ).map((opt) => (
               <button
@@ -1097,40 +1019,6 @@ function ToggleRow({
           }`}
         />
       </button>
-    </div>
-  );
-}
-
-function SelectRow({
-  label,
-  note,
-  value,
-  options,
-  onChange,
-}: {
-  label:   string;
-  note:    string;
-  value:   string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between px-5 py-3.5">
-      <div className="min-w-0 pr-4">
-        <p className="text-sm font-medium text-neutral-800">{label}</p>
-        <p className="text-xs text-neutral-400 mt-0.5">{note}</p>
-      </div>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

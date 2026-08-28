@@ -89,7 +89,7 @@ export async function createDemoInstance(
     contentEn    = null,
     contentNl    = null,
     pageImages   = null,
-    demoMode      = "synthetic",
+    demoMode      = "mirror",
     mirroredHtml  = null,
     scenarioSlots = null,
     blockTokens   = null,
@@ -295,7 +295,7 @@ function normalizeDemoRow(row: any): DemoInstance {
     content_nl:       (row.content_nl      ?? null) as DemoPageContent | null,
     brand_signals:    (row.brand_signals   ?? null) as BrandSignals | null,
     page_images:      (row.page_images     ?? null) as DemoImages | null,
-    demo_mode:        (row.demo_mode       ?? "synthetic") as DemoInstanceMode,
+    demo_mode:        (row.demo_mode       ?? "mirror") as DemoInstanceMode,
     mirrored_html:    (row.mirrored_html   ?? null) as string | null,
     scenario_slots:   (row.scenario_slots  ?? null) as Record<string, Record<string, string>> | null,
   };

@@ -67,7 +67,7 @@ Platform-brede credentials per externe dienst; gelden als default/fallback. Per-
 ## 4. SALES
 
 ### Prospect Demos — `/admin/demo`
-- **Wat:** Lijst van gegenereerde prospect-demos (mirror/synthetic), Active + Expired, met deelbare URLs.
+- **Wat:** Lijst van gegenereerde prospect-demos (Mirror; oudere demos zijn met "Legacy" gemarkeerd), Active + Expired, met deelbare URLs.
 - **Acties:** "+ New demo"; per rij browse-URL + kopieerknop.
 - **Env:** `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 

@@ -37,7 +37,7 @@ import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
 import { analyzeSite }      from "@/demo/analyzer";
 import { generateScenarios } from "@/demo/content-generator";
 import { listDemoInstances } from "@/demo/store";
-import { resolveDemoBaseUrl } from "@/lib/base-url";
+import { MIN_RENDER_TIMEOUT_MS, MAX_RENDER_TIMEOUT_MS } from "@/demo/site-render";
 import type { SiteAnalysis, DemoInstance } from "@/demo/types";
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -102,34 +102,17 @@ export interface RecentRunSummary {
 }
 
 export interface DemoImporterSettings {
-  // Behavior
-  analyzeHomepageOnly:    boolean;
-  followNavLinks:         boolean;
-  maxPages:               number;
-  detectColors:           boolean;
   // Mirror JS-rendering — self-hosted headless Chrome. Generic on/off + timeout;
   // no API key (no SaaS).
   renderEnabled:          boolean;
   renderTimeoutMs:        number;
-  // Output defaults
-  defaultSiteType:        string;
-  defaultPageSet:         string;
-  defaultScenarioPack:    string;
-  defaultThemeFallback:   string;
+  // Demo lifetime.
   expiryDays:             number;
 }
 
 const SETTINGS_DEFAULTS: DemoImporterSettings = {
-  analyzeHomepageOnly:   true,
-  followNavLinks:        false,
-  maxPages:              1,
-  detectColors:          true,
   renderEnabled:         false,
   renderTimeoutMs:       25_000,
-  defaultSiteType:       "general",
-  defaultPageSet:        "homepage",
-  defaultScenarioPack:   "standard-5",
-  defaultThemeFallback:  "neutral",
   expiryDays:            7,
 };
 
@@ -316,19 +299,14 @@ export async function saveDemoImporterSettingsAction(
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // Validate ranges
-  if (input.maxPages !== undefined) {
-    if (!Number.isInteger(input.maxPages) || input.maxPages < 1 || input.maxPages > 50) {
-      return { ok: false, error: "maxPages must be an integer between 1 and 50." };
-    }
-  }
   if (input.expiryDays !== undefined) {
     if (!Number.isInteger(input.expiryDays) || input.expiryDays < 1 || input.expiryDays > 30) {
       return { ok: false, error: "expiryDays must be an integer between 1 and 30." };
     }
   }
   if (input.renderTimeoutMs !== undefined) {
-    if (!Number.isInteger(input.renderTimeoutMs) || input.renderTimeoutMs < 5_000 || input.renderTimeoutMs > 60_000) {
-      return { ok: false, error: "renderTimeoutMs must be an integer between 5000 and 60000." };
+    if (!Number.isInteger(input.renderTimeoutMs) || input.renderTimeoutMs < MIN_RENDER_TIMEOUT_MS || input.renderTimeoutMs > MAX_RENDER_TIMEOUT_MS) {
+      return { ok: false, error: `renderTimeoutMs must be an integer between ${MIN_RENDER_TIMEOUT_MS} and ${MAX_RENDER_TIMEOUT_MS}.` };
     }
   }
 
@@ -476,57 +454,12 @@ export async function runDemoTestAction(input: {
   }
 
   // ── 2. Generate scenarios ────────────────────────────────────────────────────
+  //   The test panel never persists a demo — it only exercises the analyzer +
+  //   scenario pipeline. Real demos are created (as Mirror) via Admin → Demo → New
+  //   / POST /api/demo/mirror. So there is no "synthetic" creation path here.
   let scenarioCount = 0;
   try {
-    const scenarios = generateScenarios(analysis);
-    scenarioCount   = scenarios.length;
-
-    if (!input.dryRun) {
-      // ── 3. Store ───────────────────────────────────────────────────────────────
-      const { createDemoInstance } = await import("@/demo/store");
-      const generationMs           = Date.now() - start;
-      const db                     = getServiceClient();
-
-      // Extract the prospect's design tokens so the demo renders on-brand.
-      // Base = analyzer brand signals (always available); rich multi-page
-      // extraction merged on top. Best-effort — worst case is the platform theme.
-      const { extractTokensFromSite } = await import("@/lib/design-tokens/url-token-extractor");
-      const { blockTokensFromBrandSignals } = await import("@/demo/brand-tokens");
-      const tokenResult = await extractTokensFromSite(url, 3).catch(() => null);
-      const extracted   = tokenResult?.ok ? (tokenResult.blockTokens ?? {}) : {};
-      const merged      = { ...blockTokensFromBrandSignals(analysis.brandSignals), ...extracted };
-      const blockTokens = Object.keys(merged).length > 0 ? merged : null;
-
-      const demo = await createDemoInstance(db, {
-        analysis,
-        scenarios,
-        blockTokens,
-        generatedBy:  `${auth.email} (test-panel)`,
-        generationMs,
-        expiryDays:   7,
-      }).catch((err: unknown) => {
-        throw Object.assign(
-          new Error(`Store failed: ${err instanceof Error ? err.message : String(err)}`),
-          { step: "store" },
-        );
-      });
-
-      const baseUrl = await resolveDemoBaseUrl();
-
-      return {
-        ok:             true,
-        dryRun:         false,
-        analyzeOnly:    false,
-        fetchSucceeded: analysis.fetchSucceeded,
-        title:          analysis.title,
-        category:       analysis.category,
-        primaryColor:   analysis.primaryColor,
-        scenarioCount,
-        generationMs,
-        demoId:         demo.id,
-        demoUrl:        `${baseUrl}/demo/${demo.id}`,
-      };
-    }
+    scenarioCount = generateScenarios(analysis).length;
   } catch (err) {
     const anyErr = err as { step?: string; message?: string };
     return {
@@ -538,7 +471,7 @@ export async function runDemoTestAction(input: {
 
   return {
     ok:             true,
-    dryRun:         true,
+    dryRun:         input.dryRun,
     analyzeOnly:    false,
     fetchSucceeded: analysis.fetchSucceeded,
     title:          analysis.title,

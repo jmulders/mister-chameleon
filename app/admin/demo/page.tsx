@@ -64,7 +64,7 @@ export default async function DemoListPage() {
         <div>
           <h1 className="text-xl font-semibold text-neutral-900">Prospect Demos</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            All generated demo links — mirror and synthetic.
+            All generated Mirror demo links.
             {demos.length > 0 && ` ${active.length} active, ${expired.length} expired.`}
           </p>
         </div>
@@ -165,7 +165,7 @@ function DemoRow({
                 ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
                 : "bg-purple-50 text-purple-700 border border-purple-100"
             }`}>
-              {isMirror ? "🪞 Mirror" : "✨ Synthetic"}
+              {isMirror ? "🪞 Mirror" : "🗂 Legacy"}
             </span>
             <span className="text-sm font-semibold text-neutral-900 truncate">
               {demo.site_name || "Unnamed"}
