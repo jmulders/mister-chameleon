@@ -43,3 +43,18 @@ export async function getCbsStatsForArea(areaCode: string): Promise<CbsAreaStats
     return null;
   }
 }
+
+/**
+ * Upsert a mapped CBS row into cbs_area_stats (the lazy per-buurt cache write).
+ * Never throws — a failed cache write must not break enrichment; the value is
+ * still usable in-memory for this request.
+ */
+export async function upsertCbsArea(row: Record<string, unknown>): Promise<void> {
+  try {
+    await db()
+      .from("cbs_area_stats")
+      .upsert({ ...row, refreshed_at: new Date().toISOString() }, { onConflict: "area_code" });
+  } catch (err) {
+    logger.debug("[cbs-location-store] upsert failed", { error: String(err) });
+  }
+}

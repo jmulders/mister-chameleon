@@ -188,6 +188,8 @@ export async function buildTenantStagedEnrichers(
                                    tenant?.enrichment?.useSeasonalEvents ?? true),
     enableCbsLocation:           pipelineEnabled("cbs-location",
                                    (platformCbsLocation as { enabled?: boolean }).enabled ?? false),
+    cbsLocationDatasetId:        (platformCbsLocation as { datasetId?: string }).datasetId?.trim() || undefined,
+    cbsLocationSourceYear:       (platformCbsLocation as { sourceYear?: number }).sourceYear,
     holidayAllowedCountries:     (platformHolidays as { countriesFilter?: string }).countriesFilter || undefined,
     isDev:                       process.env.NODE_ENV === "development",
     stageConfig: tenantPipelineStages.length > 0 ? tenantPipelineStages : undefined,

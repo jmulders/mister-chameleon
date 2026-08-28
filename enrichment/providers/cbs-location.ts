@@ -1,50 +1,109 @@
 /**
- * First-party LOCATION enricher stage (CBS StatLine buurt statistics).
+ * First-party LOCATION enricher stage (CBS StatLine buurt statistics), LAZY.
  *
- * Adds neighbourhood firmographics — a density-derived urbanity band, income
+ * Adds neighbourhood firmographics — the official CBS urbanity class, income
  * band, business share — to the enrichment output by resolving the visitor's CBS
- * buurtcode and joining it against the cross-tenant cbs_area_stats reference
- * table (fed by the CBS ingestion job). Free first-party open data; billed via
- * the generic tracker as a small `location_lookup` event (stage label
- * "CBS Location").
+ * buurtcode and looking it up in cbs_area_stats. Because CBS OData v3 cannot be
+ * bulk-paginated, the table is filled lazily: on a cache miss we fetch that ONE
+ * buurt live (single-predicate `eq`), cache it, and use it.
  *
- * Buurtcode resolution: lat/lng → PDOK Locatieserver reverse (type=buurt).
- * Requires coordinates from a prior geo stage. NL-only: skipped when a non-NL
- * country is already resolved.
+ * Flow:
+ *   1. lat/lng → buurtcode via PDOK Locatieserver (type=buurt).
+ *   2. Look up cbs_area_stats (cache).
+ *   3. MISS → fetch the single buurt live from CBS, map, upsert, use.
+ *   4. Empty CBS result (buurt not in the dataset, e.g. recoding) → short-lived
+ *      negative cache so we stop re-querying CBS for it.
+ * All external calls fail open (no enrichment on error), never break the render.
  *
- * Runs sequentially (after wave 2) so geo / reverse-geo have populated lat/lng
- * and country.
+ * NL-only; runs sequentially (after wave 2) so geo has resolved lat/lng.
+ *
+ * CAVEAT: PDOK's buurtcode vintage must match the CBS dataset year (85984NED =
+ * 2024 indeling). A mismatch yields an empty `eq` → no enrichment (fail-open).
+ *
+ * Billing: a first-party location_lookup event (cache_hit=true, small credit) is
+ * charged post-pipeline in build-decision-context when a location is resolved —
+ * mirroring the first-party company DB.
  */
 
 import type { StagedEnricher, EnricherInput, EnrichmentOutput } from "../types";
 import type { CbsAreaStats } from "../cbs-location-store";
+import type { CbsFetchResult } from "@/lib/enrichment/cbs-ingest";
+import { DEFAULT_CBS_DATASET } from "@/lib/enrichment/cbs-ingest";
+
+/** Short-lived negative cache: buurtcode → expiry ms. Empty CBS results only. */
+const NEGATIVE_TTL_MS = 6 * 60 * 60 * 1_000;
+const negativeCache = new Map<string, number>();
+
+/** Test helper: clear the module-level negative cache between cases. */
+export function resetCbsNegativeCache(): void { negativeCache.clear(); }
 
 export interface CbsLocationOptions {
-  /** Injectable CBS lookup (defaults to the DB store) — for tests. */
-  lookup?:  (areaCode: string) => Promise<CbsAreaStats | null>;
+  /** CBS dataset id for the live per-buurt fetch. Default 85984NED. */
+  datasetId?:   string;
+  /** Source year recorded on rows written by the lazy fetch. */
+  sourceYear?:  number;
   /** Injectable lat/lng→buurtcode geocoder (defaults to PDOK) — for tests. */
-  geocode?: (lat: number, lng: number) => Promise<string | null>;
-  isDev?:   boolean;
+  geocode?:     (lat: number, lng: number) => Promise<string | null>;
+  /** Injectable cache lookup (defaults to the DB store) — for tests. */
+  cacheLookup?: (areaCode: string) => Promise<CbsAreaStats | null>;
+  /** Injectable single-buurt live fetch (defaults to CBS OData) — for tests. */
+  liveFetch?:   (datasetId: string, areaCode: string) => Promise<CbsFetchResult>;
+  /** Injectable cache upsert (defaults to the DB store) — for tests. */
+  upsert?:      (row: Record<string, unknown>) => Promise<void>;
+  isDev?:       boolean;
 }
 
 export function createCbsLocationEnricher(options: CbsLocationOptions = {}): StagedEnricher {
-  const isDev = options.isDev ?? false;
+  const datasetId  = options.datasetId ?? DEFAULT_CBS_DATASET;
+  const sourceYear = options.sourceYear ?? 0;
+  const isDev      = options.isDev ?? false;
 
-  async function lookup(areaCode: string): Promise<CbsAreaStats | null> {
-    if (options.lookup) return options.lookup(areaCode);
-    return (await import("../cbs-location-store")).getCbsStatsForArea(areaCode);
-  }
   async function geocode(lat: number, lng: number): Promise<string | null> {
     if (options.geocode) return options.geocode(lat, lng);
     return (await import("@/lib/enrichment/pdok-geocode")).buurtcodeFromLatLng(lat, lng);
+  }
+  async function cacheLookup(areaCode: string): Promise<CbsAreaStats | null> {
+    if (options.cacheLookup) return options.cacheLookup(areaCode);
+    return (await import("../cbs-location-store")).getCbsStatsForArea(areaCode);
+  }
+  async function liveFetch(ds: string, areaCode: string): Promise<CbsFetchResult> {
+    if (options.liveFetch) return options.liveFetch(ds, areaCode);
+    return (await import("@/lib/enrichment/cbs-ingest")).fetchCbsArea(ds, areaCode);
+  }
+  async function upsert(row: Record<string, unknown>): Promise<void> {
+    if (options.upsert) return options.upsert(row);
+    return (await import("../cbs-location-store")).upsertCbsArea(row);
+  }
+
+  /** Cache miss → negative-cache check → live single-buurt fetch → map + upsert. */
+  async function resolveFromCbs(areaCode: string): Promise<CbsAreaStats | null> {
+    const now = Date.now();
+    const negExpiry = negativeCache.get(areaCode);
+    if (negExpiry && negExpiry > now) return null; // recently empty — don't re-query
+
+    const result = await liveFetch(datasetId, areaCode);
+    if (result.status === "empty") {
+      negativeCache.set(areaCode, now + NEGATIVE_TTL_MS);
+      return null;
+    }
+    if (result.status === "error") return null; // transient — do not cache
+
+    const { mapCbsRow } = await import("@/lib/enrichment/cbs-ingest");
+    const mapped = mapCbsRow(result.raw, sourceYear, datasetId);
+    if (!mapped) return null;
+    await upsert(mapped);
+    return {
+      areaCode:      mapped.area_code,
+      urbanityProxy: mapped.urbanity_proxy,
+      incomeBand:    mapped.income_band,
+      businessShare: mapped.business_share,
+    };
   }
 
   return {
     label:    "CBS Location",
     stageKey: "cbs-location",
 
-    // Needs coordinates to reverse-geocode to a buurt. Skipped for a resolved
-    // non-NL country (CBS buurt data is NL-only).
     shouldRun: (_input: EnricherInput, accumulated: Partial<EnrichmentOutput>): boolean => {
       const country = accumulated.addressCountry ?? accumulated.countryCode;
       if (country && country.toUpperCase() !== "NL") return false;
@@ -57,9 +116,11 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       const areaCode = await geocode(accumulated.latitude, accumulated.longitude);
       if (!areaCode) return {};
 
-      const stats = await lookup(areaCode);
-      if (!stats) {
-        if (isDev) console.debug("[cbs-location] no CBS row for buurt", areaCode);
+      const stats = (await cacheLookup(areaCode)) ?? (await resolveFromCbs(areaCode));
+      if (!stats) return {};
+
+      // Require at least one usable attribute (avoid billing an all-suppressed row).
+      if (stats.urbanityProxy == null && stats.incomeBand == null && stats.businessShare == null) {
         return {};
       }
 

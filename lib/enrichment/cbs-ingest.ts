@@ -1,16 +1,23 @@
 /**
  * lib/enrichment/cbs-ingest.ts
  *
- * Ingestion for the CBS StatLine buurt (neighbourhood) statistics table
+ * LAZY per-buurt fetch + mapping for the CBS StatLine buurt statistics table
  * (cbs_area_stats).
  *
- * Source: CBS StatLine "Kerncijfers wijken en buurten" OData, dataset 85984NED
- * (configurable, bumped yearly). We ingest only buurt rows
- * (WijkenEnBuurten starts with "BU"), skipping the GM (gemeente) and WK (wijk)
- * aggregate rows.
+ * ─── Why lazy, not bulk ───────────────────────────────────────────────────────
  *
- *   data:   https://opendata.cbs.nl/ODataApi/odata/85984NED/TypedDataSet
- *           $filter=startswith(WijkenEnBuurten,'BU')
+ * CBS OData v3 (dataset 85984NED) cannot be bulk-paginated: $skip caps at 500,
+ * $orderby is ignored, a compound $filter (and) is ignored, an unbounded page
+ * returns 500, and there is no @odata.nextLink. The ONLY query shape that works
+ * is a single-predicate equality — proven:
+ *
+ *   TypedDataSet?$filter=WijkenEnBuurten eq 'BU16800000'&$format=json  → exactly 1 row
+ *
+ * So we fetch ONE buurt at a time, on demand, from the location enricher stage
+ * (cache-miss path) and cache the result in cbs_area_stats.
+ *
+ * Source: CBS StatLine "Kerncijfers wijken en buurten" OData, dataset 85984NED
+ * (configurable, bumped yearly).
  *   fields: https://opendata.cbs.nl/ODataApi/odata/85984NED/DataProperties
  *
  * ─── Field mapping (keys + units verified against 85984NED) ───────────────────
@@ -54,8 +61,8 @@ export const CBS_FIELD_MAP = {
 /**
  * Columns fetched via $select — the mapped columns plus two bonus signals stored
  * in `raw`: Omgevingsadressendichtheid_121 (address density) and
- * MeestVoorkomendePostcode_118 (the buurt's most common PC4). Keeping the page
- * narrow is what keeps a full run inside the cron's maxDuration.
+ * MeestVoorkomendePostcode_118 (the buurt's most common PC4). Narrowing the
+ * response keeps the per-buurt fetch small and fast.
  */
 const SELECT_COLUMNS = [
   "WijkenEnBuurten",
@@ -69,12 +76,6 @@ const SELECT_COLUMNS = [
   "Omgevingsadressendichtheid_121",
   "MeestVoorkomendePostcode_118",
 ] as const;
-
-export interface CbsIngestResult {
-  ingested: number;
-  skipped:  number;
-  note?:    string;
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -183,71 +184,66 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
   };
 }
 
-/** Default page size for the $top/$skip loop. */
-export const CBS_PAGE_SIZE = 2000;
+/**
+ * Practical row cap CBS OData returns for a single narrowed `startswith` bucket.
+ * When a bucket hits this, the backfill splits the prefix one digit deeper.
+ */
+export const CBS_BUCKET_CAP = 10_000;
 
 /**
- * Fetch all buurt rows of a CBS OData v3 dataset.
- *
- * CBS OData v3 returns HTTP 500 on an UNBOUNDED page for a wide dataset like
- * 85984NED (121 columns), so we ALWAYS drive pagination with an explicit
- * $top + $skip loop (proven: no $top → 500; $top=1000 → 200). $select trims the
- * page to the mapped columns (+ two bonus signals) so each page is small and the
- * whole run stays inside the cron budget. Server-side $filter keeps only
- * WijkenEnBuurten starting with "BU". We stop when a page returns fewer than
- * $top rows.
+ * Fetch all rows whose WijkenEnBuurten starts with `prefix` (e.g. "BU03"), via
+ * the only bulk-ish shape CBS honours: a single `startswith` predicate + $select.
+ * Used by the resumable backfill (NOT the request path). Throws on a non-OK
+ * response so the backfill can react (split / retry).
  */
-export async function fetchCbsRows(
+export async function fetchCbsPrefix(
   datasetId: string,
+  prefix: string,
   fetchImpl: typeof fetch = fetch,
-  pageSize = CBS_PAGE_SIZE,
-  maxPages = 300,
 ): Promise<Row[]> {
-  const rows: Row[] = [];
   const base   = `${ODATA_BASE}/${encodeURIComponent(datasetId)}/TypedDataSet`;
-  const filter = encodeURIComponent("startswith(WijkenEnBuurten,'BU')");
+  const filter = encodeURIComponent(`startswith(WijkenEnBuurten,'${prefix}')`);
   const select = encodeURIComponent(SELECT_COLUMNS.join(","));
-
-  let skip = 0;
-  for (let pages = 0; pages < maxPages; pages++) {
-    const url = `${base}?$filter=${filter}&$select=${select}&$top=${pageSize}&$skip=${skip}`;
-    const res = await fetchImpl(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error(`CBS OData HTTP ${res.status} for ${datasetId} (skip=${skip})`);
-    const json = (await res.json()) as { value?: Row[] };
-    const page = Array.isArray(json.value) ? json.value : [];
-    rows.push(...page);
-    if (page.length < pageSize) break; // last page
-    skip += pageSize;
-  }
-  return rows;
+  const url    = `${base}?$filter=${filter}&$select=${select}&$format=json`;
+  const res = await fetchImpl(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`CBS OData HTTP ${res.status} for prefix ${prefix}`);
+  const json = (await res.json()) as { value?: Row[] };
+  return Array.isArray(json.value) ? json.value : [];
 }
 
+/** Result of a single-buurt CBS fetch. */
+export type CbsFetchResult =
+  | { status: "found"; raw: Row }
+  | { status: "empty" }               // buurtcode not in the dataset (e.g. recoding)
+  | { status: "error" };              // transient (HTTP / timeout) — do not cache
+
 /**
- * Ingest CBS buurt statistics into cbs_area_stats. No-op (with a note) when no
- * datasetId is configured.
+ * Fetch ONE buurt's row from CBS OData v3 by exact buurtcode. This is the only
+ * query shape CBS honours (single-predicate `eq`). Narrowed with $select and a
+ * short timeout; fail-open (returns "error" on any failure, never throws).
  */
-export async function ingestCbsAreaStats(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
-  opts: { datasetId?: string | null; sourceYear?: number },
+export async function fetchCbsArea(
+  datasetId: string,
+  buurtcode: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<CbsIngestResult> {
-  const datasetId  = opts.datasetId?.trim();
-  const sourceYear = opts.sourceYear ?? 0;
-  if (!datasetId) {
-    return { ingested: 0, skipped: 0, note: "no CBS datasetId configured (platform cbs_location settings)" };
+  timeoutMs = 5_000,
+): Promise<CbsFetchResult> {
+  const controller = new AbortController();
+  const timeout    = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const base   = `${ODATA_BASE}/${encodeURIComponent(datasetId)}/TypedDataSet`;
+    const filter = encodeURIComponent(`WijkenEnBuurten eq '${buurtcode}'`);
+    const select = encodeURIComponent(SELECT_COLUMNS.join(","));
+    const url    = `${base}?$filter=${filter}&$select=${select}&$format=json`;
+
+    const res = await fetchImpl(url, { headers: { Accept: "application/json" }, signal: controller.signal });
+    if (!res.ok) return { status: "error" };
+    const json = (await res.json()) as { value?: Row[] };
+    const row  = Array.isArray(json.value) ? json.value[0] : undefined;
+    return row ? { status: "found", raw: row } : { status: "empty" };
+  } catch {
+    return { status: "error" };
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const raws = await fetchCbsRows(datasetId, fetchImpl);
-  const mapped = raws.map((r) => mapCbsRow(r, sourceYear, datasetId)).filter((r): r is NonNullable<typeof r> => r != null);
-  const skipped = raws.length - mapped.length;
-
-  const BATCH = 500;
-  for (let i = 0; i < mapped.length; i += BATCH) {
-    const batch = mapped.slice(i, i + BATCH).map((m) => ({ ...m, refreshed_at: new Date().toISOString() }));
-    const { error } = await client.from("cbs_area_stats").upsert(batch, { onConflict: "area_code" });
-    if (error) throw new Error(`cbs_area_stats upsert failed: ${error.message}`);
-  }
-
-  return { ingested: mapped.length, skipped };
 }

@@ -334,11 +334,14 @@ export interface CompanyCrmChainOptions {
   // ── First-party location (CBS PC4 statistics) ─────────────────────────────
   /**
    * Whether to include the CBS location enricher stage.
-   * No API key required — joins the visitor's PC4 against the cross-tenant
-   * cbs_postcode_stats table (fed by the CBS ingestion job). NL-only.
-   * Default: false.
+   * No API key required — resolves the visitor's buurt and lazily looks it up
+   * (with an on-demand CBS fetch on a cache miss). NL-only. Default: false.
    */
   enableCbsLocation?: boolean;
+  /** CBS dataset id for the lazy per-buurt fetch (default 85984NED). */
+  cbsLocationDatasetId?: string;
+  /** Source year recorded on lazily-fetched CBS rows. */
+  cbsLocationSourceYear?: number;
 
   // ── Shared ────────────────────────────────────────────────────────────────
   /**
@@ -425,6 +428,8 @@ export function buildCompanyCrmChain(
     holidayCacheTtlMs,
     holidayAllowedCountries,
     enableCbsLocation          = false,
+    cbsLocationDatasetId,
+    cbsLocationSourceYear,
     isDev                      = false,
   } = options;
 
@@ -772,7 +777,11 @@ export function buildCompanyCrmChain(
   // (lat/lng) are resolved. NL-only; gated on the tenant flag. Free open data,
   // billed as a small location_lookup event via the generic tracker.
   if (enableCbsLocation) {
-    stages.push(createCbsLocationEnricher({ isDev }));
+    stages.push(createCbsLocationEnricher({
+      isDev,
+      ...(cbsLocationDatasetId  !== undefined ? { datasetId:  cbsLocationDatasetId  } : {}),
+      ...(cbsLocationSourceYear !== undefined ? { sourceYear: cbsLocationSourceYear } : {}),
+    }));
   }
 
   // ── Apply stage config (ordering + activation) ────────────────────────────
