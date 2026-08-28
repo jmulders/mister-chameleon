@@ -46,8 +46,12 @@
  *   - The endpoint accepts same-origin requests only (no CORS header set).
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient }               from "@supabase/supabase-js";
+import { ipCompanyCache }             from "@/enrichment/ip-company-store";
+import { leadinfoDataToCacheOutput }  from "@/enrichment/leadinfo-cache-map";
+import { extractIpFromRequest }       from "@/lib/request-ip";
+import { readConsentFromCookieHeader } from "@/lib/consent/server-consent";
 import {
   serializeLeadinfoData,
   LEADINFO_COOKIE,
@@ -347,6 +351,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     sameSite: "lax",
     secure:   isSecure,
   });
+
+  // ── Warm the server-side IP→company cache ───────────────────────────────────
+  //
+  // The client identified this company on the REAL visitor IP. Upsert it into the
+  // platform-wide ip_company_cache (keyed by ip_hash) so a later server-side
+  // decision from the same IP is a cache hit — no new paid Leadinfo lookup. Uses
+  // the same IP extraction as the read side (extractIpFromRequest) and the shared
+  // ipCompanyCache writer, so key + schema/TTL stay consistent (refreshed_at = now).
+  //
+  // Consent: gated on the visitor's enrichment consent — consistent with the
+  // server-side staged enrichers, which only read/write this cache under enrichment
+  // consent. So gating the write costs nothing (an un-consented repeat visitor
+  // never triggers a cache read) and keeps the cache consent-consistent.
+  //
+  // Best-effort: scheduled via after() so it never blocks the response, and
+  // ipCompanyCache.set never throws.
+  if (data.matched) {
+    const ip = extractIpFromRequest(request);
+    const consent = readConsentFromCookieHeader(request.headers.get("cookie"));
+    if (ip && consent.enrichment === true) {
+      const cacheData = data; // narrow for the closure
+      after(() => ipCompanyCache.set(ip, {
+        matched: true,
+        output:  leadinfoDataToCacheOutput(cacheData),
+        raw:     cacheData,
+      }));
+    }
+  }
 
   return response;
 }
