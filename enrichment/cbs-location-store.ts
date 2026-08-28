@@ -12,7 +12,7 @@ import { logger } from "@/lib/logger";
 
 export interface CbsAreaStats {
   areaCode:       string;
-  urbanityProxy:  number | null;   // density-derived, NOT official CBS stedelijkheidsklasse
+  urbanityProxy:  number | null;   // official CBS MateVanStedelijkheid (density fallback when suppressed)
   incomeBand:     string | null;
   businessShare:  number | null;
 }

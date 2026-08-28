@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 import { createCbsLocationEnricher } from "../../enrichment/providers/cbs-location.ts";
 import { buurtcodeFromLatLng, normalizeBuurtcode } from "../../lib/enrichment/pdok-geocode.ts";
-import { mapCbsRow, deriveIncomeBand, deriveUrbanityProxy, normalizeAreaCode } from "../../lib/enrichment/cbs-ingest.ts";
+import { mapCbsRow, deriveIncomeBand, deriveUrbanityProxy, resolveUrbanity, normalizeAreaCode, fetchCbsRows } from "../../lib/enrichment/cbs-ingest.ts";
 import type { CbsAreaStats } from "../../enrichment/cbs-location-store.ts";
 import type { EnricherInput, EnrichmentOutput } from "../../enrichment/types.ts";
 
@@ -66,6 +66,46 @@ describe("deriveUrbanityProxy (density-derived)", () => {
   });
 });
 
+describe("resolveUrbanity (official class, density fallback)", () => {
+  it("uses the official CBS class 1..5 when present", () => {
+    assert.equal(resolveUrbanity(2, 100), 2); // official wins over the density band
+  });
+  it("falls back to density when the class is suppressed (null / 0 / out of range)", () => {
+    assert.equal(resolveUrbanity(null, 6000), 1);
+    assert.equal(resolveUrbanity(0, 300), 5);
+    assert.equal(resolveUrbanity(9, 6000), 1);
+  });
+});
+
+describe("fetchCbsRows — explicit $top/$skip pagination", () => {
+  it("pages with $top + $skip and stops on a short page", async () => {
+    const pages: Record<number, unknown[]> = {
+      0: Array.from({ length: 2000 }, (_, i) => ({ WijkenEnBuurten: `BU0000${i}` })),
+      2000: Array.from({ length: 137 }, (_, i) => ({ WijkenEnBuurten: `BU1000${i}` })),
+    };
+    const urls: string[] = [];
+    const fetchImpl = (async (u: string) => {
+      urls.push(u);
+      const skip = Number(new URL(u).searchParams.get("$skip"));
+      return { ok: true, json: async () => ({ value: pages[skip] ?? [] }) };
+    }) as unknown as typeof fetch;
+
+    const rows = await fetchCbsRows("85984NED", fetchImpl, 2000);
+    assert.equal(rows.length, 2137);
+    // Two requests: skip=0 (full page) then skip=2000 (short page → stop).
+    assert.equal(urls.length, 2);
+    assert.match(urls[0], /\$top=2000/);
+    assert.match(urls[0], /\$select=/);
+    assert.match(urls[0], /startswith/);
+    assert.match(urls[1], /\$skip=2000/);
+  });
+
+  it("throws on a non-OK page", async () => {
+    const fetchImpl = (async () => ({ ok: false, status: 500, json: async () => ({}) })) as unknown as typeof fetch;
+    await assert.rejects(() => fetchCbsRows("85984NED", fetchImpl, 2000), /HTTP 500/);
+  });
+});
+
 describe("mapCbsRow (85984NED buurt)", () => {
   it("maps verified fields, derives bands, keeps raw", () => {
     const raw = {
@@ -74,7 +114,8 @@ describe("mapCbsRow (85984NED buurt)", () => {
       k_40PersonenMetLaagsteInkomen_79: "20",
       k_20PersonenMetHoogsteInkomen_80: "45",
       BedrijfsvestigingenTotaal_95: "500",
-      Bevolkingsdichtheid_34: "6000",
+      Bevolkingsdichtheid_34: "6000",       // density band would be 1…
+      MateVanStedelijkheid_120: "3",        // …but the official class wins
       AantalInwoners_5: "1000",
     };
     const row = mapCbsRow(raw, 2024, "85984NED");
@@ -82,13 +123,18 @@ describe("mapCbsRow (85984NED buurt)", () => {
     assert.equal(row!.area_code, "BU03630000");
     assert.equal(row!.avg_income, 32_500); // "32.5" x 1000 euro
     assert.equal(row!.income_band, "high");
-    assert.equal(row!.urbanity_proxy, 1);
+    assert.equal(row!.urbanity_proxy, 3);  // official CBS class, not the density band
     assert.equal(row!.business_share, 0.5); // 500/1000
     assert.equal(row!.business_total, 500);
     assert.equal(row!.population_density, 6000);
     assert.equal(row!.source_year, 2024);
     assert.equal(row!.source_dataset, "85984NED");
     assert.deepEqual(row!.raw, raw);
+  });
+
+  it("falls back to the density band when the official class is suppressed (0/null)", () => {
+    const row = mapCbsRow({ WijkenEnBuurten: "BU03630000", Bevolkingsdichtheid_34: "6000", MateVanStedelijkheid_120: "0" }, 2024, "85984NED");
+    assert.equal(row!.urbanity_proxy, 1); // 0 → suppressed → density 6000 → band 1
   });
 
   it("skips GM/WK aggregate rows (no BU code)", () => {
