@@ -107,10 +107,6 @@ export interface DemoImporterSettings {
   followNavLinks:         boolean;
   maxPages:               number;
   detectColors:           boolean;
-  detectTypography:       boolean;
-  detectLayoutPatterns:   boolean;
-  generatePreset:         boolean;
-  generateBlueprint:      boolean;
   // Output defaults
   defaultSiteType:        string;
   defaultPageSet:         string;
@@ -124,10 +120,6 @@ const SETTINGS_DEFAULTS: DemoImporterSettings = {
   followNavLinks:        false,
   maxPages:              1,
   detectColors:          true,
-  detectTypography:      false,
-  detectLayoutPatterns:  false,
-  generatePreset:        false,
-  generateBlueprint:     false,
   defaultSiteType:       "general",
   defaultPageSet:        "homepage",
   defaultScenarioPack:   "standard-5",
