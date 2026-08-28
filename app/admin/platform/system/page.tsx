@@ -149,16 +149,9 @@ export default async function SystemPage() {
                   stripe="Test mode"
                 />
                 <EnvRow
-                  env="Staging"
-                  branch="develop"
-                  url="staging.misterchameleon.com"
-                  db="Staging project"
-                  stripe="Test mode"
-                />
-                <EnvRow
                   env="Production"
                   branch="main"
-                  url="project-w9ql1.vercel.app"
+                  url="misterchameleon.com"
                   db="Production project"
                   stripe="Live mode"
                 />
@@ -169,9 +162,9 @@ export default async function SystemPage() {
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
             Environment variable templates:{" "}
             <code className="font-mono text-xs">.env.example</code> — copy to <code className="font-mono text-xs">.env.local</code> for local dev.
-            Staging uses <code className="font-mono text-xs">.env.staging.example</code> (scope: Preview) and production{" "}
-            <code className="font-mono text-xs">.env.production.example</code> (scope: Production), both set in{" "}
-            <strong>Vercel → Settings → Environment Variables</strong>.
+            Production uses <code className="font-mono text-xs">.env.production.example</code> (scope: Production), set in{" "}
+            <strong>Vercel → Settings → Environment Variables</strong>. (There is no live staging project — the
+            <code className="font-mono text-xs"> develop</code> branch and a staging deploy were never provisioned.)
           </div>
         </div>
       </Section>
@@ -179,35 +172,6 @@ export default async function SystemPage() {
       {/* ── PART 3: BUILD PIPELINE ───────────────────────────────────────────── */}
       <Section title="Build Pipeline">
         <div className="space-y-6">
-
-          {/* Staging */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="rounded bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">STAGING</span>
-              <span className="text-sm text-neutral-600">Push naar <code className="font-mono text-xs">develop</code> → auto-deploy naar staging</span>
-            </div>
-            <div className="space-y-2">
-              <Step n={1}>
-                Commit en push naar <code className="font-mono text-xs">develop</code>:
-                <CodeBlock>{`git push origin develop`}</CodeBlock>
-              </Step>
-              <Step n={2}>
-                De workflow draait tests, past migraties toe op het staging-project en deployt naar{" "}
-                <code className="font-mono text-xs">staging.misterchameleon.com</code>, gevolgd door een healthcheck.
-              </Step>
-              <Step n={3}>Of trigger handmatig met de knop hieronder.</Step>
-            </div>
-            <WorkflowButton
-              workflow="staging.yml"
-              branch="develop"
-              className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:border-amber-300 hover:bg-amber-100 disabled:opacity-60"
-            >
-              <GitHubIcon />
-              Deploy to staging
-            </WorkflowButton>
-          </div>
-
-          <div className="border-t border-neutral-100" />
 
           {/* Production */}
           <div className="space-y-3">
@@ -220,7 +184,7 @@ export default async function SystemPage() {
                 Commit en push naar <code className="font-mono text-xs">main</code>:
                 <CodeBlock>{`git push origin main`}</CodeBlock>
               </Step>
-              <Step n={2}>GitHub Actions draait CI (lint + typecheck). Bij success deployt Vercel automatisch naar productie.</Step>
+              <Step n={2}>GitHub Actions draait de pre-deploy gate <code className="font-mono text-xs">npm run verify</code> (eslint + typecheck + <strong>tests</strong>) plus een approval-gate. Bij success deployt Vercel automatisch naar productie. (De <code className="font-mono text-xs">supabase db push</code>-migratiejob is bekend niet-werkend — migraties draai je handmatig via <code className="font-mono text-xs">npm run db:migrate</code>.)</Step>
               <Step n={3}>Of trigger handmatig via de knop hieronder (handig na een config-wijziging zonder code).</Step>
             </div>
             <WorkflowButton
@@ -285,7 +249,7 @@ export default async function SystemPage() {
                 <CodeBlock>{`gh workflow run rollback.yml --ref main \\\n  -f deployment_url="https://mister-chameleon-<hash>.vercel.app" \\\n  -f reason="Reason for rollback"`}</CodeBlock>
               </Step>
               <Step n={3}>Approve the production gate. The deployment URL and reason are written to the audit log.</Step>
-              <Step n={4}>The workflow re-aliases <code className="font-mono text-xs">misterchameleon.com</code> to that deployment and runs a health check.</Step>
+              <Step n={4}>The workflow re-aliases the production domain (the <code className="font-mono text-xs">PRODUCTION_DOMAIN</code> secret, e.g. <code className="font-mono text-xs">www.misterchameleon.nl</code>) to that deployment and runs a health check.</Step>
             </div>
             <RollbackTriggerButton
               className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 disabled:opacity-60"

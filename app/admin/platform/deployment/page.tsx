@@ -251,7 +251,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
                 : "error",
           detail: `${tablesOk}/${tableChecks.length} key tables present.`,
           fixHint: tablesOk < tableChecks.length
-            ? "Run: supabase db push  (from your local project directory)"
+            ? "Run: npm run db:migrate  (applies supabase/migrations and records them in public._migrations)"
             : undefined,
         });
 
@@ -289,7 +289,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
             label:  "Enrichment pricing",
             status: "error",
             detail: "enrichment_pricing table missing — run migrations first.",
-            fixHint: "Run: supabase db push",
+            fixHint: "Run: npm run db:migrate",
           });
         }
       }
