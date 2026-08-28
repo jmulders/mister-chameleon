@@ -95,6 +95,7 @@ import type { OpenKvKMode, OpenKvKMatchingStrategy } from "./openkvk";
 import { createKvkZoekenStagedEnricher }      from "./kvk-zoeken";
 import { createLeadinfoStagedEnricher }        from "./leadinfo";
 import { createFirstPartyCompanyDbEnricher }   from "./firstparty-company-db";
+import { createCbsLocationEnricher }           from "./cbs-location";
 import { ipCompanyCache }                       from "../ip-company-store";
 import type { LeadinfoPersistentCache }         from "../ip-company-cache-ttl";
 import { HubSpotCrmProvider }                  from "./hubspot-crm";
@@ -330,6 +331,15 @@ export interface CompanyCrmChainOptions {
    */
   ga4CacheTtlMs?: number;
 
+  // ── First-party location (CBS PC4 statistics) ─────────────────────────────
+  /**
+   * Whether to include the CBS location enricher stage.
+   * No API key required — joins the visitor's PC4 against the cross-tenant
+   * cbs_postcode_stats table (fed by the CBS ingestion job). NL-only.
+   * Default: false.
+   */
+  enableCbsLocation?: boolean;
+
   // ── Shared ────────────────────────────────────────────────────────────────
   /**
    * Enable verbose debug logging and local-IP substitution.
@@ -414,6 +424,7 @@ export function buildCompanyCrmChain(
     seasonalEventsProvider,
     holidayCacheTtlMs,
     holidayAllowedCountries,
+    enableCbsLocation          = false,
     isDev                      = false,
   } = options;
 
@@ -753,6 +764,15 @@ export function buildCompanyCrmChain(
       }),
       stageKey: "seasonal",
     });
+  }
+
+  // ── First-party location (CBS PC4 statistics) ─────────────────────────────
+  //
+  // Sequential — runs after wave 2 so reverse-geo (addressPostcode) and geo
+  // (lat/lng) are resolved. NL-only; gated on the tenant flag. Free open data,
+  // billed as a small location_lookup event via the generic tracker.
+  if (enableCbsLocation) {
+    stages.push(createCbsLocationEnricher({ isDev }));
   }
 
   // ── Apply stage config (ordering + activation) ────────────────────────────

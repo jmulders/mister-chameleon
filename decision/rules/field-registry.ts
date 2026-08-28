@@ -401,6 +401,11 @@ export type RuleFieldKey =
   | "leadinfoSalesVolume"
   | "leadinfoEmployees"
   | "leadinfoEmployeesTotal"
+  // Enrichment — First-party location (CBS buurt)
+  | "locationAreaCode"
+  | "locationUrbanityClass"
+  | "locationIncomeBand"
+  | "locationBusinessShare"
   // Lead Base — returning-visitor signals
   | "isReturningVisitor"
   | "leadScore"
@@ -1002,6 +1007,40 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "number",
     operators:   OPS_NUMBER,
     resolve:     (ctx) => ctx.enrichment?.leadinfoEmployeesTotal ?? null,
+  },
+
+  // ── Enrichment — First-party location (CBS buurt) ─────────────────────────────
+  locationAreaCode: {
+    label:       "Location area code (buurt)",
+    description: "CBS buurtcode the neighbourhood statistics were resolved for (NL), e.g. \"BU03630000\".",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.locationAreaCode ?? null,
+  },
+  locationUrbanityClass: {
+    label:       "Location urbanity (density band)",
+    description: "Density-derived urbanity band for the visitor's buurt: 1 (most dense) to 5 (least dense). Not the official CBS stedelijkheidsklasse.",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationUrbanityClass ?? null,
+  },
+  locationIncomeBand: {
+    label:       "Location income band",
+    description: "Coarse average-income band for the visitor's buurt, e.g. \"low\" / \"mid\" / \"high\".",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.locationIncomeBand ?? null,
+  },
+  locationBusinessShare: {
+    label:       "Location business share",
+    description: "Business establishments per inhabitant in the visitor's buurt (0–1).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationBusinessShare ?? null,
   },
 
   // ── Lead Base — returning-visitor signals ─────────────────────────────────────

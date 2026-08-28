@@ -25,6 +25,7 @@ import {
   getPlatformMaxMindSettings,
   getPlatformFirstPartyCompanySettings,
   firstPartyCompanyFlags,
+  getPlatformCbsLocationSettings,
 } from "@/platform/platform-store";
 import { getTenantPipelineStages } from "@/tenant/server";
 import { buildCompanyCrmChain, type StagedEnricher } from "@/enrichment";
@@ -67,6 +68,7 @@ export async function buildTenantStagedEnrichers(
       platformHolidayResult,
       platformMaxMindResult,
       platformFirstPartyResult,
+      platformCbsLocationResult,
     ],
     tenantPipelineStages,
   ] = await Promise.all([
@@ -80,6 +82,7 @@ export async function buildTenantStagedEnrichers(
       getPlatformHolidaySettings(),
       getPlatformMaxMindSettings(),
       getPlatformFirstPartyCompanySettings(),
+      getPlatformCbsLocationSettings(),
     ] as const),
     getTenantPipelineStages(tenantId),
   ]);
@@ -100,6 +103,7 @@ export async function buildTenantStagedEnrichers(
   const platformHolidays       = platformHolidayResult.ok        ? platformHolidayResult.data        : {};
   const platformMaxMind        = platformMaxMindResult.ok        ? platformMaxMindResult.data        : {};
   const firstPartyDefaults     = firstPartyCompanyFlags(platformFirstPartyResult.ok ? platformFirstPartyResult.data : {});
+  const platformCbsLocation    = platformCbsLocationResult.ok    ? platformCbsLocationResult.data    : {};
 
   // ── GA4 credential resolution ─────────────────────────────────────────────
   const ga4ServiceAccount =
@@ -182,6 +186,8 @@ export async function buildTenantStagedEnrichers(
     ga4CacheTtlMs,
     enableSeasonalEvents:        pipelineEnabled("seasonal",
                                    tenant?.enrichment?.useSeasonalEvents ?? true),
+    enableCbsLocation:           pipelineEnabled("cbs-location",
+                                   (platformCbsLocation as { enabled?: boolean }).enabled ?? false),
     holidayAllowedCountries:     (platformHolidays as { countriesFilter?: string }).countriesFilter || undefined,
     isDev:                       process.env.NODE_ENV === "development",
     stageConfig: tenantPipelineStages.length > 0 ? tenantPipelineStages : undefined,

@@ -92,6 +92,14 @@ export const CREDIT_PRICING_DEFAULTS: Record<string, StaticPricingEntry> = {
     billing_unit:         "per_call",
     description:          "First-party company DB hit — served from the shared pool, no paid identify",
   },
+  location_lookup: {
+    feature_key:          "location_lookup",
+    category:             "recognition",
+    customer_price_cents: 0.5,
+    internal_cost_cents:  0,
+    billing_unit:         "per_call",
+    description:          "First-party location enricher — CBS PC4 open-data neighbourhood statistics",
+  },
 
   // ── Adaptation (3 credits / call) ───────────────────────────────────────────
   intent_enrich: {

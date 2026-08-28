@@ -16,6 +16,7 @@ import { anyFirmographicAd, anyRuleAd } from "./targeting";
 import { FIRMOGRAPHIC_FEE_CENTS } from "./pricing";
 import { LeadinfoProvider } from "@/enrichment/providers/leadinfo";
 import { ipCompanyCache } from "@/enrichment/ip-company-store";
+import type { LeadinfoPersistentCache } from "@/enrichment/ip-company-cache-ttl";
 import { getPlatformEnrichmentSettings } from "@/platform/platform-store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,12 +120,21 @@ export async function resolveAdCompany(
     const key = await resolveLeadinfoKey();
     if (!key || !ip) return null;
 
-    // 3. Paid lookup — backed by the platform-wide IP→company cache, so the paid
+    // 3. Paid lookup — backed by the platform-wide IP→company pool, so the paid
     //    Leadinfo call is skipped for IPs we already resolved (any tenant).
+    //    The pool access honours the tenant's first-party ToS gates: READ
+    //    (firstpartyConsume) gates the cache read, WRITE (firstpartyContribute)
+    //    gates the Leadinfo-derived writeback. Open-data providers are unaffected.
+    const { resolveFirstPartyTenantFlags } = await import("@/lib/enrichment/firstparty-tenant-flags");
+    const flags = await resolveFirstPartyTenantFlags(tenantId);
+    const gatedCache: LeadinfoPersistentCache = {
+      get: flags.consume    ? (q) => ipCompanyCache.get(q)    : async () => null,
+      set: flags.contribute ? (q, e) => ipCompanyCache.set(q, e) : async () => { /* contribute off */ },
+    };
     const out = await new LeadinfoProvider({
       apiKey: key,
       isDev: process.env["NODE_ENV"] !== "production",
-      persistentCache: ipCompanyCache,
+      persistentCache: gatedCache,
     }).lookup(ip);
     const company: AdCompany | null =
       (out.companyName || out.companyIndustry || out.companySize)

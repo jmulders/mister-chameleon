@@ -217,6 +217,20 @@ export interface EnrichmentOutput {
    */
   addressSource:       string | null;
 
+  // ── First-party location (CBS StatLine buurt statistics) ────────────────────
+  /** CBS buurtcode the location stats were resolved for, e.g. "BU03630000". */
+  locationAreaCode:       string | null;
+  /**
+   * Density-derived urbanity band for the buurt: 1 (most dense) .. 5 (least
+   * dense). NOTE: derived from CBS population density, NOT the official CBS
+   * stedelijkheidsklasse.
+   */
+  locationUrbanityClass:  number | null;
+  /** Coarse average-income band for the buurt, e.g. "low" | "mid" | "high". */
+  locationIncomeBand:     string | null;
+  /** Share of business establishments per inhabitant in the buurt (0..1). */
+  locationBusinessShare:  number | null;
+
   // ── Weather (from Open-Meteo) ───────────────────────────────────────────────
   /**
    * WMO Weather interpretation code for the visitor's current location.

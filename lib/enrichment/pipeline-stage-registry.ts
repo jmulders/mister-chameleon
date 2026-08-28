@@ -199,6 +199,18 @@ export const PIPELINE_STAGE_REGISTRY: PipelineStageDefinition[] = [
     outputSummary:        "seasonalEvent, holidayName, seasonalSource",
     dependsOn:            ["maxmind", "ipinfo"],
   },
+  {
+    key:                  "cbs-location",
+    label:                "Location (CBS buurt)",
+    description:          "Adds NL neighbourhood statistics (density-derived urbanity, income band, business share) from CBS 'Kerncijfers wijken en buurten' open data, resolving the visitor's buurt from lat/lng via PDOK. NL visitors only.",
+    wave:                 "sequential",
+    defaultPosition:      3,
+    requiresCredentials:  false,
+    defaultEnabled:       false,
+    icon:                 "🗺",
+    outputSummary:        "locationAreaCode, locationUrbanityClass, locationIncomeBand, locationBusinessShare",
+    dependsOn:            ["maxmind", "ipinfo"],
+  },
 ];
 
 /** Map for O(1) lookup by key. */
