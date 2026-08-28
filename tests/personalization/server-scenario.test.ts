@@ -20,7 +20,9 @@ import assert           from "node:assert/strict";
 import {
   parseScenarioCookie,
   applyScenarioToHistory,
+  applyScenarioToDecisionContext,
 } from "@/lib/scenario/server-scenario";
+import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { emptyHistory } from "@/context/visitor-history";
 import { emptyJourneyState } from "@/lib/journey/types";
 
@@ -194,5 +196,31 @@ describe("applyScenarioToHistory", () => {
     assert.strictEqual(result.journey!.hasVisitedPricing,  true);
     assert.deepStrictEqual(result.journey!.matchedSequences, ["services_to_contact"]);
     assert.strictEqual(result.journey!.confidence.band,    "high");
+  });
+});
+
+// ── applyScenarioToDecisionContext — CBS location overrides ───────────────────
+
+describe("applyScenarioToDecisionContext — CBS location overrides", () => {
+  const baseCtx = () => ({ enrichment: { countryCode: "NL" } } as unknown as RuleEvaluationContext);
+
+  it("applies location overrides onto ctx.enrichment (simulatable in the console)", () => {
+    const result = applyScenarioToDecisionContext(baseCtx(), {
+      locationUrbanityClass: 1,
+      locationIncomeBand:    "high",
+      locationBusinessShare: 0.3,
+      locationAreaCode:      "BU03630000",
+    });
+    assert.strictEqual(result.enrichment!.locationUrbanityClass, 1);
+    assert.strictEqual(result.enrichment!.locationIncomeBand,    "high");
+    assert.strictEqual(result.enrichment!.locationBusinessShare, 0.3);
+    assert.strictEqual(result.enrichment!.locationAreaCode,      "BU03630000");
+    // untouched fields survive
+    assert.strictEqual(result.enrichment!.countryCode, "NL");
+  });
+
+  it("no location override → context returned unchanged (referential)", () => {
+    const ctx = baseCtx();
+    assert.strictEqual(applyScenarioToDecisionContext(ctx, {}), ctx);
   });
 });
