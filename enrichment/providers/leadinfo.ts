@@ -203,7 +203,7 @@ export class LeadinfoProvider {
       if (this.isDev) {
         console.debug("[leadinfo] no company for IP", effectiveIp);
       }
-      void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: null });
+      void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: null, source: "leadinfo" });
       return {};
     }
 
@@ -216,7 +216,7 @@ export class LeadinfoProvider {
     const data = (await response.json()) as LeadinfoResponse;
 
     if (!data.company) {
-      void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: data });
+      void this.persistentCache?.set(effectiveIp, { matched: false, output: {}, raw: data, source: "leadinfo" });
       return {};
     }
 
@@ -245,7 +245,7 @@ export class LeadinfoProvider {
 
     // Persist the successful result (with the raw payload). getOrLoad handles
     // the in-process cache write.
-    void this.persistentCache?.set(effectiveIp, { matched: true, output: result, raw: data });
+    void this.persistentCache?.set(effectiveIp, { matched: true, output: result, raw: data, source: "leadinfo" });
     return result;
   }
 }

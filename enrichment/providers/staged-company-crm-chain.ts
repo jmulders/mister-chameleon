@@ -94,7 +94,9 @@ import { createOpenKvKStagedEnricher }         from "./openkvk";
 import type { OpenKvKMode, OpenKvKMatchingStrategy } from "./openkvk";
 import { createKvkZoekenStagedEnricher }      from "./kvk-zoeken";
 import { createLeadinfoStagedEnricher }        from "./leadinfo";
+import { createFirstPartyCompanyDbEnricher }   from "./firstparty-company-db";
 import { ipCompanyCache }                       from "../ip-company-store";
+import type { LeadinfoPersistentCache }         from "../ip-company-cache-ttl";
 import { HubSpotCrmProvider }                  from "./hubspot-crm";
 import {
   createSeasonalEventStagedEnricher,
@@ -221,6 +223,35 @@ export interface CompanyCrmChainOptions {
    * Default: false.
    */
   enableLeadinfo?: boolean;
+
+  // ── First-party company DB (durable ip_company_cache) ─────────────────────
+  /**
+   * READ toggle (firstpartyConsume): may this tenant READ the shared first-party
+   * company DB to skip a paid Leadinfo call?
+   *   • true  — the first-party stage runs; a confident matched hit short-circuits
+   *             the paid providers, and Leadinfo's own cache read is honoured.
+   *   • false — the stage is omitted and Leadinfo does a fresh (paid) call every
+   *             time (its persistent-cache READ is disabled for this tenant).
+   * Default: true.
+   */
+  enableFirstPartyConsume?: boolean;
+  /**
+   * WRITE toggle (firstpartyContribute): may this tenant's Leadinfo-derived
+   * identifications be written back to the shared ip_company_cache (warming the
+   * cross-tenant pool)?
+   *   • true  — Leadinfo results are persisted to the shared DB.
+   *   • false — no writeback for this tenant; their data stays out of the pool.
+   * Only the Leadinfo-derived writeback is gated by this flag. Open-data sources
+   * (OpenKvK/KvK) may always contribute — they carry no ToS restriction — though
+   * today they do not write to ip_company_cache at all.
+   * Default: true.
+   */
+  enableFirstPartyContribute?: boolean;
+  /**
+   * Minimum stored confidence for a first-party hit to short-circuit paid
+   * providers. Default: 0.6.
+   */
+  firstPartyConfidenceThreshold?: number;
 
   // ── Stage 5: HubSpot CRM ─────────────────────────────────────────────────
   /**
@@ -367,6 +398,9 @@ export function buildCompanyCrmChain(
     ovioApiKey,
     leadinfoApiKey,
     enableLeadinfo             = false,
+    enableFirstPartyConsume       = true,
+    enableFirstPartyContribute    = true,
+    firstPartyConfidenceThreshold,
     hubspotAccessToken,
     enableHubSpot              = false,
     hubspotApiBase,
@@ -474,6 +508,40 @@ export function buildCompanyCrmChain(
   // (even when IPinfo was not configured, it will write isCloudProvider: false).
   stages.push(createCloudDetectionEnricher({ isDev }));
 
+  // ── First-party company DB — durable ip_company_cache ─────────────────────
+  //
+  // Per-tenant ToS gates are INDEPENDENT:
+  //   • firstpartyConsume  (READ)  — may this tenant read the shared pool to skip
+  //                                   a paid Leadinfo call?
+  //   • firstpartyContribute (WRITE) — may this tenant's Leadinfo results warm the
+  //                                   shared pool?
+  //
+  // Both gates are applied through this wrapper around the shared cache: get() is
+  // disabled when consume is off (Leadinfo then always does a fresh paid call);
+  // set() is disabled when contribute is off (no writeback for this tenant). Only
+  // the Leadinfo-derived writeback is gated — open-data providers carry no ToS
+  // restriction (they do not write here today).
+  const firstPartyCache: LeadinfoPersistentCache = {
+    get: enableFirstPartyConsume
+      ? (ip) => ipCompanyCache.get(ip)
+      : async () => null,
+    set: enableFirstPartyContribute
+      ? (ip, entry) => ipCompanyCache.set(ip, entry)
+      : async () => { /* contribute disabled → no writeback */ },
+  };
+
+  // The explicit first-party stage runs BEFORE the paid company providers, but
+  // only when this tenant is allowed to READ the shared pool. A confident matched
+  // hit stamps companyMatchSource="firstparty", which makes OpenKvK/KvK skip
+  // (their !companyName gate) and Leadinfo skip (its guard below).
+  if (enableFirstPartyConsume) {
+    stages.push(createFirstPartyCompanyDbEnricher({
+      cache: firstPartyCache,
+      ...(firstPartyConfidenceThreshold !== undefined ? { confidenceThreshold: firstPartyConfidenceThreshold } : {}),
+      isDev,
+    }));
+  }
+
   // ── Stage 4: Reverse Geocode  (wave 2) ───────────────────────────────────
   //
   // Resolves lat/lng coordinates (populated by Stage 1/2) into human-readable
@@ -570,12 +638,23 @@ export function buildCompanyCrmChain(
   // Depends on: accumulated.isCloudProvider (Cloud Detection, sequential)
   // No dependency on OpenKvK or ReverseGeocode — safe for wave 2.
   if (enableLeadinfo && leadinfoApiKey) {
+    const leadinfoStage = createLeadinfoStagedEnricher({
+      apiKey: leadinfoApiKey,
+      isDev,
+      // Per-tenant gated view of the shared IP→company pool: reads honour
+      // firstpartyConsume, writeback honours firstpartyContribute.
+      persistentCache: firstPartyCache,
+    });
+    const leadinfoOrigShouldRun = leadinfoStage.shouldRun;
     stages.push({
-      // Share the platform-wide IP→company cache so a paid Leadinfo call is
-      // skipped for IPs already resolved by any tenant (ads or CMS).
-      ...createLeadinfoStagedEnricher({ apiKey: leadinfoApiKey, isDev, persistentCache: ipCompanyCache }),
+      ...leadinfoStage,
       stageKey: "leadinfo",
       wave:     2,
+      // Skip the paid Leadinfo call when the first-party stage already resolved a
+      // company from the shared pool. Otherwise respect the provider's own gating.
+      shouldRun: (input, accumulated) =>
+        accumulated.companyMatchSource !== "firstparty" &&
+        (leadinfoOrigShouldRun ? leadinfoOrigShouldRun(input, accumulated) : true),
     });
   }
 

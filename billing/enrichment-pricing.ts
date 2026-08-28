@@ -109,6 +109,7 @@ export const ENRICHMENT_PRICE_CENTS: Record<UsageEventType, number> = {
   company_lookup:  3,
   intent_enrich:   3,
   leadinfo_lookup: 3,
+  firstparty_company_lookup: 1,
   ga4_history:     6,
   crm_lookup:      6,
 };
@@ -190,6 +191,14 @@ export const ENRICHMENT_TYPE_CONFIG: Record<UsageEventType, EnrichmentTypeConfig
     creditsPerCall: 1,
     displayName:    "Leadinfo",
     description:    "B2B company identification (billed at /api/enrichment/leadinfo)",
+    billable:       true,
+    category:       "recognition",
+  },
+
+  firstparty_company_lookup: {
+    creditsPerCall: 1,
+    displayName:    "First-party company DB",
+    description:    "Company served from the shared first-party pool — cheaper than a paid identify",
     billable:       true,
     category:       "recognition",
   },

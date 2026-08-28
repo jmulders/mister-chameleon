@@ -63,6 +63,8 @@ import { getActiveTenant }             from "@/tenant/server";
 import { SESSION_COOKIE }              from "@/data/session";
 import { trackUsageEvent, buildIdempotencyKey } from "@/billing/usage-events";
 import { debitWallet }                 from "@/billing/wallet";
+import { resolveCreditCost, getStaticCustomerPrice } from "@/billing/pricing";
+import { resolveFirstPartyTenantFlags } from "@/lib/enrichment/firstparty-tenant-flags";
 import { checkWalletForEnrichment }    from "@/billing/enrichment-guard";
 
 // ── Validation ─────────────────────────────────────────────────────────────────
@@ -185,12 +187,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   //   Both enrichment_usage and usage_events are written so the admin billing
   //   panel shows a complete audit trail aligned with the wallet ledger.
 
-  // Leadinfo price: 3 Chameleon Credits = €0.03 (recognition category).
-  // 1 credit = €0.01.  Passed as decimal to debitWallet (p_credit_cost NUMERIC).
-  const LEADINFO_CREDIT_COST = 3;
+  // Leadinfo price (recognition category), resolved through the shared pricing
+  // helper so it is admin-editable at /admin/platform/billing/pricing instead of
+  // hardcoded: enrichment_pricing.credit_cost for `leadinfo_lookup`, falling back
+  // to the static default (3 credits = €0.03). 1 credit = €0.01. Starts at the
+  // static value (no DB read for no-match) and is refined from the DB below.
+  let LEADINFO_CREDIT_COST = getStaticCustomerPrice("leadinfo_lookup");
 
   if (tenantId && data.matched) {
     const client         = getBillingClient();
+    LEADINFO_CREDIT_COST  = await resolveCreditCost(client, "leadinfo_lookup", LEADINFO_CREDIT_COST);
     const idempotencyKey = sessionId
       ? buildIdempotencyKey("leadinfo_lookup", tenantId, sessionId)
       : null;
@@ -370,12 +376,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (data.matched) {
     const ip = extractIpFromRequest(request);
     const consent = readConsentFromCookieHeader(request.headers.get("cookie"));
-    if (ip && consent.enrichment === true) {
+
+    // Contribute gate (firstpartyContribute): only warm the shared cross-tenant
+    // pool when this tenant is allowed to contribute its Leadinfo-derived
+    // identifications. This is the WRITE half of the first-party ToS controls;
+    // the READ half (consume) gates the server-side stage. Open-data providers
+    // (OpenKvK/KvK) are unaffected — they carry no ToS restriction and do not
+    // write here. Defaults to the platform setting when the tenant is unresolved.
+    let mayContribute = true;
+    try {
+      mayContribute = (await resolveFirstPartyTenantFlags(tenantId)).contribute;
+    } catch { /* default: honour the platform allowance */ }
+
+    if (ip && consent.enrichment === true && mayContribute) {
       const cacheData = data; // narrow for the closure
       after(() => ipCompanyCache.set(ip, {
         matched: true,
         output:  leadinfoDataToCacheOutput(cacheData),
         raw:     cacheData,
+        source:  "leadinfo",
       }));
     }
   }
