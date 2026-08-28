@@ -104,17 +104,22 @@ export function normalizeAreaCode(raw: unknown): string | null {
 }
 
 /**
- * Income band from the CBS low/high income-share percentiles (distribution-
- * relative, so no absolute-threshold guesswork). Falls back to null when both
- * percentiles are suppressed.
+ * Income band from the CBS low/high income-share percentiles.
+ *
+ * The two CBS fields have DIFFERENT national baselines: k_40 is the share in the
+ * lowest-income 40% (national baseline ≈ 40), k_20 is the share in the highest-
+ * income 20% (national baseline ≈ 20). Comparing the raw percentages against each
+ * other therefore labels an average buurt (~40 / ~20) "low" every time. Instead
+ * we measure each field's OVER/UNDER-representation vs its own baseline and
+ * compare the deviations. Falls back to null only when both are suppressed.
  */
 export function deriveIncomeBand(lowPct: number | null, highPct: number | null): string | null {
   if (lowPct == null && highPct == null) return null;
-  const low  = lowPct  ?? 0;
-  const high = highPct ?? 0;
-  const MARGIN = 5; // percentage points
-  if (high > low + MARGIN) return "high";
-  if (low > high + MARGIN) return "low";
+  const lowDev  = (lowPct  ?? 40) - 40; // >0 = more low-income than national
+  const highDev = (highPct ?? 20) - 20; // >0 = more high-income than national
+  const MARGIN = 4; // percentage points
+  if (highDev > lowDev + MARGIN) return "high";
+  if (lowDev  > highDev + MARGIN) return "low";
   return "mid";
 }
 

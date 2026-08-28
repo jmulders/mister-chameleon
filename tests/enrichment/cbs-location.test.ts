@@ -43,10 +43,12 @@ describe("buurtcodeFromLatLng", () => {
 });
 
 describe("income / urbanity derivations", () => {
-  it("deriveIncomeBand uses the low/high percentiles", () => {
-    assert.equal(deriveIncomeBand(20, 40), "high");
-    assert.equal(deriveIncomeBand(50, 10), "low");
-    assert.equal(deriveIncomeBand(30, 32), "mid");
+  it("deriveIncomeBand measures deviation from each field's national baseline", () => {
+    // Average buurt (~40 low / ~20 high) must be mid, not "low".
+    assert.equal(deriveIncomeBand(40, 20), "mid");
+    assert.equal(deriveIncomeBand(38.3, 20.8), "mid");
+    assert.equal(deriveIncomeBand(17.6, 58.3), "high");
+    assert.equal(deriveIncomeBand(55, 10), "low");
     assert.equal(deriveIncomeBand(null, null), null);
   });
   it("resolveUrbanity prefers the official class, density fallback", () => {
