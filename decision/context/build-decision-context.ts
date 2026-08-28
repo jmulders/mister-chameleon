@@ -70,6 +70,7 @@ import {
   LEADINFO_COOKIE,
 } from "@/context/leadinfo-context";
 import { logger } from "@/lib/logger";
+import { extractIpFromRequest } from "@/lib/request-ip";
 import { runEnrichmentPipeline, buildEnricherInput } from "@/enrichment/pipeline";
 import { runStagedPipeline }  from "@/enrichment/staged-pipeline";
 import {
@@ -1747,32 +1748,6 @@ function parseCookieField(cookieHeader: string, name: string): string | null {
   return null;
 }
 
-/**
- * Extract the visitor's IP address from standard proxy headers.
- *
- * Priority:
- *   1. x-forwarded-for  — set by most CDNs and load balancers; first value = client IP
- *                         (subsequent values are intermediate proxies)
- *   2. x-real-ip        — set by nginx and some reverse proxies (single IP)
- *   3. null             — no IP header present (local dev, edge cold-boot edge cases)
- *
- * ─── Vercel compatibility ─────────────────────────────────────────────────────
- *
- *   Vercel sets x-forwarded-for automatically on all requests.
- *   The first value in a comma-separated XFF list is always the original client IP.
- *
- * ─── Local development ────────────────────────────────────────────────────────
- *
- *   On localhost, the extracted IP will typically be "127.0.0.1" or "::1".
- *   IP-based geo providers (MaxMind, ip-api.com) cannot resolve these.
- *   The DevFallbackGeoProvider wrapping applies a public IP substitution so
- *   geo lookups return real data during development — see geo.ts for details.
- */
-function extractIpFromRequest(request: Request): string | null {
-  const xff = request.headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return request.headers.get("x-real-ip")?.trim() ?? null;
-}
+// extractIpFromRequest moved to @/lib/request-ip so the ip_company_cache write
+// side (the client-Leadinfo cache warm) resolves the exact same raw IP as this
+// read side — otherwise the ip_hash key would not match. See the import at top.
