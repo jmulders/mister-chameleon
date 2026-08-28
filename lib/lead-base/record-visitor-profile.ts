@@ -24,6 +24,7 @@ import { fireProfileWebhook, isNewlyQualified, isNewlyRecognised } from "./profi
 import { sendHotLeadAlert }   from "./hot-lead-notify";
 import { syncCompanyToHubspot, syncContactToHubspot, logVisitNote } from "./hubspot-sync";
 import { billLeadCredit }       from "./bill-lead-credit";
+import { resolveCompanyFirmographics } from "./leadinfo-company-fallback";
 import { getAbmHubspotToken }   from "@/lib/abm/abm-store";
 import { logger }               from "@/lib/logger";
 
@@ -103,7 +104,13 @@ export async function recordVisitorProfile(args: {
     const { ctx } = args;
     const consent = resolveConsent(args.cookieHeader);
 
-    const company    = ctx.enrichment?.companyName ?? null;
+    // Resolve firmographics with a client-side Leadinfo (mc_li) fallback: the
+    // client Leadinfo path fills leadinfo* fields but NOT the generic firmographic
+    // ones, so without this a Leadinfo-identified visitor was recorded as
+    // anonymous. Mirrors the webhook-payload fallback (#290/#296). Driving
+    // `company` here also fixes the identityLevel "recognised" logic below.
+    const firmographics = resolveCompanyFirmographics(ctx.enrichment);
+    const company    = firmographics.companyName;
     const known      = !!ctx.knownLead;
     const isCustomer = ctx.enrichment?.crmIsCustomer === true;
     const identityLevel: IdentityLevel =
@@ -123,9 +130,9 @@ export async function recordVisitorProfile(args: {
       funnelStage,
       segmentIds,
       companyName:     company,
-      companyDomain:   ctx.enrichment?.companyDomain   ?? null,
-      companySize:     ctx.enrichment?.companySize     ?? null,
-      companyIndustry: ctx.enrichment?.companyIndustry ?? null,
+      companyDomain:   firmographics.companyDomain,
+      companySize:     firmographics.companySize,
+      companyIndustry: firmographics.companyIndustry,
       geoCountry:      ctx.enrichment?.countryCode      ?? null,
       geoRegion:       ctx.enrichment?.region           ?? null,
       abmLeadId:       args.abmLeadId ?? null,
