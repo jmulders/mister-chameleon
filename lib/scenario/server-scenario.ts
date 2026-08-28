@@ -204,7 +204,12 @@ export function applyScenarioToDecisionContext(
     overrides.weatherCode      !== undefined ||
     overrides.temperatureNow   !== undefined ||
     overrides.isRaining        !== undefined ||
-    overrides.windSpeed        !== undefined;
+    overrides.windSpeed        !== undefined ||
+    // Location (CBS)
+    overrides.locationAreaCode       !== undefined ||
+    overrides.locationUrbanityClass  !== undefined ||
+    overrides.locationIncomeBand     !== undefined ||
+    overrides.locationBusinessShare  !== undefined;
 
   const hasInterestOverrides =
     overrides.interestPrimary    !== undefined ||
@@ -303,6 +308,11 @@ export function applyScenarioToDecisionContext(
       ...(overrides.temperatureNow !== undefined ? { temperatureNow: overrides.temperatureNow } : {}),
       ...(overrides.isRaining      !== undefined ? { isRaining:      overrides.isRaining      } : {}),
       ...(overrides.windSpeed      !== undefined ? { windSpeed:      overrides.windSpeed      } : {}),
+      // Location (CBS)
+      ...(overrides.locationAreaCode      !== undefined ? { locationAreaCode:      overrides.locationAreaCode      } : {}),
+      ...(overrides.locationUrbanityClass !== undefined ? { locationUrbanityClass: overrides.locationUrbanityClass } : {}),
+      ...(overrides.locationIncomeBand    !== undefined ? { locationIncomeBand:    overrides.locationIncomeBand    } : {}),
+      ...(overrides.locationBusinessShare !== undefined ? { locationBusinessShare: overrides.locationBusinessShare } : {}),
     };
 
     effective = { ...effective, enrichment: merged };

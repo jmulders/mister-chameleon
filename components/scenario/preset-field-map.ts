@@ -50,6 +50,11 @@ const RAW: { field: string; overrideKey: string }[] = [
   { field: "countryCode",               overrideKey: "countryCode" },
   { field: "region",                    overrideKey: "region" },
   { field: "city",                      overrideKey: "city" },
+  // Location (CBS buurt)
+  { field: "locationAreaCode",          overrideKey: "locationAreaCode" },
+  { field: "locationUrbanityClass",     overrideKey: "locationUrbanityClass" },
+  { field: "locationIncomeBand",        overrideKey: "locationIncomeBand" },
+  { field: "locationBusinessShare",     overrideKey: "locationBusinessShare" },
   // Time
   { field: "timeOfDay",                 overrideKey: "timeOfDay" },
   { field: "isWeekend",                 overrideKey: "isWeekend" },

@@ -136,6 +136,16 @@ export interface ScenarioOverrides {
   /** Wind speed at 10 m height, in km/h. */
   windSpeed?:         number | null;
 
+  // ── Enrichment — Location (CBS buurt) ──────────────────────────────────────
+  /** CBS buurtcode, e.g. "BU03630000". */
+  locationAreaCode?:      string | null;
+  /** CBS urbanity class 1 (zeer sterk stedelijk) .. 5 (niet stedelijk). */
+  locationUrbanityClass?: number | null;
+  /** Coarse income band: "low" | "mid" | "high". */
+  locationIncomeBand?:    string | null;
+  /** Business establishments per inhabitant (0–1). */
+  locationBusinessShare?: number | null;
+
   // ── Enrichment — Batch patch (from re-run) ─────────────────────────────────
   /**
    * Raw Partial<EnrichmentOutput> written by the enricher re-run action.
