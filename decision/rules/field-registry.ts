@@ -1019,8 +1019,8 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     resolve:     (ctx) => ctx.enrichment?.locationAreaCode ?? null,
   },
   locationUrbanityClass: {
-    label:       "Location urbanity (density band)",
-    description: "Density-derived urbanity band for the visitor's buurt: 1 (most dense) to 5 (least dense). Not the official CBS stedelijkheidsklasse.",
+    label:       "Location urbanity class",
+    description: "CBS urbanity class (MateVanStedelijkheid) for the visitor's buurt: 1 (zeer sterk stedelijk) to 5 (niet stedelijk); density-derived fallback when suppressed.",
     group:       "enrichment",
     kind:        "number",
     operators:   OPS_NUMBER,

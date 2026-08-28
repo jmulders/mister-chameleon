@@ -13,13 +13,16 @@
  *           $filter=startswith(WijkenEnBuurten,'BU')
  *   fields: https://opendata.cbs.nl/ODataApi/odata/85984NED/DataProperties
  *
- * ─── Field mapping (keys verified against 85984NED) ───────────────────────────
- *   income      GemiddeldInkomenPerInwoner_78
+ * ─── Field mapping (keys + units verified against 85984NED) ───────────────────
+ *   income      GemiddeldInkomenPerInwoner_78   (Double, "x 1 000 euro" → ×1000)
  *   income band k_40PersonenMetLaagsteInkomen_79 / k_20PersonenMetHoogsteInkomen_80
- *   business    BedrijfsvestigingenTotaal_95
- *   density     Bevolkingsdichtheid_34  → urbanity PROXY (density-derived, NOT the
- *               official CBS stedelijkheidsklasse)
- *   inhabitants AantalInwoners_5 (business-share denominator)
+ *               (Double, %, 0–100)
+ *   business    BedrijfsvestigingenTotaal_95    (Long, count)
+ *   urbanity    MateVanStedelijkheid_120        (official CBS stedelijkheidsklasse
+ *               1=zeer sterk stedelijk .. 5=niet stedelijk; density fallback)
+ *   density     Bevolkingsdichtheid_34          (Long, inhabitants/km2)
+ *   inhabitants AantalInwoners_5                (Long, business-share denominator)
+ *   bonus (raw) Omgevingsadressendichtheid_121, MeestVoorkomendePostcode_118
  *
  * CBS suppresses small-count cells: a numeric field may be null or a sentinel.
  * Suppressed / non-finite / negative values map to NULL (never 0), so a
@@ -37,14 +40,35 @@ export const DEFAULT_CBS_DATASET = "85984NED";
  * payload for correction without a re-fetch).
  */
 export const CBS_FIELD_MAP = {
-  areaCode:     ["WijkenEnBuurten", "Codering_3", "Codering"],
-  avgIncome:    ["GemiddeldInkomenPerInwoner_78", "GemiddeldInkomenPerInwoner"],
-  lowIncomePct: ["k_40PersonenMetLaagsteInkomen_79", "k_40PersonenMetLaagsteInkomen"],
-  highIncomePct:["k_20PersonenMetHoogsteInkomen_80", "k_20PersonenMetHoogsteInkomen"],
-  businessTotal:["BedrijfsvestigingenTotaal_95", "BedrijfsvestigingenTotaal"],
-  density:      ["Bevolkingsdichtheid_34", "Bevolkingsdichtheid"],
-  inhabitants:  ["AantalInwoners_5", "AantalInwoners"],
+  areaCode:      ["WijkenEnBuurten", "Codering_3", "Codering"],
+  avgIncome:     ["GemiddeldInkomenPerInwoner_78", "GemiddeldInkomenPerInwoner"],
+  lowIncomePct:  ["k_40PersonenMetLaagsteInkomen_79", "k_40PersonenMetLaagsteInkomen"],
+  highIncomePct: ["k_20PersonenMetHoogsteInkomen_80", "k_20PersonenMetHoogsteInkomen"],
+  businessTotal: ["BedrijfsvestigingenTotaal_95", "BedrijfsvestigingenTotaal"],
+  density:       ["Bevolkingsdichtheid_34", "Bevolkingsdichtheid"],
+  inhabitants:   ["AantalInwoners_5", "AantalInwoners"],
+  // Official CBS stedelijkheidsklasse (1 = zeer sterk stedelijk .. 5 = niet stedelijk).
+  urbanityClass: ["MateVanStedelijkheid_120", "MateVanStedelijkheid"],
 } as const;
+
+/**
+ * Columns fetched via $select — the mapped columns plus two bonus signals stored
+ * in `raw`: Omgevingsadressendichtheid_121 (address density) and
+ * MeestVoorkomendePostcode_118 (the buurt's most common PC4). Keeping the page
+ * narrow is what keeps a full run inside the cron's maxDuration.
+ */
+const SELECT_COLUMNS = [
+  "WijkenEnBuurten",
+  "AantalInwoners_5",
+  "Bevolkingsdichtheid_34",
+  "GemiddeldInkomenPerInwoner_78",
+  "k_40PersonenMetLaagsteInkomen_79",
+  "k_20PersonenMetHoogsteInkomen_80",
+  "BedrijfsvestigingenTotaal_95",
+  "MateVanStedelijkheid_120",
+  "Omgevingsadressendichtheid_121",
+  "MeestVoorkomendePostcode_118",
+] as const;
 
 export interface CbsIngestResult {
   ingested: number;
@@ -94,9 +118,9 @@ export function deriveIncomeBand(lowPct: number | null, highPct: number | null):
 }
 
 /**
- * Urbanity PROXY from population density (inhabitants/km2). 1 = most dense,
- * 5 = least dense. Density-derived heuristic — NOT the official CBS
- * stedelijkheidsklasse (which uses omgevingsadressendichtheid).
+ * FALLBACK urbanity band from population density (inhabitants/km2), used only
+ * when the official CBS class (MateVanStedelijkheid_120) is suppressed/absent.
+ * 1 = most dense, 5 = least dense — same direction as the official class.
  */
 export function deriveUrbanityProxy(density: number | null): number | null {
   if (density == null) return null;
@@ -105,6 +129,16 @@ export function deriveUrbanityProxy(density: number | null): number | null {
   if (density >= 1_000) return 3;
   if (density >= 500)   return 4;
   return 5;
+}
+
+/**
+ * Urbanity class: the official CBS MateVanStedelijkheid (1..5) when present,
+ * else the density-derived fallback. CBS suppresses this as null or 0, so a
+ * 0/out-of-range value falls through to the density band.
+ */
+export function resolveUrbanity(urbanityRaw: number | null, density: number | null): number | null {
+  if (urbanityRaw != null && urbanityRaw >= 1 && urbanityRaw <= 5) return Math.round(urbanityRaw);
+  return deriveUrbanityProxy(density);
 }
 
 /** Map one raw CBS OData buurt row to a cbs_area_stats upsert row, or null. */
@@ -123,6 +157,7 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
   const business    = toNum(firstField(raw, CBS_FIELD_MAP.businessTotal));
   const density     = toNum(firstField(raw, CBS_FIELD_MAP.density));
   const inhabitants = toNum(firstField(raw, CBS_FIELD_MAP.inhabitants));
+  const urbanityRaw = toNum(firstField(raw, CBS_FIELD_MAP.urbanityClass));
 
   // Business share ≈ establishments per inhabitant. Column is numeric(6,4), so
   // cap at its range; suppressed inputs → null (not 0).
@@ -138,7 +173,8 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
     income_band:        deriveIncomeBand(lowPct, highPct),
     business_total:     business != null ? Math.round(business) : null,
     population_density: density != null ? Math.round(density) : null,
-    urbanity_proxy:     deriveUrbanityProxy(density),
+    // Official CBS stedelijkheidsklasse, density fallback when suppressed.
+    urbanity_proxy:     resolveUrbanity(urbanityRaw, density),
     inhabitants:        inhabitants != null ? Math.round(inhabitants) : null,
     business_share:     businessShare,
     source_year:        sourceYear,
@@ -147,26 +183,41 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
   };
 }
 
+/** Default page size for the $top/$skip loop. */
+export const CBS_PAGE_SIZE = 2000;
+
 /**
- * Fetch all buurt rows of a CBS OData dataset, following @odata.nextLink. The
- * server-side $filter keeps only WijkenEnBuurten starting with "BU".
+ * Fetch all buurt rows of a CBS OData v3 dataset.
+ *
+ * CBS OData v3 returns HTTP 500 on an UNBOUNDED page for a wide dataset like
+ * 85984NED (121 columns), so we ALWAYS drive pagination with an explicit
+ * $top + $skip loop (proven: no $top → 500; $top=1000 → 200). $select trims the
+ * page to the mapped columns (+ two bonus signals) so each page is small and the
+ * whole run stays inside the cron budget. Server-side $filter keeps only
+ * WijkenEnBuurten starting with "BU". We stop when a page returns fewer than
+ * $top rows.
  */
 export async function fetchCbsRows(
   datasetId: string,
   fetchImpl: typeof fetch = fetch,
+  pageSize = CBS_PAGE_SIZE,
   maxPages = 300,
 ): Promise<Row[]> {
   const rows: Row[] = [];
-  const filter = "$filter=" + encodeURIComponent("startswith(WijkenEnBuurten,'BU')");
-  let url: string | null = `${ODATA_BASE}/${encodeURIComponent(datasetId)}/TypedDataSet?${filter}`;
-  let pages = 0;
-  while (url && pages < maxPages) {
-    const res: Response = await fetchImpl(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error(`CBS OData HTTP ${res.status} for ${datasetId}`);
-    const json = (await res.json()) as { value?: Row[]; "odata.nextLink"?: string; "@odata.nextLink"?: string };
-    if (Array.isArray(json.value)) rows.push(...json.value);
-    url = json["@odata.nextLink"] ?? json["odata.nextLink"] ?? null;
-    pages++;
+  const base   = `${ODATA_BASE}/${encodeURIComponent(datasetId)}/TypedDataSet`;
+  const filter = encodeURIComponent("startswith(WijkenEnBuurten,'BU')");
+  const select = encodeURIComponent(SELECT_COLUMNS.join(","));
+
+  let skip = 0;
+  for (let pages = 0; pages < maxPages; pages++) {
+    const url = `${base}?$filter=${filter}&$select=${select}&$top=${pageSize}&$skip=${skip}`;
+    const res = await fetchImpl(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`CBS OData HTTP ${res.status} for ${datasetId} (skip=${skip})`);
+    const json = (await res.json()) as { value?: Row[] };
+    const page = Array.isArray(json.value) ? json.value : [];
+    rows.push(...page);
+    if (page.length < pageSize) break; // last page
+    skip += pageSize;
   }
   return rows;
 }
