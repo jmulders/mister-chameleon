@@ -85,6 +85,10 @@ import { logger }                       from "@/lib/logger";
 import { getProfileClickIds, markProfileConverted } from "@/lib/lead-base/visitor-profiles-store";
 import { resolveConsent }                from "@/lib/consent/server-consent";
 import { captureInboundLead, extractSubmittedEmail } from "@/lib/lead-base/inbound-capture";
+import {
+  FORM_LOCATION_COOKIE, FORM_LOCATION_COOKIE_MAX_AGE,
+  serializeFormLocation, formLocationFromValues,
+} from "@/context/form-location-context";
 import { sendConversion }                from "@/lib/ad-sync/conversion-engine";
 import { sendAdaptiveEmail }             from "@/lib/email/send-adaptive-email";
 import { EMAIL_TEMPLATE_KEYS, type EmailTemplateKey } from "@/lib/email/adaptive-email";
@@ -617,7 +621,28 @@ async function handlePost(
     formDef?.action.successMessage ??
     "Thank you — your submission has been received.";
 
-  return NextResponse.json({ ok: true, message }, { status: 200 });
+  const success = NextResponse.json({ ok: true, message }, { status: 200 });
+
+  // First-party form-provided location → mc_loc cookie, so the next server render
+  // is location-enriched (CBS) without a DB write. Postcode primary, place coarse.
+  // Consumed only under enrichment consent (the CBS stage runs then).
+  const formLoc = formLocationFromValues(validation.values);
+  if (formLoc) {
+    const isSecure =
+      request.headers.get("x-forwarded-proto") === "https" ||
+      request.nextUrl.protocol === "https:";
+    success.cookies.set(FORM_LOCATION_COOKIE, serializeFormLocation(formLoc), {
+      maxAge:   FORM_LOCATION_COOKIE_MAX_AGE,
+      path:     "/",
+      httpOnly: true,
+      // None (prod) so a cross-site snippet form still sets it first-party to the
+      // platform domain; Lax in local dev where Secure is unavailable.
+      sameSite: isSecure ? "none" : "lax",
+      secure:   isSecure,
+    });
+  }
+
+  return success;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

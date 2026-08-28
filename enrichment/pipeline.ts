@@ -160,6 +160,8 @@ export function buildEnricherInput(opts: {
     term?:     string | null;
     content?:  string | null;
   } | null;
+  /** Visitor-provided location from a form submit (postcode primary, place coarse). */
+  formLocation?: { postcode: string | null; place: string | null } | null;
 }): EnricherInput {
   return {
     ip:        opts.ip        ?? null,
@@ -167,6 +169,7 @@ export function buildEnricherInput(opts: {
     sessionId: opts.sessionId ?? null,
     email:     opts.email     ?? null,
     visitorId: opts.visitorId ?? null,
+    formLocation: opts.formLocation ?? null,
     utm: {
       campaign: opts.utmParams?.campaign ?? null,
       source:   opts.utmParams?.source   ?? null,

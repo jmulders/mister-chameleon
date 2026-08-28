@@ -44,6 +44,8 @@ export interface CbsLocationOptions {
   sourceYear?:  number;
   /** Injectable lat/lng→buurtcode geocoder (defaults to PDOK) — for tests. */
   geocode?:     (lat: number, lng: number) => Promise<string | null>;
+  /** Injectable form-location→buurtcode geocoder (defaults to PDOK forward) — for tests. */
+  formGeocode?: (postcode: string | null, place: string | null) => Promise<string | null>;
   /** Injectable cache lookup (defaults to the DB store) — for tests. */
   cacheLookup?: (areaCode: string) => Promise<CbsAreaStats | null>;
   /** Injectable single-buurt live fetch (defaults to CBS OData) — for tests. */
@@ -61,6 +63,10 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
   async function geocode(lat: number, lng: number): Promise<string | null> {
     if (options.geocode) return options.geocode(lat, lng);
     return (await import("@/lib/enrichment/pdok-geocode")).buurtcodeFromLatLng(lat, lng);
+  }
+  async function formGeocode(postcode: string | null, place: string | null): Promise<string | null> {
+    if (options.formGeocode) return options.formGeocode(postcode, place);
+    return (await import("@/lib/enrichment/pdok-geocode")).buurtcodeFromFormLocation(postcode, place);
   }
   async function cacheLookup(areaCode: string): Promise<CbsAreaStats | null> {
     if (options.cacheLookup) return options.cacheLookup(areaCode);
@@ -104,16 +110,28 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
     label:    "CBS Location",
     stageKey: "cbs-location",
 
-    shouldRun: (_input: EnricherInput, accumulated: Partial<EnrichmentOutput>): boolean => {
+    shouldRun: (input: EnricherInput, accumulated: Partial<EnrichmentOutput>): boolean => {
+      // An explicit form-provided location fires the stage regardless of IP geo /
+      // country (the visitor gave their own NL location).
+      const fl = input.formLocation;
+      if (fl && (fl.postcode || fl.place)) return true;
       const country = accumulated.addressCountry ?? accumulated.countryCode;
       if (country && country.toUpperCase() !== "NL") return false;
       return accumulated.latitude != null && accumulated.longitude != null;
     },
 
-    enricher: async (_input: EnricherInput, accumulated: Partial<EnrichmentOutput>) => {
-      if (accumulated.latitude == null || accumulated.longitude == null) return {};
-
-      const areaCode = await geocode(accumulated.latitude, accumulated.longitude);
+    enricher: async (input: EnricherInput, accumulated: Partial<EnrichmentOutput>) => {
+      // Precedence: an explicit form-provided location wins over IP-derived
+      // lat/lng — resolve its buurtcode first (postcode primary, place coarse).
+      let areaCode: string | null = null;
+      const fl = input.formLocation;
+      if (fl && (fl.postcode || fl.place)) {
+        areaCode = await formGeocode(fl.postcode ?? null, fl.place ?? null);
+      }
+      if (!areaCode) {
+        if (accumulated.latitude == null || accumulated.longitude == null) return {};
+        areaCode = await geocode(accumulated.latitude, accumulated.longitude);
+      }
       if (!areaCode) return {};
 
       const stats = (await cacheLookup(areaCode)) ?? (await resolveFromCbs(areaCode));

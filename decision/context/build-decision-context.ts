@@ -69,6 +69,7 @@ import {
   leadinfoToEnrichment,
   LEADINFO_COOKIE,
 } from "@/context/leadinfo-context";
+import { FORM_LOCATION_COOKIE, parseFormLocationCookie } from "@/context/form-location-context";
 import { logger } from "@/lib/logger";
 import { extractIpFromRequest } from "@/lib/request-ip";
 import { runEnrichmentPipeline, buildEnricherInput } from "@/enrichment/pipeline";
@@ -669,6 +670,13 @@ export async function buildDecisionContext(
     });
   }
 
+  // First-party form-provided location (mc_loc cookie) — takes precedence over
+  // IP-derived lat/lng in the CBS location enricher. Consumed only under
+  // enrichment consent (the staged enrichers only run when consent is granted).
+  const formLocation = cookieHeader
+    ? parseFormLocationCookie(parseCookieField(cookieHeader, FORM_LOCATION_COOKIE))
+    : null;
+
   const enricherInput = buildEnricherInput({
     ip,
     tenantId,
@@ -679,6 +687,7 @@ export async function buildDecisionContext(
     // on every client-side gtag event, so the GA4 Data API can filter sessions
     // by `customUser:{visitorIdParamName}` == sessionId.
     visitorId: sessionId,
+    formLocation,
   });
 
   // Attach effectiveIp so IP-based enrichers can use the override when active.
