@@ -425,6 +425,23 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
     }
   }
 
+  // ── avatar (optional) ──────────────────────────────────────────────────────
+  if (r.avatar !== undefined) {
+    if (typeof r.avatar !== "object" || r.avatar === null) {
+      errors.push("avatar: must be an object when present.");
+    } else {
+      const a = r.avatar as Record<string, unknown>;
+      if (a.kind === "image") {
+        if (typeof a.url !== "string" || a.url.trim() === "") errors.push("avatar.url: must be a non-empty string for an image avatar.");
+      } else if (a.kind === "emoji") {
+        if (typeof a.value !== "string" || a.value.trim() === "") errors.push("avatar.value: must be a non-empty string for an emoji avatar.");
+        if (a.color !== undefined && typeof a.color !== "string") errors.push("avatar.color: must be a string when present.");
+      } else {
+        errors.push('avatar.kind: must be "image" or "emoji".');
+      }
+    }
+  }
+
   // ── scenarioPanel (optional) ────────────────────────────────────────────────
   // Structural check only (arrays of strings). Keys are NOT validated against the
   // UI preset/role/time constants — the panel is fail-open on unknown keys, and
