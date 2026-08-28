@@ -107,7 +107,7 @@ export default async function WebhooksOverviewPage({
           No outbound webhooks are configured yet. Add the lead-qualification webhook under{" "}
           <Link href={`${base}/audience/leads`} className="font-medium text-brand-600 hover:text-brand-800">Leads</Link>, or a
           rule-triggered webhook on a rule under{" "}
-          <Link href={`${base}/personalization/rules`} className="font-medium text-brand-600 hover:text-brand-800">Rules</Link>.
+          <Link href={`${base}/rules`} className="font-medium text-brand-600 hover:text-brand-800">Rules</Link>.
         </div>
       )}
 
@@ -158,7 +158,7 @@ export default async function WebhooksOverviewPage({
             tenantId={tenantId}
             rules={webhookOnlyRules}
             fields={fieldOptions}
-            rulesHref={`${base}/personalization/rules`}
+            rulesHref={`${base}/rules`}
           />
         </div>
       </section>
@@ -175,7 +175,7 @@ export default async function WebhooksOverviewPage({
                 They are edited in the Rules editor.
               </p>
             </div>
-            <Link href={`${base}/personalization/rules`} className="shrink-0 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50">
+            <Link href={`${base}/rules`} className="shrink-0 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50">
               Edit rules →
             </Link>
           </div>

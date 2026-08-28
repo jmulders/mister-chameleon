@@ -44,7 +44,7 @@ import { fetchVariantCatalogue }    from "@/decision/rules/fetch-variant-catalog
 import { fetchPagesWithVariants }   from "@/decision/rules/fetch-pages-with-variants";
 import type { PageVariantInfo }     from "@/decision/rules/fetch-pages-with-variants";
 import type { VariantCatalogue, VariantEntry } from "@/decision/rules/variant-catalogue";
-import { RefreshButton }      from "../rules/_components/RefreshButton";
+import { RefreshButton }      from "../../rules/_components/RefreshButton";
 import { cn }                 from "@/lib/utils";
 
 // ── Page ──────────────────────────────────────────────────────────────────────

@@ -1539,8 +1539,8 @@ export async function saveRuleThemeKeyAction(
 
   // Load the current rules config (or fall back to seed)
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {
@@ -1612,8 +1612,8 @@ export async function saveRuleThemeSelectionAction(
   if (!tenantId || !ruleId) return { ok: false, errors: ["tenantId and ruleId are required."] };
 
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) return { ok: false, errors: [`Failed to load rules: ${current.error}`] };
   const rule = current.config.rules.find((r) => r.id === ruleId);
@@ -1797,8 +1797,8 @@ export async function addThemeMappingAction(
   };
 
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {
@@ -1929,8 +1929,8 @@ export async function setThemeMappingEnabledAction(
   }
 
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {
@@ -2034,8 +2034,8 @@ export async function addContextLibraryThemeMappingAction(
   const themeFields = themePresetId ? { themePresetId } : { themeKey: themeKey! };
 
   const { getTenantRulesAction, saveTenantRulesAction } =
-    await import("@/app/admin/tenants/[tenantId]/personalization/rules/actions") as
-      typeof import("@/app/admin/tenants/[tenantId]/personalization/rules/actions");
+    await import("@/app/admin/tenants/[tenantId]/rules/actions") as
+      typeof import("@/app/admin/tenants/[tenantId]/rules/actions");
 
   const current = await getTenantRulesAction(tenantId);
   if (!current.ok) {

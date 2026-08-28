@@ -229,7 +229,15 @@ const nextConfig = {
       ["behavior/field-fill", "personalization/field-fill"],
       ["variants",            "personalization/variants"],
       ["blocks",              "personalization/blocks"],
-      ["rules",               "personalization/rules"],
+      // Phase 4: Rules split out of Personalization into its own /rules/* group.
+      // rules/attributes/variables/stats moved out; stats renamed → firings. The
+      // old bare "rules" → "personalization/rules" redirect is REMOVED (rules now
+      // lives at /rules), replaced by the reverse redirects below. These must
+      // precede nothing conflicting; no earlier move matches /personalization/*.
+      ["personalization/rules",       "rules"],
+      ["personalization/attributes",  "rules/attributes"],
+      ["personalization/variables",   "rules/variables"],
+      ["personalization/stats",       "rules/firings"],
       ["experiments",         "personalization/experiments"],
       ["ai",                  "personalization/ai"],
       ["ai-logs",             "personalization/ai-logs"],

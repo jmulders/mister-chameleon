@@ -16,11 +16,11 @@
 import { notFound }        from "next/navigation";
 import { getTenantById }   from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
-import { getTenantRulesAction }       from "../rules/actions";
-import { VariantUsagePanel }          from "../rules/_components/VariantUsagePanel";
-import { RulesMatrix }                from "../rules/_components/RulesMatrix";
-import { ScoreDistributionPanel }     from "../rules/_components/ScoreDistributionPanel";
-import { RuleFireStatsPanel }         from "../rules/_components/RuleFireStatsPanel";
+import { getTenantRulesAction }       from "../actions";
+import { VariantUsagePanel }          from "../_components/VariantUsagePanel";
+import { RulesMatrix }                from "../_components/RulesMatrix";
+import { ScoreDistributionPanel }     from "../_components/ScoreDistributionPanel";
+import { RuleFireStatsPanel }         from "../_components/RuleFireStatsPanel";
 import { fetchVariantCatalogue }      from "@/decision/rules/fetch-variant-catalogue";
 import { computeVariantUsage, resolveContentBudget } from "@/decision/rules/variant-usage";
 import { getScoreDistribution }       from "@/lib/lead-base/score-distribution";
