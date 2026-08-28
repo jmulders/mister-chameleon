@@ -29,6 +29,7 @@ import { cookies }                          from "next/headers";
 import { createClient }                     from "@supabase/supabase-js";
 import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
 import { mirrorSite, proxifyAssets, fillMissingImages } from "@/demo/site-mirror";
+import { resolveRenderConfig }               from "@/demo/site-render";
 import { instrumentHtml }                   from "@/demo/slot-injector";
 import { analyzeSite }                      from "@/demo/analyzer";
 import { generateScenarios }               from "@/demo/content-generator";
@@ -131,11 +132,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const baseUrl = await resolveDemoBaseUrl();
 
+  // Service-role client — reused for render-config resolution and storage.
+  const client = createClient(
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+    { auth: { persistSession: false } },
+  );
+
   // ── Step 1: Mirror the site ─────────────────────────────────────────────────
+  //   When a JS-render service is configured (demo_importer settings +
+  //   SCRAPINGBEE_API_KEY), the page is rendered with JavaScript for a faithful
+  //   mirror; otherwise a plain fetch is used (with automatic fallback on error).
+
+  const renderConfig = await resolveRenderConfig(client);
 
   let mirrored;
   try {
-    mirrored = await mirrorSite(url);
+    mirrored = await mirrorSite(url, renderConfig);
   } catch (err) {
     return NextResponse.json(
       { error: `Failed to fetch the prospect URL: ${err instanceof Error ? err.message : String(err)}` },
@@ -268,12 +281,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const generationMs = Date.now() - startMs;
 
   // ── Step 5: Store ────────────────────────────────────────────────────────────
-
-  const client = createClient(
-    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-    process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
-    { auth: { persistSession: false } },
-  );
 
   let demo;
   try {
