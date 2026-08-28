@@ -301,10 +301,6 @@ function BehaviorSettings({
         followNavLinks:       settings.followNavLinks,
         maxPages:             settings.maxPages,
         detectColors:         settings.detectColors,
-        detectTypography:     settings.detectTypography,
-        detectLayoutPatterns: settings.detectLayoutPatterns,
-        generatePreset:       settings.generatePreset,
-        generateBlueprint:    settings.generateBlueprint,
       });
       if (result.ok) {
         setSaveState("saved");
@@ -388,34 +384,6 @@ function BehaviorSettings({
           note="Extract primary brand colour from meta theme-color, og:image, or favicon."
           checked={settings.detectColors}
           onChange={() => toggle("detectColors")}
-        />
-        <ToggleRow
-          label="Detect typography"
-          note="Identify font families from CSS link tags or inline styles. (Planned — not yet implemented.)"
-          checked={settings.detectTypography}
-          onChange={() => toggle("detectTypography")}
-          comingSoon
-        />
-        <ToggleRow
-          label="Detect layout patterns"
-          note="Classify page structure (hero, features, testimonials). (Planned — not yet implemented.)"
-          checked={settings.detectLayoutPatterns}
-          onChange={() => toggle("detectLayoutPatterns")}
-          comingSoon
-        />
-        <ToggleRow
-          label="Generate preset automatically"
-          note="Create a Mr. Chameleon variant preset from the detected brand signals. (Planned.)"
-          checked={settings.generatePreset}
-          onChange={() => toggle("generatePreset")}
-          comingSoon
-        />
-        <ToggleRow
-          label="Generate blueprint automatically"
-          note="Create a page blueprint from the prospect site structure. (Planned.)"
-          checked={settings.generateBlueprint}
-          onChange={() => toggle("generateBlueprint")}
-          comingSoon
         />
 
       </div>

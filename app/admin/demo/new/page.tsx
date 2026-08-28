@@ -3,21 +3,17 @@
  *
  * Prospect Demo Generator — admin entry point.
  *
- * ─── Modes ────────────────────────────────────────────────────────────────────
+ * ─── Mirror demo ──────────────────────────────────────────────────────────────
  *
- *   Mirror Demo (recommended)
- *     Fetches the prospect's actual homepage, resolves all assets, injects
- *     data-mc-slot annotations on the hero/proof/CTA elements, and embeds
- *     the MC snippet + a floating Scenario Control Panel.
- *     The prospect sees their own site with MC personalisation live.
+ *   Fetches the prospect's actual homepage, resolves all assets, injects
+ *   data-mc-slot annotations on the hero/proof/CTA elements, and embeds the MC
+ *   snippet + a floating Scenario Control Panel. The prospect sees their own site
+ *   with MC personalisation live.
  *     → Calls POST /api/demo/mirror
  *     → Shareable URL: /demo/[id]/live
  *
- *   Synthetic Demo (legacy)
- *     AI-generated bilingual page content using the prospect's brand signals
- *     (colours, fonts, industry) but entirely new copy.
- *     → Calls POST /api/demo/generate
- *     → Shareable URL: /demo/[id]
+ *   (The former "Synthetic" (Legacy) mode — AI-generated bilingual copy via
+ *   /api/demo/generate — was removed; Mirror is the only mode.)
  *
  * ─── Auth ──────────────────────────────────────────────────────────────────────
  *
@@ -31,8 +27,6 @@ import Link                             from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DemoModeTab = "mirror" | "synthetic";
-
 type GenerateError =
   | { kind: "session_missing" }
   | { kind: "2fa_required" }
@@ -44,7 +38,6 @@ interface GenerateResult {
   siteName:        string;
   expiresAt:       string;
   fetchSucceeded?: boolean;
-  mode:            DemoModeTab;
 }
 
 type GenerateState =
@@ -63,18 +56,9 @@ const MIRROR_STEPS = [
   { delay: 24_000, text: "Storing demo and preparing your shareable link…" },
 ];
 
-const SYNTHETIC_STEPS = [
-  { delay: 0,     text: "Fetching the prospect site…" },
-  { delay: 3_000, text: "Extracting brand signals and colour palette…" },
-  { delay: 8_000, text: "Generating personalised page content with AI…" },
-  { delay: 18_000, text: "Building 5 scenario variants…" },
-  { delay: 24_000, text: "Finalising and storing your demo…" },
-];
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function NewDemoPage() {
-  const [mode,       setMode]       = useState<DemoModeTab>("mirror");
   const [state,      setState]      = useState<GenerateState>({ status: "idle" });
   const [expiryDays, setExpiryDays] = useState<number>(7);
   const [loadingStep, setLoadingStep] = useState<string>("");
@@ -113,16 +97,14 @@ export default function NewDemoPage() {
     setState({ status: "loading" });
 
     // ── Start progress step cycle ───────────────────────────────────────────
-    const steps = mode === "mirror" ? MIRROR_STEPS : SYNTHETIC_STEPS;
+    const steps = MIRROR_STEPS;
     setLoadingStep(steps[0].text);
     stepTimers.current = steps.slice(1).map(({ delay, text }) =>
       setTimeout(() => setLoadingStep(text), delay),
     );
 
     try {
-      const endpoint = mode === "mirror" ? "/api/demo/mirror" : "/api/demo/generate";
-
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/demo/mirror", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ url, generatedBy: "admin", expiryDays }),
@@ -157,7 +139,7 @@ export default function NewDemoPage() {
         demoId: string; demoUrl: string; siteName: string;
         expiresAt: string; fetchSucceeded?: boolean;
       };
-      setState({ status: "success", result: { ...result, mode } });
+      setState({ status: "success", result });
     } catch (err) {
       setState({
         status: "error",
@@ -192,52 +174,20 @@ export default function NewDemoPage() {
         </Link>
       </div>
 
-      {/* Mode tabs */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-neutral-200 bg-neutral-50 p-1">
-        <ModeTab
-          active={mode === "mirror"}
-          onClick={() => { setMode("mirror"); setState({ status: "idle" }); }}
-          icon="🪞"
-          label="Mirror Demo"
-          badge="Recommended"
-        />
-        <ModeTab
-          active={mode === "synthetic"}
-          onClick={() => { setMode("synthetic"); setState({ status: "idle" }); }}
-          icon="✨"
-          label="Synthetic Demo"
-          badge="Legacy"
-        />
-      </div>
-
-      {/* Mode description */}
+      {/* What a Mirror demo is */}
       <div className="mb-6 rounded-lg border border-neutral-200 bg-white px-4 py-3">
-        {mode === "mirror" ? (
-          <div className="flex gap-3 text-sm">
-            <span className="text-xl shrink-0 mt-0.5">🪞</span>
-            <div>
-              <p className="font-medium text-neutral-800">Mirror Demo — their site, our personalisation</p>
-              <p className="mt-0.5 text-neutral-500 leading-relaxed">
-                Fetches the prospect's actual homepage, uses AI to detect 8–12 personalizable
-                elements and generate 6 unique variants per element, then injects the MC snippet
-                with a floating Scenario Control Panel. The prospect sees{" "}
-                <strong>their own site</strong> adapt in real time across 6 visitor archetypes.
-              </p>
-            </div>
+        <div className="flex gap-3 text-sm">
+          <span className="text-xl shrink-0 mt-0.5">🪞</span>
+          <div>
+            <p className="font-medium text-neutral-800">Mirror Demo — their site, our personalisation</p>
+            <p className="mt-0.5 text-neutral-500 leading-relaxed">
+              Fetches the prospect's actual homepage, uses AI to detect 8–12 personalizable
+              elements and generate 6 unique variants per element, then injects the MC snippet
+              with a floating Scenario Control Panel. The prospect sees{" "}
+              <strong>their own site</strong> adapt in real time across 6 visitor archetypes.
+            </p>
           </div>
-        ) : (
-          <div className="flex gap-3 text-sm">
-            <span className="text-xl shrink-0 mt-0.5">✨</span>
-            <div>
-              <p className="font-medium text-neutral-800">Synthetic Demo — AI-generated copy</p>
-              <p className="mt-0.5 text-neutral-500 leading-relaxed">
-                Analyses the prospect's brand signals (colours, fonts, industry) and generates
-                a fully AI-written bilingual demo page with 5 personalisation scenarios.
-                Best when the prospect site is behind auth or slow to load.
-              </p>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Auth error states */}
@@ -267,9 +217,7 @@ export default function NewDemoPage() {
               className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
             <p className="mt-1 text-xs text-neutral-400">
-              {mode === "mirror"
-                ? "The homepage will be fetched and instrumented server-side. Assets load from the prospect's domain. https:// is added automatically."
-                : "The URL will be fetched server-side to extract brand signals. https:// is added automatically."}
+              The homepage will be fetched and instrumented server-side. Assets load from the prospect's domain. https:// is added automatically.
             </p>
           </div>
 
@@ -306,14 +254,14 @@ export default function NewDemoPage() {
             type="submit"
             className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors"
           >
-            {mode === "mirror" ? "🪞 Generate mirror demo" : "✨ Generate synthetic demo"}
+            🪞 Generate mirror demo
           </button>
         </form>
       )}
 
       {/* Loading */}
       {state.status === "loading" && (
-        <LoadingPanel mode={mode} currentStep={loadingStep} />
+        <LoadingPanel currentStep={loadingStep} />
       )}
 
       {/* Success */}
@@ -327,8 +275,8 @@ export default function NewDemoPage() {
 
 // ── Loading panel ─────────────────────────────────────────────────────────────
 
-function LoadingPanel({ mode, currentStep }: { mode: DemoModeTab; currentStep: string }) {
-  const steps = mode === "mirror" ? MIRROR_STEPS : SYNTHETIC_STEPS;
+function LoadingPanel({ currentStep }: { currentStep: string }) {
+  const steps = MIRROR_STEPS;
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm space-y-6">
@@ -365,49 +313,9 @@ function LoadingPanel({ mode, currentStep }: { mode: DemoModeTab; currentStep: s
       </ol>
 
       <p className="text-center text-xs text-neutral-400">
-        {mode === "mirror"
-          ? "AI slot analysis usually adds 10–20 seconds. Hang tight!"
-          : "This usually takes 15–30 seconds."}
+        AI slot analysis usually adds 10–20 seconds. Hang tight!
       </p>
     </div>
-  );
-}
-
-// ── Mode tab ──────────────────────────────────────────────────────────────────
-
-function ModeTab({
-  active, onClick, icon, label, badge,
-}: {
-  active:  boolean;
-  onClick: () => void;
-  icon:    string;
-  label:   string;
-  badge?:  string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-        active
-          ? "bg-white shadow-sm text-neutral-900 border border-neutral-200"
-          : "text-neutral-500 hover:text-neutral-700"
-      }`}
-    >
-      <span>{icon}</span>
-      <span>{label}</span>
-      {badge && (
-        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-          active
-            ? badge === "Recommended"
-              ? "bg-indigo-100 text-indigo-700"
-              : "bg-neutral-100 text-neutral-500"
-            : "bg-neutral-100 text-neutral-400"
-        }`}>
-          {badge}
-        </span>
-      )}
-    </button>
   );
 }
 
@@ -477,8 +385,7 @@ function SuccessPanel({
     day: "numeric", month: "long", year: "numeric",
   });
 
-  const isMirror = result.mode === "mirror";
-  const fetchFailed = isMirror && result.fetchSucceeded === false;
+  const fetchFailed = result.fetchSucceeded === false;
 
   return (
     <div className="space-y-5">
@@ -489,12 +396,10 @@ function SuccessPanel({
           <span className="mt-0.5 text-green-500 text-xl">✓</span>
           <div>
             <p className="text-sm font-semibold text-green-800">
-              {isMirror ? "Mirror demo ready" : "Demo ready"} — {result.siteName}
+              Mirror demo ready — {result.siteName}
             </p>
             <p className="mt-0.5 text-xs text-green-600">
-              {isMirror
-                ? "Homepage mirrored with AI-powered slot injection and 6 scenario controls."
-                : "5 personalisation scenarios generated."}
+              Homepage mirrored with AI-powered slot injection and 6 scenario controls.
               {" "}Link expires {expiresDate}.
             </p>
           </div>
@@ -511,9 +416,8 @@ function SuccessPanel({
               <p className="mt-0.5 text-xs text-amber-700 leading-relaxed">
                 The prospect's homepage returned an error or timed out. A stub page was
                 generated instead — the Scenario Control Panel is still functional, but
-                the demo will not show the prospect's actual design. Try the{" "}
-                <span className="font-medium">Synthetic Demo</span> mode if the site is behind
-                auth or has strict bot protection.
+                the demo will not show the prospect's actual design. This can happen when
+                the site is behind auth or has strict bot protection.
               </p>
             </div>
           </div>
@@ -522,19 +426,13 @@ function SuccessPanel({
 
       {/* Mode badge */}
       <div className="flex items-center gap-2">
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-          isMirror
-            ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-            : "bg-purple-50 text-purple-700 border border-purple-200"
-        }`}>
-          <span>{isMirror ? "🪞" : "✨"}</span>
-          {isMirror ? "Mirror Demo" : "Synthetic Demo"}
+        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <span>🪞</span>
+          Mirror Demo
         </span>
-        {isMirror && (
-          <span className="text-xs text-neutral-500">
-            AI-detected slots · 6 personalisation scenarios
-          </span>
-        )}
+        <span className="text-xs text-neutral-500">
+          AI-detected slots · 6 personalisation scenarios
+        </span>
       </div>
 
       {/* Shareable link */}
@@ -598,7 +496,7 @@ function SuccessPanel({
           </div>
           <div className="flex gap-2">
             <dt className="font-medium text-neutral-500 w-24 shrink-0">Mode</dt>
-            <dd>{isMirror ? "Mirror (live site + AI slots)" : "Synthetic (AI content)"}</dd>
+            <dd>Mirror (live site + AI slots)</dd>
           </div>
           <div className="flex gap-2">
             <dt className="font-medium text-neutral-500 w-24 shrink-0">Expires</dt>
