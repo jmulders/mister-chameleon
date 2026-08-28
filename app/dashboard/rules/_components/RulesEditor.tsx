@@ -115,6 +115,7 @@ import type { CustomAttributeDeclaration } from "@/tenant/types";
 import { PRESET_CONDITIONS } from "@/decision/rules/preset-conditions";
 import { RecipeGallery } from "./RecipeGallery";
 import type { RecipeRuleDraft } from "./RecipeGallery";
+import { freshRuleId } from "./rule-id";
 
 // ── Internal editor model ──────────────────────────────────────────────────────
 //
@@ -481,7 +482,7 @@ function newEditableRule(existingRules: EditableRule[]): EditableRule {
   // Round up to the next clean multiple of 10 above maxPriority.
   const nextPriority = Math.ceil((maxPriority + 1) / 10) * 10;
   return {
-    id:        `homepage.rule_${Date.now()}`,
+    id:        freshRuleId("homepage.rule"),
     priority:  nextPriority,
     label:     "",
     condition: { type: "field", field: "source", operator: "equals", value: "google" },
@@ -624,7 +625,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   // the result is valid-by-construction.
   const addRecipeRule = useCallback((draft: RecipeRuleDraft) => {
     const rule: EditableRule = {
-      id:              `homepage.recipe_${draft.recipe.key}_${Date.now()}`,
+      id:              freshRuleId(`homepage.recipe_${draft.recipe.key}`),
       priority:        draft.priority,
       precedenceLevel: draft.recipe.tier,
       packId:          draft.recipe.packId,
