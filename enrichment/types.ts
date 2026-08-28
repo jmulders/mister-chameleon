@@ -658,6 +658,19 @@ export interface EnricherInput {
    * Null when no first-party visitor ID is available.
    */
   visitorId?: string | null;
+  /**
+   * Visitor-provided location from a form submission (first-party). Takes
+   * precedence over IP-derived lat/lng in the CBS location enricher — the visitor
+   * gave their own location, so it works even without MaxMind/IPinfo.
+   *
+   *   postcode — primary, accurate (NL postcode → buurt via its PDOK centroid).
+   *   place    — fallback, COARSE (town/city centre → central buurt), used only
+   *              when no postcode is present.
+   *
+   * Persisted in the mc_loc cookie by the form-submit route; consumed only under
+   * enrichment consent (the staged enrichers only run when consent is granted).
+   */
+  formLocation?: { postcode: string | null; place: string | null } | null;
 }
 
 // ── Enricher ──────────────────────────────────────────────────────────────────
