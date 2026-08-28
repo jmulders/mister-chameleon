@@ -72,6 +72,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
+import { buildContentSecurityPolicy, cspHeaderName } from "@/lib/security/csp";
 import { resolveSession, SESSION_COOKIE, WEB_SESSION_COOKIE, SEEN_COOKIE } from "@/data/session";
 import { resolveConsent } from "@/lib/consent/server-consent";
 import {
@@ -213,6 +214,24 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // Always forward the current pathname so layouts can detect route segments
   // without needing usePathname() (which is client-only).
   requestHeaders.set("x-pathname", pathname);
+
+  // ── Content-Security-Policy (per-request nonce) ────────────────────────────
+  //
+  // Fresh nonce each request, authorising the inline scripts (Next hydration +
+  // the GTM snippet) without a bare 'unsafe-inline'. Forwarded two ways:
+  //   • x-nonce            — the root layout reads it to nonce the GTM snippet.
+  //   • Content-Security-Policy request header — Next reads it to auto-nonce its
+  //     own hydration scripts.
+  // The browser-facing header (report-only by default, enforced when CSP_ENFORCE
+  // is set) is attached to every page/redirect response below. This is the SINGLE
+  // source of truth for the CSP (next.config.mjs no longer sets one).
+  const cspNonce = btoa(crypto.randomUUID());
+  const csp = buildContentSecurityPolicy({
+    nonce: cspNonce,
+    isDev: process.env.NODE_ENV === "development",
+  });
+  requestHeaders.set("x-nonce", cspNonce);
+  requestHeaders.set("Content-Security-Policy", csp);
 
   if (session.isNewSession) {
     const existing  = requestHeaders.get("cookie") ?? "";
@@ -374,6 +393,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
+
+  // Browser-facing CSP: report-only by default, enforced when CSP_ENFORCE is set.
+  // (Redirect responses above are not HTML and carry no scripts, so they don't
+  // need it; the redirect target re-enters the proxy and gets its own CSP.)
+  response.headers.set(cspHeaderName(), csp);
 
   const isSecure = process.env.NODE_ENV === "production";
 
