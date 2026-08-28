@@ -23,6 +23,7 @@ import {
 import { DEV_TENANT_COOKIE, DEV_TENANT_COOKIE_MAX_AGE } from "@/tenant/dev-tenant-cookie";
 import { validateDesignTokenUpload } from "@/tenant/design-token-validator";
 import { logger } from "@/lib/logger";
+import { parseAvatarConfig, type AdminAvatarConfig } from "@/components/admin/avatar-util";
 import { provisionTenant }           from "@/cms/seed/tenant-provisioner";
 import { getPackageDefinition, isValidPackageKey } from "@/tenant";
 import { templateKeysToPageEntries }  from "@/page-config";
@@ -455,6 +456,40 @@ export async function saveBrandingAction(
     rethrowNextInternal(err);
     const msg = err instanceof Error ? err.message : String(err);
     logger.error("[saveBrandingAction] error", { tenantId, error: msg });
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Persist the tenant avatar (image URL or emoji, or null to reset to initials).
+ * The image is already uploaded to tenant_assets by the picker; only its URL is
+ * stored here on the tenant settings (JSONB) — no migration.
+ */
+export async function saveTenantAvatarAction(
+  tenantId: string,
+  avatar:   AdminAvatarConfig | null,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await getRequiredAdminSession();
+
+    const current = await getTenantById(tenantId);
+    if (!current) return { success: false, error: `Tenant "${tenantId}" not found.` };
+
+    // Validate/normalise the incoming avatar; null (or invalid) clears it.
+    const clean = avatar ? parseAvatarConfig(avatar) : null;
+    const updated: TenantSettings = { ...current, avatar: clean ?? undefined };
+
+    const saveResult = await saveTenant(updated);
+    if (!saveResult.ok) return { success: false, error: saveResult.error };
+
+    revalidatePath("/", "layout");
+    revalidatePath(`/admin/tenants/${tenantId}`);
+    revalidatePath(`/admin/tenants/${tenantId}/setup`);
+    return { success: true };
+  } catch (err) {
+    rethrowNextInternal(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error("[saveTenantAvatarAction] error", { tenantId, error: msg });
     return { success: false, error: msg };
   }
 }

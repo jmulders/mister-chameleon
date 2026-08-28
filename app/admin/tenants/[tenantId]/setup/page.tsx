@@ -32,6 +32,8 @@ import { TenantCmsDeployCard }      from "@/components/admin/TenantCmsDeployCard
 import { StatamicSetupGuide }       from "@/components/admin/StatamicSetupGuide";
 import { TenantProvisionCard }       from "@/components/admin/TenantProvisionCard";
 import { TenantFinalizeCard }         from "@/components/admin/TenantFinalizeCard";
+import { TenantAvatarCard }            from "./_components/TenantAvatarCard";
+import { parseAvatarConfig }           from "@/components/admin/avatar-util";
 import type { TenantSettings } from "@/tenant/server";
 
 // ── Secret masking ────────────────────────────────────────────────────────────
@@ -89,6 +91,16 @@ export default async function TenantSetupPage({
 
       {/* 1 — Readiness checklist */}
       <TenantReadinessChecklist tenant={tenant} className="mb-8" />
+
+      {/* 1b — Workspace avatar (self-service) */}
+      <div className="mb-8">
+        <TenantAvatarCard
+          tenantId={tenantId}
+          name={tenant.name ?? tenant.tenantId}
+          seed={tenant.tenantId}
+          initial={parseAvatarConfig(tenant.avatar ?? null)}
+        />
+      </div>
 
       {/* 2 — Theme & design (lives in the Design section) */}
       <Link

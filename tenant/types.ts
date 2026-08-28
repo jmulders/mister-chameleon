@@ -2743,6 +2743,16 @@ export interface TenantSettings {
   readonly branding?: TenantBrandingSettings;
 
   /**
+   * Tenant avatar shown in admin surfaces (tenant list, workspace header),
+   * editable on the setup page. An uploaded image (stored in tenant_assets like
+   * any branding asset — only the URL is kept here) or an emoji; falls back to
+   * deterministic initials when unset. Mirrors the admin Avatar model.
+   */
+  readonly avatar?:
+    | { readonly kind: "emoji"; readonly value: string; readonly color?: string }
+    | { readonly kind: "image"; readonly url: string };
+
+  /**
    * Per-tenant curation of the dev/preview Scenario Control panel. Each list is
    * an EXPLICIT allowlist; when a field is absent or empty the panel shows its
    * full hardcoded list (current behaviour). Pure demo config — no decision impact.

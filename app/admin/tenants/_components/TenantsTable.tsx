@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { usePagination, PaginationControls } from "@/components/admin/Pagination";
 import { TenantDeleteButton } from "./TenantDeleteButton";
+import { parseAvatarConfig, avatarEmojiBgClass } from "@/components/admin/avatar-util";
 import type { TenantSettings } from "@/tenant/server";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ export function TenantsTable({ tenants }: { tenants: TenantSettings[] }) {
             const isActive    = !!(features.analytics ?? features.experiments ?? features.ai);
             const initials    = (tenant.name ?? tenant.tenantId).slice(0, 2).toUpperCase();
             const color       = avatarColor(tenant.tenantId);
+            const av          = parseAvatarConfig(tenant.avatar ?? null);
 
             return (
               <tr key={tenant.tenantId} className="group hover:bg-neutral-50/70 transition-colors">
@@ -101,9 +103,14 @@ export function TenantsTable({ tenants }: { tenants: TenantSettings[] }) {
                 {/* Avatar + name */}
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
-                    <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${color}`}>
-                      {initials}
-                    </div>
+                    {av?.kind === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={av.url} alt="" aria-hidden="true" className="size-8 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${av?.kind === "emoji" ? avatarEmojiBgClass(av.color, tenant.tenantId) : color}`}>
+                        {av?.kind === "emoji" ? av.value : initials}
+                      </div>
+                    )}
                     <div>
                       <Link
                         href={`/admin/tenants/${tenant.tenantId}`}

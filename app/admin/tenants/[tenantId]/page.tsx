@@ -16,6 +16,7 @@ import { TenantStatusPanel }    from "@/components/admin/TenantStatusPanel";
 import { TenantReadinessChecklist } from "@/components/admin/TenantReadinessChecklist";
 import { AdvertiserOverview }      from "./_components/AdvertiserOverview";
 import { fetchAdsOverviewAction }  from "./ads/actions";
+import { parseAvatarConfig, avatarEmojiBgClass } from "@/components/admin/avatar-util";
 import type { TenantSettings, PackageKey } from "@/tenant/server";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ export default async function AdminTenantOverviewPage({
   const isActive = isTenantActive(tenant);
   const initials = (tenant.name ?? tenant.tenantId).slice(0, 2).toUpperCase();
   const color    = avatarColor(tenant.tenantId);
+  const av       = parseAvatarConfig(tenant.avatar ?? null);
 
   // Advertiser tenants get a focused ad-account cockpit instead of the
   // personalization dashboard (no site to personalize → Setup/Design/CMS/AI
@@ -152,9 +154,14 @@ export default async function AdminTenantOverviewPage({
 
           {/* Left: avatar + identity */}
           <div className="flex items-center gap-4">
-            <div className={`flex size-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold shadow-sm ${color}`}>
-              {initials}
-            </div>
+            {av?.kind === "image" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={av.url} alt="" aria-hidden="true" className="size-14 shrink-0 rounded-2xl object-cover shadow-sm" />
+            ) : (
+              <div className={`flex size-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold shadow-sm ${av?.kind === "emoji" ? avatarEmojiBgClass(av.color, tenant.tenantId) : color}`}>
+                {av?.kind === "emoji" ? av.value : initials}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-xl font-semibold text-neutral-900">
