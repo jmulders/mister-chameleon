@@ -203,7 +203,7 @@ export async function saveTenantRulesAction(
     return { ok: false, error: `Failed to save rules: ${message}` };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+  revalidatePath(`/admin/tenants/${tenantId}/rules`);
   revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
 }
@@ -287,7 +287,7 @@ export async function setTenantRulesEnabledAction(
     return { ok: false, error: `Failed to update rules enabled flag: ${(error as { message: string }).message}` };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+  revalidatePath(`/admin/tenants/${tenantId}/rules`);
   revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
 }
@@ -329,7 +329,7 @@ export async function resetTenantRulesAction(
     return { ok: false, error: `Failed to reset rules: ${(error as { message: string }).message}` };
   }
 
-  revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+  revalidatePath(`/admin/tenants/${tenantId}/rules`);
   revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
 }
@@ -379,7 +379,7 @@ export async function seedPresetRulesAction(
       return { ok: false, error: `Failed to seed preset rules: ${error.message}` };
     }
 
-    revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+    revalidatePath(`/admin/tenants/${tenantId}/rules`);
     return { ok: true, count: configToWrite.rules.length };
   } catch (err) {
     return {

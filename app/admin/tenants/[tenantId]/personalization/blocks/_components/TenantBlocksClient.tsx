@@ -389,7 +389,7 @@ function SlotSection({
   onCustomized:   (block: AdaptiveBlockData) => void;
   onPreview:      (payload: PreviewTarget) => void;
 }) {
-  const rulesHref = `/admin/tenants/${tenantId}/personalization/rules`;
+  const rulesHref = `/admin/tenants/${tenantId}/rules`;
   const tenantMap   = new Map(
     allBlocks.filter((b) => b.tenantId === tenantId && b.key.startsWith(keyPrefix)).map((b) => [b.key, b]),
   );

@@ -23,7 +23,7 @@
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
 import { getAbmWebhookUrl } from "@/lib/abm/abm-store";
 import { listWebhookDeliveries, type WebhookDelivery } from "@/lib/lead-base/webhook-deliveries-store";
-import { getTenantRulesAction, saveTenantRulesAction } from "@/app/admin/tenants/[tenantId]/personalization/rules/actions";
+import { getTenantRulesAction, saveTenantRulesAction } from "@/app/admin/tenants/[tenantId]/rules/actions";
 import { summarizeCondition } from "@/lib/webhooks/summarize-condition";
 import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
 import type { RuleCondition, StoredPlan, StoredRule } from "@/decision/rules/stored-rule";

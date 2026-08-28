@@ -104,7 +104,7 @@ export async function saveCustomAttributesAction(
   const result = await saveTenant({ ...stored, customAttributes: declarations });
   if (!result.ok) return { ok: false, error: result.error };
 
-  revalidatePath(`/admin/tenants/${tenantId}/personalization/attributes`);
-  revalidatePath(`/admin/tenants/${tenantId}/personalization/rules`);
+  revalidatePath(`/admin/tenants/${tenantId}/rules/attributes`);
+  revalidatePath(`/admin/tenants/${tenantId}/rules`);
   return { ok: true };
 }

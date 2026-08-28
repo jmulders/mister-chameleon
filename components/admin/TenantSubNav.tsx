@@ -141,6 +141,11 @@ const ICONS = {
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
     </Svg>
   ),
+  rules: (
+    <Svg>
+      <path d="M4 6h16M4 12h10M4 18h7"/>
+    </Svg>
+  ),
 };
 
 export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platformCms = false }: TenantSubNavProps) {
@@ -204,13 +209,28 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
       items: [
         { label: "Adaptive blocks",  href: `${base}/personalization/blocks`,           activePrefix: `${base}/personalization/blocks` },
         { label: "Variants",         href: `${base}/personalization/variants`,         activePrefix: `${base}/personalization/variants` },
-        { label: "Rules",            href: `${base}/personalization/rules`,            activePrefix: `${base}/personalization/rules` },
-        { label: "Attributes",       href: `${base}/personalization/attributes`,       activePrefix: `${base}/personalization/attributes` },
-        { label: "Variables",        href: `${base}/personalization/variables`,        activePrefix: `${base}/personalization/variables` },
-        { label: "Stats",            href: `${base}/personalization/stats`,            activePrefix: `${base}/personalization/stats` },
         { label: "Performance",      href: `${base}/personalization/performance`,      activePrefix: `${base}/personalization/performance` },
         { label: "Experiments",      href: `${base}/personalization/experiments`,      activePrefix: `${base}/personalization/experiments` },
         { label: "AI",               href: `${base}/personalization/ai`,               activePrefix: `${base}/personalization/ai`, exact: true },
+      ],
+    },
+    {
+      key:    "rules",
+      label:  "Rules",
+      href:   `${base}/rules`,
+      // Own top-level namespace, split out of the overloaded Personalization tab.
+      // Old /personalization/{rules,attributes,variables,stats} URLs 301 here (see
+      // next.config redirects). prefix ${base}/rules does not overlap
+      // ${base}/personalization, so no double group activation.
+      prefix: `${base}/rules`,
+      icon:   ICONS.rules,
+      items: [
+        // "Rules" is the group index — exact so it doesn't also light up on the
+        // /rules/attributes|variables|firings sub-routes (which startsWith /rules).
+        { label: "Rules",        href: `${base}/rules`,            activePrefix: `${base}/rules`,            exact: true },
+        { label: "Attributes",   href: `${base}/rules/attributes`, activePrefix: `${base}/rules/attributes` },
+        { label: "Variables",    href: `${base}/rules/variables`,  activePrefix: `${base}/rules/variables` },
+        { label: "Rule firings", href: `${base}/rules/firings`,    activePrefix: `${base}/rules/firings` },
       ],
     },
     {

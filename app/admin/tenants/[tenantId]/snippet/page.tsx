@@ -60,7 +60,7 @@ export default async function SnippetPage({
         </p>
         <p className="mt-2 text-xs text-neutral-500">
           To match rules on page attributes, declare them under{" "}
-          <a href={`/admin/tenants/${tenantId}/personalization/attributes`} className="font-medium text-indigo-600 hover:underline">
+          <a href={`/admin/tenants/${tenantId}/rules/attributes`} className="font-medium text-indigo-600 hover:underline">
             Personalization &rarr; Custom attributes
           </a>{" "}
           and supply them on the page with{" "}

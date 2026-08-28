@@ -121,6 +121,6 @@ export async function saveCopyVariablesAction(
   const result = await saveTenant({ ...stored, copyVariables: variables });
   if (!result.ok) return { ok: false, error: result.error };
 
-  revalidatePath(`/admin/tenants/${tenantId}/personalization/variables`);
+  revalidatePath(`/admin/tenants/${tenantId}/rules/variables`);
   return { ok: true };
 }
