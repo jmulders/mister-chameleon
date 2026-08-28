@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DESIGN_PRESET_GALLERY, type DesignPresetCard } from "@/tenant/design-presets-gallery";
 import { applyDesignPresetAction } from "@/app/admin/tenants/[tenantId]/actions";
@@ -81,6 +81,7 @@ function MiniPreview({ p }: { p: DesignPresetCard }) {
 
 export function PresetGallery({ tenantId, design }: Props) {
   const router = useRouter();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null);
@@ -134,19 +135,19 @@ export function PresetGallery({ tenantId, design }: Props) {
               }}
             >
               <MiniPreview p={p} />
-              <div style={{ padding: "11px 12px", borderTop: "1px solid #eef1f4" }}>
+              <div style={{ padding: "9px 11px", borderTop: "1px solid #eef1f4" }}>
                 <strong style={{ fontSize: 13, display: "block" }}>{p.name}</strong>
-                <div style={{ margin: "8px 0 10px" }}>
+                <div style={{ margin: "7px 0 8px" }}>
                   <PalettePreview swatch={p.swatch} />
                 </div>
-                <p style={{ fontSize: 11.5, color: "#64748b", margin: "0 0 10px", lineHeight: 1.4 }}>{p.description}</p>
+                <p style={{ fontSize: 11.5, color: "#64748b", margin: "0 0 9px", lineHeight: 1.35 }}>{p.description}</p>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <button
                     type="button"
                     onClick={() => apply(p.id)}
                     disabled={pending}
                     style={{
-                      fontSize: 12.5, fontWeight: 600, padding: "7px 12px", borderRadius: 8, cursor: pending ? "wait" : "pointer",
+                      fontSize: 12.5, fontWeight: 600, padding: "6px 11px", borderRadius: 8, cursor: pending ? "wait" : "pointer",
                       border: "1px solid #4f46e5",
                       background: isActive ? "#fff" : "#4f46e5",
                       color: isActive ? "#4f46e5" : "#fff",
@@ -164,23 +165,72 @@ export function PresetGallery({ tenantId, design }: Props) {
           );
   };
 
+  // Which category holds the currently-applied preset — opened by default so the
+  // operator lands on their active look; everything else starts collapsed to cut
+  // the long scroll. No active match → open the first category.
+  const activeCat = activePrimary
+    ? DESIGN_PRESET_GALLERY.find((p) => p.swatch.primary.toLowerCase() === activePrimary)?.category ?? null
+    : null;
+  const defaultOpenCat = activeCat ?? categories[0];
+
+  function setAllOpen(open: boolean) {
+    rootRef.current?.querySelectorAll("details").forEach((d) => { (d as HTMLDetailsElement).open = open; });
+  }
+
   return (
-    <div>
-      {categories.map((cat) => (
-        <div key={cat} style={{ marginBottom: 28 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 10px" }}>{cat}</h3>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-              gap: 16,
-            }}
-          >
-            {DESIGN_PRESET_GALLERY.filter((p) => p.category === cat).map(renderCard)}
-          </div>
+    <div ref={rootRef}>
+      <style>{`
+        .mc-preset-cat > summary::-webkit-details-marker { display: none; }
+        .mc-preset-cat > summary .mc-caret { transition: transform .15s ease; }
+        .mc-preset-cat[open] > summary .mc-caret { transform: rotate(90deg); }
+      `}</style>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 12px" }}>
+        <span style={{ fontSize: 12, color: "#64748b" }}>
+          {DESIGN_PRESET_GALLERY.length} presets in {categories.length} categories
+        </span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <button type="button" onClick={() => setAllOpen(true)}
+            style={{ fontSize: 12, fontWeight: 500, padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#374151", cursor: "pointer" }}>
+            Expand all
+          </button>
+          <button type="button" onClick={() => setAllOpen(false)}
+            style={{ fontSize: 12, fontWeight: 500, padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#374151", cursor: "pointer" }}>
+            Collapse all
+          </button>
         </div>
-      ))}
-      <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 16, maxWidth: "70ch" }}>
+      </div>
+
+      {categories.map((cat) => {
+        const items = DESIGN_PRESET_GALLERY.filter((p) => p.category === cat);
+        return (
+          <details key={cat} className="mc-preset-cat" open={cat === defaultOpenCat} style={{ marginBottom: 12, borderTop: "1px solid #eef1f4" }}>
+            <summary
+              style={{
+                display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                listStyle: "none", padding: "10px 2px", userSelect: "none",
+              }}
+            >
+              <span className="mc-caret" aria-hidden="true" style={{ fontSize: 11, color: "#9ca3af", lineHeight: 1 }}>▶</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{cat}</span>
+              <span style={{ fontSize: 11, color: "#9ca3af" }}>{items.length}</span>
+              {cat === activeCat && (
+                <span style={{ fontSize: 10.5, color: "#16a34a", fontWeight: 600, border: "1px solid #bbf7d0", background: "#f0fdf4", borderRadius: 999, padding: "1px 7px" }}>Active look</span>
+              )}
+            </summary>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(208px, 1fr))",
+                gap: 12,
+                padding: "2px 0 12px",
+              }}
+            >
+              {items.map(renderCard)}
+            </div>
+          </details>
+        );
+      })}
+      <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 12, maxWidth: "70ch" }}>
         A preset sets the entire look in one go. Colors, typography, buttons, radius, header/footer, and the
         site-wide block tokens that carry through to every content block and adaptive slot. You can then fine-tune
         individual tokens in the Blocks, Advanced, or Typography tab.
