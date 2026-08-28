@@ -633,7 +633,8 @@ export type UsageEventType =
   | "crm_lookup"        // HubSpot / Salesforce CRM contact + company lookup (2 credits)
   | "reverse_geocode"   // Reverse geocode: lat/lng → address (LocationIQ / BigDataCloud, 1 credit)
   | "ga4_history"       // Google Analytics 4 visitor history lookup (2 credits)
-  | "company_lookup";   // Reverse-IP firmographic lookup (OpenKvK / Clearbit, 1 credit)
+  | "company_lookup"    // Reverse-IP firmographic lookup (OpenKvK / Clearbit, 1 credit)
+  | "firstparty_company_lookup"; // First-party company DB hit — served from the shared pool, cheaper than a paid identify
 
 /**
  * Input for recording a single usage event.

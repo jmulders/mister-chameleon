@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * Read-only table of the platform IP company cache, with a name/domain search,
- * a matched filter, and a single global Clear cache action (confirmed).
+ * Read-only table of the platform first-party company DB, with a name/domain
+ * search, a matched filter, a pool stats panel, per-row provenance/freshness, an
+ * expandable raw provider payload, and a single global Clear action (confirmed).
  *
- * The server sends only firmographic fields (see fetchIpCacheAction); no IP,
- * hash, or raw payload ever reaches this component.
+ * The server sends firmographic + provenance fields and the raw provider payload
+ * (company-level, not personal); no IP or hash ever reaches this component.
  */
 
 import { useMemo, useState, useTransition } from "react";
@@ -21,8 +22,8 @@ const th: React.CSSProperties = {
 };
 const td: React.CSSProperties = { fontSize: 13, color: "#111827", padding: "8px 10px", verticalAlign: "top" };
 
-function fmtDate(iso: string): string {
-  // Stable, locale-independent YYYY-MM-DD HH:MM (UTC) so the table does not shift.
+function fmtDate(iso: string | null): string {
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)} UTC`;
@@ -30,6 +31,22 @@ function fmtDate(iso: string): string {
 
 function dash(v: string | null): string {
   return v && v.trim() ? v : "-"; // plain hyphen marks an empty cell
+}
+
+const FRESH_STYLE: Record<string, React.CSSProperties> = {
+  fresh:   { color: "#15803d", background: "#dcfce7" },
+  stale:   { color: "#b45309", background: "#fef3c7" },
+  expired: { color: "#b91c1c", background: "#fee2e2" },
+};
+
+function StatTile({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px", background: "#fff", minWidth: 130 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "#111827", marginTop: 2 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
 }
 
 export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
@@ -40,16 +57,22 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
   const [matched, setMatched] = useState<MatchedFilter>("all");
   const [status, setStatus]   = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const { stats } = initial;
+  const coverage = stats.total > 0 ? Math.round((stats.matched / stats.total) * 100) : 0;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return initial.rows.filter((r) => {
-      if (matched === "matched" && !r.matched) return false;
-      if (matched === "unmatched" && r.matched) return false;
-      if (!q) return true;
-      const hay = `${r.companyName ?? ""} ${r.companyDomain ?? ""}`.toLowerCase();
-      return hay.includes(q);
-    });
+    return initial.rows
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => {
+        if (matched === "matched" && !r.matched) return false;
+        if (matched === "unmatched" && r.matched) return false;
+        if (!q) return true;
+        const hay = `${r.companyName ?? ""} ${r.companyDomain ?? ""}`.toLowerCase();
+        return hay.includes(q);
+      });
   }, [initial.rows, query, matched]);
 
   function clearCache() {
@@ -58,7 +81,7 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
       const res = await clearIpCacheAction();
       setConfirming(false);
       if (res.ok) {
-        setStatus({ kind: "ok", text: `Cleared ${res.cleared} cached ${res.cleared === 1 ? "entry" : "entries"}.` });
+        setStatus({ kind: "ok", text: `Cleared ${res.cleared} stored ${res.cleared === 1 ? "entry" : "entries"}.` });
         router.refresh();
       } else {
         setStatus({ kind: "error", text: res.error });
@@ -70,6 +93,14 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
 
   return (
     <div>
+      {/* Pool stats */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <StatTile label="Entries" value={stats.total} />
+        <StatTile label="Matched" value={stats.matched} sub={`${coverage}% coverage`} />
+        <StatTile label="Leadinfo calls saved" value={stats.savedLeadinfoCalls} sub="first-party hits billed" />
+        <StatTile label="Freshness (shown)" value={`${stats.fresh}/${stats.stale}/${stats.expired}`} sub="fresh / stale / expired" />
+      </div>
+
       {/* Controls */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <input
@@ -97,7 +128,7 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
           {confirming ? (
             <>
-              <span style={{ fontSize: 12, color: "#b91c1c" }}>Clear the entire cache?</span>
+              <span style={{ fontSize: 12, color: "#b91c1c" }}>Clear the entire store?</span>
               <button
                 type="button"
                 onClick={clearCache}
@@ -121,7 +152,7 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
               onClick={() => { setStatus(null); setConfirming(true); }}
               className="rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
             >
-              Clear cache
+              Clear store
             </button>
           )}
         </div>
@@ -136,8 +167,8 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
       {/* Summary line */}
       <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
         Showing {filtered.length} of {initial.rows.length} loaded {initial.rows.length === 1 ? "entry" : "entries"}
-        {" "}({initial.matched} matched).
-        {initial.truncated && ` The cache holds ${initial.total} entries; only the ${initial.rows.length} most recent are shown.`}
+        {" "}({stats.matched} matched in the pool).
+        {initial.truncated && ` The store holds ${stats.total} entries; only the ${initial.rows.length} most recent are shown.`}
       </div>
 
       {/* Table */}
@@ -148,11 +179,11 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
             background: "#fafafa", textAlign: "center", fontSize: 13, color: "#9ca3af",
           }}
         >
-          The IP company cache is empty. It fills automatically as visitors are enriched.
+          The first-party company DB is empty. It fills automatically as visitors are enriched.
         </div>
       ) : (
         <div style={{ overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 10 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1040 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #e5e7eb", background: "#fafafa" }}>
                 <th style={th}>Company</th>
@@ -160,19 +191,26 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
                 <th style={th}>Industry</th>
                 <th style={th}>Size</th>
                 <th style={th}>Country</th>
-                <th style={th}>Region</th>
-                <th style={th}>City</th>
+                <th style={th}>Conf.</th>
+                <th style={th}>Source</th>
+                <th style={th}>Freshness</th>
+                <th style={th}>Verified</th>
                 <th style={th}>Matched</th>
-                <th style={th}>Refreshed</th>
+                <th style={th}>Raw</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => (
-                <RowView key={i} r={r} />
+              {filtered.map(({ r, i }) => (
+                <RowView
+                  key={i}
+                  r={r}
+                  expanded={expanded === i}
+                  onToggle={() => setExpanded(expanded === i ? null : i)}
+                />
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td style={{ ...td, color: "#9ca3af" }} colSpan={9}>No entries match the current filters.</td>
+                  <td style={{ ...td, color: "#9ca3af" }} colSpan={11}>No entries match the current filters.</td>
                 </tr>
               )}
             </tbody>
@@ -183,28 +221,64 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
   );
 }
 
-function RowView({ r }: { r: IpCacheEntry }) {
+function RowView({ r, expanded, onToggle }: { r: IpCacheEntry; expanded: boolean; onToggle: () => void }) {
+  const hasRaw = r.raw != null;
   return (
-    <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-      <td style={{ ...td, fontWeight: 600 }}>{dash(r.companyName)}</td>
-      <td style={td}>{dash(r.companyDomain)}</td>
-      <td style={td}>{dash(r.companyIndustry)}</td>
-      <td style={td}>{dash(r.companySize)}</td>
-      <td style={td}>{dash(r.countryCode)}</td>
-      <td style={td}>{dash(r.region)}</td>
-      <td style={td}>{dash(r.city)}</td>
-      <td style={td}>
-        <span
-          style={{
-            fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
-            color:      r.matched ? "#15803d" : "#6b7280",
-            background:  r.matched ? "#dcfce7" : "#f3f4f6",
-          }}
-        >
-          {r.matched ? "Yes" : "No"}
-        </span>
-      </td>
-      <td style={{ ...td, whiteSpace: "nowrap", color: "#6b7280" }}>{fmtDate(r.refreshedAt)}</td>
-    </tr>
+    <>
+      <tr style={{ borderBottom: expanded ? "none" : "1px solid #f1f5f9" }}>
+        <td style={{ ...td, fontWeight: 600 }}>{dash(r.companyName)}</td>
+        <td style={td}>{dash(r.companyDomain)}</td>
+        <td style={td}>{dash(r.companyIndustry)}</td>
+        <td style={td}>{dash(r.companySize)}</td>
+        <td style={td}>{dash(r.countryCode)}</td>
+        <td style={td}>{typeof r.confidence === "number" ? r.confidence.toFixed(2) : "-"}</td>
+        <td style={td}>{dash(r.source)}</td>
+        <td style={td}>
+          <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, ...FRESH_STYLE[r.freshness] }}>
+            {r.freshness}
+          </span>
+        </td>
+        <td style={{ ...td, whiteSpace: "nowrap", color: "#6b7280" }}>
+          {fmtDate(r.lastVerifiedAt)}
+          {r.verifyCount > 1 && <span style={{ color: "#9ca3af" }}> ×{r.verifyCount}</span>}
+        </td>
+        <td style={td}>
+          <span
+            style={{
+              fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+              color:      r.matched ? "#15803d" : "#6b7280",
+              background:  r.matched ? "#dcfce7" : "#f3f4f6",
+            }}
+          >
+            {r.matched ? "Yes" : "No"}
+          </span>
+        </td>
+        <td style={td}>
+          {hasRaw ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="rounded border border-neutral-300 px-2 py-0.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              {expanded ? "Hide" : "View"}
+            </button>
+          ) : "-"}
+        </td>
+      </tr>
+      {expanded && hasRaw && (
+        <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
+          <td style={{ ...td, padding: 0 }} colSpan={11}>
+            <pre
+              style={{
+                margin: 0, padding: "10px 14px", fontSize: 12, lineHeight: 1.5,
+                overflowX: "auto", color: "#374151", whiteSpace: "pre-wrap", wordBreak: "break-word",
+              }}
+            >
+              {JSON.stringify(r.raw, null, 2)}
+            </pre>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

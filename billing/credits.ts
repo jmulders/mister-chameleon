@@ -123,6 +123,7 @@ export const EVENT_CATEGORY: Record<UsageEventType, CreditCategory> = {
   reverse_geocode: "recognition",
   company_lookup:  "recognition",
   leadinfo_lookup: "recognition",
+  firstparty_company_lookup: "recognition",
 
   // Adaptation — choosing the right experience
   intent_enrich:   "adaptation",

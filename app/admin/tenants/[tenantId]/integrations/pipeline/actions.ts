@@ -19,6 +19,20 @@ import {
   getDefaultPipelineConfig,
   type PipelineStageDefinition,
 } from "@/lib/enrichment/pipeline-stage-registry";
+import {
+  getPlatformFirstPartyCompanySettings,
+  firstPartyCompanyFlags,
+} from "@/platform/platform-store";
+
+// ── First-party company-DB ToS toggles ────────────────────────────────────────
+//
+// Two independent per-tenant policy toggles, stored in tenant_pipeline_stages
+// under dedicated keys (NOT reorderable pipeline stages). Each is tri-state:
+//   • "inherit" — no DB row; falls back to the platform default.
+//   • "on"/"off"— a DB row overrides the platform default.
+const FIRSTPARTY_CONSUME_KEY    = "firstpartyConsume";
+const FIRSTPARTY_CONTRIBUTE_KEY = "firstpartyContribute";
+export type FirstPartyToggleState = "inherit" | "on" | "off";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,6 +65,100 @@ function makeClient() {
     process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
     { auth: { persistSession: false } },
   );
+}
+
+// ── First-party toggles: read + write ─────────────────────────────────────────
+
+export interface FirstPartyTogglesConfig {
+  tenantId:            string;
+  consume:            FirstPartyToggleState;
+  contribute:         FirstPartyToggleState;
+  /** Resolved platform defaults, shown as the "inherit" value. */
+  platformConsume:    boolean;
+  platformContribute: boolean;
+}
+
+export async function getFirstPartyTogglesAction(
+  tenantId: string,
+): Promise<FirstPartyTogglesConfig> {
+  await getRequiredAdminSession();
+
+  const db = makeClient();
+  const platformResult = await getPlatformFirstPartyCompanySettings();
+  const defaults = firstPartyCompanyFlags(platformResult.ok ? platformResult.data : {});
+
+  let consume:    FirstPartyToggleState = "inherit";
+  let contribute: FirstPartyToggleState = "inherit";
+  try {
+    const { data } = await db
+      .from("tenant_pipeline_stages")
+      .select("stage_key, enabled")
+      .eq("tenant_id", tenantId)
+      .in("stage_key", [FIRSTPARTY_CONSUME_KEY, FIRSTPARTY_CONTRIBUTE_KEY]);
+    for (const row of (data ?? []) as { stage_key: string; enabled: boolean }[]) {
+      const state: FirstPartyToggleState = row.enabled ? "on" : "off";
+      if (row.stage_key === FIRSTPARTY_CONSUME_KEY)    consume    = state;
+      if (row.stage_key === FIRSTPARTY_CONTRIBUTE_KEY) contribute = state;
+    }
+  } catch { /* table missing → inherit */ }
+
+  return {
+    tenantId,
+    consume,
+    contribute,
+    platformConsume:    defaults.consume,
+    platformContribute: defaults.contribute,
+  };
+}
+
+async function applyToggle(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db:       any,
+  tenantId: string,
+  stageKey: string,
+  state:    FirstPartyToggleState,
+): Promise<{ error?: { code?: string; message: string } }> {
+  if (state === "inherit") {
+    const { error } = await db
+      .from("tenant_pipeline_stages")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("stage_key", stageKey);
+    return { error: error ?? undefined };
+  }
+  const { error } = await db
+    .from("tenant_pipeline_stages")
+    .upsert(
+      { tenant_id: tenantId, stage_key: stageKey, position: 1, enabled: state === "on", updated_at: new Date().toISOString() },
+      { onConflict: "tenant_id,stage_key" },
+    );
+  return { error: error ?? undefined };
+}
+
+export async function saveFirstPartyTogglesAction(
+  tenantId:   string,
+  consume:    FirstPartyToggleState,
+  contribute: FirstPartyToggleState,
+): Promise<PipelineActionResult> {
+  await getRequiredAdminSession();
+  if (!tenantId) return { ok: false, error: "tenantId is required." };
+
+  const db = makeClient();
+  for (const [key, state] of [
+    [FIRSTPARTY_CONSUME_KEY, consume],
+    [FIRSTPARTY_CONTRIBUTE_KEY, contribute],
+  ] as const) {
+    const { error } = await applyToggle(db, tenantId, key, state);
+    if (error) {
+      if (error.code === "42P01") {
+        return { ok: false, error: "Pipeline stages table not found. Apply migration 090, then reload." };
+      }
+      return { ok: false, error: error.message };
+    }
+  }
+
+  revalidatePath(`/admin/tenants/${tenantId}/integrations/pipeline`);
+  return { ok: true };
 }
 
 // ── getPipelineConfig ─────────────────────────────────────────────────────────
@@ -187,11 +295,15 @@ export async function resetPipelineConfigAction(
 
   const db = makeClient();
 
-  // Delete all existing rows for this tenant
+  // Delete existing rows for this tenant — but only the reorderable pipeline
+  // stages. The first-party ToS toggles (firstpartyConsume / firstpartyContribute)
+  // are policy rows, not pipeline stages: a pipeline-order reset must not silently
+  // flip a tenant's data-sharing permissions.
   const { error: deleteError } = await db
     .from("tenant_pipeline_stages")
     .delete()
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .in("stage_key", PIPELINE_STAGE_REGISTRY.map((s) => s.key));
 
   if (deleteError) {
     console.error("[pipeline/actions] resetPipelineConfigAction delete error:", deleteError);

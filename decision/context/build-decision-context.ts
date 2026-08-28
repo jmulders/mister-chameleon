@@ -1174,6 +1174,34 @@ export async function buildDecisionContext(
             );
           }
         })();
+
+        // ── First-party company-DB hit billing ─────────────────────────────────
+        //
+        // A first-party hit is served from the shared pool instead of a paid
+        // Leadinfo call. It is billed separately and more cheaply here — it is
+        // deliberately NOT mapped to an event type in the pipeline trace, so the
+        // generic tracker above ignores it (no double billing). Detected via the
+        // "firstparty" source stamped by the first-party stage.
+        if (result.output?.companyMatchSource === "firstparty") {
+          const firstPartyCompany = result.output.companyName;
+          void (async () => {
+            try {
+              const { billFirstPartyCompanyHit } = await import("@/billing/firstparty-company-billing");
+              await billFirstPartyCompanyHit(bc, {
+                tenantId: billingTenantId,
+                ...(billingSessionId ? { sessionId: billingSessionId } : {}),
+                ...(firstPartyCompany ? { company: firstPartyCompany } : {}),
+                simulated: isDemoMode(),
+              });
+            } catch (err) {
+              console.error(
+                `[decision-billing] first-party billing THREW` +
+                ` | tenant=${billingTenantId ?? "?"}` +
+                ` | ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          })();
+        }
       } else if (!billingClient) {
         // billingClient was not provided — billing is disabled for this route.
         // Expected: admin pages, API handlers, and preview routes opt out.

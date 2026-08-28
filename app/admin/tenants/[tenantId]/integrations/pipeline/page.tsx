@@ -30,8 +30,9 @@
 import { notFound }                   from "next/navigation";
 import { getTenantById }               from "@/tenant/server";
 import { normalizeTenant }             from "@/tenant/normalize";
-import { getPipelineConfigAction }     from "./actions";
+import { getPipelineConfigAction, getFirstPartyTogglesAction } from "./actions";
 import { PipelineStageEditor }         from "./_components/PipelineStageEditor";
+import { FirstPartyToggles }           from "./_components/FirstPartyToggles";
 
 export default async function TenantPipelinePage({
   params,
@@ -47,6 +48,7 @@ export default async function TenantPipelinePage({
 
   // Load pipeline config (DB values merged with registry defaults)
   const pipelineConfig = await getPipelineConfigAction(tenantId);
+  const firstPartyToggles = await getFirstPartyTogglesAction(tenantId);
 
   return (
     <div className="max-w-3xl px-6 py-8">
@@ -75,6 +77,11 @@ export default async function TenantPipelinePage({
         tenantId={tenantId}
         initialConfig={pipelineConfig}
       />
+
+      {/* First-party company-DB ToS toggles */}
+      <div className="mt-8">
+        <FirstPartyToggles initial={firstPartyToggles} />
+      </div>
 
       {/* Runtime note */}
       <div className="mt-8 rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-500">
