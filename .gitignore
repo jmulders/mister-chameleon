@@ -57,3 +57,4 @@ next-env.d.ts
 
 # Standalone addon — has its own git repo
 /mister-chameleon-statamic
+.cbs-backfill-progress.json
