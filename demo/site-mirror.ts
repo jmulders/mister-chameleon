@@ -15,6 +15,7 @@
 
 import { getImagePool } from "./image-provider";
 import type { SiteCategory } from "./types";
+import { renderHtmlViaService, type RenderConfig } from "./site-render";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -34,7 +35,7 @@ export interface MirroredSite {
 
 // ── Public entry ──────────────────────────────────────────────────────────────
 
-export async function mirrorSite(rawUrl: string): Promise<MirroredSite> {
+export async function mirrorSite(rawUrl: string, render?: RenderConfig): Promise<MirroredSite> {
   const url = normalizeUrl(rawUrl);
 
   let html           = "";
@@ -42,12 +43,12 @@ export async function mirrorSite(rawUrl: string): Promise<MirroredSite> {
   let fetchSucceeded = false;
 
   try {
-    const result   = await fetchHtml(url);
+    const result   = await captureHtml(url, render);
     html           = result.html;
     finalUrl       = result.finalUrl;
     fetchSucceeded = true;
   } catch (err) {
-    console.warn("[demo/site-mirror] fetch failed", {
+    console.warn("[demo/site-mirror] capture failed", {
       url,
       error: err instanceof Error ? err.message : String(err),
     });
@@ -91,6 +92,37 @@ function extractDomainName(url: string): string {
   } catch {
     return url;
   }
+}
+
+// ── HTML capture (render-service first, plain fetch fallback) ─────────────────
+
+/**
+ * Capture the page HTML. When a JS-render service is configured, render the page
+ * with JavaScript (faithful for client-rendered sites) and fall back to a plain
+ * fetch if the service errors, times out, or returns unusable HTML — so demo
+ * generation never hard-fails on a render outage. With no service configured,
+ * this is exactly the previous plain-fetch behaviour.
+ */
+async function captureHtml(
+  url: string,
+  render?: RenderConfig,
+): Promise<{ html: string; finalUrl: string }> {
+  if (render && render.service !== "none") {
+    try {
+      const rendered = await renderHtmlViaService(url, render);
+      const html = rendered.html.length > MAX_HTML_BYTES
+        ? rendered.html.slice(0, MAX_HTML_BYTES)
+        : rendered.html;
+      return { html, finalUrl: rendered.finalUrl };
+    } catch (err) {
+      console.warn("[demo/site-mirror] render service failed, falling back to plain fetch", {
+        url, service: render.service,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // fall through to plain fetch
+    }
+  }
+  return fetchHtml(url);
 }
 
 // ── HTML fetcher ──────────────────────────────────────────────────────────────
