@@ -77,6 +77,25 @@ function stripSecrets(tenant: TenantSettings): TenantSettings {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// ── Page-level group heading ──────────────────────────────────────────────────
+// Segments the settings surface into a few scannable clusters. Layout only —
+// each panel keeps its own card + title; this just labels the groups above them.
+
+function GroupHeading({
+  title, description, divider,
+}: {
+  title: string;
+  description?: string;
+  divider?: boolean;
+}) {
+  return (
+    <div className={divider ? "mt-10 border-t border-neutral-200 pt-6" : ""}>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{title}</h2>
+      {description && <p className="mt-1 text-xs text-neutral-400">{description}</p>}
+    </div>
+  );
+}
+
 export default async function TenantSettingsPage({
   params,
 }: {
@@ -118,26 +137,43 @@ export default async function TenantSettingsPage({
         </p>
       </div>
 
-      <TenantSettingsForm
-        tenant={safeTenant}
-        existingKeys={existingKeys}
-        isSuperAdmin={adminIsSuper}
-        planFeatures={{
-          aiDecisioning: effectivePlan.features.aiPersonalization,
-          abExperiments: true,
-        }}
+      {/* ── Group: Configuration ──────────────────────────────────────────── */}
+      <GroupHeading
+        title="Configuration"
+        description="Identity, package, AI, CMS, features, and block entitlements."
       />
+      <div className="mt-4">
+        <TenantSettingsForm
+          tenant={safeTenant}
+          existingKeys={existingKeys}
+          isSuperAdmin={adminIsSuper}
+          planFeatures={{
+            aiDecisioning: effectivePlan.features.aiPersonalization,
+            abExperiments: true,
+          }}
+        />
+      </div>
 
-      {/* Self-service mode */}
-      <div className="mt-8">
+      {/* ── Group: Access ─────────────────────────────────────────────────── */}
+      <GroupHeading
+        title="Access"
+        description="Let the tenant manage their own workspace."
+        divider
+      />
+      <div className="mt-4">
         <SelfServiceToggle
           initialEnabled={selfServiceEnabled}
           setEnabledAction={boundSetSelfService}
         />
       </div>
 
-      {/* Data retention after termination */}
-      <div className="mt-8">
+      {/* ── Group: Data & lifecycle ───────────────────────────────────────── */}
+      <GroupHeading
+        title="Data & lifecycle"
+        description="Retention after termination, and destructive actions."
+        divider
+      />
+      <div className="mt-4">
         <RetentionPolicyPanel
           initialPolicy={retentionPolicy}
           setAction={boundSetRetention}
@@ -146,10 +182,12 @@ export default async function TenantSettingsPage({
 
       {/* Danger zone — super-admin only */}
       {adminIsSuper && (
-        <DeleteTenantPanel
-          tenantId={tenant.tenantId}
-          tenantName={tenant.name ?? ""}
-        />
+        <div className="mt-6">
+          <DeleteTenantPanel
+            tenantId={tenant.tenantId}
+            tenantName={tenant.name ?? ""}
+          />
+        </div>
       )}
 
     </div>
