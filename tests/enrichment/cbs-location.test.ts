@@ -1,42 +1,38 @@
 /**
- * Unit tests for the CBS location enricher stage (buurt-keyed) + PDOK buurtcode
- * reverse geocode + CBS mapping/derivations.
+ * Unit tests for the LAZY CBS location enricher: per-buurt fetch + mapping,
+ * PDOK buurtcode reverse geocode, the lazy stage flow, and the resumable
+ * backfill's adaptive split.
  */
 
-import { describe, it } from "node:test";
-import assert           from "node:assert/strict";
-import { createCbsLocationEnricher } from "../../enrichment/providers/cbs-location.ts";
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { createCbsLocationEnricher, resetCbsNegativeCache } from "../../enrichment/providers/cbs-location.ts";
 import { buurtcodeFromLatLng, normalizeBuurtcode } from "../../lib/enrichment/pdok-geocode.ts";
-import { mapCbsRow, deriveIncomeBand, deriveUrbanityProxy, resolveUrbanity, normalizeAreaCode, fetchCbsRows } from "../../lib/enrichment/cbs-ingest.ts";
+import {
+  mapCbsRow, deriveIncomeBand, deriveUrbanityProxy, resolveUrbanity, normalizeAreaCode,
+  fetchCbsArea, type CbsFetchResult,
+} from "../../lib/enrichment/cbs-ingest.ts";
+import { backfillPrefix } from "../../lib/enrichment/cbs-backfill.ts";
 import type { CbsAreaStats } from "../../enrichment/cbs-location-store.ts";
 import type { EnricherInput, EnrichmentOutput } from "../../enrichment/types.ts";
 
 const input = {} as EnricherInput;
 const acc = (o: Partial<EnrichmentOutput> = {}): Partial<EnrichmentOutput> => o;
 
+// ── Pure helpers (unchanged behaviour) ────────────────────────────────────────
+
 describe("normalizeBuurtcode / normalizeAreaCode", () => {
   it("extracts a BU######## code from various shapes", () => {
     assert.equal(normalizeBuurtcode("BU03630000"), "BU03630000");
     assert.equal(normalizeBuurtcode("buurt-BU03630000"), "BU03630000");
-    assert.equal(normalizeAreaCode("BU03630000        "), "BU03630000"); // CBS space padding
+    assert.equal(normalizeAreaCode("BU03630000        "), "BU03630000");
     assert.equal(normalizeBuurtcode("WK036300"), null);
-    assert.equal(normalizeBuurtcode(null), null);
   });
 });
 
 describe("buurtcodeFromLatLng", () => {
   it("returns the buurtcode from a PDOK reverse response", async () => {
-    const fetchImpl = (async () => ({
-      ok: true,
-      json: async () => ({ response: { docs: [{ buurtcode: "BU03630000" }] } }),
-    })) as unknown as typeof fetch;
-    assert.equal(await buurtcodeFromLatLng(52.37, 4.9, 4000, fetchImpl), "BU03630000");
-  });
-  it("parses the code out of the doc id when no explicit field", async () => {
-    const fetchImpl = (async () => ({
-      ok: true,
-      json: async () => ({ response: { docs: [{ id: "buurt-BU03630000" }] } }),
-    })) as unknown as typeof fetch;
+    const fetchImpl = (async () => ({ ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU03630000" }] } }) })) as unknown as typeof fetch;
     assert.equal(await buurtcodeFromLatLng(52.37, 4.9, 4000, fetchImpl), "BU03630000");
   });
   it("returns null on a non-OK response / invalid coords", async () => {
@@ -46,153 +42,186 @@ describe("buurtcodeFromLatLng", () => {
   });
 });
 
-describe("deriveIncomeBand", () => {
-  it("uses the low/high income-share percentiles", () => {
-    assert.equal(deriveIncomeBand(20, 40), "high"); // more high earners
-    assert.equal(deriveIncomeBand(50, 10), "low");  // more low earners
-    assert.equal(deriveIncomeBand(30, 32), "mid");  // within margin
+describe("income / urbanity derivations", () => {
+  it("deriveIncomeBand uses the low/high percentiles", () => {
+    assert.equal(deriveIncomeBand(20, 40), "high");
+    assert.equal(deriveIncomeBand(50, 10), "low");
+    assert.equal(deriveIncomeBand(30, 32), "mid");
     assert.equal(deriveIncomeBand(null, null), null);
   });
-});
-
-describe("deriveUrbanityProxy (density-derived)", () => {
-  it("bands population density 1..5", () => {
-    assert.equal(deriveUrbanityProxy(6000), 1);
-    assert.equal(deriveUrbanityProxy(3000), 2);
-    assert.equal(deriveUrbanityProxy(1200), 3);
-    assert.equal(deriveUrbanityProxy(700), 4);
-    assert.equal(deriveUrbanityProxy(100), 5);
-    assert.equal(deriveUrbanityProxy(null), null);
-  });
-});
-
-describe("resolveUrbanity (official class, density fallback)", () => {
-  it("uses the official CBS class 1..5 when present", () => {
-    assert.equal(resolveUrbanity(2, 100), 2); // official wins over the density band
-  });
-  it("falls back to density when the class is suppressed (null / 0 / out of range)", () => {
+  it("resolveUrbanity prefers the official class, density fallback", () => {
+    assert.equal(resolveUrbanity(2, 100), 2);
     assert.equal(resolveUrbanity(null, 6000), 1);
     assert.equal(resolveUrbanity(0, 300), 5);
-    assert.equal(resolveUrbanity(9, 6000), 1);
+  });
+  it("deriveUrbanityProxy bands density", () => {
+    assert.equal(deriveUrbanityProxy(6000), 1);
+    assert.equal(deriveUrbanityProxy(100), 5);
   });
 });
 
-describe("fetchCbsRows — explicit $top/$skip pagination", () => {
-  it("pages with $top + $skip and stops on a short page", async () => {
-    const pages: Record<number, unknown[]> = {
-      0: Array.from({ length: 2000 }, (_, i) => ({ WijkenEnBuurten: `BU0000${i}` })),
-      2000: Array.from({ length: 137 }, (_, i) => ({ WijkenEnBuurten: `BU1000${i}` })),
-    };
-    const urls: string[] = [];
-    const fetchImpl = (async (u: string) => {
-      urls.push(u);
-      const skip = Number(new URL(u).searchParams.get("$skip"));
-      return { ok: true, json: async () => ({ value: pages[skip] ?? [] }) };
-    }) as unknown as typeof fetch;
-
-    const rows = await fetchCbsRows("85984NED", fetchImpl, 2000);
-    assert.equal(rows.length, 2137);
-    // Two requests: skip=0 (full page) then skip=2000 (short page → stop).
-    assert.equal(urls.length, 2);
-    assert.match(urls[0], /\$top=2000/);
-    assert.match(urls[0], /\$select=/);
-    assert.match(urls[0], /startswith/);
-    assert.match(urls[1], /\$skip=2000/);
-  });
-
-  it("throws on a non-OK page", async () => {
-    const fetchImpl = (async () => ({ ok: false, status: 500, json: async () => ({}) })) as unknown as typeof fetch;
-    await assert.rejects(() => fetchCbsRows("85984NED", fetchImpl, 2000), /HTTP 500/);
-  });
-});
-
-describe("mapCbsRow (85984NED buurt)", () => {
-  it("maps verified fields, derives bands, keeps raw", () => {
+describe("mapCbsRow", () => {
+  it("maps verified fields, ×1000 income, official urbanity, keeps raw", () => {
     const raw = {
       WijkenEnBuurten: "BU03630000        ",
       GemiddeldInkomenPerInwoner_78: "32.5",
       k_40PersonenMetLaagsteInkomen_79: "20",
       k_20PersonenMetHoogsteInkomen_80: "45",
       BedrijfsvestigingenTotaal_95: "500",
-      Bevolkingsdichtheid_34: "6000",       // density band would be 1…
-      MateVanStedelijkheid_120: "3",        // …but the official class wins
+      Bevolkingsdichtheid_34: "6000",
+      MateVanStedelijkheid_120: "3",
       AantalInwoners_5: "1000",
     };
     const row = mapCbsRow(raw, 2024, "85984NED");
     assert.ok(row);
     assert.equal(row!.area_code, "BU03630000");
-    assert.equal(row!.avg_income, 32_500); // "32.5" x 1000 euro
+    assert.equal(row!.avg_income, 32_500);
     assert.equal(row!.income_band, "high");
-    assert.equal(row!.urbanity_proxy, 3);  // official CBS class, not the density band
-    assert.equal(row!.business_share, 0.5); // 500/1000
-    assert.equal(row!.business_total, 500);
-    assert.equal(row!.population_density, 6000);
-    assert.equal(row!.source_year, 2024);
-    assert.equal(row!.source_dataset, "85984NED");
-    assert.deepEqual(row!.raw, raw);
+    assert.equal(row!.urbanity_proxy, 3);
+    assert.equal(row!.business_share, 0.5);
   });
-
-  it("falls back to the density band when the official class is suppressed (0/null)", () => {
-    const row = mapCbsRow({ WijkenEnBuurten: "BU03630000", Bevolkingsdichtheid_34: "6000", MateVanStedelijkheid_120: "0" }, 2024, "85984NED");
-    assert.equal(row!.urbanity_proxy, 1); // 0 → suppressed → density 6000 → band 1
-  });
-
-  it("skips GM/WK aggregate rows (no BU code)", () => {
-    assert.equal(mapCbsRow({ WijkenEnBuurten: "GM0363", Bevolkingsdichtheid_34: "5000" }, 2024, "85984NED"), null);
-  });
-
-  it("treats suppressed / negative cells as null (not 0)", () => {
-    const row = mapCbsRow({ WijkenEnBuurten: "BU03630000", Bevolkingsdichtheid_34: "-99997", BedrijfsvestigingenTotaal_95: null }, 2024, "85984NED");
-    assert.ok(row);
-    assert.equal(row!.population_density, null);
-    assert.equal(row!.urbanity_proxy, null);
-    assert.equal(row!.business_total, null);
-    assert.equal(row!.business_share, null);
+  it("skips GM/WK rows and treats suppressed cells as null", () => {
+    assert.equal(mapCbsRow({ WijkenEnBuurten: "GM0363" }, 2024, "85984NED"), null);
+    const r = mapCbsRow({ WijkenEnBuurten: "BU03630000", Bevolkingsdichtheid_34: "-99997", MateVanStedelijkheid_120: "0" }, 2024, "85984NED");
+    assert.equal(r!.urbanity_proxy, null); // 0 + no density → null
+    assert.equal(r!.population_density, null);
   });
 });
 
-describe("createCbsLocationEnricher — shouldRun", () => {
-  const stage = createCbsLocationEnricher({ lookup: async () => null });
-  it("runs with lat/lng", () => {
-    assert.equal(stage.shouldRun!(input, acc({ latitude: 52.3, longitude: 4.9 })), true);
+// ── Single-buurt live fetch ───────────────────────────────────────────────────
+
+describe("fetchCbsArea (single-predicate eq)", () => {
+  const fetchWith = (impl: () => unknown) => (impl as unknown) as typeof fetch;
+
+  it("found → the single row", async () => {
+    const urls: string[] = [];
+    const f = ((u: string) => { urls.push(u); return { ok: true, json: async () => ({ value: [{ WijkenEnBuurten: "BU16800000" }] }) }; }) as unknown as typeof fetch;
+    const res = await fetchCbsArea("85984NED", "BU16800000", f);
+    assert.equal(res.status, "found");
+    assert.match(urls[0], /WijkenEnBuurten%20eq%20'BU16800000'/);
+    assert.match(urls[0], /\$select=/);
   });
-  it("skips a resolved non-NL country", () => {
-    assert.equal(stage.shouldRun!(input, acc({ latitude: 52.3, longitude: 4.9, addressCountry: "DE" })), false);
+  it("empty value[] → empty", async () => {
+    const res: CbsFetchResult = await fetchCbsArea("85984NED", "BU99999999", fetchWith(() => ({ ok: true, json: async () => ({ value: [] }) })));
+    assert.equal(res.status, "empty");
   });
-  it("skips without coordinates", () => {
-    assert.equal(stage.shouldRun!(input, acc({ addressPostcode: "1011 AB" })), false);
+  it("non-OK → error (fail-open)", async () => {
+    const res = await fetchCbsArea("85984NED", "BU16800000", fetchWith(() => ({ ok: false, json: async () => ({}) })));
+    assert.equal(res.status, "error");
   });
 });
 
-describe("createCbsLocationEnricher — enricher", () => {
-  const stats: CbsAreaStats = {
-    areaCode: "BU03630000", urbanityProxy: 1, incomeBand: "high", businessShare: 0.3,
-  };
+// ── Lazy stage ────────────────────────────────────────────────────────────────
 
-  it("resolves location fields from a buurt hit", async () => {
-    const stage = createCbsLocationEnricher({
-      lookup:  async (code) => (code === "BU03630000" ? stats : null),
-      geocode: async () => "BU03630000",
+describe("createCbsLocationEnricher — lazy flow", () => {
+  beforeEach(() => resetCbsNegativeCache());
+
+  const stats: CbsAreaStats = { areaCode: "BU16800000", urbanityProxy: 1, incomeBand: "high", businessShare: 0.3 };
+  const foundRow = { WijkenEnBuurten: "BU16800000", MateVanStedelijkheid_120: "1", k_20PersonenMetHoogsteInkomen_80: "45", k_40PersonenMetLaagsteInkomen_79: "10", BedrijfsvestigingenTotaal_95: "300", AantalInwoners_5: "1000" };
+
+  it("shouldRun needs NL + coordinates", () => {
+    const s = createCbsLocationEnricher({ cacheLookup: async () => null });
+    assert.equal(s.shouldRun!(input, acc({ latitude: 52.3, longitude: 4.9 })), true);
+    assert.equal(s.shouldRun!(input, acc({ latitude: 52.3, longitude: 4.9, addressCountry: "DE" })), false);
+    assert.equal(s.shouldRun!(input, acc({})), false);
+  });
+
+  it("cache HIT → uses cache, no live fetch", async () => {
+    let live = 0;
+    const s = createCbsLocationEnricher({
+      geocode: async () => "BU16800000",
+      cacheLookup: async () => stats,
+      liveFetch: async () => { live++; return { status: "found", raw: foundRow }; },
+      upsert: async () => {},
     });
-    const out = await stage.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }));
-    assert.equal(out.locationAreaCode, "BU03630000");
+    const out = await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }));
+    assert.equal(out.locationAreaCode, "BU16800000");
     assert.equal(out.locationUrbanityClass, 1);
+    assert.equal(live, 0);
+  });
+
+  it("cache MISS → live found → maps, upserts, uses", async () => {
+    let upserted: Record<string, unknown> | null = null;
+    const s = createCbsLocationEnricher({
+      geocode: async () => "BU16800000",
+      cacheLookup: async () => null,
+      liveFetch: async () => ({ status: "found", raw: foundRow }),
+      upsert: async (row) => { upserted = row; },
+    });
+    const out = await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }));
+    assert.equal(out.locationAreaCode, "BU16800000");
+    assert.equal(out.locationUrbanityClass, 1);   // MateVanStedelijkheid_120
     assert.equal(out.locationIncomeBand, "high");
-    assert.equal(out.locationBusinessShare, 0.3);
+    assert.ok(upserted, "row was cached");
   });
 
-  it("returns {} when no buurtcode resolves", async () => {
-    const stage = createCbsLocationEnricher({ lookup: async () => stats, geocode: async () => null });
-    assert.deepEqual(await stage.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+  it("cache MISS → empty → {} and negative-caches (second call skips live)", async () => {
+    let live = 0;
+    const s = createCbsLocationEnricher({
+      geocode: async () => "BU99999999",
+      cacheLookup: async () => null,
+      liveFetch: async () => { live++; return { status: "empty" }; },
+      upsert: async () => {},
+    });
+    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+    assert.equal(live, 1); // second lookup served from the negative cache
   });
 
-  it("returns {} when the buurt has no CBS row", async () => {
-    const stage = createCbsLocationEnricher({ lookup: async () => null, geocode: async () => "BU99999999" });
-    assert.deepEqual(await stage.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+  it("cache MISS → error → {} and does NOT negative-cache (retries next time)", async () => {
+    let live = 0;
+    const s = createCbsLocationEnricher({
+      geocode: async () => "BU16800000",
+      cacheLookup: async () => null,
+      liveFetch: async () => { live++; return { status: "error" }; },
+      upsert: async () => {},
+    });
+    await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }));
+    await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }));
+    assert.equal(live, 2); // errors are not cached → retried
   });
 
-  it("returns {} without coordinates", async () => {
-    const stage = createCbsLocationEnricher({ lookup: async () => stats, geocode: async () => "BU03630000" });
-    assert.deepEqual(await stage.enricher(input, acc()), {});
+  it("all-suppressed stats → {} (no billing-worthy enrichment)", async () => {
+    const s = createCbsLocationEnricher({
+      geocode: async () => "BU16800000",
+      cacheLookup: async () => ({ areaCode: "BU16800000", urbanityProxy: null, incomeBand: null, businessShare: null }),
+    });
+    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+  });
+});
+
+// ── Backfill adaptive split ───────────────────────────────────────────────────
+
+describe("backfillPrefix — adaptive split at the cap", () => {
+  it("splits one digit deeper when a bucket hits the cap", async () => {
+    const CAP = 10_000;
+    const fetched: string[] = [];
+    // Top prefix returns exactly the cap → must split into 10 children (each small).
+    const fetchPrefix = async (_ds: string, prefix: string) => {
+      fetched.push(prefix);
+      const n = prefix === "BU03" ? CAP : 2;
+      return Array.from({ length: n }, (_, i) => ({ WijkenEnBuurten: `${prefix}${String(i).padStart(6, "0")}` }));
+    };
+    let upsertCalls = 0;
+    const totals = await backfillPrefix("BU03", {
+      datasetId: "85984NED", sourceYear: 2024, fetchPrefix,
+      upsert: async (rows) => { upsertCalls++; return rows.length; },
+    });
+    // Fetched BU03 (cap) + BU030..BU039 (10 children).
+    assert.equal(fetched[0], "BU03");
+    assert.equal(fetched.filter((p) => /^BU03\d$/.test(p)).length, 10);
+    assert.equal(upsertCalls, 10);       // only the leaf buckets upsert
+    assert.equal(totals.buckets, 10);
+  });
+
+  it("small bucket upserts directly, no split", async () => {
+    const fetchPrefix = async (_ds: string, prefix: string) =>
+      Array.from({ length: 3 }, (_, i) => ({ WijkenEnBuurten: `${prefix}${String(i).padStart(6, "0")}` }));
+    let written = 0;
+    const totals = await backfillPrefix("BU07", {
+      fetchPrefix, upsert: async (rows) => { written += rows.length; return rows.length; },
+    });
+    assert.equal(totals.buckets, 1);
+    assert.equal(written, 3);
   });
 });

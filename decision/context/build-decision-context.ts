@@ -1202,6 +1202,33 @@ export async function buildDecisionContext(
             }
           })();
         }
+
+        // ── First-party location lookup billing ────────────────────────────────
+        //
+        // A resolved buurt is served from our own cbs_area_stats store, so it is
+        // billed here (cache_hit=true + a small credit), NOT via the generic
+        // tracker (the "CBS Location" stage is mapped to null). Detected via the
+        // locationAreaCode the stage stamps on a successful resolution.
+        if (result.output?.locationAreaCode) {
+          const areaCode = result.output.locationAreaCode;
+          void (async () => {
+            try {
+              const { billLocationLookup } = await import("@/billing/location-billing");
+              await billLocationLookup(bc, {
+                tenantId: billingTenantId,
+                ...(billingSessionId ? { sessionId: billingSessionId } : {}),
+                areaCode,
+                simulated: isDemoMode(),
+              });
+            } catch (err) {
+              console.error(
+                `[decision-billing] location billing THREW` +
+                ` | tenant=${billingTenantId ?? "?"}` +
+                ` | ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          })();
+        }
       } else if (!billingClient) {
         // billingClient was not provided — billing is disabled for this route.
         // Expected: admin pages, API handlers, and preview routes opt out.

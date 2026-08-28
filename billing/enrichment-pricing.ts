@@ -274,10 +274,8 @@ export const STAGE_LABEL_TO_EVENT_TYPE: Record<string, UsageEventType | null> = 
 
   "GA4 History":              "ga4_history",
 
-  // First-party location enricher — CBS PC4 open-data stats.
-  "CBS Location":             "location_lookup",
-
-  // ── Not billable ───────────────────────────────────────────────────────────
+  // ── Not billable via the generic tracker ────────────────────────────────────
+  "CBS Location":             null,   // First-party location — billed separately (billing/location-billing.ts)
   "IP Classification":        null,   // In-process ASN/org pattern matching
   "Cloud Detection":          null,   // In-process ASN/org pattern matching
   "geo:headers":              null,   // CDN header parsing, no external I/O
