@@ -31,6 +31,15 @@ export interface RenderConfig {
 export const DEFAULT_RENDER_TIMEOUT_MS = 25_000;
 
 /**
+ * Max render timeout. Kept safely under the mirror function's maxDuration (60s):
+ * renderHtmlViaService adds a +3s guard and the rest of the request (analyze, AI
+ * slots, store) needs headroom, so a render can't run longer than ~45s or Vercel
+ * would kill the function before the render's own timeout fires.
+ */
+export const MAX_RENDER_TIMEOUT_MS = 45_000;
+export const MIN_RENDER_TIMEOUT_MS = 5_000;
+
+/**
  * Default Chromium pack URL for @sparticuz/chromium-min. MUST match the installed
  * @sparticuz/chromium-min major (131.x here). Override per environment via
  * CHROMIUM_PACK_URL.
@@ -73,7 +82,7 @@ export async function resolveRenderConfig(
       .maybeSingle();
     const value = (data?.value ?? {}) as { renderEnabled?: unknown; renderTimeoutMs?: unknown };
     if (value.renderEnabled === true) enabled = true;
-    if (typeof value.renderTimeoutMs === "number" && value.renderTimeoutMs >= 5_000 && value.renderTimeoutMs <= 60_000) {
+    if (typeof value.renderTimeoutMs === "number" && value.renderTimeoutMs >= MIN_RENDER_TIMEOUT_MS && value.renderTimeoutMs <= MAX_RENDER_TIMEOUT_MS) {
       timeoutMs = value.renderTimeoutMs;
     }
   } catch {

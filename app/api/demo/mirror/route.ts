@@ -15,7 +15,7 @@
  *
  * ─── Auth ─────────────────────────────────────────────────────────────────────
  *
- *   Requires a valid mc_admin_token session cookie (same as /api/demo/generate).
+ *   Requires a valid mc_admin_token session cookie.
  *
  * ─── Site key ─────────────────────────────────────────────────────────────────
  *
@@ -42,7 +42,7 @@ import type { DemoScenario }               from "@/demo/types";
 // budget, and more memory. Cold starts are fine — demos run occasionally. Memory
 // is set in vercel.json (functions), which route exports cannot express.
 export const runtime     = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 export const dynamic     = "force-dynamic";
 
 // ── Demo site key ─────────────────────────────────────────────────────────────

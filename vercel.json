@@ -3,8 +3,8 @@
   "regions": ["fra1"],
   "functions": {
     "app/api/demo/mirror/route.ts": {
-      "memory": 1024,
-      "maxDuration": 30
+      "memory": 1600,
+      "maxDuration": 60
     }
   },
   "crons": [

@@ -16,11 +16,6 @@ import type {
   DemoScenarioId,
   DemoExperience,
   DemoVisitorContext,
-  ScenarioOverride,
-  ServiceCard,
-  ProofMetric,
-  Testimonial,
-  PricingTier,
 } from "./types";
 
 // ── Public exports ────────────────────────────────────────────────────────────
