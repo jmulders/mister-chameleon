@@ -155,13 +155,16 @@ function ChecklistTab({ checks, data }: { checks: DeploymentCheck[]; data: Deplo
         </p>
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-neutral-600 mb-1">Apply database migrations:</p>
+            <p className="text-xs text-neutral-600 mb-1">Apply database migrations (records each file in public._migrations):</p>
             <div className="flex items-center gap-2">
               <code className="text-xs font-mono bg-neutral-900 text-green-300 rounded px-2 py-1">
-                supabase db push
+                npm run db:migrate
               </code>
-              <CopyButton text="supabase db push" />
+              <CopyButton text="npm run db:migrate" />
             </div>
+            <p className="text-[11px] text-neutral-400 mt-1">
+              The CI <code className="font-mono">supabase db push</code> job is known-broken; migrations are applied manually with this command.
+            </p>
           </div>
           <div>
             <p className="text-xs text-neutral-600 mb-1">Seed Sanity CMS shared content (optional):</p>
@@ -381,11 +384,12 @@ function GuideTab() {
       title: "Apply database migrations",
       content: (
         <div className="space-y-2 text-sm text-neutral-600">
-          <p>Link your Supabase project and push all migrations:</p>
-          <CodeBlock>{"# Link to your remote Supabase project\nsupabase link --project-ref YOUR_PROJECT_REF\n\n# Apply all migrations in supabase/migrations/\nsupabase db push"}</CodeBlock>
+          <p>Apply all pending migrations. This runs each file in <code>supabase/migrations/</code> in order and records it in <code>public._migrations</code> so it is applied exactly once:</p>
+          <CodeBlock>{"npm run db:migrate"}</CodeBlock>
           <p className="text-xs text-neutral-500">
-            Find your project ref at <strong>app.supabase.com → Settings → General → Reference ID</strong>.
-            Alternatively, paste each <code>.sql</code> file from <code>supabase/migrations/</code> into the Supabase SQL editor in order.
+            Requires <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code> and <code>SUPABASE_ACCESS_TOKEN</code> in <code>.env.local</code>.
+            The CI <code>supabase db push</code> job is known-broken — always migrate with <code>npm run db:migrate</code>.
+            For a single hard-to-run migration, paste its <code>.sql</code> from <code>supabase/migrations/</code> (or the matching file in <code>docs/prod-sql/</code>) into the Supabase SQL editor and add a <code>public._migrations</code> row with its filename.
           </p>
         </div>
       ),
@@ -438,21 +442,28 @@ function GuideTab() {
     },
     {
       num:   "8",
-      title: "Set up automated backups (optional)",
+      title: "Scheduled jobs & backups",
       content: (
         <div className="space-y-2 text-sm text-neutral-600">
           <p>
-            Add a Vercel Cron Job in <code>vercel.json</code> to run daily backups:
+            <code>vercel.json</code> registers a single daily cron, <code>/api/cron/daily</code> (03:00 UTC), which
+            fans out — in order — to the individual jobs:
           </p>
-          <CodeBlock>{`{
-  "crons": [{
-    "path": "/api/cron/backup",
-    "schedule": "0 3 * * *"
-  }]
-}`}</CodeBlock>
+          <CodeBlock>{`/api/cron/billing-renewal
+/api/cron/subscription-reconcile
+/api/cron/form-submission-purge
+/api/cron/visitor-profile-purge
+/api/cron/ip-company-cache-purge
+/api/cron/ad-sync
+/api/cron/ad-billing`}</CodeBlock>
           <p className="text-xs text-neutral-500">
-            Or run <code>npm run backup:no-sanity</code> manually from your local machine whenever needed.
-            Backup files are stored in the <code>backups/</code> directory or R2 when configured.
+            One cron keeps us within the Vercel plan limit; each endpoint stays independently invokable (the “Run” button
+            in Vercel, or manually) and is authenticated with <code>CRON_SECRET</code>.
+          </p>
+          <p className="text-xs text-neutral-500">
+            <strong>Backups are not a cron</strong> — run <code>npm run backup:no-sanity</code> manually (or from the
+            System page → Backup). The CBS location table is filled lazily on demand and, optionally, via
+            <code> npm run cbs:backfill</code> (a separate throttled, resumable job — not part of the daily cron).
           </p>
         </div>
       ),

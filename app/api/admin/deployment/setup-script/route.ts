@@ -91,12 +91,13 @@ fi
 
 # ── Step 3 — Apply database migrations ───────────────────────────────────────
 log "Step 3/8 — Applying database migrations…"
-warn "This will push all pending migrations to your linked Supabase project."
+warn "This applies pending migrations from supabase/migrations/ and records each"
+warn "in public._migrations. (The CI 'supabase db push' job is known-broken.)"
 warn "Irreversible on production — make sure you have a backup first."
 echo ""
 
-if confirm "Run 'supabase db push' now?"; then
-  supabase db push
+if confirm "Run 'npm run db:migrate' now?"; then
+  npm run db:migrate
   ok "Migrations applied"
 fi
 
