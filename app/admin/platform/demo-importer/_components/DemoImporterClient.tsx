@@ -42,7 +42,6 @@ interface DemoImporterClientProps {
   settings:          DemoImporterSettings | null;
   settingsUpdatedAt: string | null;
   settingsError:     string | null;
-  renderApiKeyPresent: boolean;
 }
 
 // ── Root component ────────────────────────────────────────────────────────────
@@ -52,7 +51,6 @@ export function DemoImporterClient({
   settings,
   settingsUpdatedAt,
   settingsError,
-  renderApiKeyPresent,
 }: DemoImporterClientProps) {
   return (
     <div className="space-y-8">
@@ -68,7 +66,7 @@ export function DemoImporterClient({
 
       {settings && (
         <>
-          <BehaviorSettings initial={settings} updatedAt={settingsUpdatedAt} renderApiKeyPresent={renderApiKeyPresent} />
+          <BehaviorSettings initial={settings} updatedAt={settingsUpdatedAt} />
           <OutputDefaults   initial={settings} updatedAt={settingsUpdatedAt} />
         </>
       )}
@@ -280,11 +278,9 @@ function ProviderCard({ provider: p }: { provider: ProviderInfo }) {
 function BehaviorSettings({
   initial,
   updatedAt,
-  renderApiKeyPresent,
 }: {
   initial:   DemoImporterSettings;
   updatedAt: string | null;
-  renderApiKeyPresent: boolean;
 }) {
   const [settings, setSettings]     = useState(initial);
   const [saveState, setSaveState]   = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -305,7 +301,7 @@ function BehaviorSettings({
         followNavLinks:       settings.followNavLinks,
         maxPages:             settings.maxPages,
         detectColors:         settings.detectColors,
-        renderService:        settings.renderService,
+        renderEnabled:        settings.renderEnabled,
         renderTimeoutMs:      settings.renderTimeoutMs,
       });
       if (result.ok) {
@@ -392,63 +388,36 @@ function BehaviorSettings({
           onChange={() => toggle("detectColors")}
         />
 
-        {/* ── Mirror rendering ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <div className="min-w-0 pr-4">
-            <p className="text-sm font-medium text-neutral-800">JavaScript rendering</p>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              Render the prospect page with a headless browser so client-rendered sites mirror faithfully.
-              Falls back to a plain fetch on error.
-            </p>
-          </div>
-          <select
-            value={settings.renderService}
-            onChange={(e) => {
-              const v = e.target.value === "scrapingbee" ? "scrapingbee" : "none";
-              setSettings((s) => ({ ...s, renderService: v }));
-              setSaveState("idle");
-            }}
-            className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none"
-          >
-            <option value="none">Off (plain fetch)</option>
-            <option value="scrapingbee">ScrapingBee</option>
-          </select>
-        </div>
+        {/* ── Mirror JS-rendering (self-hosted headless Chrome) ─────────────── */}
+        <ToggleRow
+          label="JavaScript rendering"
+          note="Render the prospect page with a self-hosted headless Chrome so client-rendered sites mirror faithfully. Falls back to a plain fetch on error/timeout."
+          checked={settings.renderEnabled}
+          onChange={() => toggle("renderEnabled")}
+        />
 
-        {settings.renderService === "scrapingbee" && (
-          <>
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <div className="min-w-0 pr-4">
-                <p className="text-sm font-medium text-neutral-800">Render timeout (ms)</p>
-                <p className="text-xs text-neutral-400 mt-0.5">
-                  Max time to wait for the render (5000–60000). JS rendering needs longer than a plain fetch.
-                </p>
-              </div>
-              <input
-                type="number"
-                min={5_000}
-                max={60_000}
-                step={1_000}
-                value={settings.renderTimeoutMs}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  if (!isNaN(v)) setSettings((s) => ({ ...s, renderTimeoutMs: v }));
-                  setSaveState("idle");
-                }}
-                className="w-24 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none"
-              />
-            </div>
-            <div className="px-5 py-3.5">
-              <p className="text-xs text-neutral-500">
-                API key (<code>SCRAPINGBEE_API_KEY</code> env var):{" "}
-                {renderApiKeyPresent ? (
-                  <span className="font-medium text-green-700">configured ✓</span>
-                ) : (
-                  <span className="font-medium text-amber-700">not configured — rendering stays off until the env var is set</span>
-                )}
+        {settings.renderEnabled && (
+          <div className="flex items-center justify-between px-5 py-3.5">
+            <div className="min-w-0 pr-4">
+              <p className="text-sm font-medium text-neutral-800">Render timeout (ms)</p>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Max time to wait for the render (5000–60000). JS rendering needs longer than a plain fetch.
               </p>
             </div>
-          </>
+            <input
+              type="number"
+              min={5_000}
+              max={60_000}
+              step={1_000}
+              value={settings.renderTimeoutMs}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v)) setSettings((s) => ({ ...s, renderTimeoutMs: v }));
+                setSaveState("idle");
+              }}
+              className="w-24 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none"
+            />
+          </div>
         )}
 
       </div>
