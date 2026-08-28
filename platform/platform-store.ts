@@ -853,6 +853,7 @@ const KEYS = {
   github:          "github",
   ploi:            "ploi",
   adPricing:       "ad_pricing",
+  firstpartyCompanyDb: "firstparty_company_db",
 } as const;
 
 // ── Generic read / write ───────────────────────────────────────────────────────
@@ -1348,6 +1349,53 @@ export function openKvKFlags(settings: PlatformOpenKvKSettings): {
     mode:                settings.mode                ?? "off",
     confidenceThreshold: settings.confidenceThreshold ?? 0.5,
     matchingStrategy:    settings.matchingStrategy    ?? "networkOrg",
+  };
+}
+
+// ── First-party company DB ──────────────────────────────────────────────────────
+
+/**
+ * Platform defaults for the durable, cross-tenant first-party company DB
+ * (ip_company_cache). Per-tenant overrides live in `tenant_pipeline_stages`
+ * (stage keys `firstpartyConsume` / `firstpartyContribute`). All fields
+ * non-secret.
+ */
+export interface PlatformFirstPartyCompanySettings {
+  /** Default READ allowance (may a tenant read the shared pool). Default true. */
+  consume?:             boolean;
+  /** Default WRITE allowance (may a tenant warm the shared pool). Default true. */
+  contribute?:          boolean;
+  /** Minimum confidence for a first-party hit to skip paid providers. Default 0.6. */
+  confidenceThreshold?: number;
+}
+
+/** Read the platform first-party company-DB defaults. All fields are non-secret. */
+export async function getPlatformFirstPartyCompanySettings(): Promise<SettingsResult<PlatformFirstPartyCompanySettings>> {
+  return readSection<PlatformFirstPartyCompanySettings>(KEYS.firstpartyCompanyDb);
+}
+
+/** Persist platform first-party company-DB defaults. All fields non-secret. */
+export async function savePlatformFirstPartyCompanySettings(
+  patch: PlatformFirstPartyCompanySettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const normalized: Record<string, unknown> = {
+    ...(patch.consume             !== undefined ? { consume:             patch.consume             } : {}),
+    ...(patch.contribute          !== undefined ? { contribute:          patch.contribute          } : {}),
+    ...(patch.confidenceThreshold !== undefined ? { confidenceThreshold: patch.confidenceThreshold } : {}),
+  };
+  return writeSection<Record<string, unknown>>(KEYS.firstpartyCompanyDb, normalized);
+}
+
+/** Resolved first-party defaults with fallbacks applied. */
+export function firstPartyCompanyFlags(settings: PlatformFirstPartyCompanySettings): {
+  consume:             boolean;
+  contribute:          boolean;
+  confidenceThreshold: number;
+} {
+  return {
+    consume:             settings.consume             ?? true,
+    contribute:          settings.contribute          ?? true,
+    confidenceThreshold: settings.confidenceThreshold ?? 0.6,
   };
 }
 

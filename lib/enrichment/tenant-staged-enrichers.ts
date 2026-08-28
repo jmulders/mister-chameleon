@@ -23,6 +23,8 @@ import {
   getPlatformGa4HistorySettings,
   getPlatformHolidaySettings,
   getPlatformMaxMindSettings,
+  getPlatformFirstPartyCompanySettings,
+  firstPartyCompanyFlags,
 } from "@/platform/platform-store";
 import { getTenantPipelineStages } from "@/tenant/server";
 import { buildCompanyCrmChain, type StagedEnricher } from "@/enrichment";
@@ -64,6 +66,7 @@ export async function buildTenantStagedEnrichers(
       platformGa4HistoryResult,
       platformHolidayResult,
       platformMaxMindResult,
+      platformFirstPartyResult,
     ],
     tenantPipelineStages,
   ] = await Promise.all([
@@ -76,6 +79,7 @@ export async function buildTenantStagedEnrichers(
       getPlatformGa4HistorySettings(),
       getPlatformHolidaySettings(),
       getPlatformMaxMindSettings(),
+      getPlatformFirstPartyCompanySettings(),
     ] as const),
     getTenantPipelineStages(tenantId),
   ]);
@@ -95,6 +99,7 @@ export async function buildTenantStagedEnrichers(
   const platformGa4History     = platformGa4HistoryResult.ok     ? platformGa4HistoryResult.data     : {};
   const platformHolidays       = platformHolidayResult.ok        ? platformHolidayResult.data        : {};
   const platformMaxMind        = platformMaxMindResult.ok        ? platformMaxMindResult.data        : {};
+  const firstPartyDefaults     = firstPartyCompanyFlags(platformFirstPartyResult.ok ? platformFirstPartyResult.data : {});
 
   // ── GA4 credential resolution ─────────────────────────────────────────────
   const ga4ServiceAccount =
@@ -153,6 +158,13 @@ export async function buildTenantStagedEnrichers(
     // `tenant.leadinfo.enabled` drives the client-side ping.js dashboard tracking.
     enableLeadinfo:              pipelineEnabled("leadinfo",
                                    tenant?.enrichment?.useLeadinfo ?? false),
+    // First-party company DB — two independent per-tenant ToS gates, defaulting
+    // to the platform-wide settings. READ (consume) governs whether the shared
+    // pool may be read to skip a paid Leadinfo call; WRITE (contribute) governs
+    // whether this tenant's Leadinfo results warm the shared pool.
+    enableFirstPartyConsume:     pipelineEnabled("firstpartyConsume", firstPartyDefaults.consume),
+    enableFirstPartyContribute:  pipelineEnabled("firstpartyContribute", firstPartyDefaults.contribute),
+    firstPartyConfidenceThreshold: firstPartyDefaults.confidenceThreshold,
     hubspotAccessToken:          (platformCrm as { accessToken?: string }).accessToken || undefined,
     enableHubSpot:               pipelineEnabled("hubspot",
                                    tenant?.crm?.useCrmEnrichment ?? false),

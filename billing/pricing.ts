@@ -84,6 +84,14 @@ export const CREDIT_PRICING_DEFAULTS: Record<string, StaticPricingEntry> = {
     billing_unit:         "per_call",
     description:          "B2B company identification via Leadinfo client-side identify flow",
   },
+  firstparty_company_lookup: {
+    feature_key:          "firstparty_company_lookup",
+    category:             "recognition",
+    customer_price_cents: 1,
+    internal_cost_cents:  0,
+    billing_unit:         "per_call",
+    description:          "First-party company DB hit — served from the shared pool, no paid identify",
+  },
 
   // ── Adaptation (3 credits / call) ───────────────────────────────────────────
   intent_enrich: {
@@ -280,6 +288,31 @@ export async function getAllEnrichmentPricing(
     console.warn("[billing/pricing] getAllEnrichmentPricing unexpected error", err);
     return [];
   }
+}
+
+/**
+ * Resolve the admin-editable credit cost for one enrichment type.
+ *
+ * Source priority (the single pricing helper both the Leadinfo route and the
+ * first-party billing use, so charges route through the same DB-editable table):
+ *   1. enrichment_pricing.credit_cost from the DB (admin-editable, authoritative).
+ *   2. `staticFallback` — the compiled default (caller supplies it, typically
+ *      getStaticCustomerPrice(featureKey)) when the DB is empty or unreachable.
+ *
+ * Never throws.
+ */
+export async function resolveCreditCost(
+  client: SupabaseClient,
+  enrichmentType: string,
+  staticFallback: number,
+): Promise<number> {
+  try {
+    const rows = await getAllEnrichmentPricing(client);
+    const row  = rows.find((r) => r.enrichment_type === enrichmentType);
+    const dbCost = Number(row?.credit_cost);
+    if (Number.isFinite(dbCost) && dbCost > 0) return dbCost;
+  } catch { /* fall through to the static fallback */ }
+  return staticFallback;
 }
 
 /**
