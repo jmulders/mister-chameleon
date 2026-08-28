@@ -63,7 +63,7 @@ import { Header, Footer } from "@/components/layout";
 import { PreviewBar } from "@/components/preview/PreviewBar";
 import { StatamicPreviewWatcher } from "@/components/preview/StatamicPreviewWatcher";
 import { ScenarioControlMount } from "@/components/scenario/ScenarioControlMount";
-import type { TenantScenarioPanelSettings } from "@/tenant/types";
+import type { TenantScenarioPanelSettings, TenantScenarioPreset } from "@/tenant/types";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
 import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
@@ -103,6 +103,7 @@ export default async function SiteLayout({
   // so it never appears unintentionally on a live tenant.
   let showScenarioControl = false;
   let scenarioPanel: TenantScenarioPanelSettings | null = null;
+  let scenarioPresets: readonly TenantScenarioPreset[] | null = null;
   if (tenantId !== "unknown") {
     try {
       const settings = await getTenantById(tenantId);
@@ -110,6 +111,9 @@ export default async function SiteLayout({
       // Per-tenant curation of what the console offers (presets/roles/time).
       // Absent → null → the panel shows the full built-in lists (current default).
       scenarioPanel = settings?.scenarioPanel ?? null;
+      // Per-tenant custom presets (personas), merged into Quick presets. Fail-open
+      // normalisation happens client-side in the panel.
+      scenarioPresets = settings?.scenarioPresets ?? null;
     } catch {
       // Non-fatal — leave the console off when settings can't be read.
     }
@@ -198,7 +202,7 @@ export default async function SiteLayout({
         mounted it still self-guards client-side (dev / NEXT_PUBLIC_SHOW_SCENARIO_PANEL=1
         / ?scenario=true, plus auto-open on an active scenario).
       */}
-      {showScenarioControl && <ScenarioControlMount scenarioPanel={scenarioPanel} />}
+      {showScenarioControl && <ScenarioControlMount scenarioPanel={scenarioPanel} scenarioPresets={scenarioPresets} />}
       {/*
         PageTracker fires a `page_view` event on every client-side route change.
         Placed in the shared layout so it runs on ALL (site) pages — homepage,

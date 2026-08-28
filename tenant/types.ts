@@ -2117,12 +2117,35 @@ export interface TenantBrandingSettings {
  * ignored at render time (fail-open). Filters preserve the source list's order.
  */
 export interface TenantScenarioPanelSettings {
-  /** Context-tab "Quick presets" — subset of SCENARIO_PRESETS keys. */
+  /** Context-tab "Quick presets" — subset of SCENARIO_PRESETS keys (incl. custom). */
   readonly presetKeys?:  readonly string[];
   /** Demo-tab "Who are you?" — subset of ROLES / demo-context-set keys. */
   readonly roleKeys?:    readonly string[];
   /** Demo-tab "Simulate time" — subset of the time options. */
   readonly timeOptions?: readonly ("day" | "evening" | "weekend")[];
+}
+
+/**
+ * A per-tenant CUSTOM scenario preset (persona) the operator defined in the admin.
+ * Shown in the Scenario Control panel's "Quick presets" next to the built-in ones,
+ * and curatable via TenantScenarioPanelSettings.presetKeys.
+ *
+ * `overrides` is a loose JSONB bag of ScenarioOverrides fields (the demo simulates
+ * this context through the real engine); it is normalised/validated at the panel
+ * boundary (fail-open — an invalid preset is ignored, never breaking the panel).
+ * `key` is auto-namespaced ("custom_<uuid>") so it can never collide with a
+ * built-in preset key. Purely demo config: no decision/personalisation impact.
+ */
+export interface TenantScenarioPreset {
+  /** Auto-generated unique key, e.g. "custom_ab12…". Never collides with built-ins. */
+  readonly key:   string;
+  readonly label: string;
+  /** Emoji for the badge; defaults to "⭐" in the panel when absent. */
+  readonly icon?:  string;
+  /** Badge colour family; defaults to "purple" when absent/invalid. */
+  readonly color?: string;
+  /** ScenarioOverrides subset (simulated context signals) this preset sets. */
+  readonly overrides: Readonly<Record<string, unknown>>;
 }
 
 export interface TenantDesignSettings {
@@ -2725,6 +2748,14 @@ export interface TenantSettings {
    * full hardcoded list (current behaviour). Pure demo config — no decision impact.
    */
   readonly scenarioPanel?: TenantScenarioPanelSettings;
+
+  /**
+   * Per-tenant CUSTOM scenario presets (personas) defined in the admin, merged
+   * into the Scenario Control panel's "Quick presets" next to the built-in ones.
+   * Optional; absent/empty → only the built-in presets show. Pure demo config —
+   * no decision/personalisation impact. Fail-open at the panel boundary.
+   */
+  readonly scenarioPresets?: readonly TenantScenarioPreset[];
 
   /**
    * ISO 8601 timestamp (UTC) of the most recent successful CMS provisioning run.
