@@ -854,6 +854,7 @@ const KEYS = {
   ploi:            "ploi",
   adPricing:       "ad_pricing",
   firstpartyCompanyDb: "firstparty_company_db",
+  cbsLocation:     "cbs_location",
 } as const;
 
 // ── Generic read / write ───────────────────────────────────────────────────────
@@ -1397,6 +1398,41 @@ export function firstPartyCompanyFlags(settings: PlatformFirstPartyCompanySettin
     contribute:          settings.contribute          ?? true,
     confidenceThreshold: settings.confidenceThreshold ?? 0.6,
   };
+}
+
+// ── CBS location enricher ────────────────────────────────────────────────────────
+
+/**
+ * Platform config for the first-party location enricher (CBS buurt statistics).
+ * Per-tenant enable lives in `tenant_pipeline_stages` (stage key "cbs-location").
+ * `datasetId` points the ingestion job at a CBS StatLine OData table (default
+ * 85984NED, "Kerncijfers wijken en buurten") so the yearly edition can be bumped
+ * without a deploy.
+ */
+export interface PlatformCbsLocationSettings {
+  /** Platform default for whether the stage runs. Default false. */
+  enabled?:   boolean;
+  /** CBS StatLine OData dataset id (default 85984NED when unset). */
+  datasetId?: string;
+  /** Source year label recorded on ingested rows. */
+  sourceYear?: number;
+}
+
+/** Read the platform CBS location settings. All fields non-secret. */
+export async function getPlatformCbsLocationSettings(): Promise<SettingsResult<PlatformCbsLocationSettings>> {
+  return readSection<PlatformCbsLocationSettings>(KEYS.cbsLocation);
+}
+
+/** Persist platform CBS location settings. All fields non-secret. */
+export async function savePlatformCbsLocationSettings(
+  patch: PlatformCbsLocationSettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const normalized: Record<string, unknown> = {
+    ...(patch.enabled    !== undefined ? { enabled:    patch.enabled    } : {}),
+    ...(patch.datasetId  !== undefined ? { datasetId:  patch.datasetId  } : {}),
+    ...(patch.sourceYear !== undefined ? { sourceYear: patch.sourceYear } : {}),
+  };
+  return writeSection<Record<string, unknown>>(KEYS.cbsLocation, normalized);
 }
 
 // ── Holidays ───────────────────────────────────────────────────────────────────

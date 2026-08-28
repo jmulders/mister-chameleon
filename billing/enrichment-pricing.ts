@@ -110,6 +110,7 @@ export const ENRICHMENT_PRICE_CENTS: Record<UsageEventType, number> = {
   intent_enrich:   3,
   leadinfo_lookup: 3,
   firstparty_company_lookup: 1,
+  location_lookup: 1,
   ga4_history:     6,
   crm_lookup:      6,
 };
@@ -203,6 +204,14 @@ export const ENRICHMENT_TYPE_CONFIG: Record<UsageEventType, EnrichmentTypeConfig
     category:       "recognition",
   },
 
+  location_lookup: {
+    creditsPerCall: 0.5,
+    displayName:    "Location (CBS)",
+    description:    "First-party neighbourhood stats from CBS PC4 open data (urbanity, income band, business share)",
+    billable:       true,
+    category:       "recognition",
+  },
+
   // ── Billable (2 credits) ───────────────────────────────────────────────────
 
   ga4_history: {
@@ -264,6 +273,9 @@ export const STAGE_LABEL_TO_EVENT_TYPE: Record<string, UsageEventType | null> = 
   "ip-company-hubspot":       "crm_lookup",
 
   "GA4 History":              "ga4_history",
+
+  // First-party location enricher — CBS PC4 open-data stats.
+  "CBS Location":             "location_lookup",
 
   // ── Not billable ───────────────────────────────────────────────────────────
   "IP Classification":        null,   // In-process ASN/org pattern matching

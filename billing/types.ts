@@ -634,7 +634,8 @@ export type UsageEventType =
   | "reverse_geocode"   // Reverse geocode: lat/lng → address (LocationIQ / BigDataCloud, 1 credit)
   | "ga4_history"       // Google Analytics 4 visitor history lookup (2 credits)
   | "company_lookup"    // Reverse-IP firmographic lookup (OpenKvK / Clearbit, 1 credit)
-  | "firstparty_company_lookup"; // First-party company DB hit — served from the shared pool, cheaper than a paid identify
+  | "firstparty_company_lookup" // First-party company DB hit — served from the shared pool, cheaper than a paid identify
+  | "location_lookup";  // First-party location enricher — CBS PC4 statistics (free open data, small credit)
 
 /**
  * Input for recording a single usage event.
