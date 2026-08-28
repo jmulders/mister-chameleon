@@ -34,6 +34,8 @@ export interface ScenarioPanelCurationClientProps {
   tenantId:    string;
   /** The tenant's context-set roles (replaces the generic personas) or null. */
   contextRoles: DemoContext[] | null;
+  /** This tenant's custom presets, so curation can show/hide them too. */
+  customPresets?: { key: string; label: string; icon: string }[];
   presetKeys:  string[];
   roleKeys:    string[];
   timeOptions: string[];
@@ -50,11 +52,16 @@ type SaveState =
 export function ScenarioPanelCurationClient({
   tenantId,
   contextRoles,
+  customPresets = [],
   presetKeys:  initialPresetKeys,
   roleKeys:    initialRoleKeys,
   timeOptions: initialTimeOptions,
 }: ScenarioPanelCurationClientProps) {
-  const presetOptions: Option[] = SCENARIO_PRESET_LIST.map((p) => ({ key: p.key, label: p.label, icon: p.icon }));
+  // Built-in presets + this tenant's custom presets (custom last, ★-marked).
+  const presetOptions: Option[] = [
+    ...SCENARIO_PRESET_LIST.map((p) => ({ key: p.key, label: p.label, icon: p.icon })),
+    ...customPresets.map((p) => ({ key: p.key, label: `★ ${p.label}`, icon: p.icon })),
+  ];
   const roleOptions:   Option[] = (contextRoles ?? ROLES).map((r) => ({ key: r.key, label: r.label, icon: r.icon }));
   const timeOptionDefs: Option[] = TIME_OPTIONS.map((t) => ({ key: t.id, label: t.label }));
 

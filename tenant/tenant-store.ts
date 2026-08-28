@@ -444,6 +444,40 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
     }
   }
 
+  // ── scenarioPresets (optional) ──────────────────────────────────────────────
+  // Structural check only: an array of { key, label, overrides } with optional
+  // string icon/color. Override VALUES are not validated here — the panel
+  // normalises + fail-opens on unknown/invalid override fields, and coupling the
+  // store to the ScenarioOverrides field set would break on a future rename.
+  if (r.scenarioPresets !== undefined) {
+    if (!Array.isArray(r.scenarioPresets)) {
+      errors.push("scenarioPresets: must be an array when present.");
+    } else {
+      r.scenarioPresets.forEach((p, i) => {
+        if (typeof p !== "object" || p === null) {
+          errors.push(`scenarioPresets[${i}]: must be an object.`);
+          return;
+        }
+        const preset = p as Record<string, unknown>;
+        if (typeof preset.key !== "string" || preset.key.length === 0) {
+          errors.push(`scenarioPresets[${i}].key: must be a non-empty string.`);
+        }
+        if (typeof preset.label !== "string" || preset.label.length === 0) {
+          errors.push(`scenarioPresets[${i}].label: must be a non-empty string.`);
+        }
+        if (preset.icon !== undefined && typeof preset.icon !== "string") {
+          errors.push(`scenarioPresets[${i}].icon: must be a string when present.`);
+        }
+        if (preset.color !== undefined && typeof preset.color !== "string") {
+          errors.push(`scenarioPresets[${i}].color: must be a string when present.`);
+        }
+        if (typeof preset.overrides !== "object" || preset.overrides === null || Array.isArray(preset.overrides)) {
+          errors.push(`scenarioPresets[${i}].overrides: must be an object.`);
+        }
+      });
+    }
+  }
+
   // ── name (optional) ────────────────────────────────────────────────────────
   if (r.name !== undefined && typeof r.name !== "string") {
     errors.push("name: must be a string when present.");

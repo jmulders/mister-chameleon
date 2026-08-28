@@ -15,7 +15,7 @@
  */
 
 import dynamic from "next/dynamic";
-import type { TenantScenarioPanelSettings } from "@/tenant/types";
+import type { TenantScenarioPanelSettings, TenantScenarioPreset } from "@/tenant/types";
 
 const ScenarioControlPanel = dynamic(
   () =>
@@ -27,8 +27,10 @@ const ScenarioControlPanel = dynamic(
 
 export function ScenarioControlMount({
   scenarioPanel,
+  scenarioPresets,
 }: {
-  scenarioPanel?: TenantScenarioPanelSettings | null;
+  scenarioPanel?:   TenantScenarioPanelSettings | null;
+  scenarioPresets?: readonly TenantScenarioPreset[] | null;
 }) {
-  return <ScenarioControlPanel scenarioPanel={scenarioPanel} />;
+  return <ScenarioControlPanel scenarioPanel={scenarioPanel} scenarioPresets={scenarioPresets} />;
 }

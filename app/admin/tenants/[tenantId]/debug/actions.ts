@@ -22,7 +22,7 @@
 
 import { revalidatePath }           from "next/cache";
 import { getTenantById, saveTenant } from "@/tenant/server";
-import type { TenantDebugSettings, TenantScenarioPanelSettings } from "@/tenant/types";
+import type { TenantDebugSettings, TenantScenarioPanelSettings, TenantScenarioPreset } from "@/tenant/types";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -122,6 +122,48 @@ export async function saveScenarioPanelAction(
 
   revalidatePath(`/admin/tenants/${tenantId}/debug`);
   // Revalidate the whole site layout — the console is mounted from app/(site)/layout.
+  revalidatePath("/", "layout");
+
+  return { ok: true };
+}
+
+// ── Scenario custom presets (personas) ──────────────────────────────────────────
+
+export type SaveScenarioPresetsResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Save the per-tenant CUSTOM scenario presets (personas). Replaces the whole
+ * array. Empty → stored as undefined to keep the settings blob clean. Structural
+ * validation runs in validateTenantSettings (via saveTenant); the panel is
+ * additionally fail-open on any invalid preset. Revalidates the public site so the
+ * console picks up the change immediately.
+ */
+export async function saveScenarioPresetsAction(
+  tenantId: string,
+  presets:  TenantScenarioPreset[],
+): Promise<SaveScenarioPresetsResult> {
+  const stored = await getTenantById(tenantId);
+
+  if (!stored) {
+    return { ok: false, error: `Tenant "${tenantId}" not found.` };
+  }
+
+  const scenarioPresets = presets.length > 0 ? presets : undefined;
+
+  const updated = {
+    ...stored,
+    scenarioPresets,
+  };
+
+  const result = await saveTenant(updated);
+
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+
+  revalidatePath(`/admin/tenants/${tenantId}/debug`);
   revalidatePath("/", "layout");
 
   return { ok: true };

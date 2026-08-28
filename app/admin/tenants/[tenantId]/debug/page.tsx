@@ -45,6 +45,7 @@ import { DEV_TENANT_COOKIE } from "@/tenant/dev-tenant-cookie";
 import { setDevTenantAction, clearDevTenantAction } from "../actions";
 import { TenantDebugClient } from "./_components/TenantDebugClient";
 import { ScenarioPanelCurationClient } from "./_components/ScenarioPanelCurationClient";
+import { ScenarioPresetsClient } from "./_components/ScenarioPresetsClient";
 import { getDemoContextSet } from "@/components/scenario/demo-context-sets";
 import { FailureSignalsPanel } from "./_components/FailureSignalsPanel";
 import { getFailureSummary, getFailureSignals } from "@/lib/observability/failure-signal-store";
@@ -67,8 +68,9 @@ export default async function TenantDebugPage({
   const showScenarioControl = tenant.debug?.showScenarioControl ?? false;
 
   // ── Scenario panel curation (settings.scenarioPanel — no migration) ────────
-  const scenarioPanel = tenant.scenarioPanel;
-  const contextRoles  = getDemoContextSet(tenantId);
+  const scenarioPanel   = tenant.scenarioPanel;
+  const scenarioPresets = [...(tenant.scenarioPresets ?? [])];
+  const contextRoles    = getDemoContextSet(tenantId);
 
   // ── Dev override state (development only) ──────────────────────────────────
   const devActiveTenantId: string | null =
@@ -119,10 +121,25 @@ export default async function TenantDebugPage({
         <ScenarioPanelCurationClient
           tenantId={tenantId}
           contextRoles={contextRoles}
+          customPresets={scenarioPresets.map((p) => ({ key: p.key, label: p.label, icon: p.icon ?? "⭐" }))}
           presetKeys={[...(scenarioPanel?.presetKeys ?? [])]}
           roleKeys={[...(scenarioPanel?.roleKeys ?? [])]}
           timeOptions={[...(scenarioPanel?.timeOptions ?? [])]}
         />
+      </section>
+
+      {/* ── 1b². Custom personas (settings.scenarioPresets — no migration) ──── */}
+      <section>
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-neutral-900">Scenario Personas</h1>
+          <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
+            Custom personas for <strong>{tenant.name ?? tenantId}</strong>, shown in the scenario
+            console&rsquo;s Quick presets (marked ★). Purely a demo-console setting; it never affects
+            personalisation.
+          </p>
+        </div>
+
+        <ScenarioPresetsClient tenantId={tenantId} initialPresets={scenarioPresets} />
       </section>
 
       {/* ── 1c. Failure signals (observability) ───────────────────────────── */}

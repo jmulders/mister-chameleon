@@ -43,7 +43,12 @@ export interface ScenarioPreset {
   /** Color family for the preset badge. */
   color:       "neutral" | "blue" | "green" | "orange" | "red" | "purple" | "amber";
   overrides:   ScenarioOverrides;
+  /** True for a per-tenant custom preset (persona), so the panel can mark it (★). */
+  custom?:     boolean;
 }
+
+/** The badge colour families a preset may use. */
+export type ScenarioPresetColor = ScenarioPreset["color"];
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 

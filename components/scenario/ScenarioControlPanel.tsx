@@ -62,9 +62,10 @@ import {
   type ScenarioState,
   type ScenarioOverrides,
 } from "./scenario-store";
-import { SCENARIO_PRESET_LIST } from "./scenario-presets";
+import type { ScenarioPreset } from "./scenario-presets";
 import { curateByKey } from "./curate-panel";
-import type { TenantScenarioPanelSettings } from "@/tenant/types";
+import { mergePresetList, normalizeCustomPresets } from "./custom-presets";
+import type { TenantScenarioPanelSettings, TenantScenarioPreset } from "@/tenant/types";
 import { DemoStageSection } from "./DemoStageSection";
 import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows";
 import { applyScenarioOverride } from "./apply-scenario-override";
@@ -730,6 +731,7 @@ function EnricherActionsSection({
 function ContextTab({
   scenario,
   presetKeys,
+  customPresets,
   journey,
   autoApply,
   applying,
@@ -747,6 +749,8 @@ function ContextTab({
   scenario:            ScenarioState;
   /** Optional tenant curation — subset of SCENARIO_PRESETS keys to show. */
   presetKeys?:         readonly string[];
+  /** Per-tenant custom presets, merged into Quick presets (after the built-ins). */
+  customPresets?:      readonly ScenarioPreset[];
   journey:             JourneyState | null;
   autoApply:           boolean;
   applying:            boolean;
@@ -780,8 +784,11 @@ function ContextTab({
 
   useEffect(() => { setOverrides(scenario.overrides); }, [scenario]);
 
+  // Built-in presets + this tenant's custom presets (custom after built-ins).
+  const mergedPresets = mergePresetList(customPresets ?? []);
+
   function applyPreset(key: string) {
-    const preset = SCENARIO_PRESET_LIST.find((p) => p.key === key);
+    const preset = mergedPresets.find((p) => p.key === key);
     if (!preset) return;
     activateScenario(preset.overrides, preset.key, preset.label);
   }
@@ -839,14 +846,14 @@ function ContextTab({
       {/* ── Quick Presets ──────────────────────────────────────────────────── */}
       <SectionLabel>Quick Presets</SectionLabel>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginBottom: 3 }}>
-        {curateByKey(SCENARIO_PRESET_LIST, (p) => p.key, presetKeys).map((preset) => {
+        {curateByKey(mergedPresets, (p) => p.key, presetKeys).map((preset) => {
           const active = scenario.presetKey === preset.key;
           return (
             <button key={preset.key} onClick={() => applyPreset(preset.key)}
-              title={preset.description}
+              title={preset.custom ? `Custom persona · ${preset.description}` : preset.description}
               style={{
                 padding: "4px 7px", borderRadius: 5, border: "1px solid",
-                borderColor: active ? "#6366f1" : "#e5e7eb",
+                borderColor: active ? "#6366f1" : preset.custom ? "#c4b5fd" : "#e5e7eb",
                 background: active ? "#eef2ff" : "#fff",
                 color: active ? "#4f46e5" : "#374151",
                 fontSize: 10, fontWeight: active ? 700 : 500,
@@ -855,6 +862,7 @@ function ContextTab({
               }}>
               <span style={{ fontSize: 12 }}>{preset.icon}</span>
               <span style={{ lineHeight: 1.2 }}>{preset.label}</span>
+              {preset.custom && <span title="Custom persona" style={{ marginLeft: "auto", fontSize: 9, color: "#8b5cf6" }}>★</span>}
             </button>
           );
         })}
@@ -1987,7 +1995,9 @@ const TABS = [
 
 type TabKey = typeof TABS[number]["key"];
 
-export function ScenarioControlPanel({ scenarioPanel }: { scenarioPanel?: TenantScenarioPanelSettings | null } = {}) {
+export function ScenarioControlPanel({ scenarioPanel, scenarioPresets }: { scenarioPanel?: TenantScenarioPanelSettings | null; scenarioPresets?: readonly TenantScenarioPreset[] | null } = {}) {
+  // Normalise this tenant's custom presets once (fail-open — invalid ones dropped).
+  const customPresets = normalizeCustomPresets(scenarioPresets);
   const [mounted,   setMounted]   = useState(false);
   // Initialise synchronously from window so the panel never flashes to null
   // during router.refresh() or soft navigation re-renders.
@@ -2492,6 +2502,7 @@ export function ScenarioControlPanel({ scenarioPanel }: { scenarioPanel?: Tenant
             )}
             {tab === "context" && (
               <ContextTab
+                customPresets={customPresets}
                 scenario={scenario}
                 presetKeys={scenarioPanel?.presetKeys}
                 journey={journey}
