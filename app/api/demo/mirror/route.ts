@@ -38,6 +38,13 @@ import { createDemoInstance }              from "@/demo/store";
 import { resolveDemoBaseUrl }              from "@/lib/base-url";
 import type { DemoScenario }               from "@/demo/types";
 
+// Self-hosted headless Chrome (JS-render path) needs the Node runtime, a longer
+// budget, and more memory. Cold starts are fine — demos run occasionally. Memory
+// is set in vercel.json (functions), which route exports cannot express.
+export const runtime     = "nodejs";
+export const maxDuration = 30;
+export const dynamic     = "force-dynamic";
+
 // ── Demo site key ─────────────────────────────────────────────────────────────
 //
 // Resolution order:
@@ -140,9 +147,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   );
 
   // ── Step 1: Mirror the site ─────────────────────────────────────────────────
-  //   When a JS-render service is configured (demo_importer settings +
-  //   SCRAPINGBEE_API_KEY), the page is rendered with JavaScript for a faithful
-  //   mirror; otherwise a plain fetch is used (with automatic fallback on error).
+  //   When JS-rendering is enabled (demo_importer settings), the page is rendered
+  //   with a self-hosted headless Chrome for a faithful mirror; otherwise a plain
+  //   fetch is used (with automatic fallback on error/timeout).
 
   const renderConfig = await resolveRenderConfig(client);
 

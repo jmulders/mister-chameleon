@@ -77,7 +77,6 @@ export default async function DemoImporterPage() {
           settings={settingsResult.ok ? settingsResult.settings : null}
           settingsUpdatedAt={settingsResult.ok ? settingsResult.updatedAt : null}
           settingsError={settingsResult.ok ? null : settingsResult.error}
-          renderApiKeyPresent={settingsResult.ok ? settingsResult.renderApiKeyPresent : false}
         />
       )}
 

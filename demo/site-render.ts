@@ -1,61 +1,69 @@
 /**
  * demo/site-render.ts
  *
- * Optional JS-rendering for the Mirror demo.
+ * Optional JS-rendering for the Mirror demo, on SELF-HOSTED headless Chrome
+ * (puppeteer-core + @sparticuz/chromium-min) — €0, no SaaS.
  *
  * The default capture (site-mirror.ts → fetchHtml) is a plain `fetch`, so it
  * returns the server-rendered HTML only. Client-rendered sites (React/Vue/Next
- * hydration, lazy heroes) come back empty or broken. When a managed headless
- * render service is configured, we route the capture through it so the mirror
- * reflects the page AS A BROWSER RENDERS IT.
+ * hydration, lazy heroes) come back empty or broken. When JS-rendering is enabled
+ * we launch headless Chrome, load the page, and return the fully rendered DOM
+ * (page.content()).
  *
- * Service: ScrapingBee (https://www.scrapingbee.com) — a single GET with
- * `render_js=true` returns the fully rendered DOM as HTML, with built-in proxy /
- * anti-bot handling.
+ * Runtime:
+ *   • prod (Vercel): @sparticuz/chromium-min — the Chromium binary is fetched at
+ *     cold start from a fixed pack URL (CHROMIUM_PACK_URL) so it stays out of the
+ *     ~50MB function bundle.
+ *   • dev/local: a local Chrome (PUPPETEER_EXECUTABLE_PATH or a platform default).
  *
- * Config split (security):
- *   • The NON-secret config (which service, timeout) lives in the platform
- *     demo_importer settings (admin-editable, surfaced to the settings UI).
- *   • The SECRET API key is read from the SCRAPINGBEE_API_KEY env var — never
- *     stored in the demo_importer settings row, which is returned wholesale to
- *     the client.
- *
- * This module is pure (fetch + string ops only): the DB read is injected via a
- * Supabase client so it stays unit-testable.
+ * Config: a generic on/off + timeout in the platform demo_importer settings (no
+ * API key, no SaaS). Any failure/timeout falls back to a plain fetch upstream.
  */
 
-export type RenderService = "none" | "scrapingbee";
+export type RenderService = "none" | "chromium";
 
 export interface RenderConfig {
   service:   RenderService;
-  /** ScrapingBee API key (from SCRAPINGBEE_API_KEY). Absent → service is "none". */
-  apiKey?:   string;
   timeoutMs: number;
 }
 
 /** Default render timeout — JS rendering needs longer than a plain fetch. */
 export const DEFAULT_RENDER_TIMEOUT_MS = 25_000;
 
-const SCRAPINGBEE_ENDPOINT = "https://app.scrapingbee.com/api/v1/";
+/**
+ * Default Chromium pack URL for @sparticuz/chromium-min. MUST match the installed
+ * @sparticuz/chromium-min major (131.x here). Override per environment via
+ * CHROMIUM_PACK_URL.
+ */
+export const DEFAULT_CHROMIUM_PACK_URL =
+  "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
+
+// ── Minimal structural browser interface (puppeteer Browser/Page satisfy it) ──
+export interface RenderPage {
+  goto(url: string, opts?: { waitUntil?: string; timeout?: number }): Promise<unknown>;
+  content(): Promise<string>;
+  url(): string;
+  setViewport?(vp: { width: number; height: number }): Promise<unknown>;
+}
+export interface RenderBrowser {
+  newPage(): Promise<RenderPage>;
+  close(): Promise<void>;
+}
 
 /**
- * Resolve the render config from the platform demo_importer settings (service +
- * timeout) and the SCRAPINGBEE_API_KEY env var (secret). Returns `service:"none"`
- * whenever rendering is disabled or the key is missing, so the caller falls back
- * to a plain fetch. Never throws.
+ * Resolve the render config from the platform demo_importer settings: a generic
+ * `renderEnabled` flag + `renderTimeoutMs`. Returns `service:"none"` when
+ * rendering is disabled, so the caller falls back to a plain fetch. Never throws.
  *
  * `client` is any object with a Supabase-style `.from().select().eq().maybeSingle()`
- * chain — injected so this stays testable and free of server-only imports.
+ * chain — injected so this stays testable.
  */
 export async function resolveRenderConfig(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
-  env: NodeJS.ProcessEnv = process.env,
 ): Promise<RenderConfig> {
-  const apiKey = (env["SCRAPINGBEE_API_KEY"] ?? "").trim() || undefined;
-
-  let service:   RenderService = "none";
-  let timeoutMs: number        = DEFAULT_RENDER_TIMEOUT_MS;
+  let enabled   = false;
+  let timeoutMs = DEFAULT_RENDER_TIMEOUT_MS;
 
   try {
     const { data } = await client
@@ -63,8 +71,8 @@ export async function resolveRenderConfig(
       .select("value")
       .eq("key", "demo_importer")
       .maybeSingle();
-    const value = (data?.value ?? {}) as { renderService?: unknown; renderTimeoutMs?: unknown };
-    if (value.renderService === "scrapingbee") service = "scrapingbee";
+    const value = (data?.value ?? {}) as { renderEnabled?: unknown; renderTimeoutMs?: unknown };
+    if (value.renderEnabled === true) enabled = true;
     if (typeof value.renderTimeoutMs === "number" && value.renderTimeoutMs >= 5_000 && value.renderTimeoutMs <= 60_000) {
       timeoutMs = value.renderTimeoutMs;
     }
@@ -72,61 +80,84 @@ export async function resolveRenderConfig(
     // Settings unavailable → rendering stays off.
   }
 
-  // Rendering needs both a service selection AND a key. Otherwise: none.
-  if (service === "scrapingbee" && apiKey) {
-    return { service, apiKey, timeoutMs };
-  }
-  return { service: "none", timeoutMs };
+  return { service: enabled ? "chromium" : "none", timeoutMs };
 }
 
-/** Build the ScrapingBee request URL for a fully-rendered HTML capture. */
-export function buildScrapingBeeUrl(targetUrl: string, apiKey: string): string {
-  const params = new URLSearchParams({
-    api_key:    apiKey,
-    url:        targetUrl,
-    render_js:  "true",
-    block_ads:  "true",
-    // Return the page's own HTML (not a ScrapingBee wrapper) and follow redirects.
-    return_page_source: "true",
-  });
-  return `${SCRAPINGBEE_ENDPOINT}?${params.toString()}`;
+/** Platform default local Chrome path (dev), overridable via PUPPETEER_EXECUTABLE_PATH. */
+function localChromePath(env: NodeJS.ProcessEnv): string {
+  const explicit = env["PUPPETEER_EXECUTABLE_PATH"]?.trim();
+  if (explicit) return explicit;
+  switch (process.platform) {
+    case "darwin": return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    case "win32":  return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+    default:       return "/usr/bin/google-chrome";
+  }
 }
 
 /**
- * Render a URL via the configured service and return the fully-rendered HTML.
- * Throws on any failure (misconfig, non-OK response, timeout) so the caller can
- * fall back to a plain fetch.
+ * Launch headless Chrome: @sparticuz/chromium-min on Vercel/prod (binary fetched
+ * from the pack URL), a local Chrome otherwise. Dynamic imports keep the heavy
+ * modules out of any non-render code path.
+ */
+async function launchBrowser(env: NodeJS.ProcessEnv = process.env): Promise<RenderBrowser> {
+  const puppeteer = (await import("puppeteer-core")).default;
+  const isServerless = Boolean(env["VERCEL"]) || env["NODE_ENV"] === "production";
+
+  if (isServerless) {
+    const chromium = (await import("@sparticuz/chromium-min")).default;
+    const packUrl  = env["CHROMIUM_PACK_URL"]?.trim() || DEFAULT_CHROMIUM_PACK_URL;
+    const executablePath = await chromium.executablePath(packUrl);
+    return puppeteer.launch({
+      args:            chromium.args,
+      executablePath,
+      headless:        true,
+      defaultViewport: chromium.defaultViewport,
+    }) as unknown as Promise<RenderBrowser>;
+  }
+
+  return puppeteer.launch({
+    headless:        true,
+    executablePath:  localChromePath(env),
+    args:            ["--no-sandbox", "--disable-setuid-sandbox"],
+    defaultViewport: { width: 1280, height: 900 },
+  }) as unknown as Promise<RenderBrowser>;
+}
+
+/**
+ * Render a URL with headless Chrome and return the fully-rendered DOM HTML.
+ * Bounded by an overall timeout; throws on any failure so the caller can fall
+ * back to a plain fetch. `launch` is injectable for tests.
  */
 export async function renderHtmlViaService(
   targetUrl: string,
   config:    RenderConfig,
-  fetchImpl: typeof fetch = fetch,
+  launch:    (env?: NodeJS.ProcessEnv) => Promise<RenderBrowser> = launchBrowser,
 ): Promise<{ html: string; finalUrl: string }> {
-  if (config.service !== "scrapingbee" || !config.apiKey) {
+  if (config.service !== "chromium") {
     throw new Error("render service not configured");
   }
 
-  const controller = new AbortController();
-  const timeout    = setTimeout(() => controller.abort(), config.timeoutMs);
+  const render = (async (): Promise<{ html: string; finalUrl: string }> => {
+    const browser = await launch();
+    try {
+      const page = await browser.newPage();
+      await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: config.timeoutMs });
+      const html = await page.content();
+      if (!html || html.length < 200) throw new Error("render returned empty/too-short HTML");
+      return { html, finalUrl: page.url() || targetUrl };
+    } finally {
+      await browser.close().catch(() => {});
+    }
+  })();
 
+  // Hard overall cap so a hung browser can't exceed the function budget.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const guard = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("render timed out")), config.timeoutMs + 3_000);
+  });
   try {
-    const requestUrl = buildScrapingBeeUrl(targetUrl, config.apiKey);
-    const response   = await fetchImpl(requestUrl, { signal: controller.signal });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new Error(`ScrapingBee HTTP ${response.status}: ${body.slice(0, 200)}`);
-    }
-
-    const html = await response.text();
-    if (!html || html.length < 200) {
-      throw new Error("ScrapingBee returned empty/too-short HTML");
-    }
-
-    // ScrapingBee surfaces the resolved URL via a response header when available.
-    const finalUrl = response.headers.get("Spb-resolved-url") || targetUrl;
-    return { html, finalUrl };
+    return await Promise.race([render, guard]);
   } finally {
-    clearTimeout(timeout);
+    if (timer) clearTimeout(timer);
   }
 }

@@ -107,9 +107,9 @@ export interface DemoImporterSettings {
   followNavLinks:         boolean;
   maxPages:               number;
   detectColors:           boolean;
-  // Mirror rendering — non-secret config. The API key is a server secret
-  // (SCRAPINGBEE_API_KEY env var), never stored here.
-  renderService:          "none" | "scrapingbee";
+  // Mirror JS-rendering — self-hosted headless Chrome. Generic on/off + timeout;
+  // no API key (no SaaS).
+  renderEnabled:          boolean;
   renderTimeoutMs:        number;
   // Output defaults
   defaultSiteType:        string;
@@ -124,7 +124,7 @@ const SETTINGS_DEFAULTS: DemoImporterSettings = {
   followNavLinks:        false,
   maxPages:              1,
   detectColors:          true,
-  renderService:         "none",
+  renderEnabled:         false,
   renderTimeoutMs:       25_000,
   defaultSiteType:       "general",
   defaultPageSet:        "homepage",
@@ -266,10 +266,9 @@ export async function getDemoImporterStatusAction(): Promise<
  * Falls back to SETTINGS_DEFAULTS when no row is stored yet.
  */
 export async function getDemoImporterSettingsAction(): Promise<
-  | { ok: true;  settings: DemoImporterSettings; updatedAt: string | null; renderApiKeyPresent: boolean }
+  | { ok: true;  settings: DemoImporterSettings; updatedAt: string | null }
   | { ok: false; error: string }
 > {
-  const renderApiKeyPresent = Boolean((process.env["SCRAPINGBEE_API_KEY"] ?? "").trim());
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -285,7 +284,7 @@ export async function getDemoImporterSettingsAction(): Promise<
   if (error) {
     // 42P01 = table missing (migration not yet applied) — return defaults silently
     if (error.code === "42P01" || error.code === "PGRST205") {
-      return { ok: true, settings: { ...SETTINGS_DEFAULTS }, updatedAt: null, renderApiKeyPresent };
+      return { ok: true, settings: { ...SETTINGS_DEFAULTS }, updatedAt: null };
     }
     console.error(
       `[demo-importer/actions] getDemoImporterSettingsAction: DB error — code=${error.code} message=${error.message}`,
@@ -299,7 +298,6 @@ export async function getDemoImporterSettingsAction(): Promise<
     ok:        true,
     settings:  { ...SETTINGS_DEFAULTS, ...stored },
     updatedAt: data?.updated_at ?? null,
-    renderApiKeyPresent,
   };
 }
 
@@ -326,11 +324,6 @@ export async function saveDemoImporterSettingsAction(
   if (input.expiryDays !== undefined) {
     if (!Number.isInteger(input.expiryDays) || input.expiryDays < 1 || input.expiryDays > 30) {
       return { ok: false, error: "expiryDays must be an integer between 1 and 30." };
-    }
-  }
-  if (input.renderService !== undefined) {
-    if (input.renderService !== "none" && input.renderService !== "scrapingbee") {
-      return { ok: false, error: "renderService must be 'none' or 'scrapingbee'." };
     }
   }
   if (input.renderTimeoutMs !== undefined) {
