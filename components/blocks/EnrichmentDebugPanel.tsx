@@ -1174,14 +1174,22 @@ function StageRow({ stage, isEven }: { stage: StageTrace; isEven: boolean }) {
         }}
       >
         {fieldsProduced.length > 0 ? (
-          <span style={{ display: "flex", gap: "3px", flexWrap: "wrap" }}>
+          <span style={{ display: "flex", gap: "3px", flexWrap: "wrap", alignItems: "center" }}>
             {fieldsProduced.map((f) => (
               <FieldChip key={f} field={f} stage={stage} />
             ))}
+            {stage.note && (
+              <span style={{ color: "#9ca3af", fontSize: "9px" }} title={stage.note}>· {stage.note}</span>
+            )}
           </span>
         ) : (
-          <span style={{ color: "#d1d5db", fontStyle: "italic" }}>
-            {stage.skipped ? "stage skipped" : stage.error ? "error" : "no output"}
+          // A stage that produced no output still explains WHY when it set a note
+          // (e.g. cbs-location: resolved buurtcode + cbs hit/empty) — no silent null.
+          <span
+            title={stage.note}
+            style={{ color: stage.note ? "#6b7280" : "#d1d5db", fontStyle: stage.note ? "normal" : "italic", fontSize: "10px" }}
+          >
+            {stage.note ?? (stage.skipped ? "stage skipped" : stage.error ? "error" : "no output")}
           </span>
         )}
       </td>

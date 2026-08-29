@@ -47,6 +47,10 @@ export async function buurtcodeFromLatLng(
       lon:  String(lng),
       type: "buurt",
       rows: "1",
+      // PDOK's /reverse omits `buurtcode` by default and its default `id` is an
+      // opaque hash (buu-<hex>), so without an explicit field list the CBS code
+      // is never present and resolution silently returns null. Request buurtcode.
+      fl:   "id,buurtcode,weergavenaam",
     });
     const res = await fetchImpl(`${PDOK_REVERSE_ENDPOINT}?${params.toString()}`, {
       signal:  controller.signal,

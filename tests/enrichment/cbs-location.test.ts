@@ -31,10 +31,25 @@ describe("normalizeBuurtcode / normalizeAreaCode", () => {
 });
 
 describe("buurtcodeFromLatLng", () => {
-  it("returns the buurtcode from a PDOK reverse response", async () => {
-    const fetchImpl = (async () => ({ ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU03630000" }] } }) })) as unknown as typeof fetch;
-    assert.equal(await buurtcodeFromLatLng(52.37, 4.9, 4000, fetchImpl), "BU03630000");
+  it("requests the buurtcode field list and returns the buurtcode (Rotterdam)", async () => {
+    let calledUrl = "";
+    const fetchImpl = (async (u: string) => {
+      calledUrl = u;
+      return { ok: true, json: async () => ({ response: { docs: [{ weergavenaam: "Stadsdriehoek Rotterdam", id: "buu-338eb078b0c6154065945d2503031a1b", buurtcode: "BU05990110" }] } }) };
+    }) as unknown as typeof fetch;
+    assert.equal(await buurtcodeFromLatLng(51.9225, 4.4792, 4000, fetchImpl), "BU05990110");
+    // The fl field list MUST include buurtcode — PDOK's /reverse omits it otherwise
+    // (the bug that left locationAreaCode null despite valid lat/lng).
+    assert.match(calledUrl, /[?&]fl=[^&]*buurtcode/i);
+    assert.match(calledUrl, /type=buurt/);
   });
+
+  it("returns null for the default PDOK reverse shape (opaque id, no buurtcode)", async () => {
+    // Without fl the default doc carries only id="buu-<hash>" — no CBS code to parse.
+    const fetchImpl = (async () => ({ ok: true, json: async () => ({ response: { docs: [{ weergavenaam: "Stadsdriehoek Rotterdam", id: "buu-338eb078b0c6154065945d2503031a1b" }] } }) })) as unknown as typeof fetch;
+    assert.equal(await buurtcodeFromLatLng(51.9225, 4.4792, 4000, fetchImpl), null);
+  });
+
   it("returns null on a non-OK response / invalid coords", async () => {
     const bad = (async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
     assert.equal(await buurtcodeFromLatLng(52.37, 4.9, 4000, bad), null);
@@ -189,6 +204,39 @@ describe("createCbsLocationEnricher — lazy flow", () => {
       cacheLookup: async () => ({ areaCode: "BU16800000", urbanityProxy: null, incomeBand: null, businessShare: null }),
     });
     assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+  });
+
+  // ── Debug visibility: the stage reports a note even when output is empty ──────
+  function capturingCtx() {
+    const notes: string[] = [];
+    return { ctx: { setCacheSource() {}, setNote: (n: string) => notes.push(n) }, notes };
+  }
+
+  it("notes the resolved buurtcode + cache hit on success", async () => {
+    const { ctx, notes } = capturingCtx();
+    const s = createCbsLocationEnricher({ geocode: async () => "BU16800000", cacheLookup: async () => stats });
+    await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx);
+    assert.match(notes.at(-1)!, /buurtcode=BU16800000/);
+    assert.match(notes.at(-1)!, /cbs=cache/);
+  });
+
+  it("notes 'no buurtcode' when PDOK returns nothing (no silent null)", async () => {
+    const { ctx, notes } = capturingCtx();
+    const s = createCbsLocationEnricher({ geocode: async () => null, cacheLookup: async () => null });
+    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx), {});
+    assert.match(notes.at(-1)!, /no buurtcode/);
+    assert.match(notes.at(-1)!, /ip-geo/);
+  });
+
+  it("notes buurtcode + cbs=empty when the store misses", async () => {
+    const { ctx, notes } = capturingCtx();
+    const s = createCbsLocationEnricher({
+      geocode: async () => "BU99999999", cacheLookup: async () => null,
+      liveFetch: async () => ({ status: "empty" }), upsert: async () => {},
+    });
+    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx), {});
+    assert.match(notes.at(-1)!, /buurtcode=BU99999999/);
+    assert.match(notes.at(-1)!, /cbs=empty/);
   });
 });
 
