@@ -458,7 +458,7 @@ type ClaudeCallResult =
   | { ok: true;  data: ClaudeSlotResponse; model: string }
   | { ok: false; reason: SlotAiFailReason; detail: string; model: string };
 
-async function callClaudeForSlots(userPrompt: string): Promise<ClaudeCallResult> {
+async function callClaudeForSlots(userPrompt: string, systemPrompt: string = SYSTEM_PROMPT): Promise<ClaudeCallResult> {
   const model  = await resolveSlotModel();
   const apiKey = await resolveAnthropicKey();
   if (!apiKey) {
@@ -475,7 +475,7 @@ async function callClaudeForSlots(userPrompt: string): Promise<ClaudeCallResult>
       {
         model,
         max_tokens: MAX_TOKENS,
-        system:     SYSTEM_PROMPT,
+        system:     systemPrompt,
         messages:   [{ role: "user", content: userPrompt }],
       },
       { signal: controller.signal },
@@ -654,7 +654,7 @@ export interface RegionWithScenarios {
 export interface RegionAnalysisResult {
   regions: RegionWithScenarios[];
   aiRan:   boolean;
-  status:  "ok" | "no_elements" | "no_slots" | "error" | SlotAiFailReason;
+  status:  "ok" | "no_elements" | "no_slots" | "no_match" | "error" | SlotAiFailReason;
   reason?: string;
   model:   string;
 }
@@ -662,12 +662,68 @@ export interface RegionAnalysisResult {
 const normText = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
- * Generate 6 scenario variants for each screenshot region, reusing the exact same
- * Claude machinery as analyzeAndGenerateSlots (key/model/timeout/prompt/parse/
- * validate). The vision step already gave us the regions + original text, so we
- * feed those texts as the element map and match the returned slots back to each
- * region by text. Never throws; regions with no AI match keep empty scenarios so
- * the caller falls open to showing only the original copy.
+ * System prompt for the SCREENSHOT-region flow. Unlike the mirror flow (where the
+ * AI discovers its own slots), here the regions are already fixed by the vision
+ * pass — so we tell the model to reuse the EXACT slotKeys we provide and return
+ * one entry per region. That makes the join deterministic (by slotKey).
+ */
+const REGION_SYSTEM_PROMPT =
+  `You are a B2B website personalisation consultant for Mister Chameleon. You receive a fixed list of ` +
+  `page regions (each with a slotKey and its original on-page text). For EACH region, write 6 short ` +
+  `scenario variants of that copy — one per funnel stage. Return ONLY JSON (no prose, no markdown fences):\n` +
+  `{ "slots": [ { "slotKey": "<the exact slotKey given>", "matchText": "<the original text>", ` +
+  `"tag": "<h1|h2|p|button|a|div>", "scenarios": { "awareness": "...", "consideration": "...", ` +
+  `"high_intent": "...", "form_dropout": "...", "customer": "...", "expansion": "..." } } ] }\n` +
+  `Rules: reuse the given slotKey values verbatim; one slot per region; all 6 scenario keys present and non-empty; ` +
+  `keep each variant concise and on-brand for the region's role.`;
+
+/** Build the region user prompt (slotKey + original text per region). */
+function buildRegionPrompt(
+  regions:     RegionInput[],
+  siteContext: { url: string; title: string; category: SiteCategory | string; description: string },
+): string {
+  const list = regions.map((r) => `- slotKey="${r.slotKey}" tag="${r.tag ?? "p"}" text=${JSON.stringify(r.originalText)}`).join("\n");
+  return (
+    `Site: ${siteContext.title}\nURL: ${siteContext.url}\nCategory: ${siteContext.category}\n` +
+    `Description: ${siteContext.description || "(none)"}\n\nRegions:\n${list}`
+  );
+}
+
+/**
+ * Attach AI slot scenarios to regions. Join by slotKey first (deterministic —
+ * the region prompt asks the model to reuse our slotKeys), then fall back to a
+ * normalised original-text match. Pure + exported for tests. Returns the enriched
+ * regions and how many got variants.
+ */
+export function attachRegionScenarios(
+  regions: RegionInput[],
+  slots:   AiSlotDefinition[],
+): { regions: RegionWithScenarios[]; matched: number } {
+  const bySlotKey = new Map(slots.map((s) => [s.slotKey.toLowerCase(), s]));
+  const out = regions.map((r) => {
+    let hit = bySlotKey.get(r.slotKey.toLowerCase());
+    if (!hit) {
+      const key = normText(r.originalText);
+      hit = slots.find((s) => {
+        const m = normText(s.matchText);
+        return m === key || (m.length >= 5 && (m.includes(key) || key.includes(m)));
+      });
+    }
+    return {
+      slotKey:      r.slotKey,
+      originalText: r.originalText,
+      scenarios:    hit ? (hit.scenarios as Record<string, string>) : {},
+    };
+  });
+  const matched = out.filter((r) => Object.keys(r.scenarios).length > 0).length;
+  return { regions: out, matched };
+}
+
+/**
+ * Generate 6 scenario variants for each screenshot region and attach them,
+ * reusing the Claude machinery (key/model/timeout/parse/validate) with a
+ * region-specific system prompt so the join is by slotKey. Never throws; a clear
+ * status distinguishes AI failure / no slots / no match from success.
  */
 export async function analyzeRegionsToSlots(
   regions:     RegionInput[],
@@ -681,10 +737,7 @@ export async function analyzeRegionsToSlots(
       return { regions: base, aiRan: false, status: "no_elements", reason: "No region text to personalise.", model };
     }
 
-    const elements: ElementEntry[] = usable.map((r, i) => ({ tag: r.tag ?? "p", text: r.originalText, index: i }));
-    const userPrompt = buildPrompt(elements, siteContext, false);
-
-    const call = await callClaudeForSlots(userPrompt);
+    const call = await callClaudeForSlots(buildRegionPrompt(usable, siteContext), REGION_SYSTEM_PROMPT);
     model = call.model;
     if (!call.ok) {
       return { regions: base, aiRan: false, status: call.reason, reason: call.detail, model };
@@ -694,18 +747,15 @@ export async function analyzeRegionsToSlots(
       return { regions: base, aiRan: false, status: "no_slots", reason: "AI returned no usable variants.", model };
     }
 
-    // Match each AI slot back to a region by its original text (exact or containment).
-    const enriched = base.map((r) => {
-      const key = normText(r.originalText);
-      const hit = valid.find((s) => {
-        const m = normText(s.matchText);
-        return m === key || (m.length >= 5 && (m.includes(key) || key.includes(m)));
-      });
-      return hit ? { ...r, scenarios: hit.scenarios as Record<string, string> } : r;
-    });
-
-    const matched = enriched.filter((r) => Object.keys(r.scenarios).length > 0).length;
-    return { regions: enriched, aiRan: matched > 0, status: "ok", model };
+    const { regions: enriched, matched } = attachRegionScenarios(regions, valid);
+    if (matched === 0) {
+      return {
+        regions: enriched, aiRan: false, status: "no_match",
+        reason: `AI returned ${valid.length} slots but none matched the ${regions.length} regions (slotKeys: ${valid.map((s) => s.slotKey).join(", ")})`,
+        model,
+      };
+    }
+    return { regions: enriched, aiRan: true, status: "ok", model };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.warn("[demo/ai-slot-analyzer] analyzeRegionsToSlots failed:", detail);

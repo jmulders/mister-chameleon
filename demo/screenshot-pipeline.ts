@@ -18,7 +18,7 @@ export interface ScreenshotBuildOk {
   ok:         true;
   screenshot: DemoScreenshot;
   /** Diagnostics for the mirror response, mirroring the render/ai blocks. */
-  status:     { captured: boolean; regions: number; variantsRan: boolean; visionModel: string; aiStatus: string; ms: number };
+  status:     { captured: boolean; regions: number; variantsRan: boolean; visionModel: string; aiStatus: string; aiReason?: string; ms: number };
 }
 export interface ScreenshotBuildSkip {
   ok:     false;
@@ -86,6 +86,15 @@ export async function buildScreenshotDemo(
     regions,
   };
 
+  // Surface WHY variants are empty (AI failed vs no slotKey match) instead of a
+  // silent no-op — mirrors the render-status visibility from #332.
+  if (!variants.aiRan) {
+    console.warn(
+      `[demo/screenshot-pipeline] no scenario variants attached — status=${variants.status}` +
+      (variants.reason ? ` reason=${variants.reason}` : "") + ` regions=${regions.length} url=${url}`,
+    );
+  }
+
   return {
     ok: true,
     screenshot,
@@ -95,6 +104,7 @@ export async function buildScreenshotDemo(
       variantsRan: variants.aiRan,
       visionModel: vision.model,
       aiStatus:    variants.status,
+      ...(variants.reason ? { aiReason: variants.reason } : {}),
       ms:          Date.now() - started,
     },
   };
