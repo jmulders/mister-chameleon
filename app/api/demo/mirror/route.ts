@@ -333,6 +333,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.info(
     `[api/demo/mirror] mirror demo created — demoId=${demo.id}` +
     ` siteName=${demo.site_name} fetchSucceeded=${mirrored.fetchSucceeded}` +
+    ` renderService=${mirrored.render.service} rendered=${mirrored.render.rendered}` +
+    ` renderStatus=${mirrored.render.status} renderMs=${mirrored.render.ms}` +
+    (mirrored.render.rendered ? "" : ` renderReason=${JSON.stringify(mirrored.render.reason)}`) +
     ` aiSlots=${aiSlotDefs.length} aiRan=${aiResult.aiRan} aiStatus=${aiResult.status} aiModel=${aiResult.model}` +
     ` generationMs=${generationMs} createdBy=${auth.adminEmail}`,
   );
@@ -344,6 +347,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       siteName:       demo.site_name,
       expiresAt:      demo.expires_at,
       fetchSucceeded: mirrored.fetchSucceeded,
+      // Render visibility — whether headless Chrome actually rendered, and if not,
+      // the FAILED PHASE (launch vs navigate/timeout/empty) so a byte-identical
+      // plain-fetch mirror is diagnosable instead of silent.
+      render: {
+        service:  mirrored.render.service,
+        rendered: mirrored.render.rendered,
+        status:   mirrored.render.status,
+        ms:       mirrored.render.ms,
+        ...(mirrored.render.rendered ? {} : { reason: mirrored.render.reason }),
+      },
       // AI slot analyzer visibility — so "1 slot" is never a mystery: whether
       // the AI ran, how many slots it produced, and (on fallback) why + which model.
       ai: {

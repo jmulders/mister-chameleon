@@ -27,6 +27,43 @@ export interface RenderConfig {
   timeoutMs: number;
 }
 
+/**
+ * The phase a render failed in — the key diagnostic for "did Chrome launch?".
+ *   config   — service not configured (should not happen when render is enabled)
+ *   launch   — headless Chrome never launched (bad executablePath / pack download
+ *              failure / OOM / puppeteer.launch error) → the prod-silent-fallback case
+ *   navigate — Chrome launched but page.goto failed (nav error or its own timeout)
+ *   empty    — Chrome launched + navigated but returned empty/too-short HTML
+ *   timeout  — the overall render guard fired (hung browser)
+ */
+export type RenderPhase = "config" | "launch" | "navigate" | "empty" | "timeout";
+
+/** Error carrying the phase it failed in, so the caller can report it. */
+export class RenderError extends Error {
+  constructor(public readonly phase: RenderPhase, message: string) {
+    super(message);
+    this.name = "RenderError";
+  }
+}
+
+/** Visible outcome of a render attempt — logged and returned in the mirror response. */
+export interface RenderOutcome {
+  service:  RenderService;
+  /** True only when rendered DOM HTML was actually served (not the plain-fetch fallback). */
+  rendered: boolean;
+  /** "ok" on success, "disabled" when render is off, else the failed phase / "error". */
+  status:   "ok" | "disabled" | RenderPhase | "error";
+  reason:   string;
+  ms:       number;
+}
+
+/** Build a RenderOutcome from a caught render error (reads the RenderError phase). */
+export function renderOutcomeFromError(err: unknown, ms: number, service: RenderService): RenderOutcome {
+  const status = err instanceof RenderError ? err.phase : "error";
+  const reason = err instanceof Error ? err.message : String(err);
+  return { service, rendered: false, status, reason, ms };
+}
+
 /** Default render timeout — JS rendering needs longer than a plain fetch. */
 export const DEFAULT_RENDER_TIMEOUT_MS = 25_000;
 
@@ -143,16 +180,28 @@ export async function renderHtmlViaService(
   launch:    (env?: NodeJS.ProcessEnv) => Promise<RenderBrowser> = launchBrowser,
 ): Promise<{ html: string; finalUrl: string }> {
   if (config.service !== "chromium") {
-    throw new Error("render service not configured");
+    throw new RenderError("config", "render service not configured");
   }
 
   const render = (async (): Promise<{ html: string; finalUrl: string }> => {
-    const browser = await launch();
+    // Launch is its own phase — a failure here means Chrome never started
+    // (bad executablePath / @sparticuz pack download / OOM), which is the
+    // prod-silent-fallback case we most need to distinguish.
+    let browser: RenderBrowser;
+    try {
+      browser = await launch();
+    } catch (e) {
+      throw new RenderError("launch", e instanceof Error ? e.message : String(e));
+    }
     try {
       const page = await browser.newPage();
-      await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: config.timeoutMs });
+      try {
+        await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: config.timeoutMs });
+      } catch (e) {
+        throw new RenderError("navigate", e instanceof Error ? e.message : String(e));
+      }
       const html = await page.content();
-      if (!html || html.length < 200) throw new Error("render returned empty/too-short HTML");
+      if (!html || html.length < 200) throw new RenderError("empty", "render returned empty/too-short HTML");
       return { html, finalUrl: page.url() || targetUrl };
     } finally {
       await browser.close().catch(() => {});
@@ -162,7 +211,7 @@ export async function renderHtmlViaService(
   // Hard overall cap so a hung browser can't exceed the function budget.
   let timer: ReturnType<typeof setTimeout> | undefined;
   const guard = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("render timed out")), config.timeoutMs + 3_000);
+    timer = setTimeout(() => reject(new RenderError("timeout", "render timed out")), config.timeoutMs + 3_000);
   });
   try {
     return await Promise.race([render, guard]);
