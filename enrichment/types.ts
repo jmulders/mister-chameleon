@@ -898,6 +898,13 @@ export interface EnricherContext {
    *                     with no I/O of any kind
    */
   setCacheSource(source: "provider-cache" | "fresh" | "request-time"): void;
+  /**
+   * Attach a short free-form diagnostic for the debug overlay/logs — e.g. WHY a
+   * stage produced no output (a resolved id that missed its store, an upstream
+   * lookup that returned null). Surfaced even when `output` is empty, so a stage
+   * is never a silent no-op. Last call wins.
+   */
+  setNote(note: string): void;
 }
 
 // ── StageTrace ────────────────────────────────────────────────────────────────
@@ -930,6 +937,12 @@ export interface StageTrace {
    * reported.  Set by the enricher via `EnricherContext.setCacheSource()`.
    */
   cacheSource?: "request-time" | "provider-cache" | "fresh";
+  /**
+   * Free-form diagnostic set by the enricher via `EnricherContext.setNote()`.
+   * Shown in the debug overlay so a stage that contributes no `output` can still
+   * explain why (e.g. "buurtcode=BU0599… · cbs=empty→negative-cache").
+   */
+  note?: string;
   /**
    * Wave number this stage belonged to, when it was dispatched as part of a
    * parallel wave group.  Absent for stages that ran sequentially (no `wave`

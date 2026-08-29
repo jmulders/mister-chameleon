@@ -274,8 +274,10 @@ async function runStage(
   let stageCacheSource: "request-time" | "provider-cache" | "fresh" =
     REQUEST_TIME_STAGE_LABELS.has(stage.label) ? "request-time" : "fresh";
 
+  let stageNote: string | undefined;
   const ctx: EnricherContext = {
     setCacheSource(source) { stageCacheSource = source; },
+    setNote(note) { stageNote = note; },
   };
 
   try {
@@ -310,6 +312,7 @@ async function runStage(
       skipped:     false,
       output:      stageOutput,
       cacheSource: stageCacheSource,
+      ...(stageNote   ? { note: stageNote } : {}),
       ...(errorMsg    ? { error: errorMsg } : {}),
       ...(wave !== undefined ? { wave } : {}),
     },

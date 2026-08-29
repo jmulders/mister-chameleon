@@ -38,7 +38,7 @@
  * mirroring the first-party company DB.
  */
 
-import type { StagedEnricher, EnricherInput, EnrichmentOutput } from "../types";
+import type { StagedEnricher, EnricherInput, EnrichmentOutput, EnricherContext } from "../types";
 import type { CbsAreaStats } from "../cbs-location-store";
 import type { CbsFetchResult } from "@/lib/enrichment/cbs-ingest";
 import { DEFAULT_CBS_DATASET } from "@/lib/enrichment/cbs-ingest";
@@ -135,7 +135,7 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       return Boolean(accumulated.gaLastKnownCity);
     },
 
-    enricher: async (input: EnricherInput, accumulated: Partial<EnrichmentOutput>) => {
+    enricher: async (input: EnricherInput, accumulated: Partial<EnrichmentOutput>, ctx?: EnricherContext) => {
       // Resolve a buurtcode from the most precise signal available (see the
       // precedence/accuracy note in the header).
       let areaCode: string | null = null;
@@ -160,13 +160,28 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
         areaCode = await formGeocode(null, accumulated.gaLastKnownCity);
         source   = "ga4-city";
       }
-      if (!areaCode) return {};
+      if (!areaCode) {
+        // Visible in the debug overlay: PDOK returned no buurtcode for the signal.
+        ctx?.setNote(`no buurtcode from PDOK (source=${source})`);
+        return {};
+      }
 
-      const stats = (await cacheLookup(areaCode)) ?? (await resolveFromCbs(areaCode));
-      if (!stats) return {};
+      // Resolve buurt stats: cache first, then a single live CBS fetch. Track WHICH
+      // so the debug overlay shows hit/miss instead of a silent empty output.
+      let stats = await cacheLookup(areaCode);
+      let statsSource: "cache" | "live" | "empty" = stats ? "cache" : "empty";
+      if (!stats) {
+        stats = await resolveFromCbs(areaCode);
+        if (stats) statsSource = "live";
+      }
+      if (!stats) {
+        ctx?.setNote(`buurtcode=${areaCode} (${source}) · cbs=empty→negative-cache`);
+        return {};
+      }
 
       // Require at least one usable attribute (avoid billing an all-suppressed row).
       if (stats.urbanityProxy == null && stats.incomeBand == null && stats.businessShare == null) {
+        ctx?.setNote(`buurtcode=${areaCode} (${source}) · cbs=${statsSource} but all attributes suppressed`);
         return {};
       }
 
@@ -175,9 +190,10 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       if (stats.incomeBand)            out.locationIncomeBand    = stats.incomeBand;
       if (stats.businessShare != null) out.locationBusinessShare = stats.businessShare;
 
+      ctx?.setNote(`buurtcode=${areaCode} (${source}) · cbs=${statsSource}`);
       if (isDev) {
         const coarse = source === "form-place" || source === "ga4-city";
-        console.debug("[cbs-location] resolved", { areaCode, source, coarse, ...out });
+        console.debug("[cbs-location] resolved", { areaCode, source, statsSource, coarse, ...out });
       }
       return out;
     },
