@@ -509,6 +509,7 @@ export async function POST(request: NextRequest) {
             "referer":                    context.referrer ?? "",
             "user-agent":                 request.headers.get("user-agent") ?? "",
             "x-forwarded-for":            request.headers.get("x-forwarded-for") ?? "",
+            "x-real-ip":                  request.headers.get("x-real-ip") ?? "",
             "x-vercel-ip-country":        request.headers.get("x-vercel-ip-country") ?? "",
             "x-vercel-ip-country-region": request.headers.get("x-vercel-ip-country-region") ?? "",
             "x-vercel-ip-city":           request.headers.get("x-vercel-ip-city") ?? "",
@@ -855,6 +856,7 @@ export async function POST(request: NextRequest) {
           "referer":    context.referrer  ?? "",
           "user-agent": request.headers.get("user-agent") ?? "",
           "x-forwarded-for": request.headers.get("x-forwarded-for") ?? "",
+          "x-real-ip":       request.headers.get("x-real-ip") ?? "",
         },
       },
     );

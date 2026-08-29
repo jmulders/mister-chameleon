@@ -199,6 +199,11 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       "user-agent": h.get("user-agent") ?? "",
       referer:      h.get("referer") ?? "",
       cookie:       cookieHeader ?? "",
+      // Carry the client-IP headers through — request-ip.ts reads
+      // x-forwarded-for → x-real-ip, and without them server-side enrichment
+      // (geo/company/weather/cbs-location) gets an empty IP and stalls.
+      "x-forwarded-for": h.get("x-forwarded-for") ?? "",
+      "x-real-ip":       h.get("x-real-ip") ?? "",
     }),
   });
 

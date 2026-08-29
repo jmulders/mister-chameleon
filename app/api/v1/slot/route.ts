@@ -257,6 +257,10 @@ export async function POST(request: NextRequest) {
       headers: {
         referer: visitor.referrer ?? "",
         "user-agent": request.headers.get("user-agent") ?? "",
+        // Client-IP headers — without these request-ip.ts (x-forwarded-for →
+        // x-real-ip) reads an empty IP and server-side enrichment stalls.
+        "x-forwarded-for": request.headers.get("x-forwarded-for") ?? "",
+        "x-real-ip":       request.headers.get("x-real-ip") ?? "",
       },
     });
 
