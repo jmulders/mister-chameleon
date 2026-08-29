@@ -169,7 +169,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   let analysis;
   try {
-    analysis = await analyzeSite(url);
+    // Reuse the already-captured (rendered, when renderEnabled) DOM instead of a
+    // second plain fetch, so brand tokens/colours/category come from the same
+    // JS-rendered HTML that slot detection reads. Falls back to its own fetch
+    // only if mirroring produced no HTML.
+    analysis = await analyzeSite(url, {
+      html:           mirrored.html,
+      finalUrl:       mirrored.baseUrl,
+      fetchSucceeded: mirrored.fetchSucceeded,
+    });
     // Mirror extraction is more accurate for title/favicon
     if (mirrored.title)      analysis.title      = mirrored.title;
     if (mirrored.faviconUrl) analysis.faviconUrl = mirrored.faviconUrl;
@@ -198,12 +206,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   //   scenario).  Runs concurrently with nothing else — result is non-fatal on
   //   failure (falls back to regex heuristics in slot-injector.ts).
 
-  const aiSlotDefs = await analyzeAndGenerateSlots(mirrored.html, {
+  const aiResult = await analyzeAndGenerateSlots(mirrored.html, {
     url:         mirrored.baseUrl,
     title:       mirrored.title,
     category:    analysis.category,
     description: analysis.description,
   });
+  const aiSlotDefs = aiResult.slots;
+  if (!aiResult.aiRan) {
+    console.warn(
+      `[api/demo/mirror] AI slot analyzer fell back to regex heuristics` +
+      ` — status=${aiResult.status} model=${aiResult.model}` +
+      (aiResult.reason ? ` reason=${aiResult.reason}` : "") + ` url=${url}`,
+    );
+  }
 
   // ── Step 3: Build scenario slot content for the panel ──────────────────────
   //   Start with the 5 legacy scenario experiences (mapped to 6 blueprint keys)
@@ -317,7 +333,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.info(
     `[api/demo/mirror] mirror demo created — demoId=${demo.id}` +
     ` siteName=${demo.site_name} fetchSucceeded=${mirrored.fetchSucceeded}` +
-    ` aiSlots=${aiSlotDefs.length} generationMs=${generationMs} createdBy=${auth.adminEmail}`,
+    ` aiSlots=${aiSlotDefs.length} aiRan=${aiResult.aiRan} aiStatus=${aiResult.status} aiModel=${aiResult.model}` +
+    ` generationMs=${generationMs} createdBy=${auth.adminEmail}`,
   );
 
   return NextResponse.json(
@@ -327,6 +344,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       siteName:       demo.site_name,
       expiresAt:      demo.expires_at,
       fetchSucceeded: mirrored.fetchSucceeded,
+      // AI slot analyzer visibility — so "1 slot" is never a mystery: whether
+      // the AI ran, how many slots it produced, and (on fallback) why + which model.
+      ai: {
+        ran:    aiResult.aiRan,
+        status: aiResult.status,
+        model:  aiResult.model,
+        slots:  aiSlotDefs.length,
+        ...(aiResult.reason ? { reason: aiResult.reason } : {}),
+      },
     },
     { status: 200 },
   );
