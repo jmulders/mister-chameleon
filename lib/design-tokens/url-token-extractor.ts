@@ -13,12 +13,20 @@
  *   • Colour-frequency fallback for background / foreground / primary when no
  *     variables are present.
  *
- * Heuristic by nature (no headless browser, no cascade resolution), so the
- * result is meant to be REVIEWED in the Builder before saving — not a guaranteed
- * pixel-perfect copy.
+ * Heuristic by nature (no cascade resolution), so the result is meant to be
+ * REVIEWED in the Builder before saving — not a guaranteed pixel-perfect copy.
+ *
+ * Start-page HTML can optionally be captured through the self-hosted headless
+ * Chrome render service (same one Mirror uses): when a RenderConfig with an
+ * enabled service is passed, the start page is rendered so tokens are read from
+ * the JS-built DOM (styled-components / emotion injected <style>, CSS-in-JS,
+ * client-rendered markup) instead of an empty SPA shell — consistent with what
+ * Mirror shows. It falls back to a plain fetch when render is disabled, errors,
+ * or times out. Linked stylesheets are always fetched plainly.
  */
 
 import "server-only";
+import type { RenderConfig } from "@/demo/site-render";
 
 export interface UrlExtractResult {
   ok:      boolean;
@@ -80,6 +88,48 @@ async function fetchText(url: string, timeoutMs: number, maxBytes: number): Prom
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Fetch the start-page HTML, preferring the JS-rendered DOM when a render
+ * service is configured, so design tokens reflect what a browser actually paints
+ * (matching Mirror). Falls back to a plain fetch when the service is disabled,
+ * errors, times out, or returns unusable HTML — extraction never hard-fails on a
+ * render outage. `deps` is injectable for tests only; production uses the real
+ * render service (lazy-imported so headless Chrome is never loaded when render
+ * is off) and the plain fetcher above.
+ */
+export async function fetchHtmlMaybeRendered(
+  url:       string,
+  render:    RenderConfig | undefined,
+  timeoutMs: number,
+  maxBytes:  number,
+  deps: {
+    renderHtml?: (u: string, c: RenderConfig) => Promise<{ html: string; finalUrl: string }>;
+    fetchPlain?: (u: string, t: number, m: number) => Promise<string>;
+  } = {},
+): Promise<string> {
+  const fetchPlain = deps.fetchPlain ?? fetchText;
+  if (render && render.service !== "none") {
+    try {
+      const renderHtml = deps.renderHtml ?? (async (u, c) => {
+        const { renderHtmlViaService } = await import("@/demo/site-render");
+        return renderHtmlViaService(u, c);
+      });
+      const rendered = await renderHtml(url, render);
+      const html = rendered?.html ?? "";
+      if (html) return html.length > maxBytes ? html.slice(0, maxBytes) : html;
+      // Empty/unusable render → fall through to plain fetch.
+    } catch (err) {
+      console.warn("[design-tokens] render service failed, falling back to plain fetch", {
+        url,
+        service: render.service,
+        error:   err instanceof Error ? err.message : String(err),
+      });
+      // fall through to plain fetch
+    }
+  }
+  return fetchPlain(url, timeoutMs, maxBytes);
 }
 
 // ── Value coercion ─────────────────────────────────────────────────────────────
@@ -233,8 +283,12 @@ function discoverInternalLinks(html: string, base: URL, max: number): string[] {
  * their CSS (inline + linked stylesheets, deduped) and HTML. More pages → more
  * CSS variables discovered and a more representative colour-frequency palette.
  */
-async function collectSiteCss(startUrl: URL, maxPages: number): Promise<{ css: string; html: string; pages: number }> {
-  const startHtml = await fetchText(startUrl.toString(), 8000, 1_500_000);
+async function collectSiteCss(startUrl: URL, maxPages: number, render?: RenderConfig): Promise<{ css: string; html: string; pages: number }> {
+  // Only the start page is rendered through headless Chrome — that is where the
+  // global design system lives (:root vars, injected style tags), and rendering
+  // every crawled page would mean one browser launch each. Internal pages and
+  // linked stylesheets stay on plain fetch.
+  const startHtml = await fetchHtmlMaybeRendered(startUrl.toString(), render, 8000, 1_500_000);
   if (!startHtml) return { css: "", html: "", pages: 0 };
 
   const pageUrls = [startUrl.toString(), ...discoverInternalLinks(startHtml, startUrl, maxPages - 1)]
@@ -378,12 +432,12 @@ function buildBlockTokens(g: Grouped): Record<string, string> {
  * (maxPages-1) internal pages and distils tokens from the union of their CSS.
  * Returns both the grouped preset payload and a curated per-block token map.
  */
-export async function extractTokensFromSite(rawUrl: string, maxPages = 5): Promise<UrlExtractResult> {
+export async function extractTokensFromSite(rawUrl: string, maxPages = 5, render?: RenderConfig): Promise<UrlExtractResult> {
   const url = safeUrl(rawUrl);
   if (!url) return { ok: false, error: "Ongeldige of niet-toegestane URL (alleen publieke http/https)." };
 
   const pageBudget = Math.min(Math.max(Math.trunc(maxPages) || 1, 1), 8);
-  const { css, html, pages } = await collectSiteCss(url, pageBudget);
+  const { css, html, pages } = await collectSiteCss(url, pageBudget, render);
 
   if (!html) return { ok: false, error: "Kon de pagina niet ophalen (timeout of geblokkeerd)." };
 
