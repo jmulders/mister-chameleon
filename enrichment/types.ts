@@ -230,6 +230,33 @@ export interface EnrichmentOutput {
   locationIncomeBand:     string | null;
   /** Share of business establishments per inhabitant in the buurt (0..1). */
   locationBusinessShare:  number | null;
+  /**
+   * Confidence in the resolved location. "high" when the buurt came from a
+   * precise, coherent signal (form postcode, or IP coordinates whose reverse-
+   * geocoded city agrees with the resolved city). "low" when it was resolved via
+   * a coarse fallback — a city/place centroid, the GA4 city, or (crucially) when
+   * the IP city and IP coordinates disagreed and we fell back to the city. Rules
+   * and downstream consumers should treat "low" cautiously.
+   */
+  locationConfidence:     "high" | "low" | null;
+  /**
+   * True when the IP-geo city (e.g. IPinfo "Veenendaal") and the reverse-geocoded
+   * city of the IP coordinates (e.g. MaxMind coords → "Rotterdam") disagreed —
+   * MaxMind and IPinfo are independent providers and their per-field precedence
+   * can leave city and coordinates pointing at different places. On a mismatch the
+   * CBS stage resolves the buurt via the (more reliable) city, not the coordinates.
+   */
+  locationCityCoordMismatch: boolean | null;
+
+  // ── Geo provenance (which provider set which field) ─────────────────────────
+  // Persisted on the output (not just the transient stage trace) so the /demo
+  // debug shows it even on a session-cache hit. Explicit per-field precedence:
+  // IPinfo city/region > MaxMind (its NL city is usually better); coordinates take
+  // IPinfo's `loc` when present, else MaxMind's coarser GeoLite2 coordinates.
+  /** Provider that set the winning `city` — "ipinfo" | "maxmind" | "geo:headers". */
+  geoCitySource:   string | null;
+  /** Provider that set the winning `latitude`/`longitude` — "ipinfo" | "maxmind". */
+  geoCoordsSource: string | null;
 
   // ── Weather (from Open-Meteo) ───────────────────────────────────────────────
   /**

@@ -704,6 +704,33 @@ export function EnrichmentDebugPanel({ info, ga4Tracking, ga4History, leadinfoDe
             : "▸ IP geo: no coordinates (lat/lng null)"}
         </span>
 
+        {/* ── Geo provenance & coherence (which provider set city vs coords) ── */}
+        {(info.geoCitySource || info.geoCoordsSource || info.locationConfidence) && (
+          <span style={{ flexBasis: "100%", display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center", marginTop: "2px" }}>
+            <Ga4Field label="city ←"   value={info.geoCitySource   ?? "—"} />
+            <Ga4Field label="coords ←" value={info.geoCoordsSource ?? "—"} />
+            {info.locationConfidence && (
+              <span
+                style={{
+                  padding: "1px 7px", borderRadius: "9999px", fontSize: "10px", fontWeight: 700, border: "1px solid", flexShrink: 0,
+                  ...(info.locationConfidence === "high"
+                    ? { background: "#dcfce7", color: "#166534", borderColor: "#86efac" }
+                    : { background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" }),
+                }}
+              >
+                ▸ location confidence: {info.locationConfidence}
+              </span>
+            )}
+            {info.locationCityCoordMismatch && (
+              <span style={{ color: "#b45309", fontSize: "11px", flexBasis: "100%" }}>
+                ⚠ City and coordinates came from different providers and disagreed
+                ({info.geoCitySource ?? "?"} city vs {info.geoCoordsSource ?? "?"} coords) —
+                the CBS buurt was resolved via the <strong>city</strong> (coarse), not the coordinates.
+              </span>
+            )}
+          </span>
+        )}
+
         {/* Explanatory note */}
         <span style={{ color: "#64748b", fontSize: "11px", flexBasis: "100%" }}>
           {info.currentLocationSource === "ga4" ? (

@@ -251,25 +251,33 @@ export class IpInfoProvider {
         result.companyMatchConfidence = 0.8;
       }
 
-      // Provide geo fallback when MaxMind has not already filled these fields.
-      // The staged pipeline merge strategy preserves non-null earlier values, so
-      // if MaxMind already wrote countryCode this becomes a no-op.
+      // Geo precedence (explicit, not accidental last-wins): IPinfo runs AFTER
+      // MaxMind in the geo wave and the merge keeps the later non-null value, so
+      // IPinfo's country/region/city OVERWRITE MaxMind's. This is intentional —
+      // for NL, IPinfo's city/region are usually more accurate than MaxMind
+      // GeoLite2. We stamp `geoCitySource` alongside the city so the winning
+      // provenance travels with the field (survives the session cache).
       if (data.country) result.countryCode = data.country.toUpperCase();
       if (data.region)  result.region      = data.region;
-      if (data.city)    result.city        = data.city;
+      if (data.city) {
+        result.city          = data.city;
+        result.geoCitySource = "ipinfo";
+      }
 
-      // Parse lat/lng from the "loc" field ("lat,lon" format, e.g. "52.3676,4.9041").
-      // These are city-level coordinates — same precision as MaxMind GeoLite2-City.
-      // The merge strategy preserves any non-null value from a prior stage, so if
-      // MaxMind or the CDN headers already produced coordinates this is a no-op.
+      // Coordinates from the "loc" field ("lat,lon", e.g. "52.3676,4.9041").
+      // Precedence: IPinfo's loc when present, else MaxMind's (also coarse,
+      // GeoLite2-City precision). IPinfo is later in the wave, so its coordinates
+      // win when present; when `loc` is absent MaxMind's remain. Stamp the source
+      // so a later city/coords mismatch is attributable in the debug panel.
       if (data.loc) {
         const parts = data.loc.split(",");
         if (parts.length === 2) {
           const lat = parseFloat(parts[0]);
           const lng = parseFloat(parts[1]);
           if (isFinite(lat) && isFinite(lng)) {
-            result.latitude  = lat;
-            result.longitude = lng;
+            result.latitude       = lat;
+            result.longitude      = lng;
+            result.geoCoordsSource = "ipinfo";
             if (this.isDev) {
               console.debug("[ipinfo] parsed lat/lng from loc", { lat, lng });
             }
