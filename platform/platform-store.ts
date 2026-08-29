@@ -138,6 +138,11 @@ export interface PlatformAiSettings {
    * Not a secret, but read server-side alongside the keys. SERVER ONLY.
    */
   anthropicModel?: string;
+  /**
+   * ScreenshotOne API key — the managed screenshot provider used by the demo
+   * screenshot mode. SERVER ONLY — must never be serialised to the client.
+   */
+  screenshotOneKey?: string;
 }
 
 /**
@@ -1072,20 +1077,25 @@ export async function savePlatformAiSettings(
   if (patch.anthropicModel !== undefined) {
     normalized.anthropicModel = patch.anthropicModel === "" ? null : patch.anthropicModel;
   }
+  if (patch.screenshotOneKey !== undefined) {
+    normalized.screenshotOneKey = patch.screenshotOneKey === "" ? null : patch.screenshotOneKey;
+  }
 
   return writeSection<Record<string, unknown>>(KEYS.ai, normalized);
 }
 
 /** Safe boolean flags for the AI section. */
 export function aiPlatformFlags(settings: PlatformAiSettings): {
-  hasAnthropicKey: boolean;
-  hasOpenaiKey:    boolean;
-  hasDemoSiteKey:  boolean;
+  hasAnthropicKey:     boolean;
+  hasOpenaiKey:        boolean;
+  hasDemoSiteKey:      boolean;
+  hasScreenshotOneKey: boolean;
 } {
   return {
-    hasAnthropicKey: Boolean(settings.anthropicKey),
-    hasOpenaiKey:    Boolean(settings.openaiKey),
-    hasDemoSiteKey:  Boolean(settings.demoSiteKey),
+    hasAnthropicKey:     Boolean(settings.anthropicKey),
+    hasOpenaiKey:        Boolean(settings.openaiKey),
+    hasDemoSiteKey:      Boolean(settings.demoSiteKey),
+    hasScreenshotOneKey: Boolean(settings.screenshotOneKey),
   };
 }
 

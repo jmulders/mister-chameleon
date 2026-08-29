@@ -24,14 +24,18 @@ import {
   getDemoImporterStatusAction,
   getDemoImporterSettingsAction,
 } from "./actions";
+import { getPlatformAiSettings, aiPlatformFlags } from "@/platform/platform-store";
 import { DemoImporterClient }           from "./_components/DemoImporterClient";
 
 
 export default async function DemoImporterPage() {
-  const [statusResult, settingsResult] = await Promise.all([
+  const [statusResult, settingsResult, aiSettings] = await Promise.all([
     getDemoImporterStatusAction(),
     getDemoImporterSettingsAction(),
+    getPlatformAiSettings(),
   ]);
+  // Secret-safe: only a boolean presence flag crosses to the client.
+  const hasScreenshotOneKey = aiSettings.ok ? aiPlatformFlags(aiSettings.data).hasScreenshotOneKey : false;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
@@ -77,6 +81,7 @@ export default async function DemoImporterPage() {
           settings={settingsResult.ok ? settingsResult.settings : null}
           settingsUpdatedAt={settingsResult.ok ? settingsResult.updatedAt : null}
           settingsError={settingsResult.ok ? null : settingsResult.error}
+          hasScreenshotOneKey={hasScreenshotOneKey}
         />
       )}
 

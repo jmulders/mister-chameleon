@@ -16,6 +16,7 @@ import type {
   BrandSignals,
   DemoImages,
   DemoInstanceMode,
+  DemoScreenshot,
   SiteAnalysis,
   SiteCategory,
 } from "./types";
@@ -74,6 +75,8 @@ export interface CreateDemoInput {
    * into brand_signals so the synthetic demo renders in their brand style.
    */
   blockTokens?:   Record<string, string> | null;
+  /** Screenshot demo payload (screenshot URL + vision hotspot regions). */
+  screenshot?:    DemoScreenshot | null;
 }
 
 export async function createDemoInstance(
@@ -93,6 +96,7 @@ export async function createDemoInstance(
     mirroredHtml  = null,
     scenarioSlots = null,
     blockTokens   = null,
+    screenshot    = null,
   } = input;
 
   const id        = generateDemoId();
@@ -122,6 +126,7 @@ export async function createDemoInstance(
     demo_mode:        demoMode,
     mirrored_html:    mirroredHtml,
     scenario_slots:   scenarioSlots,
+    screenshot:       screenshot,
   };
 
   let { data, error } = await client
@@ -298,5 +303,6 @@ function normalizeDemoRow(row: any): DemoInstance {
     demo_mode:        (row.demo_mode       ?? "mirror") as DemoInstanceMode,
     mirrored_html:    (row.mirrored_html   ?? null) as string | null,
     scenario_slots:   (row.scenario_slots  ?? null) as Record<string, Record<string, string>> | null,
+    screenshot:       (row.screenshot      ?? null) as DemoScreenshot | null,
   };
 }

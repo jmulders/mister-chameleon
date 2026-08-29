@@ -200,6 +200,71 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const scenarios = generateScenarios(analysis);
 
+  // ── Step 2a: Screenshot mode (managed capture + vision hotspots) ────────────
+  //   When enabled, capture a full-page screenshot, ask Claude-vision for the
+  //   personalizable regions, and generate scenario variants per region. On ANY
+  //   failure (no key, capture/vision/upload error) we fall through to the
+  //   existing plain-fetch/mirror flow below — screenshot mode never hard-fails.
+  let screenshotEnabled = false;
+  try {
+    const { data } = await client.from("platform_settings").select("value").eq("key", "demo_importer").maybeSingle();
+    screenshotEnabled = (data?.value as { screenshotEnabled?: unknown } | null)?.screenshotEnabled === true;
+  } catch { /* settings unavailable → screenshot mode off */ }
+
+  if (screenshotEnabled) {
+    let built = null;
+    try {
+      const { buildScreenshotDemo } = await import("@/demo/screenshot-pipeline");
+      built = await buildScreenshotDemo(client, url, analysis);
+    } catch (err) {
+      console.warn("[api/demo/mirror] screenshot build threw, falling back to mirror", { url, error: err instanceof Error ? err.message : String(err) });
+    }
+    if (built?.ok) {
+      const generationMs = Date.now() - startMs;
+      let demo;
+      try {
+        demo = await createDemoInstance(client, {
+          analysis,
+          scenarios,
+          generatedBy:  input.generatedBy ?? auth.adminEmail,
+          generationMs,
+          expiryDays,
+          demoMode:     "screenshot" as const,
+          screenshot:   built.screenshot,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[api/demo/mirror] screenshot createDemoInstance failed", { url, error: msg });
+        return NextResponse.json({ error: `Failed to store demo: ${msg}` }, { status: 500 });
+      }
+      // Screenshot demos render in the React viewer (not /live).
+      const demoUrl = `${baseUrl}/demo/${demo.id}`;
+      console.info(
+        `[api/demo/mirror] SCREENSHOT demo created — demoId=${demo.id} siteName=${demo.site_name}` +
+        ` regions=${built.status.regions} variantsRan=${built.status.variantsRan} aiStatus=${built.status.aiStatus}` +
+        ` visionModel=${built.status.visionModel} generationMs=${generationMs} createdBy=${auth.adminEmail}`,
+      );
+      return NextResponse.json(
+        {
+          demoId:    demo.id,
+          demoUrl,
+          siteName:  demo.site_name,
+          expiresAt: demo.expires_at,
+          mode:      "screenshot",
+          screenshot: {
+            regions:     built.status.regions,
+            variantsRan: built.status.variantsRan,
+            aiStatus:    built.status.aiStatus,
+            visionModel: built.status.visionModel,
+            ms:          built.status.ms,
+          },
+        },
+        { status: 200 },
+      );
+    }
+    console.info(`[api/demo/mirror] screenshot mode fell back to mirror — reason=${built ? built.reason : "threw"} url=${url}`);
+  }
+
   // ── Step 2b: AI-driven slot analysis ────────────────────────────────────────
   //   Uses Claude to identify 8-12 personalizable elements in the mirrored HTML
   //   and generate 6 unique content variants per element (one per blueprint

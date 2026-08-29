@@ -23,6 +23,7 @@ import { useState, useTransition } from "react";
 import Link                         from "next/link";
 import {
   saveDemoImporterSettingsAction,
+  saveScreenshotOneKeyAction,
   testAnalyzerConnectionAction,
   runDemoTestAction,
   deleteDemoInstanceAction,
@@ -39,10 +40,12 @@ import { toDemoImporterSavePayload } from "../settings-payload";
 // ── Props ──────────────────────────────────────────────────────────────────────
 
 interface DemoImporterClientProps {
-  status:            DemoImporterStatus;
-  settings:          DemoImporterSettings | null;
-  settingsUpdatedAt: string | null;
-  settingsError:     string | null;
+  status:              DemoImporterStatus;
+  settings:            DemoImporterSettings | null;
+  settingsUpdatedAt:   string | null;
+  settingsError:       string | null;
+  /** Whether a ScreenshotOne API key is stored (presence flag only — never the value). */
+  hasScreenshotOneKey: boolean;
 }
 
 // ── Root component ────────────────────────────────────────────────────────────
@@ -52,6 +55,7 @@ export function DemoImporterClient({
   settings,
   settingsUpdatedAt,
   settingsError,
+  hasScreenshotOneKey,
 }: DemoImporterClientProps) {
   return (
     <div className="space-y-8">
@@ -69,9 +73,86 @@ export function DemoImporterClient({
         <SettingsSections initial={settings} updatedAt={settingsUpdatedAt} />
       )}
 
+      <ScreenshotOneKeyCard configured={hasScreenshotOneKey} />
+
       <RecentRunsTable runs={status.recentRuns} />
       <TestPanel />
     </div>
+  );
+}
+
+// ── ScreenshotOne API key (write-only secret) ─────────────────────────────────
+
+function ScreenshotOneKeyCard({ configured }: { configured: boolean }) {
+  const [value, setValue]   = useState("");
+  const [saved, setSaved]   = useState(configured);
+  const [state, setState]   = useState<"idle" | "saving" | "done" | "error">("idle");
+  const [error, setError]   = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function save(clear: boolean) {
+    setState("saving");
+    setError(null);
+    startTransition(async () => {
+      const res = await saveScreenshotOneKeyAction(clear ? "" : value.trim());
+      if (res.ok) {
+        setState("done");
+        setSaved(!clear);
+        setValue("");
+        setTimeout(() => setState("idle"), 3000);
+      } else {
+        setState("error");
+        setError(res.error);
+      }
+    });
+  }
+
+  return (
+    <section aria-labelledby="ss1-heading">
+      <h2 id="ss1-heading" className="text-base font-semibold text-neutral-900 mb-3">Screenshot API key</h2>
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm px-5 py-4 space-y-3">
+        <p className="text-xs text-neutral-500">
+          ScreenshotOne API key for <span className="font-medium text-neutral-700">Screenshot demo mode</span>.
+          Stored server-side (never shown back); the <code>SCREENSHOTONE_API_KEY</code> env var remains a fallback.
+        </p>
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+            saved ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}>
+            {saved ? "Key configured ✓" : "No key set"}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="password"
+            value={value}
+            onChange={(e) => { setValue(e.target.value); setState("idle"); }}
+            placeholder={saved ? "Enter a new key to replace" : "Paste ScreenshotOne key"}
+            autoComplete="off"
+            className="min-w-[16rem] flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
+          />
+          <button
+            onClick={() => save(false)}
+            disabled={isPending || state === "saving" || !value.trim()}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
+          >
+            {state === "saving" ? "Saving…" : state === "done" ? "Saved ✓" : "Save key"}
+          </button>
+          {saved && (
+            <button
+              onClick={() => save(true)}
+              disabled={isPending || state === "saving"}
+              className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {state === "error" && error && (
+          <p className="text-xs text-red-600">Save failed: {error}</p>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -408,6 +489,14 @@ function BehaviorSettings({ settings, patch, updatedAt, saveAll }: SectionProps)
             </p>
           </div>
         )}
+
+        {/* ── Screenshot demo mode (managed capture + vision hotspots) ──────── */}
+        <ToggleRow
+          label="Screenshot demo mode"
+          note="Capture a full-page screenshot (ScreenshotOne) and annotate the personalizable regions with per-scenario variants via Claude vision — instead of cloning the DOM. Needs a ScreenshotOne key; falls back to the mirror flow on any failure."
+          checked={settings.screenshotEnabled}
+          onChange={() => { patch({ screenshotEnabled: !settings.screenshotEnabled }); setSaveState("idle"); }}
+        />
 
       </div>
     </section>

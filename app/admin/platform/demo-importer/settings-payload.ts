@@ -14,13 +14,14 @@ import type { DemoImporterSettings } from "./actions";
 
 export type DemoImporterSavePayload = Pick<
   DemoImporterSettings,
-  "renderEnabled" | "renderTimeoutMs" | "expiryDays"
+  "renderEnabled" | "renderTimeoutMs" | "screenshotEnabled" | "expiryDays"
 >;
 
 export function toDemoImporterSavePayload(s: DemoImporterSettings): DemoImporterSavePayload {
   return {
-    renderEnabled:   s.renderEnabled,
-    renderTimeoutMs: s.renderTimeoutMs,
-    expiryDays:      s.expiryDays,
+    renderEnabled:     s.renderEnabled,
+    renderTimeoutMs:   s.renderTimeoutMs,
+    screenshotEnabled: s.screenshotEnabled,
+    expiryDays:        s.expiryDays,
   };
 }

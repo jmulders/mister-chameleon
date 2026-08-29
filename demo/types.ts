@@ -249,8 +249,36 @@ export interface SiteAnalysis {
 
 // ── Demo instance ──────────────────────────────────────────────────────────────
 
-/** Generation mode for a demo instance: "synthetic" = AI-generated, "mirror" = live site copy */
-export type DemoInstanceMode = "synthetic" | "mirror";
+/**
+ * Generation mode for a demo instance:
+ *   "synthetic"  — AI-generated content, React viewer
+ *   "mirror"     — instrumented live-site HTML copy, served at /live
+ *   "screenshot" — full-page screenshot + annotated personalization hotspots
+ */
+export type DemoInstanceMode = "synthetic" | "mirror" | "screenshot";
+
+/** The 6 blueprint scenario keys carried per screenshot region (mirrors AiSlotDefinition). */
+export type ScreenshotScenarios = Record<string, string>;
+
+/** A personalizable region on the screenshot, from the Claude-vision pass. */
+export interface ScreenshotRegion {
+  /** kebab-case slot id, e.g. "hero-title", "hero-subtitle", "hero-cta", "proof". */
+  slotKey:      string;
+  /** Bounding box as FRACTIONS of the image size (0..1), so it scales with any render width. */
+  box:          { x: number; y: number; w: number; h: number };
+  /** The original on-page text in this region (the "before"). */
+  originalText: string;
+  /** Per-scenario variant text (the "after"), one per blueprint key. */
+  scenarios:    ScreenshotScenarios;
+}
+
+/** Screenshot demo payload stored in demo_instances.screenshot (jsonb). */
+export interface DemoScreenshot {
+  screenshotUrl: string;
+  width:         number | null;
+  height:        number | null;
+  regions:       ScreenshotRegion[];
+}
 
 export interface DemoInstance {
   id:              string;
@@ -283,6 +311,9 @@ export interface DemoInstance {
    * Used by /api/snippet/decide when context._demoId is present.
    */
   scenario_slots:  Record<string, Record<string, string>> | null;
+
+  // Screenshot mode — full-page screenshot + vision-derived hotspot regions.
+  screenshot:      DemoScreenshot | null;
 
   // Lifecycle
   created_at:      string;
