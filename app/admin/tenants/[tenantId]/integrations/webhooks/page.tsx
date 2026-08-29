@@ -1,5 +1,5 @@
 /**
- * Admin — Tenant Workspace › Audience › Webhooks
+ * Admin — Tenant Workspace › Integrations › Webhooks
  *
  * One overview of every outbound webhook, across both mechanisms: the
  * lead-qualification webhook (CRM sync, fires on upward qualification) and
@@ -97,7 +97,7 @@ export default async function WebhooksOverviewPage({
   return (
     <div className="p-8 max-w-5xl space-y-6">
       <AdminPageHeader
-        eyebrow="Audience"
+        eyebrow="Integrations"
         title="Webhooks"
         description="Every outbound webhook this tenant sends, across both mechanisms. This is a read-only overview; each webhook is edited on its own page (linked below). Nothing here changes how or when a webhook fires."
       />
