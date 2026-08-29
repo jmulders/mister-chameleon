@@ -17,7 +17,7 @@ import { toDemoImporterSavePayload } from "@/app/admin/platform/demo-importer/se
 import type { DemoImporterSettings } from "@/app/admin/platform/demo-importer/actions";
 
 const settings = (o: Partial<DemoImporterSettings>): DemoImporterSettings =>
-  ({ renderEnabled: false, renderTimeoutMs: 25_000, expiryDays: 7, ...o } as DemoImporterSettings);
+  ({ renderEnabled: false, renderTimeoutMs: 25_000, screenshotEnabled: false, expiryDays: 7, ...o } as DemoImporterSettings);
 
 describe("toDemoImporterSavePayload", () => {
 
@@ -31,8 +31,14 @@ describe("toDemoImporterSavePayload", () => {
     assert.ok("renderEnabled" in p, "renderEnabled must always be present in the payload");
   });
 
+  it("carries screenshotEnabled too (same split-save guard as renderEnabled)", () => {
+    const p = toDemoImporterSavePayload(settings({ screenshotEnabled: true }));
+    assert.equal(p.screenshotEnabled, true);
+    assert.ok("screenshotEnabled" in p, "screenshotEnabled must always be present in the payload");
+  });
+
   it("includes every UI-edited field (the full set both Save buttons write)", () => {
-    const p = toDemoImporterSavePayload(settings({ renderEnabled: true, renderTimeoutMs: 30_000, expiryDays: 14 }));
-    assert.deepEqual(p, { renderEnabled: true, renderTimeoutMs: 30_000, expiryDays: 14 });
+    const p = toDemoImporterSavePayload(settings({ renderEnabled: true, renderTimeoutMs: 30_000, screenshotEnabled: true, expiryDays: 14 }));
+    assert.deepEqual(p, { renderEnabled: true, renderTimeoutMs: 30_000, screenshotEnabled: true, expiryDays: 14 });
   });
 });

@@ -36,6 +36,7 @@ import type { DemoInstance } from "@/demo/types";
 import { createClient } from "@supabase/supabase-js";
 import { getDemoById } from "@/demo/store";
 import { DemoViewer } from "./_components/DemoViewer";
+import { ScreenshotViewer } from "./_components/ScreenshotViewer";
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -135,6 +136,12 @@ export default async function DemoPage({
   }
 
   // ── Viewer ─────────────────────────────────────────────────────────────────
+
+  // Screenshot mode: a full-page screenshot with annotated personalization
+  // hotspots, rendered by its own client viewer.
+  if (demo.demo_mode === "screenshot" && demo.screenshot) {
+    return <ScreenshotViewer demo={demo} screenshot={demo.screenshot} />;
+  }
 
   return <DemoViewer demo={demo} />;
 }

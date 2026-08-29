@@ -409,6 +409,14 @@ function BehaviorSettings({ settings, patch, updatedAt, saveAll }: SectionProps)
           </div>
         )}
 
+        {/* ── Screenshot demo mode (managed capture + vision hotspots) ──────── */}
+        <ToggleRow
+          label="Screenshot demo mode"
+          note="Capture a full-page screenshot (ScreenshotOne) and annotate the personalizable regions with per-scenario variants via Claude vision — instead of cloning the DOM. Needs a ScreenshotOne key; falls back to the mirror flow on any failure."
+          checked={settings.screenshotEnabled}
+          onChange={() => { patch({ screenshotEnabled: !settings.screenshotEnabled }); setSaveState("idle"); }}
+        />
+
       </div>
     </section>
   );

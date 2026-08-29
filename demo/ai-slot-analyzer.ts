@@ -419,7 +419,7 @@ async function resolveImageUrls(
 
 // ── Claude caller ─────────────────────────────────────────────────────────────
 
-async function resolveAnthropicKey(): Promise<string | null> {
+export async function resolveAnthropicKey(): Promise<string | null> {
   try {
     const { getPlatformAiSettings } = await import("@/platform/platform-store");
     const result = await getPlatformAiSettings();
@@ -436,7 +436,7 @@ async function resolveAnthropicKey(): Promise<string | null> {
  * NOT read the global `CLAUDE_MODEL` (which may be a cheaper model for variant
  * generation) — slot analysis needs a capable model.
  */
-async function resolveSlotModel(): Promise<string> {
+export async function resolveSlotModel(): Promise<string> {
   try {
     const { getPlatformAiSettings } = await import("@/platform/platform-store");
     const result = await getPlatformAiSettings();
@@ -632,5 +632,83 @@ export async function analyzeAndGenerateSlots(
     const detail = err instanceof Error ? err.message : String(err);
     console.warn("[demo/ai-slot-analyzer] analyzeAndGenerateSlots failed:", detail);
     return { slots: [], aiRan: false, status: "error", reason: detail, model };
+  }
+}
+
+// ── Screenshot regions → scenario variants (reuses the analyzer machinery) ──────
+
+/** A vision-detected region fed to the analyzer for variant generation. */
+export interface RegionInput {
+  slotKey:      string;
+  originalText: string;
+  tag?:         string;
+}
+
+/** A region with its 6 scenario variants attached (empty when the AI didn't match it). */
+export interface RegionWithScenarios {
+  slotKey:      string;
+  originalText: string;
+  scenarios:    Record<string, string>;
+}
+
+export interface RegionAnalysisResult {
+  regions: RegionWithScenarios[];
+  aiRan:   boolean;
+  status:  "ok" | "no_elements" | "no_slots" | "error" | SlotAiFailReason;
+  reason?: string;
+  model:   string;
+}
+
+const normText = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Generate 6 scenario variants for each screenshot region, reusing the exact same
+ * Claude machinery as analyzeAndGenerateSlots (key/model/timeout/prompt/parse/
+ * validate). The vision step already gave us the regions + original text, so we
+ * feed those texts as the element map and match the returned slots back to each
+ * region by text. Never throws; regions with no AI match keep empty scenarios so
+ * the caller falls open to showing only the original copy.
+ */
+export async function analyzeRegionsToSlots(
+  regions:     RegionInput[],
+  siteContext: { url: string; title: string; category: SiteCategory | string; description: string },
+): Promise<RegionAnalysisResult> {
+  const base = regions.map((r) => ({ slotKey: r.slotKey, originalText: r.originalText, scenarios: {} as Record<string, string> }));
+  let model = DEFAULT_AI_MODEL;
+  try {
+    const usable = regions.filter((r) => (r.originalText ?? "").trim().length >= 5);
+    if (usable.length === 0) {
+      return { regions: base, aiRan: false, status: "no_elements", reason: "No region text to personalise.", model };
+    }
+
+    const elements: ElementEntry[] = usable.map((r, i) => ({ tag: r.tag ?? "p", text: r.originalText, index: i }));
+    const userPrompt = buildPrompt(elements, siteContext, false);
+
+    const call = await callClaudeForSlots(userPrompt);
+    model = call.model;
+    if (!call.ok) {
+      return { regions: base, aiRan: false, status: call.reason, reason: call.detail, model };
+    }
+    const valid = (call.data.slots ?? []).filter(isValidSlot) as AiSlotDefinition[];
+    if (valid.length === 0) {
+      return { regions: base, aiRan: false, status: "no_slots", reason: "AI returned no usable variants.", model };
+    }
+
+    // Match each AI slot back to a region by its original text (exact or containment).
+    const enriched = base.map((r) => {
+      const key = normText(r.originalText);
+      const hit = valid.find((s) => {
+        const m = normText(s.matchText);
+        return m === key || (m.length >= 5 && (m.includes(key) || key.includes(m)));
+      });
+      return hit ? { ...r, scenarios: hit.scenarios as Record<string, string> } : r;
+    });
+
+    const matched = enriched.filter((r) => Object.keys(r.scenarios).length > 0).length;
+    return { regions: enriched, aiRan: matched > 0, status: "ok", model };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.warn("[demo/ai-slot-analyzer] analyzeRegionsToSlots failed:", detail);
+    return { regions: base, aiRan: false, status: "error", reason: detail, model };
   }
 }

@@ -106,6 +106,9 @@ export interface DemoImporterSettings {
   // no API key (no SaaS).
   renderEnabled:          boolean;
   renderTimeoutMs:        number;
+  // Screenshot demo mode — managed full-page screenshot + vision hotspots
+  // (ScreenshotOne + Claude vision). Falls back to the mirror flow on failure.
+  screenshotEnabled:      boolean;
   // Demo lifetime.
   expiryDays:             number;
 }
@@ -113,6 +116,7 @@ export interface DemoImporterSettings {
 const SETTINGS_DEFAULTS: DemoImporterSettings = {
   renderEnabled:         false,
   renderTimeoutMs:       25_000,
+  screenshotEnabled:     false,
   expiryDays:            7,
 };
 
