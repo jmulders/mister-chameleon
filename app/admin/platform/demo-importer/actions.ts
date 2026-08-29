@@ -38,6 +38,7 @@ import { analyzeSite }      from "@/demo/analyzer";
 import { generateScenarios } from "@/demo/content-generator";
 import { listDemoInstances } from "@/demo/store";
 import { MIN_RENDER_TIMEOUT_MS, MAX_RENDER_TIMEOUT_MS } from "@/demo/site-render";
+import { savePlatformAiSettings } from "@/platform/platform-store";
 import type { SiteAnalysis, DemoInstance } from "@/demo/types";
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -334,6 +335,26 @@ export async function saveDemoImporterSettingsAction(
     );
     return { ok: false, error: `Failed to save settings: ${error.message}` };
   }
+
+  revalidatePath("/admin/platform/demo-importer");
+  return { ok: true };
+}
+
+// ── saveScreenshotOneKeyAction ────────────────────────────────────────────────
+
+/**
+ * Persist the ScreenshotOne API key (platform AI settings; env stays a fallback).
+ * Write-only — the raw value never crosses back to the client; the page shows a
+ * boolean "configured" flag instead. Pass "" to clear the stored key.
+ */
+export async function saveScreenshotOneKeyAction(
+  key: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const result = await savePlatformAiSettings({ screenshotOneKey: (key ?? "").trim() });
+  if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath("/admin/platform/demo-importer");
   return { ok: true };
