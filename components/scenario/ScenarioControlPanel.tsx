@@ -822,6 +822,7 @@ function ContextTab({
   const geoKeys:       (keyof ScenarioOverrides)[] = ["countryCode", "region", "city", "latitude", "longitude"];
   const networkKeys:   (keyof ScenarioOverrides)[] = ["ipAddress", "networkOrg", "ipVersion", "isCloudProvider"];
   const companyKeys:   (keyof ScenarioOverrides)[] = ["companyName", "companyDomain", "companyIndustry", "companySize"];
+  const locationKeys:  (keyof ScenarioOverrides)[] = ["locationUrbanityClass", "locationIncomeBand", "locationBusinessShare", "locationAreaCode"];
   const adsKeys:       (keyof ScenarioOverrides)[] = ["adCampaign", "adAdGroup", "adKeyword"];
   const crmKeys:       (keyof ScenarioOverrides)[] = ["crmMatched", "crmLifecycleStage", "crmDealStage", "crmSegment"];
   const abmKeys:       (keyof ScenarioOverrides)[] = ["targetAccountMatched", "targetAccountTier"];
@@ -1055,6 +1056,35 @@ function ContextTab({
         />
         <ResetSection activeCount={countActive(companyKeys)}
           onClick={() => resetSection(companyKeys)} />
+      </OverrideGroup>
+
+      {/* ── Enrichment — Location (CBS buurt) ─────────────────────────────── */}
+      <OverrideGroup title="📍 Enrichment — Location (CBS buurt)" activeCount={countActive(locationKeys)}>
+        <NumericRow label="Urbanity class"
+          hint="CBS MateVanStedelijkheid: 1 = very urban … 5 = not urban"
+          value={overrides.locationUrbanityClass != null ? String(overrides.locationUrbanityClass) : ""}
+          placeholder="1–5" min={1} max={5} step={1}
+          onChange={(v) => patch({ locationUrbanityClass: v ?? undefined })} />
+        <DropdownRow label="Income band"
+          hint="Deviation from the national baseline for this buurt"
+          value={overrides.locationIncomeBand ?? ""}
+          options={[
+            { value: "low",  label: "Low" },
+            { value: "mid",  label: "Mid" },
+            { value: "high", label: "High" },
+          ]}
+          onChange={(v) => patch({ locationIncomeBand: v ?? undefined })} />
+        <NumericRow label="Business share"
+          hint="Share of business addresses in the buurt (0–1)"
+          value={overrides.locationBusinessShare != null ? String(overrides.locationBusinessShare) : ""}
+          placeholder="e.g. 0.3" min={0} max={1} step={0.01}
+          onChange={(v) => patch({ locationBusinessShare: v ?? undefined })} />
+        <TextRow label="Area code (buurt)"
+          hint="CBS buurtcode — optional"
+          value={overrides.locationAreaCode ?? ""} placeholder="e.g. BU03630000"
+          onChange={(v) => patch({ locationAreaCode: v ?? undefined })} />
+        <ResetSection activeCount={countActive(locationKeys)}
+          onClick={() => resetSection(locationKeys)} />
       </OverrideGroup>
 
       {/* ── Enrichment — Ads ─────────────────────────────────────────────── */}
