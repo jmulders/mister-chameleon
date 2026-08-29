@@ -7,7 +7,10 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createCbsLocationEnricher, resetCbsNegativeCache } from "../../enrichment/providers/cbs-location.ts";
-import { buurtcodeFromLatLng, normalizeBuurtcode } from "../../lib/enrichment/pdok-geocode.ts";
+import {
+  buurtcodeFromLatLng, normalizeBuurtcode,
+  resolveBuurtcodeFromLatLng, resetBuurtcodePositiveCache,
+} from "../../lib/enrichment/pdok-geocode.ts";
 import {
   mapCbsRow, deriveIncomeBand, deriveUrbanityProxy, resolveUrbanity, normalizeAreaCode,
   fetchCbsArea, type CbsFetchResult,
@@ -31,6 +34,7 @@ describe("normalizeBuurtcode / normalizeAreaCode", () => {
 });
 
 describe("buurtcodeFromLatLng", () => {
+  beforeEach(() => resetBuurtcodePositiveCache());
   it("requests the buurtcode field list and returns the buurtcode (Rotterdam)", async () => {
     let calledUrl = "";
     const fetchImpl = (async (u: string) => {
@@ -54,6 +58,53 @@ describe("buurtcodeFromLatLng", () => {
     const bad = (async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
     assert.equal(await buurtcodeFromLatLng(52.37, 4.9, 4000, bad), null);
     assert.equal(await buurtcodeFromLatLng(NaN, 4.9), null);
+  });
+});
+
+describe("resolveBuurtcodeFromLatLng — transient robustness (the empty-session bug)", () => {
+  beforeEach(() => resetBuurtcodePositiveCache());
+  const okDoc = { response: { docs: [{ buurtcode: "BU05990110" }] } };
+
+  it("classifies a resolved code as ok and caches it (coordinate → buurtcode)", async () => {
+    let calls = 0;
+    const f = (async () => { calls++; return { ok: true, json: async () => okDoc }; }) as unknown as typeof fetch;
+    const first = await resolveBuurtcodeFromLatLng(51.9225, 4.4792, 4000, f);
+    assert.deepEqual({ status: first.status, code: first.code }, { status: "ok", code: "BU05990110" });
+    // Second call for the same coordinate is served from the positive cache — no fetch.
+    const second = await resolveBuurtcodeFromLatLng(51.9225, 4.4792, 4000, f);
+    assert.equal(second.status, "ok");
+    assert.equal(second.fromCache, true);
+    assert.equal(calls, 1, "the positive cache prevents a second PDOK call");
+  });
+
+  it("distinguishes a genuine empty (PDOK answered, no buurt) — no retry", async () => {
+    let calls = 0;
+    const f = (async () => { calls++; return { ok: true, json: async () => ({ response: { docs: [] } }) }; }) as unknown as typeof fetch;
+    const r = await resolveBuurtcodeFromLatLng(52.1, 5.1, 4000, f);
+    assert.equal(r.status, "empty");
+    assert.equal(r.code, null);
+    assert.equal(calls, 1, "a genuine empty is NOT retried");
+  });
+
+  it("marks a timeout/5xx as a transient error AND retries once", async () => {
+    let calls = 0;
+    const f = (async () => { calls++; return { ok: false, status: 503, json: async () => ({}) }; }) as unknown as typeof fetch;
+    const r = await resolveBuurtcodeFromLatLng(52.2, 5.2, 4000, f);
+    assert.equal(r.status, "error", "transient failure surfaces as error, not empty");
+    assert.equal(r.code, null);
+    assert.equal(calls, 2, "one retry on a transient failure");
+  });
+
+  it("a later PDOK hiccup does NOT wipe an already-known buurtcode", async () => {
+    // First: resolve and cache. Then: the same coord with a failing fetch still
+    // returns the known code from the positive cache (status ok, fromCache).
+    const good = (async () => ({ ok: true, json: async () => okDoc })) as unknown as typeof fetch;
+    await resolveBuurtcodeFromLatLng(51.9225, 4.4792, 4000, good);
+    const bad = (async () => ({ ok: false, status: 500, json: async () => ({}) })) as unknown as typeof fetch;
+    const r = await resolveBuurtcodeFromLatLng(51.9225, 4.4792, 4000, bad);
+    assert.equal(r.status, "ok");
+    assert.equal(r.code, "BU05990110");
+    assert.equal(r.fromCache, true);
   });
 });
 
@@ -198,6 +249,41 @@ describe("createCbsLocationEnricher — lazy flow", () => {
     assert.equal(live, 2); // errors are not cached → retried
   });
 
+  it("transient PDOK geocode failure → {} and marks the stage for retry", async () => {
+    let retryReason: string | null = null;
+    let note: string | null = null;
+    const ctx = {
+      setCacheSource: () => {},
+      setNote: (n: string) => { note = n; },
+      markRetry: (r: string) => { retryReason = r; },
+    };
+    const s = createCbsLocationEnricher({
+      // Simulate a transient PDOK failure (classified error, no code).
+      geocode: async () => ({ status: "error" as const, code: null }),
+      cacheLookup: async () => stats,
+    });
+    const out = await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx);
+    assert.deepEqual(out, {});
+    assert.ok(retryReason, "markRetry was called for a transient failure");
+    assert.match(String(note), /transient/);
+  });
+
+  it("genuine empty geocode (no buurt) → {} and does NOT mark retry", async () => {
+    let retried = false;
+    const ctx = {
+      setCacheSource: () => {},
+      setNote: () => {},
+      markRetry: () => { retried = true; },
+    };
+    const s = createCbsLocationEnricher({
+      geocode: async () => null, // genuine empty
+      cacheLookup: async () => stats,
+    });
+    const out = await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx);
+    assert.deepEqual(out, {});
+    assert.equal(retried, false, "a genuine empty must not trigger a retry");
+  });
+
   it("all-suppressed stats → {} (no billing-worthy enrichment)", async () => {
     const s = createCbsLocationEnricher({
       geocode: async () => "BU16800000",
@@ -209,7 +295,7 @@ describe("createCbsLocationEnricher — lazy flow", () => {
   // ── Debug visibility: the stage reports a note even when output is empty ──────
   function capturingCtx() {
     const notes: string[] = [];
-    return { ctx: { setCacheSource() {}, setNote: (n: string) => notes.push(n) }, notes };
+    return { ctx: { setCacheSource() {}, setNote: (n: string) => notes.push(n), markRetry() {} }, notes };
   }
 
   it("notes the resolved buurtcode + cache hit on success", async () => {

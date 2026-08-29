@@ -90,6 +90,21 @@ export const SESSION_STALE_GRACE_MS: number = _IS_DEV
   ? Number(process.env.SESSION_CACHE_STALE_GRACE_SECONDS ?? "10") * 1_000
   : Number(process.env.SESSION_CACHE_STALE_GRACE_SECONDS ?? String(60 * 60)) * 1_000;
 
+/**
+ * TTL for an entry stored with `{ retry: true }` — a pipeline run that came back
+ * INCOMPLETE because of a transient upstream failure (e.g. a PDOK geocode
+ * timeout left the CBS location empty). Such an entry is served for this short
+ * window (so we don't hammer the upstreams on every page view) and then treated
+ * as a hard miss so the pipeline re-runs and gets another chance — instead of
+ * pinning the empty result for the full 4h session TTL. No stale grace applies.
+ *
+ * Development: 15 seconds. Production: 2 minutes. Override with
+ * `SESSION_CACHE_RETRY_TTL_SECONDS`.
+ */
+export const SESSION_RETRY_TTL_MS: number = _IS_DEV
+  ? Number(process.env.SESSION_CACHE_RETRY_TTL_SECONDS ?? "15") * 1_000
+  : Number(process.env.SESSION_CACHE_RETRY_TTL_SECONDS ?? String(2 * 60)) * 1_000;
+
 // ── Internal store ────────────────────────────────────────────────────────────
 
 interface SessionEnrichmentEntry {
@@ -100,6 +115,12 @@ interface SessionEnrichmentEntry {
   tenantId:   string | null;
   /** `Date.now()` timestamp when the entry was stored. */
   cachedAt:   number;
+  /**
+   * True when this entry came from an INCOMPLETE pipeline run (a transient
+   * upstream failure). Such entries use the short `SESSION_RETRY_TTL_MS` and get
+   * no stale grace, so the pipeline re-runs soon and can fill in the missing data.
+   */
+  retry?:     boolean;
 }
 
 /** Module-level store — survives hot reloads in dev, resets on cold start. */
@@ -180,14 +201,26 @@ export function getSessionEnrichment(
   // TTL expired by a few minutes.  The next background refresh repopulates
   // the cache and the entry becomes fresh again.
   const age = Date.now() - entry.cachedAt;
-  if (age > SESSION_TTL_MS + SESSION_STALE_GRACE_MS) {
-    // Beyond grace window — hard evict.
-    store.delete(sessionId);
-    return { hit: false, reason: "ttl-expired" };
-  }
-  if (age > SESSION_TTL_MS) {
-    // Stale but within grace window — serve stale, signal caller to refresh.
-    return { hit: true, enrichment: entry.enrichment, stale: true };
+
+  // ── Retry entry (incomplete run) — short TTL, no stale grace ─────────────────
+  // An entry from a transient-failure run is served only briefly, then hard-
+  // evicted so the pipeline re-runs and gets another chance to resolve the miss.
+  if (entry.retry) {
+    if (age > SESSION_RETRY_TTL_MS) {
+      store.delete(sessionId);
+      return { hit: false, reason: "ttl-expired" };
+    }
+    // Within the short window: fall through to IP/tenant checks, serve fresh.
+  } else {
+    if (age > SESSION_TTL_MS + SESSION_STALE_GRACE_MS) {
+      // Beyond grace window — hard evict.
+      store.delete(sessionId);
+      return { hit: false, reason: "ttl-expired" };
+    }
+    if (age > SESSION_TTL_MS) {
+      // Stale but within grace window — serve stale, signal caller to refresh.
+      return { hit: true, enrichment: entry.enrichment, stale: true };
+    }
   }
 
   // ── IP change detection ──────────────────────────────────────────────────────
@@ -224,12 +257,14 @@ export function setSessionEnrichment(
   enrichment: Partial<EnrichmentOutput>,
   ip:         string | null,
   tenantId:   string | null,
+  opts?:      { retry?: boolean },
 ): void {
   store.set(sessionId, {
     enrichment,
     ip,
     tenantId,
     cachedAt: Date.now(),
+    ...(opts?.retry ? { retry: true } : {}),
   });
 }
 

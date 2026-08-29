@@ -275,9 +275,12 @@ async function runStage(
     REQUEST_TIME_STAGE_LABELS.has(stage.label) ? "request-time" : "fresh";
 
   let stageNote: string | undefined;
+  let stageRetry = false;
+  let stageRetryReason: string | undefined;
   const ctx: EnricherContext = {
     setCacheSource(source) { stageCacheSource = source; },
     setNote(note) { stageNote = note; },
+    markRetry(reason) { stageRetry = true; stageRetryReason = reason; },
   };
 
   try {
@@ -313,6 +316,7 @@ async function runStage(
       output:      stageOutput,
       cacheSource: stageCacheSource,
       ...(stageNote   ? { note: stageNote } : {}),
+      ...(stageRetry  ? { retry: true, ...(stageRetryReason ? { retryReason: stageRetryReason } : {}) } : {}),
       ...(errorMsg    ? { error: errorMsg } : {}),
       ...(wave !== undefined ? { wave } : {}),
     },
@@ -415,5 +419,6 @@ export async function runStagedPipeline(
     accumulated = mergeOutput(accumulated, waveAccumulated);
   }
 
-  return { output: accumulated, trace, enrichmentTrace };
+  const incomplete = trace.some((t) => t.retry === true);
+  return { output: accumulated, trace, enrichmentTrace, ...(incomplete ? { incomplete } : {}) };
 }

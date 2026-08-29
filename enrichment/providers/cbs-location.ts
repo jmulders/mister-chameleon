@@ -41,6 +41,7 @@
 import type { StagedEnricher, EnricherInput, EnrichmentOutput, EnricherContext } from "../types";
 import type { CbsAreaStats } from "../cbs-location-store";
 import type { CbsFetchResult } from "@/lib/enrichment/cbs-ingest";
+import type { GeoResolveResult } from "@/lib/enrichment/pdok-geocode";
 import { DEFAULT_CBS_DATASET } from "@/lib/enrichment/cbs-ingest";
 
 /** Short-lived negative cache: buurtcode → expiry ms. Empty CBS results only. */
@@ -55,10 +56,14 @@ export interface CbsLocationOptions {
   datasetId?:   string;
   /** Source year recorded on rows written by the lazy fetch. */
   sourceYear?:  number;
-  /** Injectable lat/lng→buurtcode geocoder (defaults to PDOK) — for tests. */
-  geocode?:     (lat: number, lng: number) => Promise<string | null>;
+  /**
+   * Injectable lat/lng→buurtcode geocoder (defaults to PDOK) — for tests. May
+   * return a bare code|null (code → "ok", null → genuine "empty") or a classified
+   * {@link GeoResolveResult} to simulate a transient ("error") failure.
+   */
+  geocode?:     (lat: number, lng: number) => Promise<string | GeoResolveResult | null>;
   /** Injectable form-location→buurtcode geocoder (defaults to PDOK forward) — for tests. */
-  formGeocode?: (postcode: string | null, place: string | null) => Promise<string | null>;
+  formGeocode?: (postcode: string | null, place: string | null) => Promise<string | GeoResolveResult | null>;
   /** Injectable cache lookup (defaults to the DB store) — for tests. */
   cacheLookup?: (areaCode: string) => Promise<CbsAreaStats | null>;
   /** Injectable single-buurt live fetch (defaults to CBS OData) — for tests. */
@@ -73,13 +78,22 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
   const sourceYear = options.sourceYear ?? 0;
   const isDev      = options.isDev ?? false;
 
-  async function geocode(lat: number, lng: number): Promise<string | null> {
-    if (options.geocode) return options.geocode(lat, lng);
-    return (await import("@/lib/enrichment/pdok-geocode")).buurtcodeFromLatLng(lat, lng);
+  // Both geocoders return a classified {status, code}: "error" = transient PDOK
+  // failure (retry later), "empty" = genuine no-buurt, "ok" = resolved. An
+  // injected geocoder (tests) returns a bare code|null; adapt it to the classified
+  // shape — a returned code is "ok", a null is a genuine "empty".
+  const asResult = (v: string | GeoResolveResult | null): GeoResolveResult => {
+    if (v && typeof v === "object") return v; // already a classified result
+    return v ? { status: "ok", code: v } : { status: "empty", code: null };
+  };
+
+  async function geocode(lat: number, lng: number): Promise<GeoResolveResult> {
+    if (options.geocode) return asResult(await options.geocode(lat, lng));
+    return (await import("@/lib/enrichment/pdok-geocode")).resolveBuurtcodeFromLatLng(lat, lng);
   }
-  async function formGeocode(postcode: string | null, place: string | null): Promise<string | null> {
-    if (options.formGeocode) return options.formGeocode(postcode, place);
-    return (await import("@/lib/enrichment/pdok-geocode")).buurtcodeFromFormLocation(postcode, place);
+  async function formGeocode(postcode: string | null, place: string | null): Promise<GeoResolveResult> {
+    if (options.formGeocode) return asResult(await options.formGeocode(postcode, place));
+    return (await import("@/lib/enrichment/pdok-geocode")).resolveBuurtcodeFromFormLocation(postcode, place);
   }
   async function cacheLookup(areaCode: string): Promise<CbsAreaStats | null> {
     if (options.cacheLookup) return options.cacheLookup(areaCode);
@@ -137,19 +151,26 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
 
     enricher: async (input: EnricherInput, accumulated: Partial<EnrichmentOutput>, ctx?: EnricherContext) => {
       // Resolve a buurtcode from the most precise signal available (see the
-      // precedence/accuracy note in the header).
+      // precedence/accuracy note in the header). Each attempt returns a classified
+      // result: "error" = transient PDOK failure (retry later, do not cache the
+      // miss), "empty" = genuine no-buurt, "ok" = resolved.
       let areaCode: string | null = null;
       let source: "form-postcode" | "form-place" | "ip-geo" | "ga4-city" = "ip-geo";
+      let transient = false; // any attempt failed transiently → mark the stage for retry
+
+      const note = (r: GeoResolveResult) => { if (r.status === "error") transient = true; };
 
       const fl = input.formLocation;
       if (fl && (fl.postcode || fl.place)) {
         // 1/2. Explicit form location (postcode primary, place coarse).
-        areaCode = await formGeocode(fl.postcode ?? null, fl.place ?? null);
+        const r = await formGeocode(fl.postcode ?? null, fl.place ?? null);
+        note(r); areaCode = r.code;
         source   = fl.postcode ? "form-postcode" : "form-place";
       }
       if (!areaCode && accumulated.latitude != null && accumulated.longitude != null) {
         // 3. IP-derived lat/lng.
-        areaCode = await geocode(accumulated.latitude, accumulated.longitude);
+        const r = await geocode(accumulated.latitude, accumulated.longitude);
+        note(r); areaCode = r.code;
         source   = "ip-geo";
       }
       if (!areaCode && accumulated.gaLastKnownCity) {
@@ -157,12 +178,20 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
         //    Same PDOK forward → centroid → reverse(type=buurt) flow as the
         //    form-place fallback; representative of the city, not the visitor's
         //    actual buurt. Last resort only (no lat/lng, no form location).
-        areaCode = await formGeocode(null, accumulated.gaLastKnownCity);
+        const r = await formGeocode(null, accumulated.gaLastKnownCity);
+        note(r); areaCode = r.code;
         source   = "ga4-city";
       }
       if (!areaCode) {
-        // Visible in the debug overlay: PDOK returned no buurtcode for the signal.
-        ctx?.setNote(`no buurtcode from PDOK (source=${source})`);
+        // No buurtcode. Distinguish a TRANSIENT PDOK failure (retry on a later
+        // request — do not let one timeout pin an empty location for the whole
+        // session) from a genuine miss (PDOK answered "no buurt").
+        if (transient) {
+          ctx?.markRetry(`PDOK transient failure resolving buurtcode (source=${source})`);
+          ctx?.setNote(`no buurtcode: PDOK transient failure (source=${source}) → retry`);
+        } else {
+          ctx?.setNote(`no buurtcode from PDOK (source=${source})`);
+        }
         return {};
       }
 

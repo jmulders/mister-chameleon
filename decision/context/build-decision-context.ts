@@ -779,7 +779,7 @@ export async function buildDecisionContext(
                 initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
               },
             );
-            setSessionEnrichment(sessionId, freshResult.output, ip, tenantId);
+            setSessionEnrichment(sessionId, freshResult.output, ip, tenantId, { retry: freshResult.incomplete === true });
             if (isDev) {
               logger.debug("[decision-context] stale session cache refreshed in background", {
                 sessionId,
@@ -1260,7 +1260,7 @@ export async function buildDecisionContext(
       // The normalized current* fields are included so cache-hit paths receive
       // them directly without needing to re-derive.
       if (sessionId) {
-        setSessionEnrichment(sessionId, enrichment, ip, tenantId);
+        setSessionEnrichment(sessionId, enrichment, ip, tenantId, { retry: result.incomplete === true });
       }
     }
   } else {
