@@ -508,8 +508,19 @@ function escapeAttr(s: string): string {
  * prospect's images load SAME-ORIGIN — defeating hotlink/Referer/CORP blocking
  * on the source site (which is why mirrored pages otherwise show no images).
  *
- * Scoped to <img>/<source> (src + srcset), <video> (poster), and inline
- * background-image url(). Only absolute http(s) URLs are proxied.
+ * Scoped to <img>/<source> (src + srcset), <video> (poster), and every CSS
+ * url(...) that points at an absolute http(s) asset — in inline style="…"
+ * attributes AND inside <style> blocks. That covers the `background` shorthand,
+ * `background-image`, `mask-image`, `border-image`, etc. — not just the
+ * background-image longhand — so CSS hero/section imagery loads instead of
+ * showing grey. Only absolute http(s) URLs are proxied; data: and relative URLs
+ * are left as-is.
+ *
+ * Known limit: url() references inside EXTERNAL linked stylesheets (the
+ * prospect's `<link rel=stylesheet>`, kept for fidelity) are fetched
+ * cross-origin by the browser and cannot be rewritten by string replacement, so
+ * those specific background images may still fail; <img> assets that 404 fall
+ * back to a pooled image via fillMissingImages.
  *
  * @param html      The (already URL-resolved) mirrored HTML.
  * @param demoBase  Absolute base URL of the demo host — used to build absolute
@@ -535,13 +546,26 @@ export function proxifyAssets(html: string, demoBase: string): string {
          return `srcset=${q}${rewritten}${q}`;
        });
 
+  // Proxy every absolute http(s) url() in a chunk of CSS. Covers background /
+  // background-image / mask-image / border-image / cursor, etc. Leaves data: and
+  // relative url()s untouched (they don't match https?://).
+  const proxyCssUrls = (css: string): string =>
+    css.replace(/url\(\s*(['"]?)(https?:\/\/[^'")]+?)\1\s*\)/gi,
+      (_m, q, u) => `url(${q}${prox(u)}${q})`);
+
   let out = html;
   out = out.replace(/<(?:img|source)\b[^>]*>/gi, (tag) => rewriteSrc(tag));
   out = out.replace(/<video\b[^>]*>/gi, (tag) =>
     tag.replace(/\bposter=(['"])(https?:\/\/[^'"]+)\1/gi, (_m, q, u) => `poster=${q}${prox(u)}${q}`),
   );
-  out = out.replace(/background-image\s*:\s*url\((['"]?)(https?:\/\/[^'")]+)\1\)/gi,
-    (_m, q, u) => `background-image:url(${q}${prox(u)}${q})`);
+  // CSS url() in inline style="…" attributes (hero/section background images).
+  // The value may contain the OTHER quote char (e.g. a double-quoted attribute
+  // whose url() uses single quotes), so match up to the matching closing quote.
+  out = out.replace(/\bstyle=(['"])((?:(?!\1)[\s\S])*)\1/gi,
+    (_m, q, css) => `style=${q}${proxyCssUrls(css)}${q}`);
+  // CSS url() inside <style> blocks.
+  out = out.replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,
+    (_m, open, css, close) => `${open}${proxyCssUrls(css)}${close}`);
 
   return out;
 }
