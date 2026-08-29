@@ -8,14 +8,27 @@
  * buurt live (single-predicate `eq`), cache it, and use it.
  *
  * Flow:
- *   1. lat/lng → buurtcode via PDOK Locatieserver (type=buurt).
+ *   1. Resolve a buurtcode from the best available location signal (see below).
  *   2. Look up cbs_area_stats (cache).
  *   3. MISS → fetch the single buurt live from CBS, map, upsert, use.
  *   4. Empty CBS result (buurt not in the dataset, e.g. recoding) → short-lived
  *      negative cache so we stop re-querying CBS for it.
  * All external calls fail open (no enrichment on error), never break the render.
  *
- * NL-only; runs sequentially (after wave 2) so geo has resolved lat/lng.
+ * ─── Location precedence & accuracy (most → least precise) ────────────────────
+ *   1. Form postcode  — exact buurt for that postcode (PC6 ≈ a street); precise.
+ *   2. Form place     — COARSE: the city/place centroid's buurt (city-level).
+ *   3. IP lat/lng     — the buurt at the IP geolocation (city/district precision;
+ *                       accurate for fixed lines, looser for mobile/CGNAT).
+ *   4. GA4 last-known city — COARSE: forward-geocode the GA4 city name to its
+ *                       centroid buurt. Representative of the CITY, not the
+ *                       visitor's actual neighbourhood — a last resort used only
+ *                       when there is no lat/lng and no form location.
+ *   Tiers 2 and 4 are marked "coarse" in the dev log; they trade buurt precision
+ *   for coverage when nothing more precise is available.
+ *
+ * NL-only; runs sequentially (after wave 2) so geo has resolved lat/lng and GA4
+ * history has resolved gaLastKnownCity.
  *
  * CAVEAT: PDOK's buurtcode vintage must match the CBS dataset year (85984NED =
  * 2024 indeling). A mismatch yields an empty `eq` → no enrichment (fail-open).
@@ -117,20 +130,35 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       if (fl && (fl.postcode || fl.place)) return true;
       const country = accumulated.addressCountry ?? accumulated.countryCode;
       if (country && country.toUpperCase() !== "NL") return false;
-      return accumulated.latitude != null && accumulated.longitude != null;
+      if (accumulated.latitude != null && accumulated.longitude != null) return true;
+      // Coarse fallback: no lat/lng, but the GA4 enricher knows a last-known city.
+      return Boolean(accumulated.gaLastKnownCity);
     },
 
     enricher: async (input: EnricherInput, accumulated: Partial<EnrichmentOutput>) => {
-      // Precedence: an explicit form-provided location wins over IP-derived
-      // lat/lng — resolve its buurtcode first (postcode primary, place coarse).
+      // Resolve a buurtcode from the most precise signal available (see the
+      // precedence/accuracy note in the header).
       let areaCode: string | null = null;
+      let source: "form-postcode" | "form-place" | "ip-geo" | "ga4-city" = "ip-geo";
+
       const fl = input.formLocation;
       if (fl && (fl.postcode || fl.place)) {
+        // 1/2. Explicit form location (postcode primary, place coarse).
         areaCode = await formGeocode(fl.postcode ?? null, fl.place ?? null);
+        source   = fl.postcode ? "form-postcode" : "form-place";
       }
-      if (!areaCode) {
-        if (accumulated.latitude == null || accumulated.longitude == null) return {};
+      if (!areaCode && accumulated.latitude != null && accumulated.longitude != null) {
+        // 3. IP-derived lat/lng.
         areaCode = await geocode(accumulated.latitude, accumulated.longitude);
+        source   = "ip-geo";
+      }
+      if (!areaCode && accumulated.gaLastKnownCity) {
+        // 4. COARSE: forward-geocode the GA4 last-known city to a centroid buurt.
+        //    Same PDOK forward → centroid → reverse(type=buurt) flow as the
+        //    form-place fallback; representative of the city, not the visitor's
+        //    actual buurt. Last resort only (no lat/lng, no form location).
+        areaCode = await formGeocode(null, accumulated.gaLastKnownCity);
+        source   = "ga4-city";
       }
       if (!areaCode) return {};
 
@@ -147,7 +175,10 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       if (stats.incomeBand)            out.locationIncomeBand    = stats.incomeBand;
       if (stats.businessShare != null) out.locationBusinessShare = stats.businessShare;
 
-      if (isDev) console.debug("[cbs-location] resolved", { areaCode, ...out });
+      if (isDev) {
+        const coarse = source === "form-place" || source === "ga4-city";
+        console.debug("[cbs-location] resolved", { areaCode, source, coarse, ...out });
+      }
       return out;
     },
   };

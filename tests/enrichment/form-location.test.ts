@@ -107,4 +107,35 @@ describe("CBS stage — form-location precedence", () => {
     const out = await s.enricher(input({ postcode: "9999ZZ", place: null }), acc({ latitude: 52.3, longitude: 4.9 }));
     assert.equal(out.locationAreaCode, "BU00000001");
   });
+
+  it("shouldRun fires on a GA4 last-known city (no lat/lng, no form location)", () => {
+    const s = createCbsLocationEnricher({ cacheLookup: async () => null });
+    assert.equal(s.shouldRun!(input(), acc({ gaLastKnownCity: "Amsterdam" })), true);
+    assert.equal(s.shouldRun!(input(), acc({ gaLastKnownCity: null })), false);
+  });
+
+  it("coarse GA4-city fallback resolves when there is no lat/lng and no form location", async () => {
+    let formArgs: [string | null, string | null] | null = null;
+    const s = createCbsLocationEnricher({
+      formGeocode: async (postcode, place) => { formArgs = [postcode, place]; return "BU00000001"; },
+      geocode:     async () => { throw new Error("IP path must not run"); },
+      cacheLookup: async () => stats,
+    });
+    const out = await s.enricher(input(), acc({ gaLastKnownCity: "Amsterdam" }));
+    assert.equal(out.locationAreaCode, "BU00000001");
+    assert.deepEqual(formArgs, [null, "Amsterdam"]); // forward-geocoded the city, no postcode
+  });
+
+  it("IP lat/lng wins over the GA4-city fallback", async () => {
+    let usedGa = 0, usedLatLng = 0;
+    const s = createCbsLocationEnricher({
+      formGeocode: async () => { usedGa++; return "BU99999999"; },
+      geocode:     async () => { usedLatLng++; return "BU00000001"; },
+      cacheLookup: async (code) => (code === "BU00000001" ? stats : null),
+    });
+    const out = await s.enricher(input(), acc({ latitude: 52.3, longitude: 4.9, gaLastKnownCity: "Amsterdam" }));
+    assert.equal(out.locationAreaCode, "BU00000001");
+    assert.equal(usedLatLng, 1);
+    assert.equal(usedGa, 0); // GA4-city path not used when lat/lng resolves
+  });
 });
