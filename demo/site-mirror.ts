@@ -15,7 +15,7 @@
 
 import { getImagePool } from "./image-provider";
 import type { SiteCategory } from "./types";
-import { renderHtmlViaService, type RenderConfig } from "./site-render";
+import { renderHtmlViaService, renderOutcomeFromError, type RenderConfig, type RenderOutcome } from "./site-render";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -31,6 +31,8 @@ export interface MirroredSite {
   title:         string;
   faviconUrl:    string | null;
   logoUrl:       string | null;
+  /** Outcome of the JS-render attempt (why a renderEnabled mirror is still plain-fetch). */
+  render:        RenderOutcome;
 }
 
 // ── Public entry ──────────────────────────────────────────────────────────────
@@ -41,11 +43,15 @@ export async function mirrorSite(rawUrl: string, render?: RenderConfig): Promise
   let html           = "";
   let finalUrl       = url;
   let fetchSucceeded = false;
+  let renderOutcome: RenderOutcome = {
+    service: render?.service ?? "none", rendered: false, status: "error", reason: "capture failed", ms: 0,
+  };
 
   try {
     const result   = await captureHtml(url, render);
     html           = result.html;
     finalUrl       = result.finalUrl;
+    renderOutcome  = result.render;
     fetchSucceeded = true;
   } catch (err) {
     console.warn("[demo/site-mirror] capture failed", {
@@ -60,6 +66,7 @@ export async function mirrorSite(rawUrl: string, render?: RenderConfig): Promise
       title:          extractDomainName(url),
       faviconUrl:     null,
       logoUrl:        null,
+      render:         renderOutcome,
     };
   }
 
@@ -75,6 +82,7 @@ export async function mirrorSite(rawUrl: string, render?: RenderConfig): Promise
     title,
     faviconUrl,
     logoUrl,
+    render:         renderOutcome,
   };
 }
 
@@ -106,23 +114,32 @@ function extractDomainName(url: string): string {
 async function captureHtml(
   url: string,
   render?: RenderConfig,
-): Promise<{ html: string; finalUrl: string }> {
+): Promise<{ html: string; finalUrl: string; render: RenderOutcome }> {
+  const service = render?.service ?? "none";
   if (render && render.service !== "none") {
+    const started = Date.now();
     try {
       const rendered = await renderHtmlViaService(url, render);
       const html = rendered.html.length > MAX_HTML_BYTES
         ? rendered.html.slice(0, MAX_HTML_BYTES)
         : rendered.html;
-      return { html, finalUrl: rendered.finalUrl };
+      return {
+        html, finalUrl: rendered.finalUrl,
+        render: { service, rendered: true, status: "ok", reason: "ok", ms: Date.now() - started },
+      };
     } catch (err) {
+      // The render outcome carries the FAILED PHASE (launch vs navigate/empty/timeout)
+      // so a prod mirror that is byte-identical to plain fetch is no longer a mystery.
+      const outcome = renderOutcomeFromError(err, Date.now() - started, service);
       console.warn("[demo/site-mirror] render service failed, falling back to plain fetch", {
-        url, service: render.service,
-        error: err instanceof Error ? err.message : String(err),
+        url, service, status: outcome.status, reason: outcome.reason, ms: outcome.ms,
       });
-      // fall through to plain fetch
+      const fetched = await fetchHtml(url);
+      return { ...fetched, render: outcome };
     }
   }
-  return fetchHtml(url);
+  const fetched = await fetchHtml(url);
+  return { ...fetched, render: { service: "none", rendered: false, status: "disabled", reason: "render disabled", ms: 0 } };
 }
 
 // ── HTML fetcher ──────────────────────────────────────────────────────────────

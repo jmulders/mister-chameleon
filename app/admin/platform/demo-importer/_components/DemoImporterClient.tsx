@@ -669,6 +669,8 @@ interface TestResult {
   generationMs:   number;
   demoId?:        string;
   demoUrl?:       string;
+  /** JS-render outcome (Live Mirror only) — surfaces whether Chrome actually rendered. */
+  render?:        { rendered: boolean; status: string; ms: number; reason?: string };
 }
 
 interface TestError {
@@ -734,6 +736,7 @@ function TestPanel() {
             generationMs:   0,
             demoId:         data.demoId,
             demoUrl:        data.demoUrl,
+            render:         data.render,
           });
           setPhase("success");
         } catch (e) {
@@ -854,6 +857,16 @@ function TestPanel() {
               <div><dt className="text-green-600">Primary color</dt><dd className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm border border-green-300" style={{ backgroundColor: result.primaryColor }} /><span className="font-medium text-green-900">{result.primaryColor}</span></dd></div>
               {result.scenarioCount > 0 && (
                 <div><dt className="text-green-600">Scenarios</dt><dd className="font-medium text-green-900">{result.scenarioCount}</dd></div>
+              )}
+              {result.render && (
+                <div className="col-span-2">
+                  <dt className="text-green-600">JS render</dt>
+                  <dd className="font-medium text-green-900">
+                    {result.render.rendered
+                      ? `Rendered ✓ (headless Chrome, ${result.render.ms}ms)`
+                      : `Not rendered — plain fetch fallback · status: ${result.render.status}${result.render.reason ? ` · ${result.render.reason}` : ""}`}
+                  </dd>
+                </div>
               )}
             </dl>
             {result.demoUrl && (
