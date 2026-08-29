@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Tenant Workspace › Audience › Webhooks — overview + webhook-rule editing.
+ * Tenant Workspace › Integrations › Webhooks — overview + webhook-rule editing.
  *
  * Reads both outbound-webhook mechanisms for the overview, and lets the operator
  * create/edit/delete INDEPENDENT webhook rules (webhook-only rules) directly.
@@ -152,7 +152,7 @@ export async function saveWebhookRuleAction(
   const result = await saveTenantRulesAction(tenantId, { ...current.config, rules });
   if (!result.ok) return { ok: false, error: result.fieldErrors?.join("; ") ?? result.error };
 
-  revalidatePath(`/admin/tenants/${tenantId}/audience/leads/webhooks`);
+  revalidatePath(`/admin/tenants/${tenantId}/integrations/webhooks`);
   return { ok: true };
 }
 
@@ -176,6 +176,6 @@ export async function deleteWebhookRuleAction(
   const result = await saveTenantRulesAction(tenantId, { ...current.config, rules });
   if (!result.ok) return { ok: false, error: result.fieldErrors?.join("; ") ?? result.error };
 
-  revalidatePath(`/admin/tenants/${tenantId}/audience/leads/webhooks`);
+  revalidatePath(`/admin/tenants/${tenantId}/integrations/webhooks`);
   return { ok: true };
 }

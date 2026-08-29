@@ -262,6 +262,9 @@ const nextConfig = {
       // Personalization performance report moved out of Leads into the
       // Personalization group (next to Stats). Keeps old bookmarks working.
       ["audience/leads/performance", "personalization/performance"],
+      // Webhooks moved out of Audience into Integrations (next to Pipeline/Calendar).
+      // Leads + Suppression stay in Audience; this keeps old bookmarks working.
+      ["audience/leads/webhooks", "integrations/webhooks"],
       ["behavior/journey",    "audience/journey"],
       ["interest-profiles",   "audience/interests"],
       ["audience-segments",   "audience/segments"],
