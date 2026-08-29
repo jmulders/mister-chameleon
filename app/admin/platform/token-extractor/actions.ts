@@ -40,8 +40,27 @@ export async function extractDesignTokensFromUrlAction(url: string, maxPages = 5
 
   const pages = Math.min(Math.max(Math.trunc(Number(maxPages)) || 1, 1), 8);
 
+  // Resolve the shared render config (demo_importer settings: renderEnabled +
+  // renderTimeoutMs). When rendering is enabled, the extractor captures the
+  // start page through the self-hosted headless Chrome so tokens come from the
+  // JS-built DOM — consistent with Mirror. Any failure here degrades to a plain
+  // fetch (render stays undefined).
+  let render;
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const { resolveRenderConfig } = await import("@/demo/site-render");
+    const client = createClient(
+      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+      { auth: { persistSession: false } },
+    );
+    render = await resolveRenderConfig(client);
+  } catch {
+    render = undefined;
+  }
+
   const { extractTokensFromSite } = await import("@/lib/design-tokens/url-token-extractor");
-  const result = await extractTokensFromSite(url.trim(), pages);
+  const result = await extractTokensFromSite(url.trim(), pages, render);
   if (!result.ok) return { ok: false, error: result.error ?? "Kon geen tokens extraheren." };
 
   return {
