@@ -818,6 +818,58 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
     exampleValue:     "Amsterdam",
   },
 
+  // ── Enrichment — Location (CBS buurt) ──────────────────────────────────────
+  // Resolved by the cbs-location stage from the visitor's neighbourhood (buurt),
+  // via IP geo, an explicit form postcode/place, or a scenario override.
+
+  {
+    key:              "locationAreaCode",
+    label:            "Location area code (buurt)",
+    description:      "CBS buurtcode the neighbourhood statistics were resolved for (NL), e.g. \"BU03630000\".",
+    type:             "string",
+    source:           "enrichment",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     "BU03630000",
+  },
+
+  {
+    key:              "locationUrbanityClass",
+    label:            "Location urbanity class",
+    description:      "CBS urbanity class (MateVanStedelijkheid) for the visitor's buurt: 1 (zeer sterk stedelijk) to 5 (niet stedelijk); density-derived fallback when suppressed.",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     2,
+  },
+
+  {
+    key:              "locationIncomeBand",
+    label:            "Location income band",
+    description:      "Coarse average-income band for the visitor's buurt, e.g. \"low\" / \"mid\" / \"high\".",
+    type:             "string",
+    source:           "enrichment",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     "high",
+  },
+
+  {
+    key:              "locationBusinessShare",
+    label:            "Location business share",
+    description:      "Business establishments per inhabitant in the visitor's buurt (0–1).",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     0.3,
+  },
+
   // ── Enrichment — Company identification ────────────────────────────────────
 
   {
