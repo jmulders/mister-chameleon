@@ -59,7 +59,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
   }
 
   function handleClear() {
-    if (!confirm("Verwijder alle Google Calendar instellingen?")) return;
+    if (!confirm("Delete all Google Calendar settings?")) return;
     startTransition(async () => {
       const result = await onClear();
       if (result.ok) {
@@ -79,7 +79,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
       {/* Service Account */}
       <Section title="Service Account">
         <div className="space-y-4">
-          <Field label="Service Account Email" hint="Uit het JSON-bestand: client_email">
+          <Field label="Service Account Email" hint="From the JSON file: client_email">
             <input
               type="email"
               value={email}
@@ -89,18 +89,18 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
             />
           </Field>
 
-          <Field label="Private Key" hint="Uit het JSON-bestand: private_key — wordt versleuteld opgeslagen">
+          <Field label="Private Key" hint="From the JSON file: private_key (stored encrypted)">
             {hasKey && !showKey ? (
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 border border-green-200 px-3 py-1 text-xs font-medium text-green-700">
-                  ✓ Sleutel opgeslagen
+                  ✓ Key saved
                 </span>
                 <button
                   type="button"
                   onClick={() => { setShowKey(true); dirty(); }}
                   className="text-xs text-neutral-500 underline hover:text-neutral-700"
                 >
-                  Vervangen
+                  Replace
                 </button>
               </div>
             ) : (
@@ -117,22 +117,22 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
       </Section>
 
       {/* Calendar */}
-      <Section title="Agenda">
-        <Field label="Calendar ID" hint="Meestal je e-mailadres. Te vinden via Google Calendar → Instellingen → [Agenda] → Calendar ID">
+      <Section title="Calendar">
+        <Field label="Calendar ID" hint="Usually your email address. Found via Google Calendar &rsaquo; Settings &rsaquo; [Calendar] &rsaquo; Calendar ID">
           <input
             type="text"
             value={calendarId}
             onChange={(e) => { setCalendarId(e.target.value); dirty(); }}
-            placeholder="jouw-email@gmail.com"
+            placeholder="your-email@gmail.com"
             className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
         </Field>
       </Section>
 
       {/* Booking window */}
-      <Section title="Beschikbaarheidsvenster">
+      <Section title="Availability window">
         <div className="space-y-4">
-          <Field label="Tijdzone">
+          <Field label="Timezone">
             <input
               type="text"
               value={timezone}
@@ -142,7 +142,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
             />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Begintijd (uur)">
+            <Field label="Start time (hour)">
               <input
                 type="number" min={0} max={23}
                 value={hoursStart}
@@ -150,7 +150,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
                 className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
               />
             </Field>
-            <Field label="Eindtijd (uur, exclusief)">
+            <Field label="End time (hour, exclusive)">
               <input
                 type="number" min={1} max={24}
                 value={hoursEnd}
@@ -160,7 +160,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
             </Field>
           </div>
           <p className="text-xs text-neutral-400">
-            Slots worden gegenereerd van {String(hoursStart).padStart(2,"0")}:00 t/m {String(hoursEnd - 1).padStart(2,"0")}:30, maandag t/m vrijdag.
+            Slots are generated from {String(hoursStart).padStart(2,"0")}:00 to {String(hoursEnd - 1).padStart(2,"0")}:30, Monday to Friday.
           </p>
         </div>
       </Section>
@@ -168,7 +168,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
       {/* Last updated */}
       {initialConfig.updatedAt && (
         <p className="text-xs text-neutral-400">
-          Laatst bijgewerkt: {new Date(initialConfig.updatedAt).toLocaleString("nl-NL")}
+          Last updated: {new Date(initialConfig.updatedAt).toLocaleString("en-GB")}
         </p>
       )}
 
@@ -176,8 +176,8 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
       <div className="flex items-center justify-between gap-4 border-t border-neutral-200 pt-4">
         <div className="flex-1 text-sm">
           {saveStatus === "error"  && <p className="text-red-600">{errorMsg}</p>}
-          {saveStatus === "saved"  && <p className="text-green-600">✓ Instellingen opgeslagen.</p>}
-          {isDirty && saveStatus === "idle" && <p className="text-xs text-amber-600">Niet-opgeslagen wijzigingen</p>}
+          {saveStatus === "saved"  && <p className="text-green-600">✓ Settings saved.</p>}
+          {isDirty && saveStatus === "idle" && <p className="text-xs text-amber-600">Unsaved changes</p>}
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -186,7 +186,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
             disabled={isPending}
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50 disabled:opacity-40"
           >
-            Wissen
+            Clear
           </button>
           <button
             type="button"
@@ -194,7 +194,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
             disabled={isPending || !isDirty}
             className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-40"
           >
-            {isPending ? "Opslaan…" : "Opslaan"}
+            {isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

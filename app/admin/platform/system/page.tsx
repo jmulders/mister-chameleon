@@ -181,11 +181,11 @@ export default async function SystemPage() {
             </div>
             <div className="space-y-2">
               <Step n={1}>
-                Commit en push naar <code className="font-mono text-xs">main</code>:
+                Commit and push to <code className="font-mono text-xs">main</code>:
                 <CodeBlock>{`git push origin main`}</CodeBlock>
               </Step>
-              <Step n={2}>GitHub Actions draait de pre-deploy gate <code className="font-mono text-xs">npm run verify</code> (eslint + typecheck + <strong>tests</strong>) plus een approval-gate. Bij success deployt Vercel automatisch naar productie. (De <code className="font-mono text-xs">supabase db push</code>-migratiejob is bekend niet-werkend — migraties draai je handmatig via <code className="font-mono text-xs">npm run db:migrate</code>.)</Step>
-              <Step n={3}>Of trigger handmatig via de knop hieronder (handig na een config-wijziging zonder code).</Step>
+              <Step n={2}>GitHub Actions runs the pre-deploy gate <code className="font-mono text-xs">npm run verify</code> (eslint + typecheck + <strong>tests</strong>) plus an approval gate. On success Vercel auto-deploys to production. (The <code className="font-mono text-xs">supabase db push</code> migration job is known to be broken, so run migrations manually via <code className="font-mono text-xs">npm run db:migrate</code>.)</Step>
+              <Step n={3}>Or trigger it manually via the button below (handy after a config change without code).</Step>
             </div>
             <WorkflowButton
               workflow="production.yml"
@@ -203,15 +203,15 @@ export default async function SystemPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="rounded bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700">HOTFIX</span>
-              <span className="text-sm text-neutral-600">Urgente fix via aparte branch</span>
+              <span className="text-sm text-neutral-600">Urgent fix via a separate branch</span>
             </div>
             <div className="space-y-2">
               <Step n={1}>
-                Maak een hotfix-branch vanaf <code className="font-mono text-xs">main</code>:
-                <CodeBlock>{`git checkout -b hotfix/omschrijving main`}</CodeBlock>
+                Create a hotfix branch from <code className="font-mono text-xs">main</code>:
+                <CodeBlock>{`git checkout -b hotfix/description main`}</CodeBlock>
               </Step>
-              <Step n={2}>Pas de minimale fix toe en push. CI draait automatisch.</Step>
-              <Step n={3}>Open een PR naar <code className="font-mono text-xs">main</code> en merge. Vercel deployt automatisch.</Step>
+              <Step n={2}>Apply the minimal fix and push. CI runs automatically.</Step>
+              <Step n={3}>Open a PR to <code className="font-mono text-xs">main</code> and merge. Vercel auto-deploys.</Step>
             </div>
             <Link
               href="https://github.com/jmulders/mister-chameleon/actions/workflows/hotfix.yml"

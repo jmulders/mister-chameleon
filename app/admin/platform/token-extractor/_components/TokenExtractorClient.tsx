@@ -261,7 +261,7 @@ export function TokenExtractorClient() {
               {json}
             </pre>
             <p className="mt-2 text-xs text-neutral-400">
-              Dit is een ander formaat: het stelt het <strong>site-brede thema</strong> in via Design → Builder (&quot;Of importeer een preset-JSON&quot;) of de Advanced-tab — niet voor Blocks.
+              This is a different format: it sets the <strong>site-wide theme</strong> via Design &rsaquo; Builder (&quot;Or import a preset JSON&quot;) or the Advanced tab, not for Blocks.
             </p>
           </div>
         </div>
@@ -279,7 +279,7 @@ function TokenList({ title, entries }: { title: string; entries: Record<string, 
     <div className="rounded-xl border border-neutral-200 bg-white p-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{title}</h3>
       {keys.length === 0 ? (
-        <p className="mt-2 text-xs text-neutral-400">—</p>
+        <p className="mt-2 text-xs text-neutral-400">None</p>
       ) : (
         <dl className="mt-2 space-y-1.5">
           {keys.map((k) => (
