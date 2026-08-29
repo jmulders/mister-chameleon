@@ -34,6 +34,7 @@ import type {
   ProviderStatus,
   RecentRunSummary,
 } from "../actions";
+import { toDemoImporterSavePayload } from "../settings-payload";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -65,10 +66,7 @@ export function DemoImporterClient({
       )}
 
       {settings && (
-        <>
-          <BehaviorSettings initial={settings} updatedAt={settingsUpdatedAt} />
-          <OutputDefaults   initial={settings} updatedAt={settingsUpdatedAt} />
-        </>
+        <SettingsSections initial={settings} updatedAt={settingsUpdatedAt} />
       )}
 
       <RecentRunsTable runs={status.recentRuns} />
@@ -273,33 +271,52 @@ function ProviderCard({ provider: p }: { provider: ProviderInfo }) {
   );
 }
 
-// ── 3. Behavior Settings ──────────────────────────────────────────────────────
+// ── 3. Settings sections (shared state) ───────────────────────────────────────
 
-function BehaviorSettings({
+/**
+ * Both settings sections share ONE settings state. Each section keeps its own
+ * Save button, but every Save persists the FULL payload (via saveAll), so a
+ * toggle in one section is never dropped by a Save in the other — the render
+ * toggle persistence bug.
+ */
+function SettingsSections({
   initial,
   updatedAt,
 }: {
   initial:   DemoImporterSettings;
   updatedAt: string | null;
 }) {
-  const [settings, setSettings]     = useState(initial);
+  const [settings, setSettings] = useState(initial);
+  const patch = (p: Partial<DemoImporterSettings>) => setSettings((s) => ({ ...s, ...p }));
+  const saveAll = () => saveDemoImporterSettingsAction(toDemoImporterSavePayload(settings));
+
+  return (
+    <>
+      <BehaviorSettings settings={settings} patch={patch} updatedAt={updatedAt} saveAll={saveAll} />
+      <OutputDefaults   settings={settings} patch={patch} updatedAt={updatedAt} saveAll={saveAll} />
+    </>
+  );
+}
+
+interface SectionProps {
+  settings:  DemoImporterSettings;
+  patch:     (p: Partial<DemoImporterSettings>) => void;
+  updatedAt: string | null;
+  /** Persist the FULL shared settings (all fields), returning the action result. */
+  saveAll:   () => Promise<{ ok: true } | { ok: false; error: string }>;
+}
+
+/** Shared save-button state machine used by both sections. */
+function useSectionSave(saveAll: SectionProps["saveAll"]) {
   const [saveState, setSaveState]   = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError]   = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  function toggle(key: keyof DemoImporterSettings) {
-    setSettings((s) => ({ ...s, [key]: !s[key] }));
-    setSaveState("idle");
-  }
 
   function handleSave() {
     setSaveState("saving");
     setSaveError(null);
     startTransition(async () => {
-      const result = await saveDemoImporterSettingsAction({
-        renderEnabled:        settings.renderEnabled,
-        renderTimeoutMs:      settings.renderTimeoutMs,
-      });
+      const result = await saveAll();
       if (result.ok) {
         setSaveState("saved");
         setTimeout(() => setSaveState("idle"), 3000);
@@ -309,6 +326,12 @@ function BehaviorSettings({
       }
     });
   }
+
+  return { saveState, setSaveState, saveError, isPending, handleSave };
+}
+
+function BehaviorSettings({ settings, patch, updatedAt, saveAll }: SectionProps) {
+  const { saveState, setSaveState, saveError, isPending, handleSave } = useSectionSave(saveAll);
 
   return (
     <section aria-labelledby="behavior-heading">
@@ -346,7 +369,7 @@ function BehaviorSettings({
           label="JavaScript rendering"
           note="Render the prospect page with a self-hosted headless Chrome so client-rendered sites mirror faithfully. Falls back to a plain fetch on error/timeout."
           checked={settings.renderEnabled}
-          onChange={() => toggle("renderEnabled")}
+          onChange={() => { patch({ renderEnabled: !settings.renderEnabled }); setSaveState("idle"); }}
         />
 
         {settings.renderEnabled && (
@@ -365,7 +388,7 @@ function BehaviorSettings({
               value={settings.renderTimeoutMs}
               onChange={(e) => {
                 const v = parseInt(e.target.value, 10);
-                if (!isNaN(v)) setSettings((s) => ({ ...s, renderTimeoutMs: v }));
+                if (!isNaN(v)) patch({ renderTimeoutMs: v });
                 setSaveState("idle");
               }}
               className="w-24 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none"
@@ -393,34 +416,8 @@ function BehaviorSettings({
 
 // ── 4. Output Defaults ────────────────────────────────────────────────────────
 
-function OutputDefaults({
-  initial,
-  updatedAt,
-}: {
-  initial:   DemoImporterSettings;
-  updatedAt: string | null;
-}) {
-  const [settings, setSettings]     = useState(initial);
-  const [saveState, setSaveState]   = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [saveError, setSaveError]   = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleSave() {
-    setSaveState("saving");
-    setSaveError(null);
-    startTransition(async () => {
-      const result = await saveDemoImporterSettingsAction({
-        expiryDays:           settings.expiryDays,
-      });
-      if (result.ok) {
-        setSaveState("saved");
-        setTimeout(() => setSaveState("idle"), 3000);
-      } else {
-        setSaveState("error");
-        setSaveError(result.error);
-      }
-    });
-  }
+function OutputDefaults({ settings, patch, updatedAt, saveAll }: SectionProps) {
+  const { saveState, setSaveState, saveError, isPending, handleSave } = useSectionSave(saveAll);
 
   return (
     <section aria-labelledby="output-heading">
@@ -467,7 +464,7 @@ function OutputDefaults({
             value={settings.expiryDays}
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
-              if (!isNaN(v)) setSettings((s) => ({ ...s, expiryDays: v }));
+              if (!isNaN(v)) patch({ expiryDays: v });
               setSaveState("idle");
             }}
             className="w-16 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
