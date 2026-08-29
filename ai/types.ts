@@ -114,7 +114,7 @@ export interface AiProviderConfig {
    *
    * Examples:
    *   "claude-3-5-haiku-20241022"  (Anthropic — fast, cheap, recommended for decisioning)
-   *   "claude-sonnet-4-6"          (Anthropic — richer reasoning)
+   *   "claude-sonnet-5"            (Anthropic — richer reasoning)
    *   "gpt-4o-mini"                (OpenAI — comparable speed/cost tier)
    */
   modelId: string;

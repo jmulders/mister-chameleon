@@ -91,9 +91,12 @@ interface ClaudeSlotResponse {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const AI_MODEL       = "claude-sonnet-4-6";
-const AI_TIMEOUT_MS  = 40_000;
-const MAX_TOKENS     = 4_000;
+// Default model for the AI slot analyzer. Overridable at runtime (platform AI
+// settings → DEMO_AI_MODEL env) so a hardcoded id can never silently go stale
+// and drop the analyzer to the 1-slot regex fallback again.
+const DEFAULT_AI_MODEL = "claude-sonnet-5";
+const AI_TIMEOUT_MS    = 40_000;
+const MAX_TOKENS       = 4_000;
 
 // CTA keywords for link extraction (English + Dutch + German)
 const CTA_RE = /\b(start|get|try|request|book|sign|demo|contact|discover|learn|see|schedule|begin|join|register|apply|explore|download|watch|buy|subscribe|free|trial|quote|talk|chat|call|meet|consult|aanvragen|probeer|ontdek|bekijk|starten|aanmelden|registreer|reserveer|boeken|kopen|downloaden|gratis|offerte|gesprek|afspraak|Mehr erfahren|Jetzt|Kostenlos|Ausprobieren)\b/i;
@@ -427,46 +430,73 @@ async function resolveAnthropicKey(): Promise<string | null> {
   return process.env["ANTHROPIC_API_KEY"] ?? null;
 }
 
-async function callClaudeForSlots(userPrompt: string): Promise<ClaudeSlotResponse | null> {
-  const apiKey = await resolveAnthropicKey();
-  if (!apiKey) return null;
+/**
+ * Resolve the model id for the slot analyzer: platform AI settings
+ * (`anthropicModel`) → `DEMO_AI_MODEL` env → the safe default. Deliberately does
+ * NOT read the global `CLAUDE_MODEL` (which may be a cheaper model for variant
+ * generation) — slot analysis needs a capable model.
+ */
+async function resolveSlotModel(): Promise<string> {
+  try {
+    const { getPlatformAiSettings } = await import("@/platform/platform-store");
+    const result = await getPlatformAiSettings();
+    if (result.ok && result.data.anthropicModel) return result.data.anthropicModel;
+  } catch {
+    // DB unavailable — fall through to env / default
+  }
+  return process.env["DEMO_AI_MODEL"] || DEFAULT_AI_MODEL;
+}
 
+/** Why the AI call did not yield usable slots — surfaced to the caller. */
+export type SlotAiFailReason =
+  | "no_api_key"      // no Anthropic key configured
+  | "api_error"      // messages.create threw (bad model, network, timeout, 4xx/5xx)
+  | "empty_response"  // no text content came back
+  | "parse_error";    // response text was not valid JSON
+
+type ClaudeCallResult =
+  | { ok: true;  data: ClaudeSlotResponse; model: string }
+  | { ok: false; reason: SlotAiFailReason; detail: string; model: string };
+
+async function callClaudeForSlots(userPrompt: string): Promise<ClaudeCallResult> {
+  const model  = await resolveSlotModel();
+  const apiKey = await resolveAnthropicKey();
+  if (!apiKey) {
+    return { ok: false, reason: "no_api_key", detail: "No Anthropic API key configured (platform AI settings or ANTHROPIC_API_KEY).", model };
+  }
+
+  const controller = new AbortController();
+  const timer      = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
   try {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     const client    = new Anthropic({ apiKey });
 
-    const controller = new AbortController();
-    const timer      = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+    const message = await client.messages.create(
+      {
+        model,
+        max_tokens: MAX_TOKENS,
+        system:     SYSTEM_PROMPT,
+        messages:   [{ role: "user", content: userPrompt }],
+      },
+      { signal: controller.signal },
+    );
 
+    const raw = message.content[0]?.type === "text" ? message.content[0].text : "";
+    if (!raw) return { ok: false, reason: "empty_response", detail: "Claude returned no text content.", model };
+
+    // Strip any accidental markdown fences Claude might include
+    const json = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
     try {
-      const message = await client.messages.create(
-        {
-          model:      AI_MODEL,
-          max_tokens: MAX_TOKENS,
-          system:     SYSTEM_PROMPT,
-          messages:   [{ role: "user", content: userPrompt }],
-        },
-        { signal: controller.signal },
-      );
-
-      clearTimeout(timer);
-
-      const raw = message.content[0]?.type === "text" ? message.content[0].text : "";
-      if (!raw) return null;
-
-      // Strip any accidental markdown fences Claude might include
-      const json = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-      return JSON.parse(json) as ClaudeSlotResponse;
-
-    } finally {
-      clearTimeout(timer);
+      return { ok: true, data: JSON.parse(json) as ClaudeSlotResponse, model };
+    } catch (parseErr) {
+      return { ok: false, reason: "parse_error", detail: parseErr instanceof Error ? parseErr.message : String(parseErr), model };
     }
   } catch (err) {
-    console.warn(
-      "[demo/ai-slot-analyzer] Claude call failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return null;
+    const detail = err instanceof Error ? err.message : String(err);
+    console.warn(`[demo/ai-slot-analyzer] Claude call failed (model=${model}):`, detail);
+    return { ok: false, reason: "api_error", detail, model };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -490,11 +520,26 @@ function isValidSlot(s: unknown): s is AiSlotDefinition {
 // ── Public entry ──────────────────────────────────────────────────────────────
 
 /**
+ * Outcome of AI slot analysis. `slots` is what the caller injects; the rest
+ * makes a fallback VISIBLE instead of silent: `aiRan` is true only when the AI
+ * produced at least one valid slot, `status`/`reason` say exactly why it didn't
+ * (so "1 slot" is never a mystery), and `model` is the model that was used.
+ */
+export interface SlotAnalysisResult {
+  slots:  AiSlotDefinition[];
+  aiRan:  boolean;
+  status: "ok" | "no_elements" | "no_slots" | "error" | SlotAiFailReason;
+  reason?: string;
+  model:   string;
+}
+
+/**
  * Analyses the mirrored HTML and generates AI-driven slot definitions.
  *
- * Returns [] (never throws) when the key is missing, the API call fails,
- * or the response cannot be parsed.  Callers should fall back to the regex
- * heuristics in slot-injector.ts.
+ * Never throws. Returns a SlotAnalysisResult whose `slots` is empty (and
+ * `aiRan:false` with a `status`/`reason`) when the key is missing, the API call
+ * fails, or the response cannot be parsed — callers fall back to the regex
+ * heuristics in slot-injector.ts, and can now log WHY.
  */
 export async function analyzeAndGenerateSlots(
   html:        string,
@@ -504,19 +549,30 @@ export async function analyzeAndGenerateSlots(
     category:    SiteCategory | string;
     description: string;
   },
-): Promise<AiSlotDefinition[]> {
+): Promise<SlotAnalysisResult> {
+  let model = DEFAULT_AI_MODEL;
   try {
     // 1. Extract element map + hero visual presence
     const elements    = extractElementMap(html);
-    if (elements.length === 0) return [];
+    if (elements.length === 0) {
+      return { slots: [], aiRan: false, status: "no_elements", reason: "No candidate elements found in the mirrored HTML.", model };
+    }
     const heroVisual  = extractHeroVisual(html);
 
     // 2. Build prompt
     const userPrompt = buildPrompt(elements, siteContext, !!heroVisual);
 
     // 3. Call Claude
-    const response = await callClaudeForSlots(userPrompt);
-    if (!response?.slots?.length) return [];
+    const call = await callClaudeForSlots(userPrompt);
+    model = call.model;
+    if (!call.ok) {
+      console.warn(`[demo/ai-slot-analyzer] AI fell back (status=${call.reason}, model=${model}): ${call.detail}`);
+      return { slots: [], aiRan: false, status: call.reason, reason: call.detail, model };
+    }
+    const response = call.data;
+    if (!response?.slots?.length) {
+      return { slots: [], aiRan: false, status: "no_slots", reason: "AI returned zero slots.", model };
+    }
 
     // 4. Validate and filter text slots
     const valid = response.slots.filter(isValidSlot) as AiSlotDefinition[];
@@ -568,15 +624,13 @@ export async function analyzeAndGenerateSlots(
     const visualCount = valid.filter(s => ["img", "video", "div"].includes(s.tag)).length;
     console.info(
       `[demo/ai-slot-analyzer] generated ${valid.length} slots (${visualCount} visual, ${valid.length - visualCount} text)` +
-      ` for "${siteContext.title}"`,
+      ` for "${siteContext.title}" (model=${model})`,
     );
 
-    return valid;
+    return { slots: valid, aiRan: valid.length > 0, status: "ok", model };
   } catch (err) {
-    console.warn(
-      "[demo/ai-slot-analyzer] analyzeAndGenerateSlots failed:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return [];
+    const detail = err instanceof Error ? err.message : String(err);
+    console.warn("[demo/ai-slot-analyzer] analyzeAndGenerateSlots failed:", detail);
+    return { slots: [], aiRan: false, status: "error", reason: detail, model };
   }
 }

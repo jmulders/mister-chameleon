@@ -131,6 +131,13 @@ export interface PlatformAiSettings {
    * SERVER ONLY — must never be serialised to the client.
    */
   demoSiteKey?:  string;
+  /**
+   * Anthropic model id for the demo AI slot analyzer (e.g. "claude-sonnet-5").
+   * Optional platform-level override so the model can be refreshed when a newer
+   * one ships, without a code change (avoids the hardcoded-model-goes-stale bug).
+   * Not a secret, but read server-side alongside the keys. SERVER ONLY.
+   */
+  anthropicModel?: string;
 }
 
 /**
@@ -1061,6 +1068,9 @@ export async function savePlatformAiSettings(
   }
   if (patch.demoSiteKey !== undefined) {
     normalized.demoSiteKey = patch.demoSiteKey === "" ? null : patch.demoSiteKey;
+  }
+  if (patch.anthropicModel !== undefined) {
+    normalized.anthropicModel = patch.anthropicModel === "" ? null : patch.anthropicModel;
   }
 
   return writeSection<Record<string, unknown>>(KEYS.ai, normalized);

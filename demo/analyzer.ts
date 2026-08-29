@@ -22,8 +22,26 @@ const DEFAULT_SECONDARY = "#1e3a8a";
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
-export async function analyzeSite(rawUrl: string): Promise<SiteAnalysis> {
+export async function analyzeSite(
+  rawUrl: string,
+  /**
+   * Optional already-captured HTML (e.g. mirrored.html from the render service).
+   * When provided, the analyzer reads brand tokens/colours/category from THIS
+   * HTML — the same JS-rendered DOM that slot detection uses — instead of doing
+   * its own second plain fetch. Omit it to fetch a fresh copy (unchanged path).
+   */
+  prefetched?: { html: string; finalUrl?: string; fetchSucceeded?: boolean },
+): Promise<SiteAnalysis> {
   const url = normalizeUrl(rawUrl);
+
+  // Reuse the pre-captured (rendered) HTML when handed in and non-empty.
+  if (prefetched && prefetched.html) {
+    return extractSignals(
+      prefetched.html,
+      prefetched.finalUrl ?? url,
+      prefetched.fetchSucceeded ?? true,
+    );
+  }
 
   let html           = "";
   let fetchedUrl     = url;
