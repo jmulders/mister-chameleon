@@ -508,13 +508,18 @@ function escapeAttr(s: string): string {
  * prospect's images load SAME-ORIGIN — defeating hotlink/Referer/CORP blocking
  * on the source site (which is why mirrored pages otherwise show no images).
  *
- * Scoped to <img>/<source> (src + srcset), <video> (poster), and every CSS
- * url(...) that points at an absolute http(s) asset — in inline style="…"
- * attributes AND inside <style> blocks. That covers the `background` shorthand,
- * `background-image`, `mask-image`, `border-image`, etc. — not just the
- * background-image longhand — so CSS hero/section imagery loads instead of
- * showing grey. Only absolute http(s) URLs are proxied; data: and relative URLs
- * are left as-is.
+ * Scope — every absolute http(s) image source is routed through the proxy:
+ *   • <img>/<source> — src, srcset (each candidate), and common JS-lazy attrs
+ *     (data-src, data-srcset, data-original, data-lazy, data-lazy-src, data-bg…).
+ *     srcset uses per-URL token replacement, so a mixed `data:…, https://real 2x`
+ *     no longer has to be skipped wholesale (the old base64-comma problem that
+ *     left responsive/lazy images cross-origin and blank).
+ *   • <video> — poster + src.
+ *   • <link rel=preload/prefetch as=image> — href + imagesrcset (the LCP image).
+ *   • CSS url(...) in inline style="…" attributes AND inside <style> blocks —
+ *     the `background` shorthand, `background-image`, `mask-image`, etc.
+ * Only absolute http(s) URLs are proxied; data: and relative URLs are left as-is,
+ * and an already-proxied URL is never proxied again.
  *
  * Known limit: url() references inside EXTERNAL linked stylesheets (the
  * prospect's `<link rel=stylesheet>`, kept for fidelity) are fetched
@@ -527,40 +532,72 @@ function escapeAttr(s: string): string {
  *                  proxy URLs that ignore the injected <base> tag.
  */
 export function proxifyAssets(html: string, demoBase: string): string {
-  const base   = demoBase.replace(/\/+$/, "");
-  const isHttp = (u: string) => /^https?:\/\//i.test(u.trim());
-  const prox   = (abs: string) => `${base}/api/demo/asset?u=${encodeURIComponent(abs.trim())}`;
+  const base = demoBase.replace(/\/+$/, "");
 
-  const rewriteSrc = (tag: string): string =>
-    tag.replace(/\bsrc=(['"])(https?:\/\/[^'"]+)\1/gi, (_m, q, u) => `src=${q}${prox(u)}${q}`)
-       .replace(/\bsrcset=(['"])([^'"]+)\1/gi, (_m, q, ss) => {
-         // Leave data:-URI srcsets untouched (base64 commas break splitting).
-         if (/data:/i.test(ss)) return `srcset=${q}${ss}${q}`;
-         const rewritten = ss.split(",").map((part: string) => {
-           const seg = part.trim();
-           if (!seg) return part;
-           const sp = seg.split(/\s+/);
-           if (isHttp(sp[0])) sp[0] = prox(sp[0]);
-           return sp.join(" ");
-         }).join(", ");
-         return `srcset=${q}${rewritten}${q}`;
-       });
+  // Proxy one absolute http(s) URL. Leaves data:/relative untouched and never
+  // double-proxies a URL we already rewrote.
+  const prox = (raw: string): string => {
+    const u = raw.trim();
+    if (!u || !/^https?:\/\//i.test(u)) return raw;
+    if (u.includes("/api/demo/asset?u=")) return raw;
+    return `${base}/api/demo/asset?u=${encodeURIComponent(u)}`;
+  };
 
-  // Proxy every absolute http(s) url() in a chunk of CSS. Covers background /
-  // background-image / mask-image / border-image / cursor, etc. Leaves data: and
-  // relative url()s untouched (they don't match https?://).
+  // Proxy EVERY absolute http(s) URL token inside a value. Used for srcset-style
+  // attributes (multiple `url 1x, url 2x` candidates) and CSS. Because it matches
+  // only `https?://…` tokens, data:-URI placeholders and relative URLs are left
+  // intact — so a mixed `srcset="data:…, https://real 2x"` no longer has to be
+  // skipped wholesale (the old base64-comma problem).
+  const proxTokens = (value: string): string =>
+    value.replace(/https?:\/\/[^\s"'()<>,]+/gi, (u) => prox(u));
+
+  // Rewrite single-URL attributes (attr="https://…") on a tag. Anchored with a
+  // negative lookbehind so `src` does not also match `data-src` (each lazy attr
+  // is listed explicitly instead).
+  const rewriteSingle = (tag: string, attrs: readonly string[]): string => {
+    for (const a of attrs) {
+      const re = new RegExp(`(?<![-\\w])${a}=(['"])(https?:\\/\\/[^'"]+)\\1`, "gi");
+      tag = tag.replace(re, (_m, q, u) => `${a}=${q}${prox(u)}${q}`);
+    }
+    return tag;
+  };
+  // Rewrite srcset-style attributes (attr="url1 1x, url2 2x") on a tag.
+  const rewriteSrcset = (tag: string, attrs: readonly string[]): string => {
+    for (const a of attrs) {
+      const re = new RegExp(`(?<![-\\w])${a}=(['"])([^'"]*)\\1`, "gi");
+      tag = tag.replace(re, (_m, q, ss) => `${a}=${q}${proxTokens(ss)}${q}`);
+    }
+    return tag;
+  };
+
+  // Image URL-bearing attributes on <img>/<source>. Covers the eager src plus the
+  // common JS-lazy-load attributes (in case cleanHtml's lazy promotion didn't
+  // reach a given variant) so every candidate image routes through the proxy.
+  const IMG_SINGLE = [
+    "src", "poster",
+    "data-src", "data-original", "data-lazy", "data-lazy-src",
+    "data-fallback-src", "data-bg", "data-image",
+  ];
+  const IMG_SRCSET = ["srcset", "data-srcset", "data-lazy-srcset"];
+
   const proxyCssUrls = (css: string): string =>
     css.replace(/url\(\s*(['"]?)(https?:\/\/[^'")]+?)\1\s*\)/gi,
       (_m, q, u) => `url(${q}${prox(u)}${q})`);
 
   let out = html;
-  out = out.replace(/<(?:img|source)\b[^>]*>/gi, (tag) => rewriteSrc(tag));
-  out = out.replace(/<video\b[^>]*>/gi, (tag) =>
-    tag.replace(/\bposter=(['"])(https?:\/\/[^'"]+)\1/gi, (_m, q, u) => `poster=${q}${prox(u)}${q}`),
-  );
-  // CSS url() in inline style="…" attributes (hero/section background images).
-  // The value may contain the OTHER quote char (e.g. a double-quoted attribute
-  // whose url() uses single quotes), so match up to the matching closing quote.
+  // <img> / <source> (picture + responsive): src + srcset + lazy attributes.
+  out = out.replace(/<(?:img|source)\b[^>]*>/gi,
+    (tag) => rewriteSrcset(rewriteSingle(tag, IMG_SINGLE), IMG_SRCSET));
+  // <video>: poster + src.
+  out = out.replace(/<video\b[^>]*>/gi, (tag) => rewriteSingle(tag, ["poster", "src"]));
+  // <link rel=preload/prefetch as=image>: the LCP image is often preloaded here.
+  out = out.replace(/<link\b[^>]*>/gi, (tag) => {
+    if (!/\bas=(['"]?)image\1/i.test(tag)) return tag; // only image preloads
+    return rewriteSrcset(rewriteSingle(tag, ["href"]), ["imagesrcset"]);
+  });
+  // CSS url() in inline style="…" attributes. The value may contain the OTHER
+  // quote char (a double-quoted attribute whose url() uses single quotes), so
+  // match up to the matching closing quote.
   out = out.replace(/\bstyle=(['"])((?:(?!\1)[\s\S])*)\1/gi,
     (_m, q, css) => `style=${q}${proxyCssUrls(css)}${q}`);
   // CSS url() inside <style> blocks.
