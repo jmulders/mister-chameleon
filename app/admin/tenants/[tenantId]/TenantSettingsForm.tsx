@@ -106,6 +106,7 @@ interface FormState {
     slug:              string;
     primaryDomain:     string;
     additionalDomains: string; // newline-separated; converted to array on save
+    timezone:          string; // IANA zone, e.g. "Europe/Amsterdam"
   };
   packageKey: PackageKey;
   ai: {
@@ -495,6 +496,10 @@ function initFormState(tenant: TenantSettings): FormState {
       slug:              tenant.slug              ?? "",
       primaryDomain:     tenant.primaryDomain     ?? "",
       additionalDomains: tenant.additionalDomains ? tenant.additionalDomains.join("\n") : "",
+      // Default to Europe/Amsterdam (this is an NL-first platform); the operator
+      // can change it. Drives tenant-wide time rules when the visitor's own mc_tz
+      // is absent (precedence: mc_tz > tenant.timezone > UTC).
+      timezone:          tenant.timezone          ?? "Europe/Amsterdam",
     },
     packageKey: (isValidPackageKey(tenant.packageKey) ? tenant.packageKey : "starter") as PackageKey,
     ai: {
@@ -591,6 +596,7 @@ function formStateToSettings(tenantId: string, form: FormState): TenantSettings 
     ...(form.identity.slug.trim()         ? { slug:              form.identity.slug.trim()         } : {}),
     ...(form.identity.primaryDomain.trim() ? { primaryDomain:    form.identity.primaryDomain.trim() } : {}),
     ...(parsedAdditionalDomains.length > 0 ? { additionalDomains: parsedAdditionalDomains }          : {}),
+    ...(form.identity.timezone.trim()      ? { timezone:          form.identity.timezone.trim()      } : {}),
     packageKey: form.packageKey,
     features: {
       experiments: form.features.experiments,
@@ -1157,6 +1163,21 @@ export function TenantSettingsForm({
                 setForm((f) => ({ ...f, identity: { ...f.identity, additionalDomains: e.target.value } }))
               }
               className={cn(inputCls, "resize-y")}
+            />
+          </Field>
+
+          <Field
+            label="Timezone"
+            hint="IANA timezone (e.g. Europe/Amsterdam) used for time-based rules when the visitor's own timezone is unknown. Precedence: visitor timezone, then this, then UTC."
+          >
+            <input
+              type="text"
+              value={form.identity.timezone}
+              placeholder="Europe/Amsterdam"
+              onChange={(e) =>
+                setForm((f) => ({ ...f, identity: { ...f.identity, timezone: e.target.value.trim() } }))
+              }
+              className={inputCls}
             />
           </Field>
         </div>

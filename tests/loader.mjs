@@ -54,6 +54,18 @@ export async function resolve(specifier, context, nextResolve) {
     return { url: 'data:text/javascript,', shortCircuit: true };
   }
 
+  // ── 1b. Mock "next/cache" ────────────────────────────────────────────────
+  // next/cache's revalidate* helpers require the Next.js request context, which
+  // does not exist in raw Node tests. Stub them as no-ops so modules that import
+  // them at the top level (e.g. tenant-store) can load and their pure functions
+  // (validateTenantSettings) be tested.
+  if (specifier === 'next/cache') {
+    return {
+      url: 'data:text/javascript,export const revalidatePath=()=>{};export const revalidateTag=()=>{};export const unstable_cache=(f)=>f;export const unstable_noStore=()=>{};',
+      shortCircuit: true,
+    };
+  }
+
   // ── 2. Resolve @/ aliases ────────────────────────────────────────────────
   if (specifier.startsWith('@/')) {
     const abs = path.join(PROJECT_ROOT, specifier.slice(2));
