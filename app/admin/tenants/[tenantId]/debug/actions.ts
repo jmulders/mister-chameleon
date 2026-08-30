@@ -22,7 +22,7 @@
 
 import { revalidatePath }           from "next/cache";
 import { getTenantById, saveTenant } from "@/tenant/server";
-import type { TenantDebugSettings, TenantScenarioPanelSettings, TenantScenarioPreset } from "@/tenant/types";
+import type { TenantDebugSettings, TenantScenarioPanelSettings, TenantScenarioPreset, TenantScenarioOverride } from "@/tenant/types";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -166,5 +166,41 @@ export async function saveScenarioPresetsAction(
   revalidatePath(`/admin/tenants/${tenantId}/debug`);
   revalidatePath("/", "layout");
 
+  return { ok: true };
+}
+
+// ── Scenario built-in overrides (hide / reorder / relabel / reset) ──────────────
+
+export type SaveScenarioOverridesResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Save the per-tenant OVERRIDE map on the code-defined built-ins (Quick presets +
+ * Demo roles). Replaces the whole map. A key mapping to an empty object, or an
+ * empty map, is dropped to keep the settings blob clean ("reset to default" =
+ * remove the key). Structural validation runs in validateTenantSettings; the panel
+ * is additionally fail-open. Revalidates the public site so the console updates.
+ */
+export async function saveScenarioOverridesAction(
+  tenantId:  string,
+  overrides: Record<string, TenantScenarioOverride>,
+): Promise<SaveScenarioOverridesResult> {
+  const stored = await getTenantById(tenantId);
+  if (!stored) return { ok: false, error: `Tenant "${tenantId}" not found.` };
+
+  // Drop keys whose override object is empty (reset), and drop the whole map when
+  // nothing remains.
+  const clean: Record<string, TenantScenarioOverride> = {};
+  for (const [key, o] of Object.entries(overrides ?? {})) {
+    if (o && typeof o === "object" && Object.keys(o).length > 0) clean[key] = o;
+  }
+  const scenarioOverrides = Object.keys(clean).length > 0 ? clean : undefined;
+
+  const result = await saveTenant({ ...stored, scenarioOverrides });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  revalidatePath(`/admin/tenants/${tenantId}/debug`);
+  revalidatePath("/", "layout");
   return { ok: true };
 }

@@ -2148,6 +2148,35 @@ export interface TenantScenarioPreset {
   readonly overrides: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * A per-tenant OVERRIDE on a CODE-DEFINED built-in (a Quick preset or a Demo
+ * "Who are you?" role), keyed by the built-in's key. The code defaults are never
+ * mutated: this layer sits on top and is applied at render time. An absent key
+ * means the built-in shows exactly as coded; deleting the key is "reset to default".
+ *
+ * `scenarioPanel` (the older allowlist curation) is FOLDED into this layer at read
+ * time — a built-in absent from a `scenarioPanel` allowlist becomes `hidden: true` —
+ * so existing curation keeps working under the single override mechanism.
+ *
+ * Purely demo-console presentation: hiding/overriding a built-in never touches
+ * rules or segments (built-in keys are not referenced by the decision engine).
+ */
+export interface TenantScenarioOverride {
+  /** Hide this built-in from the demo console. */
+  readonly hidden?:    boolean;
+  /** Sort key within its list (lower first); ties fall back to code order. */
+  readonly order?:     number;
+  /** Presentation overrides (fall back to the code default when absent). */
+  readonly label?:     string;
+  readonly icon?:      string;
+  readonly color?:     string;
+  /**
+   * Partial ScenarioOverrides bag DEEP-MERGED over the built-in's default
+   * `overrides` — lets a tenant tweak what the persona simulates without forking it.
+   */
+  readonly overrides?: Readonly<Record<string, unknown>>;
+}
+
 export interface TenantDesignSettings {
   readonly theme:           ThemeKey;
   readonly primaryColor?:   string;
@@ -2766,6 +2795,15 @@ export interface TenantSettings {
    * no decision/personalisation impact. Fail-open at the panel boundary.
    */
   readonly scenarioPresets?: readonly TenantScenarioPreset[];
+
+  /**
+   * Per-tenant overrides on the CODE-DEFINED built-in Quick presets and Demo
+   * roles (hide, reorder, relabel, tweak simulated signals, reset-to-default),
+   * keyed by built-in key. Defaults are never mutated — this layer is applied at
+   * render time. Supersedes `scenarioPanel` (which is folded in for back-compat).
+   * Pure demo config — no decision/personalisation impact.
+   */
+  readonly scenarioOverrides?: Readonly<Record<string, TenantScenarioOverride>>;
 
   /**
    * ISO 8601 timestamp (UTC) of the most recent successful CMS provisioning run.

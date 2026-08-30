@@ -20,6 +20,7 @@ import { activateScenario, clearScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 import { getDemoContextSet, getDemoAttributeSet } from "./demo-context-sets";
 import { curateByKey } from "./curate-panel";
+import { applyRoleOverrides, effectivePresetOverrides, type OverrideMap } from "./scenario-overrides";
 import type { DemoContext, DemoAttribute } from "./demo-context-sets";
 import type { ScenarioState, ScenarioOverrides } from "./scenario-store";
 
@@ -78,13 +79,13 @@ function activeTime(o: ScenarioOverrides): "day" | "evening" | "weekend" | null 
 export function DemoStageSection({
   scenario,
   onApply,
-  roleKeys,
+  overrides,
   timeOptions,
 }: {
   scenario: ScenarioState;
   onApply:  () => void;
-  /** Optional tenant curation — subset of role / context-set keys to show. */
-  roleKeys?: readonly string[];
+  /** Per-tenant built-in override map (hide/reorder/relabel roles + tweak signals). */
+  overrides: OverrideMap;
   /** Optional tenant curation — subset of "day" | "evening" | "weekend". */
   timeOptions?: readonly string[];
 }) {
@@ -121,7 +122,12 @@ export function DemoStageSection({
   function pickRole(role: Role | null) {
     if (role) {
       const preset = SCENARIO_PRESETS[role.key];
-      if (preset) activateScenario(preset.overrides, preset.key, preset.label);
+      if (preset) {
+        // Apply the tenant's simulated-signal tweak (deep-merged) + relabel, if any.
+        const eff   = effectivePresetOverrides(role.key, overrides) ?? preset.overrides;
+        const label = overrides[role.key]?.label ?? preset.label;
+        activateScenario(eff, preset.key, label);
+      }
     } else {
       clearScenario();
     }
@@ -168,7 +174,7 @@ export function DemoStageSection({
         <div>
           <div style={S.sectionLabel}>Visitor context</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {curateByKey(contextSet, (c) => c.key, roleKeys).map((ctx) => (
+            {applyRoleOverrides(overrides, contextSet).roles.map((ctx) => (
               <RoleRow
                 key={ctx.key}
                 role={ctx}
@@ -195,7 +201,7 @@ export function DemoStageSection({
         <div>
           <div style={S.sectionLabel}>Who are you?</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {curateByKey(ROLES, (r) => r.key, roleKeys).map((r) => (
+            {applyRoleOverrides(overrides, ROLES).roles.map((r) => (
               <RoleRow
                 key={r.key}
                 role={r}
