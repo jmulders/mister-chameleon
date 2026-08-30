@@ -71,6 +71,31 @@ describe("PDOK forward geocode", () => {
     const empty = ((u: string) => ({ ok: true, json: async () => ({ response: { docs: [] } }) })) as unknown as typeof fetch;
     assert.equal(await buurtcodeFromFormLocation("1011AB", null, 4000, empty), null);
   });
+
+  it("pins a bare PLACE forward to type:woonplaats (not a street/address top-match)", async () => {
+    const calls: string[] = [];
+    const f = ((u: string) => {
+      calls.push(u);
+      if (u.includes("/free")) return { ok: true, json: async () => ({ response: { docs: [{ centroide_ll: "POINT(5.55 52.02)" }] } }) };
+      return { ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU05990110" }] } }) };
+    }) as unknown as typeof fetch;
+    // place only (no postcode) → the free forward MUST carry fq=type:woonplaats.
+    await buurtcodeFromFormLocation(null, "Veenendaal", 4000, f);
+    const free = calls.find((u) => u.includes("/free"))!;
+    assert.match(free, /[?&]fq=type%3Awoonplaats/i, "place forward filters to woonplaats");
+  });
+
+  it("does NOT filter a POSTCODE forward to woonplaats (postcode is precise)", async () => {
+    const calls: string[] = [];
+    const f = ((u: string) => {
+      calls.push(u);
+      if (u.includes("/free")) return { ok: true, json: async () => ({ response: { docs: [{ centroide_ll: "POINT(4.9 52.37)" }] } }) };
+      return { ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU03630000" }] } }) };
+    }) as unknown as typeof fetch;
+    await buurtcodeFromFormLocation("1011 AB", null, 4000, f);
+    const free = calls.find((u) => u.includes("/free"))!;
+    assert.doesNotMatch(free, /woonplaats/i, "postcode forward is not woonplaats-filtered");
+  });
 });
 
 describe("CBS stage — form-location precedence", () => {

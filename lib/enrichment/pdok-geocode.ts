@@ -204,6 +204,7 @@ export async function resolveLatLngFromFree(
   query: string,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   fetchImpl: typeof fetch = fetch,
+  opts?: { woonplaatsOnly?: boolean },
 ): Promise<{ status: GeoResolveStatus; ll: { lat: number; lng: number } | null }> {
   const q = query.trim();
   if (!q) return { status: "empty", ll: null };
@@ -211,7 +212,12 @@ export async function resolveLatLngFromFree(
   const controller = new AbortController();
   const timeout    = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    // A bare PLACE name ("Veenendaal") without a postcode is ambiguous: the default
+    // free-text ranking can return a street/address top-match (or nothing) instead
+    // of the town. Pin it to the woonplaats record so we always get the town
+    // centroid. Postcode queries are precise and must NOT be filtered this way.
     const params = new URLSearchParams({ q, rows: "1", fl: "centroide_ll" });
+    if (opts?.woonplaatsOnly) params.set("fq", "type:woonplaats");
     const res = await fetchImpl(`${PDOK_FREE_ENDPOINT}?${params.toString()}`, {
       signal:  controller.signal,
       headers: { Accept: "application/json" },
@@ -252,9 +258,16 @@ export async function resolveBuurtcodeFromFormLocation(
   timeoutMs = DEFAULT_TIMEOUT_MS,
   fetchImpl: typeof fetch = fetch,
 ): Promise<GeoResolveResult> {
-  const query = (postcode && postcode.trim()) || (place && place.trim()) || null;
+  // Postcode is precise (forward it as-is); a bare place name is pinned to the
+  // woonplaats centroid so it can't resolve to a street/address top-match.
+  const pc    = postcode && postcode.trim();
+  const place2 = place && place.trim();
+  const query = pc || place2 || null;
   if (!query) return { status: "empty", code: null };
-  const fwd = await resolveLatLngFromFree(query, timeoutMs, fetchImpl);
+  const fwd = await resolveLatLngFromFree(
+    query, timeoutMs, fetchImpl,
+    pc ? undefined : { woonplaatsOnly: true },
+  );
   if (!fwd.ll) return { status: fwd.status === "error" ? "error" : "empty", code: null };
   return resolveBuurtcodeFromLatLng(fwd.ll.lat, fwd.ll.lng, timeoutMs, fetchImpl);
 }

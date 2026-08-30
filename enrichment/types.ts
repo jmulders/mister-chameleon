@@ -257,6 +257,13 @@ export interface EnrichmentOutput {
   geoCitySource:   string | null;
   /** Provider that set the winning `latitude`/`longitude` — "ipinfo" | "maxmind". */
   geoCoordsSource: string | null;
+  /**
+   * Human-readable CBS-location resolution note (which signal resolved the buurt,
+   * coherence decision, or WHY it produced nothing). PERSISTED on the output — not
+   * just the per-request stage trace — so it stays visible in the /demo debug even
+   * on a session-cache hit (when the stage does not re-run). Diagnostic only.
+   */
+  locationResolutionNote: string | null;
 
   // ── Weather (from Open-Meteo) ───────────────────────────────────────────────
   /**

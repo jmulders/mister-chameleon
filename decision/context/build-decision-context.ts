@@ -425,6 +425,8 @@ export interface EnrichmentDebugInfo {
   locationConfidence:    "high" | "low" | null;
   /** True when the IP city and the reverse-geocoded city of the coords disagreed. */
   locationCityCoordMismatch: boolean | null;
+  /** CBS-location resolution note (persisted — visible even on a session-cache hit). */
+  locationResolutionNote: string | null;
 
   /**
    * How the enrichment output was produced:
@@ -860,6 +862,7 @@ export async function buildDecisionContext(
         geoCoordsSource:           cachedEnrichment.geoCoordsSource           ?? null,
         locationConfidence:        (cachedEnrichment.locationConfidence as "high" | "low" | null) ?? null,
         locationCityCoordMismatch: cachedEnrichment.locationCityCoordMismatch ?? null,
+        locationResolutionNote:    cachedEnrichment.locationResolutionNote    ?? null,
         enrichmentSource:       "session-cache",
         sessionCacheMissReason: null,
         enrichmentTrace:        cachedTrace,
@@ -1577,6 +1580,7 @@ export async function buildDecisionContext(
     geoCoordsSource:           enrichment.geoCoordsSource           ?? null,
     locationConfidence:        (enrichment.locationConfidence as "high" | "low" | null) ?? null,
     locationCityCoordMismatch: enrichment.locationCityCoordMismatch ?? null,
+    locationResolutionNote:    enrichment.locationResolutionNote    ?? null,
     enrichmentSource,
     sessionCacheMissReason,
     enrichmentTrace,
