@@ -731,6 +731,14 @@ export function EnrichmentDebugPanel({ info, ga4Tracking, ga4History, leadinfoDe
           </span>
         )}
 
+        {/* CBS-location resolution note — persisted, so it shows WHY even on a
+            session-cache hit (when the stage did not re-run this request). */}
+        {info.locationResolutionNote && (
+          <span style={{ flexBasis: "100%", color: "#475569", fontSize: "11px", fontFamily: "ui-monospace, monospace" }}>
+            ▸ CBS location: {info.locationResolutionNote}
+          </span>
+        )}
+
         {/* Explanatory note */}
         <span style={{ color: "#64748b", fontSize: "11px", flexBasis: "100%" }}>
           {info.currentLocationSource === "ga4" ? (

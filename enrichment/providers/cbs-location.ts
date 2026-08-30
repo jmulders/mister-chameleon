@@ -222,14 +222,14 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       if (!areaCode) {
         // No buurtcode. Distinguish a TRANSIENT PDOK failure (retry on a later
         // request — do not let one timeout pin an empty location for the whole
-        // session) from a genuine miss (PDOK answered "no buurt").
-        if (transient) {
-          ctx?.markRetry(`PDOK transient failure resolving buurtcode (source=${source})`);
-          ctx?.setNote(`no buurtcode: PDOK transient failure (source=${source}) → retry`);
-        } else {
-          ctx?.setNote(`no buurtcode from PDOK (source=${source})`);
-        }
-        return {};
+        // session) from a genuine miss (PDOK answered "no buurt"). The note is
+        // persisted on the output so /demo shows WHY even on a later cache hit.
+        const n = transient
+          ? `no buurtcode: PDOK transient failure (source=${source}) → retry`
+          : `no buurtcode from PDOK (source=${source})`;
+        if (transient) ctx?.markRetry(`PDOK transient failure resolving buurtcode (source=${source})`);
+        ctx?.setNote(n);
+        return { locationResolutionNote: n };
       }
 
       // Resolve buurt stats: cache first, then a single live CBS fetch. Track WHICH
@@ -241,14 +241,16 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
         if (stats) statsSource = "live";
       }
       if (!stats) {
-        ctx?.setNote(`buurtcode=${areaCode} (${source}) · cbs=empty→negative-cache`);
-        return {};
+        const n = `buurtcode=${areaCode} (${source}) · cbs=empty→negative-cache`;
+        ctx?.setNote(n);
+        return { locationResolutionNote: n };
       }
 
       // Require at least one usable attribute (avoid billing an all-suppressed row).
       if (stats.urbanityProxy == null && stats.incomeBand == null && stats.businessShare == null) {
-        ctx?.setNote(`buurtcode=${areaCode} (${source}) · cbs=${statsSource} but all attributes suppressed`);
-        return {};
+        const n = `buurtcode=${areaCode} (${source}) · cbs=${statsSource} but all attributes suppressed`;
+        ctx?.setNote(n);
+        return { locationResolutionNote: n };
       }
 
       // Confidence: "high" only for a precise, coherent signal (form postcode, or
@@ -272,7 +274,9 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       const mismatchTag = mismatch
         ? ` · MISMATCH city="${accumulated.city}"≠revgeo="${accumulated.addressCity}" → buurt via city`
         : "";
-      ctx?.setNote(`buurtcode=${areaCode} (${source}, ${confidence}) · cbs=${statsSource} · ${prov}${mismatchTag}`);
+      const n = `buurtcode=${areaCode} (${source}, ${confidence}) · cbs=${statsSource} · ${prov}${mismatchTag}`;
+      out.locationResolutionNote = n;
+      ctx?.setNote(n);
       if (isDev) {
         const coarse = confidence === "low";
         console.debug("[cbs-location] resolved", { areaCode, source, statsSource, coarse, mismatch, ...out });

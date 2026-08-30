@@ -231,8 +231,8 @@ describe("createCbsLocationEnricher — lazy flow", () => {
       liveFetch: async () => { live++; return { status: "empty" }; },
       upsert: async () => {},
     });
-    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
-    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+    assert.equal((await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }))).locationAreaCode, undefined);
+    assert.equal((await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }))).locationAreaCode, undefined);
     assert.equal(live, 1); // second lookup served from the negative cache
   });
 
@@ -263,7 +263,7 @@ describe("createCbsLocationEnricher — lazy flow", () => {
       cacheLookup: async () => stats,
     });
     const out = await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx);
-    assert.deepEqual(out, {});
+    assert.equal(out.locationAreaCode, undefined);
     assert.ok(retryReason, "markRetry was called for a transient failure");
     assert.match(String(note), /transient/);
   });
@@ -280,7 +280,7 @@ describe("createCbsLocationEnricher — lazy flow", () => {
       cacheLookup: async () => stats,
     });
     const out = await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx);
-    assert.deepEqual(out, {});
+    assert.equal(out.locationAreaCode, undefined);
     assert.equal(retried, false, "a genuine empty must not trigger a retry");
   });
 
@@ -289,7 +289,7 @@ describe("createCbsLocationEnricher — lazy flow", () => {
       geocode: async () => "BU16800000",
       cacheLookup: async () => ({ areaCode: "BU16800000", urbanityProxy: null, incomeBand: null, businessShare: null }),
     });
-    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 })), {});
+    assert.equal((await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }))).locationAreaCode, undefined);
   });
 
   // ── Debug visibility: the stage reports a note even when output is empty ──────
@@ -309,7 +309,7 @@ describe("createCbsLocationEnricher — lazy flow", () => {
   it("notes 'no buurtcode' when PDOK returns nothing (no silent null)", async () => {
     const { ctx, notes } = capturingCtx();
     const s = createCbsLocationEnricher({ geocode: async () => null, cacheLookup: async () => null });
-    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx), {});
+    assert.equal((await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx)).locationAreaCode, undefined);
     assert.match(notes.at(-1)!, /no buurtcode/);
     assert.match(notes.at(-1)!, /ip-geo/);
   });
@@ -320,7 +320,7 @@ describe("createCbsLocationEnricher — lazy flow", () => {
       geocode: async () => "BU99999999", cacheLookup: async () => null,
       liveFetch: async () => ({ status: "empty" }), upsert: async () => {},
     });
-    assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx), {});
+    assert.equal((await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx)).locationAreaCode, undefined);
     assert.match(notes.at(-1)!, /buurtcode=BU99999999/);
     assert.match(notes.at(-1)!, /cbs=empty/);
   });
@@ -351,7 +351,20 @@ describe("createCbsLocationEnricher — city/coords coherence (the wrong-buurt b
     assert.equal(out.locationAreaCode, "BU16800000");
     assert.equal(out.locationCityCoordMismatch, true);
     assert.equal(out.locationConfidence, "low");
-    assert.deepEqual(t.calls, ["city:Veenendaal"], "resolved via the city centroid, not the incoherent coordinates");
+    assert.deepEqual(t.calls, ["city:Veenendaal"], "resolved via the city (woonplaats) centroid, not the incoherent coordinates");
+    // The resolution note is PERSISTED on the output (not just the stage trace) so
+    // it stays visible on /demo even on a session-cache hit.
+    assert.equal(typeof out.locationResolutionNote, "string");
+    assert.match(out.locationResolutionNote as string, /MISMATCH/);
+    assert.match(out.locationResolutionNote as string, /Veenendaal/);
+  });
+
+  it("persists a resolution note on the output even when nothing resolves (cache-hit visibility)", async () => {
+    const s = createCbsLocationEnricher({ geocode: async () => null, cacheLookup: async () => null });
+    const out = await s.enricher(input, acc({ latitude: 51.92, longitude: 4.48 }));
+    // No location resolved, but the note survives in the (cached) output.
+    assert.equal(out.locationAreaCode, undefined);
+    assert.match(String(out.locationResolutionNote), /no buurtcode/);
   });
 
   it("no mismatch (city agrees with reverse-geocode) → uses the coordinates, high confidence", async () => {
