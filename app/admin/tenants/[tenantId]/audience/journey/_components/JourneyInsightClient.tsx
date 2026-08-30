@@ -997,7 +997,7 @@ function WhyThisExperiencePanel({ journey }: { journey: JourneyState }) {
             <ul className="space-y-1.5">
               {blocked.map((b) => (
                 <li key={b} className="flex items-center gap-2 text-sm text-neutral-500">
-                  <span className="w-5 h-5 rounded-full bg-neutral-100 flex items-center justify-center text-xs shrink-0">–</span>
+                  <span className="w-5 h-5 rounded-full bg-neutral-100 flex items-center justify-center text-xs shrink-0">, </span>
                   {b}
                 </li>
               ))}

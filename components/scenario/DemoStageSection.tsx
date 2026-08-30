@@ -160,12 +160,12 @@ export function DemoStageSection({
   }
 
   // ── Readout values ──────────────────────────────────────────────────────────
-  const roleText = active ? (ROLE_LABELS[active] ?? active) : "—";
+  const roleText = active ? (ROLE_LABELS[active] ?? active) : ", ";
   const interestText = o.interestPrimary
     ? `${o.interestPrimary}${typeof o.interestConfidence === "number" ? ` (${Math.round(o.interestConfidence * 100)}%)` : ""}`
-    : "—";
-  const stageText  = o.funnelStage ?? "—";
-  const intentText = typeof o.intentScore === "number" ? String(o.intentScore) : "—";
+    : ": ";
+  const stageText  = o.funnelStage ?? ", ";
+  const intentText = typeof o.intentScore === "number" ? String(o.intentScore) : ", ";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

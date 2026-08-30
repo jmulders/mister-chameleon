@@ -173,7 +173,7 @@ function StatusOverview({ status }: { status: DemoImporterStatus }) {
 
   const lastRun = status.lastRunAt
     ? new Date(status.lastRunAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })
-    : "—";
+    : ": ";
 
   return (
     <section aria-labelledby="status-heading">
@@ -263,12 +263,12 @@ function ProviderCard({ provider: p }: { provider: ProviderInfo }) {
       if (result.ok) {
         setTestState({
           phase: "success",
-          note: `Fetched in ${result.durationMs}ms — "${result.title}" — category: ${result.category} — fetch succeeded: ${result.fetchSucceeded}`,
+          note: `Fetched in ${result.durationMs}ms, "${result.title}", category: ${result.category}, fetch succeeded: ${result.fetchSucceeded}`,
         });
       } else {
         setTestState({
           phase: "error",
-          error: `Step: ${result.step} — ${result.error}`,
+          error: `Step: ${result.step}, ${result.error}`,
         });
       }
     });
@@ -458,7 +458,7 @@ function BehaviorSettings({ settings, patch, updatedAt, saveAll }: SectionProps)
             <div className="min-w-0 pr-4">
               <p className="text-sm font-medium text-neutral-800">Render timeout (ms)</p>
               <p className="text-xs text-neutral-400 mt-0.5">
-                Max time to wait for the render (5000–45000, kept under the function budget). JS rendering needs longer than a plain fetch.
+                Max time to wait for the render (5000-45000, kept under the function budget). JS rendering needs longer than a plain fetch.
               </p>
             </div>
             <input
@@ -481,10 +481,10 @@ function BehaviorSettings({ settings, patch, updatedAt, saveAll }: SectionProps)
           <div className="px-5 py-3.5">
             <p className="text-xs text-neutral-500">
               <span className="font-medium text-neutral-700">Runtime:</span>{" "}
-              self-hosted headless Chrome — prod uses <code>@sparticuz/chromium-min</code>{" "}
+              self-hosted headless Chrome: prod uses <code>@sparticuz/chromium-min</code>{" "}
               (binary fetched from <code>CHROMIUM_PACK_URL</code>), dev uses a local Chrome
               (<code>PUPPETEER_EXECUTABLE_PATH</code>). No API key. A launch/render failure is
-              non-fatal — it silently falls back to a plain fetch, so a misconfigured runtime
+              non-fatal: it silently falls back to a plain fetch, so a misconfigured runtime
               shows up as a plain (non-JS) mirror rather than an error.
             </p>
           </div>
@@ -493,7 +493,7 @@ function BehaviorSettings({ settings, patch, updatedAt, saveAll }: SectionProps)
         {/* ── Screenshot demo mode (managed capture + vision hotspots) ──────── */}
         <ToggleRow
           label="Screenshot demo mode"
-          note="Capture a full-page screenshot (ScreenshotOne) and annotate the personalizable regions with per-scenario variants via Claude vision — instead of cloning the DOM. Needs a ScreenshotOne key; falls back to the mirror flow on any failure."
+          note="Capture a full-page screenshot (ScreenshotOne) and annotate the personalizable regions with per-scenario variants via Claude vision, instead of cloning the DOM. Needs a ScreenshotOne key; falls back to the mirror flow on any failure."
           checked={settings.screenshotEnabled}
           onChange={() => { patch({ screenshotEnabled: !settings.screenshotEnabled }); setSaveState("idle"); }}
         />
@@ -543,7 +543,7 @@ function OutputDefaults({ settings, patch, updatedAt, saveAll }: SectionProps) {
           <div className="min-w-0 pr-4">
             <p className="text-sm font-medium text-neutral-800">Demo link expiry (days)</p>
             <p className="text-xs text-neutral-400 mt-0.5">
-              Shareable links expire after this many days (1–30). Default: 7.
+              Shareable links expire after this many days (1-30). Default: 7.
             </p>
           </div>
           <input
@@ -614,7 +614,7 @@ function RecentRunsTable({ runs: initialRuns }: { runs: RecentRunSummary[] }) {
             Recent runs
           </h2>
           <p className="text-xs text-neutral-400 mt-0.5">
-            Last 20 successful demo generations. Failed runs are logged to the server console — use the
+            Last 20 successful demo generations. Failed runs are logged to the server console, use the
             Test Generator below for detailed diagnostics.
           </p>
         </div>
@@ -689,7 +689,7 @@ function RecentRunsTable({ runs: initialRuns }: { runs: RecentRunSummary[] }) {
                   </td>
                   <td className="px-4 py-3 text-neutral-600 text-center">{run.viewCount}</td>
                   <td className="px-4 py-3 text-neutral-400">
-                    {run.generationMs != null ? `${run.generationMs}` : "—"}
+                    {run.generationMs != null ? `${run.generationMs}` : ", "}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
@@ -953,7 +953,7 @@ function TestPanel() {
                   <dd className="font-medium text-green-900">
                     {result.render.rendered
                       ? `Rendered ✓ (headless Chrome, ${result.render.ms}ms)`
-                      : `Not rendered — plain fetch fallback · status: ${result.render.status}${result.render.reason ? ` · ${result.render.reason}` : ""}`}
+                      : `Not rendered: plain fetch fallback · status: ${result.render.status}${result.render.reason ? ` · ${result.render.reason}` : ""}`}
                   </dd>
                 </div>
               )}
@@ -1021,7 +1021,7 @@ function ActionableErrorHint({ step, message }: { step: string; message: string 
     if (message.toLowerCase().includes("ssl") || message.toLowerCase().includes("certificate")) {
       return (
         <p className="text-xs text-red-700 font-medium">
-          → SSL certificate error on the target site. The analyzer will still use fallback defaults —
+          → SSL certificate error on the target site. The analyzer will still use fallback defaults, 
           this is a warning, not a hard failure.
         </p>
       );

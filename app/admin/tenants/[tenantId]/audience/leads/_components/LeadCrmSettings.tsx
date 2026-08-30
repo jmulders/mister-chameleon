@@ -210,7 +210,7 @@ export function LeadCrmSettings({
           Get an instant Slack message when a qualifying lead clears a hot-score threshold,
           no Make/Zapier needed. Paste a Slack{" "}
           <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noreferrer" className="underline">incoming-webhook URL</a>{" "}
-          and set the minimum score (the same 0–100 score shown in the list).
+          and set the minimum score (the same 0-100 score shown in the list).
         </p>
         <div className="flex items-end gap-3">
           <div className="flex-1">

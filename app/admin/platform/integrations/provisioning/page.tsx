@@ -16,7 +16,7 @@ export default async function IntegrationsProvisioningPage() {
   return (
     <div className="mx-auto max-w-xl space-y-5 p-8">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Provisioning — GitHub &amp; Ploi Cloud</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Provisioning: GitHub &amp; Ploi Cloud</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Credentials for automated tenant CMS provisioning. Configure once here;
           use <strong>Provision CMS</strong> on a tenant&apos;s Setup page to create

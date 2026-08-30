@@ -45,10 +45,10 @@ export default async function IntegrationsCrmPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">CRM — Platform Credentials</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">CRM: Platform Credentials</h1>
         <p className="mt-1 text-sm text-neutral-500">
           HubSpot Private App access token for company-by-domain enrichment.
-          This page stores <strong>the shared access token only</strong> — whether the CRM
+          This page stores <strong>the shared access token only</strong>: whether the CRM
           integration is active for a specific tenant is configured in each tenant's
           Integrations workspace tab.
         </p>

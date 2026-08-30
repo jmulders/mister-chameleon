@@ -100,7 +100,7 @@ function parseRows(rows: BlockRow[]): { blocks: EditableContentBlock[]; errors: 
         data,
       });
     } catch {
-      errors[row.id] = "Invalid JSON — please fix before saving.";
+      errors[row.id] = "Invalid JSON: please fix before saving.";
     }
   }
 
@@ -358,7 +358,7 @@ function StatusBanner({ result }: { result: ActionResult | null }) {
           : "rounded-md border border-error-200 bg-error-50 px-4 py-2.5 text-sm text-error-700"
       }
     >
-      {result.ok ? "Content flow saved." : (result.error ?? "Save failed — please try again.")}
+      {result.ok ? "Content flow saved." : (result.error ?? "Save failed: please try again.")}
     </div>
   );
 }
@@ -424,7 +424,7 @@ function BlockEditorPanel({
               onChange={(e) => onVariantChange(e.target.value)}
               className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             >
-              <option value="">— default —</option>
+              <option value="">: default: </option>
               {variants.map((v) => (
                 <option key={v} value={v}>{v}</option>
               ))}
@@ -500,7 +500,7 @@ function BlockEditorPanel({
           <p className="text-xs text-error-600">{row.jsonError}</p>
         )}
         <p className="text-xs text-neutral-400">
-          Valid JSON object. Fields depend on the block type — check the block component for accepted props.
+          Valid JSON object. Fields depend on the block type, check the block component for accepted props.
         </p>
       </div>
 
@@ -561,7 +561,7 @@ function BlockTokenControls({
               onChange={(e) => onTokenSetChange(e.target.value)}
               className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900"
             >
-              <option value="">— none (inline / inherit) —</option>
+              <option value="">: none (inline / inherit), </option>
               {(blockTokenSets ?? []).map((s) => (
                 <option key={s.key} value={s.key}>{s.name || s.key}</option>
               ))}
@@ -585,7 +585,7 @@ function BlockTokenControls({
                           className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs"
                         >
                           {SURFACE_OPTIONS.map((o) => (
-                            <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
+                            <option key={o} value={o}>{o === "" ? ": none: " : o}</option>
                           ))}
                         </select>
                       ) : f.kind === "color" ? (
@@ -793,7 +793,7 @@ export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, te
 
         {rows.length === 0 && (
           <p className="px-4 py-6 text-center text-sm text-neutral-400">
-            No content blocks yet — add one below.
+            No content blocks yet: add one below.
           </p>
         )}
 

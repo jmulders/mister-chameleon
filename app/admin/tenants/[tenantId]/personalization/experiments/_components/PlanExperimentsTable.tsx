@@ -392,7 +392,7 @@ function InlineEditForm({ exp, tenantId, variantCatalogue, rules, onDone, onCanc
   return (
     <div className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-        Edit — <code className="font-mono normal-case">{exp.id}</code>
+        Edit: <code className="font-mono normal-case">{exp.id}</code>
       </p>
 
       {error && (

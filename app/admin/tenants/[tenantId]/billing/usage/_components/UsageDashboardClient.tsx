@@ -49,7 +49,7 @@ function CatBadge({ cat }: { cat: string | null }) {
     refund:      "bg-yellow-50 text-yellow-700",
   };
   const cls = map[cat ?? ""] ?? "bg-neutral-100 text-neutral-500";
-  if (!cat) return <span className="text-neutral-400">—</span>;
+  if (!cat) return <span className="text-neutral-400">, </span>;
   return (
     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${cls}`}>
       {cat}
@@ -119,11 +119,11 @@ function EventRow({ ev }: { ev: UsageEventRow }) {
           {credits > 0 ? (
             <span className="text-neutral-800">{fmtCredits(credits)}</span>
           ) : (
-            <span className="text-neutral-400">—</span>
+            <span className="text-neutral-400">, </span>
           )}
         </td>
         <td className="px-3 py-2 text-right font-mono text-xs text-neutral-500">
-          {ev.price > 0 ? fmtEur(ev.price) : "—"}
+          {ev.price > 0 ? fmtEur(ev.price) : ", "}
         </td>
       </tr>
       {expanded && (
@@ -134,10 +134,10 @@ function EventRow({ ev }: { ev: UsageEventRow }) {
                 <span className="ml-2 text-neutral-700">{ev.id}</span>
               </div>
               <div><span className="text-neutral-400">session</span>
-                <span className="ml-2 text-neutral-700">{ev.session_id ?? "—"}</span>
+                <span className="ml-2 text-neutral-700">{ev.session_id ?? ", "}</span>
               </div>
               <div><span className="text-neutral-400">feature_key</span>
-                <span className="ml-2 text-neutral-700">{ev.feature_key ?? "—"}</span>
+                <span className="ml-2 text-neutral-700">{ev.feature_key ?? ", "}</span>
               </div>
               <div><span className="text-neutral-400">billable</span>
                 <span className={`ml-2 font-semibold ${ev.billable ? "text-green-700" : "text-neutral-500"}`}>
@@ -231,7 +231,7 @@ export function UsageDashboardClient({
         {[
           {
             label: "Wallet balance",
-            value: walletBalance !== null ? fmtCredits(walletBalance) : "—",
+            value: walletBalance !== null ? fmtCredits(walletBalance) : ", ",
             sub:   walletBalance !== null ? fmtEur(walletBalance / 100) : "not initialized",
           },
           {
@@ -333,7 +333,7 @@ export function UsageDashboardClient({
                       {fmtEur(row.total_price)}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono text-neutral-500">
-                      {row.avg_cost > 0 ? fmtCredits(row.avg_cost) : "—"}
+                      {row.avg_cost > 0 ? fmtCredits(row.avg_cost) : ", "}
                     </td>
                   </tr>
                 ))}

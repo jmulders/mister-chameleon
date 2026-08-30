@@ -69,7 +69,7 @@ function ModeChip({ mode }: { mode: BillingRequestDebug["billingMode"] }) {
 // ── Category badge ────────────────────────────────────────────────────────────
 
 function CatBadge({ cat }: { cat: string | null }) {
-  if (!cat) return <span className="text-neutral-400 text-[10px]">—</span>;
+  if (!cat) return <span className="text-neutral-400 text-[10px]">, </span>;
   const map: Record<string, string> = {
     recognition: "bg-blue-50 text-blue-700",
     adaptation:  "bg-purple-50 text-purple-700",
@@ -135,7 +135,7 @@ function StageTable({ stages }: { stages: BillingStageDebugEntry[] }) {
               }`}
             >
               <td className="px-3 py-2 font-mono text-neutral-800">{s.stageLabel}</td>
-              <td className="px-3 py-2 font-mono text-neutral-500 text-[10px]">{s.enrichmentType ?? "—"}</td>
+              <td className="px-3 py-2 font-mono text-neutral-500 text-[10px]">{s.enrichmentType ?? ", "}</td>
               <td className="px-3 py-2"><CatBadge cat={(s as BillingStageDebugEntry & { category?: string }).category ?? null} /></td>
               <td className="px-3 py-2 text-center font-mono text-[10px]">
                 <span className={s.billable ? "text-green-600 font-semibold" : "text-neutral-400"}>
@@ -149,32 +149,32 @@ function StageTable({ stages }: { stages: BillingStageDebugEntry[] }) {
               </td>
               <td className="px-3 py-2 text-center"><ResultBadge result={s.result} /></td>
               <td className="px-3 py-2 text-right font-mono text-neutral-500 text-[10px]">
-                {s.unitPriceEur > 0 ? `€${s.unitPriceEur.toFixed(4)}` : "—"}
+                {s.unitPriceEur > 0 ? `€${s.unitPriceEur.toFixed(4)}` : ", "}
               </td>
               <td className="px-3 py-2 text-right font-mono text-neutral-600 text-[10px]">
-                {s.creditCost > 0 ? s.creditCost.toFixed(3) : "—"}
+                {s.creditCost > 0 ? s.creditCost.toFixed(3) : ", "}
               </td>
               <td className="px-3 py-2 text-right font-mono text-neutral-700">
-                {s.centsCharged > 0 ? `€${(s.centsCharged / 100).toFixed(4)}` : "—"}
+                {s.centsCharged > 0 ? `€${(s.centsCharged / 100).toFixed(4)}` : ", "}
               </td>
               <td className="px-3 py-2 text-right font-mono text-neutral-400 text-[10px]">
-                {s.balanceBeforeCents !== undefined ? `€${(s.balanceBeforeCents / 100).toFixed(2)}` : "—"}
+                {s.balanceBeforeCents !== undefined ? `€${(s.balanceBeforeCents / 100).toFixed(2)}` : ", "}
               </td>
               <td className="px-3 py-2 text-right font-mono text-neutral-400 text-[10px]">
-                {s.balanceAfterCents !== undefined ? `€${(s.balanceAfterCents / 100).toFixed(2)}` : "—"}
+                {s.balanceAfterCents !== undefined ? `€${(s.balanceAfterCents / 100).toFixed(2)}` : ", "}
               </td>
               <td className="px-3 py-2 text-center font-mono text-[10px]">
                 <span className={s.usageEventCreated ? "text-green-600" : "text-neutral-300"}>
-                  {s.usageEventCreated ? "✓" : "—"}
+                  {s.usageEventCreated ? "✓" : ", "}
                 </span>
               </td>
               <td className="px-3 py-2 text-center font-mono text-[10px]">
                 <span className={s.ledgerEntryCreated ? "text-green-600" : "text-neutral-300"}>
-                  {s.ledgerEntryCreated ? "✓" : "—"}
+                  {s.ledgerEntryCreated ? "✓" : ", "}
                 </span>
               </td>
               <td className="px-3 py-2 text-right font-mono text-neutral-400 text-[10px]">
-                {s.durationMs > 0 ? `${s.durationMs}` : "—"}
+                {s.durationMs > 0 ? `${s.durationMs}` : ", "}
               </td>
               <td className="px-3 py-2 font-mono text-red-500 text-[10px]">
                 {s.error ?? ""}

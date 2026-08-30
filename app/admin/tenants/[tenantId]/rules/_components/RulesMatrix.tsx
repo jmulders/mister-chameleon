@@ -117,7 +117,7 @@ function SlotCell({ value, colorClass }: { value: string | undefined; colorClass
   if (!value) {
     return (
       <td className="px-3 py-2 text-center">
-        <span className="text-neutral-300 text-xs">—</span>
+        <span className="text-neutral-300 text-xs">, </span>
       </td>
     );
   }
@@ -140,7 +140,7 @@ function SlotCell({ value, colorClass }: { value: string | undefined; colorClass
 type AnyCondition = { type: string; [k: string]: unknown };
 
 function summariseCondition(cond: AnyCondition | undefined | null): string {
-  if (!cond) return "—";
+  if (!cond) return ", ";
   if (cond.type === "field") {
     const field    = String(cond.field ?? "");
     const op       = String(cond.operator ?? "=");
@@ -250,7 +250,7 @@ export function RulesMatrix({ config }: RulesMatrixProps) {
             <tr className="border-b border-neutral-100 bg-neutral-50/70 hover:bg-neutral-100/60 transition-colors">
               <td className="sticky left-0 z-10 bg-neutral-50/70 px-3 py-2 text-center">
                 <span className="inline-block rounded border border-neutral-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
-                  —
+, 
                 </span>
               </td>
               <td className="px-3 py-2">
@@ -326,7 +326,7 @@ export function RulesMatrix({ config }: RulesMatrixProps) {
                         is en AnyCondition een index-signatuur heeft: die overlappen
                         structureel niet, dus TS2352. De enkele cast compileerde niet.
                         summariseCondition leest alleen `type` en dan losse velden met
-                        String(...)/Array.isArray(...) — het is bewust een tolerante
+                        String(...)/Array.isArray(...), het is bewust een tolerante
                         lezer voor UI-tekst, niet een consument van de union.
                       */}
                       {summariseCondition(rule.condition as unknown as AnyCondition)}
@@ -363,7 +363,7 @@ export function RulesMatrix({ config }: RulesMatrixProps) {
           <strong className="text-neutral-500">hard/high/mid/deco</strong> = precedence tier
         </span>
         <span className="text-[11px] text-neutral-400">
-          <strong className="text-neutral-500">—</strong> = slot not set by this rule (falls back to page default or no notification)
+          <strong className="text-neutral-500">, </strong> = slot not set by this rule (falls back to page default or no notification)
         </span>
       </div>
     </section>

@@ -68,7 +68,7 @@ function pathBadge(liveProvider: string): { variant: BadgeVariant; label: string
 }
 
 function verdictBadge(verdict: string | undefined): { variant: BadgeVariant; label: string } {
-  if (!verdict) return { variant: "outline", label: "—" };
+  if (!verdict) return { variant: "outline", label: ", " };
   switch (verdict) {
     case "USE_AI":                   return { variant: "success", label: "Accepted" };
     case "FALLBACK_LOW_CONFIDENCE":  return { variant: "warning", label: "Low conf." };
@@ -102,7 +102,7 @@ function formatTime(iso: string): { relative: string; absolute: string } {
 }
 
 function formatPct(n: number | undefined): string {
-  if (n === undefined || n === null) return "—";
+  if (n === undefined || n === null) return ", ";
   return `${(n * 100).toFixed(0)}%`;
 }
 
@@ -187,7 +187,7 @@ function DecisionRow({ log }: { log: AiDecisionLogRow }) {
 
       {/* Traffic source */}
       <td className="px-4 py-3">
-        <span className="text-sm text-neutral-500">{log.context.source ?? "—"}</span>
+        <span className="text-sm text-neutral-500">{log.context.source ?? ", "}</span>
       </td>
     </tr>
   );
@@ -268,7 +268,7 @@ export default async function TenantDecisionsPage({
   const ruleUsed    = logs.filter((l) => l.live_provider === "rules").length;
   const fallbacks   = logs.filter((l) => l.live_provider === "fallback").length;
   const aiAgreement = logs.filter((l) => l.plans_match).length;
-  const agreementRate = total > 0 ? `${Math.round((aiAgreement / total) * 100)}%` : "—";
+  const agreementRate = total > 0 ? `${Math.round((aiAgreement / total) * 100)}%` : ", ";
 
   // ── AI config display ──────────────────────────────────────────────────────
   const mode       = ai?.mode ?? "disabled";
@@ -371,8 +371,8 @@ export default async function TenantDecisionsPage({
       {/* Summary stats */}
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Total decisions" value={total} sub="last 50 rows" />
-        <StatCard label="AI-driven" value={aiUsed} sub={total > 0 ? `${Math.round((aiUsed / total) * 100)}% of decisions` : "—"} />
-        <StatCard label="Rule-driven" value={ruleUsed} sub={total > 0 ? `${Math.round((ruleUsed / total) * 100)}% of decisions` : "—"} />
+        <StatCard label="AI-driven" value={aiUsed} sub={total > 0 ? `${Math.round((aiUsed / total) * 100)}% of decisions` : ", "} />
+        <StatCard label="Rule-driven" value={ruleUsed} sub={total > 0 ? `${Math.round((ruleUsed / total) * 100)}% of decisions` : ", "} />
         <StatCard label="AI agreement" value={agreementRate} sub={`shadow matched live in ${aiAgreement} of ${total}`} />
       </div>
 

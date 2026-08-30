@@ -143,7 +143,7 @@ export default function NewDemoPage() {
     } catch (err) {
       setState({
         status: "error",
-        error:  { kind: "generic", message: err instanceof Error ? err.message : "Network error — please try again." },
+        error:  { kind: "generic", message: err instanceof Error ? err.message : "Network error: please try again." },
       });
     }
   }
@@ -179,9 +179,9 @@ export default function NewDemoPage() {
         <div className="flex gap-3 text-sm">
           <span className="text-xl shrink-0 mt-0.5">🪞</span>
           <div>
-            <p className="font-medium text-neutral-800">Mirror Demo — their site, our personalisation</p>
+            <p className="font-medium text-neutral-800">Mirror Demo: their site, our personalisation</p>
             <p className="mt-0.5 text-neutral-500 leading-relaxed">
-              Fetches the prospect's actual homepage, uses AI to detect 8–12 personalizable
+              Fetches the prospect's actual homepage, uses AI to detect 8-12 personalizable
               elements and generate 6 unique variants per element, then injects the MC snippet
               with a floating Scenario Control Panel. The prospect sees{" "}
               <strong>their own site</strong> adapt in real time across 6 visitor archetypes.
@@ -313,7 +313,7 @@ function LoadingPanel({ currentStep }: { currentStep: string }) {
       </ol>
 
       <p className="text-center text-xs text-neutral-400">
-        AI slot analysis usually adds 10–20 seconds. Hang tight!
+        AI slot analysis usually adds 10-20 seconds. Hang tight!
       </p>
     </div>
   );
@@ -396,7 +396,7 @@ function SuccessPanel({
           <span className="mt-0.5 text-green-500 text-xl">✓</span>
           <div>
             <p className="text-sm font-semibold text-green-800">
-              Mirror demo ready — {result.siteName}
+              Mirror demo ready: {result.siteName}
             </p>
             <p className="mt-0.5 text-xs text-green-600">
               Homepage mirrored with AI-powered slot injection and 6 scenario controls.
@@ -415,7 +415,7 @@ function SuccessPanel({
               <p className="text-sm font-semibold text-amber-900">Site could not be fetched</p>
               <p className="mt-0.5 text-xs text-amber-700 leading-relaxed">
                 The prospect's homepage returned an error or timed out. A stub page was
-                generated instead — the Scenario Control Panel is still functional, but
+                generated instead: the Scenario Control Panel is still functional, but
                 the demo will not show the prospect's actual design. This can happen when
                 the site is behind auth or has strict bot protection.
               </p>

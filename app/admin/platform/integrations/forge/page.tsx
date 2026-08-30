@@ -29,7 +29,7 @@ export default async function IntegrationsForgesPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Forge — Deployment Settings</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Forge: Deployment Settings</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Laravel Forge credentials and defaults for automated Statamic site deployment.
           Configure once here; use the <strong>Deploy Statamic</strong> button on a

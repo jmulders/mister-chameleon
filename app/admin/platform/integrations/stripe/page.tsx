@@ -69,10 +69,10 @@ export default async function IntegrationsStripePage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Stripe — Payment Credentials</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Stripe: Payment Credentials</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Platform-level Stripe keys for subscription billing and payment processing.
-          This page stores <strong>infrastructure credentials only</strong> — plan
+          This page stores <strong>infrastructure credentials only</strong>: plan
           assignment, subscriptions, and tenant billing are managed in each tenant's
           billing page.
         </p>
@@ -85,7 +85,7 @@ export default async function IntegrationsStripePage() {
         <Link href="/admin/tenants" className="font-medium text-brand-600 hover:underline">
           billing workspace tab
         </Link>
-        . The credentials stored here are shared infrastructure — they enable the
+        . The credentials stored here are shared infrastructure, they enable the
         payment flow but don't configure it per tenant.
       </div>
 

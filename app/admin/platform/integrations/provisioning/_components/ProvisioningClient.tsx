@@ -71,7 +71,7 @@ export function ProvisioningClient({ github, ploi }: { github: GithubFlags; ploi
         </div>
         <div className="space-y-3">
           <Field label="Personal Access Token" hint="classic 'repo' scope, or fine-grained with Administration + Contents read/write. Leave blank to keep the stored token. Falls back to env GITHUB_TOKEN.">
-            <input type="password" className={inputCls} value={ghToken} onChange={(e) => setGhToken(e.target.value)} placeholder={github.hasToken ? "•••••• saved — paste to replace" : "ghp_…"} />
+            <input type="password" className={inputCls} value={ghToken} onChange={(e) => setGhToken(e.target.value)} placeholder={github.hasToken ? "•••••• saved: paste to replace" : "ghp_…"} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Template owner"><input className={inputCls} value={ghTplOwner} onChange={(e) => setGhTplOwner(e.target.value)} /></Field>
@@ -124,7 +124,7 @@ export function ProvisioningClient({ github, ploi }: { github: GithubFlags; ploi
         </div>
         <div className="space-y-3">
           <Field label="API token" hint="ploi.cloud dashboard → API tokens. Leave blank to keep the stored token. Falls back to env PLOI_CLOUD_TOKEN.">
-            <input type="password" className={inputCls} value={ploiToken} onChange={(e) => setPloiToken(e.target.value)} placeholder={ploi.hasToken ? "•••••• saved — paste to replace" : "ploi_…"} />
+            <input type="password" className={inputCls} value={ploiToken} onChange={(e) => setPloiToken(e.target.value)} placeholder={ploi.hasToken ? "•••••• saved: paste to replace" : "ploi_…"} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Team (id or name)"><input className={inputCls} value={ploiTeam} onChange={(e) => setPloiTeam(e.target.value)} placeholder="e.g. 1" /></Field>

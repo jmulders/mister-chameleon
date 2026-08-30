@@ -213,7 +213,7 @@ function FamilySectionRow({ label, count }: { label: string; count: number }) {
         colSpan={5}
         className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-400"
       >
-        {label} — {count} profile{count !== 1 ? "s" : ""}
+        {label}: {count} profile{count !== 1 ? "s" : ""}
       </th>
     </tr>
   );
@@ -354,7 +354,7 @@ export default async function InterestProfilesPage() {
       {catalogMismatch && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 space-y-2">
           <p className="font-semibold">
-            Catalog out of sync — {platformProfileCount} of {CATALOG_SIZE} canonical profiles found
+            Catalog out of sync: {platformProfileCount} of {CATALOG_SIZE} canonical profiles found
           </p>
           <p>
             The database is missing{" "}
@@ -437,10 +437,10 @@ export default async function InterestProfilesPage() {
               <p className="text-sm text-brand-800 max-w-2xl">
                 Add <code className="font-mono text-xs bg-brand-100 px-1 rounded">metaKeywords</code> to
                 CMS pages. As a visitor browses, the platform accumulates a keyword cloud.
-                On each request the cloud is scored against every <strong>active</strong> profile —
-                raw score = Σ(keyword frequency × tag weight). Scores are normalised to 0–1
+                On each request the cloud is scored against every <strong>active</strong> profile: 
+                raw score = Σ(keyword frequency × tag weight). Scores are normalised to 0-1
                 and exposed as context variables for rules and AI decisions.{" "}
-                <strong>Suggested</strong> profiles are seeded inactive — enable them per-tenant
+                <strong>Suggested</strong> profiles are seeded inactive: enable them per-tenant
                 by editing the profile and toggling Active.
               </p>
             </CardContent>
@@ -450,7 +450,7 @@ export default async function InterestProfilesPage() {
           {activeProfiles.length > 0 && (
             <div className="mb-8">
               <h2 className="mb-3 text-sm font-semibold text-neutral-700">
-                Active —{" "}
+                Active: {" "}
                 <span className="font-normal text-neutral-500">
                   {activeProfiles.length} profile{activeProfiles.length !== 1 ? "s" : ""} evaluated at runtime
                 </span>
@@ -463,7 +463,7 @@ export default async function InterestProfilesPage() {
           {inactiveProfiles.length > 0 && (
             <div className="mb-8">
               <h2 className="mb-3 text-sm font-semibold text-neutral-700">
-                Inactive —{" "}
+                Inactive: {" "}
                 <span className="font-normal text-neutral-500">
                   {inactiveProfiles.length} profile{inactiveProfiles.length !== 1 ? "s" : ""} skipped by scoring engine
                 </span>
@@ -477,7 +477,7 @@ export default async function InterestProfilesPage() {
             <div>
               <div className="mb-3 flex items-center gap-3">
                 <h2 className="text-sm font-semibold text-neutral-700">
-                  Suggested —{" "}
+                  Suggested: {" "}
                   <span className="font-normal text-neutral-500">
                     {suggestedProfiles.length} profile{suggestedProfiles.length !== 1 ? "s" : ""} available to enable per-tenant
                   </span>

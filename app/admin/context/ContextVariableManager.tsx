@@ -248,7 +248,7 @@ function EditPanel({
           {/* Immutable fields notice for built-ins */}
           {!v.isCustom && (
             <p className="mt-3 text-[11px] text-neutral-400">
-              Type ({v.type}), source ({v.source}), and operators are read-only for built-in variables —
+              Type ({v.type}), source ({v.source}), and operators are read-only for built-in variables, 
               they are defined in <code className="font-mono">context/registry.ts</code>.
             </p>
           )}
@@ -815,9 +815,9 @@ export function ContextVariableManager({ initialVars }: ContextVariableManagerPr
 
       {/* Legend */}
       <div className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-[11px] text-neutral-500">
-        <strong className="text-neutral-600">Built-in variables</strong> — type, source, and operators are read-only (defined in{" "}
+        <strong className="text-neutral-600">Built-in variables</strong>: type, source, and operators are read-only (defined in{" "}
         <code className="font-mono">context/registry.ts</code>). Label, description, availability gates, and enabled state are editable.
-        {" "}<strong className="text-neutral-600">Custom variables</strong> — fully configurable; can be deleted. Keys cannot be changed after creation.
+        {" "}<strong className="text-neutral-600">Custom variables</strong>: fully configurable; can be deleted. Keys cannot be changed after creation.
       </div>
     </div>
   );

@@ -77,7 +77,7 @@ function SecretField({
       {hint && <p className="mt-0.5 text-[11px] text-neutral-400">{hint}</p>}
       {!hint && (
         <p className="mt-0.5 text-[11px] text-neutral-400">
-          Leave blank to keep the existing value. Stored server-side only — never echoed back.
+          Leave blank to keep the existing value. Stored server-side only, never echoed back.
         </p>
       )}
     </div>
@@ -269,7 +269,7 @@ export function StripePlatformClient({
               className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
             />
             <p className="mt-0.5 text-[11px] text-neutral-400">
-              Used to initialise Stripe.js on the client. Not a secret — safe to expose.
+              Used to initialise Stripe.js on the client. Not a secret, safe to expose.
               Supplements the NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY env var.
             </p>
           </div>
@@ -374,9 +374,9 @@ export function StripePlatformClient({
         <div className="space-y-4">
           {(
             [
-              { label: "250 credits — €6.50",    value: bundle250PriceId,  set: setBundle250PriceId  },
-              { label: "1,000 credits — €22.00",  value: bundle1000PriceId, set: setBundle1000PriceId },
-              { label: "5,000 credits — €99.00",  value: bundle5000PriceId, set: setBundle5000PriceId },
+              { label: "250 credits: €6.50",    value: bundle250PriceId,  set: setBundle250PriceId  },
+              { label: "1,000 credits: €22.00",  value: bundle1000PriceId, set: setBundle1000PriceId },
+              { label: "5,000 credits: €99.00",  value: bundle5000PriceId, set: setBundle5000PriceId },
             ] as const
           ).map(({ label, value, set }) => (
             <div key={label}>
@@ -405,7 +405,7 @@ export function StripePlatformClient({
           <h2 className="text-sm font-semibold text-neutral-900">Subscription plan price IDs</h2>
           <p className="mt-0.5 text-xs text-neutral-500">
             Stripe Price IDs for the three recurring subscription plans (Starter, Growth, Pro).
-            Non-secret — supplement the{" "}
+            Non-secret: supplement the{" "}
             <code className="font-mono text-[11px]">STRIPE_PRICE_*</code> env vars.
             Resolution order: env var → here → billing_plans table.
           </p>

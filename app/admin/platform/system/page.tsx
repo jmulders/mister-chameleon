@@ -110,7 +110,7 @@ export default async function SystemPage() {
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">System Operations</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Backup, build pipeline, environments, and rollback — all in one place.
+          Backup, build pipeline, environments, and rollback, all in one place.
         </p>
       </div>
 
@@ -161,9 +161,9 @@ export default async function SystemPage() {
 
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
             Environment variable templates:{" "}
-            <code className="font-mono text-xs">.env.example</code> — copy to <code className="font-mono text-xs">.env.local</code> for local dev.
+            <code className="font-mono text-xs">.env.example</code>: copy to <code className="font-mono text-xs">.env.local</code> for local dev.
             Production uses <code className="font-mono text-xs">.env.production.example</code> (scope: Production), set in{" "}
-            <strong>Vercel → Settings → Environment Variables</strong>. (There is no live staging project — the
+            <strong>Vercel → Settings → Environment Variables</strong>. (There is no live staging project, the
             <code className="font-mono text-xs"> develop</code> branch and a staging deploy were never provisioned.)
           </div>
         </div>
@@ -232,12 +232,12 @@ export default async function SystemPage() {
           <div className="rounded-lg border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-800">
             <strong>When to use rollback vs hotfix</strong>
             <br />
-            <strong>Rollback</strong> — code/UI regression, no DB schema change. Repoints Vercel to a previous
+            <strong>Rollback</strong>: code/UI regression, no DB schema change. Repoints Vercel to a previous
             deployment in seconds.
             <br />
-            <strong>Hotfix</strong> — requires a code change. Use the hotfix flow above instead.
+            <strong>Hotfix</strong>: requires a code change. Use the hotfix flow above instead.
             <br />
-            <strong>DB rollback</strong> — use Supabase Dashboard → Database → Backups. Never via code.
+            <strong>DB rollback</strong>: use Supabase Dashboard → Database → Backups. Never via code.
           </div>
 
           <div className="space-y-3">
@@ -245,7 +245,7 @@ export default async function SystemPage() {
             <div className="space-y-2">
               <Step n={1}>Go to <strong>vercel.com → your project → Deployments</strong>. Find the last known-good deployment URL (e.g. <code className="font-mono text-xs">https://mister-chameleon-abc123.vercel.app</code>).</Step>
               <Step n={2}>
-                Trigger via <strong>GitHub → Actions → Rollback — Production → Run workflow</strong>, or via the CLI:
+                Trigger via <strong>GitHub → Actions → Rollback → Production → Run workflow</strong>, or via the CLI:
                 <CodeBlock>{`gh workflow run rollback.yml --ref main \\\n  -f deployment_url="https://mister-chameleon-<hash>.vercel.app" \\\n  -f reason="Reason for rollback"`}</CodeBlock>
               </Step>
               <Step n={3}>Approve the production gate. The deployment URL and reason are written to the audit log.</Step>

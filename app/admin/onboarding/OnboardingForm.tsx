@@ -362,7 +362,7 @@ function SetupSummaryCard({
         />
         <SummaryRow
           label="Primary URL"
-          value={urlTrimmed || "—"}
+          value={urlTrimmed || ": "}
           badge={
             !urlTrimmed ? (
               <Badge variant="warning" size="sm">Missing</Badge>
@@ -1335,7 +1335,7 @@ function ThemePreviewCard({
 
         {/* Thumbnail cards use the CSS LayoutPreview mockup (not iframes) so they
             render instantly without a Storybook dependency.  The full-screen
-            "Bekijk voorbeeld" overlay loads /preview/theme/[presetKey] — a
+            "Bekijk voorbeeld" overlay loads /preview/theme/[presetKey], a
             multi-page simulation with NavBar, 8 page types, and FooterCorporate. */}
 
         {/* Selected ring */}
@@ -1635,10 +1635,10 @@ export function OnboardingForm() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {(
               [
-                { key: "default", label: "Default",  description: "Standard Mister Chameleon — indigo primary, slate neutrals"         },
-                { key: "minimal", label: "Minimal",  description: "Monochrome zinc — no colour, maximum content focus"                  },
-                { key: "bold",    label: "Bold",      description: "Amber on near-black — high energy, conversion-focused"              },
-                { key: "custom",  label: "Custom",    description: "Fully customisable tokens — configure everything in Design"         },
+                { key: "default", label: "Default",  description: "Standard Mister Chameleon, indigo primary, slate neutrals"         },
+                { key: "minimal", label: "Minimal",  description: "Monochrome zinc: no colour, maximum content focus"                  },
+                { key: "bold",    label: "Bold",      description: "Amber on near-black: high energy, conversion-focused"              },
+                { key: "custom",  label: "Custom",    description: "Fully customisable tokens, configure everything in Design"         },
               ] as { key: ThemeKey; label: string; description: string }[]
             ).map((t) => (
               <ThemePreviewCard
@@ -1692,8 +1692,8 @@ export function OnboardingForm() {
         {/* ── Selected-theme blueprint ── updates live as you click cards ── */}
         {form.galleryPresetId ? (
           <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
-            Gallery preset selected. It will be applied as a complete look — colours, cards,
-            buttons and typography — when the tenant is created.
+            Gallery preset selected. It will be applied as a complete look, colours, cards,
+            buttons and typography: when the tenant is created.
           </div>
         ) : (
           <ThemeBlueprintCard themeKey={form.themePreset} />
@@ -1770,7 +1770,7 @@ export function OnboardingForm() {
       {themeNotInPackage && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           The selected theme <strong>{themeLabel(form.themePreset)}</strong> is not
-          available in the selected package. After creation the default theme will be used instead —
+          available in the selected package. After creation the default theme will be used instead, 
           or choose a higher-tier package.
         </div>
       )}
@@ -1806,7 +1806,7 @@ export function OnboardingForm() {
           {/* Tenant ID / slug */}
           <Field
             label="Tenant ID (slug)"
-            hint="Lowercase, hyphens only, max 32 chars — auto-generated from name"
+            hint="Lowercase, hyphens only, max 32 chars, auto-generated from name"
             error={fieldErrors.tenantId}
             required
           >
@@ -1873,7 +1873,7 @@ export function OnboardingForm() {
               {PACKAGE_OPTIONS.map((opt) => (
                 <option key={opt.key} value={opt.key}>
                   {opt.label}
-                  {opt.monthlyPriceLabel ? ` — ${opt.monthlyPriceLabel}` : ""}
+                  {opt.monthlyPriceLabel ? `: ${opt.monthlyPriceLabel}` : ""}
                 </option>
               ))}
             </select>

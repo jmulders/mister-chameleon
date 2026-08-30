@@ -268,7 +268,7 @@ function BlockRow({
         type="button"
         onClick={(e) => { e.stopPropagation(); openPreview(); }}
         disabled={!canPreview}
-        title={canPreview ? "Preview this block" : "No preview — this block is not configured"}
+        title={canPreview ? "Preview this block" : "No preview: this block is not configured"}
         aria-label={`Preview ${resolved.blockKey}`}
         className="shrink-0 rounded-md border border-neutral-200 bg-white p-1.5 text-neutral-500 transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-30"
       >

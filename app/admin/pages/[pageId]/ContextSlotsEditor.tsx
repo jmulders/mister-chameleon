@@ -66,9 +66,9 @@ const SLOT_LABEL: Record<string, string> = {
 };
 
 const SLOT_DESCRIPTION: Record<string, string> = {
-  hero:  "Headline, sub-headline, and primary CTA — shown above the content blocks.",
-  proof: "Social proof angle (case studies, analyst quotes, platform stats) — shown above content blocks.",
-  cta:   "Standalone call-to-action — shown below the content blocks.",
+  hero:  "Headline, sub-headline, and primary CTA, shown above the content blocks.",
+  proof: "Social proof angle (case studies, analyst quotes, platform stats), shown above content blocks.",
+  cta:   "Standalone call-to-action, shown below the content blocks.",
 };
 
 const KEY_LABEL: Record<string, string> = {
@@ -126,7 +126,7 @@ function StatusBanner({ result }: { result: ActionResult | null }) {
           : "rounded-md border border-error-200 bg-error-50 px-4 py-2.5 text-sm text-error-700"
       }
     >
-      {result.ok ? "Context slots saved." : (result.error ?? "Save failed — please try again.")}
+      {result.ok ? "Context slots saved." : (result.error ?? "Save failed: please try again.")}
     </div>
   );
 }
@@ -247,7 +247,7 @@ function SlotCard({
             onChange={(e) => onChange({ fallbackKey: e.target.value })}
             className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           >
-            <option value="">— none (slot inactive) —</option>
+            <option value="">: none (slot inactive), </option>
             {vocab.map((key) => (
               <option key={key} value={key}>
                 {KEY_LABEL[key] ?? key}  ({key})

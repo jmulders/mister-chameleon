@@ -33,10 +33,10 @@ export default async function IntegrationsAiPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">AI — Platform Credentials</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">AI: Platform Credentials</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Platform-level fallback API keys for AI providers. These are used when a tenant
-          has not set their own key. This page stores <strong>secrets only</strong> — AI mode,
+          has not set their own key. This page stores <strong>secrets only</strong>: AI mode,
           provider selection, and model settings are configured per-tenant.
         </p>
       </div>

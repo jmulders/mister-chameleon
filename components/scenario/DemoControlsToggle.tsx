@@ -75,8 +75,8 @@ export function DemoControlsToggle() {
         </div>
         <div style={{ fontSize: 12, color: enabled ? "#15803d" : "#9ca3af" }}>
           {enabled
-            ? "Active — the floating control panel is visible on this page."
-            : "Disabled — the control panel is hidden. Enable it to switch visitor scenarios."}
+            ? "Active: the floating control panel is visible on this page."
+            : "Disabled: the control panel is hidden. Enable it to switch visitor scenarios."}
         </div>
       </div>
 

@@ -157,7 +157,7 @@ function SanitySeedSection({
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
           </svg>
-          Seeding pages… this may take 15–30 seconds.
+          Seeding pages… this may take 15-30 seconds.
         </div>
       )}
 
@@ -190,7 +190,7 @@ function SanitySeedSection({
               {results.results.filter((r) => !r.ok).map((r) => (
                 <div key={r.id} className="py-1 text-[11px] text-red-700">
                   <span className="font-mono">/{r.slug}</span>
-                  {r.error && <span className="ml-2 text-red-500">— {r.error}</span>}
+                  {r.error && <span className="ml-2 text-red-500">, {r.error}</span>}
                 </div>
               ))}
             </div>
@@ -325,7 +325,7 @@ function StoryblokSeedSection({
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
           </svg>
-          Seeding stories… this may take 10–20 seconds.
+          Seeding stories… this may take 10-20 seconds.
         </div>
       )}
 
@@ -358,7 +358,7 @@ function StoryblokSeedSection({
               {results.results.filter((r) => !r.ok).map((r) => (
                 <div key={r.id} className="py-1 text-[11px] text-red-700">
                   <span className="font-mono">{r.slug}</span>
-                  {r.error && <span className="ml-2 text-red-500">— {r.error}</span>}
+                  {r.error && <span className="ml-2 text-red-500">, {r.error}</span>}
                 </div>
               ))}
             </div>
@@ -519,7 +519,7 @@ function StatamicSeedSection({
               {results.results.filter((r) => !r.ok).map((r, i) => (
                 <div key={i} className="py-1 text-[11px] text-red-700">
                   <span className="font-mono">{r.slug}</span>
-                  {r.error && <span className="ml-2 text-red-500">— {r.error}</span>}
+                  {r.error && <span className="ml-2 text-red-500">, {r.error}</span>}
                 </div>
               ))}
             </div>

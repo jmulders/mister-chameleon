@@ -78,7 +78,7 @@ function StatusBanner({ result }: { result: ActionResult | null }) {
           : "rounded-md bg-error-50 border border-error-200 px-4 py-2.5 text-sm text-error-700"
       }
     >
-      {result.ok ? "Changes saved." : (result.error ?? "Save failed — please try again.")}
+      {result.ok ? "Changes saved." : (result.error ?? "Save failed: please try again.")}
     </div>
   );
 }

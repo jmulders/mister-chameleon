@@ -283,7 +283,7 @@ export function CrmPlatformClient({
           <code className="rounded bg-neutral-100 px-1 text-[11px] font-mono">
             GET /crm/v3/owners
           </code>
-          {" "}) — no visitor data is written or modified.
+          {" "}): no visitor data is written or modified.
           You can paste a new token above to test it before saving.
         </p>
 
@@ -308,13 +308,13 @@ export function CrmPlatformClient({
           the rules engine and AI decision provider:
         </p>
         <ul className="mt-2 space-y-0.5 text-[11px] text-neutral-500">
-          <li><code className="rounded bg-white px-1 font-mono">crmMatched</code> — whether a company was found</li>
-          <li><code className="rounded bg-white px-1 font-mono">crmLifecycleStage</code> — HubSpot lifecycle stage of the company</li>
-          <li><code className="rounded bg-white px-1 font-mono">crmCompanyId</code> — HubSpot object ID</li>
-          <li><code className="rounded bg-white px-1 font-mono">crmCompanyName</code> — company name from HubSpot</li>
-          <li><code className="rounded bg-white px-1 font-mono">crmCompanyDomain</code> — primary domain in HubSpot</li>
-          <li><code className="rounded bg-white px-1 font-mono">crmIndustry</code> — industry field from HubSpot</li>
-          <li><code className="rounded bg-white px-1 font-mono">crmIsCustomer</code> — true when lifecycle stage is &quot;customer&quot;</li>
+          <li><code className="rounded bg-white px-1 font-mono">crmMatched</code>: whether a company was found</li>
+          <li><code className="rounded bg-white px-1 font-mono">crmLifecycleStage</code>: HubSpot lifecycle stage of the company</li>
+          <li><code className="rounded bg-white px-1 font-mono">crmCompanyId</code>: HubSpot object ID</li>
+          <li><code className="rounded bg-white px-1 font-mono">crmCompanyName</code>: company name from HubSpot</li>
+          <li><code className="rounded bg-white px-1 font-mono">crmCompanyDomain</code>: primary domain in HubSpot</li>
+          <li><code className="rounded bg-white px-1 font-mono">crmIndustry</code>: industry field from HubSpot</li>
+          <li><code className="rounded bg-white px-1 font-mono">crmIsCustomer</code>: true when lifecycle stage is &quot;customer&quot;</li>
         </ul>
       </div>
 

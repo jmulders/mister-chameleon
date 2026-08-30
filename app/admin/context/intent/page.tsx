@@ -46,8 +46,8 @@ export default function IntentContextInspectorPage() {
         <h1 className="text-xl font-semibold text-neutral-900">Intent Layer</h1>
         <p className="text-sm text-neutral-500 max-w-2xl">
           The intent layer predicts visitor goals from observed context signals using deterministic,
-          inspectable heuristics — no black-box AI required. Each intent type receives an independent
-          score (0–100), and the highest scorer becomes the primary intent.
+          inspectable heuristics: no black-box AI required. Each intent type receives an independent
+          score (0-100), and the highest scorer becomes the primary intent.
         </p>
       </div>
 
@@ -56,10 +56,10 @@ export default function IntentContextInspectorPage() {
         <p className="font-semibold">How intent is derived</p>
         <ol className="list-decimal list-inside space-y-1 text-blue-800">
           <li>All context layers (request, history, derived, enrichment, page) are assembled.</li>
-          <li>Each intent type is scored independently using the signal rules below (0–100).</li>
+          <li>Each intent type is scored independently using the signal rules below (0-100).</li>
           <li><strong>intentPrimary</strong> = the intent type with the highest score.</li>
           <li><strong>intentSecondary</strong> = the runner-up, only when its score ≥ 20.</li>
-          <li><strong>intentConfidence</strong> = primaryScore ÷ 100 (normalised 0–1).</li>
+          <li><strong>intentConfidence</strong> = primaryScore ÷ 100 (normalised 0-1).</li>
           <li>The <strong>intentReason</strong> field explains the top contributing signals for debug.</li>
         </ol>
       </section>

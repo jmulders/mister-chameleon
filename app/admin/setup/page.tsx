@@ -124,7 +124,7 @@ export default async function AdminSetupPage({ searchParams }: Props) {
           <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
             <div>
               <h2 className="text-sm font-semibold text-neutral-900">
-                Migration 21 — Tenant assignments
+                Migration 21: Tenant assignments
               </h2>
               <p className="mt-0.5 text-xs text-neutral-400">
                 Creates <code className="font-mono">admin_user_tenants</code>,
@@ -150,7 +150,7 @@ export default async function AdminSetupPage({ searchParams }: Props) {
             {migrationApplied ? (
               <p className="text-sm text-neutral-600">
                 This migration has already been applied. Tenant assignments are fully
-                functional — users can be assigned to specific tenants from the{" "}
+                functional: users can be assigned to specific tenants from the{" "}
                 <Link href="/admin/users" className="text-brand-600 hover:text-brand-700 underline">
                   user management
                 </Link>{" "}
@@ -167,7 +167,7 @@ export default async function AdminSetupPage({ searchParams }: Props) {
                 {/* ── Option A: One-click via Management API ────────────── */}
                 <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 space-y-3">
                   <p className="text-sm font-medium text-neutral-800">
-                    Option A — Apply automatically
+                    Option A: Apply automatically
                   </p>
                   <p className="text-xs text-neutral-500">
                     Enter your Supabase Personal Access Token to apply the migration
@@ -211,7 +211,7 @@ export default async function AdminSetupPage({ searchParams }: Props) {
                 {/* ── Option B: Manual SQL ──────────────────────────────── */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-neutral-800">
-                    Option B — Run manually in the Supabase SQL Editor
+                    Option B: Run manually in the Supabase SQL Editor
                   </p>
                   <p className="text-xs text-neutral-500">
                     Copy the SQL below and paste it into the{" "}
@@ -233,7 +233,7 @@ export default async function AdminSetupPage({ searchParams }: Props) {
                 {/* ── Option C: CLI ─────────────────────────────────────── */}
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-neutral-800">
-                    Option C — Supabase CLI
+                    Option C: Supabase CLI
                   </p>
                   <pre className="rounded-lg border border-neutral-200 bg-neutral-900 px-4 py-2.5 text-xs text-neutral-100 font-mono">
                     npx supabase db push

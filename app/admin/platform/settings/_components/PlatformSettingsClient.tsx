@@ -159,7 +159,7 @@ function SecretField({
       />
       <p className="mt-0.5 text-[11px] text-neutral-400">
         Leave blank to keep the existing value. Enter a new value to replace it.
-        Value is stored server-side only — never echoed back.
+        Value is stored server-side only, never echoed back.
       </p>
     </div>
   );

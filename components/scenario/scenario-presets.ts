@@ -321,7 +321,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   customer_onboarding: {
     key:         "customer_onboarding",
-    label:       "Customer — Onboarding",
+    label:       "Customer: Onboarding",
     description: "Just converted. Now in the onboarding flow. Needs activation support.",
     icon:        "🎉",
     color:       "green",
@@ -344,7 +344,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   customer_expansion: {
     key:         "customer_expansion",
-    label:       "Customer — Expansion",
+    label:       "Customer: Expansion",
     description: "Active Growth customer showing expansion signals. Revisiting pricing for upgrade.",
     icon:        "📈",
     color:       "green",
@@ -369,7 +369,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
   post_conversion: {
     key:         "post_conversion",
     label:       "Post-Conversion",
-    description: "Form submitted — conversion confirmed. Maximum confidence. Onboarding mode.",
+    description: "Form submitted: conversion confirmed. Maximum confidence. Onboarding mode.",
     icon:        "✅",
     color:       "green",
     overrides: {
@@ -465,7 +465,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   careers_new_visitor: {
     key:         "careers_new_visitor",
-    label:       "Careers — Nieuw bezoek",
+    label:       "Careers: Nieuw bezoek",
     description: "Eerste bezoek aan de werken-bij site. Geen gedragsdata. Toont merkintroductie + vacatures-CTA.",
     icon:        "👋",
     color:       "neutral",
@@ -496,7 +496,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   careers_explorer: {
     key:         "careers_explorer",
-    label:       "Careers — Vacature-verkenner",
+    label:       "Careers: Vacature-verkenner",
     description: "Heeft de vacaturelijst bekeken maar nog geen specifieke rol geopend. Triggers job-match hero + browse CTA.",
     icon:        "🔍",
     color:       "blue",
@@ -527,7 +527,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   careers_job_interest: {
     key:         "careers_job_interest",
-    label:       "Careers — Functie-interesse",
+    label:       "Careers: Functie-interesse",
     description: "Heeft een specifieke vacature bekeken maar nog niet geklikt. Triggers rol-gerichte hero + apply CTA.",
     icon:        "💼",
     color:       "blue",
@@ -558,7 +558,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   careers_high_intent: {
     key:         "careers_high_intent",
-    label:       "Careers — Hoge sollicitatie-intentie",
+    label:       "Careers: Hoge sollicitatie-intentie",
     description: "Vacature bekeken én op apply CTA geklikt. Sterkste intentiesignalen. Triggers directe sollicitatie-ervaring.",
     icon:        "🔥",
     color:       "orange",
@@ -589,7 +589,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   careers_drop_off: {
     key:         "careers_drop_off",
-    label:       "Careers — Formulier drop-off",
+    label:       "Careers: Formulier drop-off",
     description: "Begonnen met het sollicitatieformulier maar gestopt. Triggers geruststelling + open sollicitatie CTA.",
     icon:        "📝",
     color:       "amber",
@@ -620,8 +620,8 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   careers_submitted: {
     key:         "careers_submitted",
-    label:       "Careers — Sollicitatie ingediend",
-    description: "Sollicitatie succesvol ingediend. Geen conversiedruk meer — focus op wat er daarna gebeurt.",
+    label:       "Careers: Sollicitatie ingediend",
+    description: "Sollicitatie succesvol ingediend. Geen conversiedruk meer, focus op wat er daarna gebeurt.",
     icon:        "✅",
     color:       "green",
     overrides: {
@@ -656,7 +656,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
   // uit handen en laat de prospect zelf van rol wisselen.
   demo_role_marketeer: {
     key:         "demo_role_marketeer",
-    label:       "Rol — Marketeer (eindklant)",
+    label:       "Rol: Marketeer (eindklant)",
     description: "Marketeer bij een eindklant. Hero + cta gericht op de marketeer.",
     icon:        "📣",
     color:       "purple",
@@ -676,7 +676,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   demo_role_bureau: {
     key:         "demo_role_bureau",
-    label:       "Rol — Bureau-eigenaar",
+    label:       "Rol: Bureau-eigenaar",
     description: "Eigenaar van een bureau. Hero + cta gericht op de bureau-eigenaar.",
     icon:        "🏢",
     color:       "blue",
@@ -694,7 +694,7 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
 
   demo_role_technisch: {
     key:         "demo_role_technisch",
-    label:       "Rol — Technisch verantwoordelijke",
+    label:       "Rol: Technisch verantwoordelijke",
     description: "Technisch verantwoordelijke. Hero + cta gericht op de techneut.",
     icon:        "🛠️",
     color:       "green",

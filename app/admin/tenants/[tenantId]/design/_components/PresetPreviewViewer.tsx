@@ -345,7 +345,7 @@ export function PresetPreviewViewer({
           <IframeLayer
             key={activePage.storyId}
             storyId={activePage.storyId}
-            label={`${label} — ${activePage.label}`}
+            label={`${label}: ${activePage.label}`}
             height={height}
           />
         )}

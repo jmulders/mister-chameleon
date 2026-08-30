@@ -152,7 +152,7 @@ export async function testForgeConnectionAction(): Promise<
     return {
       ok:          true,
       serverCount,
-      message:     `Connected — ${serverCount} server${serverCount === 1 ? "" : "s"} found`,
+      message:     `Connected: ${serverCount} server${serverCount === 1 ? "" : "s"} found`,
     };
   } catch (err) {
     return {

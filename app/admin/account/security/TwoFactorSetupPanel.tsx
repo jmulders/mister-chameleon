@@ -163,7 +163,7 @@ export function TwoFactorSetupPanel({ twoFaEnabled, backupCodeCount }: Props) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrDataUrl}
-                alt="TOTP QR code — scan with your authenticator app"
+                alt="TOTP QR code: scan with your authenticator app"
                 width={240}
                 height={240}
                 className="mt-3 rounded-lg border border-neutral-200"
@@ -177,7 +177,7 @@ export function TwoFactorSetupPanel({ twoFaEnabled, backupCodeCount }: Props) {
                 onClick={() => setShowManualSecret((v) => !v)}
                 className="text-xs text-brand-600 hover:underline"
               >
-                {showManualSecret ? "Hide" : "Can't scan?"} — enter the code manually
+                {showManualSecret ? "Hide" : "Can't scan"}, enter the code manually
               </button>
               {showManualSecret && manualSecret && (
                 <div className="mt-2 flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
@@ -224,7 +224,7 @@ export function TwoFactorSetupPanel({ twoFaEnabled, backupCodeCount }: Props) {
         {setupStep === "done" && backupCodes && (
           <BackupCodeDisplay
             codes={backupCodes}
-            message="Two-factor authentication is now enabled. Save these backup codes in a safe place — they are shown only once."
+            message="Two-factor authentication is now enabled. Save these backup codes in a safe place, they are shown only once."
           />
         )}
       </section>
@@ -327,7 +327,7 @@ export function TwoFactorSetupPanel({ twoFaEnabled, backupCodeCount }: Props) {
         {manageStep === "regen_done" && regenCodes && (
           <BackupCodeDisplay
             codes={regenCodes}
-            message="Your new backup codes are shown below. These replace your old codes — save them now."
+            message="Your new backup codes are shown below. These replace your old codes, save them now."
           />
         )}
       </div>

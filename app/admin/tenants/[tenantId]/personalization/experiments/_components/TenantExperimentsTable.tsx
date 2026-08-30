@@ -455,7 +455,7 @@ function InlineEditForm({ exp, variantCatalogue, onDone, onCancel }: InlineEditF
     setError(null);
     const tf = parseFloat(traffic) / 100;
     if (isNaN(tf) || tf <= 0 || tf > 1) {
-      setError("Traffic must be 1–100.");
+      setError("Traffic must be 1-100.");
       return;
     }
     if (selected.size < 2) {
@@ -484,7 +484,7 @@ function InlineEditForm({ exp, variantCatalogue, onDone, onCancel }: InlineEditF
   return (
     <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-        Edit experiment — <code className="font-mono normal-case">{exp.id}</code>
+        Edit experiment: <code className="font-mono normal-case">{exp.id}</code>
       </p>
 
       {error && (

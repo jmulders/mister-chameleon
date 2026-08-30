@@ -55,15 +55,15 @@ interface BuiltinTemplate {
 }
 
 const BUILTIN_TEMPLATES: BuiltinTemplate[] = [
-  { id: "christmas",    label: "Christmas season",            description: "December 23 – 26" },
-  { id: "valentines",   label: "Valentine's Day",             description: "February 13 – 14" },
-  { id: "halloween",    label: "Halloween",                   description: "October 30 – 31" },
-  { id: "new-year",     label: "New Year",                    description: "December 31 – January 1" },
+  { id: "christmas",    label: "Christmas season",            description: "December 23-26" },
+  { id: "valentines",   label: "Valentine's Day",             description: "February 13-14" },
+  { id: "halloween",    label: "Halloween",                   description: "October 30-31" },
+  { id: "new-year",     label: "New Year",                    description: "December 31 - January 1" },
   { id: "black-friday", label: "Black Friday / Cyber Monday", description: "Black Friday weekend" },
-  { id: "night",        label: "Night time",                  description: "22:00 – 06:00 local time" },
-  { id: "evening",      label: "Evening",                     description: "18:00 – 22:00 local time" },
-  { id: "morning",      label: "Morning",                     description: "06:00 – 10:00 local time" },
-  { id: "day",          label: "Daytime",                     description: "Ochtend + middag (06:00 – 18:00)" },
+  { id: "night",        label: "Night time",                  description: "22:00-06:00 local time" },
+  { id: "evening",      label: "Evening",                     description: "18:00-22:00 local time" },
+  { id: "morning",      label: "Morning",                     description: "06:00-10:00 local time" },
+  { id: "day",          label: "Daytime",                     description: "Ochtend + middag (06:00-18:00)" },
   { id: "weekend",      label: "Weekend",                     description: "Zaterdag en zondag" },
   { id: "any-campaign", label: "Any UTM campaign",            description: "Any visitor with a utm_campaign parameter" },
   { id: "mobile",       label: "Mobile visitors",             description: "Phones and tablets" },
@@ -455,7 +455,7 @@ export function ThemeRulesEditor({
                 <optgroup label="Built-in conditions">
                   {BUILTIN_TEMPLATES.map((t) => (
                     <option key={t.id} value={`builtin:${t.id}`}>
-                      {t.label} — {t.description}{mappedBuiltinIds.has(t.id) ? " ✓" : ""}
+                      {t.label}, {t.description}{mappedBuiltinIds.has(t.id) ? " ✓" : ""}
                     </option>
                   ))}
                 </optgroup>
@@ -603,7 +603,7 @@ export function ThemeRulesEditor({
                   <optgroup label="Built-in conditions">
                     {BUILTIN_TEMPLATES.map((t) => (
                       <option key={t.id} value={`builtin:${t.id}`}>
-                        {t.label} — {t.description}
+                        {t.label}, {t.description}
                       </option>
                     ))}
                   </optgroup>
@@ -764,7 +764,7 @@ export function ThemeRulesEditor({
                         ))}
                       </optgroup>
                       {GALLERY_BY_CATEGORY.map((g) => (
-                        <optgroup key={g.category} label={`Gallery — ${g.category}`}>
+                        <optgroup key={g.category} label={`Gallery: ${g.category}`}>
                           {g.items.map((c) => (
                             <option key={c.id} value={`gallery:${c.id}`}>{c.name}</option>
                           ))}
@@ -900,7 +900,7 @@ function ThemeSelect({
             ))}
           </optgroup>
           {GALLERY_BY_CATEGORY.map((g) => (
-            <optgroup key={g.category} label={`Gallery — ${g.category}`}>
+            <optgroup key={g.category} label={`Gallery: ${g.category}`}>
               {g.items.map((c) => (
                 <option key={c.id} value={`gallery:${c.id}`}>{c.name}</option>
               ))}

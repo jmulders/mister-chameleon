@@ -74,7 +74,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
   const matches      = logs.filter((l) => l.plans_match).length;
   const mismatches   = total - matches;
   const agreementRate =
-    total > 0 ? `${Math.round((matches / total) * 100)}%` : "—";
+    total > 0 ? `${Math.round((matches / total) * 100)}%` : ", ";
 
   // Distinct tenants visible in this result set
   const visibleTenants = [...new Set(
@@ -93,7 +93,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
           <Text variant="body-sm" color="muted" className="mt-1">
             {tenantFilter
               ? `Showing AI decisions for ${tenantFilter}`
-              : "Recent AI decisions — all tenants"}
+              : "Recent AI decisions: all tenants"}
           </Text>
         </div>
 
@@ -148,7 +148,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
         />
         <StatCard
           label="Tenants"
-          value={visibleTenants.length || "—"}
+          value={visibleTenants.length || ", "}
           sub={visibleTenants.length > 0 ? visibleTenants.join(", ") : "no tenant data"}
         />
       </div>

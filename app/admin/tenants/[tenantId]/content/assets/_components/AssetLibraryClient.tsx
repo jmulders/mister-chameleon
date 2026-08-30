@@ -703,7 +703,7 @@ function EditCard({
           value={folder}
           onChange={(e) => setFolder(e.target.value)}
           className="mt-0.5 w-full rounded border border-neutral-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400"
-          placeholder="Unfiled — type or pick a folder"
+          placeholder="Unfiled: type or pick a folder"
         />
         <datalist id={`folders-${asset.id}`}>
           {folders.map((f) => <option key={f} value={f} />)}
@@ -871,7 +871,7 @@ function AssetRow({
       {/* Alt text */}
       <td className="px-4 py-3 text-sm text-neutral-500 max-w-xs">
         <span className="truncate block" title={asset.altText ?? ""}>
-          {asset.altText || <span className="italic text-neutral-300">—</span>}
+          {asset.altText || <span className="italic text-neutral-300">, </span>}
         </span>
       </td>
 

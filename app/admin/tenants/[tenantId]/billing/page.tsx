@@ -333,7 +333,7 @@ export default async function TenantBillingPage({
         tenantId,
         code:    subErr.code,
         message: subErr.message,
-        hint:    isSchemaMissing ? "Billing migration not applied — run: supabase db push" : undefined,
+        hint:    isSchemaMissing ? "Billing migration not applied, run: supabase db push" : undefined,
       });
       loadErrors.push({
         message: isSchemaMissing
@@ -384,7 +384,7 @@ export default async function TenantBillingPage({
     rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.error(
-      `[billing/page] getWalletState failed — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
+      `[billing/page] getWalletState failed, tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
     );
     loadErrors.push({ message: "Wallet could not be loaded.", ...classifyError(err) });
   }
@@ -483,7 +483,7 @@ export default async function TenantBillingPage({
     rethrowNextInternal(err);
       const e = serializeError(err) as Record<string, unknown>;
       console.error(
-        `[billing/page] getUsageEventSummary failed — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
+        `[billing/page] getUsageEventSummary failed, tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
       );
       loadErrors.push({ message: "Usage event breakdown could not be loaded.", ...classifyError(err) });
     }
@@ -516,7 +516,7 @@ export default async function TenantBillingPage({
     rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
-      `[billing/page] getWalletLedger error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
+      `[billing/page] getWalletLedger error, tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
     );
   }
 
@@ -539,7 +539,7 @@ export default async function TenantBillingPage({
     rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
-      `[billing/page] getWalletBreakdown error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
+      `[billing/page] getWalletBreakdown error, tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
     );
   }
 
@@ -553,7 +553,7 @@ export default async function TenantBillingPage({
     rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
-      `[billing/page] getRecentReloadAttempts error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
+      `[billing/page] getRecentReloadAttempts error, tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
     );
   }
 
@@ -575,7 +575,7 @@ export default async function TenantBillingPage({
       creditSettings = result.settings;
     } else {
       console.warn(
-        `[billing/page] getCreditSettingsAction failed — tenantId=${tenantId} error=${result.error}`,
+        `[billing/page] getCreditSettingsAction failed, tenantId=${tenantId} error=${result.error}`,
       );
     }
   }
@@ -587,7 +587,7 @@ export default async function TenantBillingPage({
     rethrowNextInternal(err);
     const e = serializeError(err) as Record<string, unknown>;
     console.warn(
-      `[billing/page] getRecentWebhookEvents error — tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
+      `[billing/page] getRecentWebhookEvents error, tenantId=${tenantId} code=${e["code"] ?? "unknown"} message=${e["message"] ?? String(err)}`,
     );
   }
 

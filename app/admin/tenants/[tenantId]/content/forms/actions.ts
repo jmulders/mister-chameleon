@@ -535,7 +535,7 @@ export async function sendTestEmailAction(
       {
         from:    fromAddress,
         to:      [recipientEmail.trim()],
-        subject: "Test email — Mister Chameleon platform",
+        subject: "Test email: Mister Chameleon platform",
         text: [
           "This is a test email sent from the Mister Chameleon admin panel.",
           "",

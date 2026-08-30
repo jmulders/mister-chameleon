@@ -61,8 +61,8 @@ function AxisRow({ axis, sampleSize }: { axis: AxisDistribution; sampleSize: num
       {(degenerate || sparse) && (
         <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
           {sparse
-            ? `Almost no sessions have a value on this axis (${Math.round(noSignalShare * 100)}% without) — a threshold here reaches almost no one.`
-            : `${Math.round(axis.topBandShare * 100)}% of sessions fall into a single bucket — this axis barely discriminates.`}
+            ? `Almost no sessions have a value on this axis (${Math.round(noSignalShare * 100)}% without), a threshold here reaches almost no one.`
+            : `${Math.round(axis.topBandShare * 100)}% of sessions fall into a single bucket, this axis barely discriminates.`}
         </p>
       )}
     </div>
@@ -81,7 +81,7 @@ export function ScoreDistributionPanel({ distribution }: ScoreDistributionPanelP
         </span>
       </div>
       <p className="mb-4 text-xs text-neutral-500">
-        What the scoring model actually produces in practice — not what you
+        What the scoring model actually produces in practice, not what you
         configured. Per axis: how many sessions land in each bucket, and how many
         carry no signal. Combine with how often each rule fires for the full
         diagnosis.

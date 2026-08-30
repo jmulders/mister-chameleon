@@ -174,9 +174,9 @@ export function EmailPlatformClient({
                 className="h-4 w-4 border-neutral-300 accent-[var(--primary)]"
               />
               <span className="text-sm text-neutral-800">
-                {type === "none"   && "None — fall back to RESEND_API_KEY / SMTP_HOST env vars (no platform default)"}
-                {type === "resend" && "Resend — use the Resend transactional email API"}
-                {type === "smtp"   && "SMTP — connect to a custom mail server"}
+                {type === "none"   && "None: fall back to RESEND_API_KEY / SMTP_HOST env vars (no platform default)"}
+                {type === "resend" && "Resend: use the Resend transactional email API"}
+                {type === "smtp"   && "SMTP: connect to a custom mail server"}
               </span>
             </label>
           ))}
@@ -443,7 +443,7 @@ export function EmailPlatformClient({
       {/* ── Send test email ──────────────────────────────────────────────────── */}
       <Section
         title="Send a test email"
-        description="Sends a test message using the saved platform transport above (Resend/SMTP) — the quickest way to verify your credentials and from-address. Save your changes first."
+        description="Sends a test message using the saved platform transport above (Resend/SMTP), the quickest way to verify your credentials and from-address. Save your changes first."
       >
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[220px]">

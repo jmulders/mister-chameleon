@@ -33,10 +33,10 @@ export default async function IntegrationsDomainsPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Domains — Platform Credentials</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Domains: Platform Credentials</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Vercel Domains API credentials (team ID + API token). This page stores
-          <strong> infrastructure credentials only</strong> — per-tenant Vercel project
+          <strong> infrastructure credentials only</strong>: per-tenant Vercel project
           mapping and domain lists are configured in each tenant's Integrations workspace tab.
         </p>
       </div>

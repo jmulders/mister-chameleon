@@ -254,7 +254,7 @@ export function SiteDesignTokensEditor({ tenantId, initialTokens, tokenSets }: S
                     <span style={{ fontSize: "0.6875rem", color: "#6b7280" }}>{f.label}</span>
                     {f.kind === "surface" ? (
                       <select value={raw} onChange={(e) => updateToken(f.key, e.target.value)} style={inputStyle}>
-                        {SURFACE_OPTIONS.map((o) => <option key={o} value={o}>{o === "" ? "— none —" : o}</option>)}
+                        {SURFACE_OPTIONS.map((o) => <option key={o} value={o}>{o === "" ? ": none: " : o}</option>)}
                       </select>
                     ) : f.kind === "color" ? (
                       <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>

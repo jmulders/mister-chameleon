@@ -110,7 +110,7 @@ function PageHeader({
           {tenant.name ?? tenant.tenantId}
         </span>
         : variant usage, slot coverage, score distribution, and rule-fire counts.
-        Read-only — author rules on the Rules tab.
+        Read-only: author rules on the Rules tab.
       </p>
     </div>
   );

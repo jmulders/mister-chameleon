@@ -25,7 +25,7 @@ function matchBadge(match: boolean): { variant: BadgeVariant; label: string } {
 }
 
 function verdictBadge(verdict: string | undefined): { variant: BadgeVariant; label: string } {
-  if (!verdict) return { variant: "outline", label: "—" };
+  if (!verdict) return { variant: "outline", label: ", " };
   switch (verdict) {
     case "USE_AI":                    return { variant: "success", label: "USE_AI" };
     case "FALLBACK_LOW_CONFIDENCE":   return { variant: "warning", label: "LOW_CONF" };
@@ -66,7 +66,7 @@ function truncateSession(sessionId: string): string {
 }
 
 function formatConfidence(confidence: number | undefined): string {
-  if (confidence === undefined || confidence === null) return "—";
+  if (confidence === undefined || confidence === null) return ", ";
   return (confidence * 100).toFixed(0) + "%";
 }
 
@@ -78,7 +78,7 @@ function LogRow({ log }: { log: AiDecisionLogRow }) {
   const verdict                 = verdictBadge(log.shadow_plan.policyVerdict);
   const confidence              = formatConfidence(log.shadow_plan.confidence);
   // const tenantLabel             = log.tenant_id ?? "—"; // reserved for future use
-  const source                  = log.context.source ?? "—";
+  const source                  = log.context.source ?? ", ";
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors">
@@ -97,7 +97,7 @@ function LogRow({ log }: { log: AiDecisionLogRow }) {
             {log.tenant_id}
           </Link>
         ) : (
-          <span className="text-sm text-neutral-400">—</span>
+          <span className="text-sm text-neutral-400">, </span>
         )}
       </td>
 
@@ -191,7 +191,7 @@ export function LogsTable({ logs }: { logs: AiDecisionLogRow[] }) {
       <div className="border-t border-neutral-100 px-4 py-3">
         <p className="text-xs text-neutral-400">
           Showing {logs.length} row{logs.length !== 1 ? "s" : ""}.
-          {" "}API keys are never stored — only model names, variant keys, and anonymised visitor context.
+          {" "}API keys are never stored, only model names, variant keys, and anonymised visitor context.
         </p>
       </div>
     </Card>

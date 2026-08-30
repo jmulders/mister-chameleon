@@ -193,7 +193,7 @@ function VariantCell({ value, color }: { value: string | null; color: string }) 
   if (!value) {
     return (
       <td className="px-4 py-2 text-center">
-        <span className="text-neutral-300 text-xs">—</span>
+        <span className="text-neutral-300 text-xs">, </span>
       </td>
     );
   }

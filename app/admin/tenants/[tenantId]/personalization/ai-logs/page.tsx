@@ -37,7 +37,7 @@ function matchBadge(match: boolean): { variant: BadgeVariant; label: string } {
 }
 
 function verdictBadge(verdict: string | undefined): { variant: BadgeVariant; label: string } {
-  if (!verdict) return { variant: "outline", label: "—" };
+  if (!verdict) return { variant: "outline", label: ", " };
   switch (verdict) {
     case "USE_AI":                    return { variant: "success", label: "USE_AI" };
     case "FALLBACK_LOW_CONFIDENCE":   return { variant: "warning", label: "LOW_CONF" };
@@ -75,7 +75,7 @@ function truncateSession(id: string): string {
 }
 
 function formatConfidence(c: number | undefined): string {
-  if (c === undefined || c === null) return "—";
+  if (c === undefined || c === null) return ", ";
   return (c * 100).toFixed(0) + "%";
 }
 
@@ -100,7 +100,7 @@ function LogRow({ log }: { log: AiDecisionLogRow }) {
   const match    = matchBadge(log.plans_match);
   const verdict  = verdictBadge(log.shadow_plan.policyVerdict);
   const conf     = formatConfidence(log.shadow_plan.confidence);
-  const source   = log.context.source ?? "—";
+  const source   = log.context.source ?? ", ";
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors">
@@ -168,7 +168,7 @@ export default async function TenantAiLogsPage({
   const total         = logs.length;
   const matches       = logs.filter((l) => l.plans_match).length;
   const mismatches    = total - matches;
-  const agreementRate = total > 0 ? `${Math.round((matches / total) * 100)}%` : "—";
+  const agreementRate = total > 0 ? `${Math.round((matches / total) * 100)}%` : ", ";
 
   return (
     <div className="p-8">
@@ -179,7 +179,7 @@ export default async function TenantAiLogsPage({
           <Text variant="body-sm" color="muted" className="mt-1">
             AI decisions for{" "}
             <code className="font-mono text-xs">{tenantId}</code>
-            {" — "}last 100 rows
+            {": "}last 100 rows
           </Text>
         </div>
 
