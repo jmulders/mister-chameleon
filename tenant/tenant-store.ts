@@ -526,6 +526,21 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
     errors.push("name: must be a string when present.");
   }
 
+  // ── timezone (optional) ─────────────────────────────────────────────────────
+  // Must be a resolvable IANA zone (a typo would silently break time-based rules).
+  if (r.timezone !== undefined) {
+    if (typeof r.timezone !== "string") {
+      errors.push("timezone: must be a string when present.");
+    } else if (r.timezone.trim() !== "") {
+      try {
+        // Throws RangeError on an invalid IANA identifier.
+        new Intl.DateTimeFormat("en-US", { timeZone: r.timezone }).format();
+      } catch {
+        errors.push(`timezone: "${r.timezone}" is not a valid IANA timezone.`);
+      }
+    }
+  }
+
   // ── slug (optional) ────────────────────────────────────────────────────────
   if (r.slug !== undefined) {
     if (typeof r.slug !== "string") {

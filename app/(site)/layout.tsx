@@ -66,6 +66,7 @@ import { ScenarioControlMount } from "@/components/scenario/ScenarioControlMount
 import type { TenantScenarioPanelSettings, TenantScenarioPreset, TenantScenarioOverride } from "@/tenant/types";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
+import { TimezoneCapture } from "@/components/tracking/TimezoneCapture";
 import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
@@ -214,6 +215,12 @@ export default async function SiteLayout({
         pathname so navigating to a page already counted does not double-fire.
       */}
       <PageTracker />
+      {/*
+        TimezoneCapture — writes the visitor's own IANA timezone to the mc_tz
+        cookie so time-based rules are per-visitor accurate (mc_tz > tenant.timezone
+        > UTC). Minimal client writer; fails open to the tenant timezone.
+      */}
+      <TimezoneCapture />
       {/*
         BlockEffectRuntime — the versioned client player for declarative block
         effects. Observes [data-mc-fx] wrappers and reveals them on scroll.
