@@ -32,3 +32,8 @@ comment on table public.session_enrichment_cache is
 -- sweep (delete where expires_at < now()).
 create index if not exists session_enrichment_cache_expires_idx
   on public.session_enrichment_cache (expires_at);
+
+-- RLS on, service-role only (no policies) — mirrors ip_company_cache / cbs_area_stats.
+-- The store reads/writes with the service-role client (getDb), which bypasses RLS;
+-- enabling it denies all anon/authenticated access to this internal cache table.
+alter table public.session_enrichment_cache enable row level security;
