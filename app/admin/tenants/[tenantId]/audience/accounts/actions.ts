@@ -23,6 +23,8 @@ import {
   setAbmHubspotToken,
   getAbmNotifySettings,
   setAbmNotifySettings,
+  getAbmSyncApiKey,
+  setAbmSyncApiKey,
   listAbmAccountActivity,
   type AbmNotifySettings,
   type AbmAccountActivity,
@@ -31,6 +33,7 @@ import {
   type AbmLeadStatus,
   type AbmLeadVisit,
 }                                  from "@/lib/abm/abm-store";
+import { encryptSecret }           from "@/lib/email-crypto";
 import { syncCompanyToHubspot }    from "@/lib/lead-base/hubspot-sync";
 import { leadScore }               from "@/lib/lead-base/lead-scoring";
 import type { IdentityLevel }      from "@/lib/lead-base/profile-gate";
@@ -134,6 +137,45 @@ export async function generateAbmWebhookSecretAction(
   if (!ok) return { ok: false, error: "Save failed." };
   revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
   return { ok: true, secret };
+}
+
+// ── Back-office sync API key ────────────────────────────────────────────────────
+
+/**
+ * Whether a back-office sync API key is configured for this tenant. Never returns
+ * the key itself — the plaintext is shown only once, at generation.
+ */
+export async function getAbmSyncApiKeyStatusAction(tenantId: string): Promise<{ configured: boolean }> {
+  await getRequiredAdminSession();
+  const stored = await getAbmSyncApiKey(tenantId);
+  return { configured: Boolean(stored) };
+}
+
+/**
+ * Generate (or rotate) the tenant's back-office sync API key. Stores it encrypted
+ * and returns the plaintext ONCE for the operator to copy — it cannot be shown
+ * again. Rotating invalidates the previous key immediately.
+ */
+export async function generateAbmSyncApiKeyAction(
+  tenantId: string,
+): Promise<{ ok: true; key: string } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const key = `mcsk_${randomBytes(24).toString("base64url")}`;
+  const ok = await setAbmSyncApiKey(tenantId, encryptSecret(key));
+  if (!ok) return { ok: false, error: "Save failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/audience/leads`);
+  return { ok: true, key };
+}
+
+/** Revoke the tenant's back-office sync API key (disables POST /api/abm/leads → 401). */
+export async function revokeAbmSyncApiKeyAction(
+  tenantId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await getRequiredAdminSession();
+  const ok = await setAbmSyncApiKey(tenantId, null);
+  if (!ok) return { ok: false, error: "Revoke failed." };
+  revalidatePath(`/admin/tenants/${tenantId}/audience/leads`);
+  return { ok: true };
 }
 
 export async function getAbmNotifySettingsAction(tenantId: string): Promise<AbmNotifySettings> {

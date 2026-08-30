@@ -17,6 +17,8 @@ import {
   saveAbmHubspotTokenAction,
   testAbmHubspotSyncAction,
   saveAbmNotifySettingsAction,
+  generateAbmSyncApiKeyAction,
+  revokeAbmSyncApiKeyAction,
 } from "../../accounts/actions";
 import type { AbmNotifySettings } from "@/lib/abm/abm-store";
 import { listWebhookDeliveriesAction, replayWebhookDeliveryAction } from "../actions";
@@ -51,13 +53,15 @@ export function LeadCrmSettings({
   initialHubspotToken,
   initialDeliveries,
   initialNotify,
+  initialSyncKeyConfigured,
 }: {
-  tenantId:             string;
-  initialWebhookUrl:    string;
-  initialWebhookSecret: string;
-  initialHubspotToken:  string;
-  initialDeliveries:    WebhookDelivery[];
-  initialNotify:        AbmNotifySettings;
+  tenantId:                 string;
+  initialWebhookUrl:        string;
+  initialWebhookSecret:     string;
+  initialHubspotToken:      string;
+  initialDeliveries:        WebhookDelivery[];
+  initialNotify:            AbmNotifySettings;
+  initialSyncKeyConfigured: boolean;
 }) {
   const [pending, start] = useTransition();
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>(initialDeliveries);
@@ -84,6 +88,35 @@ export function LeadCrmSettings({
   const [slackUrl, setSlackUrl]           = useState(initialNotify.slackUrl ?? "");
   const [minScore, setMinScore]           = useState(String(initialNotify.minScore));
   const [notifyMsg, setNotifyMsg]         = useState<string | null>(null);
+  const [syncConfigured, setSyncConfigured] = useState(initialSyncKeyConfigured);
+  const [syncKey, setSyncKey]               = useState<string | null>(null); // shown once, after generate
+  const [syncMsg, setSyncMsg]               = useState<string | null>(null);
+
+  function generateSyncKey() {
+    setSyncMsg("Generating…");
+    start(async () => {
+      const res = await generateAbmSyncApiKeyAction(tenantId);
+      if (res.ok) {
+        setSyncKey(res.key);
+        setSyncConfigured(true);
+        setSyncMsg("Generated. Copy it now — it is shown only once.");
+      } else {
+        setSyncMsg(res.error);
+      }
+    });
+  }
+  function revokeSyncKey() {
+    start(async () => {
+      const res = await revokeAbmSyncApiKeyAction(tenantId);
+      if (res.ok) {
+        setSyncKey(null);
+        setSyncConfigured(false);
+        setSyncMsg("Revoked. The sync endpoint now rejects all requests.");
+      } else {
+        setSyncMsg(res.error);
+      }
+    });
+  }
 
   function saveNotify() {
     start(async () => {
@@ -175,6 +208,40 @@ export function LeadCrmSettings({
           </div>
           {secretMsg && <span className="text-xs text-neutral-500">{secretMsg}</span>}
         </div>
+      </section>
+
+      {/* ── Back-office sync API ────────────────────────────────────── */}
+      <section className="rounded-lg border border-neutral-200 p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-neutral-900">Back-office sync API <span className="text-neutral-400 font-normal">(optional)</span></h2>
+        <p className="text-xs text-neutral-500">
+          Let your back-office or CRM upsert leads over{" "}
+          <code className="font-mono">POST /api/abm/leads</code> using its own record id
+          (<code className="font-mono">external_id</code>). The response returns the opaque
+          handle (<code className="font-mono">/go/&#123;handle&#125;</code>), stable across syncs,
+          so the back-office builds the personal links in its own mail. Authenticate with{" "}
+          <code className="font-mono">Authorization: Bearer &lt;key&gt;</code>. The key is stored
+          encrypted and shown only once, here, at generation.
+        </p>
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${syncConfigured ? "bg-green-100 text-green-800" : "bg-neutral-100 text-neutral-500"}`}>
+            {syncConfigured ? "Configured" : "Not configured"}
+          </span>
+          <button onClick={generateSyncKey} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">
+            {syncConfigured ? "Rotate key" : "Generate key"}
+          </button>
+          {syncConfigured && (
+            <button onClick={revokeSyncKey} disabled={pending} className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">
+              Revoke
+            </button>
+          )}
+        </div>
+        {syncKey && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+            <p className="mb-1 text-xs font-medium text-amber-800">Copy this key now — it will not be shown again.</p>
+            <code className="block break-all font-mono text-xs text-neutral-900">{syncKey}</code>
+          </div>
+        )}
+        {syncMsg && <span className="block text-xs text-neutral-500">{syncMsg}</span>}
       </section>
 
       {/* ── HubSpot CRM sync ────────────────────────────────────────── */}
