@@ -15,9 +15,17 @@ export interface CbsAreaStats {
   urbanityProxy:  number | null;   // official CBS MateVanStedelijkheid (density fallback when suppressed)
   incomeBand:     string | null;
   businessShare:  number | null;
+  // D5 Fase 0 — energy / solar / WOZ / dominant sector. Optional so older cached
+  // rows (and test fixtures) that predate these columns still type-check; the store
+  // always populates them (null when the CBS cell is suppressed).
+  avgGasUsage?:            number | null;   // m³
+  avgElectricityUsage?:    number | null;   // kWh
+  solarPct?:               number | null;   // %
+  avgWozValue?:            number | null;   // euro
+  dominantBusinessSector?: string | null;   // SBI-group slug
 }
 
-const COLS = "area_code, urbanity_proxy, income_band, business_share";
+const COLS = "area_code, urbanity_proxy, income_band, business_share, location_avg_gas_usage, location_avg_electricity_usage, location_solar_pct, location_avg_woz_value, location_dominant_business_sector";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -32,11 +40,17 @@ export async function getCbsStatsForArea(areaCode: string): Promise<CbsAreaStats
       .eq("area_code", areaCode)
       .maybeSingle();
     if (!data) return null;
+    const num = (v: unknown) => (v != null ? Number(v) : null);
     return {
       areaCode:      data.area_code,
       urbanityProxy: data.urbanity_proxy ?? null,
       incomeBand:    data.income_band ?? null,
-      businessShare: data.business_share != null ? Number(data.business_share) : null,
+      businessShare: num(data.business_share),
+      avgGasUsage:            num(data.location_avg_gas_usage),
+      avgElectricityUsage:    num(data.location_avg_electricity_usage),
+      solarPct:               num(data.location_solar_pct),
+      avgWozValue:            num(data.location_avg_woz_value),
+      dominantBusinessSector: data.location_dominant_business_sector ?? null,
     };
   } catch (err) {
     logger.debug("[cbs-location-store] lookup failed", { areaCode, error: String(err) });

@@ -12,7 +12,7 @@ import {
   resolveBuurtcodeFromLatLng, resetBuurtcodePositiveCache,
 } from "../../lib/enrichment/pdok-geocode.ts";
 import {
-  mapCbsRow, deriveIncomeBand, deriveUrbanityProxy, resolveUrbanity, normalizeAreaCode,
+  mapCbsRow, deriveIncomeBand, deriveUrbanityProxy, resolveUrbanity, normalizeAreaCode, deriveDominantSector,
   fetchCbsArea, type CbsFetchResult,
 } from "../../lib/enrichment/cbs-ingest.ts";
 import { backfillPrefix } from "../../lib/enrichment/cbs-backfill.ts";
@@ -147,6 +147,42 @@ describe("mapCbsRow", () => {
     assert.equal(row!.income_band, "high");
     assert.equal(row!.urbanity_proxy, 3);
     assert.equal(row!.business_share, 0.5);
+  });
+
+  it("maps D5 energy/solar/WOZ + dominant sector (WOZ ×1000, argmax sector)", () => {
+    const raw = {
+      WijkenEnBuurten: "BU03630000",
+      GemiddeldAardgasverbruik_55: "1200",
+      GemiddeldeElektriciteitslevering_53: "2900",
+      WoningenMetZonnestroom_59: "18.5",
+      GemiddeldeWOZWaardeVanWoningen_39: "385",            // "x 1 000 euro"
+      ALandbouwBosbouwEnVisserij_96: "5",
+      KLFinancieleDienstenOnroerendGoed_100: "40",          // highest → dominant
+      MNZakelijkeDienstverlening_101: "12",
+    };
+    const row = mapCbsRow(raw, 2024, "85984NED")!;
+    assert.equal(row.location_avg_gas_usage, 1200);
+    assert.equal(row.location_avg_electricity_usage, 2900);
+    assert.equal(row.location_solar_pct, 18.5);
+    assert.equal(row.location_avg_woz_value, 385_000);      // ×1000
+    assert.equal(row.location_dominant_business_sector, "financial_realestate");
+  });
+
+  it("suppressed energy/WOZ/sector cells → null (never 0), dominant sector null when all suppressed", () => {
+    const row = mapCbsRow({
+      WijkenEnBuurten: "BU03630000",
+      GemiddeldAardgasverbruik_55: "-99997",   // sentinel
+      GemiddeldeWOZWaardeVanWoningen_39: null,
+      ALandbouwBosbouwEnVisserij_96: "-99997",
+    }, 2024, "85984NED")!;
+    assert.equal(row.location_avg_gas_usage, null);
+    assert.equal(row.location_avg_woz_value, null);
+    assert.equal(row.location_dominant_business_sector, null);
+  });
+
+  it("deriveDominantSector picks the argmax slug, null when none", () => {
+    assert.equal(deriveDominantSector({ GIHandelEnHoreca_98: "30", ALandbouwBosbouwEnVisserij_96: "31" }), "agriculture");
+    assert.equal(deriveDominantSector({ GIHandelEnHoreca_98: "0", MNZakelijkeDienstverlening_101: "-99997" }), null);
   });
   it("skips GM/WK rows and treats suppressed cells as null", () => {
     assert.equal(mapCbsRow({ WijkenEnBuurten: "GM0363" }, 2024, "85984NED"), null);
