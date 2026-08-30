@@ -56,7 +56,28 @@ export const CBS_FIELD_MAP = {
   inhabitants:   ["AantalInwoners_5", "AantalInwoners"],
   // Official CBS stedelijkheidsklasse (1 = zeer sterk stedelijk .. 5 = niet stedelijk).
   urbanityClass: ["MateVanStedelijkheid_120", "MateVanStedelijkheid"],
+  // D5 Fase 0 — energy / solar / WOZ (units verified live via DataProperties).
+  avgGas:         ["GemiddeldAardgasverbruik_55"],           // m³
+  avgElectricity: ["GemiddeldeElektriciteitslevering_53"],   // kWh
+  solarPct:       ["WoningenMetZonnestroom_59"],             // %
+  avgWozK:        ["GemiddeldeWOZWaardeVanWoningen_39"],      // "x 1 000 euro" → ×1000
 } as const;
+
+/**
+ * Business establishments per SBI sector group (unit "aantal") → an English slug.
+ * The DOMINANT sector = the group with the most establishments; we store the slug,
+ * not eight separate fields.
+ */
+const SECTOR_FIELDS: readonly (readonly [string, string])[] = [
+  ["ALandbouwBosbouwEnVisserij_96",           "agriculture"],
+  ["BFNijverheidEnEnergie_97",                "industry_energy"],
+  ["GIHandelEnHoreca_98",                     "trade_hospitality"],
+  ["HJVervoerInformatieEnCommunicatie_99",    "transport_ict"],
+  ["KLFinancieleDienstenOnroerendGoed_100",   "financial_realestate"],
+  ["MNZakelijkeDienstverlening_101",          "business_services"],
+  ["OQOverheidOnderwijsEnZorg_102",           "government_education_health"],
+  ["RUCultuurRecreatieOverigeDiensten_103",   "culture_recreation_other"],
+];
 
 /**
  * Columns fetched via $select — the mapped columns plus two bonus signals stored
@@ -75,6 +96,19 @@ const SELECT_COLUMNS = [
   "MateVanStedelijkheid_120",
   "Omgevingsadressendichtheid_121",
   "MeestVoorkomendePostcode_118",
+  // D5 Fase 0 — energy / solar / WOZ + the eight SBI sector counts.
+  "GemiddeldAardgasverbruik_55",
+  "GemiddeldeElektriciteitslevering_53",
+  "WoningenMetZonnestroom_59",
+  "GemiddeldeWOZWaardeVanWoningen_39",
+  "ALandbouwBosbouwEnVisserij_96",
+  "BFNijverheidEnEnergie_97",
+  "GIHandelEnHoreca_98",
+  "HJVervoerInformatieEnCommunicatie_99",
+  "KLFinancieleDienstenOnroerendGoed_100",
+  "MNZakelijkeDienstverlening_101",
+  "OQOverheidOnderwijsEnZorg_102",
+  "RUCultuurRecreatieOverigeDiensten_103",
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -147,6 +181,21 @@ export function resolveUrbanity(urbanityRaw: number | null, density: number | nu
   return deriveUrbanityProxy(density);
 }
 
+/**
+ * Dominant business sector = the SBI group with the most establishments in the
+ * buurt → its slug. Suppressed cells (null/sentinel/negative) count as absent;
+ * returns null when every sector is suppressed/zero.
+ */
+export function deriveDominantSector(raw: Row): string | null {
+  let bestSlug: string | null = null;
+  let bestCount = 0;
+  for (const [key, slug] of SECTOR_FIELDS) {
+    const n = toNum(raw[key]);
+    if (n != null && n > bestCount) { bestCount = n; bestSlug = slug; }
+  }
+  return bestSlug;
+}
+
 /** Map one raw CBS OData buurt row to a cbs_area_stats upsert row, or null. */
 export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
   const areaCode = normalizeAreaCode(firstField(raw, CBS_FIELD_MAP.areaCode));
@@ -171,6 +220,14 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
     ? Math.min(99.9999, Math.max(0, business / inhabitants))
     : null;
 
+  // D5 Fase 0 — energy / solar / WOZ / dominant sector. Suppressed → null (never 0),
+  // exactly like the existing mapping.
+  const avgGas   = toNum(firstField(raw, CBS_FIELD_MAP.avgGas));           // m³
+  const avgElec  = toNum(firstField(raw, CBS_FIELD_MAP.avgElectricity));   // kWh
+  const solarPct = toNum(firstField(raw, CBS_FIELD_MAP.solarPct));         // %
+  const wozK     = toNum(firstField(raw, CBS_FIELD_MAP.avgWozK));          // "x 1 000 euro"
+  const avgWoz   = wozK != null ? Math.round(wozK * 1000) : null;          // → euro
+
   return {
     area_code:          areaCode,
     avg_income:         avgIncome,
@@ -183,6 +240,12 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
     urbanity_proxy:     resolveUrbanity(urbanityRaw, density),
     inhabitants:        inhabitants != null ? Math.round(inhabitants) : null,
     business_share:     businessShare,
+    // D5 Fase 0 — energy / solar / WOZ / dominant sector.
+    location_avg_gas_usage:            avgGas   != null ? Math.round(avgGas)  : null,
+    location_avg_electricity_usage:    avgElec  != null ? Math.round(avgElec) : null,
+    location_solar_pct:                solarPct,
+    location_avg_woz_value:            avgWoz,
+    location_dominant_business_sector: deriveDominantSector(raw),
     source_year:        sourceYear,
     source_dataset:     dataset,
     raw,

@@ -410,6 +410,11 @@ export type RuleFieldKey =
   | "locationUrbanityClass"
   | "locationIncomeBand"
   | "locationBusinessShare"
+  | "locationAvgGasUsage"
+  | "locationAvgElectricityUsage"
+  | "locationSolarPct"
+  | "locationAvgWozValue"
+  | "locationDominantBusinessSector"
   // Lead Base — returning-visitor signals
   | "isReturningVisitor"
   | "leadScore"
@@ -1086,6 +1091,46 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "number",
     operators:   OPS_NUMBER,
     resolve:     (ctx) => ctx.enrichment?.locationBusinessShare ?? null,
+  },
+  locationAvgGasUsage: {
+    label:       "Location avg gas use (m³)",
+    description: "Average natural-gas use per home in the visitor's buurt (m³/year, CBS 85984NED).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationAvgGasUsage ?? null,
+  },
+  locationAvgElectricityUsage: {
+    label:       "Location avg electricity use (kWh)",
+    description: "Average electricity delivery per home in the visitor's buurt (kWh/year, CBS 85984NED).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationAvgElectricityUsage ?? null,
+  },
+  locationSolarPct: {
+    label:       "Location solar homes (%)",
+    description: "Share of homes with solar power in the visitor's buurt (%, CBS 85984NED).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationSolarPct ?? null,
+  },
+  locationAvgWozValue: {
+    label:       "Location avg WOZ value (€)",
+    description: "Average WOZ (property) value of homes in the visitor's buurt (euro, CBS 85984NED).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationAvgWozValue ?? null,
+  },
+  locationDominantBusinessSector: {
+    label:       "Location dominant sector",
+    description: "Dominant SBI business sector in the visitor's buurt, e.g. \"financial_realestate\", \"agriculture\" (CBS 85984NED).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.locationDominantBusinessSector ?? null,
   },
 
   // ── Lead Base — returning-visitor signals ─────────────────────────────────────

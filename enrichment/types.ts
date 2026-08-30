@@ -230,6 +230,17 @@ export interface EnrichmentOutput {
   locationIncomeBand:     string | null;
   /** Share of business establishments per inhabitant in the buurt (0..1). */
   locationBusinessShare:  number | null;
+  // ── D5 Fase 0 — energy / solar / WOZ / dominant sector (CBS 85984NED) ────────
+  /** Average natural-gas use per home in the buurt (m³/year). */
+  locationAvgGasUsage:            number | null;
+  /** Average electricity delivery per home in the buurt (kWh/year). */
+  locationAvgElectricityUsage:    number | null;
+  /** Share of homes with solar power in the buurt (%). */
+  locationSolarPct:               number | null;
+  /** Average WOZ (property) value of homes in the buurt (euro). */
+  locationAvgWozValue:            number | null;
+  /** Dominant SBI business sector in the buurt (slug, e.g. "financial_realestate"). */
+  locationDominantBusinessSector: string | null;
   /**
    * Confidence in the resolved location. "high" when the buurt came from a
    * precise, coherent signal (form postcode, or IP coordinates whose reverse-

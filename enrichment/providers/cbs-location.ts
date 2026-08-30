@@ -151,6 +151,11 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       urbanityProxy: mapped.urbanity_proxy,
       incomeBand:    mapped.income_band,
       businessShare: mapped.business_share,
+      avgGasUsage:            mapped.location_avg_gas_usage,
+      avgElectricityUsage:    mapped.location_avg_electricity_usage,
+      solarPct:               mapped.location_solar_pct,
+      avgWozValue:            mapped.location_avg_woz_value,
+      dominantBusinessSector: mapped.location_dominant_business_sector,
     };
   }
 
@@ -247,7 +252,11 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       }
 
       // Require at least one usable attribute (avoid billing an all-suppressed row).
-      if (stats.urbanityProxy == null && stats.incomeBand == null && stats.businessShare == null) {
+      const hasAnyAttribute =
+        stats.urbanityProxy != null || stats.incomeBand != null || stats.businessShare != null ||
+        stats.avgGasUsage != null || stats.avgElectricityUsage != null || stats.solarPct != null ||
+        stats.avgWozValue != null || stats.dominantBusinessSector != null;
+      if (!hasAnyAttribute) {
         const n = `buurtcode=${areaCode} (${source}) · cbs=${statsSource} but all attributes suppressed`;
         ctx?.setNote(n);
         return { locationResolutionNote: n };
@@ -267,6 +276,12 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       if (stats.urbanityProxy != null) out.locationUrbanityClass = stats.urbanityProxy;
       if (stats.incomeBand)            out.locationIncomeBand    = stats.incomeBand;
       if (stats.businessShare != null) out.locationBusinessShare = stats.businessShare;
+      // D5 Fase 0 — energy / solar / WOZ / dominant sector (persisted on the output).
+      if (stats.avgGasUsage != null)            out.locationAvgGasUsage         = stats.avgGasUsage;
+      if (stats.avgElectricityUsage != null)    out.locationAvgElectricityUsage = stats.avgElectricityUsage;
+      if (stats.solarPct != null)               out.locationSolarPct            = stats.solarPct;
+      if (stats.avgWozValue != null)            out.locationAvgWozValue         = stats.avgWozValue;
+      if (stats.dominantBusinessSector)         out.locationDominantBusinessSector = stats.dominantBusinessSector;
 
       // Note carries the coherence decision + per-field geo provenance so it is
       // visible in the /demo debug even when the pipeline was a session-cache hit.

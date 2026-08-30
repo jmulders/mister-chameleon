@@ -921,6 +921,63 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
     exampleValue:     0.3,
   },
 
+  // ── Enrichment — CBS location (D5 Fase 0: energy / solar / WOZ / sector) ────
+  {
+    key:              "locationAvgGasUsage",
+    label:            "Location avg gas use (m³)",
+    description:      "Average natural-gas use per home in the visitor's buurt (m³/year, CBS 85984NED).",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     1200,
+  },
+  {
+    key:              "locationAvgElectricityUsage",
+    label:            "Location avg electricity use (kWh)",
+    description:      "Average electricity delivery per home in the visitor's buurt (kWh/year, CBS 85984NED).",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     2900,
+  },
+  {
+    key:              "locationSolarPct",
+    label:            "Location solar homes (%)",
+    description:      "Share of homes with solar power in the visitor's buurt (%, CBS 85984NED).",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     18.5,
+  },
+  {
+    key:              "locationAvgWozValue",
+    label:            "Location avg WOZ value (€)",
+    description:      "Average WOZ (property) value of homes in the visitor's buurt (euro, CBS 85984NED).",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     385000,
+  },
+  {
+    key:              "locationDominantBusinessSector",
+    label:            "Location dominant sector",
+    description:      "Dominant SBI business sector in the visitor's buurt, e.g. \"financial_realestate\", \"agriculture\" (CBS 85984NED).",
+    type:             "string",
+    source:           "enrichment",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     "financial_realestate",
+  },
+
   // ── Enrichment — Company identification ────────────────────────────────────
 
   {
