@@ -6,7 +6,7 @@
 
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { createCbsLocationEnricher, resetCbsNegativeCache } from "../../enrichment/providers/cbs-location.ts";
+import { createCbsLocationEnricher, resetCbsNegativeCache, normalizeCityName } from "../../enrichment/providers/cbs-location.ts";
 import {
   buurtcodeFromLatLng, normalizeBuurtcode,
   resolveBuurtcodeFromLatLng, resetBuurtcodePositiveCache,
@@ -323,6 +323,63 @@ describe("createCbsLocationEnricher — lazy flow", () => {
     assert.deepEqual(await s.enricher(input, acc({ latitude: 52.3, longitude: 4.9 }), ctx), {});
     assert.match(notes.at(-1)!, /buurtcode=BU99999999/);
     assert.match(notes.at(-1)!, /cbs=empty/);
+  });
+});
+
+describe("createCbsLocationEnricher — city/coords coherence (the wrong-buurt bug)", () => {
+  beforeEach(() => resetCbsNegativeCache());
+  const stats: CbsAreaStats = { areaCode: "BU16800000", urbanityProxy: 1, incomeBand: "high", businessShare: 0.3 };
+
+  // Injectable geocoders that record whether the coords or the city path was used.
+  function tracked() {
+    const calls: string[] = [];
+    return {
+      calls,
+      geocode:     async (_lat: number, _lng: number) => { calls.push("coords"); return "BU_COORDS0"; },
+      formGeocode: async (_pc: string | null, place: string | null) => { calls.push(`city:${place}`); return "BU16800000"; },
+    };
+  }
+
+  it("mismatch (IP city ≠ reverse-geocoded city) → resolves via the CITY, low confidence", async () => {
+    const t = tracked();
+    const s = createCbsLocationEnricher({ geocode: t.geocode, formGeocode: t.formGeocode, cacheLookup: async () => stats });
+    const out = await s.enricher(input, acc({
+      latitude: 51.92, longitude: 4.48,          // MaxMind coords (Rotterdam)
+      city: "Veenendaal", addressCity: "Rotterdam", // IPinfo city vs reverse-geocode
+      geoCitySource: "ipinfo", geoCoordsSource: "maxmind",
+    }));
+    assert.equal(out.locationAreaCode, "BU16800000");
+    assert.equal(out.locationCityCoordMismatch, true);
+    assert.equal(out.locationConfidence, "low");
+    assert.deepEqual(t.calls, ["city:Veenendaal"], "resolved via the city centroid, not the incoherent coordinates");
+  });
+
+  it("no mismatch (city agrees with reverse-geocode) → uses the coordinates, high confidence", async () => {
+    const t = tracked();
+    const s = createCbsLocationEnricher({ geocode: t.geocode, formGeocode: t.formGeocode, cacheLookup: async () => ({ ...stats, areaCode: "BU_COORDS0" }) });
+    const out = await s.enricher(input, acc({
+      latitude: 51.92, longitude: 4.48,
+      city: "Rotterdam", addressCity: "Rotterdam ", // same city (whitespace-insensitive)
+      geoCitySource: "ipinfo", geoCoordsSource: "maxmind",
+    }));
+    assert.equal(out.locationCityCoordMismatch, false);
+    assert.equal(out.locationConfidence, "high");
+    assert.deepEqual(t.calls, ["coords"], "coherent → trust the precise coordinates");
+  });
+
+  it("no addressCity to compare → no mismatch, uses coordinates (high)", async () => {
+    const t = tracked();
+    const s = createCbsLocationEnricher({ geocode: t.geocode, formGeocode: t.formGeocode, cacheLookup: async () => ({ ...stats, areaCode: "BU_COORDS0" }) });
+    const out = await s.enricher(input, acc({ latitude: 51.92, longitude: 4.48, city: "Veenendaal" }));
+    assert.equal(out.locationCityCoordMismatch, false);
+    assert.equal(out.locationConfidence, "high");
+    assert.deepEqual(t.calls, ["coords"]);
+  });
+
+  it("normalizeCityName is diacritic/whitespace/case insensitive but keeps genuine differences", () => {
+    assert.equal(normalizeCityName("Rotterdam ") === normalizeCityName("rotterdam"), true);
+    assert.equal(normalizeCityName("Nijmegen") === normalizeCityName("Níjmégen"), true);
+    assert.equal(normalizeCityName("Den Haag") === normalizeCityName("'s-Gravenhage"), false);
   });
 });
 

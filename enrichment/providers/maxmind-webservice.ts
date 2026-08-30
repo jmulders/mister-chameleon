@@ -66,12 +66,22 @@ export class MaxMindWebServiceProvider {
       }
       const data = (await res.json()) as MaxMindCityResponse;
 
+      // MaxMind runs FIRST in the geo wave; IPinfo (later) overwrites city/region/
+      // coordinates when it has them (see the precedence note in ipinfo.ts). We
+      // stamp geoCitySource/geoCoordsSource so that whichever provider's value
+      // survives the merge carries its provenance with it.
       const result: Partial<EnrichmentOutput> = {};
       if (data.country?.iso_code)         result.countryCode = data.country.iso_code.toUpperCase();
       if (data.subdivisions?.[0]?.names?.en) result.region   = data.subdivisions[0].names!.en!;
-      if (data.city?.names?.en)           result.city        = data.city.names.en;
-      if (typeof data.location?.latitude  === "number") result.latitude  = data.location.latitude;
-      if (typeof data.location?.longitude === "number") result.longitude = data.location.longitude;
+      if (data.city?.names?.en) {
+        result.city          = data.city.names.en;
+        result.geoCitySource = "maxmind";
+      }
+      if (typeof data.location?.latitude === "number" && typeof data.location?.longitude === "number") {
+        result.latitude        = data.location.latitude;
+        result.longitude       = data.location.longitude;
+        result.geoCoordsSource = "maxmind";
+      }
       return result;
     } catch (err) {
       if (this.isDev) console.debug("[maxmind-ws] lookup error", { ip: effectiveIp, err: String(err) });

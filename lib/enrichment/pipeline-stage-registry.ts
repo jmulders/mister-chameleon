@@ -25,6 +25,14 @@
  *   Wave 2 (parallel)   Reverse Geocode, Weather, OpenKvK, Leadinfo
  *   Sequential          HubSpot CRM, Seasonal Event
  *
+ *   Geo precedence within wave 1 is EXPLICIT (not accidental last-wins): MaxMind
+ *   runs before IPinfo, and the merge keeps the later non-null value, so IPinfo's
+ *   country/region/city/coordinates overwrite MaxMind's when present. For NL,
+ *   IPinfo's city/region are usually more accurate; coordinates take IPinfo's when
+ *   present, else MaxMind's (coarser). Each provider stamps geoCitySource /
+ *   geoCoordsSource so the winning provenance travels with the field. See the
+ *   precedence notes in providers/ipinfo.ts and providers/maxmind-webservice.ts.
+ *
  * ─── Default positions ────────────────────────────────────────────────────────
  *
  *   `defaultPosition` reflects the hardcoded order in `buildCompanyCrmChain`.

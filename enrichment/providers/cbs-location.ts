@@ -20,12 +20,18 @@
  *   2. Form place     — COARSE: the city/place centroid's buurt (city-level).
  *   3. IP lat/lng     — the buurt at the IP geolocation (city/district precision;
  *                       accurate for fixed lines, looser for mobile/CGNAT).
+ *      3b. IP CITY-FIRST (mismatch) — when the IP city (IPinfo) and the reverse-
+ *                       geocoded city of the IP coordinates (MaxMind) DISAGREE,
+ *                       the coordinates are incoherent with the reliable city, so
+ *                       we resolve the buurt via the CITY centroid instead. COARSE.
  *   4. GA4 last-known city — COARSE: forward-geocode the GA4 city name to its
  *                       centroid buurt. Representative of the CITY, not the
  *                       visitor's actual neighbourhood — a last resort used only
  *                       when there is no lat/lng and no form location.
- *   Tiers 2 and 4 are marked "coarse" in the dev log; they trade buurt precision
- *   for coverage when nothing more precise is available.
+ *   Coarse tiers (form-place, ip-city, ga4-city) set locationConfidence="low";
+ *   precise tiers (form-postcode, ip-geo) set "high". A mismatch also sets
+ *   locationCityCoordMismatch=true. All are surfaced in the /demo debug (and
+ *   persisted on the output, so they survive a session-cache hit).
  *
  * NL-only; runs sequentially (after wave 2) so geo has resolved lat/lng and GA4
  * history has resolved gaLastKnownCity.
@@ -50,6 +56,21 @@ const negativeCache = new Map<string, number>();
 
 /** Test helper: clear the module-level negative cache between cases. */
 export function resetCbsNegativeCache(): void { negativeCache.clear(); }
+
+/**
+ * Normalise a city name for coherence comparison: lowercase, strip accents,
+ * drop a leading "gemeente "/"'s-" style noise and non-alphanumerics. So
+ * "Den Haag" vs "'s-Gravenhage" still differ (they are genuinely different
+ * strings), but "Rotterdam " and "rotterdam" match. Conservative on purpose —
+ * a false "match" would skip the city-first fallback we want.
+ */
+export function normalizeCityName(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip diacritics
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
 
 export interface CbsLocationOptions {
   /** CBS dataset id for the live per-buurt fetch. Default 85984NED. */
@@ -155,8 +176,9 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       // result: "error" = transient PDOK failure (retry later, do not cache the
       // miss), "empty" = genuine no-buurt, "ok" = resolved.
       let areaCode: string | null = null;
-      let source: "form-postcode" | "form-place" | "ip-geo" | "ga4-city" = "ip-geo";
+      let source: "form-postcode" | "form-place" | "ip-geo" | "ip-city" | "ga4-city" = "ip-geo";
       let transient = false; // any attempt failed transiently → mark the stage for retry
+      let mismatch = false;  // IP city ≠ reverse-geocoded city of the IP coordinates
 
       const note = (r: GeoResolveResult) => { if (r.status === "error") transient = true; };
 
@@ -168,10 +190,25 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
         source   = fl.postcode ? "form-postcode" : "form-place";
       }
       if (!areaCode && accumulated.latitude != null && accumulated.longitude != null) {
-        // 3. IP-derived lat/lng.
-        const r = await geocode(accumulated.latitude, accumulated.longitude);
-        note(r); areaCode = r.code;
-        source   = "ip-geo";
+        // 3. IP-derived location. City and coordinates can come from DIFFERENT
+        //    providers (IPinfo city vs MaxMind coordinates — see geo precedence),
+        //    which can leave them pointing at different places. When the reliable
+        //    IP city disagrees with the reverse-geocoded city of the coordinates,
+        //    resolve the buurt via the CITY (coarse) instead of trusting the
+        //    incoherent coordinates. Otherwise use the coordinates (precise).
+        const ipCity  = accumulated.city;
+        const revCity = accumulated.addressCity; // reverse-geocoded from lat/lng
+        mismatch = Boolean(ipCity && revCity && normalizeCityName(ipCity) !== normalizeCityName(revCity));
+
+        if (mismatch && ipCity) {
+          const r = await formGeocode(null, ipCity); // city centroid → buurt (coarse)
+          note(r); areaCode = r.code;
+          source   = "ip-city";
+        } else {
+          const r = await geocode(accumulated.latitude, accumulated.longitude);
+          note(r); areaCode = r.code;
+          source   = "ip-geo";
+        }
       }
       if (!areaCode && accumulated.gaLastKnownCity) {
         // 4. COARSE: forward-geocode the GA4 last-known city to a centroid buurt.
@@ -214,15 +251,31 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
         return {};
       }
 
-      const out: Partial<EnrichmentOutput> = { locationAreaCode: areaCode };
+      // Confidence: "high" only for a precise, coherent signal (form postcode, or
+      // IP coordinates that agreed with the IP city). A city/place centroid, the
+      // GA4 city, or the city-first mismatch fallback are all COARSE → "low".
+      const confidence: "high" | "low" =
+        source === "form-postcode" || source === "ip-geo" ? "high" : "low";
+
+      const out: Partial<EnrichmentOutput> = {
+        locationAreaCode:          areaCode,
+        locationConfidence:        confidence,
+        locationCityCoordMismatch: mismatch,
+      };
       if (stats.urbanityProxy != null) out.locationUrbanityClass = stats.urbanityProxy;
       if (stats.incomeBand)            out.locationIncomeBand    = stats.incomeBand;
       if (stats.businessShare != null) out.locationBusinessShare = stats.businessShare;
 
-      ctx?.setNote(`buurtcode=${areaCode} (${source}) · cbs=${statsSource}`);
+      // Note carries the coherence decision + per-field geo provenance so it is
+      // visible in the /demo debug even when the pipeline was a session-cache hit.
+      const prov = `city←${accumulated.geoCitySource ?? "?"} coords←${accumulated.geoCoordsSource ?? "?"}`;
+      const mismatchTag = mismatch
+        ? ` · MISMATCH city="${accumulated.city}"≠revgeo="${accumulated.addressCity}" → buurt via city`
+        : "";
+      ctx?.setNote(`buurtcode=${areaCode} (${source}, ${confidence}) · cbs=${statsSource} · ${prov}${mismatchTag}`);
       if (isDev) {
-        const coarse = source === "form-place" || source === "ga4-city";
-        console.debug("[cbs-location] resolved", { areaCode, source, statsSource, coarse, ...out });
+        const coarse = confidence === "low";
+        console.debug("[cbs-location] resolved", { areaCode, source, statsSource, coarse, mismatch, ...out });
       }
       return out;
     },

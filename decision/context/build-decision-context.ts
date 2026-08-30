@@ -416,6 +416,16 @@ export interface EnrichmentDebugInfo {
    */
   ipGeoHasCoordinates:   boolean;
 
+  // ── Geo provenance & coherence (persisted, survives a session-cache hit) ────
+  /** Provider that set the winning IP-geo city — "ipinfo" | "maxmind" | null. */
+  geoCitySource:         string | null;
+  /** Provider that set the winning coordinates — "ipinfo" | "maxmind" | null. */
+  geoCoordsSource:       string | null;
+  /** Confidence in the resolved CBS location: "high" | "low" | null. */
+  locationConfidence:    "high" | "low" | null;
+  /** True when the IP city and the reverse-geocoded city of the coords disagreed. */
+  locationCityCoordMismatch: boolean | null;
+
   /**
    * How the enrichment output was produced:
    *   "session-cache"   — cached result from a prior page view
@@ -846,6 +856,10 @@ export async function buildDecisionContext(
         currentCountry:        cachedEnrichment.currentCountry        ?? null,
         currentLocationSource: (cachedEnrichment.currentLocationSource as "ga4" | "ip_geo" | null) ?? null,
         ipGeoHasCoordinates:   (cachedEnrichment.latitude != null && cachedEnrichment.longitude != null),
+        geoCitySource:             cachedEnrichment.geoCitySource             ?? null,
+        geoCoordsSource:           cachedEnrichment.geoCoordsSource           ?? null,
+        locationConfidence:        (cachedEnrichment.locationConfidence as "high" | "low" | null) ?? null,
+        locationCityCoordMismatch: cachedEnrichment.locationCityCoordMismatch ?? null,
         enrichmentSource:       "session-cache",
         sessionCacheMissReason: null,
         enrichmentTrace:        cachedTrace,
@@ -1559,6 +1573,10 @@ export async function buildDecisionContext(
     currentLocationSource: (enrichment.currentLocationSource as "ga4" | "ip_geo" | null) ?? null,
     // IP geo ran independently for coordinates (Part 12: always true when lat/lng resolved)
     ipGeoHasCoordinates:   (enrichment.latitude != null && enrichment.longitude != null),
+    geoCitySource:             enrichment.geoCitySource             ?? null,
+    geoCoordsSource:           enrichment.geoCoordsSource           ?? null,
+    locationConfidence:        (enrichment.locationConfidence as "high" | "low" | null) ?? null,
+    locationCityCoordMismatch: enrichment.locationCityCoordMismatch ?? null,
     enrichmentSource,
     sessionCacheMissReason,
     enrichmentTrace,
