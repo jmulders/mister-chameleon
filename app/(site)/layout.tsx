@@ -58,7 +58,7 @@
  *   zero performance impact on public pages.
  */
 
-import { draftMode } from "next/headers";
+import { draftMode, cookies } from "next/headers";
 import { Header, Footer } from "@/components/layout";
 import { PreviewBar } from "@/components/preview/PreviewBar";
 import { StatamicPreviewWatcher } from "@/components/preview/StatamicPreviewWatcher";
@@ -68,6 +68,7 @@ import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
 import { TimezoneCapture } from "@/components/tracking/TimezoneCapture";
 import { ClientContextCollector } from "@/components/tracking/ClientContextCollector";
+import { Ga4TrackingProvider } from "@/components/tracking/Ga4TrackingProvider";
 import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
@@ -107,6 +108,8 @@ export default async function SiteLayout({
   let scenarioPanel: TenantScenarioPanelSettings | null = null;
   let scenarioPresets: readonly TenantScenarioPreset[] | null = null;
   let scenarioOverrides: Readonly<Record<string, TenantScenarioOverride>> | null = null;
+  // GA4 client tracking: mounted below when the tenant enabled client-mode gtag.
+  let ga4: { measurementId: string; visitorIdParamName: string } | null = null;
   if (tenantId !== "unknown") {
     try {
       const settings = await getTenantById(tenantId);
@@ -120,8 +123,26 @@ export default async function SiteLayout({
       // Per-tenant overrides on the built-ins (hide/reorder/relabel/tweak/reset);
       // the legacy scenarioPanel allowlist is folded in client-side.
       scenarioOverrides = settings?.scenarioOverrides ?? null;
+      // GA4 client-side tracking — only when enabled in CLIENT send mode with a
+      // Measurement ID. The provider self-guards on an invalid/empty id and is
+      // consent-gated (analytics) client-side, so this is safe.
+      const gt = settings?.ga4?.tracking;
+      if (gt?.enabled && gt.sendMode === "client" && gt.measurementId) {
+        ga4 = { measurementId: gt.measurementId, visitorIdParamName: gt.visitorIdParamName ?? "visitor_id" };
+      }
     } catch {
       // Non-fatal — leave the console off when settings can't be read.
+    }
+  }
+
+  // Visitor ID for GA4 (the httpOnly mc_session_id cookie; server-read). Only
+  // needed when GA4 client tracking is on.
+  let ga4VisitorId: string | null = null;
+  if (ga4) {
+    try {
+      ga4VisitorId = (await cookies()).get("mc_session_id")?.value ?? null;
+    } catch {
+      // Non-fatal — the provider self-guards on a missing/invalid visitorId.
     }
   }
 
@@ -229,6 +250,19 @@ export default async function SiteLayout({
         safe to mount unconditionally.
       */}
       <ClientContextCollector />
+      {/*
+        Ga4TrackingProvider — injects gtag.js so pageviews + the visitor_id user
+        property reach GA4 (feeding the GA4 History enricher). Mounted only when the
+        tenant enabled client-mode GA4 with a Measurement ID; consent-gated (analytics)
+        and self-guarding on an invalid id/visitorId.
+      */}
+      {ga4 && ga4VisitorId && (
+        <Ga4TrackingProvider
+          measurementId={ga4.measurementId}
+          visitorId={ga4VisitorId}
+          visitorIdParamName={ga4.visitorIdParamName}
+        />
+      )}
       {/*
         BlockEffectRuntime — the versioned client player for declarative block
         effects. Observes [data-mc-fx] wrappers and reveals them on scroll.
