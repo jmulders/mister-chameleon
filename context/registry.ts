@@ -977,6 +977,40 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
     availableToAI:    true,
     exampleValue:     "financial_realestate",
   },
+  // ── Enrichment — BAG per-address building facts (D5 Fase 1, form-address) ────
+  {
+    key:              "locationBuildingYear",
+    label:            "Location building year",
+    description:      "Original construction year of the building at the visitor's form address (BAG).",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     1931,
+  },
+  {
+    key:              "locationBuildingUse",
+    label:            "Location building use",
+    description:      "Building use at the visitor's form address, e.g. \"woonfunctie\", \"kantoorfunctie\" (BAG gebruiksdoel).",
+    type:             "string",
+    source:           "enrichment",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     "woonfunctie",
+  },
+  {
+    key:              "locationBuildingAreaM2",
+    label:            "Location building area (m²)",
+    description:      "Usable floor area of the address object at the visitor's form address, in m² (BAG oppervlakte).",
+    type:             "number",
+    source:           "enrichment",
+    operators:        OPS_NUMBER,
+    availableToRules: true,
+    availableToAI:    true,
+    exampleValue:     120,
+  },
 
   // ── Enrichment — Company identification ────────────────────────────────────
 

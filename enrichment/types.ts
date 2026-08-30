@@ -241,6 +241,13 @@ export interface EnrichmentOutput {
   locationAvgWozValue:            number | null;
   /** Dominant SBI business sector in the buurt (slug, e.g. "financial_realestate"). */
   locationDominantBusinessSector: string | null;
+  // ── D5 Fase 1 — BAG per-address building facts (form-address path only) ─────
+  /** Original construction year of the building at the form address (BAG). */
+  locationBuildingYear:   number | null;
+  /** Building use at the form address, e.g. "woonfunctie", "kantoorfunctie" (BAG gebruiksdoel). */
+  locationBuildingUse:    string | null;
+  /** Usable floor area of the address object in m² (BAG oppervlakte). */
+  locationBuildingAreaM2: number | null;
   /**
    * Confidence in the resolved location. "high" when the buurt came from a
    * precise, coherent signal (form postcode, or IP coordinates whose reverse-
@@ -715,7 +722,7 @@ export interface EnricherInput {
    * Persisted in the mc_loc cookie by the form-submit route; consumed only under
    * enrichment consent (the staged enrichers only run when consent is granted).
    */
-  formLocation?: { postcode: string | null; place: string | null } | null;
+  formLocation?: { postcode: string | null; place: string | null; houseNumber?: string | null } | null;
 }
 
 // ── Enricher ──────────────────────────────────────────────────────────────────
