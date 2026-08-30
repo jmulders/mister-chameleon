@@ -905,6 +905,16 @@ export interface EnricherContext {
    * is never a silent no-op. Last call wins.
    */
   setNote(note: string): void;
+  /**
+   * Signal that this stage produced no (or partial) output because of a TRANSIENT
+   * upstream failure (a timeout / 5xx from a free geocoder, say), and should be
+   * retried on a later request rather than have this empty result cached for the
+   * session's full TTL. The pipeline surfaces this as `StagedPipelineResult.
+   * incomplete`, and `buildDecisionContext` then caches the result with a short
+   * retry TTL instead of the normal 4h. A genuine negative (the upstream answered
+   * "no data") must NOT call this — use `setNote` for that. Last call wins.
+   */
+  markRetry(reason: string): void;
 }
 
 // ── StageTrace ────────────────────────────────────────────────────────────────
@@ -944,6 +954,14 @@ export interface StageTrace {
    */
   note?: string;
   /**
+   * True when the stage called `EnricherContext.markRetry()` — its empty/partial
+   * output was caused by a transient upstream failure and should be retried on a
+   * later request rather than cached for the session's full TTL.
+   */
+  retry?: boolean;
+  /** Reason passed to `markRetry()`, shown in the debug overlay. */
+  retryReason?: string;
+  /**
    * Wave number this stage belonged to, when it was dispatched as part of a
    * parallel wave group.  Absent for stages that ran sequentially (no `wave`
    * assigned, or the wave group contained only one member).
@@ -967,6 +985,14 @@ export interface StagedPipelineResult {
   output: Partial<EnrichmentOutput>;
   /** Per-stage execution trace — always contains one entry per stage. */
   trace:  StageTrace[];
+  /**
+   * True when at least one stage called `EnricherContext.markRetry()` — i.e. the
+   * merged output is missing data because of a TRANSIENT upstream failure, not a
+   * genuine negative. Callers should cache this result with a short retry TTL so
+   * the pipeline re-runs soon, instead of pinning an empty result for the full
+   * session TTL. Absent/false means every stage produced a settled result.
+   */
+  incomplete?: boolean;
   /**
    * Field-level provenance map — records which stage produced each resolved
    * field and what inputs it consumed.
