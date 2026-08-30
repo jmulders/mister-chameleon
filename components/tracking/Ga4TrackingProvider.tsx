@@ -42,6 +42,7 @@
 "use client";
 
 import Script from "next/script";
+import { hasConsent } from "@/tracking/consent-store";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,11 @@ export function Ga4TrackingProvider({
   visitorId,
   visitorIdParamName,
 }: Ga4TrackingProviderProps) {
+  // Consent gate: GA4 tracking is analytics. Without analytics consent, inject no
+  // gtag scripts. (Consistent with the other client trackers; self-guarding so the
+  // component is safe to mount unconditionally.)
+  if (!hasConsent("analytics")) return null;
+
   // Validate all interpolated values against allowlists before use.
   // If any value fails validation, bail out — emit no scripts and no error.
   if (
