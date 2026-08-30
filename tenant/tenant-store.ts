@@ -495,6 +495,32 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
     }
   }
 
+  // ── scenarioOverrides (optional) ────────────────────────────────────────────
+  // Structural check only: a record of { hidden?, order?, label?, icon?, color?,
+  // overrides? } keyed by built-in key. Values are fail-open at the panel boundary
+  // (normalizeScenarioOverrides), so keep the store loose and rename-proof.
+  if (r.scenarioOverrides !== undefined) {
+    if (typeof r.scenarioOverrides !== "object" || r.scenarioOverrides === null || Array.isArray(r.scenarioOverrides)) {
+      errors.push("scenarioOverrides: must be an object (map) when present.");
+    } else {
+      for (const [key, v] of Object.entries(r.scenarioOverrides as Record<string, unknown>)) {
+        if (typeof v !== "object" || v === null || Array.isArray(v)) {
+          errors.push(`scenarioOverrides.${key}: must be an object.`);
+          continue;
+        }
+        const o = v as Record<string, unknown>;
+        if (o.hidden !== undefined && typeof o.hidden !== "boolean") errors.push(`scenarioOverrides.${key}.hidden: must be a boolean.`);
+        if (o.order !== undefined && typeof o.order !== "number") errors.push(`scenarioOverrides.${key}.order: must be a number.`);
+        for (const s of ["label", "icon", "color"] as const) {
+          if (o[s] !== undefined && typeof o[s] !== "string") errors.push(`scenarioOverrides.${key}.${s}: must be a string.`);
+        }
+        if (o.overrides !== undefined && (typeof o.overrides !== "object" || o.overrides === null || Array.isArray(o.overrides))) {
+          errors.push(`scenarioOverrides.${key}.overrides: must be an object.`);
+        }
+      }
+    }
+  }
+
   // ── name (optional) ────────────────────────────────────────────────────────
   if (r.name !== undefined && typeof r.name !== "string") {
     errors.push("name: must be a string when present.");

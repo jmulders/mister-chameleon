@@ -46,6 +46,7 @@ import { setDevTenantAction, clearDevTenantAction } from "../actions";
 import { TenantDebugClient } from "./_components/TenantDebugClient";
 import { ScenarioPanelCurationClient } from "./_components/ScenarioPanelCurationClient";
 import { ScenarioPresetsClient } from "./_components/ScenarioPresetsClient";
+import { BuiltinScenarioOverridesClient } from "./_components/BuiltinScenarioOverridesClient";
 import { getDemoContextSet } from "@/components/scenario/demo-context-sets";
 import { FailureSignalsPanel } from "./_components/FailureSignalsPanel";
 import { getFailureSummary, getFailureSignals } from "@/lib/observability/failure-signal-store";
@@ -140,6 +141,24 @@ export default async function TenantDebugPage({
         </div>
 
         <ScenarioPresetsClient tenantId={tenantId} initialPresets={scenarioPresets} />
+      </section>
+
+      {/* ── 1b³. Built-in overrides (settings.scenarioOverrides — no migration) ── */}
+      <section>
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-neutral-900">Built-in presets &amp; personas</h1>
+          <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
+            Hide, reorder, relabel, or tweak the simulated signals of the CODE-DEFINED Quick
+            presets and Demo personas for <strong>{tenant.name ?? tenantId}</strong>, and reset any
+            to default. The defaults are never changed; overrides apply only to this tenant&rsquo;s
+            demo console (the older &ldquo;Curate&rdquo; allowlist is folded in). Never affects personalisation.
+          </p>
+        </div>
+
+        <BuiltinScenarioOverridesClient
+          tenantId={tenantId}
+          initialOverrides={{ ...(tenant.scenarioOverrides ?? {}) }}
+        />
       </section>
 
       {/* ── 1c. Failure signals (observability) ───────────────────────────── */}

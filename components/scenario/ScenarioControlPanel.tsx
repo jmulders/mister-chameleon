@@ -62,11 +62,11 @@ import {
   type ScenarioState,
   type ScenarioOverrides,
 } from "./scenario-store";
-import type { ScenarioPreset } from "./scenario-presets";
-import { curateByKey } from "./curate-panel";
-import { mergePresetList, normalizeCustomPresets } from "./custom-presets";
-import type { TenantScenarioPanelSettings, TenantScenarioPreset } from "@/tenant/types";
-import { DemoStageSection } from "./DemoStageSection";
+import { type ScenarioPreset, SCENARIO_PRESET_LIST } from "./scenario-presets";
+import { normalizeCustomPresets } from "./custom-presets";
+import { normalizeScenarioOverrides, foldPanelIntoOverrides, applyPresetOverrides, type OverrideMap } from "./scenario-overrides";
+import type { TenantScenarioPanelSettings, TenantScenarioPreset, TenantScenarioOverride } from "@/tenant/types";
+import { DemoStageSection, ROLES } from "./DemoStageSection";
 import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows";
 import { applyScenarioOverride } from "./apply-scenario-override";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
@@ -730,8 +730,7 @@ function EnricherActionsSection({
 
 function ContextTab({
   scenario,
-  presetKeys,
-  customPresets,
+  quickPresets,
   journey,
   autoApply,
   applying,
@@ -747,10 +746,8 @@ function ContextTab({
   isResetting = false,
 }: {
   scenario:            ScenarioState;
-  /** Optional tenant curation — subset of SCENARIO_PRESETS keys to show. */
-  presetKeys?:         readonly string[];
-  /** Per-tenant custom presets, merged into Quick presets (after the built-ins). */
-  customPresets?:      readonly ScenarioPreset[];
+  /** Fully-resolved Quick presets: built-ins (overrides applied) + visible customs. */
+  quickPresets:        readonly ScenarioPreset[];
   journey:             JourneyState | null;
   autoApply:           boolean;
   applying:            boolean;
@@ -784,8 +781,9 @@ function ContextTab({
 
   useEffect(() => { setOverrides(scenario.overrides); }, [scenario]);
 
-  // Built-in presets + this tenant's custom presets (custom after built-ins).
-  const mergedPresets = mergePresetList(customPresets ?? []);
+  // Fully-resolved Quick presets (built-in overrides applied + visible customs),
+  // computed by the panel and passed down.
+  const mergedPresets = quickPresets;
 
   function applyPreset(key: string) {
     const preset = mergedPresets.find((p) => p.key === key);
@@ -847,7 +845,7 @@ function ContextTab({
       {/* ── Quick Presets ──────────────────────────────────────────────────── */}
       <SectionLabel>Quick Presets</SectionLabel>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginBottom: 3 }}>
-        {curateByKey(mergedPresets, (p) => p.key, presetKeys).map((preset) => {
+        {mergedPresets.map((preset) => {
           const active = scenario.presetKey === preset.key;
           return (
             <button key={preset.key} onClick={() => applyPreset(preset.key)}
@@ -2025,9 +2023,25 @@ const TABS = [
 
 type TabKey = typeof TABS[number]["key"];
 
-export function ScenarioControlPanel({ scenarioPanel, scenarioPresets }: { scenarioPanel?: TenantScenarioPanelSettings | null; scenarioPresets?: readonly TenantScenarioPreset[] | null } = {}) {
+export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioOverrides }: { scenarioPanel?: TenantScenarioPanelSettings | null; scenarioPresets?: readonly TenantScenarioPreset[] | null; scenarioOverrides?: Readonly<Record<string, TenantScenarioOverride>> | null } = {}) {
   // Normalise this tenant's custom presets once (fail-open — invalid ones dropped).
   const customPresets = normalizeCustomPresets(scenarioPresets);
+
+  // Per-tenant built-in overrides, with the legacy scenarioPanel allowlist folded
+  // in (single mechanism). Resolve the final Quick-preset list once: built-ins with
+  // overrides applied (hide/reorder/relabel/tweak) + visible customs.
+  const effectiveOverrides = foldPanelIntoOverrides(
+    normalizeScenarioOverrides(scenarioOverrides),
+    scenarioPanel,
+    { preset: [...SCENARIO_PRESET_LIST.map((p) => p.key), ...customPresets.map((c) => c.key)], role: ROLES.map((r) => r.key) },
+  );
+  const { presets: builtinQuick } = applyPresetOverrides(effectiveOverrides, SCENARIO_PRESET_LIST);
+  const visibleCustoms = customPresets
+    .filter((c) => !effectiveOverrides[c.key]?.hidden)
+    .map((c, i) => ({ c, ord: effectiveOverrides[c.key]?.order ?? 1000 + i }))
+    .sort((a, b) => a.ord - b.ord)
+    .map((x) => x.c);
+  const quickPresets = [...builtinQuick, ...visibleCustoms];
   const [mounted,   setMounted]   = useState(false);
   // Initialise synchronously from window so the panel never flashes to null
   // during router.refresh() or soft navigation re-renders.
@@ -2526,15 +2540,14 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets }: { scena
               <DemoStageSection
                 scenario={scenario}
                 onApply={triggerRefresh}
-                roleKeys={scenarioPanel?.roleKeys}
+                overrides={effectiveOverrides}
                 timeOptions={scenarioPanel?.timeOptions}
               />
             )}
             {tab === "context" && (
               <ContextTab
-                customPresets={customPresets}
+                quickPresets={quickPresets}
                 scenario={scenario}
-                presetKeys={scenarioPanel?.presetKeys}
                 journey={journey}
                 autoApply={autoApply}
                 applying={applying}
