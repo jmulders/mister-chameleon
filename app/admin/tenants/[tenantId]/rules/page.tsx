@@ -31,6 +31,7 @@ import { GlobalRulesToggle }   from "./_components/GlobalRulesToggle";
 import { ExportTenantDataButton } from "./_components/ExportTenantDataButton";
 import { SeedPresetRulesButton } from "./_components/SeedPresetRulesButton";
 import { fetchVariantCatalogue }      from "@/decision/rules/fetch-variant-catalogue";
+import { getRuleFireStats }        from "@/lib/observability/rule-fire-stats";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -50,9 +51,10 @@ export default async function TenantRulesPage({
   // Load this tenant's rules and variant catalogue in parallel. The diagnostic
   // panels (usage, matrix, score distribution, rule-fire) now live on the Stats
   // sub-tab (../stats).
-  const [result, variantCatalogue] = await Promise.all([
+  const [result, variantCatalogue, fireStats] = await Promise.all([
     getTenantRulesAction(tenantId),
     fetchVariantCatalogue(tenantId),
+    getRuleFireStats(tenantId), // config-health never-fired (fails open)
   ]);
 
   // Bind the tenant-scoped server actions so RulesEditor can call them without
@@ -99,6 +101,7 @@ export default async function TenantRulesPage({
         saveAction={boundSave}
         resetAction={boundReset}
         attributeCatalogue={rawTenant.customAttributes}
+        fireStats={fireStats}
       />
     </div>
   );
