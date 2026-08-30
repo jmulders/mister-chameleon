@@ -8,22 +8,22 @@ export default async function GoogleCalendarIntegrationPage() {
     <div className="mx-auto max-w-xl space-y-5 p-8">
 
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Platform — Google Calendar</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Platform: Google Calendar</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Service Account credentials voor de demo-boekingspagina (<code>/book-demo</code>).
-          Slotvragen checken automatisch je agenda op bezette tijden.
+          Service Account credentials for the demo booking page (<code>/book-demo</code>).
+          Slot requests automatically check your calendar for busy times.
         </p>
       </div>
 
       <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
-        <strong>Veilig opgeslagen.</strong>{" "}
-        De private key wordt versleuteld opgeslagen (AES-256-GCM) en nooit teruggestuurd naar de browser.
-        Env vars (<code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code> etc.) werken als fallback maar zijn niet meer nodig.
+        <strong>Stored securely.</strong>{" "}
+        The private key is stored encrypted (AES-256-GCM) and never returned to the browser.
+        Env vars (<code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code> etc.) work as a fallback but are no longer required.
       </div>
 
       {!result.ok ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <strong>Fout bij laden:</strong> {result.error}
+          <strong>Failed to load:</strong> {result.error}
         </div>
       ) : (
         <GoogleCalendarClient

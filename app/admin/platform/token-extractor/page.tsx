@@ -17,13 +17,13 @@ export default function TokenExtractorPage() {
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">Design Token Extractor</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Voer een website-URL in. Het platform haalt de CSS op en distilleert een
-          importeerbare design-token-set (kleuren, fonts, radius, schaduw). Het
-          resultaat is heuristisch — controleer en pas het aan in{" "}
+          Enter a website URL. The platform fetches the CSS and distills an
+          importable design token set (colors, fonts, radius, shadow). The result
+          is heuristic, so review and adjust it under{" "}
           <Link href="/admin/tenants" className="text-brand-600 font-medium hover:underline">
-            een tenant → Design
+            a tenant &rsaquo; Design
           </Link>{" "}
-          voordat je het opslaat.
+          before you save it.
         </p>
       </div>
 

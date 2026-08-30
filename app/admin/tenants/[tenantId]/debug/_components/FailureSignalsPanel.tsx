@@ -22,9 +22,9 @@ const SURFACE_LABEL: Record<string, string> = {
 };
 
 function fmt(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "n/a";
   try {
-    return new Date(iso).toLocaleString("nl-NL");
+    return new Date(iso).toLocaleString("en-GB");
   } catch {
     return iso;
   }
@@ -38,9 +38,9 @@ export function FailureSignalsPanel({ summary, recent }: FailureSignalsPanelProp
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-neutral-900">Failure signals</h2>
         <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-          Storage, mail en decide falen veilig — en dus stil. Deze laag maakt dat
-          zichtbaar. Groen = niets geregistreerd in het recente venster; amber =
-          er is iets stil misgegaan dat aandacht vraagt.
+          Storage, mail and decide fail safely, and therefore silently. This layer
+          makes that visible. Green means nothing was recorded in the recent window;
+          amber means something failed quietly and needs attention.
         </p>
       </div>
 
@@ -64,9 +64,9 @@ export function FailureSignalsPanel({ summary, recent }: FailureSignalsPanelProp
                 />
               </div>
               <p className="mt-1 text-xs text-neutral-500">
-                {ok ? "Geen recente fouten" : `${s.count} recente fout${s.count === 1 ? "" : "en"}`}
+                {ok ? "No recent failures" : `${s.count} recent failure${s.count === 1 ? "" : "s"}`}
               </p>
-              {!ok && <p className="mt-0.5 text-[11px] text-amber-700">Laatst: {fmt(s.last)}</p>}
+              {!ok && <p className="mt-0.5 text-[11px] text-amber-700">Last: {fmt(s.last)}</p>}
             </div>
           );
         })}
@@ -78,9 +78,9 @@ export function FailureSignalsPanel({ summary, recent }: FailureSignalsPanelProp
           <table className="w-full text-left text-xs">
             <thead className="bg-neutral-50 text-neutral-500">
               <tr>
-                <th className="px-3 py-2 font-medium">Wanneer</th>
-                <th className="px-3 py-2 font-medium">Laag</th>
-                <th className="px-3 py-2 font-medium">Melding</th>
+                <th className="px-3 py-2 font-medium">When</th>
+                <th className="px-3 py-2 font-medium">Surface</th>
+                <th className="px-3 py-2 font-medium">Message</th>
               </tr>
             </thead>
             <tbody>

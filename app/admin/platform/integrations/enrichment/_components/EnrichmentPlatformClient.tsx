@@ -1072,12 +1072,12 @@ export function EnrichmentPlatformClient({
         </div>
 
         <SecretField
-          label="KvK API-sleutel"
+          label="KvK API key"
           value={kvkKey}
           onChange={setKvkKey}
           hasExisting={hasKvk}
           placeholder="l7xx••••••••••••••••••••••••••••••••"
-          hint="Verzonden als de apikey header. Gratis testsleutel beschikbaar op developers.kvk.nl."
+          hint="Sent as the apikey header. Free test key available at developers.kvk.nl."
         />
 
         <CardFooter>

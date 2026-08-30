@@ -118,7 +118,7 @@ export function TokenExtractorClient() {
       {/* URL input */}
       <div className="rounded-xl border border-neutral-200 bg-white p-5">
         <label htmlFor="extract-url" className="block text-sm font-medium text-neutral-700">
-          Website-URL
+          Website URL
         </label>
         <div className="mt-2 flex gap-2">
           <input
@@ -127,11 +127,11 @@ export function TokenExtractorClient() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && url.trim()) run(); }}
-            placeholder="https://voorbeeld.nl"
+            placeholder="https://example.com"
             className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           />
-          <label className="flex shrink-0 items-center gap-1.5 text-xs text-neutral-600" title="Aantal pagina's dat wordt geanalyseerd (crawlt interne links)">
-            Pagina&apos;s
+          <label className="flex shrink-0 items-center gap-1.5 text-xs text-neutral-600" title="Number of pages analysed (crawls internal links)">
+            Pages
             <select
               value={pages}
               onChange={(e) => setPages(Number(e.target.value))}
@@ -146,18 +146,18 @@ export function TokenExtractorClient() {
             disabled={pending || !url.trim()}
             className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-50"
           >
-            {pending ? "Bezig…" : "Extraheer tokens"}
+            {pending ? "Working…" : "Extract tokens"}
           </button>
         </div>
         <p className="mt-2 text-xs text-neutral-400">
-          Analyseert de start-URL plus interne pagina&apos;s (crawlt links) en aggregeert de CSS voor een rijker palet. Werkt het best op sites die hun CSS direct serveren (Tailwind/shadcn, design systems).
+          Analyses the start URL plus internal pages (crawls links) and aggregates the CSS for a richer palette. Works best on sites that serve their CSS directly (Tailwind/shadcn, design systems).
         </p>
       </div>
 
       {/* Error */}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-          <p className="text-sm font-semibold text-red-900">Niet gelukt</p>
+          <p className="text-sm font-semibold text-red-900">Failed</p>
           <p className="mt-0.5 text-xs text-red-700">{error}</p>
         </div>
       )}
@@ -174,7 +174,7 @@ export function TokenExtractorClient() {
           {/* Colour swatches */}
           {Object.keys(color).length > 0 && (
             <div className="rounded-xl border border-neutral-200 bg-white p-5">
-              <h2 className="text-sm font-semibold text-neutral-900">Kleuren</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">Colors</h2>
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {Object.entries(color).map(([k, v]) => (
                   <div key={k} className="flex items-center gap-2.5">
@@ -195,9 +195,9 @@ export function TokenExtractorClient() {
           {/* Typography / radius / shadow */}
           {(Object.keys(typo).length > 0 || Object.keys(radius).length > 0 || Object.keys(shadow).length > 0) && (
             <div className="grid gap-4 sm:grid-cols-3">
-              <TokenList title="Typografie" entries={typo} />
+              <TokenList title="Typography" entries={typo} />
               <TokenList title="Radius" entries={radius} />
-              <TokenList title="Schaduw" entries={shadow} />
+              <TokenList title="Shadow" entries={shadow} />
             </div>
           )}
 
@@ -206,7 +206,7 @@ export function TokenExtractorClient() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-neutral-900">Block token set</h2>
-                <p className="text-xs text-indigo-700">→ voor <strong>Design → Blocks</strong> (per-block styling)</p>
+                <p className="text-xs text-indigo-700">&rsaquo; for <strong>Design &rsaquo; Blocks</strong> (per-block styling)</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -214,7 +214,7 @@ export function TokenExtractorClient() {
                   onClick={copyBlock}
                   className="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
                 >
-                  {copiedBlock ? "Gekopieerd ✓" : "Kopieer"}
+                  {copiedBlock ? "Copied ✓" : "Copy"}
                 </button>
                 <button
                   type="button"
@@ -229,7 +229,7 @@ export function TokenExtractorClient() {
               {blockJson}
             </pre>
             <p className="mt-2 text-xs text-neutral-500">
-              Ga naar Design → <strong>Blocks</strong> → <strong>Upload JSON file</strong> (of &quot;Import / export JSON&quot; en plakken) → <strong>Save</strong>. Wijs de set daarna toe aan een block via z&apos;n <strong>key</strong>.
+              Go to Design &rsaquo; <strong>Blocks</strong> &rsaquo; <strong>Upload JSON file</strong> (or &quot;Import / export JSON&quot; and paste) &rsaquo; <strong>Save</strong>. Then assign the set to a block via its <strong>key</strong>.
             </p>
           </div>
 
@@ -237,8 +237,8 @@ export function TokenExtractorClient() {
           <div className="rounded-xl border border-neutral-200 bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-neutral-900">Site-thema (preset)</h2>
-                <p className="text-xs text-neutral-500">→ voor <strong>Design → Builder / Advanced</strong> (héle site)</p>
+                <h2 className="text-sm font-semibold text-neutral-900">Site theme (preset)</h2>
+                <p className="text-xs text-neutral-500">&rsaquo; for <strong>Design &rsaquo; Builder / Advanced</strong> (whole site)</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -246,7 +246,7 @@ export function TokenExtractorClient() {
                   onClick={copy}
                   className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
                 >
-                  {copied ? "Gekopieerd ✓" : "Kopieer"}
+                  {copied ? "Copied ✓" : "Copy"}
                 </button>
                 <button
                   type="button"
@@ -261,7 +261,7 @@ export function TokenExtractorClient() {
               {json}
             </pre>
             <p className="mt-2 text-xs text-neutral-400">
-              Dit is een ander formaat: het stelt het <strong>site-brede thema</strong> in via Design → Builder (&quot;Of importeer een preset-JSON&quot;) of de Advanced-tab — niet voor Blocks.
+              This is a different format: it sets the <strong>site-wide theme</strong> via Design &rsaquo; Builder (&quot;Or import a preset JSON&quot;) or the Advanced tab, not for Blocks.
             </p>
           </div>
         </div>
@@ -279,7 +279,7 @@ function TokenList({ title, entries }: { title: string; entries: Record<string, 
     <div className="rounded-xl border border-neutral-200 bg-white p-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{title}</h3>
       {keys.length === 0 ? (
-        <p className="mt-2 text-xs text-neutral-400">—</p>
+        <p className="mt-2 text-xs text-neutral-400">None</p>
       ) : (
         <dl className="mt-2 space-y-1.5">
           {keys.map((k) => (
