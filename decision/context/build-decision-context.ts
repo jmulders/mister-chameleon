@@ -751,7 +751,7 @@ export async function buildDecisionContext(
     scheduleBackgroundWork ?? ((fn) => { void Promise.resolve().then(fn); });
 
   if (sessionId && stagedEnrichers && stagedEnrichers.length > 0) {
-    const cacheResult = getSessionEnrichment(sessionId, ip, tenantId);
+    const cacheResult = await getSessionEnrichment(sessionId, ip, tenantId);
 
     if (cacheResult.hit) {
       // ── Session cache hit — short-circuit: skip the pipeline entirely ────────

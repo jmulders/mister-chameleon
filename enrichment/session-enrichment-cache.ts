@@ -123,8 +123,116 @@ interface SessionEnrichmentEntry {
   retry?:     boolean;
 }
 
-/** Module-level store — survives hot reloads in dev, resets on cold start. */
+/** L1: process-local store — fast path; resets on cold start. */
 const store = new Map<string, SessionEnrichmentEntry>();
+
+// ── L2: shared, persistent store (Supabase) ─────────────────────────────────────
+//
+// Fronted by the L1 Map above. On Vercel, refreshes within one session land on
+// different lambda instances (each with an empty L1), so without a shared store
+// the pipeline re-ran per instance and fields flickered. The L2 read happens only
+// on an L1 MISS (cold/other instance); a warm instance never touches the DB.
+//
+// All L2 ops FAIL OPEN: if the DB is unavailable (or in unit tests, absent), the
+// cache degrades to L1-only and never breaks the render.
+
+const L2_TABLE = "session_enrichment_cache";
+
+/** Effective lifetime for a stored entry (retry entries live only briefly). */
+function ttlMsFor(retry: boolean | undefined): number {
+  return retry ? SESSION_RETRY_TTL_MS : SESSION_TTL_MS + SESSION_STALE_GRACE_MS;
+}
+
+async function readL2(sessionId: string): Promise<SessionEnrichmentEntry | null> {
+  try {
+    const { getDb } = await import("@/data/db");
+    const db = getDb() as unknown as {
+      from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: Record<string, unknown> | null }> } } };
+    };
+    const { data } = await db.from(L2_TABLE)
+      .select("enrichment, ip, tenant_id, cached_at, retry")
+      .eq("session_id", sessionId)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      enrichment: (data.enrichment as Partial<EnrichmentOutput>) ?? {},
+      ip:         (data.ip as string | null) ?? null,
+      tenantId:   (data.tenant_id as string | null) ?? null,
+      cachedAt:   new Date(data.cached_at as string).getTime(),
+      ...(data.retry ? { retry: true } : {}),
+    };
+  } catch {
+    return null; // fail open — behave as L1-only
+  }
+}
+
+function writeL2(entry: SessionEnrichmentEntry & { sessionId: string }): void {
+  // Fire-and-forget so the render never waits on the cache write.
+  void (async () => {
+    try {
+      const { getDb } = await import("@/data/db");
+      const db = getDb() as unknown as { from: (t: string) => { upsert: (row: unknown, opts: unknown) => Promise<unknown> } };
+      const expiresAt = new Date(entry.cachedAt + ttlMsFor(entry.retry)).toISOString();
+      await db.from(L2_TABLE).upsert({
+        session_id: entry.sessionId,
+        tenant_id:  entry.tenantId,
+        ip:         entry.ip,
+        enrichment: entry.enrichment,
+        retry:      entry.retry ?? false,
+        cached_at:  new Date(entry.cachedAt).toISOString(),
+        expires_at: expiresAt,
+      }, { onConflict: "session_id" });
+    } catch { /* fail open */ }
+  })();
+}
+
+function deleteL2(sessionId: string): void {
+  void (async () => {
+    try {
+      const { getDb } = await import("@/data/db");
+      const db = getDb() as unknown as { from: (t: string) => { delete: () => { eq: (k: string, v: string) => Promise<unknown> } } };
+      await db.from(L2_TABLE).delete().eq("session_id", sessionId);
+    } catch { /* fail open */ }
+  })();
+}
+
+/**
+ * Delete expired L2 rows. Best-effort retention sweep — a cron can call this;
+ * expired rows are also ignored on read, so this is only housekeeping.
+ */
+export async function purgeExpiredSessionEnrichment(nowMs: number = Date.now()): Promise<number> {
+  try {
+    const { getDb } = await import("@/data/db");
+    const db = getDb() as unknown as { from: (t: string) => { delete: (o: unknown) => { lt: (k: string, v: string) => Promise<{ count: number | null }> } } };
+    const { count } = await db.from(L2_TABLE).delete({ count: "exact" }).lt("expires_at", new Date(nowMs).toISOString());
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * PURE evaluation of a cache entry against the current request — no store
+ * mutation. Shared by the L1 and L2 paths so they invalidate identically.
+ */
+function evaluate(entry: SessionEnrichmentEntry, currentIp: string | null, currentTenantId: string | null): SessionCacheResult {
+  const age = Date.now() - entry.cachedAt;
+
+  // Retry entry (incomplete run): short TTL, no stale grace.
+  if (entry.retry) {
+    if (age > SESSION_RETRY_TTL_MS) return { hit: false, reason: "ttl-expired" };
+  } else {
+    if (age > SESSION_TTL_MS + SESSION_STALE_GRACE_MS) return { hit: false, reason: "ttl-expired" };
+  }
+
+  // IP / tenant change detection (only when both sides are known).
+  if (entry.ip && currentIp && entry.ip !== currentIp) return { hit: false, reason: "ip-changed" };
+  if (entry.tenantId && currentTenantId && entry.tenantId !== currentTenantId) return { hit: false, reason: "tenant-changed" };
+
+  // Stale-but-usable (non-retry, past TTL within grace) → stale hit.
+  if (!entry.retry && age > SESSION_TTL_MS) return { hit: true, enrichment: entry.enrichment, stale: true };
+  return { hit: true, enrichment: entry.enrichment };
+}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -177,68 +285,36 @@ export type SessionCacheResult = SessionCacheHit | SessionCacheMiss;
  * @param currentIp     IP address extracted from the current request headers.
  * @param currentTenantId  Tenant ID for the current request.
  */
-export function getSessionEnrichment(
+export async function getSessionEnrichment(
   sessionId:         string,
   currentIp:         string | null,
   currentTenantId:   string | null,
-): SessionCacheResult {
-  const entry = store.get(sessionId);
-
-  // ── No entry ────────────────────────────────────────────────────────────────
-  if (!entry) {
-    return { hit: false, reason: "no-entry" };
+): Promise<SessionCacheResult> {
+  // ── L1 (process-local, fast) ─────────────────────────────────────────────────
+  let missReason: SessionCacheMiss["reason"] = "no-entry";
+  const local = store.get(sessionId);
+  if (local) {
+    const r = evaluate(local, currentIp, currentTenantId);
+    if (r.hit) return r;              // fresh (or stale-usable) L1 hit — no DB read
+    missReason = r.reason;
+    store.delete(sessionId);          // hard miss → evict the stale L1 copy
   }
 
-  // ── TTL check (stale-while-revalidate) ─────────────────────────────────────
-  //
-  // Two-stage expiry:
-  //   1. Within SESSION_TTL_MS           → fresh hit (stale: undefined)
-  //   2. Within SESSION_STALE_GRACE_MS   → stale hit (stale: true); caller
-  //      should schedule a background refresh
-  //   3. Beyond SESSION_STALE_GRACE_MS   → hard evict → pipeline must re-run
-  //
-  // This avoids blocking a render on a full pipeline run just because the
-  // TTL expired by a few minutes.  The next background refresh repopulates
-  // the cache and the entry becomes fresh again.
-  const age = Date.now() - entry.cachedAt;
-
-  // ── Retry entry (incomplete run) — short TTL, no stale grace ─────────────────
-  // An entry from a transient-failure run is served only briefly, then hard-
-  // evicted so the pipeline re-runs and gets another chance to resolve the miss.
-  if (entry.retry) {
-    if (age > SESSION_RETRY_TTL_MS) {
-      store.delete(sessionId);
-      return { hit: false, reason: "ttl-expired" };
+  // ── L2 (shared, persistent) — only on an L1 miss ─────────────────────────────
+  // A cold or other lambda instance reads the shared row here instead of re-running
+  // the pipeline (the cross-instance flicker fix). Fails open to the L1 miss reason.
+  const row = await readL2(sessionId);
+  if (row) {
+    const r2 = evaluate(row, currentIp, currentTenantId);
+    if (r2.hit) {
+      store.set(sessionId, row);      // warm L1 for subsequent requests on this instance
+      return r2;
     }
-    // Within the short window: fall through to IP/tenant checks, serve fresh.
-  } else {
-    if (age > SESSION_TTL_MS + SESSION_STALE_GRACE_MS) {
-      // Beyond grace window — hard evict.
-      store.delete(sessionId);
-      return { hit: false, reason: "ttl-expired" };
-    }
-    if (age > SESSION_TTL_MS) {
-      // Stale but within grace window — serve stale, signal caller to refresh.
-      return { hit: true, enrichment: entry.enrichment, stale: true };
-    }
+    missReason = r2.reason;
+    deleteL2(sessionId);              // expired / mismatched → clean up the shared row
   }
 
-  // ── IP change detection ──────────────────────────────────────────────────────
-  // Only invalidate when BOTH the cached IP and the current IP are known
-  // (non-null) — avoids spurious invalidation when the IP is missing in
-  // some edge environments.
-  if (entry.ip && currentIp && entry.ip !== currentIp) {
-    store.delete(sessionId);
-    return { hit: false, reason: "ip-changed" };
-  }
-
-  // ── Tenant change detection ──────────────────────────────────────────────────
-  if (entry.tenantId && currentTenantId && entry.tenantId !== currentTenantId) {
-    store.delete(sessionId);
-    return { hit: false, reason: "tenant-changed" };
-  }
-
-  return { hit: true, enrichment: entry.enrichment };
+  return { hit: false, reason: missReason };
 }
 
 /**
@@ -259,13 +335,15 @@ export function setSessionEnrichment(
   tenantId:   string | null,
   opts?:      { retry?: boolean },
 ): void {
-  store.set(sessionId, {
+  const entry: SessionEnrichmentEntry = {
     enrichment,
     ip,
     tenantId,
     cachedAt: Date.now(),
     ...(opts?.retry ? { retry: true } : {}),
-  });
+  };
+  store.set(sessionId, entry);            // L1 (sync)
+  writeL2({ ...entry, sessionId });       // L2 (fire-and-forget — never blocks the render)
 }
 
 /**
@@ -275,7 +353,8 @@ export function setSessionEnrichment(
  * pipeline must be forced to re-run for a specific session.
  */
 export function invalidateSessionEnrichment(sessionId: string): void {
-  store.delete(sessionId);
+  store.delete(sessionId);   // L1
+  deleteL2(sessionId);       // L2 (fire-and-forget)
 }
 
 /**
@@ -286,7 +365,15 @@ export function invalidateSessionEnrichment(sessionId: string): void {
  * this process — the next request per session will re-run the pipeline.
  */
 export function flushAllSessionEnrichment(): void {
-  store.clear();
+  store.clear();   // L1
+  // L2: best-effort wipe of the shared table (fire-and-forget). Admin action only.
+  void (async () => {
+    try {
+      const { getDb } = await import("@/data/db");
+      const db = getDb() as unknown as { from: (t: string) => { delete: () => { gte: (k: string, v: string) => Promise<unknown> } } };
+      await db.from(L2_TABLE).delete().gte("cached_at", "1970-01-01T00:00:00Z");
+    } catch { /* fail open */ }
+  })();
 }
 
 /**
