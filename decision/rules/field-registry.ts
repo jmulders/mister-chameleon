@@ -356,6 +356,10 @@ export type RuleFieldKey =
   | "utmCampaign"
   | "utmContent"
   | "utmTerm"
+  | "gclid"
+  | "fbclid"
+  | "msclkid"
+  | "ttclid"
   | "referrerDomain"
   | "hasCampaignParam"
   // Device / session
@@ -651,6 +655,47 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,
     resolve:     (ctx) => ctx.utmTerm,
+  },
+
+  // ── Ad-click identifiers (paid-traffic attribution) ─────────────────────────
+  // Opaque click IDs the ad platforms append to the landing URL. Most useful in
+  // rules via exists / not_exists — e.g. "gclid is set" means the visit came in
+  // through a Google ad. Never sent to AI providers (opaque tracking tokens).
+
+  gclid: {
+    label:       "Google click ID (gclid)",
+    description: "Google Ads click identifier from the gclid query parameter. Present when the visit arrived via a Google ad.",
+    group:       "traffic",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.gclid,
+  },
+
+  fbclid: {
+    label:       "Meta click ID (fbclid)",
+    description: "Meta / Facebook click identifier from the fbclid query parameter. Present when the visit arrived via a Meta ad.",
+    group:       "traffic",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.fbclid,
+  },
+
+  msclkid: {
+    label:       "Microsoft click ID (msclkid)",
+    description: "Microsoft Ads click identifier from the msclkid query parameter. Present when the visit arrived via a Microsoft / Bing ad.",
+    group:       "traffic",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.msclkid,
+  },
+
+  ttclid: {
+    label:       "TikTok click ID (ttclid)",
+    description: "TikTok click identifier from the ttclid query parameter. Present when the visit arrived via a TikTok ad.",
+    group:       "traffic",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.ttclid,
   },
 
   referrerDomain: {

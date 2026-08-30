@@ -343,6 +343,57 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
     exampleValue:     "personalization software",
   },
 
+  // Ad-click identifiers — opaque tokens the ad platforms append to the landing
+  // URL. Most useful in rules via is-set / is-not-set (e.g. "gclid is set" ⇒ the
+  // visit came through a Google ad). Not sent to AI providers (tracking tokens).
+  {
+    key:              "gclid",
+    label:            "Google click ID (gclid)",
+    description:      "Google Ads click identifier from the gclid query parameter. Set when the visit arrived via a Google ad.",
+    type:             "string",
+    source:           "request",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    false,
+    exampleValue:     "Cj0KCQjw...",
+  },
+
+  {
+    key:              "fbclid",
+    label:            "Meta click ID (fbclid)",
+    description:      "Meta / Facebook click identifier from the fbclid query parameter. Set when the visit arrived via a Meta ad.",
+    type:             "string",
+    source:           "request",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    false,
+    exampleValue:     "IwAR2...",
+  },
+
+  {
+    key:              "msclkid",
+    label:            "Microsoft click ID (msclkid)",
+    description:      "Microsoft Ads click identifier from the msclkid query parameter. Set when the visit arrived via a Microsoft / Bing ad.",
+    type:             "string",
+    source:           "request",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    false,
+    exampleValue:     "a1b2c3d4e5f6...",
+  },
+
+  {
+    key:              "ttclid",
+    label:            "TikTok click ID (ttclid)",
+    description:      "TikTok click identifier from the ttclid query parameter. Set when the visit arrived via a TikTok ad.",
+    type:             "string",
+    source:           "request",
+    operators:        OPS_STRING,
+    availableToRules: true,
+    availableToAI:    false,
+    exampleValue:     "E.C.2...",
+  },
+
   {
     key:              "hasCampaignParam",
     label:            "Has campaign parameter",
