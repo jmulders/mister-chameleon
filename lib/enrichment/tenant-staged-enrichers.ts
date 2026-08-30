@@ -190,6 +190,9 @@ export async function buildTenantStagedEnrichers(
                                    (platformCbsLocation as { enabled?: boolean }).enabled ?? false),
     cbsLocationDatasetId:        (platformCbsLocation as { datasetId?: string }).datasetId?.trim() || undefined,
     cbsLocationSourceYear:       (platformCbsLocation as { sourceYear?: number }).sourceYear,
+    // BAG per-address enricher: on when a BAG_API_KEY is configured; the per-tenant
+    // "bag-location" stage config can still disable it. Fires only on form addresses.
+    enableBagLocation:           pipelineEnabled("bag-location", Boolean(process.env.BAG_API_KEY?.trim())),
     holidayAllowedCountries:     (platformHolidays as { countriesFilter?: string }).countriesFilter || undefined,
     isDev:                       process.env.NODE_ENV === "development",
     stageConfig: tenantPipelineStages.length > 0 ? tenantPipelineStages : undefined,

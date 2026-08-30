@@ -96,6 +96,7 @@ import { createKvkZoekenStagedEnricher }      from "./kvk-zoeken";
 import { createLeadinfoStagedEnricher }        from "./leadinfo";
 import { createFirstPartyCompanyDbEnricher }   from "./firstparty-company-db";
 import { createCbsLocationEnricher }           from "./cbs-location";
+import { createBagLocationEnricher }           from "./bag-location";
 import { ipCompanyCache }                       from "../ip-company-store";
 import type { LeadinfoPersistentCache }         from "../ip-company-cache-ttl";
 import { HubSpotCrmProvider }                  from "./hubspot-crm";
@@ -342,6 +343,8 @@ export interface CompanyCrmChainOptions {
   cbsLocationDatasetId?: string;
   /** Source year recorded on lazily-fetched CBS rows. */
   cbsLocationSourceYear?: number;
+  /** Enable the BAG per-address enricher (form-address path; needs BAG_API_KEY). */
+  enableBagLocation?: boolean;
 
   // ── Shared ────────────────────────────────────────────────────────────────
   /**
@@ -428,6 +431,7 @@ export function buildCompanyCrmChain(
     holidayCacheTtlMs,
     holidayAllowedCountries,
     enableCbsLocation          = false,
+    enableBagLocation          = false,
     cbsLocationDatasetId,
     cbsLocationSourceYear,
     isDev                      = false,
@@ -782,6 +786,12 @@ export function buildCompanyCrmChain(
       ...(cbsLocationDatasetId  !== undefined ? { datasetId:  cbsLocationDatasetId  } : {}),
       ...(cbsLocationSourceYear !== undefined ? { sourceYear: cbsLocationSourceYear } : {}),
     }));
+  }
+
+  // BAG per-address building facts — fires only on the form-address path; no-ops
+  // without BAG_API_KEY. Per-tenant on/off via the "bag-location" stage config.
+  if (enableBagLocation) {
+    stages.push(createBagLocationEnricher({ isDev }));
   }
 
   // ── Apply stage config (ordering + activation) ────────────────────────────

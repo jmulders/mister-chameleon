@@ -161,7 +161,7 @@ export function buildEnricherInput(opts: {
     content?:  string | null;
   } | null;
   /** Visitor-provided location from a form submit (postcode primary, place coarse). */
-  formLocation?: { postcode: string | null; place: string | null } | null;
+  formLocation?: { postcode: string | null; place: string | null; houseNumber?: string | null } | null;
 }): EnricherInput {
   return {
     ip:        opts.ip        ?? null,

@@ -25,16 +25,16 @@ describe("form-location-context helpers", () => {
   });
 
   it("formLocationFromValues prefers a postcode field, falls back to place", () => {
-    assert.deepEqual(formLocationFromValues({ postcode: "1011 AB", city: "Amsterdam" }), { postcode: "1011AB", place: "Amsterdam" });
-    assert.deepEqual(formLocationFromValues({ woonplaats: "Utrecht" }), { postcode: null, place: "Utrecht" });
+    assert.deepEqual(formLocationFromValues({ postcode: "1011 AB", city: "Amsterdam" }), { postcode: "1011AB", place: "Amsterdam", houseNumber: null });
+    assert.deepEqual(formLocationFromValues({ woonplaats: "Utrecht" }), { postcode: null, place: "Utrecht", houseNumber: null });
     // postcode hidden in a generic field is still found
-    assert.deepEqual(formLocationFromValues({ note: "ik woon op 3511LN" }), { postcode: "3511LN", place: null });
+    assert.deepEqual(formLocationFromValues({ note: "ik woon op 3511LN" }), { postcode: "3511LN", place: null, houseNumber: null });
     assert.equal(formLocationFromValues({ name: "Jane" }), null);
   });
 
   it("cookie round-trips", () => {
     const c = serializeFormLocation({ postcode: "1011AB", place: null });
-    assert.deepEqual(parseFormLocationCookie(c), { postcode: "1011AB", place: null });
+    assert.deepEqual(parseFormLocationCookie(c), { postcode: "1011AB", place: null, houseNumber: null });
     assert.equal(parseFormLocationCookie(""), null);
     assert.equal(parseFormLocationCookie("garbage"), null);
   });

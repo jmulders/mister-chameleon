@@ -415,6 +415,9 @@ export type RuleFieldKey =
   | "locationSolarPct"
   | "locationAvgWozValue"
   | "locationDominantBusinessSector"
+  | "locationBuildingYear"
+  | "locationBuildingUse"
+  | "locationBuildingAreaM2"
   // Lead Base — returning-visitor signals
   | "isReturningVisitor"
   | "leadScore"
@@ -1131,6 +1134,30 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,
     resolve:     (ctx) => ctx.enrichment?.locationDominantBusinessSector ?? null,
+  },
+  locationBuildingYear: {
+    label:       "Location building year",
+    description: "Original construction year of the building at the visitor's form address (BAG).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationBuildingYear ?? null,
+  },
+  locationBuildingUse: {
+    label:       "Location building use",
+    description: "Building use at the visitor's form address, e.g. \"woonfunctie\", \"kantoorfunctie\" (BAG gebruiksdoel).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.locationBuildingUse ?? null,
+  },
+  locationBuildingAreaM2: {
+    label:       "Location building area (m²)",
+    description: "Usable floor area of the address object at the visitor's form address, in m² (BAG oppervlakte).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationBuildingAreaM2 ?? null,
   },
 
   // ── Lead Base — returning-visitor signals ─────────────────────────────────────

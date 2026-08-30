@@ -13,6 +13,15 @@ export const FORM_LOCATION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 export interface FormLocation {
   postcode: string | null;
   place:    string | null;
+  /** Dutch house number (digits only), for per-address BAG lookups. */
+  houseNumber?: string | null;
+}
+
+/** Extract a bare house number (leading digits) from arbitrary text, or null. */
+export function normalizeHouseNumber(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const m = String(raw).trim().match(/^(\d{1,5})/);
+  return m ? m[1] : null;
 }
 
 /** Extract a Dutch postcode ("1011AB" / "1011 ab") from arbitrary text, or null. */
@@ -24,18 +33,19 @@ export function normalizePostcode(raw: string | null | undefined): string | null
 
 /** Compact, URL-encoded serialization for the cookie value. */
 export function serializeFormLocation(loc: FormLocation): string {
-  return encodeURIComponent(JSON.stringify({ p: loc.postcode ?? null, c: loc.place ?? null }));
+  return encodeURIComponent(JSON.stringify({ p: loc.postcode ?? null, c: loc.place ?? null, h: loc.houseNumber ?? null }));
 }
 
 /** Parse the mc_loc cookie value → FormLocation, or null when empty/invalid. */
 export function parseFormLocationCookie(value: string | null | undefined): FormLocation | null {
   if (!value) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(value)) as { p?: unknown; c?: unknown };
+    const raw = JSON.parse(decodeURIComponent(value)) as { p?: unknown; c?: unknown; h?: unknown };
     const postcode = typeof raw.p === "string" ? normalizePostcode(raw.p) : null;
     const place    = typeof raw.c === "string" && raw.c.trim() ? raw.c.trim().slice(0, 80) : null;
+    const houseNumber = typeof raw.h === "string" ? normalizeHouseNumber(raw.h) : null;
     if (!postcode && !place) return null;
-    return { postcode, place };
+    return { postcode, place, houseNumber };
   } catch {
     return null;
   }
@@ -49,11 +59,13 @@ export function parseFormLocationCookie(value: string | null | undefined): FormL
 export function formLocationFromValues(values: Record<string, string>): FormLocation | null {
   let postcode: string | null = null;
   let place:    string | null = null;
+  let houseNumber: string | null = null;
   for (const [key, val] of Object.entries(values)) {
     if (!val) continue;
     const k = key.toLowerCase();
     if (!postcode && /post.?code|postal|\bzip\b/.test(k)) postcode = normalizePostcode(val);
     if (!place && /\b(plaats|woonplaats|city|town|gemeente)\b/.test(k)) place = val.trim().slice(0, 80) || null;
+    if (!houseNumber && /huis.?nr|huis.?nummer|house.?no|house.?number|\bhuisnr\b/.test(k)) houseNumber = normalizeHouseNumber(val);
   }
   // A postcode may also arrive inside a generic free-text field — last-resort
   // scan for an NL postcode substring (loose match, not the strict validator).
@@ -64,5 +76,5 @@ export function formLocationFromValues(values: Record<string, string>): FormLoca
     }
   }
   if (!postcode && !place) return null;
-  return { postcode, place };
+  return { postcode, place, houseNumber };
 }
