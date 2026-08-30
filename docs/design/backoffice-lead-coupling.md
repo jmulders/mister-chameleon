@@ -1,6 +1,10 @@
 # Ontwerp — Back-office-koppeling + form-prefill voor known leads
 
-Status: **backlog / ontwerp** (nog niet gebouwd). Opgesteld 29 aug 2026.
+Status: **Fase 1 (sync-API) GEBOUWD** · fase 2 (form-prefill) backlog. Opgesteld
+29 aug 2026; fase 1 opgeleverd 30 aug 2026.
+
+- Fase 1 contract: **`docs/abm-backoffice-sync-api.md`**. Endpoint
+  `POST /api/abm/leads`, migratie 182.
 
 ## Wat er al is (niet opnieuw bouwen)
 
@@ -18,7 +22,11 @@ Doc: `docs/abm-personalized-urls.md`.
 
 ## Wat mist voor het back-office-scenario
 
-### 1. Back-office-sync-API (in/uit)
+### 1. Back-office-sync-API (in/uit) — ✅ GEBOUWD (fase 1)
+Opgeleverd. Contract + voorbeelden: **`docs/abm-backoffice-sync-api.md`**.
+Migratie 182 (`external_id`, `contact_name`, `contact_email`, partieel uniek
+`abm_leads_tenant_external_idx`, `abm_settings.sync_api_key`).
+
 De back-office moet leads kunnen **aanmaken/bijwerken** en het **handle terugkrijgen** om in
 mail-links te zetten.
 - `POST /api/abm/leads` (per-tenant API-key): upsert een abm-lead met firmografie +
@@ -54,5 +62,8 @@ De known-lead-data voedt nu de *beslissing*, maar vult nog geen **formulier**.
 - Back-office-sync-API: per-tenant API-key; nooit de lead-data teruggeven zonder auth.
 
 ## Fasering
-1. **Back-office-sync-API** (`external_id`-upsert → handle) — de koppeling zelf.
-2. **Form-prefill** (consent-gated, korte geldigheid) — "prefillen met wat we al weten".
+1. ✅ **Back-office-sync-API** (`external_id`-upsert → handle) — de koppeling zelf.
+   **GEBOUWD** (migratie 182, `POST /api/abm/leads`, per-tenant API-key). Zie
+   `docs/abm-backoffice-sync-api.md`.
+2. ⏳ **Form-prefill** (consent-gated, korte geldigheid) — "prefillen met wat we al weten".
+   Backlog.
