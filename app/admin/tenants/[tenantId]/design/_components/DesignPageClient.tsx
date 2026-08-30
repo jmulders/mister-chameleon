@@ -420,7 +420,7 @@ function FamilyTypographyPanel({
                 {overrideEnabled && isOverridden ? (
                   <>
                     <span style={{ fontWeight: 600, color: "#c2410c" }}>
-                      {storedValue ? shortFontName(storedValue) : "—"}
+                      {storedValue ? shortFontName(storedValue) : ", "}
                     </span>
                     <span style={{ color: "#9ca3af" }}>overrides</span>
                     <span style={{ color: "#6b7280" }}>{shortFontName(fontStack)}</span>
@@ -661,7 +661,7 @@ export function DesignPageClient({
         />
 
         {/*
-          Gate uses local `overrideEnabled` state — NOT `design.typographyOverrideEnabled`.
+          Gate uses local `overrideEnabled` state, NOT `design.typographyOverrideEnabled`.
           This means toggling ON shows the editor immediately (optimistic update).
         */}
         {overrideEnabled ? (

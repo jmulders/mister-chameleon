@@ -56,12 +56,12 @@ export default async function IntegrationsCmsPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">CMS — Platform Credentials</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">CMS: Platform Credentials</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Platform-wide CMS credentials and infrastructure defaults.
           Configure write tokens and access tokens for the CMS providers you use.
           Env vars remain as fallback when database settings are empty.
-          This page stores <strong>secrets and shared defaults only</strong> — per-tenant
+          This page stores <strong>secrets and shared defaults only</strong>: per-tenant
           provider selection and config overrides are set in each tenant's Integrations tab.
         </p>
       </div>

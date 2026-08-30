@@ -378,7 +378,7 @@ export function LeadBaseClient({
           </div>
           <div>
             <label className={LABEL}>Min intent</label>
-            <input className={INPUT} value={minIntent} onChange={(e) => setMinIntent(e.target.value)} placeholder="0–100" inputMode="numeric" />
+            <input className={INPUT} value={minIntent} onChange={(e) => setMinIntent(e.target.value)} placeholder="0-100" inputMode="numeric" />
           </div>
         </div>
         <div className="mt-3 flex items-center gap-3">

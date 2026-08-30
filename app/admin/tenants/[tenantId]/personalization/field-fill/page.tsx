@@ -77,7 +77,7 @@ export default async function FieldFillPage({
           <p className="text-xs font-medium text-amber-800">
             Global AI mode:{" "}
             <span className="font-semibold">disabled</span>
-            {" — "}
+            {": "}
             AI is disabled. Field fill settings are saved but will have no effect until
             AI is enabled in Settings → AI.
           </p>

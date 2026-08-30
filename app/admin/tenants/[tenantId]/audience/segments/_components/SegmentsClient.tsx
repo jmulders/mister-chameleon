@@ -157,7 +157,7 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
     if (!label.trim()) { setError("Label is required."); return; }
     if (isNew && !key.trim()) { setError("Key is required."); return; }
     if (isNew && !/^[a-z0-9]([a-z0-9-]{0,58}[a-z0-9])?$/.test(key)) {
-      setError("Key must be 1–60 lowercase letters, digits, or hyphens.");
+      setError("Key must be 1-60 lowercase letters, digits, or hyphens.");
       return;
     }
 

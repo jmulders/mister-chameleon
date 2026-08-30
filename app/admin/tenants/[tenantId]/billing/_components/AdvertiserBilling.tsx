@@ -104,9 +104,9 @@ export function AdvertiserBilling({
                 const amt = Number(r.amount ?? r.amount_cents ?? 0);
                 return (
                   <tr key={i} className="border-b border-neutral-50">
-                    <td className="py-2 pr-3">{r.created_at ? new Date(r.created_at).toLocaleString() : "—"}</td>
-                    <td className="pr-3">{r.entry_type ?? "—"}</td>
-                    <td className="pr-3">{r.reference_type ?? "—"}</td>
+                    <td className="py-2 pr-3">{r.created_at ? new Date(r.created_at).toLocaleString() : ", "}</td>
+                    <td className="pr-3">{r.entry_type ?? ", "}</td>
+                    <td className="pr-3">{r.reference_type ?? ", "}</td>
                     <td className="pr-3 text-neutral-500">{r.note ?? ""}</td>
                     <td className={amt < 0 ? "text-red-600" : "text-green-700"}>{euros(amt)}</td>
                   </tr>

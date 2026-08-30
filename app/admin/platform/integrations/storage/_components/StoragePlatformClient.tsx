@@ -91,7 +91,7 @@ async function runStorageIntegrationTest(
       ok:       false,
       provider,
       step:     "config",
-      message:  err instanceof Error ? err.message : "Network error — could not reach test endpoint.",
+      message:  err instanceof Error ? err.message : "Network error: could not reach test endpoint.",
     };
   }
 }
@@ -140,7 +140,7 @@ function IntegrationTestResultDisplay({ result }: { result: IntegrationTestResul
             ? "bg-green-50 text-green-700 ring-green-200"
             : "bg-neutral-50 text-neutral-400 ring-neutral-200"
         }`}>
-          {result.read ? "✔" : "—"} read
+          {result.read ? "✔" : ", "} read
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700 ring-1 ring-inset ring-green-200">
           ✔ delete
@@ -357,7 +357,7 @@ export function StoragePlatformClient({
         title="Sanity Assets"
         badge="v1 default"
         badgeVariant="blue"
-        description="Upload images directly to Sanity's CDN via the Sanity Asset API. No extra storage cost — assets live in your Sanity dataset. Requires a Sanity write token."
+        description="Upload images directly to Sanity's CDN via the Sanity Asset API. No extra storage cost, assets live in your Sanity dataset. Requires a Sanity write token."
         isActive={config.effectiveProvider === "sanity_assets"}
         isSelected={config.activeProvider === "sanity_assets"}
         onActivate={() => handleSetActive("sanity_assets")}
@@ -367,16 +367,16 @@ export function StoragePlatformClient({
           config.sanityConfigured && config.sanityHasWriteToken
             ? `Project: ${config.sanityProjectId} / ${config.sanityDataset}`
             : config.sanityConfigured
-              ? "Sanity project found — write token missing"
+              ? "Sanity project found: write token missing"
               : "Sanity not configured"
         }
       >
         <div className="mt-3 space-y-2 text-xs text-neutral-600">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <span className="font-medium">Project ID</span>
-            <span className="font-mono text-neutral-500">{config.sanityProjectId || "—"}</span>
+            <span className="font-mono text-neutral-500">{config.sanityProjectId || ", "}</span>
             <span className="font-medium">Dataset</span>
-            <span className="font-mono text-neutral-500">{config.sanityDataset || "—"}</span>
+            <span className="font-mono text-neutral-500">{config.sanityDataset || ", "}</span>
             <span className="font-medium">Write token</span>
             <span>{config.sanityHasWriteToken ? <SavedBadge /> : <span className="text-amber-600">Not set</span>}</span>
           </div>

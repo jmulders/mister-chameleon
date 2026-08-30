@@ -23,7 +23,7 @@ import type { SafeAdminUserWithTenants } from "@/data/admin-auth";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(ts: string | null): string {
-  if (!ts) return "—";
+  if (!ts) return ", ";
   return new Date(ts).toLocaleDateString("en-GB", {
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",

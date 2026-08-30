@@ -276,8 +276,8 @@ export async function testStripeConnectionAction(): Promise<
       ok:       true,
       liveMode,
       message:  liveMode
-        ? "Connected — live mode key"
-        : "Connected — test mode key",
+        ? "Connected: live mode key"
+        : "Connected: test mode key",
     };
   } catch (err) {
     return {

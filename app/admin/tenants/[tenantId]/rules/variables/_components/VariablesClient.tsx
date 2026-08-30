@@ -280,7 +280,7 @@ export function VariablesClient({
                 />
                 {row.fallback.trim() === "" && (
                   <span className="mt-1 block text-[11px] text-amber-600">
-                    No fallback set — empty values render blank. Add a fallback or use <code className="font-mono">{"{token|default}"}</code> in copy.
+                    No fallback set: empty values render blank. Add a fallback or use <code className="font-mono">{"{token|default}"}</code> in copy.
                   </span>
                 )}
               </label>

@@ -138,7 +138,7 @@ export async function createInterestProfileAction(
     errors.push("key: required");
   } else if (!KEY_PATTERN.test(rawKey)) {
     errors.push(
-      `key: 1–${MAX_KEY_LENGTH} chars; lowercase letters, digits, hyphens, and underscores only`,
+      `key: 1: ${MAX_KEY_LENGTH} chars; lowercase letters, digits, hyphens, and underscores only`,
     );
   }
 

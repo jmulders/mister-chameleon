@@ -126,7 +126,7 @@ export function ScenarioPresetsClient({
             <p className="mt-0.5 text-xs text-neutral-500 leading-relaxed">
               Operator-defined presets shown in the scenario console&rsquo;s Quick presets (marked ★).
               Each sets simulated context signals that run through the real rule engine. Purely a
-              demo aid — no effect on live personalisation.
+              demo aid: no effect on live personalisation.
             </p>
           </div>
           <button

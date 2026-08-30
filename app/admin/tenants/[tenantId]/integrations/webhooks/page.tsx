@@ -66,9 +66,9 @@ function DeliveriesTable({ deliveries }: { deliveries: WebhookDelivery[] }) {
               <td className="py-1.5 pr-3 whitespace-nowrap text-neutral-600">{new Date(d.createdAt).toLocaleString()}</td>
               <td className="py-1.5 pr-3"><code className="font-mono text-neutral-500">{d.event}</code></td>
               <td className="py-1.5 pr-3"><StatusPill ok={d.ok} /></td>
-              <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-600">{d.statusCode ?? "—"}</td>
+              <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-600">{d.statusCode ?? ", "}</td>
               <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-600">{d.attempts}</td>
-              <td className="py-1.5 text-neutral-500 max-w-[220px] truncate" title={d.error ?? ""}>{d.error ?? "—"}</td>
+              <td className="py-1.5 text-neutral-500 max-w-[220px] truncate" title={d.error ?? ""}>{d.error ?? ", "}</td>
             </tr>
           ))}
         </tbody>
@@ -133,7 +133,7 @@ export default async function WebhooksOverviewPage({
             <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Destination</p>
             {leadQual.url
               ? <div className="mt-1"><Url url={leadQual.url} /></div>
-              : <p className="mt-1 text-xs text-neutral-400">Not configured — no webhook is sent.</p>}
+              : <p className="mt-1 text-xs text-neutral-400">Not configured: no webhook is sent.</p>}
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Recent deliveries</p>

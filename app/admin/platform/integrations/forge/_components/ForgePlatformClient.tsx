@@ -98,7 +98,7 @@ function SecretField({
         className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
       />
       <p className="mt-0.5 text-[11px] text-neutral-400">
-        Leave blank to keep the existing value. Stored server-side only — never echoed back.
+        Leave blank to keep the existing value. Stored server-side only, never echoed back.
       </p>
     </div>
   );

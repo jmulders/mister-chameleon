@@ -209,7 +209,7 @@ export function AdSyncClient({
           </label>
           <Field label="Min. intent score" type="number" value={segment.minIntent?.toString() ?? ""}
             onChange={(v) => setSegment({ ...segment, minIntent: v ? Number(v) : undefined })} />
-          <Field label="Min. hot score (0–100)" type="number" value={segment.minScore?.toString() ?? ""}
+          <Field label="Min. hot score (0-100)" type="number" value={segment.minScore?.toString() ?? ""}
             onChange={(v) => setSegment({ ...segment, minScore: v ? Number(v) : undefined })} />
         </div>
         <label className="mt-3 flex items-center gap-2 text-xs text-neutral-700">

@@ -133,9 +133,9 @@ function BatchCampaignCard({ tenantId, templates }:
                         <input type="checkbox" checked={selected.has(c.leadId)} onChange={() => toggle(c.leadId)} />
                       </td>
                       <td className="px-3 py-2 text-neutral-700">{c.email}</td>
-                      <td className="px-3 py-2 text-neutral-500">{c.name ?? "—"}</td>
-                      <td className="px-3 py-2 text-neutral-500">{c.company ?? "—"}</td>
-                      <td className="px-3 py-2 text-neutral-500">{c.industry ?? "—"}</td>
+                      <td className="px-3 py-2 text-neutral-500">{c.name ?? ", "}</td>
+                      <td className="px-3 py-2 text-neutral-500">{c.company ?? ", "}</td>
+                      <td className="px-3 py-2 text-neutral-500">{c.industry ?? ", "}</td>
                     </tr>
                   ))}
                 </tbody>

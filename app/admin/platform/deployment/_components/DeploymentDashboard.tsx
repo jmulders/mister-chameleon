@@ -98,7 +98,7 @@ function ChecklistTab({ checks, data }: { checks: DeploymentCheck[]; data: Deplo
       {allOk ? (
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
           <p className="text-sm font-medium text-green-700">
-            All deployment checks passed — your environment is ready.
+            All deployment checks passed: your environment is ready.
           </p>
         </div>
       ) : (
@@ -106,7 +106,7 @@ function ChecklistTab({ checks, data }: { checks: DeploymentCheck[]; data: Deplo
           <p className={`text-sm font-medium ${errorCount > 0 ? "text-red-700" : "text-amber-700"}`}>
             {errorCount > 0
               ? `${errorCount} error${errorCount > 1 ? "s" : ""} require${errorCount === 1 ? "s" : ""} attention`
-              : `${warningCount} warning${warningCount > 1 ? "s" : ""} — optional but recommended`}
+              : `${warningCount} warning${warningCount > 1 ? "s" : ""}, optional but recommended`}
             {errorCount > 0 && warningCount > 0 && ` · ${warningCount} warning${warningCount > 1 ? "s" : ""}`}
           </p>
         </div>
@@ -197,7 +197,7 @@ function ChecklistTab({ checks, data }: { checks: DeploymentCheck[]; data: Deplo
           ↓ Download setup.sh
         </a>
         <p className="text-xs text-neutral-400">
-          Shell script with all CLI commands in order — chmod +x setup.sh &amp;&amp; ./setup.sh
+          Shell script with all CLI commands in order, chmod +x setup.sh &amp;&amp; ./setup.sh
         </p>
       </div>
     </div>
@@ -294,7 +294,7 @@ function EnvVarsTab({ envVars }: { envVars: EnvVarStatus[] }) {
                         ? <Link href="/admin/platform/integrations/storage" className="underline hover:text-blue-900">Integrations → Storage</Link>
                         : <Link href="/admin/platform/integrations/email" className="underline hover:text-blue-900">Integrations → Email</Link>
                       }
-                      ) — env vars are optional when using this method.
+                      ): env vars are optional when using this method.
                     </p>
                   </div>
                 )}
@@ -303,7 +303,7 @@ function EnvVarsTab({ envVars }: { envVars: EnvVarStatus[] }) {
                   const viaDb    = Boolean(v.isSetViaDb);
                   const viaEnv   = v.isSet;
                   const isOk     = viaEnv || viaDb;
-                  const icon     = viaEnv ? "✓" : viaDb ? "✓" : v.required ? "✗" : "–";
+                  const icon     = viaEnv ? "✓" : viaDb ? "✓" : v.required ? "✗" : ", ";
                   const iconCls  = viaEnv
                     ? "text-green-600"
                     : viaDb
@@ -355,9 +355,9 @@ function GuideTab() {
       title: "Prerequisites",
       content: (
         <ul className="text-sm text-neutral-600 space-y-1 list-disc list-inside">
-          <li>Node.js 20 or later — <a href="https://nodejs.org" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">nodejs.org</a></li>
+          <li>Node.js 20 or later, <a href="https://nodejs.org" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">nodejs.org</a></li>
           <li>Git repository cloned locally</li>
-          <li>Supabase CLI — <code className="text-xs bg-neutral-100 px-1 rounded">npm install -g supabase</code></li>
+          <li>Supabase CLI: <code className="text-xs bg-neutral-100 px-1 rounded">npm install -g supabase</code></li>
           <li>A <a href="https://vercel.com" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Vercel</a> account (free tier is fine)</li>
           <li>A <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Supabase</a> project (free tier is fine)</li>
         </ul>
@@ -388,7 +388,7 @@ function GuideTab() {
           <CodeBlock>{"npm run db:migrate"}</CodeBlock>
           <p className="text-xs text-neutral-500">
             Requires <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code> and <code>SUPABASE_ACCESS_TOKEN</code> in <code>.env.local</code>.
-            The CI <code>supabase db push</code> job is known-broken — always migrate with <code>npm run db:migrate</code>.
+            The CI <code>supabase db push</code> job is known-broken: always migrate with <code>npm run db:migrate</code>.
             For a single hard-to-run migration, paste its <code>.sql</code> from <code>supabase/migrations/</code> (or the matching file in <code>docs/prod-sql/</code>) into the Supabase SQL editor and add a <code>public._migrations</code> row with its filename.
           </p>
         </div>
@@ -416,8 +416,8 @@ function GuideTab() {
           <p>Start the development server and confirm the app loads:</p>
           <CodeBlock>npm run dev</CodeBlock>
           <p className="text-xs text-neutral-500">
-            Visit <strong>http://localhost:3000/admin</strong> — log in with the credentials you set in Admin Auth env vars.
-            Check the <strong>Checklist</strong> tab above — all items should show green.
+            Visit <strong>http://localhost:3000/admin</strong>: log in with the credentials you set in Admin Auth env vars.
+            Check the <strong>Checklist</strong> tab above: all items should show green.
           </p>
         </div>
       ),
@@ -447,7 +447,7 @@ function GuideTab() {
         <div className="space-y-2 text-sm text-neutral-600">
           <p>
             <code>vercel.json</code> registers a single daily cron, <code>/api/cron/daily</code> (03:00 UTC), which
-            fans out — in order — to the individual jobs:
+            fans out: in order, to the individual jobs:
           </p>
           <CodeBlock>{`/api/cron/billing-renewal
 /api/cron/subscription-reconcile
@@ -461,9 +461,9 @@ function GuideTab() {
             in Vercel, or manually) and is authenticated with <code>CRON_SECRET</code>.
           </p>
           <p className="text-xs text-neutral-500">
-            <strong>Backups are not a cron</strong> — run <code>npm run backup:no-sanity</code> manually (or from the
+            <strong>Backups are not a cron</strong>: run <code>npm run backup:no-sanity</code> manually (or from the
             System page → Backup). The CBS location table is filled lazily on demand and, optionally, via
-            <code> npm run cbs:backfill</code> (a separate throttled, resumable job — not part of the daily cron).
+            <code> npm run cbs:backfill</code> (a separate throttled, resumable job, not part of the daily cron).
           </p>
         </div>
       ),
@@ -475,7 +475,7 @@ function GuideTab() {
       <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
         <p className="text-sm text-blue-800 font-medium">Vercel + Supabase Cloud deployment guide</p>
         <p className="text-xs text-blue-600 mt-0.5">
-          Estimated time: 20–30 minutes for a first setup. Subsequent deploys are automatic via git push.
+          Estimated time: 20-30 minutes for a first setup. Subsequent deploys are automatic via git push.
         </p>
       </div>
 
@@ -505,7 +505,7 @@ function GuideTab() {
           ↓ Download setup.sh
         </a>
         <p className="text-xs text-neutral-400">
-          Automated shell script for steps 3–6 above
+          Automated shell script for steps 3-6 above
         </p>
       </div>
     </div>

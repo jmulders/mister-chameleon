@@ -72,14 +72,14 @@ export default async function IntegrationsStoragePage() {
               <span className="h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden />
               1. Admin UI
             </span>
-            <span>— explicitly set via this page</span>
+            <span>: explicitly set via this page</span>
           </li>
           <li className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-neutral-500 font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" aria-hidden />
               2. Env vars
             </span>
-            <span>—{" "}
+            <span>, {" "}
               <code className="bg-neutral-100 px-0.5 rounded">R2_ACCOUNT_ID</code> set → cloudflare_r2
             </span>
           </li>
@@ -88,7 +88,7 @@ export default async function IntegrationsStoragePage() {
               <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" aria-hidden />
               3. Auto
             </span>
-            <span>— Sanity configured → sanity_assets; else supabase_storage</span>
+            <span>: Sanity configured → sanity_assets; else supabase_storage</span>
           </li>
         </ol>
       </div>

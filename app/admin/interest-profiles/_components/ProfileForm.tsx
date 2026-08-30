@@ -203,7 +203,7 @@ export function ProfileForm({
             className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
           <p className="text-xs text-neutral-400">
-            URL-safe slug — lowercase letters, digits, hyphens, and underscores. Immutable after creation.
+            URL-safe slug: lowercase letters, digits, hyphens, and underscores. Immutable after creation.
             This becomes the per-profile context variable:{" "}
             <code className="font-mono bg-neutral-100 px-1 rounded text-neutral-600">
               interest{key

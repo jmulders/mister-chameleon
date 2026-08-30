@@ -59,7 +59,7 @@ export async function createAudienceSegmentAction(
 
   // Validate key
   if (!/^[a-z0-9][a-z0-9-]{0,58}[a-z0-9]$|^[a-z0-9]$/.test(input.key)) {
-    return { ok: false, error: "Key must be 1–60 lowercase letters, digits, or hyphens." };
+    return { ok: false, error: "Key must be 1-60 lowercase letters, digits, or hyphens." };
   }
   if (!input.label?.trim()) {
     return { ok: false, error: "Label is required." };

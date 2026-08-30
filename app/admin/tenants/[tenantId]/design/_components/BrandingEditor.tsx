@@ -163,7 +163,7 @@ export function BrandingEditor({
         />
         <LogoField
           tenantId={tenantId}
-          label="Logo — dark surface"
+          label="Logo: dark surface"
           hint="A white / knockout variant. Shown when the header or footer background is dark."
           darkPreview
           value={logoDark}

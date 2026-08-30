@@ -79,7 +79,7 @@ function MetaField({ label, children }: { label: string; children: React.ReactNo
 }
 
 function TagList({ items }: { items: string[] }) {
-  if (items.length === 0) return <span className="text-neutral-400 text-sm">—</span>;
+  if (items.length === 0) return <span className="text-neutral-400 text-sm">, </span>;
   return (
     <div className="flex flex-wrap gap-1 mt-0.5">
       {items.map((item) => (
@@ -122,7 +122,7 @@ function CmsMissingFields({
   return (
     <div className="px-4 py-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-2">
-        AI not ready — complete these fields in Sanity Studio
+        AI not ready: complete these fields in Sanity Studio
       </p>
       <ul className="space-y-1 mb-4">
         {missing.map((field) => (
@@ -263,7 +263,7 @@ function VariantCard({
                 {meta.supportingGoals.map((g, i) => <li key={i}>{g}</li>)}
               </ul>
             ) : (
-              <span className="text-neutral-400">—</span>
+              <span className="text-neutral-400">, </span>
             )}
           </MetaField>
 
@@ -276,7 +276,7 @@ function VariantCard({
           </MetaField>
 
           <div className="sm:col-span-2">
-            <MetaField label="Exclusions — when NOT to use (AI hard exclusions)">
+            <MetaField label="Exclusions: when NOT to use (AI hard exclusions)">
               <DisqualifierList items={meta.exclusions} />
             </MetaField>
           </div>
@@ -376,7 +376,7 @@ export default async function PlatformVariantsPage() {
     {
       slotId:      "hero",
       label:       "Hero",
-      description: "Adaptive headline section — first impression above the fold. The AI picks the variant that best matches the visitor's inferred intent and source.",
+      description: "Adaptive headline section, first impression above the fold. The AI picks the variant that best matches the visitor's inferred intent and source.",
       candidates:  candidates.hero,
     },
     {
@@ -410,7 +410,7 @@ export default async function PlatformVariantsPage() {
       <div className="mb-8">
         <Text variant="h2">Variant AI metadata</Text>
         <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
-          Every slot variant the AI can select from — platform and CMS — with the decision
+          Every slot variant the AI can select from, platform and CMS, with the decision
           metadata that drives each choice. Complete the required fields in Sanity Studio
           to make CMS variants AI-eligible.
         </p>
@@ -462,12 +462,12 @@ export default async function PlatformVariantsPage() {
             <strong>disqualifiers</strong> as hard exclusions before scoring.
             Only <Badge variant="success" size="sm" dot>AI ready</Badge>{" "}
             variants (all 8 required fields complete) are forwarded to the AI.
-            Variants with incomplete metadata fall back to rule-based or default selection —
+            Variants with incomplete metadata fall back to rule-based or default selection, 
             they are never silently dropped from personalisation entirely.
           </p>
           {!serverEnv.sanity.projectId && (
             <p className="mt-3 text-sm text-amber-700 font-medium">
-              ⚠ Sanity is not configured — only platform variants are shown.
+              ⚠ Sanity is not configured, only platform variants are shown.
               Connect a Sanity project to see CMS variants.
             </p>
           )}

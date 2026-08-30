@@ -135,7 +135,7 @@ function SignupRow({ row, onUpdated }: { row: SignupRow; onUpdated: () => void }
               {row.stripe_session_id.slice(0, 28)}…
             </span>
           ) : (
-            <span className="text-xs text-neutral-300">—</span>
+            <span className="text-xs text-neutral-300">, </span>
           )}
         </td>
 

@@ -40,7 +40,7 @@ function formatDate(iso: string): string {
 }
 
 function getDisplayName(values: Record<string, string>): string {
-  return values["name"] ?? values["naam"] ?? values["voornaam"] ?? "—";
+  return values["name"] ?? values["naam"] ?? values["voornaam"] ?? ", ";
 }
 
 function getPreview(values: Record<string, string>): string {
@@ -255,7 +255,7 @@ export function SubmissionsClient({
       {/* ── Pagination summary ───────────────────────────────────────────── */}
       {total > 0 && (
         <div className="flex items-center justify-between text-sm text-slate-400 px-1">
-          <span>{firstOnPage}–{lastOnPage} of {total} submissions</span>
+          <span>{firstOnPage}: {lastOnPage} of {total} submissions</span>
           <div className="flex gap-2">
             <button
               type="button"
@@ -321,7 +321,7 @@ export function SubmissionsClient({
                       {getDisplayName(row.values)}
                     </td>
                     <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
-                      {row.values["email"] ?? "—"}
+                      {row.values["email"] ?? ", "}
                     </td>
                     <td className="px-4 py-3 text-slate-400 max-w-xs truncate">
                       {getPreview(row.values)}
@@ -370,7 +370,7 @@ export function SubmissionsClient({
       {/* ── Bottom pagination ────────────────────────────────────────────── */}
       {total > PAGE_SIZE && (
         <div className="flex items-center justify-between text-sm text-slate-400 px-1">
-          <span>{firstOnPage}–{lastOnPage} of {total} submissions</span>
+          <span>{firstOnPage}: {lastOnPage} of {total} submissions</span>
           <div className="flex gap-2">
             <button
               type="button"

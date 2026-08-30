@@ -210,7 +210,7 @@ export async function testCrmConnectionAction(input: {
     const msg = err instanceof Error ? err.message : String(err);
     return {
       ok:    false,
-      error: `Network error — could not reach HubSpot API: ${msg}`,
+      error: `Network error: could not reach HubSpot API: ${msg}`,
       hint:  "Check your internet connection and try again.",
     };
   }

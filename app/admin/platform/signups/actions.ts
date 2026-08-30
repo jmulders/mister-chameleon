@@ -140,7 +140,7 @@ export async function processSignupAction(
     await sendMail({
       from:    fromAddress,
       to:      [email],
-      subject: `Welcome to Mister Chameleon — your ${planLabel} trial has started`,
+      subject: `Welcome to Mister Chameleon, your ${planLabel} trial has started`,
       text:    `Hi ${name},\n\nYour ${planLabel} trial is active until ${trialEndDate}.\n\nLog in: https://mister-chameleon.com/admin\n\nThe Mister Chameleon team`,
       html:    `<p>Hi ${name},</p><p>Your <strong>${planLabel} trial</strong> is active until <strong>${trialEndDate}</strong>.</p><p><a href="https://mister-chameleon.com/admin" style="background:#4f46e5;color:white;padding:0.75rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-weight:600;display:inline-block;">Go to your dashboard</a></p>`,
     }, transport);
@@ -182,7 +182,7 @@ export async function retryEmailAction(
     const result = await sendMail({
       from:    fromAddress,
       to:      [email],
-      subject: `Welcome to Mister Chameleon — your ${planLabel} trial has started`,
+      subject: `Welcome to Mister Chameleon, your ${planLabel} trial has started`,
       text:    `Hi ${name},\n\nYour account is ready.\n\nLog in: https://mister-chameleon.com/admin\n\nThe Mister Chameleon team`,
       html:    `<p>Hi ${name},</p><p>Your <strong>${planLabel}</strong> account is ready.</p><p><a href="https://mister-chameleon.com/admin" style="background:#4f46e5;color:white;padding:0.75rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-weight:600;display:inline-block;">Go to your dashboard</a></p>`,
     }, transport);

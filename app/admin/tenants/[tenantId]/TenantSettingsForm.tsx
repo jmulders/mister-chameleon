@@ -160,7 +160,7 @@ const AI_MODE_DISPLAY: Record<AiMode, string> = {
 const ALL_AI_PROVIDERS: readonly (TenantAiProviderName | "")[] = ["", "claude", "openai", "gemini"];
 
 const AI_PROVIDER_DISPLAY: Record<TenantAiProviderName | "", string> = {
-  "":       "— Select provider —",
+  "":       ": Select provider: ",
   claude:   "Claude (Anthropic)",
   openai:   "OpenAI",
   gemini:   "Gemini (Google), mock only (adapter pending)",
@@ -1301,7 +1301,7 @@ export function TenantSettingsForm({
             hint={
               form.ai.mode !== "live"
                 ? "Only applied in live mode. Edit when mode is Live."
-                : "Minimum confidence score to serve an AI plan. Range: 0–1. Platform default: 0.70."
+                : "Minimum confidence score to serve an AI plan. Range: 0-1. Platform default: 0.70."
             }
           >
             <input
@@ -1670,7 +1670,7 @@ export function TenantSettingsForm({
               }}
               className={cn(selectCls, "w-auto")}
             >
-              <option value="">— Select language preset —</option>
+              <option value="">: Select language preset, </option>
               {LANGUAGE_PRESETS.filter(
                 (p) => !form.languages.some((l) => l.code === p.code),
               ).map((p) => (
@@ -1723,7 +1723,7 @@ export function TenantSettingsForm({
                 return (
                   <option key={t} value={t}>
                     {themeLabel(t)}
-                    {hint ? ` — ${hint}` : ""}
+                    {hint ? `: ${hint}` : ""}
                   </option>
                 );
               })}

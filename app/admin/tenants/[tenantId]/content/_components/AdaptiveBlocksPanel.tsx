@@ -67,7 +67,7 @@ function emptyVariant(): AdaptiveVariantEntry {
   return { variantKey: "", label: "", content: emptyContent() };
 }
 function preview(text: string | undefined | null, max = 80): string {
-  if (!text) return "—";
+  if (!text) return ", ";
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 

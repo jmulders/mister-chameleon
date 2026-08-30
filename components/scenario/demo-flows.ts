@@ -92,7 +92,7 @@ export const DEMO_FLOWS: Record<string, DemoFlow> = {
       { eventType: "page_view", pagePath: "/pricing", pageCategory: "pricing", pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"], label: "Pricing visit #3", delay: 300 },
       { eventType: "page_view", pagePath: "/pricing", pageCategory: "pricing", pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"], label: "Pricing visit #4", delay: 300 },
       { eventType: "page_view", pagePath: "/pricing", pageCategory: "pricing", pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"], label: "Pricing visit #5", delay: 300 },
-      { eventType: "page_view", pagePath: "/pricing", pageCategory: "pricing", pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"], label: "Pricing visit #6 — friction building", delay: 300 },
+      { eventType: "page_view", pagePath: "/pricing", pageCategory: "pricing", pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"], label: "Pricing visit #6: friction building", delay: 300 },
     ],
   },
 
@@ -114,14 +114,14 @@ export const DEMO_FLOWS: Record<string, DemoFlow> = {
   expansion_opportunity: {
     key:           "expansion_opportunity",
     label:         "Expansion Opportunity",
-    description:   "Customer returning to the pricing page — classic expansion/upgrade signal.",
+    description:   "Customer returning to the pricing page, classic expansion/upgrade signal.",
     icon:          "🚀",
     expectedStage: "high_intent",
     steps: [
       { eventType: "page_view", pagePath: "/",          pageCategory: "homepage",  pageKeywords: ["personalisation", "adaptive", "website", "platform"],                                         label: "Return visit to homepage",      delay: 0    },
       { eventType: "page_view", pagePath: "/pricing",   pageCategory: "pricing",   pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"],               label: "Back to Pricing",               delay: 900  },
       { eventType: "page_view", pagePath: "/cases",     pageCategory: "cases",     pageKeywords: ["cases", "trust", "klanten", "case study", "reviews"],                                          label: "Checking Case Studies",         delay: 1000 },
-      { eventType: "page_view", pagePath: "/pricing",   pageCategory: "pricing",   pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"],               label: "Pricing again — strong signal", delay: 800  },
+      { eventType: "page_view", pagePath: "/pricing",   pageCategory: "pricing",   pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement", "budget", "price", "tarieven"],               label: "Pricing again: strong signal", delay: 800  },
       { eventType: "cta_click", eventValue: "upgrade_cta",                                                                                                                                        label: "Clicking upgrade CTA",          delay: 1200 },
     ],
   },
@@ -129,14 +129,14 @@ export const DEMO_FLOWS: Record<string, DemoFlow> = {
   churn_risk: {
     key:           "churn_risk",
     label:         "Churn Risk",
-    description:   "Low-engagement session with no progression — visitor seems stuck or confused.",
+    description:   "Low-engagement session with no progression, visitor seems stuck or confused.",
     icon:          "📉",
     expectedStage: "consideration",
     steps: [
       { eventType: "page_view", pagePath: "/",         pageCategory: "homepage", pageKeywords: ["personalisation", "adaptive", "website", "platform"],   label: "Homepage (brief visit)", delay: 0    },
-      { eventType: "page_view", pagePath: "/pricing",  pageCategory: "pricing",  pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement"],        label: "Pricing — quick exit",  delay: 500  },
+      { eventType: "page_view", pagePath: "/pricing",  pageCategory: "pricing",  pageKeywords: ["pricing", "plan", "cost", "prijs", "abonnement"],        label: "Pricing: quick exit",  delay: 500  },
       { eventType: "page_view", pagePath: "/",         pageCategory: "homepage", pageKeywords: ["personalisation", "adaptive", "website", "platform"],   label: "Back to homepage",      delay: 400  },
-      { eventType: "page_view", pagePath: "/about",    pageCategory: "about",    pageKeywords: ["team", "cultuur", "about"],                             label: "About — no engagement", delay: 600  },
+      { eventType: "page_view", pagePath: "/about",    pageCategory: "about",    pageKeywords: ["team", "cultuur", "about"],                             label: "About: no engagement", delay: 600  },
     ],
   },
 };

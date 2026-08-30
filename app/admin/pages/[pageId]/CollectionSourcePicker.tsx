@@ -303,7 +303,7 @@ export function CollectionSourcePicker({
               <p className="mb-2 font-medium text-gray-700">
                 Selected items
                 <span className="ml-2 text-xs font-normal text-gray-500">
-                  (order determines render order — use ↑/↓ to reorder)
+                  (order determines render order: use ↑/↓ to reorder)
                 </span>
               </p>
 
@@ -356,7 +356,7 @@ export function CollectionSourcePicker({
                 })}
                 {(collectionSrc.selectedIds ?? []).length === 0 && (
                   <li className="rounded-md border border-dashed border-gray-200 px-3 py-2 text-center text-xs text-gray-400">
-                    No items selected — add CMS document IDs below
+                    No items selected: add CMS document IDs below
                   </li>
                 )}
               </ol>

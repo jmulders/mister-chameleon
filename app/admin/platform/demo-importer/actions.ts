@@ -46,10 +46,10 @@ import type { SiteAnalysis, DemoInstance } from "@/demo/types";
 async function requireAdmin(): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
   const cookieStore = await cookies();
   const token       = cookieStore.get(ADMIN_TOKEN_COOKIE)?.value ?? null;
-  if (!token) return { ok: false, error: "No admin session — please log in." };
+  if (!token) return { ok: false, error: "No admin session: please log in." };
 
   const session = await verifySession(token);
-  if (!session) return { ok: false, error: "Admin session expired — please log in again." };
+  if (!session) return { ok: false, error: "Admin session expired: please log in again." };
   if (session.twoFaEnabled && !session.twoFaVerified)
     return { ok: false, error: "Two-factor authentication required. Complete 2FA at /admin/login/2fa." };
 
@@ -128,9 +128,9 @@ async function resolveProviders(): Promise<ProviderInfo[]> {
   const analyzer: ProviderInfo = {
     id:          "analyzer",
     label:       "Website Analyzer",
-    description: "Fetches the prospect URL and extracts brand signals: title, description, colors, logo, favicon, and industry category. Built-in — no API key required.",
+    description: "Fetches the prospect URL and extracts brand signals: title, description, colors, logo, favicon, and industry category. Built-in, no API key required.",
     status:      "ready",
-    statusNote:  "Built-in HTTP fetcher — always available",
+    statusNote:  "Built-in HTTP fetcher: always available",
   };
 
   // ── AI content provider (Anthropic) ──────────────────────────────────────────
@@ -161,13 +161,13 @@ async function resolveProviders(): Promise<ProviderInfo[]> {
 
   if (!anthropicKey) {
     aiStatus     = "not_configured";
-    aiStatusNote = "Anthropic API key not set — content uses built-in templates. Add it in Admin → Integrations → AI.";
+    aiStatusNote = "Anthropic API key not set, content uses built-in templates. Add it in Admin → Integrations → AI.";
   } else if (!looksValid) {
     aiStatus     = "partial";
     aiStatusNote = `Key set via ${keySource} but doesn't look like a valid Anthropic key (expected sk-ant-…). Templates used as fallback.`;
   } else {
     aiStatus     = "ready";
-    aiStatusNote = `Anthropic key configured via ${keySource} — AI-generated scenario copy is active.`;
+    aiStatusNote = `Anthropic key configured via ${keySource}, AI-generated scenario copy is active.`;
   }
 
   const aiContent: ProviderInfo = {
@@ -210,7 +210,7 @@ export async function getDemoImporterStatusAction(): Promise<
     recentInstances = await listDemoInstances(getServiceClient(), 20);
   } catch (err) {
     console.error(
-      `[demo-importer/actions] getDemoImporterStatusAction: listDemoInstances error — ${
+      `[demo-importer/actions] getDemoImporterStatusAction: listDemoInstances error: ${
         err instanceof Error ? err.message : String(err)
       }`,
     );
@@ -275,7 +275,7 @@ export async function getDemoImporterSettingsAction(): Promise<
       return { ok: true, settings: { ...SETTINGS_DEFAULTS }, updatedAt: null };
     }
     console.error(
-      `[demo-importer/actions] getDemoImporterSettingsAction: DB error — code=${error.code} message=${error.message}`,
+      `[demo-importer/actions] getDemoImporterSettingsAction: DB error, code=${error.code} message=${error.message}`,
     );
     return { ok: false, error: `Failed to load settings: ${error.message}` };
   }
@@ -331,7 +331,7 @@ export async function saveDemoImporterSettingsAction(
 
   if (error) {
     console.error(
-      `[demo-importer/actions] saveDemoImporterSettingsAction: DB error — code=${error.code} message=${error.message}`,
+      `[demo-importer/actions] saveDemoImporterSettingsAction: DB error, code=${error.code} message=${error.message}`,
     );
     return { ok: false, error: `Failed to save settings: ${error.message}` };
   }

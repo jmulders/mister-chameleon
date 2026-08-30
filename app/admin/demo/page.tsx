@@ -105,7 +105,7 @@ export default async function DemoListPage() {
       {active.length > 0 && (
         <section className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Active — {active.length}
+            Active: {active.length}
           </p>
           {active.map((demo) => (
             <DemoRow
@@ -121,7 +121,7 @@ export default async function DemoListPage() {
       {expired.length > 0 && (
         <section className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Expired — {expired.length}
+            Expired: {expired.length}
           </p>
           {expired.map((demo) => (
             <DemoRow

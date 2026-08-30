@@ -18,9 +18,9 @@ import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
 async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
   const cookieStore = await cookies();
   const token       = cookieStore.get(ADMIN_TOKEN_COOKIE)?.value ?? null;
-  if (!token) return { ok: false, error: "No admin session — please log in." };
+  if (!token) return { ok: false, error: "No admin session: please log in." };
   const session = await verifySession(token);
-  if (!session) return { ok: false, error: "Admin session expired — please log in again." };
+  if (!session) return { ok: false, error: "Admin session expired: please log in again." };
   if (session.twoFaEnabled && !session.twoFaVerified)
     return { ok: false, error: "Two-factor authentication required." };
   return { ok: true };

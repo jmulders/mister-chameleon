@@ -60,7 +60,7 @@ export function GenerateClient({ tenantId }: { tenantId: string }) {
           <div>
             <label className={LABEL}>Tone</label>
             <select className={INPUT} value={brief.tone ?? ""} onChange={(e) => setB("tone", (e.target.value || undefined) as VariantTone | undefined)}>
-              <option value="">—</option>
+              <option value="">, </option>
               {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
@@ -73,14 +73,14 @@ export function GenerateClient({ tenantId }: { tenantId: string }) {
           <div>
             <label className={LABEL}>Intent level</label>
             <select className={INPUT} value={brief.intentLevel ?? ""} onChange={(e) => setB("intentLevel", (e.target.value || undefined) as IntentLevel | undefined)}>
-              <option value="">—</option>
+              <option value="">, </option>
               {INTENTS.map((i) => <option key={i} value={i}>{i}</option>)}
             </select>
           </div>
           <div>
             <label className={LABEL}>Funnel stage</label>
             <select className={INPUT} value={brief.funnelStage ?? ""} onChange={(e) => setB("funnelStage", (e.target.value || undefined) as FunnelStage | undefined)}>
-              <option value="">—</option>
+              <option value="">, </option>
               {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -127,10 +127,10 @@ export function GenerateClient({ tenantId }: { tenantId: string }) {
           </div>
 
           <div className="text-xs text-neutral-500 space-y-0.5">
-            <p><span className="font-medium text-neutral-700">Label:</span> {draft.decision.decisionLabel ?? "—"}</p>
-            <p><span className="font-medium text-neutral-700">Audience:</span> {draft.decision.intendedAudience ?? "—"}</p>
-            <p><span className="font-medium text-neutral-700">Tone / intent:</span> {draft.decision.tone ?? "—"} · {draft.decision.intentLevel ?? "—"}</p>
-            <p><span className="font-medium text-neutral-700">Goal:</span> {draft.decision.primaryGoal ?? "—"}</p>
+            <p><span className="font-medium text-neutral-700">Label:</span> {draft.decision.decisionLabel ?? ", "}</p>
+            <p><span className="font-medium text-neutral-700">Audience:</span> {draft.decision.intendedAudience ?? ", "}</p>
+            <p><span className="font-medium text-neutral-700">Tone / intent:</span> {draft.decision.tone ?? ", "} · {draft.decision.intentLevel ?? ", "}</p>
+            <p><span className="font-medium text-neutral-700">Goal:</span> {draft.decision.primaryGoal ?? ", "}</p>
           </div>
 
           <div className="flex items-end gap-3 pt-2 border-t border-neutral-100">

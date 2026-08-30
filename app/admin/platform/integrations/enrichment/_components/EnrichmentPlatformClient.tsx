@@ -123,7 +123,7 @@ function SecretField({
         className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
       />
       <p className="mt-0.5 text-[11px] text-neutral-400">
-        {hint ?? "Leave blank to keep the existing value. Stored server-side only — never echoed back."}
+        {hint ?? "Leave blank to keep the existing value. Stored server-side only, never echoed back."}
       </p>
     </div>
   );
@@ -877,7 +877,7 @@ export function EnrichmentPlatformClient({
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              IP geolocation credentials — resolves country, region, and city from IP addresses.
+              IP geolocation credentials: resolves country, region, and city from IP addresses.
             </p>
           </div>
           {mmUpdatedAt && (
@@ -930,7 +930,7 @@ export function EnrichmentPlatformClient({
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              Reverse-IP firmographic lookup — identifies the company behind an IP address.
+              Reverse-IP firmographic lookup: identifies the company behind an IP address.
               Returns company name, domain, industry, and employee size range.
             </p>
           </div>
@@ -974,7 +974,7 @@ export function EnrichmentPlatformClient({
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              ASN and network organisation enrichment — resolves the ISP or company behind an IP&apos;s
+              ASN and network organisation enrichment, resolves the ISP or company behind an IP&apos;s
               autonomous system. Returns networkAsn, networkOrg, and networkDomain. Also provides
               geo data as a fallback when MaxMind is not configured.
             </p>
@@ -1136,7 +1136,7 @@ export function EnrichmentPlatformClient({
         <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="mb-0.5 flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-neutral-900">OpenKvK — Dutch Company Registry</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">OpenKvK: Dutch Company Registry</h2>
               <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                 openKvKMode !== "off" ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"
               }`}>
@@ -1165,9 +1165,9 @@ export function EnrichmentPlatformClient({
             value={openKvKMode}
             onChange={setOpenKvKMode}
             options={[
-              { value: "off",     label: "Off — stage disabled" },
-              { value: "nl-only", label: "NL only — run for Dutch visitors (countryCode = NL)" },
-              { value: "always",  label: "Always — run regardless of country" },
+              { value: "off",     label: "Off: stage disabled" },
+              { value: "nl-only", label: "NL only: run for Dutch visitors (countryCode = NL)" },
+              { value: "always",  label: "Always: run regardless of country" },
             ]}
             hint='Use "NL only" (default) for accurate results. "Always" is useful when geo is unavailable.'
           />
@@ -1178,16 +1178,16 @@ export function EnrichmentPlatformClient({
             min={0}
             max={1}
             step={0.05}
-            hint="Minimum match score (0–1). Results below this threshold are discarded. Default: 0.5."
+            hint="Minimum match score (0-1). Results below this threshold are discarded. Default: 0.5."
           />
           <SelectField
             label="Matching strategy (preferred query field)"
             value={openKvKStrategy}
             onChange={setOpenKvKStrategy}
             options={[
-              { value: "networkOrg",    label: "networkOrg — ISP/org name from IPinfo (default)" },
-              { value: "companyName",   label: "companyName — company name from prior stage" },
-              { value: "networkDomain", label: "networkDomain — network domain from IPinfo" },
+              { value: "networkOrg",    label: "networkOrg: ISP/org name from IPinfo (default)" },
+              { value: "companyName",   label: "companyName: company name from prior stage" },
+              { value: "networkDomain", label: "networkDomain: network domain from IPinfo" },
             ]}
             hint="Sets which upstream field is tried first. The provider always falls back through all three."
           />
@@ -1235,7 +1235,7 @@ export function EnrichmentPlatformClient({
         <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="mb-0.5 flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-neutral-900">Nager.Date — Public Holiday Provider</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">Nager.Date: Public Holiday Provider</h2>
               <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                 holidayEnabled ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"
               }`}>
@@ -1243,7 +1243,7 @@ export function EnrichmentPlatformClient({
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              No API key required — free public API (date.nager.at). Detects public holidays for the
+              No API key required: free public API (date.nager.at). Detects public holidays for the
               visitor&apos;s country and maps them to
               <code className="mx-1 rounded bg-neutral-100 px-1 font-mono text-[11px]">seasonalEvent</code>
               values (christmas, new-year, easter). Business events (black-friday, cyber-monday,
@@ -1300,7 +1300,7 @@ export function EnrichmentPlatformClient({
         <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="mb-0.5 flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-neutral-900">Reverse Geocode — Address Enrichment</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">Reverse Geocode: Address Enrichment</h2>
               <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                 rgEnabled ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"
               }`}>
@@ -1309,7 +1309,7 @@ export function EnrichmentPlatformClient({
             </div>
             <p className="text-xs text-neutral-500">
               Resolves approximate lat/lng coordinates (from MaxMind or ip-api) into human-readable
-              address fields. Runs after the geo stage. Not used for company identification —
+              address fields. Runs after the geo stage. Not used for company identification, 
               address fields are a location hint for downstream consumers such as OpenKvK scoring.
             </p>
           </div>
@@ -1371,7 +1371,7 @@ export function EnrichmentPlatformClient({
         <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="mb-0.5 flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-neutral-900">Weather — Current Conditions</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">Weather: Current Conditions</h2>
               <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                 wxEnabled ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"
               }`}>
@@ -1379,7 +1379,7 @@ export function EnrichmentPlatformClient({
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              No API key required — uses the free{" "}
+              No API key required: uses the free{" "}
               <span className="font-medium text-neutral-700">Open-Meteo</span> API (open-meteo.com).
               Resolves current weather conditions from the visitor&apos;s lat/lng coordinates (provided
               by the geo stage) and maps them to{" "}
@@ -1387,7 +1387,7 @@ export function EnrichmentPlatformClient({
               <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">weatherCode</code>,{" "}
               <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">isRaining</code>,{" "}
               <code className="rounded bg-neutral-100 px-1 font-mono text-[11px]">weatherSummary</code>,
-              and more. Requires lat/lng — runs after the geo stage.
+              and more. Requires lat/lng, runs after the geo stage.
             </p>
           </div>
           {wxUpdatedAt && (
@@ -1399,7 +1399,7 @@ export function EnrichmentPlatformClient({
 
         <div className="mb-4 rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2 text-[11px] text-neutral-500 leading-relaxed">
           <strong className="text-neutral-700">Provider:</strong>{" "}
-          <span className="font-medium text-neutral-700">Open-Meteo</span> — free, no sign-up required,
+          <span className="font-medium text-neutral-700">Open-Meteo</span>: free, no sign-up required,
           no rate limits for reasonable usage. Data is sourced from ECMWF, GFS, and other NWP models.
           Results are cached per coordinate pair to avoid redundant API calls.
         </div>
@@ -1418,7 +1418,7 @@ export function EnrichmentPlatformClient({
             min={1}
             max={168}
             step={1}
-            hint="How long to cache weather results per coordinate pair. Default: 1 hour. Weather changes quickly — keep this short for fresh data, or increase to reduce API calls."
+            hint="How long to cache weather results per coordinate pair. Default: 1 hour. Weather changes quickly, keep this short for fresh data, or increase to reduce API calls."
           />
         </div>
 
@@ -1438,20 +1438,20 @@ export function EnrichmentPlatformClient({
       <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
         <h3 className="text-xs font-semibold text-neutral-700">Staged enrichment pipeline</h3>
         <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
-          When enabled for a tenant, the enrichment stages run sequentially — each stage sees the
+          When enabled for a tenant, the enrichment stages run sequentially, each stage sees the
           output of all prior stages. This allows later stages to branch on earlier results
           (e.g. OpenKvK only runs for Dutch visitors when configured in NL-only mode).
         </p>
         <ul className="mt-2 space-y-0.5 text-[11px] text-neutral-500">
-          <li><strong>Stage 1 — MaxMind:</strong> <code className="rounded bg-white px-1 font-mono">countryCode</code>, <code className="rounded bg-white px-1 font-mono">region</code>, <code className="rounded bg-white px-1 font-mono">city</code></li>
-          <li><strong>Stage 2 — IPinfo:</strong> <code className="rounded bg-white px-1 font-mono">networkAsn</code>, <code className="rounded bg-white px-1 font-mono">networkOrg</code>, <code className="rounded bg-white px-1 font-mono">networkDomain</code></li>
-          <li><strong>Stage 3 — OpenKvK:</strong> Dutch company registry lookup — <code className="rounded bg-white px-1 font-mono">companyName</code>, <code className="rounded bg-white px-1 font-mono">companyDomain</code> (mode-gated, tenant-gated)</li>
-          <li><strong>Stage 4 — Leadinfo:</strong> <code className="rounded bg-white px-1 font-mono">companyName</code>, <code className="rounded bg-white px-1 font-mono">companyDomain</code> (tenant-gated)</li>
-          <li><strong>Stage 5 — HubSpot CRM:</strong> <code className="rounded bg-white px-1 font-mono">crmMatched</code>, <code className="rounded bg-white px-1 font-mono">crmLifecycleStage</code>, <code className="rounded bg-white px-1 font-mono">crmCompanyId</code> (tenant-gated)</li>
-          <li><strong>Stage 6 — Nager.Date:</strong> <code className="rounded bg-white px-1 font-mono">seasonalEvent</code>, <code className="rounded bg-white px-1 font-mono">holidayName</code> (enabled above, tenant-gated)</li>
-          <li><strong>Stage 7 — Reverse Geocode:</strong> <code className="rounded bg-white px-1 font-mono">addressCity</code>, <code className="rounded bg-white px-1 font-mono">addressRegion</code>, <code className="rounded bg-white px-1 font-mono">addressPostcode</code>, <code className="rounded bg-white px-1 font-mono">addressFormatted</code> (enabled above)</li>
-          <li><strong>Stage 8 — Weather:</strong> <code className="rounded bg-white px-1 font-mono">temperatureNow</code>, <code className="rounded bg-white px-1 font-mono">weatherCode</code>, <code className="rounded bg-white px-1 font-mono">isRaining</code>, <code className="rounded bg-white px-1 font-mono">weatherSummary</code> (enabled above)</li>
-          <li><strong>GA4 History:</strong> <code className="rounded bg-white px-1 font-mono">gaLastKnownCity</code>, <code className="rounded bg-white px-1 font-mono">gaSessionCount</code>, <code className="rounded bg-white px-1 font-mono">gaLastChannelGroup</code> (per-tenant — configure in Tenant → Integrations → GA4)</li>
+          <li><strong>Stage 1: MaxMind:</strong> <code className="rounded bg-white px-1 font-mono">countryCode</code>, <code className="rounded bg-white px-1 font-mono">region</code>, <code className="rounded bg-white px-1 font-mono">city</code></li>
+          <li><strong>Stage 2: IPinfo:</strong> <code className="rounded bg-white px-1 font-mono">networkAsn</code>, <code className="rounded bg-white px-1 font-mono">networkOrg</code>, <code className="rounded bg-white px-1 font-mono">networkDomain</code></li>
+          <li><strong>Stage 3: OpenKvK:</strong> Dutch company registry lookup, <code className="rounded bg-white px-1 font-mono">companyName</code>, <code className="rounded bg-white px-1 font-mono">companyDomain</code> (mode-gated, tenant-gated)</li>
+          <li><strong>Stage 4: Leadinfo:</strong> <code className="rounded bg-white px-1 font-mono">companyName</code>, <code className="rounded bg-white px-1 font-mono">companyDomain</code> (tenant-gated)</li>
+          <li><strong>Stage 5: HubSpot CRM:</strong> <code className="rounded bg-white px-1 font-mono">crmMatched</code>, <code className="rounded bg-white px-1 font-mono">crmLifecycleStage</code>, <code className="rounded bg-white px-1 font-mono">crmCompanyId</code> (tenant-gated)</li>
+          <li><strong>Stage 6: Nager.Date:</strong> <code className="rounded bg-white px-1 font-mono">seasonalEvent</code>, <code className="rounded bg-white px-1 font-mono">holidayName</code> (enabled above, tenant-gated)</li>
+          <li><strong>Stage 7: Reverse Geocode:</strong> <code className="rounded bg-white px-1 font-mono">addressCity</code>, <code className="rounded bg-white px-1 font-mono">addressRegion</code>, <code className="rounded bg-white px-1 font-mono">addressPostcode</code>, <code className="rounded bg-white px-1 font-mono">addressFormatted</code> (enabled above)</li>
+          <li><strong>Stage 8: Weather:</strong> <code className="rounded bg-white px-1 font-mono">temperatureNow</code>, <code className="rounded bg-white px-1 font-mono">weatherCode</code>, <code className="rounded bg-white px-1 font-mono">isRaining</code>, <code className="rounded bg-white px-1 font-mono">weatherSummary</code> (enabled above)</li>
+          <li><strong>GA4 History:</strong> <code className="rounded bg-white px-1 font-mono">gaLastKnownCity</code>, <code className="rounded bg-white px-1 font-mono">gaSessionCount</code>, <code className="rounded bg-white px-1 font-mono">gaLastChannelGroup</code> (per-tenant: configure in Tenant → Integrations → GA4)</li>
         </ul>
       </div>
 

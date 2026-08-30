@@ -16,7 +16,7 @@ import { Text } from "@/components/primitives/Text";
 import { OnboardingForm } from "./OnboardingForm";
 
 export const metadata = {
-  title: "New Tenant — Admin",
+  title: "New Tenant: Admin",
 };
 
 export default function AdminOnboardingPage() {

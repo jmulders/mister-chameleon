@@ -175,12 +175,12 @@ export async function sendPlatformTestEmailAction(
   const platform = result.ok ? result.data : null;
   const transport = resolveTransportConfig(null, platform);
   if (transport.type === "none") {
-    return { ok: false, error: "No platform transport configured — set Resend or SMTP above and Save first." };
+    return { ok: false, error: "No platform transport configured, set Resend or SMTP above and Save first." };
   }
 
   const fromEmail = platform?.fromEmail ?? serverEnv.email.fromAddress ?? undefined;
   if (!fromEmail) {
-    return { ok: false, error: "No from-address — set 'From email' above and Save first." };
+    return { ok: false, error: "No from-address: set 'From email' above and Save first." };
   }
   const from = platform?.fromName?.trim() ? `${platform.fromName.trim()} <${fromEmail}>` : fromEmail;
 
@@ -188,9 +188,9 @@ export async function sendPlatformTestEmailAction(
     {
       from,
       to:      [to],
-      subject: "Test email — Mister Chameleon platform",
+      subject: "Test email: Mister Chameleon platform",
       text:    `Platform email test.\n\nTransport: ${transport.type}\nFrom: ${from}\nSent: ${new Date().toISOString()}`,
-      html:    `<p>Platform email test — your transport works. ✅</p><p style="color:#666;font-size:12px">Transport: ${transport.type} · From: ${from} · ${new Date().toISOString()}</p>`,
+      html:    `<p>Platform email test: your transport works. ✅</p><p style="color:#666;font-size:12px">Transport: ${transport.type} · From: ${from} · ${new Date().toISOString()}</p>`,
     },
     transport,
   );

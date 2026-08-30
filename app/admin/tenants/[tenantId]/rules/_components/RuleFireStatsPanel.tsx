@@ -24,7 +24,7 @@ interface RuleFireStatsPanelProps {
 }
 
 function fmt(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return ", ";
   try {
     return new Date(iso).toLocaleString("en-US");
   } catch {
@@ -62,7 +62,7 @@ export function RuleFireStatsPanel({ rules, stats }: RuleFireStatsPanelProps) {
         </span>
       </div>
       <p className="mb-4 text-xs text-neutral-500">
-        Whether the rules do anything — the counterpart to the score
+        Whether the rules do anything, the counterpart to the score
         distribution. A rule that never fires looks fine in the list but is dead.
       </p>
 
@@ -97,7 +97,7 @@ export function RuleFireStatsPanel({ rules, stats }: RuleFireStatsPanelProps) {
 
           {neverFired > 0 && (
             <p className="mt-3 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
-              {neverFired} rule{neverFired === 1 ? "" : "s"} did not fire in this window — check the threshold or priority.
+              {neverFired} rule{neverFired === 1 ? "" : "s"} did not fire in this window, check the threshold or priority.
             </p>
           )}
         </>

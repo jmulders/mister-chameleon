@@ -811,7 +811,7 @@ function ScoringRulesTab({
               onChange={(v) => setEditing({ ...editing, score: v })}
               min={0}
               max={200}
-              hint="Points added before decay is applied (0–200)"
+              hint="Points added before decay is applied (0-200)"
             />
             <SelectInput
               label="Decay Profile"
@@ -936,7 +936,7 @@ function ScoringRulesTab({
                   </div>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-xs text-neutral-400">
-                  {rule.key ?? <span className="italic">—</span>}
+                  {rule.key ?? <span className="italic">, </span>}
                 </td>
                 <td className="px-4 py-2.5">
                   <span className="bg-neutral-100 px-1.5 py-0.5 rounded text-xs font-mono">

@@ -448,7 +448,7 @@ export default async function TenantContentPage({
 
       {/* ── Platform CMS variant editor ─────────────────────────────────── */}
       {/* Shown for the Platform CMS, and for external-CMS tenants once platform
-          content rows exist — that content wins platform-first, so it is edited
+          content rows exist: that content wins platform-first, so it is edited
           and removed here. */}
       {showPlatformVariants && (
         <div className="rounded-lg border border-neutral-200 bg-white p-5">

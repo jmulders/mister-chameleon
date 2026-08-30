@@ -189,8 +189,8 @@ export default async function PricingConfigPage() {
         <p className="mt-1 text-sm text-neutral-500">
           Per-enrichment-type pricing persisted in the{" "}
           <code className="rounded bg-neutral-100 px-1 text-xs">enrichment_pricing</code> table.
-          Prices in EUR — supports fractional values like €0.001 per call.
-          Changes take effect immediately — no deploy needed.
+          Prices in EUR: supports fractional values like €0.001 per call.
+          Changes take effect immediately: no deploy needed.
         </p>
       </div>
 
@@ -198,11 +198,11 @@ export default async function PricingConfigPage() {
       {tableMissing && (
         <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm font-medium text-amber-700">
-            Migration not yet applied — enrichment_pricing table missing
+            Migration not yet applied: enrichment_pricing table missing
           </p>
           <p className="mt-0.5 text-xs text-amber-600">
             Run <code className="rounded bg-amber-100 px-1">supabase db push</code> to apply
-            migrations 065, 072, and 075. Static defaults are shown below — use the Seed button
+            migrations 065, 072, and 075. Static defaults are shown below, use the Seed button
             after the migration to persist them to the database.
           </p>
         </div>
@@ -212,7 +212,7 @@ export default async function PricingConfigPage() {
       {oldSchema && (
         <div className="mb-5 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
           <p className="text-sm font-medium text-orange-700">
-            Schema mismatch — enrichment_pricing is missing the{" "}
+            Schema mismatch: enrichment_pricing is missing the{" "}
             <code className="rounded bg-orange-100 px-1 font-mono">
               {missingColumn ?? "unit_price"}
             </code>{" "}
@@ -250,7 +250,7 @@ export default async function PricingConfigPage() {
           <span className="text-xs text-neutral-400">
             {dbRows.length > 0
               ? `${dbRows.length} row${dbRows.length !== 1 ? "s" : ""} from enrichment_pricing`
-              : "No DB rows — static defaults shown below. Use Seed to persist them."}
+              : "No DB rows: static defaults shown below. Use Seed to persist them."}
           </span>
         </div>
       )}

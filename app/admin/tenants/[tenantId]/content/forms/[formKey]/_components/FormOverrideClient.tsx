@@ -299,8 +299,8 @@ export function FormOverrideClient({
               className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1"
             >
               <option value="single">Single column</option>
-              <option value="split-left">Split — contact panel left</option>
-              <option value="split-right">Split — contact panel right</option>
+              <option value="split-left">Split: contact panel left</option>
+              <option value="split-right">Split: contact panel right</option>
             </select>
           </div>
 

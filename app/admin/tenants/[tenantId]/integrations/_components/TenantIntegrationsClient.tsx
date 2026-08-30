@@ -482,7 +482,7 @@ function LeadinfoTestResultPanel({
         />
         <LeadinfoTestResultField
           label="Company matched"
-          value={result.matched === null ? "—" : result.matched ? "yes" : "no"}
+          value={result.matched === null ? ", " : result.matched ? "yes" : "no"}
         />
         {result.matched && (
           <>
@@ -570,7 +570,7 @@ const AI_MODES: { value: "disabled" | "shadow" | "live"; label: string; note: st
 ];
 
 const AI_PROVIDERS: { value: TenantAiProviderName | ""; label: string }[] = [
-  { value: "",       label: "— Use platform default —" },
+  { value: "",       label: ": Use platform default, " },
   { value: "claude", label: "Claude (Anthropic)" },
   { value: "openai", label: "OpenAI" },
   { value: "gemini", label: "Gemini (Google), adapter pending" },
@@ -999,7 +999,7 @@ export function TenantIntegrationsClient({
                   onChange={(e) => setStoryblokRegion(e.target.value)}
                   className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
-                  <option value="">— Platform default —</option>
+                  <option value="">: Platform default: </option>
                   <option value="eu">EU</option>
                   <option value="us">US</option>
                   <option value="ap">AP</option>
@@ -1014,7 +1014,7 @@ export function TenantIntegrationsClient({
                   onChange={(e) => setStoryblokVersion(e.target.value)}
                   className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
-                  <option value="">— Platform default —</option>
+                  <option value="">: Platform default: </option>
                   <option value="published">Published</option>
                   <option value="draft">Draft</option>
                 </select>
@@ -1173,7 +1173,7 @@ export function TenantIntegrationsClient({
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-700">
                 Confidence threshold
-                <span className="ml-1 font-normal text-neutral-400">(0.0 – 1.0; default 0.75)</span>
+                <span className="ml-1 font-normal text-neutral-400">(0.0-1.0; default 0.75)</span>
               </label>
               <input
                 type="number"
@@ -1286,7 +1286,7 @@ export function TenantIntegrationsClient({
             Hot-lead score threshold
           </label>
           <p className="mt-1 text-xs text-slate-500">
-            The lead score (0–100) at or above which a returning visitor counts as a hot
+            The lead score (0-100) at or above which a returning visitor counts as a hot
             lead, which drives the <code className="font-mono">isHotLead</code> personalization
             signal, the &quot;Hot leads&quot; segment, and the ABM dashboard&apos;s hot
             count/filter. Default 60.
@@ -1328,7 +1328,7 @@ export function TenantIntegrationsClient({
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
           <div className="block text-sm font-medium text-slate-800">Lead-score tuning</div>
           <p className="mt-1 text-xs text-slate-500">
-            Weight multipliers (0–5, default 1) for each score component, and an optional
+            Weight multipliers (0-5, default 1) for each score component, and an optional
             time-decay half-life in days (0 = off; the score halves every N days as a lead cools).
             Drives the lead score everywhere (list, segment, dashboard, alerts).
           </p>
@@ -1433,7 +1433,7 @@ export function TenantIntegrationsClient({
               server-side IP override can substitute any address before the lookup.
 
               Leadinfo's identify call originates from the visitor's browser and
-              goes directly to api.leadinfo.com — the server never touches that
+              goes directly to api.leadinfo.com, the server never touches that
               request.  A fake IP stored in the database cannot intercept a
               browser-to-CDN HTTP call.  This is why:
                 • the Enrichment section's "Test IP Override" callout explicitly
@@ -1565,7 +1565,7 @@ export function TenantIntegrationsClient({
             {/* ── Real-browser test flow ───────────────────────────────────── */}
             {/*
               Direct fetch() to api.leadinfo.com from this admin page would fail
-              with CORS errors — Leadinfo only allows identify calls that originate
+              with CORS errors: Leadinfo only allows identify calls that originate
               from the registered domain.  The test therefore loads the real site
               in a hidden same-origin iframe so LeadinfoProvider runs naturally,
               exactly as it does for a real visitor.

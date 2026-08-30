@@ -209,7 +209,7 @@ function DropdownRow({
           borderColor: active ? "#6366f1" : "#e5e7eb",
           background: active ? "#eef2ff" : "#fff",
           fontSize: 11, color: active ? "#4f46e5" : "#374151" }}>
-        <option value="">— real value —</option>
+        <option value="">: real value: </option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
@@ -237,7 +237,7 @@ function TextRow({
         )}
       </div>
       {hint && <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 2 }}>{hint}</div>}
-      <input type="text" value={value} placeholder={placeholder ?? "— real value —"}
+      <input type="text" value={value} placeholder={placeholder ?? ": real value: "}
         onChange={(e) => onChange(e.target.value || null)}
         style={{ width: "100%", padding: "3px 7px", borderRadius: 5,
           border: "1px solid", borderColor: isDirty ? "#6366f1" : "#e5e7eb",
@@ -270,7 +270,7 @@ function NumericRow({
         )}
       </div>
       {hint && <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 2 }}>{hint}</div>}
-      <input type="number" value={value} placeholder={placeholder ?? "— real value —"}
+      <input type="number" value={value} placeholder={placeholder ?? ": real value: "}
         min={min} max={max} step={step}
         onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
         style={{ width: "100%", padding: "3px 7px", borderRadius: 5,
@@ -519,7 +519,7 @@ function KnownLeadIndicator() {
           ? <code style={{ background: "#fff", border: "1px solid #c7d2fe", borderRadius: 3, padding: "0 4px" }}>{data.forcedSegment}</code>
           : <span style={{ color: "#818cf8", fontStyle: "italic" }}>none linked</span>}
         <span style={{ display: "block", marginTop: 3, color: "#6366f1", fontStyle: "italic" }}>
-          Injected server-side from the lead link — not a manual override.
+          Injected server-side from the lead link, not a manual override.
         </span>
       </div>
     </div>
@@ -644,7 +644,7 @@ function EnricherActionsSection({
     if (st.state === "running") return "⏳";
     if (st.state === "success") return `✓ ${st.durationMs}ms${st.mockMode ? " (mock)" : " (live)"}`;
     if (st.state === "error")   return `✗ ${st.error ?? "failed"}`;
-    return "—";
+    return ": ";
   }
 
   const enricherList = [
@@ -671,7 +671,7 @@ function EnricherActionsSection({
       {!mockMode && (
         <div style={{ padding: "5px 7px", background: "#fff7ed", border: "1px solid #fed7aa",
           borderRadius: 5, fontSize: 10, color: "#9a3412", marginBottom: 7 }}>
-          ⚠️ Live mode calls real APIs. Results are stored as scenario overrides only —
+          ⚠️ Live mode calls real APIs. Results are stored as scenario overrides only, 
           no real user data is modified.
         </div>
       )}
@@ -915,8 +915,8 @@ function ContextTab({
           hint="new = first-touch · returning = repeat session"
           value={overrides.visitType ?? ""}
           options={[
-            { value: "new",       label: "new — first-touch" },
-            { value: "returning", label: "returning — repeat" },
+            { value: "new",       label: "new: first-touch" },
+            { value: "returning", label: "returning: repeat" },
           ]}
           onChange={(v) => patch({ visitType: (v as ScenarioOverrides["visitType"]) ?? undefined })}
         />
@@ -930,7 +930,7 @@ function ContextTab({
           onChange={(v) => patch({ device: (v as ScenarioOverrides["device"]) ?? undefined })}
         />
         <DropdownRow label="Traffic Source"
-          hint="Detected channel — drives source-based rules"
+          hint="Detected channel: drives source-based rules"
           value={overrides.source ?? ""}
           options={[
             { value: "linkedin", label: "LinkedIn" },
@@ -954,17 +954,17 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — Geo ─────────────────────────────────────────────── */}
-      <OverrideGroup title="📍 Enrichment — Geo" activeCount={countActive(geoKeys)}>
+      <OverrideGroup title="📍 Enrichment: Geo" activeCount={countActive(geoKeys)}>
         <DropdownRow label="Country Code"
           hint="ISO 3166-1 alpha-2, e.g. NL, US, DE"
           value={overrides.countryCode ?? ""}
           options={[
-            { value: "NL", label: "NL — Netherlands" },
-            { value: "DE", label: "DE — Germany" },
-            { value: "BE", label: "BE — Belgium" },
-            { value: "GB", label: "GB — United Kingdom" },
-            { value: "US", label: "US — United States" },
-            { value: "FR", label: "FR — France" },
+            { value: "NL", label: "NL: Netherlands" },
+            { value: "DE", label: "DE: Germany" },
+            { value: "BE", label: "BE: Belgium" },
+            { value: "GB", label: "GB: United Kingdom" },
+            { value: "US", label: "US: United States" },
+            { value: "FR", label: "FR: France" },
           ]}
           onChange={(v) => patch({ countryCode: v ?? undefined })}
         />
@@ -991,7 +991,7 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — Network / IP ─────────────────────────────────────── */}
-      <OverrideGroup title="🔌 Enrichment — Network / IP" activeCount={countActive(networkKeys)}>
+      <OverrideGroup title="🔌 Enrichment: Network / IP" activeCount={countActive(networkKeys)}>
         <TextRow label="IP Address"
           hint="Override the visitor IP shown in context / used for enrichment re-run"
           value={overrides.ipAddress ?? ""}
@@ -1019,7 +1019,7 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — Company ──────────────────────────────────────────── */}
-      <OverrideGroup title="🏢 Enrichment — Company" activeCount={countActive(companyKeys)}>
+      <OverrideGroup title="🏢 Enrichment: Company" activeCount={countActive(companyKeys)}>
         <TextRow label="Company Name" hint="From reverse-IP lookup, e.g. Acme BV"
           value={overrides.companyName ?? ""} placeholder="e.g. ASML"
           onChange={(v) => patch({ companyName: v ?? undefined })} />
@@ -1043,11 +1043,11 @@ function ContextTab({
         <DropdownRow label="Company Size"
           value={overrides.companySize ?? ""}
           options={[
-            { value: "1-10",       label: "1–10 employees" },
-            { value: "11-50",      label: "11–50 employees" },
-            { value: "51-200",     label: "51–200 employees" },
-            { value: "201-1000",   label: "201–1000 employees" },
-            { value: "1001-5000",  label: "1001–5000 employees" },
+            { value: "1-10",       label: "1-10 employees" },
+            { value: "11-50",      label: "11-50 employees" },
+            { value: "51-200",     label: "51-200 employees" },
+            { value: "201-1000",   label: "201-1000 employees" },
+            { value: "1001-5000",  label: "1001-5000 employees" },
             { value: "5001+",      label: "5001+ employees" },
           ]}
           onChange={(v) => patch({ companySize: v ?? undefined })}
@@ -1057,11 +1057,11 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — Location (CBS buurt) ─────────────────────────────── */}
-      <OverrideGroup title="📍 Enrichment — Location (CBS buurt)" activeCount={countActive(locationKeys)}>
+      <OverrideGroup title="📍 Enrichment: Location (CBS buurt)" activeCount={countActive(locationKeys)}>
         <NumericRow label="Urbanity class"
           hint="CBS MateVanStedelijkheid: 1 = very urban … 5 = not urban"
           value={overrides.locationUrbanityClass != null ? String(overrides.locationUrbanityClass) : ""}
-          placeholder="1–5" min={1} max={5} step={1}
+          placeholder="1-5" min={1} max={5} step={1}
           onChange={(v) => patch({ locationUrbanityClass: v ?? undefined })} />
         <DropdownRow label="Income band"
           hint="Deviation from the national baseline for this buurt"
@@ -1073,12 +1073,12 @@ function ContextTab({
           ]}
           onChange={(v) => patch({ locationIncomeBand: v ?? undefined })} />
         <NumericRow label="Business share"
-          hint="Share of business addresses in the buurt (0–1)"
+          hint="Share of business addresses in the buurt (0-1)"
           value={overrides.locationBusinessShare != null ? String(overrides.locationBusinessShare) : ""}
           placeholder="e.g. 0.3" min={0} max={1} step={0.01}
           onChange={(v) => patch({ locationBusinessShare: v ?? undefined })} />
         <TextRow label="Area code (buurt)"
-          hint="CBS buurtcode — optional"
+          hint="CBS buurtcode: optional"
           value={overrides.locationAreaCode ?? ""} placeholder="e.g. BU03630000"
           onChange={(v) => patch({ locationAreaCode: v ?? undefined })} />
         <ResetSection activeCount={countActive(locationKeys)}
@@ -1086,7 +1086,7 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — Ads ─────────────────────────────────────────────── */}
-      <OverrideGroup title="📢 Enrichment — Ads" activeCount={countActive(adsKeys)}>
+      <OverrideGroup title="📢 Enrichment: Ads" activeCount={countActive(adsKeys)}>
         <TextRow label="Ad Campaign" hint="Campaign name / ID, e.g. brand-search-nl"
           value={overrides.adCampaign ?? ""} placeholder="e.g. brand-search-nl"
           onChange={(v) => patch({ adCampaign: v ?? undefined })} />
@@ -1101,7 +1101,7 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — CRM ─────────────────────────────────────────────── */}
-      <OverrideGroup title="📊 Enrichment — CRM" activeCount={countActive(crmKeys)}>
+      <OverrideGroup title="📊 Enrichment: CRM" activeCount={countActive(crmKeys)}>
         <CheckRow label="CRM Matched"
           hint="True = a CRM record exists for this visitor"
           value={overrides.crmMatched === null ? undefined : overrides.crmMatched}
@@ -1139,7 +1139,7 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — ABM / Account List ──────────────────────────────── */}
-      <OverrideGroup title="🎯 Enrichment — ABM" activeCount={countActive(abmKeys)}>
+      <OverrideGroup title="🎯 Enrichment: ABM" activeCount={countActive(abmKeys)}>
         <CheckRow label="Target Account Matched"
           hint="True = visitor company is on a target account list"
           value={overrides.targetAccountMatched === null ? undefined : overrides.targetAccountMatched}
@@ -1147,9 +1147,9 @@ function ContextTab({
         <DropdownRow label="Account Tier"
           value={overrides.targetAccountTier ?? ""}
           options={[
-            { value: "tier-1", label: "Tier 1 — Named accounts" },
-            { value: "tier-2", label: "Tier 2 — ICP match" },
-            { value: "tier-3", label: "Tier 3 — Broad target" },
+            { value: "tier-1", label: "Tier 1: Named accounts" },
+            { value: "tier-2", label: "Tier 2: ICP match" },
+            { value: "tier-3", label: "Tier 3: Broad target" },
           ]}
           onChange={(v) => patch({ targetAccountTier: v ?? undefined })}
         />
@@ -1158,20 +1158,20 @@ function ContextTab({
       </OverrideGroup>
 
       {/* ── Enrichment — Weather ─────────────────────────────────────────── */}
-      <OverrideGroup title="🌤 Enrichment — Weather" activeCount={countActive(weatherKeys)}>
+      <OverrideGroup title="🌤 Enrichment: Weather" activeCount={countActive(weatherKeys)}>
         <DropdownRow label="Weather Code (WMO)"
           hint="0=clear, 1-3=partly cloudy, 51-67=rain, 71-77=snow, 95+=thunder"
           value={overrides.weatherCode !== undefined && overrides.weatherCode !== null ? String(overrides.weatherCode) : ""}
           options={[
-            { value: "0",  label: "0 — Clear sky" },
-            { value: "1",  label: "1 — Mainly clear" },
-            { value: "2",  label: "2 — Partly cloudy" },
-            { value: "3",  label: "3 — Overcast" },
-            { value: "51", label: "51 — Light drizzle" },
-            { value: "61", label: "61 — Slight rain" },
-            { value: "63", label: "63 — Moderate rain" },
-            { value: "71", label: "71 — Light snow" },
-            { value: "95", label: "95 — Thunderstorm" },
+            { value: "0",  label: "0: Clear sky" },
+            { value: "1",  label: "1: Mainly clear" },
+            { value: "2",  label: "2: Partly cloudy" },
+            { value: "3",  label: "3: Overcast" },
+            { value: "51", label: "51: Light drizzle" },
+            { value: "61", label: "61: Slight rain" },
+            { value: "63", label: "63: Moderate rain" },
+            { value: "71", label: "71: Light snow" },
+            { value: "95", label: "95: Thunderstorm" },
           ]}
           onChange={(v) => patch({ weatherCode: v ? Number(v) : undefined })}
         />
@@ -1197,10 +1197,10 @@ function ContextTab({
           Overrides use tenant local time. Changing any field automatically
           recomputes daySegment, isWorkHours, season, and isHoliday.
         </div>
-        <NumericRow label="Current Hour (0–23)"
-          hint="Hour of day in tenant local time — drives timeOfDay + daySegment"
+        <NumericRow label="Current Hour (0-23)"
+          hint="Hour of day in tenant local time, drives timeOfDay + daySegment"
           value={overrides.currentHour !== undefined && overrides.currentHour !== null ? String(overrides.currentHour) : ""}
-          placeholder="0–23"
+          placeholder="0-23"
           min={0} max={23} step={1}
           onChange={(v) => {
             const h = v ?? undefined;
@@ -1233,21 +1233,21 @@ function ContextTab({
           }}
         />
         <CheckRow label="Is Weekend"
-          hint="Drives isWorkHours — auto-set when Day of Week is Saturday/Sunday"
+          hint="Drives isWorkHours: auto-set when Day of Week is Saturday/Sunday"
           value={overrides.isWeekend === null ? undefined : overrides.isWeekend}
           onChange={(v) => patch({ isWeekend: v })} />
         <DropdownRow label="Time of Day"
-          hint="morning 06–11 · afternoon 12–17 · evening 18–21 · night 22–05"
+          hint="morning 06-11 · afternoon 12-17 · evening 18-21 · night 22-05"
           value={overrides.timeOfDay ?? ""}
           options={[
-            { value: "morning",   label: "Morning (06:00–11:59)" },
-            { value: "afternoon", label: "Afternoon (12:00–17:59)" },
-            { value: "evening",   label: "Evening (18:00–21:59)" },
-            { value: "night",     label: "Night (22:00–05:59)" },
+            { value: "morning",   label: "Morning (06:00-11:59)" },
+            { value: "afternoon", label: "Afternoon (12:00-17:59)" },
+            { value: "evening",   label: "Evening (18:00-21:59)" },
+            { value: "night",     label: "Night (22:00-05:59)" },
           ]}
           onChange={(v) => patch({ timeOfDay: (v as ScenarioOverrides["timeOfDay"]) ?? undefined })}
         />
-        <DropdownRow label="Month (1–12)"
+        <DropdownRow label="Month (1-12)"
           hint="Drives season (spring/summer/autumn/winter)"
           value={overrides.month !== undefined && overrides.month !== null ? String(overrides.month) : ""}
           options={[
@@ -1288,10 +1288,10 @@ function ContextTab({
           }}
         />
         <DropdownRow label="Seasonal Event"
-          hint="Active marketing holiday — drives isHoliday flag"
+          hint="Active marketing holiday: drives isHoliday flag"
           value={overrides.seasonalEvent ?? ""}
           options={[
-            { value: "none",           label: "None — regular day" },
+            { value: "none",           label: "None: regular day" },
             { value: "new-year",       label: "New Year" },
             { value: "valentines",     label: "Valentine's Day" },
             { value: "easter",         label: "Easter" },
@@ -1319,7 +1319,7 @@ function ContextTab({
           placeholder="e.g. warehousing"
           onChange={(v) => patch({ interestSecondary: v ?? undefined })} />
         <SliderRow
-          label={`Interest Confidence ${overrides.interestConfidence !== undefined ? `(${Math.round(overrides.interestConfidence * 100)}%)` : "(— real —)"}`}
+          label={`Interest Confidence ${overrides.interestConfidence !== undefined ? `(${Math.round(overrides.interestConfidence * 100)}%)` : "(: real: )"}`}
           value={Math.round((overrides.interestConfidence ?? 0) * 100)}
           min={0} max={100} step={5}
           onChange={(v) => patch({ interestConfidence: v === 0 && overrides.interestConfidence === undefined ? undefined : v / 100 })}
@@ -1387,7 +1387,7 @@ function ContextTab({
           value={overrides.isCustomer}
           onChange={(v) => patch({ isCustomer: v })} />
         <DropdownRow label="Plan Tier"
-          hint="Active subscription — used by tier-based rules"
+          hint="Active subscription: used by tier-based rules"
           value={overrides.planTier ?? ""}
           options={[
             { value: "starter", label: "Starter" },
@@ -1404,7 +1404,7 @@ function ContextTab({
       <OverrideGroup title="🎯 Audience Segments" activeCount={countActive(segmentKeys)}>
         <MultiSelectRow
           label="Active Segments"
-          hint="Override which audience segments are matched. Bypasses real-time evaluation — use to test segment-specific rules without needing the right visitor signals."
+          hint="Override which audience segments are matched. Bypasses real-time evaluation, use to test segment-specific rules without needing the right visitor signals."
           value={overrides.audienceSegmentIds ?? ""}
           options={availableSegments}
           onChange={(v) => patch({ audienceSegmentIds: v === undefined ? undefined : (v ?? null) })}
@@ -1464,7 +1464,7 @@ function ContextTab({
           <span>
             <strong>Reset scenario overrides</strong>
             <span style={{ display: "block", fontWeight: 400, color: "#9ca3af" }}>
-              Clears all overrides — reverts to real behavioral data
+              Clears all overrides: reverts to real behavioral data
             </span>
           </span>
         </button>
@@ -1486,8 +1486,8 @@ function ContextTab({
             <strong>{isResetting ? "Resetting…" : "Reset website session"}</strong>
             <span style={{ display: "block", fontWeight: 400, color: "#b45309" }}>
               {isResetting
-                ? "Clearing session state — reloading…"
-                : "Clears session, journey events, collector flags, and all session cookies — simulates a new visit"}
+                ? "Clearing session state: reloading…"
+                : "Clears session, journey events, collector flags, and all session cookies, simulates a new visit"}
             </span>
           </span>
         </button>
@@ -1509,8 +1509,8 @@ function ContextTab({
             <strong>{isResetting ? "Full wipe in progress…" : "Reset session + visitor identity"}</strong>
             <span style={{ display: "block", fontWeight: 400, color: "#be123c" }}>
               {isResetting
-                ? "Clearing all cookies, storage & caches — reloading…"
-                : "True full wipe — ALL cookies, ALL localStorage, ALL sessionStorage. Simulates brand new first-time visitor."}
+                ? "Clearing all cookies, storage & caches, reloading…"
+                : "True full wipe: ALL cookies, ALL localStorage, ALL sessionStorage. Simulates brand new first-time visitor."}
             </span>
           </span>
         </button>
@@ -1522,7 +1522,7 @@ function ContextTab({
 // ── Tab 2: Why This Experience ────────────────────────────────────────────────
 
 function humanFunnelReason(j: JourneyState): string {
-  if (j.hasSubmittedForm) return "submitted the contact form — conversion confirmed.";
+  if (j.hasSubmittedForm) return "submitted the contact form, conversion confirmed.";
   if (j.funnelStage === "high_intent") {
     const parts: string[] = [];
     if (j.hasVisitedPricing)   parts.push("visited pricing");
@@ -1554,8 +1554,8 @@ function humanConfidenceReason(j: JourneyState): string[] {
   if (j.confidence.band === "high")     r.push("Strong signals across multiple dimensions");
   if (j.confidence.band === "very_high") r.push("Conversion confirmed or maximum signals reached");
   if (j.frictionScore > 50)             r.push(`High friction (${score(j.frictionScore)}) suppressing confidence`);
-  if (j.signalDiversityScore < 0.2)     r.push("Low signal diversity — only one type of action seen");
-  if (j.repeatSessionBonus > 0.4)       r.push("Return visit — stronger confidence base");
+  if (j.signalDiversityScore < 0.2)     r.push("Low signal diversity: only one type of action seen");
+  if (j.repeatSessionBonus > 0.4)       r.push("Return visit: stronger confidence base");
   return r;
 }
 
@@ -1628,14 +1628,14 @@ function WhyThisTab({ journey }: { journey: JourneyState | null }) {
 
       {blocked.length > 0 && (
         <>
-          <SectionLabel>Blocked — confidence too low</SectionLabel>
+          <SectionLabel>Blocked: confidence too low</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
             {blocked.map((b) => (
               <div key={b.slot} style={{ display: "flex", alignItems: "flex-start", gap: 5, fontSize: 11 }}>
                 <span style={{ color: "#ef4444", fontWeight: 700, flexShrink: 0 }}>✗</span>
                 <div>
                   <span style={{ fontWeight: 600 }}>{b.label}</span>
-                  <span style={{ color: "#9ca3af" }}> — {b.reason}</span>
+                  <span style={{ color: "#9ca3af" }}>, {b.reason}</span>
                 </div>
               </div>
             ))}
@@ -1682,7 +1682,7 @@ function LiveRow({ label, value }: { label: string; value: string | number | boo
       borderBottom: "1px solid #f1f5f9", paddingBottom: 2 }}>
       <span style={{ color: "#9ca3af" }}>{label}</span>
       <span style={{ fontWeight: 600, color: "#374151", fontFamily: "monospace", fontSize: 10 }}>
-        {String(value ?? "—")}
+        {String(value ?? ", ")}
       </span>
     </div>
   );
@@ -1739,10 +1739,10 @@ function LiveStateTab({ journey, mergedEventCount, onRefresh, lastRefreshed }: {
   });
 
   // Format the last-refreshed timestamp as a relative "X seconds ago" string.
-  const [refreshLabel, setRefreshLabel] = useState("—");
+  const [refreshLabel, setRefreshLabel] = useState(", ");
   useEffect(() => {
     function update() {
-      if (!lastRefreshed) { setRefreshLabel("—"); return; }
+      if (!lastRefreshed) { setRefreshLabel(", "); return; }
       const s = Math.round((Date.now() - lastRefreshed.getTime()) / 1000);
       setRefreshLabel(s <= 1 ? "just now" : `${s}s ago`);
     }
@@ -1813,8 +1813,8 @@ function LiveStateTab({ journey, mergedEventCount, onRefresh, lastRefreshed }: {
         </LiveSection>
       )}
       <LiveSection open={open} toggle={toggle} k="timing" title="🕐 Timing">
-        <LiveRow label="First seen"   value={journey.firstSeenAt ? new Date(journey.firstSeenAt).toLocaleString() : "—"} />
-        <LiveRow label="Last seen"    value={journey.lastSeenAt  ? new Date(journey.lastSeenAt).toLocaleString()  : "—"} />
+        <LiveRow label="First seen"   value={journey.firstSeenAt ? new Date(journey.firstSeenAt).toLocaleString() : ", "} />
+        <LiveRow label="Last seen"    value={journey.lastSeenAt  ? new Date(journey.lastSeenAt).toLocaleString()  : ", "} />
         <LiveRow label="From DB"      value={journey.fromDatabase} />
       </LiveSection>
     </div>
@@ -1992,7 +1992,7 @@ function DemoFlowsTab({
             {isCompleted && (
               <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>
-                  ✓ Done — all {flow.steps.length} events fired
+                  ✓ Done: all {flow.steps.length} events fired
                 </span>
                 {countdown !== null && countdown > 0 && (
                   <span style={{ fontSize: 10, color: "#9ca3af" }}>
@@ -2510,7 +2510,7 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
               padding: "4px 13px", fontSize: 10, color: "#dc2626", fontWeight: 600,
               display: "flex", alignItems: "center", gap: 5, flexShrink: 0,
             }}>
-              ⚠️ SCENARIO MODE — overrides are session-scoped. No real user data modified.
+              ⚠️ SCENARIO MODE: overrides are session-scoped. No real user data modified.
               {applying && <span style={{ marginLeft: "auto", color: "#9ca3af" }}>⏳ recomputing…</span>}
             </div>
           )}
@@ -2574,8 +2574,8 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
             display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
             <span>dev only · session-scoped · {autoApply ? "auto-apply ON" : "manual apply"}</span>
             <span>
-              {journey?.funnelStage ?? "—"} ·{" "}
-              {journey ? pct(journey.confidence.overallConfidence) : "—"}
+              {journey?.funnelStage ?? ", "} ·{" "}
+              {journey ? pct(journey.confidence.overallConfidence) : ", "}
             </span>
           </div>
         </div>

@@ -210,7 +210,7 @@ function ProfileRow({ profile, tenantId, saving, checking, error, onToggle, sele
               </span>
             </div>
           ) : (
-            <span className="text-xs text-neutral-300">—</span>
+            <span className="text-xs text-neutral-300">, </span>
           )}
         </td>
 
@@ -564,7 +564,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
           tenant (tenant-specific profiles plus platform-wide ones that haven&apos;t been
           turned off). Use the toggle in the <strong>Tenant</strong> column to enable or
           disable individual platform profiles for this tenant without affecting other tenants.
-          Scores are normalised to 0–1 and available as context variables.
+          Scores are normalised to 0-1 and available as context variables.
         </p>
       </div>
 
@@ -628,7 +628,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
             {tenantProfiles.length > 0 && (
               <>
                 <SectionHeading>
-                  This tenant — {tenantProfiles.length} profile{tenantProfiles.length !== 1 ? "s" : ""}
+                  This tenant: {tenantProfiles.length} profile{tenantProfiles.length !== 1 ? "s" : ""}
                 </SectionHeading>
                 {tenantProfiles.map((profile) => (
                   <ProfileRow
@@ -650,7 +650,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
             {platformActive.length > 0 && (
               <>
                 <SectionHeading>
-                  Platform — {platformActive.length} active profile{platformActive.length !== 1 ? "s" : ""}{" "}
+                  Platform: {platformActive.length} active profile{platformActive.length !== 1 ? "s" : ""}{" "}
                   ({platformEnabledCount} on, {platformDisabledCount} off)
                 </SectionHeading>
                 {platformActive.map((profile) => (
@@ -673,7 +673,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
             {platformSuggested.length > 0 && (
               <>
                 <SectionHeading>
-                  Platform — {platformSuggested.length} suggested profile{platformSuggested.length !== 1 ? "s" : ""} (inactive globally)
+                  Platform: {platformSuggested.length} suggested profile{platformSuggested.length !== 1 ? "s" : ""} (inactive globally)
                 </SectionHeading>
                 {platformSuggested.map((profile) => (
                   <ProfileRow
@@ -695,7 +695,7 @@ export function ProfilesClient({ initialProfiles, tenantId }: ProfilesClientProp
             {platformInactiveOther.length > 0 && (
               <>
                 <SectionHeading>
-                  Platform — {platformInactiveOther.length} inactive profile{platformInactiveOther.length !== 1 ? "s" : ""}
+                  Platform: {platformInactiveOther.length} inactive profile{platformInactiveOther.length !== 1 ? "s" : ""}
                 </SectionHeading>
                 {platformInactiveOther.map((profile) => (
                   <ProfileRow

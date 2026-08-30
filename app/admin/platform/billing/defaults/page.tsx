@@ -120,21 +120,21 @@ export default async function BillingDefaultsPage() {
         </p>
         <ul className="text-xs text-neutral-500 space-y-1.5">
           <li>
-            <strong className="text-neutral-600">New wallets</strong> — inherit all defaults
+            <strong className="text-neutral-600">New wallets</strong>: inherit all defaults
             when a tenant wallet is created via{" "}
             <code className="rounded bg-white border border-neutral-200 px-1">ensureWallet()</code>.
           </li>
           <li>
-            <strong className="text-neutral-600">Existing wallets</strong> — not updated. Tenants
+            <strong className="text-neutral-600">Existing wallets</strong>: not updated. Tenants
             can override auto-reload settings via their wallet settings panel.
           </li>
           <li>
-            <strong className="text-neutral-600">Low balance threshold</strong> — when a wallet
+            <strong className="text-neutral-600">Low balance threshold</strong>: when a wallet
             balance drops below this value, a notification is queued via{" "}
             <code className="rounded bg-white border border-neutral-200 px-1">billing/notifications.ts</code>.
           </li>
           <li>
-            <strong className="text-neutral-600">Auto-reload</strong> — fires when the wallet
+            <strong className="text-neutral-600">Auto-reload</strong>: fires when the wallet
             balance drops below the trigger level. Monthly cap prevents runaway charges.
           </li>
         </ul>

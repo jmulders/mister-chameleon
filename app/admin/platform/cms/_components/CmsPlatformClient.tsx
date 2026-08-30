@@ -146,7 +146,7 @@ function SecretInput({
       />
       <p className="mt-0.5 text-[11px] text-neutral-400">
         Leave blank to keep the existing value.
-        Stored server-side only — never shown after save.
+        Stored server-side only: never shown after save.
       </p>
     </div>
   );
@@ -384,7 +384,7 @@ function SanitySection({
       <div className="mt-5 border-t border-neutral-100 pt-4">
         <p className="mb-3 text-xs text-neutral-500">
           Test that the configured project ID, dataset, and write token can connect.
-          Uses the current form values — you can test credentials before saving.
+          Uses the current form values, you can test credentials before saving.
         </p>
         <button
           onClick={handleTest}
@@ -494,11 +494,11 @@ function StatamicTestResultBanner({ result }: { result: StatamicTestConnectionRe
 
 const STORYBLOK_REGIONS = [
   { value: "",   label: "Default (eu)" },
-  { value: "eu", label: "EU — api.storyblok.com" },
-  { value: "us", label: "US — api-us.storyblok.com" },
-  { value: "ap", label: "AP — api-ap.storyblok.com" },
-  { value: "ca", label: "CA — api-ca.storyblok.com" },
-  { value: "cn", label: "CN — app.storyblokchina.cn" },
+  { value: "eu", label: "EU: api.storyblok.com" },
+  { value: "us", label: "US: api-us.storyblok.com" },
+  { value: "ap", label: "AP: api-ap.storyblok.com" },
+  { value: "ca", label: "CA: api-ca.storyblok.com" },
+  { value: "cn", label: "CN: app.storyblokchina.cn" },
 ];
 
 const STORYBLOK_VERSIONS = [
@@ -659,7 +659,7 @@ function StoryblokSection({
               value={spaceId}
               onChange={setSpaceId}
               placeholder="e.g. 123456"
-              hint="Numeric ID from Storyblok Settings → General. Storyblok shows it as '# 123456' — enter only the digits."
+              hint="Numeric ID from Storyblok Settings → General. Storyblok shows it as '# 123456', enter only the digits."
             />
           </div>
           <div>
@@ -724,7 +724,7 @@ function StoryblokSection({
       <div className="mt-5 border-t border-neutral-100 pt-4">
         <p className="mb-3 text-xs text-neutral-500">
           Test that the Content Delivery token and region can read from Storyblok.
-          Uses the current form values — you can test credentials before saving.
+          Uses the current form values, you can test credentials before saving.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -880,7 +880,7 @@ function StatamicSection({
       <div className="mt-5 border-t border-neutral-100 pt-4">
         <p className="mb-3 text-xs text-neutral-500">
           Test that the base URL can reach the Statamic REST API.
-          Uses the current form values — you can test credentials before saving.
+          Uses the current form values, you can test credentials before saving.
         </p>
         <button
           onClick={handleTest}

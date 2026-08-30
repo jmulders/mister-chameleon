@@ -259,7 +259,7 @@ export function WebhookRulesManager({
   const startEdit = (r: RuleWebhookRow) => {
     setError(null);
     const parsed = conditionToRows(r.condition);
-    if (!parsed.editable) { setError("This rule has a nested condition — edit it in the Rules editor."); return; }
+    if (!parsed.editable) { setError("This rule has a nested condition, edit it in the Rules editor."); return; }
     setEditing({ ruleId: r.ruleId, label: r.label, url: r.url, secret: "", logic: parsed.logic, rows: parsed.rows, payloadFields: r.payloadFields ?? [] });
   };
 

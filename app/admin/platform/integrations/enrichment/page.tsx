@@ -46,9 +46,9 @@ export default async function IntegrationsEnrichmentPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Enrichment — Platform Credentials</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Enrichment: Platform Credentials</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          API keys for IP enrichment providers. This page stores <strong>secrets only</strong> —
+          API keys for IP enrichment providers. This page stores <strong>secrets only</strong>, 
           which providers are active for each tenant is configured in each tenant&apos;s
           Integrations workspace tab.
         </p>

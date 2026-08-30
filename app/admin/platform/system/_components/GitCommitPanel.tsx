@@ -107,7 +107,7 @@ export function GitCommitPanel() {
             })}
           </ul>
         ) : (
-          <p className="text-xs text-neutral-400 italic">Working tree is clean — niets te committen.</p>
+          <p className="text-xs text-neutral-400 italic">Working tree is clean, niets te committen.</p>
         )}
       </div>
 

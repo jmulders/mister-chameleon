@@ -1289,7 +1289,7 @@ function LedgerPagination({
 
   return (
     <div className="mt-4 flex flex-col gap-3 border-t border-neutral-100 pt-3 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-neutral-400">Rows {firstRow}–{lastRow}</p>
+      <p className="text-neutral-400">Rows {firstRow}: {lastRow}</p>
 
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-1.5">
@@ -1369,7 +1369,7 @@ function LedgerTable({ entries }: { entries: WalletLedgerEntry[] }) {
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${catBadge[entry.category] ?? "bg-neutral-100 text-neutral-500"}`}>
                       {entry.category.charAt(0).toUpperCase() + entry.category.slice(1)}
                     </span>
-                  ) : <span className="text-neutral-300">—</span>}
+                  ) : <span className="text-neutral-300">, </span>}
                 </td>
                 <td className={`py-2.5 pr-4 text-right font-medium tabular-nums ${isCredit ? "text-emerald-600" : "text-red-500"}`}>
                   {isCredit ? "+" : ""}{displayAmount.toLocaleString("nl-NL", { maximumFractionDigits: 4 })} cr
@@ -1377,10 +1377,10 @@ function LedgerTable({ entries }: { entries: WalletLedgerEntry[] }) {
                 <td className="py-2.5 pr-4 text-right tabular-nums text-neutral-600">
                   {displayBalance != null
                     ? displayBalance.toLocaleString("nl-NL", { maximumFractionDigits: 4 }) + " cr"
-                    : <span className="text-neutral-300">—</span>}
+                    : <span className="text-neutral-300">, </span>}
                 </td>
                 <td className="max-w-48 truncate py-2.5 text-xs text-neutral-400">
-                  {entry.note ?? entry.reference_id ?? "—"}
+                  {entry.note ?? entry.reference_id ?? ", "}
                 </td>
               </tr>
             );
@@ -1705,9 +1705,9 @@ function SuperAdminSubscriptionPanel({
                   ["Status",       subscription.status],
                   ["Plan",         subscription.plan],
                   ["Billing cycle", subscription.billing_cycle],
-                  ["Period start",  subscription.current_period_start ? fmtDate(subscription.current_period_start) : "—"],
-                  ["Period end",    subscription.current_period_end   ? fmtDate(subscription.current_period_end)   : "—"],
-                  ["Trial end",     subscription.trial_end            ? fmtDate(subscription.trial_end)            : "—"],
+                  ["Period start",  subscription.current_period_start ? fmtDate(subscription.current_period_start) : ", "],
+                  ["Period end",    subscription.current_period_end   ? fmtDate(subscription.current_period_end)   : ", "],
+                  ["Trial end",     subscription.trial_end            ? fmtDate(subscription.trial_end)            : ", "],
                   ["Cancel at end", subscription.cancel_at_period_end ? "Yes" : "No"],
                   ["Stripe sub",    subscription.stripe_subscription_id ? subscription.stripe_subscription_id.slice(0, 18) + "…" : "Not linked"],
                 ].map(([label, value]) => (
@@ -1944,8 +1944,8 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
           <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
             {[
               ["Billing cycle", subscription.billing_cycle],
-              ["Period start",  subscription.current_period_start ? fmtDate(subscription.current_period_start) : "—"],
-              ["Period end",    subscription.current_period_end   ? fmtDate(subscription.current_period_end)   : "—"],
+              ["Period start",  subscription.current_period_start ? fmtDate(subscription.current_period_start) : ", "],
+              ["Period end",    subscription.current_period_end   ? fmtDate(subscription.current_period_end)   : ", "],
             ].map(([label, value]) => (
               <div key={label as string} className="rounded-lg bg-neutral-50 p-3">
                 <dt className="text-xs text-neutral-400">{label as string}</dt>
@@ -2371,7 +2371,7 @@ function DebugPanel({ tenantId, wallet, enrichmentUsageSummary, reloadAttempts, 
                     a.status === "succeeded" ? "text-emerald-600" : a.status === "failed" ? "text-red-500" : "text-neutral-500"
                   }`}>{a.status}</td>
                   <td className="py-1.5 pr-4 text-right text-neutral-600">{a.reload_amount_cents.toLocaleString("nl-NL")} cr</td>
-                  <td className="max-w-40 truncate py-1.5 text-neutral-400">{a.failure_reason ?? "—"}</td>
+                  <td className="max-w-40 truncate py-1.5 text-neutral-400">{a.failure_reason ?? ", "}</td>
                 </tr>
               ))}
             </tbody>
@@ -2392,7 +2392,7 @@ function DebugPanel({ tenantId, wallet, enrichmentUsageSummary, reloadAttempts, 
               <div key={label as string} className="rounded bg-neutral-50 p-2">
                 <dt className="text-neutral-400">{label as string}</dt>
                 <dd className={`font-mono font-semibold ${label === "Discrepancy" && typeof val === "number" && val > 5 ? "text-red-600" : "text-neutral-700"}`}>
-                  {typeof val === "number" ? val.toLocaleString("nl-NL") : "—"}
+                  {typeof val === "number" ? val.toLocaleString("nl-NL") : ", "}
                 </dd>
               </div>
             ))}
@@ -2876,7 +2876,7 @@ function StripePaymentsTab({
               ? new Date(invoices[0].createdAt).toLocaleDateString("en-GB", {
                   day: "numeric", month: "short", year: "numeric",
                 })
-              : "—"}
+              : ": "}
           </p>
         </div>
       </div>
@@ -2932,17 +2932,17 @@ function StripePaymentsTab({
                           One-off
                         </span>
                       )}
-                      <span className="max-w-[200px] truncate">{inv.description ?? "—"}</span>
+                      <span className="max-w-[200px] truncate">{inv.description ?? ", "}</span>
                     </div>
                   </td>
                   <td className="py-2.5 pr-4 text-xs text-neutral-500">
                     {inv.periodStart && inv.periodEnd ? (
                       <>
                         {new Date(inv.periodStart).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        {" – "}
+                        {": "}
                         {new Date(inv.periodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                       </>
-                    ) : "—"}
+                    ) : ": "}
                   </td>
                   <td className="py-2.5 pr-4 text-right font-medium tabular-nums">
                     {formatCurrency(inv.status === "paid" ? inv.amountPaid : inv.amountDue, inv.currency)}
@@ -3520,7 +3520,7 @@ function SessionsTab({
                   <td className={`px-5 py-3 font-medium text-sm ${entryTypeColor(entry.entry_type)}`}>
                     {entryTypeLabel(entry.entry_type)}
                   </td>
-                  <td className="px-5 py-3 text-xs text-neutral-400 max-w-xs truncate">{entry.note ?? "—"}</td>
+                  <td className="px-5 py-3 text-xs text-neutral-400 max-w-xs truncate">{entry.note ?? ", "}</td>
                   <td className={`px-5 py-3 text-right font-mono font-semibold ${entry.amount > 0 ? "text-emerald-700" : "text-neutral-600"}`}>
                     {entry.amount > 0 ? "+" : ""}{fmtN(entry.amount)}
                   </td>

@@ -149,7 +149,7 @@ export function SearchDebugPanel() {
             max={100}
             value={context.intentScore ?? ""}
             onChange={(e) => setContext((p) => ({ ...p, intentScore: e.target.value ? parseInt(e.target.value) : null }))}
-            placeholder="0–100"
+            placeholder="0-100"
             className="w-full rounded border border-neutral-300 px-2 py-1 text-xs focus:outline-none"
           />
         </div>

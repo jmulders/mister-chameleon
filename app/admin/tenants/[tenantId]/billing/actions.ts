@@ -115,7 +115,7 @@ export async function getCreditSettingsAction(tenantId: string): Promise<
       // 42P01 = table missing — treat as no settings (return defaults)
       if (error.code === "42P01" || error.code === "PGRST205") {
         console.warn(
-          `[billing/actions] platform_settings table missing — returning defaults for tenantId=${tenantId}`,
+          `[billing/actions] platform_settings table missing, returning defaults for tenantId=${tenantId}`,
         );
         return { ok: true, settings: { ...CREDIT_SETTINGS_DEFAULTS } };
       }
@@ -385,7 +385,7 @@ export async function addCreditsAction(
     if (!isSuperAdmin(session)) {
       // Explicit rejection — never rely on UI gating alone.
       console.warn(
-        `[billing/actions] addCreditsAction rejected — not superadmin: role=${session.role} email=${session.email} tenantId=${tenantId}`,
+        `[billing/actions] addCreditsAction rejected, not superadmin: role=${session.role} email=${session.email} tenantId=${tenantId}`,
       );
       return { ok: false, error: "Permission denied: super admin role required." };
     }
@@ -449,7 +449,7 @@ export async function addCreditsAction(
         : 0;
 
       console.info(
-        `[billing/actions] addCreditsAction (deduction) success — tenantId=${tenantId} by=${session.email} ` +
+        `[billing/actions] addCreditsAction (deduction) success, tenantId=${tenantId} by=${session.email} ` +
         `amount=${amount} type=${input.adjustmentType} reason="${reason}" newBalance=${newBalanceCents}`,
       );
 
@@ -469,7 +469,7 @@ export async function addCreditsAction(
     );
 
     console.info(
-      `[billing/actions] addCreditsAction success — tenantId=${tenantId} by=${session.email} ` +
+      `[billing/actions] addCreditsAction success, tenantId=${tenantId} by=${session.email} ` +
       `amount=${amount} type=${input.adjustmentType} reason="${reason}" ` +
       `newBalance=${newBalanceCents}`,
     );
@@ -501,7 +501,7 @@ export async function reactivateWalletAction(
 
     if (!isSuperAdmin(session)) {
       console.warn(
-        `[billing/actions] reactivateWalletAction rejected — not superadmin: role=${session.role} tenantId=${tenantId}`,
+        `[billing/actions] reactivateWalletAction rejected, not superadmin: role=${session.role} tenantId=${tenantId}`,
       );
       return { ok: false, error: "Permission denied: super admin role required." };
     }
@@ -510,7 +510,7 @@ export async function reactivateWalletAction(
     await updateWalletStatus(client, tenantId, "active");
 
     console.info(
-      `[billing/actions] reactivateWalletAction success — tenantId=${tenantId} by=${session.email}`,
+      `[billing/actions] reactivateWalletAction success, tenantId=${tenantId} by=${session.email}`,
     );
 
     return { ok: true };
@@ -785,7 +785,7 @@ export async function confirmSubscriptionCheckoutAction(
     if (!isValidPlanId(rawPlanId)) {
       console.warn(
         `[billing/actions] Unknown plan_id "${rawPlanId}" in Stripe session metadata ` +
-        `(tenantId=${tenantId} session=${checkoutSessionId}) — falling back to "starter".`,
+        `(tenantId=${tenantId} session=${checkoutSessionId}), falling back to "starter".`,
       );
     }
     const billingCycle: "monthly" | "annual" =
@@ -1009,7 +1009,7 @@ export async function syncPaymentMethodFromStripeAction(
       if (upsertErr) {
         console.warn(
           `[billing/actions] syncPaymentMethodFromStripeAction: upsert failed for ` +
-          `tenant ${tenantId} — ${upsertErr.message}`,
+          `tenant ${tenantId}: ${upsertErr.message}`,
         );
       } else {
         console.info(
@@ -1125,7 +1125,7 @@ export async function confirmSessionBundlePurchaseAction(
       p_amount:    bundle.sessions,
       p_bundle_id: bundleId,
       p_stripe_id: checkoutSessionId,
-      p_note:      `${bundle.label} — Stripe checkout ${checkoutSessionId}`,
+      p_note:      `${bundle.label}, Stripe checkout ${checkoutSessionId}`,
     });
 
     if (rpcError) {

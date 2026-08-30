@@ -311,7 +311,7 @@ export function BlockTokenSetsEditor({ tenantId, initialSets }: BlockTokenSetsEd
                           {f.kind === "surface" ? (
                             <select value={raw} onChange={(e) => updateToken(idx, f.key, e.target.value)} style={inputStyle}>
                               {SURFACE_OPTIONS.map((o) => (
-                                <option key={o} value={o}>{o === "" ? "— none —" : o}</option>
+                                <option key={o} value={o}>{o === "" ? ": none: " : o}</option>
                               ))}
                             </select>
                           ) : f.kind === "color" ? (

@@ -187,7 +187,7 @@ export function UserForm({ mode, user, tenants, action, error, tenantAssignments
               <p className="font-medium">Tenant assignments not yet available</p>
               <p className="mt-1 text-xs text-amber-700">
                 The <code className="rounded bg-amber-100 px-1 font-mono">admin_user_tenants</code>{" "}
-                table does not exist — migration 21 has not been applied.
+                table does not exist: migration 21 has not been applied.
                 Checkboxes are shown for preview only; selections will not be saved.{" "}
                 <Link
                   href="/admin/setup"

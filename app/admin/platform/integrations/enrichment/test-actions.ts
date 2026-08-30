@@ -340,7 +340,7 @@ export async function testOpenKvKConnectionAction(
     // specific company could not be found by name.
     const isFuzzyFallback = attempt.source === "suggest";
     const fuzzyNote = isFuzzyFallback
-      ? `Fuzzy fallback — the overheid.io list search returned 0 results for this name. ` +
+      ? `Fuzzy fallback: the overheid.io list search returned 0 results for this name. ` +
         `The matches above are phonetically similar companies, NOT exact results. ` +
         `The API IS reachable and authenticated. For reliable name lookup use a large ` +
         `company like "ING" or "Coolblue" to verify connectivity.`
@@ -481,7 +481,7 @@ export async function testLeadinfoConnectionAction(): Promise<TestConnectionResu
         latencyMs: elapsed(start),
         fields: [
           { label: "IP tested",  value: "8.8.8.8" },
-          { label: "Status",     value: "Connected — 8.8.8.8 (Google DNS) is not mapped to a B2B company, which is expected." },
+          { label: "Status",     value: "Connected: 8.8.8.8 (Google DNS) is not mapped to a B2B company, which is expected." },
           { label: "Company",    value: null },
         ],
       };
@@ -567,7 +567,7 @@ export async function testMaxMindConnectionAction(): Promise<TestConnectionResul
       let detail = "";
       try {
         const body = (await response.json()) as { code?: string; error?: string };
-        detail = body.error ? ` — ${body.error}` : (body.code ? ` (code: ${body.code})` : "");
+        detail = body.error ? `: ${body.error}` : (body.code ? ` (code: ${body.code})` : "");
       } catch { /* ignore parse errors */ }
 
       return {
@@ -1041,7 +1041,7 @@ export async function testKvkZoekenConnectionAction(): Promise<TestConnectionRes
       return {
         ok:        true,
         message:   isTestKey
-          ? "✓ Connected (test key). Test environment returned no results for 'ING' — this is normal, test data is limited. A production key will search real companies."
+          ? "✓ Connected (test key). Test environment returned no results for 'ING', this is normal, test data is limited. A production key will search real companies."
           : "✓ Connected. API returned no results for query 'ING'.",
         latencyMs: elapsed(start),
         fields:    [{ label: "Key type", value: isTestKey ? "Free test key" : "Production key" }],

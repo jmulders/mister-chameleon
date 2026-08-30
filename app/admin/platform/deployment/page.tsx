@@ -50,14 +50,14 @@ const ENV_VAR_MANIFEST: EnvVarEntry[] = [
   { key: "MC_FALLBACK_TENANT_ID",       required: false, group: "Site",        description: "Tenant to use on unrecognised hostnames", howToGet: "A tenantId from tenant/resolve-tenant.ts" },
   { key: "MC_HOMEPAGE_DECISION_PROVIDER", required: false, group: "Site",      description: "Decision engine: rules | claude | openai", howToGet: "Default: rules (no API key needed)" },
   // Demo generator
-  { key: "MC_DEMO_SITE_KEY",            required: false, group: "Demo Generator", description: "API key protecting the /api/demo/mirror endpoint from public use", howToGet: "Generate: openssl rand -hex 32 — then set the same value in the generator client", canUseDb: true },
+  { key: "MC_DEMO_SITE_KEY",            required: false, group: "Demo Generator", description: "API key protecting the /api/demo/mirror endpoint from public use", howToGet: "Generate: openssl rand -hex 32, then set the same value in the generator client", canUseDb: true },
   // Sanity
   { key: "SANITY_PROJECT_ID",           required: false, group: "Sanity CMS",  description: "Sanity project ID",                     howToGet: "manage.sanity.io → Settings → API" },
   { key: "SANITY_DATASET",              required: false, group: "Sanity CMS",  description: "Dataset name (usually \"production\")",   howToGet: "manage.sanity.io → Datasets" },
   { key: "SANITY_API_VERSION",          required: false, group: "Sanity CMS",  description: "API version date, e.g. 2024-01-01",      howToGet: "Use today's date when creating a new project" },
   { key: "SANITY_READ_TOKEN",           required: false, group: "Sanity CMS",  description: "Read token for draft/preview content",   howToGet: "manage.sanity.io → Settings → API → Tokens" },
   { key: "SANITY_API_WRITE_TOKEN",      required: false, group: "Sanity CMS",  description: "Write token for CMS provisioning",       howToGet: "manage.sanity.io → Settings → API → Tokens (Write access)" },
-  { key: "SANITY_API_TOKEN",            required: false, group: "Sanity CMS",  description: "Editor token used by \"Seed platform variants\" — read from the server env, so set it on the Vercel project (and in .env.local locally)", howToGet: "manage.sanity.io → your project → API → Tokens → Add API token (Editor role)" },
+  { key: "SANITY_API_TOKEN",            required: false, group: "Sanity CMS",  description: "Editor token used by \"Seed platform variants\", read from the server env, so set it on the Vercel project (and in .env.local locally)", howToGet: "manage.sanity.io → your project → API → Tokens → Add API token (Editor role)" },
   // Storyblok CMS
   { key: "STORYBLOK_ACCESS_TOKEN",      required: false, group: "Storyblok CMS", description: "Content Delivery API access token (Preview or Public)", howToGet: "app.storyblok.com → your space → Settings → Access Tokens",                                              canUseDb: true },
   { key: "STORYBLOK_REGION",            required: false, group: "Storyblok CMS", description: "CDN region: eu | us | ap | ca | cn (default: eu)",     howToGet: "Match the region where your Storyblok space was created",                                                 canUseDb: true },
@@ -86,18 +86,18 @@ const ENV_VAR_MANIFEST: EnvVarEntry[] = [
   { key: "R2_PUBLIC_URL",              required: false, group: "Cloudflare R2", description: "Public base URL for R2 assets",        howToGet: "Bucket overview or custom domain on R2 bucket",           canUseDb: true },
   // Statamic CMS
   { key: "STATAMIC_API_URL",           required: false, group: "Statamic CMS", description: "Base URL of the Statamic site (no trailing slash)", howToGet: "The tenant's CMS domain, e.g. https://cms.example.com",   canUseDb: true },
-  { key: "STATAMIC_API_KEY",           required: false, group: "Statamic CMS", description: "API token AND shared secret for the CMS write route — must equal MISTER_CHAMELEON_CMS_WRITE_TOKEN in the Statamic app's .env", howToGet: "Generate: openssl rand -base64 32 — set the same value in Ploi", canUseDb: true },
-  { key: "STATAMIC_WEBHOOK_SECRET",    required: false, group: "Statamic CMS", description: "x-statamic-secret for the cache-flush webhook",   howToGet: "Generate: openssl rand -base64 32 — set as MISTER_CHAMELEON_WEBHOOK_SECRET in Ploi", canUseDb: true },
+  { key: "STATAMIC_API_KEY",           required: false, group: "Statamic CMS", description: "API token AND shared secret for the CMS write route, must equal MISTER_CHAMELEON_CMS_WRITE_TOKEN in the Statamic app's .env", howToGet: "Generate: openssl rand -base64 32, set the same value in Ploi", canUseDb: true },
+  { key: "STATAMIC_WEBHOOK_SECRET",    required: false, group: "Statamic CMS", description: "x-statamic-secret for the cache-flush webhook",   howToGet: "Generate: openssl rand -base64 32, set as MISTER_CHAMELEON_WEBHOOK_SECRET in Ploi", canUseDb: true },
   // Cron
   { key: "CRON_SECRET",                required: true,  group: "Cron",        description: "Gates every /api/cron/* endpoint",       howToGet: "Auto-injected by Vercel in production; set manually for local/staging" },
   // Lead base & webhooks
-  { key: "LEAD_INBOUND_SECRET",        required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/inbound-form (Statamic form bridge)", howToGet: "Generate: openssl rand -base64 32 — same value in the Statamic app's .env" },
-  { key: "LEAD_SUPPRESSION_SECRET",    required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/suppression (ESP unsubscribes)",     howToGet: "Generate: openssl rand -base64 32 — give it to your ESP" },
+  { key: "LEAD_INBOUND_SECRET",        required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/inbound-form (Statamic form bridge)", howToGet: "Generate: openssl rand -base64 32, same value in the Statamic app's .env" },
+  { key: "LEAD_SUPPRESSION_SECRET",    required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/suppression (ESP unsubscribes)",     howToGet: "Generate: openssl rand -base64 32, give it to your ESP" },
   // Stripe
   { key: "STRIPE_SECRET_KEY",          required: false, group: "Stripe",      description: "Live secret key",                        howToGet: "dashboard.stripe.com/apikeys",                            canUseDb: true },
   { key: "STRIPE_WEBHOOK_SECRET",      required: false, group: "Stripe",      description: "Signing secret for /api/webhooks/stripe", howToGet: "Stripe → Developers → Webhooks → your endpoint",          canUseDb: true },
   { key: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", required: false, group: "Stripe", description: "Publishable key (browser-safe)",      howToGet: "dashboard.stripe.com/apikeys",                            canUseDb: true },
-  { key: "STRIPE_MODE",                required: false, group: "Stripe",      description: "test | live (default live) — validated against event.livemode", howToGet: "Set to \"test\" while developing" },
+  { key: "STRIPE_MODE",                required: false, group: "Stripe",      description: "test | live (default live), validated against event.livemode", howToGet: "Set to \"test\" while developing" },
   // Enrichment
   { key: "MAXMIND_DB_PATH",            required: false, group: "Enrichment",  description: "Path to the local MaxMind GeoLite database", howToGet: "Download GeoLite2 from maxmind.com and point to the .mmdb file", canUseDb: true },
   { key: "IPINFO_TOKEN",               required: false, group: "Enrichment",  description: "IPinfo token for ASN/network-org lookup",  howToGet: "ipinfo.io/account",                                       canUseDb: true },
@@ -273,9 +273,9 @@ async function collectDeploymentData(): Promise<DeploymentData> {
                   : enrichmentPricingZeroRows > 0            ? "warning"
                   : "ok",
             detail: enrichmentPricingRows === 0
-              ? "No pricing rows — enrichments will not be billed."
+              ? "No pricing rows: enrichments will not be billed."
               : enrichmentPricingZeroRows > 0
-                ? `${enrichmentPricingRows} rows found, but ${enrichmentPricingZeroRows} have credit_cost = 0 — those enrichments bill 0 credits.`
+                ? `${enrichmentPricingRows} rows found, but ${enrichmentPricingZeroRows} have credit_cost = 0, those enrichments bill 0 credits.`
                 : `${enrichmentPricingRows} rows seeded with non-zero credit costs.`,
             fixHint: enrichmentPricingRows === 0 || enrichmentPricingZeroRows > 0
               ? "Use the 'Reset to defaults' button below to fix pricing."
@@ -288,7 +288,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
             id:     "enrichment-pricing",
             label:  "Enrichment pricing",
             status: "error",
-            detail: "enrichment_pricing table missing — run migrations first.",
+            detail: "enrichment_pricing table missing, run migrations first.",
             fixHint: "Run: npm run db:migrate",
           });
         }
@@ -307,7 +307,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
       id:     "db-connection",
       label:  "Database connection",
       status: "error",
-      detail: "Supabase env vars not set — cannot test connection.",
+      detail: "Supabase env vars not set, cannot test connection.",
       fixHint: "Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
     });
   }
@@ -365,7 +365,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
       status: configured ? "ok" : "warning",
       detail: configured
         ? `${transportLabel} is configured.`
-        : "No email transport configured — form notification emails will be skipped.",
+        : "No email transport configured, form notification emails will be skipped.",
       fixHint: !configured
         ? "Configure email in Integrations → Email, or set RESEND_API_KEY / SMTP_HOST env vars."
         : undefined,
@@ -418,7 +418,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
       status: r2Ok ? "ok" : "warning",
       detail: r2Ok
         ? `Cloudflare R2 is configured${source}. Active provider: ${dbProvider}.`
-        : "R2 not configured — asset uploads will fall back to Supabase Storage.",
+        : "R2 not configured: asset uploads will fall back to Supabase Storage.",
       fixHint: !r2Ok
         ? "Configure R2 in Integrations → Storage, or set R2_ACCOUNT_ID + R2_ACCESS_KEY_ID + R2_SECRET_ACCESS_KEY + R2_BUCKET_NAME + R2_PUBLIC_URL env vars."
         : undefined,
@@ -434,7 +434,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
     status: hasSanity || hasStoryblok ? "ok" : "warning",
     detail: hasSanity    ? "Sanity CMS is configured."
           : hasStoryblok ? "Storyblok CMS is configured."
-          : "No CMS configured — app will use built-in mock content.",
+          : "No CMS configured: app will use built-in mock content.",
     fixHint: !hasSanity && !hasStoryblok
       ? "Set SANITY_PROJECT_ID (and SANITY_DATASET, SANITY_API_VERSION) to enable live CMS content."
       : undefined,
@@ -516,7 +516,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
           status:     allPresent ? "ok" : "warning",
           detail:     allPresent
             ? `All ${total} platform variant documents are present.`
-            : `${found}/${total} variants found — ${missing.length} missing (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}). Re-seed to add them.`,
+            : `${found}/${total} variants found, ${missing.length} missing (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}). Re-seed to add them.`,
           fixHint:    !allPresent
             ? hasWriteToken
               ? "Click 'Seed platform variants' to create or update all shared variant documents."
@@ -532,7 +532,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
           id:     "sanity-variants",
           label:  "Sanity platform variant seed",
           status: "unknown",
-          detail: "Could not probe Sanity for variant documents — check your Sanity credentials.",
+          detail: "Could not probe Sanity for variant documents, check your Sanity credentials.",
         });
       }
     }
@@ -542,7 +542,7 @@ async function collectDeploymentData(): Promise<DeploymentData> {
       id:     "sanity-variants",
       label:  "Sanity platform variant seed",
       status: "unknown",
-      detail: "Sanity is configured but DB is not connected — skipping variant check.",
+      detail: "Sanity is configured but DB is not connected, skipping variant check.",
     });
   }
 

@@ -134,7 +134,7 @@ export function BackupPanel({ initialBackups }: BackupPanelProps) {
       {/* Callout */}
       <div className="rounded-lg border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-800">
         <strong>Platform backups</strong> snapshot all configuration tables (tenants, settings,
-        rules, pages, billing) and store them in the database — they work locally and on Vercel.
+        rules, pages, billing) and store them in the database, they work locally and on Vercel.
         Backups do <em>not</em> include event data (sessions, analytics).
         The last {20} backups are kept automatically.
       </div>
@@ -214,7 +214,7 @@ export function BackupPanel({ initialBackups }: BackupPanelProps) {
                     <td className="px-4 py-3 text-neutral-600 max-w-[180px] truncate" title={b.label ?? ""}>
                       {b.label ?? (b.restored_from_version != null
                         ? `Restored from v${b.restored_from_version}`
-                        : <span className="text-neutral-400">—</span>
+                        : <span className="text-neutral-400">, </span>
                       )}
                     </td>
 

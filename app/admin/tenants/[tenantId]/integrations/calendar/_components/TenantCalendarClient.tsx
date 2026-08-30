@@ -79,7 +79,7 @@ export function TenantCalendarClient({
           permission) with the shared service-account address:
         </p>
         <p className="font-mono break-all">
-          {platformServiceAccountEmail || "— not configured —"}
+          {platformServiceAccountEmail || ": not configured: "}
         </p>
         <p>Then paste that calendar&apos;s ID below (Calendar settings → &quot;Integrate calendar&quot; → Calendar ID).</p>
       </div>

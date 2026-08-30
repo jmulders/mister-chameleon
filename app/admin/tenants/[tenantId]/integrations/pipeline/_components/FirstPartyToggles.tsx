@@ -89,7 +89,7 @@ export function FirstPartyToggles({ initial }: { initial: FirstPartyTogglesConfi
       <div className="mt-4 space-y-4">
         <div className="flex flex-col gap-1.5">
           <div className="text-sm font-medium text-neutral-800">
-            Consume (read) — skip paid Leadinfo calls on a shared-pool hit
+            Consume (read): skip paid Leadinfo calls on a shared-pool hit
           </div>
           <div className="text-xs text-neutral-500">
             Off means this tenant always runs its own paid Leadinfo lookup.
@@ -99,7 +99,7 @@ export function FirstPartyToggles({ initial }: { initial: FirstPartyTogglesConfi
 
         <div className="flex flex-col gap-1.5">
           <div className="text-sm font-medium text-neutral-800">
-            Contribute (write) — warm the shared pool with this tenant&apos;s Leadinfo results
+            Contribute (write): warm the shared pool with this tenant&apos;s Leadinfo results
           </div>
           <div className="text-xs text-neutral-500">
             Off keeps this tenant&apos;s Leadinfo-identified companies out of the shared pool. Open-data sources

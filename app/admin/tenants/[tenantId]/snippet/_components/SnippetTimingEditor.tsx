@@ -92,7 +92,7 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs }
         </div>
 
         <div className="flex items-center justify-end gap-3">
-          {saved && <span className="text-xs font-medium text-green-600">Saved — copy the embed again</span>}
+          {saved && <span className="text-xs font-medium text-green-600">Saved: copy the embed again</span>}
           <button
             type="button"
             onClick={handleSave}
@@ -111,7 +111,7 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs }
 
         <ul className="space-y-2 pt-1 text-xs text-neutral-500">
           <li className="flex gap-2"><span className="text-indigo-400">•</span> Leave blank to use the defaults (reveal 700 ms, timeout 4000 ms).</li>
-          <li className="flex gap-2"><span className="text-indigo-400">•</span> Clamped to reveal 0–5000 ms and timeout 500–15000 ms.</li>
+          <li className="flex gap-2"><span className="text-indigo-400">•</span> Clamped to reveal 0-5000 ms and timeout 500-15000 ms.</li>
           <li className="flex gap-2"><span className="text-indigo-400">•</span> After saving, re-copy the embed on the Install tab so the new values are on your site.</li>
         </ul>
       </div>

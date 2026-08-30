@@ -91,7 +91,7 @@ export function TenantsTable({ tenants }: { tenants: TenantSettings[] }) {
           {pager.pageItems.map((tenant) => {
             const features    = tenant.features   ?? {};
             const aiMode      = tenant.ai?.mode   ?? "disabled";
-            const cmsProvider = tenant.cms?.provider ?? "—";
+            const cmsProvider = tenant.cms?.provider ?? ", ";
             const isActive    = !!(features.analytics ?? features.experiments ?? features.ai);
             const initials    = (tenant.name ?? tenant.tenantId).slice(0, 2).toUpperCase();
             const color       = avatarColor(tenant.tenantId);

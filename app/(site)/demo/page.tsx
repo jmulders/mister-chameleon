@@ -139,7 +139,7 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
           paddingBottom: "0.75rem",
           borderBottom: "2px solid #e5e7eb",
         }}>
-          🦎 Decision Engine — Live Debug
+          🦎 Decision Engine: Live Debug
           <span style={{ fontWeight: 400, fontSize: "0.875rem", color: "#6b7280", marginLeft: "0.75rem" }}>
             {tenantConfig.tenantId} · session {sessionId.slice(0, 8)}…
           </span>
@@ -156,7 +156,7 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
             marginBottom: "0.75rem",
             padding: "0.4rem 0.75rem",
           }}>
-            ⚠ DEV OVERRIDE — tenant forced to &quot;{devTenantOverride}&quot; via{" "}
+            ⚠ DEV OVERRIDE: tenant forced to &quot;{devTenantOverride}&quot; via{" "}
             {devOverrideSource === "cookie"
               ? <>mc_dev_tenant cookie. Visit <a href={`/admin/tenants/${devTenantOverride}`} style={{ color: "#b45309" }}>/admin/tenants/{devTenantOverride}</a> to change or clear.</>
               : <>?tenant= query param. Remove this param to restore resolution.</>}
@@ -171,7 +171,7 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
             ? <span style={{ color: "#b45309" }}> · overridden via {devOverrideSource === "cookie" ? "cookie" : "?tenant="}</span>
             : <span style={{ color: "#6b7280" }}> · resolved from Host header</span>}
         </p>
-        <p><strong>Tenant settings (DB):</strong> {tenant?.tenantId ?? "not found — defaults active"}</p>
+        <p><strong>Tenant settings (DB):</strong> {tenant?.tenantId ?? "not found: defaults active"}</p>
         <p>
           <strong>CMS provider (config):</strong> {tenantConfig.cmsProvider}
           {tenantConfig.cmsProvider === "sanity" && !process.env.SANITY_PROJECT_ID
@@ -198,7 +198,7 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
               <strong>CMS authenticated:</strong>{" "}
               {(process.env.SANITY_READ_TOKEN ?? process.env.SANITY_API_TOKEN ?? process.env.SANITY_API_WRITE_TOKEN)
                 ? <span style={{ color: "#15803d" }}>✓ token present (live API)</span>
-                : <span style={{ color: "#b91c1c" }}>⚠ no token — CDN only (private datasets will return null)</span>}
+                : <span style={{ color: "#b91c1c" }}>⚠ no token: CDN only (private datasets will return null)</span>}
             </p>
             {tenant?.cms?.studioUrl && (
               <p>
@@ -221,7 +221,7 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
                 proof={cmsFallbackKeys.proofKey ?? "(none)"}{" "}
                 cta={cmsFallbackKeys.ctaKey ?? "(none)"}
               </>
-            : "(no contextConfig — CMS page absent or has no slot config)"}
+            : "(no contextConfig: CMS page absent or has no slot config)"}
         </p>
 
         <hr style={{ margin: "0.5rem 0", border: "none", borderTop: "1px solid #eee" }} />
@@ -236,7 +236,7 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
           <strong>Hero layout (CMS):</strong>{" "}
           {experience.hero.layoutVariant
             ? <span style={{ color: "#1d4ed8" }}>{experience.hero.layoutVariant}</span>
-            : <span style={{ color: "#b91c1c" }}>⚠ not set — will use hero_default fallback</span>}
+            : <span style={{ color: "#b91c1c" }}>⚠ not set: will use hero_default fallback</span>}
         </p>
         <p>
           <strong>Hero layout (resolved):</strong>{" "}
@@ -306,11 +306,11 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
           <strong>CMS in-process cache:</strong>{" "}
           {CMS_CACHE_ENABLED
             ? <span style={{ color: "#15803d" }}>
-                active — TTL {CMS_CACHE_TTL_MS / 1_000}s
+                active: TTL {CMS_CACHE_TTL_MS / 1_000}s
                 {" · "}{cmsCacheStats.fresh} fresh, {cmsCacheStats.stale} stale entries
               </span>
             : <span style={{ color: "#b45309" }}>
-                bypassed (dev) — every CMS fetch is live
+                bypassed (dev): every CMS fetch is live
                 {process.env.CMS_FORCE_CACHE === "true" && " [CMS_FORCE_CACHE=true]"}
               </span>}
         </p>
@@ -319,11 +319,11 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
           <strong>ISR / Next.js fetch cache:</strong>{" "}
           {isDev
             ? <span style={{ color: "#b45309" }}>
-                bypassed (dev) — Sanity fetches use{" "}
+                bypassed (dev): Sanity fetches use{" "}
                 <code style={{ background: "#f1f5f9", padding: "0 3px", borderRadius: "2px" }}>cache: &quot;no-store&quot;</code>
               </span>
             : <span style={{ color: "#15803d" }}>
-                active — revalidate every {SANITY_REVALIDATE_SECONDS}s
+                active: revalidate every {SANITY_REVALIDATE_SECONDS}s
                 {" ("}tag: <code style={{ background: "#f1f5f9", padding: "0 3px", borderRadius: "2px" }}>sanity</code>{")"}
               </span>}
         </p>
@@ -332,13 +332,13 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
           <strong>Decision cache:</strong>{" "}
           {DECISION_CACHE_ENABLED
             ? <span style={{ color: "#15803d" }}>
-                active — TTL {DECISION_CACHE_TTL_MS / 1_000}s
+                active: TTL {DECISION_CACHE_TTL_MS / 1_000}s
                 {decisionPlanMeta.exists
                   ? <> · session plan age {Math.round((decisionPlanMeta.ageMs ?? 0) / 1_000)}s (cache hit)</>
-                  : <> · session plan not cached (cache miss — freshly evaluated)</>}
+                  : <> · session plan not cached (cache miss, freshly evaluated)</>}
               </span>
             : <span style={{ color: "#b45309" }}>
-                bypassed (dev) — rules re-evaluated on every request
+                bypassed (dev): rules re-evaluated on every request
                 {process.env.DECISION_FORCE_CACHE === "true" && " [DECISION_FORCE_CACHE=true]"}
               </span>}
         </p>
@@ -347,12 +347,12 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
           <strong>Session enrichment cache:</strong>{" "}
           {capturedDebugInfo?.enrichmentSource === "session-cache"
             ? <span style={{ color: "#15803d" }}>
-                hit — enrichment served from cache (TTL {SESSION_TTL_MS / 1_000}s
+                hit: enrichment served from cache (TTL {SESSION_TTL_MS / 1_000}s
                 {", grace "}
                 {SESSION_STALE_GRACE_MS / 1_000}s)
               </span>
             : <span style={{ color: "#b45309" }}>
-                miss — enrichment pipeline ran
+                miss: enrichment pipeline ran
                 {" (TTL "}
                 {SESSION_TTL_MS / 1_000}s
                 {capturedDebugInfo?.enrichmentSource
@@ -363,7 +363,7 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
         </p>
 
         <p style={{ color: "#6b7280", fontSize: "11px", marginTop: "0.5rem" }}>
-          Debug level: <strong>{debugLevel}</strong> — change at{" "}
+          Debug level: <strong>{debugLevel}</strong>: change at{" "}
           <a href={`/admin/tenants/${tenantConfig.tenantId}/debug`} style={{ color: "#4f46e5" }}>
             /admin/tenants/{tenantConfig.tenantId}/debug
           </a>

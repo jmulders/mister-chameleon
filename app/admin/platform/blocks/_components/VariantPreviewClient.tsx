@@ -248,7 +248,7 @@ function MediaBadge({ content }: { content: AdaptiveVariantContent }) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function truncate(text: string | undefined | null, max = 90): string {
-  if (!text) return "—";
+  if (!text) return ", ";
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
@@ -485,7 +485,7 @@ export function VariantPreviewClient({
                       <span className="text-[9px] font-semibold uppercase tracking-widest text-neutral-300 w-10 shrink-0">Image</span>
                       {item.imageUrl
                         ? <span className="inline-flex items-center rounded px-1 py-0.5 text-[9px] font-medium bg-blue-50 text-blue-600 ring-1 ring-blue-200">image</span>
-                        : <span className="text-[9px] text-neutral-300">—</span>
+                        : <span className="text-[9px] text-neutral-300">, </span>
                       }
                     </div>
                   )}

@@ -71,7 +71,7 @@ function SecretField({
       {hint && <p className="mt-0.5 text-[11px] text-neutral-400">{hint}</p>}
       {!hint && (
         <p className="mt-0.5 text-[11px] text-neutral-400">
-          Leave blank to keep the existing value. Stored server-side only — never echoed back.
+          Leave blank to keep the existing value. Stored server-side only, never echoed back.
         </p>
       )}
     </div>

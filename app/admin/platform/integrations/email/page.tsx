@@ -47,13 +47,13 @@ export default async function IntegrationsEmailPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Platform Email — Default Transport</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Platform Email: Default Transport</h1>
         <div className="mt-1 flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden />
             Platform default
           </span>
-          <span className="text-xs text-neutral-400">— used when a tenant has no transport override</span>
+          <span className="text-xs text-neutral-400">: used when a tenant has no transport override</span>
         </div>
         <p className="mt-2 text-sm text-neutral-500">
           Platform-wide fallback transport for form notifications and confirmations.
@@ -75,21 +75,21 @@ export default async function IntegrationsEmailPage() {
               <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
               1. Tenant
             </span>
-            <span>— per-tenant transport configured in each tenant&apos;s Forms page</span>
+            <span>: per-tenant transport configured in each tenant&apos;s Forms page</span>
           </li>
           <li className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-blue-700 font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden />
               2. Platform
             </span>
-            <span>— <strong>this page</strong> — applies to all tenants without a tenant override</span>
+            <span>, <strong>this page</strong>: applies to all tenants without a tenant override</span>
           </li>
           <li className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-neutral-500 font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" aria-hidden />
               3. Env vars
             </span>
-            <span>—{" "}
+            <span>, {" "}
               <code className="bg-neutral-100 px-0.5 rounded">RESEND_API_KEY</code>{" "}
               /{" "}
               <code className="bg-neutral-100 px-0.5 rounded">SMTP_HOST</code>
@@ -121,13 +121,13 @@ export default async function IntegrationsEmailPage() {
           <p>
             {envResend && (
               <>
-                <code className="bg-neutral-100 px-1 rounded">RESEND_API_KEY</code> is set in env —
+                <code className="bg-neutral-100 px-1 rounded">RESEND_API_KEY</code> is set in env: 
                 Resend will be used until you configure a DB transport above.
               </>
             )}
             {envSmtp && (
               <>
-                <code className="bg-neutral-100 px-1 rounded">SMTP_HOST</code> is set in env —
+                <code className="bg-neutral-100 px-1 rounded">SMTP_HOST</code> is set in env: 
                 SMTP will be used until you configure a DB transport above.
               </>
             )}
@@ -144,7 +144,7 @@ export default async function IntegrationsEmailPage() {
               <code className={`px-1 rounded ${envResend || envSmtp ? "bg-neutral-100" : "bg-amber-100"}`}>
                 BACKOFFICE_EMAIL
               </code>{" "}
-              is not set — configure a Backoffice Email below so notifications have a destination.
+              is not set: configure a Backoffice Email below so notifications have a destination.
             </p>
           )}
         </div>
