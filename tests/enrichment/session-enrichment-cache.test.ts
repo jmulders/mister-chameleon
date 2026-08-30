@@ -35,15 +35,15 @@ describe("session enrichment cache — retry entries", () => {
 
     await tick(); // real time advances past the 0s retry TTL (but well under 3600s)
 
-    const normal = cache.getSessionEnrichment("normal-1", "1.2.3.4", "t1");
+    const normal = await cache.getSessionEnrichment("normal-1", "1.2.3.4", "t1");
     assert.equal(normal.hit, true, "the normal entry is still a fresh hit");
 
-    const retry = cache.getSessionEnrichment("retry-1", "1.2.3.4", "t1");
+    const retry = await cache.getSessionEnrichment("retry-1", "1.2.3.4", "t1");
     assert.equal(retry.hit, false, "the transient retry entry is a miss → pipeline re-runs");
     if (!retry.hit) assert.equal(retry.reason, "ttl-expired");
 
     // Sanity: the normal entry, stored the same instant, is NOT evicted — proving
     // the divergence is due to the retry flag's short TTL, not elapsed time.
-    assert.equal(cache.getSessionEnrichment("normal-1", "1.2.3.4", "t1").hit, true);
+    assert.equal((await cache.getSessionEnrichment("normal-1", "1.2.3.4", "t1")).hit, true);
   });
 });
