@@ -36,12 +36,18 @@
  */
 
 import { useEffect } from "react";
+import { hasConsent } from "@/tracking/consent-store";
 
 /** sessionStorage flag — prevents re-sending on client-side navigation. */
 const SENT_FLAG = "mc_cc_sent";
 
 export function ClientContextCollector(): null {
   useEffect(() => {
+    // Consent gate: the client-context signals feed personalization, so only
+    // collect them when the visitor granted the "personalization" category
+    // (consistent with the other client trackers). No consent → stay null.
+    if (!hasConsent("personalization")) return;
+
     // Skip if already sent in this browser session.
     try {
       if (sessionStorage.getItem(SENT_FLAG)) return;
@@ -109,26 +115,10 @@ export function ClientContextCollector(): null {
       timeZone = null;
     }
 
-    // ── Set mc_tz cookie immediately ──────────────────────────────────────────
-    //
-    // Write the visitor's timezone to a non-httpOnly cookie synchronously,
-    // before the async POST below.  Unlike mc_cc (httpOnly, only set after
-    // the POST response arrives), mc_tz is available on the very next server
-    // render — making time-based rules (currentHour, timeOfDay, isWeekend)
-    // accurate from the second page load onward rather than waiting for
-    // mc_cc to be established.
-    //
-    // Max-age matches mc_cc (30 days).  SameSite=Lax keeps it first-party
-    // safe without blocking cross-site navigation.
-    if (timeZone) {
-      try {
-        const maxAge = 60 * 60 * 24 * 30; // 30 days in seconds
-        document.cookie =
-          `mc_tz=${encodeURIComponent(timeZone)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-      } catch {
-        // Ignore — server falls back to tenant timezone when mc_tz is absent.
-      }
-    }
+    // Note: mc_tz (the visitor's timezone cookie) is written separately and
+    // UNCONDITIONALLY by <TimezoneCapture> — it is low-sensitivity and available on
+    // the very next server render. We still POST timeZone here as part of the fuller
+    // mc_cc client-context payload, but we do not duplicate the cookie write.
 
     // ── POST to server ────────────────────────────────────────────────────────
 

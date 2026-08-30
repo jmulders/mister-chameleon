@@ -67,6 +67,7 @@ import type { TenantScenarioPanelSettings, TenantScenarioPreset, TenantScenarioO
 import { CartProvider } from "@/lib/cart/cart-context";
 import { PageTracker } from "@/components/tracking/PageTracker";
 import { TimezoneCapture } from "@/components/tracking/TimezoneCapture";
+import { ClientContextCollector } from "@/components/tracking/ClientContextCollector";
 import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
@@ -221,6 +222,13 @@ export default async function SiteLayout({
         > UTC). Minimal client writer; fails open to the tenant timezone.
       */}
       <TimezoneCapture />
+      {/*
+        ClientContextCollector — collects browser signals (device/viewport/touch/
+        colour-scheme/language/timezone) into the mc_cc cookie so the client-context
+        rule fields populate. Consent-gated (personalization); self-guards, so it is
+        safe to mount unconditionally.
+      */}
+      <ClientContextCollector />
       {/*
         BlockEffectRuntime — the versioned client player for declarative block
         effects. Observes [data-mc-fx] wrappers and reveals them on scroll.
