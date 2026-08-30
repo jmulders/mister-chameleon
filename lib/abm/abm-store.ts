@@ -11,6 +11,7 @@
 
 import "server-only";
 
+import { randomBytes } from "node:crypto";
 import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
 
@@ -48,6 +49,11 @@ export interface AbmLead {
   firstSeenAt:  string | null;
   lastSeenAt:   string | null;
   visitCount:   number;
+  /** Back-office/CRM record id — the idempotent sync key (POST /api/abm/leads). */
+  externalId:   string | null;
+  /** Named contact (back-office sync). Kept as explicit columns, not profile JSON. */
+  contactName:  string | null;
+  contactEmail: string | null;
 }
 
 /** A single recorded visit (one /go arrival). */
@@ -74,6 +80,9 @@ function mapRow(row: Record<string, unknown>): AbmLead {
     firstSeenAt: (row.first_seen_at as string | null) ?? null,
     lastSeenAt:  (row.last_seen_at as string | null) ?? null,
     visitCount:  Number(row.visit_count ?? 0),
+    externalId:   (row.external_id as string | null) ?? null,
+    contactName:  (row.contact_name as string | null) ?? null,
+    contactEmail: (row.contact_email as string | null) ?? null,
   };
 }
 
@@ -154,15 +163,18 @@ export async function listAbmLeads(tenantId: string): Promise<AbmLead[]> {
 // ── Writes ───────────────────────────────────────────────────────────────────
 
 export interface AbmLeadInput {
-  id?:          string;
-  tenantId:     string;
-  identifier:   string;
-  vanityPath?:  string | null;
-  targetPath:   string;
-  profile:      AbmLeadProfile;
-  segmentHint?: string | null;
-  status?:      AbmLeadStatus;
-  expiresAt?:   string | null;
+  id?:           string;
+  tenantId:      string;
+  identifier:    string;
+  vanityPath?:   string | null;
+  targetPath:    string;
+  profile:       AbmLeadProfile;
+  segmentHint?:  string | null;
+  status?:       AbmLeadStatus;
+  expiresAt?:    string | null;
+  externalId?:   string | null;
+  contactName?:  string | null;
+  contactEmail?: string | null;
 }
 
 /** Insert or update a lead (admin). Returns the saved row or null on failure. */
@@ -181,6 +193,12 @@ export async function upsertAbmLead(input: AbmLeadInput): Promise<AbmLead | null
       status:       input.status ?? "active",
       expires_at:   input.expiresAt ?? null,
       updated_at:   new Date().toISOString(),
+      // Only touch the back-office columns when the caller supplies them, so an
+      // admin edit (which never sends these) can't null out a synced lead's
+      // external_id / contact fields.
+      ...(input.externalId   !== undefined ? { external_id:   input.externalId }   : {}),
+      ...(input.contactName  !== undefined ? { contact_name:  input.contactName }  : {}),
+      ...(input.contactEmail !== undefined ? { contact_email: input.contactEmail } : {}),
     };
     // Conflict target depends on whether this is an edit or a create:
     //   • Edit (id present): the row carries the existing primary key, so we must
@@ -206,6 +224,96 @@ export async function upsertAbmLead(input: AbmLeadInput): Promise<AbmLead | null
     });
     return null;
   }
+}
+
+// ── Back-office sync (external_id upsert) ────────────────────────────────────────
+
+/** Short, URL-safe, unguessable opaque handle (~12 chars, non-sequential). */
+export function genAbmIdentifier(): string {
+  return randomBytes(9).toString("base64url");
+}
+
+/** Look up a lead by its back-office external_id, scoped to a tenant. Null on miss/error. */
+export async function getAbmLeadByExternalId(
+  tenantId:   string,
+  externalId: string,
+): Promise<AbmLead | null> {
+  if (!externalId) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("abm_leads")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("external_id", externalId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return mapRow(data);
+  } catch (err) {
+    logger.warn("[abm-store] getAbmLeadByExternalId failed", {
+      tenantId, err: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+export interface AbmExternalUpsertInput {
+  tenantId:      string;
+  externalId:    string;
+  profile:       AbmLeadProfile;
+  contactName?:  string | null;
+  contactEmail?: string | null;
+  segmentHint?:  string | null;
+  targetPath?:   string | null;
+  expiresAt?:    string | null;
+  status?:       AbmLeadStatus;
+}
+
+/** Injectable seams so the reuse-identifier orchestration is unit-testable without a DB. */
+export interface AbmExternalUpsertDeps {
+  getByExternalId?: (tenantId: string, externalId: string) => Promise<AbmLead | null>;
+  upsert?:          (input: AbmLeadInput) => Promise<AbmLead | null>;
+  gen?:             () => string;
+}
+
+/**
+ * Idempotent upsert on (tenant_id, external_id) for the back-office sync API.
+ *
+ * If a lead with that external_id already exists we REUSE its opaque identifier
+ * (so the /go/{handle} link a back-office already mailed stays stable) and its
+ * row id, updating the fields. Otherwise we mint a fresh identifier and insert.
+ * Fields left undefined by the caller are preserved from the existing row.
+ *
+ * Returns { lead, created } — `created` is true when a new row was inserted.
+ */
+export async function upsertAbmLeadByExternalId(
+  input: AbmExternalUpsertInput,
+  deps:  AbmExternalUpsertDeps = {},
+): Promise<{ lead: AbmLead; created: boolean } | null> {
+  const getByExternalId = deps.getByExternalId ?? getAbmLeadByExternalId;
+  const upsert          = deps.upsert          ?? upsertAbmLead;
+  const gen             = deps.gen             ?? genAbmIdentifier;
+
+  const existing   = await getByExternalId(input.tenantId, input.externalId);
+  const created    = !existing;
+  const identifier = existing?.identifier ?? gen();
+
+  const lead = await upsert({
+    ...(existing ? { id: existing.id } : {}),
+    tenantId:     input.tenantId,
+    identifier,
+    targetPath:   input.targetPath ?? existing?.targetPath ?? "/",
+    profile:      input.profile,
+    segmentHint:  input.segmentHint  !== undefined ? input.segmentHint  : (existing?.segmentHint  ?? null),
+    status:       input.status       ?? existing?.status ?? "active",
+    expiresAt:    input.expiresAt     !== undefined ? input.expiresAt     : (existing?.expiresAt     ?? null),
+    externalId:   input.externalId,
+    contactName:  input.contactName  !== undefined ? input.contactName  : (existing?.contactName  ?? null),
+    contactEmail: input.contactEmail !== undefined ? input.contactEmail : (existing?.contactEmail ?? null),
+  });
+  if (!lead) return null;
+  return { lead, created };
 }
 
 /**
@@ -409,6 +517,50 @@ export async function setAbmWebhookSecret(tenantId: string, secret: string | nul
     return !error;
   } catch (err) {
     logger.warn("[abm-store] setAbmWebhookSecret failed", {
+      tenantId, err: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
+/**
+ * Fetch the tenant's back-office sync API key AS STORED (encrypted), or null when
+ * unset. The caller decrypts + constant-time-compares; this store stays dumb.
+ */
+export async function getAbmSyncApiKey(tenantId: string): Promise<string | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { data, error } = await db
+      .from("abm_settings")
+      .select("sync_api_key")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const key = (data.sync_api_key as string | null) ?? null;
+    return key && key.trim() ? key : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Upsert the tenant's back-office sync API key (admin). Pass the already-encrypted
+ * value, or null/empty to clear (which disables the sync endpoint → 401).
+ */
+export async function setAbmSyncApiKey(tenantId: string, encryptedKey: string | null): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { error } = await db
+      .from("abm_settings")
+      .upsert(
+        { tenant_id: tenantId, sync_api_key: encryptedKey?.trim() || null, updated_at: new Date().toISOString() },
+        { onConflict: "tenant_id" },
+      );
+    return !error;
+  } catch (err) {
+    logger.warn("[abm-store] setAbmSyncApiKey failed", {
       tenantId, err: err instanceof Error ? err.message : String(err),
     });
     return false;

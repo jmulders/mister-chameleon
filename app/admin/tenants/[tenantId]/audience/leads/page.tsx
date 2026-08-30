@@ -10,7 +10,7 @@
 import Link                       from "next/link";
 import { getTenantById }          from "@/tenant/server";
 import { listLeadProfilesAction } from "./actions";
-import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction, getAbmNotifySettingsAction } from "../accounts/actions";
+import { getAbmWebhookUrlAction, getAbmWebhookSecretAction, getAbmHubspotTokenAction, getAbmNotifySettingsAction, getAbmSyncApiKeyStatusAction } from "../accounts/actions";
 import { listWebhookDeliveriesAction } from "./actions";
 import { getCreditBalance } from "@/lib/billing/billing-store";
 import { listAudienceSegmentsAction } from "@/app/admin/tenants/[tenantId]/audience/segments/actions";
@@ -27,7 +27,7 @@ export default async function LeadBasePage({
 }) {
   const { tenantId } = await params;
 
-  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken, deliveries, creditBalance, notify] = await Promise.all([
+  const [initialProfiles, tenant, segmentsResult, webhookUrl, webhookSecret, hubspotToken, deliveries, creditBalance, notify, syncKeyStatus] = await Promise.all([
     listLeadProfilesAction(tenantId, {}),
     getTenantById(tenantId),
     listAudienceSegmentsAction(tenantId),
@@ -37,6 +37,7 @@ export default async function LeadBasePage({
     listWebhookDeliveriesAction(tenantId),
     getCreditBalance(tenantId).catch(() => 0),
     getAbmNotifySettingsAction(tenantId),
+    getAbmSyncApiKeyStatusAction(tenantId),
   ]);
 
   const segments = (segmentsResult.ok ? segmentsResult.data : [])
@@ -81,6 +82,7 @@ export default async function LeadBasePage({
           initialHubspotToken={hubspotToken ?? ""}
           initialDeliveries={deliveries}
           initialNotify={notify}
+          initialSyncKeyConfigured={syncKeyStatus.configured}
         />
       </div>
     </div>

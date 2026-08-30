@@ -25,6 +25,9 @@ function makeLead(over: Partial<AbmLead> & { profile?: Partial<AbmLead["profile"
     firstSeenAt: null,
     lastSeenAt:  null,
     visitCount:  0,
+    externalId:   null,
+    contactName:  null,
+    contactEmail: null,
     ...over,
   };
 }
