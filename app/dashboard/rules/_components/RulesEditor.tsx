@@ -43,7 +43,7 @@
  *   Saving calls saveRulesAction() which writes to decision/rules/runtime-rules.json.
  */
 
-import { useState, useCallback, useId, useRef, useEffect, createContext, useContext } from "react";
+import { useState, useCallback, useId, useRef, useEffect, useMemo, createContext, useContext } from "react";
 import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
 import { PAYLOAD_FIELD_CATALOG } from "@/lib/webhooks/payload-fields";
 import {
@@ -75,6 +75,8 @@ import {
 } from "@/decision/rules/stored-rule";
 import type { VariantCatalogue, VariantEntry, VariantSource } from "@/decision/rules/variant-catalogue";
 import { SOURCE_LABELS, buildPlatformCatalogue } from "@/decision/rules/variant-catalogue";
+import { analyzeRulesConfig, type RuleFireStat } from "@/decision/rules/config-health";
+import { ConfigHealthPanel } from "./ConfigHealthPanel";
 import { PRESET_PLANS }                           from "@/decision/rules/preset-plans";
 import {
   FIELD_REGISTRY,
@@ -489,6 +491,11 @@ interface RulesEditorProps {
    * Attribute condition type from the picker.
    */
   attributeCatalogue?: readonly CustomAttributeDeclaration[];
+  /**
+   * Per-rule fire stats (from rule_fire_daily), keyed by rule id. Feeds the
+   * config-health "never-fired" check. Omitted → that check is dormant.
+   */
+  fireStats?: Record<string, RuleFireStat>;
 }
 
 /**
@@ -498,7 +505,7 @@ interface RulesEditorProps {
  */
 const AttributeCatalogueContext = createContext<readonly CustomAttributeDeclaration[]>([]);
 
-export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits, attributeCatalogue }: RulesEditorProps) {
+export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits, attributeCatalogue, fireStats }: RulesEditorProps) {
   const attributeDecls = attributeCatalogue ?? [];
   const catalogue     = variantCatalogue ?? buildPlatformCatalogue();
   const doSaveAction  = saveAction  ?? saveRulesAction;
@@ -509,6 +516,30 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   );
   const [defaultPlan, setDefaultPlan] = useState<StoredDefaultPlan>(initialConfig.defaultPlan);
   const [defaultEditOpen, setDefaultEditOpen] = useState(false);
+
+  // ── Config-health findings (D7 spoor 1) ──────────────────────────────────────
+  // Deterministic, recomputed live from the CURRENT (unsaved) config, so problems
+  // (duplicate priorities, unknown fields, dead variants, shadowing, never-fired)
+  // show before Save and before validateStoredConfig rejects the whole config.
+  const healthFindings = useMemo(
+    () => analyzeRulesConfig(
+      {
+        schemaVersion: 1,
+        updatedAt:     "",
+        rules:         rules.map(({ _editOpen: _drop, ...r }) => r),
+        defaultPlan,
+      } as StoredRulesConfig,
+      {
+        variantKeys: {
+          hero:  catalogue.hero.map((e)  => e.key),
+          proof: catalogue.proof.map((e) => e.key),
+          cta:   catalogue.cta.map((e)   => e.key),
+        },
+        ...(fireStats ? { fireStats } : {}),
+      },
+    ),
+    [rules, defaultPlan, catalogue, fireStats],
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -839,6 +870,9 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           Rules saved successfully.
         </div>
       )}
+
+      {/* ── Config health (deterministic linter) ────────────────────────── */}
+      <ConfigHealthPanel findings={healthFindings} />
 
       {/* ── Rules ───────────────────────────────────────────────────────── */}
       <section>

@@ -21,6 +21,7 @@ import { getRulesAction }                  from "./actions";
 import { RulesEditor }                     from "./_components/RulesEditor";
 import { Text }                            from "@/components/primitives/Text";
 import { fetchVariantCatalogue }           from "@/decision/rules/fetch-variant-catalogue";
+import { getRuleFireStats }                 from "@/lib/observability/rule-fire-stats";
 
 export const metadata = { title: "Rules Editor · Dashboard" };
 
@@ -40,9 +41,10 @@ export default async function RulesPage({ searchParams }: PageProps) {
 
   // Fetch rules config and variant catalogue in parallel.
   const activeTenantId = devTenantOverride ?? tenantConfig.tenantId;
-  const [result, variantCatalogue] = await Promise.all([
+  const [result, variantCatalogue, fireStats] = await Promise.all([
     getRulesAction(),
     fetchVariantCatalogue(activeTenantId),
+    getRuleFireStats(activeTenantId), // for the config-health "never-fired" check (fails open)
   ]);
 
   if (!result.ok) {
@@ -69,6 +71,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
       <RulesEditor
         initialConfig={result.config}
         variantCatalogue={variantCatalogue}
+        fireStats={fireStats}
       />
     </div>
   );
