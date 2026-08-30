@@ -14,7 +14,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { analyzeAndGenerateSlots, analyzeRegionsToSlots } from "@/demo/ai-slot-analyzer";
+import { analyzeAndGenerateSlots, analyzeRegionsToSlots, attachRegionScenarios } from "@/demo/ai-slot-analyzer";
+import type { AiSlotDefinition } from "@/demo/ai-slot-analyzer";
+
+const sixScenarios = (p: string) => ({
+  awareness: `${p}-a`, consideration: `${p}-c`, high_intent: `${p}-h`,
+  form_dropout: `${p}-f`, customer: `${p}-cu`, expansion: `${p}-e`,
+});
+const aiSlot = (slotKey: string, matchText: string): AiSlotDefinition =>
+  ({ slotKey, matchText, tag: "h1", scenarios: sixScenarios(slotKey) });
 
 describe("analyzeAndGenerateSlots — visible status", () => {
 
@@ -46,5 +54,42 @@ describe("analyzeRegionsToSlots — screenshot region variants", () => {
     assert.equal(result.regions.length, 2);
     assert.deepEqual(result.regions[0].scenarios, {});
     assert.ok(result.model.length > 0);
+  });
+});
+
+describe("attachRegionScenarios — the region↔slot join (the empty-variants bug)", () => {
+  const regions = [
+    { slotKey: "hero-title", originalText: "Just do it" },
+    { slotKey: "hero-cta",   originalText: "Shop now" },
+  ];
+
+  it("attaches the 6 scenarios to each region when the AI reuses the slotKeys", () => {
+    const { regions: out, matched } = attachRegionScenarios(regions, [
+      aiSlot("hero-title", "Just do it"),
+      aiSlot("hero-cta",   "Shop now"),
+    ]);
+    assert.equal(matched, 2);
+    assert.equal(Object.keys(out[0].scenarios).length, 6, "hero-title got all 6 variants");
+    assert.equal(out[0].scenarios.high_intent, "hero-title-h");
+    assert.equal(out[1].scenarios.awareness, "hero-cta-a");
+  });
+
+  it("is case-insensitive on slotKey", () => {
+    const { matched } = attachRegionScenarios(regions, [aiSlot("HERO-TITLE", "x"), aiSlot("Hero-CTA", "y")]);
+    assert.equal(matched, 2);
+  });
+
+  it("falls back to original-text matching when slotKeys differ", () => {
+    const { regions: out, matched } = attachRegionScenarios(regions, [
+      aiSlot("headline", "Just do it"),   // different slotKey, same text
+    ]);
+    assert.equal(matched, 1);
+    assert.equal(Object.keys(out[0].scenarios).length, 6);
+    assert.deepEqual(out[1].scenarios, {}, "unmatched region keeps empty scenarios");
+  });
+
+  it("reports 0 matches when neither slotKey nor text lines up", () => {
+    const { matched } = attachRegionScenarios(regions, [aiSlot("something-else", "totally different copy")]);
+    assert.equal(matched, 0);
   });
 });

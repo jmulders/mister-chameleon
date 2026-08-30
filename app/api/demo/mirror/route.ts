@@ -242,6 +242,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       console.info(
         `[api/demo/mirror] SCREENSHOT demo created — demoId=${demo.id} siteName=${demo.site_name}` +
         ` regions=${built.status.regions} variantsRan=${built.status.variantsRan} aiStatus=${built.status.aiStatus}` +
+        (built.status.variantsRan ? "" : ` aiReason=${JSON.stringify(built.status.aiReason ?? "")}`) +
         ` visionModel=${built.status.visionModel} generationMs=${generationMs} createdBy=${auth.adminEmail}`,
       );
       return NextResponse.json(
@@ -251,12 +252,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           siteName:  demo.site_name,
           expiresAt: demo.expires_at,
           mode:      "screenshot",
+          // Visibility: when variantsRan is false, `reason` says AI-call-failed vs
+          // no-slotKey-match, so empty variants are never a silent mystery.
           screenshot: {
             regions:     built.status.regions,
             variantsRan: built.status.variantsRan,
             aiStatus:    built.status.aiStatus,
             visionModel: built.status.visionModel,
             ms:          built.status.ms,
+            ...(built.status.variantsRan ? {} : { reason: built.status.aiReason ?? built.status.aiStatus }),
           },
         },
         { status: 200 },
