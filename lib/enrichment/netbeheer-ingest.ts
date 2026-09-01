@@ -89,16 +89,59 @@ function splitDelimited(line: string, delim: string): string[] {
 }
 
 /**
- * Parse a Dutch-formatted number: thousands-dot + decimal-comma. Empty → null.
- * "1.234,5" → 1234.5, "12,5" → 12.5, "2900" → 2900. NaN → null.
+ * Parse a number that may use EITHER Dutch (decimal-comma) OR point notation —
+ * netbeheerders differ. The decimal separator is GUESSED, not assumed, so a
+ * decimal point (e.g. "71.74") is no longer wrecked into "7174":
+ *   • both "." and "," present → the LAST one is the decimal, the other thousands
+ *     ("1.234,5" → 1234.5 · "1,234.5" → 1234.5);
+ *   • only "," → decimal comma ("12,5" → 12.5);
+ *   • only "." → decimal point, NOT stripped ("71.74" → 71.74 · "2900" → 2900).
+ * Empty / non-numeric → null.
  */
 export function parseDutchNumber(raw: string | undefined | null): number | null {
   if (raw == null) return null;
   const s = unquote(String(raw));
   if (!s) return null;
-  const n = Number(s.replace(/\./g, "").replace(",", "."));
+
+  const lastDot = s.lastIndexOf(".");
+  const lastComma = s.lastIndexOf(",");
+  let normalized: string;
+  if (lastDot >= 0 && lastComma >= 0) {
+    // Both present: the rightmost is the decimal separator, the other is grouping.
+    normalized = lastComma > lastDot
+      ? s.replace(/\./g, "").replace(",", ".")   // comma is decimal
+      : s.replace(/,/g, "");                      // dot is decimal
+  } else if (lastComma >= 0) {
+    normalized = s.replace(",", ".");             // only comma → decimal comma
+  } else {
+    normalized = s;                                // only dot (or neither) → decimal point, keep as-is
+  }
+  const n = Number(normalized);
   return Number.isFinite(n) ? n : null;
 }
+
+/**
+ * Map a raw PRODUCTSOORT value to a canonical fuel: "ELK" | "GAS" | "" (unknown).
+ * Netbeheerders differ: ELK / E / ELEKTRICITEIT → ELK; GAS / G → GAS. Case-insensitive.
+ */
+export function normalizeProductsoort(raw: string | undefined | null): "ELK" | "GAS" | "" {
+  const v = unquote(String(raw ?? "")).toUpperCase();
+  if (v === "ELK" || v === "E" || v === "ELEKTRICITEIT") return "ELK";
+  if (v === "GAS" || v === "G") return "GAS";
+  return "";
+}
+
+/** Header aliases per field — netbeheerders name columns slightly differently. */
+const COLUMN_ALIASES = {
+  postcodeVan:  ["POSTCODE_VAN"],
+  postcodeTot:  ["POSTCODE_TOT"],
+  productsoort: ["PRODUCTSOORT"],
+  // SJA (verbruik std) / SJV (verbruik) / SJI (invoeding/teruglevering) — same slot.
+  sja:          ["SJA_GEMIDDELD", "SJV_GEMIDDELD", "SJI_GEMIDDELD"],
+  leveringsrichting: ["LEVERINGSRICHTING_PERC"],
+  aansluitingen: ["AANSLUITINGEN_AANTAL"],
+  slimmeMeter:  ["SLIMME_METER_PERC"],
+} as const;
 
 /** Normalise a PC6 ("1234 ab" → "1234AB"). Returns null when it isn't a valid PC6. */
 export function normalizePc6(raw: string | undefined | null): string | null {
@@ -120,14 +163,14 @@ export function deriveSolarFeedbackPct(leveringsrichtingPct: number | null): num
 }
 
 /**
- * Parse the raw CSV text into rows. Handles the UTF-8 BOM, TAB separation, quoted
- * text fields and the decimal comma. Header names are matched case-insensitively;
- * unknown columns are ignored, rows without a valid PC6 pair are dropped.
+ * Parse the raw CSV text into rows. Handles the UTF-8 BOM, quoted text fields and
+ * both decimal conventions (point / comma). Rows without a valid PC6 pair are dropped.
  *
- * The separator is autodetected per file (tab / ; / ,) since the netbeheerders
- * differ; splitting is quote-aware so a decimal-comma inside a quoted value never
- * splits a comma-delimited row. Columns are matched by HEADER NAME, not index, so
- * a different column order between netbeheerders is handled transparently.
+ * Robust to netbeheerder differences:
+ *   • the separator is autodetected per file (tab / ; / ,), quote-aware;
+ *   • columns are matched by HEADER NAME with ALIASES (e.g. SJA/SJV/SJI_GEMIDDELD),
+ *     not by index, so column order and naming differences are handled;
+ *   • PRODUCTSOORT is normalised to canonical ELK/GAS (ELK/E/ELEKTRICITEIT, GAS/G).
  */
 export function parseNetbeheerCsv(text: string): NetbeheerRawRow[] {
   const clean = text.replace(/^﻿/, "");                 // drop UTF-8 BOM
@@ -136,14 +179,18 @@ export function parseNetbeheerCsv(text: string): NetbeheerRawRow[] {
 
   const delim = detectDelimiter(lines[0]!);
   const header = splitDelimited(lines[0]!, delim).map((h) => unquote(h).toUpperCase());
-  const idx = (name: string): number => header.indexOf(name);
-  const iVan   = idx("POSTCODE_VAN");
-  const iTot   = idx("POSTCODE_TOT");
-  const iProd  = idx("PRODUCTSOORT");
-  const iSja   = idx("SJA_GEMIDDELD");
-  const iLev   = idx("LEVERINGSRICHTING_PERC");
-  const iAansl = idx("AANSLUITINGEN_AANTAL");
-  const iSmart = idx("SLIMME_METER_PERC");
+  /** First header index matching any of the field's aliases, else -1. */
+  const idxOf = (names: readonly string[]): number => {
+    for (const n of names) { const i = header.indexOf(n); if (i >= 0) return i; }
+    return -1;
+  };
+  const iVan   = idxOf(COLUMN_ALIASES.postcodeVan);
+  const iTot   = idxOf(COLUMN_ALIASES.postcodeTot);
+  const iProd  = idxOf(COLUMN_ALIASES.productsoort);
+  const iSja   = idxOf(COLUMN_ALIASES.sja);
+  const iLev   = idxOf(COLUMN_ALIASES.leveringsrichting);
+  const iAansl = idxOf(COLUMN_ALIASES.aansluitingen);
+  const iSmart = idxOf(COLUMN_ALIASES.slimmeMeter);
   if (iVan < 0 || iTot < 0 || iProd < 0) return [];
 
   const out: NetbeheerRawRow[] = [];
@@ -155,7 +202,7 @@ export function parseNetbeheerCsv(text: string): NetbeheerRawRow[] {
     out.push({
       postcodeVan:          van,
       postcodeTot:          tot,
-      productsoort:         unquote(cells[iProd] ?? "").toUpperCase(),
+      productsoort:         normalizeProductsoort(cells[iProd]),
       sjaGemiddeld:         iSja   >= 0 ? parseDutchNumber(cells[iSja])   : null,
       leveringsrichtingPct: iLev   >= 0 ? parseDutchNumber(cells[iLev])   : null,
       aansluitingen:        iAansl >= 0 ? parseDutchNumber(cells[iAansl]) : null,
