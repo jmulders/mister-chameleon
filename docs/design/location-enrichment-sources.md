@@ -69,6 +69,29 @@ tenant via stage-config `netbeheer-energy` (default via `NETBEHEER_ENERGY_ENABLE
 - **Let op:** alleen **kleinverbruik**; grootverbruik (zware B2B-panden) zit hier niet in.
 - **Verticalen:** energie, zonne-installatie, verduurzaming.
 
+**Ingest draaien (lokale / gezipte bestanden).** In de praktijk is de data géén
+kant-en-klare directe CSV-URL: **Enexis** levert op aanvraag per e-mail (geen URL),
+**Liander/Stedin** distribueren gezipte bestanden via JS-downloadpagina's. Daarom
+neemt `npm run netbeheer:ingest` de bron zoals die écht binnenkomt:
+
+- `--source <naam>=<bron>` waar `<bron>` een **URL** (http/https → gefetcht) of een
+  **lokaal pad** is (gedownload/gemaild bestand, resolved t.o.v. de cwd).
+- De bytes mogen een **ZIP**, een **.gz** of een **kale CSV** zijn — gedetecteerd op
+  magic bytes (niet op extensie). Uit een ZIP wordt **elke `.csv`-entry** verwerkt
+  (ELK/GAS mogen in aparte CSV's zitten; ze worden op postcode samengevoegd).
+- De parser autodetecteert het scheidingsteken (tab / `;` / `,`) en matcht kolommen
+  op **headernaam**, dus verschillen tussen netbeheerders vangt hij vanzelf op.
+
+```bash
+# gebruikelijke praktijk — lokaal opgehaalde / gemailde bestanden:
+npm run netbeheer:ingest -- \
+  --source liander=./data/liander_kv_2024.zip \
+  --source stedin=./data/stedin_kv_2024.zip \
+  --source enexis=./data/enexis_kv_2024.csv \
+  --year 2024 --peildatum 2024-01-01
+# resumable: klaar-gemelde netbeheerders worden overgeslagen; --reset forceert opnieuw.
+```
+
 ### 3. EP-Online (RVO) — energielabels
 - **Geeft:** **energielabel per gebouw** (BAG-gekoppeld), meest recente geldige registratie.
 - **Granulariteit:** **per adres/gebouw**.
