@@ -156,6 +156,32 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       solarPct:               mapped.location_solar_pct,
       avgWozValue:            mapped.location_avg_woz_value,
       dominantBusinessSector: mapped.location_dominant_business_sector,
+      pctHouseholdsWithChildren: mapped.location_pct_households_with_children,
+      pctSinglePersonHouseholds: mapped.location_pct_single_person_households,
+      avgHouseholdSize:          mapped.location_avg_household_size,
+      pctAge0_15:                mapped.location_pct_age_0_15,
+      pctAge15_25:               mapped.location_pct_age_15_25,
+      pctAge25_45:               mapped.location_pct_age_25_45,
+      pctAge45_65:               mapped.location_pct_age_45_65,
+      pctAge65Plus:              mapped.location_pct_age_65_plus,
+      pctMarried:                mapped.location_pct_married,
+      pctUnmarried:              mapped.location_pct_unmarried,
+      pctDivorced:               mapped.location_pct_divorced,
+      pctWidowed:                mapped.location_pct_widowed,
+      pctSingleFamilyHomes:      mapped.location_pct_single_family_homes,
+      pctMultiFamilyHomes:       mapped.location_pct_multi_family_homes,
+      pctDetachedHomes:          mapped.location_pct_detached_homes,
+      pctOwnerOccupied:          mapped.location_pct_owner_occupied,
+      pctRental:                 mapped.location_pct_rental,
+      pctSocialHousing:          mapped.location_pct_social_housing,
+      pctHigherEducated:         mapped.location_pct_higher_educated,
+      pctLowerEducated:          mapped.location_pct_lower_educated,
+      medianHouseholdWealth:     mapped.location_median_household_wealth,
+      avgIncomePerEarner:        mapped.location_avg_income_per_earner,
+      povertyPct:                mapped.location_poverty_pct,
+      carsPerHousehold:          mapped.location_cars_per_household,
+      pctNonPetrolCars:          mapped.location_pct_non_petrol_cars,
+      avgElectricityFeedback:    mapped.location_avg_electricity_feedback,
     };
   }
 
@@ -252,10 +278,20 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       }
 
       // Require at least one usable attribute (avoid billing an all-suppressed row).
+      const demographic = [
+        stats.pctHouseholdsWithChildren, stats.pctSinglePersonHouseholds, stats.avgHouseholdSize,
+        stats.pctAge0_15, stats.pctAge15_25, stats.pctAge25_45, stats.pctAge45_65, stats.pctAge65Plus,
+        stats.pctMarried, stats.pctUnmarried, stats.pctDivorced, stats.pctWidowed,
+        stats.pctSingleFamilyHomes, stats.pctMultiFamilyHomes, stats.pctDetachedHomes,
+        stats.pctOwnerOccupied, stats.pctRental, stats.pctSocialHousing,
+        stats.pctHigherEducated, stats.pctLowerEducated,
+        stats.medianHouseholdWealth, stats.avgIncomePerEarner, stats.povertyPct,
+        stats.carsPerHousehold, stats.pctNonPetrolCars, stats.avgElectricityFeedback,
+      ].some((v) => v != null);
       const hasAnyAttribute =
         stats.urbanityProxy != null || stats.incomeBand != null || stats.businessShare != null ||
         stats.avgGasUsage != null || stats.avgElectricityUsage != null || stats.solarPct != null ||
-        stats.avgWozValue != null || stats.dominantBusinessSector != null;
+        stats.avgWozValue != null || stats.dominantBusinessSector != null || demographic;
       if (!hasAnyAttribute) {
         const n = `buurtcode=${areaCode} (${source}) · cbs=${statsSource} but all attributes suppressed`;
         ctx?.setNote(n);
@@ -282,6 +318,33 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
       if (stats.solarPct != null)               out.locationSolarPct            = stats.solarPct;
       if (stats.avgWozValue != null)            out.locationAvgWozValue         = stats.avgWozValue;
       if (stats.dominantBusinessSector)         out.locationDominantBusinessSector = stats.dominantBusinessSector;
+      // D5 Fase 0 (vervolg) — demografie / wonen / opleiding / welvaart / mobiliteit.
+      if (stats.pctHouseholdsWithChildren != null) out.locationPctHouseholdsWithChildren = stats.pctHouseholdsWithChildren;
+      if (stats.pctSinglePersonHouseholds != null) out.locationPctSinglePersonHouseholds = stats.pctSinglePersonHouseholds;
+      if (stats.avgHouseholdSize != null)          out.locationAvgHouseholdSize          = stats.avgHouseholdSize;
+      if (stats.pctAge0_15 != null)                out.locationPctAge0_15                = stats.pctAge0_15;
+      if (stats.pctAge15_25 != null)               out.locationPctAge15_25               = stats.pctAge15_25;
+      if (stats.pctAge25_45 != null)               out.locationPctAge25_45               = stats.pctAge25_45;
+      if (stats.pctAge45_65 != null)               out.locationPctAge45_65               = stats.pctAge45_65;
+      if (stats.pctAge65Plus != null)              out.locationPctAge65Plus              = stats.pctAge65Plus;
+      if (stats.pctMarried != null)                out.locationPctMarried                = stats.pctMarried;
+      if (stats.pctUnmarried != null)              out.locationPctUnmarried              = stats.pctUnmarried;
+      if (stats.pctDivorced != null)               out.locationPctDivorced               = stats.pctDivorced;
+      if (stats.pctWidowed != null)                out.locationPctWidowed                = stats.pctWidowed;
+      if (stats.pctSingleFamilyHomes != null)      out.locationPctSingleFamilyHomes      = stats.pctSingleFamilyHomes;
+      if (stats.pctMultiFamilyHomes != null)       out.locationPctMultiFamilyHomes       = stats.pctMultiFamilyHomes;
+      if (stats.pctDetachedHomes != null)          out.locationPctDetachedHomes          = stats.pctDetachedHomes;
+      if (stats.pctOwnerOccupied != null)          out.locationPctOwnerOccupied          = stats.pctOwnerOccupied;
+      if (stats.pctRental != null)                 out.locationPctRental                 = stats.pctRental;
+      if (stats.pctSocialHousing != null)          out.locationPctSocialHousing          = stats.pctSocialHousing;
+      if (stats.pctHigherEducated != null)         out.locationPctHigherEducated         = stats.pctHigherEducated;
+      if (stats.pctLowerEducated != null)          out.locationPctLowerEducated          = stats.pctLowerEducated;
+      if (stats.medianHouseholdWealth != null)     out.locationMedianHouseholdWealth     = stats.medianHouseholdWealth;
+      if (stats.avgIncomePerEarner != null)        out.locationAvgIncomePerEarner        = stats.avgIncomePerEarner;
+      if (stats.povertyPct != null)                out.locationPovertyPct                = stats.povertyPct;
+      if (stats.carsPerHousehold != null)          out.locationCarsPerHousehold          = stats.carsPerHousehold;
+      if (stats.pctNonPetrolCars != null)          out.locationPctNonPetrolCars          = stats.pctNonPetrolCars;
+      if (stats.avgElectricityFeedback != null)    out.locationAvgElectricityFeedback    = stats.avgElectricityFeedback;
 
       // Note carries the coherence decision + per-field geo provenance so it is
       // visible in the /demo debug even when the pipeline was a session-cache hit.
