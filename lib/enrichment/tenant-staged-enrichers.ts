@@ -198,6 +198,9 @@ export async function buildTenantStagedEnrichers(
     // "external data must exist first" pattern as BAG). Per-tenant "netbeheer-energy"
     // stage config can still override. Fires only on the form-postcode path.
     enableNetbeheerEnergy:       pipelineEnabled("netbeheer-energy", Boolean(process.env.NETBEHEER_ENERGY_ENABLED?.trim())),
+    // EP-Online energy label: on when EPONLINE_API_KEY is configured; the per-tenant
+    // "eponline-label" stage config can still disable it. Fires on form addresses.
+    enableEpOnlineLabel:         pipelineEnabled("eponline-label", Boolean(process.env.EPONLINE_API_KEY?.trim())),
     holidayAllowedCountries:     (platformHolidays as { countriesFilter?: string }).countriesFilter || undefined,
     isDev:                       process.env.NODE_ENV === "development",
     stageConfig: tenantPipelineStages.length > 0 ? tenantPipelineStages : undefined,

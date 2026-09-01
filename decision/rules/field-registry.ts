@@ -448,6 +448,12 @@ export type RuleFieldKey =
   | "locationCarsPerHousehold"
   | "locationPctNonPetrolCars"
   | "locationAvgElectricityFeedback"
+  | "locationEnergyLabel"
+  | "locationEnergyLabelBand"
+  | "locationEnergyIndex"
+  | "locationBuildingEnergyDemand"
+  | "locationRenewableShare"
+  | "locationEnergyLabelValidUntil"
   // Lead Base — returning-visitor signals
   | "isReturningVisitor"
   | "leadScore"
@@ -1248,6 +1254,55 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
   locationCarsPerHousehold: { label: "Location cars per household", description: "Cars per household in the visitor's buurt (ratio, CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationCarsPerHousehold ?? null },
   locationPctNonPetrolCars: { label: "Location % non-petrol cars", description: "% non-petrol cars (EV/other-fuel proxy) in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctNonPetrolCars ?? null },
   locationAvgElectricityFeedback: { label: "Location avg electricity feed-in (kWh)", description: "Average electricity feed-in per home in the visitor's buurt (kWh/year, CBS 85984NED) — a direct solar signal.", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationAvgElectricityFeedback ?? null },
+  // ── Enrichment — EP-Online energielabel (per adres, D5 Fase 3) ──────────────
+  locationEnergyLabel: {
+    label:       "Location energy label (raw)",
+    description: "Raw energy-label class at the visitor's form address, e.g. \"A\", \"C\" (EP-Online). Internal signal — visitor display is licence-gated (epLabelDisplayAllowed).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.locationEnergyLabel ?? null,
+  },
+  locationEnergyLabelBand: {
+    label:       "Location energy-label band",
+    description: "Coarse energy-label band at the form address: \"green\" (A/B), \"amber\" (C/D), \"red\" (E/G). Safe aggregate for segmentation (EP-Online).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.locationEnergyLabelBand ?? null,
+  },
+  locationEnergyIndex: {
+    label:       "Location energy index",
+    description: "EP-Online energy index at the visitor's form address.",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationEnergyIndex ?? null,
+  },
+  locationBuildingEnergyDemand: {
+    label:       "Location building energy demand",
+    description: "Building energy demand (energiebehoefte) at the visitor's form address (EP-Online).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationBuildingEnergyDemand ?? null,
+  },
+  locationRenewableShare: {
+    label:       "Location renewable share",
+    description: "Renewable-energy share (aandeel hernieuwbaar) at the visitor's form address (EP-Online).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationRenewableShare ?? null,
+  },
+  locationEnergyLabelValidUntil: {
+    label:       "Location energy-label valid until",
+    description: "Energy-label validity end date (ISO) at the visitor's form address (EP-Online).",
+    group:       "enrichment",
+    kind:        "nullable_string",
+    operators:   OPS_NULLABLE_STRING,
+    resolve:     (ctx) => ctx.enrichment?.locationEnergyLabelValidUntil ?? null,
+  },
 
   // ── Lead Base — returning-visitor signals ─────────────────────────────────────
   isReturningVisitor: {

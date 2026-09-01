@@ -98,6 +98,7 @@ import { createFirstPartyCompanyDbEnricher }   from "./firstparty-company-db";
 import { createCbsLocationEnricher }           from "./cbs-location";
 import { createBagLocationEnricher }           from "./bag-location";
 import { createNetbeheerEnergyEnricher }        from "./netbeheer-energy";
+import { createEpOnlineLabelEnricher }          from "./eponline-label";
 import { ipCompanyCache }                       from "../ip-company-store";
 import type { LeadinfoPersistentCache }         from "../ip-company-cache-ttl";
 import { HubSpotCrmProvider }                  from "./hubspot-crm";
@@ -348,6 +349,8 @@ export interface CompanyCrmChainOptions {
   enableBagLocation?: boolean;
   /** Enable the netbeheerder PC6 energy enricher (form-postcode path; needs pc6_energy_stats filled). */
   enableNetbeheerEnergy?: boolean;
+  /** Enable the EP-Online energy-label enricher (form-address path; needs EPONLINE_API_KEY). */
+  enableEpOnlineLabel?: boolean;
 
   // ── Shared ────────────────────────────────────────────────────────────────
   /**
@@ -436,6 +439,7 @@ export function buildCompanyCrmChain(
     enableCbsLocation          = false,
     enableBagLocation          = false,
     enableNetbeheerEnergy      = false,
+    enableEpOnlineLabel        = false,
     cbsLocationDatasetId,
     cbsLocationSourceYear,
     isDev                      = false,
@@ -803,6 +807,12 @@ export function buildCompanyCrmChain(
   // Per-tenant on/off via the "netbeheer-energy" stage config.
   if (enableNetbeheerEnergy) {
     stages.push(createNetbeheerEnergyEnricher({ isDev }));
+  }
+
+  // EP-Online energy label — form-address path; no-ops without EPONLINE_API_KEY.
+  // Per-tenant on/off via the "eponline-label" stage config.
+  if (enableEpOnlineLabel) {
+    stages.push(createEpOnlineLabelEnricher({ isDev }));
   }
 
   // ── Apply stage config (ordering + activation) ────────────────────────────
