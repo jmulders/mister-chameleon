@@ -71,7 +71,7 @@
  * Adding a key here alone is not sufficient — a FormDefinition must also be
  * registered in forms/registry.ts for the key to be resolvable at runtime.
  */
-export type FormKey = "contact" | "application" | "appointment" | "newsletter";
+export type FormKey = "contact" | "application" | "appointment" | "newsletter" | "locatie-test";
 
 // ═════════════════════════════════════════════════════════════════════════════
 // FORM FIELD

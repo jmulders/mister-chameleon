@@ -46,6 +46,7 @@ import { CONTACT_FORM }     from "@/forms/definitions/contact";
 import { APPLICATION_FORM } from "@/forms/definitions/application";
 import { APPOINTMENT_FORM } from "@/forms/definitions/appointment";
 import { NEWSLETTER_FORM }  from "@/forms/definitions/newsletter";
+import { LOCATIE_TEST_FORM } from "@/forms/definitions/locatie-test";
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ const FORM_REGISTRY: Record<FormKey, FormDefinition> = {
   application: APPLICATION_FORM,
   appointment: APPOINTMENT_FORM,
   newsletter:  NEWSLETTER_FORM,
+  "locatie-test": LOCATIE_TEST_FORM,
 };
 
 // ── Public helpers ────────────────────────────────────────────────────────────
