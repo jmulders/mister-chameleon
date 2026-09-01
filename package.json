@@ -9,6 +9,7 @@
     "dev": "next dev",
     "db:migrate": "npx tsx scripts/migrate.ts",
     "cbs:backfill": "npx tsx scripts/cbs-backfill.ts",
+    "netbeheer:ingest": "npx tsx scripts/netbeheer-ingest.ts",
     "dev:stripe": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
     "build": "next build --webpack",
     "start": "next start",
