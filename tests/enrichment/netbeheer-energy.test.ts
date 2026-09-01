@@ -189,7 +189,7 @@ const input = (postcode: string | null): EnricherInput =>
 const acc = (): Partial<EnrichmentOutput> => ({});
 
 describe("createNetbeheerEnergyEnricher", () => {
-  const stats: Pc6Energy = { netbeheerder:"liander", avgGasM3:1200, avgElkKwh:2900, solarPct:17.5, smartMeterPct:90 };
+  const stats: Pc6Energy = { netbeheerder:"liander", avgGasM3:1200, avgElkKwh:2900, solarPct:17.5, smartMeterPct:90, connectionsCount:25 };
 
   it("shouldRun only when a valid PC6 postcode is present", () => {
     const s = createNetbeheerEnergyEnricher({ lookup: async () => null });
