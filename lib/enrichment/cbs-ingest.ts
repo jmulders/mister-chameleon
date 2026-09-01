@@ -61,6 +61,36 @@ export const CBS_FIELD_MAP = {
   avgElectricity: ["GemiddeldeElektriciteitslevering_53"],   // kWh
   solarPct:       ["WoningenMetZonnestroom_59"],             // %
   avgWozK:        ["GemiddeldeWOZWaardeVanWoningen_39"],      // "x 1 000 euro" → ×1000
+  // D5 Fase 0 (vervolg) — demografie / wonen / opleiding / welvaart / mobiliteit.
+  householdsTotal:        ["HuishoudensTotaal_29"],           // household-share denominator
+  householdsWithChildren: ["HuishoudensMetKinderen_32"],
+  singlePersonHouseholds: ["Eenpersoonshuishoudens_30"],
+  avgHouseholdSize:       ["GemiddeldeHuishoudensgrootte_33"],// raw ratio
+  age0_15:   ["k_0Tot15Jaar_8"],
+  age15_25:  ["k_15Tot25Jaar_9"],
+  age25_45:  ["k_25Tot45Jaar_10"],
+  age45_65:  ["k_45Tot65Jaar_11"],
+  age65Plus: ["k_65JaarOfOuder_12"],
+  married:   ["Gehuwd_14"],
+  unmarried: ["Ongehuwd_13"],
+  divorced:  ["Gescheiden_15"],
+  widowed:   ["Verweduwd_16"],
+  pctSingleFamily:  ["PercentageEengezinswoning_40"],         // bron al %
+  pctMultiFamily:   ["PercentageMeergezinswoning_45"],
+  pctDetached:      ["PercentageVrijstaandeWoningEengezins_44"],
+  pctOwnerOccupied: ["Koopwoningen_47"],                      // bron al %
+  pctRental:        ["HuurwoningenTotaal_48"],
+  pctSocialHousing: ["InBezitWoningcorporatie_49"],
+  eduLow:    ["BasisonderwijsVmboMbo1_67"],
+  eduMid:    ["HavoVwoMbo24_68"],
+  eduHigh:   ["HboWo_69"],
+  medianWealthK:       ["MediaanVermogenVanParticuliereHuish_86"], // "x 1 000 euro" → ×1000
+  avgIncomePerEarnerK: ["GemiddeldInkomenPerInkomensontvanger_77"],// "x 1 000 euro" → ×1000
+  povertyPct:          ["PersonenInArmoede_81"],              // bron al %
+  carsPerHousehold:    ["PersonenautoSPerHuishouden_107"],    // raw ratio
+  carsTotal:           ["PersonenautoSTotaal_104"],
+  carsOther:           ["PersonenautoSOverigeBrandstof_106"],
+  avgElecFeedback:     ["GemiddeldeElektriciteitsteruglevering_54"], // kWh (solar feed-in)
 } as const;
 
 /**
@@ -109,6 +139,36 @@ const SELECT_COLUMNS = [
   "MNZakelijkeDienstverlening_101",
   "OQOverheidOnderwijsEnZorg_102",
   "RUCultuurRecreatieOverigeDiensten_103",
+  // D5 Fase 0 (vervolg) — demografie / wonen / opleiding / welvaart / mobiliteit.
+  "HuishoudensTotaal_29",
+  "HuishoudensMetKinderen_32",
+  "Eenpersoonshuishoudens_30",
+  "GemiddeldeHuishoudensgrootte_33",
+  "k_0Tot15Jaar_8",
+  "k_15Tot25Jaar_9",
+  "k_25Tot45Jaar_10",
+  "k_45Tot65Jaar_11",
+  "k_65JaarOfOuder_12",
+  "Gehuwd_14",
+  "Ongehuwd_13",
+  "Gescheiden_15",
+  "Verweduwd_16",
+  "PercentageEengezinswoning_40",
+  "PercentageMeergezinswoning_45",
+  "PercentageVrijstaandeWoningEengezins_44",
+  "Koopwoningen_47",
+  "HuurwoningenTotaal_48",
+  "InBezitWoningcorporatie_49",
+  "BasisonderwijsVmboMbo1_67",
+  "HavoVwoMbo24_68",
+  "HboWo_69",
+  "MediaanVermogenVanParticuliereHuish_86",
+  "GemiddeldInkomenPerInkomensontvanger_77",
+  "PersonenInArmoede_81",
+  "PersonenautoSPerHuishouden_107",
+  "PersonenautoSTotaal_104",
+  "PersonenautoSOverigeBrandstof_106",
+  "GemiddeldeElektriciteitsteruglevering_54",
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -196,6 +256,23 @@ export function deriveDominantSector(raw: Row): string | null {
   return bestSlug;
 }
 
+/** Round a raw numeric to `d` decimals, null-safe. */
+function roundTo(v: number | null, d: number): number | null {
+  if (v == null) return null;
+  const f = 10 ** d;
+  return Math.round(v * f) / f;
+}
+
+/**
+ * A buurt-comparable percentage share = num / denom × 100, rounded to 1 decimal.
+ * Null when the numerator OR the denominator is null or ≤ 0 — no division by zero,
+ * no misleading 0 for a suppressed cell.
+ */
+export function pctShare(num: number | null, denom: number | null): number | null {
+  if (num == null || denom == null || denom <= 0) return null;
+  return roundTo((num / denom) * 100, 1);
+}
+
 /** Map one raw CBS OData buurt row to a cbs_area_stats upsert row, or null. */
 export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
   const areaCode = normalizeAreaCode(firstField(raw, CBS_FIELD_MAP.areaCode));
@@ -228,6 +305,21 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
   const wozK     = toNum(firstField(raw, CBS_FIELD_MAP.avgWozK));          // "x 1 000 euro"
   const avgWoz   = wozK != null ? Math.round(wozK * 1000) : null;          // → euro
 
+  // ── D5 Fase 0 (vervolg) — demografie / wonen / opleiding / welvaart / mobiliteit ──
+  // Shares = pct of a denominator (households or inhabitants), 1 decimal; already-
+  // percentage source fields pass through toNum unchanged. Suppressed / null-denom → null.
+  const householdsTotal = toNum(firstField(raw, CBS_FIELD_MAP.householdsTotal));
+  const eduLow  = toNum(firstField(raw, CBS_FIELD_MAP.eduLow));
+  const eduMid  = toNum(firstField(raw, CBS_FIELD_MAP.eduMid));
+  const eduHigh = toNum(firstField(raw, CBS_FIELD_MAP.eduHigh));
+  const eduSum  = (eduLow ?? 0) + (eduMid ?? 0) + (eduHigh ?? 0);
+  const eduDenom = eduSum > 0 ? eduSum : null;
+  const carsTotal = toNum(firstField(raw, CBS_FIELD_MAP.carsTotal));
+  const carsOther = toNum(firstField(raw, CBS_FIELD_MAP.carsOther));
+  const medianWealthK       = toNum(firstField(raw, CBS_FIELD_MAP.medianWealthK));
+  const avgIncomePerEarnerK = toNum(firstField(raw, CBS_FIELD_MAP.avgIncomePerEarnerK));
+  const avgElecFeedback     = toNum(firstField(raw, CBS_FIELD_MAP.avgElecFeedback));
+
   return {
     area_code:          areaCode,
     avg_income:         avgIncome,
@@ -246,6 +338,40 @@ export function mapCbsRow(raw: Row, sourceYear: number, dataset: string) {
     location_solar_pct:                solarPct,
     location_avg_woz_value:            avgWoz,
     location_dominant_business_sector: deriveDominantSector(raw),
+    // Household composition (denominator HuishoudensTotaal_29).
+    location_pct_households_with_children: pctShare(toNum(firstField(raw, CBS_FIELD_MAP.householdsWithChildren)), householdsTotal),
+    location_pct_single_person_households: pctShare(toNum(firstField(raw, CBS_FIELD_MAP.singlePersonHouseholds)), householdsTotal),
+    location_avg_household_size:           roundTo(toNum(firstField(raw, CBS_FIELD_MAP.avgHouseholdSize)), 2),
+    // Age bands (denominator AantalInwoners_5).
+    location_pct_age_0_15:    pctShare(toNum(firstField(raw, CBS_FIELD_MAP.age0_15)),   inhabitants),
+    location_pct_age_15_25:   pctShare(toNum(firstField(raw, CBS_FIELD_MAP.age15_25)),  inhabitants),
+    location_pct_age_25_45:   pctShare(toNum(firstField(raw, CBS_FIELD_MAP.age25_45)),  inhabitants),
+    location_pct_age_45_65:   pctShare(toNum(firstField(raw, CBS_FIELD_MAP.age45_65)),  inhabitants),
+    location_pct_age_65_plus: pctShare(toNum(firstField(raw, CBS_FIELD_MAP.age65Plus)), inhabitants),
+    // Marital status (denominator AantalInwoners_5).
+    location_pct_married:   pctShare(toNum(firstField(raw, CBS_FIELD_MAP.married)),   inhabitants),
+    location_pct_unmarried: pctShare(toNum(firstField(raw, CBS_FIELD_MAP.unmarried)), inhabitants),
+    location_pct_divorced:  pctShare(toNum(firstField(raw, CBS_FIELD_MAP.divorced)),  inhabitants),
+    location_pct_widowed:   pctShare(toNum(firstField(raw, CBS_FIELD_MAP.widowed)),   inhabitants),
+    // Housing type + ownership (source already percentages → pass through).
+    location_pct_single_family_homes: toNum(firstField(raw, CBS_FIELD_MAP.pctSingleFamily)),
+    location_pct_multi_family_homes:  toNum(firstField(raw, CBS_FIELD_MAP.pctMultiFamily)),
+    location_pct_detached_homes:      toNum(firstField(raw, CBS_FIELD_MAP.pctDetached)),
+    location_pct_owner_occupied:      toNum(firstField(raw, CBS_FIELD_MAP.pctOwnerOccupied)),
+    location_pct_rental:              toNum(firstField(raw, CBS_FIELD_MAP.pctRental)),
+    location_pct_social_housing:      toNum(firstField(raw, CBS_FIELD_MAP.pctSocialHousing)),
+    // Education (denominator = sum of the three levels).
+    location_pct_higher_educated: pctShare(eduHigh, eduDenom),
+    location_pct_lower_educated:  pctShare(eduLow,  eduDenom),
+    // Wealth (amounts in "x 1 000 euro" → euro; poverty already %).
+    location_median_household_wealth: medianWealthK       != null ? Math.round(medianWealthK * 1000)       : null,
+    location_avg_income_per_earner:   avgIncomePerEarnerK != null ? Math.round(avgIncomePerEarnerK * 1000) : null,
+    location_poverty_pct:             toNum(firstField(raw, CBS_FIELD_MAP.povertyPct)),
+    // Mobility.
+    location_cars_per_household:  roundTo(toNum(firstField(raw, CBS_FIELD_MAP.carsPerHousehold)), 2),
+    location_pct_non_petrol_cars: pctShare(carsOther, carsTotal),
+    // Energy (extra) — electricity feed-in (kWh), a directer solar signal.
+    location_avg_electricity_feedback: avgElecFeedback != null ? Math.round(avgElecFeedback) : null,
     source_year:        sourceYear,
     source_dataset:     dataset,
     raw,
