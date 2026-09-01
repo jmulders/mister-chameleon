@@ -8,7 +8,7 @@ import assert           from "node:assert/strict";
 
 import {
   parseNetbeheerCsv, pivotNetbeheerRows, parseDutchNumber, normalizePc6,
-  pc6InRange, deriveSolarFeedbackPct,
+  pc6InRange, deriveSolarFeedbackPct, normalizeProductsoort,
   type NetbeheerRawRow,
 } from "../../lib/enrichment/netbeheer-ingest.ts";
 import { createNetbeheerEnergyEnricher } from "../../enrichment/providers/netbeheer-energy.ts";
@@ -23,15 +23,36 @@ const csv = (rows: string[][]) => "﻿" + [q(HEADER), ...rows.map(q)].join("\r\n
 // ── parseDutchNumber ──────────────────────────────────────────────────────────
 
 describe("parseDutchNumber", () => {
-  it("handles thousands-dot + decimal-comma, plain ints, junk", () => {
-    assert.equal(parseDutchNumber("2.900"), 2900);
+  it("decimal COMMA convention", () => {
     assert.equal(parseDutchNumber("82,5"), 82.5);
-    assert.equal(parseDutchNumber("1.234,5"), 1234.5);
+    assert.equal(parseDutchNumber('"12,5"'), 12.5);     // still-quoted
+    assert.equal(parseDutchNumber("1.234,5"), 1234.5);  // dot thousands + comma decimal
+  });
+  it("decimal POINT convention (not stripped as thousands)", () => {
+    assert.equal(parseDutchNumber("71.74"), 71.74);     // the Liander bug: was 7174
+    assert.equal(parseDutchNumber("7.174"), 7.174);     // only dot → decimal point
+    assert.equal(parseDutchNumber("1,234.5"), 1234.5);  // comma thousands + point decimal
+  });
+  it("plain ints and junk", () => {
     assert.equal(parseDutchNumber("2900"), 2900);
-    assert.equal(parseDutchNumber('"12,5"'), 12.5); // still-quoted
     assert.equal(parseDutchNumber(""), null);
     assert.equal(parseDutchNumber("x"), null);
     assert.equal(parseDutchNumber(null), null);
+  });
+});
+
+describe("normalizeProductsoort", () => {
+  it("maps electricity variants → ELK", () => {
+    assert.equal(normalizeProductsoort("ELK"), "ELK");
+    assert.equal(normalizeProductsoort("e"), "ELK");
+    assert.equal(normalizeProductsoort("Elektriciteit"), "ELK");
+    assert.equal(normalizeProductsoort('"ELK   "'), "ELK"); // quoted + padded (real Liander)
+  });
+  it("maps gas variants → GAS, unknown → ''", () => {
+    assert.equal(normalizeProductsoort("GAS"), "GAS");
+    assert.equal(normalizeProductsoort("g"), "GAS");
+    assert.equal(normalizeProductsoort("warmte"), "");
+    assert.equal(normalizeProductsoort(null), "");
   });
 });
 
@@ -75,9 +96,9 @@ describe("deriveSolarFeedbackPct", () => {
 describe("parseNetbeheerCsv", () => {
   it("parses BOM/tab/quote/comma and drops invalid PC6 rows", () => {
     const text = csv([
-      ["3011AD","3011AD","ELK","2.900","82,5","25","90,0"],
-      ["3011AD","3011AD","GAS","1.200","","24","88,0"],
-      ["GARBAGE","3011AD","ELK","1.000","10","5","50"], // invalid POSTCODE_VAN → dropped
+      ["3011AD","3011AD","ELK","2900","82,5","25","90,0"],
+      ["3011AD","3011AD","GAS","1200","","24","88,0"],
+      ["GARBAGE","3011AD","ELK","1000","10","5","50"], // invalid POSTCODE_VAN → dropped
     ]);
     const rows = parseNetbeheerCsv(text);
     assert.equal(rows.length, 2);
@@ -94,6 +115,33 @@ describe("parseNetbeheerCsv", () => {
   it("returns [] on an empty or header-only file", () => {
     assert.deepEqual(parseNetbeheerCsv(""), []);
     assert.deepEqual(parseNetbeheerCsv("﻿" + q(HEADER)), []);
+  });
+
+  it("handles a semicolon file with SJV/SJI alias, E/G productsoort and decimal-point %", () => {
+    // Mirrors the real Liander shape: no BOM, semicolon-delimited, decimal POINT.
+    const text = [
+      "NETBEHEERDER;POSTCODE_VAN;POSTCODE_TOT;PRODUCTSOORT;SJV_GEMIDDELD;LEVERINGSRICHTING_PERC;AANSLUITINGEN_AANTAL;SLIMME_METER_PERC",
+      "Liander;3011AD;3011AD;E;2900;82.50;25;71.74",
+      "Liander;3011AD;3011AD;G;1200;;24;70.10",
+    ].join("\n");
+    const rows = parseNetbeheerCsv(text);
+    assert.equal(rows.length, 2);
+    const elk = rows.find((r) => r.productsoort === "ELK")!;   // "E" normalised
+    assert.equal(elk.sjaGemiddeld, 2900);                       // SJV_GEMIDDELD alias
+    assert.equal(elk.slimmeMeterPct, 71.74);                    // decimal point, not 7174
+    assert.equal(elk.leveringsrichtingPct, 82.5);
+    const gas = rows.find((r) => r.productsoort === "GAS")!;    // "G" normalised
+    assert.equal(gas.sjaGemiddeld, 1200);
+  });
+
+  it("picks up the SJI_GEMIDDELD alias (teruglever files)", () => {
+    const text = [
+      "POSTCODE_VAN;POSTCODE_TOT;PRODUCTSOORT;SJI_GEMIDDELD;AANSLUITINGEN_AANTAL",
+      "1011AC;1011DE;ELK;1077;67",
+    ].join("\n");
+    const rows = parseNetbeheerCsv(text);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.sjaGemiddeld, 1077);
   });
 });
 
