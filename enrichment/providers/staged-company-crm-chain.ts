@@ -97,6 +97,7 @@ import { createLeadinfoStagedEnricher }        from "./leadinfo";
 import { createFirstPartyCompanyDbEnricher }   from "./firstparty-company-db";
 import { createCbsLocationEnricher }           from "./cbs-location";
 import { createBagLocationEnricher }           from "./bag-location";
+import { createNetbeheerEnergyEnricher }        from "./netbeheer-energy";
 import { ipCompanyCache }                       from "../ip-company-store";
 import type { LeadinfoPersistentCache }         from "../ip-company-cache-ttl";
 import { HubSpotCrmProvider }                  from "./hubspot-crm";
@@ -345,6 +346,8 @@ export interface CompanyCrmChainOptions {
   cbsLocationSourceYear?: number;
   /** Enable the BAG per-address enricher (form-address path; needs BAG_API_KEY). */
   enableBagLocation?: boolean;
+  /** Enable the netbeheerder PC6 energy enricher (form-postcode path; needs pc6_energy_stats filled). */
+  enableNetbeheerEnergy?: boolean;
 
   // ── Shared ────────────────────────────────────────────────────────────────
   /**
@@ -432,6 +435,7 @@ export function buildCompanyCrmChain(
     holidayAllowedCountries,
     enableCbsLocation          = false,
     enableBagLocation          = false,
+    enableNetbeheerEnergy      = false,
     cbsLocationDatasetId,
     cbsLocationSourceYear,
     isDev                      = false,
@@ -792,6 +796,13 @@ export function buildCompanyCrmChain(
   // without BAG_API_KEY. Per-tenant on/off via the "bag-location" stage config.
   if (enableBagLocation) {
     stages.push(createBagLocationEnricher({ isDev }));
+  }
+
+  // Netbeheerder PC6 energy — fires on the form-postcode path (no house number
+  // needed). No-ops until pc6_energy_stats is filled (npm run netbeheer:ingest).
+  // Per-tenant on/off via the "netbeheer-energy" stage config.
+  if (enableNetbeheerEnergy) {
+    stages.push(createNetbeheerEnergyEnricher({ isDev }));
   }
 
   // ── Apply stage config (ordering + activation) ────────────────────────────

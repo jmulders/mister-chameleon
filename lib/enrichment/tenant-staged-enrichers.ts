@@ -193,6 +193,11 @@ export async function buildTenantStagedEnrichers(
     // BAG per-address enricher: on when a BAG_API_KEY is configured; the per-tenant
     // "bag-location" stage config can still disable it. Fires only on form addresses.
     enableBagLocation:           pipelineEnabled("bag-location", Boolean(process.env.BAG_API_KEY?.trim())),
+    // Netbeheerder PC6 energy: on once the data is provisioned. Flip
+    // NETBEHEER_ENERGY_ENABLED on after running npm run netbeheer:ingest (same
+    // "external data must exist first" pattern as BAG). Per-tenant "netbeheer-energy"
+    // stage config can still override. Fires only on the form-postcode path.
+    enableNetbeheerEnergy:       pipelineEnabled("netbeheer-energy", Boolean(process.env.NETBEHEER_ENERGY_ENABLED?.trim())),
     holidayAllowedCountries:     (platformHolidays as { countriesFilter?: string }).countriesFilter || undefined,
     isDev:                       process.env.NODE_ENV === "development",
     stageConfig: tenantPipelineStages.length > 0 ? tenantPipelineStages : undefined,

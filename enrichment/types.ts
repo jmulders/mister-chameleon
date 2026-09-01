@@ -248,6 +248,15 @@ export interface EnrichmentOutput {
   locationBuildingUse:    string | null;
   /** Usable floor area of the address object in m² (BAG oppervlakte). */
   locationBuildingAreaM2: number | null;
+  // ── D5 Fase 2 — netbeheerder PC6 energy (kleinverbruik; form-postcode path) ──
+  /** Average small-consumption gas use for the visitor's PC6 (m³/year, netbeheerder). */
+  locationPc6AvgGasM3:    number | null;
+  /** Average small-consumption electricity use for the visitor's PC6 (kWh/year, netbeheerder). */
+  locationPc6AvgElkKwh:   number | null;
+  /** Solar-feedback proxy for the PC6 (100 − net-afname %; higher = more solar). */
+  locationPc6SolarPct:    number | null;
+  /** Smart-meter penetration for the PC6 (%, netbeheerder). */
+  locationPc6SmartMeterPct: number | null;
   /**
    * Confidence in the resolved location. "high" when the buurt came from a
    * precise, coherent signal (form postcode, or IP coordinates whose reverse-

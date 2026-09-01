@@ -27,6 +27,10 @@ export interface LocationBillingOptions {
   sessionId?: string;
   /** CBS buurtcode for the usage-event metadata (optional). */
   areaCode?:  string;
+  /** Which first-party location source served this lookup. Default "cbs". */
+  source?:    "cbs" | "netbeheer";
+  /** PC6 for the usage-event metadata (netbeheer source; optional). */
+  pc6?:       string;
   /** True in test_simulated wallet mode — records the event but skips the debit. */
   simulated?: boolean;
 }
@@ -39,7 +43,7 @@ export async function billLocationLookup(
   client:  SupabaseClient,
   options: LocationBillingOptions,
 ): Promise<void> {
-  const { tenantId, sessionId, areaCode, simulated = false } = options;
+  const { tenantId, sessionId, areaCode, pc6, source = "cbs", simulated = false } = options;
 
   try {
     const creditCost = await resolveCreditCost(
@@ -71,7 +75,7 @@ export async function billLocationLookup(
       ...(sessionId ? { sessionId } : {}),
       idempotencyKey: buildIdempotencyKey(FEATURE_KEY, tenantId, sessionId ?? "no-session"),
       simulated,
-      metadata: { source: "cbs", ...(areaCode ? { areaCode } : {}) },
+      metadata: { source, ...(areaCode ? { areaCode } : {}), ...(pc6 ? { pc6 } : {}) },
     });
   } catch (err) {
     console.warn("[billing/location] billLocationLookup failed", { tenantId, error: String(err) });

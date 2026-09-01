@@ -418,6 +418,10 @@ export type RuleFieldKey =
   | "locationBuildingYear"
   | "locationBuildingUse"
   | "locationBuildingAreaM2"
+  | "locationPc6AvgGasM3"
+  | "locationPc6AvgElkKwh"
+  | "locationPc6SolarPct"
+  | "locationPc6SmartMeterPct"
   // Lead Base — returning-visitor signals
   | "isReturningVisitor"
   | "leadScore"
@@ -1158,6 +1162,38 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     kind:        "number",
     operators:   OPS_NUMBER,
     resolve:     (ctx) => ctx.enrichment?.locationBuildingAreaM2 ?? null,
+  },
+  locationPc6AvgGasM3: {
+    label:       "Location PC6 avg gas use (m³)",
+    description: "Average small-consumption gas use for the visitor's PC6 (m³/year, netbeheerder kleinverbruik).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationPc6AvgGasM3 ?? null,
+  },
+  locationPc6AvgElkKwh: {
+    label:       "Location PC6 avg electricity use (kWh)",
+    description: "Average small-consumption electricity use for the visitor's PC6 (kWh/year, netbeheerder kleinverbruik).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationPc6AvgElkKwh ?? null,
+  },
+  locationPc6SolarPct: {
+    label:       "Location PC6 solar feedback (%)",
+    description: "Solar-adoption proxy for the visitor's PC6 (100 − net-afname %; higher = more solar-op-dak).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationPc6SolarPct ?? null,
+  },
+  locationPc6SmartMeterPct: {
+    label:       "Location PC6 smart-meter (%)",
+    description: "Smart-meter penetration for the visitor's PC6 (%, netbeheerder kleinverbruik).",
+    group:       "enrichment",
+    kind:        "number",
+    operators:   OPS_NUMBER,
+    resolve:     (ctx) => ctx.enrichment?.locationPc6SmartMeterPct ?? null,
   },
 
   // ── Lead Base — returning-visitor signals ─────────────────────────────────────
