@@ -26,7 +26,13 @@ PC6/buurt-bronnen (netbeheerders, CBS) werken ook met grovere input.
 
 ## Bronnen (geverifieerd)
 
-### 0. CBS 85984NED — extra velden (GEEN nieuwe bron, quick win)
+### 0. CBS 85984NED — extra velden (GEEN nieuwe bron, quick win) — ✅ GEBOUWD (uitgebreid)
+Opgeleverd in twee rondes: (a) energie/zonne/WOZ/sector (migratie 180); (b) demografie/
+wonen/opleiding/welvaart/mobiliteit — 26 extra `location_*`-velden (migratie 184).
+Shares als percentage (buurt-vergelijkbaar), 1 decimaal, null-veilig (`pctShare`, geen
+deling door 0). Zelfde `$select` + `mapCbsRow`; velden in FIELD_REGISTRY + /demo.
+Na de migratie: `npm run cbs:backfill -- --reset` om de nieuwe kolommen te vullen.
+
 Het dataset dat we **al** inladen heeft ~121 kolommen; we mappen er 4. Al aanwezig:
 - **Energie:** `GemiddeldAardgasverbruik_55`, `GemiddeldeElektriciteitslevering_53`
 - **Verduurzaming:** `WoningenMetZonnestroom_59` (% woningen met zonnestroom),
@@ -130,9 +136,10 @@ juridische aftik van de individueel-aan-derden-licentie).
 
 ## Voorgestelde fasering
 
-**Fase 0 — CBS-velden verbreden (quick win, geen nieuwe bron).**
-Map de al-ingeladen energie/zonne/WOZ/sector-velden uit 85984NED. `$select` + mapping
-uitbreiden; nieuwe rule-velden. Grootste waarde/inspanning-ratio.
+**Fase 0 — CBS-velden verbreden (quick win, geen nieuwe bron).** ✅ **GEBOUWD.**
+Energie/zonne/WOZ/sector (migratie 180) + demografie/wonen/opleiding/welvaart/
+mobiliteit (26 velden, migratie 184). `$select` + mapping breder; shares als %,
+null-veilig; rule/AI/-velden + /demo. Grootste waarde/inspanning-ratio.
 
 **Fase 1 — BAG per-adres-enricher.** Gratis per-request API (key), fijnste granulariteit,
 breed relevant (bouwjaar/functie/oppervlakte). Lazy-lookup zoals PDOK. Leunt op
