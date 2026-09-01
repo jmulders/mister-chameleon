@@ -50,6 +50,44 @@ function unquote(v: string): string {
   return t;
 }
 
+/** Candidate field separators, in tie-break preference order. */
+const DELIMITERS = ["\t", ";", ","] as const;
+
+/**
+ * Autodetect the field separator from the header line: the candidate that occurs
+ * most often OUTSIDE quotes. Netbeheerders differ (tab / ; / ,); header names
+ * carry no separators, so a count on the header is reliable. Ties prefer tab, ;, ,.
+ */
+export function detectDelimiter(headerLine: string): string {
+  let best = "\t", bestN = -1;
+  for (const d of DELIMITERS) {
+    let n = 0, inQ = false;
+    for (const c of headerLine) {
+      if (c === '"') inQ = !inQ;
+      else if (c === d && !inQ) n++;
+    }
+    if (n > bestN) { bestN = n; best = d; }
+  }
+  return best;
+}
+
+/**
+ * Split one line on `delim`, respecting double-quoted fields (so a decimal-comma
+ * inside a quoted value is not treated as a comma separator). Quotes are kept and
+ * stripped later by unquote().
+ */
+function splitDelimited(line: string, delim: string): string[] {
+  const out: string[] = [];
+  let cur = "", inQ = false;
+  for (const c of line) {
+    if (c === '"') { inQ = !inQ; cur += c; }
+    else if (c === delim && !inQ) { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
 /**
  * Parse a Dutch-formatted number: thousands-dot + decimal-comma. Empty → null.
  * "1.234,5" → 1234.5, "12,5" → 12.5, "2900" → 2900. NaN → null.
@@ -86,15 +124,18 @@ export function deriveSolarFeedbackPct(leveringsrichtingPct: number | null): num
  * text fields and the decimal comma. Header names are matched case-insensitively;
  * unknown columns are ignored, rows without a valid PC6 pair are dropped.
  *
- * NB: TAB-separated with quoted TEXT — embedded tabs inside a quoted value do not
- * occur in this feed, so a split-on-tab + unquote is sufficient and robust.
+ * The separator is autodetected per file (tab / ; / ,) since the netbeheerders
+ * differ; splitting is quote-aware so a decimal-comma inside a quoted value never
+ * splits a comma-delimited row. Columns are matched by HEADER NAME, not index, so
+ * a different column order between netbeheerders is handled transparently.
  */
 export function parseNetbeheerCsv(text: string): NetbeheerRawRow[] {
   const clean = text.replace(/^﻿/, "");                 // drop UTF-8 BOM
   const lines = clean.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length < 2) return [];
 
-  const header = lines[0]!.split("\t").map((h) => unquote(h).toUpperCase());
+  const delim = detectDelimiter(lines[0]!);
+  const header = splitDelimited(lines[0]!, delim).map((h) => unquote(h).toUpperCase());
   const idx = (name: string): number => header.indexOf(name);
   const iVan   = idx("POSTCODE_VAN");
   const iTot   = idx("POSTCODE_TOT");
@@ -107,7 +148,7 @@ export function parseNetbeheerCsv(text: string): NetbeheerRawRow[] {
 
   const out: NetbeheerRawRow[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i]!.split("\t");
+    const cells = splitDelimited(lines[i]!, delim);
     const van = normalizePc6(cells[iVan]);
     const tot = normalizePc6(cells[iTot]);
     if (!van || !tot) continue;
