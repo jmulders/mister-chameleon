@@ -5,16 +5,26 @@
  * (netbeheerder) small-consumption open-data CSV. Same shape as the CBS backfill:
  * a script/admin job, NOT the request path.
  *
- * The download URL changes every year, so it is NEVER hardcoded — pass it per
- * netbeheerder as an argument (or a JSON config file).
+ * The source per netbeheerder is NEVER hardcoded (URLs change per year) — pass it
+ * as an argument or a JSON config file. In de praktijk komt de data niet als
+ * directe CSV-URL: Enexis levert op aanvraag per e-mail, Liander/Stedin als ZIP
+ * via JS-downloadpagina's. Daarom mag een `--source`:
+ *   • een URL zijn (http/https → gefetcht), of een LOKAAL PAD (bv. een gedownload
+ *     of gemaild bestand, resolved t.o.v. de cwd);
+ *   • een kale .csv, een .gz, of een .zip zijn — gedetecteerd op magic bytes
+ *     (niet op extensie). Uit een ZIP wordt elke .csv-entry verwerkt (ELK/GAS
+ *     mogen in aparte CSV's zitten; ze worden op postcode samengevoegd).
  *
  * Usage:
- *   npm run netbeheer:ingest -- --source liander=https://…/klein_liander_2024.csv \
- *                               --source stedin=https://…/kv_stedin_2024.csv \
- *                               --source enexis=https://…/enexis_kv_2024.csv \
+ *   # lokale (gedownloade / gemailde) bestanden — de gebruikelijke praktijk:
+ *   npm run netbeheer:ingest -- --source liander=./data/liander_kv_2024.zip \
+ *                               --source stedin=./data/stedin_kv_2024.zip \
+ *                               --source enexis=./data/enexis_kv_2024.csv \
  *                               --year 2024 --peildatum 2024-01-01
- *   npm run netbeheer:ingest -- --config scripts/netbeheer-sources.json   # [{netbeheerder,url}]
- *   npm run netbeheer:ingest -- --reset                                   # ignore progress
+ *   # of directe URL's (als een netbeheerder die wél biedt):
+ *   npm run netbeheer:ingest -- --source liander=https://…/kv_2024.zip --year 2024
+ *   npm run netbeheer:ingest -- --config scripts/netbeheer-sources.json  # [{netbeheerder,url}]  (url = URL of pad)
+ *   npm run netbeheer:ingest -- --reset                                  # ignore progress
  *
  * Resumability: completed netbeheerders are written to
  * .netbeheer-ingest-progress.json; a re-run skips them. Upsert is idempotent on
@@ -28,6 +38,7 @@ import * as path   from "path";
 import * as dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { parseNetbeheerCsv, pivotNetbeheerRows } from "../lib/enrichment/netbeheer-ingest";
+import { loadSourceBytes, extractCsvTexts } from "../lib/enrichment/netbeheer-archive";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
@@ -87,18 +98,6 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 
 const client = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-async function download(url: string): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return await res.text();
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 async function upsertBatch(rows: Record<string, unknown>[]): Promise<number> {
   let written = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
@@ -126,12 +125,14 @@ async function main(): Promise<void> {
 
   for (const src of sources) {
     if (done.has(src.netbeheerder)) { console.log(`  ⏭  ${src.netbeheerder} — already done (resume)`); continue; }
-    process.stdout.write(`  ⏳  ${src.netbeheerder} … downloading`);
+    const isUrl = /^https?:\/\//i.test(src.url);
+    process.stdout.write(`  ⏳  ${src.netbeheerder} … ${isUrl ? "downloading" : "reading"} ${src.url}`);
     try {
-      const text = await download(src.url);
-      const raw  = parseNetbeheerCsv(text);
-      const rows = pivotNetbeheerRows(raw, src.netbeheerder, { sourceYear: year, peildatum });
-      process.stdout.write(` — parsed ${raw.length}, pivoted ${rows.length} — upserting`);
+      const bytes = await loadSourceBytes(src.url, FETCH_TIMEOUT_MS);
+      const texts = extractCsvTexts(bytes);          // ZIP → each .csv, .gz → member, else → the CSV
+      const raw   = texts.flatMap((t) => parseNetbeheerCsv(t));
+      const rows  = pivotNetbeheerRows(raw, src.netbeheerder, { sourceYear: year, peildatum });
+      process.stdout.write(` — ${texts.length} csv, parsed ${raw.length}, pivoted ${rows.length} — upserting`);
       const written = await upsertBatch(rows as unknown as Record<string, unknown>[]);
       totalRows += written;
       done.add(src.netbeheerder);
