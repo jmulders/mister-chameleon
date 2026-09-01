@@ -51,7 +51,14 @@ Verticalen: breed; energie / zonne-installatie / vastgoed / verduurzaming in het
 - **Toegangsvorm:** per-request API (lazy, cachen — net als PDOK).
 - **Verticalen:** vastgoed, facility, bouw/installatie, energie/verduurzaming, verzekeraars.
 
-### 2. Netbeheerders (Liander / Stedin / Enexis) — kleinverbruik
+### 2. Netbeheerders (Liander / Stedin / Enexis) — kleinverbruik — ✅ GEBOUWD (Fase 2)
+Opgeleverd. Tabel `pc6_energy_stats` (migratie 183), bulk-ingest
+`npm run netbeheer:ingest` (URL per netbeheerder als `--source`/`--config`), lazy
+enricher `enrichment/providers/netbeheer-energy.ts` (form-postcode-pad, PC6-range-
+lookup), rule/AI/-velden `locationPc6AvgGasM3 / AvgElkKwh / SolarPct / SmartMeterPct`.
+Start met Liander/Stedin/Enexis; overige 5 later via extra `--source`. Aan/uit per
+tenant via stage-config `netbeheer-energy` (default via `NETBEHEER_ENERGY_ENABLED`).
+
 - **Geeft:** **gas- en elektriciteitsverbruik per PC6** (kleinverbruik: huishoudens +
   klein-zakelijk). Geanonimiseerd, alleen PC6 met ≥10 aansluitingen.
 - **Granulariteit:** **PC6** (postcode 6-posities).
@@ -97,8 +104,11 @@ uitbreiden; nieuwe rule-velden. Grootste waarde/inspanning-ratio.
 breed relevant (bouwjaar/functie/oppervlakte). Lazy-lookup zoals PDOK. Leunt op
 form-adres-input.
 
-**Fase 2 — Netbeheerder-PC6-energie.** Bulk-ingest (jaarlijks) zoals de CBS-backfill;
-opzoeken op PC6. Voor energie/verduurzamings-verticalen.
+**Fase 2 — Netbeheerder-PC6-energie.** ✅ **GEBOUWD.** Bulk-ingest (jaarlijks) zoals
+de CBS-backfill; opzoeken op PC6. Voor energie/verduurzamings-verticalen. Migratie
+183, `npm run netbeheer:ingest`, enricher `netbeheer-energy`. ⚠ Alleen
+**kleinverbruik** (huishoudens + klein-zakelijk, tot 3×80A / G25) — grootverbruik
+zit er niet in. PC6-granulariteit, naast de CBS-buurt-signalen.
 
 **Fase 3 — EP-Online-energielabel.** Bulk-ingest (maandbestand), na het aftikken van de
 individueel-aan-derden-licentie-caveat.
