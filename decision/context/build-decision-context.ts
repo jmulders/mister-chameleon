@@ -1254,6 +1254,33 @@ export async function buildDecisionContext(
               );
             }
           })();
+        } else if (
+          result.output?.locationPc6AvgElkKwh != null ||
+          result.output?.locationPc6AvgGasM3  != null ||
+          result.output?.locationPc6SolarPct  != null
+        ) {
+          // Netbeheerder PC6 energy is also a first-party store lookup — billed as
+          // the same small location_lookup event. `else if` so a session that
+          // resolves BOTH CBS and PC6 is charged only ONCE (one wallet debit).
+          const pc6 = enricherInput.formLocation?.postcode ?? undefined;
+          void (async () => {
+            try {
+              const { billLocationLookup } = await import("@/billing/location-billing");
+              await billLocationLookup(bc, {
+                tenantId: billingTenantId,
+                ...(billingSessionId ? { sessionId: billingSessionId } : {}),
+                source: "netbeheer",
+                ...(pc6 ? { pc6 } : {}),
+                simulated: isDemoMode(),
+              });
+            } catch (err) {
+              console.error(
+                `[decision-billing] location billing THREW` +
+                ` | tenant=${billingTenantId ?? "?"}` +
+                ` | ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          })();
         }
       } else if (!billingClient) {
         // billingClient was not provided — billing is disabled for this route.
