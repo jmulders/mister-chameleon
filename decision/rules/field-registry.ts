@@ -422,6 +422,32 @@ export type RuleFieldKey =
   | "locationPc6AvgElkKwh"
   | "locationPc6SolarPct"
   | "locationPc6SmartMeterPct"
+  | "locationPctHouseholdsWithChildren"
+  | "locationPctSinglePersonHouseholds"
+  | "locationAvgHouseholdSize"
+  | "locationPctAge0_15"
+  | "locationPctAge15_25"
+  | "locationPctAge25_45"
+  | "locationPctAge45_65"
+  | "locationPctAge65Plus"
+  | "locationPctMarried"
+  | "locationPctUnmarried"
+  | "locationPctDivorced"
+  | "locationPctWidowed"
+  | "locationPctSingleFamilyHomes"
+  | "locationPctMultiFamilyHomes"
+  | "locationPctDetachedHomes"
+  | "locationPctOwnerOccupied"
+  | "locationPctRental"
+  | "locationPctSocialHousing"
+  | "locationPctHigherEducated"
+  | "locationPctLowerEducated"
+  | "locationMedianHouseholdWealth"
+  | "locationAvgIncomePerEarner"
+  | "locationPovertyPct"
+  | "locationCarsPerHousehold"
+  | "locationPctNonPetrolCars"
+  | "locationAvgElectricityFeedback"
   // Lead Base — returning-visitor signals
   | "isReturningVisitor"
   | "leadScore"
@@ -1195,6 +1221,33 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     operators:   OPS_NUMBER,
     resolve:     (ctx) => ctx.enrichment?.locationPc6SmartMeterPct ?? null,
   },
+  // ── Enrichment — CBS demografie / wonen / opleiding / welvaart / mobiliteit (buurt) ──
+  locationPctHouseholdsWithChildren: { label: "Location % households with children", description: "% households with children in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctHouseholdsWithChildren ?? null },
+  locationPctSinglePersonHouseholds: { label: "Location % single-person households", description: "% single-person households in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctSinglePersonHouseholds ?? null },
+  locationAvgHouseholdSize:          { label: "Location avg household size", description: "Average household size in the visitor's buurt (persons, CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationAvgHouseholdSize ?? null },
+  locationPctAge0_15:   { label: "Location % age 0-15",  description: "% inhabitants aged 0-15 in the visitor's buurt (CBS 85984NED).",  group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctAge0_15 ?? null },
+  locationPctAge15_25:  { label: "Location % age 15-25", description: "% inhabitants aged 15-25 in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctAge15_25 ?? null },
+  locationPctAge25_45:  { label: "Location % age 25-45", description: "% inhabitants aged 25-45 in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctAge25_45 ?? null },
+  locationPctAge45_65:  { label: "Location % age 45-65", description: "% inhabitants aged 45-65 in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctAge45_65 ?? null },
+  locationPctAge65Plus: { label: "Location % age 65+",   description: "% inhabitants aged 65+ in the visitor's buurt (CBS 85984NED).",   group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctAge65Plus ?? null },
+  locationPctMarried:   { label: "Location % married",   description: "% inhabitants married in the visitor's buurt (CBS 85984NED).",   group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctMarried ?? null },
+  locationPctUnmarried: { label: "Location % unmarried", description: "% inhabitants unmarried in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctUnmarried ?? null },
+  locationPctDivorced:  { label: "Location % divorced",  description: "% inhabitants divorced in the visitor's buurt (CBS 85984NED).",  group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctDivorced ?? null },
+  locationPctWidowed:   { label: "Location % widowed",   description: "% inhabitants widowed in the visitor's buurt (CBS 85984NED).",   group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctWidowed ?? null },
+  locationPctSingleFamilyHomes: { label: "Location % single-family homes", description: "% single-family homes in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctSingleFamilyHomes ?? null },
+  locationPctMultiFamilyHomes:  { label: "Location % multi-family homes",  description: "% multi-family homes in the visitor's buurt (CBS 85984NED).",  group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctMultiFamilyHomes ?? null },
+  locationPctDetachedHomes:     { label: "Location % detached homes",      description: "% detached single-family homes in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctDetachedHomes ?? null },
+  locationPctOwnerOccupied: { label: "Location % owner-occupied", description: "% owner-occupied dwellings in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctOwnerOccupied ?? null },
+  locationPctRental:        { label: "Location % rental",        description: "% rental dwellings in the visitor's buurt (CBS 85984NED).",        group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctRental ?? null },
+  locationPctSocialHousing: { label: "Location % social housing", description: "% social-housing dwellings in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctSocialHousing ?? null },
+  locationPctHigherEducated: { label: "Location % higher educated", description: "% higher-educated (HBO/WO of the three levels) in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctHigherEducated ?? null },
+  locationPctLowerEducated:  { label: "Location % lower educated",  description: "% lower-educated (of the three levels) in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctLowerEducated ?? null },
+  locationMedianHouseholdWealth: { label: "Location median household wealth (€)", description: "Median private-household wealth in the visitor's buurt (euro, CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationMedianHouseholdWealth ?? null },
+  locationAvgIncomePerEarner:    { label: "Location avg income per earner (€)",  description: "Average income per earner in the visitor's buurt (euro, CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationAvgIncomePerEarner ?? null },
+  locationPovertyPct:            { label: "Location poverty (%)",             description: "% persons in poverty in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPovertyPct ?? null },
+  locationCarsPerHousehold: { label: "Location cars per household", description: "Cars per household in the visitor's buurt (ratio, CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationCarsPerHousehold ?? null },
+  locationPctNonPetrolCars: { label: "Location % non-petrol cars", description: "% non-petrol cars (EV/other-fuel proxy) in the visitor's buurt (CBS 85984NED).", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationPctNonPetrolCars ?? null },
+  locationAvgElectricityFeedback: { label: "Location avg electricity feed-in (kWh)", description: "Average electricity feed-in per home in the visitor's buurt (kWh/year, CBS 85984NED) — a direct solar signal.", group: "enrichment", kind: "number", operators: OPS_NUMBER, resolve: (ctx) => ctx.enrichment?.locationAvgElectricityFeedback ?? null },
 
   // ── Lead Base — returning-visitor signals ─────────────────────────────────────
   isReturningVisitor: {

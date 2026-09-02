@@ -257,6 +257,47 @@ export interface EnrichmentOutput {
   locationPc6SolarPct:    number | null;
   /** Smart-meter penetration for the PC6 (%, netbeheerder). */
   locationPc6SmartMeterPct: number | null;
+  // ── D5 Fase 0 (vervolg) — CBS demografie / wonen / opleiding / welvaart / mobiliteit (buurt) ──
+  /** % households with children in the buurt (CBS 85984NED). */
+  locationPctHouseholdsWithChildren: number | null;
+  /** % single-person households in the buurt. */
+  locationPctSinglePersonHouseholds: number | null;
+  /** Average household size in the buurt (persons). */
+  locationAvgHouseholdSize:          number | null;
+  /** % inhabitants aged 0–15 / 15–25 / 25–45 / 45–65 / 65+ in the buurt. */
+  locationPctAge0_15:   number | null;
+  locationPctAge15_25:  number | null;
+  locationPctAge25_45:  number | null;
+  locationPctAge45_65:  number | null;
+  locationPctAge65Plus: number | null;
+  /** % inhabitants married / unmarried / divorced / widowed in the buurt. */
+  locationPctMarried:   number | null;
+  locationPctUnmarried: number | null;
+  locationPctDivorced:  number | null;
+  locationPctWidowed:   number | null;
+  /** % single-family / multi-family / detached homes in the buurt. */
+  locationPctSingleFamilyHomes: number | null;
+  locationPctMultiFamilyHomes:  number | null;
+  locationPctDetachedHomes:     number | null;
+  /** % owner-occupied / rental / social-housing dwellings in the buurt. */
+  locationPctOwnerOccupied: number | null;
+  locationPctRental:        number | null;
+  locationPctSocialHousing: number | null;
+  /** % higher- / lower-educated (of the three CBS education levels) in the buurt. */
+  locationPctHigherEducated: number | null;
+  locationPctLowerEducated:  number | null;
+  /** Median private-household wealth (euro) in the buurt. */
+  locationMedianHouseholdWealth: number | null;
+  /** Average income per earner (euro) in the buurt. */
+  locationAvgIncomePerEarner:    number | null;
+  /** % persons in poverty in the buurt. */
+  locationPovertyPct:            number | null;
+  /** Cars per household in the buurt (ratio). */
+  locationCarsPerHousehold:  number | null;
+  /** % non-petrol cars (EV/other-fuel proxy) in the buurt. */
+  locationPctNonPetrolCars:  number | null;
+  /** Average electricity feed-in per home in the buurt (kWh/year) — a direct solar signal. */
+  locationAvgElectricityFeedback: number | null;
   /**
    * Confidence in the resolved location. "high" when the buurt came from a
    * precise, coherent signal (form postcode, or IP coordinates whose reverse-
