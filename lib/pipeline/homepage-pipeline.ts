@@ -781,13 +781,15 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // Substitute {context variables} in the descriptive copy against the visitor's
   // decision context, at the data level so the block components stay context-free.
   const copyVars = effectiveCopyVariables(tenant?.copyVariables, tenant?.customAttributes);
+  // EP-Online raw-label display is licence-gated per tenant (band is always allowed).
+  const copyOpts = { epLabelDisplayAllowed: tenant?.enrichment?.epLabelDisplayAllowed ?? false };
   const experience = {
     ...composed.experience,
-    hero:  substituteBlockCopy(composed.experience.hero,  input, copyVars),
-    proof: substituteBlockCopy(composed.experience.proof, input, copyVars),
-    cta:   substituteBlockCopy(composed.experience.cta,   input, copyVars),
-    ...(composed.experience.feature    ? { feature:    substituteBlockCopy(composed.experience.feature,    input, copyVars) } : {}),
-    ...(composed.experience.conversion ? { conversion: substituteBlockCopy(composed.experience.conversion, input, copyVars) } : {}),
+    hero:  substituteBlockCopy(composed.experience.hero,  input, copyVars, copyOpts),
+    proof: substituteBlockCopy(composed.experience.proof, input, copyVars, copyOpts),
+    cta:   substituteBlockCopy(composed.experience.cta,   input, copyVars, copyOpts),
+    ...(composed.experience.feature    ? { feature:    substituteBlockCopy(composed.experience.feature,    input, copyVars, copyOpts) } : {}),
+    ...(composed.experience.conversion ? { conversion: substituteBlockCopy(composed.experience.conversion, input, copyVars, copyOpts) } : {}),
   };
 
   // ── Confidence gating ─────────────────────────────────────────────────────

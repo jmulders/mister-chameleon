@@ -298,6 +298,23 @@ export interface EnrichmentOutput {
   locationPctNonPetrolCars:  number | null;
   /** Average electricity feed-in per home in the buurt (kWh/year) — a direct solar signal. */
   locationAvgElectricityFeedback: number | null;
+  // ── D5 Fase 3 — EP-Online energielabel (per address; form-address path) ─────
+  /**
+   * Raw energy label class at the form address, e.g. "A", "C" (EP-Online). An
+   * INTERNAL signal: only shown to a visitor when the tenant flag
+   * epLabelDisplayAllowed is on (licence: individual disclosure to third parties).
+   */
+  locationEnergyLabel:      string | null;
+  /** Coarse energy-label band — "green" (A/B) | "amber" (C/D) | "red" (E/G). The safe aggregate for segmentation. */
+  locationEnergyLabelBand:  string | null;
+  /** EP-Online energy index at the form address. */
+  locationEnergyIndex:      number | null;
+  /** Building energy demand (energiebehoefte) at the form address. */
+  locationBuildingEnergyDemand: number | null;
+  /** Renewable-energy share (aandeel hernieuwbaar) at the form address. */
+  locationRenewableShare:   number | null;
+  /** Energy-label validity end date (ISO) at the form address. */
+  locationEnergyLabelValidUntil: string | null;
   /**
    * Confidence in the resolved location. "high" when the buurt came from a
    * precise, coherent signal (form postcode, or IP coordinates whose reverse-

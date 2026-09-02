@@ -1059,11 +1059,12 @@ export async function POST(request: NextRequest) {
       } catch { /* fall back to the block HTML's own defaults */ }
     }
     const copyVars = effectiveCopyVariables(tenant?.copyVariables, tenant?.customAttributes);
+    const copyOpts = { epLabelDisplayAllowed: tenant?.enrichment?.epLabelDisplayAllowed ?? false };
     const emitBlockInto = (map: SlotMap, key: string, data: unknown): boolean => {
       if (!requestedBlocks.has(key)) return false;
       // Substitute {context variables} in the block copy against this visitor's
       // decision context before rendering (same behaviour as the platform path).
-      const html = renderBlockHtml(key, substituteBlockCopy(data, input, copyVars), { inherit: inheritHost });
+      const html = renderBlockHtml(key, substituteBlockCopy(data, input, copyVars, copyOpts), { inherit: inheritHost });
       if (!html) return false;
       const slot: BlockSlot = Object.keys(blockThemeTokens).length > 0
         ? { mode: "block", html, tokens: blockThemeTokens }

@@ -45,7 +45,15 @@ export const SOURCE_DENYLIST: ReadonlySet<string> = new Set([
   "tenantId", "crmContactId",    // internal / CRM identifiers
   "leadinfoCocNumber",           // company registration number (opaque ID)
   "templateKey",                 // internal routing key, not visitor-facing copy
+  // EP-Online RAW energy label: licence-gated for visitor display. Denylisted by
+  // default so it is never a copy token; re-allowed at render only when the tenant
+  // flag epLabelDisplayAllowed is on (see resolveRaw + substituteContextTokens opts).
+  // The BAND (locationEnergyLabelBand) is NOT denylisted → always available.
+  "locationEnergyLabel",
 ]);
+
+/** The one denylisted key that a per-tenant flag can re-enable for display. */
+const EP_LABEL_RAW_KEY = "locationEnergyLabel";
 
 /**
  * Built-in source keys allowed for a copy variable: every FIELD_REGISTRY field
@@ -165,9 +173,17 @@ function coerceRaw(v: unknown): string | undefined {
 }
 
 /** Resolve the raw (unmapped) value for a variable's source, or undefined. */
-function resolveRaw(source: CopyVariable["source"], ctx: RuleEvaluationContext): string | undefined {
+function resolveRaw(
+  source: CopyVariable["source"],
+  ctx: RuleEvaluationContext,
+  allowRawEpLabel = false,
+): string | undefined {
   if (source.kind === "builtin") {
-    if (!BUILTIN_SOURCE_SET.has(source.key)) return undefined;
+    // The EP-Online raw label is denylisted; a tenant with epLabelDisplayAllowed
+    // may still display it (licence cleared). No other denylisted key is re-enabled.
+    const allowed = BUILTIN_SOURCE_SET.has(source.key)
+      || (allowRawEpLabel && source.key === EP_LABEL_RAW_KEY);
+    if (!allowed) return undefined;
     const def = FIELD_REGISTRY[source.key as keyof typeof FIELD_REGISTRY];
     return coerceRaw(def?.resolve?.(ctx));
   }
@@ -190,8 +206,8 @@ function applyValueMap(raw: string, valueMap?: readonly CopyVariableMapping[]): 
  * conditional-segment test: a segment renders iff its variable has a non-empty
  * present value (so a fallback never makes a segment appear).
  */
-function presentValue(entry: CopyVariable, ctx: RuleEvaluationContext): string | undefined {
-  const raw = resolveRaw(entry.source, ctx);
+function presentValue(entry: CopyVariable, ctx: RuleEvaluationContext, allowRawEpLabel = false): string | undefined {
+  const raw = resolveRaw(entry.source, ctx, allowRawEpLabel);
   if (raw === undefined) return undefined;
   return neutralizeMarkup(applyValueMap(raw, entry.valueMap));
 }
@@ -219,12 +235,19 @@ const SEGMENT_RE = /(?<!\\)\{\?([a-zA-Z0-9_-]+)\}([\s\S]*?)\{\/\1\}/g;
  *
  * Tokens not in the registry (or hand-typed braces) are left literal.
  */
+export interface SubstituteOptions {
+  /** Tenant licence gate: allow the EP-Online RAW energy label as a display token. */
+  epLabelDisplayAllowed?: boolean;
+}
+
 export function substituteContextTokens(
   src: string | null | undefined,
   ctx: RuleEvaluationContext,
   registry: readonly CopyVariable[],
+  opts: SubstituteOptions = {},
 ): string {
   if (!src) return "";
+  const allowRawEpLabel = opts.epLabelDisplayAllowed ?? false;
 
   const byToken = new Map<string, CopyVariable>();
   for (const v of registry) byToken.set(v.token, v);
@@ -233,7 +256,7 @@ export function substituteContextTokens(
   const segmentPresent = (key: string): boolean => {
     const entry = byToken.get(key);
     if (!entry) return false;            // unknown variable → treat as empty
-    const v = presentValue(entry, ctx);
+    const v = presentValue(entry, ctx, allowRawEpLabel);
     return v !== undefined && v !== "";
   };
   const processSegments = (text: string): string =>
@@ -248,7 +271,7 @@ export function substituteContextTokens(
       if (key === undefined) return match;
       const entry = byToken.get(key);
       if (!entry) return match; // unknown / hand-typed braces: leave literal
-      const raw = resolveRaw(entry.source, ctx);
+      const raw = resolveRaw(entry.source, ctx, allowRawEpLabel);
       if (raw !== undefined) return neutralizeMarkup(applyValueMap(raw, entry.valueMap));
       const fb = def !== undefined ? def : entry.fallback;
       if (fb !== undefined) return neutralizeMarkup(fb);
@@ -276,9 +299,10 @@ export function substituteBlockCopy<T>(
   data: T,
   ctx: RuleEvaluationContext,
   registry: readonly CopyVariable[],
+  opts: SubstituteOptions = {},
 ): T {
   if (!data || typeof data !== "object") return data;
-  const sub = (s: unknown) => (typeof s === "string" ? substituteContextTokens(s, ctx, registry) : s);
+  const sub = (s: unknown) => (typeof s === "string" ? substituteContextTokens(s, ctx, registry, opts) : s);
 
   const out = { ...(data as Record<string, unknown>) };
   if (typeof out.subtitle === "string") out.subtitle = sub(out.subtitle);

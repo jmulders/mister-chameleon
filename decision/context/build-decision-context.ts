@@ -1281,6 +1281,27 @@ export async function buildDecisionContext(
               );
             }
           })();
+        } else if (result.output?.locationEnergyLabelBand != null) {
+          // EP-Online per-address label is also a first-party store lookup — billed
+          // as the same small location_lookup event. `else if` so a session that
+          // also resolved CBS/PC6 is charged only ONCE (one wallet debit).
+          void (async () => {
+            try {
+              const { billLocationLookup } = await import("@/billing/location-billing");
+              await billLocationLookup(bc, {
+                tenantId: billingTenantId,
+                ...(billingSessionId ? { sessionId: billingSessionId } : {}),
+                source: "eponline",
+                simulated: isDemoMode(),
+              });
+            } catch (err) {
+              console.error(
+                `[decision-billing] location billing THREW` +
+                ` | tenant=${billingTenantId ?? "?"}` +
+                ` | ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          })();
         }
       } else if (!billingClient) {
         // billingClient was not provided — billing is disabled for this route.

@@ -1324,6 +1324,16 @@ export interface TenantEnrichmentSettings {
   readonly useOpenKvK: boolean;
 
   /**
+   * EP-Online energy-label DISPLAY gate (licence: individual disclosure to third
+   * parties). When OFF (default), the RAW energy label (locationEnergyLabel) may
+   * NOT be shown to a visitor as a content token / variant copy — only the band
+   * (locationEnergyLabelBand) and the internal-derived signals are. Turn ON only
+   * after the individual-to-third-parties licence has been legally cleared. Rules
+   * and AI may use the raw label internally regardless of this flag.
+   */
+  readonly epLabelDisplayAllowed?: boolean;
+
+  /**
    * When true, Leadinfo IP-to-company enrichment runs for this tenant.
    * Has no effect when `enabled` is false.
    * The Leadinfo API key must be configured at platform level.

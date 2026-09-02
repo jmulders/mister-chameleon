@@ -28,7 +28,7 @@ export interface LocationBillingOptions {
   /** CBS buurtcode for the usage-event metadata (optional). */
   areaCode?:  string;
   /** Which first-party location source served this lookup. Default "cbs". */
-  source?:    "cbs" | "netbeheer";
+  source?:    "cbs" | "netbeheer" | "eponline";
   /** PC6 for the usage-event metadata (netbeheer source; optional). */
   pc6?:       string;
   /** True in test_simulated wallet mode — records the event but skips the debit. */
