@@ -439,6 +439,25 @@ function FormFields({
     onFormStart?.();
   }, [onFormStart]);
 
+  // Form-prefill (Fase 2): on mount, fetch the known lead's low-sensitivity
+  // fields (consent-gated server-side, empty otherwise) and fill EMPTY matching
+  // inputs by field key — never clobbering what the visitor has typed. The
+  // visitor can always overwrite. See /api/forms/prefill.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/forms/prefill", { headers: { accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { prefill?: Record<string, string> } | null) => {
+        if (cancelled || !j?.prefill || !formRef.current) return;
+        for (const [key, val] of Object.entries(j.prefill)) {
+          const el = formRef.current.elements.namedItem(key) as HTMLInputElement | null;
+          if (el && typeof el.value === "string" && el.value === "" && val) el.value = String(val);
+        }
+      })
+      .catch(() => { /* fail-open: no prefill */ });
+    return () => { cancelled = true; };
+  }, []);
+
   // Focus the first field with an error after each validation round.
   // Skips the initial mount (errorRevision === 0) so no unwanted auto-focus.
   useEffect(() => {
