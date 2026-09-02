@@ -709,6 +709,60 @@ export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
       interestConfidence: 0.8,
     },
   },
+
+  // ── Location-showcase presets ─────────────────────────────────────────────────
+  // Each sets the NOW-LIVE location-enrichment signals via enrichmentPatch so a
+  // one-click apply fires the matching statamic showcase rule (see
+  // decision/rules/showcase/statamic-location-rules.ts) on the real rule path.
+  loc_verduurzaming_b2b: {
+    key:         "loc_verduurzaming_b2b",
+    label:       "Locatie · Verduurzaming B2B",
+    description: "Kantoorpand met hoog gasverbruik en weinig zon → verduurzamings-/enterprise-hoek (regel loc_showcase_verduurzaming_b2b).",
+    icon:        "🏢",
+    color:       "green",
+    overrides: {
+      visitType: "new", source: "direct", funnelStage: "awareness",
+      enrichmentPatch: {
+        locationBuildingUse: "kantoorfunctie",
+        locationAvgGasUsage: 2800,
+        locationSolarPct:    3,
+        locationBuildingYear: 1975,
+      },
+    },
+  },
+  loc_business_services: {
+    key:         "loc_business_services",
+    label:       "Locatie · Zakelijke dienstverlening",
+    description: "Buurt met dominante sector zakelijke dienstverlening → B2B-SaaS-hoek (regel loc_showcase_business_services).",
+    icon:        "💼",
+    color:       "blue",
+    overrides: {
+      visitType: "new", source: "direct", funnelStage: "awareness",
+      enrichmentPatch: { locationDominantBusinessSector: "business_services" },
+    },
+  },
+  loc_affluent: {
+    key:         "loc_affluent",
+    label:       "Locatie · Welvarende buurt",
+    description: "Hoge inkomensband / WOZ-waarde → premium/enterprise-variant (regel loc_showcase_affluent).",
+    icon:        "💎",
+    color:       "purple",
+    overrides: {
+      visitType: "new", source: "direct", funnelStage: "awareness",
+      enrichmentPatch: { locationIncomeBand: "high", locationAvgWozValue: 620000 },
+    },
+  },
+  loc_solar_rich: {
+    key:         "loc_solar_rich",
+    label:       "Locatie · Zonne-rijke buurt",
+    description: "Hoge zonne-adoptie in de buurt → eigenaar/verduurzaming-hoek (regel loc_showcase_solar_rich).",
+    icon:        "☀️",
+    color:       "amber",
+    overrides: {
+      visitType: "new", source: "direct", funnelStage: "awareness",
+      enrichmentPatch: { locationSolarPct: 42 },
+    },
+  },
 };
 
 // ── Ordered list for UI display ───────────────────────────────────────────────
