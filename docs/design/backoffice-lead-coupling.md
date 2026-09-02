@@ -37,14 +37,18 @@ mail-links te zetten.
 - Zo houdt de back-office de mapping `external_id ↔ handle` en bouwt hij zelf de
   `/go/{handle}`-links in z'n e-mails.
 
-### 2. Form-prefill
-De known-lead-data voedt nu de *beslissing*, maar vult nog geen **formulier**.
-- **Prefill-bron:** bij een aanwezige `mc_lead`-cookie (of een gekoppeld `visitor_profile`)
-  de bekende velden beschikbaar maken: naam, e-mail, bedrijf, industrie, (evt. functie uit
-  het `knownLead`-blok).
-- **Mechanisme:** server-side in de pagina meegeven of via een kleine
-  `GET /api/forms/prefill`-endpoint; de form-component vult de velden voor.
-- **Consent-gated:** prefill van PII alleen onder de geldende consent.
+### 2. Form-prefill — ✅ GEBOUWD (Fase 2)
+Opgeleverd. `GET /api/forms/prefill` resolvet de known lead uit de `mc_lead`-cookie
+(tenant-scoped) en geeft alleen de **laag-gevoelige** velden terug —
+`firstName`, `name`, `company`, `industry` — **consent-gated** (personalisatie óf
+enrichment; anders leeg). `Cache-Control: no-store`. `FormSectionBlock` haalt dit op
+bij mount en vult **lege** matchende velden (op veld-key) voor; de bezoeker kan altijd
+overschrijven. Kern: `lib/forms/prefill.ts` (`buildPrefillFromLead`).
+- **Bewust NIET geprefilled:** e-mail en andere contact-PII (zie PII-forwarding-risico).
+- **Ontwerp-optie voor later (niet gebouwd):** een aparte **eenmalige, kortlevende
+  prefill-token** — los van het 30d-`mc_lead`-handle — voor een rijkere-prefill-variant.
+  Zo lekt een doorgestuurde mail geen rijke PII: de token is één keer bruikbaar en
+  verloopt snel. Nu niet nodig omdat v1 alleen laag-gevoelige velden teruggeeft.
 
 ## Datamodel
 - `abm_leads` bestaat al; toevoegen indien nodig: `external_id` (back-office-mapping) +
@@ -65,5 +69,6 @@ De known-lead-data voedt nu de *beslissing*, maar vult nog geen **formulier**.
 1. ✅ **Back-office-sync-API** (`external_id`-upsert → handle) — de koppeling zelf.
    **GEBOUWD** (migratie 182, `POST /api/abm/leads`, per-tenant API-key). Zie
    `docs/abm-backoffice-sync-api.md`.
-2. ⏳ **Form-prefill** (consent-gated, korte geldigheid) — "prefillen met wat we al weten".
-   Backlog.
+2. ✅ **Form-prefill** (consent-gated, laag-gevoelige velden) — "prefillen met wat we al
+   weten". **GEBOUWD** (`GET /api/forms/prefill`, `FormSectionBlock` mount-prefill).
+   Eenmalige/kortlevende prefill-token voor rijkere velden = ontwerp-optie voor later.
