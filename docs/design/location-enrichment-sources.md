@@ -92,7 +92,18 @@ npm run netbeheer:ingest -- \
 # resumable: klaar-gemelde netbeheerders worden overgeslagen; --reset forceert opnieuw.
 ```
 
-### 3. EP-Online (RVO) — energielabels
+### 3. EP-Online (RVO) — energielabels — ✅ GEBOUWD (Fase 3)
+Opgeleverd — **lazy per-adres** (niet bulk; EP-Online heeft een per-adres API).
+Tabel `eponline_label_cache` (migratie 185), enricher `eponline-label` (form-
+postcode+huisnummer-pad, `EPONLINE_API_KEY` in Authorization-header), velden
+`location_energy_label` (ruw, intern), `location_energy_label_band` (green/amber/
+red), `location_energy_index`, `location_building_energy_demand`,
+`location_renewable_share`, `location_energy_label_valid_until`. `is_prive`-
+registraties worden overgeslagen. **Licentie-gate:** per-tenant flag
+`epLabelDisplayAllowed` (default OFF) — band + interne velden altijd voor regels/AI,
+maar de RUWE klasse verschijnt alleen naar de bezoeker als de flag aan is (pas na
+juridische aftik van de individueel-aan-derden-licentie).
+
 - **Geeft:** **energielabel per gebouw** (BAG-gekoppeld), meest recente geldige registratie.
 - **Granulariteit:** **per adres/gebouw**.
 - **Kosten:** **gratis**. Maandelijks totaalbestand (XML/CSV/XLSX, gesplitst woning/utiliteit)
@@ -133,8 +144,10 @@ de CBS-backfill; opzoeken op PC6. Voor energie/verduurzamings-verticalen. Migrat
 **kleinverbruik** (huishoudens + klein-zakelijk, tot 3×80A / G25) — grootverbruik
 zit er niet in. PC6-granulariteit, naast de CBS-buurt-signalen.
 
-**Fase 3 — EP-Online-energielabel.** Bulk-ingest (maandbestand), na het aftikken van de
-individueel-aan-derden-licentie-caveat.
+**Fase 3 — EP-Online-energielabel.** ✅ **GEBOUWD** — lazy per-adres (EP-Online heeft
+een per-adres API, dus géén bulk-ingest zoals eerst gedacht). Migratie 185,
+enricher `eponline-label`. De ruwe klasse is display-gated achter de per-tenant flag
+`epLabelDisplayAllowed` (individueel-aan-derden-licentie); band + interne velden vrij.
 
 ## Bronnen (verificatie)
 - BAG API Individuele Bevragingen — Kadaster (gratis, 50k/dag).
