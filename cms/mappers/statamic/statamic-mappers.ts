@@ -745,6 +745,31 @@ export function readStatamicBlockEffectRef(block: Record<string, unknown>): Bloc
   return undefined;
 }
 
+/**
+ * Resolve the form HANDLE from a form_section's `form` field, whatever shape the
+ * CP saved it in:
+ *   • a plain handle string ("locatie-test")
+ *   • an ARRAY of handles (["locatie-test"] — how the Statamic form fieldtype saves)
+ *   • an augmented object — the "Link Item" a CP relation/select emits: we accept
+ *     `handle`, `value`, `id`, or `slug` (Statamic form fieldtype uses `handle`;
+ *     a relation/link fieldtype uses `value`/`id`), so a CP-authored form-link
+ *     resolves — not only the flat-file `form: locatie-test`.
+ * Returns "" when nothing usable is present. getFormDefinition() then matches on
+ * the returned handle.
+ */
+export function resolveFormHandle(raw: unknown): string {
+  const c = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof c === "string") return c.trim();
+  if (c && typeof c === "object") {
+    const o = c as Record<string, unknown>;
+    for (const k of ["handle", "value", "id", "slug"] as const) {
+      const v = o[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  return "";
+}
+
 export function mapStatamicPageBlocksToSections(
   blocks: Array<Record<string, unknown>>,
   /**
@@ -1446,21 +1471,14 @@ export function mapStatamicPageBlocksToSections(
       }
 
       case "form_section": {
-        // `form` (Statamic form fieldtype) stores the selected form, but its shape
-        // varies: a plain handle string ("appointment"), an ARRAY of handles
-        // (["appointment"] — how the CP actually saves it), or an augmented object
-        // ({ handle, title, ... }), possibly wrapped in an array. We normalise all
-        // of these to the handle. Backward-compat fallback: the old `form_key`.
+        // `form` (Statamic form fieldtype / CP "Link Item") stores the selected
+        // form in a variable shape — string, array-of-handle, or an augmented
+        // object ({handle}/{value}/{id}/{slug}). resolveFormHandle normalises all
+        // of them to the handle. Backward-compat fallback: the old `form_key`.
         // `heading` → title, `subtitle` → intro (display copy above the form).
-        const formRaw = block.form as unknown;
-        const formCandidate = Array.isArray(formRaw) ? formRaw[0] : formRaw;
         const formKey =
-          (typeof formCandidate === "string" ? formCandidate : null) ??
-          (formCandidate && typeof formCandidate === "object" &&
-           typeof (formCandidate as { handle?: unknown }).handle === "string"
-            ? (formCandidate as { handle: string }).handle
-            : null) ??
-          (typeof block.form_key === "string" ? block.form_key : "");
+          resolveFormHandle(block.form) ||
+          (typeof block.form_key === "string" ? block.form_key.trim() : "");
         if (!formKey) break; // can't render a form without a key
 
         const section: FormSectionData = {
