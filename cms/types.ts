@@ -1517,6 +1517,16 @@ export interface FormSectionData extends PageSectionBase {
   submitLabel?: string;
   /** Optional success message override shown after submission */
   successMessage?: string;
+  /**
+   * Post-submit behaviour authored per placement: show `successMessage`
+   * ("message", the default when absent) or navigate to `redirectUrl`.
+   */
+  postSubmit?: "message" | "redirect";
+  /**
+   * Redirect target for `postSubmit: "redirect"` — a normalised internal path
+   * or absolute http(s) URL. Unsafe targets are dropped by the mapper.
+   */
+  redirectUrl?: string;
 }
 
 // ── Collection content source (CMS-layer mirror of platform model) ────────────
