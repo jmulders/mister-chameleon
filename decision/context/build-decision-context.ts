@@ -69,7 +69,7 @@ import {
   leadinfoToEnrichment,
   LEADINFO_COOKIE,
 } from "@/context/leadinfo-context";
-import { FORM_LOCATION_COOKIE, parseFormLocationCookie } from "@/context/form-location-context";
+import { FORM_LOCATION_COOKIE, parseFormLocationCookie, formLocationFingerprint } from "@/context/form-location-context";
 import { logger } from "@/lib/logger";
 import { extractIpFromRequest } from "@/lib/request-ip";
 import { runEnrichmentPipeline, buildEnricherInput } from "@/enrichment/pipeline";
@@ -701,6 +701,13 @@ export async function buildDecisionContext(
     });
   }
 
+  // Fingerprint of the form location, used to invalidate the session-enrichment
+  // cache when mc_loc changes (e.g. a form submit sets a new postcode + house
+  // number) — otherwise a cache hit would serve the earlier IP-geo enrichment and
+  // ignore the just-submitted address. Null when there is no form location, so a
+  // request without mc_loc leaves the cache behaving exactly as before.
+  const formLocationHash = formLocationFingerprint(formLocation);
+
   const enricherInput = buildEnricherInput({
     ip,
     tenantId,
@@ -765,7 +772,7 @@ export async function buildDecisionContext(
     scheduleBackgroundWork ?? ((fn) => { void Promise.resolve().then(fn); });
 
   if (sessionId && stagedEnrichers && stagedEnrichers.length > 0) {
-    const cacheResult = await getSessionEnrichment(sessionId, ip, tenantId);
+    const cacheResult = await getSessionEnrichment(sessionId, ip, tenantId, formLocationHash);
 
     if (cacheResult.hit) {
       // ── Session cache hit — short-circuit: skip the pipeline entirely ────────
@@ -803,7 +810,7 @@ export async function buildDecisionContext(
                 initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
               },
             );
-            setSessionEnrichment(sessionId, freshResult.output, ip, tenantId, { retry: freshResult.incomplete === true });
+            setSessionEnrichment(sessionId, freshResult.output, ip, tenantId, { retry: freshResult.incomplete === true, formLocationHash });
             if (isDev) {
               logger.debug("[decision-context] stale session cache refreshed in background", {
                 sessionId,
@@ -1082,7 +1089,7 @@ export async function buildDecisionContext(
               initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
             },
           );
-          setSessionEnrichment(sessionId, freshResult.output, ip, tenantId);
+          setSessionEnrichment(sessionId, freshResult.output, ip, tenantId, { formLocationHash });
           if (isDev) {
             logger.debug("[decision-context] deferred session cache warmed in background", {
               sessionId,
@@ -1337,7 +1344,7 @@ export async function buildDecisionContext(
       // The normalized current* fields are included so cache-hit paths receive
       // them directly without needing to re-derive.
       if (sessionId) {
-        setSessionEnrichment(sessionId, enrichment, ip, tenantId, { retry: result.incomplete === true });
+        setSessionEnrichment(sessionId, enrichment, ip, tenantId, { retry: result.incomplete === true, formLocationHash });
       }
     }
   } else {

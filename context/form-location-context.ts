@@ -17,6 +17,23 @@ export interface FormLocation {
   houseNumber?: string | null;
 }
 
+/**
+ * Stable fingerprint of a form-provided location (postcode + huisnummer + place),
+ * used to invalidate the session-enrichment cache when the visitor's mc_loc
+ * changes — e.g. they browsed (enrichment cached on IP-geo) and then submitted a
+ * form that set a postcode + house number. Returns null when there is no usable
+ * location, so a request without an mc_loc cookie produces no fingerprint and the
+ * cache behaves exactly as before (see the session-enrichment cache).
+ */
+export function formLocationFingerprint(fl: FormLocation | null | undefined): string | null {
+  if (!fl) return null;
+  const pc = (fl.postcode ?? "").trim().toLowerCase();
+  const hn = (fl.houseNumber ?? "").trim().toLowerCase();
+  const pl = (fl.place ?? "").trim().toLowerCase();
+  if (!pc && !hn && !pl) return null;
+  return `${pc}|${hn}|${pl}`;
+}
+
 /** Extract a bare house number (leading digits) from arbitrary text, or null. */
 export function normalizeHouseNumber(raw: string | null | undefined): string | null {
   if (!raw) return null;
