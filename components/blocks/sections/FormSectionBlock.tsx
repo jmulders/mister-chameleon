@@ -148,8 +148,8 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
 
   // Visitor language, for the default (un-authored) button copy. Read from the
   // `locale` cookie after mount — see useActiveLocale for why not during render.
-  const locale             = useActiveLocale();
-  const defaultSubmitLabel = locale === "en" ? "Submit"  : "Verstuur";
+  const locale              = useActiveLocale();
+  const defaultSubmitLabel  = locale === "en" ? "Submit"   : "Verstuur";
   const defaultSendingLabel = locale === "en" ? "Sending…" : "Bezig…";
 
   // ── Effective copy + fields: overlay override → CMS copy → definition ─────
