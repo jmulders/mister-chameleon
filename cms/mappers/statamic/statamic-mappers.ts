@@ -74,6 +74,7 @@ import type {
   CtaSectionData,
   CmsTextMediaCta,
   FormSectionData,
+  PricingSectionData, CmsPriceTier,
   PortableTextBlock,
   RelatedContentData, CmsRelatedItem, CmsCollectionKey, CmsCollectionSource,
   ListingSectionData, CmsSliderMediaItem,
@@ -874,6 +875,29 @@ export function mapStatamicPageBlocksToSections(
   }
 
   /**
+   * Normalise a pricing tier's `features` into an ordered string[].
+   *
+   * The field is a textarea with one benefit per line, but a `list` fieldtype
+   * (or a CP that later swaps to one) yields an array instead — both are
+   * accepted. Blank lines are dropped so a trailing newline doesn't render an
+   * empty bullet, and each line is trimmed.
+   */
+  function toFeatureList(raw: unknown): string[] {
+    if (Array.isArray(raw)) {
+      return raw
+        .map((v) => (typeof v === "string" ? v.trim() : ""))
+        .filter((v) => v.length > 0);
+    }
+    if (typeof raw === "string") {
+      return raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+    }
+    return [];
+  }
+
+  /**
    * Extract a plain string from a Statamic field that may be either a raw string
    * (from the REST API / | to_json) or an augmented select object (from the CP
    * live-preview postMessage: { value, label, key }).
@@ -1504,6 +1528,69 @@ export function mapStatamicPageBlocksToSections(
             : undefined,
           postSubmit:     extractString(block.post_submit) === "redirect" ? "redirect" : "message",
           redirectUrl:    safeRedirectTarget(resolveLinkHref(block.redirect_target)),
+        };
+        sections.push(section);
+        break;
+      }
+
+      case "pricing_section": {
+        // `tiers` is a Grid: an ordered array of plain row objects. Each row maps
+        // 1-to-1 onto a CmsPriceTier, which the page-config mapper then forwards
+        // to PricingSectionBlock unchanged — so the field names below are the
+        // contract, not a convenience.
+        //
+        // Two fields need shaping rather than copying:
+        //
+        //   `features` is authored as one benefit per line in a textarea (a list
+        //   fieldtype yields an array instead). Both shapes are accepted and
+        //   normalised to string[], with blank lines dropped — an editor's
+        //   trailing newline shouldn't render an empty bullet.
+        //
+        //   `cta_href` is a link field, so it arrives as a raw string OR an
+        //   augmented entry object; resolveLinkHref normalises both.
+        //
+        // name/price/ctaLabel/ctaHref are REQUIRED on CmsPriceTier. A row missing
+        // any of them can't render a usable card, so it is dropped rather than
+        // passed on half-built.
+        const rawTiers = Array.isArray(block.tiers)
+          ? block.tiers as Array<Record<string, unknown>>
+          : [];
+
+        const tiers: CmsPriceTier[] = rawTiers
+          .map((t, i): CmsPriceTier | null => {
+            const name  = extractString(t.name);
+            const price = extractString(t.price);
+            if (!name || !price) return null;
+
+            const ctaLabel = extractString(t.cta_label);
+            const ctaHref  = resolveLinkHref(t.cta_href);
+            if (!ctaLabel || !ctaHref) return null;
+
+            const features = toFeatureList(t.features);
+
+            return {
+              _key:        typeof t.id === "string" && t.id ? t.id : `tier_${i}`,
+              name,
+              price,
+              period:      extractString(t.period),
+              description: extractString(t.description),
+              ...(features.length > 0 ? { features } : {}),
+              ctaLabel,
+              ctaHref,
+              highlighted: t.highlighted === true,
+              badge:       extractString(t.badge),
+            };
+          })
+          .filter((t): t is CmsPriceTier => t !== null);
+
+        const section: PricingSectionData = {
+          _key:       key,
+          _type:      "pricingSection",
+          variant:    extractString(block.variant),
+          heading:    extractString(block.heading),
+          subheading: extractString(block.subheading),
+          footnote:   extractString(block.footnote),
+          ...(tiers.length > 0 ? { tiers } : {}),
         };
         sections.push(section);
         break;
