@@ -9,6 +9,7 @@ import { ALL_FONT_VARIABLES, geistSans, geistMono, resolveGoogleFontCss } from "
 import { LeadinfoProvider }      from "@/components/tracking/LeadinfoProvider";
 import { ConsentBanner }         from "@/components/tracking/ConsentBanner";
 import { CookiePreferences }     from "@/components/tracking/CookiePreferences";
+import { toConsentLocale }       from "@/tracking/consent-i18n";
 import { getDesignPreset } from "@/tenant/design-presets-gallery";
 import { buildCompleteLookDesign } from "@/lib/design/complete-look";
 import { THEME_PRESETS, isThemePresetKey, type ThemePresetKey } from "@/design-system/theme/presets";
@@ -403,7 +404,13 @@ export default async function RootLayout({
     !_consentPathname.startsWith("/tenant-block-preview");
 
   // Visitor locale for the cookie banner / preferences copy (nl / en).
-  const consentLocale = (await cookies()).get("mc_locale")?.value;
+  // The mc_locale cookie is leading; when it is absent (a fresh visitor /
+  // incognito) fall back to the active tenant's default language so a NL tenant
+  // shows the Dutch banner instead of defaulting to English. Clamped to the
+  // ConsentLocale union with English as the last resort.
+  const consentLocale = toConsentLocale(
+    (await cookies()).get("mc_locale")?.value ?? tenantConfig.defaultLocale,
+  );
 
   return (
     /*
