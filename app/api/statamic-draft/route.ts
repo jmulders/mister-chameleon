@@ -144,17 +144,6 @@ export async function POST(req: NextRequest) {
     seoDescription: typeof body.seoDescription === "string" ? body.seoDescription : undefined,
   };
 
-  // TEMP diagnostic (safe to remove): the bridge (production) flow stores the
-  // draft here, so this reveals the slug + blocks the CMS addon actually sends
-  // for the edited entry — the source of the "preview shows homepage" symptom.
-  logger.info("[statamic-draft][temp] stored draft", {
-    slug: entry.slug || "(empty — addon sent no slug)",
-    collection: entry.collection,
-    blockCount: blocks.length,
-    blockTypes: (blocks as Array<Record<string, unknown>>)
-      .map((b) => (b && typeof b === "object" ? b.type : undefined)),
-  });
-
   const token = await storeDraft(entry);
   return NextResponse.json({ token }, { headers: CORS_HEADERS });
 }
