@@ -15,7 +15,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert                                  from "node:assert/strict";
 
-import { seedNeutralContentIntoRepo, seedNeutralPagesIntoRepo } from "../../lib/provisioning/cms-provisioner.ts";
+import { seedNeutralContentIntoRepo, seedNeutralPagesIntoRepo, seedDestination } from "../../lib/provisioning/cms-provisioner.ts";
 
 // ── Fake GitHub ───────────────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ function installFakeGitHub(repo: FakeRepo): Calls {
 function templateCopy(): FakeRepo {
   return {
     files: {
-      // ── the seed (what a tenant should start with) ──
+      // ── the neutral seed (what a blank tenant starts with) ──
       "seed/README.md":                                    "not content — must not be copied",
       "seed/download-placeholders.sh":                     "#!/bin/bash",
       "seed/content/collections/pages/nl/home.md":         "neutral home",
@@ -106,6 +106,18 @@ function templateCopy(): FakeRepo {
       "seed/content/trees/navigation/nl/main_nav.yaml":    "neutral nav tree",
       "seed/content/globals/nl/site_settings.yaml":        "neutral settings",
       "seed/public/assets/placeholder-logo.svg":           "<svg/>",
+
+      // ── the demo seed (a curated example site) ──
+      "demo-seed/README.md":                                 "not content either",
+      "demo-seed/content/collections/pages/nl/home.md":      "demo home",
+      "demo-seed/content/collections/pages/nl/diensten.md":  "demo diensten",
+      "demo-seed/content/collections/pages/nl/contact.md":   "demo contact",
+      "demo-seed/content/collections/blog/nl/acme-post.md":  "demo blog post",
+      "demo-seed/content/collections/testimonials/nl/t1.md": "demo testimonial",
+      "demo-seed/content/navigation/main_nav.yaml":          "demo nav def",
+      "demo-seed/content/trees/navigation/nl/main_nav.yaml": "demo nav tree",
+      "demo-seed/content/globals/nl/site_settings.yaml":     "demo settings",
+      "demo-seed/public/assets/acme-logo.svg":               "<svg>acme</svg>",
 
       // ── the template's own content, copied by repo-generate ──
       "content/collections/pages/nl/home.md":              "OUR home",
@@ -138,9 +150,10 @@ function templateCopy(): FakeRepo {
   };
 }
 
-const seed = (_repo: FakeRepo) => seedNeutralContentIntoRepo({
-  token: "t", owner: "acme", name: "cms-tenant", branch: "main", retryDelayMs: 0,
-});
+const seed = (_repo: FakeRepo, seedRoot: "seed" | "demo-seed" = "seed") =>
+  seedNeutralContentIntoRepo({
+    token: "t", owner: "acme", name: "cms-tenant", branch: "main", seedRoot, retryDelayMs: 0,
+  });
 
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -300,7 +313,7 @@ describe("seedNeutralContentIntoRepo — guard rails", () => {
     const calls = installFakeGitHub(repo);
     const result = await seed(repo);
     assert.equal(result.ok, false);
-    assert.match(result.message, /No seed files found/);
+    assert.match(result.message, /No files found under seed\//);
     assert.equal(calls.deletes.length, 0);
     assert.notEqual(repo.files["content/collections/pages/nl/pricing.md"], undefined);
   });
@@ -347,5 +360,96 @@ describe("seedNeutralContentIntoRepo — guard rails", () => {
 describe("seedNeutralPagesIntoRepo", () => {
   it("is still exported, pointing at the renamed function", () => {
     assert.equal(seedNeutralPagesIntoRepo, seedNeutralContentIntoRepo);
+  });
+});
+
+// ── Seed root selection ───────────────────────────────────────────────────────
+
+describe("seedNeutralContentIntoRepo — choosing a seed root", () => {
+  let repo:  FakeRepo;
+  let calls: Calls;
+  beforeEach(() => { repo = templateCopy(); calls = installFakeGitHub(repo); });
+
+  it("\"demo-seed\" applies the demo site and ignores the neutral seed", async () => {
+    const result = await seed(repo, "demo-seed");
+    assert.equal(result.ok, true);
+    assert.deepEqual([...result.seeded].sort(), [
+      "content/collections/blog/nl/acme-post.md",
+      "content/collections/pages/nl/contact.md",
+      "content/collections/pages/nl/diensten.md",
+      "content/collections/pages/nl/home.md",
+      "content/collections/testimonials/nl/t1.md",
+      "content/globals/nl/site_settings.yaml",
+      "content/navigation/main_nav.yaml",
+      "content/trees/navigation/nl/main_nav.yaml",
+      "public/assets/acme-logo.svg",
+    ]);
+    assert.equal(repo.files["content/collections/pages/nl/home.md"], "demo home");
+    assert.equal(repo.files["public/assets/acme-logo.svg"],          "<svg>acme</svg>");
+    // The neutral seed's files must not have been applied as well.
+    assert.equal(repo.files["public/assets/placeholder-logo.svg"], undefined);
+  });
+
+  it("the default is still the neutral seed", async () => {
+    await seed(repo);
+    assert.equal(repo.files["content/collections/pages/nl/home.md"], "neutral home");
+    assert.equal(repo.files["content/collections/pages/nl/diensten.md"], undefined);
+  });
+
+  it("prunes against the CHOSEN seed — demo entries survive, the rest go", async () => {
+    const result = await seed(repo, "demo-seed");
+    // Provided by the demo seed → kept.
+    assert.ok(!result.removed.includes("content/collections/blog/nl/acme-post.md"));
+    assert.ok(!result.removed.includes("content/collections/testimonials/nl/t1.md"));
+    // The template's own entries → gone, including the ones the demo replaces.
+    for (const gone of [
+      "content/collections/pages/nl/pricing.md",
+      "content/collections/blog/nl/a-post.md",
+      "content/collections/testimonials/nl/quote-1.md",
+      "content/collections/case_studies/nl/case-acme.md",
+    ]) assert.ok(result.removed.includes(gone), `expected ${gone} to be removed`);
+    // Collection config still survives.
+    assert.equal(repo.files["content/collections/blog.yaml"], "handle: blog");
+  });
+
+  it("never copies a seed root's own README to the repo root", async () => {
+    await seed(repo, "demo-seed");
+    assert.ok(!calls.puts.map((p) => p.path).includes("README.md"));
+  });
+
+  it("refuses to prune when the chosen root is absent — a typo cannot empty a tenant", async () => {
+    for (const p of Object.keys(repo.files)) if (p.startsWith("demo-seed/")) delete repo.files[p];
+    const result = await seed(repo, "demo-seed");
+    assert.equal(result.ok, false);
+    assert.match(result.message, /No files found under demo-seed\//);
+    assert.equal(calls.deletes.length, 0);
+    assert.notEqual(repo.files["content/collections/pages/nl/pricing.md"], undefined);
+  });
+
+  it("refuses to prune on a truncated tree, whichever root is chosen", async () => {
+    repo.truncated = true;
+    const result = await seed(repo, "demo-seed");
+    assert.equal(result.ok, false);
+    assert.match(result.message, /truncated/);
+    assert.equal(calls.deletes.length, 0);
+  });
+});
+
+describe("seedDestination", () => {
+  it("maps a seed path to its destination, stripping only the root", () => {
+    assert.equal(seedDestination("seed/content/globals/nl/x.yaml", "seed"), "content/globals/nl/x.yaml");
+    assert.equal(seedDestination("demo-seed/content/globals/nl/x.yaml", "demo-seed"), "content/globals/nl/x.yaml");
+    assert.equal(seedDestination("demo-seed/public/assets/logo.svg", "demo-seed"), "public/assets/logo.svg");
+  });
+
+  it("ignores paths belonging to the other root", () => {
+    assert.equal(seedDestination("seed/content/x.md", "demo-seed"), undefined);
+    assert.equal(seedDestination("demo-seed/content/x.md", "seed"), undefined);
+  });
+
+  it("ignores anything outside content/ and public/", () => {
+    assert.equal(seedDestination("seed/README.md", "seed"), undefined);
+    assert.equal(seedDestination("seed/download-placeholders.sh", "seed"), undefined);
+    assert.equal(seedDestination("seed/content/", "seed"), undefined); // the bare directory
   });
 });
