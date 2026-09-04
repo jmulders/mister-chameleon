@@ -121,3 +121,61 @@ Regels:
   niet op — geef het veld gewoon de handle `postcode`.
 - Labels/volgorde zijn vrij; alleen de **handle** telt. Bouw je het formulier in het CP,
   zet de veld-handle dus expliciet op `postcode` / `huisnummer` (evt. `woonplaats`).
+
+## D. Root-cause-analyse (na #370/#371/#372 + cms#2) + fixes
+
+Twee hardnekkige symptomen, getraced tegen de live CMS (`cms.misterchameleon.nl`).
+
+### D1. Live-preview toont de homepage i.p.v. de bewerkte pagina — **slug-wiring**
+
+**Dataflow:** CP preview-target = `/mc-live-preview` (addon) → bij gezette
+`MC_PREVIEW_FRONTEND_URL` rendert de bridge-view, die de onopgeslagen entry POST naar
+`POST /api/statamic-draft` (Next.js draft-store) en `/mc-preview?mcdraft=TOKEN` iframet.
+De addon vult `slug` met `$entry->slug()`.
+
+**Root cause:** Statamic reconstrueert de Live-Preview-entry uit de publish-form-waarden;
+`$entry->slug()` kan voor dat gereconstrueerde item **leeg/null** terugkomen. Twee plekken
+op het platform stempelden een lege slug dan op `"home"`:
+1. `app/api/statamic-draft/route.ts` — `slug: … ? body.slug : "home"` (de draft-store zélf).
+2. `app/(site)/mc-preview/page.tsx` — `draftEntry.slug || "home"` + `d.slug ?? "home"`.
+
+Met slug `"home"` haalt `getPageBySlug` de **homepage-entry** als metadata op, bouwt de
+`/`-URL en resolvet de context-slots (hero/proof/cta) als de homepage → de preview krijgt
+de homepage-identiteit (en, als de draft-blocks ontbreken, de homepage-inhoud).
+
+**Fix (platform):** nergens meer naar `"home"` defaulten. Een lege slug wordt nu een
+lege string; `/mc-preview` rendert dan **direct uit de draft-blocks** (de bewerkte entry
+zelf), nooit de homepage. Echte entries sturen hun eigen slug (bv. `about`) en werken
+onveranderd. Tijdelijke logging (`[statamic-draft][temp]` + `[mc-preview][temp]`) laat in
+de Vercel-logs zien welke slug + blocks de addon per edit stuurt — verifieer daarmee op de
+live CP en verwijder de logging daarna.
+
+### D2. Form Section op /about rendert niet — **form-handle mismatch**
+
+**Trace tegen de live API** (`/api/collections/pages/entries?filter[slug:is]=about`):
+- (a) De about-entry **bevat** het `form_section`-blok. ✅
+- (c) Geen stale cache: de API geeft het blok direct terug (`revalidateTag("statamic")`,
+  TTL 60s speelt geen rol).
+- (b) **Root cause:** het `form`-veld serialiseert als
+  `{ handle: "locatietest", title: "locatie_test", api_url: … }`. De CP-form-handle is
+  `locatietest` (Statamic's form-slugifier laat de underscore vallen), terwijl de code-key
+  `locatie-test` is. `resolveFormKey("locatietest")` faalde: de normalisatie deed alleen
+  `_`↔`-`-swap + lowercase, dus een **separator-lóze** handle matchte nooit een kebab-key.
+  → `formDef` undefined → CMS-fallback zoekt in Sanity (niets) → blok rendert niets.
+
+**Fix (platform):** `resolveFormKey` stap-3-normalisatie strípt nu álle separators
+(`[-_\s]+`), zodat `locatietest` → `locatie-test`. De registry-keys blijven uniek na
+strippen, dus geen valse matches. `resolveContextualForm` gebruikt nu ook `resolveFormKey`
+(i.p.v. `isFormKey`), consistent met de submit-route.
+
+### Handmatige CMS-stappen (Jasper) — checklist
+
+1. **Niets verplicht** voor D2 dankzij de platform-fix — `locatietest` matcht nu
+   `locatie-test`. (Optioneel, netter: maak in het CP een form-handle die exact
+   `locatie-test`/`locatie_test` is, dan is het ook zonder normalisatie eenduidig.)
+2. Na deploy: open de Live Preview op `/about` → hij toont nu de about-blocks (incl. het
+   formulier), niet de homepage. Verschijnt tóch de homepage, check de tijdelijke logs
+   (`[statamic-draft][temp]`) — als `slug` daar `(empty …)` is, bevestigt dat de
+   addon/`$entry->slug()`-quirk; de platform-fix vangt dat nu af.
+3. Content net bewerkt maar nog niet zichtbaar op de live site? De platform-content-cache
+   heeft TTL 60s — wacht ~1 min of trigger een revalidate (entry opnieuw opslaan).

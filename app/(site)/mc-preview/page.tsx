@@ -25,6 +25,7 @@ import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { resolveTenantById } from "@/tenant/resolve-tenant";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
+import { logger } from "@/lib/logger";
 import type { PageData, CmsPageContextConfig } from "@/cms/types";
 
 type PageProps = {
@@ -106,11 +107,22 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
           if (!d.error) {
             draftEntry = {
               collection: d.collection ?? "pages",
-              slug: d.slug ?? "home",
+              // Do NOT default to "home": an empty slug from the addon must not
+              // make a non-home entry masquerade as the homepage (see below).
+              slug: typeof d.slug === "string" ? d.slug : "",
               title: d.title,
               seoDescription: d.seoDescription,
               blocks: Array.isArray(d.pageBlocks) ? d.pageBlocks : [],
             };
+            // TEMP diagnostic (safe to remove): confirm which slug + blocks the
+            // CMS addon (mc-live-preview-data) actually sends for the edited entry.
+            logger.info("[mc-preview][temp] addon draft", {
+              slug: draftEntry.slug || "(empty)",
+              collection: draftEntry.collection,
+              blockCount: draftEntry.blocks.length,
+              blockTypes: (draftEntry.blocks as Array<Record<string, unknown>>)
+                .map((b) => (b && typeof b === "object" ? b.type : undefined)),
+            });
           }
         }
       }
@@ -131,7 +143,14 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
   const cookieLocale = c.get(LOCALE_COOKIE)?.value;
   const locale = cookieLocale && isSupportedLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
 
-  const slug   = draftEntry.slug || "home";
+  // The edited entry's own slug. NB: Statamic's Live Preview reconstructs the
+  // entry from unsaved publish-form values, and `$entry->slug()` can come back
+  // empty for that reconstructed item. We must NOT fall back to "home" here: a
+  // "home" slug makes getPageBySlug pull the HOMEPAGE entry's metadata and
+  // resolve context-slots as the homepage, so a non-home page's preview renders
+  // as the homepage. An empty slug instead renders straight from the draft
+  // blocks below (the edited entry's own content), which is always correct.
+  const slug = (draftEntry.slug || "").trim();
 
   // Disable video autoplay in the preview. Autoplaying YouTube embeds reload on
   // every preview refresh, flooding the console and slowing the iframe down for
@@ -153,7 +172,11 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
 
   const draftProvider = createDraftStatamicProvider(safeBlocks, base, tenantId);
 
-  let page: PageData | null = await draftProvider.getPageBySlug(slug, locale);
+  // With a real slug, getPageBySlug renders the draft blocks AND enriches
+  // related_content / collection blocks against the live entry. With no slug we
+  // skip it (it would otherwise fetch nothing useful) and build the page from
+  // the draft blocks directly — never from the homepage.
+  let page: PageData | null = slug ? await draftProvider.getPageBySlug(slug, locale) : null;
   if (!page) {
     const ctx = buildContextConfig(blocks);
     const hasSlots = Object.keys(ctx).length > 0;

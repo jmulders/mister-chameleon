@@ -10,7 +10,7 @@
 
 import "server-only";
 
-import { getFormDefinition, isFormKey } from "@/forms";
+import { getFormDefinition, resolveFormKey } from "@/forms";
 import { getDb } from "@/data/db";
 import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
 import { getAdaptiveBlockByKey } from "@/lib/adaptive-blocks/adaptive-blocks-store";
@@ -36,7 +36,12 @@ export async function resolveContextualForm(
   formKey: string,
   signals: FormContextSignals,
 ): Promise<ResolvedForm | null> {
-  const formDef = isFormKey(formKey) ? getFormDefinition(formKey) : null;
+  // Resolve the handle to a registered FormKey (tolerating Statamic's
+  // snake_case / separatorless CP handle vs the code's kebab-case key), exactly
+  // as the submit route does — so a code form is recognised here even when it
+  // arrives as a raw CP handle, instead of wrongly falling through to the CMS.
+  const resolvedKey = resolveFormKey(formKey);
+  const formDef = resolvedKey ? getFormDefinition(resolvedKey) : null;
 
   // Per-form override drives BOTH the Turnstile toggle and the presentation
   // layout. Keyed by formKey, so it applies to code AND CMS forms. Load it once.
