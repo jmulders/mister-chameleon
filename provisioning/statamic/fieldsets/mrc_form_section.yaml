@@ -31,3 +31,34 @@ fields:
       type: form
       display: Form
       instructions: 'Select the form to embed. Forms are managed in Tools → Forms.'
+  -
+    handle: submit_label
+    field:
+      type: text
+      display: 'Submit button label'
+      instructions: 'Tekst op de verzendknop. Leeg = standaard.'
+  -
+    handle: post_submit
+    field:
+      type: button_group
+      display: 'Na verzenden'
+      default: message
+      options:
+        message: 'Bericht tonen'
+        redirect: 'Doorsturen naar pagina/URL'
+  -
+    handle: success_message
+    field:
+      type: textarea
+      display: Bedanktekst
+      instructions: 'Wordt getoond na een succesvolle verzending.'
+      if:
+        post_submit: 'equals message'
+  -
+    handle: redirect_target
+    field:
+      type: link
+      display: 'Doorsturen naar'
+      instructions: 'Kies een entry, een intern pad (/bedankt) of een volledige externe URL (https://…).'
+      if:
+        post_submit: 'equals redirect'
