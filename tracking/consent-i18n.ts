@@ -129,8 +129,19 @@ const NL: ConsentTexts = {
 
 const DICT: Record<ConsentLocale, ConsentTexts> = { nl: NL, en: EN };
 
+/**
+ * Clamp an arbitrary locale string (e.g. "nl", "nl-NL", "en_GB", "de") to the
+ * supported ConsentLocale union, with English as the last resort. Callers resolve
+ * the raw locale from the mc_locale cookie, falling back to the tenant's default
+ * language — so a fresh visitor on a Dutch tenant gets the Dutch banner even
+ * without a cookie. Any unsupported language (e.g. "de") → "en".
+ */
+export function toConsentLocale(locale?: string | null): ConsentLocale {
+  const lang = (locale ?? "").slice(0, 2).toLowerCase();
+  return lang in DICT ? (lang as ConsentLocale) : "en";
+}
+
 /** Resolve consent copy for a locale string (e.g. "nl", "nl-NL"). Falls back to English. */
 export function consentTexts(locale?: string | null): ConsentTexts {
-  const lang = (locale ?? "").slice(0, 2).toLowerCase();
-  return DICT[lang as ConsentLocale] ?? EN;
+  return DICT[toConsentLocale(locale)];
 }
