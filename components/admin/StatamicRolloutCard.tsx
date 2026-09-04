@@ -1,11 +1,18 @@
 "use client";
 
 /**
- * DemoRolloutCard
+ * StatamicRolloutCard
  *
- * One button that produces a complete working demo: tenant, repo from the
- * template, neutral content, a write deploy key, a Statamic super-user, and a
- * public URL under the *.demo.misterchameleon.nl wildcard.
+ * One button that produces a complete working Statamic site: tenant, repo from
+ * the template, content, a write deploy key, a super-user, and a public URL
+ * under the *.demo.misterchameleon.nl wildcard.
+ *
+ * Two modes, because "demo" used to mean a blank canvas — which made the button
+ * misleading:
+ *
+ *   Demo — a curated, brand-free Dutch example site: every block type, filled
+ *          collections, adaptive slots that actually switch. Presentable as-is.
+ *   Leeg — the neutral starter: a couple of blank pages to build on.
  *
  * The credentials come back exactly once — the password is generated during the
  * rollout and stored only as a Ploi secret, which the admin cannot read back —
@@ -14,7 +21,7 @@
  */
 
 import { useState, useTransition } from "react";
-import { provisionDemoTenantAction, type DemoRolloutResult } from "@/app/admin/tenants/[tenantId]/actions";
+import { provisionTenantSiteAction, type RolloutResult, type RolloutMode } from "@/app/admin/tenants/[tenantId]/actions";
 
 function CopyRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -38,34 +45,63 @@ function CopyRow({ label, value, mono }: { label: string; value: string; mono?: 
   );
 }
 
-export function DemoRolloutCard() {
+const MODES: { value: RolloutMode; label: string; hint: string }[] = [
+  { value: "demo",    label: "Demo", hint: "Voorbeeldsite met alle blokken, gevulde collecties en werkende personalisatie." },
+  { value: "vanilla", label: "Leeg", hint: "Neutrale startpagina's om zelf op te bouwen." },
+];
+
+export function StatamicRolloutCard() {
   const [pending, start] = useTransition();
   const [name, setName]  = useState("");
-  const [result, setResult] = useState<DemoRolloutResult | null>(null);
+  const [mode, setMode]  = useState<RolloutMode>("demo");
+  const [result, setResult] = useState<RolloutResult | null>(null);
 
   function run() {
     setResult(null);
-    start(async () => setResult(await provisionDemoTenantAction(name)));
+    start(async () => setResult(await provisionTenantSiteAction(name, { mode })));
   }
 
   const done = result?.ok === true;
 
   return (
     <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-neutral-900">Roll out a demo</h2>
+      <h2 className="text-sm font-semibold text-neutral-900">Nieuwe Statamic-site</h2>
       <p className="mt-1 text-xs text-neutral-500">
-        Creates the tenant, its repo from the template, neutral content, a write deploy key,
+        Creates the tenant, its repo from the template, content, a write deploy key,
         a CP login and a public URL at{" "}
-        <code className="font-mono">&lt;slug&gt;.demo.misterchameleon.nl</code>. No DNS per demo —
+        <code className="font-mono">&lt;slug&gt;.demo.misterchameleon.nl</code>. No DNS per site —
         the wildcard covers it. Takes a couple of minutes while Ploi assigns a host.
       </p>
+
+      <fieldset className="mt-3">
+        <legend className="sr-only">Wat de site bevat</legend>
+        <div className="flex flex-col gap-1.5">
+          {MODES.map((m) => (
+            <label key={m.value} className="flex items-start gap-2 text-xs">
+              <input
+                type="radio"
+                name="rollout-mode"
+                value={m.value}
+                checked={mode === m.value}
+                disabled={pending}
+                onChange={() => setMode(m.value)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium text-neutral-800">{m.label}</span>
+                <span className="text-neutral-500"> — {m.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="mt-3 flex items-center gap-2">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && name.trim() && !pending) run(); }}
-          placeholder="Demo name, e.g. Acme Corp"
+          placeholder="Sitenaam, bijv. Acme Corp"
           disabled={pending}
           className="w-64 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm disabled:bg-neutral-50"
         />
@@ -75,7 +111,7 @@ export function DemoRolloutCard() {
           onClick={run}
           className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
         >
-          {pending ? "Rolling out…" : "Roll out demo"}
+          {pending ? "Bezig…" : "Site uitrollen"}
         </button>
       </div>
 
@@ -105,12 +141,12 @@ export function DemoRolloutCard() {
         }`}>
           <p className="font-medium">
             {result.status === "ready"
-              ? "Demo is up."
+              ? "Site staat."
               : "Everything is built — Ploi just hasn't assigned a host yet."}
           </p>
 
           <div className="mt-2 space-y-0.5">
-            {result.demoUrl && <CopyRow label="Demo site" value={result.demoUrl} />}
+            {result.demoUrl && <CopyRow label="Site" value={result.demoUrl} />}
             {result.cpUrl   && <CopyRow label="Control panel" value={result.cpUrl} />}
             {result.cpEmail && <CopyRow label="CP e-mail" value={result.cpEmail} mono />}
             {result.cpPassword && <CopyRow label="CP password" value={result.cpPassword} mono />}

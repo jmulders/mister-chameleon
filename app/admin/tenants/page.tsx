@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { getAllTenants } from "@/tenant/server";
 import { TenantsTable } from "./_components/TenantsTable";
-import { DemoRolloutCard } from "@/components/admin/DemoRolloutCard";
+import { StatamicRolloutCard } from "@/components/admin/StatamicRolloutCard";
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
@@ -66,9 +66,9 @@ export default async function AdminTenantsPage() {
 
       {/* ── Tenant table ─────────────────────────────────────────────────── */}
       <div className="flex-1 p-8">
-        {/* Demo rollout lives here, not on a tenant's own Setup tab: it CREATES
+        {/* The rollout lives here, not on a tenant's own Setup tab: it CREATES
             the tenant rather than acting on an existing one. */}
-        <DemoRolloutCard />
+        <StatamicRolloutCard />
 
         {tenants.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-neutral-300 bg-white py-16">
