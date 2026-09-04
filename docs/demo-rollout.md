@@ -1,8 +1,52 @@
-# One-click demo rollout
+# One-click Statamic rollout
 
-Admin → **Tenants** → *Roll out a demo*. Type a name, press the button, wait a
-couple of minutes, copy the credentials it hands back. That is the whole
-process — provided the one-time setup below is in place.
+Admin → **Tenants** → *Nieuwe Statamic-site*. Type a name, pick **Demo** or
+**Leeg**, press the button, wait a couple of minutes, copy the credentials it
+hands back. That is the whole process — provided the one-time setup below is in
+place.
+
+## Demo or Leeg
+
+|  | **Demo** | **Leeg** |
+| --- | --- | --- |
+| Pages | 7 — home, diensten, prijzen, cases, over ons, contact, bedankt | 3 — home, contact, showcase |
+| Blocks | every block type the CMS declares, filled in | the neutral starter set |
+| Collections | 3 cases, 3 testimonials, 4 features, 3 plans, 3 team members, 4 FAQ items, 2 blog posts | empty |
+| Navigation | Home · Diensten · Prijzen · Cases · Over ons · Contact | Home · Contact |
+| Personalisation | an adaptive block + a rule, so the hero visibly switches | slots render their default |
+| Forms | a contact form on two pages, one showing a thank-you message and one redirecting | one contact form |
+
+Both modes are otherwise identical: same repo, same deploy key, same super-user,
+same wildcard URL. The mode only picks which seed directory the provisioner
+applies (`demo-seed/` or `seed/` in the template repo) and, for Demo, whether
+the platform-side adaptive data is seeded too.
+
+**A demo is brand-free.** The example brand is *Acme* — a placeholder, not a
+real company. It is defined once, as `DEMO_BRAND` in
+`lib/provisioning/demo-platform-seed.ts` for the platform copy and as literal
+text in the template's `demo-seed/`; that directory's README says what to change.
+
+## Does the personalisation actually fire?
+
+Yes, and this is the part that used to be missing. A demo rollout writes two
+things on the platform side for the new tenant:
+
+- an **adaptive block** (`hero_matrix_homepage`) with two hero variants;
+- a **rule** in `rules_config` (`homepage_<tenantId>`): a visitor arriving from
+  LinkedIn gets the organisation-facing hero.
+
+To show it: open the site, then set the traffic source to LinkedIn in the
+scenario console (bottom right). The hero changes. `source` was chosen over
+device or UTM precisely because the console can set it directly, so the switch
+is demonstrable on demand rather than dependent on real traffic.
+
+Both variant keys are platform keys (`hero_default`, `hero_enterprise`). A
+Statamic tenant contributes no `extraKeys`, so a rule naming a CMS-invented key
+would be rejected by `validateStoredConfig` — and that check is all-or-nothing,
+so it would take the tenant's whole rule set down with it.
+
+If the adaptive seed fails, the rollout still succeeds with a warning: the site
+works, its slots just render their defaults.
 
 ## One-time setup (do this once, ever)
 
@@ -28,7 +72,7 @@ dig +short anything.demo.misterchameleon.nl
 A CNAME to Vercel means you are done.
 
 **Without this**, a rollout still produces a working CP, a working repo and
-neutral content — only the public `<slug>.demo.misterchameleon.nl` URL will not
+its content — only the public `<slug>.demo.misterchameleon.nl` URL will not
 resolve. The rollout does not fail; it just gives you a URL nothing answers on.
 
 ## Also needed
@@ -46,9 +90,10 @@ Platform → Integrations → Provisioning:
 1. **Tenant** — via the normal onboarding path, so the siteKey is generated the
    same way it is for any other tenant. Slug comes from the name.
 2. **Repo** — generated from the template, private.
-3. **Neutral content** — `seed/` applied over the copy, and every collection
-   entry the seed does not provide deleted. No previous tenant's content, and
-   none of ours. See the seed's own README in the template repo.
+3. **Content** — the chosen seed (`demo-seed/` or `seed/`) applied over the
+   copy, and every collection entry that seed does not provide deleted. No
+   previous tenant's content, and none of ours. See each seed's own README in
+   the template repo.
 4. **Write deploy key** — an ed25519 pair generated here; the public half goes
    on the repo with write access, the private half becomes the
    `STATAMIC_GIT_SSH_KEY` secret. This is what makes CP edits survive a
@@ -59,8 +104,9 @@ Platform → Integrations → Provisioning:
 6. **Wait for the host** Ploi assigns, then set `statamicBaseUrl`, correct
    `APP_URL` to that host and redeploy.
 7. **Public URL** — one `tenant_domains` row for `<slug>.demo.misterchameleon.nl`.
+8. **Adaptive data** — demo mode only; see above.
 
-You get back the demo URL, the CP URL, the CP e-mail and the password.
+You get back the site URL, the CP URL, the CP e-mail and the password.
 
 ## The password is shown once
 
@@ -96,7 +142,7 @@ The usual cause is a GitHub token without admin rights on the repo. A key that
 is already there but **read-only** is reported explicitly rather than accepted:
 delete it in GitHub and re-run.
 
-## Tearing a demo down
+## Tearing a site down
 
 Nothing here is automated yet. By hand: delete the Ploi application, delete the
 GitHub repo, and delete the tenant in the admin (which removes its

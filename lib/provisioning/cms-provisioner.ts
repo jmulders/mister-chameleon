@@ -155,6 +155,17 @@ export interface SeedRepoInput {
   name:    string;
   branch?: string;   // default "main"
   /**
+   * Which seed directory in the template to apply. Both are laid out the same
+   * way and go through the same apply-and-prune mechanism; they differ only in
+   * what they contain.
+   *
+   *   "seed"       — the neutral starter: a couple of blank-slate pages.
+   *   "demo-seed"  — a curated, brand-free example site.
+   *
+   * Defaults to "seed" so existing callers keep their behaviour.
+   */
+  seedRoot?: SeedRoot;
+  /**
    * Pause between tree-read attempts, ms (default 2500). Exists so tests can
    * exercise the retry path without sleeping through it; production callers
    * should leave it alone.
@@ -169,14 +180,17 @@ export interface SeedRepoResult {
   removed: string[];   // repo paths deleted because the seed doesn't have them
 }
 
+/** The seed directories a rollout can apply. */
+export type SeedRoot = "seed" | "demo-seed";
+
 /**
- * Top-level seed directories that are applied, and where they land. A file at
- * `seed/content/x/y.md` is written to `content/x/y.md`.
+ * Subdirectories of a seed root that are applied, and where they land. A file
+ * at `<root>/content/x/y.md` is written to `content/x/y.md`.
  *
- * Deliberately an allowlist: `seed/` also holds README.md and shell scripts that
- * must NOT be copied to the repo root.
+ * Deliberately an allowlist: a seed root also holds a README and shell scripts
+ * that must NOT be copied to the repo root.
  */
-const SEED_ROOTS = ["seed/content/", "seed/public/"] as const;
+const SEED_SUBDIRS = ["content/", "public/"] as const;
 
 /** Prefix under which a collection's ENTRIES live. */
 const COLLECTIONS_PREFIX = "content/collections/";
@@ -194,11 +208,13 @@ function isCollectionEntryPath(path: string): boolean {
   return path.slice(COLLECTIONS_PREFIX.length).includes("/");
 }
 
-/** Map a `seed/...` path to where it belongs in the repo, or undefined. */
-function seedDestination(path: string): string | undefined {
-  for (const root of SEED_ROOTS) {
-    if (path.startsWith(root) && path.length > root.length) {
-      return path.slice("seed/".length);
+/** Map a `<root>/...` path to where it belongs in the repo, or undefined. */
+export function seedDestination(path: string, seedRoot: SeedRoot): string | undefined {
+  const prefix = `${seedRoot}/`;
+  for (const sub of SEED_SUBDIRS) {
+    const full = prefix + sub;
+    if (path.startsWith(full) && path.length > full.length) {
+      return path.slice(prefix.length);
     }
   }
   return undefined;
@@ -207,15 +223,15 @@ function seedDestination(path: string): string | undefined {
 interface GitTreeEntry { path?: string; type?: string; sha?: string }
 
 /**
- * Apply the template's neutral seed to a NEWLY generated tenant repo, so the
- * tenant rolls out brand-free instead of inheriting whatever content currently
+ * Apply one of the template's seeds to a NEWLY generated tenant repo, so the
+ * tenant rolls out on its own content instead of inheriting whatever currently
  * sits in the template.
  *
  * A repo generated from a template is a full copy of it — including its live
  * content/. Two things therefore have to happen:
  *
- *   1. WRITE   everything under `seed/content/**` → `content/**` and
- *              `seed/public/**` → `public/**` (overwriting what was copied).
+ *   1. WRITE   everything under `<seedRoot>/content/**` → `content/**` and
+ *              `<seedRoot>/public/**` → `public/**` (overwriting the copy).
  *   2. PRUNE   every collection ENTRY the seed does not provide. That covers
  *              the template's own pages in every locale AND its editorial
  *              collections (blog, case studies, testimonials, …). Collection
@@ -223,8 +239,10 @@ interface GitTreeEntry { path?: string; type?: string; sha?: string }
  *              tenant keeps the structure and loses only the content.
  *
  * Nothing here enumerates collections or pages by name: the seed directory in
- * the template repo IS the definition of a neutral tenant. Adding a file there
- * ships it to the next tenant; an entry not represented there is removed.
+ * the template repo IS the definition of what a tenant starts with. Adding a
+ * file there ships it to the next tenant; an entry not represented there is
+ * removed. That is what lets a second seed — the curated demo site — reuse this
+ * function unchanged: `seedRoot` picks the directory, the mechanism is identical.
  *
  * ─── Safety ──────────────────────────────────────────────────────────────────
  *
@@ -238,7 +256,8 @@ interface GitTreeEntry { path?: string; type?: string; sha?: string }
  */
 export async function seedNeutralContentIntoRepo(input: SeedRepoInput): Promise<SeedRepoResult> {
   const { token, owner, name } = input;
-  const branch = input.branch ?? "main";
+  const branch   = input.branch   ?? "main";
+  const seedRoot = input.seedRoot ?? "seed";
   const empty = { seeded: [] as string[], removed: [] as string[] };
   if (!token || !owner || !name) return { ok: false, message: "owner/name/token required", ...empty };
 
@@ -282,12 +301,14 @@ export async function seedNeutralContentIntoRepo(input: SeedRepoInput): Promise<
   // ── 2. Work out what the seed says the repo should contain ────────────────
   const seedFiles: Array<{ src: string; dest: string; sha: string }> = [];
   for (const blob of blobs) {
-    const dest = seedDestination(blob.path);
+    const dest = seedDestination(blob.path, seedRoot);
     if (dest) seedFiles.push({ src: blob.path, dest, sha: blob.sha });
   }
   if (seedFiles.length === 0) {
-    // No seed in the template — do NOT prune, or we would empty the tenant.
-    return { ok: false, message: `No seed files found in ${owner}/${name} — left template content as-is.`, ...empty };
+    // The seed root is missing or empty — do NOT prune, or we would empty the
+    // tenant instead of seeding it. This is the guard that makes a typo'd or
+    // not-yet-created seedRoot harmless.
+    return { ok: false, message: `No files found under ${seedRoot}/ in ${owner}/${name} — left template content as-is.`, ...empty };
   }
   if (truncated) {
     return {
@@ -317,7 +338,7 @@ export async function seedNeutralContentIntoRepo(input: SeedRepoInput): Promise<
         headers,
         cache:  "no-store",
         body: JSON.stringify({
-          message: `seed: neutral ${file.dest}`,
+          message: `seed(${seedRoot}): ${file.dest}`,
           content: contentB64,
           branch,
           ...(existingSha ? { sha: existingSha } : {}),
@@ -349,8 +370,8 @@ export async function seedNeutralContentIntoRepo(input: SeedRepoInput): Promise<
   return {
     ok:      seeded.length > 0,
     message: seeded.length
-      ? `Seeded ${seeded.length} file(s); removed ${removed.length} template entr${removed.length === 1 ? "y" : "ies"}.`
-      : "No files seeded.",
+      ? `Applied ${seeded.length} file(s) from ${seedRoot}/; removed ${removed.length} template entr${removed.length === 1 ? "y" : "ies"}.`
+      : `No files applied from ${seedRoot}/.`,
     seeded,
     removed,
   };

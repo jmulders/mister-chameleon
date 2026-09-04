@@ -3350,10 +3350,23 @@ export async function deletePageAction(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// ONE-CLICK DEMO ROLLOUT
+// ONE-CLICK STATAMIC ROLLOUT
 // ═════════════════════════════════════════════════════════════════════════════
 
-export interface DemoRolloutResult {
+/**
+ * What a rolled-out site starts with.
+ *
+ *   "demo"    — a curated, brand-free Dutch example site: every block type, real
+ *               collections, working adaptive slots. Presentable immediately.
+ *   "vanilla" — the neutral starter: a couple of blank pages to build on.
+ *
+ * The mode only picks which seed directory the provisioner applies (and, for
+ * "demo", whether the platform-side adaptive data is seeded too). Everything
+ * else about the rollout is identical.
+ */
+export type RolloutMode = "demo" | "vanilla";
+
+export interface RolloutResult {
   ok:        boolean;
   error?:    string;
   /** "ready" — everything wired. "host-pending" — finish once Ploi assigns a host. */
@@ -3373,7 +3386,7 @@ export interface DemoRolloutResult {
 }
 
 /**
- * Roll out a complete, working demo in one action.
+ * Roll out a complete, working Statamic site in one action.
  *
  * Everything that used to be a manual checklist item after provisioning is done
  * here: the tenant record, the repo, neutral content, a write deploy key, a
@@ -3395,10 +3408,11 @@ export interface DemoRolloutResult {
  * host shows up. Steps that are merely nice-to-have — the deploy key, the
  * public domain row — degrade to a warning rather than failing the rollout.
  */
-export async function provisionDemoTenantAction(
+export async function provisionTenantSiteAction(
   name: string,
-  opts?: { hostPollAttempts?: number; hostPollIntervalMs?: number },
-): Promise<DemoRolloutResult> {
+  opts?: { mode?: RolloutMode; hostPollAttempts?: number; hostPollIntervalMs?: number },
+): Promise<RolloutResult> {
+  const mode: RolloutMode = opts?.mode ?? "demo";
   await getRequiredAdminSession();
   try {
     const {
@@ -3466,18 +3480,24 @@ export async function provisionDemoTenantAction(
       owner:         gh.repoOwner,
       name:          naming.repoName,
       privateRepo:   true,
-      description:   `Mister Chameleon demo CMS (${tenantId})`,
+      description:   `Mister Chameleon CMS — ${mode} site (${tenantId})`,
     });
     if (!repo.ok) return { ok: false, error: `Repo: ${repo.message}`, steps };
     steps.push({ label: "GitHub repo", ok: true, note: repo.alreadyExisted ? "reused" : "created from template" });
 
-    // ── 3. Neutral content — only ever on a repo we just made ─────────────────
+    // ── 3. Content — only ever on a repo we just made ─────────────────────────
+    // The mode picks the seed directory; the apply-and-prune mechanism, and its
+    // guard rails, are the same either way.
+    const seedRoot = mode === "demo" ? "demo-seed" : "seed";
+    const contentLabel = mode === "demo" ? "Demo content" : "Neutral content";
     if (!repo.alreadyExisted) {
-      const seeded = await seedNeutralContentIntoRepo({ token: ghTok, owner: gh.repoOwner, name: naming.repoName, branch: "main" });
-      steps.push({ label: "Neutral content", ok: seeded.ok, note: seeded.message });
+      const seeded = await seedNeutralContentIntoRepo({
+        token: ghTok, owner: gh.repoOwner, name: naming.repoName, branch: "main", seedRoot,
+      });
+      steps.push({ label: contentLabel, ok: seeded.ok, note: seeded.message });
       if (!seeded.ok) warnings.push(`Content seed: ${seeded.message}`);
     } else {
-      steps.push({ label: "Neutral content", ok: true, note: "skipped — repo already existed, content left alone" });
+      steps.push({ label: contentLabel, ok: true, note: "skipped — repo already existed, content left alone" });
     }
 
     // ── 4. Write deploy key, so CP edits survive a redeploy ───────────────────
@@ -3597,6 +3617,18 @@ export async function provisionDemoTenantAction(
     steps.push({ label: "APP_URL → CP host + redeploy", ok: reapplied.ok, note: reapplied.ok ? cmsBaseUrl : reapplied.message });
     if (!reapplied.ok) warnings.push(`APP_URL correction: ${reapplied.message}`);
 
+    // ── 8b. Platform-side adaptive data, demo only ────────────────────────────
+    // The CMS seed ships a context_slot and two hero variants; without a block
+    // and a rule on this side the slot has nothing to choose between and always
+    // renders the default. Fail-open: a demo without personalisation is still a
+    // working site, so this warns rather than failing the rollout.
+    if (mode === "demo") {
+      const { seedDemoPlatformData } = await import("@/lib/provisioning/demo-platform-seed");
+      const platformSeed = await seedDemoPlatformData(tenantId);
+      steps.push({ label: "Adaptive demo data", ok: platformSeed.ok, note: platformSeed.message });
+      warnings.push(...platformSeed.warnings);
+    }
+
     // ── 9. Public demo URL — a row, not a DNS change ──────────────────────────
     const domainResult = await addDomain(tenantId, naming.demoHost, { isPrimary: true, status: "active" });
     const alreadyMapped = !domainResult.ok && /already registered for this tenant/i.test(domainResult.error ?? "");
@@ -3629,3 +3661,13 @@ export async function provisionDemoTenantAction(
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * @deprecated Renamed to provisionTenantSiteAction now that a rollout can be a
+ * curated demo OR a blank site. Kept so existing callers keep working; it rolls
+ * out a demo, which is what the old name did.
+ */
+export const provisionDemoTenantAction = provisionTenantSiteAction;
+
+/** @deprecated Renamed to RolloutResult. */
+export type DemoRolloutResult = RolloutResult;
