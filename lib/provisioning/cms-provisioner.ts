@@ -32,6 +32,10 @@
 
 import "server-only";
 
+import { randomInt } from "crypto";
+
+import { generateOpenSshKeyPair } from "./openssh-key";
+
 const GITHUB_API = "https://api.github.com";
 // Ploi Cloud API base. NB: the IaC doc page shows "api.ploi.cloud" but that host
 // does not resolve ("fetch failed"); the authoritative auth doc + live resolution
@@ -373,6 +377,14 @@ export interface BuildInfraInput {
   healthCheckPath?: string;          // default "/cp/auth/login"
   secrets:        PloiSecret[];      // env vars (APP_URL, siteKey, etc.)
   domain?:        string;            // optional public domain
+  /**
+   * Extra build commands, appended AFTER `composer install`. Used for
+   * `php artisan mc:ensure-super-user`, which needs the vendor tree to exist
+   * and must run on every deploy (the container filesystem is ephemeral, so a
+   * user created once would not survive the next one). Every command here must
+   * be idempotent for that reason.
+   */
+  extraBuildCommands?: readonly string[];
 }
 
 /**
@@ -392,6 +404,7 @@ export function buildStatamicInfraYaml(input: BuildInfraInput): string {
     appName, team, repoUrl, repoOwner, repoName,
     branch = "main", phpVersion = "8.4",
     healthCheckPath = "/cp/auth/login", secrets, domain,
+    extraBuildCommands = [],
   } = input;
 
   const yamlEscape = (v: string): string => {
@@ -422,6 +435,7 @@ export function buildStatamicInfraYaml(input: BuildInfraInput): string {
   lines.push("    commands:");
   lines.push("      build:");
   lines.push("        - composer install --no-interaction --optimize-autoloader --no-dev");
+  for (const cmd of extraBuildCommands) lines.push(`        - ${yamlEscape(cmd)}`);
   lines.push("    settings:");
   lines.push(`      health_check_path: ${yamlEscape(healthCheckPath)}`);
   lines.push("      document_root: /public");
@@ -587,4 +601,326 @@ export function provisioningSlug(input: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "tenant";
+}
+
+// ── Fase 1c: write-enabled deploy key for CP push-back ───────────────────────────
+
+export interface DeployKeyResult {
+  ok:         boolean;
+  message:    string;
+  /** OpenSSH private key — set ONLY when a key was just generated. */
+  privateKey?: string;
+  /** True when a key with this title was already on the repo and was reused. */
+  reused?:    boolean;
+}
+
+/** Title used for the key we manage, so repeat runs can recognise it. */
+export const DEPLOY_KEY_TITLE = "ploi-cms-content";
+
+/**
+ * Put a WRITE-enabled deploy key on a per-tenant repo, so Statamic's Git
+ * integration can push CP content edits back.
+ *
+ * Without this, `STATAMIC_GIT_PUSH=true` commits into the container's ephemeral
+ * filesystem and the edits are LOST on the next deploy — the failure mode that
+ * made a CP site-URL edit silently diverge from the repo. It used to be a manual
+ * checklist item at the end of provisioning; this closes it.
+ *
+ * ─── Idempotence, and its one real limitation ────────────────────────────────
+ *
+ * GitHub only ever returns a deploy key's PUBLIC half, so a key we created on an
+ * earlier run cannot have its private half recovered. On a repeat run we
+ * therefore REUSE the existing key (`reused: true`, no `privateKey`) and leave
+ * the Ploi secret alone — which is correct, because that secret already holds
+ * the matching private half. Rotating would mean deleting and recreating, and
+ * that would break push-back for the window between the two calls.
+ *
+ * Never throws. A token without `admin:public_key`/repo-admin scope yields
+ * `ok: false` with a readable message; the caller logs it and carries on, since
+ * a demo without push-back is still a working demo.
+ */
+export async function ensureRepoDeployKey(opts: {
+  token:  string;
+  owner:  string;
+  repo:   string;
+  title?: string;
+}): Promise<DeployKeyResult> {
+  const { token, owner, repo } = opts;
+  const title = opts.title ?? DEPLOY_KEY_TITLE;
+  if (!token || !owner || !repo) return { ok: false, message: "owner/repo/token required" };
+
+  const headers = {
+    Authorization:          `Bearer ${token}`,
+    Accept:                 "application/vnd.github+json",
+    "Content-Type":         "application/json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent":           "mister-chameleon-provisioner",
+  };
+  const keysUrl = `${GITHUB_API}/repos/${owner}/${repo}/keys`;
+
+  // ── Already there? ────────────────────────────────────────────────────────
+  try {
+    const listRes = await fetch(keysUrl, { headers, cache: "no-store" });
+    if (listRes.ok) {
+      const keys = await listRes.json() as Array<{ title?: string; read_only?: boolean }>;
+      const existing = Array.isArray(keys) ? keys.find((k) => k.title === title) : undefined;
+      if (existing) {
+        return existing.read_only === true
+          ? { ok: false, reused: true, message: `Deploy key "${title}" exists but is READ-ONLY — remove it in GitHub and re-run, or CP edits will not push back.` }
+          : { ok: true,  reused: true, message: `Deploy key "${title}" already present (write) — reused; the Ploi secret already holds its private half.` };
+      }
+    }
+  } catch { /* fall through to create */ }
+
+  // ── Generate an ed25519 pair and register the public half ─────────────────
+  let publicKey: string;
+  let privateKey: string;
+  try {
+    ({ publicKey, privateKey } = generateOpenSshKeyPair(title));
+  } catch (err) {
+    return { ok: false, message: `Could not generate a deploy key: ${err instanceof Error ? err.message : String(err)}` };
+  }
+
+  try {
+    const res = await fetch(keysUrl, {
+      method: "POST",
+      headers,
+      cache:  "no-store",
+      body: JSON.stringify({ title, key: publicKey, read_only: false }),
+    });
+    if (res.status === 201) {
+      return { ok: true, message: `Deploy key "${title}" added with write access.`, privateKey };
+    }
+    const body = await res.json().catch(() => ({})) as { message?: string };
+    return {
+      ok: false,
+      message: `GitHub refused the deploy key (HTTP ${res.status}${body.message ? `: ${body.message}` : ""}). `
+        + "The token needs admin rights on the repo. CP edits will not push back until a write deploy key is added by hand.",
+    };
+  } catch (err) {
+    return { ok: false, message: `Network error adding the deploy key: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+// ── Fase 2b: discover the host Ploi assigned ─────────────────────────────────────
+
+export interface PloiHostResult {
+  ok:      boolean;
+  message: string;
+  /** Bare hostname, e.g. "mc-cms-acme-ams1-t.preview.ploi.it". */
+  host?:   string;
+}
+
+/**
+ * Fields Ploi has been seen to carry the assigned hostname in, most specific
+ * first. Kept broad on purpose: the exact shape is not contractual, a rename
+ * would otherwise silently break the rollout, and the caller already has a
+ * correct fallback for "host unknown" — so guessing wide costs nothing and a
+ * miss costs one manual paste.
+ */
+const PLOI_HOST_FIELDS = [
+  "default_domain", "domain", "hostname", "fqdn", "host", "url", "preview_url", "app_url",
+] as const;
+
+/** Pull the first usable hostname out of an application object. */
+function readPloiHost(app: Record<string, unknown>): string | undefined {
+  for (const field of PLOI_HOST_FIELDS) {
+    const value = app[field];
+    if (typeof value === "string" && value.trim()) {
+      const host = bareHost(value);
+      if (host.includes(".")) return host;
+    }
+  }
+  // `domains` may be a list of strings or of objects.
+  const domains = app["domains"];
+  if (Array.isArray(domains)) {
+    for (const entry of domains) {
+      const raw = typeof entry === "string"
+        ? entry
+        : (entry && typeof entry === "object" ? (entry as Record<string, unknown>)["domain"] : undefined);
+      if (typeof raw === "string" && raw.trim()) {
+        const host = bareHost(raw);
+        if (host.includes(".")) return host;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Ask Ploi which host it gave an application.
+ *
+ * A freshly applied app has no host for the first minute or so, which is why
+ * this is polled rather than read once — see `pollPloiApplicationHost`.
+ *
+ * Never throws: an unreachable API, an unexpected body, or an app that simply
+ * isn't ready yet all come back as `ok:false` with a message.
+ */
+export async function fetchPloiApplicationHost(opts: {
+  token:   string;
+  appName: string;
+}): Promise<PloiHostResult> {
+  const { token, appName } = opts;
+  if (!token)   return { ok: false, message: "Ploi Cloud API token is not configured." };
+  if (!appName) return { ok: false, message: "appName is required." };
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept:        "application/json",
+    "User-Agent":  "mister-chameleon-provisioner",
+  };
+
+  let body: unknown;
+  try {
+    const res = await fetch(`${PLOI_API}/applications`, { headers, cache: "no-store" });
+    if (!res.ok) return { ok: false, message: `Ploi returned HTTP ${res.status} listing applications.` };
+    body = await res.json();
+  } catch (err) {
+    return { ok: false, message: `Network error reaching Ploi: ${err instanceof Error ? err.message : String(err)}` };
+  }
+
+  // Ploi wraps collections in { data: [...] }; tolerate a bare array too.
+  const list = Array.isArray(body)
+    ? body
+    : (body && typeof body === "object" && Array.isArray((body as { data?: unknown }).data)
+        ? (body as { data: unknown[] }).data
+        : []);
+
+  const app = list.find((a): a is Record<string, unknown> =>
+    Boolean(a) && typeof a === "object" && (a as Record<string, unknown>)["name"] === appName);
+  if (!app) return { ok: false, message: `Application '${appName}' not found in the Ploi listing yet.` };
+
+  const host = readPloiHost(app);
+  if (!host) return { ok: false, message: `Application '${appName}' has no host assigned yet.` };
+  return { ok: true, host, message: `Ploi assigned ${host}.` };
+}
+
+/**
+ * Poll until Ploi reports a host, or the attempts run out.
+ *
+ * Returning `ok:false` is a normal outcome, not an error: the caller turns it
+ * into a "host pending" result the operator can finish later, so a slow Ploi
+ * never leaves a half-provisioned demo with no way forward.
+ */
+export async function pollPloiApplicationHost(opts: {
+  token:      string;
+  appName:    string;
+  attempts?:  number;   // default 8
+  intervalMs?: number;  // default 15_000
+}): Promise<PloiHostResult> {
+  const attempts   = opts.attempts   ?? 8;
+  const intervalMs = opts.intervalMs ?? 15_000;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  let last: PloiHostResult = { ok: false, message: "No attempt made." };
+  for (let i = 0; i < attempts; i++) {
+    last = await fetchPloiApplicationHost({ token: opts.token, appName: opts.appName });
+    if (last.ok) return last;
+    if (i < attempts - 1) await sleep(intervalMs);
+  }
+  return {
+    ok: false,
+    message: `Ploi did not report a host for '${opts.appName}' within ${attempts} attempt(s): ${last.message}`,
+  };
+}
+
+// ── Demo rollout: names, credentials and env ─────────────────────────────────────
+
+/** Everything a demo rollout needs to name consistently, derived from one slug. */
+export interface DemoNaming {
+  slug:     string;
+  repoName: string;
+  appName:  string;
+  /** Public demo host under the wildcard, e.g. "acme.demo.misterchameleon.nl". */
+  demoHost: string;
+  cpEmail:  string;
+}
+
+/** Parent zone of the demo wildcard — a single `*` CNAME covers every demo. */
+export const DEMO_DOMAIN_SUFFIX = "demo.misterchameleon.nl";
+
+/** Derive every name a demo rollout uses from the tenant slug. */
+export function demoNaming(tenantId: string, templateRepo: string): DemoNaming {
+  const slug = provisioningSlug(tenantId);
+  return {
+    slug,
+    repoName: `${templateRepo}-${slug}`,
+    appName:  `mc-cms-${slug}`,
+    demoHost: `${slug}.${DEMO_DOMAIN_SUFFIX}`,
+    cpEmail:  `demo+${slug}@misterchameleon.nl`,
+  };
+}
+
+/**
+ * A password an operator can read out loud once and paste — no ambiguous
+ * characters, and enough entropy that a public demo CP is not guessable
+ * (4 groups × 5 chars from a 31-char alphabet ≈ 99 bits).
+ */
+export function generateDemoPassword(): string {
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789"; // no i/l/o/0/1
+  const group = () => Array.from({ length: 5 }, () => alphabet[randomInt(alphabet.length)]).join("");
+  return [group(), group(), group(), group()].join("-");
+}
+
+export interface DemoSecretsInput {
+  /** The platform itself — where the CMS calls back to, and previews render. */
+  platformUrl: string;
+  /** The CP's own host. Unknown on the first apply; corrected in finalize. */
+  appUrl:      string;
+  appKey:      string;
+  siteKey:     string;
+  tenantId:    string;
+  cpEmail:     string;
+  cpPassword:  string;
+  /** Private half of the write deploy key, when one could be created. */
+  gitSshKey?:  string;
+}
+
+/**
+ * The full Ploi secret set for a demo instance.
+ *
+ * Pure, so the composition is unit-testable — in particular the two things that
+ * were previously hand-set and easy to get wrong:
+ *
+ *   APP_URL must be the CP's OWN host, not the platform. Pointing it at the
+ *   platform makes the CP generate links and redirects to the wrong origin. It
+ *   cannot be right on the first apply (Ploi hasn't assigned a host yet), so it
+ *   starts at the platform URL and finalize re-applies with the real host.
+ *
+ *   MISTER_CHAMELEON_API_URL and MC_PREVIEW_FRONTEND_URL stay the platform —
+ *   they are where the add-on and Live Preview talk TO, which is a different
+ *   thing from where the CP lives.
+ */
+export function buildDemoSecrets(input: DemoSecretsInput): PloiSecret[] {
+  const { platformUrl, appUrl, appKey, siteKey, tenantId, cpEmail, cpPassword, gitSshKey } = input;
+  return [
+    { key: "APP_ENV",   value: "production" },
+    { key: "APP_DEBUG", value: "false" },
+    { key: "APP_KEY",   value: appKey },
+    { key: "APP_URL",   value: appUrl },
+    { key: "STATAMIC_API_ENABLED", value: "true" },
+    // Pro is REQUIRED: navigations are a Statamic Pro feature. Without it the
+    // /api/navs/{handle}/tree endpoint 404s and the site renders no nav.
+    { key: "STATAMIC_PRO_ENABLED", value: "true" },
+    { key: "MISTER_CHAMELEON_API_URL",    value: platformUrl },
+    { key: "MISTER_CHAMELEON_TENANT_KEY", value: siteKey },
+    { key: "MC_PREVIEW_FRONTEND_URL",     value: platformUrl },
+    { key: "CP_ENABLED",            value: "true" },
+    { key: "SESSION_DRIVER",        value: "file" },
+    { key: "MISTER_CHAMELEON_MODE", value: "edge" },
+    // Read by `php artisan mc:ensure-super-user` in the build commands — without
+    // these a provisioned instance has no users at all and nobody can log in.
+    { key: "CP_ADMIN_EMAIL",    value: cpEmail },
+    { key: "CP_ADMIN_PASSWORD", value: cpPassword },
+    // Statamic Git integration — persists CP content edits back to the repo.
+    { key: "STATAMIC_GIT_ENABLED",        value: "true" },
+    { key: "STATAMIC_GIT_AUTOMATIC",      value: "true" },
+    { key: "STATAMIC_GIT_PUSH",           value: "true" },
+    { key: "STATAMIC_GIT_DISPATCH_DELAY", value: "5" },
+    { key: "STATAMIC_GIT_USER_NAME",      value: `Mister Chameleon CMS (${tenantId})` },
+    { key: "STATAMIC_GIT_USER_EMAIL",     value: `cms+${tenantId}@misterchameleon.nl` },
+    // The private half of the write deploy key. Without it STATAMIC_GIT_PUSH
+    // commits into the ephemeral container and CP edits are lost on redeploy.
+    ...(gitSshKey ? [{ key: "STATAMIC_GIT_SSH_KEY", value: gitSshKey }] : []),
+  ];
 }
