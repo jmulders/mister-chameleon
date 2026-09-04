@@ -116,12 +116,29 @@ interface SessionEnrichmentEntry {
   /** `Date.now()` timestamp when the entry was stored. */
   cachedAt:   number;
   /**
+   * Fingerprint of the form-provided location (mc_loc: postcode + huisnummer +
+   * place) at the time of caching — null when there was no form location. Used
+   * for change detection, analogous to `ip`: a request whose CURRENT form
+   * location differs from this invalidates the entry so the pipeline re-runs with
+   * the new mc_loc (otherwise a stale IP-geo enrichment shadows a just-submitted
+   * postcode + house number). See {@link formLocationFingerprint}.
+   */
+  formLocationHash?: string | null;
+  /**
    * True when this entry came from an INCOMPLETE pipeline run (a transient
    * upstream failure). Such entries use the short `SESSION_RETRY_TTL_MS` and get
    * no stale grace, so the pipeline re-runs soon and can fill in the missing data.
    */
   retry?:     boolean;
 }
+
+/**
+ * Reserved key under which the form-location fingerprint is stored INSIDE the L2
+ * `enrichment` JSONB column (no schema migration needed). It is embedded on write
+ * and stripped on read, so it never leaks into the EnrichmentOutput the pipeline
+ * consumes.
+ */
+const L2_FORMLOC_HASH_KEY = "__mcFormLocHash";
 
 /** L1: process-local store — fast path; resets on cold start. */
 const store = new Map<string, SessionEnrichmentEntry>();
@@ -154,11 +171,18 @@ async function readL2(sessionId: string): Promise<SessionEnrichmentEntry | null>
       .eq("session_id", sessionId)
       .maybeSingle();
     if (!data) return null;
+    // The form-location fingerprint is embedded in the enrichment JSONB under a
+    // reserved key (no schema column). Pull it out and strip it so the returned
+    // enrichment stays a clean EnrichmentOutput.
+    const rawEnrichment = { ...((data.enrichment as Record<string, unknown> | null) ?? {}) };
+    const embeddedHash = rawEnrichment[L2_FORMLOC_HASH_KEY];
+    delete rawEnrichment[L2_FORMLOC_HASH_KEY];
     return {
-      enrichment: (data.enrichment as Partial<EnrichmentOutput>) ?? {},
+      enrichment: rawEnrichment as Partial<EnrichmentOutput>,
       ip:         (data.ip as string | null) ?? null,
       tenantId:   (data.tenant_id as string | null) ?? null,
       cachedAt:   new Date(data.cached_at as string).getTime(),
+      formLocationHash: typeof embeddedHash === "string" ? embeddedHash : null,
       ...(data.retry ? { retry: true } : {}),
     };
   } catch {
@@ -173,11 +197,16 @@ function writeL2(entry: SessionEnrichmentEntry & { sessionId: string }): void {
       const { getDb } = await import("@/data/db");
       const db = getDb() as unknown as { from: (t: string) => { upsert: (row: unknown, opts: unknown) => Promise<unknown> } };
       const expiresAt = new Date(entry.cachedAt + ttlMsFor(entry.retry)).toISOString();
+      // Embed the form-location fingerprint in the JSONB (reserved key) so the
+      // change-detection survives cross-instance L2 reads without a schema column.
+      const enrichmentToStore = entry.formLocationHash
+        ? { ...entry.enrichment, [L2_FORMLOC_HASH_KEY]: entry.formLocationHash }
+        : entry.enrichment;
       await db.from(L2_TABLE).upsert({
         session_id: entry.sessionId,
         tenant_id:  entry.tenantId,
         ip:         entry.ip,
-        enrichment: entry.enrichment,
+        enrichment: enrichmentToStore,
         retry:      entry.retry ?? false,
         cached_at:  new Date(entry.cachedAt).toISOString(),
         expires_at: expiresAt,
@@ -215,7 +244,12 @@ export async function purgeExpiredSessionEnrichment(nowMs: number = Date.now()):
  * PURE evaluation of a cache entry against the current request — no store
  * mutation. Shared by the L1 and L2 paths so they invalidate identically.
  */
-function evaluate(entry: SessionEnrichmentEntry, currentIp: string | null, currentTenantId: string | null): SessionCacheResult {
+function evaluate(
+  entry: SessionEnrichmentEntry,
+  currentIp: string | null,
+  currentTenantId: string | null,
+  currentFormLocHash: string | null,
+): SessionCacheResult {
   const age = Date.now() - entry.cachedAt;
 
   // Retry entry (incomplete run): short TTL, no stale grace.
@@ -228,6 +262,17 @@ function evaluate(entry: SessionEnrichmentEntry, currentIp: string | null, curre
   // IP / tenant change detection (only when both sides are known).
   if (entry.ip && currentIp && entry.ip !== currentIp) return { hit: false, reason: "ip-changed" };
   if (entry.tenantId && currentTenantId && entry.tenantId !== currentTenantId) return { hit: false, reason: "tenant-changed" };
+
+  // Form-location change detection. Fires ONLY when the CURRENT request has a form
+  // location — so a request without mc_loc behaves exactly as before (no new
+  // miss). It then invalidates whenever the current fingerprint differs from the
+  // cached one, INCLUDING the null→value transition: the visitor browsed (cached
+  // on IP-geo, no form location) and then submitted a form that set postcode +
+  // house number. Value→null (cookie gone) does NOT invalidate — we keep serving
+  // the form-enriched result rather than dropping back to IP-geo.
+  if (currentFormLocHash != null && (entry.formLocationHash ?? null) !== currentFormLocHash) {
+    return { hit: false, reason: "formloc-changed" };
+  }
 
   // Stale-but-usable (non-retry, past TTL within grace) → stale hit.
   if (!entry.retry && age > SESSION_TTL_MS) return { hit: true, enrichment: entry.enrichment, stale: true };
@@ -269,8 +314,11 @@ export type SessionCacheMiss = {
    *                      entry hard-evicted
    *   "ip-changed"     — visitor IP changed (network switch / VPN toggle)
    *   "tenant-changed" — serving a different tenant than when cached
+   *   "formloc-changed"— the mc_loc form location changed (e.g. a form submit set
+   *                      a new postcode + house number) so the cached IP-geo
+   *                      enrichment must not shadow it
    */
-  reason: "no-entry" | "ttl-expired" | "ip-changed" | "tenant-changed";
+  reason: "no-entry" | "ttl-expired" | "ip-changed" | "tenant-changed" | "formloc-changed";
 };
 
 export type SessionCacheResult = SessionCacheHit | SessionCacheMiss;
@@ -289,12 +337,13 @@ export async function getSessionEnrichment(
   sessionId:         string,
   currentIp:         string | null,
   currentTenantId:   string | null,
+  currentFormLocHash: string | null = null,
 ): Promise<SessionCacheResult> {
   // ── L1 (process-local, fast) ─────────────────────────────────────────────────
   let missReason: SessionCacheMiss["reason"] = "no-entry";
   const local = store.get(sessionId);
   if (local) {
-    const r = evaluate(local, currentIp, currentTenantId);
+    const r = evaluate(local, currentIp, currentTenantId, currentFormLocHash);
     if (r.hit) return r;              // fresh (or stale-usable) L1 hit — no DB read
     missReason = r.reason;
     store.delete(sessionId);          // hard miss → evict the stale L1 copy
@@ -305,7 +354,7 @@ export async function getSessionEnrichment(
   // the pipeline (the cross-instance flicker fix). Fails open to the L1 miss reason.
   const row = await readL2(sessionId);
   if (row) {
-    const r2 = evaluate(row, currentIp, currentTenantId);
+    const r2 = evaluate(row, currentIp, currentTenantId, currentFormLocHash);
     if (r2.hit) {
       store.set(sessionId, row);      // warm L1 for subsequent requests on this instance
       return r2;
@@ -333,13 +382,14 @@ export function setSessionEnrichment(
   enrichment: Partial<EnrichmentOutput>,
   ip:         string | null,
   tenantId:   string | null,
-  opts?:      { retry?: boolean },
+  opts?:      { retry?: boolean; formLocationHash?: string | null },
 ): void {
   const entry: SessionEnrichmentEntry = {
     enrichment,
     ip,
     tenantId,
     cachedAt: Date.now(),
+    formLocationHash: opts?.formLocationHash ?? null,
     ...(opts?.retry ? { retry: true } : {}),
   };
   store.set(sessionId, entry);            // L1 (sync)
