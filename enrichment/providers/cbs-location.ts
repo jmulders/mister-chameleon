@@ -83,8 +83,9 @@ export interface CbsLocationOptions {
    * {@link GeoResolveResult} to simulate a transient ("error") failure.
    */
   geocode?:     (lat: number, lng: number) => Promise<string | GeoResolveResult | null>;
-  /** Injectable form-location→buurtcode geocoder (defaults to PDOK forward) — for tests. */
-  formGeocode?: (postcode: string | null, place: string | null) => Promise<string | GeoResolveResult | null>;
+  /** Injectable form-location→buurtcode geocoder (defaults to PDOK forward) — for tests.
+   *  `houseNumber` enables the exact address-level buurt lookup when present. */
+  formGeocode?: (postcode: string | null, place: string | null, houseNumber?: string | null) => Promise<string | GeoResolveResult | null>;
   /** Injectable cache lookup (defaults to the DB store) — for tests. */
   cacheLookup?: (areaCode: string) => Promise<CbsAreaStats | null>;
   /** Injectable single-buurt live fetch (defaults to CBS OData) — for tests. */
@@ -112,9 +113,12 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
     if (options.geocode) return asResult(await options.geocode(lat, lng));
     return (await import("@/lib/enrichment/pdok-geocode")).resolveBuurtcodeFromLatLng(lat, lng);
   }
-  async function formGeocode(postcode: string | null, place: string | null): Promise<GeoResolveResult> {
-    if (options.formGeocode) return asResult(await options.formGeocode(postcode, place));
-    return (await import("@/lib/enrichment/pdok-geocode")).resolveBuurtcodeFromFormLocation(postcode, place);
+  async function formGeocode(postcode: string | null, place: string | null, houseNumber?: string | null): Promise<GeoResolveResult> {
+    if (options.formGeocode) return asResult(await options.formGeocode(postcode, place, houseNumber));
+    // houseNumber (when present) routes through the exact address-level lookup;
+    // positional undefined,undefined keep the default timeout + fetch.
+    return (await import("@/lib/enrichment/pdok-geocode"))
+      .resolveBuurtcodeFromFormLocation(postcode, place, undefined, undefined, houseNumber);
   }
   async function cacheLookup(areaCode: string): Promise<CbsAreaStats | null> {
     if (options.cacheLookup) return options.cacheLookup(areaCode);
@@ -215,8 +219,12 @@ export function createCbsLocationEnricher(options: CbsLocationOptions = {}): Sta
 
       const fl = input.formLocation;
       if (fl && (fl.postcode || fl.place)) {
-        // 1/2. Explicit form location (postcode primary, place coarse).
-        const r = await formGeocode(fl.postcode ?? null, fl.place ?? null);
+        // 1/2. Explicit form location. With a house number this resolves the
+        //   EXACT address-level buurt (postcode + huisnummer → PDOK type:adres),
+        //   which is precise even when the PC6 centroid sits in another/central
+        //   buurt; without one it falls back to the postcode centroid (or the
+        //   place centroid, coarse). See resolveBuurtcodeFromFormLocation.
+        const r = await formGeocode(fl.postcode ?? null, fl.place ?? null, fl.houseNumber ?? null);
         note(r); areaCode = r.code;
         source   = fl.postcode ? "form-postcode" : "form-place";
       }

@@ -246,22 +246,92 @@ export async function latLngFromFree(
 }
 
 /**
- * Resolve a form-provided location (postcode primary, place fallback) to a CBS
- * buurtcode, returning a classified result. Forward-geocode the query to its
- * centroid, then reverse-geocode the centroid to a buurt. A transient failure at
- * either step surfaces as `status:"error"` so the caller retries later instead of
- * caching the miss. Postcode wins over place when both are given.
+ * Resolve a CBS buurtcode DIRECTLY from a full address (postcode + house number)
+ * via PDOK's address-level free search (`fq=type:adres`), returning a classified
+ * result. The matching `adres` doc carries its `buurtcode` field, so this is the
+ * EXACT buurt for that address — no centroid + reverse-geocode guesswork, which
+ * for a PC6 that straddles a buurt boundary (or whose centroid sits in the town
+ * centre) can land in the wrong/central buurt. Requires BOTH postcode and house
+ * number. Never throws; `fetchImpl` is injectable for tests.
+ *
+ * Proof: q="3904BT 3" → buurtcode BU03450223 (Petenbos), the exact address buurt.
+ */
+export async function resolveBuurtcodeFromAddress(
+  postcode: string | null | undefined,
+  houseNumber: string | null | undefined,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  fetchImpl: typeof fetch = fetch,
+): Promise<GeoResolveResult> {
+  const pc = postcode?.trim();
+  const hn = houseNumber?.trim();
+  if (!pc || !hn) return { status: "empty", code: null };
+
+  const controller = new AbortController();
+  const timeout    = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const params = new URLSearchParams({
+      q:    `${pc} ${hn}`,
+      // Pin to address docs — a bare postcode+number can otherwise rank a
+      // postcode/street doc first, which has no house-number-precise buurtcode.
+      fq:   "type:adres",
+      fl:   "id,buurtcode,weergavenaam",
+      rows: "1",
+    });
+    const res = await fetchImpl(`${PDOK_FREE_ENDPOINT}?${params.toString()}`, {
+      signal:  controller.signal,
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return { status: "error", code: null };
+    const json = (await res.json()) as {
+      response?: { docs?: Array<{ buurtcode?: string; id?: string; weergavenaam?: string }> };
+    };
+    const doc = json.response?.docs?.[0];
+    if (!doc) return { status: "empty", code: null };
+    const code = normalizeBuurtcode(doc.buurtcode ?? doc.id ?? null);
+    return code ? { status: "ok", code } : { status: "empty", code: null };
+  } catch {
+    return { status: "error", code: null };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Resolve a form-provided location to a CBS buurtcode, returning a classified
+ * result.
+ *
+ * Precedence:
+ *   1. FULL ADDRESS (postcode + house number) → exact address-level buurt via
+ *      PDOK `type:adres` (see {@link resolveBuurtcodeFromAddress}). This is the
+ *      most precise signal and avoids the centroid→reverse boundary error.
+ *   2. Postcode-only → forward-geocode the postcode to its centroid, then
+ *      reverse-geocode the centroid to a buurt.
+ *   3. Place-only → the woonplaats (town) centroid's buurt (coarse).
+ *
+ * `houseNumber` is the last positional arg to keep the existing (postcode, place,
+ * timeoutMs, fetchImpl) call sites working. A transient failure surfaces as
+ * `status:"error"` so the caller retries later instead of caching the miss.
  */
 export async function resolveBuurtcodeFromFormLocation(
   postcode: string | null | undefined,
   place: string | null | undefined,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   fetchImpl: typeof fetch = fetch,
+  houseNumber?: string | null | undefined,
 ): Promise<GeoResolveResult> {
-  // Postcode is precise (forward it as-is); a bare place name is pinned to the
-  // woonplaats centroid so it can't resolve to a street/address top-match.
   const pc    = postcode && postcode.trim();
   const place2 = place && place.trim();
+
+  // 1. Full address wins: exact buurt, no centroid guesswork. Only fall through
+  //    to the centroid path on a genuine miss/transient — never silently ignore a
+  //    resolved address buurt.
+  if (pc && houseNumber && houseNumber.trim()) {
+    const addr = await resolveBuurtcodeFromAddress(pc, houseNumber, timeoutMs, fetchImpl);
+    if (addr.status === "ok") return addr;
+  }
+
+  // 2/3. Postcode is precise (forward it as-is); a bare place name is pinned to
+  //    the woonplaats centroid so it can't resolve to a street/address top-match.
   const query = pc || place2 || null;
   if (!query) return { status: "empty", code: null };
   const fwd = await resolveLatLngFromFree(

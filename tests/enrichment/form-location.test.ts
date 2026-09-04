@@ -10,6 +10,7 @@ import {
 } from "../../context/form-location-context.ts";
 import {
   parseCentroidLatLng, latLngFromFree, buurtcodeFromFormLocation,
+  resolveBuurtcodeFromAddress, resolveBuurtcodeFromFormLocation,
 } from "../../lib/enrichment/pdok-geocode.ts";
 import { createCbsLocationEnricher, resetCbsNegativeCache } from "../../enrichment/providers/cbs-location.ts";
 import type { CbsAreaStats } from "../../enrichment/cbs-location-store.ts";
@@ -95,6 +96,63 @@ describe("PDOK forward geocode", () => {
     await buurtcodeFromFormLocation("1011 AB", null, 4000, f);
     const free = calls.find((u) => u.includes("/free"))!;
     assert.doesNotMatch(free, /woonplaats/i, "postcode forward is not woonplaats-filtered");
+  });
+
+  // ── Fix 1: address-level buurt (postcode + huisnummer) ─────────────────────
+  it("resolveBuurtcodeFromAddress hits type:adres and returns the exact buurtcode", async () => {
+    const calls: string[] = [];
+    const f = ((u: string) => {
+      calls.push(u);
+      // Mirrors the live PDOK result: q="3904BT 3" → BU03450223 (Petenbos).
+      return { ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU03450223", weergavenaam: "Peermos 3, 3904BT Veenendaal" }] } }) };
+    }) as unknown as typeof fetch;
+    const r = await resolveBuurtcodeFromAddress("3904BT", "3", 4000, f);
+    assert.equal(r.status, "ok");
+    assert.equal(r.code, "BU03450223");
+    const free = calls.find((u) => u.includes("/free"))!;
+    assert.match(free, /[?&]fq=type%3Aadres/i, "address lookup filters to type:adres");
+    assert.match(free, /q=3904BT\+3/i, "address lookup queries postcode + house number");
+    assert.ok(!calls.some((u) => u.includes("/reverse")), "no reverse-geocode needed for an address");
+  });
+
+  it("resolveBuurtcodeFromAddress needs BOTH postcode and house number", async () => {
+    const never = (() => { throw new Error("should not fetch"); }) as unknown as typeof fetch;
+    assert.equal((await resolveBuurtcodeFromAddress("3904BT", null, 4000, never)).status, "empty");
+    assert.equal((await resolveBuurtcodeFromAddress(null, "3", 4000, never)).status, "empty");
+  });
+
+  it("resolveBuurtcodeFromFormLocation PREFERS the address buurt over the centroid when a house number is given", async () => {
+    const calls: string[] = [];
+    const f = ((u: string) => {
+      calls.push(u);
+      if (u.includes("fq=type%3Aadres") || u.includes("fq=type:adres"))
+        return { ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU03450223" }] } }) };
+      // Centroid + reverse would (historically) land in the central buurt — must NOT be used here.
+      if (u.includes("/free")) return { ok: true, json: async () => ({ response: { docs: [{ centroide_ll: "POINT(5.5446 52.0080)" }] } }) };
+      return { ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU03450099" }] } }) }; // /reverse (centrum)
+    }) as unknown as typeof fetch;
+    const r = await resolveBuurtcodeFromFormLocation("3904BT", null, 4000, f, "3");
+    assert.equal(r.code, "BU03450223", "address-level buurt wins");
+    assert.ok(!calls.some((u) => u.includes("/reverse")), "did not fall back to centroid→reverse");
+  });
+
+  it("resolveBuurtcodeFromFormLocation falls back to the postcode centroid when the address lookup is empty", async () => {
+    const f = ((u: string) => {
+      if (u.includes("adres")) return { ok: true, json: async () => ({ response: { docs: [] } }) }; // no address doc
+      if (u.includes("/free")) return { ok: true, json: async () => ({ response: { docs: [{ centroide_ll: "POINT(5.5446 52.0080)" }] } }) };
+      return { ok: true, json: async () => ({ response: { docs: [{ buurtcode: "BU03450223" }] } }) }; // /reverse
+    }) as unknown as typeof fetch;
+    const r = await resolveBuurtcodeFromFormLocation("3904BT", null, 4000, f, "999");
+    assert.equal(r.code, "BU03450223", "centroid fallback still resolves a buurt");
+  });
+
+  // ── Fix 2 regression: mc_loc carries postcode + huisnummer end-to-end ──────
+  it("mc_loc round-trip preserves postcode AND huisnummer (BAG/EP-Online depend on it)", () => {
+    const fl = formLocationFromValues({ postcode: "3904BT", huisnummer: "3", email: "a@b.nl" });
+    assert.deepEqual(fl, { postcode: "3904BT", place: null, houseNumber: "3" });
+    const parsed = parseFormLocationCookie(serializeFormLocation(fl!));
+    assert.equal(parsed?.postcode, "3904BT");
+    assert.equal(parsed?.houseNumber, "3");
   });
 });
 
