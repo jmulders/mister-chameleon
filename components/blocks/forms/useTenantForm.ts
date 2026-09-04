@@ -21,6 +21,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getFormDefinition, isFormKey } from "@/forms";
+import { resolveRedirectTarget, resolvePostSubmitAction } from "@/forms/context/resolve";
 import type { ResolvedForm } from "@/forms/context/types";
 import { trackEvent } from "@/tracking/track-event";
 import { pushToJourneyStore, generateEventId, getJourneyStoreVisitorId } from "@/tracking/journey-store";
@@ -51,7 +52,16 @@ export interface UseTenantFormResult {
 
 export function useTenantForm(
   formKey: string,
-  opts?: { fallbackSuccessMessage?: string },
+  opts?: {
+    /** @deprecated Use `blockSuccessMessage` — kept so existing callers keep working. */
+    fallbackSuccessMessage?: string;
+    /** CMS block-level success message (Form Section "Bedanktekst"). */
+    blockSuccessMessage?:    string;
+    /** CMS block-level redirect target — already normalised by the mapper. */
+    blockRedirectUrl?:       string;
+    /** CMS block-level post-submit behaviour; absent = "message". */
+    postSubmit?:             "message" | "redirect";
+  },
 ): UseTenantFormResult {
   const pathname = usePathname();
   const router   = useRouter();
@@ -76,9 +86,20 @@ export function useTenantForm(
     return () => { cancelled = true; };
   }, [formKey, pathname]);
 
+  // A contextual overlay is the most specific source, then the CMS block
+  // placement, then the code FormDefinition.
+  const blockSuccessMessage   = opts?.blockSuccessMessage ?? opts?.fallbackSuccessMessage;
+  const overlaySuccessMessage = overlay?.successMessage;
   const successMessage =
-    overlay?.successMessage ?? opts?.fallbackSuccessMessage ?? formDef?.action.successMessage ?? DEFAULT_SUCCESS;
-  const redirectPath = overlay?.redirectPath ?? formDef?.action.redirectPath;
+    overlaySuccessMessage ?? blockSuccessMessage ?? formDef?.action.successMessage ?? DEFAULT_SUCCESS;
+
+  // Post-submit target — see resolveRedirectTarget for the precedence rules.
+  const redirectPath = resolveRedirectTarget({
+    postSubmit:             opts?.postSubmit,
+    blockRedirectUrl:       opts?.blockRedirectUrl,
+    overlayRedirectPath:    overlay?.redirectPath,
+    definitionRedirectPath: formDef?.action.redirectPath,
+  });
 
   const fireFormEvent = useCallback((eventType: "form_start" | "form_submit") => {
     const payload = { form_key: formKey, page_path: pathname, visitor_id: getJourneyStoreVisitorId() ?? undefined };
@@ -114,11 +135,18 @@ export function useTenantForm(
       }
       if (json.ok) {
         fireFormEvent("form_submit");
-        if (redirectPath && redirectPath.startsWith("/") && !redirectPath.startsWith("//")) {
-          router.push(redirectPath);
-          return;
-        }
-        setSubmitState({ status: "success", message: (json as { ok: true; message?: string }).message ?? successMessage });
+        // An internal path stays a client-side navigation; an external URL (a
+        // Form Section block may point at an off-site thank-you page) needs a
+        // full page load. An unsafe target degrades to the message.
+        const action = resolvePostSubmitAction(redirectPath, {
+          overlaySuccessMessage,
+          blockSuccessMessage,
+          responseMessage: (json as { ok: true; message?: string }).message,
+          fallbackMessage: successMessage,
+        });
+        if (action.kind === "push")   { router.push(action.path);          return; }
+        if (action.kind === "assign") { window.location.assign(action.url); return; }
+        setSubmitState({ status: "success", message: action.message });
         return;
       }
       if ("errors" in json && json.errors && typeof json.errors === "object") {
@@ -131,7 +159,7 @@ export function useTenantForm(
     } catch {
       setSubmitState({ status: "error", message: "Network error. Please check your connection and try again." });
     }
-  }, [formKey, redirectPath, successMessage, router, fireFormEvent]);
+  }, [formKey, redirectPath, successMessage, blockSuccessMessage, overlaySuccessMessage, router, fireFormEvent]);
 
   return { resolvedForm: overlay, submitState, errorRevision, submit, fireFormEvent, successMessage, redirectPath };
 }
