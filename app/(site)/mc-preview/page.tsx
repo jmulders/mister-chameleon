@@ -25,7 +25,6 @@ import { getDraft, type StatamicDraftEntry } from "@/lib/statamic-draft-store";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { resolveTenantById } from "@/tenant/resolve-tenant";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
-import { logger } from "@/lib/logger";
 import type { PageData, CmsPageContextConfig } from "@/cms/types";
 
 type PageProps = {
@@ -114,15 +113,6 @@ export default async function McPreviewPage({ searchParams }: PageProps) {
               seoDescription: d.seoDescription,
               blocks: Array.isArray(d.pageBlocks) ? d.pageBlocks : [],
             };
-            // TEMP diagnostic (safe to remove): confirm which slug + blocks the
-            // CMS addon (mc-live-preview-data) actually sends for the edited entry.
-            logger.info("[mc-preview][temp] addon draft", {
-              slug: draftEntry.slug || "(empty)",
-              collection: draftEntry.collection,
-              blockCount: draftEntry.blocks.length,
-              blockTypes: (draftEntry.blocks as Array<Record<string, unknown>>)
-                .map((b) => (b && typeof b === "object" ? b.type : undefined)),
-            });
           }
         }
       }

@@ -689,18 +689,6 @@ export async function buildDecisionContext(
     ? parseFormLocationCookie(parseCookieField(cookieHeader, FORM_LOCATION_COOKIE))
     : null;
 
-  // TEMP diagnostic (safe to remove): confirm on the live context whether the
-  // mc_loc cookie carried postcode + huisnummer into formLocation — i.e. whether
-  // the per-address enrichers (BAG / EP-Online need huisnummer; CBS address-level
-  // + netbeheer need postcode) can fire. Only logs when an mc_loc cookie exists.
-  if (formLocation) {
-    console.info("[loc][temp] formLocation", {
-      hasPostcode:    Boolean(formLocation.postcode),
-      hasHouseNumber: Boolean(formLocation.houseNumber),
-      hasPlace:       Boolean(formLocation.place),
-    });
-  }
-
   // Fingerprint of the form location, used to invalidate the session-enrichment
   // cache when mc_loc changes (e.g. a form submit sets a new postcode + house
   // number) — otherwise a cache hit would serve the earlier IP-geo enrichment and
