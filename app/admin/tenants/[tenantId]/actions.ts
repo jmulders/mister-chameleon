@@ -3617,6 +3617,18 @@ export async function provisionTenantSiteAction(
     steps.push({ label: "APP_URL → CP host + redeploy", ok: reapplied.ok, note: reapplied.ok ? cmsBaseUrl : reapplied.message });
     if (!reapplied.ok) warnings.push(`APP_URL correction: ${reapplied.message}`);
 
+    // ── 8b. Platform-side adaptive data, demo only ────────────────────────────
+    // The CMS seed ships a context_slot and two hero variants; without a block
+    // and a rule on this side the slot has nothing to choose between and always
+    // renders the default. Fail-open: a demo without personalisation is still a
+    // working site, so this warns rather than failing the rollout.
+    if (mode === "demo") {
+      const { seedDemoPlatformData } = await import("@/lib/provisioning/demo-platform-seed");
+      const platformSeed = await seedDemoPlatformData(tenantId);
+      steps.push({ label: "Adaptive demo data", ok: platformSeed.ok, note: platformSeed.message });
+      warnings.push(...platformSeed.warnings);
+    }
+
     // ── 9. Public demo URL — a row, not a DNS change ──────────────────────────
     const domainResult = await addDomain(tenantId, naming.demoHost, { isPrimary: true, status: "active" });
     const alreadyMapped = !domainResult.ok && /already registered for this tenant/i.test(domainResult.error ?? "");
