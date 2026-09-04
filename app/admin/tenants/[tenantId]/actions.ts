@@ -2824,7 +2824,7 @@ export async function provisionTenantCmsAction(
       getPlatformPloiSettings, ploiFlags, resolvePloiToken,
     } = await import("@/platform/platform-store");
     const {
-      generateRepoFromTemplate, seedNeutralPagesIntoRepo, buildStatamicInfraYaml, applyPloiInfrastructure, provisioningSlug,
+      generateRepoFromTemplate, seedNeutralContentIntoRepo, buildStatamicInfraYaml, applyPloiInfrastructure, provisioningSlug,
     } = await import("@/lib/provisioning/cms-provisioner");
 
     const ghResult = await getPlatformGithubSettings();
@@ -2857,19 +2857,20 @@ export async function provisionTenantCmsAction(
     });
     if (!repo.ok) return { ok: false, error: `Fase 1 (repo): ${repo.message}` };
 
-    // ── Fase 1b: seed neutral placeholder pages into the FRESH repo only ──
+    // ── Fase 1b: seed neutral content into the FRESH repo only ──
     // A generated repo is a copy of the template, including its (possibly live)
-    // content/. Overwrite the new repo's pages with the neutral seed so the
-    // tenant rolls out brand-free. Skipped when the repo already existed, so an
-    // existing tenant's content is never touched. Best-effort + non-fatal.
+    // content/. Write the neutral seed over it and drop the collection entries
+    // the seed doesn't provide, so the tenant rolls out brand-free. Skipped when
+    // the repo already existed, so an existing tenant's content is never
+    // touched. Best-effort + non-fatal.
     if (!repo.alreadyExisted) {
-      const seedResult = await seedNeutralPagesIntoRepo({
+      const seedResult = await seedNeutralContentIntoRepo({
         token: ghTok,
         owner: gh.repoOwner,
         name:  repoName,
         branch: "main",
       });
-      logger.info("[provision] neutral page seed", { tenantId, repo: repoName, ...seedResult });
+      logger.info("[provision] neutral content seed", { tenantId, repo: repoName, ...seedResult });
     }
 
     // ── Fase 2: create the Ploi Cloud application ──
