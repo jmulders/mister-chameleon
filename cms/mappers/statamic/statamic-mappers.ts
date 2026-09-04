@@ -93,6 +93,7 @@ import type {
   StatamicAdaptiveBlockEntry,
 } from "../../queries/statamic/adaptive-block-queries";
 import { isContextSlotBlockType } from "./context-slot-block";
+import { safeRedirectTarget } from "@/forms/context/resolve";
 
 // ── Hero media helper ───────────────────────────────────────────────────────
 
@@ -1476,6 +1477,15 @@ export function mapStatamicPageBlocksToSections(
         // object ({handle}/{value}/{id}/{slug}). resolveFormHandle normalises all
         // of them to the handle. Backward-compat fallback: the old `form_key`.
         // `heading` → title, `subtitle` → intro (display copy above the form).
+        //
+        // Submit-behaviour fields (all optional — blocks saved before they
+        // existed simply leave them empty): `submit_label` overrides the button
+        // copy, `post_submit` picks between showing `success_message` and
+        // redirecting to `redirect_target`. Anything other than "redirect"
+        // (including absent) means "message", the pre-existing behaviour.
+        // `redirect_target` is a Statamic link field (entry object or raw
+        // string) — normalised by resolveLinkHref, then filtered by
+        // safeRedirectTarget so an open redirect can't be authored in the CP.
         const formKey =
           resolveFormHandle(block.form) ||
           (typeof block.form_key === "string" ? block.form_key.trim() : "");
@@ -1488,6 +1498,12 @@ export function mapStatamicPageBlocksToSections(
           formKey,
           title:   typeof block.heading  === "string" ? block.heading  : undefined,
           intro:   typeof block.subtitle === "string" ? block.subtitle : undefined,
+          submitLabel:    extractString(block.submit_label) || undefined,
+          successMessage: typeof block.success_message === "string" && block.success_message.trim()
+            ? block.success_message
+            : undefined,
+          postSubmit:     extractString(block.post_submit) === "redirect" ? "redirect" : "message",
+          redirectUrl:    safeRedirectTarget(resolveLinkHref(block.redirect_target)),
         };
         sections.push(section);
         break;

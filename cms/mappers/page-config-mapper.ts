@@ -437,6 +437,8 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
           intro:          section.intro,
           submitLabel:    section.submitLabel,
           successMessage: section.successMessage,
+          postSubmit:     section.postSubmit,
+          redirectUrl:    section.redirectUrl,
         },
       };
 

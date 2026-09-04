@@ -54,3 +54,65 @@ describe("form_section block → formKey", () => {
     assert.equal(formKeyOf(null), undefined);
   });
 });
+
+describe("form_section block → submit behaviour", () => {
+  const sectionOf = (extra: Record<string, unknown> = {}) => {
+    const sections = mapStatamicPageBlocksToSections(
+      [{ type: "form_section", variant: "form_inline", form: "locatie-test", ...extra } as Record<string, unknown>],
+      undefined,
+    );
+    return sections.find((x) => (x as { _type?: string })._type === "formSection") as {
+      submitLabel?:    string;
+      successMessage?: string;
+      postSubmit?:     string;
+      redirectUrl?:    string;
+    } | undefined;
+  };
+
+  it("maps submit_label and success_message", () => {
+    const s = sectionOf({ submit_label: "Verstuur aanvraag", success_message: "Dank je wel!" });
+    assert.equal(s?.submitLabel,    "Verstuur aanvraag");
+    assert.equal(s?.successMessage, "Dank je wel!");
+  });
+
+  it("blank submit_label / success_message map to undefined", () => {
+    const s = sectionOf({ submit_label: "", success_message: "   " });
+    assert.equal(s?.submitLabel,    undefined);
+    assert.equal(s?.successMessage, undefined);
+  });
+
+  it("defaults post_submit to \"message\" — including for blocks saved before the field existed", () => {
+    assert.equal(sectionOf()?.postSubmit,                            "message");
+    assert.equal(sectionOf({ post_submit: "message" })?.postSubmit,  "message");
+    assert.equal(sectionOf({ post_submit: "onzin" })?.postSubmit,    "message");
+  });
+
+  it("post_submit \"redirect\" survives both the raw string and the augmented CP object", () => {
+    assert.equal(sectionOf({ post_submit: "redirect" })?.postSubmit,                        "redirect");
+    assert.equal(sectionOf({ post_submit: { value: "redirect", label: "Doorsturen" } })?.postSubmit, "redirect");
+  });
+
+  it("redirect_target as a raw string path", () => {
+    assert.equal(sectionOf({ post_submit: "redirect", redirect_target: "/bedankt" })?.redirectUrl, "/bedankt");
+  });
+
+  it("redirect_target as an entry object — url preferred over permalink", () => {
+    assert.equal(
+      sectionOf({ post_submit: "redirect", redirect_target: { url: "/dank", permalink: "https://mc.nl/dank" } })?.redirectUrl,
+      "/dank",
+    );
+    assert.equal(
+      sectionOf({ post_submit: "redirect", redirect_target: { permalink: "https://mc.nl/dank" } })?.redirectUrl,
+      "https://mc.nl/dank",
+    );
+  });
+
+  it("an unsafe redirect_target is dropped rather than mapped", () => {
+    assert.equal(sectionOf({ post_submit: "redirect", redirect_target: "javascript:alert(1)" })?.redirectUrl, undefined);
+    assert.equal(sectionOf({ post_submit: "redirect", redirect_target: "//evil.example" })?.redirectUrl,      undefined);
+  });
+
+  it("no redirect_target → undefined", () => {
+    assert.equal(sectionOf()?.redirectUrl, undefined);
+  });
+});

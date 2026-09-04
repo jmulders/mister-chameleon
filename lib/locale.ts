@@ -34,27 +34,24 @@ import { cookies, headers } from "next/headers";
 // also imported by proxy.ts (middleware), and tenant/server pulls in the
 // Supabase client. resolveTenantOrNull() is a plain in-memory map lookup.
 import { resolveTenantOrNull } from "@/tenant/resolve-tenant";
+import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "./locale-shared";
+import type { SupportedLocale } from "./locale-shared";
 
-// ── Supported locales ─────────────────────────────────────────────────────────
+// ── Supported locales / cookie name ───────────────────────────────────────────
+//
+// These live in ./locale-shared so Client Components can read them without
+// pulling in next/headers (which resolves to a build-time throw inside a client
+// bundle). Re-exported here so `@/lib/locale` stays the single import for
+// server-side callers.
 
-export const SUPPORTED_LOCALES = ["en", "nl", "de"] as const;
-export type  SupportedLocale   = (typeof SUPPORTED_LOCALES)[number];
-
-/**
- * Platform-wide fallback, used only when the active tenant declares no
- * defaultLocale of its own. A tenant's own defaultLocale always wins — see
- * getLocale().
- */
-export const DEFAULT_LOCALE: SupportedLocale = "en";
-
-/** True when the given string is a known supported locale. */
-export function isSupportedLocale(value: string): value is SupportedLocale {
-  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
-
-// ── Cookie name ───────────────────────────────────────────────────────────────
-
-export const LOCALE_COOKIE = "locale";
+export {
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  isSupportedLocale,
+  LOCALE_COOKIE,
+  readLocaleCookie,
+} from "./locale-shared";
+export type { SupportedLocale } from "./locale-shared";
 
 // ── Server-side locale reader ─────────────────────────────────────────────────
 

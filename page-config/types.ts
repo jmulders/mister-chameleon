@@ -830,6 +830,19 @@ export interface FormBlockData {
    * Falls back to FormDefinition.action.successMessage when absent.
    */
   readonly successMessage?: string;
+  /**
+   * What happens after a successful submission, authored per block placement:
+   *   "message"  — show `successMessage` in place of the form (default)
+   *   "redirect" — navigate to `redirectUrl`
+   * Absent = "message", so existing placements keep their behaviour.
+   */
+  readonly postSubmit?:     "message" | "redirect";
+  /**
+   * Redirect target for `postSubmit: "redirect"` — an already-normalised href:
+   * either an internal path ("/bedankt") or an absolute http(s) URL. Validated
+   * by safeRedirectTarget() at map time; anything else is dropped.
+   */
+  readonly redirectUrl?:    string;
 }
 
 // ── Listing ───────────────────────────────────────────────────────────────────

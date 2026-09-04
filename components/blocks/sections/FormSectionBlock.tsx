@@ -9,7 +9,8 @@
  * ─── Separation of concerns ───────────────────────────────────────────────────
  *
  *   CMS (FormSectionData)          — placement + copy overrides (title, intro,
- *                                    submitLabel, successMessage)
+ *                                    submitLabel, successMessage) and the
+ *                                    post-submit behaviour (message / redirect)
  *   FormDefinition (@/forms)       — field structure, validation, routing intent
  *   FormSectionBlock (here)        — rendering, state, field composition, fetch
  *   POST /api/forms/[formKey]      — server-side validation, email, storage
@@ -17,7 +18,7 @@
  * ─── Props ───────────────────────────────────────────────────────────────────
  *
  *   data     FormBlockData     { formKey, title?, intro?, submitLabel?,
- *                                successMessage? }
+ *                                successMessage?, postSubmit?, redirectUrl? }
  *   variant  FormSectionVariant  see below
  *
  * ─── Variants ────────────────────────────────────────────────────────────────
@@ -40,7 +41,9 @@
  *        200  { ok: true,  message }           → show success state
  *        422  { ok: false, errors }            → show per-field errors inline
  *        4xx  { ok: false, error }             → show top-level error banner
- *   4. Redirect (formDef.action.redirectPath) is not yet handled here — Fm5+.
+ *   4. On success, useTenantForm either navigates to the resolved redirect
+ *      target (block `redirectUrl` when postSubmit is "redirect", else the
+ *      overlay / definition redirectPath) or shows the success message.
  *
  * ─── Design tokens consumed ───────────────────────────────────────────────────
  *
@@ -70,6 +73,7 @@ import { getFormDefinition, resolveFormKey } from "@/forms";
 import type { FormField } from "@/forms";
 import { selectFormRender } from "@/forms/context/resolve";
 import { useTenantForm } from "@/components/blocks/forms/useTenantForm";
+import { useActiveLocale } from "@/hooks/useActiveLocale";
 import { TurnstileWidget } from "@/components/blocks/forms/TurnstileWidget";
 
 // Must match HONEYPOT_FIELD in forms/spam.ts — kept here to avoid importing
@@ -136,7 +140,17 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     // (/api/forms/[formKey]) hit the registered definition even when the CMS
     // handle was snake_case. Falls back to the raw value when unresolved (the
     // block then renders nothing anyway — formDef is undefined).
-    useTenantForm(resolvedFormKey ?? data.formKey, { fallbackSuccessMessage: data.successMessage });
+    useTenantForm(resolvedFormKey ?? data.formKey, {
+      blockSuccessMessage: data.successMessage,
+      blockRedirectUrl:    data.redirectUrl,
+      postSubmit:          data.postSubmit,
+    });
+
+  // Visitor language, for the default (un-authored) button copy. Read from the
+  // `locale` cookie after mount — see useActiveLocale for why not during render.
+  const locale              = useActiveLocale();
+  const defaultSubmitLabel  = locale === "en" ? "Submit"   : "Verstuur";
+  const defaultSendingLabel = locale === "en" ? "Sending…" : "Bezig…";
 
   // ── Effective copy + fields: overlay override → CMS copy → definition ─────
   //
@@ -149,7 +163,10 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     selectFormRender(formDef?.fields, overlay?.fields);
   const title          = overlay?.title          ?? data.title          ?? formDef?.title;
   const intro          = overlay?.intro          ?? data.intro          ?? formDef?.description;
-  const submitLabel    = overlay?.submitLabel    ?? data.submitLabel    ?? "Submit";
+  // Default button copy follows the visitor's language. Dutch is the base for
+  // these tenants, so only an explicit "en" gets English; an authored label
+  // (overlay, then the CMS block) always wins over the default.
+  const submitLabel    = overlay?.submitLabel    ?? data.submitLabel    ?? defaultSubmitLabel;
   // Canonical key for the DOM/aria-label. Submit + context URLs are owned by
   // useTenantForm (resolvedFormKey ?? data.formKey), so a CMS form posts to its
   // own handle and a code form to its registered key.
@@ -217,6 +234,7 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
       formKey={effectiveKey}
       fields={effectiveFields}
       submitLabel={submitLabel}
+      sendingLabel={defaultSendingLabel}
       isSubmitting={isSubmitting}
       fieldErrors={fieldErrors}
       globalError={globalError}
@@ -423,6 +441,8 @@ interface FormFieldsProps {
   formKey:       string;
   fields:        readonly FormField[];
   submitLabel:   string;
+  /** Button copy while the submission is in flight, in the visitor's language. */
+  sendingLabel:  string;
   isSubmitting:  boolean;
   fieldErrors:   Record<string, string>;
   globalError?:  string;
@@ -438,6 +458,7 @@ function FormFields({
   formKey,
   fields,
   submitLabel,
+  sendingLabel,
   isSubmitting,
   fieldErrors,
   globalError,
@@ -599,7 +620,7 @@ function FormFields({
               fontWeight:      "var(--btn-font-weight)",
             }}
           >
-            {isSubmitting ? "Sending…" : submitLabel}
+            {isSubmitting ? sendingLabel : submitLabel}
           </Button>
         </div>
 
