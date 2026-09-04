@@ -66,7 +66,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { getFormDefinition, isFormKey } from "@/forms";
+import { getFormDefinition, resolveFormKey } from "@/forms";
 import type { FormField } from "@/forms";
 import { useTenantForm } from "@/components/blocks/forms/useTenantForm";
 import { TurnstileWidget } from "@/components/blocks/forms/TurnstileWidget";
@@ -117,9 +117,10 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   // type guard, then look up the registered FormDefinition.  Unknown keys
   // render nothing rather than crashing — forward-compatible with CMS content
   // that references a form not yet registered on this deployment.
-  const formDef = isFormKey(data.formKey)
-    ? getFormDefinition(data.formKey)
-    : undefined;
+  // Resolve the CMS handle to a registered FormKey, tolerating Statamic's
+  // snake_case ("locatie_test") vs the code's kebab-case ("locatie-test").
+  const resolvedFormKey = resolveFormKey(data.formKey);
+  const formDef = resolvedFormKey ? getFormDefinition(resolvedFormKey) : undefined;
 
   // ── Contextual overlay (rules → segment → copy/fields override) ───────────
   //
@@ -130,7 +131,11 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   // form is always rendered — the overlay just swaps values in when ready.
   // Shared tenant-form pipeline: contextual overlay + submit + state + analytics.
   const { resolvedForm: overlay, submitState, errorRevision, submit: handleSubmit, fireFormEvent } =
-    useTenantForm(data.formKey, { fallbackSuccessMessage: data.successMessage });
+    // Use the CANONICAL registered key so the submit / context URLs
+    // (/api/forms/[formKey]) hit the registered definition even when the CMS
+    // handle was snake_case. Falls back to the raw value when unresolved (the
+    // block then renders nothing anyway — formDef is undefined).
+    useTenantForm(resolvedFormKey ?? data.formKey, { fallbackSuccessMessage: data.successMessage });
 
   // ── Effective copy + fields: overlay override → CMS copy → definition ─────
   const title          = overlay?.title          ?? data.title          ?? formDef?.title;

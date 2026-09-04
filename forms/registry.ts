@@ -131,3 +131,30 @@ export function getAllFormDefinitions(): readonly FormDefinition[] {
 export function isFormKey(value: string): value is FormKey {
   return Object.prototype.hasOwnProperty.call(FORM_REGISTRY, value);
 }
+
+/**
+ * Resolve a raw form HANDLE (e.g. from a CMS relation) to a registered FormKey,
+ * tolerating separator + case differences between the CMS and the code.
+ *
+ * Statamic generates form handles in snake_case ("locatie_test"), while the code
+ * FormDefinitions use kebab-case keys ("locatie-test"). Without normalisation a
+ * CP-linked form never matches getFormDefinition() and the form_section renders
+ * nothing. Resolution order (conservative — no fuzzy matching, so no false hits):
+ *   1. exact match;
+ *   2. separator swap `_` ↔ `-` ("locatie_test" → "locatie-test");
+ *   3. case-insensitive, separator-agnostic compare against the registry.
+ * Returns undefined for an unknown handle. Builds on resolveFormHandle (#370),
+ * which first extracts the handle string from the CP field shape.
+ */
+export function resolveFormKey(handle: string | null | undefined): FormKey | undefined {
+  const raw = (handle ?? "").trim();
+  if (!raw) return undefined;
+  if (isFormKey(raw)) return raw;                                   // 1. exact
+  for (const v of [raw.replace(/_/g, "-"), raw.replace(/-/g, "_")]) // 2. separator swap
+    if (isFormKey(v)) return v;
+  const norm = (s: string) => s.toLowerCase().replace(/_/g, "-");   // 3. case + separator agnostic
+  const target = norm(raw);
+  for (const key of Object.keys(FORM_REGISTRY) as FormKey[])
+    if (norm(key) === target) return key;
+  return undefined;
+}

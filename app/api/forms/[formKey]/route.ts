@@ -62,7 +62,7 @@
 
 import { NextRequest, NextResponse }   from "next/server";
 import { headers }                      from "next/headers";
-import { getFormDefinition, isFormKey } from "@/forms";
+import { getFormDefinition, resolveFormKey } from "@/forms";
 import { validateSubmission }           from "@/forms/validation";
 import { buildSystemVars }              from "@/forms/validation";
 import {
@@ -227,7 +227,9 @@ async function handlePost(
   const platformEmailConfig = emailResolution.layers.platform as any ?? null;
 
   // ── 1c. Try platform registry first ─────────────────────────────────────
-  const formDef = isFormKey(formKey) ? getFormDefinition(formKey) : null;
+  // Tolerate a snake_case CMS handle (Statamic) vs the kebab-case FormKey.
+  const resolvedKey = resolveFormKey(formKey);
+  const formDef = resolvedKey ? getFormDefinition(resolvedKey) : null;
 
   // ── 1d. Fall back to CMS-managed form definition ─────────────────────────
   const cmsForm = !formDef
