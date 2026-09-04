@@ -152,7 +152,12 @@ export function resolveFormKey(handle: string | null | undefined): FormKey | und
   if (isFormKey(raw)) return raw;                                   // 1. exact
   for (const v of [raw.replace(/_/g, "-"), raw.replace(/-/g, "_")]) // 2. separator swap
     if (isFormKey(v)) return v;
-  const norm = (s: string) => s.toLowerCase().replace(/_/g, "-");   // 3. case + separator agnostic
+  // 3. case- AND separator-agnostic: strip every separator so a CP-slugified
+  //    handle with NO separator (e.g. Statamic turns "locatie_test" into the
+  //    form handle "locatietest") still matches a kebab-case key ("locatie-test").
+  //    Safe against false hits: the registry keys are distinct once separators
+  //    are removed (contact / application / appointment / newsletter / locatietest).
+  const norm = (s: string) => s.toLowerCase().replace(/[-_\s]+/g, "");
   const target = norm(raw);
   for (const key of Object.keys(FORM_REGISTRY) as FormKey[])
     if (norm(key) === target) return key;

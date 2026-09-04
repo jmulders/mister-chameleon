@@ -133,11 +133,27 @@ export async function POST(req: NextRequest) {
 
   const entry: StatamicDraftEntry = {
     collection: typeof body.collection === "string" ? body.collection : "pages",
-    slug: typeof body.slug === "string" ? body.slug : "home",
+    // Do NOT default to "home": Statamic's Live Preview can send a null slug for
+    // the reconstructed (unsaved) item, and stamping "home" makes a non-home
+    // entry's preview adopt the homepage's identity (metadata, URL, and
+    // context-slot resolution) — the "preview shows the homepage" bug. An empty
+    // slug is rendered straight from the draft blocks by /mc-preview instead.
+    slug: typeof body.slug === "string" ? body.slug : "",
     blocks,
     title: typeof body.title === "string" ? body.title : undefined,
     seoDescription: typeof body.seoDescription === "string" ? body.seoDescription : undefined,
   };
+
+  // TEMP diagnostic (safe to remove): the bridge (production) flow stores the
+  // draft here, so this reveals the slug + blocks the CMS addon actually sends
+  // for the edited entry — the source of the "preview shows homepage" symptom.
+  logger.info("[statamic-draft][temp] stored draft", {
+    slug: entry.slug || "(empty — addon sent no slug)",
+    collection: entry.collection,
+    blockCount: blocks.length,
+    blockTypes: (blocks as Array<Record<string, unknown>>)
+      .map((b) => (b && typeof b === "object" ? b.type : undefined)),
+  });
 
   const token = await storeDraft(entry);
   return NextResponse.json({ token }, { headers: CORS_HEADERS });

@@ -20,6 +20,12 @@ describe("resolveFormKey", () => {
     assert.equal(resolveFormKey("Locatie_Test"), "locatie-test");
     assert.equal(resolveFormKey("  locatie_test  "), "locatie-test");
   });
+  it("separatorLESS handle resolves (CP slugified 'locatie_test' → 'locatietest')", () => {
+    // Statamic's form-handle slugifier drops the underscore, so the CP form
+    // handle arrives as "locatietest" — it must still map to "locatie-test".
+    assert.equal(resolveFormKey("locatietest"), "locatie-test");
+    assert.equal(resolveFormKey("LocatieTest"), "locatie-test");
+  });
   it("resolves to a real, fetchable definition", () => {
     const key = resolveFormKey("locatie_test")!;
     const def = getFormDefinition(key);
