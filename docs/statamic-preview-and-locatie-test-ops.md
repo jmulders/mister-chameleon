@@ -83,3 +83,41 @@ laten overleven; voor nu volstaat "auteur in het CP".
    form-postcode-pad: **CBS (buurt), BAG (per adres), netbeheer (PC6), EP-Online (label)**.
    Zichtbaar in de scenario/demo-readout of het `/demo`-debug (afhankelijk van welke keys
    op prod aanstaan: `BAG_API_KEY`, `NETBEHEER_ENERGY_ENABLED`, `EPONLINE_API_KEY`).
+
+## C. Volledig in het CP gebouwde (self-service) formulieren
+
+Een formulier hoeft **niet** als code-`FormDefinition` te bestaan. `FormSectionBlock`
+rendert nu ook een **CMS-form** (in het CP gebouwd): resolvet de niet-code `formKey` via
+`fetchCMSFormByName` → `toPlatformFields` (exact dezelfde loader die de submit-route
+`/api/forms/[formKey]` al gebruikt), en rendert de blueprint-velden met **dezelfde
+veld-atoms** als de code-forms. Zo werkt een self-service formulier end-to-end zonder
+code-wijziging.
+
+- **Resolutie-volgorde (render én submit identiek):** 1) code-`FormDefinition`
+  (`resolveFormKey` → `getFormDefinition`, houdt **voorrang**), 2) CMS-form-fallback. Een
+  onbekende `formKey` (geen code, geen CMS) rendert een **nette leegte** i.p.v. een crash.
+- De velden komen binnen via de contextual-overlay-fetch (`/api/forms/[formKey]/context`
+  → `resolveContextualForm`); daarom verschijnt een CMS-form zodra die fetch terug is.
+
+### C1. Enrichment-conventie — velden op handle, niet op label
+
+De locatie-enrichment (CBS/BAG/netbeheer/EP-Online) triggert op de **veld-handles** van de
+submit, niet op de labels. Een self-service formulier dat de enrichment moet aanzetten
+**moet** dus velden met deze handles hebben (`formLocationFromValues`,
+`context/form-location-context.ts`, case-insensitive):
+
+| Doel | Handle (voorbeelden die matchen) | Effect |
+|---|---|---|
+| **Postcode** (primair) | `postcode`, `post_code`, `postal`, `zip` | zet `mc_loc.postcode` → CBS-buurt, en met huisnummer → BAG/netbeheer/EP-Online per adres |
+| **Huisnummer** | `huisnummer`, `huis_nummer`, `huisnr`, `house_number`, `house_no` | samen met postcode: het **exacte adres** (BAG/EP-Online) |
+| **Plaats** (grof, fallback) | `plaats`, `woonplaats`, `city`, `town`, `gemeente` | coarse locatie als er géén geldige postcode is |
+
+Regels:
+- **Postcode + huisnummer** = volledige verrijking (buurt + adres). Alleen `plaats` =
+  alleen grove locatie. Zonder één van deze handles zet de submit **geen** `mc_loc`-cookie
+  en draait de locatie-pass niet.
+- De postcode wordt genormaliseerd naar `1234AB`; een los ingetypte postcode in een
+  vrij-tekstveld wordt als laatste redmiddel nog uit de waarden gevist, maar reken daar
+  niet op — geef het veld gewoon de handle `postcode`.
+- Labels/volgorde zijn vrij; alleen de **handle** telt. Bouw je het formulier in het CP,
+  zet de veld-handle dus expliciet op `postcode` / `huisnummer` (evt. `woonplaats`).

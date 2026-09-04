@@ -14,14 +14,22 @@ import { getFormDefinition, isFormKey } from "@/forms";
 import { getDb } from "@/data/db";
 import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
 import { getAdaptiveBlockByKey } from "@/lib/adaptive-blocks/adaptive-blocks-store";
-import { applyFormOverlay } from "./resolve";
+import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
+import { applyFormOverlay, buildCmsResolvedForm } from "./resolve";
 import type { FormVariantContent } from "./variant";
 import type { FormContextSignals, ResolvedForm } from "./types";
 
 /**
- * Resolve the contextual form for a request. Returns null when the form key is
- * not a platform-registered form (CMS-managed forms keep their own copy).
- * Never throws — falls back to the base definition on any config error.
+ * Resolve the ready-to-render form for a request.
+ *
+ * Resolution order mirrors the submit route (POST /api/forms/[formKey]) so
+ * render and submit always agree on the same field set:
+ *   1. Platform-registered code FormDefinition (takes precedence).
+ *   2. CMS-managed form (authored in the CP), loaded via fetchCMSFormByName and
+ *      converted to FormField[] with toPlatformFields.
+ * Returns null only when neither source has the form — the caller then renders a
+ * clean empty. Never throws — falls back to the base definition on any config
+ * error.
  */
 export async function resolveContextualForm(
   tenantId: string | null | undefined,
@@ -29,13 +37,9 @@ export async function resolveContextualForm(
   signals: FormContextSignals,
 ): Promise<ResolvedForm | null> {
   const formDef = isFormKey(formKey) ? getFormDefinition(formKey) : null;
-  if (!formDef) return null;
-
-  const base = { fields: formDef.fields };
 
   // Per-form override drives BOTH the Turnstile toggle and the presentation
-  // layout. Load it once. Resolved independently of the overlay so both return
-  // paths carry the extras.
+  // layout. Keyed by formKey, so it applies to code AND CMS forms. Load it once.
   let turnstileEnabled = false;
   let layout: ResolvedForm["layout"];
   if (tenantId) {
@@ -52,14 +56,34 @@ export async function resolveContextualForm(
     : undefined;
   const extras = { turnstile, ...(layout ? { layout } : {}) };
 
-  // The legacy per-segment overlays/rules (settings.formContext) are retired:
-  // per-visitor form selection now runs through the decision engine — a rule
-  // sets plan.formVariants[<type>] and the decide route merges the chosen
-  // variant onto this base. So here we return the base form (fields + copy from
-  // the definition) plus the presentation extras; the variant is layered on by
-  // the caller. `signals` is kept in the signature for that caller contract.
+  // ── 1. Code FormDefinition (precedence) ──────────────────────────────────
+  if (formDef) {
+    // The legacy per-segment overlays/rules (settings.formContext) are retired:
+    // per-visitor form selection now runs through the decision engine — a rule
+    // sets plan.formVariants[<type>] and the decide route merges the chosen
+    // variant onto this base. So here we return the base form (fields + copy from
+    // the definition) plus the presentation extras; the variant is layered on by
+    // the caller. `signals` is kept in the signature for that caller contract.
+    void signals;
+    return { ...applyFormOverlay({ fields: formDef.fields }, null, undefined), ...extras };
+  }
+
+  // ── 2. CMS-managed form fallback ─────────────────────────────────────────
+  // A form built entirely in the CP: resolve its blueprint and render the same
+  // field atoms as code forms. Same loader the submit route uses, so a submit to
+  // /api/forms/[formKey] validates against the identical field set.
   void signals;
-  return { ...applyFormOverlay(base, null, undefined), ...extras };
+  const cmsForm = await fetchCMSFormByName(formKey, tenantId);
+  if (!cmsForm) return null;
+  return {
+    ...buildCmsResolvedForm({
+      title:          cmsForm.title,
+      successMessage: cmsForm.successMessage,
+      redirectPath:   cmsForm.successRedirectUrl,
+      fields:         toPlatformFields(cmsForm.fields),
+    }),
+    ...extras,
+  };
 }
 
 /**

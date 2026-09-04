@@ -68,6 +68,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { getFormDefinition, resolveFormKey } from "@/forms";
 import type { FormField } from "@/forms";
+import { selectFormRender } from "@/forms/context/resolve";
 import { useTenantForm } from "@/components/blocks/forms/useTenantForm";
 import { TurnstileWidget } from "@/components/blocks/forms/TurnstileWidget";
 
@@ -138,10 +139,21 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     useTenantForm(resolvedFormKey ?? data.formKey, { fallbackSuccessMessage: data.successMessage });
 
   // ── Effective copy + fields: overlay override → CMS copy → definition ─────
+  //
+  // `selectFormRender` resolves the effective field set from the two sources —
+  // the synchronous code definition and the async overlay (a contextual variant
+  // of a code form OR a fully CP-authored CMS form) — and decides whether there
+  // is anything to render. Code definitions take precedence; a CMS form renders
+  // once its overlay arrives; an unknown formKey renders a clean empty.
+  const { fields: effectiveFields, render: hasRenderableForm } =
+    selectFormRender(formDef?.fields, overlay?.fields);
   const title          = overlay?.title          ?? data.title          ?? formDef?.title;
   const intro          = overlay?.intro          ?? data.intro          ?? formDef?.description;
   const submitLabel    = overlay?.submitLabel    ?? data.submitLabel    ?? "Submit";
-  const effectiveFields: readonly FormField[] = overlay?.fields ?? formDef?.fields ?? [];
+  // Canonical key for the DOM/aria-label. Submit + context URLs are owned by
+  // useTenantForm (resolvedFormKey ?? data.formKey), so a CMS form posts to its
+  // own handle and a code form to its registered key.
+  const effectiveKey   = formDef?.key ?? resolvedFormKey ?? data.formKey;
 
 
 
@@ -150,8 +162,9 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     return <RoiCalculatorInteractive title={title} intro={intro} />;
   }
 
-  // Guard: nothing to render when formKey is not registered
-  if (!formDef) return null;
+  // Guard: nothing to render when the formKey resolves to neither a code
+  // FormDefinition nor a CMS-managed form (unknown key → clean empty).
+  if (!hasRenderableForm) return null;
 
 
   // ── Success state ─────────────────────────────────────────────────────────
@@ -201,7 +214,7 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
 
   const formContent = (
     <FormFields
-      formKey={formDef.key}
+      formKey={effectiveKey}
       fields={effectiveFields}
       submitLabel={submitLabel}
       isSubmitting={isSubmitting}
