@@ -1,0 +1,96 @@
+fields:
+  -
+    handle: anchor_id
+    field:
+      type: text
+      display: 'Anchor ID'
+      instructions: 'Used for in-page navigation, e.g. ''prijzen'' → /page#prijzen. No spaces or special characters.'
+  -
+    handle: heading
+    field:
+      type: text
+      display: Heading
+      instructions: 'Optional title above the pricing cards.'
+  -
+    handle: subheading
+    field:
+      type: textarea
+      display: Subheading
+      instructions: 'Optional introductory line below the heading.'
+  -
+    handle: tiers
+    field:
+      type: grid
+      display: 'Pricing tiers'
+      instructions: 'One row per package. A row without a name, price, button label or button link is skipped — those four are what a card needs to render.'
+      add_row: 'Add tier'
+      reorderable: true
+      fields:
+        -
+          handle: name
+          field:
+            type: text
+            display: Name
+            instructions: 'Package name, e.g. "Start".'
+            width: 50
+        -
+          handle: price
+          field:
+            type: text
+            display: Price
+            instructions: 'Shown as typed — "€49", "Gratis" and "Op maat" are all valid.'
+            width: 25
+        -
+          handle: period
+          field:
+            type: text
+            display: Period
+            instructions: 'Billing period next to the price, e.g. "/maand". Leave empty for a one-off or custom price.'
+            width: 25
+        -
+          handle: description
+          field:
+            type: textarea
+            display: Description
+            instructions: 'One line about who this package is for.'
+        -
+          handle: features
+          field:
+            type: textarea
+            display: Features
+            instructions: 'One benefit per line. Blank lines are ignored.'
+        -
+          handle: cta_label
+          field:
+            type: text
+            display: 'Button label'
+            width: 50
+        -
+          handle: cta_href
+          field:
+            type: link
+            display: 'Button link'
+            instructions: 'Pick a page, or enter a path (/contact) or full URL.'
+            collections:
+              - pages
+            width: 50
+        -
+          handle: highlighted
+          field:
+            type: toggle
+            display: Highlight
+            instructions: 'Emphasises this card — use it for the package you want people to pick.'
+            width: 50
+        -
+          handle: badge
+          field:
+            type: text
+            display: Badge
+            instructions: 'Short label on the card, e.g. "Meest gekozen".'
+            width: 50
+  -
+    handle: footnote
+    field:
+      type: text
+      display: Footnote
+      instructions: 'Small print under the cards, e.g. "Alle prijzen zijn exclusief btw."'
