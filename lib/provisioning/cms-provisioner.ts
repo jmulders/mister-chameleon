@@ -945,3 +945,100 @@ export function buildDemoSecrets(input: DemoSecretsInput): PloiSecret[] {
     ...(gitSshKey ? [{ key: "STATAMIC_GIT_SSH_KEY", value: gitSshKey }] : []),
   ];
 }
+
+// ── Ploi Cloud build commands: the cms-content overlay ───────────────────────────
+
+/**
+ * Content paths the CP versions, and therefore the paths the overlay restores.
+ *
+ * MUST stay in step with `config/statamic/git.php`'s `paths` in the template
+ * repo — that config decides what the CP commits to `cms-content`, and this
+ * decides what a deploy reads back. A path in one and not the other is content
+ * that is either saved and never restored, or restored and never saved.
+ * Content-only on purpose: fieldsets, blueprints and addons are platform-managed
+ * and must come from the image, not from a CP push.
+ */
+export const CMS_CONTENT_PATHS = [
+  "content",
+  "users",
+  "resources/forms",
+  "resources/users",
+  "resources/preferences.yaml",
+  "storage/forms",
+  "public/assets",
+] as const;
+
+/** Branch the CP pushes its content snapshot to; also git.php's default. */
+export const DEFAULT_CONTENT_BRANCH = "cms-content";
+
+/**
+ * Build commands that restore the CP's content snapshot onto a fresh Ploi Cloud
+ * pod.
+ *
+ * ─── Why this has to exist at all ────────────────────────────────────────────
+ *
+ * Ploi Cloud does NOT run `deploy.sh`; only the commands in the IaC run. On a
+ * classic Ploi server the deploy script fetches `cms-content` and overlays it,
+ * which is what makes CP edits survive a redeploy. Without the same steps here,
+ * a provisioned tenant pushes its edits to `cms-content` and then serves the
+ * image's content on the next deploy — the edits look like they vanished.
+ *
+ * The commands mirror the block in the template's DEPLOY.md, which is the source
+ * of truth, split into separate list items so a failure in one cannot take the
+ * rest with it.
+ *
+ * ─── Two deliberate omissions vs. deploy.sh ──────────────────────────────────
+ *
+ *   `git reset --hard origin/main` — deploy.sh needs it because a long-lived
+ *   server has a working tree that has drifted. A Cloud build starts from a
+ *   fresh clone of the branch, so there is nothing to reset.
+ *
+ *   the sites.yaml URL rewrite — driven by STATAMIC_SITE_URL, which the
+ *   provisioner does not set: a provisioned tenant's public URL is the wildcard
+ *   demo host, resolved by the platform rather than baked into the CMS.
+ *
+ * ─── Everything is fail-open ─────────────────────────────────────────────────
+ *
+ * Whether a Cloud build can run a second authenticated fetch is not something
+ * this code can know — Ploi does the initial clone itself, with its own
+ * credentials. So every command ends in `|| true`: if the fetch or a checkout
+ * cannot run, the deploy carries on and serves the image's content, which is
+ * exactly today's behaviour. The overlay can only ever improve on that, never
+ * break a deploy.
+ */
+export function buildContentOverlayCommands(opts: {
+  repoOwner:      string;
+  repoName:       string;
+  contentBranch?: string;
+}): string[] {
+  const { repoOwner, repoName } = opts;
+  const branch = opts.contentBranch ?? DEFAULT_CONTENT_BRANCH;
+  const sshUrl = `git@github.com:${repoOwner}/${repoName}.git`;
+
+  return [
+    // A build container often runs git as a different user than the checkout's
+    // owner, which makes git refuse with "detected dubious ownership" and would
+    // silently no-op every command below. Cheap insurance.
+    `git config --global --add safe.directory "$(pwd)" || true`,
+
+    // Install the deploy key. Guarded on the secret being present so an instance
+    // without one simply skips the whole overlay rather than erroring per step.
+    `if [ -n "\${STATAMIC_GIT_SSH_KEY:-}" ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh `
+      + `&& printf '%s\\n' "$STATAMIC_GIT_SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519 `
+      + `&& ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null; fi || true`,
+
+    // Switch to SSH ONLY when the key is there. Doing it unconditionally would
+    // replace whatever working credentials Ploi cloned with, and break a fetch
+    // that would otherwise have succeeded over HTTPS.
+    `if [ -n "\${STATAMIC_GIT_SSH_KEY:-}" ]; then git remote set-url origin ${sshUrl}; fi || true`,
+
+    `git fetch origin --prune || true`,
+
+    // One checkout per path, each independent: a path that does not exist yet
+    // (or a cms-content branch that has never been pushed) must not stop the
+    // others. This is also what makes the very first deploy safe.
+    ...CMS_CONTENT_PATHS.map(
+      (p) => `git checkout origin/${branch} -- ${p} 2>/dev/null || true`,
+    ),
+  ];
+}
