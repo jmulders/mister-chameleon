@@ -3348,3 +3348,284 @@ export async function deletePageAction(
   revalidatePath(`/admin/tenants/${tenantId}/content/pages`);
   return { ok: true };
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ONE-CLICK DEMO ROLLOUT
+// ═════════════════════════════════════════════════════════════════════════════
+
+export interface DemoRolloutResult {
+  ok:        boolean;
+  error?:    string;
+  /** "ready" — everything wired. "host-pending" — finish once Ploi assigns a host. */
+  status?:   "ready" | "host-pending";
+  tenantId?: string;
+  /** Public demo site, under the *.demo.misterchameleon.nl wildcard. */
+  demoUrl?:  string;
+  /** Statamic control panel, on the Ploi host. */
+  cpUrl?:    string;
+  cpEmail?:  string;
+  /** Shown ONCE — it is never stored anywhere the operator can read it back. */
+  cpPassword?: string;
+  repoUrl?:  string;
+  appName?:  string;
+  steps?:    { label: string; ok: boolean; note: string }[];
+  warnings?: string[];
+}
+
+/**
+ * Roll out a complete, working demo in one action.
+ *
+ * Everything that used to be a manual checklist item after provisioning is done
+ * here: the tenant record, the repo, neutral content, a write deploy key, a
+ * super-user to log in with, and a public URL.
+ *
+ * ─── Why there is no per-demo DNS ────────────────────────────────────────────
+ *
+ * A wildcard `*.demo.misterchameleon.nl` CNAME points at Vercel, and the same
+ * wildcard is registered once on the platform's Vercel project. Every demo is
+ * then just a `tenant_domains` row — no registrar visit, no Vercel domain, no
+ * certificate wait. That one-time setup is in docs/demo-rollout.md; without it
+ * the CP and the content still work, only the public URL doesn't resolve.
+ *
+ * ─── Never leaves a half-built demo ──────────────────────────────────────────
+ *
+ * Ploi assigns a host asynchronously. When it hasn't within the polling window,
+ * this returns `status: "host-pending"` with the credentials and repo it DID
+ * create, and the operator finishes with the existing finalize action once the
+ * host shows up. Steps that are merely nice-to-have — the deploy key, the
+ * public domain row — degrade to a warning rather than failing the rollout.
+ */
+export async function provisionDemoTenantAction(
+  name: string,
+  opts?: { hostPollAttempts?: number; hostPollIntervalMs?: number },
+): Promise<DemoRolloutResult> {
+  await getRequiredAdminSession();
+  try {
+    const {
+      generateRepoFromTemplate, seedNeutralContentIntoRepo, buildStatamicInfraYaml,
+      applyPloiInfrastructure, pollPloiApplicationHost, ensureRepoDeployKey,
+      demoNaming, generateDemoPassword, buildDemoSecrets, provisioningSlug,
+    } = await import("@/lib/provisioning/cms-provisioner");
+    const {
+      getPlatformGithubSettings, githubFlags, resolveGithubToken,
+      getPlatformPloiSettings, ploiFlags, resolvePloiToken,
+    } = await import("@/platform/platform-store");
+    const { addDomain } = await import("@/tenant/domain-store");
+
+    const trimmed = name.trim();
+    if (!trimmed) return { ok: false, error: "Give the demo a name." };
+
+    const tenantId = provisioningSlug(trimmed);
+    const steps:    { label: string; ok: boolean; note: string }[] = [];
+    const warnings: string[] = [];
+
+    // ── Credentials / tokens ──────────────────────────────────────────────────
+    const ghResult = await getPlatformGithubSettings();
+    if (!ghResult.ok) return { ok: false, error: ghResult.error };
+    const ploiResult = await getPlatformPloiSettings();
+    if (!ploiResult.ok) return { ok: false, error: ploiResult.error };
+
+    const gh      = githubFlags(ghResult.data);
+    const ploi    = ploiFlags(ploiResult.data);
+    const ghTok   = resolveGithubToken(ghResult.data);
+    const ploiTok = resolvePloiToken(ploiResult.data);
+    if (!ghTok)     return { ok: false, error: "No GitHub token configured. Add one in Platform → Integrations → Provisioning." };
+    if (!ploi.team) return { ok: false, error: "No Ploi Cloud team configured. Set it in Platform → Integrations → Provisioning." };
+    if (!ploiTok)   return { ok: false, error: "No Ploi Cloud API token configured. Add one in Platform → Integrations → Provisioning." };
+
+    const naming = demoNaming(tenantId, gh.templateRepo);
+
+    // ── 1. Tenant — reuse the normal onboarding path ──────────────────────────
+    // createTenant() generates the siteKey itself, so nothing is hand-rolled here.
+    let tenant = await getTenantById(tenantId);
+    if (tenant) {
+      steps.push({ label: "Tenant", ok: true, note: `${tenantId} already existed — reused` });
+    } else {
+      const { createTenantFromOnboardingAction } = await import("@/app/admin/tenants/actions");
+      const created = await createTenantFromOnboardingAction({
+        tenantId,
+        tenantName:  trimmed,
+        websiteUrl:  naming.demoHost,
+        packageKey:  "growth",
+        cmsProvider: "statamic",
+        themePreset: "minimal",
+      });
+      if (!created.ok) return { ok: false, error: `Could not create the tenant: ${created.error}` };
+      tenant = created.tenant;
+      steps.push({ label: "Tenant", ok: true, note: `created ${tenantId}` });
+    }
+
+    const siteKey = tenant.snippet?.siteKey;
+    if (!siteKey) return { ok: false, error: `Tenant '${tenantId}' has no siteKey — cannot wire the CMS to the platform.` };
+
+    // ── 2. Repo from the template ─────────────────────────────────────────────
+    const repo = await generateRepoFromTemplate({
+      token:         ghTok,
+      templateOwner: gh.templateOwner,
+      templateRepo:  gh.templateRepo,
+      owner:         gh.repoOwner,
+      name:          naming.repoName,
+      privateRepo:   true,
+      description:   `Mister Chameleon demo CMS (${tenantId})`,
+    });
+    if (!repo.ok) return { ok: false, error: `Repo: ${repo.message}`, steps };
+    steps.push({ label: "GitHub repo", ok: true, note: repo.alreadyExisted ? "reused" : "created from template" });
+
+    // ── 3. Neutral content — only ever on a repo we just made ─────────────────
+    if (!repo.alreadyExisted) {
+      const seeded = await seedNeutralContentIntoRepo({ token: ghTok, owner: gh.repoOwner, name: naming.repoName, branch: "main" });
+      steps.push({ label: "Neutral content", ok: seeded.ok, note: seeded.message });
+      if (!seeded.ok) warnings.push(`Content seed: ${seeded.message}`);
+    } else {
+      steps.push({ label: "Neutral content", ok: true, note: "skipped — repo already existed, content left alone" });
+    }
+
+    // ── 4. Write deploy key, so CP edits survive a redeploy ───────────────────
+    const key = await ensureRepoDeployKey({ token: ghTok, owner: gh.repoOwner, repo: naming.repoName });
+    steps.push({ label: "Write deploy key", ok: key.ok, note: key.message });
+    if (!key.ok) warnings.push(`Deploy key: ${key.message} CP edits will not persist across redeploys until this is fixed.`);
+
+    // ── 5. Ploi application ───────────────────────────────────────────────────
+    const { randomBytes } = await import("crypto");
+    const appKey      = `base64:${randomBytes(32).toString("base64")}`;
+    const cpPassword  = generateDemoPassword();
+    const platformUrl = ploi.platformApiUrl || "https://www.misterchameleon.nl";
+
+    const yaml = buildStatamicInfraYaml({
+      appName:    naming.appName,
+      team:       ploi.team,
+      repoUrl:    repo.htmlUrl ?? `https://github.com/${gh.repoOwner}/${naming.repoName}`,
+      repoOwner:  gh.repoOwner,
+      repoName:   naming.repoName,
+      branch:     "main",
+      phpVersion: ploi.phpVersion,
+      // Idempotent, and it has to run on every deploy: the container filesystem
+      // is ephemeral, so a user created once would not survive the next one.
+      extraBuildCommands: ["php artisan mc:ensure-super-user"],
+      secrets: buildDemoSecrets({
+        platformUrl,
+        // Ploi has not assigned a host yet, so this is provisionally the
+        // platform URL and is corrected below once the real host is known.
+        appUrl:     platformUrl,
+        appKey,
+        siteKey,
+        tenantId,
+        cpEmail:    naming.cpEmail,
+        cpPassword,
+        ...(key.privateKey ? { gitSshKey: key.privateKey } : {}),
+      }),
+    });
+
+    const applied = await applyPloiInfrastructure({ token: ploiTok, yaml, autoDeploy: true });
+    if (!applied.ok) {
+      return {
+        ok: false,
+        error: `Ploi: ${applied.message}`,
+        steps,
+        repoUrl: repo.htmlUrl,
+        cpEmail: naming.cpEmail,
+        cpPassword,
+      };
+    }
+    steps.push({ label: "Ploi application", ok: true, note: `${naming.appName} applied` });
+
+    // ── 6. Wait for the host Ploi assigned ────────────────────────────────────
+    const hostResult = await pollPloiApplicationHost({
+      token:      ploiTok,
+      appName:    naming.appName,
+      ...(opts?.hostPollAttempts   !== undefined ? { attempts:   opts.hostPollAttempts }   : {}),
+      ...(opts?.hostPollIntervalMs !== undefined ? { intervalMs: opts.hostPollIntervalMs } : {}),
+    });
+
+    if (!hostResult.ok || !hostResult.host) {
+      // Not a failure: everything above is built and the operator can finish
+      // with Finalize once the host appears. Returning the credentials matters —
+      // the password exists nowhere else.
+      revalidatePath(`/admin/tenants/${tenantId}/setup`);
+      steps.push({ label: "Ploi host", ok: false, note: hostResult.message });
+      return {
+        ok: true,
+        status: "host-pending",
+        tenantId,
+        demoUrl:  `https://${naming.demoHost}`,
+        cpEmail:  naming.cpEmail,
+        cpPassword,
+        repoUrl:  repo.htmlUrl,
+        appName:  naming.appName,
+        steps,
+        warnings: [...warnings, `Ploi has not assigned a host yet. Run Finalize with the host once it appears in Ploi — everything else is done.`],
+      };
+    }
+
+    const ploiHost = hostResult.host;
+    steps.push({ label: "Ploi host", ok: true, note: ploiHost });
+
+    // ── 7. Point the tenant at its CMS ────────────────────────────────────────
+    const cmsBaseUrl = `https://${ploiHost}`;
+    const savedTenant = await saveTenant({
+      ...tenant,
+      cms: { ...tenant.cms, statamicBaseUrl: cmsBaseUrl } as TenantCmsSettings,
+    });
+    steps.push({ label: "statamicBaseUrl", ok: savedTenant.ok, note: savedTenant.ok ? cmsBaseUrl : (savedTenant.error ?? "failed") });
+
+    // ── 8. Correct APP_URL and redeploy ───────────────────────────────────────
+    // The CP has to know its own origin or it generates links and redirects to
+    // the platform. Re-applying the same infra with the real host is the
+    // supported way to change a secret, and it triggers the redeploy that picks
+    // it up. This is the whole reason step 6 waits for the host.
+    const correctedYaml = buildStatamicInfraYaml({
+      appName:    naming.appName,
+      team:       ploi.team,
+      repoUrl:    repo.htmlUrl ?? `https://github.com/${gh.repoOwner}/${naming.repoName}`,
+      repoOwner:  gh.repoOwner,
+      repoName:   naming.repoName,
+      branch:     "main",
+      phpVersion: ploi.phpVersion,
+      extraBuildCommands: ["php artisan mc:ensure-super-user"],
+      secrets: buildDemoSecrets({
+        platformUrl,
+        appUrl:     cmsBaseUrl,
+        appKey,
+        siteKey,
+        tenantId,
+        cpEmail:    naming.cpEmail,
+        cpPassword,
+        ...(key.privateKey ? { gitSshKey: key.privateKey } : {}),
+      }),
+    });
+    const reapplied = await applyPloiInfrastructure({ token: ploiTok, yaml: correctedYaml, autoDeploy: true });
+    steps.push({ label: "APP_URL → CP host + redeploy", ok: reapplied.ok, note: reapplied.ok ? cmsBaseUrl : reapplied.message });
+    if (!reapplied.ok) warnings.push(`APP_URL correction: ${reapplied.message}`);
+
+    // ── 9. Public demo URL — a row, not a DNS change ──────────────────────────
+    const domainResult = await addDomain(tenantId, naming.demoHost, { isPrimary: true, status: "active" });
+    const alreadyMapped = !domainResult.ok && /already registered for this tenant/i.test(domainResult.error ?? "");
+    steps.push({
+      label: `Demo domain ${naming.demoHost}`,
+      ok:    domainResult.ok || alreadyMapped,
+      note:  domainResult.ok ? "mapped" : (alreadyMapped ? "already mapped" : (domainResult.error ?? "failed")),
+    });
+    if (!domainResult.ok && !alreadyMapped) {
+      warnings.push(`Demo domain: ${domainResult.error}. The CP and content still work; only the public URL won't resolve.`);
+    }
+
+    revalidatePath(`/admin/tenants/${tenantId}/setup`);
+    revalidatePath("/admin/tenants");
+    return {
+      ok:      true,
+      status:  "ready",
+      tenantId,
+      demoUrl: `https://${naming.demoHost}`,
+      cpUrl:   `${cmsBaseUrl}/cp`,
+      cpEmail: naming.cpEmail,
+      cpPassword,
+      repoUrl: repo.htmlUrl,
+      appName: naming.appName,
+      steps,
+      warnings,
+    };
+  } catch (err) {
+    rethrowNextInternal(err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
