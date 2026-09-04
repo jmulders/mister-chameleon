@@ -44,6 +44,13 @@ Herlaad daarna de Live Preview. De preview-target moet `/mc-live-preview` zijn
   `getFormDefinition("locatie-test")` — niet alleen de flat-file `form: locatie-test`.
   (Vóór de fix las de mapper alleen `{handle}`, dus een `{value}`-Link-Item leverde geen
   handle → geen formulier.)
+- **Snake_case ↔ kebab-case.** Statamic genereert handles in snake_case (`locatie_test`),
+  terwijl de code-`FormDefinition`s kebab-case keys gebruiken (`locatie-test`). `resolveFormKey`
+  (`forms/registry.ts`) normaliseert dit: exacte match → `_`↔`-`-swap → case-insensitief tegen
+  de registry (geen fuzzy matching, dus geen valse hits). Toegepast in `FormSectionBlock`
+  (render + de submit-URL via de canonieke key) én in `POST /api/forms/[formKey]`. Zo matcht
+  een CP-form met handle `locatie_test` gewoon op `locatie-test` — niemand hoeft de handle te
+  forceren.
 
 ### B2. Push-back-conflict — robuuste route: **auteur in het CP**
 Het CP is de git-**schrijver** (push-back naar `main`). Een via git gemergde content-PR
@@ -53,7 +60,7 @@ content in het CP aan** (dan pusht het CP 'm zelf naar `main` en blijft hij staa
 mergen van content naar `main` is hier het anti-patroon.
 
 **Eenmalige CP-authoring — Jasper:**
-1. **Forms → Create form**, handle exact **`locatie-test`** (titel bv. "Locatie-test").
+1. **Forms → Create form**, handle **`locatie-test`** (of Statamic's snake_case `locatie_test` — beide matchen nu, zie B1) (titel bv. "Locatie-test").
    Velden mogen leeg blijven — de platform-`FormDefinition` levert postcode+huisnummer;
    het CP-form is alleen de relatie waar het blok naar wijst. Sla op.
 2. **Collections → Pages → Create** (of open de bestaande) **Locatie-test**, slug

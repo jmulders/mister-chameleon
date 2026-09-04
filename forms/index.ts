@@ -93,6 +93,7 @@ export {
   getFormDefinition,
   getAllFormDefinitions,
   isFormKey,
+  resolveFormKey,
 } from "./registry";
 
 // ── Validation ────────────────────────────────────────────────────────────────
