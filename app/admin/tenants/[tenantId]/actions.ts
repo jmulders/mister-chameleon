@@ -3380,7 +3380,7 @@ export interface RolloutResult {
   /** "ready" — everything wired. "host-pending" — finish once Ploi assigns a host. */
   status?:   "ready" | "host-pending";
   tenantId?: string;
-  /** Public demo site, under the *.demo.misterchameleon.nl wildcard. */
+  /** Public demo site, at <slug>.demo.misterchameleon.nl. */
   demoUrl?:  string;
   /** Statamic control panel, on the Ploi host. */
   cpUrl?:    string;
@@ -3391,6 +3391,13 @@ export interface RolloutResult {
   appName?:  string;
   steps?:    { label: string; ok: boolean; note: string }[];
   warnings?: string[];
+  /** The one DNS record the operator must set at their DNS provider (Strato has
+   *  no wildcard). Host/prefix relative to the misterchameleon.nl zone. */
+  dnsHost?:      string;
+  /** CNAME value for dnsHost — Vercel's project-specific target, or the legacy fallback. */
+  dnsCnameValue?: string;
+  /** True when dnsCnameValue is the legacy fallback (Vercel gave no value). */
+  dnsIsFallback?: boolean;
 }
 
 /**
@@ -3400,13 +3407,15 @@ export interface RolloutResult {
  * here: the tenant record, the repo, neutral content, a write deploy key, a
  * super-user to log in with, and a public URL.
  *
- * ─── Why there is no per-demo DNS ────────────────────────────────────────────
+ * ─── Per-demo DNS (Strato has no wildcard) ───────────────────────────────────
  *
- * A wildcard `*.demo.misterchameleon.nl` CNAME points at Vercel, and the same
- * wildcard is registered once on the platform's Vercel project. Every demo is
- * then just a `tenant_domains` row — no registrar visit, no Vercel domain, no
- * certificate wait. That one-time setup is in docs/demo-rollout.md; without it
- * the CP and the content still work, only the public URL doesn't resolve.
+ * Strato does not support wildcard DNS, and its only "own nameservers" option is
+ * domain-wide — which would break the Strato-hosted @misterchameleon.nl mail. So
+ * each demo gets its own subdomain `<slug>.demo.misterchameleon.nl`: this action
+ * adds the `tenant_domains` row AND registers the host on Vercel automatically,
+ * then returns the ONE CNAME the operator must set at the DNS provider (Vercel's
+ * project-specific target when available, else the legacy `cname.vercel-dns.com`).
+ * See docs/demo-rollout.md. Mail is untouched (nameservers stay at Strato).
  *
  * ─── Never leaves a half-built demo ──────────────────────────────────────────
  *
@@ -3648,7 +3657,7 @@ export async function provisionTenantSiteAction(
       warnings.push(...platformSeed.warnings);
     }
 
-    // ── 9. Public demo URL — a row, not a DNS change ──────────────────────────
+    // ── 9. Public demo URL — a tenant_domains row + the Vercel domain ─────────
     const domainResult = await addDomain(tenantId, naming.demoHost, { isPrimary: true, status: "active" });
     const alreadyMapped = !domainResult.ok && /already registered for this tenant/i.test(domainResult.error ?? "");
     steps.push({
@@ -3659,6 +3668,19 @@ export async function provisionTenantSiteAction(
     if (!domainResult.ok && !alreadyMapped) {
       warnings.push(`Demo domain: ${domainResult.error}. The CP and content still work; only the public URL won't resolve.`);
     }
+
+    // ── 9b. Vercel domain + the one manual DNS record ─────────────────────────
+    // Strato has no wildcard, so each demo needs its own subdomain. Register the
+    // host on Vercel automatically and resolve the single CNAME the operator must
+    // set at the DNS provider. Fail-open: a Vercel hiccup never breaks the rollout.
+    const { isVercelConfigured, addVercelDomain, getVercelRecommendedCname } =
+      await import("@/lib/vercel-domains");
+    const { resolveDemoDnsStep } = await import("@/lib/provisioning/demo-dns");
+    const dns = await resolveDemoDnsStep(naming.demoHost, naming.slug, {
+      isVercelConfigured, addVercelDomain, getVercelRecommendedCname,
+    });
+    steps.push(...dns.steps);
+    warnings.push(...dns.warnings);
 
     revalidatePath(`/admin/tenants/${tenantId}/setup`);
     revalidatePath("/admin/tenants");
@@ -3674,6 +3696,9 @@ export async function provisionTenantSiteAction(
       appName: naming.appName,
       steps,
       warnings,
+      dnsHost:       dns.dnsHost,
+      dnsCnameValue: dns.dnsCnameValue,
+      dnsIsFallback: dns.dnsIsFallback,
     };
   } catch (err) {
     rethrowNextInternal(err);

@@ -222,8 +222,9 @@ describe("demoNaming", () => {
     });
   });
 
-  it("puts every demo under the one wildcard zone", () => {
-    // A single *.demo.misterchameleon.nl CNAME is what removes per-demo DNS.
+  it("puts every demo under the shared demo zone (own subdomain, no wildcard)", () => {
+    // Strato has no wildcard, so each demo is its own <slug>.demo.misterchameleon.nl
+    // host with one CNAME at the DNS provider (see lib/provisioning/demo-dns.ts).
     assert.equal(DEMO_DOMAIN_SUFFIX, "demo.misterchameleon.nl");
     assert.ok(demoNaming("x", "t").demoHost.endsWith(`.${DEMO_DOMAIN_SUFFIX}`));
   });

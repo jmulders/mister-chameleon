@@ -4,8 +4,9 @@
  * StatamicRolloutCard
  *
  * One button that produces a complete working Statamic site: tenant, repo from
- * the template, content, a write deploy key, a super-user, and a public URL
- * under the *.demo.misterchameleon.nl wildcard.
+ * the template, content, a write deploy key, a super-user, and a public URL at
+ * <slug>.demo.misterchameleon.nl (Vercel domain automated; one CNAME per demo at
+ * the DNS provider, since Strato has no wildcard).
  *
  * Two modes, because "demo" used to mean a blank canvas — which made the button
  * misleading:
@@ -69,8 +70,9 @@ export function StatamicRolloutCard() {
       <p className="mt-1 text-xs text-neutral-500">
         Creates the tenant, its repo from the template, content, a write deploy key,
         a CP login and a public URL at{" "}
-        <code className="font-mono">&lt;slug&gt;.demo.misterchameleon.nl</code>. No DNS per site —
-        the wildcard covers it. Takes a couple of minutes while Ploi assigns a host.
+        <code className="font-mono">&lt;slug&gt;.demo.misterchameleon.nl</code>. Per demo one CNAME
+        at your DNS provider (Strato does no wildcard); the Vercel side is set up automatically.
+        Takes a couple of minutes while Ploi assigns a host.
       </p>
 
       <fieldset className="mt-3">
@@ -156,6 +158,26 @@ export function StatamicRolloutCard() {
           <p className="mt-2 font-medium">
             Copy the password now — it is only ever shown here.
           </p>
+
+          {result.dnsHost && result.dnsCnameValue && (
+            <div className="mt-3 rounded-md border border-neutral-200 bg-white/60 p-2.5">
+              <p className="font-medium">Nog te doen: één DNS-record bij je DNS-provider</p>
+              <p className="mt-0.5 text-neutral-600">
+                Strato doet geen wildcard, dus zet per demo één CNAME. De Vercel-kant is al geregeld.
+              </p>
+              <div className="mt-1.5 space-y-0.5">
+                <CopyRow label="Type"  value="CNAME" mono />
+                <CopyRow label="Host"  value={result.dnsHost} mono />
+                <CopyRow label="Waarde" value={result.dnsCnameValue} mono />
+              </div>
+              {result.dnsIsFallback && (
+                <p className="mt-1 text-neutral-500">
+                  Let op: dit is de legacy-fallback-waarde (Vercel gaf geen project-specifieke waarde terug).
+                  Hij werkt, maar controleer de aanbevolen waarde in de Vercel-UI als het domein niet verifieert.
+                </p>
+              )}
+            </div>
+          )}
 
           {result.status === "host-pending" && (
             <p className="mt-2">
