@@ -16,6 +16,7 @@ import {
   fetchPloiApplicationHost, pollPloiApplicationHost,
   buildDemoSecrets, buildStatamicInfraYaml,
   demoNaming, generateDemoPassword, DEMO_DOMAIN_SUFFIX,
+  buildContentOverlayCommands, buildIndexRefreshCommands,
 } from "../../lib/provisioning/cms-provisioner.ts";
 
 const realFetch = globalThis.fetch;
@@ -294,6 +295,13 @@ describe("buildDemoSecrets", () => {
     assert.equal(env["STATAMIC_GIT_USER_EMAIL"], "cms+acme@misterchameleon.nl");
   });
 
+  it("carries STATAMIC_SITE_URL (the demo host) so permalinks use it, and omits it when unset", () => {
+    const withUrl = asMap(buildDemoSecrets({ ...base, siteUrl: "https://acme.demo.misterchameleon.nl" }));
+    assert.equal(withUrl["STATAMIC_SITE_URL"], "https://acme.demo.misterchameleon.nl");
+    // Backward-compatible: no siteUrl → the key is simply absent.
+    assert.equal(asMap(buildDemoSecrets(base))["STATAMIC_SITE_URL"], undefined);
+  });
+
   it("only APP_URL differs between the first apply and the corrected one", () => {
     const first     = asMap(buildDemoSecrets({ ...base, appUrl: base.platformUrl }));
     const corrected = asMap(buildDemoSecrets(base));
@@ -329,5 +337,44 @@ describe("buildStatamicInfraYaml — demo build commands", () => {
     });
     assert.ok(!/- .*abcde-fghij/.test(yaml.split("secrets:")[0] ?? ""));
     assert.ok(yaml.includes("key: CP_ADMIN_PASSWORD"));
+  });
+
+  it("runs the index refresh LAST — composer → overlay → ensure-user → stache:refresh → cache:clear", () => {
+    // The exact command list a rollout builds, in order.
+    const extraBuildCommands = [
+      ...buildContentOverlayCommands({ repoOwner: "acme", repoName: "cms" }),
+      "php artisan mc:ensure-super-user",
+      ...buildIndexRefreshCommands(),
+    ];
+    const yaml = buildStatamicInfraYaml({ ...base, extraBuildCommands });
+    const at = (needle: string) => yaml.indexOf(needle);
+    const composer  = at("composer install");
+    const overlay   = at("git checkout origin/cms-content");
+    const ensure    = at("mc:ensure-super-user");
+    const stache    = at("please stache:refresh");
+    const cache     = at("please cache:clear");
+    assert.ok(composer > -1 && overlay > composer, "overlay runs after composer install");
+    assert.ok(ensure > overlay, "ensure-super-user runs after the overlay");
+    assert.ok(stache > ensure,  "stache:refresh runs after ensure-super-user (content is on disk first)");
+    assert.ok(cache  > stache,  "cache:clear runs after stache:refresh");
+  });
+});
+
+describe("buildIndexRefreshCommands", () => {
+  it("rewrites sites.yaml from STATAMIC_SITE_URL, then refreshes the index, then clears cache", () => {
+    const cmds = buildIndexRefreshCommands();
+    assert.equal(cmds.length, 3);
+    assert.match(cmds[0], /STATAMIC_SITE_URL/);
+    assert.match(cmds[0], /sed -i.*resources\/sites\.yaml/);
+    assert.equal(cmds[1], "php please stache:refresh");
+    assert.equal(cmds[2], "php please cache:clear");
+  });
+
+  it("does NOT fail-open the refresh (a swallowed failure is the bug we are fixing)", () => {
+    const cmds = buildIndexRefreshCommands();
+    assert.ok(!cmds[1].includes("|| true"), "stache:refresh must surface a failure");
+    assert.ok(!cmds[2].includes("|| true"), "cache:clear must surface a failure");
+    // The sites.yaml step is guarded by an if-wrapper (a no-op when unset), not `|| true`.
+    assert.match(cmds[0], /^if \[ -n /);
   });
 });

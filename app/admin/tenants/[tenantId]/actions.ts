@@ -2825,7 +2825,7 @@ export async function provisionTenantCmsAction(
     } = await import("@/platform/platform-store");
     const {
       generateRepoFromTemplate, seedNeutralContentIntoRepo, buildStatamicInfraYaml, applyPloiInfrastructure, provisioningSlug,
-      buildContentOverlayCommands,
+      buildContentOverlayCommands, buildIndexRefreshCommands,
     } = await import("@/lib/provisioning/cms-provisioner");
 
     const ghResult = await getPlatformGithubSettings();
@@ -2894,6 +2894,9 @@ export async function provisionTenantCmsAction(
       extraBuildCommands: [
         ...buildContentOverlayCommands({ repoOwner: gh.repoOwner, repoName }),
         "php artisan mc:ensure-super-user",
+        // LAST: warm the Stache index + clear caches (Ploi Cloud never runs
+        // deploy.sh), else /api/collections/*/entries 500s on a fresh build.
+        ...buildIndexRefreshCommands(),
       ],
       secrets: [
         { key: "APP_ENV",   value: "production" },
@@ -3436,7 +3439,7 @@ export async function provisionTenantSiteAction(
       generateRepoFromTemplate, seedNeutralContentIntoRepo, buildStatamicInfraYaml,
       applyPloiInfrastructure, pollPloiApplicationHost, ensureRepoDeployKey,
       demoNaming, generateDemoPassword, buildDemoSecrets, provisioningSlug,
-      buildContentOverlayCommands,
+      buildContentOverlayCommands, buildIndexRefreshCommands,
     } = await import("@/lib/provisioning/cms-provisioner");
     const {
       getPlatformGithubSettings, githubFlags, resolveGithubToken,
@@ -3539,6 +3542,9 @@ export async function provisionTenantSiteAction(
     const extraBuildCommands = [
       ...buildContentOverlayCommands({ repoOwner: gh.repoOwner, repoName: naming.repoName }),
       "php artisan mc:ensure-super-user",
+      // LAST: content is on disk, so warm the index + fix permalinks. Ploi Cloud
+      // never runs deploy.sh, so without this /api/collections/*/entries 500s.
+      ...buildIndexRefreshCommands(),
     ];
 
     const yaml = buildStatamicInfraYaml({
@@ -3560,6 +3566,7 @@ export async function provisionTenantSiteAction(
         tenantId,
         cpEmail:    naming.cpEmail,
         cpPassword,
+        siteUrl:    `https://${naming.demoHost}`,
         ...(key.privateKey ? { gitSshKey: key.privateKey } : {}),
       }),
     });
@@ -3638,6 +3645,7 @@ export async function provisionTenantSiteAction(
         tenantId,
         cpEmail:    naming.cpEmail,
         cpPassword,
+        siteUrl:    `https://${naming.demoHost}`,
         ...(key.privateKey ? { gitSshKey: key.privateKey } : {}),
       }),
     });
