@@ -2825,6 +2825,7 @@ export async function provisionTenantCmsAction(
     } = await import("@/platform/platform-store");
     const {
       generateRepoFromTemplate, seedNeutralContentIntoRepo, buildStatamicInfraYaml, applyPloiInfrastructure, provisioningSlug,
+      buildContentOverlayCommands,
     } = await import("@/lib/provisioning/cms-provisioner");
 
     const ghResult = await getPlatformGithubSettings();
@@ -2887,6 +2888,13 @@ export async function provisionTenantCmsAction(
       branch:     "main",
       phpVersion: ploi.phpVersion,
       domain:     opts?.domain,
+      // Same two build steps as the one-click rollout: Ploi Cloud never runs
+      // deploy.sh, so restoring the CP's content snapshot and ensuring a CP
+      // login both have to happen here or not at all.
+      extraBuildCommands: [
+        ...buildContentOverlayCommands({ repoOwner: gh.repoOwner, repoName }),
+        "php artisan mc:ensure-super-user",
+      ],
       secrets: [
         { key: "APP_ENV",   value: "production" },
         { key: "APP_DEBUG", value: "false" },
@@ -3419,6 +3427,7 @@ export async function provisionTenantSiteAction(
       generateRepoFromTemplate, seedNeutralContentIntoRepo, buildStatamicInfraYaml,
       applyPloiInfrastructure, pollPloiApplicationHost, ensureRepoDeployKey,
       demoNaming, generateDemoPassword, buildDemoSecrets, provisioningSlug,
+      buildContentOverlayCommands,
     } = await import("@/lib/provisioning/cms-provisioner");
     const {
       getPlatformGithubSettings, githubFlags, resolveGithubToken,
@@ -3511,6 +3520,18 @@ export async function provisionTenantSiteAction(
     const cpPassword  = generateDemoPassword();
     const platformUrl = ploi.platformApiUrl || "https://www.misterchameleon.nl";
 
+    // Ploi Cloud never runs deploy.sh, so the content overlay that makes CP edits
+    // survive a redeploy has to live in the build commands — followed by the
+    // super-user, which is idempotent and has to run every deploy because the
+    // container filesystem is ephemeral.
+    //
+    // Computed once: the infra is applied TWICE below (before the host is known,
+    // then again with the corrected APP_URL) and the two must not drift apart.
+    const extraBuildCommands = [
+      ...buildContentOverlayCommands({ repoOwner: gh.repoOwner, repoName: naming.repoName }),
+      "php artisan mc:ensure-super-user",
+    ];
+
     const yaml = buildStatamicInfraYaml({
       appName:    naming.appName,
       team:       ploi.team,
@@ -3519,9 +3540,7 @@ export async function provisionTenantSiteAction(
       repoName:   naming.repoName,
       branch:     "main",
       phpVersion: ploi.phpVersion,
-      // Idempotent, and it has to run on every deploy: the container filesystem
-      // is ephemeral, so a user created once would not survive the next one.
-      extraBuildCommands: ["php artisan mc:ensure-super-user"],
+      extraBuildCommands,
       secrets: buildDemoSecrets({
         platformUrl,
         // Ploi has not assigned a host yet, so this is provisionally the
@@ -3601,7 +3620,7 @@ export async function provisionTenantSiteAction(
       repoName:   naming.repoName,
       branch:     "main",
       phpVersion: ploi.phpVersion,
-      extraBuildCommands: ["php artisan mc:ensure-super-user"],
+      extraBuildCommands,
       secrets: buildDemoSecrets({
         platformUrl,
         appUrl:     cmsBaseUrl,

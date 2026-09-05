@@ -106,7 +106,47 @@ Platform → Integrations → Provisioning:
 7. **Public URL** — one `tenant_domains` row for `<slug>.demo.misterchameleon.nl`.
 8. **Adaptive data** — demo mode only; see above.
 
+The Ploi app's build commands also carry the `cms-content` overlay, so CP edits
+survive every redeploy without a dashboard step — see below.
+
 You get back the site URL, the CP URL, the CP e-mail and the password.
+
+## CP edits survive a redeploy — automatically
+
+A rolled-out tenant is content-persistent out of the box. Nothing to configure in
+the Ploi dashboard.
+
+Statamic's git automation pushes CP saves to a disposable `cms-content` branch
+(never the deploy branch — see the template's DEPLOY.md for why). Something then
+has to read that branch back onto the pod, or a redeploy serves the image's
+content and the edits look like they vanished. On a classic Ploi server
+`deploy.sh` does it; **Ploi Cloud never runs `deploy.sh`**, only the commands in
+the IaC. So the provisioner now emits those steps as build commands:
+
+```
+composer install …
+git config --global --add safe.directory …
+install $STATAMIC_GIT_SSH_KEY, switch the remote to SSH
+git fetch origin --prune
+git checkout origin/cms-content -- <each content path>
+php artisan mc:ensure-super-user
+```
+
+The paths are content-only and mirror `config/statamic/git.php` exactly:
+`content`, `users`, `resources/forms`, `resources/users`,
+`resources/preferences.yaml`, `storage/forms`, `public/assets`. Fieldsets,
+blueprints and addons deliberately come from the image — a CP push of a drifted
+fieldset is what corrupted replicator content in the past.
+
+**Every step is fail-open.** If the fetch or a checkout can't run, the deploy
+carries on and serves the image's content, which is what happened before this
+existed. The overlay can improve on that; it can't break a deploy.
+
+**Existing tenants are unaffected.** `steunles` and `cms.misterchameleon.nl` keep
+the build commands they were configured with by hand — this does not rewrite
+already-applied infrastructure. It only changes what a *new* rollout gets. To
+give an existing tenant the same thing, either re-apply its infra or paste the
+block from its own DEPLOY.md.
 
 ## The password is shown once
 
