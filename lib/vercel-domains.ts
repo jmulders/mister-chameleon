@@ -43,6 +43,8 @@
 
 import "server-only";
 
+import { extractVercelCname } from "./vercel-cname";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 /** A single DNS verification record returned by Vercel. */
@@ -73,6 +75,14 @@ export interface VercelCheckDomainResult {
   verification: VercelVerificationRecord[];
 }
 
+/** Successful result of reading a domain's recommended DNS config. */
+export interface VercelCnameResult {
+  ok:    true;
+  /** The project-specific CNAME target Vercel recommends (e.g.
+   *  "xxxxxxxx.vercel-dns-017.com"), or null when Vercel returned none. */
+  cname: string | null;
+}
+
 /** Failed result (network error, Vercel API error, or not configured). */
 export interface VercelErrorResult {
   ok:    false;
@@ -81,6 +91,7 @@ export interface VercelErrorResult {
 
 export type VercelDomainResult      = VercelAddDomainResult  | VercelErrorResult;
 export type VercelCheckResult       = VercelCheckDomainResult | VercelErrorResult;
+export type VercelCnameLookupResult = VercelCnameResult       | VercelErrorResult;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -234,6 +245,49 @@ export async function checkVercelDomain(
     const verification = (body.verification as VercelVerificationRecord[] | undefined) ?? [];
 
     return { ok: true, verified, verification };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `Vercel API request failed: ${message}` };
+  }
+}
+
+/**
+ * Reads the DNS config Vercel recommends for a domain and returns the CNAME
+ * target the operator must point their subdomain at.
+ *
+ * GET /v6/domains/{domain}/config[?teamId=…]
+ *
+ * The domain must already be registered on the project (call addVercelDomain
+ * first). Returns:
+ *   ok: true  — `cname` is the recommended target, or null when Vercel gave none.
+ *   ok: false — API error, network failure, or not configured.
+ *
+ * @param hostname  Normalised hostname, e.g. "acme.demo.misterchameleon.nl".
+ */
+export async function getVercelRecommendedCname(
+  hostname: string,
+): Promise<VercelCnameLookupResult> {
+  const token = getToken();
+  if (!token) return { ok: false, error: "Vercel integration not configured" };
+
+  try {
+    const url  = withTeam(
+      `https://api.vercel.com/v6/domains/${encodeURIComponent(hostname)}/config`,
+    );
+    const resp = await fetch(url, {
+      method:  "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!resp.ok) {
+      const body    = await resp.json().catch(() => ({})) as Record<string, unknown>;
+      const err     = body.error as Record<string, unknown> | undefined;
+      const message = err?.message as string | undefined;
+      return { ok: false, error: message ?? `Vercel API error ${resp.status}` };
+    }
+
+    const body = await resp.json() as Record<string, unknown>;
+    return { ok: true, cname: extractVercelCname(body) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `Vercel API request failed: ${message}` };

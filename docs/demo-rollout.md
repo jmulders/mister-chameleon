@@ -17,9 +17,9 @@ place.
 | Forms | a contact form on two pages, one showing a thank-you message and one redirecting | one contact form |
 
 Both modes are otherwise identical: same repo, same deploy key, same super-user,
-same wildcard URL. The mode only picks which seed directory the provisioner
-applies (`demo-seed/` or `seed/` in the template repo) and, for Demo, whether
-the platform-side adaptive data is seeded too.
+same `<slug>.demo.misterchameleon.nl` URL scheme. The mode only picks which seed
+directory the provisioner applies (`demo-seed/` or `seed/` in the template repo)
+and, for Demo, whether the platform-side adaptive data is seeded too.
 
 **A demo is brand-free.** The example brand is *Acme* — a placeholder, not a
 real company. It is defined once, as `DEMO_BRAND` in
@@ -48,32 +48,43 @@ so it would take the tenant's whole rule set down with it.
 If the adaptive seed fails, the rollout still succeeds with a warning: the site
 works, its slots just render their defaults.
 
-## One-time setup (do this once, ever)
+## DNS: one CNAME per demo (no wildcard)
 
-Both steps are about the **wildcard**. It is what removes per-demo DNS: every
-demo is a row in `tenant_domains`, not a registrar visit and a certificate wait.
+**There is no wildcard.** Strato — where `misterchameleon.nl` is hosted — does
+not support wildcard DNS, and its only "own nameservers" option is domain-wide,
+which would move DNS away from Strato and **break the Strato-hosted
+`@misterchameleon.nl` mail**. So we deliberately run a per-demo model: each demo
+gets its own subdomain and one CNAME record.
 
-**1 — DNS.** At the registrar for `misterchameleon.nl`:
+**The mail is untouched.** The nameservers stay at Strato; only a single CNAME
+record is added per demo. Nothing about the MX / mail setup changes.
 
-| Type | Name | Value |
+**The Vercel side is automatic.** Each rollout registers
+`<slug>.demo.misterchameleon.nl` on the platform's Vercel project itself and
+reads back the CNAME target Vercel recommends for it.
+
+So per demo the operator does **one** thing — set one CNAME at Strato:
+
+| Type | Host | Value |
 | --- | --- | --- |
-| CNAME | `*.demo` | `cname.vercel-dns.com` |
+| CNAME | `<slug>.demo` | *the value the rollout card shows* |
 
-**2 — Vercel.** On the platform project, add the domain `*.demo.misterchameleon.nl`
-(Project → Settings → Domains). Vercel issues one wildcard certificate covering
-every subdomain.
-
-Verify with any name you like — it does not have to exist yet:
+That value is Vercel's project-specific target (e.g.
+`xxxxxxxx.vercel-dns-0NN.com`); `cname.vercel-dns.com` is a legacy fallback that
+Vercel still accepts, and the card shows it (flagged as fallback) when Vercel
+could not return a project-specific value. Verify once the record has propagated:
 
 ```bash
-dig +short anything.demo.misterchameleon.nl
+dig +short <slug>.demo.misterchameleon.nl
 ```
 
-A CNAME to Vercel means you are done.
+A CNAME to a `vercel-dns` host means you are done.
 
-**Without this**, a rollout still produces a working CP, a working repo and
-its content — only the public `<slug>.demo.misterchameleon.nl` URL will not
-resolve. The rollout does not fail; it just gives you a URL nothing answers on.
+**If Vercel is unreachable or unconfigured**, the rollout still produces a
+working CP, repo and content, and still shows the CNAME to set (with the legacy
+fallback value) — it just could not register the Vercel domain for you, so add
+`<slug>.demo.misterchameleon.nl` in the Vercel project by hand. The rollout never
+fails on a Vercel hiccup.
 
 ## Also needed
 
@@ -103,7 +114,10 @@ Platform → Integrations → Provisioning:
    so there is an account to log in with.
 6. **Wait for the host** Ploi assigns, then set `statamicBaseUrl`, correct
    `APP_URL` to that host and redeploy.
-7. **Public URL** — one `tenant_domains` row for `<slug>.demo.misterchameleon.nl`.
+7. **Public URL** — a `tenant_domains` row for `<slug>.demo.misterchameleon.nl`
+   AND the same host registered on the platform's Vercel project. The result card
+   then shows the one CNAME to set at Strato (`<slug>.demo` → Vercel's recommended
+   value). Fail-open: a Vercel error becomes a warning, not a failed rollout.
 8. **Adaptive data** — demo mode only; see above.
 
 The Ploi app's build commands also carry the `cms-content` overlay, so CP edits

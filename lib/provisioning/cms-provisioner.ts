@@ -852,12 +852,16 @@ export interface DemoNaming {
   slug:     string;
   repoName: string;
   appName:  string;
-  /** Public demo host under the wildcard, e.g. "acme.demo.misterchameleon.nl". */
+  /** Public demo host, e.g. "acme.demo.misterchameleon.nl". */
   demoHost: string;
   cpEmail:  string;
 }
 
-/** Parent zone of the demo wildcard — a single `*` CNAME covers every demo. */
+/**
+ * Parent zone for demo subdomains. There is NO wildcard (Strato does not support
+ * one), so each demo gets its own `<slug>.demo.misterchameleon.nl` host with a
+ * single CNAME set at the DNS provider — see lib/provisioning/demo-dns.ts.
+ */
 export const DEMO_DOMAIN_SUFFIX = "demo.misterchameleon.nl";
 
 /** Derive every name a demo rollout uses from the tenant slug. */
