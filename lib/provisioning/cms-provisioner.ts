@@ -899,6 +899,10 @@ export interface DemoSecretsInput {
   cpPassword:  string;
   /** Private half of the write deploy key, when one could be created. */
   gitSshKey?:  string;
+  /** Public site URL, e.g. "https://acme.demo.misterchameleon.nl". Sets
+   *  STATAMIC_SITE_URL, which the build's sites.yaml rewrite uses so API
+   *  permalinks point at the demo host instead of a stale template base. */
+  siteUrl?:    string;
 }
 
 /**
@@ -917,7 +921,7 @@ export interface DemoSecretsInput {
  *   thing from where the CP lives.
  */
 export function buildDemoSecrets(input: DemoSecretsInput): PloiSecret[] {
-  const { platformUrl, appUrl, appKey, siteKey, tenantId, cpEmail, cpPassword, gitSshKey } = input;
+  const { platformUrl, appUrl, appKey, siteKey, tenantId, cpEmail, cpPassword, gitSshKey, siteUrl } = input;
   return [
     { key: "APP_ENV",   value: "production" },
     { key: "APP_DEBUG", value: "false" },
@@ -947,6 +951,9 @@ export function buildDemoSecrets(input: DemoSecretsInput): PloiSecret[] {
     // The private half of the write deploy key. Without it STATAMIC_GIT_PUSH
     // commits into the ephemeral container and CP edits are lost on redeploy.
     ...(gitSshKey ? [{ key: "STATAMIC_GIT_SSH_KEY", value: gitSshKey }] : []),
+    // Public site URL — the build's sites.yaml rewrite reads this so the CMS API
+    // emits permalinks on the demo host, not the template's stale base.
+    ...(siteUrl ? [{ key: "STATAMIC_SITE_URL", value: siteUrl }] : []),
   ];
 }
 
@@ -997,9 +1004,9 @@ export const DEFAULT_CONTENT_BRANCH = "cms-content";
  *   server has a working tree that has drifted. A Cloud build starts from a
  *   fresh clone of the branch, so there is nothing to reset.
  *
- *   the sites.yaml URL rewrite — driven by STATAMIC_SITE_URL, which the
- *   provisioner does not set: a provisioned tenant's public URL is the wildcard
- *   demo host, resolved by the platform rather than baked into the CMS.
+ *   the sites.yaml URL rewrite + stache:refresh/cache:clear — those live in
+ *   `buildIndexRefreshCommands()`, appended AFTER this overlay so the content is
+ *   on disk before the index is warmed. (They are NOT fail-open, unlike here.)
  *
  * ─── Everything is fail-open ─────────────────────────────────────────────────
  *
@@ -1044,5 +1051,42 @@ export function buildContentOverlayCommands(opts: {
     ...CMS_CONTENT_PATHS.map(
       (p) => `git checkout origin/${branch} -- ${p} 2>/dev/null || true`,
     ),
+  ];
+}
+
+// ── Ploi Cloud build commands: index refresh + permalink base ────────────────────
+
+/**
+ * Build commands that rebuild the Statamic index and fix the permalink base,
+ * run LAST (after the content overlay + mc:ensure-super-user) so the content is
+ * already on disk when the Stache is warmed.
+ *
+ * Why this has to exist: Ploi Cloud does NOT run deploy.sh; only the IaC build
+ * commands run. On a classic Ploi server deploy.sh runs stache:refresh +
+ * cache:clear so the content index is built at deploy time. Without the same
+ * steps here, a fresh Cloud build never rebuilds the index and the
+ * /api/collections/<handle>/entries route 500s on the first request -- the exact
+ * bug this fixes.
+ *
+ * NOT fail-open: unlike the overlay (whose steps end in "|| true"), the refresh
+ * MUST surface a failure -- a silently-failed refresh is precisely the 500 we are
+ * removing, so hiding it would re-mask the bug. Only the sites.yaml rewrite is
+ * guarded, by an "if [ -n ... ]" wrapper that no-ops (exit 0) when
+ * STATAMIC_SITE_URL is unset, so it never fails the build either way.
+ */
+export function buildIndexRefreshCommands(): string[] {
+  return [
+    // Rewrite the primary site URL from STATAMIC_SITE_URL (as deploy.sh does), so
+    // API permalinks / "Visit URL" use the demo host instead of a stale sites.yaml
+    // base. Guarded on the env var; a no-op when unset. Runs BEFORE the refresh so
+    // the warmed index reflects the corrected URL. The sed matches from "url:"
+    // (not the leading spaces), so YAML indentation is preserved without a
+    // backreference — only the first site's value changes. Double-quoted so the
+    // shell "${…}" is passed through literally rather than interpolated in JS.
+    "if [ -n \"${STATAMIC_SITE_URL:-}\" ]; then sed -i \"0,/url:/ s|url:.*|url: '${STATAMIC_SITE_URL}'|\" resources/sites.yaml; fi",
+    // Rebuild the Stache index (clear + warm) and clear the app cache. Deliberately
+    // NOT `|| true`: a failed refresh is the bug we are fixing, not something to hide.
+    "php please stache:refresh",
+    "php please cache:clear",
   ];
 }
