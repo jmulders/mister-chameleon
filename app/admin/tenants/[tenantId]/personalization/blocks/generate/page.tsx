@@ -10,6 +10,7 @@ import Link               from "next/link";
 import { GenerateClient } from "./_components/GenerateClient";
 import { MAX_VARIANTS_PER_SLOT } from "@/ai/variant-generator";
 import { isSelfServiceEnabled } from "@/lib/self-service/self-service-store";
+import { getTenantById } from "@/tenant/server";
 
 export default async function GenerateVariantPage({
   params,
@@ -21,6 +22,10 @@ export default async function GenerateVariantPage({
   // Self-service gate: AI variant generation is only available when this tenant
   // is in self-service mode. Default is agency-led — the agency authors variants.
   const selfService = await isSelfServiceEnabled(tenantId);
+
+  // Tenant's named block-token sets feed the block-mode token-set picker + preview.
+  const tenant = await getTenantById(tenantId);
+  const blockTokenSets = tenant?.design?.blockTokenSets ?? [];
 
   return (
     <div className="p-8 max-w-3xl space-y-5">
@@ -41,7 +46,7 @@ export default async function GenerateVariantPage({
       </div>
 
       {selfService ? (
-        <GenerateClient tenantId={tenantId} />
+        <GenerateClient tenantId={tenantId} blockTokenSets={blockTokenSets} />
       ) : (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
           <p className="text-sm font-medium text-amber-900">Self-service staat uit</p>
