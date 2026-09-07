@@ -40,10 +40,10 @@ Opgesteld 19 juli 2026. Vier categorieën, oplopend van "moet gefixt" naar "road
 | D2 | **Chameleon Connect voor WordPress** — PHP-plugin die de snippet inpakt: install, slot-marking (block/shortcode/selector), consent-integratie. **Platform-deel gebouwd (19 juli):** snippet doet selector-support (`selectors`-map, ongeldige selector wordt genegeerd), de decide-route stuurt de `selectorMap` uit de tenant-config mee, én er is nu een **admin-UI** (Snippet → tab "Selectors") om die map zonder DB-geknutsel te beheren — met tests op de sanitisatie. Zo werkt de no-touch WordPress-route volledig vanuit de admin. Rest is de aparte PHP-repo (`mister-chameleon-wordpress`): auto-install/enqueue, shortcode + Gutenberg-block, consent-integraties. **Ontwerp: `docs/design/snippet-wordpress-plugin.md`.** | Bereik: 's werelds populairste CMS | — | 🔨 Platform-kant klaar, PHP-plugin volgt |
 | D3 | **Snippet render-modes + design tokens** — per-variant toggle tussen content-swap (default) en gestyled block met huisstijl via tokens. **Snippet + contract + datamodel gebouwd (19 juli):** snippet doet block-mode (`data-mc-block`, HTML-injectie, tokens als scoped CSS-vars); response-contract laat blocks toe (`SlotValue = string \| BlockSlot`); `renderMode`/`blockHtml` staan op **alle zes** blokken (hero, cta, proof, feature, conversion, notification) en de decide-route emit voor elk een block-slot (`slots.hero`/`.cta`/`.proof`/`.feature`/`.conversion`/`.notification`) met de tokens uit `tokenRef` als CSS-vars — alles met tests. Conversion/notification kregen ook meteen een `tokenRef`. **Resteert:** (1) blocks *authoren* — `blockHtml`/`renderMode` invullen in de CMS-repo's (Statamic e.a.) + admin-toggle; (2) AI-generatie een block laten leveren (haakt op D1). **Ontwerp: `docs/design/snippet-render-modes.md`.** | Rijkere personalisatie op externe sites, on-brand | — | 🔨 Platform-kant compleet (alle 6 blokken), authoring volgt |
 | D4 | **Locatie-enricher: PC4-bulk-upgrade (later).** De huidige CBS-locatie-enricher (#309) draait op **Optie B**: live OData `Kerncijfers wijken en buurten` (`85984NED`), **buurt-gekeyd**, inkomen + bedrijvigheid native + urbanity als dichtheids-proxy (`Bevolkingsdichtheid_34`), reverse-geocode lat/long → buurtcode via PDOK. Bewust licht gehouden: geen bulk-downloads, onderhoudsarm. **Reden:** er bestaat géén CBS-OData-tabel met stedelijkheid + inkomen + bedrijvigheid per PC4; die rijke kerncijfers zijn alleen download-bestanden (Excel/GeoPackage). **De upgrade** = doen wat allecijfers.nl doet: de CBS-bulkbestanden ("Kerncijfers per postcode" PC4 + wijken/buurten) jaarlijks binnenhalen en offline mergen → echte **PC4-granulariteit + officiële stedelijkheidsklasse + alle drie de attributen**. Kosten: jaarlijkse file-pipeline, twee keys mergen, schema-drift opvangen. **Alleen bouwen bij een concrete trigger** (een tenant die écht PC4-precisie of de stedelijkheidsklasse nodig heeft). De raw-row + config-structuur van #309 maken deze upgrade mogelijk zonder de enricher om te gooien. | Fijnere locatiesignalen, mits een klant het nodig heeft | Jij (trigger nodig) | ⏸️ Backlog — niet nu bouwen |
-| D5 | **Locatie-verrijking uitbreiden (B2B publieke bronnen).** Rijkere per-locatie-signalen naast de CBS-buurt, in hetzelfde lazy-enricher-patroon. Geverifieerde bronnen: **CBS 85984NED extra velden** (energie/zonne/WOZ/sector — al ingeladen, alleen mapping verbreden), **BAG** (Kadaster, per-adres bouwjaar/gebruiksdoel/oppervlakte, gratis API), **netbeheerders** (Liander/Stedin/Enexis, gas+elektra per PC6, gratis bulk), **EP-Online** (RVO energielabel per gebouw, gratis bulk — ⚠ licentie-caveat individueel-aan-derden). Modulair per tenant-verticaal; adres-bronnen leunen op het form-postcode-pad. Fasering + details: **`docs/design/location-enrichment-sources.md`**. | B2B-personalisatie op pand/energie/verduurzaming | Jij (welke verticaal eerst) | 🚧 Fase 0 (CBS-velden — energie/WOZ/sector migr. 180 + demografie/wonen/welvaart/mobiliteit migr. 184, 26 velden) + Fase 1 (BAG) + Fase 2 (netbeheerder-PC6-energie, migr. 183, `netbeheer:ingest`, alleen kleinverbruik) gebouwd; Fase 3 (EP-Online, migr. 185, lazy per-adres, licentie-gate epLabelDisplayAllowed) gebouwd |
+| D5 | **Locatie-verrijking uitbreiden (B2B publieke bronnen).** Rijkere per-locatie-signalen naast de CBS-buurt, in hetzelfde lazy-enricher-patroon. Geverifieerde bronnen: **CBS 85984NED extra velden** (energie/zonne/WOZ/sector — al ingeladen, alleen mapping verbreden), **BAG** (Kadaster, per-adres bouwjaar/gebruiksdoel/oppervlakte, gratis API), **netbeheerders** (Liander/Stedin/Enexis, gas+elektra per PC6, gratis bulk), **EP-Online** (RVO energielabel per gebouw, gratis bulk — ⚠ licentie-caveat individueel-aan-derden). Modulair per tenant-verticaal; adres-bronnen leunen op het form-postcode-pad. Fasering + details: **`docs/design/location-enrichment-sources.md`**. | B2B-personalisatie op pand/energie/verduurzaming | Jij (welke verticaal eerst) | ✅ Gedaan — alle fases live: CBS-velden (energie/WOZ/sector migr. 180 + demografie/wonen/welvaart/mobiliteit migr. 184), BAG (per-adres), netbeheerder-PC6-energie (migr. 183, `netbeheer:ingest`, kleinverbruik), EP-Online energielabel (migr. 185, lazy per-adres, licentie-gate epLabelDisplayAllowed) |
 | D6 | **Ad-click-ID-resolutie-enricher.** Click-IDs worden al gevangen (gclid/fbclid/msclkid/ttclid in detect-context) + opgeslagen in visitor_profiles; de ads-attributie-enricher leidt campagne/keyword nu alleen uit UTM's af. Deze feature resolvet het click-ID tegen de platform-API naar rijke ad-data (keyword/match type/device/audience). **Geverifieerde realiteit:** alleen **Google Ads (gclid, via click_view)** en **Microsoft Ads (msclkid)** zijn inbound-resolvbaar; **Meta/LinkedIn/TikTok click-IDs zijn outbound-only** (conversies) — daar blijven UTM's de bron. Per-tenant OAuth-integratie (geen open data), ~48u latency → cachen. Fasering + auth-model: **`docs/design/ad-click-id-resolution.md`**. | Rijkere ad-attributie voor Google/MS-Ads-tenants | Jij (per-tenant ad-account nodig) | ⏸️ Backlog — ontwerp klaar |
-| D7 | **Config-intelligence — twee sporen (harde scheiding: logica waar het kan, AI waar het over betekenis gaat).** **Spoor 1 — config-health/linter (near-term, deterministisch, geen AI):** priority-conflicten/dubbele priorities (vóór `validateStoredConfig` de hele config afkeurt), onbereikbare/geschaduwde regels (first-match), condities die nooit waar worden, dode varianten, nooit-vurende regels (via `rule_fire_daily`). Bespaart direct fouten, geen schaal nodig. **Spoor 2 — context-intelligence (roadmap, AI):** offline/batch, geaggregeerd (geen PII), op afroep, kostenbewust — contexten clusteren/reduceren, in gewone taal uitleggen (klaar voor een kwartaalgesprek), cross-tenant patronen (voedt de bibliotheek-route). Adviseert, beslist niet. Ontwerp: **`docs/design/config-intelligence.md`**. | Minder config-fouten (nu) + overzicht/uitleg (later) | Jij (spoor 2 = trigger) | ⏸️ Backlog — ontwerp klaar (spoor 1 near-term) |
-| D8 | **Back-office-koppeling + form-prefill voor known leads.** Bouwt op het bestaande ABM-known-lead-systeem (`/go/{token}` → `mc_lead`-cookie, `apply-known-lead.ts` firmografie/segment-hint, `visitor_profiles.abm_lead_id`). **Mist:** (1) een **back-office-sync-API** — `POST /api/abm/leads` (per-tenant API-key): `external_id`-upsert van firmografie + contact + doelpagina → geeft het **handle** (`/go/{handle}`) terug zodat de back-office/CRM zelf de mail-links bouwt en de mapping `external_id ↔ handle` houdt; (2) **form-prefill** voor bekende leads (consent-gated, korte geldigheid, overweeg eenmalige tokens los van het 30d-handle wegens PII-forwarding-risico). Fasering: sync-API dan prefill. Ontwerp: **`docs/design/backoffice-lead-coupling.md`**; sync-API-contract: **`docs/abm-backoffice-sync-api.md`**. | Naadloze back-office→gepersonaliseerde-mail-flow | Jij (back-office-integratie) | 🚧 Fase 1 (sync-API, migratie 182, `POST /api/abm/leads`, per-tenant API-key) + Fase 2 (form-prefill, `GET /api/forms/prefill`, consent-gated laag-gevoelige velden) gebouwd |
+| D7 | **Config-intelligence — twee sporen (harde scheiding: logica waar het kan, AI waar het over betekenis gaat).** **Spoor 1 — config-health/linter (near-term, deterministisch, geen AI):** priority-conflicten/dubbele priorities (vóór `validateStoredConfig` de hele config afkeurt), onbereikbare/geschaduwde regels (first-match), condities die nooit waar worden, dode varianten, nooit-vurende regels (via `rule_fire_daily`). Bespaart direct fouten, geen schaal nodig. **Spoor 2 — context-intelligence (roadmap, AI):** offline/batch, geaggregeerd (geen PII), op afroep, kostenbewust — contexten clusteren/reduceren, in gewone taal uitleggen (klaar voor een kwartaalgesprek), cross-tenant patronen (voedt de bibliotheek-route). Adviseert, beslist niet. Ontwerp: **`docs/design/config-intelligence.md`**. | Minder config-fouten (nu) + overzicht/uitleg (later) | Jij (spoor 2 = trigger) | ✅ Spoor 1 (config-linter) GEBOUWD — PR #349, live: pure `analyzeRulesConfig` + ConfigHealthPanel met 5 detecties (dubbele priority, geschaduwd/altijd-waar, onbekend veld/operator/lege value-set, dode variant, nooit-vurend), adviserend + niet-blokkerend, op de dashboard- én tenant-admin-rules-schermen; spoor 2 (AI) backlog |
+| D8 | **Back-office-koppeling + form-prefill voor known leads.** Bouwt op het bestaande ABM-known-lead-systeem (`/go/{token}` → `mc_lead`-cookie, `apply-known-lead.ts` firmografie/segment-hint, `visitor_profiles.abm_lead_id`). **Mist:** (1) een **back-office-sync-API** — `POST /api/abm/leads` (per-tenant API-key): `external_id`-upsert van firmografie + contact + doelpagina → geeft het **handle** (`/go/{handle}`) terug zodat de back-office/CRM zelf de mail-links bouwt en de mapping `external_id ↔ handle` houdt; (2) **form-prefill** voor bekende leads (consent-gated, korte geldigheid, overweeg eenmalige tokens los van het 30d-handle wegens PII-forwarding-risico). Fasering: sync-API dan prefill. Ontwerp: **`docs/design/backoffice-lead-coupling.md`**; sync-API-contract: **`docs/abm-backoffice-sync-api.md`**. | Naadloze back-office→gepersonaliseerde-mail-flow | Jij (back-office-integratie) | ✅ Gedaan — Fase 1 (sync-API, migr. 182, `POST /api/abm/leads`, per-tenant API-key) + Fase 2 (form-prefill, `GET /api/forms/prefill`, consent-gated laag-gevoelige velden), beide live |
 | D9 | 💡 **Enrichment-laag als losstaand product (geparkeerd — alleen een idee).** De staged enrichment-pijplijn (geo MaxMind+IPinfo, company/CRM, CBS-locatie, weer, ads-attributie) + first-party stores (`ip_company_cache`, `cbs_area_stats`, sessie-cache) zou als **standalone enrichment-API/product** kunnen bestaan, los van de personalisatie-SaaS. Nu niet uitwerken; genoteerd zodat het niet verdwijnt. | Potentieel tweede product/omzetlijn | Jij (los idee) | 💡 Geparkeerd — geen ontwerp, niet nu |
 
 ---
@@ -147,3 +147,57 @@ Alle A-bugs gedicht, alle B-besluiten genomen, D1-richtlijn gezet. Wat resteert:
   staat (Hobby-limiet).
 - **B2** — `CMS_REPO_TOKEN`-secret toevoegen.
 - **D1** — eigen ontwerptraject, kostenbewust, wanneer je eraan toe bent.
+
+## Stand van zaken (5 september 2026)
+
+### Af sinds de vorige stand
+- **D5 — Locatie-verrijking:** ✅ alle fases live (CBS-velden migr. 180/184, BAG,
+  netbeheer-PC6 migr. 183, EP-Online migr. 185).
+- **D8 — Back-office-koppeling + form-prefill:** ✅ Fase 1 sync-API (migr. 182) +
+  Fase 2 form-prefill, beide live.
+- **D7 spoor 1 — config-health/linter:** ✅ gebouwd (PR #349). Pure
+  `analyzeRulesConfig` + `ConfigHealthPanel` met 5 deterministische detecties
+  (dubbele priority, geschaduwd/altijd-waar, onbekend veld/operator/lege
+  value-set, dode variant, nooit-vurend via `rule_fire_daily`), adviserend +
+  niet-blokkerend, op de dashboard- én tenant-admin-rules-schermen. Spoor 2 (AI)
+  blijft backlog.
+
+### Statamic-productisatie & demo-rollout (gebouwd)
+- **Form Section beheerbaar in Statamic:** knoptekst + na-submit-gedrag
+  (bericht/redirect) + locale-default; een volledig in het CP gebouwd formulier
+  rendert end-to-end (form-handle-resolutie snake/kebab/separatorloos).
+- **Eén-klik rollout (Demo / Leeg):** golden template + provisioner, write-enabled
+  deploy key, super-user, `cms-content`-overlay (content los van platform-code),
+  en **auto-Vercel-domein** per demo.
+- **Add-on** `mister-chameleon/statamic` **v1.1.0 getagd + gepind** (`^1.1`, VCS
+  `no-api`, anoniem installeerbaar).
+- **Pricing Section-blok** toegevoegd; **merk-neutrale demo-seed** (hero/feature
+  adaptief, Acme i.p.v. Mister Chameleon).
+- **De demo-500 (`type: tags`) gefixt** (tags→list) + **CI-fieldtype-guard** in de
+  template-repo (`mc:check-fieldtypes` + `php artisan test` op elke PR) zodat een
+  ongeregistreerde fieldtype al bij een PR faalt i.p.v. op een verse deploy.
+- **Steunles-parity** met de misterchameleon-tenant.
+- **Volledige tenant-teardown:** "Delete tenant" ruimt nu alle 64 `tenant_id`-
+  tabellen + de `rules_config`-keys op → een hergebruikte slug start schoon; geen
+  andere tenant geraakt. Gedocumenteerd in `docs/tenant-teardown.md`.
+- **Live-preview + sessie-cache:** preview toont de bewerkte entry (slug-wiring),
+  en de sessie-enrichment-cache invalideert op een gewijzigde `mc_loc`
+  (postcode+huisnummer) zodat een form-submit meteen de juiste buurt/BAG oplevert;
+  CBS-buurt nu op volledig adres (postcode + huisnummer via PDOK).
+
+### Strato-DNS-realiteit
+Strato ondersteunt **geen wildcard-DNS**, en de enige 'eigen nameservers'-optie is
+domein-breed (breekt de Strato-mail). Daarom **per demo één CNAME** (`<slug>.demo`
+→ de door Vercel aanbevolen waarde die de rollout-kaart toont); de Vercel-kant is
+automatisch. Mail op `@misterchameleon.nl` blijft ongemoeid. Zie
+`docs/demo-rollout.md` + `docs/tenant-teardown.md`.
+
+### Wat resteert
+- **Buildable:** D2 WordPress-plugin · D3 snippet render-modes authoring ·
+  D1 AI-generatie · D6 ad-click-ID · **D7 spoor 2** (context-intelligence, AI) ·
+  C3 E2E-tests in een aparte CI-job.
+- **Meten (geen bouwwerk):** C1 sessie-facturatie over echte data · C2 ad-sync
+  live tegen de echte platforms.
+- **Geparkeerd:** D4 · D9.
+- **Strategisch (sept):** adaptieve laag als *dienst* vs *eigenschap*, en de
+  externe-CMS-koppeling.
