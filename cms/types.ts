@@ -782,6 +782,21 @@ export interface AdaptiveVariantContent {
   tokenSet?:  string;
   tokens?:    import("@/design-system/theme/block-token-set").CuratedBlockTokens;
   /**
+   * Snippet render mode (D3). "content" (default, absent) swaps text/href in the
+   * host's own element. "block" makes the snippet inject `blockHtml` as one styled
+   * block that adopts the tenant tokens (tokenSet/tokens → the scoped --mc-*
+   * variables the decide-route/snippet already emit). Authored in EditBlockDrawer;
+   * the provider adapters forward these onto the resolved *BlockData. Backward-
+   * compatible: content-mode variants carry neither field.
+   */
+  renderMode?: "content" | "block";
+  /**
+   * Operator-authored block markup, used only when `renderMode === "block"`. Trust
+   * boundary matches data-mc-html: authored in the admin, injected as-is by the
+   * snippet — not visitor input, no extra sanitisation.
+   */
+  blockHtml?: string;
+  /**
    * Block-level declarative effect reference for this variant. Points at a named
    * effect set (by key, from the design_effect_sets library) and/or inline
    * effects, with an optional `disabled` kill-switch. Resolved by

@@ -465,6 +465,21 @@ export class StatamicProvider implements CMSProvider {
     return { effectRef: ref };
   }
 
+  /**
+   * Forward the snippet render mode (D3) from an adaptive variant onto the block
+   * data, so a variant authored as "block" reaches the decide-route/snippet path
+   * (which reads BlockData.renderMode/blockHtml). Only when the variant actually
+   * opts in with markup — content-mode variants stay byte-identical (mirrors
+   * variantTokenRef).
+   */
+  private variantRenderMode(
+    c: { renderMode?: "content" | "block"; blockHtml?: string },
+  ): { renderMode?: "content" | "block"; blockHtml?: string } {
+    return c.renderMode === "block" && c.blockHtml
+      ? { renderMode: "block", blockHtml: c.blockHtml }
+      : {};
+  }
+
   private adaptiveToHero(data: AdaptiveBlockData | null): HeroBlockData | null {
     if (!data || !data.isActive) return null;
     const c = data.defaultVariant;
@@ -479,6 +494,7 @@ export class StatamicProvider implements CMSProvider {
       contentAlign: c.contentAlign,
       ...this.variantTokenRef(c),
       ...this.variantEffectRef(c),
+      ...this.variantRenderMode(c),
       // Carousel slides — required for layoutVariant === "hero_carousel".
       // Without this the homepage hero received the carousel layout but no
       // slides, so HeroBlock silently fell back to the default hero.
@@ -498,6 +514,7 @@ export class StatamicProvider implements CMSProvider {
       items: (c.items ?? []).map(adaptiveItemToProofItem),
       ...this.variantTokenRef(c),
       ...this.variantEffectRef(c),
+      ...this.variantRenderMode(c),
     };
   }
 
@@ -519,6 +536,7 @@ export class StatamicProvider implements CMSProvider {
       ...(c.formKey      ? { formKey: c.formKey } : {}),
       ...this.variantTokenRef(c),
       ...this.variantEffectRef(c),
+      ...this.variantRenderMode(c),
     };
   }
 
@@ -533,6 +551,7 @@ export class StatamicProvider implements CMSProvider {
       items:        (c.items ?? []).map(adaptiveItemToFeatureItem),
       ...this.variantTokenRef(c),
       ...this.variantEffectRef(c),
+      ...this.variantRenderMode(c),
     };
   }
 

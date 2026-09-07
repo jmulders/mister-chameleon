@@ -31,6 +31,9 @@ export function adaptiveVariantToConversionData(
     text:          c.subtitle,
     ctas:          c.ctas ?? [],
     ...(c.formKey ? { formKey: c.formKey } : {}),
+    // Snippet render mode (D3) — forward "block" + markup so an authored block
+    // variant reaches the decide-route/snippet path (mirrors the provider adapters).
+    ...(c.renderMode === "block" && c.blockHtml ? { renderMode: "block" as const, blockHtml: c.blockHtml } : {}),
   };
 }
 
@@ -75,5 +78,7 @@ export function adaptiveVariantToNotificationData(
     ...(c.notifCampaignId ? { campaignId: c.notifCampaignId } : {}),
     ...(media          ? { media }               : {}),
     ...(c.mediaSide    ? { mediaSide: c.mediaSide } : {}),
+    // Snippet render mode (D3) — forward "block" + markup (mirrors the provider adapters).
+    ...(c.renderMode === "block" && c.blockHtml ? { renderMode: "block" as const, blockHtml: c.blockHtml } : {}),
   };
 }

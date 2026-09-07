@@ -620,6 +620,18 @@ export function EditBlockDrawer({
     block.defaultVariant.tokens ?? {},
   );
 
+  // ── Snippet render mode (D3) ───────────────────────────────────────────────
+  // "content" (default): the snippet swaps text/innerHTML/href in the host's own
+  // element, inheriting its styling — the safe, backward-compatible path.
+  // "block": the snippet injects `blockHtml` as one styled block, adopting the
+  // tenant's design tokens (the "Design → Token set" picker below) via the
+  // scoped --mc-* custom properties the runtime already emits. Authoring only —
+  // the decide-route + snippet runtime already carry these fields.
+  const [renderMode, setRenderMode] = useState<"content" | "block">(
+    block.defaultVariant.renderMode ?? "content",
+  );
+  const [blockHtml, setBlockHtml]   = useState(block.defaultVariant.blockHtml ?? "");
+
   // ── Block-level effect ref ─────────────────────────────────────────────────
   // A named set / inline effects / disabled kill-switch for THIS block. Resolved
   // as the instance tier (wins over the block-type and tenant defaults).
@@ -720,6 +732,7 @@ export function EditBlockDrawer({
     mediaType, imageUrl, imageAlt, imageObjectPosition, videoSource, videoUrl, videoPoster,
     videoObjectPosition, videoMuted, videoControls, videoId, videoAutoplay, videoLoop,
     ctas, items, slides, carouselAutoplay, tokenSet, tokens,
+    renderMode, blockHtml,
   ]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -851,6 +864,10 @@ export function EditBlockDrawer({
       ...(tokenSet ? { tokenSet } : {}),
       ...(Object.keys(tokens).length ? { tokens } : {}),
       ...(effectRef ? { effects: effectRef } : {}),
+      // Snippet render mode (D3): only persist when "block" so content-mode
+      // payloads stay byte-identical to before (backward-compatible default).
+      // The tokenSet/tokens above become the block's styling source at runtime.
+      ...(renderMode === "block" ? { renderMode, blockHtml } : {}),
       // Notification settings — persisted only for the notification slot.
       ...(slotId === "notification" ? {
         notifPosition,
@@ -865,6 +882,12 @@ export function EditBlockDrawer({
 
   function handleSave() {
     setError(null);
+    // Block render mode without markup would inject an empty block — block the
+    // save with a clear message rather than persisting a dud.
+    if (renderMode === "block" && blockHtml.trim() === "") {
+      setError("Block render mode needs HTML. Add the block markup, or switch back to “Swap content”.");
+      return;
+    }
     startTrans(async () => {
       const variant = buildVariant();
 
@@ -1568,6 +1591,67 @@ export function EditBlockDrawer({
                 className={INPUT_CLS}
               />
             </div>
+          </fieldset>
+
+          {/* ── Snippet render mode (D3) ──────────────────────────────────── */}
+          <fieldset className="space-y-3">
+            <legend className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+              Snippet render mode
+            </legend>
+            <div className="flex flex-col gap-1.5">
+              <label className="flex items-start gap-2 text-xs cursor-pointer">
+                <input
+                  type="radio"
+                  name="mc-render-mode"
+                  checked={renderMode === "content"}
+                  onChange={() => setRenderMode("content")}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium text-neutral-800">Swap content</span>
+                  <span className="block text-[11px] text-neutral-500">
+                    Default. Replaces text / innerHTML / href in the host&apos;s own element, inheriting its styling. Safe, no CSS conflicts.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-xs cursor-pointer">
+                <input
+                  type="radio"
+                  name="mc-render-mode"
+                  checked={renderMode === "block"}
+                  onChange={() => setRenderMode("block")}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium text-neutral-800">Styled block</span>
+                  <span className="block text-[11px] text-neutral-500">
+                    Injects your own HTML as one block that adopts the tenant tokens (the Design → Token set below) via scoped <code className="font-mono">--mc-*</code> variables.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            {renderMode === "block" && (
+              <div className="space-y-1.5">
+                <label htmlFor="mc-block-html" className="block text-xs font-medium text-neutral-700">
+                  Block HTML
+                </label>
+                <textarea
+                  id="mc-block-html"
+                  value={blockHtml}
+                  onChange={(e) => setBlockHtml(e.target.value)}
+                  rows={8}
+                  spellCheck={false}
+                  placeholder={'<div class="mc-hero">\n  <h2 style="color:var(--mc-color-primary)">…</h2>\n</div>'}
+                  className={`${INPUT_CLS} font-mono text-[11px] leading-relaxed`}
+                />
+                <p className="text-[11px] text-neutral-400">
+                  Use <code className="font-mono">var(--mc-color-primary)</code> etc. for brand styling, and prefix classes with <code className="font-mono">mc-</code> (the snippet scopes a reset around them). Pick the styling below under <span className="font-medium">Design → Token set</span>; leave it empty to fall back to the tenant defaults.
+                  {" "}
+                  <span className="text-neutral-500">This HTML is operator-authored — same trust boundary as <code className="font-mono">data-mc-html</code>; it is injected as-is (no extra sanitisation).</span>
+                </p>
+              </div>
+            )}
           </fieldset>
 
           {/* ── Block-level design tokens ─────────────────────────────────── */}
