@@ -114,6 +114,7 @@ export const ENRICHMENT_PRICE_CENTS: Record<UsageEventType, number> = {
   ga4_history:     6,
   crm_lookup:      6,
   ai_variant_generation: 6,
+  ai_rule_suggestion:    6,
 };
 
 /**
@@ -234,6 +235,13 @@ export const ENRICHMENT_TYPE_CONFIG: Record<UsageEventType, EnrichmentTypeConfig
     creditsPerCall: 6,
     displayName:    "AI Variant Generation",
     description:    "AI variant generator — one LLM call producing an adaptive-block variant",
+    billable:       true,
+    category:       "brainpower",
+  },
+  ai_rule_suggestion: {
+    creditsPerCall: 6,
+    displayName:    "AI Rule Suggestion",
+    description:    "AI rule suggester — one LLM call proposing a validated decision rule",
     billable:       true,
     category:       "brainpower",
   },

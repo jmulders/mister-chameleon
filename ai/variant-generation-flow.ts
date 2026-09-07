@@ -10,11 +10,8 @@
 
 import "server-only";
 
-import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { debitWallet }     from "@/billing/wallet";
-import { trackUsageEvent } from "@/billing/usage-events";
-import { logger }          from "@/lib/logger";
+import { chargeAiUsage }   from "@/billing/ai-usage-charge";
 import {
   generateVariant,
   type GenerateFn,
@@ -96,47 +93,12 @@ export async function chargeForAiGeneration(
   tenantId: string,
   slot:     GeneratorSlot,
 ): Promise<void> {
-  // Unique per call so each generation is charged exactly once and the audit
-  // insert is never skipped as a duplicate (there is no visitor session here).
-  const nonce          = randomBytes(6).toString("hex");
-  const referenceId    = `ai_variant_generation:${slot}:${nonce}`;
-  const idempotencyKey = `ai_variant_generation:${tenantId}:${nonce}`;
-
-  let charged = false;
-  try {
-    const debit = await debitWallet(
-      client,
-      tenantId,
-      AI_GENERATION_CREDIT_COST,
-      "ai_variant_generation", // referenceType
-      referenceId,
-      `AI variant generation — ${slot}`,
-      "brainpower",            // category → wallet_ledger
-    );
-    charged = debit.success;
-    if (!debit.success) {
-      logger.warn("[ai-generate] wallet debit failed after generation — recording unbilled", {
-        tenantId, slot, error: debit.error,
-      });
-    }
-  } catch (err) {
-    logger.warn("[ai-generate] wallet debit threw after generation — recording unbilled", {
-      tenantId, slot, err: err instanceof Error ? err.message : String(err),
-    });
-  }
-
-  // Audit row — always written, so an operator can find every generation.
-  await trackUsageEvent(client, {
-    tenantId,
-    eventType:      "ai_variant_generation",
-    creditsCost:    charged ? AI_GENERATION_CREDIT_COST : 0,
-    billable:       charged,
-    category:       "brainpower",
-    featureKey:     "ai_variant_generation",
-    success:        true,   // the generation itself succeeded
-    cacheHit:       false,
-    ...(charged ? {} : { errorCode: "debit_failed" }),
-    idempotencyKey,
-    metadata: { slot },
+  await chargeAiUsage(client, tenantId, {
+    eventType:     "ai_variant_generation",
+    credits:       AI_GENERATION_CREDIT_COST,
+    category:      "brainpower",
+    referenceType: "ai_variant_generation",
+    note:          `AI variant generation — ${slot}`,
+    metadata:      { slot },
   });
 }
