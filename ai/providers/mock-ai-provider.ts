@@ -60,7 +60,7 @@ import type { DecisionInput, ExperiencePlan, HeroVariantKey, ProofVariantKey, CT
 import type { VariantCandidate } from "@/ai/variant-meta";
 import { buildHomepagePrompt } from "@/ai/prompt-builder";
 import { filterAiReady, platformOnlyCandidates } from "@/ai/resolve-variant-candidates";
-import type { AiProvider, AiProviderResult } from "./base-provider";
+import type { AiProvider, AiProviderResult, AiGenerateRequest, AiGenerateResult } from "./base-provider";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -200,6 +200,16 @@ export class MockAiProvider implements AiProvider {
           `${userPrompt}`,
       },
     };
+  }
+
+  /**
+   * The mock does not do real inference, so it cannot generate content. Report
+   * DISABLED (mirrors the decision behaviour: only the Claude adapter calls a
+   * real model today) so the caller surfaces a clear "AI unavailable" rather than
+   * fabricated copy.
+   */
+  async generate(_: AiGenerateRequest): Promise<AiGenerateResult> {
+    return { ok: false, code: "DISABLED", reason: "The mock provider does not generate content — configure Claude to use AI generation." };
   }
 }
 

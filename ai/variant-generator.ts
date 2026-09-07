@@ -11,6 +11,7 @@
 import "server-only";
 
 import type { AdaptiveVariantContent } from "@/cms/types";
+import type { AiGenerateRequest, AiGenerateResult, AiProviderErrorCode } from "@/ai/providers/base-provider";
 import type {
   VariantDecisionMeta,
   IntentLevel,
@@ -142,49 +143,50 @@ function coerce(raw: unknown): GenerateResult {
 
 // ── Generate ─────────────────────────────────────────────────────────────────
 
-/**
- * Calls the Anthropic Messages API to generate + validate one variant.
- * Returns a validated draft or an error — never writes anything.
- */
-export async function generateVariant(brief: VariantBrief): Promise<GenerateResult> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return { ok: false, error: "ANTHROPIC_API_KEY is not configured." };
-  const model = process.env.CLAUDE_MODEL ?? "claude-3-5-haiku-20241022";
+/** The generation capability the generator needs — provider.generate (D1). */
+export type GenerateFn = (req: AiGenerateRequest) => Promise<AiGenerateResult>;
 
-  let text: string;
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method:  "POST",
-      headers: {
-        "x-api-key":         key,
-        "anthropic-version": "2023-06-01",
-        "content-type":      "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1200,
-        system:     buildSystemPrompt(),
-        messages:   [{ role: "user", content: buildUserPrompt(brief) }],
-      }),
-    });
-    if (!res.ok) return { ok: false, error: `Model API error ${res.status}.` };
-    const json = await res.json() as { content?: Array<{ text?: string }> };
-    text = json.content?.[0]?.text ?? "";
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Model call failed." };
+/** Turn a provider error code into an operator-facing message. */
+function messageForCode(code: AiProviderErrorCode, reason: string): string {
+  switch (code) {
+    case "DISABLED":        return "AI is uitgeschakeld voor deze tenant — zet AI aan bij Settings om te genereren.";
+    case "MISSING_API_KEY": return "Geen AI-API-key geconfigureerd — stel die in bij Platform → Integrations.";
+    case "TIMEOUT":         return "Het AI-model reageerde niet op tijd. Probeer het opnieuw.";
+    case "PARSE_ERROR":     return "Het AI-model gaf een onleesbaar antwoord. Probeer het opnieuw.";
+    case "MODEL_ERROR":
+    default:                return `Het AI-model gaf een fout: ${reason}`;
   }
+}
+
+/**
+ * Generate + validate ONE variant via the injected provider generate fn
+ * (`createAiProvider(...).generate`). Pure over its dependency: no env, no fetch —
+ * the caller wires the configured AiProvider. Returns a validated draft or an
+ * error; never writes anything. Provider failures surface as their error code's
+ * message (DISABLED / MISSING_API_KEY / MODEL_ERROR / PARSE_ERROR / TIMEOUT).
+ */
+export async function generateVariant(
+  brief: VariantBrief,
+  deps:  { generate: GenerateFn },
+): Promise<GenerateResult> {
+  const res = await deps.generate({
+    system:    buildSystemPrompt(),
+    user:      buildUserPrompt(brief),
+    maxTokens: 1200,
+  });
+  if (!res.ok) return { ok: false, error: messageForCode(res.code, res.reason) };
 
   // Strip accidental markdown fences and isolate the JSON object.
-  const cleaned = text.replace(/```json|```/g, "").trim();
+  const cleaned = res.text.replace(/```json|```/g, "").trim();
   const start = cleaned.indexOf("{");
   const end   = cleaned.lastIndexOf("}");
-  if (start < 0 || end <= start) return { ok: false, error: "Model did not return JSON." };
+  if (start < 0 || end <= start) return { ok: false, error: "Het AI-model gaf geen JSON terug." };
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(cleaned.slice(start, end + 1));
   } catch {
-    return { ok: false, error: "Could not parse model JSON." };
+    return { ok: false, error: "Kon de JSON van het AI-model niet verwerken." };
   }
   return coerce(parsed);
 }

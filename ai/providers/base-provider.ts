@@ -144,6 +144,26 @@ export interface AiProviderFailure {
   partialOutput?: Partial<AiDecisionOutput>;
 }
 
+// ── Generic text generation (D1 variant generator) ────────────────────────────
+//
+// A minimal, non-decision generation capability so callers (the AI variant
+// generator) route through the same provider abstraction — config, key handling,
+// timeout and the AiProviderErrorCode vocabulary — instead of their own fetch.
+// The caller supplies the prompts and parses the returned text itself.
+
+/** A raw generation request: caller-supplied system + user prompts. */
+export interface AiGenerateRequest {
+  system: string;
+  user:   string;
+  /** Max output tokens; provider clamps to a sensible default when absent. */
+  maxTokens?: number;
+}
+
+/** Result of a generate() call — raw model text, or a classified failure. */
+export type AiGenerateResult =
+  | { ok: true;  text: string }
+  | { ok: false; code: AiProviderErrorCode; reason: string };
+
 // ── AiProvider interface ──────────────────────────────────────────────────────
 
 /**
@@ -190,6 +210,14 @@ export interface AiProvider {
    * @returns      A Promise that always resolves.  Never rejects.
    */
   suggest(input: DecisionInput): Promise<AiProviderResult>;
+
+  /**
+   * Generate raw text from caller-supplied prompts (D1 variant generator).
+   * Never throws — network/timeout/parse issues come back as an
+   * AiGenerateResult failure with the matching AiProviderErrorCode. Providers
+   * without real inference (disabled, mock) return code "DISABLED".
+   */
+  generate(request: AiGenerateRequest): Promise<AiGenerateResult>;
 }
 
 // ── DisabledAiProvider ────────────────────────────────────────────────────────
@@ -222,5 +250,9 @@ export class DisabledAiProvider implements AiProvider {
       code:   "DISABLED",
       reason: this._reason,
     };
+  }
+
+  async generate(_: AiGenerateRequest): Promise<AiGenerateResult> {
+    return { ok: false, code: "DISABLED", reason: this._reason };
   }
 }
