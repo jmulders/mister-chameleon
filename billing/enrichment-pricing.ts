@@ -113,6 +113,7 @@ export const ENRICHMENT_PRICE_CENTS: Record<UsageEventType, number> = {
   location_lookup: 1,
   ga4_history:     6,
   crm_lookup:      6,
+  ai_variant_generation: 6,
 };
 
 /**
@@ -226,6 +227,13 @@ export const ENRICHMENT_TYPE_CONFIG: Record<UsageEventType, EnrichmentTypeConfig
     creditsPerCall: 2,
     displayName:    "CRM Lookup",
     description:    "HubSpot CRM — contact and company record matching",
+    billable:       true,
+    category:       "brainpower",
+  },
+  ai_variant_generation: {
+    creditsPerCall: 6,
+    displayName:    "AI Variant Generation",
+    description:    "AI variant generator — one LLM call producing an adaptive-block variant",
     billable:       true,
     category:       "brainpower",
   },

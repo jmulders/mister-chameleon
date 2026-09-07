@@ -37,7 +37,7 @@ import type { ThemePresetKey } from "@/design-system/theme/presets";
 import { buildHomepagePrompt } from "@/ai/prompt-builder";
 import { filterAiReady, platformOnlyCandidates } from "@/ai/resolve-variant-candidates";
 import { ALLOWED_THEME_KEYS } from "@/ai/theme-meta";
-import type { AiProvider, AiProviderResult } from "./base-provider";
+import type { AiProvider, AiProviderResult, AiGenerateRequest, AiGenerateResult } from "./base-provider";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -249,6 +249,62 @@ export class ClaudeAdapter implements AiProvider {
         rawReasoning: text,
       },
     };
+  }
+
+  /**
+   * Generic text generation (D1 variant generator). Same HTTP path, timeout and
+   * error-code vocabulary as suggest(), but the caller supplies the prompts and
+   * parses the returned text. Never throws.
+   */
+  async generate(request: AiGenerateRequest): Promise<AiGenerateResult> {
+    if (!this.apiKey) {
+      return { ok: false, code: "MISSING_API_KEY", reason: "ANTHROPIC_API_KEY is not set — cannot call the Anthropic API." };
+    }
+
+    const controller = new AbortController();
+    const timer      = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "content-type":      "application/json",
+          "x-api-key":         this.apiKey,
+          "anthropic-version": ANTHROPIC_VERSION,
+        },
+        body: JSON.stringify({
+          model:      this.modelId,
+          max_tokens: request.maxTokens ?? 1200,
+          system:     request.system,
+          messages:   [{ role: "user", content: request.user }],
+        }),
+        signal: controller.signal,
+        cache:  "no-store",
+      });
+    } catch (err) {
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      return isAbort
+        ? { ok: false, code: "TIMEOUT", reason: `Anthropic API did not respond within ${this.timeoutMs}ms.` }
+        : { ok: false, code: "MODEL_ERROR", reason: `Network error calling the Anthropic API: ${err instanceof Error ? err.message : String(err)}` };
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      return { ok: false, code: "MODEL_ERROR", reason: `Anthropic API returned HTTP ${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 300)}` : ""}` };
+    }
+
+    let json: AnthropicMessagesResponse;
+    try {
+      json = await response.json() as AnthropicMessagesResponse;
+    } catch {
+      return { ok: false, code: "PARSE_ERROR", reason: "Anthropic API returned a non-JSON body." };
+    }
+    const text = json.content?.find((b) => b.type === "text")?.text ?? json.content?.[0]?.text ?? "";
+    if (!text) return { ok: false, code: "PARSE_ERROR", reason: "Anthropic API returned no text content." };
+    return { ok: true, text };
   }
 }
 

@@ -96,10 +96,10 @@ export const CREDIT_CATEGORIES: Record<CreditCategory, CreditCategoryMeta> = {
     id:              "brainpower",
     label:           "Brainpower",
     description:     "Deep enrichment using quota-constrained external APIs",
-    enrichmentTypes: ["ga4_history", "crm_lookup"],
+    enrichmentTypes: ["ga4_history", "crm_lookup", "ai_variant_generation"],
     color:           "orange",
     creditsPerCall:  6,
-    exampleTypes:    "GA4 history · CRM lookup",
+    exampleTypes:    "GA4 history · CRM lookup · AI variant generation",
   },
 };
 
@@ -133,6 +133,10 @@ export const EVENT_CATEGORY: Record<UsageEventType, CreditCategory> = {
   // Brainpower — deep enrichment (quota-constrained, higher cost)
   ga4_history:     "brainpower",
   crm_lookup:      "brainpower",
+  // AI variant generation — one LLM call, same Brainpower tier (6 cr/call): it is
+  // the platform's most expensive, quota-worthy operation, so it shares the
+  // highest cost band rather than inventing a parallel price.
+  ai_variant_generation: "brainpower",
 };
 
 // ── Fallback modes ─────────────────────────────────────────────────────────────

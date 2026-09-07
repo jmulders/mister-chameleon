@@ -10,12 +10,24 @@
  */
 
 import { randomBytes }             from "node:crypto";
+import type { SupabaseClient }     from "@supabase/supabase-js";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
 import { isSelfServiceEnabled }    from "@/lib/self-service/self-service-store";
 import { listAdaptiveBlocks }      from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import { upsertAdaptiveBlockAction } from "@/lib/adaptive-blocks/adaptive-blocks-actions";
+import { getDb }                   from "@/data/db";
+import { getTenantById }           from "@/tenant/server";
+import { getTenantAiRuntimeConfig } from "@/ai/config";
+import { createAiProvider }        from "@/ai/providers/create-ai-provider";
 import {
-  generateVariant,
+  checkWalletForAiGeneration,
+  aiGenerationBlockMessage,
+}                                  from "@/billing/ai-generation-guard";
+import {
+  runVariantGeneration,
+  chargeForAiGeneration,
+}                                  from "@/ai/variant-generation-flow";
+import {
   MAX_VARIANTS_PER_SLOT,
   type VariantBrief,
   type GeneratedVariant,
@@ -41,9 +53,27 @@ export async function generateVariantAction(
   if (!(await isSelfServiceEnabled(tenantId))) {
     return { ok: false, error: "Self-service staat uit voor deze tenant (agency-led). Zet 'Self-service mode' aan bij Settings om zelf varianten te genereren." };
   }
-  const count = await countForSlot(tenantId, brief.slot);
-  const res   = await generateVariant(brief);
+  const count  = await countForSlot(tenantId, brief.slot);
+  const client = getDb() as unknown as SupabaseClient;
+
+  // Resolve the tenant's configured provider — generation runs through the
+  // shared AiProvider abstraction. When no live provider is configured (or no
+  // API key), the provider is Disabled and the flow surfaces a clean DISABLED /
+  // MISSING_API_KEY message with no charge (the call never produced a variant).
+  const tenant   = await getTenantById(tenantId);
+  const aiConfig = getTenantAiRuntimeConfig(tenant);
+  const provider = createAiProvider(aiConfig.liveProvider);
+
+  // Credit-metered flow: wallet guard BEFORE the call (no budget → no model
+  // call), charge only AFTER a successful generation.
+  const res = await runVariantGeneration(tenantId, brief, {
+    checkWallet:  (id) => checkWalletForAiGeneration(client, id),
+    generate:     (r) => provider.generate(r),
+    charge:       (slot) => chargeForAiGeneration(client, tenantId, slot),
+    blockMessage: aiGenerationBlockMessage,
+  });
   if (!res.ok) return res;
+
   return { ok: true, variant: res.variant, count, cap: MAX_VARIANTS_PER_SLOT };
 }
 
