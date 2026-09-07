@@ -34,6 +34,19 @@ import { generatePresetRulesConfig, mergePresetRules } from "@/decision/rules/ge
 import { getDb } from "@/data/db";
 import { fetchVariantCatalogue } from "@/decision/rules/fetch-variant-catalogue";
 import { buildTenantExport } from "@/lib/tenant-export/build-tenant-export";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { StoredRule } from "@/decision/rules/stored-rule";
+import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
+import { isSelfServiceEnabled }    from "@/lib/self-service/self-service-store";
+import { getTenantById }           from "@/tenant/server";
+import { getTenantAiRuntimeConfig } from "@/ai/config";
+import { createAiProvider }        from "@/ai/providers/create-ai-provider";
+import {
+  checkWalletForAiGeneration,
+  aiGenerationBlockMessage,
+}                                  from "@/billing/ai-generation-guard";
+import { safeBaseConfig, type RuleSuggestionBrief } from "@/ai/rule-suggester";
+import { runRuleSuggestion, chargeForRuleSuggestion } from "@/ai/rule-suggestion-flow";
 
 // ── Typed query helpers ────────────────────────────────────────────────────────
 //
@@ -206,6 +219,88 @@ export async function saveTenantRulesAction(
   revalidatePath(`/admin/tenants/${tenantId}/rules`);
   revalidateTag(tenantRulesCacheTag(tenantId), {});
   return { ok: true };
+}
+
+// ── AI rule suggestion (D1 fase 2) ────────────────────────────────────────────
+
+/**
+ * Propose ONE personalization rule for this tenant via the shared AiProvider,
+ * credit-metered (Brainpower, 6 cr) with a pre-call wallet guard. Returns a
+ * VALIDATED draft StoredRule — the caller inserts it into the RulesEditor as an
+ * editable, UNSAVED draft. This action NEVER writes to rules_config: "adviseert,
+ * beslist niet". The operator adjusts and saves via saveTenantRulesAction (which
+ * re-validates the whole config).
+ *
+ * Guards mirror fase 1: admin session + self-service. Charges only on a valid,
+ * validated suggestion (no charge on provider / parse / validation error).
+ *
+ * @param existing  The editor's current rules ({ id, priority }) so the assigned
+ *                  id + priority never collide with what the operator sees.
+ */
+export async function suggestRuleAction(
+  tenantId: string,
+  brief:    RuleSuggestionBrief,
+  existing: { id: string; priority: number }[] = [],
+): Promise<{ ok: true; rule: StoredRule } | { ok: false; error: string }> {
+  if (!tenantId) {
+    return { ok: false, error: "tenantId must be a non-empty string" };
+  }
+
+  await getRequiredAdminSession();
+
+  // Self-service gate — AI rule suggestion is a self-service authoring feature
+  // (mirrors the fase-1 variant generator).
+  if (!(await isSelfServiceEnabled(tenantId))) {
+    return {
+      ok:    false,
+      error: "Self-service staat uit voor deze tenant (agency-led). Zet 'Self-service mode' aan bij Settings om AI-regelvoorstellen te gebruiken.",
+    };
+  }
+
+  if (!brief || typeof brief.audience !== "string" || brief.audience.trim() === "") {
+    return { ok: false, error: "Geef een korte omschrijving van de doelgroep om een regel voor te stellen." };
+  }
+
+  // Variant catalogue → allowed keys (for the prompt) + extraKeys (for validation).
+  const catalogue = await fetchVariantCatalogue(tenantId);
+  const extraKeys = {
+    heroKeys:  catalogue.hero.filter((e) => e.source !== "platform").map((e) => e.key),
+    proofKeys: catalogue.proof.filter((e) => e.source !== "platform").map((e) => e.key),
+    ctaKeys:   catalogue.cta.filter((e) => e.source !== "platform").map((e) => e.key),
+  };
+
+  // Validated base config to merge the suggestion into (falls back to seed).
+  const loaded     = await loadTenantRulesConfig(tenantId, extraKeys);
+  const baseConfig = safeBaseConfig(loaded, extraKeys);
+
+  const ctx = {
+    catalogue: {
+      heroKeys:  catalogue.hero.map((e) => e.key),
+      proofKeys: catalogue.proof.map((e) => e.key),
+      ctaKeys:   catalogue.cta.map((e) => e.key),
+    },
+    extraKeys,
+    baseConfig,
+    takenIds:        existing.map((e) => e.id),
+    takenPriorities: existing.map((e) => e.priority),
+  };
+
+  // Resolve the tenant's configured provider (shared AiProvider abstraction).
+  const tenant   = await getTenantById(tenantId);
+  const aiConfig = getTenantAiRuntimeConfig(tenant);
+  const provider = createAiProvider(aiConfig.liveProvider);
+
+  const client = getDb() as unknown as SupabaseClient;
+
+  // Credit-metered flow: wallet guard BEFORE the call, charge only AFTER a
+  // valid, validated suggestion.
+  return runRuleSuggestion(tenantId, brief, ctx, {
+    checkWallet:    (id) => checkWalletForAiGeneration(client, id),
+    generate:       (r) => provider.generate(r),
+    charge:         (rule) => chargeForRuleSuggestion(client, tenantId, rule),
+    blockMessage:   aiGenerationBlockMessage,
+    retryOnInvalid: true,
+  });
 }
 
 // ── Export tenant data (portability) ──────────────────────────────────────────

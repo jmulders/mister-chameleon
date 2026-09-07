@@ -25,7 +25,7 @@
 import { notFound }      from "next/navigation";
 import { getTenantById } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
-import { getTenantRulesAction, saveTenantRulesAction, resetTenantRulesAction, setTenantRulesEnabledAction, seedPresetRulesAction, exportTenantDataAction } from "./actions";
+import { getTenantRulesAction, saveTenantRulesAction, resetTenantRulesAction, setTenantRulesEnabledAction, seedPresetRulesAction, exportTenantDataAction, suggestRuleAction } from "./actions";
 import { RulesEditor }         from "@/app/dashboard/rules/_components/RulesEditor";
 import { GlobalRulesToggle }   from "./_components/GlobalRulesToggle";
 import { ExportTenantDataButton } from "./_components/ExportTenantDataButton";
@@ -66,6 +66,7 @@ export default async function TenantRulesPage({
   const boundSetEnabled     = setTenantRulesEnabledAction.bind(null, tenantId);
   const boundSeedPresets    = seedPresetRulesAction.bind(null, tenantId);
   const boundExport         = exportTenantDataAction.bind(null, tenantId);
+  const boundSuggest        = suggestRuleAction.bind(null, tenantId);
 
   if (!result.ok) {
     return (
@@ -102,6 +103,7 @@ export default async function TenantRulesPage({
         resetAction={boundReset}
         attributeCatalogue={rawTenant.customAttributes}
         fireStats={fireStats}
+        suggestAction={boundSuggest}
       />
     </div>
   );
