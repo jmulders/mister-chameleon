@@ -14,9 +14,11 @@ import "server-only";
  *
  * So a demo rollout also writes, for the new tenant:
  *
- *   - one adaptive block (`hero_matrix_homepage`) with a default variant plus a
- *     second variant, both brand-free Dutch copy matching the CMS seed;
- *   - one rule in `rules_config` (`homepage_<tenantId>`) that switches to it on
+ *   - tenant-scoped adaptive blocks keyed by the variant keys the demo-home slots
+ *     resolve (hero_default, hero_enterprise, feature_default), all brand-free
+ *     Dutch (Acme) copy — so the slots stop falling back to the platform-wide
+ *     Mister Chameleon product copy (see DEMO_SEEDED_BLOCK_KEYS);
+ *   - one rule in `rules_config` (`homepage_<tenantId>`) that switches the hero on
  *     a signal an operator can actually produce on demand.
  *
  * ─── Why LinkedIn traffic is the trigger ─────────────────────────────────────
@@ -50,8 +52,21 @@ import type { AdaptiveVariantContent }        from "@/cms/types";
 /** The single place the example brand name is defined. */
 export const DEMO_BRAND = "Acme";
 
-/** Adaptive block key the homepage hero slot resolves against. */
-export const DEMO_HERO_BLOCK_KEY = "hero_matrix_homepage";
+/**
+ * Adaptive blocks are resolved BY VARIANT KEY: the homepage slots call
+ * getHeroVariant("hero_default") / getFeatureVariant("feature_default") etc.,
+ * which look up an adaptive_blocks row whose `key` equals that variant key
+ * (tenant row first, then the platform-wide row). So to override the platform
+ * defaults for a demo we must seed one tenant-scoped block PER variant key the
+ * demo-home resolves — not one block under an invented key. The keys below are
+ * exactly the ones the neutral CMS demo-home (home.md) + the demo rule reference:
+ *   - hero_default    — the hero slot's default plan
+ *   - hero_enterprise — the hero slot under the LinkedIn rule
+ *   - feature_default — the feature slot (else it falls back to the MC feature grid)
+ * Without these, the tenant has no row for these keys and the slots render the
+ * platform-wide Mister Chameleon product copy. See DEMO_SEEDED_BLOCK_KEYS.
+ */
+export const DEMO_SEEDED_BLOCK_KEYS = ["hero_default", "hero_enterprise", "feature_default"] as const;
 
 /** Rule that switches the hero. Its priority must be unique in the config. */
 export const DEMO_RULE_ID       = "demo_hero_linkedin";
@@ -90,6 +105,27 @@ const heroEnterprise: AdaptiveVariantContent = {
     { label: "Lees de cases",    href: "/cases" },
   ],
 };
+
+// The feature slot's neutral variant — mirrors the CMS demo-home's
+// feature_variants catalogue so it reads as one demo, and replaces the
+// platform-wide Mister Chameleon "Everything you need…" grid for this tenant.
+const featureDefault: AdaptiveVariantContent = {
+  title:         "Wat je krijgt",
+  subtitle:      `Een site die past bij hoe jouw organisatie werkt.`,
+  layoutVariant: "feature_grid",
+  items: [
+    { title: "Eigen huisstijl",     body: "Kleuren, lettertype en logo van je eigen merk." },
+    { title: "Werkt op elk scherm", body: "Van telefoon tot breedbeeld, zonder aparte mobiele site." },
+    { title: "Vindbaar",            body: "Nette structuur en snelle pagina's, zodat zoekmachines je vinden." },
+  ],
+};
+
+/** Variant key → neutral content, one adaptive_blocks row per key (see DEMO_SEEDED_BLOCK_KEYS). */
+const SEEDED_BLOCKS: ReadonlyArray<{ key: string; label: string; content: AdaptiveVariantContent }> = [
+  { key: "hero_default",    label: "Standaard",         content: heroDefault },
+  { key: "hero_enterprise", label: "Voor organisaties", content: heroEnterprise },
+  { key: "feature_default", label: "Wat je krijgt",     content: featureDefault },
+];
 
 /**
  * The demo rule: visitors arriving from LinkedIn see the organisation-facing
@@ -167,22 +203,30 @@ export async function seedDemoPlatformData(
   const warnings: string[] = [];
   if (!tenantId) return { ok: false, message: "tenantId is required.", seeded, warnings };
 
-  // ── 1. Adaptive block ─────────────────────────────────────────────────────
-  try {
-    const res = await upsertBlock({
-      key:            DEMO_HERO_BLOCK_KEY,
-      tenantId,
-      isActive:       true,
-      defaultVariant: heroDefault,
-      adaptiveVariants: [
-        { variantKey: "hero_default",    label: "Standaard",         content: heroDefault },
-        { variantKey: "hero_enterprise", label: "Voor organisaties", content: heroEnterprise },
-      ],
-    });
-    if (res.ok) seeded.push(`adaptive block ${DEMO_HERO_BLOCK_KEY} (2 variants)`);
-    else        warnings.push(`Adaptive block: ${res.error}`);
-  } catch (err) {
-    warnings.push(`Adaptive block: ${err instanceof Error ? err.message : String(err)}`);
+  // ── 1. Adaptive blocks — one tenant-scoped row per variant key ────────────
+  // Each block's `defaultVariant` is what getHeroVariant/getFeatureVariant return
+  // for that key, so a tenant row here overrides the platform-wide Mister
+  // Chameleon default for THIS tenant only. All neutral Acme copy.
+  let blocksSeeded = 0;
+  for (const block of SEEDED_BLOCKS) {
+    try {
+      const res = await upsertBlock({
+        key:            block.key,
+        tenantId,
+        isActive:       true,
+        defaultVariant: block.content,
+        adaptiveVariants: [
+          { variantKey: block.key, label: block.label, content: block.content },
+        ],
+      });
+      if (res.ok) blocksSeeded++;
+      else        warnings.push(`Adaptive block ${block.key}: ${res.error}`);
+    } catch (err) {
+      warnings.push(`Adaptive block ${block.key}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  if (blocksSeeded > 0) {
+    seeded.push(`${blocksSeeded} adaptive block${blocksSeeded === 1 ? "" : "s"} (${SEEDED_BLOCKS.map((b) => b.key).join(", ")})`);
   }
 
   // ── 2. Rule ───────────────────────────────────────────────────────────────

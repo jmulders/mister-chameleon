@@ -19,7 +19,7 @@ import { ALLOWED_HERO_KEYS }    from "../../decision/rules/stored-rule.ts";
 import type { StoredRulesConfig } from "../../decision/rules/stored-rule.ts";
 import {
   buildDemoRule, buildDemoRulesConfig, seedDemoPlatformData,
-  DEMO_BRAND, DEMO_RULE_ID, DEMO_RULE_PRIORITY, DEMO_HERO_BLOCK_KEY,
+  DEMO_BRAND, DEMO_RULE_ID, DEMO_RULE_PRIORITY, DEMO_SEEDED_BLOCK_KEYS,
 } from "../../lib/provisioning/demo-platform-seed.ts";
 
 // ── The rule ──────────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ describe("DEMO_BRAND", () => {
 // so the write path is exercised here without a database.
 
 describe("seedDemoPlatformData", () => {
-  interface Upsert { key: string; tenantId?: string | null; adaptiveVariants: unknown[] }
+  interface Upsert { key: string; tenantId?: string | null; defaultVariant: unknown; adaptiveVariants: unknown[] }
   let upserts:    Upsert[];
   let rulesRows:  Array<{ key: string; config: string }>;
   let blockFails: boolean;
@@ -149,19 +149,36 @@ describe("seedDemoPlatformData", () => {
     }),
   });
 
-  it("writes one block with two variants and one valid rule", async () => {
+  it("writes one block per resolved variant key and one valid rule", async () => {
     const result = await seedDemoPlatformData("acme", deps());
     assert.equal(result.ok, true);
 
-    assert.equal(upserts.length, 1);
-    assert.equal(upserts[0]!.key, DEMO_HERO_BLOCK_KEY);
-    assert.equal(upserts[0]!.adaptiveVariants.length, 2);
+    // One adaptive_blocks row PER variant key the demo-home resolves — keyed by
+    // the variant key (not an invented block key), so tenant rows override the
+    // platform-wide Mister Chameleon defaults.
+    assert.deepEqual(upserts.map((u) => u.key).sort(), [...DEMO_SEEDED_BLOCK_KEYS].sort());
+    assert.ok(upserts.some((u) => u.key === "hero_default"));
+    assert.ok(upserts.some((u) => u.key === "hero_enterprise"));
+    assert.ok(upserts.some((u) => u.key === "feature_default"));
 
     assert.equal(rulesRows.length, 1);
     assert.equal(rulesRows[0]!.key, "homepage_acme");
     const written = JSON.parse(rulesRows[0]!.config) as StoredRulesConfig;
     assert.equal(written.rules.length, 1);
     assert.deepEqual(validateStoredConfig(written as unknown), []);
+  });
+
+  it("seeds ONLY brand-neutral copy — no Mister Chameleon / English product strings", async () => {
+    await seedDemoPlatformData("acme", deps());
+    const blob = JSON.stringify(upserts);
+    for (const banned of [
+      "Mister Chameleon", "personaliseert uw B2B", "Everything you need",
+      "Know which variant wins", "🦎", "variant wins",
+    ]) {
+      assert.ok(!blob.includes(banned), `seeded copy must not contain "${banned}"`);
+    }
+    // And it IS the neutral demo brand.
+    assert.ok(blob.includes(DEMO_BRAND));
   });
 
   it("scopes the block to the tenant, not the platform", async () => {
