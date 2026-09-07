@@ -635,7 +635,8 @@ export type UsageEventType =
   | "ga4_history"       // Google Analytics 4 visitor history lookup (2 credits)
   | "company_lookup"    // Reverse-IP firmographic lookup (OpenKvK / Clearbit, 1 credit)
   | "firstparty_company_lookup" // First-party company DB hit — served from the shared pool, cheaper than a paid identify
-  | "location_lookup";  // First-party location enricher — CBS PC4 statistics (free open data, small credit)
+  | "location_lookup"   // First-party location enricher — CBS PC4 statistics (free open data, small credit)
+  | "ai_variant_generation"; // AI variant generator — one LLM generation call (Brainpower, 6 credits)
 
 /**
  * Input for recording a single usage event.
