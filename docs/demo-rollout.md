@@ -201,7 +201,7 @@ delete it in GitHub and re-run.
 The full teardown — the admin **Delete tenant** flow plus the four manual infra
 removals (Ploi app, GitHub repo, Vercel domain, Strato CNAME) — is documented in
 [`tenant-teardown.md`](tenant-teardown.md). In short: the admin delete removes the
-platform-data half (`tenant_settings` + billing + admin links + orphaned admins);
-Ploi, GitHub, Vercel and Strato are manual. Note it does **not** delete the
-tenant's `tenant_domains`/rules/blocks rows — those are keyed by `tenant_id`
-without a foreign key and just dangle once the tenant no longer resolves.
+**entire** platform-data half — every tenant-scoped table (`tenant_domains`,
+`rules_config`, `adaptive_blocks`, visitor data, billing, …) plus admin links and
+orphaned admins — so a reused slug starts clean; Ploi, GitHub, Vercel and Strato
+are manual.

@@ -17,23 +17,28 @@ Admin → **Tenants** → open the tenant → **Settings** → scroll to the red
 confirm → **Delete permanently**.
 
 - Super-admin only. Permanent and irreversible.
-- Deletes the tenant's `tenant_settings` row and, with it, the rows that hang off
-  it by a foreign key: billing (subscriptions, wallet, dunning state). It also
-  removes the tenant's admin↔tenant links and any orphaned admin users whose only
-  tenant was this one.
-- **Not everything is removed.** Tenant-scoped tables that are keyed by a plain
-  `tenant_id` column with *no* foreign key to `tenant_settings` —
-  `tenant_domains`, `rules_config`, `adaptive_blocks`, experiments, ABM,
-  enrichment cache, visitor data — are **left behind**. They dangle harmlessly:
-  once `tenant_settings` is gone the tenant no longer resolves, so nothing reads
-  them. Delete them directly in the database only if you want the tidiness.
+- Removes **all** tenant-scoped data. The action sweeps every public table with a
+  `tenant_id` column (`tenant_domains`, `adaptive_blocks`, `experiments`, ABM,
+  enrichment/usage, visitor data, forms, billing/wallet, …) and deletes the
+  tenant's `rules_config` rows (that table is keyed `<type>_<tenantId>` —
+  `homepage_`, `retention_`, `self_service_`, `failure_signals_` — not by a
+  `tenant_id` column, so it is handled explicitly, by exact key). It also removes
+  the tenant's admin↔tenant links and any orphaned admin users whose only tenant
+  was this one. `tenant_settings` is deleted last (which cascade-removes
+  `tenant_dunning_settings`).
+- **A reused slug starts clean.** Because the sweep leaves no rows behind, a new
+  tenant provisioned with the same id (e.g. `test`, `demo`) does not inherit the
+  old tenant's rules, adaptive blocks, wallet balance or visitor data.
+- Best-effort and non-atomic: a per-table failure is logged and the sweep
+  continues (only a `tenant_settings` failure aborts and surfaces an error). If a
+  delete leaves something behind, re-running the delete is safe.
 - If the tenant has an active **Stripe subscription**, cancel it in the Stripe
   Dashboard first (throwaway demos have none).
 
-Deleting the `tenant_settings` row is what stops the tenant from resolving, so the
-public site at `<slug>.demo.misterchameleon.nl` goes dark even before you touch
-DNS — the leftover `tenant_domains` row now points at a tenant that no longer
-exists.
+Deleting the tenant's data stops it from resolving, so the public site at
+`<slug>.demo.misterchameleon.nl` goes dark even before you touch DNS — the
+`tenant_domains` rows are removed by the sweep, but the Vercel domain and Strato
+CNAME still need the manual removals in step 2.
 
 ## 2. External infrastructure — four manual removals
 
