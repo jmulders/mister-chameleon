@@ -25,6 +25,7 @@ import { validateDesignTokenUpload } from "@/tenant/design-token-validator";
 import { logger } from "@/lib/logger";
 import { parseAvatarConfig, type AdminAvatarConfig } from "@/components/admin/avatar-util";
 import { provisionTenant }           from "@/cms/seed/tenant-provisioner";
+import { deleteTenantScopedData, type TeardownDb } from "@/lib/provisioning/tenant-teardown";
 import { getPackageDefinition, isValidPackageKey } from "@/tenant";
 import { templateKeysToPageEntries }  from "@/page-config";
 import { deletePage }                from "@/page-store";
@@ -2174,19 +2175,7 @@ export async function deleteTenantAction(tenantId: string): Promise<{ error: str
 
   const db = getDb();
 
-  // 1. Remove billing rows
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: subErr } = await (db as any)
-    .from("subscriptions")
-    .delete()
-    .eq("tenant_id", tenantId);
-
-  if (subErr) {
-    console.error("[deleteTenantAction] subscriptions delete error:", subErr.message);
-    return { error: `Failed to remove billing data: ${subErr.message}` };
-  }
-
-  // 2. Find and delete orphaned admin users — non-superadmins whose only tenant
+  // 1. Find and delete orphaned admin users — non-superadmins whose only tenant
   //    is this one.  Deleting them frees their email address so the same person
   //    can re-register through the checkout flow later.
   try {
@@ -2248,19 +2237,21 @@ export async function deleteTenantAction(tenantId: string): Promise<{ error: str
     console.error("[deleteTenantAction] orphan user cleanup error:", err);
   }
 
-  // 3. Remove admin ↔ tenant links
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: autErr } = await (db as any)
-    .from("admin_user_tenants")
-    .delete()
-    .eq("tenant_id", tenantId);
-
-  if (autErr) {
-    console.error("[deleteTenantAction] admin_user_tenants delete error:", autErr.message);
-    return { error: `Failed to remove user associations: ${autErr.message}` };
+  // 2. Sweep EVERY tenant-scoped table (admin_user_tenants, subscriptions,
+  //    tenant_domains, rules_config, adaptive_blocks, experiments, visitor data,
+  //    billing/wallet, …) by tenant_id + the rules_config keys. Without this the
+  //    rows dangle and a reused slug inherits them. Best-effort: per-table errors
+  //    are collected and logged, the sweep continues. See lib/provisioning/tenant-teardown.
+  const { failures } = await deleteTenantScopedData(db as unknown as TeardownDb, tenantId);
+  if (failures.length > 0) {
+    console.warn(
+      `[deleteTenantAction] ${failures.length} scoped-delete issue(s) for tenant ${tenantId}: ${failures.join("; ")}`,
+    );
   }
 
-  // 4. Remove the tenant settings record itself
+  // 3. Remove the tenant settings record itself, LAST — this cascade-removes
+  //    tenant_dunning_settings via its foreign key. A failure here IS fatal: the
+  //    tenant would still resolve, so surface it rather than redirecting.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: tsErr } = await (db as any)
     .from("tenant_settings")
