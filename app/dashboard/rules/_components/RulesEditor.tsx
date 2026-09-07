@@ -496,6 +496,17 @@ interface RulesEditorProps {
    * config-health "never-fired" check. Omitted → that check is dormant.
    */
   fireStats?: Record<string, RuleFireStat>;
+  /**
+   * AI rule suggestion (D1 fase 2). When provided, a "Suggest rule" action asks
+   * the AI to propose ONE validated rule, which is inserted as an editable,
+   * UNSAVED draft. Never persists — the operator adjusts and saves via the
+   * normal Save. Omitted → the suggestion UI is hidden (e.g. the global
+   * dashboard editor, which is not tenant-scoped).
+   */
+  suggestAction?: (
+    brief:    { audience: string; goal?: string; note?: string },
+    existing: { id: string; priority: number }[],
+  ) => Promise<{ ok: true; rule: StoredRule } | { ok: false; error: string }>;
 }
 
 /**
@@ -505,7 +516,7 @@ interface RulesEditorProps {
  */
 const AttributeCatalogueContext = createContext<readonly CustomAttributeDeclaration[]>([]);
 
-export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits, attributeCatalogue, fireStats }: RulesEditorProps) {
+export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits, attributeCatalogue, fireStats, suggestAction }: RulesEditorProps) {
   const attributeDecls = attributeCatalogue ?? [];
   const catalogue     = variantCatalogue ?? buildPlatformCatalogue();
   const doSaveAction  = saveAction  ?? saveRulesAction;
@@ -555,6 +566,12 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set());
   const [bulkPackId,  setBulkPackId]      = useState<string>("");
   const [limitError,  setLimitError]      = useState<string | null>(null);
+  // ── AI rule suggestion (D1 fase 2) ───────────────────────────────────────────
+  const [suggestOpen,     setSuggestOpen]     = useState(false);
+  const [suggestBusy,     setSuggestBusy]     = useState(false);
+  const [suggestError,    setSuggestError]    = useState<string | null>(null);
+  const [suggestAudience, setSuggestAudience] = useState("");
+  const [suggestGoal,     setSuggestGoal]     = useState("");
 
   // ── Unsaved-changes guard ────────────────────────────────────────────────────
   // Warn before the page unloads (refresh / close / external navigation) while
@@ -643,6 +660,48 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
     setPendingScrollId(rule.id);
     markDirty();
   }, [markDirty]);
+
+  // ── AI rule suggestion (D1 fase 2) ───────────────────────────────────────────
+  // Insert an AI-proposed rule as an editable, UNSAVED draft. The suggestion is
+  // already validated + assigned a non-colliding id/priority server-side; the
+  // operator adjusts and saves via the normal Save path. Never auto-persisted.
+  const addSuggestedRule = useCallback((rule: StoredRule) => {
+    const editable: EditableRule = { ...rule, _editOpen: true };
+    setRules((prev) => [...prev, editable]);
+    setPendingScrollId(rule.id);
+    markDirty();
+  }, [markDirty]);
+
+  const handleSuggest = useCallback(async () => {
+    if (!suggestAction) return;
+    const audience = suggestAudience.trim();
+    if (!audience) {
+      setSuggestError("Geef een korte omschrijving van de doelgroep.");
+      return;
+    }
+    setSuggestBusy(true);
+    setSuggestError(null);
+    try {
+      const brief = { audience, ...(suggestGoal.trim() ? { goal: suggestGoal.trim() } : {}) };
+      // Pass the CURRENT editor rules so the assigned id/priority never collide
+      // with what is on screen (including unsaved rules).
+      const existing = rules.map((r) => ({ id: r.id, priority: r.priority }));
+      const res = await suggestAction(brief, existing);
+      if (!res.ok) {
+        setSuggestError(res.error);
+        return;
+      }
+      addSuggestedRule(res.rule);
+      // Reset + close the panel; the new draft is now open in the list.
+      setSuggestOpen(false);
+      setSuggestAudience("");
+      setSuggestGoal("");
+    } catch (err) {
+      setSuggestError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSuggestBusy(false);
+    }
+  }, [suggestAction, suggestAudience, suggestGoal, rules, addSuggestedRule]);
 
   const moveRule = useCallback(
     (id: string, direction: "up" | "down") => {
@@ -904,6 +963,18 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
               <span aria-hidden className="text-neutral-400">≡</span>
               Contexts
             </button>
+            {suggestAction && (
+              <button
+                type="button"
+                onClick={() => { setSuggestOpen((v) => !v); setSuggestError(null); }}
+                aria-expanded={suggestOpen}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 shadow-sm hover:bg-brand-100 transition-colors"
+                title="Let AI propose a rule as an editable draft"
+              >
+                <span aria-hidden className="text-brand-400">✨</span>
+                Suggest rule
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setGalleryOpen(true)}
@@ -914,6 +985,74 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
             </button>
           </div>
         </div>
+
+        {/* ── AI rule suggestion panel (D1 fase 2) ─────────────────────────── */}
+        {suggestAction && suggestOpen && (
+          <div className="mb-4 rounded-lg border border-brand-200 bg-brand-50/50 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-800">Suggest a rule with AI</h3>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  Describe the audience and goal. The AI proposes ONE rule as an
+                  editable draft — nothing is saved until you review and press Save.
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-medium text-brand-700">
+                6 credits · Brainpower
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-neutral-600">Audience / segment <span className="text-red-500">*</span></span>
+                <input
+                  type="text"
+                  value={suggestAudience}
+                  onChange={(e) => setSuggestAudience(e.target.value)}
+                  placeholder="e.g. returning visitors from Google in evaluation"
+                  disabled={suggestBusy}
+                  className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-neutral-600">Primary goal (optional)</span>
+                <input
+                  type="text"
+                  value={suggestGoal}
+                  onChange={(e) => setSuggestGoal(e.target.value)}
+                  placeholder="e.g. push a product demo"
+                  disabled={suggestBusy}
+                  className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                />
+              </label>
+            </div>
+
+            {suggestError && (
+              <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                {suggestError}
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSuggest}
+                disabled={suggestBusy || suggestAudience.trim() === ""}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              >
+                {suggestBusy ? "Proposing…" : "Propose rule"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSuggestOpen(false); setSuggestError(null); }}
+                disabled={suggestBusy}
+                className="inline-flex items-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 shadow-sm hover:bg-neutral-50 disabled:opacity-60 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Filter toolbar ─────────────────────────────────────────── */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
