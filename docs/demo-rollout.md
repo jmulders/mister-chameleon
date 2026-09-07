@@ -196,8 +196,12 @@ The usual cause is a GitHub token without admin rights on the repo. A key that
 is already there but **read-only** is reported explicitly rather than accepted:
 delete it in GitHub and re-run.
 
-## Tearing a site down
+## Deleting a tenant
 
-Nothing here is automated yet. By hand: delete the Ploi application, delete the
-GitHub repo, and delete the tenant in the admin (which removes its
-`tenant_domains` rows with it).
+The full teardown — the admin **Delete tenant** flow plus the four manual infra
+removals (Ploi app, GitHub repo, Vercel domain, Strato CNAME) — is documented in
+[`tenant-teardown.md`](tenant-teardown.md). In short: the admin delete removes the
+platform-data half (`tenant_settings` + billing + admin links + orphaned admins);
+Ploi, GitHub, Vercel and Strato are manual. Note it does **not** delete the
+tenant's `tenant_domains`/rules/blocks rows — those are keyed by `tenant_id`
+without a foreign key and just dangle once the tenant no longer resolves.
