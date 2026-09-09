@@ -647,6 +647,27 @@ export const clientEnv = {
  * // n8n (all optional — never throws)
  * const webhookUrl = serverEnv.n8n.contactWebhookUrl;
  */
+/** Server-side config for the WordPress plugin update proxy. */
+export interface WpPluginEnvConfig {
+  /** GitHub token (repo read scope) used server-side to read private releases. Never sent to clients. */
+  githubToken: string | undefined;
+  /** owner/repo the plugin releases live in. */
+  repo: string;
+  /** True when a GitHub token is present. */
+  isConfigured: boolean;
+}
+
+function getWpPluginConfig(): WpPluginEnvConfig {
+  const githubToken =
+    process.env["WP_PLUGIN_GITHUB_TOKEN"] ?? process.env["GITHUB_TOKEN"] ?? undefined;
+  const repo = process.env["WP_PLUGIN_GITHUB_REPO"] ?? "jmulders/mister-chameleon-wordpress";
+  return {
+    githubToken: githubToken && githubToken.trim() !== "" ? githubToken : undefined,
+    repo,
+    isConfigured: Boolean(githubToken && githubToken.trim() !== ""),
+  };
+}
+
 export const serverEnv = {
   /**
    * Storyblok CMS configuration.
@@ -792,5 +813,20 @@ export const serverEnv = {
    */
   get r2(): R2EnvConfig {
     return getR2Config();
+  },
+
+  /**
+   * WordPress plugin update proxy configuration.
+   *
+   * The platform proxies private GitHub releases of the Chameleon Connect plugin
+   * so WP sites update with just their siteKey — the GitHub token stays
+   * server-side and is never sent to clients.
+   *
+   * Add to .env.local:
+   *   WP_PLUGIN_GITHUB_TOKEN=ghp_...      # or GITHUB_TOKEN; repo read scope
+   *   WP_PLUGIN_GITHUB_REPO=jmulders/mister-chameleon-wordpress   # optional override
+   */
+  get wpPlugin(): WpPluginEnvConfig {
+    return getWpPluginConfig();
   },
 } as const;
