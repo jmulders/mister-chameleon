@@ -689,7 +689,7 @@ function RecentRunsTable({ runs: initialRuns }: { runs: RecentRunSummary[] }) {
                   </td>
                   <td className="px-4 py-3 text-neutral-600 text-center">{run.viewCount}</td>
                   <td className="px-4 py-3 text-neutral-400">
-                    {run.generationMs != null ? `${run.generationMs}` : ", "}
+                    {run.generationMs != null ? `${run.generationMs}` : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">

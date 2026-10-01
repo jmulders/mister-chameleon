@@ -79,7 +79,7 @@ function MetaField({ label, children }: { label: string; children: React.ReactNo
 }
 
 function TagList({ items }: { items: string[] }) {
-  if (items.length === 0) return <span className="text-neutral-400 text-sm">, </span>;
+  if (items.length === 0) return <span className="text-neutral-400 text-sm">—</span>;
   return (
     <div className="flex flex-wrap gap-1 mt-0.5">
       {items.map((item) => (
@@ -263,7 +263,7 @@ function VariantCard({
                 {meta.supportingGoals.map((g, i) => <li key={i}>{g}</li>)}
               </ul>
             ) : (
-              <span className="text-neutral-400">, </span>
+              <span className="text-neutral-400">—</span>
             )}
           </MetaField>
 

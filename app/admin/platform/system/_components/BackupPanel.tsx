@@ -214,7 +214,7 @@ export function BackupPanel({ initialBackups }: BackupPanelProps) {
                     <td className="px-4 py-3 text-neutral-600 max-w-[180px] truncate" title={b.label ?? ""}>
                       {b.label ?? (b.restored_from_version != null
                         ? `Restored from v${b.restored_from_version}`
-                        : <span className="text-neutral-400">, </span>
+                        : <span className="text-neutral-400">—</span>
                       )}
                     </td>
 

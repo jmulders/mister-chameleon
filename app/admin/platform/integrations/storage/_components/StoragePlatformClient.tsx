@@ -140,7 +140,7 @@ function IntegrationTestResultDisplay({ result }: { result: IntegrationTestResul
             ? "bg-green-50 text-green-700 ring-green-200"
             : "bg-neutral-50 text-neutral-400 ring-neutral-200"
         }`}>
-          {result.read ? "✔" : ", "} read
+          {result.read ? "✔" : "—"} read
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700 ring-1 ring-inset ring-green-200">
           ✔ delete

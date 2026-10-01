@@ -351,7 +351,7 @@ export default async function PlatformBillingUsagePage() {
                           {row.category}
                         </span>
                       ) : (
-                        <span className="text-neutral-400">, </span>
+                        <span className="text-neutral-400">—</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-right text-neutral-700">{row.total_calls}</td>
@@ -410,7 +410,7 @@ export default async function PlatformBillingUsagePage() {
                               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${categoryColour(ev.category)}`}>
                                 {ev.category}
                               </span>
-                            ) : <span className="text-neutral-400">, </span>}
+                            ) : <span className="text-neutral-400">—</span>}
                           </td>
                           <td className="px-3 py-1.5 text-right font-mono">
                             {credits > 0 ? (
@@ -475,7 +475,7 @@ export default async function PlatformBillingUsagePage() {
                               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${categoryColour(entry.category)}`}>
                                 {entry.category}
                               </span>
-                            ) : <span className="text-neutral-400">, </span>}
+                            ) : <span className="text-neutral-400">—</span>}
                           </td>
                           <td className={`px-3 py-1.5 text-right font-mono ${
                             isDebit  ? "text-red-600" :

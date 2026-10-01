@@ -24,7 +24,7 @@ interface RuleFireStatsPanelProps {
 }
 
 function fmt(iso: string | null): string {
-  if (!iso) return ", ";
+  if (!iso) return "—";
   try {
     return new Date(iso).toLocaleString("en-US");
   } catch {

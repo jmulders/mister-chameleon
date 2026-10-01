@@ -216,7 +216,7 @@ export default async function PlatformBillingPage() {
                       <p className="text-xs text-neutral-400 font-mono">{tenant.tenantId.slice(0, 8)}…</p>
                     </td>
                     <td className="px-5 py-3 text-neutral-700">
-                      {sub ? planLabel(sub.plan) : <span className="text-neutral-400">, </span>}
+                      {sub ? planLabel(sub.plan) : <span className="text-neutral-400">—</span>}
                     </td>
                     <td className="px-5 py-3">
                       {sub ? (
@@ -228,13 +228,13 @@ export default async function PlatformBillingPage() {
                       )}
                     </td>
                     <td className="px-5 py-3 text-neutral-600 capitalize">
-                      {sub?.billing_cycle ?? <span className="text-neutral-400">, </span>}
+                      {sub?.billing_cycle ?? <span className="text-neutral-400">—</span>}
                       {sub?.cancel_at_period_end && (
                         <span className="ml-1 text-xs text-yellow-600">(cancels)</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right font-mono text-neutral-700">
-                      {mrr > 0 ? formatCents(mrr) : <span className="text-neutral-400">, </span>}
+                      {mrr > 0 ? formatCents(mrr) : <span className="text-neutral-400">—</span>}
                     </td>
                     <td className="px-5 py-3 text-right">
                       {balance !== null ? (
@@ -249,13 +249,13 @@ export default async function PlatformBillingPage() {
                           )}
                         </span>
                       ) : (
-                        <span className="text-neutral-400">, </span>
+                        <span className="text-neutral-400">—</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right text-xs text-neutral-500 whitespace-nowrap">
                       {sub?.current_period_end
                         ? new Date(sub.current_period_end).toLocaleDateString("nl-NL")
-                        : <span className="text-neutral-400">, </span>
+                        : <span className="text-neutral-400">—</span>
                       }
                     </td>
                     <td className="px-5 py-3 text-right">

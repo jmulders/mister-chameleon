@@ -117,7 +117,7 @@ function SlotCell({ value, colorClass }: { value: string | undefined; colorClass
   if (!value) {
     return (
       <td className="px-3 py-2 text-center">
-        <span className="text-neutral-300 text-xs">, </span>
+        <span className="text-neutral-300 text-xs">—</span>
       </td>
     );
   }
@@ -140,7 +140,7 @@ function SlotCell({ value, colorClass }: { value: string | undefined; colorClass
 type AnyCondition = { type: string; [k: string]: unknown };
 
 function summariseCondition(cond: AnyCondition | undefined | null): string {
-  if (!cond) return ", ";
+  if (!cond) return "—";
   if (cond.type === "field") {
     const field    = String(cond.field ?? "");
     const op       = String(cond.operator ?? "=");
@@ -363,7 +363,7 @@ export function RulesMatrix({ config }: RulesMatrixProps) {
           <strong className="text-neutral-500">hard/high/mid/deco</strong> = precedence tier
         </span>
         <span className="text-[11px] text-neutral-400">
-          <strong className="text-neutral-500">, </strong> = slot not set by this rule (falls back to page default or no notification)
+          <strong className="text-neutral-500">—</strong> = slot not set by this rule (falls back to page default or no notification)
         </span>
       </div>
     </section>

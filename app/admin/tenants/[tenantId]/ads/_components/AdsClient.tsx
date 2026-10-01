@@ -43,7 +43,7 @@ const CREATIVE_TEMPLATES: Record<AdSlotType, unknown> = {
 };
 
 function euros(cents: number | null | undefined): string {
-  if (cents == null) return ", ";
+  if (cents == null) return "—";
   return "€" + (Number(cents) / 100).toFixed(2);
 }
 
@@ -215,7 +215,7 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
             <Stat label="Publishers"  value={String(data.totals.publishers)} />
             <Stat label="Impressions" value={data.totals.impressions.toLocaleString()} />
             <Stat label="Clicks"      value={data.totals.clicks.toLocaleString()} />
-            <Stat label="CTR"         value={data.totals.impressions > 0 ? pct(data.totals.clicks / data.totals.impressions) : ", "} />
+            <Stat label="CTR"         value={data.totals.impressions > 0 ? pct(data.totals.clicks / data.totals.impressions) : "—"} />
           </div>
 
           {data.truncated && (
@@ -260,7 +260,7 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
                             <td className="py-1.5 pl-6 pr-4 text-neutral-500">↳ {a.label}</td>
                             <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.impressions.toLocaleString()}</td>
                             <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.clicks.toLocaleString()}</td>
-                            <td className="py-1.5 text-right tabular-nums text-neutral-400">{a.impressions > 0 ? pct(a.clicks / a.impressions) : ", "}</td>
+                            <td className="py-1.5 text-right tabular-nums text-neutral-400">{a.impressions > 0 ? pct(a.clicks / a.impressions) : "—"}</td>
                           </tr>
                         ))}
                       </Fragment>
@@ -373,7 +373,7 @@ function SessionsCard({ tenantId, ga4Ready }: { tenantId: string; ga4Ready: bool
                     {s.company && (s.company.name || s.company.industry || s.company.size) && (
                       <div className="text-xs">
                         <span className="font-semibold text-neutral-600">Company:</span>{" "}
-                        <span className="text-neutral-700">{s.company.name ?? ", "}</span>
+                        <span className="text-neutral-700">{s.company.name ?? "—"}</span>
                         {s.company.industry && <span className="text-neutral-400"> · {s.company.industry}</span>}
                         {s.company.size && <span className="text-neutral-400"> · {s.company.size}</span>}
                       </div>
@@ -410,7 +410,7 @@ function SessionsCard({ tenantId, ga4Ready }: { tenantId: string; ga4Ready: bool
                         {g && g !== "loading" && (
                           <div className="text-neutral-600">
                             <span className="font-semibold">GA4:</span>{" "}
-                            {g.sessionCount != null ? `${g.sessionCount} sessions` : ", "}
+                            {g.sessionCount != null ? `${g.sessionCount} sessions` : "—"}
                             {(g.lastCity || g.lastRegion || g.lastCountry) && ` · ${[g.lastCity, g.lastRegion, g.lastCountry].filter(Boolean).join(", ")}`}
                             {g.lastChannel && ` · ${g.lastChannel}`}
                           </div>
@@ -563,7 +563,7 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
                     <td className="py-1.5 pr-3">{d.date}</td>
                     <td className="pr-3">{d.impressions.toLocaleString()}</td>
                     <td className="pr-3">{d.clicks.toLocaleString()}</td>
-                    <td className="pr-3">{d.impressions > 0 ? ((d.clicks / d.impressions) * 100).toFixed(1) + "%" : ", "}</td>
+                    <td className="pr-3">{d.impressions > 0 ? ((d.clicks / d.impressions) * 100).toFixed(1) + "%" : "—"}</td>
                     <td>{euros(d.spend_cents)}</td>
                   </tr>
                 ))}
@@ -892,7 +892,7 @@ function DesignTokenField({ field, value, onChange }:
           <input type="color" className="h-9 w-9 shrink-0 rounded border border-neutral-300 p-0.5"
             value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#ffffff"} onChange={(e) => onChange(e.target.value)} />
         )}
-        <input className={input} value={value} placeholder={field.placeholder ?? ", "} onChange={(e) => onChange(e.target.value)} />
+        <input className={input} value={value} placeholder={field.placeholder ?? "—"} onChange={(e) => onChange(e.target.value)} />
       </div>
     </div>
   );
