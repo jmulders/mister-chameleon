@@ -382,7 +382,7 @@ export function LeadBaseClient({
           </div>
         </div>
         <div className="mt-3 flex items-center gap-3">
-          <button onClick={applyFilters} disabled={pending} className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+          <button onClick={applyFilters} disabled={pending} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
             {pending ? "Loading…" : "Apply filters"}
           </button>
           <button onClick={resetFilters} disabled={pending} className="text-xs text-neutral-500 hover:text-neutral-800">Reset</button>

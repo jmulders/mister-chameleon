@@ -171,7 +171,7 @@ export function AdSyncClient({
               Preview segment{preview !== null ? `: ${preview}` : ""}
             </button>
             <button onClick={syncNow} disabled={pending}
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
               Sync now
             </button>
           </div>
@@ -268,7 +268,7 @@ export function AdSyncClient({
           <Field label="LinkedIn conversion id" value={conv.linkedin?.conversionId ?? ""} onChange={(v) => setConv({ ...conv, linkedin: { conversionId: v } })} hint="Digits" />
         </div>
         <button onClick={saveConv} disabled={pending}
-          className="mt-3 rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+          className="mt-3 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
           Save conversion feedback
         </button>
       </section>
@@ -324,7 +324,7 @@ function PlatformCard({
       <div className="mt-3 grid grid-cols-2 gap-3">{children}</div>
       <div className="mt-3 flex gap-2">
         <button onClick={onSave} disabled={pending}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50">Save</button>
+          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">Save</button>
         <button onClick={onTest} disabled={pending}
           className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50">Test connection</button>
         <button onClick={onClear} disabled={pending}

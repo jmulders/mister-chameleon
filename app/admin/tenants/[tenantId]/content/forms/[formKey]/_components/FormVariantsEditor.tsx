@@ -376,7 +376,7 @@ export function FormVariantsEditor({ tenantId, definitionFields, initialVariants
 
         <div className="flex items-center gap-3">
           <button type="button" onClick={save} disabled={isPending}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50">
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
             {isPending ? "Saving…" : editingKey ? "Save variant" : "Add variant"}
           </button>
           {editingKey && (

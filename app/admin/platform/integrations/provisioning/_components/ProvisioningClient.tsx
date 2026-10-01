@@ -94,7 +94,7 @@ export function ProvisioningClient({ github, ploi }: { github: GithubFlags; ploi
                 setGhMsg(r.ok ? { kind: "ok", text: "Saved." } : { kind: "err", text: r.error });
                 if (r.ok) setGhToken("");
               })}
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {ghPending ? "Saving…" : "Save GitHub"}
             </button>
@@ -142,7 +142,7 @@ export function ProvisioningClient({ github, ploi }: { github: GithubFlags; ploi
                 setPloiMsg(r.ok ? { kind: "ok", text: "Saved." } : { kind: "err", text: r.error });
                 if (r.ok) setPloiToken("");
               })}
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {ploiPending ? "Saving…" : "Save Ploi"}
             </button>

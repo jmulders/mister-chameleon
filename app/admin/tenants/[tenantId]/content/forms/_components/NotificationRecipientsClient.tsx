@@ -175,7 +175,7 @@ export function NotificationRecipientsClient({
           type="button"
           onClick={handleSave}
           disabled={saveStatus === "saving" || !isDirty}
-          className="inline-flex items-center rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-neutral-700 transition-colors disabled:opacity-40"
+          className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-40"
         >
           {saveStatus === "saving" ? "Saving…" : "Save recipients"}
         </button>

@@ -255,7 +255,7 @@ export function AbmClient({
         <h2 className="text-sm font-semibold text-neutral-900">Add a lead</h2>
         <LeadFields form={addForm} set={addSet} segments={segments} />
         <div className="flex items-center gap-3">
-          <button onClick={saveAdd} disabled={pending} className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+          <button onClick={saveAdd} disabled={pending} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
             {pending ? "Saving…" : "Add lead"}
           </button>
           {msg && <span className="text-xs text-neutral-500">{msg}</span>}
@@ -329,7 +329,7 @@ export function AbmClient({
                     <div className="text-xs font-semibold text-neutral-700">Edit lead</div>
                     <LeadFields form={editForm} set={editSet} segments={segments} />
                     <div className="flex items-center gap-3">
-                      <button onClick={saveEdit} disabled={pending} className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
+                      <button onClick={saveEdit} disabled={pending} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
                         {pending ? "Saving…" : "Update lead"}
                       </button>
                       <button onClick={cancelEdit} className="text-xs text-neutral-500 hover:text-neutral-800">Cancel</button>
