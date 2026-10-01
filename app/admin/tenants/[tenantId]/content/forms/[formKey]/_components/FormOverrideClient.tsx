@@ -421,7 +421,7 @@ export function FormOverrideClient({
         <button
           onClick={handleSave}
           disabled={isBusy}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
         >
           {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved ✓" : "Save overrides"}
         </button>

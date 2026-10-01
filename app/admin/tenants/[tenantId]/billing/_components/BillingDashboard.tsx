@@ -319,7 +319,7 @@ function EmptyState({ title, body, cta }: { title: string; body: string; cta?: s
       <p className="text-sm font-medium text-neutral-700">{title}</p>
       <p className="mt-1 max-w-sm text-xs text-neutral-400">{body}</p>
       {cta && (
-        <button className="mt-3 rounded-lg bg-neutral-900 px-4 py-1.5 text-xs font-medium text-white hover:bg-neutral-700">
+        <button className="mt-3 rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">
           {cta}
         </button>
       )}
@@ -332,7 +332,7 @@ function SaveButton({ pending, saved, label = "Save changes" }: { pending: boole
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+      className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
     >
       {pending ? "Saving…" : saved ? "✓ Saved" : label}
     </button>
@@ -1576,7 +1576,7 @@ function SuperAdminSubscriptionPanel({
           </p>
           <button
             onClick={() => setCreateMode(true)}
-            className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700"
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
           >
             Create subscription row
           </button>
@@ -1625,7 +1625,7 @@ function SuperAdminSubscriptionPanel({
             <button
               onClick={handleCreateSubscription}
               disabled={saving}
-              className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {saving ? "Creating…" : "Create subscription"}
             </button>
@@ -1692,7 +1692,7 @@ function SuperAdminSubscriptionPanel({
                 <button
                   onClick={handleSaveSubscription}
                   disabled={saving}
-                  className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                 >
                   {saving ? "Saving…" : "Save changes"}
                 </button>
@@ -2168,7 +2168,7 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
                     disabled={!!checkoutPlanId}
                     className={`mt-4 w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                       isCurrent
-                        ? "bg-neutral-900 text-white hover:bg-neutral-700"
+                        ? "bg-indigo-600 text-white hover:bg-indigo-700"
                         : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                     }`}
                   >

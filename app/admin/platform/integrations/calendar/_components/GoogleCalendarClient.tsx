@@ -192,7 +192,7 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
             type="button"
             onClick={handleSave}
             disabled={isPending || !isDirty}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-40"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
           >
             {isPending ? "Saving…" : "Save"}
           </button>

@@ -234,7 +234,7 @@ export function BuiltinScenarioOverridesClient({
 
       <div className="mt-4 flex items-center gap-3 border-t border-neutral-200 pt-4">
         <button type="button" onClick={save} disabled={pending}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-40">
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-40">
           {saveState.mode === "saving" ? "Saving…" : "Save overrides"}
         </button>
         <button type="button" onClick={resetAll} disabled={pending || dirtyCount === 0}

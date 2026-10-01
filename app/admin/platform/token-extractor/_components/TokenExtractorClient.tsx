@@ -251,7 +251,7 @@ export function TokenExtractorClient() {
                 <button
                   type="button"
                   onClick={download}
-                  className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-700"
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
                 >
                   Download .json
                 </button>

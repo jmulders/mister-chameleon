@@ -857,7 +857,7 @@ export function EnrichmentPlatformClient({
         <button
           onClick={handleTestAll}
           disabled={testAllPending}
-          className="shrink-0 rounded bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {testAllPending ? "Testing all…" : "Test all"}
         </button>
