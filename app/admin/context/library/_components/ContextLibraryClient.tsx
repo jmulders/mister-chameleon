@@ -179,7 +179,7 @@ export function ContextLibraryClient({ definitions, families, usedByCount }: Pro
               onClick={() => setStatusFilter(s)}
               className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors
                 ${statusFilter === s
-                  ? "bg-neutral-900 text-white"
+                  ? "bg-indigo-600 text-white"
                   : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
                 }`}
             >
@@ -217,7 +217,7 @@ export function ContextLibraryClient({ definitions, families, usedByCount }: Pro
           onClick={() => setActiveFamily("all")}
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors
             ${activeFamily === "all"
-              ? "bg-neutral-900 text-white"
+              ? "bg-indigo-600 text-white"
               : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
             }`}
         >
@@ -230,7 +230,7 @@ export function ContextLibraryClient({ definitions, families, usedByCount }: Pro
             onClick={() => setActiveFamily(fam.key)}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors
               ${activeFamily === fam.key
-                ? "bg-neutral-900 text-white"
+                ? "bg-indigo-600 text-white"
                 : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
               }`}
           >

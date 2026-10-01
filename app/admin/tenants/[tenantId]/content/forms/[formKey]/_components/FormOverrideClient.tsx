@@ -296,7 +296,7 @@ export function FormOverrideClient({
               value={layoutTemplate}
               onChange={(e) => setLayoutTemplate(e.target.value as typeof layoutTemplate)}
               disabled={isBusy}
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
             >
               <option value="single">Single column</option>
               <option value="split-left">Split: contact panel left</option>
@@ -321,7 +321,7 @@ export function FormOverrideClient({
                       onChange={(e) => set(e.target.value)}
                       placeholder={ph}
                       disabled={isBusy}
-                      className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-1"
+                      className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
                     />
                   </div>
                 ))}
@@ -355,7 +355,7 @@ export function FormOverrideClient({
                 : "e.g. sales@company.com, hr@company.com"
             }
             rows={3}
-            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:opacity-50 resize-none"
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 resize-none"
           />
         </div>
       </div>
@@ -380,7 +380,7 @@ export function FormOverrideClient({
               onChange={(e) => setCustomSubject(e.target.value)}
               disabled={isBusy || !overrideEnabled}
               placeholder="e.g. New contact form submission from {{name}}"
-              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:opacity-50"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
             />
             <p className="text-xs text-neutral-400 mt-1">Leave blank to use the default subject from the form definition.</p>
           </div>
@@ -394,7 +394,7 @@ export function FormOverrideClient({
               onChange={(e) => setCustomSender(e.target.value)}
               disabled={isBusy || !overrideEnabled}
               placeholder="e.g. Acme Careers Team"
-              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:opacity-50"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
             />
             <p className="text-xs text-neutral-400 mt-1">Overrides the "From" display name for emails sent by this form.</p>
           </div>
@@ -448,8 +448,8 @@ function Toggle({
       onClick={() => onChange(!value)}
       disabled={disabled}
       aria-pressed={value}
-      className={`relative flex-shrink-0 w-10 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2 disabled:opacity-50 ${
-        value ? "bg-neutral-900" : "bg-neutral-300"
+      className={`relative flex-shrink-0 w-10 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
+        value ? "bg-indigo-600" : "bg-neutral-300"
       }`}
     >
       <span
