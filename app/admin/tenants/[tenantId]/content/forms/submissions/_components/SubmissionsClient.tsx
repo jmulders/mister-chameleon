@@ -40,7 +40,7 @@ function formatDate(iso: string): string {
 }
 
 function getDisplayName(values: Record<string, string>): string {
-  return values["name"] ?? values["naam"] ?? values["voornaam"] ?? ", ";
+  return values["name"] ?? values["naam"] ?? values["voornaam"] ?? "—";
 }
 
 function getPreview(values: Record<string, string>): string {
@@ -321,7 +321,7 @@ export function SubmissionsClient({
                       {getDisplayName(row.values)}
                     </td>
                     <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
-                      {row.values["email"] ?? ", "}
+                      {row.values["email"] ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-400 max-w-xs truncate">
                       {getPreview(row.values)}

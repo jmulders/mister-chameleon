@@ -871,7 +871,7 @@ function AssetRow({
       {/* Alt text */}
       <td className="px-4 py-3 text-sm text-neutral-500 max-w-xs">
         <span className="truncate block" title={asset.altText ?? ""}>
-          {asset.altText || <span className="italic text-neutral-300">, </span>}
+          {asset.altText || <span className="italic text-neutral-300">—</span>}
         </span>
       </td>
 

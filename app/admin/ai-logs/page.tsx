@@ -74,7 +74,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
   const matches      = logs.filter((l) => l.plans_match).length;
   const mismatches   = total - matches;
   const agreementRate =
-    total > 0 ? `${Math.round((matches / total) * 100)}%` : ", ";
+    total > 0 ? `${Math.round((matches / total) * 100)}%` : "—";
 
   // Distinct tenants visible in this result set
   const visibleTenants = [...new Set(

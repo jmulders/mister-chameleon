@@ -303,7 +303,7 @@ function EnvVarsTab({ envVars }: { envVars: EnvVarStatus[] }) {
                   const viaDb    = Boolean(v.isSetViaDb);
                   const viaEnv   = v.isSet;
                   const isOk     = viaEnv || viaDb;
-                  const icon     = viaEnv ? "✓" : viaDb ? "✓" : v.required ? "✗" : ", ";
+                  const icon     = viaEnv ? "✓" : viaDb ? "✓" : v.required ? "✗" : "—";
                   const iconCls  = viaEnv
                     ? "text-green-600"
                     : viaDb

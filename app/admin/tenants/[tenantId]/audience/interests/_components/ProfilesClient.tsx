@@ -210,7 +210,7 @@ function ProfileRow({ profile, tenantId, saving, checking, error, onToggle, sele
               </span>
             </div>
           ) : (
-            <span className="text-xs text-neutral-300">, </span>
+            <span className="text-xs text-neutral-300">—</span>
           )}
         </td>
 
