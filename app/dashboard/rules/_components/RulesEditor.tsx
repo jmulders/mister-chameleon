@@ -1011,7 +1011,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                   onChange={(e) => setSuggestAudience(e.target.value)}
                   placeholder="e.g. returning visitors from Google in evaluation"
                   disabled={suggestBusy}
-                  className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                  className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -1022,7 +1022,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                   onChange={(e) => setSuggestGoal(e.target.value)}
                   placeholder="e.g. push a product demo"
                   disabled={suggestBusy}
-                  className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                  className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
                 />
               </label>
             </div>
@@ -1055,12 +1055,14 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
         )}
 
         {/* ── Filter toolbar ─────────────────────────────────────────── */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* Grouped in a subtle container so the dense filter strip reads as one
+            unit, visually separate from the header actions and the rule list. */}
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50/60 px-3 py-2">
           <span className="text-xs text-neutral-500 font-medium shrink-0">Filter:</span>
           <select
             value={packFilter}
             onChange={(e) => setPackFilter(e.target.value)}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             aria-label="Filter by pack"
           >
             <option value="all">All packs</option>
@@ -1072,7 +1074,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value)}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             aria-label="Filter by precedence tier"
           >
             <option value="all">All tiers</option>
@@ -1084,7 +1086,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
             <select
               value={variantFilter}
               onChange={(e) => setVariantFilter(e.target.value)}
-              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               aria-label="Filter by adaptive block / variant"
             >
               <option value="all">All blocks &amp; variants</option>
@@ -1096,7 +1098,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           <select
             value={webhookFilter}
             onChange={(e) => setWebhookFilter(e.target.value)}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             aria-label="Filter by webhook action"
           >
             <option value="all">All rules</option>
