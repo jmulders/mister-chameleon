@@ -103,7 +103,7 @@ export function AbmDashboard({ rows, baseUrl, hotThreshold = 60 }: { rows: AbmDa
             onClick={() => setFilter(f.key)}
             className={`rounded-md border px-3 py-1 text-xs font-medium ${
               filter === f.key
-                ? "border-neutral-900 bg-neutral-900 text-white"
+                ? "border-indigo-600 bg-indigo-600 text-white"
                 : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
             }`}
           >

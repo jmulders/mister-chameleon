@@ -268,7 +268,7 @@ export function DesignTokenSetsLibrary({ tenantId, currentTokens, initialSets }:
                           type="button"
                           onClick={() => commitRename(set)}
                           disabled={pending}
-                          className="rounded-md bg-neutral-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-900 disabled:opacity-50"
+                          className="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                         >
                           Save name
                         </button>

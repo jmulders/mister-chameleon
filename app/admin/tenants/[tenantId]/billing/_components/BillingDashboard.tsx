@@ -2067,7 +2067,7 @@ function SubscriptionPanel({ tenantId, subscription, plan, tenantPackage, allPla
                   onClick={() => setBillingCycle(cycle)}
                   className={`rounded-md px-3 py-1.5 transition-colors ${
                     billingCycle === cycle
-                      ? "bg-neutral-900 text-white"
+                      ? "bg-indigo-600 text-white"
                       : "text-neutral-500 hover:text-neutral-700"
                   }`}
                 >
