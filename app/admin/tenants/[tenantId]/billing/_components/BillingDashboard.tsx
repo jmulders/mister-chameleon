@@ -298,7 +298,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
 function SectionTitle({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
     <div className="mb-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{children}</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{children}</h2>
       {sub && <p className="mt-0.5 text-xs text-neutral-400">{sub}</p>}
     </div>
   );
@@ -560,10 +560,14 @@ function TabNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
         <button
           key={t.id}
           onClick={() => setTab(t.id)}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
+          aria-current={tab === t.id ? "page" : undefined}
+          // Every tab carries the 2px bottom border (transparent when inactive) so
+          // the row never shifts on selection. Active accent is indigo, matching
+          // the workspace nav and the rest of the admin.
+          className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             tab === t.id
-              ? "border-b-2 border-neutral-900 text-neutral-900"
-              : "text-neutral-400 hover:text-neutral-700"
+              ? "border-indigo-600 text-indigo-700"
+              : "border-transparent text-neutral-500 hover:text-neutral-800"
           }`}
         >
           {t.label}
