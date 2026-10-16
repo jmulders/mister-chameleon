@@ -55,23 +55,26 @@ export async function recordAdCharge(
   }
 }
 
-/** True when the tenant has an active ad that uses firmographic targeting. */
-export async function tenantHasFirmographicAd(tenantId: string): Promise<boolean> {
-  try {
-    const { data } = await db().from("ads").select("targeting").eq("ad_tenant_id", tenantId).eq("status", "active");
-    return anyFirmographicAd((data ?? []) as { targeting: unknown }[]);
-  } catch {
-    return false;
-  }
+/** Which targeting features the tenant's active ads use. */
+export interface TenantAdTargeting {
+  /** An active ad uses firmographic targeting. */
+  firmographic: boolean;
+  /** An active ad carries an advanced RuleCondition. */
+  rule:         boolean;
 }
 
-/** True when the tenant has an active ad that carries an advanced RuleCondition. */
-export async function tenantHasRuleAd(tenantId: string): Promise<boolean> {
+/**
+ * Read the tenant's active ads ONCE and derive both targeting flags, so a
+ * request that needs both does not run the same ads query twice. Never throws
+ * (both false on error).
+ */
+export async function getTenantAdTargeting(tenantId: string): Promise<TenantAdTargeting> {
   try {
     const { data } = await db().from("ads").select("targeting").eq("ad_tenant_id", tenantId).eq("status", "active");
-    return anyRuleAd((data ?? []) as { targeting: unknown }[]);
+    const rows = (data ?? []) as { targeting: unknown }[];
+    return { firmographic: anyFirmographicAd(rows), rule: anyRuleAd(rows) };
   } catch {
-    return false;
+    return { firmographic: false, rule: false };
   }
 }
 

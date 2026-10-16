@@ -116,7 +116,8 @@ import { loadAdRuleSignals }         from "@/lib/snippet/ad-rule-signals";
 import { toJourneyEventId }          from "@/lib/snippet/event-id";
 import { sanitizeDecideContext, type DecideContext } from "@/lib/snippet/decide-context";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
-import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
+import { fetchAdAudience, getTenantAdTargeting, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
+import type { TenantAdTargeting }     from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
@@ -436,8 +437,13 @@ async function handleDecide(request: NextRequest) {
     // runs a firmographic-targeted ad, from an approved publisher, with wallet
     // balance. resolveAdCompany caches per visitor/day and is a no-op (null, no
     // cost) unless a Leadinfo key is configured. Skips the whole path otherwise.
+    // The tenant's active ads are read at most once per request (lazily, only
+    // when one of the gated paths below actually needs a targeting flag).
+    let adTargetingOnce: Promise<TenantAdTargeting> | null = null;
+    const adTargeting = () => (adTargetingOnce ??= getTenantAdTargeting(tenantId));
+
     let adCompany: Awaited<ReturnType<typeof resolveAdCompany>> = null;
-    if (consentEnrichment && adSessionId && adOriginHost && await tenantHasFirmographicAd(tenantId)) {
+    if (consentEnrichment && adSessionId && adOriginHost && (await adTargeting()).firmographic) {
       if (await isPublisherApproved(tenantId, adOriginHost) && await isWalletServable(tenantId)) {
         const adIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
           ?? request.headers.get("x-real-ip") ?? null;
@@ -466,7 +472,7 @@ async function handleDecide(request: NextRequest) {
     // paid enrichment calls; header geo is free and the company we already
     // resolved is seeded. Only built when the tenant runs a rule-targeted ad.
     let adRuleCtx: Awaited<ReturnType<typeof buildDecisionContext>> | null = null;
-    if (adSessionId && await tenantHasRuleAd(tenantId)) {
+    if (adSessionId && (await adTargeting()).rule) {
       try {
         const ruleUrl = new URL(`https://${adOriginHost ?? "publisher"}${context.path ?? "/"}`);
         if (context.utm_source)   ruleUrl.searchParams.set("utm_source",   context.utm_source);
