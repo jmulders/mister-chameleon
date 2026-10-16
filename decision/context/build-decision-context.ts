@@ -752,6 +752,8 @@ export async function buildDecisionContext(
   //   "tenant-changed" — serving a different tenant than when cached
   let enrichmentSource: "session-cache" | "pipeline-fresh" | "headers-only" = "pipeline-fresh";
   let sessionCacheMissReason: string | null = null;
+  // Set on a session-cache hit; the pipeline branches below are then skipped.
+  let cacheHitEnrichment: Partial<EnrichmentOutput> | null = null;
 
   // Scheduler for fire-and-forget background work (cache-warm + billing). When a
   // request-scoped caller passes `after` (homepage pipeline), the work reliably
@@ -863,64 +865,6 @@ export async function buildDecisionContext(
         }
       }
 
-      onDebugInfo?.({
-        realIp:                ip,
-        effectiveIp,
-        ipOverrideActive,
-        // Location source — read from the cached enrichment (current* fields
-        // were normalized and stored when the cache entry was first created).
-        currentCity:           cachedEnrichment.currentCity           ?? null,
-        currentRegion:         cachedEnrichment.currentRegion         ?? null,
-        currentCountry:        cachedEnrichment.currentCountry        ?? null,
-        currentLocationSource: (cachedEnrichment.currentLocationSource as "ga4" | "ip_geo" | null) ?? null,
-        ipGeoHasCoordinates:   (cachedEnrichment.latitude != null && cachedEnrichment.longitude != null),
-        geoCitySource:             cachedEnrichment.geoCitySource             ?? null,
-        geoCoordsSource:           cachedEnrichment.geoCoordsSource           ?? null,
-        locationConfidence:        (cachedEnrichment.locationConfidence as "high" | "low" | null) ?? null,
-        locationCityCoordMismatch: cachedEnrichment.locationCityCoordMismatch ?? null,
-        locationResolutionNote:    cachedEnrichment.locationResolutionNote    ?? null,
-        enrichmentSource:       "session-cache",
-        sessionCacheMissReason: null,
-        enrichmentTrace:        cachedTrace,
-        stageTrace:             [],
-        timeZoneSource,
-        timeZoneApproximate,
-      });
-
-      // Build base cached context, then compute derived signals from it.
-      const cachedBaseCtx: RuleEvaluationContext = {
-        ...visitorContext,
-        history: {
-          ...history,
-          pageViewCount,
-          ctaClickCount,
-          hasClickedCta,
-        },
-        pathname,
-        tenantId,
-        templateKey,
-        pageType,
-        enrichment: cachedEnrichment,
-        ...timeCtx,
-        seasonalEvent: finalSeasonalEventCached,
-        clientContext,
-        // CRM → behavior merged lifecycle (customer mode drives personalization).
-        crmMergedState: history.journey
-          ? mergeCrmWithBehavior(normalizeCrmProfile(cachedEnrichment), history.journey)
-          : null,
-        // Rule-context overlay + read fields (regels die context schrijven).
-        ruleContext,
-        entryPath,
-        isBot: detectIsBot(visitorContext.userAgent, cachedEnrichment.isCloudProvider),
-      };
-
-      let cachedDerived: ReturnType<typeof computeDerivedContext>;
-      try {
-        cachedDerived = computeDerivedContext(cachedBaseCtx);
-      } catch {
-        cachedDerived = {} as ReturnType<typeof computeDerivedContext>;
-      }
-
       // ── Demo mode: simulate billing on every request (including cache hits) ──
       //
       // In real mode the session cache intentionally skips billing — the
@@ -939,22 +883,34 @@ export async function buildDecisionContext(
         logCacheHitBillingSkipped(tenantId, sessionId);
       }
 
-      return { ...cachedBaseCtx, derived: cachedDerived };
-    }
-
-    // Cache miss — record reason for the debug log further down
-    sessionCacheMissReason = cacheResult.reason;
-    if (isDev) {
-      logger.debug("[decision-context] session enrichment cache miss", {
-        sessionId,
-        reason: cacheResult.reason,
-        ip,
-        tenantId,
-      });
+      // Fall through to the shared post-enrichment steps (Leadinfo merge,
+      // seasonal override, derived context, interest scoring, customAttributes,
+      // CRM merge, debug info) so a hit yields the same context shape as a miss.
+      // The pipeline itself is NOT re-run on a hit (see the branch below).
+      cacheHitEnrichment = cachedEnrichment;
+      enrichmentSource   = "session-cache";
+      enrichmentTrace    = cachedTrace;
+    } else {
+      // Cache miss — record reason for the debug log further down
+      sessionCacheMissReason = cacheResult.reason;
+      if (isDev) {
+        logger.debug("[decision-context] session enrichment cache miss", {
+          sessionId,
+          reason: cacheResult.reason,
+          ip,
+          tenantId,
+        });
+      }
     }
   }
 
-  if (stagedEnrichers && stagedEnrichers.length > 0) {
+  if (cacheHitEnrichment) {
+    // ── Session cache hit — no pipeline run, no billing (see above) ───────
+    //
+    // normalizeCurrentLocation is idempotent; it back-fills current* for any
+    // entry stored before every writer normalised (e.g. older L2 rows).
+    enrichment = normalizeCurrentLocation(cacheHitEnrichment);
+  } else if (stagedEnrichers && stagedEnrichers.length > 0) {
     // ── Wallet guard (pre-pipeline) ───────────────────────────────────────
     //
     // Check whether the tenant's wallet permits billable enrichment calls.
