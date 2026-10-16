@@ -53,9 +53,10 @@ import type {
 } from "@/cms/types";
 import { logger } from "@/lib/logger";
 import { normaliseVisitorId } from "@/lib/snippet/visitor-id";
+import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
 import { recordJourneyEvent } from "@/lib/journey/record-event";
 import { resolvePageMeta } from "@/tracking/page-meta-map";
-import { createHash } from "node:crypto";
+import { deterministicUuid } from "@/lib/snippet/event-id";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -90,24 +91,6 @@ const PLAN_KEY: Record<SlotType, "heroKey" | "proofKey" | "ctaKey" | "featureKey
 };
 
 type Content = Record<string, string>;
-
-/**
- * Deterministic UUID (v5-style) from an arbitrary name string.
- *
- * visitor_journey_events.event_id is a `uuid` column, and recordJourneyEvent
- * dedupes on it via ON CONFLICT DO NOTHING. This slot endpoint fires once per
- * slot (up to 6× per page render); by deriving the SAME event_id from
- * (visitor, page, minute) for every slot call in a render, the burst collapses
- * to a single page_view. Must be a valid UUID or the insert silently fails.
- */
-function deterministicUuid(name: string): string {
-  const h = createHash("sha1").update(name).digest();
-  const b = Buffer.from(h.subarray(0, 16));
-  b[6] = (b[6] & 0x0f) | 0x50; // version 5
-  b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122 variant
-  const hex = b.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-}
 
 /** Best-effort URL out of a loosely-typed media object. */
 function mediaUrl(media: unknown): string {
@@ -334,6 +317,17 @@ export async function POST(request: NextRequest) {
       timezone: tenant.timezone ?? null,
     });
 
+    const isUaBot = isBotUserAgent(request.headers.get("user-agent"));
+    // Rule-context writes and experiment assignments are persisted per session:
+    // only with personalization consent and never for UA bots. Without it the
+    // ephemeral id would still leave a visitor_behavior_state / assignment row
+    // per call. Rules still evaluate in memory; experiments are skipped.
+    const persistence = resolveDecisionPersistence({
+      sessionId,
+      personalizationConsent: consent.personalization,
+      isUaBot,
+      experimentsEnabled:     tenant.experiments?.enabled ?? true,
+    });
     const decisionProvider = new ExperimentDecisionProvider(
       // tenantId → matched rules are recorded (fire-and-forget) so the admin
       // rule-fire statistics also reflect this slot API (Statamic addon) traffic.
@@ -342,12 +336,13 @@ export async function POST(request: NextRequest) {
       // that don't set it. Measurement exclusion (UA OR cloud) uses ctx.isBot.
       new RulesDecisionProvider(
         rulesConfig ?? undefined,
-        isBotUserAgent(request.headers.get("user-agent")),
+        isUaBot,
         tenantId,
-        sessionId,
+        persistence.sessionId,
       ),
-      sessionId,
-      tenant.experiments?.enabled ?? true,
+      // Only read for bucketing when experiments run, which requires a session.
+      persistence.sessionId ?? "",
+      persistence.experimentsEnabled,
       tenantId,
     );
 

@@ -76,7 +76,7 @@
  */
 
 import { NextRequest, NextResponse, after } from "next/server";
-import { createClient }              from "@supabase/supabase-js";
+import { getDb }                     from "@/data/db";
 import { getTenantBySiteKey }        from "@/tenant/server";
 import { createCMSProvider }         from "@/cms";
 import { platformFirstVariants }     from "@/cms/providers/platform-first-variants";
@@ -98,8 +98,8 @@ import { isBotUserAgent }            from "@/decision/context/detect-bot";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import type { TenantSettings }       from "@/tenant/types";
 import type { HeroBlockData, CTABlockData, ProofBlockData, FeatureBlockData, ConversionBlockData, NotificationBlockData } from "@/cms/types";
-import { getDunningState }           from "@/billing/dunning";
 import { getTenantDunningSettings }  from "@/billing/dunning";
+import { resolveSubscriptionDunning } from "@/lib/snippet/payment-gate";
 import { logger }                    from "@/lib/logger";
 import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
@@ -111,8 +111,13 @@ import { toBlockSlot, resolveBlockFx } from "@/lib/snippet/block-slot";
 import type { BlockEffectRef }        from "@/design-system/effects/effect-ref";
 import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-store";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
+import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
+import { loadAdRuleSignals }         from "@/lib/snippet/ad-rule-signals";
+import { toJourneyEventId }          from "@/lib/snippet/event-id";
+import { sanitizeDecideContext, type DecideContext } from "@/lib/snippet/decide-context";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
-import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
+import { fetchAdAudience, getTenantAdTargeting, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
+import type { TenantAdTargeting }     from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
 import { HeadersGeoProvider }         from "@/enrichment/providers/geo";
 import { writeAdGa4Event, resolveAdGa4History } from "@/lib/ads/ga4";
@@ -181,67 +186,12 @@ interface DecideRequest {
    * docs/design/host-cmp-consent.md.
    */
   consent?: SnippetConsentInput;
-  context?: {
-    path?:           string;
-    referrer?:       string;
-    utm_source?:     string;
-    utm_medium?:     string;
-    utm_campaign?:   string;
-    gclid?:          string;
-    fbclid?:         string;
-    msclkid?:        string;
-    ttclid?:         string;
-    sessionId?:      string;
-    /**
-     * Stable first-party visitor id minted and persisted by the snippet
-     * (localStorage `mc_vid`, cookie fallback). Sent on every pageview so the
-     * platform can key behavioural history to one visitor instead of treating
-     * each pageview as a brand-new session. Normally equal to sessionId.
-     */
-    visitorId?:      string;
-    locale?:         string;
-    /**
-     * Interest keywords for this page — sent by the snippet from the page's
-     * <meta name="keywords"> tag. Merged with the URL→keyword map and recorded
-     * as a behavioural page_view so interest-profile scoring works on snippet
-     * (e.g. Statamic) sites, not just platform-rendered pages.
-     */
-    keywords?:       string[];
-    /** Stable per-pageview id for idempotent journey-event recording. */
-    eventId?:        string;
-    /**
-     * Mirror-demo scenario override.
-     * When present alongside _demoMode === "mirror" the rule engine is bypassed.
-     *
-     * If _demoId is also supplied, the per-demo AI-generated scenario_slots are
-     * loaded from demo_instances and returned directly (no CMS lookup needed).
-     * Otherwise the legacy DEMO_SCENARIO_PLANS CMS fallback is used.
-     */
-    _demoScenario?: string;
-    _demoMode?:     string;
-    /**
-     * Mirror demo instance ID.
-     * When present with _demoMode=mirror, the decide endpoint loads the
-     * AI-generated scenario_slots for this specific demo from the DB and
-     * returns slots[_demoScenario].  This replaces the generic DEMO_SCENARIO_PLANS
-     * lookup so every prospect sees their own site's personalised content.
-     */
-    _demoId?:       string;
-    /**
-     * Live-demo notification toggle (second axis alongside _demoScenario). Maps
-     * to a DEMO_NOTIF_SETS entry (e.g. "open" / "closed") whose notification
-     * variant is layered onto the mirror-demo slots. When the tenant has a notif
-     * set and this is absent, the first entry is used so the demo always shows one.
-     */
-    _demoNotif?:    string;
-    /**
-     * Per-request domain attributes for the current page (e.g. a trailer model's
-     * { massa, categorie, occasion }), read by an AttributeCondition. Untrusted /
-     * spoofable: sanitised and filtered to the tenant declaration server-side
-     * before it reaches rule evaluation.
-     */
-    customAttributes?: Record<string, unknown>;
-  };
+  /**
+   * Visitor signals for this pageview. Untrusted: run through
+   * sanitizeDecideContext (plain object only, string fields only, bounded
+   * lengths) before use. Field docs live on DecideContext.
+   */
+  context?: DecideContext;
 }
 
 // ── Demo scenario bypass plans ────────────────────────────────────────────────
@@ -275,7 +225,27 @@ const DEMO_SCENARIO_PLANS: Record<string, {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
+/**
+ * Outer guard: anything that escapes the handler's own try blocks would make
+ * Next.js answer a bare 500 without CORS headers, which the browser reports as
+ * a CORS failure instead of an error. Always answer with CORS headers and the
+ * no-personalisation (empty slots) payload.
+ */
 export async function POST(request: NextRequest) {
+  try {
+    return await handleDecide(request);
+  } catch (err) {
+    logger.error("[snippet/decide] Unhandled error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return NextResponse.json(
+      { error: "Internal error.", slots: {} },
+      { status: 500, headers: CORS_HEADERS },
+    );
+  }
+}
+
+async function handleDecide(request: NextRequest) {
   // ── Editor bypass ──────────────────────────────────────────────────────────
   //
   // When a platform admin is browsing the site (e.g. from the Statamic CP
@@ -314,7 +284,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { siteKey, context = {} } = body as DecideRequest;
+  const { siteKey } = body as DecideRequest;
+  // Untrusted: null / non-object becomes {}, non-string fields are dropped and
+  // free-text values are capped before anything reads or persists them.
+  const context = sanitizeDecideContext((body as DecideRequest).context);
 
   if (!siteKey || typeof siteKey !== "string") {
     return NextResponse.json(
@@ -449,7 +422,7 @@ export async function POST(request: NextRequest) {
               medium:       context.utm_medium   ?? undefined,
               campaign:     context.utm_campaign ?? undefined,
               metadata:     { via: "ad", publisher_domain: adOriginHost ?? null },
-              eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+              eventId:      toJourneyEventId(context.eventId, tenantId),
             }).catch(() => false)
           : Promise.resolve(false),
       ]);
@@ -464,8 +437,13 @@ export async function POST(request: NextRequest) {
     // runs a firmographic-targeted ad, from an approved publisher, with wallet
     // balance. resolveAdCompany caches per visitor/day and is a no-op (null, no
     // cost) unless a Leadinfo key is configured. Skips the whole path otherwise.
+    // The tenant's active ads are read at most once per request (lazily, only
+    // when one of the gated paths below actually needs a targeting flag).
+    let adTargetingOnce: Promise<TenantAdTargeting> | null = null;
+    const adTargeting = () => (adTargetingOnce ??= getTenantAdTargeting(tenantId));
+
     let adCompany: Awaited<ReturnType<typeof resolveAdCompany>> = null;
-    if (consentEnrichment && adSessionId && adOriginHost && await tenantHasFirmographicAd(tenantId)) {
+    if (consentEnrichment && adSessionId && adOriginHost && (await adTargeting()).firmographic) {
       if (await isPublisherApproved(tenantId, adOriginHost) && await isWalletServable(tenantId)) {
         const adIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
           ?? request.headers.get("x-real-ip") ?? null;
@@ -494,7 +472,7 @@ export async function POST(request: NextRequest) {
     // paid enrichment calls; header geo is free and the company we already
     // resolved is seeded. Only built when the tenant runs a rule-targeted ad.
     let adRuleCtx: Awaited<ReturnType<typeof buildDecisionContext>> | null = null;
-    if (adSessionId && await tenantHasRuleAd(tenantId)) {
+    if (adSessionId && (await adTargeting()).rule) {
       try {
         const ruleUrl = new URL(`https://${adOriginHost ?? "publisher"}${context.path ?? "/"}`);
         if (context.utm_source)   ruleUrl.searchParams.set("utm_source",   context.utm_source);
@@ -517,10 +495,16 @@ export async function POST(request: NextRequest) {
         });
         // GA4 history (read from the tenant's own GA4) — no-op unless configured.
         // Seeded so advanced rules can target ga4.* fields. Cost-free (GA4 Data API).
-        const [ruleHistory, adGa4History] = await Promise.all([
-          fetchVisitorHistory(adSessionId, tenantId).catch(() => emptyHistory()),
-          resolveAdGa4History(tenant.ga4, adSessionId),
-        ]);
+        // Behavioural history needs personalization consent, the GA4 read needs
+        // analytics consent; without it the rule context runs on anonymous signals.
+        const [ruleHistory, adGa4History] = await loadAdRuleSignals({
+          personalization: consentPersonalization,
+          analytics:       consentAnalytics,
+          loadHistory:     () => fetchVisitorHistory(adSessionId, tenantId),
+          emptyHistory,
+          loadGa4:         () => resolveAdGa4History(tenant.ga4, adSessionId),
+          emptyGa4:        () => ({}),
+        });
         adRuleCtx = await buildDecisionContext({
           request:     ruleRequest,
           history:     ruleHistory,
@@ -576,9 +560,8 @@ export async function POST(request: NextRequest) {
     const supabaseSrvc = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
     if (supabaseUrl && supabaseSrvc) {
-      const sbClient = createClient(supabaseUrl, supabaseSrvc, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+      // Shared process-wide service-role client (no per-request createClient).
+      const sbClient = getDb();
 
       const { data: sub } = await sbClient
         .from("subscriptions")
@@ -587,17 +570,14 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (sub) {
-        // Fetch per-tenant quarantine_days (use default 8 on error).
-        let quarantineDays = 8;
-        try {
-          const ds = await getTenantDunningSettings(sbClient, tenantId);
-          quarantineDays = ds.quarantine_days;
-        } catch { /* use default */ }
-
-        const dunning = getDunningState(
-          sub.status as string,
-          sub.payment_due_since as string | null,
-          quarantineDays,
+        // Per-tenant quarantine_days only matter for past_due, so the dunning
+        // settings are read only then (default 8 on error).
+        const dunning = await resolveSubscriptionDunning(
+          {
+            status:            sub.status as string,
+            payment_due_since: sub.payment_due_since as string | null,
+          },
+          async () => (await getTenantDunningSettings(sbClient, tenantId)).quarantine_days,
         );
 
         if (dunning.isBlocked) {
@@ -651,9 +631,7 @@ export async function POST(request: NextRequest) {
       const supabaseSrvc = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
       if (supabaseUrl && supabaseSrvc) {
-        const sbClient = createClient(supabaseUrl, supabaseSrvc, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
+        const sbClient = getDb();
 
         const { data: demoRow } = await sbClient
           .from("demo_instances")
@@ -923,7 +901,7 @@ export async function POST(request: NextRequest) {
         source:       context.utm_source   ?? undefined,
         medium:       context.utm_medium   ?? undefined,
         campaign:     context.utm_campaign ?? undefined,
-        eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+        eventId:      toJourneyEventId(context.eventId, tenantId),
       }).catch(() => false);
     }
 
@@ -980,7 +958,17 @@ export async function POST(request: NextRequest) {
       customAttributes: sanitizeCustomAttributes(context.customAttributes, tenant.customAttributes),
     });
 
-    const experimentsEnabled = tenant.experiments?.enabled ?? true;
+    const isUaBot = isBotUserAgent(request.headers.get("user-agent"));
+    // Rule-context writes and experiment assignments are persisted per session,
+    // so the providers only get the sessionId with personalization consent and
+    // never for UA bots. Without it, rules still evaluate in memory and
+    // experiments are skipped (base plan = control, no assignment stored).
+    const persistence = resolveDecisionPersistence({
+      sessionId,
+      personalizationConsent: consentPersonalization,
+      isUaBot,
+      experimentsEnabled:     tenant.experiments?.enabled ?? true,
+    });
     const decisionProvider   = new ExperimentDecisionProvider(
       // Pass tenantId so each matched rule is recorded (fire-and-forget) — this
       // feeds the rule-fire statistics on the admin Rules page for snippet-only
@@ -990,13 +978,14 @@ export async function POST(request: NextRequest) {
       // ctx.isBot in the engine / profile recorder.
       new RulesDecisionProvider(
         tenantRulesConfig ?? undefined,
-        isBotUserAgent(request.headers.get("user-agent")),
+        isUaBot,
         tenantId,
-        sessionId,
+        persistence.sessionId,
         consent,
       ),
-      sessionId,
-      experimentsEnabled,
+      // Only read for bucketing when experiments run, which requires a session.
+      persistence.sessionId ?? "",
+      persistence.experimentsEnabled,
       tenantId,
     );
 
