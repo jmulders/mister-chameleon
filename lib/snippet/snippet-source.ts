@@ -174,6 +174,9 @@ export function buildSnippetSource(decideUrl: string): string {
         if (r && typeof r.then === 'function') { r.then(function(x){ cb(mcNormConsent(x)); }, function(){ cb(null); }); return; }
         cb(mcNormConsent(r)); return;
       }
+      // window.mcConsent = somePromise (thenable): wait for it. Without this check
+      // a Promise is an object and would normalise to an explicit DENY.
+      if (w && typeof w.then === 'function') { w.then(function(x){ cb(mcNormConsent(x)); }, function(){ cb(null); }); return; }
       if (w !== undefined) { cb(mcNormConsent(w)); return; }
     } catch(e) {}
     cb(null);
@@ -410,7 +413,9 @@ export function buildSnippetSource(decideUrl: string): string {
   // ── 3. Collect visitor signals ───────────────────────────────────────────────
   function getCookie(name) {
     var match = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
-    return match ? decodeURIComponent(match[1]) : null;
+    if (!match) return null;
+    // A malformed %-sequence (set by another script) must not stop the snippet.
+    try { return decodeURIComponent(match[1]); } catch (e) { return match[1]; }
   }
   function getParam(key) {
     try {
