@@ -2635,10 +2635,13 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
   // Usage:
   //   audienceSegmentIds contains "high-intent-enterprise"
   //   audienceSegmentIds exists   (visitor matched at least one segment)
+  //
+  // contains / not_contains / in / not_in test exact membership of a segment
+  // key (stored-rule.ts COMMA_LIST_FIELDS), never a substring.
 
   audienceSegmentIds: {
     label:       "Audience segment IDs",
-    description: "Comma-joined keys of audience segments that matched for this visitor. Use 'contains' to test for a specific segment key, or 'exists' to check if any segment matched.",
+    description: "Comma-joined keys of audience segments that matched for this visitor. Use 'contains' to test for one exact segment key, 'in' for any of several, or 'exists' to check if any segment matched.",
     group:       "audience",
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,

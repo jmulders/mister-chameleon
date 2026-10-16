@@ -1585,7 +1585,51 @@ function evalFieldCondition(
     return applyOperator(actual, operator, toNumberArray(value));
   }
 
+  // Comma-joined list fields: membership is per item, never a substring test.
+  if (COMMA_LIST_FIELDS.has(field) && MEMBERSHIP_OPERATORS.has(operator)) {
+    return applyListMembership(actual, operator, value);
+  }
+
   return applyOperator(actual, operator, value);
+}
+
+/**
+ * Fields whose value is a comma-joined list of keys (audienceSegmentIds). For
+ * these, contains / not_contains / in / not_in test exact membership of an item,
+ * so `contains "high-intent"` does not match `high-intent-enterprise`.
+ */
+const COMMA_LIST_FIELDS: ReadonlySet<string> = new Set(["audienceSegmentIds"]);
+
+const MEMBERSHIP_OPERATORS: ReadonlySet<FieldOperator> = new Set<FieldOperator>([
+  "contains", "not_contains", "in", "not_in",
+]);
+
+/**
+ * Exact-membership semantics for a comma-joined list value.
+ *   contains x    → x is an item
+ *   in [a, b]     → at least one of a, b is an item
+ *   not_contains / not_in → the complement (true on a missing value)
+ */
+function applyListMembership(
+  actual:   unknown,
+  operator: FieldOperator,
+  expected: FieldConditionValue | undefined,
+): boolean {
+  const items = typeof actual === "string"
+    ? actual.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  let wanted: string[];
+  if (operator === "contains" || operator === "not_contains") {
+    if (typeof expected !== "string") return false;
+    wanted = [expected.trim()];
+  } else {
+    if (!Array.isArray(expected)) return false;
+    wanted = (expected as readonly (string | number)[]).map((v) => String(v).trim());
+  }
+
+  const member = wanted.some((w) => w !== "" && items.includes(w));
+  return operator === "contains" || operator === "in" ? member : !member;
 }
 
 /** Coerce in / not_in members to numbers; blanks and non-numeric strings are dropped. */
@@ -1733,7 +1777,11 @@ function applyOperator(
       return typeof actual === "string" && typeof expected === "string" && actual.includes(expected);
 
     case "not_contains":
-      return typeof actual === "string" && typeof expected === "string" && !actual.includes(expected);
+      // A missing value contains nothing, so not_contains is true (consistent
+      // with not_equals / not_in / not_exists on a missing value).
+      if (typeof expected !== "string") return false;
+      if (actual === null || actual === undefined) return true;
+      return typeof actual === "string" && !actual.includes(expected);
 
     case "exists":
       return actual !== null && actual !== undefined;
