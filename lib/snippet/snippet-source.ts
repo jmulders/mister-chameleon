@@ -59,7 +59,9 @@
  *   REVEAL_MS (default 700 ms, counted from the hide) the page is revealed with
  *   the original CMS content, and a later decision is still applied when it
  *   lands. The request itself is aborted CALL_MS (default 4000 ms) after it is
- *   sent, as a hard cap.
+ *   sent, as a hard cap. The wait for host consent is bounded by CONSENT_MS
+ *   (default REVEAL_MS minus 400 ms, at least 150 ms), so a slow cookie banner
+ *   does not push the decide past the reveal.
  *
  * ─── Session identity ────────────────────────────────────────────────────────
  *
@@ -159,9 +161,9 @@ export function buildSnippetSource(decideUrl: string): string {
   //   4. Global Privacy Control / Do-Not-Track -> denied.
   // No signal -> null; the server applies the tenant's default (deny for "auto",
   // grant for "always") plus the tenant privacy ceiling. Resolution is bounded by
-  // the call budget so it never delays the first decide. Without granted consent we
-  // still serve geo-only variants/ads; the server skips behavioural, firmographic
-  // and GA4 per category.
+  // CONSENT_MS (see section 2) so the decide can still land before the reveal.
+  // Without granted consent we still serve geo-only variants/ads; the server
+  // skips behavioural, firmographic and GA4 per category.
   var MC_FULL = { analytics: true,  personalization: true,  enrichment: true,  hasResponded: true };
   var MC_DENY = { analytics: false, personalization: false, enrichment: false, hasResponded: true };
   function mcNormConsent(v) {
@@ -207,6 +209,9 @@ export function buildSnippetSource(decideUrl: string): string {
         if (settled) return; settled = true;
         if (!ok || !data) { cb(null); return; }
         if (data.gdprApplies === false) { cb(MC_FULL); return; }
+        // The banner is open: the visitor has not answered yet, so every purpose
+        // still reads false. That is "no signal" (tenant default), not a refusal.
+        if (data.eventStatus === 'cmpuishown') { cb(null); return; }
         var p = (data.purpose && data.purpose.consents) || {};
         // Purpose -> category mapping (platform default; see the consent design doc):
         //   7/8/9/10 measurement -> analytics; 3/4/5/6 personalisation ->
@@ -248,8 +253,11 @@ export function buildSnippetSource(decideUrl: string): string {
   function mcResolveConsent(cb) {
     var done = false;
     function finish(c) { if (done) return; done = true; cb(c); }
-    // Never delay the first decide beyond the call budget.
-    var cap = 1500; try { cap = Math.min(CALL_MS || 1500, 1500); } catch(e) {}
+    // Wait only as long as the decide can still land before the reveal. A slow
+    // CMP would otherwise reveal the page with the default content first and
+    // swap it visibly afterwards. Past the cap the tenant default applies to
+    // this pageview; the next pageview reads the host's answer again.
+    var cap = 300; try { cap = CONSENT_MS; } catch(e) {}
     setTimeout(function() { finish(mcGpcDnt() ? MC_DENY : null); }, cap);
     mcReadPublisher(function(pub) {
       if (pub) { finish(pub); return; }
@@ -438,6 +446,12 @@ export function buildSnippetSource(decideUrl: string): string {
   }
   var REVEAL_MS = mcTiming('data-mc-reveal-ms', 700, 5000);
   var CALL_MS   = mcTiming('data-mc-call-ms', 4000, 15000);
+  // CONSENT_MS: how long the first decide waits for the host's consent answer.
+  // Default: what is left of REVEAL_MS after a 400 ms decide round trip, at
+  // least 150 ms (a CMP answering from its own cookie is always in time).
+  // A tenant that prefers the real answer over a flash-free swap raises it
+  // with data-mc-consent-ms (1500 was the old fixed wait).
+  var CONSENT_MS = mcTiming('data-mc-consent-ms', Math.max(150, REVEAL_MS - 400), 5000);
   var revealed = false;
   function reveal() {
     if (revealed) return;

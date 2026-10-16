@@ -7,6 +7,8 @@
  *   - Double-include guard + document.currentScript preference.
  *   - Block min-height reservation only when the page is visible, then released.
  *   - window.mcConsent as a Promise (thenable) is honoured, not read as DENY.
+ *   - TCF: an open banner is "no answer", and the consent wait (CONSENT_MS)
+ *     ends in time for the decide to beat the reveal.
  *   - A malformed cookie does not stop the snippet.
  *   - The CALL_MS abort timer starts when the first decide is actually sent.
  *   - Forms: Turnstile reset after a failed submit, and the page path in the body.
@@ -258,6 +260,69 @@ describe("snippet runtime — consent", () => {
     const c = env.decideCalls()[0].body.consent;
     assert.equal(c.personalization, true);
     assert.equal(c.analytics, true);
+  });
+
+  /** A TCF CMP whose getTCData answers after `delay` ms with `data`. */
+  function tcf(env: ReturnType<typeof createEnv>, delay: number, data: unknown) {
+    env.window.__tcfapi = (cmd: string, _v: number, cb: (d: unknown, ok: boolean) => void) => {
+      if (cmd !== "getTCData") return;
+      env.clock.setTimeout(() => cb(data, true), delay);
+    };
+  }
+  const TC_GRANTED = {
+    gdprApplies: true, eventStatus: "tcloaded",
+    purpose: { consents: { 1: true, 3: true, 7: true } },
+  };
+
+  it("reads an open TCF banner as no answer, not as a refusal", async () => {
+    const env = createEnv();
+    tcf(env, 0, { gdprApplies: true, eventStatus: "cmpuishown", purpose: { consents: {} } });
+    env.boot();
+    await env.clock.advance(0);
+    assert.equal(env.decideCalls()[0].body.consent, null);
+  });
+
+  it("uses a TCF answer that arrives within the consent wait", async () => {
+    const env = createEnv();
+    tcf(env, 200, TC_GRANTED);
+    env.boot();
+    await env.clock.advance(200);
+    const c = env.decideCalls()[0].body.consent;
+    assert.equal(c.personalization, true);
+    assert.equal(c.enrichment, true);
+  });
+
+  it("stops waiting for a slow CMP early enough for the decide to beat the reveal", async () => {
+    const env = createEnv();
+    tcf(env, 1200, TC_GRANTED);
+    env.boot();
+    await env.clock.advance(299);
+    assert.equal(env.decideCalls().length, 0, "still waiting at 299 ms");
+    await env.clock.advance(1);
+    assert.equal(env.decideCalls().length, 1, "sent at 300 ms (700 ms reveal minus 400 ms)");
+    assert.equal(env.decideCalls()[0].body.consent, null);
+    await env.clock.advance(1000);
+    assert.equal(env.decideCalls().length, 1, "the late answer does not trigger a second decide");
+  });
+
+  it("follows a shorter reveal, with a floor of 150 ms", async () => {
+    const env = createEnv({ scriptAttrs: { "data-mc-reveal-ms": "300" } });
+    tcf(env, 1200, TC_GRANTED);
+    env.boot();
+    await env.clock.advance(149);
+    assert.equal(env.decideCalls().length, 0);
+    await env.clock.advance(1);
+    assert.equal(env.decideCalls().length, 1);
+  });
+
+  it("lets a tenant wait longer for the real answer with data-mc-consent-ms", async () => {
+    const env = createEnv({ scriptAttrs: { "data-mc-consent-ms": "1500" } });
+    tcf(env, 1200, TC_GRANTED);
+    env.boot();
+    await env.clock.advance(1200);
+    const calls = env.decideCalls();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body.consent.personalization, true);
   });
 });
 

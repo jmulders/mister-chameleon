@@ -48,6 +48,7 @@ export default async function SnippetPage({
   const allowedOrigins = tenant.snippet?.allowedSnippetOrigins ?? [];
   const revealMs     = tenant.snippet?.revealMs ?? null;
   const callMs       = tenant.snippet?.callMs ?? null;
+  const consentMs    = tenant.snippet?.consentMs ?? null;
   const consentSource = tenant.snippet?.consentSource ?? "auto";
 
   return (
@@ -78,6 +79,7 @@ export default async function SnippetPage({
         allowedOrigins={allowedOrigins}
         revealMs={revealMs}
         callMs={callMs}
+        consentMs={consentMs}
         consentSource={consentSource}
         slotSuggestions={SLOT_SUGGESTIONS}
       />

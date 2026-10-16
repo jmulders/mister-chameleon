@@ -3216,6 +3216,16 @@ export interface TenantSnippetSettings {
   callMs?: number;
 
   /**
+   * How long (ms) the first decide waits for the host's consent answer (CMP,
+   * TCF, Consent Mode) before it goes out with "no signal" (tenant default).
+   * Absent → REVEAL_MS minus 400, at least 150 (300 with the default reveal),
+   * so the decide still beats the reveal. Raise it to prefer the real answer
+   * over a flash-free swap. Baked into the embed as `data-mc-consent-ms`.
+   * Clamped to 0–5000.
+   */
+  consentMs?: number;
+
+  /**
    * How the visitor's consent (read from the host page by the snippet) is applied
    * when the host sends NO consent signal at all.
    *

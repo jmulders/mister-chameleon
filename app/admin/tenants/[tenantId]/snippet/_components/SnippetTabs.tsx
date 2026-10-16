@@ -42,6 +42,7 @@ interface SnippetTabsProps {
   allowedOrigins: readonly string[];
   revealMs:    number | null;
   callMs:      number | null;
+  consentMs:   number | null;
   consentSource: "auto" | "always";
   slotSuggestions: readonly string[];
   initialTab?: Tab;
@@ -57,6 +58,7 @@ export function SnippetTabs({
   allowedOrigins,
   revealMs,
   callMs,
+  consentMs,
   consentSource,
   slotSuggestions,
   initialTab = "install",
@@ -101,6 +103,7 @@ export function SnippetTabs({
           snippetSrc={snippetSrc}
           revealMs={revealMs}
           callMs={callMs}
+          consentMs={consentMs}
         />
       )}
 
@@ -124,6 +127,7 @@ export function SnippetTabs({
           tenantId={tenantId}
           initialRevealMs={revealMs}
           initialCallMs={callMs}
+          initialConsentMs={consentMs}
         />
       )}
 

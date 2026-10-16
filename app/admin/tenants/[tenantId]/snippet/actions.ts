@@ -160,14 +160,16 @@ export async function saveSnippetAllowedOriginsAction(
 
 /**
  * Save the per-tenant snippet timing. These are baked into the embed as
- * `data-mc-reveal-ms` / `data-mc-call-ms`. Pass null to clear an override
- * (falls back to the snippet defaults: 700 / 4000). Values are clamped to the
+ * `data-mc-reveal-ms` / `data-mc-call-ms` / `data-mc-consent-ms`. Pass null to
+ * clear an override (falls back to the snippet defaults: 700 / 4000 / reveal
+ * minus 400). Values are clamped to the
  * same bounds the snippet enforces client-side.
  */
 export async function saveSnippetTimingAction(
   tenantId: string,
   revealMs: number | null,
   callMs:   number | null,
+  consentMs: number | null = null,
 ): Promise<SnippetActionResult> {
   const session = await getRequiredAdminSession();
   await assertTenantAccess(session, tenantId);
@@ -186,6 +188,7 @@ export async function saveSnippetTimingAction(
       ...tenant.snippet,
       revealMs: clamp(revealMs, 0, 5000),
       callMs:   clamp(callMs, 500, 15000),
+      consentMs: clamp(consentMs, 0, 5000),
     },
   });
 
