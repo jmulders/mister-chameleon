@@ -41,7 +41,7 @@ export async function GET(
   const activeExperiments = experiments.filter((e) => e.status === "active");
 
   // ── Step 2: Load rules config ────────────────────────────────────────────────
-  const rulesConfig = await loadTenantRulesConfig(tenantId);
+  const rulesConfig = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
   out.step2_rulesConfig = {
     ok: !!rulesConfig,
     ruleCount: rulesConfig?.rules.length ?? 0,

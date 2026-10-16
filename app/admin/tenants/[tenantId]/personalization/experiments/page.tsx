@@ -67,7 +67,7 @@ export default async function TenantExperimentsPage({
   // Load plan experiments, rules config, and variant catalogue in parallel.
   const [planExperimentsResult, rulesConfig, variantCatalogue] = await Promise.all([
     listAllPlanExperiments(tenantId),
-    loadTenantRulesConfig(tenantId),
+    loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true }),
     fetchVariantCatalogue(tenantId),
   ]);
 

@@ -77,7 +77,7 @@ export const getContextualGalleryDefaultTokens = cache(async (): Promise<Curated
     const sessionTheme    = sessionSelection?.kind === "curated" ? sessionSelection.themeKey : null;
     const sessionPresetId = sessionSelection?.kind === "gallery" ? sessionSelection.presetId : null;
 
-    const cfg = await loadTenantRulesConfig(tenantId);
+    const cfg = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
     const tenantDefault: ThemePresetKey =
       settings?.design?.theme && isThemePresetKey(settings.design.theme) ? settings.design.theme : "modern-saas";
 

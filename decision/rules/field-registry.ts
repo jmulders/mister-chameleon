@@ -216,11 +216,19 @@ export type RuleEvaluationContext = DecisionInput & {
   entryPath?: string | null;
 
   /**
-   * True when the request looks like a crawler/bot (UA heuristic +
-   * enrichment.isCloudProvider as a proxy). Bots are excluded from
-   * variant-serving and from rule-fire / score measurement.
+   * MEASUREMENT bot verdict: UA heuristic OR enrichment.isCloudProvider. Used to
+   * keep bots and datacenter traffic out of rule-fire / score measurement.
+   * Cloud IPs never exclude a visitor from SERVING, so the `isBot` rule field
+   * does not read this directly (see isBotUserAgent).
    */
   isBot?: boolean | null;
+
+  /**
+   * SERVING bot verdict: the User-Agent heuristic only (isBotUserAgent()).
+   * Read by the `isBot` rule field. When a context builder does not set it, the
+   * field derives it from isBot + enrichment.isCloudProvider.
+   */
+  isBotUserAgent?: boolean | null;
 };
 
 // ── Field metadata types ───────────────────────────────────────────────────────
@@ -638,6 +646,22 @@ const OPS_BOOLEAN: readonly FieldOperator[] = [
 // ── Field registry ─────────────────────────────────────────────────────────────
 
 /**
+ * The serving bot verdict for the `isBot` rule field: User-Agent only.
+ *
+ * Prefers ctx.isBotUserAgent. Without it, derives from ctx.isBot (UA OR cloud
+ * IP): a bot verdict without a cloud IP can only have come from the UA. With a
+ * cloud IP the UA verdict is unknown and treated as false, because a cloud IP
+ * must never exclude a visitor from serving. A clear UA bot does not depend on
+ * this field anyway: the serving paths force the default plan for it
+ * (forceDefaultPlan from isBotUserAgent()).
+ */
+function resolveIsBotUserAgent(ctx: RuleEvaluationContext): boolean | null {
+  if (typeof ctx.isBotUserAgent === "boolean") return ctx.isBotUserAgent;
+  if (typeof ctx.isBot !== "boolean") return null;
+  return ctx.isBot && ctx.enrichment?.isCloudProvider !== true;
+}
+
+/**
  * The complete map of rule field keys to their metadata and resolver.
  * TypeScript enforces that every RuleFieldKey has a definition — add a key
  * to the union above and the compiler will require a matching entry here.
@@ -805,11 +829,11 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
 
   isBot: {
     label:       "Is bot / crawler",
-    description: "True when the request looks like a crawler/bot (User-Agent heuristic + cloud-provider IP as a proxy). Use \"isBot = false\" to exclude bots from a rule.",
+    description: "True when the User-Agent looks like a crawler/bot. Cloud-provider IPs do not count here (they only exclude a visitor from measurement). Use \"isBot = false\" to exclude bots from a rule.",
     group:       "device_session",
     kind:        "boolean",
     operators:   OPS_BOOLEAN,
-    resolve:     (ctx) => ctx.isBot ?? null,
+    resolve:     resolveIsBotUserAgent,
   },
 
   // ── Behaviour / history ───────────────────────────────────────────────────────
@@ -2635,10 +2659,13 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
   // Usage:
   //   audienceSegmentIds contains "high-intent-enterprise"
   //   audienceSegmentIds exists   (visitor matched at least one segment)
+  //
+  // contains / not_contains / in / not_in test exact membership of a segment
+  // key (stored-rule.ts COMMA_LIST_FIELDS), never a substring.
 
   audienceSegmentIds: {
     label:       "Audience segment IDs",
-    description: "Comma-joined keys of audience segments that matched for this visitor. Use 'contains' to test for a specific segment key, or 'exists' to check if any segment matched.",
+    description: "Comma-joined keys of audience segments that matched for this visitor. Use 'contains' to test for one exact segment key, 'in' for any of several, or 'exists' to check if any segment matched.",
     group:       "audience",
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,
@@ -2717,13 +2744,33 @@ export function resolveFieldValue(
   def:   FieldDefinition,
   ctx:   RuleEvaluationContext,
 ): FieldRuntimeValue {
+  const override = overrideFor(field, def, ctx);
+  // Absent or type-invalid override — fall back to the normal derivation.
+  return override !== undefined ? override : def.resolve(ctx);
+}
+
+function overrideFor(
+  field: string,
+  def:   FieldDefinition,
+  ctx:   RuleEvaluationContext,
+): string | number | boolean | undefined {
   const overlay = ctx.ruleContext;
-  if (overlay && Object.prototype.hasOwnProperty.call(overlay, field)) {
-    const override = overlay[field];
-    if (isValidOverride(override, def)) {
-      return override;
-    }
-    // Type-invalid override — ignore and fall back to the normal derivation.
-  }
-  return def.resolve(ctx);
+  if (!overlay || !Object.prototype.hasOwnProperty.call(overlay, field)) return undefined;
+  const override = overlay[field];
+  return isValidOverride(override, def) ? override : undefined;
+}
+
+/**
+ * The type-valid rule-written override for a registry field, or undefined when
+ * there is none (no overlay key, an unknown field, or a type-invalid value).
+ *
+ * Used by resolveFieldValue and by the context library matcher, so a
+ * context_library condition sees the same overrides as a field condition.
+ */
+export function getFieldOverride(
+  field: string,
+  ctx:   RuleEvaluationContext,
+): string | number | boolean | undefined {
+  const def = (FIELD_REGISTRY as Record<string, FieldDefinition | undefined>)[field];
+  return def ? overrideFor(field, def, ctx) : undefined;
 }

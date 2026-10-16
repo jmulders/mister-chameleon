@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
       consent.personalization
         ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
         : Promise.resolve(emptyHistory()),
-      loadTenantRulesConfig(tenantId).catch(() => null),
+      loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true }).catch(() => null),
     ]);
 
     const input = await buildDecisionContext({

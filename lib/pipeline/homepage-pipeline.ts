@@ -251,7 +251,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
         proofKeys: catalogue.proof.filter((e) => e.source !== "platform").map((e) => e.key),
         ctaKeys:   catalogue.cta.filter((e) => e.source !== "platform").map((e) => e.key),
       };
-      return await loadTenantRulesConfig(tenantConfig.tenantId, extraKeys);
+      return await loadTenantRulesConfig(tenantConfig.tenantId, extraKeys, { allowUnknownVariantKeys: true });
     } catch {
       return null;
     }
