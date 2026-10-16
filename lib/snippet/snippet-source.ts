@@ -621,6 +621,20 @@ export function buildSnippetSource(decideUrl: string): string {
     }
   }
 
+  // Temporary min-height for a block swapped on a visible page. Restores the
+  // host's own inline min-height afterwards, unless something else changed it.
+  var MC_RESERVE_MS = 1000;
+  function mcReserveHeight(c) {
+    try {
+      var prev = c.style.minHeight;
+      var reserved = c.offsetHeight + 'px';
+      c.style.minHeight = reserved;
+      setTimeout(function () {
+        try { if (c.style.minHeight === reserved) c.style.minHeight = prev; } catch (e) {}
+      }, MC_RESERVE_MS);
+    } catch (e) {}
+  }
+
   // Block mode: replace a container's innerHTML and apply design tokens as
   // scoped CSS custom properties so the block adopts the tenant's house style.
   function applyBlock(slotKey, block) {
@@ -646,9 +660,12 @@ export function buildSnippetSource(decideUrl: string): string {
         }
       }
       if (typeof block.html === 'string') {
-        // Reserve the block's current footprint before swapping so a different
-        // variant height cannot collapse it and shift the content below (CLS).
-        try { c.style.minHeight = c.offsetHeight + 'px'; } catch (e) {}
+        // Late swap on a visible page: briefly reserve the block's current
+        // footprint so the new variant (whose images may still be loading) cannot
+        // collapse it and shift the content below (CLS), then hand the height back
+        // to the layout. While the page is still hidden nothing visibly shifts, so
+        // no reservation is made at all.
+        if (revealed) mcReserveHeight(c);
         c.innerHTML = block.html;
         // Wire any form injected by this block (submit → cross-origin POST).
         try { mcWireForms(c); } catch (e) { /* forms optional */ }
