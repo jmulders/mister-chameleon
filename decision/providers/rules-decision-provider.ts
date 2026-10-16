@@ -400,6 +400,13 @@ export class RulesDecisionProvider implements DecisionProvider {
   public lastStickyContextWrites: RuleContextWrite[] = [];
 
   /**
+   * IDs of the tag-only rules that matched (and wrote context) in phase A of
+   * the most recent call. They never win the variant; exposed for debug
+   * panels and tests.
+   */
+  public lastTagRuleIds: string[] = [];
+
+  /**
    * Fire-once-per-session webhook markers collected during this request's webhook
    * passes. Persisted TOGETHER with the phase-A sticky writes in one flush per
    * request, so the two never race on the rule_context column.
@@ -422,6 +429,7 @@ export class RulesDecisionProvider implements DecisionProvider {
     this.lastDisabledRuleIds  = [];
     this.lastMatchedContextIds = [];
     this.lastStickyContextWrites = [];
+    this.lastTagRuleIds = [];
     this._pendingFiredWrites = [];
 
     try {
@@ -449,6 +457,18 @@ export class RulesDecisionProvider implements DecisionProvider {
       const ctx = input as RuleEvaluationContext;
 
       const matched = this.evaluateRules(ctx, rules, storedRuleMap, source);
+
+      // Tag-only rules that matched in phase A count as fired: they did their
+      // work (the context write) even though they never pick a variant. This is
+      // the meet-eerst counter of spec §9. Same gates as the winner's record.
+      if (this._tenantId && !ctx.isBot && this.lastTagRuleIds.length > 0) {
+        const tid = this._tenantId;
+        for (const tagRuleId of this.lastTagRuleIds) {
+          void import("@/lib/observability/rule-fire-store")
+            .then((m) => m.recordRuleFire(tid, tagRuleId))
+            .catch(() => { /* pre-migration / no DB: ignore */ });
+        }
+      }
 
       // ── Independent webhook pass (webhook-only rules) ─────────────────────────
       //
@@ -662,6 +682,10 @@ export class RulesDecisionProvider implements DecisionProvider {
         continue;
       }
 
+      // Tag-only rules wrote their context in phase A and never compete for
+      // the variant, so lower-priority variant rules still get their turn.
+      if (rule.tagOnly === true) continue;
+
       // ── Evaluate the rule (critical path) ──────────────────────────────────
       let matched = false;
 
@@ -753,6 +777,7 @@ export class RulesDecisionProvider implements DecisionProvider {
       if (!matched) continue;
 
       for (const w of writes) applyWrite(w);
+      if (rule.tagOnly === true) this.lastTagRuleIds.push(rule.id);
     }
 
     this.lastStickyContextWrites = sticky;

@@ -84,6 +84,12 @@ export interface HomepageRule {
    * Set by compileStoredRule() when StoredRule.enabled === false.
    */
   enabled?: boolean;
+
+  /**
+   * Tag-only rule: writes context in phase A, never wins the variant choice.
+   * Set by compileStoredRule() when StoredRule.tagOnly === true.
+   */
+  tagOnly?: boolean;
 }
 
 // ── Named rules ───────────────────────────────────────────────────────────────

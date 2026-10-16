@@ -618,6 +618,18 @@ export interface StoredRule {
   webhookOnly?: boolean;
 
   /**
+   * TAG-ONLY rule ("regels die context schrijven", spec §5). When true, the
+   * rule only writes its `plan.setContext` in phase A and is skipped in the
+   * phase-B variant choice, so it never stops lower-priority variant rules.
+   * Its matches still count in the rule-fire statistics (the meet-eerst
+   * counter). Requires a non-empty `plan.setContext`; its variant keys and
+   * theme are ignored (and not validated). Cannot be combined with
+   * webhookOnly. Defaults to false/absent: a rule that writes context AND
+   * matches is then also a variant winner, as before.
+   */
+  tagOnly?: boolean;
+
+  /**
    * Origin of this rule, used by the blueprint merge system.
    *
    * "system"    — shipped with the platform; updated automatically on deploy.
@@ -935,11 +947,26 @@ export function validateStoredConfig(
       errors.push({ ruleId: r.id as string, field: `${idx}.webhookOnly`, message: "webhookOnly must be a boolean." });
     }
 
+    // tagOnly (optional boolean — omitted means false)
+    if (r.tagOnly !== undefined && typeof r.tagOnly !== "boolean") {
+      errors.push({ ruleId: r.id as string, field: `${idx}.tagOnly`, message: "tagOnly must be a boolean." });
+    }
+    if (r.tagOnly === true) {
+      if (r.webhookOnly === true) {
+        errors.push({ ruleId: r.id as string, field: `${idx}.tagOnly`, message: "a rule cannot be both tag-only and webhook-only." });
+      }
+      const sc = (r.plan as { setContext?: unknown } | undefined)?.setContext;
+      if (!Array.isArray(sc) || sc.length === 0) {
+        errors.push({ ruleId: r.id as string, field: `${idx}.plan.setContext`, message: "a tag-only rule requires at least one plan.setContext write." });
+      }
+    }
+
     // condition
     validateCondition(r.condition, idx, r.id as string | undefined, errors, 0);
 
-    // plan — a webhook-only rule needs a webhook, not variant keys.
-    validatePlan(r.plan as Record<string, unknown>, idx, r.id as string | undefined, errors, allowedHeroKeys, allowedProofKeys, allowedCtaKeys, r.webhookOnly === true);
+    // plan — a webhook-only rule needs a webhook, not variant keys; a tag-only
+    // rule serves no variant, so its keys are not checked either.
+    validatePlan(r.plan as Record<string, unknown>, idx, r.id as string | undefined, errors, allowedHeroKeys, allowedProofKeys, allowedCtaKeys, r.webhookOnly === true, r.tagOnly === true);
   }
 
   return errors;
@@ -978,6 +1005,7 @@ function validatePlan(
   allowedProofKeys: readonly string[] | null = ALLOWED_PROOF_KEYS,
   allowedCtaKeys:   readonly string[] | null = ALLOWED_CTA_KEYS,
   webhookOnly:      boolean = false,
+  tagOnly:          boolean = false,
 ): void {
   if (!plan || typeof plan !== "object") {
     errors.push({ ruleId, field: `${idx}.plan`, message: "plan is required." });
@@ -992,7 +1020,7 @@ function validatePlan(
     if (!wh || typeof wh !== "object" || typeof wh.url !== "string") {
       errors.push({ ruleId, field: `${idx}.plan.webhook`, message: "a webhook-only rule requires plan.webhook.url." });
     }
-  } else {
+  } else if (!tagOnly) {
     checkVariantKey(plan.heroKey,  "heroKey",  allowedHeroKeys,  idx, ruleId, errors);
     checkVariantKey(plan.proofKey, "proofKey", allowedProofKeys, idx, ruleId, errors);
     checkVariantKey(plan.ctaKey,   "ctaKey",   allowedCtaKeys,   idx, ruleId, errors);
@@ -1856,6 +1884,7 @@ export function compileStoredRule(stored: StoredRule): HomepageRule {
     // Propagate the enabled flag so the provider can skip disabled rules.
     // Omit when true (or absent) to keep the object shape lean.
     ...(stored.enabled === false ? { enabled: false } : {}),
+    ...(stored.tagOnly === true ? { tagOnly: true } : {}),
   };
 }
 

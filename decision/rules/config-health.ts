@@ -17,6 +17,9 @@
  *   • dead-variant         (warning) — a catalogue variant key no rule (or the default plan) uses.
  *   • shadowed-rule        (warning) — a rule with the SAME condition as a higher-priority rule.
  *   • always-true-shadow   (warning) — rules after an always-true rule are unreachable.
+ *   • unflagged-tag-rule   (warning) — writes context and serves only the default
+ *                                      variants, but is not marked tag-only, so it
+ *                                      still wins the variant choice.
  *   • never-fired          (info)    — a rule that has not fired in N days (from rule_fire_daily).
  *
  * NOTE: full condition subsumption (a condition logically implied by another) is a
@@ -34,7 +37,8 @@ export interface ConfigHealthFinding {
   /** Stable machine code for the finding type. */
   code:
     | "duplicate-priority" | "unknown-field" | "invalid-operator" | "empty-value-set"
-    | "dead-variant" | "shadowed-rule" | "always-true-shadow" | "never-fired";
+    | "dead-variant" | "shadowed-rule" | "always-true-shadow" | "never-fired"
+    | "unflagged-tag-rule";
   /** Human-readable explanation of the problem. */
   message:    string;
   /** The rule the finding is about (absent for config-wide findings like dead variants). */
@@ -99,9 +103,23 @@ function referencedVariantKeys(config: StoredRulesConfig): { hero: Set<string>; 
     if (p.proofKey) proof.add(p.proofKey);
     if (p.ctaKey)   cta.add(p.ctaKey);
   };
-  for (const r of config.rules) if (!r.webhookOnly) add(r.plan);
+  // Webhook-only and tag-only rules serve no variant.
+  for (const r of config.rules) if (!r.webhookOnly && !r.tagOnly) add(r.plan);
   add(config.defaultPlan as StoredPlan);
   return { hero, proof, cta };
+}
+
+/** Writes context and picks nothing beyond the default hero / proof / cta. */
+function looksLikeTagRule(r: StoredRule, def: StoredPlan | undefined): boolean {
+  const p = r.plan;
+  if (!p?.setContext || p.setContext.length === 0 || !def) return false;
+  if (p.heroKey !== def.heroKey || p.proofKey !== def.proofKey || p.ctaKey !== def.ctaKey) return false;
+  return !(
+    p.featureKey || p.conversionKey || p.notificationKey || p.pageBannerKey ||
+    p.themeKey || p.themePresetId ||
+    (p.formVariants  && Object.keys(p.formVariants).length  > 0) ||
+    (p.emailVariants && Object.keys(p.emailVariants).length > 0)
+  );
 }
 
 /**
@@ -183,8 +201,9 @@ export function analyzeRulesConfig(config: StoredRulesConfig, input: ConfigHealt
 
   // ── shadowing / unreachability (identical condition + always-true) ───────────
   // Evaluate in priority order (lower number first) among enabled variant rules.
+  // Tag-only rules never stop evaluation, so they shadow nothing.
   const ordered = rules
-    .filter((r) => r.enabled !== false && !r.webhookOnly)
+    .filter((r) => r.enabled !== false && !r.webhookOnly && !r.tagOnly)
     .slice()
     .sort((a, b) => a.priority - b.priority || rules.indexOf(a) - rules.indexOf(b));
 
@@ -209,6 +228,19 @@ export function analyzeRulesConfig(config: StoredRulesConfig, input: ConfigHealt
       seenConditions.set(key, r);
     }
     if (isAlwaysTrue(r.condition)) alwaysTrueAbove = r;
+  }
+
+  // ── unflagged-tag-rule ──────────────────────────────────────────────────────
+  // The meet-eerst pattern: a rule that only writes context and keeps the
+  // default variants. Without the tag-only flag it still wins the variant
+  // choice, so every lower-priority rule is blocked for the visitors it tags.
+  const def = config.defaultPlan as StoredPlan | undefined;
+  for (const r of ordered) {
+    if (!looksLikeTagRule(r, def)) continue;
+    findings.push({
+      severity: "warning", code: "unflagged-tag-rule", ruleId: r.id, ruleLabel: label(r),
+      message: `Looks like a tag rule (sets context, serves only the default variants) but is not marked tag-only, so it wins the variant choice and lower-priority rules never get a turn for the visitors it matches. Tick "Tag-only rule" in the editor.`,
+    });
   }
 
   // ── never-fired (info; needs injected fire stats) ────────────────────────────
