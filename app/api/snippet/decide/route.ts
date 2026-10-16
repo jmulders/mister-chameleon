@@ -99,8 +99,10 @@ import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import type { TenantSettings }       from "@/tenant/types";
 import type { HeroBlockData, CTABlockData, ProofBlockData, FeatureBlockData, ConversionBlockData, NotificationBlockData } from "@/cms/types";
 import { getTenantDunningSettings }  from "@/billing/dunning";
-import { resolveSubscriptionDunning } from "@/lib/snippet/payment-gate";
+import { loadPaymentGate }           from "@/lib/snippet/payment-gate";
 import { logger }                    from "@/lib/logger";
+import { checkRateLimit, extractClientIp } from "@/lib/rate-limiting";
+import { snippetRateLimitKey, rateLimitHeaders } from "@/lib/rate-limiting/route-limit";
 import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
 import { sanitizeSelectorMap }       from "@/lib/snippet/decide-response";
@@ -296,21 +298,39 @@ async function handleDecide(request: NextRequest) {
     );
   }
 
-  // ── Resolve tenant by site key ─────────────────────────────────────────────
+  // ── Rate limit + resolve tenant by site key (in parallel) ─────────────────
+  //
+  // This route is exempt from the proxy's per-IP limiter: it is limited here per
+  // siteKey + visitor IP ("snippet" bucket), so a visitor is counted per tenant.
+  // The counter RPC runs alongside the tenant lookup so it adds no latency.
   //
   // getTenantBySiteKey uses a direct Supabase JSONB filter query (O(1) row
   // lookup) instead of loading all tenants and filtering in application code.
   // This is important because this endpoint is called on every visitor pageview.
   let tenant: TenantSettings | null = null;
-  try {
-    tenant = await getTenantBySiteKey(siteKey);
-  } catch (err) {
-    logger.error("[snippet/decide] Failed to resolve tenant by siteKey", { error: String(err) });
+  const [rateLimit, tenantLookup] = await Promise.all([
+    checkRateLimit("snippet", snippetRateLimitKey(siteKey, extractClientIp(request.headers))),
+    getTenantBySiteKey(siteKey).then(
+      (t) => ({ ok: true as const, tenant: t }),
+      (err: unknown) => ({ ok: false as const, err }),
+    ),
+  ]);
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too Many Requests", slots: {} },
+      { status: 429, headers: { ...CORS_HEADERS, ...rateLimitHeaders(rateLimit) } },
+    );
+  }
+
+  if (!tenantLookup.ok) {
+    logger.error("[snippet/decide] Failed to resolve tenant by siteKey", { error: String(tenantLookup.err) });
     return NextResponse.json(
       { error: "Internal error." },
       { status: 500, headers: CORS_HEADERS },
     );
   }
+  tenant = tenantLookup.tenant;
 
   if (!tenant) {
     return NextResponse.json(
@@ -563,23 +583,15 @@ async function handleDecide(request: NextRequest) {
       // Shared process-wide service-role client (no per-request createClient).
       const sbClient = getDb();
 
-      const { data: sub } = await sbClient
-        .from("subscriptions")
-        .select("status, payment_due_since")
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
+      // Per-tenant quarantine_days only matter for past_due, so the dunning
+      // settings are read only then (default 8 on error).
+      const dunning = await loadPaymentGate(
+        sbClient,
+        tenantId,
+        async () => (await getTenantDunningSettings(sbClient, tenantId)).quarantine_days,
+      );
 
-      if (sub) {
-        // Per-tenant quarantine_days only matter for past_due, so the dunning
-        // settings are read only then (default 8 on error).
-        const dunning = await resolveSubscriptionDunning(
-          {
-            status:            sub.status as string,
-            payment_due_since: sub.payment_due_since as string | null,
-          },
-          async () => (await getTenantDunningSettings(sbClient, tenantId)).quarantine_days,
-        );
-
+      if (dunning) {
         if (dunning.isBlocked) {
           logger.info("[snippet/decide] Service blocked — subscription unpaid", { tenantId });
           return NextResponse.json(

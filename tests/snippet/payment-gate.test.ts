@@ -7,8 +7,9 @@
  */
 
 import { describe, it } from "node:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import assert           from "node:assert/strict";
-import { resolveSubscriptionDunning } from "@/lib/snippet/payment-gate";
+import { resolveSubscriptionDunning, loadPaymentGate } from "@/lib/snippet/payment-gate";
 
 function counter(days: number | Error) {
   let calls = 0;
@@ -56,5 +57,46 @@ describe("resolveSubscriptionDunning", () => {
     const state = await resolveSubscriptionDunning({ status: "past_due", payment_due_since: dueSince }, c.load);
     assert.equal(c.calls(), 1);
     assert.equal(state.isQuarantined, true); // 3 days < default 8
+  });
+});
+
+function fakeDb(row: unknown, seen: { tenantId?: string } = {}): SupabaseClient {
+  const db = {
+    from: () => ({
+      select: () => ({
+        eq: (_col: string, val: string) => {
+          seen.tenantId = val;
+          return { maybeSingle: async () => ({ data: row }) };
+        },
+      }),
+    }),
+  };
+  return db as unknown as SupabaseClient;
+}
+
+describe("loadPaymentGate", () => {
+  it("serves normally when the tenant has no subscription row", async () => {
+    assert.equal(await loadPaymentGate(fakeDb(null), "t1", async () => 8), null);
+  });
+
+  it("reads the subscription of the given tenant", async () => {
+    const seen: { tenantId?: string } = {};
+    await loadPaymentGate(fakeDb(null, seen), "nascita", async () => 8);
+    assert.equal(seen.tenantId, "nascita");
+  });
+
+  it("blocks an unpaid subscription", async () => {
+    const state = await loadPaymentGate(fakeDb({ status: "unpaid", payment_due_since: null }), "t1", async () => 8);
+    assert.equal(state?.isBlocked, true);
+  });
+
+  it("quarantines a recent past_due subscription", async () => {
+    const dueSince = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const state = await loadPaymentGate(fakeDb({ status: "past_due", payment_due_since: dueSince }), "t1", async () => 8);
+    assert.equal(state?.isQuarantined, true);
+  });
+
+  it("ignores a malformed row instead of blocking", async () => {
+    assert.equal(await loadPaymentGate(fakeDb({ status: 42 }), "t1", async () => 8), null);
   });
 });
