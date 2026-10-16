@@ -63,7 +63,7 @@ import type { ClientContext }        from "@/context/client-context";
 import type { DerivedContext }       from "@/context/derived-context";
 import type { IntentContext }        from "@/context/intent-context";
 import { emptyIntentContext }        from "@/context/intent-context";
-import { detectIsBot }               from "./context/detect-bot";
+import { detectIsBot, isBotUserAgent } from "./context/detect-bot";
 import type { InterestScore, InterestContextVars } from "@/interest-profiles/types";
 
 // ── DecisionContext type ───────────────────────────────────────────────────────
@@ -379,7 +379,9 @@ export function buildDecisionContext(
       (typeof opts.history.journey?.ruleContext?.__entryPath === "string"
         ? (opts.history.journey.ruleContext.__entryPath as string)
         : null) ?? opts.pathname ?? null,
-    isBot: detectIsBot(opts.visitorContext.userAgent, opts.enrichment?.isCloudProvider),
+    // Measurement verdict (UA OR cloud IP) and serving verdict (UA only).
+    isBot:          detectIsBot(opts.visitorContext.userAgent, opts.enrichment?.isCloudProvider),
+    isBotUserAgent: isBotUserAgent(opts.visitorContext.userAgent),
   };
 }
 

@@ -216,11 +216,19 @@ export type RuleEvaluationContext = DecisionInput & {
   entryPath?: string | null;
 
   /**
-   * True when the request looks like a crawler/bot (UA heuristic +
-   * enrichment.isCloudProvider as a proxy). Bots are excluded from
-   * variant-serving and from rule-fire / score measurement.
+   * MEASUREMENT bot verdict: UA heuristic OR enrichment.isCloudProvider. Used to
+   * keep bots and datacenter traffic out of rule-fire / score measurement.
+   * Cloud IPs never exclude a visitor from SERVING, so the `isBot` rule field
+   * does not read this directly (see isBotUserAgent).
    */
   isBot?: boolean | null;
+
+  /**
+   * SERVING bot verdict: the User-Agent heuristic only (isBotUserAgent()).
+   * Read by the `isBot` rule field. When a context builder does not set it, the
+   * field derives it from isBot + enrichment.isCloudProvider.
+   */
+  isBotUserAgent?: boolean | null;
 };
 
 // ── Field metadata types ───────────────────────────────────────────────────────
@@ -638,6 +646,22 @@ const OPS_BOOLEAN: readonly FieldOperator[] = [
 // ── Field registry ─────────────────────────────────────────────────────────────
 
 /**
+ * The serving bot verdict for the `isBot` rule field: User-Agent only.
+ *
+ * Prefers ctx.isBotUserAgent. Without it, derives from ctx.isBot (UA OR cloud
+ * IP): a bot verdict without a cloud IP can only have come from the UA. With a
+ * cloud IP the UA verdict is unknown and treated as false, because a cloud IP
+ * must never exclude a visitor from serving. A clear UA bot does not depend on
+ * this field anyway: the serving paths force the default plan for it
+ * (forceDefaultPlan from isBotUserAgent()).
+ */
+function resolveIsBotUserAgent(ctx: RuleEvaluationContext): boolean | null {
+  if (typeof ctx.isBotUserAgent === "boolean") return ctx.isBotUserAgent;
+  if (typeof ctx.isBot !== "boolean") return null;
+  return ctx.isBot && ctx.enrichment?.isCloudProvider !== true;
+}
+
+/**
  * The complete map of rule field keys to their metadata and resolver.
  * TypeScript enforces that every RuleFieldKey has a definition — add a key
  * to the union above and the compiler will require a matching entry here.
@@ -805,11 +829,11 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
 
   isBot: {
     label:       "Is bot / crawler",
-    description: "True when the request looks like a crawler/bot (User-Agent heuristic + cloud-provider IP as a proxy). Use \"isBot = false\" to exclude bots from a rule.",
+    description: "True when the User-Agent looks like a crawler/bot. Cloud-provider IPs do not count here (they only exclude a visitor from measurement). Use \"isBot = false\" to exclude bots from a rule.",
     group:       "device_session",
     kind:        "boolean",
     operators:   OPS_BOOLEAN,
-    resolve:     (ctx) => ctx.isBot ?? null,
+    resolve:     resolveIsBotUserAgent,
   },
 
   // ── Behaviour / history ───────────────────────────────────────────────────────
