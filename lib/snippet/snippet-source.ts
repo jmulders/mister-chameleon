@@ -122,13 +122,26 @@ export function buildSnippetSource(decideUrl: string): string {
   }
 
   // ── 1. Read site key from own script tag ─────────────────────────────────────
-  var scripts = document.querySelectorAll('script[data-site-key]');
+  // Prefer the executing tag (document.currentScript is set for async scripts
+  // too); fall back to the first script[data-site-key] on the page.
   var siteKey = null, selfScript = null;
-  for (var i = 0; i < scripts.length; i++) {
-    siteKey = scripts[i].getAttribute('data-site-key');
-    if (siteKey) { selfScript = scripts[i]; break; }
+  var cur = document.currentScript;
+  if (cur && cur.getAttribute && cur.getAttribute('data-site-key')) {
+    selfScript = cur;
+    siteKey = cur.getAttribute('data-site-key');
+  } else {
+    var scripts = document.querySelectorAll('script[data-site-key]');
+    for (var i = 0; i < scripts.length; i++) {
+      siteKey = scripts[i].getAttribute('data-site-key');
+      if (siteKey) { selfScript = scripts[i]; break; }
+    }
   }
   if (!siteKey) return; // no site key — bail silently
+
+  // Run once per page, even when the snippet is included twice (WP plugin plus a
+  // manual tag, or GTM): a second run would hide, decide and swap again.
+  if (window.__mcSnippetLoaded) return;
+  window.__mcSnippetLoaded = true;
 
   // ── 1b. Consent (host CMP alignment) ─────────────────────────────────────────
   // We forward the visitor's consent as three categories {analytics,
