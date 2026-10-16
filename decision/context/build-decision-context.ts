@@ -799,7 +799,15 @@ export async function buildDecisionContext(
                 initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
               },
             );
-            setSessionEnrichment(sessionId, freshResult.output, ip, tenantId, { retry: freshResult.incomplete === true, formLocationHash });
+            // Same entry shape as the blocking writer: normalised current*
+            // location fields + the retry flag for an incomplete run.
+            setSessionEnrichment(
+              sessionId,
+              normalizeCurrentLocation({ ...headerGeoResult, ...freshResult.output }),
+              ip,
+              tenantId,
+              { retry: freshResult.incomplete === true, formLocationHash },
+            );
             if (isDev) {
               logger.debug("[decision-context] stale session cache refreshed in background", {
                 sessionId,
@@ -1078,7 +1086,16 @@ export async function buildDecisionContext(
               initialAccumulated: { ...headerGeoResult, ...seedEnrichment },
             },
           );
-          setSessionEnrichment(sessionId, freshResult.output, ip, tenantId, { formLocationHash });
+          // Same entry shape as the blocking writer: normalised current*
+          // location fields, and the retry flag so an incomplete (timed-out)
+          // run is cached for the short retry TTL rather than the full TTL.
+          setSessionEnrichment(
+            sessionId,
+            normalizeCurrentLocation({ ...headerGeoResult, ...freshResult.output }),
+            ip,
+            tenantId,
+            { retry: freshResult.incomplete === true, formLocationHash },
+          );
           if (isDev) {
             logger.debug("[decision-context] deferred session cache warmed in background", {
               sessionId,
