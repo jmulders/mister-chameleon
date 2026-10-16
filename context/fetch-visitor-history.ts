@@ -139,47 +139,48 @@ export async function fetchVisitorHistory(
     const db = getDb();
 
     // ── Run all queries concurrently ────────────────────────────────────────
-    const [pageViewResult, ctaClickResult, lastVariantResult, journeyState] = await Promise.all([
+    // The query builders are passed to Promise.all un-awaited (they are
+    // thenables), so all four requests are in flight at once. Awaiting inside
+    // the array literal would run them one after another.
+    const [pageViewRaw, ctaClickRaw, lastVariantRaw, journeyState] = await Promise.all([
       // 1. Page view rows — fetch payload so the tenant filter can be applied.
       //    Rows per session are tiny (one per page-load within a 30-day window).
-      asRows<EventRow>(
-        await db
-          .from("events")
-          .select("created_at, payload")
-          .eq("session_id", sessionId)
-          .eq("event_type", "page_view")
-          .order("created_at", { ascending: true }),
-      ),
+      db
+        .from("events")
+        .select("created_at, payload")
+        .eq("session_id", sessionId)
+        .eq("event_type", "page_view")
+        .order("created_at", { ascending: true }),
 
       // 2. CTA click rows — same approach; provides the MIN timestamp for
       //    firstSeenAt as well as the tenant-scoped click count.
-      asRows<EventRow>(
-        await db
-          .from("events")
-          .select("created_at, payload")
-          .eq("session_id", sessionId)
-          .eq("event_type", "cta_click")
-          .order("created_at", { ascending: true }),
-      ),
+      db
+        .from("events")
+        .select("created_at, payload")
+        .eq("session_id", sessionId)
+        .eq("event_type", "cta_click")
+        .order("created_at", { ascending: true }),
 
       // 3. Most recently served variant for this session.
       //    No tenant filter yet — served_variants.tenant_id requires migration
       //    20240101000008.  session_id is globally unique per browser so
       //    cross-tenant contamination is minimal in production.
-      asRows<ServedVariantHistoryRow>(
-        await db
-          .from("served_variants")
-          .select("hero_key, cta_key")
-          .eq("session_id", sessionId)
-          .order("created_at", { ascending: false })
-          .limit(1),
-      ),
+      db
+        .from("served_variants")
+        .select("hero_key, cta_key")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: false })
+        .limit(1),
 
       // 4. Journey / behavior state — single PK lookup on visitor_behavior_state.
       //    Returns emptyJourneyState() on any failure so the main query pipeline
       //    is unaffected.
       fetchJourneyState(sessionId, tenantId),
     ]);
+
+    const pageViewResult    = asRows<EventRow>(pageViewRaw);
+    const ctaClickResult    = asRows<EventRow>(ctaClickRaw);
+    const lastVariantResult = asRows<ServedVariantHistoryRow>(lastVariantRaw);
 
     // ── Check for query errors ──────────────────────────────────────────────
     if (pageViewResult.error) {
