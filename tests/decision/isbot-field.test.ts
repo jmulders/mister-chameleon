@@ -41,3 +41,23 @@ describe("field-registry — isBot resolves the User-Agent verdict", () => {
     assert.strictEqual(resolve(ctxWith({})), null);
   });
 });
+
+describe("buildDecisionContext — sets the UA verdict for the isBot field", () => {
+  async function build(ua: string) {
+    const { buildDecisionContext } = await import("@/decision/context/build-decision-context");
+    const req = new Request("http://tenant.example/", { headers: new Headers({ "user-agent": ua }) });
+    return buildDecisionContext({ request: req });
+  }
+
+  it("marks a crawler User-Agent as a bot, whatever the IP", async () => {
+    const ctx = await build("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)");
+    assert.strictEqual(ctx.isBotUserAgent, true);
+    assert.strictEqual(resolve(ctx as unknown as RuleEvaluationContext), true);
+  });
+
+  it("does not mark a regular browser as a bot", async () => {
+    const ctx = await build("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15");
+    assert.strictEqual(ctx.isBotUserAgent, false);
+    assert.strictEqual(resolve(ctx as unknown as RuleEvaluationContext), false);
+  });
+});
