@@ -639,7 +639,15 @@ export class RulesDecisionProvider implements DecisionProvider {
     // overlay so later rules in this pass (and phase B's variant choice) see the
     // writes. These rules do NOT stop evaluation. Sticky writes are collected for
     // persistence; non-sticky writes live only within this request.
-    this.applyContextWrites(ctx, rules, storedRuleMap);
+    //
+    // The returned map holds the phase-A verdict of every rule that carries
+    // setContext. Phase B reuses it instead of re-evaluating that rule against
+    // the overlay it may have just written itself: a rule with
+    // `flag X not_exists` + `setContext X` would otherwise match in A, write X,
+    // and fail its own condition in B. Each writing rule is judged against the
+    // writes of HIGHER-priority rules only, which is also what decided whether
+    // its own writes were applied.
+    const phaseAVerdicts = this.applyContextWrites(ctx, rules, storedRuleMap);
 
     // ── Phase B: variant selection (first-match-by-priority) ───────────────────
     for (const rule of rules) {
@@ -658,7 +666,8 @@ export class RulesDecisionProvider implements DecisionProvider {
       let matched = false;
 
       try {
-        matched = rule.match(ctx);
+        const verdict = phaseAVerdicts.get(rule.id);
+        matched = verdict !== undefined ? verdict : rule.match(ctx);
       } catch (predicateError) {
         logger.warn("[decision] Rule predicate threw — skipping rule", {
           ruleId:    rule.id,
@@ -695,12 +704,18 @@ export class RulesDecisionProvider implements DecisionProvider {
    *
    * Also seeds the sticky `__entryPath` on the first view (when the overlay has
    * none yet and a pathname is known) so later views can read entryPath (§6).
+   *
+   * Returns the match verdict (rule id → matched) of every rule evaluated here,
+   * i.e. every enabled rule carrying setContext whose predicate did not throw.
+   * Phase B reuses these verdicts so a rule is never judged against its own
+   * writes.
    */
   private applyContextWrites(
     ctx:           RuleEvaluationContext,
     rules:         readonly HomepageRule[],
     storedRuleMap: ReadonlyMap<string, StoredRule>,
-  ): void {
+  ): Map<string, boolean> {
+    const verdicts = new Map<string, boolean>();
     // Clone so phase-A writes never mutate the persisted JourneyState.ruleContext.
     const overlay: Record<string, string | number | boolean> = { ...(ctx.ruleContext ?? {}) };
     ctx.ruleContext = overlay;
@@ -734,6 +749,7 @@ export class RulesDecisionProvider implements DecisionProvider {
         // A throwing predicate is skipped here; phase B logs it.
         continue;
       }
+      verdicts.set(rule.id, matched);
       if (!matched) continue;
 
       for (const w of writes) applyWrite(w);
@@ -742,6 +758,7 @@ export class RulesDecisionProvider implements DecisionProvider {
     this.lastStickyContextWrites = sticky;
     // Persisted later via flushRuleContextWrites() — combined with any
     // fire-once webhook markers into a SINGLE rule_context write per request.
+    return verdicts;
   }
 
   /**
