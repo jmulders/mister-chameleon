@@ -52,9 +52,14 @@
  *
  * ─── Timeout & fail-safe ─────────────────────────────────────────────────────
  *
- *   If the decision has not arrived within 700 ms the snippet reveals the page
- *   with the original CMS content, and a later decision is dropped so there is
- *   never a jump. The request itself is aborted after 1500 ms as a hard cap.
+ *   The page is hidden as soon as the snippet runs. The first decide is sent once
+ *   host consent is resolved AND the document is parsed (readyState is no longer
+ *   "loading", else on DOMContentLoaded), so blocks and data-mc-attr-* attributes
+ *   further down the page are seen. If the decision has not arrived within
+ *   REVEAL_MS (default 700 ms, counted from the hide) the page is revealed with
+ *   the original CMS content, and a later decision is still applied when it
+ *   lands. The request itself is aborted CALL_MS (default 4000 ms) after it is
+ *   sent, as a hard cap.
  *
  * ─── Session identity ────────────────────────────────────────────────────────
  *
@@ -122,13 +127,26 @@ export function buildSnippetSource(decideUrl: string): string {
   }
 
   // ── 1. Read site key from own script tag ─────────────────────────────────────
-  var scripts = document.querySelectorAll('script[data-site-key]');
+  // Prefer the executing tag (document.currentScript is set for async scripts
+  // too); fall back to the first script[data-site-key] on the page.
   var siteKey = null, selfScript = null;
-  for (var i = 0; i < scripts.length; i++) {
-    siteKey = scripts[i].getAttribute('data-site-key');
-    if (siteKey) { selfScript = scripts[i]; break; }
+  var cur = document.currentScript;
+  if (cur && cur.getAttribute && cur.getAttribute('data-site-key')) {
+    selfScript = cur;
+    siteKey = cur.getAttribute('data-site-key');
+  } else {
+    var scripts = document.querySelectorAll('script[data-site-key]');
+    for (var i = 0; i < scripts.length; i++) {
+      siteKey = scripts[i].getAttribute('data-site-key');
+      if (siteKey) { selfScript = scripts[i]; break; }
+    }
   }
   if (!siteKey) return; // no site key — bail silently
+
+  // Run once per page, even when the snippet is included twice (WP plugin plus a
+  // manual tag, or GTM): a second run would hide, decide and swap again.
+  if (window.__mcSnippetLoaded) return;
+  window.__mcSnippetLoaded = true;
 
   // ── 1b. Consent (host CMP alignment) ─────────────────────────────────────────
   // We forward the visitor's consent as three categories {analytics,
@@ -174,6 +192,9 @@ export function buildSnippetSource(decideUrl: string): string {
         if (r && typeof r.then === 'function') { r.then(function(x){ cb(mcNormConsent(x)); }, function(){ cb(null); }); return; }
         cb(mcNormConsent(r)); return;
       }
+      // window.mcConsent = somePromise (thenable): wait for it. Without this check
+      // a Promise is an object and would normalise to an explicit DENY.
+      if (w && typeof w.then === 'function') { w.then(function(x){ cb(mcNormConsent(x)); }, function(){ cb(null); }); return; }
       if (w !== undefined) { cb(mcNormConsent(w)); return; }
     } catch(e) {}
     cb(null);
@@ -302,6 +323,10 @@ export function buildSnippetSource(decideUrl: string): string {
         if (!name) continue;
         payload[name] = (el.type === 'checkbox') ? (el.checked ? 'true' : 'false') : el.value;
       }
+      // The page the form sits on. A cross-origin submit only sends the origin as
+      // Referer, so the server would otherwise store every lead under "/" and
+      // validate against the segment of the wrong page.
+      try { payload._mc_page = window.location.pathname + (window.location.search || ''); } catch (e) {}
       var btn = form.querySelector('button[type="submit"]');
       if (btn) btn.disabled = true;
       fetch(mcFormsBase + '/api/forms/' + encodeURIComponent(key), {
@@ -330,14 +355,30 @@ export function buildSnippetSource(decideUrl: string): string {
             if (slot) { slot.textContent = data.errors[fk]; slot.style.display = 'block'; }
           }
           if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = 'Please fix the highlighted fields.'; }
+          mcResetTurnstile(form);
         } else {
           if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = (data && data.error) || 'Something went wrong. Please try again.'; }
+          mcResetTurnstile(form);
         }
       }).catch(function() {
         if (btn) btn.disabled = false;
         if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = 'Network error. Please try again.'; }
+        mcResetTurnstile(form);
       });
     });
+  }
+
+  // A Turnstile token is single-use and the server verifies it before field
+  // validation, so after any failed submit the token is spent. Reset the form's
+  // widgets so the retry gets a fresh token instead of a 403.
+  function mcResetTurnstile(form) {
+    try {
+      if (!window.turnstile || typeof window.turnstile.reset !== 'function') return;
+      var ws = form.querySelectorAll('.cf-turnstile');
+      for (var i = 0; i < ws.length; i++) {
+        try { window.turnstile.reset(ws[i].getAttribute('data-mc-ts-id') || ws[i]); } catch (e) {}
+      }
+    } catch (e) {}
   }
 
   // Render Cloudflare Turnstile widgets inside a freshly-injected container.
@@ -354,8 +395,9 @@ export function buildSnippetSource(decideUrl: string): string {
         var w = widgets[i];
         if (w.getAttribute('data-mc-rendered')) continue;
         try {
-          window.turnstile.render(w, { sitekey: w.getAttribute('data-sitekey') });
+          var wid = window.turnstile.render(w, { sitekey: w.getAttribute('data-sitekey') });
           w.setAttribute('data-mc-rendered', '1');
+          if (wid != null) w.setAttribute('data-mc-ts-id', String(wid));
         } catch (e) { /* ignore a bad widget */ }
       }
     }
@@ -405,12 +447,16 @@ export function buildSnippetSource(decideUrl: string): string {
   document.documentElement.style.opacity = '0';
   var timer = setTimeout(reveal, REVEAL_MS);
   var mcAbort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  var callTimer = mcAbort ? setTimeout(function () { try { mcAbort.abort(); } catch (e) {} }, CALL_MS) : null;
+  // Started when the first decide is actually sent (after consent + DOM ready),
+  // so the wait before sending does not eat the request's own budget.
+  var callTimer = null;
 
   // ── 3. Collect visitor signals ───────────────────────────────────────────────
   function getCookie(name) {
     var match = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
-    return match ? decodeURIComponent(match[1]) : null;
+    if (!match) return null;
+    // A malformed %-sequence (set by another script) must not stop the snippet.
+    try { return decodeURIComponent(match[1]); } catch (e) { return match[1]; }
   }
   function getParam(key) {
     try {
@@ -478,16 +524,6 @@ export function buildSnippetSource(decideUrl: string): string {
     if (context[k] === undefined) delete context[k];
   });
 
-  // ── 3b. Interest keywords from the page <head> (CMS-authored SEO keywords) ────
-  // Sent to the decide endpoint so interest-profile scoring can build a keyword
-  // cloud for this visitor. Merged server-side with the built-in URL keyword map.
-  try {
-    var kwEl  = document.querySelector('meta[name="keywords"]');
-    var kwStr = kwEl ? (kwEl.getAttribute('content') || '') : '';
-    var kws   = kwStr.split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
-    if (kws.length) context.keywords = kws;
-  } catch(e) {}
-
   // Stable per-pageview id so repeated decide calls don't double-record.
   try {
     context.eventId = (window.crypto && window.crypto.randomUUID)
@@ -495,64 +531,83 @@ export function buildSnippetSource(decideUrl: string): string {
       : ('mc_' + Date.now() + '_' + Math.random().toString(36).slice(2));
   } catch(e) {}
 
-  // ── Custom attributes ────────────────────────────────────────────────────────
-  // Per-request domain attributes the tenant declares on the page, from two
-  // sources merged (window.mcAttributes first, then data-mc-attr-<name> in the
-  // DOM which wins). Sanitised here (name charset, count + value-length caps) and
-  // again server-side, where only tenant-declared names survive. For content
-  // variation only — the server treats these as untrusted.
-  try {
-    var mcAttrs = {};
-    var mcAttrCount = 0;
-    var MC_ATTR_MAX = 24;
-    function mcAddAttr(rawName, rawValue) {
-      if (mcAttrCount >= MC_ATTR_MAX) return;
-      if (typeof rawName !== 'string') return;
-      var name = rawName.trim().toLowerCase();
-      if (!/^[a-z0-9_-]{1,40}$/.test(name)) return;
-      var v = rawValue;
-      if (typeof v === 'string') { v = v.slice(0, 128); }
-      else if (typeof v === 'number' || typeof v === 'boolean') { /* keep */ }
-      else if (v == null) { return; }
-      else { return; }
-      if (!Object.prototype.hasOwnProperty.call(mcAttrs, name)) mcAttrCount++;
-      mcAttrs[name] = v;
-    }
-    // Source 1: window.mcAttributes (a flat object).
-    if (window.mcAttributes && typeof window.mcAttributes === 'object') {
-      for (var an in window.mcAttributes) {
-        if (Object.prototype.hasOwnProperty.call(window.mcAttributes, an)) mcAddAttr(an, window.mcAttributes[an]);
-      }
-    }
-    // Source 2: data-mc-attr-<name>="<value>" anywhere in the DOM (later wins).
-    // CSS cannot wildcard an attribute NAME, so scan elements once, stopping
-    // early once the cap is reached.
-    var allEls = document.getElementsByTagName('*');
-    for (var e = 0; e < allEls.length && mcAttrCount < MC_ATTR_MAX; e++) {
-      var attrs = allEls[e].attributes;
-      if (!attrs) continue;
-      for (var a = 0; a < attrs.length; a++) {
-        var an2 = attrs[a].name;
-        if (an2.indexOf('data-mc-attr-') === 0) {
-          mcAddAttr(an2.slice('data-mc-attr-'.length), attrs[a].value);
+  // Whole-block containers on the page; filled by mcCollectPageSignals().
+  var blockKeys = [];
+
+  // ── 3b. Page signals, read from the parsed DOM ───────────────────────────────
+  // The snippet is loaded async in <head>, so at execution time the body (and
+  // possibly the rest of <head>) may not be parsed yet. Everything read from the
+  // markup is therefore collected here, called once the document is no longer
+  // "loading", right before the first decide.
+  function mcCollectPageSignals() {
+    // Interest keywords from the page <head> (CMS-authored SEO keywords). Sent to
+    // the decide endpoint so interest-profile scoring can build a keyword cloud for
+    // this visitor. Merged server-side with the built-in URL keyword map.
+    try {
+      var kwEl  = document.querySelector('meta[name="keywords"]');
+      var kwStr = kwEl ? (kwEl.getAttribute('content') || '') : '';
+      var kws   = kwStr.split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
+      if (kws.length) context.keywords = kws;
+    } catch(e) {}
+
+    // ── Custom attributes ────────────────────────────────────────────────────────
+    // Per-request domain attributes the tenant declares on the page, from two
+    // sources merged (window.mcAttributes first, then data-mc-attr-<name> in the
+    // DOM which wins). Sanitised here (name charset, count + value-length caps) and
+    // again server-side, where only tenant-declared names survive. For content
+    // variation only — the server treats these as untrusted.
+    try {
+      var mcAttrs = {};
+      var mcAttrCount = 0;
+      var MC_ATTR_MAX = 24;
+      var mcAddAttr = function(rawName, rawValue) {
+        if (mcAttrCount >= MC_ATTR_MAX) return;
+        if (typeof rawName !== 'string') return;
+        var name = rawName.trim().toLowerCase();
+        if (!/^[a-z0-9_-]{1,40}$/.test(name)) return;
+        var v = rawValue;
+        if (typeof v === 'string') { v = v.slice(0, 128); }
+        else if (typeof v === 'number' || typeof v === 'boolean') { /* keep */ }
+        else if (v == null) { return; }
+        else { return; }
+        if (!Object.prototype.hasOwnProperty.call(mcAttrs, name)) mcAttrCount++;
+        mcAttrs[name] = v;
+      };
+      // Source 1: window.mcAttributes (a flat object).
+      if (window.mcAttributes && typeof window.mcAttributes === 'object') {
+        for (var an in window.mcAttributes) {
+          if (Object.prototype.hasOwnProperty.call(window.mcAttributes, an)) mcAddAttr(an, window.mcAttributes[an]);
         }
       }
-    }
-    if (mcAttrCount > 0) context.customAttributes = mcAttrs;
-  } catch(e) {}
+      // Source 2: data-mc-attr-<name>="<value>" anywhere in the DOM (later wins).
+      // CSS cannot wildcard an attribute NAME, so scan elements once, stopping
+      // early once the cap is reached.
+      var allEls = document.getElementsByTagName('*');
+      for (var e = 0; e < allEls.length && mcAttrCount < MC_ATTR_MAX; e++) {
+        var attrs = allEls[e].attributes;
+        if (!attrs) continue;
+        for (var a = 0; a < attrs.length; a++) {
+          var an2 = attrs[a].name;
+          if (an2.indexOf('data-mc-attr-') === 0) {
+            mcAddAttr(an2.slice('data-mc-attr-'.length), attrs[a].value);
+          }
+        }
+      }
+      if (mcAttrCount > 0) context.customAttributes = mcAttrs;
+    } catch(e) {}
 
-  // Collect the whole-block containers present on the page (data-mc-block="…"),
-  // so the endpoint renders each requested variant as a self-contained block
-  // instead of the per-element content slots.
-  var blockKeys = [];
-  try {
-    var blockEls = document.querySelectorAll('[data-mc-block]');
-    var seenBlock = {};
-    for (var b = 0; b < blockEls.length; b++) {
-      var bk = blockEls[b].getAttribute('data-mc-block');
-      if (bk && !seenBlock[bk]) { seenBlock[bk] = 1; blockKeys.push(bk); }
-    }
-  } catch(e) {}
+    // Collect the whole-block containers present on the page (data-mc-block="…"),
+    // so the endpoint renders each requested variant as a self-contained block
+    // instead of the per-element content slots.
+    try {
+      var blockEls = document.querySelectorAll('[data-mc-block]');
+      var seenBlock = {};
+      for (var b = 0; b < blockEls.length; b++) {
+        var bk = blockEls[b].getAttribute('data-mc-block');
+        if (bk && !seenBlock[bk]) { seenBlock[bk] = 1; blockKeys.push(bk); }
+      }
+    } catch(e) {}
+  }
 
   // ── 4. Apply a decide response (content + block slots) ───────────────────────
 
@@ -587,6 +642,20 @@ export function buildSnippetSource(decideUrl: string): string {
     }
   }
 
+  // Temporary min-height for a block swapped on a visible page. Restores the
+  // host's own inline min-height afterwards, unless something else changed it.
+  var MC_RESERVE_MS = 1000;
+  function mcReserveHeight(c) {
+    try {
+      var prev = c.style.minHeight;
+      var reserved = c.offsetHeight + 'px';
+      c.style.minHeight = reserved;
+      setTimeout(function () {
+        try { if (c.style.minHeight === reserved) c.style.minHeight = prev; } catch (e) {}
+      }, MC_RESERVE_MS);
+    } catch (e) {}
+  }
+
   // Block mode: replace a container's innerHTML and apply design tokens as
   // scoped CSS custom properties so the block adopts the tenant's house style.
   function applyBlock(slotKey, block) {
@@ -612,9 +681,12 @@ export function buildSnippetSource(decideUrl: string): string {
         }
       }
       if (typeof block.html === 'string') {
-        // Reserve the block's current footprint before swapping so a different
-        // variant height cannot collapse it and shift the content below (CLS).
-        try { c.style.minHeight = c.offsetHeight + 'px'; } catch (e) {}
+        // Late swap on a visible page: briefly reserve the block's current
+        // footprint so the new variant (whose images may still be loading) cannot
+        // collapse it and shift the content below (CLS), then hand the height back
+        // to the layout. While the page is still hidden nothing visibly shifts, so
+        // no reservation is made at all.
+        if (revealed) mcReserveHeight(c);
         c.innerHTML = block.html;
         // Wire any form injected by this block (submit → cross-origin POST).
         try { mcWireForms(c); } catch (e) { /* forms optional */ }
@@ -834,6 +906,10 @@ export function buildSnippetSource(decideUrl: string): string {
       if (mcActiveScenario) ctx._demoScenario = mcActiveScenario;
       if (mcActiveNotif) ctx._demoNotif = mcActiveNotif;
     }
+    // CALL_MS is the budget of the request itself, so the abort timer starts now.
+    if (isFirst && mcAbort) {
+      callTimer = setTimeout(function () { try { mcAbort.abort(); } catch (e) {} }, CALL_MS);
+    }
     var p = fetch(mcDecideUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -864,7 +940,18 @@ export function buildSnippetSource(decideUrl: string): string {
     return p;
   }
 
-  // Resolve host consent (bounded by the call budget), then run the first decide.
+  // The first decide waits for two things, whichever comes last: resolved host
+  // consent and a parsed document (so the page signals and blocks are complete
+  // and every data-mc-slot exists when the response is applied).
+  var mcConsentReady = false, mcDomReady = false, mcFirstSent = false;
+  function mcMaybeStartFirst() {
+    if (!mcConsentReady || !mcDomReady || mcFirstSent) return;
+    mcFirstSent = true;
+    mcCollectPageSignals();
+    mcRunDecide(true);
+  }
+
+  // Resolve host consent (bounded by the call budget), starting right away.
   // Only on granted personalization do we upgrade to (and persist) the stable id;
   // otherwise the decision stays on the ephemeral anonymous id and nothing is stored.
   mcResolveConsent(function(c) {
@@ -875,8 +962,16 @@ export function buildSnippetSource(decideUrl: string): string {
       context.sessionId = persistentId;
       context.visitorId = persistentId;
     }
-    mcRunDecide(true);
+    mcConsentReady = true;
+    mcMaybeStartFirst();
   });
+
+  function mcOnDomReady() { mcDomReady = true; mcMaybeStartFirst(); }
+  if (document.readyState !== 'loading') {
+    mcOnDomReady();
+  } else {
+    document.addEventListener('DOMContentLoaded', mcOnDomReady);
+  }
 })();
 `.trim();
 }

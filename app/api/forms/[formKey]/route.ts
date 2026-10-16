@@ -103,6 +103,7 @@ import {
 }                                       from "@/lib/config";
 import { loadTenantFormOverrides }      from "@/forms/load-tenant-form-overrides";
 import { resolveContextualForm }         from "@/forms/context/load";
+import { resolveSubmissionPageUrl }      from "@/forms/submission-page";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -274,6 +275,11 @@ async function handlePost(
   // Resolve headers once here; reused for rate limiting and session (step 5).
   const reqHeaders = await headers();
 
+  // The page the form was submitted from (path + query). The snippet sends it as
+  // `_mc_page` because a cross-origin Referer only carries the origin; validated
+  // as a root-relative path, else the Referer is used.
+  const pageUrl = resolveSubmissionPageUrl(body["_mc_page"], reqHeaders.get("referer"));
+
   // 3a. Honeypot check — detect bots that blindly fill every input.
   //     Return a fake success so the bot cannot detect it was blocked.
   if (checkHoneypot(body)) {
@@ -317,8 +323,8 @@ async function handlePost(
 
   // ── 3c. Contextual overlay (rules → segment → field set / thank-you) ──────
   //
-  //   Re-resolve the same segment the render used, from the referer URL
-  //   (path + query) and the geo header, so validation runs against the
+  //   Re-resolve the same segment the render used, from the submitting page
+  //   (path + query, see pageUrl) and the geo header, so validation runs against the
   //   segment's field set (contextual forms can add/drop fields) and the
   //   success message matches. Platform forms only; falls back to the base
   //   definition fields on any error.
@@ -326,8 +332,7 @@ async function handlePost(
   let contextualSuccess: string | undefined;
   if (formDef) {
     try {
-      const ref = reqHeaders.get("referer");
-      const refUrl = ref ? new URL(ref) : null;
+      const refUrl = pageUrl;
       const ctxQuery: Record<string, string> = {};
       refUrl?.searchParams.forEach((v, k) => { ctxQuery[k.toLowerCase()] = v; });
       const country =
@@ -370,13 +375,7 @@ async function handlePost(
   }
 
   // The page the form was submitted from — stored as the lead's target path.
-  let submissionPath = "/";
-  try {
-    const ref = reqHeaders.get("referer");
-    if (ref) submissionPath = new URL(ref).pathname || "/";
-  } catch {
-    // Ignore — fall back to "/".
-  }
+  const submissionPath = pageUrl?.pathname || "/";
 
   // ── 6. Derive action flags and dispatch ──────────────────────────────────
   //
