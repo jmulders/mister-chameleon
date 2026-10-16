@@ -52,9 +52,14 @@
  *
  * ─── Timeout & fail-safe ─────────────────────────────────────────────────────
  *
- *   If the decision has not arrived within 700 ms the snippet reveals the page
- *   with the original CMS content, and a later decision is dropped so there is
- *   never a jump. The request itself is aborted after 1500 ms as a hard cap.
+ *   The page is hidden as soon as the snippet runs. The first decide is sent once
+ *   host consent is resolved AND the document is parsed (readyState is no longer
+ *   "loading", else on DOMContentLoaded), so blocks and data-mc-attr-* attributes
+ *   further down the page are seen. If the decision has not arrived within
+ *   REVEAL_MS (default 700 ms, counted from the hide) the page is revealed with
+ *   the original CMS content, and a later decision is still applied when it
+ *   lands. The request itself is aborted CALL_MS (default 4000 ms) after it is
+ *   sent, as a hard cap.
  *
  * ─── Session identity ────────────────────────────────────────────────────────
  *
@@ -421,7 +426,9 @@ export function buildSnippetSource(decideUrl: string): string {
   document.documentElement.style.opacity = '0';
   var timer = setTimeout(reveal, REVEAL_MS);
   var mcAbort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  var callTimer = mcAbort ? setTimeout(function () { try { mcAbort.abort(); } catch (e) {} }, CALL_MS) : null;
+  // Started when the first decide is actually sent (after consent + DOM ready),
+  // so the wait before sending does not eat the request's own budget.
+  var callTimer = null;
 
   // ── 3. Collect visitor signals ───────────────────────────────────────────────
   function getCookie(name) {
@@ -496,16 +503,6 @@ export function buildSnippetSource(decideUrl: string): string {
     if (context[k] === undefined) delete context[k];
   });
 
-  // ── 3b. Interest keywords from the page <head> (CMS-authored SEO keywords) ────
-  // Sent to the decide endpoint so interest-profile scoring can build a keyword
-  // cloud for this visitor. Merged server-side with the built-in URL keyword map.
-  try {
-    var kwEl  = document.querySelector('meta[name="keywords"]');
-    var kwStr = kwEl ? (kwEl.getAttribute('content') || '') : '';
-    var kws   = kwStr.split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
-    if (kws.length) context.keywords = kws;
-  } catch(e) {}
-
   // Stable per-pageview id so repeated decide calls don't double-record.
   try {
     context.eventId = (window.crypto && window.crypto.randomUUID)
@@ -513,64 +510,83 @@ export function buildSnippetSource(decideUrl: string): string {
       : ('mc_' + Date.now() + '_' + Math.random().toString(36).slice(2));
   } catch(e) {}
 
-  // ── Custom attributes ────────────────────────────────────────────────────────
-  // Per-request domain attributes the tenant declares on the page, from two
-  // sources merged (window.mcAttributes first, then data-mc-attr-<name> in the
-  // DOM which wins). Sanitised here (name charset, count + value-length caps) and
-  // again server-side, where only tenant-declared names survive. For content
-  // variation only — the server treats these as untrusted.
-  try {
-    var mcAttrs = {};
-    var mcAttrCount = 0;
-    var MC_ATTR_MAX = 24;
-    function mcAddAttr(rawName, rawValue) {
-      if (mcAttrCount >= MC_ATTR_MAX) return;
-      if (typeof rawName !== 'string') return;
-      var name = rawName.trim().toLowerCase();
-      if (!/^[a-z0-9_-]{1,40}$/.test(name)) return;
-      var v = rawValue;
-      if (typeof v === 'string') { v = v.slice(0, 128); }
-      else if (typeof v === 'number' || typeof v === 'boolean') { /* keep */ }
-      else if (v == null) { return; }
-      else { return; }
-      if (!Object.prototype.hasOwnProperty.call(mcAttrs, name)) mcAttrCount++;
-      mcAttrs[name] = v;
-    }
-    // Source 1: window.mcAttributes (a flat object).
-    if (window.mcAttributes && typeof window.mcAttributes === 'object') {
-      for (var an in window.mcAttributes) {
-        if (Object.prototype.hasOwnProperty.call(window.mcAttributes, an)) mcAddAttr(an, window.mcAttributes[an]);
-      }
-    }
-    // Source 2: data-mc-attr-<name>="<value>" anywhere in the DOM (later wins).
-    // CSS cannot wildcard an attribute NAME, so scan elements once, stopping
-    // early once the cap is reached.
-    var allEls = document.getElementsByTagName('*');
-    for (var e = 0; e < allEls.length && mcAttrCount < MC_ATTR_MAX; e++) {
-      var attrs = allEls[e].attributes;
-      if (!attrs) continue;
-      for (var a = 0; a < attrs.length; a++) {
-        var an2 = attrs[a].name;
-        if (an2.indexOf('data-mc-attr-') === 0) {
-          mcAddAttr(an2.slice('data-mc-attr-'.length), attrs[a].value);
+  // Whole-block containers on the page; filled by mcCollectPageSignals().
+  var blockKeys = [];
+
+  // ── 3b. Page signals, read from the parsed DOM ───────────────────────────────
+  // The snippet is loaded async in <head>, so at execution time the body (and
+  // possibly the rest of <head>) may not be parsed yet. Everything read from the
+  // markup is therefore collected here, called once the document is no longer
+  // "loading", right before the first decide.
+  function mcCollectPageSignals() {
+    // Interest keywords from the page <head> (CMS-authored SEO keywords). Sent to
+    // the decide endpoint so interest-profile scoring can build a keyword cloud for
+    // this visitor. Merged server-side with the built-in URL keyword map.
+    try {
+      var kwEl  = document.querySelector('meta[name="keywords"]');
+      var kwStr = kwEl ? (kwEl.getAttribute('content') || '') : '';
+      var kws   = kwStr.split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
+      if (kws.length) context.keywords = kws;
+    } catch(e) {}
+
+    // ── Custom attributes ────────────────────────────────────────────────────────
+    // Per-request domain attributes the tenant declares on the page, from two
+    // sources merged (window.mcAttributes first, then data-mc-attr-<name> in the
+    // DOM which wins). Sanitised here (name charset, count + value-length caps) and
+    // again server-side, where only tenant-declared names survive. For content
+    // variation only — the server treats these as untrusted.
+    try {
+      var mcAttrs = {};
+      var mcAttrCount = 0;
+      var MC_ATTR_MAX = 24;
+      var mcAddAttr = function(rawName, rawValue) {
+        if (mcAttrCount >= MC_ATTR_MAX) return;
+        if (typeof rawName !== 'string') return;
+        var name = rawName.trim().toLowerCase();
+        if (!/^[a-z0-9_-]{1,40}$/.test(name)) return;
+        var v = rawValue;
+        if (typeof v === 'string') { v = v.slice(0, 128); }
+        else if (typeof v === 'number' || typeof v === 'boolean') { /* keep */ }
+        else if (v == null) { return; }
+        else { return; }
+        if (!Object.prototype.hasOwnProperty.call(mcAttrs, name)) mcAttrCount++;
+        mcAttrs[name] = v;
+      };
+      // Source 1: window.mcAttributes (a flat object).
+      if (window.mcAttributes && typeof window.mcAttributes === 'object') {
+        for (var an in window.mcAttributes) {
+          if (Object.prototype.hasOwnProperty.call(window.mcAttributes, an)) mcAddAttr(an, window.mcAttributes[an]);
         }
       }
-    }
-    if (mcAttrCount > 0) context.customAttributes = mcAttrs;
-  } catch(e) {}
+      // Source 2: data-mc-attr-<name>="<value>" anywhere in the DOM (later wins).
+      // CSS cannot wildcard an attribute NAME, so scan elements once, stopping
+      // early once the cap is reached.
+      var allEls = document.getElementsByTagName('*');
+      for (var e = 0; e < allEls.length && mcAttrCount < MC_ATTR_MAX; e++) {
+        var attrs = allEls[e].attributes;
+        if (!attrs) continue;
+        for (var a = 0; a < attrs.length; a++) {
+          var an2 = attrs[a].name;
+          if (an2.indexOf('data-mc-attr-') === 0) {
+            mcAddAttr(an2.slice('data-mc-attr-'.length), attrs[a].value);
+          }
+        }
+      }
+      if (mcAttrCount > 0) context.customAttributes = mcAttrs;
+    } catch(e) {}
 
-  // Collect the whole-block containers present on the page (data-mc-block="…"),
-  // so the endpoint renders each requested variant as a self-contained block
-  // instead of the per-element content slots.
-  var blockKeys = [];
-  try {
-    var blockEls = document.querySelectorAll('[data-mc-block]');
-    var seenBlock = {};
-    for (var b = 0; b < blockEls.length; b++) {
-      var bk = blockEls[b].getAttribute('data-mc-block');
-      if (bk && !seenBlock[bk]) { seenBlock[bk] = 1; blockKeys.push(bk); }
-    }
-  } catch(e) {}
+    // Collect the whole-block containers present on the page (data-mc-block="…"),
+    // so the endpoint renders each requested variant as a self-contained block
+    // instead of the per-element content slots.
+    try {
+      var blockEls = document.querySelectorAll('[data-mc-block]');
+      var seenBlock = {};
+      for (var b = 0; b < blockEls.length; b++) {
+        var bk = blockEls[b].getAttribute('data-mc-block');
+        if (bk && !seenBlock[bk]) { seenBlock[bk] = 1; blockKeys.push(bk); }
+      }
+    } catch(e) {}
+  }
 
   // ── 4. Apply a decide response (content + block slots) ───────────────────────
 
@@ -852,6 +868,10 @@ export function buildSnippetSource(decideUrl: string): string {
       if (mcActiveScenario) ctx._demoScenario = mcActiveScenario;
       if (mcActiveNotif) ctx._demoNotif = mcActiveNotif;
     }
+    // CALL_MS is the budget of the request itself, so the abort timer starts now.
+    if (isFirst && mcAbort) {
+      callTimer = setTimeout(function () { try { mcAbort.abort(); } catch (e) {} }, CALL_MS);
+    }
     var p = fetch(mcDecideUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -882,7 +902,18 @@ export function buildSnippetSource(decideUrl: string): string {
     return p;
   }
 
-  // Resolve host consent (bounded by the call budget), then run the first decide.
+  // The first decide waits for two things, whichever comes last: resolved host
+  // consent and a parsed document (so the page signals and blocks are complete
+  // and every data-mc-slot exists when the response is applied).
+  var mcConsentReady = false, mcDomReady = false, mcFirstSent = false;
+  function mcMaybeStartFirst() {
+    if (!mcConsentReady || !mcDomReady || mcFirstSent) return;
+    mcFirstSent = true;
+    mcCollectPageSignals();
+    mcRunDecide(true);
+  }
+
+  // Resolve host consent (bounded by the call budget), starting right away.
   // Only on granted personalization do we upgrade to (and persist) the stable id;
   // otherwise the decision stays on the ephemeral anonymous id and nothing is stored.
   mcResolveConsent(function(c) {
@@ -893,8 +924,16 @@ export function buildSnippetSource(decideUrl: string): string {
       context.sessionId = persistentId;
       context.visitorId = persistentId;
     }
-    mcRunDecide(true);
+    mcConsentReady = true;
+    mcMaybeStartFirst();
   });
+
+  function mcOnDomReady() { mcDomReady = true; mcMaybeStartFirst(); }
+  if (document.readyState !== 'loading') {
+    mcOnDomReady();
+  } else {
+    document.addEventListener('DOMContentLoaded', mcOnDomReady);
+  }
 })();
 `.trim();
 }
