@@ -1409,6 +1409,7 @@ function ruleUsesAdvanced(rule: StoredRule): boolean {
   if (p.emailVariants && Object.keys(p.emailVariants).length > 0) return true;
   if (p.setContext    && p.setContext.length > 0)                 return true;
   if (p.webhook?.url)                                             return true;
+  if (rule.tagOnly)                                               return true;
   if (rule.packId || rule.precedenceLevel)                       return true;
   return conditionHasNonFieldLeaf(rule.condition);
 }
@@ -1483,6 +1484,14 @@ function RuleCard({
                 title={rule.webhookOnly ? "Webhook-only rule (does not set a variant)" : "Fires an outbound webhook when it wins"}
               >
                 {rule.webhookOnly ? "Webhook-only" : "Webhook"}
+              </span>
+            )}
+            {rule.tagOnly === true && (
+              <span
+                className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-teal-700"
+                title="Tag-only rule (writes context, does not set a variant)"
+              >
+                Tag-only
               </span>
             )}
             <TierChip priority={rule.priority} precedenceLevel={rule.precedenceLevel} />
@@ -1757,6 +1766,28 @@ function RuleCard({
                 value={rule.plan.setContext}
                 onChange={(next) => onChange({ plan: { ...rule.plan, setContext: next } })}
               />
+              {((rule.plan.setContext?.length ?? 0) > 0 || rule.tagOnly === true) && (
+                <label className="flex items-start gap-2 text-xs text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={rule.tagOnly === true}
+                    onChange={(e) => onChange({
+                      tagOnly:     e.target.checked ? true : undefined,
+                      // The two modes exclude each other (validateStoredConfig).
+                      ...(e.target.checked ? { webhookOnly: undefined } : {}),
+                    })}
+                    className="mt-0.5 rounded border-neutral-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span>
+                    <span className="font-medium">Tag-only rule</span>: only write the context above when the condition matches, and do <span className="font-medium">not</span> pick a variant. Lower-priority rules still get their turn, and matches still count in the rule statistics. The variant plan of this rule is ignored.
+                  </span>
+                </label>
+              )}
+              {rule.tagOnly === true && (rule.plan.setContext?.length ?? 0) === 0 && (
+                <p className="text-xs font-medium text-amber-600">
+                  A tag-only rule needs at least one context write, otherwise it cannot be saved.
+                </p>
+              )}
 
               <Field
                 label="Outbound webhook (optional)"
@@ -1783,7 +1814,10 @@ function RuleCard({
                     <input
                       type="checkbox"
                       checked={rule.webhookOnly === true}
-                      onChange={(e) => onChange({ webhookOnly: e.target.checked ? true : undefined })}
+                      onChange={(e) => onChange({
+                        webhookOnly: e.target.checked ? true : undefined,
+                        ...(e.target.checked ? { tagOnly: undefined } : {}),
+                      })}
                       className="mt-0.5 rounded border-neutral-300 text-brand-600 focus:ring-brand-500"
                     />
                     <span>

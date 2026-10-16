@@ -633,7 +633,8 @@ export function resolveThemeDecision(
 
   // ── Filter to rules that carry a theme outcome ──────────────────────────────
   const themeRules = config.rules
-    .filter((r) => r.enabled !== false && (
+    // Tag-only rules only write context; any theme they carry is ignored.
+    .filter((r) => r.enabled !== false && r.tagOnly !== true && (
       (r.plan.themeKey && isThemePresetKey(r.plan.themeKey)) ||
       (r.plan.themePresetId && !!getDesignPreset(r.plan.themePresetId))
     ))

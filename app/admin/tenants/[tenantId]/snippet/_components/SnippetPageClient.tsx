@@ -22,6 +22,7 @@ interface SnippetPageClientProps {
   /** Per-tenant snippet timing, baked into the embed as data-mc-* when set. */
   revealMs?:   number | null;
   callMs?:     number | null;
+  consentMs?:  number | null;
 }
 
 // ── Helper: copy to clipboard ──────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export function SnippetPageClient({
   siteKey: initialSiteKey,
   revealMs,
   callMs,
+  consentMs,
   enabled: initialEnabled,
   generatedAt: initialGeneratedAt,
   snippetSrc,
@@ -86,7 +88,8 @@ export function SnippetPageClient({
   // script tag carries them (the snippet.js file itself is generic and cached).
   const timingAttrs =
     (typeof revealMs === "number" ? `\n  data-mc-reveal-ms="${revealMs}"` : "") +
-    (typeof callMs   === "number" ? `\n  data-mc-call-ms="${callMs}"`     : "");
+    (typeof callMs   === "number" ? `\n  data-mc-call-ms="${callMs}"`     : "") +
+    (typeof consentMs === "number" ? `\n  data-mc-consent-ms="${consentMs}"` : "");
   const scriptTag = siteKey
     ? `<script\n  src="${snippetSrc}"\n  data-site-key="${siteKey}"${timingAttrs}\n  async\n></script>`
     : null;

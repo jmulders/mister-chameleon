@@ -7,9 +7,12 @@
  * personalisation decision (REVEAL_MS), and aborts the decide request after a
  * hard cap (CALL_MS). On a slow or low-traffic backend the cold-start decide can
  * exceed the defaults, so these let an operator give it more room. The values
- * are baked into the copied embed as data-mc-reveal-ms / data-mc-call-ms.
+ * are baked into the copied embed as data-mc-reveal-ms / data-mc-call-ms /
+ * data-mc-consent-ms. The consent wait bounds how long the first decide waits
+ * for the cookie banner's answer.
  *
- * Leave a field blank to use the snippet default (reveal 700, abort 4000).
+ * Leave a field blank to use the snippet default (reveal 700, abort 4000,
+ * consent wait = reveal minus 400 ms, at least 150 ms).
  */
 
 import { useState, useTransition } from "react";
@@ -19,15 +22,17 @@ interface Props {
   tenantId:        string;
   initialRevealMs: number | null;
   initialCallMs:   number | null;
+  initialConsentMs?: number | null;
 }
 
 function toField(v: number | null): string {
   return typeof v === "number" ? String(v) : "";
 }
 
-export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs }: Props) {
+export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs, initialConsentMs = null }: Props) {
   const [reveal, setReveal] = useState<string>(() => toField(initialRevealMs));
   const [call,   setCall]   = useState<string>(() => toField(initialCallMs));
+  const [consentWait, setConsentWait] = useState<string>(() => toField(initialConsentMs));
   const [error,  setError]  = useState<string | null>(null);
   const [saved,  setSaved]  = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -43,7 +48,7 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs }
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const result = await saveSnippetTimingAction(tenantId, parse(reveal), parse(call));
+      const result = await saveSnippetTimingAction(tenantId, parse(reveal), parse(call), parse(consentWait));
       if (result.ok) setSaved(true);
       else if ("error" in result) setError(result.error as string);
     });
@@ -89,6 +94,20 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs }
               Hard cap before the decide request is aborted. Raise it for slow cold starts.
             </span>
           </label>
+
+          <label className="block">
+            <span className="text-xs font-medium text-neutral-700">Consent wait (ms)</span>
+            <input
+              type="number" min={0} max={5000} step={50}
+              value={consentWait}
+              onChange={(e) => { setConsentWait(e.target.value); setSaved(false); }}
+              placeholder="reveal minus 400 (default)"
+              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            />
+            <span className="mt-1 block text-xs text-neutral-500">
+              How long the first decision waits for the cookie banner&apos;s answer. Past it, the consent setting of this tenant applies to that pageview. Higher means the real answer is used more often, but a slow banner then causes a visible swap.
+            </span>
+          </label>
         </div>
 
         <div className="flex items-center justify-end gap-3">
@@ -110,8 +129,8 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs }
         )}
 
         <ul className="space-y-2 pt-1 text-xs text-neutral-500">
-          <li className="flex gap-2"><span className="text-indigo-400">•</span> Leave blank to use the defaults (reveal 700 ms, timeout 4000 ms).</li>
-          <li className="flex gap-2"><span className="text-indigo-400">•</span> Clamped to reveal 0-5000 ms and timeout 500-15000 ms.</li>
+          <li className="flex gap-2"><span className="text-indigo-400">•</span> Leave blank to use the defaults (reveal 700 ms, timeout 4000 ms, consent wait 300 ms with the default reveal).</li>
+          <li className="flex gap-2"><span className="text-indigo-400">•</span> Clamped to reveal 0-5000 ms, timeout 500-15000 ms and consent wait 0-5000 ms.</li>
           <li className="flex gap-2"><span className="text-indigo-400">•</span> After saving, re-copy the embed on the Install tab so the new values are on your site.</li>
         </ul>
       </div>
