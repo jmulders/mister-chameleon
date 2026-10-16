@@ -112,6 +112,7 @@ import type { BlockEffectRef }        from "@/design-system/effects/effect-ref";
 import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-store";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
+import { loadAdRuleSignals }         from "@/lib/snippet/ad-rule-signals";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
@@ -518,10 +519,16 @@ export async function POST(request: NextRequest) {
         });
         // GA4 history (read from the tenant's own GA4) — no-op unless configured.
         // Seeded so advanced rules can target ga4.* fields. Cost-free (GA4 Data API).
-        const [ruleHistory, adGa4History] = await Promise.all([
-          fetchVisitorHistory(adSessionId, tenantId).catch(() => emptyHistory()),
-          resolveAdGa4History(tenant.ga4, adSessionId),
-        ]);
+        // Behavioural history needs personalization consent, the GA4 read needs
+        // analytics consent; without it the rule context runs on anonymous signals.
+        const [ruleHistory, adGa4History] = await loadAdRuleSignals({
+          personalization: consentPersonalization,
+          analytics:       consentAnalytics,
+          loadHistory:     () => fetchVisitorHistory(adSessionId, tenantId),
+          emptyHistory,
+          loadGa4:         () => resolveAdGa4History(tenant.ga4, adSessionId),
+          emptyGa4:        () => ({}),
+        });
         adRuleCtx = await buildDecisionContext({
           request:     ruleRequest,
           history:     ruleHistory,
