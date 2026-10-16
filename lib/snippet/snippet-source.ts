@@ -323,6 +323,10 @@ export function buildSnippetSource(decideUrl: string): string {
         if (!name) continue;
         payload[name] = (el.type === 'checkbox') ? (el.checked ? 'true' : 'false') : el.value;
       }
+      // The page the form sits on. A cross-origin submit only sends the origin as
+      // Referer, so the server would otherwise store every lead under "/" and
+      // validate against the segment of the wrong page.
+      try { payload._mc_page = window.location.pathname + (window.location.search || ''); } catch (e) {}
       var btn = form.querySelector('button[type="submit"]');
       if (btn) btn.disabled = true;
       fetch(mcFormsBase + '/api/forms/' + encodeURIComponent(key), {
@@ -351,14 +355,30 @@ export function buildSnippetSource(decideUrl: string): string {
             if (slot) { slot.textContent = data.errors[fk]; slot.style.display = 'block'; }
           }
           if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = 'Please fix the highlighted fields.'; }
+          mcResetTurnstile(form);
         } else {
           if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = (data && data.error) || 'Something went wrong. Please try again.'; }
+          mcResetTurnstile(form);
         }
       }).catch(function() {
         if (btn) btn.disabled = false;
         if (statusEl) { statusEl.style.color = '#dc2626'; statusEl.textContent = 'Network error. Please try again.'; }
+        mcResetTurnstile(form);
       });
     });
+  }
+
+  // A Turnstile token is single-use and the server verifies it before field
+  // validation, so after any failed submit the token is spent. Reset the form's
+  // widgets so the retry gets a fresh token instead of a 403.
+  function mcResetTurnstile(form) {
+    try {
+      if (!window.turnstile || typeof window.turnstile.reset !== 'function') return;
+      var ws = form.querySelectorAll('.cf-turnstile');
+      for (var i = 0; i < ws.length; i++) {
+        try { window.turnstile.reset(ws[i].getAttribute('data-mc-ts-id') || ws[i]); } catch (e) {}
+      }
+    } catch (e) {}
   }
 
   // Render Cloudflare Turnstile widgets inside a freshly-injected container.
@@ -375,8 +395,9 @@ export function buildSnippetSource(decideUrl: string): string {
         var w = widgets[i];
         if (w.getAttribute('data-mc-rendered')) continue;
         try {
-          window.turnstile.render(w, { sitekey: w.getAttribute('data-sitekey') });
+          var wid = window.turnstile.render(w, { sitekey: w.getAttribute('data-sitekey') });
           w.setAttribute('data-mc-rendered', '1');
+          if (wid != null) w.setAttribute('data-mc-ts-id', String(wid));
         } catch (e) { /* ignore a bad widget */ }
       }
     }
