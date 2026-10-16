@@ -53,6 +53,7 @@ import type {
 } from "@/cms/types";
 import { logger } from "@/lib/logger";
 import { normaliseVisitorId } from "@/lib/snippet/visitor-id";
+import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
 import { recordJourneyEvent } from "@/lib/journey/record-event";
 import { resolvePageMeta } from "@/tracking/page-meta-map";
 import { createHash } from "node:crypto";
@@ -334,6 +335,17 @@ export async function POST(request: NextRequest) {
       timezone: tenant.timezone ?? null,
     });
 
+    const isUaBot = isBotUserAgent(request.headers.get("user-agent"));
+    // Rule-context writes and experiment assignments are persisted per session:
+    // only with personalization consent and never for UA bots. Without it the
+    // ephemeral id would still leave a visitor_behavior_state / assignment row
+    // per call. Rules still evaluate in memory; experiments are skipped.
+    const persistence = resolveDecisionPersistence({
+      sessionId,
+      personalizationConsent: consent.personalization,
+      isUaBot,
+      experimentsEnabled:     tenant.experiments?.enabled ?? true,
+    });
     const decisionProvider = new ExperimentDecisionProvider(
       // tenantId → matched rules are recorded (fire-and-forget) so the admin
       // rule-fire statistics also reflect this slot API (Statamic addon) traffic.
@@ -342,12 +354,13 @@ export async function POST(request: NextRequest) {
       // that don't set it. Measurement exclusion (UA OR cloud) uses ctx.isBot.
       new RulesDecisionProvider(
         rulesConfig ?? undefined,
-        isBotUserAgent(request.headers.get("user-agent")),
+        isUaBot,
         tenantId,
-        sessionId,
+        persistence.sessionId,
       ),
-      sessionId,
-      tenant.experiments?.enabled ?? true,
+      // Only read for bucketing when experiments run, which requires a session.
+      persistence.sessionId ?? "",
+      persistence.experimentsEnabled,
       tenantId,
     );
 

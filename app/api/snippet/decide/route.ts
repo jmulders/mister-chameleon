@@ -111,6 +111,7 @@ import { toBlockSlot, resolveBlockFx } from "@/lib/snippet/block-slot";
 import type { BlockEffectRef }        from "@/design-system/effects/effect-ref";
 import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-store";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
+import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
@@ -980,7 +981,17 @@ export async function POST(request: NextRequest) {
       customAttributes: sanitizeCustomAttributes(context.customAttributes, tenant.customAttributes),
     });
 
-    const experimentsEnabled = tenant.experiments?.enabled ?? true;
+    const isUaBot = isBotUserAgent(request.headers.get("user-agent"));
+    // Rule-context writes and experiment assignments are persisted per session,
+    // so the providers only get the sessionId with personalization consent and
+    // never for UA bots. Without it, rules still evaluate in memory and
+    // experiments are skipped (base plan = control, no assignment stored).
+    const persistence = resolveDecisionPersistence({
+      sessionId,
+      personalizationConsent: consentPersonalization,
+      isUaBot,
+      experimentsEnabled:     tenant.experiments?.enabled ?? true,
+    });
     const decisionProvider   = new ExperimentDecisionProvider(
       // Pass tenantId so each matched rule is recorded (fire-and-forget) — this
       // feeds the rule-fire statistics on the admin Rules page for snippet-only
@@ -990,13 +1001,14 @@ export async function POST(request: NextRequest) {
       // ctx.isBot in the engine / profile recorder.
       new RulesDecisionProvider(
         tenantRulesConfig ?? undefined,
-        isBotUserAgent(request.headers.get("user-agent")),
+        isUaBot,
         tenantId,
-        sessionId,
+        persistence.sessionId,
         consent,
       ),
-      sessionId,
-      experimentsEnabled,
+      // Only read for bucketing when experiments run, which requires a session.
+      persistence.sessionId ?? "",
+      persistence.experimentsEnabled,
       tenantId,
     );
 
