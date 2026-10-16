@@ -114,6 +114,7 @@ import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
 import { loadAdRuleSignals }         from "@/lib/snippet/ad-rule-signals";
 import { toJourneyEventId }          from "@/lib/snippet/event-id";
+import { sanitizeDecideContext, type DecideContext } from "@/lib/snippet/decide-context";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
@@ -184,67 +185,12 @@ interface DecideRequest {
    * docs/design/host-cmp-consent.md.
    */
   consent?: SnippetConsentInput;
-  context?: {
-    path?:           string;
-    referrer?:       string;
-    utm_source?:     string;
-    utm_medium?:     string;
-    utm_campaign?:   string;
-    gclid?:          string;
-    fbclid?:         string;
-    msclkid?:        string;
-    ttclid?:         string;
-    sessionId?:      string;
-    /**
-     * Stable first-party visitor id minted and persisted by the snippet
-     * (localStorage `mc_vid`, cookie fallback). Sent on every pageview so the
-     * platform can key behavioural history to one visitor instead of treating
-     * each pageview as a brand-new session. Normally equal to sessionId.
-     */
-    visitorId?:      string;
-    locale?:         string;
-    /**
-     * Interest keywords for this page — sent by the snippet from the page's
-     * <meta name="keywords"> tag. Merged with the URL→keyword map and recorded
-     * as a behavioural page_view so interest-profile scoring works on snippet
-     * (e.g. Statamic) sites, not just platform-rendered pages.
-     */
-    keywords?:       string[];
-    /** Stable per-pageview id for idempotent journey-event recording. */
-    eventId?:        string;
-    /**
-     * Mirror-demo scenario override.
-     * When present alongside _demoMode === "mirror" the rule engine is bypassed.
-     *
-     * If _demoId is also supplied, the per-demo AI-generated scenario_slots are
-     * loaded from demo_instances and returned directly (no CMS lookup needed).
-     * Otherwise the legacy DEMO_SCENARIO_PLANS CMS fallback is used.
-     */
-    _demoScenario?: string;
-    _demoMode?:     string;
-    /**
-     * Mirror demo instance ID.
-     * When present with _demoMode=mirror, the decide endpoint loads the
-     * AI-generated scenario_slots for this specific demo from the DB and
-     * returns slots[_demoScenario].  This replaces the generic DEMO_SCENARIO_PLANS
-     * lookup so every prospect sees their own site's personalised content.
-     */
-    _demoId?:       string;
-    /**
-     * Live-demo notification toggle (second axis alongside _demoScenario). Maps
-     * to a DEMO_NOTIF_SETS entry (e.g. "open" / "closed") whose notification
-     * variant is layered onto the mirror-demo slots. When the tenant has a notif
-     * set and this is absent, the first entry is used so the demo always shows one.
-     */
-    _demoNotif?:    string;
-    /**
-     * Per-request domain attributes for the current page (e.g. a trailer model's
-     * { massa, categorie, occasion }), read by an AttributeCondition. Untrusted /
-     * spoofable: sanitised and filtered to the tenant declaration server-side
-     * before it reaches rule evaluation.
-     */
-    customAttributes?: Record<string, unknown>;
-  };
+  /**
+   * Visitor signals for this pageview. Untrusted: run through
+   * sanitizeDecideContext (plain object only, string fields only, bounded
+   * lengths) before use. Field docs live on DecideContext.
+   */
+  context?: DecideContext;
 }
 
 // ── Demo scenario bypass plans ────────────────────────────────────────────────
@@ -278,7 +224,27 @@ const DEMO_SCENARIO_PLANS: Record<string, {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
+/**
+ * Outer guard: anything that escapes the handler's own try blocks would make
+ * Next.js answer a bare 500 without CORS headers, which the browser reports as
+ * a CORS failure instead of an error. Always answer with CORS headers and the
+ * no-personalisation (empty slots) payload.
+ */
 export async function POST(request: NextRequest) {
+  try {
+    return await handleDecide(request);
+  } catch (err) {
+    logger.error("[snippet/decide] Unhandled error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return NextResponse.json(
+      { error: "Internal error.", slots: {} },
+      { status: 500, headers: CORS_HEADERS },
+    );
+  }
+}
+
+async function handleDecide(request: NextRequest) {
   // ── Editor bypass ──────────────────────────────────────────────────────────
   //
   // When a platform admin is browsing the site (e.g. from the Statamic CP
@@ -317,7 +283,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { siteKey, context = {} } = body as DecideRequest;
+  const { siteKey } = body as DecideRequest;
+  // Untrusted: null / non-object becomes {}, non-string fields are dropped and
+  // free-text values are capped before anything reads or persists them.
+  const context = sanitizeDecideContext((body as DecideRequest).context);
 
   if (!siteKey || typeof siteKey !== "string") {
     return NextResponse.json(
