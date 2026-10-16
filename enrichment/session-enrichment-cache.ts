@@ -33,6 +33,8 @@
  *   An in-process `Map` keyed by sessionId UUID.  This means:
  *     • Cache is local to the Node.js process (not shared across Vercel replicas)
  *     • Resets on cold start — worst case is one extra pipeline run per session
+ *     • Bounded: at most SESSION_CACHE_MAX_ENTRIES (default 5000), oldest write
+ *       evicted first; expired entries are swept as new ones are written
  *     • No external dependency (Redis, KV, DB) required
  *
  *   This is intentional: enrichment data is cheap to re-derive after a cold
@@ -140,8 +142,44 @@ interface SessionEnrichmentEntry {
  */
 const L2_FORMLOC_HASH_KEY = "__mcFormLocHash";
 
-/** L1: process-local store — fast path; resets on cold start. */
+/**
+ * Upper bound on L1 entries. A long-lived instance would otherwise grow without
+ * bound (anonymous session ids are new per visitor). Evicted sessions fall back
+ * to the shared L2, so the cap only costs a DB read, never a pipeline re-run.
+ * Override with `SESSION_CACHE_MAX_ENTRIES`.
+ */
+const L1_MAX_ENTRIES: number = (() => {
+  const n = Number(process.env.SESSION_CACHE_MAX_ENTRIES ?? "5000");
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 5000;
+})();
+
+/**
+ * L1: process-local store — fast path; resets on cold start.
+ *
+ * Kept in write order (oldest first): writes go through {@link l1Set}, which
+ * re-inserts the key, sweeps expired entries from the old end and evicts the
+ * oldest writes beyond {@link L1_MAX_ENTRIES}.
+ */
 const store = new Map<string, SessionEnrichmentEntry>();
+
+function l1Set(sessionId: string, entry: SessionEnrichmentEntry): void {
+  store.delete(sessionId);   // re-insert so this session becomes the newest
+  store.set(sessionId, entry);
+
+  // Sweep expired entries from the oldest end. Stops at the first live entry, so
+  // the cost is proportional to what expired; the size cap below is the hard bound.
+  const now = Date.now();
+  for (const [key, e] of store) {
+    if (key === sessionId || now - e.cachedAt <= ttlMsFor(e.retry)) break;
+    store.delete(key);
+  }
+
+  while (store.size > L1_MAX_ENTRIES) {
+    const oldest = store.keys().next().value;
+    if (oldest === undefined) break;
+    store.delete(oldest);
+  }
+}
 
 // ── L2: shared, persistent store (Supabase) ─────────────────────────────────────
 //
@@ -356,7 +394,7 @@ export async function getSessionEnrichment(
   if (row) {
     const r2 = evaluate(row, currentIp, currentTenantId, currentFormLocHash);
     if (r2.hit) {
-      store.set(sessionId, row);      // warm L1 for subsequent requests on this instance
+      l1Set(sessionId, row);          // warm L1 for subsequent requests on this instance
       return r2;
     }
     missReason = r2.reason;
@@ -392,7 +430,7 @@ export function setSessionEnrichment(
     formLocationHash: opts?.formLocationHash ?? null,
     ...(opts?.retry ? { retry: true } : {}),
   };
-  store.set(sessionId, entry);            // L1 (sync)
+  l1Set(sessionId, entry);                // L1 (sync, bounded)
   writeL2({ ...entry, sessionId });       // L2 (fire-and-forget — never blocks the render)
 }
 

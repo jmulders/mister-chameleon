@@ -67,38 +67,38 @@ export async function updateBehaviorState(
     const db = dbAny();
 
     // ── Run data fetches concurrently ─────────────────────────────────────
-    const [eventsResult, rulesResult, patternsResult, profilesResult] =
+    // The query builders go into Promise.all un-awaited (they are thenables)
+    // so all four reads are in flight at once; awaiting inside the array
+    // literal would run them one after another.
+    const [eventsRaw, rulesRaw, patternsRaw, profilesRaw] =
       await Promise.all([
         // 1. All journey events for this (tenant, session) — chronological
-        asRows<JourneyEventRow>(
-          await db
-            .from("visitor_journey_events")
-            .select("*")
-            .eq("tenant_id", tenantId)
-            .eq("session_id", sessionId)
-            .order("occurred_at", { ascending: true }),
-        ),
+        db
+          .from("visitor_journey_events")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .eq("session_id", sessionId)
+          .order("occurred_at", { ascending: true }),
         // 2. Scoring rules for this tenant
-        asRows<ScoringRule>(
-          await db
-            .from("behavior_scoring_rules")
-            .select("*")
-            .eq("tenant_id", tenantId),
-        ),
+        db
+          .from("behavior_scoring_rules")
+          .select("*")
+          .eq("tenant_id", tenantId),
         // 3. Sequence patterns for this tenant
-        asRows<SequencePattern>(
-          await db
-            .from("behavior_sequence_patterns")
-            .select("*")
-            .eq("tenant_id", tenantId),
-        ),
+        db
+          .from("behavior_sequence_patterns")
+          .select("*")
+          .eq("tenant_id", tenantId),
         // 4. Decay profiles (shared across all tenants)
-        asRows<DecayProfile>(
-          await db
-            .from("decay_profiles")
-            .select("slug, day_1, day_7, day_30, day_90"),
-        ),
+        db
+          .from("decay_profiles")
+          .select("slug, day_1, day_7, day_30, day_90"),
       ]);
+
+    const eventsResult   = asRows<JourneyEventRow>(eventsRaw);
+    const rulesResult    = asRows<ScoringRule>(rulesRaw);
+    const patternsResult = asRows<SequencePattern>(patternsRaw);
+    const profilesResult = asRows<DecayProfile>(profilesRaw);
 
     // ── Log and bail on errors ────────────────────────────────────────────
     if (eventsResult.error) {
