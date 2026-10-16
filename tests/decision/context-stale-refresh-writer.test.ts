@@ -31,7 +31,7 @@ const tick = () => new Promise((r) => setTimeout(r, 5));
 
 describe("buildDecisionContext — stale-refresh background writer", () => {
   before(async () => {
-    // @ts-expect-error minimal fetch stub for the Supabase REST client
+    // Minimal fetch stub for the Supabase REST client.
     globalThis.fetch = async () =>
       new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     ({ buildDecisionContext: build } = await import("../../decision/context/build-decision-context.ts"));

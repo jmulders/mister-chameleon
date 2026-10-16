@@ -57,7 +57,7 @@ async function runDeferred(sessionId: string, stages: StagedEnricher[]): Promise
 
 describe("buildDecisionContext — deferred background cache writer", () => {
   before(async () => {
-    // @ts-expect-error minimal fetch stub for the Supabase REST client
+    // Minimal fetch stub for the Supabase REST client.
     globalThis.fetch = async () =>
       new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     ({ buildDecisionContext: build } = await import("../../decision/context/build-decision-context.ts"));
