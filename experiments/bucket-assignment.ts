@@ -27,7 +27,8 @@
  *     unsigned 32-bit arithmetic via `>>> 0`
  *
  *   The output is an unsigned 32-bit integer in [0, 0xFFFFFFFF].
- *   For bucket selection: hash % variantCount  (uniform for counts ≪ 2^32)
+ *   For bucket selection: fmix32(hash) % variantCount  (the murmur3 finalizer
+ *     is required: FNV-1a's low bit is only the parity of the input)
  *   For enrollment check: hash / 0xFFFFFFFF normalized to [0, 1)
  *
  * ─── Usage ───────────────────────────────────────────────────────────────────
@@ -65,6 +66,24 @@ function fnv1a32(input: string): number {
   return hash >>> 0; // Ensure unsigned
 }
 
+/**
+ * murmur3 fmix32 finalizer: spreads every input bit over every output bit.
+ *
+ * FNV-1a alone is unusable for `% 2`: multiplying by the odd FNV prime never
+ * changes the lowest bit, so the low bit of the hash is just the parity of the
+ * input characters. With `${sessionId}:${experimentId}` the experiment id only
+ * flipped that bit by a constant, so one visitor landed in the same (or always
+ * the opposite) bucket of EVERY experiment. The finalizer removes that.
+ */
+function fmix32(h: number): number {
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b) >>> 0;
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35) >>> 0;
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -85,6 +104,8 @@ export function isEnrolled(
 ): boolean {
   if (trafficFraction >= 1) return true;
 
+  // The high bits of FNV-1a are mixed well enough for a fraction check, so this
+  // keeps plain FNV-1a (and therefore every session's existing enrollment).
   const hash = fnv1a32(`${sessionId}:${experimentId}:enroll`);
   // Normalize to [0, 1).  Dividing by 0x100000000 (2^32) gives an open
   // upper bound so trafficFraction = 0.5 correctly catches exactly 50%.
@@ -107,7 +128,7 @@ export function assignBucket(
   experimentId: string,
   variantCount: number,
 ): number {
-  const hash = fnv1a32(`${sessionId}:${experimentId}`);
+  const hash = fmix32(fnv1a32(`${sessionId}:${experimentId}`));
   return hash % variantCount;
 }
 
