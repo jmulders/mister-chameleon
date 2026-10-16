@@ -1578,7 +1578,24 @@ function evalFieldCondition(
     return false;
   }
 
+  // Number fields: the editor stores an in / not_in value as a string array
+  // (comma-split text input) and validation accepts string | number members,
+  // so compare numerically. Non-numeric members can never match and are dropped.
+  if (def.kind === "number" && (operator === "in" || operator === "not_in") && Array.isArray(value)) {
+    return applyOperator(actual, operator, toNumberArray(value));
+  }
+
   return applyOperator(actual, operator, value);
+}
+
+/** Coerce in / not_in members to numbers; blanks and non-numeric strings are dropped. */
+function toNumberArray(values: readonly (string | number)[]): number[] {
+  const out: number[] = [];
+  for (const v of values) {
+    const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+    if (!Number.isNaN(n)) out.push(n);
+  }
+  return out;
 }
 
 function evalNamedCondition(
