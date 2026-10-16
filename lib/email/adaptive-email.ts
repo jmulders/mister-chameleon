@@ -247,7 +247,7 @@ export async function renderAdaptiveEmail(params: {
   });
 
   // 3. Plan (rules + experiments), same as the web decision.
-  const cfg = await loadTenantRulesConfig(params.tenantId).catch(() => null);
+  const cfg = await loadTenantRulesConfig(params.tenantId, undefined, { allowUnknownVariantKeys: true }).catch(() => null);
   const provider = new ExperimentDecisionProvider(
     new RulesDecisionProvider(cfg ?? undefined),
     params.recipient.email,

@@ -181,7 +181,7 @@ export async function saveTenantRulesAction(
   let preservedRulesEnabled: boolean | undefined = incoming.rulesEnabled;
 
   if (preservedRulesEnabled === undefined) {
-    const existing = await loadTenantRulesConfig(tenantId);
+    const existing = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
     if (existing?.rulesEnabled !== undefined) {
       preservedRulesEnabled = existing.rulesEnabled;
     }
@@ -353,7 +353,7 @@ export async function setTenantRulesEnabledAction(
   }
 
   // Load existing config (or fall back to seed).
-  const existing = await loadTenantRulesConfig(tenantId) ?? {
+  const existing = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true }) ?? {
     ...SEED_RULES_CONFIG,
     updatedAt: new Date().toISOString(),
   };
@@ -450,7 +450,7 @@ export async function seedPresetRulesAction(
 
   try {
     const generated = generatePresetRulesConfig(tenantId);
-    const existing  = await loadTenantRulesConfig(tenantId);
+    const existing  = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
 
     const configToWrite = existing
       ? mergePresetRules(existing, generated)

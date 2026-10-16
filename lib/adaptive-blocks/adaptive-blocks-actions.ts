@@ -216,7 +216,7 @@ export async function deleteAdaptiveBlockAction(
     const block = await getAdaptiveBlockById(id);
     const tenantId = block?.tenantId ?? null;
     if (block && tenantId) {
-      const config = await loadTenantRulesConfig(tenantId);
+      const config = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
       const referencingRules = findRulesUsingBlock(block, config);
       if (referencingRules.length > 0) {
         const all = await listAdaptiveBlocks(tenantId, true);

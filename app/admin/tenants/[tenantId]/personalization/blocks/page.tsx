@@ -53,7 +53,7 @@ export default async function TenantBlocksPage({ params }: Props) {
   // Cross-reference the tenant's rules so each block can show "used in N rules"
   // and the delete flow can warn before orphaning a rule. Serialise the index to
   // a plain record for the client component (a Map is not serialisable).
-  const rulesConfig = await loadTenantRulesConfig(tenantId);
+  const rulesConfig = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
   const ruleUsage: Record<string, RuleUsageRef[]> = Object.fromEntries(
     buildRuleUsageIndex(rulesConfig),
   );

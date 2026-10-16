@@ -937,7 +937,7 @@ export async function POST(request: NextRequest) {
       consentPersonalization
         ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
         : Promise.resolve(emptyHistory()),
-      loadTenantRulesConfig(tenantId).catch(() => null),
+      loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true }).catch(() => null),
       consentEnrichment
         ? buildTenantStagedEnrichers(tenant, tenantId).catch(() => [])
         : Promise.resolve([]),

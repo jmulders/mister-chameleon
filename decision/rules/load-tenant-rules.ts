@@ -29,13 +29,22 @@
  *   symmetric with the write path in saveTenantRulesAction.
  *
  *   When omitted, only platform-defined ALLOWED_*_KEYS are accepted.
+ *
+ * ─── Runtime reads: allowUnknownVariantKeys ───────────────────────────────────
+ *
+ *   Per-request read paths do NOT fetch the CMS catalogue (that would put a CMS
+ *   round trip on every pageview). They pass `{ allowUnknownVariantKeys: true }`
+ *   so a hero / proof / cta key outside the platform allow-list does not reject
+ *   the whole config. Those keys were validated with the catalogue at save time.
  */
 
 import { getDb }                from "@/data/db";
 import { unstable_cache }       from "next/cache";
 import {
   validateStoredConfig,
+  type ExtraAllowedKeys,
   type StoredRulesConfig,
+  type ValidateStoredConfigOptions,
 }                               from "./stored-rule";
 
 // ── Key helpers ──────────────────────────────────────────────────────────────────
@@ -138,17 +147,40 @@ function readRawTenantConfig(tenantId: string): Promise<Record<string, unknown> 
   });
 }
 
+/**
+ * Validate a raw stored config and return it typed, or null when it fails.
+ * Pure (no I/O); the validation half of loadTenantRulesConfig.
+ */
+export function parseStoredTenantRulesConfig(
+  raw:        unknown,
+  extraKeys?: ExtraAllowedKeys,
+  options?:   ValidateStoredConfigOptions,
+): StoredRulesConfig | null {
+  if (!raw) return null;
+  const errors = validateStoredConfig(raw, extraKeys, options);
+  if (errors.length > 0) return null;
+  return raw as StoredRulesConfig;
+}
+
+/**
+ * @param options  Pass `{ allowUnknownVariantKeys: true }` on RUNTIME READS and
+ *                 admin read-modify-write paths. The hero / proof / cta keys of
+ *                 a saved config may be CMS variants that were validated against
+ *                 the CMS catalogue at save time; without that catalogue a strict
+ *                 read rejects the whole config and returns null, which made the
+ *                 request paths serve the platform's runtime-rules.json (and
+ *                 ignore the tenant's rulesEnabled=false) and made admin writes
+ *                 lose the existing flag/rules. Structure stays strictly checked.
+ */
 export async function loadTenantRulesConfig(
-  tenantId: string,
+  tenantId:   string,
   extraKeys?: { heroKeys: string[]; proofKeys: string[]; ctaKeys: string[] },
+  options?:   ValidateStoredConfigOptions,
 ): Promise<StoredRulesConfig | null> {
   if (!tenantId) return null;
 
   const raw = await readRawTenantConfig(tenantId);
   if (!raw) return null;
 
-  const errors = validateStoredConfig(raw as unknown, extraKeys);
-  if (errors.length > 0) return null;
-
-  return raw as unknown as StoredRulesConfig;
+  return parseStoredTenantRulesConfig(raw, extraKeys, options);
 }

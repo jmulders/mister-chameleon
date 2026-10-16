@@ -49,7 +49,7 @@ export interface TenantExport {
  */
 export async function buildTenantExport(tenantId: string): Promise<TenantExport> {
   const [rulesConfig, variants, visitorProfiles] = await Promise.all([
-    loadTenantRulesConfig(tenantId).catch(() => null),
+    loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true }).catch(() => null),
     // Tenant's own blocks only — exclude shared platform seed blocks.
     listAdaptiveBlocks(tenantId, false).catch(() => []),
     listVisitorProfiles(tenantId, { limit: PROFILE_EXPORT_CAP }).catch(() => []),

@@ -286,7 +286,7 @@ export async function resolveSlugPageConfig(
             proofKeys: catalogue.proof.filter((e) => e.source !== "platform").map((e) => e.key),
             ctaKeys:   catalogue.cta.filter((e) => e.source !== "platform").map((e) => e.key),
           };
-          return await loadTenantRulesConfig(tenantId, extraKeys);
+          return await loadTenantRulesConfig(tenantId, extraKeys, { allowUnknownVariantKeys: true });
         } catch {
           return null;
         }

@@ -105,7 +105,7 @@ export const getRequestThemeDecision = cache(async (): Promise<RequestThemeDecis
       const sessionTheme     = sessionSelection?.kind === "curated" ? sessionSelection.themeKey : null;
       const sessionPresetId  = sessionSelection?.kind === "gallery" ? sessionSelection.presetId : null;
 
-      const storedConfig    = await loadTenantRulesConfig(tenantConfig.tenantId);
+      const storedConfig    = await loadTenantRulesConfig(tenantConfig.tenantId, undefined, { allowUnknownVariantKeys: true });
       const cmsThemePreset  = cmsSettings?.themePreset;
       const defaultThemeKey = (
         tenantSettings?.design?.theme ??

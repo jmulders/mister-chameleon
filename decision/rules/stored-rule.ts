@@ -805,6 +805,21 @@ export interface ExtraAllowedKeys {
   ctaKeys?:   readonly string[];
 }
 
+/** Options for validateStoredConfig(). */
+export interface ValidateStoredConfigOptions {
+  /**
+   * Accept any non-empty string as heroKey / proofKey / ctaKey instead of
+   * requiring a key from the platform allow-list (+ extraKeys).
+   *
+   * For RUNTIME READS of an already-saved config only. Those three keys can be
+   * CMS-defined variants that were checked against the tenant's CMS catalogue
+   * at save time; re-checking them on read without that catalogue rejected the
+   * whole config. Everything else (structure, conditions, priorities, the
+   * other variant slots) stays strict. Never use this on the save path.
+   */
+  allowUnknownVariantKeys?: boolean;
+}
+
 /**
  * Validate a StoredRulesConfig against the field registry and allowed key
  * vocabulary.  Returns an array of errors; empty array = valid.
@@ -817,10 +832,14 @@ export interface ExtraAllowedKeys {
  * @param extraKeys  Optional CMS variant keys to extend the platform allow-lists.
  *                   Pass the keys fetched by fetchVariantCatalogue() so rules
  *                   that target CMS variants pass validation.
+ * @param options    allowUnknownVariantKeys: runtime-read leniency for the
+ *                   hero / proof / cta allow-list checks only (see
+ *                   ValidateStoredConfigOptions).
  */
 export function validateStoredConfig(
   config:    unknown,
   extraKeys: ExtraAllowedKeys = {},
+  options:   ValidateStoredConfigOptions = {},
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
@@ -840,14 +859,16 @@ export function validateStoredConfig(
     errors.push({ field: "rulesEnabled", message: "rulesEnabled must be a boolean." });
   }
 
-  // Merge platform + extra allowed keys for plan validation.
-  const allowedHeroKeys:  readonly string[] = extraKeys.heroKeys
+  // Merge platform + extra allowed keys for plan validation. null = accept any
+  // non-empty string (runtime-read leniency, see ValidateStoredConfigOptions).
+  const lenient = options.allowUnknownVariantKeys === true;
+  const allowedHeroKeys:  readonly string[] | null = lenient ? null : extraKeys.heroKeys
     ? [...ALLOWED_HERO_KEYS, ...extraKeys.heroKeys]
     : ALLOWED_HERO_KEYS;
-  const allowedProofKeys: readonly string[] = extraKeys.proofKeys
+  const allowedProofKeys: readonly string[] | null = lenient ? null : extraKeys.proofKeys
     ? [...ALLOWED_PROOF_KEYS, ...extraKeys.proofKeys]
     : ALLOWED_PROOF_KEYS;
-  const allowedCtaKeys:   readonly string[] = extraKeys.ctaKeys
+  const allowedCtaKeys:   readonly string[] | null = lenient ? null : extraKeys.ctaKeys
     ? [...ALLOWED_CTA_KEYS, ...extraKeys.ctaKeys]
     : ALLOWED_CTA_KEYS;
 
@@ -924,14 +945,38 @@ export function validateStoredConfig(
   return errors;
 }
 
+/**
+ * Check one hero / proof / cta key. `allowed` null = runtime-read leniency:
+ * any non-empty string passes (the key was checked against the CMS catalogue
+ * at save time).
+ */
+function checkVariantKey(
+  key:     unknown,
+  slot:    "heroKey" | "proofKey" | "ctaKey",
+  allowed: readonly string[] | null,
+  idx:     string,
+  ruleId:  string | undefined,
+  errors:  ValidationError[],
+): void {
+  if (allowed === null) {
+    if (typeof key !== "string" || key.trim() === "") {
+      errors.push({ ruleId, field: `${idx}.plan.${slot}`, message: `${slot} must be a non-empty string.` });
+    }
+    return;
+  }
+  if (!(allowed as string[]).includes(key as string)) {
+    errors.push({ ruleId, field: `${idx}.plan.${slot}`, message: `Invalid ${slot} "${key}". Allowed: ${allowed.join(", ")}` });
+  }
+}
+
 function validatePlan(
   plan:             Record<string, unknown> | undefined,
   idx:              string,
   ruleId:           string | undefined,
   errors:           ValidationError[],
-  allowedHeroKeys:  readonly string[] = ALLOWED_HERO_KEYS,
-  allowedProofKeys: readonly string[] = ALLOWED_PROOF_KEYS,
-  allowedCtaKeys:   readonly string[] = ALLOWED_CTA_KEYS,
+  allowedHeroKeys:  readonly string[] | null = ALLOWED_HERO_KEYS,
+  allowedProofKeys: readonly string[] | null = ALLOWED_PROOF_KEYS,
+  allowedCtaKeys:   readonly string[] | null = ALLOWED_CTA_KEYS,
   webhookOnly:      boolean = false,
 ): void {
   if (!plan || typeof plan !== "object") {
@@ -948,15 +993,9 @@ function validatePlan(
       errors.push({ ruleId, field: `${idx}.plan.webhook`, message: "a webhook-only rule requires plan.webhook.url." });
     }
   } else {
-    if (!(allowedHeroKeys as string[]).includes(plan.heroKey as string)) {
-      errors.push({ ruleId, field: `${idx}.plan.heroKey`, message: `Invalid heroKey "${plan.heroKey}". Allowed: ${allowedHeroKeys.join(", ")}` });
-    }
-    if (!(allowedProofKeys as string[]).includes(plan.proofKey as string)) {
-      errors.push({ ruleId, field: `${idx}.plan.proofKey`, message: `Invalid proofKey "${plan.proofKey}". Allowed: ${allowedProofKeys.join(", ")}` });
-    }
-    if (!(allowedCtaKeys as string[]).includes(plan.ctaKey as string)) {
-      errors.push({ ruleId, field: `${idx}.plan.ctaKey`, message: `Invalid ctaKey "${plan.ctaKey}". Allowed: ${allowedCtaKeys.join(", ")}` });
-    }
+    checkVariantKey(plan.heroKey,  "heroKey",  allowedHeroKeys,  idx, ruleId, errors);
+    checkVariantKey(plan.proofKey, "proofKey", allowedProofKeys, idx, ruleId, errors);
+    checkVariantKey(plan.ctaKey,   "ctaKey",   allowedCtaKeys,   idx, ruleId, errors);
   }
 
   // Optional gallery-preset theme override — must reference a known gallery card.
