@@ -113,6 +113,7 @@ import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
 import { loadAdRuleSignals }         from "@/lib/snippet/ad-rule-signals";
+import { toJourneyEventId }          from "@/lib/snippet/event-id";
 import { serveAds, hostFromOrigin }   from "@/lib/ads/serve-ads";
 import { fetchAdAudience, tenantHasFirmographicAd, tenantHasRuleAd, resolveAdCompany, isPublisherApproved, isWalletServable } from "@/lib/ads/serve";
 import type { AdAudience }            from "@/lib/ads/targeting";
@@ -451,7 +452,7 @@ export async function POST(request: NextRequest) {
               medium:       context.utm_medium   ?? undefined,
               campaign:     context.utm_campaign ?? undefined,
               metadata:     { via: "ad", publisher_domain: adOriginHost ?? null },
-              eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+              eventId:      toJourneyEventId(context.eventId, tenantId),
             }).catch(() => false)
           : Promise.resolve(false),
       ]);
@@ -931,7 +932,7 @@ export async function POST(request: NextRequest) {
         source:       context.utm_source   ?? undefined,
         medium:       context.utm_medium   ?? undefined,
         campaign:     context.utm_campaign ?? undefined,
-        eventId:      typeof context.eventId === "string" ? context.eventId : undefined,
+        eventId:      toJourneyEventId(context.eventId, tenantId),
       }).catch(() => false);
     }
 
