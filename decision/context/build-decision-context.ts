@@ -1332,7 +1332,17 @@ export async function buildDecisionContext(
       { timeoutMs: 2_000 },
     );
 
-    enrichment = normalizeCurrentLocation({ ...headerGeoResult, ...legacyOutput });
+    // Same precedence as the staged path (seed as `initialAccumulated`):
+    // header geo < seedEnrichment < non-null enricher output. A null from a stub
+    // provider must not wipe a seeded value (e.g. the advertiser rule-ad context
+    // and adaptive email seed firmographics / GA4 history without a staged chain).
+    const legacyMerged: Partial<EnrichmentOutput> = { ...headerGeoResult, ...seedEnrichment };
+    for (const [key, val] of Object.entries(legacyOutput)) {
+      if (val !== null && val !== undefined) {
+        (legacyMerged as Record<string, unknown>)[key] = val;
+      }
+    }
+    enrichment = normalizeCurrentLocation(legacyMerged);
   }
 
   // ── Leadinfo client-side enrichment merge ────────────────────────────────────
