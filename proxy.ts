@@ -154,10 +154,18 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // updates silently never appeared. It is a public, side-effect-free, cacheable
   // manifest (Cache-Control public), so it must never be rate-limited. (Diagnosed
   // 21 Jul 2026: the plugin's own update-diagnostics panel reported HTTP 429.)
+  //
+  // /api/snippet/decide and /api/v1/slot are rate-limited INSIDE their routes,
+  // where the siteKey is known: decide per siteKey + visitor IP, v1/slot per
+  // siteKey. A per-IP limit here was wrong for both — v1/slot is called
+  // server-to-server by the CMS adapter, so every visitor of a site shares the
+  // CMS host's IP and a whole site was throttled at ~20 pageviews/min.
   const RATE_LIMIT_EXEMPT = new Set([
     "/api/statamic-draft",
     "/api/health",
     "/api/wp-plugin/update",
+    "/api/snippet/decide",
+    "/api/v1/slot",
   ]);
   if (pathname.startsWith("/api/") && !RATE_LIMIT_EXEMPT.has(pathname)) {
     const endpoint  = endpointFromPath(pathname);

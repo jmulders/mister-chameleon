@@ -29,12 +29,19 @@
  *   }
  *
  *   On any failure the endpoint returns the CMS-authored default variant — the
- *   adapter must always be able to render. 401 missing key · 403 unknown key.
+ *   adapter must always be able to render. 401 missing key · 403 unknown key ·
+ *   429 per-tenant rate limit (the adapter renders its own default on any non-200).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantBySiteKey } from "@/tenant/server";
-import { computeEffectiveConsent, consentFromSnippet, type SnippetConsentInput } from "@/lib/consent/server-consent";
+import { getDb } from "@/data/db";
+import { getTenantDunningSettings } from "@/billing/dunning";
+import { loadPaymentGate } from "@/lib/snippet/payment-gate";
+import { checkRateLimit } from "@/lib/rate-limiting";
+import { slotRateLimitKey, rateLimitHeaders } from "@/lib/rate-limiting/route-limit";
+import { slotConsentInput } from "@/lib/snippet/slot-consent";
+import { computeEffectiveConsent, consentFromSnippet } from "@/lib/consent/server-consent";
 import { createCMSProvider } from "@/cms";
 import { platformFirstVariants } from "@/cms/providers/platform-first-variants";
 import type { VariantResolver } from "@/cms/providers/platform-first-variants";
@@ -189,14 +196,30 @@ export async function POST(request: NextRequest) {
   const page = body.page ?? {};
   const visitor = body.visitor ?? {};
 
-  // ── Tenant ────────────────────────────────────────────────────────────────────
+  // ── Rate limit + tenant (in parallel) ─────────────────────────────────────────
+  //
+  // Exempt from the proxy's per-IP limiter: every visitor arrives from the CMS
+  // host's IP, so this is limited per siteKey ("slot" bucket) instead. A 429 is
+  // safe for the adapter, which renders the CMS default on any non-200.
   let tenant: TenantSettings | null = null;
-  try {
-    tenant = await getTenantBySiteKey(siteKey);
-  } catch (err) {
-    logger.error("[v1/slot] tenant lookup failed", { error: String(err) });
+  const [rateLimit, tenantLookup] = await Promise.all([
+    checkRateLimit("slot", slotRateLimitKey(siteKey)),
+    getTenantBySiteKey(siteKey).then(
+      (t) => ({ ok: true as const, tenant: t }),
+      (err: unknown) => ({ ok: false as const, err }),
+    ),
+  ]);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too Many Requests" },
+      { status: 429, headers: { ...CORS_HEADERS, ...rateLimitHeaders(rateLimit) } },
+    );
+  }
+  if (!tenantLookup.ok) {
+    logger.error("[v1/slot] tenant lookup failed", { error: String(tenantLookup.err) });
     return NextResponse.json({ error: "Internal error." }, { status: 500, headers: CORS_HEADERS });
   }
+  tenant = tenantLookup.tenant;
   if (!tenant) {
     return NextResponse.json({ error: "Unknown tenant key." }, { status: 403, headers: CORS_HEADERS });
   }
@@ -204,11 +227,12 @@ export async function POST(request: NextRequest) {
   const tenantId = tenant.tenantId;
 
   // Anonymity boundary: the anonymous decision always runs; persistent behaviour
-  // (journey write + history read) is gated on personalization consent. The addon
-  // does not forward consent yet (follow-up), so an absent field falls back to the
-  // tenant consentSource default, capped by the tenant privacy ceiling.
+  // (journey write + history read) is gated on personalization consent. Same
+  // rule as snippet decide: an absent consent field means "no signal from the
+  // host", so the tenant consentSource default applies, capped by the tenant
+  // privacy ceiling. (It used to be read as the legacy-snippet full grant.)
   const consent = computeEffectiveConsent(
-    consentFromSnippet((body as { consent?: SnippetConsentInput }).consent, tenant.snippet?.consentSource),
+    consentFromSnippet(slotConsentInput(body), tenant.snippet?.consentSource),
     tenant.privacy,
   );
 
@@ -227,6 +251,39 @@ export async function POST(request: NextRequest) {
   // Bots always get the stable default so crawlers index consistent content.
   if (visitor.is_bot === true) {
     return respondDefault();
+  }
+
+  // Advertiser accounts serve ads through snippet decide only; their siteKey
+  // has no personalised CMS content to resolve here.
+  if (tenant.tenantRole === "advertiser") {
+    return respondDefault();
+  }
+
+  // ── Subscription payment gate (same rule as snippet decide) ──────────────────
+  //
+  //   Quarantined and blocked tenants get the CMS default. Unlike decide, a
+  //   blocked tenant is not answered with a 404: the adapter would render the
+  //   same default, and the default keeps the response shape stable.
+  if (process.env["NEXT_PUBLIC_SUPABASE_URL"] && process.env["SUPABASE_SERVICE_ROLE_KEY"]) {
+    try {
+      const db = getDb();
+      const dunning = await loadPaymentGate(
+        db,
+        tenantId,
+        async () => (await getTenantDunningSettings(db, tenantId)).quarantine_days,
+      );
+      if (dunning?.isBlocked || dunning?.isQuarantined) {
+        logger.info("[v1/slot] payment gate — serving default", {
+          tenantId, blocked: dunning.isBlocked, daysRemaining: dunning.daysRemaining,
+        });
+        return respondDefault();
+      }
+    } catch (gateErr) {
+      // A gate error must NEVER block service — log and continue normally.
+      logger.error("[v1/slot] payment gate check failed — continuing", {
+        tenantId, error: String(gateErr),
+      });
+    }
   }
 
   // ── Resolve via the decision pipeline ─────────────────────────────────────────

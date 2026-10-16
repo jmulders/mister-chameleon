@@ -36,6 +36,10 @@
  *   "api"       120 req/min  — all other /api/* routes
  *   "auth"       20 req/min  — login / token refresh (tighter for brute-force)
  *   "default"    60 req/min  — anything not explicitly categorised
+ *   "snippet"   300 req/min  — snippet decide, per siteKey + visitor IP
+ *                              (env RATE_LIMIT_SNIPPET_PER_MIN); checked in the route
+ *   "slot"     6000 req/min  — CMS adapter v1/slot, per siteKey
+ *                              (env RATE_LIMIT_SLOT_PER_MIN); checked in the route
  *
  * ─── Identifiers ─────────────────────────────────────────────────────────────
  *
@@ -50,7 +54,7 @@
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type RateLimitEndpoint = "track" | "api" | "auth" | "default";
+export type RateLimitEndpoint = "track" | "api" | "auth" | "default" | "snippet" | "slot";
 
 export interface RateLimitResult {
   /** Whether the request is allowed to proceed. */
@@ -65,11 +69,26 @@ export interface RateLimitResult {
 
 // ── Limits ────────────────────────────────────────────────────────────────────
 
+/** A positive integer from the environment, else the fallback. */
+function envLimit(name: string, fallback: number): number {
+  const n = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 const LIMITS: Record<RateLimitEndpoint, number> = {
   track:   60,
   api:    120,
   auth:    20,
   default: 60,
+  // Snippet decide, keyed per siteKey + visitor IP (see app/api/snippet/decide).
+  // A visitor is counted per tenant, and one IP shared by an office NAT gets a
+  // roomier budget than the generic API limit.
+  snippet: envLimit("RATE_LIMIT_SNIPPET_PER_MIN", 300),
+  // CMS adapter slot resolution (v1/slot), keyed per siteKey only. It is called
+  // server-to-server, so every visitor arrives from the CMS host's IP; a per-IP
+  // limit would throttle a whole site at ~20 pageviews/min. This is a per-tenant
+  // abuse/cost ceiling instead, not a per-visitor limit.
+  slot:    envLimit("RATE_LIMIT_SLOT_PER_MIN", 6000),
 };
 
 // ── Window key ────────────────────────────────────────────────────────────────
