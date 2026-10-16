@@ -60,6 +60,7 @@ import { scoreInterests, buildInterestContextVars } from "@/interest-profiles/sc
 import {
   parseUA,
   parseClientContextCookie,
+  parseTimezoneCookie,
   CLIENT_CONTEXT_COOKIE,
   TIMEZONE_COOKIE,
 } from "@/context/client-context";
@@ -576,12 +577,12 @@ export async function buildDecisionContext(
   //        so the diagnostic panel can surface it.
   //
   // mc_tz is URL-encoded in the browser (encodeURIComponent).  parseCookieField
-  // returns the raw encoded value; decodeURIComponent recovers the IANA string.
+  // returns the raw encoded value; parseTimezoneCookie decodes it and validates
+  // the IANA string, returning null for a malformed (URIError) or unknown value
+  // so a bad cookie can never break the render.
 
   const rawMcTz      = cookieHeader ? parseCookieField(cookieHeader, TIMEZONE_COOKIE) : null;
-  const mcTz         = rawMcTz
-    ? (decodeURIComponent(rawMcTz).trim().slice(0, 64) || null)
-    : null;
+  const mcTz         = parseTimezoneCookie(rawMcTz);
   const userTimezone = mcTz ?? clientSignals.timeZone ?? null;
 
   const effectiveTimezone   = userTimezone ?? timezone ?? "UTC";
