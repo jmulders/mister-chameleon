@@ -76,7 +76,7 @@
  */
 
 import { NextRequest, NextResponse, after } from "next/server";
-import { createClient }              from "@supabase/supabase-js";
+import { getDb }                     from "@/data/db";
 import { getTenantBySiteKey }        from "@/tenant/server";
 import { createCMSProvider }         from "@/cms";
 import { platformFirstVariants }     from "@/cms/providers/platform-first-variants";
@@ -98,8 +98,8 @@ import { isBotUserAgent }            from "@/decision/context/detect-bot";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import type { TenantSettings }       from "@/tenant/types";
 import type { HeroBlockData, CTABlockData, ProofBlockData, FeatureBlockData, ConversionBlockData, NotificationBlockData } from "@/cms/types";
-import { getDunningState }           from "@/billing/dunning";
 import { getTenantDunningSettings }  from "@/billing/dunning";
+import { resolveSubscriptionDunning } from "@/lib/snippet/payment-gate";
 import { logger }                    from "@/lib/logger";
 import { recordJourneyEvent }        from "@/lib/journey/record-event";
 import { resolvePageMeta }           from "@/tracking/page-meta-map";
@@ -554,9 +554,8 @@ async function handleDecide(request: NextRequest) {
     const supabaseSrvc = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
     if (supabaseUrl && supabaseSrvc) {
-      const sbClient = createClient(supabaseUrl, supabaseSrvc, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+      // Shared process-wide service-role client (no per-request createClient).
+      const sbClient = getDb();
 
       const { data: sub } = await sbClient
         .from("subscriptions")
@@ -565,17 +564,14 @@ async function handleDecide(request: NextRequest) {
         .maybeSingle();
 
       if (sub) {
-        // Fetch per-tenant quarantine_days (use default 8 on error).
-        let quarantineDays = 8;
-        try {
-          const ds = await getTenantDunningSettings(sbClient, tenantId);
-          quarantineDays = ds.quarantine_days;
-        } catch { /* use default */ }
-
-        const dunning = getDunningState(
-          sub.status as string,
-          sub.payment_due_since as string | null,
-          quarantineDays,
+        // Per-tenant quarantine_days only matter for past_due, so the dunning
+        // settings are read only then (default 8 on error).
+        const dunning = await resolveSubscriptionDunning(
+          {
+            status:            sub.status as string,
+            payment_due_since: sub.payment_due_since as string | null,
+          },
+          async () => (await getTenantDunningSettings(sbClient, tenantId)).quarantine_days,
         );
 
         if (dunning.isBlocked) {
@@ -629,9 +625,7 @@ async function handleDecide(request: NextRequest) {
       const supabaseSrvc = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
       if (supabaseUrl && supabaseSrvc) {
-        const sbClient = createClient(supabaseUrl, supabaseSrvc, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
+        const sbClient = getDb();
 
         const { data: demoRow } = await sbClient
           .from("demo_instances")
