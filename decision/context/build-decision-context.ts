@@ -99,7 +99,7 @@ import type { CrmProvider } from "@/enrichment/providers/crm";
 import { createCompanyEnricher, StubCompanyProvider } from "@/enrichment/providers/company";
 import type { CompanyProvider } from "@/enrichment/providers/company";
 import { normalizeCrmProfile, mergeCrmWithBehavior } from "@/lib/crm";
-import { detectIsBot } from "./detect-bot";
+import { detectIsBot, isBotUserAgent } from "./detect-bot";
 
 // ── Params ─────────────────────────────────────────────────────────────────────
 
@@ -1428,6 +1428,9 @@ export async function buildDecisionContext(
     customAttributes,
     entryPath,
     isBot: detectIsBot(visitorContext.userAgent, enrichment.isCloudProvider),
+    // Serving verdict for the `isBot` rule field (UA only). Without it the field
+    // derives "isBot and not cloud", which reads a crawler on a cloud IP as human.
+    isBotUserAgent: isBotUserAgent(visitorContext.userAgent),
   };
 
   // ── Derived context ───────────────────────────────────────────────────────────
