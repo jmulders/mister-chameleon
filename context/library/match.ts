@@ -34,6 +34,7 @@
  */
 
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
+import { getFieldOverride }           from "@/decision/rules/field-registry";
 import {
   CONTEXT_DEFINITIONS,
 } from "./definitions";
@@ -60,8 +61,23 @@ import type {
  *   - time fields (currentHour, isWeekend, timeOfDay, month, dayOfWeek, seasonalEvent)
  *   - commerce/catalog helpers (hasActiveCart, hasCompletedCheckout, purchaseCount)
  *     — sourced from ctx.history when available; gracefully absent otherwise
+ *
+ * Keys that are also rule fields (funnelStage, pageViewCount, source, …) honour
+ * a type-valid rule-written override from ctx.ruleContext, the same one a field
+ * condition would see (getFieldOverride). Without an override the values below
+ * are used unchanged.
  */
 export function buildContextEvalInput(ctx: RuleEvaluationContext): ContextEvalInput {
+  const input = buildRawContextEvalInput(ctx);
+  if (!ctx.ruleContext) return input;
+  for (const key of Object.keys(input)) {
+    const override = getFieldOverride(key, ctx);
+    if (override !== undefined) input[key] = override;
+  }
+  return input;
+}
+
+function buildRawContextEvalInput(ctx: RuleEvaluationContext): ContextEvalInput {
   const ctxAny        = ctx as unknown as Record<string, unknown>;
   const history       = (ctx.history ?? {}) as unknown as Record<string, unknown>;
   const enrichment    = (

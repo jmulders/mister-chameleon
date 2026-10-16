@@ -2744,13 +2744,33 @@ export function resolveFieldValue(
   def:   FieldDefinition,
   ctx:   RuleEvaluationContext,
 ): FieldRuntimeValue {
+  const override = overrideFor(field, def, ctx);
+  // Absent or type-invalid override — fall back to the normal derivation.
+  return override !== undefined ? override : def.resolve(ctx);
+}
+
+function overrideFor(
+  field: string,
+  def:   FieldDefinition,
+  ctx:   RuleEvaluationContext,
+): string | number | boolean | undefined {
   const overlay = ctx.ruleContext;
-  if (overlay && Object.prototype.hasOwnProperty.call(overlay, field)) {
-    const override = overlay[field];
-    if (isValidOverride(override, def)) {
-      return override;
-    }
-    // Type-invalid override — ignore and fall back to the normal derivation.
-  }
-  return def.resolve(ctx);
+  if (!overlay || !Object.prototype.hasOwnProperty.call(overlay, field)) return undefined;
+  const override = overlay[field];
+  return isValidOverride(override, def) ? override : undefined;
+}
+
+/**
+ * The type-valid rule-written override for a registry field, or undefined when
+ * there is none (no overlay key, an unknown field, or a type-invalid value).
+ *
+ * Used by resolveFieldValue and by the context library matcher, so a
+ * context_library condition sees the same overrides as a field condition.
+ */
+export function getFieldOverride(
+  field: string,
+  ctx:   RuleEvaluationContext,
+): string | number | boolean | undefined {
+  const def = (FIELD_REGISTRY as Record<string, FieldDefinition | undefined>)[field];
+  return def ? overrideFor(field, def, ctx) : undefined;
 }
