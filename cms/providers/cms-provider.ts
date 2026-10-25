@@ -115,6 +115,13 @@ export type TestConnectionResult =
 
 // ── Provider interface ────────────────────────────────────────────────────────
 
+/** One public URL path for the sitemap, e.g. "/" or "/blog/my-post". */
+export interface IndexablePath {
+  path:          string;
+  /** ISO date of the last content change, when the CMS knows it. */
+  lastModified?: string;
+}
+
 export interface CMSProvider {
   // ── Variant fetches ────────────────────────────────────────────────────────
 
@@ -230,6 +237,13 @@ export interface CMSProvider {
    * @returns     The page data including ordered sections, or null if not found.
    */
   getPageBySlug(slug: string, locale?: string): Promise<PageData | null>;
+
+  /**
+   * Every public, indexable path this CMS serves on the tenant site, for the
+   * sitemap. Optional: a provider without it contributes only the homepage.
+   * Leaves out unpublished entries and entries marked noindex.
+   */
+  listIndexablePaths?(): Promise<IndexablePath[]>;
 
   /**
    * Fetch multiple content documents by their variant key in a single round-trip.

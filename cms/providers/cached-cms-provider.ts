@@ -51,7 +51,7 @@
 
 import { unstable_cache } from "next/cache";
 import { readPersistedSiteSettings, persistSiteSettings } from "./site-settings-cache-store";
-import type { CMSProvider, ProvisionResult, StarterContentMode, TestConnectionResult } from "./cms-provider";
+import type { CMSProvider, IndexablePath, ProvisionResult, StarterContentMode, TestConnectionResult } from "./cms-provider";
 import type {
   HeroBlockData,
   ProofBlockData,
@@ -371,5 +371,10 @@ export class CachedCMSProvider implements CMSProvider {
 
   testConnection(): Promise<TestConnectionResult> {
     return this.inner.testConnection();
+  }
+
+  /** Not cached: only the sitemap calls it, and it must reflect new entries. */
+  listIndexablePaths(): Promise<IndexablePath[]> {
+    return this.inner.listIndexablePaths ? this.inner.listIndexablePaths() : Promise.resolve([]);
   }
 }
