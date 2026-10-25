@@ -121,11 +121,29 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title:       tenant.name || tenant.theme.meta.name,
     description: tenant.theme.meta.tagline,
-    icons: tenant.theme.meta.faviconPath
-      ? { icon: tenant.theme.meta.faviconPath }
-      : undefined,
+    icons: tenantIcons(tenant.theme.meta.faviconPath),
   };
 }
+
+/**
+ * Browser / search-result icons. A tenant with its own favicon keeps it. The
+ * platform default is the Mister Chameleon dot mark: app/favicon.ico (16/32/48,
+ * which Google needs at 48+) plus a scalable SVG and the iOS touch icon. These
+ * live in public/ on purpose: an app/icon.* file would override every tenant's
+ * own favicon.
+ */
+function tenantIcons(faviconPath: string | undefined): Metadata["icons"] {
+  if (faviconPath && faviconPath !== DEFAULT_FAVICON_PATH) return { icon: faviconPath };
+  return {
+    icon:  [
+      { url: DEFAULT_FAVICON_PATH, sizes: "48x48" },
+      { url: "/brand-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
+  };
+}
+
+const DEFAULT_FAVICON_PATH = "/favicon.ico";
 
 // ── Root Layout ───────────────────────────────────────────────────────────────
 
