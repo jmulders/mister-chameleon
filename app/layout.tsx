@@ -121,6 +121,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title:       tenant.name || tenant.theme.meta.name,
     description: tenant.theme.meta.tagline,
+    // og:site_name, one of the signals Google uses for the site name in results.
+    openGraph:   { siteName: tenant.name || tenant.theme.meta.name },
     icons: tenantIcons(tenant.theme.meta.faviconPath),
   };
 }

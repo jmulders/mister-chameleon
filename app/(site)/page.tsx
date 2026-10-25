@@ -28,7 +28,8 @@ import { buildTokenContextFromInput }      from "@/lib/tokens/parse-tokens";
 import { serverEnv }                       from "@/lib/env";
 import { StatamicClient }                  from "@/cms/providers/statamic-client";
 import { cache, Suspense }                 from "react";
-import { cookies }                         from "next/headers";
+import { cookies, headers }                from "next/headers";
+import { homeTitle, requestOrigin, websiteJsonLd } from "@/lib/seo/site-identity";
 import type { Metadata }                   from "next";
 import { getActiveTenant, getTenantById }  from "@/tenant/server";
 import { createCMSProvider }               from "@/cms";
@@ -65,7 +66,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const home = await getHomePageForMeta(tenant.tenantId, locale).catch(() => null);
 
   return {
-    title: home?.seoTitle ?? home?.title ?? tenant.name,
+    title: homeTitle(home?.seoTitle, tenant.name),
     ...(home?.seoDescription ? { description: home.seoDescription } : {}),
   };
 }
@@ -211,6 +212,12 @@ type PageProps = {
 
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
+  // WebSite structured data: what Google uses for the site name in results.
+  const [tenant, origin] = await Promise.all([
+    getActiveTenant(),
+    headers().then(requestOrigin),
+  ]);
+  const siteName = tenant.name || tenant.theme.meta.name;
 
   // Stream the personalised body so the tenant shell (nav / header / footer from
   // the layout) flushes to the browser immediately while the pipeline + CMS
@@ -218,9 +225,18 @@ export default async function Home({ searchParams }: PageProps) {
   // paint order changes. (Improves FCP — the hero stays the LCP and still waits
   // on the pipeline, as the variant is chosen per visitor.)
   return (
-    <Suspense fallback={<HomeSkeleton />}>
-      <HomeBody params={params} />
-    </Suspense>
+    <>
+      {origin && siteName && (
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: websiteJsonLd(siteName, origin) }}
+        />
+      )}
+      <Suspense fallback={<HomeSkeleton />}>
+        <HomeBody params={params} />
+      </Suspense>
+    </>
   );
 }
 
