@@ -97,7 +97,7 @@ import { logger } from "@/lib/logger";
 import { adaptiveItemToProofItem, adaptiveItemToFeatureItem, adaptiveCtasToButtons } from "@/lib/blocks/adaptive-item-to-block";
 import { adaptiveVariantToConversionData, adaptiveVariantToNotificationData } from "@/lib/blocks/adaptive-variant-to-overlay";
 import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
-import type { ProvisionResult, TestConnectionResult } from "./cms-provider";
+import type { IndexablePath, ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type { TenantSettings } from "@/tenant/types";
 
 // ── Direct file reader (bypasses StatamicClient for local dev reliability) ────
@@ -215,6 +215,29 @@ function readHomeBlocksFromDisk(): StatamicPageReplicatorBlock[] {
 }
 
 // ── Provider ───────────────────────────────────────────────────────────────
+
+/**
+ * Collection detail routes: URL prefix → Statamic collection handle. Used by
+ * getPageBySlug (route → collection) and listIndexablePaths (collection → URL),
+ * so the sitemap always matches what the site actually serves.
+ */
+const COLLECTION_PATH_MAP: Readonly<Record<string, string>> = {
+  "vacancies/": "vacancies",
+  "blog/":      "blog",
+  "team/":      "team_members",
+  "cases/":     "case_studies",
+  "events/":    "events",
+};
+
+/** Upper bound per collection for the sitemap (Google allows 50,000 URLs). */
+const SITEMAP_ENTRY_LIMIT = 1000;
+
+/** The entry fields the sitemap reads. */
+interface SitemapEntryFields {
+  updated_at?:     string | number;
+  robots_noindex?: boolean;
+  published?:      boolean;
+}
 
 export class StatamicProvider implements CMSProvider {
   private readonly client: StatamicClient;
@@ -1330,14 +1353,7 @@ export class StatamicProvider implements CMSProvider {
       // The collection's YAML page_blocks array is mapped to sections using
       // the same mapper pipeline as pages, so TemplateRenderer sees identical
       // PageData regardless of the source collection.
-      const collectionPathMap: Record<string, string> = {
-        "vacancies/":    "vacancies",
-        "blog/":         "blog",
-        "team/":         "team_members",
-        "cases/":        "case_studies",
-        "events/":       "events",
-      };
-      for (const [prefix, collHandle] of Object.entries(collectionPathMap)) {
+      for (const [prefix, collHandle] of Object.entries(COLLECTION_PATH_MAP)) {
         if (slug.startsWith(prefix)) {
           const entrySlug = slug.slice(prefix.length);
           return this.fetchCollectionEntryAsPageData(collHandle, entrySlug, slug);
@@ -3316,6 +3332,34 @@ export class StatamicProvider implements CMSProvider {
   }
 
   /** Tests connectivity by attempting a low-cost API read. */
+  /**
+   * Public paths for the sitemap: the pages collection ("home" is "/") plus
+   * every collection with a detail route (COLLECTION_PATH_MAP). The REST API
+   * returns published entries only; entries with robots_noindex are left out.
+   * A collection that fails to load is skipped, never the whole sitemap.
+   */
+  async listIndexablePaths(): Promise<IndexablePath[]> {
+    const sources: { collection: string; prefix: string }[] = [
+      { collection: PAGES_COLLECTION, prefix: "" },
+      ...Object.entries(COLLECTION_PATH_MAP).map(([prefix, collection]) => ({ collection, prefix })),
+    ];
+    const lists = await Promise.all(sources.map(async ({ collection, prefix }) => {
+      const entries = await this.client
+        .fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT)
+        .catch(() => []);
+      return entries.flatMap((e): IndexablePath[] => {
+        const slug = typeof e.slug === "string" ? e.slug.trim() : "";
+        if (!slug || e.robots_noindex === true || e.published === false) return [];
+        const path = prefix === "" && slug === "home" ? "/" : `/${prefix}${slug}`;
+        const lastModified = typeof e.updated_at === "string" ? e.updated_at
+          : typeof e.updated_at === "number" ? new Date(e.updated_at * 1000).toISOString()
+          : undefined;
+        return [{ path, ...(lastModified ? { lastModified } : {}) }];
+      });
+    }));
+    return lists.flat();
+  }
+
   async testConnection(): Promise<TestConnectionResult> {
     try {
       // Fetching a non-existent entry returns null (not a throw) on 404 —
