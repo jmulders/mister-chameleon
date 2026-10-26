@@ -106,4 +106,33 @@ describe("StatamicProvider.listIndexablePaths", () => {
     const paths = await provider({ pages: [{ id: "1", slug: "contact" }], blog: new Error("500") }).listIndexablePaths();
     assert.deepEqual(paths.map((p) => p.path), ["/contact"]);
   });
+  it("multisite: lists only the primary site's copy (the one with home)", async () => {
+    const paths = await provider({
+      pages: [
+        { id: "a", slug: "casescase", site: "de" },
+        { id: "b", slug: "compare",   site: "de" },
+        { id: "c", slug: "news",      site: "en-gb" },
+        { id: "home", slug: "home",   site: "nl" },
+        { id: "d", slug: "compare",   site: "nl", robots_noindex: true },
+        { id: "e", slug: "nieuws",    site: "nl" },
+      ],
+      blog: [
+        { id: "f", slug: "nl-post", site: "nl" },
+        { id: "g", slug: "de-post", site: "de" },
+      ],
+    }).listIndexablePaths();
+    assert.deepEqual(paths.map((p) => p.path).sort(), ["/", "/blog/nl-post", "/nieuws"],
+      "the German-only page is out, and the noindex in nl is not undone by the de copy");
+  });
+
+  it("multisite: falls back to the site with the most pages without a home page", async () => {
+    const paths = await provider({
+      pages: [
+        { id: "1", slug: "a", site: { handle: "nl" } },
+        { id: "2", slug: "b", site: { handle: "nl" } },
+        { id: "3", slug: "c", site: { handle: "de" } },
+      ],
+    }).listIndexablePaths();
+    assert.deepEqual(paths.map((p) => p.path).sort(), ["/a", "/b"]);
+  });
 });
