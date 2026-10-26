@@ -237,6 +237,33 @@ interface SitemapEntryFields {
   updated_at?:     string | number;
   robots_noindex?: boolean;
   published?:      boolean;
+  /** Multisite handle, e.g. "nl"; an object { handle } in some API versions. */
+  site?:           string | { handle?: string };
+}
+
+/** The Statamic site handle of an entry, or null for a single-site install. */
+function siteHandleOf(e: SitemapEntryFields): string | null {
+  const s = e.site;
+  if (typeof s === "string" && s) return s;
+  if (s && typeof s === "object" && typeof s.handle === "string" && s.handle) return s.handle;
+  return null;
+}
+
+/**
+ * The site the public URLs belong to: the one holding the "home" page, else
+ * the site with the most pages. Null when the entries carry no site at all.
+ */
+function primarySiteOf(pages: readonly (SitemapEntryFields & { slug?: unknown })[]): string | null {
+  const counts = new Map<string, number>();
+  for (const p of pages) {
+    const site = siteHandleOf(p);
+    if (site === null) continue;
+    if (p.slug === "home") return site;
+    counts.set(site, (counts.get(site) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  for (const [site, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = site;
+  return best;
 }
 
 export class StatamicProvider implements CMSProvider {
@@ -3337,27 +3364,33 @@ export class StatamicProvider implements CMSProvider {
    * every collection with a detail route (COLLECTION_PATH_MAP). The REST API
    * returns published entries only; entries with robots_noindex are left out.
    * A collection that fails to load is skipped, never the whole sitemap.
+   *
+   * Multisite: the API returns every site's copy of an entry, but the site is
+   * served under one set of unprefixed URLs. Only the primary site counts
+   * (primarySiteOf), otherwise a page that exists only in another language, or
+   * a noindex set in the primary site, would be undone by another copy.
    */
   async listIndexablePaths(): Promise<IndexablePath[]> {
     const sources: { collection: string; prefix: string }[] = [
       { collection: PAGES_COLLECTION, prefix: "" },
       ...Object.entries(COLLECTION_PATH_MAP).map(([prefix, collection]) => ({ collection, prefix })),
     ];
-    const lists = await Promise.all(sources.map(async ({ collection, prefix }) => {
-      const entries = await this.client
-        .fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT)
-        .catch(() => []);
-      return entries.flatMap((e): IndexablePath[] => {
-        const slug = typeof e.slug === "string" ? e.slug.trim() : "";
-        if (!slug || e.robots_noindex === true || e.published === false) return [];
-        const path = prefix === "" && slug === "home" ? "/" : `/${prefix}${slug}`;
-        const lastModified = typeof e.updated_at === "string" ? e.updated_at
-          : typeof e.updated_at === "number" ? new Date(e.updated_at * 1000).toISOString()
-          : undefined;
-        return [{ path, ...(lastModified ? { lastModified } : {}) }];
-      });
+    const lists = await Promise.all(sources.map(({ collection }) =>
+      this.client.fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT).catch(() => []),
+    ));
+    const primary = primarySiteOf(lists[0] ?? []);
+
+    return sources.flatMap(({ prefix }, i) => (lists[i] ?? []).flatMap((e): IndexablePath[] => {
+      const site = siteHandleOf(e);
+      if (primary !== null && site !== null && site !== primary) return [];
+      const slug = typeof e.slug === "string" ? e.slug.trim() : "";
+      if (!slug || e.robots_noindex === true || e.published === false) return [];
+      const path = prefix === "" && slug === "home" ? "/" : `/${prefix}${slug}`;
+      const lastModified = typeof e.updated_at === "string" ? e.updated_at
+        : typeof e.updated_at === "number" ? new Date(e.updated_at * 1000).toISOString()
+        : undefined;
+      return [{ path, ...(lastModified ? { lastModified } : {}) }];
     }));
-    return lists.flat();
   }
 
   async testConnection(): Promise<TestConnectionResult> {
