@@ -17,6 +17,7 @@
  * of write logic.  All navigation stays within the tenant admin scope.
  */
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import React, { useState, useTransition }          from "react";
 import { useRouter }                               from "next/navigation";
 import { changeExperimentStatusAction,
@@ -636,7 +637,7 @@ function StatusBadge({ status }: { status: Status }) {
 
 function formatDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
+    return new Date(iso).toLocaleDateString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE,
       year: "numeric", month: "short", day: "numeric",
     });
   } catch {

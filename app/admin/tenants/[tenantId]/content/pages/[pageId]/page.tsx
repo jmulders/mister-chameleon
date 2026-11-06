@@ -144,7 +144,7 @@ export default async function TenantPageEditorPage({
   };
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="max-w-4xl p-8">
 
       {/* Back link */}
       <div className="mb-4">

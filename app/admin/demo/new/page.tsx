@@ -156,7 +156,7 @@ export default function NewDemoPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-2xl p-8">
+    <div className="max-w-4xl p-8">
 
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">

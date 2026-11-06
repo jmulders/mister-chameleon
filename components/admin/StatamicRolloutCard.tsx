@@ -47,8 +47,8 @@ function CopyRow({ label, value, mono }: { label: string; value: string; mono?: 
 }
 
 const MODES: { value: RolloutMode; label: string; hint: string }[] = [
-  { value: "demo",    label: "Demo", hint: "Voorbeeldsite met alle blokken, gevulde collecties en werkende personalisatie." },
-  { value: "vanilla", label: "Leeg", hint: "Neutrale startpagina's om zelf op te bouwen." },
+  { value: "demo",    label: "Demo", hint: "Example site with every block, filled collections and working personalization." },
+  { value: "vanilla", label: "Blank", hint: "Neutral starter pages to build on yourself." },
 ];
 
 export function StatamicRolloutCard() {
@@ -66,7 +66,7 @@ export function StatamicRolloutCard() {
 
   return (
     <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-neutral-900">Nieuwe Statamic-site</h2>
+      <h2 className="text-sm font-semibold text-neutral-900">New Statamic site</h2>
       <p className="mt-1 text-xs text-neutral-500">
         Creates the tenant, its repo from the template, content, a write deploy key,
         a CP login and a public URL at{" "}
@@ -76,7 +76,7 @@ export function StatamicRolloutCard() {
       </p>
 
       <fieldset className="mt-3">
-        <legend className="sr-only">Wat de site bevat</legend>
+        <legend className="sr-only">What the site contains</legend>
         <div className="flex flex-col gap-1.5">
           {MODES.map((m) => (
             <label key={m.value} className="flex items-start gap-2 text-xs">
@@ -90,8 +90,8 @@ export function StatamicRolloutCard() {
                 className="mt-0.5"
               />
               <span>
-                <span className="font-medium text-neutral-800">{m.label}</span>
-                <span className="text-neutral-500"> — {m.hint}</span>
+                <span className="block font-medium text-neutral-800">{m.label}</span>
+                <span className="block text-neutral-500">{m.hint}</span>
               </span>
             </label>
           ))}
@@ -103,7 +103,7 @@ export function StatamicRolloutCard() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && name.trim() && !pending) run(); }}
-          placeholder="Sitenaam, bijv. Acme Corp"
+          placeholder="Site name, e.g. Acme Corp"
           disabled={pending}
           className="w-64 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm disabled:bg-neutral-50"
         />
@@ -111,15 +111,15 @@ export function StatamicRolloutCard() {
           type="button"
           disabled={pending || !name.trim()}
           onClick={run}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
         >
-          {pending ? "Bezig…" : "Site uitrollen"}
+          {pending ? "Working…" : "Roll out site"}
         </button>
       </div>
 
       {pending && (
         <p className="mt-2 text-xs text-neutral-500">
-          Waiting for Ploi to assign a host — up to two minutes. Leave this tab open.
+          Waiting for Ploi to assign a host, up to two minutes. Leave this tab open.
         </p>
       )}
 
@@ -156,24 +156,24 @@ export function StatamicRolloutCard() {
           </div>
 
           <p className="mt-2 font-medium">
-            Copy the password now — it is only ever shown here.
+            Copy the password now. It is only ever shown here.
           </p>
 
           {result.dnsHost && result.dnsCnameValue && (
             <div className="mt-3 rounded-md border border-neutral-200 bg-white/60 p-2.5">
-              <p className="font-medium">Nog te doen: één DNS-record bij je DNS-provider</p>
+              <p className="font-medium">Still to do: one DNS record at your DNS provider</p>
               <p className="mt-0.5 text-neutral-600">
-                Strato doet geen wildcard, dus zet per demo één CNAME. De Vercel-kant is al geregeld.
+                Strato has no wildcard, so add one CNAME per demo. The Vercel side is already set up.
               </p>
               <div className="mt-1.5 space-y-0.5">
                 <CopyRow label="Type"  value="CNAME" mono />
                 <CopyRow label="Host"  value={result.dnsHost} mono />
-                <CopyRow label="Waarde" value={result.dnsCnameValue} mono />
+                <CopyRow label="Value" value={result.dnsCnameValue} mono />
               </div>
               {result.dnsIsFallback && (
                 <p className="mt-1 text-neutral-500">
-                  Let op: dit is de legacy-fallback-waarde (Vercel gaf geen project-specifieke waarde terug).
-                  Hij werkt, maar controleer de aanbevolen waarde in de Vercel-UI als het domein niet verifieert.
+                  This is the legacy fallback value (Vercel returned no project-specific value).
+                  It works, but check the recommended value in the Vercel UI if the domain does not verify.
                 </p>
               )}
             </div>

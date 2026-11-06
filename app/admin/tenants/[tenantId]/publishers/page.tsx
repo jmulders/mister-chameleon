@@ -26,7 +26,7 @@ export default async function TenantPublishersPage({
   const overview = await fetchTenantPublishersOverviewAction(tenantId);
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="max-w-4xl p-8">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Advertiser</div>
       <h1 className="mt-1 text-2xl font-bold text-neutral-900">Publishers</h1>
       <p className="mt-1 max-w-2xl text-sm text-neutral-600">

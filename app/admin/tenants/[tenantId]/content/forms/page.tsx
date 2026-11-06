@@ -164,7 +164,7 @@ export default async function TenantFormsPage({
   const boundSaveTurnstile       = saveTurnstileSettingsAction.bind(null, tenantId);
 
   return (
-    <div className="p-8 max-w-3xl space-y-8">
+    <div className="max-w-4xl p-8 space-y-8">
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">

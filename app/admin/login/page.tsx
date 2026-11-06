@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/admin/BrandLogo";
 import { loginAction } from "./actions";
 
 /**
@@ -33,13 +34,11 @@ export default async function AdminLoginPage({ searchParams }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4">
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-sm">
         {/* Logo / heading */}
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-white">Admin Sign In</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Mister Chameleon Platform
-          </p>
+          <BrandLogo width={200} className="mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-white">Admin sign in</h1>
         </div>
 
         {/* Reset success banner */}

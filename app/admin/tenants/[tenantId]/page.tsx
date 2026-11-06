@@ -228,7 +228,7 @@ export default async function AdminTenantOverviewPage({
       </div>
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 p-8 space-y-8 max-w-6xl">
+      <div className="max-w-6xl flex-1 p-8 space-y-8">
 
         {/* Quick action cards */}
         <section>

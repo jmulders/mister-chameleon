@@ -42,7 +42,7 @@ export default async function IntegrationsEnrichmentPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 p-8">
+    <div className="max-w-4xl space-y-5 p-8">
 
       {/* Page header */}
       <div>

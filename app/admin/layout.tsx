@@ -2,6 +2,7 @@ import Link            from "next/link";
 import { cookies }     from "next/headers";
 import { AdminNav }    from "@/components/admin/AdminNav";
 import { AdminShell }  from "@/components/admin/AdminShell";
+import { BrandLogo }   from "@/components/admin/BrandLogo";
 import { DEV_TENANT_COOKIE } from "@/tenant/dev-tenant-cookie";
 import {
   getRequiredAdminSession,
@@ -43,22 +44,13 @@ export default async function AdminLayout({
       <aside className="flex w-64 shrink-0 flex-col bg-slate-950 border-r border-slate-800/60">
 
         {/* Logo / wordmark */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800/60">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 shrink-0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-              <path d="M8 12a4 4 0 0 1 8 0"/>
-              <path d="M12 8v1"/>
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-white leading-tight truncate">
-              Mister Chameleon
-            </p>
-            <p className="text-[10px] font-medium uppercase tracking-widest text-indigo-400 leading-tight mt-0.5">
-              Admin Panel
-            </p>
-          </div>
+        <div className="border-b border-slate-800/60 px-5 pb-3 pt-4">
+          <Link href="/admin" aria-label="Mister Chameleon admin" className="block w-fit">
+            <BrandLogo width={108} />
+          </Link>
+          <p className="mt-1 text-[10px] font-medium uppercase tracking-widest text-indigo-400">
+            Admin Panel
+          </p>
         </div>
 
         {/* Nav */}

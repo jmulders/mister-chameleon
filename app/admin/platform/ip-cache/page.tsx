@@ -20,7 +20,7 @@ export default async function IpCachePage() {
   const overview = await fetchIpCacheAction();
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="max-w-6xl p-8">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Platform</div>
       <h1 className="mt-1 text-2xl font-bold text-neutral-900">First-party company DB</h1>
       <p className="mt-1 max-w-3xl text-sm text-neutral-600">

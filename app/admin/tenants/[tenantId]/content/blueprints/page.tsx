@@ -25,7 +25,7 @@ export default async function BlueprintsPage({ params }: Props) {
   if (!tenantSettings) notFound();
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="max-w-6xl p-8">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-neutral-900">Blueprint Marketplace</h1>
         <p className="mt-1 text-sm text-neutral-500">

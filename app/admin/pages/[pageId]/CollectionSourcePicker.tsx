@@ -375,7 +375,7 @@ export function CollectionSourcePicker({
                   type="button"
                   onClick={handleAddId}
                   disabled={!newId.trim()}
-                  className="rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+                  className="rounded-md bg-brand-600 px-3 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-40"
                 >
                   Add
                 </button>

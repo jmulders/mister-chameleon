@@ -279,7 +279,7 @@ export default async function TenantContentPage({
               href={cmsLink.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+              className="shrink-0 inline-flex items-center gap-1 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
             >
               Open CMS <span aria-hidden="true">↗</span>
             </a>

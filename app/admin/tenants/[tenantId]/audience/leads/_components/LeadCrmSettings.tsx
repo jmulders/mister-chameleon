@@ -9,6 +9,7 @@
  * with ABM (abm/actions.ts, abm_settings table).
  */
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { useState, useTransition } from "react";
 import {
   saveAbmWebhookUrlAction,
@@ -40,7 +41,7 @@ function summarizePayload(payload: unknown): { company: string; person: string; 
 
 function fmtDeliveryTime(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "·" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "·" : d.toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";

@@ -50,7 +50,7 @@ export default async function VariablesPage({
   const defaultRegistry = defaultCopyVariables(customAttributes);
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="max-w-4xl p-8">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-neutral-900">Copy variables</h1>
         <p className="mt-1 text-sm text-neutral-500 max-w-2xl">

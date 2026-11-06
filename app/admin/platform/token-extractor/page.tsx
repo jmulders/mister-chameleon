@@ -13,7 +13,7 @@ import { TokenExtractorClient } from "./_components/TokenExtractorClient";
 
 export default function TokenExtractorPage() {
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-8">
+    <div className="max-w-6xl space-y-6 p-8">
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">Design Token Extractor</h1>
         <p className="mt-1 text-sm text-neutral-500">

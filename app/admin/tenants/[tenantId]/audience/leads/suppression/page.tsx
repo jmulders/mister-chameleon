@@ -26,7 +26,7 @@ export default async function SuppressionPage({
   const remove = removeSuppressionAction.bind(null, tenantId);
 
   return (
-    <div className="p-8 max-w-4xl space-y-6">
+    <div className="max-w-4xl p-8 space-y-6">
       <AdminPageHeader
         eyebrow="Audience"
         title="Suppression / opt-outs"

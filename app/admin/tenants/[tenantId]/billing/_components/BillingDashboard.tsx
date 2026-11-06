@@ -21,6 +21,7 @@
  *   useTransition + server actions.
  */
 
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -2730,7 +2731,7 @@ function AddCreditsPanel({ tenantId }: { tenantId: string }) {
             {result.ok ? (
               <span>
                 ✓ {parseFloat(amount) < 0 ? "Credits deducted" : "Credits added"}. New balance:{" "}
-                <strong>{result.newBalanceCents.toLocaleString()} cr</strong>{" "}
+                <strong>{result.newBalanceCents.toLocaleString(ADMIN_LOCALE)} cr</strong>{" "}
                 (€{(result.newBalanceCents / 100).toFixed(2)}).{" "}
                 The ledger entry is now visible below.
               </span>

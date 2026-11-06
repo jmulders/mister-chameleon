@@ -43,7 +43,7 @@ export default async function BehaviorPage({
   ]);
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="max-w-6xl p-8">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-neutral-900">Scoring</h1>
         <p className="mt-1 text-sm text-neutral-500">

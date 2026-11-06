@@ -14,7 +14,7 @@ export default async function IntegrationsProvisioningPage() {
   const result = await getProvisioningSettingsAction();
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 p-8">
+    <div className="max-w-4xl space-y-5 p-8">
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">Provisioning: GitHub &amp; Ploi Cloud</h1>
         <p className="mt-1 text-sm text-neutral-500">

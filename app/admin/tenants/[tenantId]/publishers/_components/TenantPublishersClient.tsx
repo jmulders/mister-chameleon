@@ -1,5 +1,6 @@
 "use client";
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -11,7 +12,7 @@ import {
 } from "../actions";
 
 const euro = (c: number) => "€" + (Number(c) / 100).toFixed(2);
-const when = (iso: string) => new Date(iso).toLocaleDateString();
+const when = (iso: string) => new Date(iso).toLocaleDateString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE });
 const input = "w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
 const btn = "inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
 const btnGhost = "inline-flex items-center rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";

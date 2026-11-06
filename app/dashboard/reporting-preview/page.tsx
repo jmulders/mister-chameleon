@@ -20,6 +20,7 @@
  *   The layout prioritises information density and scannability.
  */
 
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import { fetchDashboardMetrics, fetchVariantPerformance } from "@/data/repositories/analytics-repository";
 import { assembleReport }                    from "@/reports/templates/default-report";
 import { getActiveTenantWithDevOverride }    from "@/tenant/server";
@@ -322,12 +323,12 @@ function SummarySection({ data }: { data: ReportSummarySection }) {
       <div className="grid grid-cols-3 gap-4 mb-6">
         <MetricTile
           label="Sessions"
-          value={data.sessionCount.toLocaleString()}
+          value={data.sessionCount.toLocaleString(ADMIN_LOCALE)}
           sub="total visits"
         />
         <MetricTile
           label="Decisions Served"
-          value={data.variantsServed.toLocaleString()}
+          value={data.variantsServed.toLocaleString(ADMIN_LOCALE)}
           sub="adaptive renders"
         />
         <MetricTile
@@ -448,7 +449,7 @@ function ContextSegmentsSection({ data }: { data: ContextSegmentsSection }) {
                 <td className="py-2.5 pr-4 font-medium text-neutral-800">
                   {row.sourceLabel}
                 </td>
-                <Td align="right">{row.sessionCount.toLocaleString()}</Td>
+                <Td align="right">{row.sessionCount.toLocaleString(ADMIN_LOCALE)}</Td>
                 <Td align="right">
                   <ShareBar value={row.sessionShare} />
                 </Td>
@@ -468,7 +469,7 @@ function ContextSegmentsSection({ data }: { data: ContextSegmentsSection }) {
       </div>
 
       <p className="mt-3 text-xs text-neutral-400">
-        Total sessions: {data.totalSessions.toLocaleString()}.
+        Total sessions: {data.totalSessions.toLocaleString(ADMIN_LOCALE)}.
         Source matching is approximate — derived from variant serve data.
       </p>
     </Section>
@@ -567,7 +568,7 @@ function VariantSlotTable({
                 <td className="py-2.5 pr-4">
                   <span className="font-mono text-xs text-neutral-700">{row.variantKey}</span>
                 </td>
-                <Td align="right">{row.serves.toLocaleString()}</Td>
+                <Td align="right">{row.serves.toLocaleString(ADMIN_LOCALE)}</Td>
                 <Td align="right">{row.serveSharePct.toFixed(1)}%</Td>
                 <Td align="right">
                   <CtrBadge value={row.ctaClickRate} />
@@ -644,7 +645,7 @@ function ConversionMetricRowComponent({
       ? `${metric.value.toFixed(1)}%`
       : metric.format === "score"
       ? metric.value.toFixed(2)
-      : metric.value.toLocaleString();
+      : metric.value.toLocaleString(ADMIN_LOCALE);
 
   const trend =
     metric.trendPct !== undefined
@@ -692,7 +693,7 @@ function EngineInsightsSection({ data }: { data: AiRulesInsightsSection }) {
       <div className="grid grid-cols-3 gap-4 mb-6">
         <MetricTile
           label="Total Decisions"
-          value={data.totalDecisions.toLocaleString()}
+          value={data.totalDecisions.toLocaleString(ADMIN_LOCALE)}
           sub="variant decisions served"
         />
         <MetricTile
@@ -732,7 +733,7 @@ function EngineInsightsSection({ data }: { data: AiRulesInsightsSection }) {
                       <p className="font-medium text-neutral-800">{rule.ruleLabel}</p>
                       <p className="text-xs text-neutral-400 font-mono">{rule.ruleId}</p>
                     </td>
-                    <Td align="right">{rule.firedCount.toLocaleString()}</Td>
+                    <Td align="right">{rule.firedCount.toLocaleString(ADMIN_LOCALE)}</Td>
                     <Td align="right">{rule.shareOfDecisions.toFixed(1)}%</Td>
                     <Td align="right">
                       {rule.associatedCtaClickRate !== undefined

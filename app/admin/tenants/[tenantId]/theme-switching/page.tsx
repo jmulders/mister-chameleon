@@ -31,7 +31,7 @@ export default async function ThemeSwitchingPage({
   const safeThemeKey = normalizeThemeKey(tenant.design?.theme ?? "default");
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="max-w-6xl p-8">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-neutral-900">Theme switching</h1>
         <p className="mt-1 text-sm text-neutral-500">

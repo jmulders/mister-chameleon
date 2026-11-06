@@ -22,6 +22,7 @@
  *   to their own billing page.
  */
 
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import Link                          from "next/link";
 import { createClient }              from "@supabase/supabase-js";
 import { getAllTenants }             from "@/tenant/server";
@@ -243,7 +244,7 @@ export default async function PlatformBillingPage() {
                           creditPct !== null && creditPct >= 70 ? "text-yellow-600" :
                           "text-neutral-600"
                         }`}>
-                          {balance.toLocaleString()}
+                          {balance.toLocaleString(ADMIN_LOCALE)}
                           {creditPct !== null && (
                             <span className="ml-1 text-xs text-neutral-400">({creditPct}% used)</span>
                           )}

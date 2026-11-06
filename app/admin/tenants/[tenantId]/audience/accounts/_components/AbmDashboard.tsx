@@ -1,5 +1,6 @@
 "use client";
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { useState } from "react";
 import type { AbmDashboardRow } from "../actions";
 
@@ -16,7 +17,7 @@ const FILTERS = (hot: number): { key: Filter; label: string }[] => [
 function fmtWhen(iso: string | null): string {
   if (!iso) return "·";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "·" : d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "·" : d.toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function scoreClass(score: number): string {

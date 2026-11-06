@@ -52,8 +52,8 @@ export default async function SecuritySettingsPage({ searchParams }: Props) {
     <div className="mx-auto max-w-2xl px-6 py-10">
       {/* Page header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-neutral-900">Security settings</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <h1 className="text-2xl font-bold text-white">Security settings</h1>
+        <p className="mt-1 text-sm text-slate-400">
           Manage two-factor authentication for your admin account.
         </p>
       </div>

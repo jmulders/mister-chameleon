@@ -211,7 +211,7 @@ export default async function IntegrationsHubPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-8">
+    <div className="max-w-4xl space-y-6 p-8">
 
       {/* Page header */}
       <div>

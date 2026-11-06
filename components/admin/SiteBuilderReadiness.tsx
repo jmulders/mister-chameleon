@@ -9,7 +9,7 @@
  * ─── What it shows ────────────────────────────────────────────────────────────
  *
  *   Header: "X of Y ready" with a colour-coded badge.
- *   Body:   One row per readiness item — ✓/✗ icon, status phrase, and a hint
+ *   Body:   One row per readiness item — pass/open icon, status phrase, and a hint
  *           (only shown on failing rows).
  *
  * ─── Check overview ───────────────────────────────────────────────────────────
@@ -34,6 +34,8 @@
  *   handlers.  Safe to import from Server Components or tests.
  */
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
+import { CheckIcon } from "@/components/admin/CheckIcon";
 import { cn }                                       from "@/lib/utils";
 import { Card, CardContent }                        from "@/components/ui/Card";
 import { Badge }                                    from "@/components/ui/Badge";
@@ -112,7 +114,7 @@ function computeItems(tenant: TenantSettings | null): ReadinessItem[] {
   const cmsProvisionedDetail = cmsProvisioned
     ? (() => {
         try {
-          return new Date(tenant!.cmsProvisionedAt!).toLocaleDateString(undefined, {
+          return new Date(tenant!.cmsProvisionedAt!).toLocaleDateString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE,
             year: "numeric", month: "short", day: "numeric",
           });
         } catch {
@@ -208,15 +210,7 @@ function CheckRow({ item }: { item: ReadinessItem }) {
     <div className="flex items-start gap-2.5 border-b border-neutral-100 py-2.5 last:border-0">
 
       {/* Pass / fail indicator */}
-      <span
-        className={cn(
-          "mt-px shrink-0 text-sm font-bold leading-none",
-          item.passed ? "text-success-600" : "text-warning-500",
-        )}
-        aria-hidden
-      >
-        {item.passed ? "✓" : "✗"}
-      </span>
+      <CheckIcon passed={item.passed} className="mt-0.5" />
 
       {/* Label, status phrase, and optional hint */}
       <div className="min-w-0 flex-1">

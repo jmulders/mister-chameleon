@@ -42,6 +42,7 @@
 
 "use client";
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { useTransition, useState }    from "react";
 import { Card, CardContent }          from "@/components/ui/Card";
 import { Badge }                      from "@/components/ui/Badge";
@@ -77,7 +78,7 @@ const PACKAGE_DISPLAY: Record<PackageKey, string> = {
 
 function formatDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE,
       year:   "numeric",
       month:  "short",
       day:    "numeric",

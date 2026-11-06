@@ -1,5 +1,6 @@
 "use client";
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { Fragment, useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { COUNTRIES, countryName, resolveCountry } from "@/lib/geo/countries";
@@ -213,8 +214,8 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
         <>
           <div className="mt-3 flex flex-wrap gap-6">
             <Stat label="Publishers"  value={String(data.totals.publishers)} />
-            <Stat label="Impressions" value={data.totals.impressions.toLocaleString()} />
-            <Stat label="Clicks"      value={data.totals.clicks.toLocaleString()} />
+            <Stat label="Impressions" value={data.totals.impressions.toLocaleString(ADMIN_LOCALE)} />
+            <Stat label="Clicks"      value={data.totals.clicks.toLocaleString(ADMIN_LOCALE)} />
             <Stat label="CTR"         value={data.totals.impressions > 0 ? pct(data.totals.clicks / data.totals.impressions) : "—"} />
           </div>
 
@@ -251,15 +252,15 @@ function PublisherBreakdownCard({ tenantId }: { tenantId: string }) {
                               <span className="ml-1 text-xs text-neutral-400">({r.ads.length} ad{r.ads.length === 1 ? "" : "s"})</span>
                             </button>
                           </td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.impressions.toLocaleString()}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.clicks.toLocaleString()}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.impressions.toLocaleString(ADMIN_LOCALE)}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-neutral-700">{r.clicks.toLocaleString(ADMIN_LOCALE)}</td>
                           <td className="py-2 text-right tabular-nums text-neutral-500">{pct(r.ctr)}</td>
                         </tr>
                         {open && r.ads.map((a) => (
                           <tr key={r.publisher + a.adId} className="border-b border-neutral-100 bg-neutral-50/60">
                             <td className="py-1.5 pl-6 pr-4 text-neutral-500">↳ {a.label}</td>
-                            <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.impressions.toLocaleString()}</td>
-                            <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.clicks.toLocaleString()}</td>
+                            <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.impressions.toLocaleString(ADMIN_LOCALE)}</td>
+                            <td className="py-1.5 pr-4 text-right tabular-nums text-neutral-500">{a.clicks.toLocaleString(ADMIN_LOCALE)}</td>
                             <td className="py-1.5 text-right tabular-nums text-neutral-400">{a.impressions > 0 ? pct(a.clicks / a.impressions) : "—"}</td>
                           </tr>
                         ))}
@@ -312,7 +313,7 @@ function SessionsCard({ tenantId, ga4Ready }: { tenantId: string; ga4Ready: bool
   };
 
   const shortId = (id: string) => (id.length > 14 ? id.slice(0, 8) + "…" + id.slice(-4) : id);
-  const when    = (iso: string) => new Date(iso).toLocaleString();
+  const when    = (iso: string) => new Date(iso).toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE });
 
   return (
     <div className={card}>
@@ -522,8 +523,8 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
         )}
       </div>
       <div className="mt-3 flex flex-wrap gap-8">
-        <Stat label="Impressions" value={totals.impressions.toLocaleString()} />
-        <Stat label="Clicks" value={totals.clicks.toLocaleString()} />
+        <Stat label="Impressions" value={totals.impressions.toLocaleString(ADMIN_LOCALE)} />
+        <Stat label="Clicks" value={totals.clicks.toLocaleString(ADMIN_LOCALE)} />
         <Stat label="CTR" value={ctr.toFixed(2) + "%"} />
         <Stat label="Ad spend" value={euros(totals.spend_cents)} />
         {hasProfiling && <Stat label="Targeting fees" value={euros(profilingTotal)} />}
@@ -561,8 +562,8 @@ function ReportCard({ report, pendingImpressions = 0, pendingClicks = 0, pending
                 {[...report].reverse().map((d) => (
                   <tr key={d.date} className="border-b border-neutral-50">
                     <td className="py-1.5 pr-3">{d.date}</td>
-                    <td className="pr-3">{d.impressions.toLocaleString()}</td>
-                    <td className="pr-3">{d.clicks.toLocaleString()}</td>
+                    <td className="pr-3">{d.impressions.toLocaleString(ADMIN_LOCALE)}</td>
+                    <td className="pr-3">{d.clicks.toLocaleString(ADMIN_LOCALE)}</td>
                     <td className="pr-3">{d.impressions > 0 ? ((d.clicks / d.impressions) * 100).toFixed(1) + "%" : "—"}</td>
                     <td>{euros(d.spend_cents)}</td>
                   </tr>

@@ -16,6 +16,7 @@
  * ─── PART 1 + PART 6 (filters) + PART 7 (UI) of the billing monitoring spec ──
  */
 
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import { useState } from "react";
 import type { UsageEventRow, LedgerRow, BreakdownEntry } from "../page";
 
@@ -256,7 +257,7 @@ export function UsageDashboardClient({
           },
           {
             label: "Billable calls",
-            value: billableCount.toLocaleString(),
+            value: billableCount.toLocaleString(ADMIN_LOCALE),
             sub:   "non-cached, billable",
           },
         ].map(({ label, value, sub }) => (

@@ -133,7 +133,7 @@ export default function EditInterestProfilePage() {
 
   if (loadError) {
     return (
-      <div className="p-8 max-w-2xl">
+      <div className="max-w-4xl p-8">
         <Link href={listHref} className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700">
           ← Interest profiles
         </Link>
@@ -154,7 +154,7 @@ export default function EditInterestProfilePage() {
   const ctxVarName = `interest${ctxVarKey}Score`;
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="max-w-4xl p-8">
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="mb-8">

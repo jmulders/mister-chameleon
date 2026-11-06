@@ -78,7 +78,9 @@ export function AdminShell({ sidebar, children }: AdminShellProps) {
   if (isAuthPage) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center min-h-screen bg-slate-950">
-        {children}
+        {/* w-full: an items-center parent shrink-wraps its child, so a page's own
+            max-w-* would otherwise size to its content. */}
+        <div className="w-full">{children}</div>
       </main>
     );
   }

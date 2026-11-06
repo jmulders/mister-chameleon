@@ -47,7 +47,7 @@ function PlatformProfileBanner({ profile }: { profile: InterestProfile }) {
   const ctxVarName = `interest${ctxVarKey}Score`;
 
   return (
-    <div className="p-8 max-w-3xl space-y-4">
+    <div className="max-w-4xl p-8 space-y-4">
       {/* Read-only notice */}
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
         <p className="font-semibold">Platform-wide profile</p>
@@ -191,7 +191,7 @@ export default function EditTenantInterestProfilePage({
 
   if (loadError) {
     return (
-      <div className="p-8 max-w-2xl">
+      <div className="max-w-4xl p-8">
         <a href={listHref} className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700">
           ← Interest profiles
         </a>
@@ -212,7 +212,7 @@ export default function EditTenantInterestProfilePage({
   const ctxVarName = `interest${ctxVarKey}Score`;
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="max-w-4xl p-8">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-8">

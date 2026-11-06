@@ -49,7 +49,7 @@ export default async function IntegrationsStripePage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 p-8">
+    <div className="max-w-4xl space-y-5 p-8">
 
       {/* Live/test mode mismatch warning — live events arriving on test keys (or
           vice versa) are being rejected, so that billing is not being processed. */}
