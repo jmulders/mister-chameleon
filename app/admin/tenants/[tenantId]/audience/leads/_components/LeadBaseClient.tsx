@@ -9,7 +9,7 @@ import type { IdentityLevel, ProfileStatus } from "@/lib/lead-base/profile-gate"
 import { leadScore, scoreClass, type LeadScoreConfig } from "@/lib/lead-base/lead-scoring";
 import { usePagination, PaginationControls } from "@/components/admin/Pagination";
 
-const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
+const INPUT = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 const LABEL = "block text-xs font-medium text-neutral-600 mb-1";
 
 interface SegmentOption { key: string; label: string }

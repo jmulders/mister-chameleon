@@ -191,7 +191,7 @@ const inputBase = [
   "transition-colors",
 ].join(" ");
 
-const inputNormal = "border-neutral-300 focus:border-brand-500 focus:ring-brand-200";
+const inputNormal = "border-neutral-300 focus:border-brand-500 focus:ring-brand-200 focus:ring-2";
 const inputError  = "border-error-400 focus:border-error-500 focus:ring-error-100";
 
 function inputCls(hasError: boolean) {

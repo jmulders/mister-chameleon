@@ -35,7 +35,7 @@ function blankRow(): Row {
 }
 
 const inputCls =
-  "w-full rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
+  "w-full rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
 export function AttributesClient({
   tenantId,

@@ -192,7 +192,7 @@ export function RichCopyEditor({
         data-placeholder={placeholder}
         onInput={emit}
         onBlur={emit}
-        className="mc-rich-editor min-h-[3.5rem] w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs text-neutral-800 leading-relaxed focus:border-brand-400 focus:outline-none"
+        className="mc-rich-editor min-h-[3.5rem] w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs text-neutral-800 leading-relaxed focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
       />
       {noFallbackInUse.length > 0 && (
         <p className="mt-1 text-[11px] text-amber-600">

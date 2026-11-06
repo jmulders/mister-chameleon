@@ -399,11 +399,11 @@ export function SubmissionsClient({
 
 const inputCls =
   "rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-200 " +
-  "placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+  "placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
 const selectCls =
   "rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-200 " +
-  "focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+  "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 

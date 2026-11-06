@@ -296,7 +296,7 @@ export default function AgencyBrandingPage() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const inputCls =
-  "w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-300 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400";
+  "w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
 function Field({
   label,

@@ -14,7 +14,7 @@ import { finalizeTenantProvisioningAction } from "@/app/admin/tenants/[tenantId]
 
 type Result = Awaited<ReturnType<typeof finalizeTenantProvisioningAction>>;
 
-const inputCls = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500";
+const inputCls = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200";
 
 export function TenantFinalizeCard({ tenantId, currentBaseUrl }: { tenantId: string; currentBaseUrl?: string }) {
   const [ploiHost, setPloiHost] = useState(currentBaseUrl ?? "");

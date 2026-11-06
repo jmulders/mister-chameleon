@@ -210,7 +210,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400 disabled:bg-neutral-50 disabled:text-neutral-400"
+        className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-neutral-50 disabled:text-neutral-400"
       />
       {hint && <p className="mt-0.5 text-[11px] text-neutral-400">{hint}</p>}
     </div>
@@ -250,7 +250,7 @@ function SecretField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={hasExisting ? "Enter new value to replace…" : placeholder}
-        className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+        className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
       />
       <p className="mt-0.5 text-[11px] text-neutral-400">
         {hint ?? "Leave blank to keep the existing value. Stored server-side only, never echoed back."}
@@ -997,7 +997,7 @@ export function TenantIntegrationsClient({
                 <select
                   value={storyblokRegion}
                   onChange={(e) => setStoryblokRegion(e.target.value)}
-                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 >
                   <option value="">: Platform default: </option>
                   <option value="eu">EU</option>
@@ -1012,7 +1012,7 @@ export function TenantIntegrationsClient({
                 <select
                   value={storyblokVersion}
                   onChange={(e) => setStoryblokVersion(e.target.value)}
-                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 >
                   <option value="">: Platform default: </option>
                   <option value="published">Published</option>
@@ -1126,7 +1126,7 @@ export function TenantIntegrationsClient({
                   <select
                     value={liveProviderName}
                     onChange={(e) => setLiveProviderName(e.target.value as TenantAiProviderName | "")}
-                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                   >
                     {AI_PROVIDERS.map((p) => (
                       <option key={p.value} value={p.value}>{p.label}</option>
@@ -1152,7 +1152,7 @@ export function TenantIntegrationsClient({
                   <select
                     value={shadowProviderName}
                     onChange={(e) => setShadowProviderName(e.target.value as TenantAiProviderName | "")}
-                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                   >
                     {AI_PROVIDERS.map((p) => (
                       <option key={p.value} value={p.value}>{p.label}</option>
@@ -1183,7 +1183,7 @@ export function TenantIntegrationsClient({
                 value={aiThreshold}
                 onChange={(e) => setAiThreshold(e.target.value)}
                 placeholder="0.75"
-                className="w-32 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                className="w-32 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               />
               <p className="mt-0.5 text-[11px] text-neutral-400">
                 Applied to the composite final confidence score (AI confidence ×0.60 + validation
@@ -1667,7 +1667,7 @@ export function TenantIntegrationsClient({
                   <select
                     value={ga4SendMode}
                     onChange={(e) => setGa4SendMode(e.target.value as "off" | "client" | "server")}
-                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                   >
                     <option value="off">Off (no events sent)</option>
                     <option value="client">Client (inject gtag.js in the browser)</option>
@@ -1768,7 +1768,7 @@ export function TenantIntegrationsClient({
                         ? "Paste new JSON key to replace existing…"
                         : '{"type":"service_account","project_id":"…","private_key":"…","client_email":"…"}'
                     }
-                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                   />
                   <p className="mt-0.5 text-[11px] text-neutral-400">
                     Leave blank to keep the existing value. Paste the full JSON key file from the Google Cloud Console.
@@ -1792,7 +1792,7 @@ export function TenantIntegrationsClient({
                       onChange={(e) => setGa4LookbackDays(e.target.value)}
                       min={1}
                       max={365}
-                      className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                      className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                     />
                     <p className="mt-0.5 text-[11px] text-neutral-400">How far back to query GA4 history (days). Default: 90</p>
                   </div>
@@ -1804,7 +1804,7 @@ export function TenantIntegrationsClient({
                       onChange={(e) => setGa4CacheTtl(e.target.value)}
                       min={1}
                       max={1440}
-                      className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                      className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                     />
                     <p className="mt-0.5 text-[11px] text-neutral-400">How long to cache GA4 results per visitor. Default: 30</p>
                   </div>

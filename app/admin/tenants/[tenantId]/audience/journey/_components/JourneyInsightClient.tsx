@@ -20,6 +20,7 @@
  *   8. Matched Sequences  — detected behavioral patterns
  */
 
+import { FlaskIcon, SearchIcon, SproutIcon } from "@/components/admin/icons";
 import React, { useState, useEffect, useTransition } from "react";
 import type {
   JourneySessionSummary,
@@ -852,7 +853,7 @@ function FrictionPanel({ journey }: { journey: JourneyState }) {
   const causes   = explainFriction(journey);
 
   const frictionConfig = {
-    high:   { label: "High Friction",   color: "bg-red-50 border-red-200 text-red-700",    bar: "bg-red-500",    icon: "⚠️" },
+    high:   { label: "High Friction",   color: "bg-red-50 border-red-200 text-red-700",    bar: "bg-red-500",    icon: "⚠" },
     medium: { label: "Moderate Friction",color: "bg-amber-50 border-amber-200 text-amber-700", bar: "bg-amber-400", icon: "⚡" },
     low:    { label: "Clean Signal",    color: "bg-green-50 border-green-200 text-green-700", bar: "bg-green-500", icon: "✓" },
   }[band];
@@ -1790,7 +1791,7 @@ function NoDataState({ sessionId }: { sessionId: string }) {
       <div className="p-6">
         {/* Header */}
         <div className="flex items-start gap-3 mb-5">
-          <div className="text-2xl mt-0.5">🌱</div>
+          <SproutIcon className="mt-0.5 size-6 text-success-600" />
           <div>
             <div className="font-semibold text-neutral-800 mb-0.5">No journey data for this session</div>
             <p className="text-xs text-neutral-500">
@@ -1809,7 +1810,7 @@ function NoDataState({ sessionId }: { sessionId: string }) {
             ? "bg-emerald-50 border-emerald-200 text-emerald-800"
             : "bg-amber-50 border-amber-200 text-amber-800",
         ].join(" ")}>
-          <span className="text-base mt-0.5">{consentOk ? "✅" : "⚠️"}</span>
+          <span className="text-base mt-0.5">{consentOk ? "✓" : "⚠"}</span>
           <div>
             <div className="font-medium mb-0.5">
               {consentStatus === "unknown"
@@ -1887,7 +1888,7 @@ function NoDataState({ sessionId }: { sessionId: string }) {
             ) : seedResult === "ok" ? (
               <>✓ Events seeded, refresh the session list</>
             ) : (
-              <>🔬 Seed test events for this session</>
+              <><FlaskIcon className="mr-1.5 inline size-4" />Seed test events for this session</>
             )}
           </button>
 
@@ -2226,7 +2227,7 @@ export function JourneyInsightClient({ tenantId, initialSessions }: Props) {
       {/* Initial prompt */}
       {!isPending && !selectedId && (
         <div className="border border-dashed border-neutral-200 rounded-xl p-10 text-center">
-          <div className="text-4xl mb-3">🔍</div>
+          <SearchIcon className="mx-auto mb-3 size-8 text-neutral-400" />
           <div className="font-semibold text-neutral-700 mb-2">
             Select a session to begin
           </div>

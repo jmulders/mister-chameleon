@@ -10,7 +10,7 @@ const isHtml = (b: EmailBlockEntry): b is { html: string } => typeof b === "obje
 
 const card  = "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm";
 const label = "block text-xs font-semibold text-neutral-600 mb-1";
-const input = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none";
+const input = "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 const btn   = "inline-flex items-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
 const btnGhost = "inline-flex items-center rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
 

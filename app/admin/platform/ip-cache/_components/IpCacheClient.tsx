@@ -89,7 +89,7 @@ export function IpCacheClient({ initial }: { initial: IpCacheOverview }) {
     });
   }
 
-  const inputCls = "rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
+  const inputCls = "rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
   return (
     <div>

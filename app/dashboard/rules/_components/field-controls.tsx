@@ -31,10 +31,10 @@ import type { FieldConditionValue } from "@/decision/rules/stored-rule";
 // ── Shared class strings ───────────────────────────────────────────────────────
 
 export const inputCls =
-  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
+  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
 export const selectCls =
-  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
+  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 
 // ── Field group labels (for <optgroup> headings) ───────────────────────────────
 
@@ -162,7 +162,7 @@ export function FieldPicker({ value, onChange, allow }: {
               onKeyDown={onKeyDown}
               placeholder="Search fields"
               aria-label="Search fields"
-              className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
             />
           </div>
           <ul role="listbox" aria-label="Fields" className="max-h-64 overflow-auto px-1 pb-2">

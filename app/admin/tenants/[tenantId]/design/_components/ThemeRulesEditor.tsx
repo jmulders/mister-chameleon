@@ -440,7 +440,7 @@ export function ThemeRulesEditor({
               <select
                 value={addSource}
                 onChange={(e) => setAddSource(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               >
                 <option value="">Select a rule or condition…</option>
                 {allRules.length > 0 && (
@@ -588,7 +588,7 @@ export function ThemeRulesEditor({
                 <select
                   value={ctxPlusSource}
                   onChange={(e) => setCtxPlusSource(e.target.value)}
-                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 >
                   <option value="">Any match (no extra condition)</option>
                   {allRules.length > 0 && (
@@ -620,7 +620,7 @@ export function ThemeRulesEditor({
                   value={ctxLabel}
                   onChange={(e) => setCtxLabel(e.target.value)}
                   placeholder="e.g. High-intent SaaS visitors"
-                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 />
               </div>
 
@@ -632,7 +632,7 @@ export function ThemeRulesEditor({
                   max={999}
                   value={ctxPriority}
                   onChange={(e) => setCtxPriority(Number(e.target.value))}
-                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 />
               </div>
 

@@ -66,7 +66,7 @@ function SecretField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={hasExisting ? "Enter new value to replace…" : placeholder}
-        className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+        className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
       />
       {hint && <p className="mt-0.5 text-[11px] text-neutral-400">{hint}</p>}
       {!hint && (

@@ -404,7 +404,7 @@ function BlockEditorPanel({
             id={typeId}
             value={row.blockType}
             onChange={(e) => onTypeChange(e.target.value)}
-            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           >
             {/* current value always present even if not in the passed defs */}
             <option value={row.blockType}>{def?.displayName ?? row.blockType}</option>
@@ -422,7 +422,7 @@ function BlockEditorPanel({
               id={variantId}
               value={row.variant}
               onChange={(e) => onVariantChange(e.target.value)}
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
             >
               <option value="">: default: </option>
               {variants.map((v) => (
@@ -436,7 +436,7 @@ function BlockEditorPanel({
               value={row.variant}
               onChange={(e) => onVariantChange(e.target.value)}
               placeholder="e.g. compact"
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
             />
           )}
         </div>
@@ -492,7 +492,7 @@ function BlockEditorPanel({
           spellCheck={false}
           className={[
             "w-full resize-y rounded-md border bg-white px-3 py-2 font-mono text-xs text-neutral-800 outline-none",
-            "focus:border-brand-500 focus:ring-1 focus:ring-brand-500",
+            "focus:border-brand-500 focus:ring-2 focus:ring-brand-200",
             row.jsonError ? "border-error-400" : "border-neutral-300",
           ].join(" ")}
         />
@@ -908,7 +908,7 @@ export function ContentFlowEditor({ pageId, initialBlocks, blockDefs, onSave, te
         <select
           value={addType}
           onChange={(e) => setAddType(e.target.value)}
-          className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+          className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
         >
           {groupedDefs.map((group) => (
             <optgroup key={group.category} label={group.label}>

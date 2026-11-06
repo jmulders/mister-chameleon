@@ -151,7 +151,7 @@ function RowEditor({ row }: RowEditorProps) {
             step={0.000001}
             value={unitPrice}
             onChange={(e) => { setUnitPrice(e.target.value); setStatus("idle"); }}
-            className="w-24 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100"
+            className="w-24 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
           <span className="text-xs text-neutral-400">€</span>
         </div>
@@ -171,7 +171,7 @@ function RowEditor({ row }: RowEditorProps) {
             step={0.001}
             value={creditCost}
             onChange={(e) => { setCreditCost(e.target.value); setStatus("idle"); }}
-            className="w-20 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100"
+            className="w-20 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
           <span className="text-xs text-neutral-400">cr</span>
         </div>
@@ -187,7 +187,7 @@ function RowEditor({ row }: RowEditorProps) {
             placeholder="—"
             value={internalCost}
             onChange={(e) => { setInternalCost(e.target.value); setStatus("idle"); }}
-            className="w-24 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono placeholder:text-neutral-300 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100"
+            className="w-24 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono placeholder:text-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
           <span className="text-xs text-neutral-400">€</span>
         </div>

@@ -279,7 +279,7 @@ async function AddMemberForm({ agencyTenantId }: { agencyTenantId: string }) {
             type="text"
             required
             placeholder="tenant_xxxxxxxxxxxxxxxx"
-            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono text-neutral-900 placeholder:text-neutral-300 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm font-mono text-neutral-900 placeholder:text-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
         <div className="w-36">
@@ -289,7 +289,7 @@ async function AddMemberForm({ agencyTenantId }: { agencyTenantId: string }) {
           <select
             id="role"
             name="role"
-            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           >
             <option value="viewer">Viewer</option>
             <option value="owner">Owner</option>
@@ -304,7 +304,7 @@ async function AddMemberForm({ agencyTenantId }: { agencyTenantId: string }) {
             name="note"
             type="text"
             placeholder="e.g. ACME Corp Q2 campaign"
-            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-300 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
         <div className="shrink-0">

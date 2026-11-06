@@ -90,7 +90,7 @@ export function PaginationControls({
           <select
             value={String(pageSize)}
             onChange={(e) => setPageSize(e.target.value === "all" ? "all" : Number(e.target.value))}
-            className="rounded-md border border-neutral-300 bg-white px-1.5 py-1 text-xs text-neutral-700 focus:border-neutral-500 focus:outline-none"
+            className="rounded-md border border-neutral-300 bg-white px-1.5 py-1 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           >
             {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>{n}</option>

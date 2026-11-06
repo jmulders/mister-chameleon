@@ -161,7 +161,7 @@ export function DunningSettingsPanel({
             value={settings.billing_email ?? ""}
             onChange={(e) => setSettings((s) => ({ ...s, billing_email: e.target.value || null }))}
             placeholder="billing@tenant.com"
-            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
 
@@ -174,7 +174,7 @@ export function DunningSettingsPanel({
             type="text"
             value={settings.email_subject}
             onChange={(e) => setSettings((s) => ({ ...s, email_subject: e.target.value }))}
-            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
 
@@ -187,7 +187,7 @@ export function DunningSettingsPanel({
             rows={12}
             value={settings.email_body}
             onChange={(e) => setSettings((s) => ({ ...s, email_body: e.target.value }))}
-            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400 resize-y"
+            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 resize-y"
           />
         </div>
 
@@ -209,7 +209,7 @@ export function DunningSettingsPanel({
                 ...s,
                 quarantine_days: Math.max(1, Math.min(90, Number(e.target.value) || 8)),
               }))}
-              className="w-24 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+              className="w-24 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <span className="text-xs text-neutral-500">days</span>
           </div>
@@ -232,7 +232,7 @@ export function DunningSettingsPanel({
             value={settings.payment_link ?? ""}
             onChange={(e) => setSettings((s) => ({ ...s, payment_link: e.target.value || null }))}
             placeholder="https://pay.stripe.com/…"
-            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
 

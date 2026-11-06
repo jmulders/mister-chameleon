@@ -300,7 +300,7 @@ export function CmsCredentialsPanel({
                 placeholder="sk-..."
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value)}
-                className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               />
               <p className="text-[11px] text-neutral-400">
                 Stored server-side only — the value is never echoed back after saving.

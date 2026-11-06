@@ -9,6 +9,7 @@
  * via the server action's revalidatePath() call.
  */
 
+import { BoltIcon } from "@/components/admin/icons";
 import { useState, useTransition } from "react";
 
 interface Props {
@@ -49,7 +50,7 @@ export function SeedPresetRulesButton({ seedAction }: Props) {
           </>
         ) : (
           <>
-            <span>⚡</span>
+            <BoltIcon />
             Seed preset rules
           </>
         )}

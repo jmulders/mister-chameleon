@@ -20,6 +20,7 @@
  *            existing DB row has no key, the edit also auto-generates one.
  */
 
+import { LinkIcon, SearchIcon } from "@/components/admin/icons";
 import React, { useState, useTransition } from "react";
 import type {
   ScoringRule,
@@ -234,7 +235,7 @@ function OverviewTab({
               Visualize any visitor&apos;s behavioral profile (stage, confidence, friction, and why they&apos;re seeing what they see).
             </div>
           </div>
-          <div className="text-2xl ml-4 shrink-0">🔍</div>
+          <SearchIcon className="ml-4 size-6 text-neutral-400" />
         </a>
       )}
 
@@ -1208,7 +1209,7 @@ function SequencePatternsTab({
       {patterns.length === 0 && seedAction && (
         <div className="mb-6 rounded-lg border border-indigo-100 bg-indigo-50/60 p-5">
           <div className="flex items-start gap-4">
-            <div className="text-2xl">🔗</div>
+            <LinkIcon className="mt-0.5 size-6 text-indigo-500" />
             <div className="flex-1">
               <div className="font-semibold text-neutral-900 mb-1">
                 Install {SEED_SEQUENCE_COUNT} preset sequences

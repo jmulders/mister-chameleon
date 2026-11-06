@@ -19,6 +19,7 @@
 
 "use client";
 
+import { TrashIcon } from "@/components/admin/icons";
 import { useState, useTransition } from "react";
 import Link                         from "next/link";
 import {
@@ -129,7 +130,7 @@ function ScreenshotOneKeyCard({ configured }: { configured: boolean }) {
             onChange={(e) => { setValue(e.target.value); setState("idle"); }}
             placeholder={saved ? "Enter a new key to replace" : "Paste ScreenshotOne key"}
             autoComplete="off"
-            className="min-w-[16rem] flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
+            className="min-w-[16rem] flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
           <button
             onClick={() => save(false)}
@@ -325,7 +326,7 @@ function ProviderCard({ provider: p }: { provider: ProviderInfo }) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
+                className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               />
               <button
                 onClick={handleTestAnalyzer}
@@ -472,7 +473,7 @@ function BehaviorSettings({ settings, patch, updatedAt, saveAll }: SectionProps)
                 if (!isNaN(v)) patch({ renderTimeoutMs: v });
                 setSaveState("idle");
               }}
-              className="w-24 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none"
+              className="w-24 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
           </div>
         )}
@@ -556,7 +557,7 @@ function OutputDefaults({ settings, patch, updatedAt, saveAll }: SectionProps) {
               if (!isNaN(v)) patch({ expiryDays: v });
               setSaveState("idle");
             }}
-            className="w-16 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/30"
+            className="w-16 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-right text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
 
@@ -728,7 +729,7 @@ function RecentRunsTable({ runs: initialRuns }: { runs: RecentRunSummary[] }) {
                             title="Delete demo"
                             aria-label="Delete demo"
                           >
-                            🗑
+                            <TrashIcon />
                           </button>
                         </>
                       )}
@@ -892,7 +893,7 @@ function TestPanel() {
             value={url}
             onChange={(e) => { setUrl(e.target.value); setPhase("idle"); }}
             placeholder="https://example.com"
-            className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
 

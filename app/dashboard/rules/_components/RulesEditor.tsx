@@ -43,6 +43,7 @@
  *   Saving calls saveRulesAction() which writes to decision/rules/runtime-rules.json.
  */
 
+import { SparklesIcon } from "@/components/admin/icons";
 import { useState, useCallback, useId, useRef, useEffect, useMemo, createContext, useContext } from "react";
 import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
 import { PAYLOAD_FIELD_CATALOG } from "@/lib/webhooks/payload-fields";
@@ -971,7 +972,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                 className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 shadow-sm hover:bg-brand-100 transition-colors"
                 title="Let AI propose a rule as an editable draft"
               >
-                <span aria-hidden className="text-brand-400">✨</span>
+                <SparklesIcon className="size-4 text-brand-500" />
                 Suggest rule
               </button>
             )}
@@ -1011,7 +1012,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                   onChange={(e) => setSuggestAudience(e.target.value)}
                   placeholder="e.g. returning visitors from Google in evaluation"
                   disabled={suggestBusy}
-                  className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                  className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-60"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -1022,7 +1023,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                   onChange={(e) => setSuggestGoal(e.target.value)}
                   placeholder="e.g. push a product demo"
                   disabled={suggestBusy}
-                  className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                  className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-60"
                 />
               </label>
             </div>
@@ -1062,7 +1063,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           <select
             value={packFilter}
             onChange={(e) => setPackFilter(e.target.value)}
-            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             aria-label="Filter by pack"
           >
             <option value="all">All packs</option>
@@ -1074,7 +1075,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value)}
-            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             aria-label="Filter by precedence tier"
           >
             <option value="all">All tiers</option>
@@ -1086,7 +1087,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
             <select
               value={variantFilter}
               onChange={(e) => setVariantFilter(e.target.value)}
-              className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               aria-label="Filter by adaptive block / variant"
             >
               <option value="all">All blocks &amp; variants</option>
@@ -1098,7 +1099,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           <select
             value={webhookFilter}
             onChange={(e) => setWebhookFilter(e.target.value)}
-            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             aria-label="Filter by webhook action"
           >
             <option value="all">All rules</option>
@@ -1555,7 +1556,7 @@ function RuleCard({
               onChange={(e) => onChange({ label: e.target.value })}
               placeholder="Rule name"
               aria-label="Rule name"
-              className="min-w-[14rem] flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-base font-medium text-neutral-900 outline-none hover:border-neutral-200 focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
+              className="min-w-[14rem] flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-base font-medium text-neutral-900 outline-none hover:border-neutral-200 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-200"
             />
             <TierChip priority={rule.priority} precedenceLevel={rule.precedenceLevel} />
             <button
@@ -2201,7 +2202,7 @@ function FlatGroupEditor({
           <select
             defaultValue=""
             onChange={handlePresetSelect}
-            className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-500 shadow-sm hover:border-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+            className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-500 shadow-sm hover:border-neutral-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 cursor-pointer"
             aria-label="Apply a quick preset condition"
             title="Replace conditions with a scenario preset"
           >
@@ -2354,7 +2355,7 @@ function ConditionRow({
             <select
               value={leaf.type}
               onChange={(e) => handleTypeChange(e.target.value as "field" | "named" | "context" | "flag" | "attribute")}
-              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               aria-label="Condition type"
             >
               <option value="field">Field condition</option>

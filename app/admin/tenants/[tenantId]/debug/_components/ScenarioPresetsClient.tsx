@@ -156,7 +156,7 @@ export function ScenarioPresetsClient({
                   onChange={(e) => update(pi, { label: e.target.value })}
                   placeholder="Persona name"
                   aria-label="Persona name"
-                  className="min-w-[12rem] flex-1 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm font-medium text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  className="min-w-[12rem] flex-1 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm font-medium text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 />
                 <input
                   type="text"

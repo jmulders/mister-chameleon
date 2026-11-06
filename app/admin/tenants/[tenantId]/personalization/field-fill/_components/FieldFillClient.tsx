@@ -246,7 +246,7 @@ export function FieldFillClient({
                                 })
                               }
                               disabled={!spec.aiEnabled}
-                              className="w-16 rounded border border-neutral-300 px-1.5 py-0.5 text-center text-xs disabled:bg-neutral-50 disabled:text-neutral-400 focus:border-blue-500 focus:outline-none"
+                              className="w-16 rounded border border-neutral-300 px-1.5 py-0.5 text-center text-xs disabled:bg-neutral-50 disabled:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -258,7 +258,7 @@ export function FieldFillClient({
                                 updateField(slot.id, field.path, { style: e.target.value })
                               }
                               disabled={!spec.aiEnabled}
-                              className="w-full rounded border border-neutral-300 px-2 py-0.5 text-xs disabled:bg-neutral-50 disabled:text-neutral-400 focus:border-blue-500 focus:outline-none"
+                              className="w-full rounded border border-neutral-300 px-2 py-0.5 text-xs disabled:bg-neutral-50 disabled:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                             />
                           </td>
                         </tr>

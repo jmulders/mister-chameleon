@@ -127,7 +127,7 @@ function SanitySeedSection({
       {phase === "confirming" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="mb-1 text-xs font-semibold text-amber-900">
-            ⚠️ This will create or replace all pages and variant documents in Sanity for{" "}
+            ⚠ This will create or replace all pages and variant documents in Sanity for{" "}
             <code className="font-mono">{tenantId}</code>.
           </p>
           <p className="mb-3 text-xs text-amber-800">
@@ -182,8 +182,8 @@ function SanitySeedSection({
               : "border-amber-200 bg-amber-50 text-amber-800"
           }`}>
             {results.failed === 0
-              ? `✅  All ${results.seeded} pages seeded. Navigation updated.`
-              : `⚠️  ${results.seeded} succeeded, ${results.failed} failed.`}
+              ? `✓ All ${results.seeded} pages seeded. Navigation updated.`
+              : `⚠ ${results.seeded} succeeded, ${results.failed} failed.`}
           </div>
           {results.results.some((r) => !r.ok) && (
             <div className="max-h-40 overflow-y-auto rounded-md border border-neutral-200 bg-neutral-50 p-2">
@@ -295,7 +295,7 @@ function StoryblokSeedSection({
       {phase === "confirming" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="mb-1 text-xs font-semibold text-amber-900">
-            ⚠️ This will create or replace stories in your Storyblok space for{" "}
+            ⚠ This will create or replace stories in your Storyblok space for{" "}
             <code className="font-mono">{tenantId}</code>.
           </p>
           <p className="mb-3 text-xs text-amber-800">
@@ -350,8 +350,8 @@ function StoryblokSeedSection({
               : "border-amber-200 bg-amber-50 text-amber-800"
           }`}>
             {results.failed === 0
-              ? `✅  All ${results.seeded} stories seeded. Navigation updated.`
-              : `⚠️  ${results.seeded} succeeded, ${results.failed} failed.`}
+              ? `✓ All ${results.seeded} stories seeded. Navigation updated.`
+              : `⚠ ${results.seeded} succeeded, ${results.failed} failed.`}
           </div>
           {results.results.some((r) => !r.ok) && (
             <div className="max-h-40 overflow-y-auto rounded-md border border-neutral-200 bg-neutral-50 p-2">
@@ -456,7 +456,7 @@ function StatamicSeedSection({
       {phase === "confirming" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="mb-1 text-xs font-semibold text-amber-900">
-            ⚠️ This will create or replace the starter variant entries in your Statamic site for{" "}
+            ⚠ This will create or replace the starter variant entries in your Statamic site for{" "}
             <code className="font-mono">{tenantId}</code>.
           </p>
           <p className="mb-3 text-xs text-amber-800">
@@ -511,8 +511,8 @@ function StatamicSeedSection({
               : "border-amber-200 bg-amber-50 text-amber-800"
           }`}>
             {results.failed === 0
-              ? `✅  All ${results.seeded} variant entries seeded.`
-              : `⚠️  ${results.seeded} succeeded, ${results.failed} failed.`}
+              ? `✓ All ${results.seeded} variant entries seeded.`
+              : `⚠ ${results.seeded} succeeded, ${results.failed} failed.`}
           </div>
           {results.results.some((r) => !r.ok) && (
             <div className="max-h-40 overflow-y-auto rounded-md border border-neutral-200 bg-neutral-50 p-2">

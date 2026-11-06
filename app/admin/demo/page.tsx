@@ -5,6 +5,7 @@
  * quick-access links to open or copy each shareable URL.
  */
 
+import { FolderIcon, LayersIcon } from "@/components/admin/icons";
 import { createClient }        from "@supabase/supabase-js";
 import { listDemoInstances }   from "@/demo/store";
 import { resolveDemoBaseUrl } from "@/lib/base-url";
@@ -87,7 +88,7 @@ export default async function DemoListPage() {
       {/* Empty state */}
       {!fetchError && demos.length === 0 && (
         <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
-          <p className="text-2xl mb-3">🪞</p>
+          <LayersIcon className="mx-auto mb-3 size-7 text-neutral-400" />
           <p className="text-sm font-medium text-neutral-700">No demos yet</p>
           <p className="mt-1 text-sm text-neutral-400">
             Generate your first prospect demo to see it here.
@@ -165,7 +166,8 @@ function DemoRow({
                 ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
                 : "bg-purple-50 text-purple-700 border border-purple-100"
             }`}>
-              {isMirror ? "🪞 Mirror" : "🗂 Legacy"}
+              {isMirror ? <LayersIcon className="mr-1 inline size-3" /> : <FolderIcon className="mr-1 inline size-3" />}
+              {isMirror ? "Mirror" : "Legacy"}
             </span>
             <span className="text-sm font-semibold text-neutral-900 truncate">
               {demo.site_name || "Unnamed"}

@@ -65,7 +65,7 @@ export function AvatarPicker({
               value={emoji}
               onChange={(e) => setEmoji(e.target.value)}
               placeholder="Emoji, e.g. 🎯 (empty = default)"
-              className="w-56 rounded border border-neutral-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-56 rounded border border-neutral-300 px-2 py-1 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
           )}
         </div>
