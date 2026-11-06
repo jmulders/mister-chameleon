@@ -158,7 +158,7 @@ export function StatamicDeployPanel({
             onChange={(e) => setDomain(e.target.value)}
             placeholder="cms.client.nl"
             disabled={isDeploying}
-            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400 disabled:bg-neutral-50 disabled:text-neutral-400"
+            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-neutral-50 disabled:text-neutral-400"
           />
           <p className="mt-0.5 text-[11px] text-neutral-400">
             The (sub)domain where this Statamic site will be hosted. Point DNS to the Forge server before deploying.
@@ -176,7 +176,7 @@ export function StatamicDeployPanel({
             onChange={(e) => setServerIdOverride(e.target.value)}
             placeholder={defaultServerId ? `Default: ${defaultServerId}` : "e.g. 123456"}
             disabled={isDeploying}
-            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400 disabled:bg-neutral-50 disabled:text-neutral-400"
+            className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-neutral-50 disabled:text-neutral-400"
           />
           <p className="mt-0.5 text-[11px] text-neutral-400">
             Leave blank to use the platform default server.

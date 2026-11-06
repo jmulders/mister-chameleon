@@ -11,7 +11,7 @@ import {
 } from "@/design-system/theme/block-token-set";
 
 // Shared field styles — indigo focus ring to match the rest of the admin.
-const INPUT   = "w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+const INPUT   = "w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 const LABEL   = "block text-xs font-medium text-neutral-600 mb-1";
 const SECTION = "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm";
 const HEADING = "mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-500";

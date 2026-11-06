@@ -236,7 +236,7 @@ function PlanForm({ initial, existingIds, isNew, onCancel, onSaved }: PlanFormPr
   }
 
   // ── Field section helper ─────────────────────────────────────────────────
-  const inputCls = "w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm font-mono focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100";
+  const inputCls = "w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
   const labelCls = "block mb-1 text-xs font-medium text-neutral-500 uppercase tracking-wide";
 
   return (
@@ -564,9 +564,12 @@ export function PlansEditor({ plans }: PlansEditorProps) {
 
                     {/* Session cap */}
                     <td className="px-4 py-3 text-right font-mono text-neutral-700">
-                      {plan.limits.personalizedSessionsPerMonth === 0
-                        ? <span className="text-neutral-400">∞</span>
-                        : (plan.limits.personalizedSessionsPerMonth / 1000).toLocaleString("nl-NL") + "K"
+                      {typeof plan.limits.personalizedSessionsPerMonth !== "number"
+                        // No value in this row: enforcement falls back to the built-in plan.
+                        ? <span className="text-xs font-sans text-neutral-400" title="Not set on this plan. The built-in default applies.">not set</span>
+                        : plan.limits.personalizedSessionsPerMonth === 0
+                          ? <span className="text-neutral-400">∞</span>
+                          : (plan.limits.personalizedSessionsPerMonth / 1000).toLocaleString("nl-NL") + "K"
                       }
                     </td>
 

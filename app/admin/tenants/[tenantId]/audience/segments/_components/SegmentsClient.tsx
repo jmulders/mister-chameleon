@@ -14,6 +14,7 @@
  *   - Plan limit banner when at or near cap
  */
 
+import { TagIcon } from "@/components/admin/icons";
 import React, { useState, useTransition } from "react";
 import type { AudienceSegment }           from "@/audience-segments/types";
 import { Avatar }                          from "@/components/admin/Avatar";
@@ -196,7 +197,7 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
     });
   }
 
-  const inputCls = "w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-100";
+  const inputCls = "w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
   const labelCls = "block mb-1 text-xs font-medium text-neutral-500 uppercase tracking-wide";
 
   return (
@@ -445,7 +446,7 @@ function SeedPanel({
 
   return (
     <div className="rounded-xl border-2 border-dashed border-neutral-200 bg-neutral-50 p-8 text-center">
-      <div className="mb-3 text-3xl">🏷️</div>
+      <TagIcon className="mx-auto mb-3 size-7 text-neutral-400" />
       <p className="text-sm font-semibold text-neutral-800">No audience segments yet</p>
       <p className="mt-1 text-xs text-neutral-500 max-w-sm mx-auto">
         Seed {SEED_AUDIENCE_SEGMENTS.length} pre-built segments to get started instantly, or create your own.

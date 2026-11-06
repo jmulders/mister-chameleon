@@ -46,7 +46,7 @@ export function TenantCalendarClient({
   }
 
   const inputCls =
-    "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
+    "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
   const labelCls = "block text-xs font-medium text-neutral-600 mb-1";
 
   return (

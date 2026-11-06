@@ -128,14 +128,14 @@ export function TokenExtractorClient() {
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && url.trim()) run(); }}
             placeholder="https://example.com"
-            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
           <label className="flex shrink-0 items-center gap-1.5 text-xs text-neutral-600" title="Number of pages analysed (crawls internal links)">
             Pages
             <select
               value={pages}
               onChange={(e) => setPages(Number(e.target.value))}
-              className="rounded-lg border border-neutral-300 px-2 py-2 text-sm outline-none focus:border-brand-500"
+              className="rounded-lg border border-neutral-300 px-2 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
             >
               {[1, 3, 5, 8].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>

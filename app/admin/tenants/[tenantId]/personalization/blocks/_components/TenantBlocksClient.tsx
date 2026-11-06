@@ -72,7 +72,7 @@ function SlotModeControl({
       <select
         value={value.mode}
         onChange={(e) => onChange({ mode: e.target.value as TenantSlotMode })}
-        className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
       >
         {MODE_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
@@ -82,7 +82,7 @@ function SlotModeControl({
         <select
           value={value.staticKey ?? ""}
           onChange={(e) => onChange({ staticKey: e.target.value })}
-          className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
         >
           <option value="" disabled>Choose a fixed key</option>
           {knownKeys.map((k) => (
@@ -473,13 +473,13 @@ function SlotSection({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search block key…"
           aria-label={`Search ${label} block keys`}
-          className="min-w-0 flex-1 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+          className="min-w-0 flex-1 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as "all" | BlockStatus)}
           aria-label={`Filter ${label} by status`}
-          className="rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm text-neutral-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+          className="rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm text-neutral-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
         >
           <option value="all">All</option>
           <option value="customized">Customized</option>

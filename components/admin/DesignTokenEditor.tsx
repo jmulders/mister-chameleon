@@ -238,7 +238,7 @@ const THEME_OPTIONS: ReadonlyArray<{
 const inputCls =
   "w-full rounded border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-mono " +
   "text-neutral-900 placeholder:text-neutral-400 placeholder:font-sans " +
-  "focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400 " +
+  "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 " +
   "disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:opacity-60";
 
 const labelCls = "block text-xs font-medium text-neutral-600 mb-1";

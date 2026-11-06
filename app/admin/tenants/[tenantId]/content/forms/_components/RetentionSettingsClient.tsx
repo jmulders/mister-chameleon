@@ -81,7 +81,7 @@ export function RetentionSettingsClient({
 
         {/* AVG warning */}
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-          <span className="text-base leading-none mt-0.5">⚠️</span>
+          <span className="text-base leading-none mt-0.5">⚠</span>
           <span>
             <strong>GDPR requirement:</strong> do not store personal data longer than necessary.
             Choose a retention period that matches the form&rsquo;s purpose.

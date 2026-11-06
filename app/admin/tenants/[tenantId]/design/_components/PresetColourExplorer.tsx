@@ -32,7 +32,7 @@ const HUE_OPTIONS: Array<HueFamily | "all"> = [
   "all", "neutral", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink",
 ];
 
-const inputCls = "rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none";
+const inputCls = "rounded border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
 const btn = "rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50";
 
 interface RoleState { on: boolean; hex: string }

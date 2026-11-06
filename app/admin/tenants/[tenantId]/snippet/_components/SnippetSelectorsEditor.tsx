@@ -105,14 +105,14 @@ export function SnippetSelectorsEditor({
               value={row.key}
               onChange={(e) => update(i, "key", e.target.value)}
               placeholder="hero-title"
-              className="rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <input
               type="text"
               value={row.selector}
               onChange={(e) => update(i, "selector", e.target.value)}
               placeholder=".hero h1"
-              className="rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <button
               type="button"

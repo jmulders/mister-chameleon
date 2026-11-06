@@ -10,6 +10,7 @@
  * Customizing forks a tenant copy of the platform block and opens the edit drawer.
  */
 
+import { SparklesIcon } from "@/components/admin/icons";
 import Link                         from "next/link";
 import { ADAPTIVE_SLOT_REGISTRY }   from "@/decision/types";
 import { listAdaptiveBlocksAction }  from "@/lib/adaptive-blocks/adaptive-blocks-actions";
@@ -85,9 +86,10 @@ export default async function TenantBlocksPage({ params }: Props) {
         </div>
         <Link
           href={`/admin/tenants/${tenantId}/personalization/blocks/generate`}
-          className="shrink-0 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
-          ✨ Generate variant
+          <SparklesIcon />
+          Generate variant
         </Link>
       </div>
 

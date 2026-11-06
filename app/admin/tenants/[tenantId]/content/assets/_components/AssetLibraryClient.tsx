@@ -297,7 +297,7 @@ export function AssetLibraryClient({
             className={cn(
               "w-full rounded-lg border border-neutral-200 bg-white",
               "py-2 pl-9 pr-4 text-sm placeholder:text-neutral-400",
-              "focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400",
+              "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
             )}
           />
         </div>
@@ -309,7 +309,7 @@ export function AssetLibraryClient({
             onChange={(e) => setTagFilter(e.target.value || null)}
             className={cn(
               "rounded-lg border border-neutral-200 bg-white py-2 px-3 text-sm",
-              "focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400",
+              "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
             )}
           >
             <option value="">All tags</option>
@@ -326,7 +326,7 @@ export function AssetLibraryClient({
           title="Filter by folder"
           className={cn(
             "rounded-lg border border-neutral-200 bg-white py-2 px-3 text-sm",
-            "focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400",
+            "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
           )}
         >
           <option value="">All folders</option>
@@ -346,7 +346,7 @@ export function AssetLibraryClient({
             placeholder="New folder…"
             className={cn(
               "w-32 rounded-lg border border-neutral-200 bg-white py-2 px-3 text-sm placeholder:text-neutral-400",
-              "focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400",
+              "focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
             )}
           />
           <button

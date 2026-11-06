@@ -35,6 +35,7 @@
  *                        is rendered (no http://localhost fallback in the UI).
  */
 
+import { BoltIcon } from "@/components/admin/icons";
 import { useState }               from "react";
 import { cn }                     from "@/lib/utils";
 import { Badge }                  from "@/components/ui/Badge";
@@ -333,7 +334,7 @@ function ContextBlockCard({
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-50 text-[11px] font-bold text-brand-400 select-none"
             aria-hidden
           >
-            ⚡
+            <BoltIcon className="size-3.5" />
           </span>
           <span className="truncate text-sm font-semibold text-neutral-800">
             {entry.displayName}

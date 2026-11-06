@@ -160,7 +160,7 @@ function IntegrationTestResultDisplay({ result }: { result: IntegrationTestResul
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs">
         <span className="font-medium text-red-600">
-          ❌ {STEP_LABELS[result.step] ?? result.step} failed
+          ✗ {STEP_LABELS[result.step] ?? result.step} failed
         </span>
       </div>
       <p className="text-[11px] text-red-500 leading-snug max-w-sm break-words">

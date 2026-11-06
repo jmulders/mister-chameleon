@@ -22,6 +22,7 @@
 
 "use client";
 
+import { LayersIcon } from "@/components/admin/icons";
 import { useState, useRef, useEffect } from "react";
 import Link                             from "next/link";
 
@@ -177,7 +178,7 @@ export default function NewDemoPage() {
       {/* What a Mirror demo is */}
       <div className="mb-6 rounded-lg border border-neutral-200 bg-white px-4 py-3">
         <div className="flex gap-3 text-sm">
-          <span className="text-xl shrink-0 mt-0.5">🪞</span>
+          <LayersIcon className="mt-0.5 size-5 text-indigo-500" />
           <div>
             <p className="font-medium text-neutral-800">Mirror Demo: their site, our personalisation</p>
             <p className="mt-0.5 text-neutral-500 leading-relaxed">
@@ -214,7 +215,7 @@ export default function NewDemoPage() {
               autoFocus
               defaultValue=""
               placeholder="https://example.com"
-              className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-lg border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <p className="mt-1 text-xs text-neutral-400">
               The homepage will be fetched and instrumented server-side. Assets load from the prospect's domain. https:// is added automatically.
@@ -233,7 +234,7 @@ export default function NewDemoPage() {
               id="expiry-days"
               value={expiryDays}
               onChange={(e) => setExpiryDays(Number(e.target.value))}
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 bg-white"
             >
               <option value={1}>1 day</option>
               <option value={3}>3 days</option>
@@ -252,9 +253,10 @@ export default function NewDemoPage() {
 
           <button
             type="submit"
-            className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors"
           >
-            🪞 Generate mirror demo
+            <LayersIcon />
+            Generate mirror demo
           </button>
         </form>
       )}
@@ -427,7 +429,7 @@ function SuccessPanel({
       {/* Mode badge */}
       <div className="flex items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-          <span>🪞</span>
+          <LayersIcon className="size-3.5" />
           Mirror Demo
         </span>
         <span className="text-xs text-neutral-500">

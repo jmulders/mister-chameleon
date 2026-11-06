@@ -147,7 +147,7 @@ export function ContentBudgetForm({
                 max={999}
                 value={values[slot.key]}
                 onChange={(e) => handleChange(slot.key, e.target.value)}
-                className="w-20 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm font-mono text-neutral-900 text-right focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 transition-colors"
+                className="w-20 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm font-mono text-neutral-900 text-right focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-colors"
               />
             </div>
           </div>

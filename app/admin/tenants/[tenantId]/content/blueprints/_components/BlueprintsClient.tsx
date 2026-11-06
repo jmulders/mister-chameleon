@@ -239,7 +239,7 @@ export function BlueprintsClient({ tenantId, blueprints }: Props) {
                 {confirming ? (
                   <div style={{ marginTop: "1rem", padding: "12px", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "8px" }}>
                     <div style={{ fontSize: "13px", fontWeight: 600, color: "#92400e", marginBottom: "8px" }}>
-                      ⚠️ Are you sure?
+                      ⚠ Are you sure?
                     </div>
                     <div style={{ fontSize: "12px", color: "#78350f", marginBottom: "10px" }}>
                       This will create behavioral rules, scoring rules, and sequences for this tenant.

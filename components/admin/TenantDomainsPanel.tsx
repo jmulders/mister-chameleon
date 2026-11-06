@@ -439,7 +439,7 @@ export function TenantDomainsPanel({
               disabled={isPending}
               autoComplete="off"
               spellCheck={false}
-              className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-50"
+              className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
             />
             <button
               type="button"

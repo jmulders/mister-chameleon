@@ -224,7 +224,7 @@ export function CollectionSourcePicker({
               id={`${uid}-collection`}
               value={collectionSrc.collection}
               onChange={(e) => handleCollectionChange(e.target.value as CollectionKey)}
-              className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             >
               {availableCollections.map((key) => (
                 <option key={key} value={key}>
@@ -276,7 +276,7 @@ export function CollectionSourcePicker({
                   value={collectionSrc.limit ?? ""}
                   onChange={(e) => handleLimitChange(e.target.value)}
                   placeholder="e.g. 6"
-                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 />
               </div>
               <div>
@@ -287,7 +287,7 @@ export function CollectionSourcePicker({
                   id={`${uid}-sortdir`}
                   value={collectionSrc.sortDir ?? "desc"}
                   onChange={(e) => handleSortDirChange(e.target.value as CollectionSortDir)}
-                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 >
                   {(["desc", "asc"] as const).map((dir) => (
                     <option key={dir} value={dir}>{SORT_LABELS[dir]}</option>
@@ -369,7 +369,7 @@ export function CollectionSourcePicker({
                   onChange={(e) => setNewId(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddId(); } }}
                   placeholder="CMS document ID"
-                  className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                 />
                 <button
                   type="button"

@@ -74,7 +74,7 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs, 
               value={reveal}
               onChange={(e) => { setReveal(e.target.value); setSaved(false); }}
               placeholder="700 (default)"
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <span className="mt-1 block text-xs text-neutral-500">
               Page stays hidden this long to avoid a visible swap. A later decision is still applied.
@@ -88,7 +88,7 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs, 
               value={call}
               onChange={(e) => { setCall(e.target.value); setSaved(false); }}
               placeholder="4000 (default)"
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <span className="mt-1 block text-xs text-neutral-500">
               Hard cap before the decide request is aborted. Raise it for slow cold starts.
@@ -102,7 +102,7 @@ export function SnippetTimingEditor({ tenantId, initialRevealMs, initialCallMs, 
               value={consentWait}
               onChange={(e) => { setConsentWait(e.target.value); setSaved(false); }}
               placeholder="reveal minus 400 (default)"
-              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <span className="mt-1 block text-xs text-neutral-500">
               How long the first decision waits for the cookie banner&apos;s answer. Past it, the consent setting of this tenant applies to that pageview. Higher means the real answer is used more often, but a slow banner then causes a visible swap.

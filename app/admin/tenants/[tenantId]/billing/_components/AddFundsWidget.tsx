@@ -48,7 +48,7 @@ export function AddFundsWidget({ tenantId }: { tenantId: string }) {
           min={5}
           value={Math.round(amount / 100)}
           onChange={(e) => setAmount(Math.max(500, Math.round(Number(e.target.value) * 100)))}
-          className="w-24 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+          className="w-24 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
         />
       </div>
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}

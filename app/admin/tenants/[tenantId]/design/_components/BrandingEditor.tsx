@@ -98,7 +98,7 @@ function LogoField({
             value={value.alt}
             onChange={(e) => onChange({ ...value, alt: e.target.value })}
             placeholder="Describe the logo for screen readers"
-            className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
           <button
             type="button"

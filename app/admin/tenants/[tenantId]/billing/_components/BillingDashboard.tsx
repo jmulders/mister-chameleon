@@ -1302,7 +1302,7 @@ function LedgerPagination({
           <select
             value={String(pageSize)}
             onChange={(e) => router.push(pageUrl(0, Number(e.target.value)))}
-            className="rounded-md border border-neutral-300 bg-white px-1.5 py-1 text-xs text-neutral-700 focus:border-neutral-500 focus:outline-none"
+            className="rounded-md border border-neutral-300 bg-white px-1.5 py-1 text-xs text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           >
             {[10, 25, 50, 100].map((n) => (
               <option key={n} value={n}>{n}</option>
@@ -1534,7 +1534,7 @@ function SuperAdminSubscriptionPanel({
     { value: "canceled", label: "Canceled"  },
   ];
 
-  const fieldCls = "w-full rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs focus:border-neutral-400 focus:outline-none";
+  const fieldCls = "w-full rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
   const labelCls = "block text-[11px] font-medium text-neutral-500 mb-0.5";
 
   // Trial status info.

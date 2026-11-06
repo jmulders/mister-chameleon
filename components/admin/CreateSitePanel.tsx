@@ -138,10 +138,10 @@ function starterAccent(key: string) {
 
 function sectionIcon(status: SiteInitStatus): string {
   switch (status) {
-    case "ok":      return "✅";
-    case "warn":    return "⚠️";
+    case "ok":      return "✓";
+    case "warn":    return "⚠";
     case "skipped": return "—";
-    case "error":   return "❌";
+    case "error":   return "✗";
   }
 }
 

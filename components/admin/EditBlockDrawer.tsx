@@ -167,9 +167,9 @@ function emptyItem(): AdaptiveVariantItem {
 }
 
 const INPUT_CLS =
-  "w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100";
+  "w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200";
 const SMALL_INPUT_CLS =
-  "w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-900 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200";
+  "w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200";
 const TOGGLE_BTN = (active: boolean) =>
   [
     "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",

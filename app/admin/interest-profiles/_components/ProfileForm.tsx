@@ -67,7 +67,7 @@ function TagRow({ tag, index, onChange, onRemove }: TagRowProps) {
         value={tag.keyword}
         onChange={(e) => onChange(index, "keyword", e.target.value)}
         placeholder="keyword"
-        className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+        className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
       />
       <div className="flex items-center gap-1.5">
         <label className="text-xs text-neutral-500 whitespace-nowrap">weight</label>
@@ -78,7 +78,7 @@ function TagRow({ tag, index, onChange, onRemove }: TagRowProps) {
           max={10}
           step={0.1}
           onChange={(e) => onChange(index, "weight", e.target.value)}
-          className="w-20 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="w-20 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
         />
       </div>
       <button
@@ -200,7 +200,7 @@ export function ProfileForm({
             placeholder="e.g. logistics"
             pattern="[a-z0-9_-]{1,60}"
             required
-            className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
           <p className="text-xs text-neutral-400">
             URL-safe slug: lowercase letters, digits, hyphens, and underscores. Immutable after creation.
@@ -228,7 +228,7 @@ export function ProfileForm({
           placeholder="e.g. Logistics & Supply Chain"
           maxLength={80}
           required
-          className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
         />
         <p className="text-xs text-neutral-400">Human-readable label shown in admin UI and debug views.</p>
       </div>
@@ -244,7 +244,7 @@ export function ProfileForm({
           placeholder="What this interest profile represents and when it activates…"
           rows={3}
           maxLength={500}
-          className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
+          className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 resize-none"
         />
       </div>
 

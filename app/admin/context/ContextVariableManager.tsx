@@ -156,7 +156,7 @@ function EditPanel({
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder={v.isCustom ? "Required" : `Default: ${v.label}`}
-                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               />
             </label>
 
@@ -168,7 +168,7 @@ function EditPanel({
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. Traffic, Company"
-                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               />
             </label>
 
@@ -180,7 +180,7 @@ function EditPanel({
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 placeholder={v.isCustom ? "Required" : `Default: ${v.description}`}
-                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               />
             </label>
 
@@ -191,7 +191,7 @@ function EditPanel({
                 type="number"
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
-                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+                className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               />
             </label>
 
@@ -351,7 +351,7 @@ function CreateCustomForm({ onCreated }: { onCreated: (v: MergedContextVar) => v
             value={key}
             onChange={(e) => setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
             placeholder="e.g. company_tier"
-            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm font-mono focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
           <span className="text-[10px] text-neutral-400">Lowercase letters, digits, underscores. Cannot be changed later.</span>
         </label>
@@ -364,7 +364,7 @@ function CreateCustomForm({ onCreated }: { onCreated: (v: MergedContextVar) => v
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="e.g. Company Tier"
-            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </label>
 
@@ -376,7 +376,7 @@ function CreateCustomForm({ onCreated }: { onCreated: (v: MergedContextVar) => v
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
             placeholder="What this variable represents."
-            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </label>
 
@@ -386,7 +386,7 @@ function CreateCustomForm({ onCreated }: { onCreated: (v: MergedContextVar) => v
           <select
             value={type}
             onChange={(e) => setType(e.target.value as typeof type)}
-            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           >
             <option value="string">string</option>
             <option value="enum">enum</option>
@@ -401,7 +401,7 @@ function CreateCustomForm({ onCreated }: { onCreated: (v: MergedContextVar) => v
           <select
             value={source}
             onChange={(e) => setSource(e.target.value as typeof source)}
-            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           >
             <option value="request">request</option>
             <option value="session">session</option>
@@ -421,7 +421,7 @@ function CreateCustomForm({ onCreated }: { onCreated: (v: MergedContextVar) => v
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder="e.g. Company"
-            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-300"
+            className="rounded border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </label>
 

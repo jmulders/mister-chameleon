@@ -81,7 +81,7 @@ export function SnippetOriginsEditor({ tenantId, initialOrigins }: Props) {
               value={row}
               onChange={(e) => update(i, e.target.value)}
               placeholder="nascita.nl"
-              className="rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="rounded-lg border border-neutral-200 px-3 py-2 font-mono text-sm text-neutral-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <button
               type="button"
