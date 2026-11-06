@@ -38,7 +38,7 @@ export default async function DemoImporterPage() {
   const hasScreenshotOneKey = aiSettings.ok ? aiPlatformFlags(aiSettings.data).hasScreenshotOneKey : false;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-8">
+    <div className="max-w-6xl space-y-6 p-8">
 
       {/* Page header */}
       <div className="flex items-start justify-between gap-4">

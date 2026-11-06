@@ -260,7 +260,7 @@ export function BillingDefaultsEditor({ defaults }: BillingDefaultsEditorProps) 
           className={`rounded px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             status === "saved"
               ? "bg-green-100 text-green-700"
-              : "bg-blue-600 text-white hover:bg-blue-700"
+              : "bg-brand-600 text-white hover:bg-brand-700"
           }`}
         >
           {status === "saving" ? "Saving…" : "Save defaults"}

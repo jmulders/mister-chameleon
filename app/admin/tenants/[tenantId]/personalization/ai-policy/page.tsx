@@ -48,7 +48,7 @@ export default async function AiPolicyPage({
   };
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="max-w-4xl p-8">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-neutral-900">AI Policy</h1>
         <p className="mt-1 text-sm text-neutral-500 max-w-2xl">

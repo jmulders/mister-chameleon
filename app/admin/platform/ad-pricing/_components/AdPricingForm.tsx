@@ -1,5 +1,6 @@
 "use client";
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveAdPricingAction, type AdPricing } from "../actions";
@@ -50,7 +51,7 @@ export function AdPricingForm({ initial }: { initial: AdPricing }) {
         {pending ? "Saving…" : "Save rate-card"}
       </button>
       {initial.updatedAt && (
-        <p className="mt-2 text-xs text-neutral-400">Last updated {new Date(initial.updatedAt).toLocaleString()}</p>
+        <p className="mt-2 text-xs text-neutral-400">Last updated {new Date(initial.updatedAt).toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE })}</p>
       )}
     </div>
   );

@@ -37,7 +37,7 @@ export default async function PlatformBlocksPage() {
   const missingBlocks = totalKnownKeys - totalBlocks;
 
   return (
-    <div className="p-8 space-y-8 max-w-5xl">
+    <div className="max-w-6xl p-8 space-y-8">
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">

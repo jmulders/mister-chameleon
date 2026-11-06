@@ -1,3 +1,4 @@
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import {
   fetchVariantPerformance,
   VARIANT_FETCH_LIMIT,
@@ -66,9 +67,9 @@ export default async function DashboardVariantsPage() {
           <CardContent>
             <Text variant="body-sm" className="text-amber-800">
               <strong>Data may be truncated.</strong> The query fetched{" "}
-              {VARIANT_FETCH_LIMIT.toLocaleString()} rows (the current limit).
+              {VARIANT_FETCH_LIMIT.toLocaleString(ADMIN_LOCALE)} rows (the current limit).
               Stats reflect only the most recent{" "}
-              {VARIANT_FETCH_LIMIT.toLocaleString()} sessions. Replace with a
+              {VARIANT_FETCH_LIMIT.toLocaleString(ADMIN_LOCALE)} sessions. Replace with a
               SQL aggregation query for accurate full-history results.
             </Text>
           </CardContent>
@@ -254,12 +255,12 @@ function VariantRow({ variant }: { variant: VariantStats }) {
 
       {/* Serves */}
       <td className="px-4 py-3 text-right tabular-nums text-neutral-900">
-        {variant.serves.toLocaleString()}
+        {variant.serves.toLocaleString(ADMIN_LOCALE)}
       </td>
 
       {/* CTA clicks */}
       <td className="px-4 py-3 text-right tabular-nums text-neutral-900">
-        {variant.ctaClicks.toLocaleString()}
+        {variant.ctaClicks.toLocaleString(ADMIN_LOCALE)}
       </td>
 
       {/* CTR */}
@@ -296,7 +297,7 @@ function SourceBreakdown({
           <span
             key={source}
             className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 font-mono text-xs text-neutral-600"
-            title={`${sessions.toLocaleString()} session${sessions === 1 ? "" : "s"}`}
+            title={`${sessions.toLocaleString(ADMIN_LOCALE)} session${sessions === 1 ? "" : "s"}`}
           >
             <SourceDot source={source} />
             {source}

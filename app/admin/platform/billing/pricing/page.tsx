@@ -171,7 +171,7 @@ export default async function PricingConfigPage() {
   });
 
   return (
-    <div className="max-w-5xl p-8">
+    <div className="max-w-6xl p-8">
 
       {/* ── Billing tab navigation ───────────────────────────────────────────── */}
       <div className="mb-2">

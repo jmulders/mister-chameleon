@@ -82,7 +82,7 @@ export default async function BillingDebugPage({
   const requests = buildBillingDebugFromDbRows(rows, tenantId);
 
   return (
-    <div className="max-w-5xl p-8 space-y-6">
+    <div className="max-w-6xl p-8 space-y-6">
 
       {/* ── Page header ──────────────────────────────────────────────────────── */}
       <div>

@@ -22,6 +22,7 @@
  *   FetchErrorsSection     — CMS fetch errors (shown only when errors exist)
  */
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import type { TenantConfig }      from "@/tenant/types";
 import type {
   ReadinessReport,
@@ -169,7 +170,7 @@ function PageHeader({
   devTenantOverride?: string | null;
 }) {
   const fetchedAt = report
-    ? new Date(report.evaluatedAt).toLocaleTimeString(undefined, {
+    ? new Date(report.evaluatedAt).toLocaleTimeString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE,
         hour:   "2-digit",
         minute: "2-digit",
         second: "2-digit",

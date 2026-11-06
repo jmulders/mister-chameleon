@@ -41,7 +41,7 @@ export default function ContextLibraryPage() {
   const totalCount     = CONTEXT_DEFINITIONS.length;
 
   return (
-    <div className="max-w-7xl p-8">
+    <div className="max-w-6xl p-8">
 
       {/* Page header */}
       <div className="mb-6 flex items-start justify-between gap-4">

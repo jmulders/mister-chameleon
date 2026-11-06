@@ -1,3 +1,4 @@
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import { fetchDashboardMetrics } from "@/data/repositories/analytics-repository";
 import type { RankedRow } from "@/data/repositories/analytics-repository";
 import { getActiveTenantWithDevOverride } from "@/tenant/server";
@@ -214,7 +215,7 @@ function StatCard({ label, value, description }: StatCardProps) {
           {label}
         </Text>
         <p className="text-3xl font-bold tracking-tight text-neutral-900">
-          {value.toLocaleString()}
+          {value.toLocaleString(ADMIN_LOCALE)}
         </p>
         <Text variant="caption" color="subtle" as="span">
           {description}
@@ -293,7 +294,7 @@ function RankTable({ title, label, rows, emptyNote, crossTenant }: RankTableProp
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-neutral-900">
-                      {row.count.toLocaleString()}
+                      {row.count.toLocaleString(ADMIN_LOCALE)}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-neutral-400">
                       {pct}%

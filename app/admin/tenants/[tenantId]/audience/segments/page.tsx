@@ -65,7 +65,7 @@ export default async function AudienceSegmentsPage({
   const segments = segmentsResult.ok ? segmentsResult.data : [];
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="max-w-6xl p-8">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-8 flex items-start justify-between gap-4">

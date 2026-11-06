@@ -32,7 +32,7 @@ export default function NewTenantInterestProfilePage({
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="max-w-4xl p-8">
       {/* Header */}
       <div className="mb-8">
         <a

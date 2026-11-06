@@ -45,7 +45,7 @@ export default async function LeadBasePage({
     .map((s) => ({ key: s.key, label: s.label }));
 
   return (
-    <div className="p-8 max-w-6xl space-y-6">
+    <div className="max-w-6xl p-8 space-y-6">
       <AdminPageHeader
         eyebrow="Audience"
         title="Leads"

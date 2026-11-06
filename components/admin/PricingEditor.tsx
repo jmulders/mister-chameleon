@@ -223,7 +223,7 @@ function RowEditor({ row }: RowEditorProps) {
               : status === "error"
               ? "bg-red-100 text-red-700"
               : isDirty
-              ? "bg-blue-600 text-white hover:bg-blue-700"
+              ? "bg-brand-600 text-white hover:bg-brand-700"
               : "border border-neutral-200 bg-white text-neutral-400"
           }`}
         >

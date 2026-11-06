@@ -5,7 +5,7 @@ export default async function GoogleCalendarIntegrationPage() {
   const result = await getGoogleCalendarSettingsAction();
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 p-8">
+    <div className="max-w-4xl space-y-5 p-8">
 
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">Platform: Google Calendar</h1>

@@ -398,11 +398,13 @@ export default async function RootLayout({
   // an enforcing script-src without a bare 'unsafe-inline'. undefined when the
   // route isn't matched by the middleware (then no nonce is needed).
   const cspNonce = _consentHeaders.get("x-nonce") ?? undefined;
-  // Never show the consent banner on admin pages or the internal block-preview
-  // surface (it renders inside the editor's iframe — the cookie chrome is noise).
+  // Never show the consent banner on admin pages, the internal dashboard or the
+  // block-preview surface (it renders inside the editor's iframe — the cookie
+  // chrome is noise).
   const showConsentBanner =
     privacySettings?.showConsentBanner !== false &&
     !_consentPathname.startsWith("/admin") &&
+    !_consentPathname.startsWith("/dashboard") &&
     !_consentPathname.startsWith("/tenant-block-preview");
 
   // Visitor locale for the cookie banner / preferences copy (nl / en).

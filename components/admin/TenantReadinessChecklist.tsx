@@ -7,7 +7,7 @@
  * ─── What it shows ────────────────────────────────────────────────────────────
  *
  *   Header: "X of Y checks passed" with a colour-coded badge.
- *   Body:   One row per readiness check — ✓/✗ icon, label, and hint text
+ *   Body:   One row per readiness check — pass/open icon, label, and hint text
  *           (only shown when the check has not passed).
  *
  * ─── Surfaces ─────────────────────────────────────────────────────────────────
@@ -26,6 +26,7 @@
  *   tests.
  */
 
+import { CheckIcon } from "@/components/admin/CheckIcon";
 import { cn }                  from "@/lib/utils";
 import { Card, CardContent }   from "@/components/ui/Card";
 import { Badge }               from "@/components/ui/Badge";
@@ -44,15 +45,7 @@ function CheckRow({ check }: { check: ReadinessCheck }) {
   return (
     <div className="flex items-start gap-2.5 border-b border-neutral-100 py-2.5 last:border-0">
       {/* Pass / fail indicator */}
-      <span
-        className={cn(
-          "mt-px shrink-0 text-sm font-bold leading-none",
-          check.passed ? "text-success-600" : "text-warning-500",
-        )}
-        aria-hidden
-      >
-        {check.passed ? "✓" : "✗"}
-      </span>
+      <CheckIcon passed={check.passed} className="mt-0.5" />
 
       {/* Label and optional hint */}
       <div className="min-w-0 flex-1">

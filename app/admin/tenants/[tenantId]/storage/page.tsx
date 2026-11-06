@@ -26,7 +26,7 @@ export default async function TenantStoragePage({ params }: Props) {
   const result = await getTenantStorageStateAction(tenantId);
 
   return (
-    <div className="p-8 space-y-8 max-w-2xl">
+    <div className="max-w-4xl p-8 space-y-8">
 
       {/* Header */}
       <div>

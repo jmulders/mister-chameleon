@@ -1,5 +1,6 @@
 "use client";
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { Fragment, useState, useTransition } from "react";
 import { listLeadProfilesAction, deleteLeadProfilesAction, listVisitorEventsAction } from "../actions";
 import type { VisitorEvent } from "@/lib/lead-base/visitor-events-store";
@@ -71,7 +72,7 @@ function fmtWhen(iso: string | null): string {
   if (!iso) return "·";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "·";
-  return d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function triggerDownload(filename: string, content: string, mime: string) {

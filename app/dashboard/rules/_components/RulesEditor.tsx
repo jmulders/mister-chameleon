@@ -892,7 +892,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
   return (
     <AttributeCatalogueContext.Provider value={attributeDecls}>
     {/* pb clearance so the floating save bar never covers the last rule's controls. */}
-    <div className="flex flex-col gap-8 px-8 py-8 pb-28">
+    <div className="flex flex-col gap-8 pb-28">
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">

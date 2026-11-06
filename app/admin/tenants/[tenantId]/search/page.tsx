@@ -56,7 +56,7 @@ export default async function TenantSearchPage({
     !result.ok && result.error.startsWith("TABLE_NOT_FOUND");
 
   return (
-    <div className="p-8 max-w-2xl space-y-5">
+    <div className="max-w-4xl p-8 space-y-5">
       <div>
 
         {/* Page header */}

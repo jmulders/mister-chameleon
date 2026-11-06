@@ -78,7 +78,7 @@ export default async function TenantSetupPage({
   const showDeployPanel      = tenant.cms?.provider === "statamic";
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="max-w-4xl p-8">
 
       {/* Page header */}
       <div className="mb-6">

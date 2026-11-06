@@ -9,6 +9,7 @@
  * (?full=1) for the Stripe wallet top-up.
  */
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import Link from "next/link";
 import { AddFundsWidget } from "./AddFundsWidget";
 
@@ -104,7 +105,7 @@ export function AdvertiserBilling({
                 const amt = Number(r.amount ?? r.amount_cents ?? 0);
                 return (
                   <tr key={i} className="border-b border-neutral-50">
-                    <td className="py-2 pr-3">{r.created_at ? new Date(r.created_at).toLocaleString() : "—"}</td>
+                    <td className="py-2 pr-3">{r.created_at ? new Date(r.created_at).toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE }) : "—"}</td>
                     <td className="pr-3">{r.entry_type ?? "—"}</td>
                     <td className="pr-3">{r.reference_type ?? "—"}</td>
                     <td className="pr-3 text-neutral-500">{r.note ?? ""}</td>

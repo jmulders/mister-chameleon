@@ -8,6 +8,7 @@
  * read-only with a link to the Rules editor. See docs/lead-base-design.md.
  */
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { listOutboundWebhooksAction } from "./actions";
@@ -63,7 +64,7 @@ function DeliveriesTable({ deliveries }: { deliveries: WebhookDelivery[] }) {
         <tbody>
           {deliveries.map((d) => (
             <tr key={d.id} className="border-b border-neutral-100">
-              <td className="py-1.5 pr-3 whitespace-nowrap text-neutral-600">{new Date(d.createdAt).toLocaleString()}</td>
+              <td className="py-1.5 pr-3 whitespace-nowrap text-neutral-600">{new Date(d.createdAt).toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE })}</td>
               <td className="py-1.5 pr-3"><code className="font-mono text-neutral-500">{d.event}</code></td>
               <td className="py-1.5 pr-3"><StatusPill ok={d.ok} /></td>
               <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-600">{d.statusCode ?? "—"}</td>
@@ -95,7 +96,7 @@ export default async function WebhooksOverviewPage({
   const total = (leadQual.url ? 1 : 0) + ruleWebhooks.length;
 
   return (
-    <div className="p-8 max-w-5xl space-y-6">
+    <div className="max-w-6xl p-8 space-y-6">
       <AdminPageHeader
         eyebrow="Integrations"
         title="Webhooks"

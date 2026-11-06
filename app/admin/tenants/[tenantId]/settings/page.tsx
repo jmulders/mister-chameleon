@@ -124,7 +124,7 @@ export default async function TenantSettingsPage({
   const safeTenant   = stripSecrets(tenant);
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="max-w-4xl p-8">
 
       {/* Page header */}
       <div className="mb-6">

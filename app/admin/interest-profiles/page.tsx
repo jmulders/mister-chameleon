@@ -316,7 +316,7 @@ export default async function InterestProfilesPage() {
   })).filter((fc) => fc.count > 0);
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="max-w-6xl p-8">
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="mb-8 flex items-start justify-between gap-4">

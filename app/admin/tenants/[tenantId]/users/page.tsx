@@ -60,7 +60,7 @@ export default async function TenantUsersPage({
   );
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="max-w-6xl p-8">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>

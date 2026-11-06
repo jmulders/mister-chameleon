@@ -131,7 +131,7 @@ export default async function FormConfigPage({ params }: PageProps) {
   const boundDeleteVariant = deleteFormVariantAction.bind(null, tenantId, formKey);
 
   return (
-    <div className="p-8 max-w-3xl space-y-8">
+    <div className="max-w-4xl p-8 space-y-8">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="space-y-1">

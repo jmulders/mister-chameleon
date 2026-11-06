@@ -21,6 +21,7 @@
  *   and you can always roll forward again by restoring a later version.
  */
 
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import { useState, useTransition } from "react";
 import type { BackupMeta }         from "@/app/api/admin/backup/route";
 
@@ -220,7 +221,7 @@ export function BackupPanel({ initialBackups }: BackupPanelProps) {
 
                     {/* Rows */}
                     <td className="px-4 py-3 text-neutral-500">
-                      {b.row_count.toLocaleString()}
+                      {b.row_count.toLocaleString(ADMIN_LOCALE)}
                     </td>
 
                     {/* Status badge */}

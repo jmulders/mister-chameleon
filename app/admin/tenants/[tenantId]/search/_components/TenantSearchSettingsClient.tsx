@@ -20,6 +20,7 @@
  *   - Submitting empty key = "preserve existing" (server ignores it)
  */
 
+import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { useState, useTransition }    from "react";
 import type { SafeSearchConfig, SearchSettingsFormInput, SearchProviderOption } from "../actions";
 
@@ -522,7 +523,7 @@ function primaryButtonStyle(disabled: boolean): React.CSSProperties {
 
 function formatDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE,
       dateStyle: "medium",
       timeStyle: "short",
     });

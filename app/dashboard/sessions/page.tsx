@@ -1,3 +1,4 @@
+import { ADMIN_LOCALE } from "@/lib/admin-date";
 import Link from "next/link";
 import { listRecentSessions } from "@/data/repositories/analytics-repository";
 import type { SessionRow } from "@/data/types";
@@ -79,7 +80,7 @@ export default async function DashboardSessionsPage() {
           {total > PAGE_SIZE && (
             <div className="border-t border-neutral-100 px-4 py-3">
               <Text variant="caption" color="muted">
-                Showing {PAGE_SIZE} of {total.toLocaleString()} sessions.
+                Showing {PAGE_SIZE} of {total.toLocaleString(ADMIN_LOCALE)} sessions.
                 Pagination coming soon.
               </Text>
             </div>
@@ -110,7 +111,7 @@ function PageHeader({
             ? "Could not load session count."
             : total === 0
               ? "No sessions recorded yet."
-              : `Showing ${showing} of ${total.toLocaleString()} sessions, newest first.`}
+              : `Showing ${showing} of ${total.toLocaleString(ADMIN_LOCALE)} sessions, newest first.`}
         </Text>
       </div>
     </div>

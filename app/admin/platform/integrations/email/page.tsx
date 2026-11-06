@@ -43,7 +43,7 @@ export default async function IntegrationsEmailPage() {
   const envBackoffice = Boolean(serverEnv.email.backofficeEmail);
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 p-8">
+    <div className="max-w-4xl space-y-5 p-8">
 
       {/* Page header */}
       <div>
