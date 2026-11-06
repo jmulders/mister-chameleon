@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useTransition }         from "react";
 import type {
   SafeGoogleCalendarConfig,
@@ -58,8 +59,8 @@ export function GoogleCalendarClient({ initialConfig, onSave, onClear }: Props) 
     });
   }
 
-  function handleClear() {
-    if (!confirm("Delete all Google Calendar settings?")) return;
+  async function handleClear() {
+    if (!(await confirmDialog("Delete all Google Calendar settings?", { confirmLabel: "Delete", danger: true }))) return;
     startTransition(async () => {
       const result = await onClear();
       if (result.ok) {

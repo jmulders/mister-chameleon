@@ -16,6 +16,7 @@
  * Customize you cancel leaves the block on the platform default.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useCallback, useMemo, useTransition, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRouter }                             from "next/navigation";
 import { EditBlockDrawer }                       from "@/components/admin/EditBlockDrawer";
@@ -148,7 +149,7 @@ function BlockRow({
     onPreview({ blockKey: resolved.blockKey, variant: block.defaultVariant, statusLabel });
   }
 
-  function handleReset() {
+  async function handleReset() {
     const id = resolved.tenantBlock?.id;
     if (!id) return;
     setDeleteError(null);
@@ -157,9 +158,9 @@ function BlockRow({
     const ruleNote = rules.length > 0
       ? `\n\n${rules.length} rule(s) use this block:\n${rules.map((r) => `• ${r.label}`).join("\n")}\n\nDeleting reverts them to the platform default.`
       : "";
-    if (!window.confirm(
+    if (!(await confirmDialog(
       `Reset "${resolved.blockKey}" to the platform default? This tenant's customization for this block will be discarded.${ruleNote}`,
-    )) return;
+      { confirmLabel: "Reset", danger: true }))) return;
     startReset(async () => {
       // confirmRevert acknowledges the note above; the server still refuses if the
       // delete would orphan a rule (no platform fallback).

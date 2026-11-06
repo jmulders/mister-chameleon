@@ -20,6 +20,7 @@
 
 "use client";
 
+import { confirmDialog, noticeDialog } from "@/components/admin/DialogHost";
 import { useTransition } from "react";
 import { deletePageAction } from "../../actions";
 
@@ -39,13 +40,13 @@ export function DeletePageButton({
 }: DeletePageButtonProps) {
   const [isPending, startTransition] = useTransition();
 
-  function handleClick() {
+  async function handleClick() {
     // Explicit confirmation — the dialog names the page so the operator can
     // verify they are deleting the intended entry before proceeding.
     if (
-      !window.confirm(
+      !(await confirmDialog(
         `Delete "${pageTitle}"?\n\nThis cannot be undone. The page will be permanently removed from the tenant.`,
-      )
+      { confirmLabel: "Delete", danger: true }))
     ) {
       return;
     }
@@ -55,7 +56,7 @@ export function DeletePageButton({
       if (!result.ok) {
         // Surface the server-side error message so the operator knows why the
         // deletion failed (e.g. page not found, already deleted, etc.).
-        window.alert(`Failed to delete page: ${result.error}`);
+        await noticeDialog(`Failed to delete page: ${result.error}`);
       }
       // On success the server action calls revalidatePath, which triggers a
       // Server Component re-render and removes the deleted row from the list.

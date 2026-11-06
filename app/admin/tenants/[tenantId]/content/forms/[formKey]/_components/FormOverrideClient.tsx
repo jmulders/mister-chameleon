@@ -27,6 +27,7 @@
  *   resetAction          — bound server action: () => Promise<result>
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useTransition }    from "react";
 import type { TenantFormOverrideSettings } from "@/tenant/types";
 import type { HeroBannerMedia }       from "@/cms/types";
@@ -143,8 +144,8 @@ export function FormOverrideClient({
   }
 
   // ── Reset handler ──────────────────────────────────────────────────────────
-  function handleReset() {
-    if (!confirm("Reset this form to tenant defaults? All per-form overrides will be removed.")) return;
+  async function handleReset() {
+    if (!(await confirmDialog("Reset this form to tenant defaults? All per-form overrides will be removed.", { confirmLabel: "Reset", danger: true }))) return;
 
     setResetStatus("resetting");
     setErrorMsg(null);

@@ -1,4 +1,5 @@
 import { cookies }        from "next/headers";
+import { DialogHost } from "@/components/admin/DialogHost";
 import Link               from "next/link";
 import { DashboardNav }   from "@/components/dashboard/DashboardNav";
 import { Badge }          from "@/components/ui/Badge";
@@ -85,6 +86,7 @@ export default async function DashboardLayout({
       <main className="flex flex-1 flex-col overflow-y-auto">
         {children}
       </main>
+      <DialogHost />
     </div>
   );
 }

@@ -15,6 +15,7 @@
  * to edit it there, so nothing is silently flattened.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -277,8 +278,8 @@ export function WebhookRulesManager({
     });
   };
 
-  const remove = (ruleId: string, label: string) => {
-    if (!confirm(`Delete webhook rule "${label}"? This cannot be undone.`)) return;
+  const remove = async (ruleId: string, label: string) => {
+    if (!(await confirmDialog(`Delete webhook rule "${label}"? This cannot be undone.`, { confirmLabel: "Delete", danger: true }))) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteWebhookRuleAction(tenantId, ruleId);
