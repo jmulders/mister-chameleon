@@ -17,7 +17,7 @@ export default async function AdPricingPage() {
   return (
     <div className="p-4 sm:p-8 max-w-4xl">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Platform</div>
-      <h1 className="mt-1 text-2xl font-bold text-neutral-900">Ad pricing</h1>
+      <h1 className="mt-1 text-xl font-semibold text-neutral-900">Ad pricing</h1>
       <p className="mt-1 text-sm text-neutral-600 max-w-xl">
         The platform rate-card. New ads created by advertiser tenants default to these CPM / CPC rates
         (advertisers can still override the rate on an individual ad). Behavioural / geo targeting fees

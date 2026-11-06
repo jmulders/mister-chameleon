@@ -835,7 +835,7 @@ function AssetRow({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="rounded bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+              className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
               {saving ? "Saving…" : "Save"}
             </button>

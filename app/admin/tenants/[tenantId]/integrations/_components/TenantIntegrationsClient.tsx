@@ -1886,7 +1886,7 @@ export function TenantIntegrationsClient({
         <button
           onClick={handleSave}
           disabled={isPending}
-          className="rounded bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Saving…" : "Save all settings"}
         </button>

@@ -283,7 +283,7 @@ function SegmentForm({ initial, tenantId, onSaved, onCancel }: SegmentFormProps)
         <button
           onClick={handleSave}
           disabled={isPending}
-          className="rounded bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
         >
           {isPending ? "Saving…" : isNew ? "Create segment" : "Save changes"}
         </button>

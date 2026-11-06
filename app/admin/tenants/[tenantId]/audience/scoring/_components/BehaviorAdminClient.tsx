@@ -119,7 +119,7 @@ function ActionBar({ onAdd, label }: { onAdd: () => void; label: string }) {
     <div className="flex justify-end mb-4">
       <button
         onClick={onAdd}
-        className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+        className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
       >
         + {label}
       </button>
@@ -743,7 +743,7 @@ function ScoringRulesTab({
             type="button"
             onClick={handleSeed}
             disabled={isSeedPending}
-            className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             {isSeedPending ? "Installing…" : `Install ${SEED_SCORING_RULES.length} preset rules`}
           </button>
@@ -826,7 +826,7 @@ function ScoringRulesTab({
             <button
               onClick={handleSave}
               disabled={isPending || !editing.label || !editing.eventType}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {isPending ? "Saving…" : "Save Rule"}
             </button>
@@ -1195,7 +1195,7 @@ function SequencePatternsTab({
             <button
               onClick={handleSave}
               disabled={isPending || !editing.label || !editing.slug || editing.steps.length < 2}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {isPending ? "Saving…" : "Save Sequence"}
             </button>
@@ -1222,7 +1222,7 @@ function SequencePatternsTab({
               <button
                 onClick={handleSeed}
                 disabled={isSeedPending}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
                 {isSeedPending ? "Installing…" : `Install ${SEED_SEQUENCE_COUNT} preset sequences`}
               </button>

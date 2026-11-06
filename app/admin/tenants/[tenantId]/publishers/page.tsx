@@ -28,7 +28,7 @@ export default async function TenantPublishersPage({
   return (
     <div className="p-4 sm:p-8 max-w-4xl">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Advertiser</div>
-      <h1 className="mt-1 text-2xl font-bold text-neutral-900">Publishers</h1>
+      <h1 className="mt-1 text-xl font-semibold text-neutral-900">Publishers</h1>
       <p className="mt-1 max-w-2xl text-sm text-neutral-600">
         Sites this advertiser&apos;s ads run on and the revenue share they earn. Revenue is this advertiser&apos;s
         ad spend on each publisher over the last {overview.windowDays} days (settled + pending); earnings =

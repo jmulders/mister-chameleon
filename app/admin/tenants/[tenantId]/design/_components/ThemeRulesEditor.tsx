@@ -470,7 +470,7 @@ export function ThemeRulesEditor({
               type="button"
               onClick={handleAdd}
               disabled={!addSource || !addTheme || addState === "adding" || isPending}
-              className="flex-shrink-0 rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+              className="flex-shrink-0 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
             >
               {addState === "adding" ? "Adding…" : "Add"}
             </button>
@@ -646,7 +646,7 @@ export function ThemeRulesEditor({
                 type="button"
                 onClick={handleAdd}
                 disabled={ctxSelectedIds.size === 0 || !ctxTheme || addState === "adding" || isPending}
-                className="flex-shrink-0 rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                className="flex-shrink-0 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 transition-colors"
               >
                 {addState === "adding" ? "Adding…" : "Add"}
               </button>
@@ -777,7 +777,7 @@ export function ThemeRulesEditor({
                       type="button"
                       onClick={() => saveRowTheme(row.ruleId)}
                       disabled={isSaving || isPending}
-                      className="flex-shrink-0 rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                      className="flex-shrink-0 rounded-lg bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                     >
                       {isSaving ? "…" : "Save"}
                     </button>

@@ -118,7 +118,7 @@ function SanitySeedSection({
         <button
           onClick={() => setPhase("confirming")}
           disabled={!hasWriteToken}
-          className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Seed Sanity content →
         </button>
@@ -137,7 +137,7 @@ function SanitySeedSection({
             <button
               onClick={handleRun}
               disabled={isPending}
-              className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               Yes, seed content
             </button>
@@ -204,7 +204,7 @@ function SanitySeedSection({
             </button>
             <button
               onClick={() => setPhase("confirming")}
-              className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"
             >
               Seed again
             </button>

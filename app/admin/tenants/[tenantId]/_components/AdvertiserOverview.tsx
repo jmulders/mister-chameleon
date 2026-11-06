@@ -114,7 +114,7 @@ export function AdvertiserOverview({
           </div>
           {walletEmpty && (
             <div className="mt-3">
-              <Link href={`${base}/billing`} className="inline-flex rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+              <Link href={`${base}/billing`} className="inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                 Add funds
               </Link>
             </div>

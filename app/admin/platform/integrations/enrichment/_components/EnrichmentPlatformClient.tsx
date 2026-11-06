@@ -247,7 +247,7 @@ function SaveFooter({
       <button
         onClick={onSave}
         disabled={isPending}
-        className="rounded bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isPending ? "Saving…" : "Save settings"}
       </button>
@@ -857,7 +857,7 @@ export function EnrichmentPlatformClient({
         <button
           onClick={handleTestAll}
           disabled={testAllPending}
-          className="shrink-0 rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {testAllPending ? "Testing all…" : "Test all"}
         </button>

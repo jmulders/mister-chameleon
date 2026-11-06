@@ -42,7 +42,7 @@ export function AdvertiserBilling({
     <div className="p-8 max-w-5xl space-y-6">
       <div>
         <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Platform · Advertiser</div>
-        <h1 className="mt-1 text-2xl font-bold text-neutral-900">Billing</h1>
+        <h1 className="mt-1 text-xl font-semibold text-neutral-900">Billing</h1>
         <p className="mt-1 text-sm text-neutral-600 max-w-2xl">
           This is an ad account. Billing is metered <strong>per impression (CPM) or click (CPC)</strong>
           against a prepaid wallet. There is no subscription. Serving stops when the balance reaches zero.

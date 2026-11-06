@@ -195,12 +195,12 @@ function ErrorState({ message }: { message: string }) {
 function ReportHeader({ report }: { report: Report }) {
   return (
     <div className="border-b border-neutral-200 pb-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mb-1">
             Performance Report — Internal Preview
           </p>
-          <h1 className="text-2xl font-bold text-neutral-900">
+          <h1 className="text-xl font-semibold text-neutral-900">
             {report.config.tenantName}
           </h1>
           <p className="mt-1 text-base text-neutral-600">

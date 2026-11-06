@@ -84,19 +84,20 @@ export default async function TenantRulesPage({
 
   return (
     <div className="p-4 sm:p-8">
-      {/* ── Toolbar — global toggle op een eigen regel, data-acties rechts eronder ── */}
-      <div className="mb-6 flex flex-col gap-3">
-        <GlobalRulesToggle
-          initialEnabled={rulesEnabled}
-          setEnabledAction={boundSetEnabled}
-        />
-        <div className="flex flex-wrap items-start justify-end gap-3">
-          <ExportTenantDataButton exportAction={boundExport} />
-          <SeedPresetRulesButton seedAction={boundSeedPresets} />
-        </div>
-      </div>
-
       <RulesEditor
+        toolbar={
+          // Under the page title: the master switch, then the data actions.
+          <div className="flex flex-col gap-3">
+            <GlobalRulesToggle
+              initialEnabled={rulesEnabled}
+              setEnabledAction={boundSetEnabled}
+            />
+            <div className="flex flex-wrap items-start justify-end gap-3">
+              <ExportTenantDataButton exportAction={boundExport} />
+              <SeedPresetRulesButton seedAction={boundSeedPresets} />
+            </div>
+          </div>
+        }
         initialConfig={result.config}
         variantCatalogue={variantCatalogue}
         saveAction={boundSave}

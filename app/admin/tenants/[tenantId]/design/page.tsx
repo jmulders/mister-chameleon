@@ -49,6 +49,7 @@ export default async function TenantDesignPage({
       {/* The tab strip is rendered by TenantSubNav (shared secondary row), so it
           sits in the same place and at the same size as the sub-nav on Content
           etc. Selection travels via ?tab=…; each panel renders its own header. */}
+      <h1 className="mb-4 text-xl font-semibold text-neutral-900">Design</h1>
       <Suspense fallback={null}>
         <DesignPageClient
           tenantId={tenantId}

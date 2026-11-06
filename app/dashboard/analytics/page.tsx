@@ -11,7 +11,6 @@
 import { getActiveTenantWithDevOverride } from "@/tenant/server";
 import Link from "next/link";
 import { checkPlanFeature }               from "@/billing/plan-enforcement";
-import { Text }                           from "@/components/primitives/Text";
 import {
   getAnalyticsFunnel,
   getAnalyticsDaily,
@@ -53,7 +52,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   if (!gate.allowed) {
     return (
       <div className="p-4 sm:p-8 max-w-3xl">
-        <Text variant="h2" as="h1">Analytics</Text>
+        <h1 className="text-xl font-semibold text-neutral-900">Analytics</h1>
         <div className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 px-8 py-12 text-center">
           <p className="text-2xl font-bold text-neutral-300 mb-2">📊</p>
           <p className="font-semibold text-neutral-700">Analytics dashboard requires Growth or higher</p>
@@ -96,7 +95,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Text variant="h2" as="h1">Analytics</Text>
+          <h1 className="text-xl font-semibold text-neutral-900">Analytics</h1>
           <p className="mt-1 text-sm text-neutral-500">
             Last {DAYS} days ·{" "}
             <span className="font-medium text-neutral-700">{tenantConfig.name}</span>

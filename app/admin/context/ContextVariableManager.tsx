@@ -225,7 +225,7 @@ function EditPanel({
               type="button"
               onClick={handleSave}
               disabled={isPending}
-              className="rounded bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
             >
               {isPending ? "Saving…" : "Save changes"}
             </button>
@@ -460,7 +460,7 @@ function CreateCustomForm({ onCreated }: { onCreated: (v: MergedContextVar) => v
           type="button"
           onClick={handleCreate}
           disabled={isPending || !key.trim() || !label.trim() || !description.trim()}
-          className="rounded bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPending ? "Creating…" : "Create variable"}
         </button>

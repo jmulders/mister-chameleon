@@ -133,7 +133,7 @@ export function ScenarioPresetsClient({
             type="button"
             onClick={addPreset}
             disabled={isDisabled}
-            className="shrink-0 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
           >
             + New persona
           </button>
@@ -235,7 +235,7 @@ export function ScenarioPresetsClient({
         <button
           onClick={handleSave}
           disabled={isDisabled}
-          className="rounded-md bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
         >
           {saveState.mode === "saving" ? "Saving…" : "Save personas"}
         </button>

@@ -408,7 +408,7 @@ export default async function PlatformVariantsPage() {
 
       {/* Page header */}
       <div className="mb-8">
-        <Text variant="h2">Variant AI metadata</Text>
+        <h1 className="text-xl font-semibold text-neutral-900">Variant AI metadata</h1>
         <p className="mt-1 text-sm text-neutral-500 max-w-2xl">
           Every slot variant the AI can select from, platform and CMS, with the decision
           metadata that drives each choice. Complete the required fields in Sanity Studio

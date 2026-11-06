@@ -111,7 +111,7 @@ export default async function TenantDebugPage({
       {/* ── 1b. Scenario panel curation ───────────────────────────────────── */}
       <section>
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-neutral-900">Scenario Panel</h1>
+          <h2 className="text-lg font-semibold text-neutral-900">Scenario Panel</h2>
           <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
             Curate what the scenario console offers for{" "}
             <strong>{tenant.name ?? tenantId}</strong>. Purely a demo-console setting; it never
@@ -132,7 +132,7 @@ export default async function TenantDebugPage({
       {/* ── 1b². Custom personas (settings.scenarioPresets — no migration) ──── */}
       <section>
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-neutral-900">Scenario Personas</h1>
+          <h2 className="text-lg font-semibold text-neutral-900">Scenario Personas</h2>
           <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
             Custom personas for <strong>{tenant.name ?? tenantId}</strong>, shown in the scenario
             console&rsquo;s Quick presets (marked ★). Purely a demo-console setting; it never affects
@@ -146,7 +146,7 @@ export default async function TenantDebugPage({
       {/* ── 1b³. Built-in overrides (settings.scenarioOverrides — no migration) ── */}
       <section>
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-neutral-900">Built-in presets &amp; personas</h1>
+          <h2 className="text-lg font-semibold text-neutral-900">Built-in presets &amp; personas</h2>
           <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
             Hide, reorder, relabel, or tweak the simulated signals of the CODE-DEFINED Quick
             presets and Demo personas for <strong>{tenant.name ?? tenantId}</strong>, and reset any

@@ -164,7 +164,7 @@ export function AttributesClient({
           type="button"
           onClick={save}
           disabled={pending}
-          className="rounded bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           {pending ? "Saving..." : "Save changes"}
         </button>

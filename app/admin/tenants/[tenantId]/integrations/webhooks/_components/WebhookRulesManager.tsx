@@ -224,7 +224,7 @@ function RuleForm({
 
       <div className="flex gap-2">
         <button type="button" disabled={saving} onClick={() => onSave(state)}
-          className="rounded bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60">
+          className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60">
           {saving ? "Saving…" : "Save webhook rule"}
         </button>
         <button type="button" onClick={onCancel}
@@ -340,7 +340,7 @@ export function WebhookRulesManager({
       ) : (
         <div className="flex items-center gap-3">
           <button type="button" onClick={startNew}
-            className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
+            className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
             + New webhook rule
           </button>
           <Link href={rulesHref} className="text-xs text-neutral-400 hover:text-neutral-600">

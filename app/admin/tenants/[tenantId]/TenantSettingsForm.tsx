@@ -1241,7 +1241,7 @@ export function TenantSettingsForm({
                   </div>
                   <a
                     href={`/admin/tenants/${tenant.tenantId}/billing`}
-                    className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors"
+                    className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors"
                   >
                     Manage subscription →
                   </a>

@@ -165,7 +165,7 @@ export default function EditInterestProfilePage() {
           ← Interest profiles
         </Link>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-neutral-900">{profile.name}</h1>
+          <h1 className="text-xl font-semibold text-neutral-900">{profile.name}</h1>
           <span className={[
             "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
             profile.isActive

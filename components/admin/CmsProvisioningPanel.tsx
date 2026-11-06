@@ -312,7 +312,7 @@ export function CmsProvisioningPanel({ tenant }: CmsProvisioningPanelProps) {
           type="button"
           onClick={handleSync}
           disabled={isPending || !cmsReady}
-          className="rounded-md bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600"
         >
           {isPending
             ? "Syncing…"

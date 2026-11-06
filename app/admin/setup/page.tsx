@@ -89,7 +89,7 @@ export default async function AdminSetupPage({ searchParams }: Props) {
     <div className="p-4 sm:p-8">
       {/* Header */}
       <div className="mb-6">
-        <Text variant="h2">Database setup</Text>
+        <h1 className="text-xl font-semibold text-neutral-900">Database setup</h1>
         <Text variant="body-sm" color="muted" className="mt-1">
           Apply pending database migrations to unlock platform features.
         </Text>

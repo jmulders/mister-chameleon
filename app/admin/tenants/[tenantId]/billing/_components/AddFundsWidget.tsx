@@ -55,7 +55,7 @@ export function AddFundsWidget({ tenantId }: { tenantId: string }) {
       <button
         onClick={go}
         disabled={pending}
-        className="mt-3 inline-flex rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        className="mt-3 inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
         {pending ? "Redirecting…" : `Add €${(amount / 100).toFixed(0)} to wallet`}
       </button>

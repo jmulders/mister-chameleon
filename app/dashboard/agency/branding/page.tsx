@@ -92,7 +92,7 @@ export default function AgencyBrandingPage() {
   if (!tenantId) {
     return (
       <div className="p-4 sm:p-8 max-w-2xl">
-        <h1 className="text-xl font-bold text-neutral-900 mb-4">White-label Branding</h1>
+        <h1 className="text-xl font-semibold text-neutral-900 mb-4">White-label Branding</h1>
         <p className="text-sm text-neutral-500">
           No tenant context found. Access this page from your agency dashboard or
           add <code className="font-mono text-xs bg-neutral-100 px-1 rounded">?tenant=your_id</code> to the URL.
@@ -110,7 +110,7 @@ export default function AgencyBrandingPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-neutral-900">White-label Branding</h1>
+          <h1 className="text-xl font-semibold text-neutral-900">White-label Branding</h1>
           <p className="mt-1 text-sm text-neutral-500">
             Customise how your agency&apos;s product appears to clients.
           </p>

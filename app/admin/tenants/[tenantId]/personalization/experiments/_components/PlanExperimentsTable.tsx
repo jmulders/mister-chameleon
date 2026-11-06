@@ -510,7 +510,7 @@ function InlineEditForm({ exp, tenantId, variantCatalogue, rules, onDone, onCanc
           type="button"
           onClick={handleSave}
           disabled={isPending}
-          className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"
         >
           {isPending ? <SpinnerIcon /> : null}
           {isPending ? "Saving…" : "Save"}

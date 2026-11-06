@@ -139,7 +139,7 @@ export function ExperimentsTable({ experiments }: Props) {
   if (experiments.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+    <div className="relative overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-neutral-100 bg-neutral-50">
