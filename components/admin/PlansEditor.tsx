@@ -31,6 +31,7 @@
  *   dashboard updates and STRIPE_PRICE_* env var refreshes.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { Fragment, useState, useTransition } from "react";
 import {
   upsertPlan,
@@ -455,8 +456,8 @@ export function PlansEditor({ plans }: PlansEditorProps) {
     });
   }
 
-  function handleDelete(planId: string) {
-    if (!window.confirm(`Delete plan "${planId}"? This cannot be undone.`)) return;
+  async function handleDelete(planId: string) {
+    if (!(await confirmDialog(`Delete plan "${planId}"? This cannot be undone.`, { confirmLabel: "Delete", danger: true }))) return;
     clearError(planId);
     startTransition(async () => {
       const r = await deletePlan(planId);

@@ -1,4 +1,5 @@
 import { cookies }        from "next/headers";
+import { DialogHost } from "@/components/admin/DialogHost";
 import { ResponsiveSidebar, SidebarMenuButton } from "@/components/admin/ResponsiveSidebar";
 import Link               from "next/link";
 import { DashboardNav }   from "@/components/dashboard/DashboardNav";
@@ -94,6 +95,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </ResponsiveSidebar>
+      <DialogHost />
     </div>
   );
 }

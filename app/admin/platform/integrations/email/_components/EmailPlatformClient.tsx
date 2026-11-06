@@ -24,6 +24,7 @@
  *   Submitting with an empty field preserves the stored secret.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState }            from "react";
 import type {
   SafePlatformEmailConfig,
@@ -120,7 +121,7 @@ export function EmailPlatformClient({
 
   // ── Clear transport ─────────────────────────────────────────────────────────
   const handleClear = async () => {
-    if (!confirm("Reset transport to 'none'? Stored credentials will be cleared.")) return;
+    if (!(await confirmDialog("Reset transport to 'none'? Stored credentials will be cleared.", { confirmLabel: "Reset", danger: true }))) return;
     setSaveStatus("saving");
     const result = await clearAction();
     if (result.ok) {

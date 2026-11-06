@@ -20,6 +20,7 @@
  *            existing DB row has no key, the edit also auto-generates one.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import React, { useState, useTransition } from "react";
 import type {
   ScoringRule,
@@ -432,8 +433,8 @@ function ScoringRulesTab({
   const selectAll = () => setSelected(new Set(rules.map((r) => r.id)));
   const clearSelection = () => setSelected(new Set());
 
-  function bulkDelete(ids: string[]) {
-    if (!confirm(`Delete ${ids.length} rule${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+  async function bulkDelete(ids: string[]) {
+    if (!(await confirmDialog(`Delete ${ids.length} rule${ids.length === 1 ? "" : "s"}? This cannot be undone.`, { confirmLabel: "Delete", danger: true }))) return;
     startBulkTransition(async () => {
       const results = await Promise.all(ids.map((id) => deleteAction(id)));
       const failed = results.filter((r) => !r.ok).length;
@@ -589,7 +590,7 @@ function ScoringRulesTab({
     }
 
     // No deps — confirm + delete immediately.
-    if (!confirm("Delete this scoring rule?")) return;
+    if (!(await confirmDialog("Delete this scoring rule?", { confirmLabel: "Delete", danger: true }))) return;
     doDelete(rule.id);
   }
 
@@ -659,7 +660,7 @@ function ScoringRulesTab({
       const { ruleId, action } = pendingDepCheck;
       const rule = rules.find((r) => r.id === ruleId);
       if (action === "delete") {
-        if (!confirm("Delete this scoring rule?")) { setPendingDepCheck(null); return; }
+        if (!(await confirmDialog("Delete this scoring rule?", { confirmLabel: "Delete", danger: true }))) { setPendingDepCheck(null); return; }
         doDelete(ruleId);
       } else if (action === "deactivate" && rule) {
         doDeactivate(rule);
@@ -1097,8 +1098,8 @@ function SequencePatternsTab({
     });
   }
 
-  function handleDelete(id: string) {
-    if (!confirm("Delete this sequence pattern?")) return;
+  async function handleDelete(id: string) {
+    if (!(await confirmDialog("Delete this sequence pattern?", { confirmLabel: "Delete", danger: true }))) return;
     startTransition(async () => {
       const res = await deleteAction(id);
       if (res.ok) {

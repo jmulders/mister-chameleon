@@ -17,6 +17,7 @@
  * is fixed by dependency constraints.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useTransition }   from "react";
 import { cn }                         from "@/lib/utils";
 import type { PipelineConfig, PipelineStageRow } from "../actions";
@@ -169,8 +170,8 @@ export function PipelineStageEditor({
 
   // ── Reset ─────────────────────────────────────────────────────────────────
 
-  function handleReset() {
-    if (!confirm("Reset pipeline config to platform defaults for this tenant?")) return;
+  async function handleReset() {
+    if (!(await confirmDialog("Reset pipeline config to platform defaults for this tenant?", { confirmLabel: "Reset", danger: true }))) return;
     startTransition(async () => {
       const result = await resetPipelineConfigAction(tenantId);
       if (result.ok) {

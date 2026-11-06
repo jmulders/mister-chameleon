@@ -7,6 +7,7 @@
  * panel, CSV export, and deletion with optimistic removal.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useCallback, useTransition } from "react";
 import type { FormSubmissionRow } from "@/data/repositories/form-submissions-repository";
 import {
@@ -146,7 +147,7 @@ export function SubmissionsClient({
   // ── Delete ──────────────────────────────────────────────────────────────────
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this submission?")) return;
+    if (!(await confirmDialog("Are you sure you want to delete this submission?", { confirmLabel: "Delete", danger: true }))) return;
 
     // Optimistic removal.
     setRows((prev) => prev.filter((r) => r.id !== id));

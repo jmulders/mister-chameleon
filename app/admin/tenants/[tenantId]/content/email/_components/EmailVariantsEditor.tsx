@@ -14,6 +14,7 @@
  * text, and which adaptive blocks appear.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import type { EmailVariantEntry, EmailVariantContent } from "@/lib/email/email-variant";
@@ -149,8 +150,8 @@ function TemplateVariants({
     });
   }
 
-  function remove(variantKey: string) {
-    if (!confirm(`Delete variant "${variantKey}"?`)) return;
+  async function remove(variantKey: string) {
+    if (!(await confirmDialog(`Delete variant "${variantKey}"?`, { confirmLabel: "Delete", danger: true }))) return;
     start(async () => {
       const res: Result = await deleteEmailVariantAction(tenantId, template.key, variantKey);
       if (!res.ok) { setError(res.error); return; }

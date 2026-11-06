@@ -22,6 +22,7 @@
  *   into `enrichment_pricing` and revalidates this page.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useTransition } from "react";
 import { upsertEnrichmentPricing } from "@/app/admin/platform/billing/pricing/actions";
 import type { PricingDisplayRow }  from "@/app/admin/platform/billing/pricing/page";
@@ -298,8 +299,8 @@ function ResetButton({ hasZeroCost }: { hasZeroCost: boolean }) {
 
   if (!hasZeroCost) return null;
 
-  function handleReset() {
-    if (!confirm("Reset all built-in enrichment pricing rows to their default values? Custom rows will not be affected.")) return;
+  async function handleReset() {
+    if (!(await confirmDialog("Reset all built-in enrichment pricing rows to their default values? Custom rows will not be affected.", { confirmLabel: "Reset", danger: true }))) return;
     setStatus("resetting");
     setResetError(null);
     startTransition(async () => {
