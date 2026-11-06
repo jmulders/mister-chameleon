@@ -701,7 +701,7 @@ function FormButtons({ saving, onSave, onCancel }: {
       <button type="button" disabled={saving}
         onClick={onSave}
         className={cn(
-          "rounded-md bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white",
+          "rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white",
           "hover:bg-brand-700 transition-colors",
           saving && "cursor-not-allowed opacity-60",
         )}>
@@ -855,7 +855,7 @@ export function PlatformVariantsClient({
             type="button"
             disabled={isPending || newMode}
             onClick={() => { setNewMode(true); setExpandedId(null); setDeletingKey(null); }}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
           >
             + New variant
           </button>
@@ -878,7 +878,7 @@ export function PlatformVariantsClient({
       )}
 
       {/* ── Type tabs ──────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 border-b border-neutral-200">
+      <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] border-b border-neutral-200">
         {VARIANT_TYPES.map(({ key, label }) => {
           const count = variants.filter((v) => v.variant_type === key).length;
           return (
@@ -887,7 +887,7 @@ export function PlatformVariantsClient({
               type="button"
               onClick={() => { setActiveType(key); setExpandedId(null); setNewMode(false); setDeletingKey(null); }}
               className={cn(
-                "px-3 py-2 text-xs font-medium transition-colors relative",
+                "shrink-0 whitespace-nowrap px-3 py-2 text-xs font-medium transition-colors relative",
                 activeType === key
                   ? "text-brand-700 after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-brand-600"
                   : "text-neutral-500 hover:text-neutral-800",

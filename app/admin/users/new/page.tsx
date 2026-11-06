@@ -30,7 +30,7 @@ export default async function NewUserPage({ searchParams }: Props) {
     <div className="p-4 sm:p-8">
       {/* Header */}
       <div className="mb-6">
-        <Text variant="h2">Create user</Text>
+        <h1 className="text-xl font-semibold text-neutral-900">Create user</h1>
         <Text variant="body-sm" color="muted" className="mt-1">
           New users can log in immediately after creation.
         </Text>

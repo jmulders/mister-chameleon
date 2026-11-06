@@ -19,7 +19,7 @@ import { EffectListEditor } from "@/components/admin/effects/EffectListEditor";
 import { setBlockTypeEffectsAction } from "@/app/admin/tenants/[tenantId]/design/effect-set-actions";
 import { getAllBlockDefinitions } from "@/page-config/registry";
 
-const btnPrimary = "rounded bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60";
+const btnPrimary = "rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60";
 
 interface TypeEntry { key: string; label: string }
 

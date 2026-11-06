@@ -19,7 +19,6 @@
 import { getActiveTenantWithDevOverride } from "@/tenant/server";
 import { getRulesAction }                  from "./actions";
 import { RulesEditor }                     from "./_components/RulesEditor";
-import { Text }                            from "@/components/primitives/Text";
 import { fetchVariantCatalogue }           from "@/decision/rules/fetch-variant-catalogue";
 import { getRuleFireStats }                 from "@/lib/observability/rule-fire-stats";
 
@@ -88,7 +87,7 @@ function PageHeader({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <Text variant="h2" as="h1">Decision Rules</Text>
+      {/* The page title is the h1 in RulesEditor, below this tenant line. */}
       <div className="flex items-center gap-2 text-sm text-neutral-500">
         <span>
           Tenant:{" "}

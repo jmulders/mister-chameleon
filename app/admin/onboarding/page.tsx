@@ -24,7 +24,7 @@ export default function AdminOnboardingPage() {
     <div className="p-4 sm:p-8">
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="mb-8">
-        <Text variant="h2">Create new tenant</Text>
+        <h1 className="text-xl font-semibold text-neutral-900">Create new tenant</h1>
         <Text variant="body-sm" color="muted" className="mt-1">
           Complete the intake fields below to create a new client tenant.
           Settings are derived from the chosen package and can be refined on

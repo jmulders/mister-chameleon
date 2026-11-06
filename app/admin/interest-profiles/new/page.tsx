@@ -35,7 +35,7 @@ export default function NewInterestProfilePage() {
         >
           ← Interest profiles
         </Link>
-        <h1 className="text-2xl font-bold text-neutral-900">New interest profile</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">New interest profile</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Define a named interest area with keywords and weights. The scoring engine
           will accumulate visitor keyword clouds and score them against this profile.

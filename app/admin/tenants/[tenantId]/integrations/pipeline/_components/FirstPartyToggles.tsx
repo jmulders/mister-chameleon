@@ -114,7 +114,7 @@ export function FirstPartyToggles({ initial }: { initial: FirstPartyTogglesConfi
           type="button"
           onClick={save}
           disabled={!dirty || pending}
-          className="rounded bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {pending ? "Saving..." : "Save"}
         </button>

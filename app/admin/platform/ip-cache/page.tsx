@@ -22,7 +22,7 @@ export default async function IpCachePage() {
   return (
     <div className="p-4 sm:p-8 max-w-6xl">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Platform</div>
-      <h1 className="mt-1 text-2xl font-bold text-neutral-900">First-party company DB</h1>
+      <h1 className="mt-1 text-xl font-semibold text-neutral-900">First-party company DB</h1>
       <p className="mt-1 max-w-3xl text-sm text-neutral-600">
         Firmographics we resolved from visitor IPs, held platform-wide so a paid Leadinfo lookup runs at most once
         per IP per freshness window and is reused across all tenants (first-party). Matched entries stay fresh for

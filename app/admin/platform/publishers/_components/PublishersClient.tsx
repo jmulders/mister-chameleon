@@ -14,7 +14,7 @@ import {
 const euro = (c: number) => "€" + (Number(c) / 100).toFixed(2);
 const when = (iso: string) => new Date(iso).toLocaleDateString(ADMIN_LOCALE, { timeZone: ADMIN_TIME_ZONE });
 const input = "w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200";
-const btn = "inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
+const btn = "inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50";
 const btnGhost = "inline-flex items-center rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
 const lbl = "block text-[11px] font-semibold text-neutral-500 mb-0.5";
 

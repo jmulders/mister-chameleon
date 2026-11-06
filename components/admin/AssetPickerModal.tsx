@@ -581,7 +581,7 @@ export function AssetPickerModal({
                   <button
                     onClick={handleExternalConfirm}
                     disabled={!externalUrl.trim()}
-                    className="rounded bg-brand-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-40"
+                    className="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-40"
                   >
                     Use this URL
                   </button>

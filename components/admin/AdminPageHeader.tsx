@@ -30,7 +30,7 @@ export function AdminPageHeader({ eyebrow, title, description, actions }: AdminP
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">{title}</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{title}</h1>
         {description ? (
           <p className="mt-2 text-sm leading-relaxed text-neutral-500">{description}</p>
         ) : null}

@@ -412,7 +412,7 @@ function PlanForm({ initial, existingIds, isNew, onCancel, onSaved }: PlanFormPr
         <button
           onClick={handleSave}
           disabled={isPending}
-          className="rounded bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
         >
           {isPending ? "Saving…" : isNew ? "Create plan" : "Save changes"}
         </button>
@@ -478,7 +478,7 @@ export function PlansEditor({ plans }: PlansEditorProps) {
         </p>
         <button
           onClick={() => { setShowNew(true); setEditingId(null); }}
-          className="rounded bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
+          className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
         >
           + Add plan
         </button>

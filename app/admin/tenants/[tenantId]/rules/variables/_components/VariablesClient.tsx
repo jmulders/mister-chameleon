@@ -320,7 +320,7 @@ export function VariablesClient({
           onClick={save}
           disabled={pending || hasTokenErrors}
           title={hasTokenErrors ? "Fix the token errors before saving" : undefined}
-          className="rounded bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           {pending ? "Saving..." : "Save changes"}
         </button>

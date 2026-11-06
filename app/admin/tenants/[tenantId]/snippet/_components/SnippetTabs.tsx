@@ -69,7 +69,7 @@ export function SnippetTabs({
     <div>
       {/* ── Tab bar ──────────────────────────────────────────────────────────── */}
       <div className="mb-6 border-b border-neutral-200">
-        <nav className="-mb-px flex gap-1" aria-label="Snippet tabs">
+        <nav className="-mb-px flex gap-1 overflow-x-auto [scrollbar-width:none]" aria-label="Snippet tabs">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -78,7 +78,7 @@ export function SnippetTabs({
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                  shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
                   ${isActive
                     ? "border-indigo-600 text-indigo-600"
                     : "border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300"

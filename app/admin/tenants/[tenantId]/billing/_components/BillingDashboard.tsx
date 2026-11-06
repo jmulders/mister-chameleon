@@ -1121,7 +1121,7 @@ function StripeStatusCard({ tenantId, stripeModeInfo, subscription, wallet, onNa
         {!subscription && (
           <button
             onClick={onNavigateToSubscription}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
           >
             Subscribe to a plan →
           </button>
@@ -1133,7 +1133,7 @@ function StripeStatusCard({ tenantId, stripeModeInfo, subscription, wallet, onNa
           <button
             onClick={() => openBillingPortal("payment_method_update")}
             disabled={portalLoading}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
           >
             {portalLoading ? "Opening…" : "Set up payment method →"}
           </button>

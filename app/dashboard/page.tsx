@@ -137,9 +137,9 @@ function PageHeader({ tenantConfig, devTenantOverride }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-3">
-        <Text variant="h2" as="h1">
+        <h1 className="text-xl font-semibold text-neutral-900">
           Overview
-        </Text>
+        </h1>
         <Badge variant="warning" size="sm" dot>
           Internal
         </Badge>

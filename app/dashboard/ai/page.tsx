@@ -644,9 +644,9 @@ function PageHeader({ filter }: { filter: FilterValue }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <Text variant="h2" as="h1">
+          <h1 className="text-xl font-semibold text-neutral-900">
             AI Decisions
-          </Text>
+          </h1>
           <Text variant="body-sm" color="muted">
             {subtitle}
           </Text>

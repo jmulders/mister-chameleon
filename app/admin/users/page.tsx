@@ -133,7 +133,7 @@ export default async function AdminUsersPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <Text variant="h2">Users</Text>
+          <h1 className="text-xl font-semibold text-neutral-900">Users</h1>
           <Text variant="body-sm" color="muted" className="mt-1">
             {users.length} admin user{users.length !== 1 ? "s" : ""} registered
           </Text>

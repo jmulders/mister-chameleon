@@ -152,7 +152,7 @@ function SignupRow({ row, onUpdated }: { row: SignupRow; onUpdated: () => void }
                 <button
                   onClick={handleProcess}
                   disabled={isPending}
-                  className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
                 >
                   {isPending ? "Processing…" : "Process"}
                 </button>

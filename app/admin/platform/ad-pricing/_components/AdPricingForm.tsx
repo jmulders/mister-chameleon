@@ -47,7 +47,7 @@ export function AdPricingForm({ initial }: { initial: AdPricing }) {
       </div>
       {msg && <p className={"mt-3 text-sm " + (msg.ok ? "text-green-700" : "text-red-600")}>{msg.text}</p>}
       <button onClick={save} disabled={pending}
-        className="mt-4 inline-flex rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+        className="mt-4 inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
         {pending ? "Saving…" : "Save rate-card"}
       </button>
       {initial.updatedAt && (

@@ -60,9 +60,9 @@ export default async function SessionDetailPage({ params }: PageProps) {
       <div className="flex flex-col gap-2">
         <BackLink />
         <div className="flex items-baseline gap-3">
-          <Text variant="h2" as="h1">
+          <h1 className="text-xl font-semibold text-neutral-900">
             Session
-          </Text>
+          </h1>
           <code className="rounded bg-neutral-100 px-2 py-0.5 font-mono text-sm text-neutral-600">
             {session.id}
           </code>

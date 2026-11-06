@@ -17,7 +17,6 @@ import {
 } from "@/billing/plan-enforcement";
 import { getEffectivePlan } from "@/billing/plan-enforcement";
 import { SESSION_CREDIT_BUNDLES } from "@/billing/plans";
-import { Text } from "@/components/primitives/Text";
 
 export const metadata = { title: "Session Credits · Dashboard" };
 
@@ -100,7 +99,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
 
       {/* Header */}
       <div>
-        <Text variant="h2" as="h1">Session Credits</Text>
+        <h1 className="text-xl font-semibold text-neutral-900">Session Credits</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Monthly personalisation usage for{" "}
           <span className="font-medium text-neutral-700">{tenantConfig.name}</span>
@@ -208,7 +207,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
                 €{(bundle.centsPerThousand / 100).toFixed(2)} per 1K sessions
               </p>
               <button
-                className="mt-3 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
+                className="mt-3 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
                 disabled
                 title="Stripe checkout — coming soon"
               >

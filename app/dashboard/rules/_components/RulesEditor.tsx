@@ -473,6 +473,8 @@ function newEditableRule(existingRules: EditableRule[]): EditableRule {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 interface RulesEditorProps {
+  /** Page-level controls shown directly under the title, e.g. the master switch. */
+  toolbar?: React.ReactNode;
   initialConfig:     StoredRulesConfig;
   variantCatalogue?: VariantCatalogue;
   /**
@@ -517,7 +519,7 @@ interface RulesEditorProps {
  */
 const AttributeCatalogueContext = createContext<readonly CustomAttributeDeclaration[]>([]);
 
-export function RulesEditor({ initialConfig, variantCatalogue, saveAction, resetAction, planLimits, attributeCatalogue, fireStats, suggestAction }: RulesEditorProps) {
+export function RulesEditor({ toolbar, initialConfig, variantCatalogue, saveAction, resetAction, planLimits, attributeCatalogue, fireStats, suggestAction }: RulesEditorProps) {
   const attributeDecls = attributeCatalogue ?? [];
   const catalogue     = variantCatalogue ?? buildPlatformCatalogue();
   const doSaveAction  = saveAction  ?? saveRulesAction;
@@ -895,7 +897,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
     {/* pb clearance so the floating save bar never covers the last rule's controls. */}
     <div className="flex flex-col gap-8 pb-28">
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap flex-col items-start justify-between gap-4 sm:flex-row">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-neutral-900">Decision Rules</h1>
           <p className="text-sm text-neutral-500">
@@ -911,6 +913,8 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
           onReset={() => setConfirmReset(true)}
         />
       </div>
+
+      {toolbar}
 
       {/* ── Status messages ─────────────────────────────────────────────── */}
       {saveStatus === "error" && saveError && (

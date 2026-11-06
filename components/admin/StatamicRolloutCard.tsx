@@ -111,7 +111,7 @@ export function StatamicRolloutCard() {
           type="button"
           disabled={pending || !name.trim()}
           onClick={run}
-          className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+          className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
         >
           {pending ? "Working…" : "Roll out site"}
         </button>

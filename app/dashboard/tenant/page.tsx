@@ -172,7 +172,7 @@ export default async function TenantRuntimeOverviewPage({ searchParams }: PagePr
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <Text variant="h2" as="h1">Runtime Overview</Text>
+            <h1 className="text-xl font-semibold text-neutral-900">Runtime Overview</h1>
             <Badge variant="outline" size="sm">Read-only</Badge>
             {devTenantOverride && (
               <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 font-mono text-xs font-medium text-amber-700">

@@ -89,7 +89,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
       {/* ── Page header ─────────────────────────────────────────────────────── */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text variant="h2">AI Logs</Text>
+          <h1 className="text-xl font-semibold text-neutral-900">AI Logs</h1>
           <Text variant="body-sm" color="muted" className="mt-1">
             {tenantFilter
               ? `Showing AI decisions for ${tenantFilter}`

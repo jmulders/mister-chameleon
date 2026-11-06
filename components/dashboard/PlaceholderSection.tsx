@@ -26,9 +26,7 @@ export function PlaceholderSection({
       {/* Page header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-3">
-          <Text variant="h2" as="h1">
-            {title}
-          </Text>
+          <h1 className="text-xl font-semibold text-neutral-900">{title}</h1>
           <Badge variant="outline" size="sm">
             Planned
           </Badge>

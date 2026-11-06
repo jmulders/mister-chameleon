@@ -242,7 +242,7 @@ export default async function TenantContentPage({
               href={cmsLink.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-brand-600 px-3 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
             >
               {cmsLink.label}
               <span aria-hidden="true">↗</span>
@@ -279,7 +279,7 @@ export default async function TenantContentPage({
               href={cmsLink.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 inline-flex items-center gap-1 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
+              className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
             >
               Open CMS <span aria-hidden="true">↗</span>
             </a>

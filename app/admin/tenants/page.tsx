@@ -38,7 +38,7 @@ export default async function AdminTenantsPage() {
       <div className="border-b border-neutral-200 bg-white px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-neutral-900">Tenants</h1>
+            <h1 className="text-xl font-semibold text-neutral-900">Tenants</h1>
             <p className="mt-0.5 text-sm text-neutral-500">
               All workspaces registered on the platform
             </p>

@@ -453,7 +453,7 @@ export function StoragePlatformClient({
             <button
               onClick={handleSbSave}
               disabled={isPending || sbSaveStatus === "saving"}
-              className="rounded bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               {sbSaveStatus === "saving" ? "Saving…" : "Save settings"}
             </button>
@@ -557,7 +557,7 @@ export function StoragePlatformClient({
             <button
               onClick={handleR2Save}
               disabled={isPending || r2SaveStatus === "saving"}
-              className="rounded bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               {r2SaveStatus === "saving" ? "Saving…" : "Save credentials"}
             </button>
@@ -672,7 +672,7 @@ function ProviderCard({
             <button
               onClick={onActivate}
               disabled={isPending}
-              className="rounded bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               Set as active
             </button>

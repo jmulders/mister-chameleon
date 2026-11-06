@@ -15,7 +15,6 @@ import {
 }                                    from "@/data/admin-auth";
 import { getAllTenants }             from "@/tenant/server";
 import { Badge }                     from "@/components/ui/Badge";
-import { Text }                      from "@/components/primitives/Text";
 import { UserForm }                  from "../UserForm";
 import { updateUserAction, resetPasswordAction } from "../actions";
 import type { SafeAdminUserWithTenants } from "@/data/admin-auth";
@@ -164,7 +163,7 @@ export default async function EditUserPage({ params, searchParams }: Props) {
           {user.name.charAt(0).toUpperCase()}
         </div>
         <div>
-          <Text variant="h2">{user.name}</Text>
+          <h1 className="text-xl font-semibold text-neutral-900">{user.name}</h1>
           <p className="text-sm text-neutral-400">{user.email}</p>
         </div>
       </div>

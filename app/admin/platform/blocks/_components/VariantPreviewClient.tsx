@@ -504,7 +504,7 @@ export function VariantPreviewClient({
                   {meta.itemHasCta && item.cta && (
                     <div className="flex items-center gap-1">
                       <span className="shrink-0 text-[9px] font-semibold uppercase tracking-widest text-neutral-300 w-10">CTA</span>
-                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium bg-indigo-600 text-white ring-1 ring-indigo-700">
+                      <span className="inline-flex items-center rounded-lg px-1.5 py-0.5 text-[9px] font-medium bg-indigo-600 text-white ring-1 ring-indigo-700">
                         {truncate(item.cta, 30)}
                       </span>
                     </div>

@@ -190,7 +190,7 @@ export function StatamicDeployPanel({
         <button
           onClick={handleDeploy}
           disabled={isDeploying || !domain.trim() || !forgeConfigured}
-          className="rounded bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isDeploying ? (
             <span className="flex items-center gap-1.5">

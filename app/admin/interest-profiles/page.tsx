@@ -20,7 +20,6 @@ import { listAllInterestProfiles } from "@/interest-profiles/repository";
 import { SeedCatalogButton }             from "./_components/SeedCatalogButton";
 import { Badge }                   from "@/components/ui/Badge";
 import { Card, CardContent }       from "@/components/ui/Card";
-import { Text }                    from "@/components/primitives/Text";
 import { CATALOG_SIZE }            from "@/interest-profiles/catalog";
 import type {
   InterestProfile,
@@ -321,7 +320,7 @@ export default async function InterestProfilesPage() {
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
-          <Text variant="h2">Interest profiles</Text>
+          <h1 className="text-xl font-semibold text-neutral-900">Interest profiles</h1>
           <p className="mt-1 text-sm text-neutral-500 max-w-xl">
             Platform-managed profiles that score visitor interest based on the keywords
             of pages they visit. Scores become context variables (

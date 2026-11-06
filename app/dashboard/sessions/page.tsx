@@ -103,9 +103,9 @@ function PageHeader({
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-col gap-1">
-        <Text variant="h2" as="h1">
+        <h1 className="text-xl font-semibold text-neutral-900">
           Sessions
-        </Text>
+        </h1>
         <Text variant="body-sm" color="muted">
           {total === null
             ? "Could not load session count."

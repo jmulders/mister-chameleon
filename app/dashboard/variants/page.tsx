@@ -116,9 +116,9 @@ export default async function DashboardVariantsPage() {
 function PageHeader() {
   return (
     <div className="flex flex-col gap-1">
-      <Text variant="h2" as="h1">
+      <h1 className="text-xl font-semibold text-neutral-900">
         Variants
-      </Text>
+      </h1>
       <Text variant="body-sm" color="muted">
         Per-variant serve counts, CTA click attribution, and traffic source
         breakdown.

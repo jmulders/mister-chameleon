@@ -1173,7 +1173,7 @@ function SiteInitReportPanel({ tenantId, report, warnings }: SiteInitReportPanel
           <div className="mt-2 flex flex-wrap gap-2">
             <Link
               href={`/admin/tenants/${tenantId}/content`}
-              className="inline-flex items-center rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
+              className="inline-flex items-center rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
             >
               Open Content →
             </Link>

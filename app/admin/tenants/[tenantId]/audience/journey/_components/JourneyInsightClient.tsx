@@ -420,7 +420,7 @@ function SessionSelector({
             <button
               type="button"
               onClick={() => onSelect(mySessionId)}
-              className="shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+              className="shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
             >
               Load my session
             </button>

@@ -276,7 +276,7 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
                 </div>
                 <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 8 }}>{preset.category}</div>
                 <button type="button" disabled={pending} onClick={() => applyPreset(preset.id)}
-                  className="rounded bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+                  className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
                   Apply
                 </button>
               </div>
@@ -352,7 +352,7 @@ export function PresetColourExplorer({ tenantId }: { tenantId: string }) {
               <input className={inputCls} value={customName} placeholder="Custom colour look" onChange={(e) => setCustomName(e.target.value)} />
             </label>
             <button type="button" disabled={pending} onClick={saveCustom}
-              className="rounded bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
               {pending ? "Saving..." : "Save as token set"}
             </button>
           </div>
