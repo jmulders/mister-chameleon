@@ -100,7 +100,7 @@ function FocalPointGrid({
   return (
     <div>
       <label className="block text-xs font-medium text-neutral-700 mb-1.5">Focal point</label>
-      <div className="grid w-[4.5rem] grid-cols-3 gap-1">
+      <div className="grid w-[4.5rem] grid-cols-1 sm:grid-cols-3 gap-1">
         {FOCAL_POINTS.map((fp) => {
           const active = (value || "center") === fp.value;
           return (

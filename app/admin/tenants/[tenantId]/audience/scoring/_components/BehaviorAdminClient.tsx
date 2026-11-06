@@ -209,7 +209,7 @@ function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Scoring Rules",     value: scoringRulesCount,    colour: "bg-amber-50 border-amber-200 text-amber-700" },
           { label: "Sequence Patterns", value: sequencePatternsCount, colour: "bg-blue-50 border-blue-200 text-blue-700" },

@@ -87,7 +87,7 @@ export default async function TenantDebugPage({
   ]);
 
   return (
-    <div className="max-w-4xl p-8 space-y-10">
+    <div className="p-4 sm:p-8 max-w-4xl space-y-10">
 
       {/* ── 1. Debug overlay ──────────────────────────────────────────────── */}
       <section>

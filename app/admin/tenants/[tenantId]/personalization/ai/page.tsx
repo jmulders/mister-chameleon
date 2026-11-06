@@ -284,7 +284,7 @@ export default async function TenantDecisionsPage({
     : "75% (platform default)";
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Page header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>

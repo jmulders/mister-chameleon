@@ -52,7 +52,7 @@ export default async function IntegrationsCmsPage() {
     null;
 
   return (
-    <div className="max-w-4xl space-y-5 p-8">
+    <div className="p-4 sm:p-8 max-w-4xl space-y-5">
 
       {/* Page header */}
       <div>

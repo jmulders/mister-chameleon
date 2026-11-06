@@ -52,7 +52,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   const gate = await checkPlanFeature(tenantId, "analyticsDashboard");
   if (!gate.allowed) {
     return (
-      <div className="px-8 py-8 max-w-3xl">
+      <div className="p-4 sm:p-8 max-w-3xl">
         <Text variant="h2" as="h1">Analytics</Text>
         <div className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 px-8 py-12 text-center">
           <p className="text-2xl font-bold text-neutral-300 mb-2">📊</p>
@@ -91,7 +91,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   const maxDailyCount  = Math.max(...daily.map((d) => d.sessions), 1);
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-8 max-w-5xl">
+    <div className="p-4 sm:p-8 flex flex-col gap-6 max-w-5xl">
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">

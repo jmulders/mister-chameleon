@@ -129,7 +129,7 @@ export default async function AdminUsersPage() {
   const users = await listAdminUsersWithTenants();
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>

@@ -894,7 +894,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
     {/* pb clearance so the floating save bar never covers the last rule's controls. */}
     <div className="flex flex-col gap-8 pb-28">
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap flex-col items-start justify-between gap-4 sm:flex-row">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-neutral-900">Decision Rules</h1>
           <p className="text-sm text-neutral-500">
@@ -953,7 +953,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                 : `${filteredRules.length} of ${sortedRules.length} shown · filtered`}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setShowContextLib((v) => !v)}

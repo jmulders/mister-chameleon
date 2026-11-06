@@ -36,7 +36,7 @@ export default async function AbmPage({
   const baseUrl = tenant?.primaryDomain ? `https://${tenant.primaryDomain}` : "";
 
   return (
-    <div className="max-w-6xl p-8 space-y-6">
+    <div className="p-4 sm:p-8 max-w-6xl space-y-6">
       <AdminPageHeader
         eyebrow="Audience"
         title="Target accounts"

@@ -84,7 +84,7 @@ export default async function ContentStatusPage({ searchParams }: PageProps) {
   } catch (err) {
     const buildError = err instanceof Error ? err.message : String(err);
     return (
-      <div className="flex flex-col gap-6 px-8 py-8">
+      <div className="p-4 sm:p-8 flex flex-col gap-6">
         <PageHeader tenant={tenant} devTenantOverride={devTenantOverride} />
         {devTenantOverride && <DevOverrideBanner tenantId={devTenantOverride} page="content-status" />}
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-800">
@@ -98,7 +98,7 @@ export default async function ContentStatusPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="flex flex-col gap-8 px-8 py-8">
+    <div className="p-4 sm:p-8 flex flex-col gap-8">
       <PageHeader tenant={tenant} report={report} devTenantOverride={devTenantOverride} />
       {devTenantOverride && <DevOverrideBanner tenantId={devTenantOverride} page="content-status" />}
       <LaunchReadinessBanner report={report} />

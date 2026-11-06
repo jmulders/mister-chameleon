@@ -453,7 +453,7 @@ function StepIndicator({
   steps: typeof STEPS;
 }) {
   return (
-    <div className="flex items-center gap-0">
+    <div className="flex items-center gap-0 overflow-x-auto pb-1 [scrollbar-width:none]">
       {steps.map((s, i) => {
         const isDone    = currentStep > s.id;
         const isActive  = currentStep === s.id;
@@ -461,7 +461,7 @@ function StepIndicator({
         const isLast    = i === steps.length - 1;
 
         return (
-          <div key={s.id} className="flex items-center">
+          <div key={s.id} className="flex shrink-0 items-center">
             {/* Circle */}
             <div className="flex flex-col items-center gap-1.5">
               <div className={cn(

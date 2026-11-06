@@ -56,7 +56,7 @@ export default async function BillingPlansPage() {
      String(error.message).includes("42P01"));
 
   return (
-    <div className="max-w-6xl p-8">
+    <div className="p-4 sm:p-8 max-w-6xl">
 
       {/* ── Billing tab navigation ───────────────────────────────────────────── */}
       <div className="mb-2">

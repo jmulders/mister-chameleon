@@ -268,7 +268,7 @@ function PlanForm({ initial, existingIds, isNew, onCancel, onSaved }: PlanFormPr
       {/* ── Prices (EUR) ─────────────────────────────────────────────────────── */}
       <div>
         <p className="mb-3 text-xs font-semibold text-neutral-700 uppercase tracking-wide">Prices (EUR)</p>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className={labelCls}>Monthly</label>
             <input type="number" min={0} value={monthly} onChange={(e) => setMonthly(e.target.value)} className={inputCls} />

@@ -452,7 +452,7 @@ function BalanceHero({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6 text-right">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-right">
           {[
             { label: "Today",        val: spendToday },
             { label: "This month",   val: spendThisMonth },
@@ -635,7 +635,7 @@ function CategoryCard({
       </div>
 
       {totalCalls > 0 ? (
-        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-neutral-100 pt-3 text-center text-xs">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 border-t border-neutral-100 pt-3 text-center text-xs">
           <div>
             <p className="font-semibold text-neutral-800">{totalCalls.toLocaleString("nl-NL")}</p>
             <p className="text-neutral-400">calls</p>
@@ -2863,7 +2863,7 @@ function StripePaymentsTab({
   return (
     <div className="space-y-4">
       {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3">
           <p className="text-xs text-neutral-500">Total paid</p>
           <p className="mt-0.5 text-lg font-semibold text-neutral-900">

@@ -120,7 +120,7 @@ export function TokenExtractorClient() {
         <label htmlFor="extract-url" className="block text-sm font-medium text-neutral-700">
           Website URL
         </label>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           <input
             id="extract-url"
             type="url"

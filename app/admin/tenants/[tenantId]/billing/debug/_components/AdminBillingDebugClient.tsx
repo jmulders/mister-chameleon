@@ -306,7 +306,7 @@ export function AdminBillingDebugClient({ requests }: { requests: BillingRequest
     <div className="space-y-4">
 
       {/* ── Summary bar ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "Requests",      value: totalRequests, color: "text-neutral-700" },
           { label: "With charges",  value: withCharges,   color: "text-emerald-700" },

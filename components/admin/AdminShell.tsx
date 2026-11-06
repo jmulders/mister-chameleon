@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link            from "next/link";
 import { Fragment }    from "react";
+import { ResponsiveSidebar, SidebarMenuButton } from "@/components/admin/ResponsiveSidebar";
 
 /**
  * AdminShell
@@ -35,9 +36,10 @@ function AdminTopBar() {
   }));
 
   return (
-    <div className="sticky top-0 z-10 flex-shrink-0 h-11 bg-white border-b border-neutral-100 shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center px-8">
-      <nav aria-label="Breadcrumb">
-        <ol className="flex items-center gap-1 text-[11px]">
+    <div className="sticky top-0 z-10 flex-shrink-0 h-11 bg-white border-b border-neutral-100 shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-2 px-4 sm:px-8">
+      <SidebarMenuButton />
+      <nav aria-label="Breadcrumb" className="min-w-0 overflow-x-auto">
+        <ol className="flex items-center gap-1 whitespace-nowrap text-[11px]">
           {crumbs.map((crumb, i) => {
             const isLast = i === crumbs.length - 1;
             return (
@@ -86,12 +88,11 @@ export function AdminShell({ sidebar, children }: AdminShellProps) {
   }
 
   return (
-    <>
-      {sidebar}
+    <ResponsiveSidebar sidebar={sidebar}>
       <main className="flex flex-1 flex-col overflow-y-auto min-w-0">
         <AdminTopBar />
         {children}
       </main>
-    </>
+    </ResponsiveSidebar>
   );
 }

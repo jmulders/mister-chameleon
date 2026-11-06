@@ -166,7 +166,7 @@ export default async function TenantRuntimeOverviewPage({ searchParams }: PagePr
     tenantSettings?.packageKey === "growth"  ? "primary" : "default";
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-8">
+    <div className="p-4 sm:p-8 flex flex-col gap-6">
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1080,7 +1080,7 @@ function ResolvedDesignSection({
                     <Badge variant="primary" size="sm">overridden</Badge>
                   </div>
                 ) : (
-                  <span className="text-xs text-neutral-400 truncate max-w-[200px]" title={resolvedTheme.typography.fontFamilySans}>
+                  <span className="block text-xs text-neutral-400 truncate max-w-[130px] sm:max-w-[200px]" title={resolvedTheme.typography.fontFamilySans}>
                     preset default · {resolvedTheme.typography.fontFamilySans}
                   </span>
                 ),

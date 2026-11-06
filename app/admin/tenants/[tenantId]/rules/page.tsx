@@ -70,7 +70,7 @@ export default async function TenantRulesPage({
 
   if (!result.ok) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <PageHeader tenant={tenant} />
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <strong>Error loading rules:</strong> {result.error}
@@ -83,7 +83,7 @@ export default async function TenantRulesPage({
   const rulesEnabled = result.config.rulesEnabled !== false;
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* ── Toolbar — global toggle op een eigen regel, data-acties rechts eronder ── */}
       <div className="mb-6 flex flex-col gap-3">
         <GlobalRulesToggle
