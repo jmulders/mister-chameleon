@@ -14,7 +14,7 @@ export default async function PublishersPage() {
   const overview = await fetchPublishersOverviewAction();
 
   return (
-    <div className="max-w-4xl p-8">
+    <div className="p-4 sm:p-8 max-w-4xl">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Platform</div>
       <h1 className="mt-1 text-2xl font-bold text-neutral-900">Publishers</h1>
       <p className="mt-1 max-w-2xl text-sm text-neutral-600">

@@ -104,7 +104,7 @@ export default async function SystemPage() {
   const initialBackups = await loadBackups();
 
   return (
-    <div className="max-w-4xl p-8 space-y-8">
+    <div className="p-4 sm:p-8 max-w-4xl space-y-8">
 
       {/* Header */}
       <div>

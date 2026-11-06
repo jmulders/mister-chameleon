@@ -52,7 +52,7 @@ export default async function TenantPersonalizationStatsPage({
 
   if (!result.ok) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <PageHeader tenant={tenant} />
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <strong>Error loading stats:</strong> {result.error}
@@ -65,7 +65,7 @@ export default async function TenantPersonalizationStatsPage({
   const budget = resolveContentBudget(budgetResult.ok ? (budgetResult.data ?? {}) : {});
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <PageHeader tenant={tenant} />
 
       {/* ── Variant usage vs content budget ───────────────────────────────── */}

@@ -22,7 +22,7 @@ export default async function DocPage({
   if (content === null) notFound();
 
   return (
-    <div className="max-w-3xl p-8">
+    <div className="p-4 sm:p-8 max-w-3xl">
       <Link
         href="/admin/platform/docs"
         className="text-xs font-medium text-neutral-500 hover:text-neutral-800"

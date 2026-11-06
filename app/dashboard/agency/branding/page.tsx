@@ -78,7 +78,7 @@ export default function AgencyBrandingPage() {
 
   if (loading) {
     return (
-      <div className="px-8 py-8 max-w-2xl">
+      <div className="p-4 sm:p-8 max-w-2xl">
         <div className="h-7 w-48 bg-neutral-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
@@ -91,7 +91,7 @@ export default function AgencyBrandingPage() {
 
   if (!tenantId) {
     return (
-      <div className="px-8 py-8 max-w-2xl">
+      <div className="p-4 sm:p-8 max-w-2xl">
         <h1 className="text-xl font-bold text-neutral-900 mb-4">White-label Branding</h1>
         <p className="text-sm text-neutral-500">
           No tenant context found. Access this page from your agency dashboard or
@@ -105,7 +105,7 @@ export default function AgencyBrandingPage() {
   }
 
   return (
-    <div className="px-8 py-8 max-w-2xl">
+    <div className="p-4 sm:p-8 max-w-2xl">
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">

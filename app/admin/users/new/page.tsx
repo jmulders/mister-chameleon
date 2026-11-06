@@ -27,7 +27,7 @@ export default async function NewUserPage({ searchParams }: Props) {
   ]);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Header */}
       <div className="mb-6">
         <Text variant="h2">Create user</Text>

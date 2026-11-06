@@ -80,13 +80,13 @@ function TabBar({ active, onChange }: { active: AdminTab; onChange: (t: AdminTab
     { id: "decay",     label: "Decay Profiles" },
   ];
   return (
-    <div className="flex gap-1 border-b border-neutral-200 mb-6">
+    <div className="flex gap-1 overflow-x-auto border-b border-neutral-200 mb-6 [scrollbar-width:none]">
       {tabs.map((t) => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className={[
-            "px-4 py-2 text-sm font-medium rounded-t transition-colors",
+            "shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t transition-colors",
             active === t.id
               ? "border border-b-white border-neutral-200 -mb-px text-neutral-900 bg-white"
               : "text-neutral-500 hover:text-neutral-700",
@@ -210,7 +210,7 @@ function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Scoring Rules",     value: scoringRulesCount,    colour: "bg-amber-50 border-amber-200 text-amber-700" },
           { label: "Sequence Patterns", value: sequencePatternsCount, colour: "bg-blue-50 border-blue-200 text-blue-700" },

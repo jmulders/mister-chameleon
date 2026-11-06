@@ -52,7 +52,7 @@ export default async function SnippetPage({
   const consentSource = tenant.snippet?.consentSource ?? "auto";
 
   return (
-    <div className="max-w-4xl p-8">
+    <div className="p-4 sm:p-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-neutral-900">Snippet Integration</h1>
         <p className="mt-1 text-sm text-neutral-500">

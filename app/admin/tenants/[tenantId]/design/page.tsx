@@ -44,7 +44,7 @@ export default async function TenantDesignPage({
     : (tenant.design ?? { theme: safeThemeKey });
 
   return (
-    <div className="max-w-6xl p-8">
+    <div className="p-4 sm:p-8 max-w-6xl">
 
       {/* The tab strip is rendered by TenantSubNav (shared secondary row), so it
           sits in the same place and at the same size as the sub-nav on Content

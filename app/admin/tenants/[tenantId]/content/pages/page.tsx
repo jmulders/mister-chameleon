@@ -137,7 +137,7 @@ export default async function TenantPagesPage({
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Header */}
       <div className="mb-4">
         <Link

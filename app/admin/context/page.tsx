@@ -44,7 +44,7 @@ export default async function ContextVariablesPage() {
   const vars = await getMergedContextVariables();
 
   return (
-    <div className="max-w-6xl p-8">
+    <div className="p-4 sm:p-8 max-w-6xl">
 
       {/* Page header */}
       <div className="mb-6">

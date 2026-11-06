@@ -1,5 +1,6 @@
 import { cookies }        from "next/headers";
 import { DialogHost } from "@/components/admin/DialogHost";
+import { ResponsiveSidebar, SidebarMenuButton } from "@/components/admin/ResponsiveSidebar";
 import Link               from "next/link";
 import { DashboardNav }   from "@/components/dashboard/DashboardNav";
 import { Badge }          from "@/components/ui/Badge";
@@ -44,9 +45,7 @@ export default async function DashboardLayout({
   // not a hardcoded platform name.
   const activeTenant = await getActiveTenant();
 
-  return (
-    <div className="flex min-h-screen bg-neutral-50">
-      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
+  const sidebar = (
       <aside className="flex w-60 shrink-0 flex-col border-r border-neutral-200 bg-white">
         {/* Sidebar header */}
         <div className="flex flex-col gap-3 border-b border-neutral-200 px-4 py-5">
@@ -81,11 +80,21 @@ export default async function DashboardLayout({
           </p>
         </div>
       </aside>
+  );
 
-      {/* ── Main content ──────────────────────────────────────────────────── */}
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        {children}
-      </main>
+  return (
+    <div className="flex min-h-screen bg-neutral-50">
+      <ResponsiveSidebar sidebar={sidebar}>
+        {/* ── Main content ──────────────────────────────────────────────────── */}
+        <main className="flex min-w-0 flex-1 flex-col">
+          {/* Below lg the sidebar is a drawer: this bar holds its button. */}
+          <div className="sticky top-0 z-10 flex h-11 shrink-0 items-center gap-2 border-b border-neutral-200 bg-white px-4 lg:hidden">
+            <SidebarMenuButton />
+            <span className="truncate text-sm font-semibold text-neutral-900">{activeTenant.name}</span>
+          </div>
+          {children}
+        </main>
+      </ResponsiveSidebar>
       <DialogHost />
     </div>
   );

@@ -115,7 +115,7 @@ const DECISION_PATHS = [
 
 export default function DebugPage() {
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="p-4 sm:p-8 flex flex-col gap-8">
       {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-neutral-900">Debug</h1>
