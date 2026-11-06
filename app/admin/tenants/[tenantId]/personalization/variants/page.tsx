@@ -76,7 +76,7 @@ export default async function VariantsPage({
   const dataSource = pages[0]?.source ?? "db";
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="mb-6 flex flex-col gap-1">
         <div className="flex items-center justify-between gap-4">

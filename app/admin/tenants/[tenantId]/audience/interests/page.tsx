@@ -94,7 +94,7 @@ export default async function TenantInterestProfilesPage({
   const error: string | null = result.ok || tableMissing ? null : result.error;
 
   return (
-    <div className="max-w-6xl p-8">
+    <div className="p-4 sm:p-8 max-w-6xl">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-8 flex items-start justify-between gap-4">

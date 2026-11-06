@@ -56,7 +56,7 @@ export default async function FormSubmissionsPage({
     : null;
 
   return (
-    <div className="max-w-6xl p-8 space-y-6">
+    <div className="p-4 sm:p-8 max-w-6xl space-y-6">
 
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 text-sm text-slate-400">

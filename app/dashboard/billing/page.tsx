@@ -96,7 +96,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
     : "bg-brand-500";
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-8 max-w-4xl">
+    <div className="p-4 sm:p-8 flex flex-col gap-6 max-w-4xl">
 
       {/* Header */}
       <div>

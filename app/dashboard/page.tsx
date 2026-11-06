@@ -47,7 +47,7 @@ export default async function DashboardOverviewPage({ searchParams }: PageProps)
   // throw before reaching here — show a clear error state in that case.
   if (!result.ok) {
     return (
-      <div className="flex flex-col gap-6 px-8 py-8">
+      <div className="p-4 sm:p-8 flex flex-col gap-6">
         <PageHeader tenantConfig={tenantConfig} devTenantOverride={devTenantOverride} />
         <Card padding="md" shadow="none" className="border-red-200 bg-red-50">
           <CardContent>
@@ -64,7 +64,7 @@ export default async function DashboardOverviewPage({ searchParams }: PageProps)
   const m = result.data;
 
   return (
-    <div className="flex flex-col gap-8 px-8 py-8">
+    <div className="p-4 sm:p-8 flex flex-col gap-8">
       <PageHeader tenantConfig={tenantConfig} devTenantOverride={devTenantOverride} />
 
       {devTenantOverride && (

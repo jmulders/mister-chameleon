@@ -43,7 +43,7 @@ export default async function PerformancePage({
   if (segmentsResult.ok) for (const s of segmentsResult.data) segmentLabels[s.key] = s.label;
 
   return (
-    <div className="max-w-6xl p-8 space-y-5">
+    <div className="p-4 sm:p-8 max-w-6xl space-y-5">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Personalization</p>
         <h1 className="mt-1 text-xl font-semibold text-neutral-900">Performance</h1>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link        from "next/link";
+import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn }      from "@/lib/utils";
 
@@ -152,6 +153,19 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
   const pathname     = usePathname();
   const searchParams = useSearchParams();
   const base         = `/admin/tenants/${tenantId}`;
+  const navRef       = useRef<HTMLElement>(null);
+  const subNavRef    = useRef<HTMLDivElement>(null);
+
+  // On a phone the tab bars scroll sideways: keep the current tab in view. Only
+  // scrolls the bar itself, never the page.
+  useEffect(() => {
+    for (const bar of [navRef.current, subNavRef.current]) {
+      const tab = bar?.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!bar || !tab) continue;
+      const b = bar.getBoundingClientRect(), t = tab.getBoundingClientRect();
+      bar.scrollLeft += t.left - b.left - (b.width - t.width) / 2;
+    }
+  }, [pathname]);
 
   // ── Group definitions ───────────────────────────────────────────────────────
 
@@ -373,7 +387,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
     <div className="border-b border-neutral-200 bg-white shadow-sm">
 
       {/* Breadcrumb strip */}
-      <div className="flex items-center gap-2 px-6 pt-3.5 pb-0">
+      <div className="flex items-center gap-2 px-4 pt-3.5 pb-0 sm:px-6">
         <Link
           href="/admin/tenants"
           className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-indigo-600 transition-colors"
@@ -394,7 +408,8 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
 
       {/* Primary tab row */}
       <nav
-        className="flex items-center gap-0.5 px-6 pt-2"
+        ref={navRef}
+        className="flex items-center gap-0.5 overflow-x-auto px-4 pt-2 [scrollbar-width:none] sm:px-6"
         aria-label={`${tenantId} workspace navigation`}
       >
         {groups.map((group) => {
@@ -405,7 +420,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
               href={group.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative -mb-px inline-flex items-center gap-2 rounded-t-lg border-b-2 px-4 py-2.5 text-sm font-medium transition-all",
+                "relative -mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-lg border-b-2 px-4 py-2.5 text-sm font-medium transition-all",
                 active
                   ? "border-indigo-600 bg-indigo-50/60 text-indigo-700"
                   : "border-transparent text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800",
@@ -422,7 +437,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
 
       {/* Secondary sub-nav row — shown only when the active group has items */}
       {activeGroup.items.length > 0 && (
-        <div className="flex items-center gap-0 border-t border-neutral-100 bg-neutral-50/50 px-6">
+        <div ref={subNavRef} className="flex items-center gap-0 overflow-x-auto border-t border-neutral-100 bg-neutral-50/50 px-4 [scrollbar-width:none] sm:px-6">
           {activeGroup.items.map((item) => {
             const active = isSubItemActive(item);
             return (
@@ -431,7 +446,7 @@ export function TenantSubNav({ tenantId, tenantName, isAdvertiser = false, platf
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex items-center px-3.5 py-2 text-xs font-medium transition-all border-b-2 -mb-px",
+                  "inline-flex shrink-0 items-center whitespace-nowrap px-3.5 py-2 text-xs font-medium transition-all border-b-2 -mb-px",
                   active
                     ? "border-indigo-500 text-indigo-700"
                     : "border-transparent text-neutral-500 hover:text-neutral-800",

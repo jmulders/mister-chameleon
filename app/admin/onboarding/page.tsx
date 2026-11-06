@@ -21,7 +21,7 @@ export const metadata = {
 
 export default function AdminOnboardingPage() {
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="mb-8">
         <Text variant="h2">Create new tenant</Text>

@@ -45,7 +45,7 @@ export default async function AdminTenantsPage() {
           </div>
           <Link
             href="/admin/onboarding"
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
               <line x1="12" y1="5" x2="12" y2="19"/>
@@ -56,7 +56,7 @@ export default async function AdminTenantsPage() {
         </div>
 
         {/* Stats row */}
-        <div className="mt-5 grid grid-cols-4 gap-4">
+        <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total tenants"    value={tenants.length}         sub="all workspaces" />
           <StatCard label="Active"           value={activeTenants.length}   sub="with features enabled" />
           <StatCard label="Pro / Agency"     value={proTenants.length}      sub="highest tier" />
@@ -65,7 +65,7 @@ export default async function AdminTenantsPage() {
       </div>
 
       {/* ── Tenant table ─────────────────────────────────────────────────── */}
-      <div className="flex-1 p-8">
+      <div className="p-4 sm:p-8 flex-1">
         {/* The rollout lives here, not on a tenant's own Setup tab: it CREATES
             the tenant rather than acting on an existing one. */}
         <StatamicRolloutCard />

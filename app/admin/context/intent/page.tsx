@@ -32,7 +32,7 @@ export default function IntentContextInspectorPage() {
   const intentVars = CONTEXT_VARS_BY_SOURCE["intent"] ?? [];
 
   return (
-    <div className="max-w-4xl p-8 space-y-10">
+    <div className="p-4 sm:p-8 max-w-4xl space-y-10">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="space-y-1">

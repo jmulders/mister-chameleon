@@ -136,7 +136,7 @@ export function EffectiveStatusSummary({
         />
 
         {/* Behaviour row: compact inline grid */}
-        <div className="px-5 py-3 grid grid-cols-3 gap-x-4 gap-y-1">
+        <div className="px-5 py-3 grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1">
           <BehaviourCell
             label="Store submissions"
             active={storeSubmissions}
