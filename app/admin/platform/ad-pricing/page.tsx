@@ -15,7 +15,7 @@ export default async function AdPricingPage() {
   const initial = res.ok ? res.data : { cpmCents: 500, cpcCents: 20, revsharePct: 0, updatedAt: null };
 
   return (
-    <div className="max-w-4xl p-8">
+    <div className="p-4 sm:p-8 max-w-4xl">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Platform</div>
       <h1 className="mt-1 text-2xl font-bold text-neutral-900">Ad pricing</h1>
       <p className="mt-1 text-sm text-neutral-600 max-w-xl">

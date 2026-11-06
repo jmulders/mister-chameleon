@@ -513,7 +513,7 @@ export function VariantPreviewClient({
               ))
             ) : (
               /* No items configured yet — show placeholder cards */
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
                 {[1, 2, 3].map((n) => (
                   <div
                     key={n}

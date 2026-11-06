@@ -157,7 +157,7 @@ export default async function EditUserPage({ params, searchParams }: Props) {
   const passwordResetSuccess = success === "password_reset";
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">

@@ -122,7 +122,7 @@ export default function EditInterestProfilePage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center py-24">
+      <div className="p-4 sm:p-8 flex items-center justify-center py-24">
         <svg className="h-6 w-6 animate-spin text-brand-400" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -133,7 +133,7 @@ export default function EditInterestProfilePage() {
 
   if (loadError) {
     return (
-      <div className="max-w-4xl p-8">
+      <div className="p-4 sm:p-8 max-w-4xl">
         <Link href={listHref} className="mb-3 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700">
           ← Interest profiles
         </Link>
@@ -154,7 +154,7 @@ export default function EditInterestProfilePage() {
   const ctxVarName = `interest${ctxVarKey}Score`;
 
   return (
-    <div className="max-w-4xl p-8">
+    <div className="p-4 sm:p-8 max-w-4xl">
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="mb-8">

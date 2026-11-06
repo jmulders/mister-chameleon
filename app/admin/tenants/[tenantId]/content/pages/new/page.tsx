@@ -36,7 +36,7 @@ export default async function NewTenantPagePage({
   const boundAction = createPageFromPresetAction.bind(null, tenantId);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Back link */}
       <div className="mb-4">
         <Link

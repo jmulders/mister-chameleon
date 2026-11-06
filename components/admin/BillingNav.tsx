@@ -53,7 +53,7 @@ export function BillingNav() {
   return (
     <nav
       aria-label="Billing sections"
-      className="mb-7 flex gap-0.5 border-b border-neutral-200"
+      className="mb-7 flex gap-0.5 overflow-x-auto border-b border-neutral-200 [scrollbar-width:none]"
     >
       {TABS.map(({ label, href, exact }) => {
         const isActive = exact
@@ -66,7 +66,7 @@ export function BillingNav() {
             href={href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "relative -mb-px px-4 py-2.5 text-sm font-medium transition-colors",
+              "relative -mb-px shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-colors",
               "border-b-2",
               isActive
                 ? "border-blue-600 text-blue-700"

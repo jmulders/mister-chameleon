@@ -496,7 +496,7 @@ function FeatureEditor({
         <label className={labelCls}>Feature items</label>
         {f.items.map((item, idx) => (
           <div key={idx} className="rounded-md border border-neutral-200 p-3 space-y-2">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <label className={labelCls}>Icon key <span className="font-normal text-neutral-400">(opt)</span></label>
                 <input className={inputCls} value={item.icon}

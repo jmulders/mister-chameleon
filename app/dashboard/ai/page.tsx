@@ -79,7 +79,7 @@ export default async function DashboardAIPage({ searchParams }: PageProps) {
 
   if (!result.ok) {
     return (
-      <div className="flex flex-col gap-6 px-8 py-8">
+      <div className="p-4 sm:p-8 flex flex-col gap-6">
         <PageHeader filter={filter} />
         {devTenantOverride && <DevOverrideBanner tenantId={devTenantOverride} />}
         <AiStatusBanner tenantId={tenantData.tenantId} aiConfig={tenantData.aiConfig} />
@@ -108,7 +108,7 @@ export default async function DashboardAIPage({ searchParams }: PageProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-8">
+    <div className="p-4 sm:p-8 flex flex-col gap-6">
       <PageHeader filter={filter} />
       {devTenantOverride && <DevOverrideBanner tenantId={devTenantOverride} />}
       <AiStatusBanner tenantId={tenantData.tenantId} aiConfig={tenantData.aiConfig} />
@@ -279,7 +279,7 @@ function SummaryBlock({
       : null;
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <StatCard
         href="/dashboard/ai"
         label="Total logged"

@@ -197,7 +197,7 @@ function StatusOverview({ status }: { status: DemoImporterStatus }) {
         </div>
 
         {/* Provider summary row */}
-        <div className="grid grid-cols-3 divide-x divide-neutral-100">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-x divide-neutral-100">
           {status.providers.map((p) => (
             <div key={p.id} className="px-5 py-3">
               <p className="text-xs text-neutral-500 mb-1">{p.label}</p>

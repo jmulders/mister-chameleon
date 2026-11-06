@@ -1022,7 +1022,7 @@ function AdForm({ tenantId, pending, run, mode = "create", initial, adId, onDone
           <label className={label}>Landing URL (click destination)</label>
           <input className={input} value={form.click_url} onChange={(e) => set({ click_url: e.target.value })} placeholder="https://advertiser.example" />
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div>
             <label className={label}>Model</label>
             <select className={input} value={form.pricing_model} onChange={(e) => onModel(e.target.value as AdPricingModel)}>

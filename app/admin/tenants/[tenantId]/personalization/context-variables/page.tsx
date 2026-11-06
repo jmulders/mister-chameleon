@@ -41,7 +41,7 @@ export default async function TenantContextPage({
   const vars = await getMergedContextVariables();
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-neutral-900">Context Variables</h1>

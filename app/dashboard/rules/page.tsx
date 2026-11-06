@@ -49,7 +49,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
 
   if (!result.ok) {
     return (
-      <div className="flex flex-col gap-6 px-8 py-8">
+      <div className="p-4 sm:p-8 flex flex-col gap-6">
         <PageHeader tenantConfig={tenantConfig} devTenantOverride={devTenantOverride} />
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <strong>Error loading rules:</strong> {result.error}
@@ -59,7 +59,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-8">
+    <div className="p-4 sm:p-8 flex flex-col gap-6">
       <PageHeader tenantConfig={tenantConfig} devTenantOverride={devTenantOverride} />
       {devTenantOverride && (
         <DevOverrideBanner

@@ -3,6 +3,7 @@ import { cookies }     from "next/headers";
 import { AdminNav }    from "@/components/admin/AdminNav";
 import { AdminShell }  from "@/components/admin/AdminShell";
 import { BrandLogo }   from "@/components/admin/BrandLogo";
+import { DialogHost }  from "@/components/admin/DialogHost";
 import { DEV_TENANT_COOKIE } from "@/tenant/dev-tenant-cookie";
 import {
   getRequiredAdminSession,
@@ -102,6 +103,7 @@ export default async function AdminLayout({
       <AdminShell sidebar={sidebar}>
         {children}
       </AdminShell>
+      <DialogHost />
     </div>
   );
 }

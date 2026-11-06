@@ -82,7 +82,7 @@ export default async function BillingDebugPage({
   const requests = buildBillingDebugFromDbRows(rows, tenantId);
 
   return (
-    <div className="max-w-6xl p-8 space-y-6">
+    <div className="p-4 sm:p-8 max-w-6xl space-y-6">
 
       {/* ── Page header ──────────────────────────────────────────────────────── */}
       <div>
@@ -138,7 +138,7 @@ export default async function BillingDebugPage({
 
       {/* ── Empty state ──────────────────────────────────────────────────────── */}
       {!tableMissing && !fetchError && requests.length === 0 && (
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-8 text-center">
+        <div className="p-4 sm:p-8 rounded-lg border border-neutral-200 bg-neutral-50 text-center">
           <p className="text-sm text-neutral-500">No enrichment usage recorded for this tenant yet.</p>
           <p className="mt-1 text-xs text-neutral-400">
             Billing records appear here after the first page load that triggers the enrichment pipeline.

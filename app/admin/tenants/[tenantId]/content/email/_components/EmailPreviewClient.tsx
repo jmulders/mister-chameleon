@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useTransition } from "react";
 import {
   previewAdaptiveEmailAction, sendTestAdaptiveEmailAction, setFormSubmitTriggerAction,
@@ -48,11 +49,11 @@ function BatchCampaignCard({ tenantId, templates }:
     });
   };
 
-  const send = () => {
+  const send = async () => {
     if (!aud) return;
     const n = selected.size;
     if (n === 0) { setErr("Select at least one recipient."); return; }
-    if (!window.confirm(`Send "${templates.find((t) => t.key === tpl)?.label}" to ${n} recipient${n === 1 ? "" : "s"}? This delivers real email.`)) return;
+    if (!(await confirmDialog(`Send "${templates.find((t) => t.key === tpl)?.label}" to ${n} recipient${n === 1 ? "" : "s"}? This delivers real email.`, { confirmLabel: "Send" }))) return;
     setErr(null);
     startSend(async () => {
       const r = await sendBatchAction(tenantId, { templateKey: tpl, leadIds: [...selected] });

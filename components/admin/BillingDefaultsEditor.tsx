@@ -185,7 +185,7 @@ export function BillingDefaultsEditor({ defaults }: BillingDefaultsEditorProps) 
         <p className="mb-4 text-xs text-neutral-500">
           Applied to new tenant wallets at creation. Individual tenants can override via their wallet settings.
         </p>
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div>
             <label className={labelCls}>Trigger (EUR)</label>
             <input

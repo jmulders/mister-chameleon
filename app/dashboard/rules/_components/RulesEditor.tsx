@@ -895,7 +895,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
     {/* pb clearance so the floating save bar never covers the last rule's controls. */}
     <div className="flex flex-col gap-8 pb-28">
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap flex-col items-start justify-between gap-4 sm:flex-row">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-neutral-900">Decision Rules</h1>
           <p className="text-sm text-neutral-500">
@@ -954,7 +954,7 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
                 : `${filteredRules.length} of ${sortedRules.length} shown · filtered`}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setShowContextLib((v) => !v)}
@@ -1303,12 +1303,9 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
       />
 
       {/* ── Floating save bar — keeps Save reachable while editing a long rule ─ */}
-      {/* Fixed (not sticky): the dashboard shell scrolls the window while <main> */}
-      {/* keeps overflow-y-auto, which traps position:sticky — so a sticky bar    */}
-      {/* never pins. Fixed is viewport-anchored and immune to that. Anchored     */}
-      {/* bottom-right to stay clear of the left nav in every mount of this shared */}
-      {/* editor. Reuses the same SaveBar handlers as the header — no second save  */}
-      {/* path. Appears only when there are unsaved changes.                       */}
+      {/* Fixed, so the save bar is always in view while editing a long rule list. */}
+      {/* Anchored bottom-right to stay clear of the left nav in every mount of this */}
+      {/* shared editor. Reuses the same SaveBar handlers as the header. */}
       {isDirty && (
         <div
           role="region"

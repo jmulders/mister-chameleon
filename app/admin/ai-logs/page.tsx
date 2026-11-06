@@ -85,7 +85,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
   const aiTenants = tenants.filter((t) => t.features?.ai);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* ── Page header ─────────────────────────────────────────────────────── */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>

@@ -320,7 +320,7 @@ function SummarySection({ data }: { data: ReportSummarySection }) {
       <p className="text-sm text-neutral-800 leading-relaxed mb-5">{data.headline}</p>
 
       {/* Top-level metrics */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <MetricTile
           label="Sessions"
           value={data.sessionCount.toLocaleString(ADMIN_LOCALE)}
@@ -690,7 +690,7 @@ function EngineInsightsSection({ data }: { data: AiRulesInsightsSection }) {
       description="How the adaptive engine distributed decisions across rules and variants."
     >
       {/* Engine summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <MetricTile
           label="Total Decisions"
           value={data.totalDecisions.toLocaleString(ADMIN_LOCALE)}
@@ -784,7 +784,7 @@ function RecommendationsSection({
       description="Prioritised actions for the coming period."
     >
       {/* Priority breakdown header */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <PriorityTile priority="high"   count={highPriority.length} />
         <PriorityTile priority="medium" count={medPriority.length} />
         <PriorityTile priority="low"    count={lowPriority.length} />

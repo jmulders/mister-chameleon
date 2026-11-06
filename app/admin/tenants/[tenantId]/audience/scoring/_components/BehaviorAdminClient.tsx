@@ -21,6 +21,7 @@
  */
 
 import { LinkIcon, SearchIcon } from "@/components/admin/icons";
+import { confirmDialog } from "@/components/admin/DialogHost";
 import React, { useState, useTransition } from "react";
 import type {
   ScoringRule,
@@ -80,13 +81,13 @@ function TabBar({ active, onChange }: { active: AdminTab; onChange: (t: AdminTab
     { id: "decay",     label: "Decay Profiles" },
   ];
   return (
-    <div className="flex gap-1 border-b border-neutral-200 mb-6">
+    <div className="flex gap-1 overflow-x-auto border-b border-neutral-200 mb-6 [scrollbar-width:none]">
       {tabs.map((t) => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className={[
-            "px-4 py-2 text-sm font-medium rounded-t transition-colors",
+            "shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t transition-colors",
             active === t.id
               ? "border border-b-white border-neutral-200 -mb-px text-neutral-900 bg-white"
               : "text-neutral-500 hover:text-neutral-700",
@@ -210,7 +211,7 @@ function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Scoring Rules",     value: scoringRulesCount,    colour: "bg-amber-50 border-amber-200 text-amber-700" },
           { label: "Sequence Patterns", value: sequencePatternsCount, colour: "bg-blue-50 border-blue-200 text-blue-700" },
@@ -433,8 +434,8 @@ function ScoringRulesTab({
   const selectAll = () => setSelected(new Set(rules.map((r) => r.id)));
   const clearSelection = () => setSelected(new Set());
 
-  function bulkDelete(ids: string[]) {
-    if (!confirm(`Delete ${ids.length} rule${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+  async function bulkDelete(ids: string[]) {
+    if (!(await confirmDialog(`Delete ${ids.length} rule${ids.length === 1 ? "" : "s"}? This cannot be undone.`, { confirmLabel: "Delete", danger: true }))) return;
     startBulkTransition(async () => {
       const results = await Promise.all(ids.map((id) => deleteAction(id)));
       const failed = results.filter((r) => !r.ok).length;
@@ -590,7 +591,7 @@ function ScoringRulesTab({
     }
 
     // No deps — confirm + delete immediately.
-    if (!confirm("Delete this scoring rule?")) return;
+    if (!(await confirmDialog("Delete this scoring rule?", { confirmLabel: "Delete", danger: true }))) return;
     doDelete(rule.id);
   }
 
@@ -660,7 +661,7 @@ function ScoringRulesTab({
       const { ruleId, action } = pendingDepCheck;
       const rule = rules.find((r) => r.id === ruleId);
       if (action === "delete") {
-        if (!confirm("Delete this scoring rule?")) { setPendingDepCheck(null); return; }
+        if (!(await confirmDialog("Delete this scoring rule?", { confirmLabel: "Delete", danger: true }))) { setPendingDepCheck(null); return; }
         doDelete(ruleId);
       } else if (action === "deactivate" && rule) {
         doDeactivate(rule);
@@ -1098,8 +1099,8 @@ function SequencePatternsTab({
     });
   }
 
-  function handleDelete(id: string) {
-    if (!confirm("Delete this sequence pattern?")) return;
+  async function handleDelete(id: string) {
+    if (!(await confirmDialog("Delete this sequence pattern?", { confirmLabel: "Delete", danger: true }))) return;
     startTransition(async () => {
       const res = await deleteAction(id);
       if (res.ok) {

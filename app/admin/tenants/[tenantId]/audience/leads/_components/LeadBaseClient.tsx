@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { ADMIN_LOCALE, ADMIN_TIME_ZONE } from "@/lib/admin-date";
 import { Fragment, useState, useTransition } from "react";
 import { listLeadProfilesAction, deleteLeadProfilesAction, listVisitorEventsAction } from "../actions";
@@ -215,9 +216,9 @@ export function LeadBaseClient({
     setSelected(allSelected ? new Set() : new Set(profiles.map((p) => p.id)));
   }
 
-  function deleteIds(ids: string[]) {
+  async function deleteIds(ids: string[]) {
     if (ids.length === 0) return;
-    if (!confirm(`Delete ${ids.length} profile(s)? Any linked HubSpot contact is archived (recycling bin) for GDPR erasure. This cannot be undone here.`)) return;
+    if (!(await confirmDialog(`Delete ${ids.length} profile(s)? Any linked HubSpot contact is archived (recycling bin) for GDPR erasure. This cannot be undone here.`, { confirmLabel: "Delete", danger: true }))) return;
     start(async () => {
       const res = await deleteLeadProfilesAction(tenantId, ids);
       setProfiles((cur) => cur.filter((p) => !ids.includes(p.id)));

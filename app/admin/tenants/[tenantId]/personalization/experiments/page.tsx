@@ -94,7 +94,7 @@ export default async function TenantExperimentsPage({
   const boundSetEnabled = setTenantExperimentsEnabledAction.bind(null, tenantId);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="mb-6 flex flex-col gap-1">

@@ -86,7 +86,7 @@ export default async function AdminSetupPage({ searchParams }: Props) {
     : "https://app.supabase.com";
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       {/* Header */}
       <div className="mb-6">
         <Text variant="h2">Database setup</Text>

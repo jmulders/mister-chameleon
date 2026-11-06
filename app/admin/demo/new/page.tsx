@@ -157,7 +157,7 @@ export default function NewDemoPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-4xl p-8">
+    <div className="p-4 sm:p-8 max-w-4xl">
 
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -281,7 +281,7 @@ function LoadingPanel({ currentStep }: { currentStep: string }) {
   const steps = MIRROR_STEPS;
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm space-y-6">
+    <div className="p-4 sm:p-8 rounded-xl border border-neutral-200 bg-white shadow-sm space-y-6">
       {/* Spinner */}
       <div className="flex flex-col items-center gap-4">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />

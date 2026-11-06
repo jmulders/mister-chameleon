@@ -25,7 +25,7 @@ export default async function TenantCalendarPage({
   const { config, platformServiceAccountEmail, platformConfigured } = result.data;
 
   return (
-    <div className="max-w-4xl p-8 space-y-5">
+    <div className="p-4 sm:p-8 max-w-4xl space-y-5">
       <div>
         <Link
           href={`/admin/tenants/${tenantId}/integrations`}

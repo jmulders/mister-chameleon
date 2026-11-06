@@ -35,7 +35,7 @@ export default async function SessionDetailPage({ params }: PageProps) {
 
   if (!result.ok) {
     return (
-      <div className="flex flex-col gap-6 px-8 py-8">
+      <div className="p-4 sm:p-8 flex flex-col gap-6">
         <BackLink />
         <Card padding="md" shadow="none" className="border-red-200 bg-red-50">
           <CardContent>
@@ -55,7 +55,7 @@ export default async function SessionDetailPage({ params }: PageProps) {
   const { session, variants, events } = result.data;
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-8">
+    <div className="p-4 sm:p-8 flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <BackLink />

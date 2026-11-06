@@ -15,6 +15,7 @@
  * re-added at submit time. So the checkbox for a required field is locked on.
  */
 
+import { confirmDialog } from "@/components/admin/DialogHost";
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import type { FormVariantEntry, FormVariantContent } from "@/forms/context/variant";
@@ -213,8 +214,8 @@ export function FormVariantsEditor({ tenantId, definitionFields, initialVariants
     });
   }
 
-  function remove(variantKey: string) {
-    if (!confirm(`Delete variant "${variantKey}"?`)) return;
+  async function remove(variantKey: string) {
+    if (!(await confirmDialog(`Delete variant "${variantKey}"?`, { confirmLabel: "Delete", danger: true }))) return;
     start(async () => {
       const res = await deleteAction(variantKey);
       if (!res.ok) { setError(res.error); return; }

@@ -69,10 +69,10 @@ function SecretInput({
     <div>
       {hasExisting && !value && (
         <div className="mb-1.5 flex items-center gap-2 rounded-md border border-neutral-100 bg-neutral-50 px-3 py-1.5">
-          <span className="font-mono text-xs tracking-widest text-neutral-400">
+          <span className="min-w-0 truncate font-mono text-xs tracking-widest text-neutral-400">
             ••••••••••••••••••••••••••••••••
           </span>
-          <span className="ml-auto text-[11px] text-green-600 font-medium">configured</span>
+          <span className="ml-auto shrink-0 text-[11px] text-green-600 font-medium">configured</span>
         </div>
       )}
       <input

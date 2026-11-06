@@ -23,6 +23,7 @@
  *   state immediately for a responsive feel — no full page reload required.
  */
 
+import { confirmDialog, noticeDialog } from "@/components/admin/DialogHost";
 import {
   useState,
   useRef,
@@ -201,7 +202,7 @@ export function AssetLibraryClient({
         if (result.success) {
           setAssets((prev) => prev.filter((a) => a.id !== assetId));
         } else {
-          alert(`Delete failed: ${result.error}`);
+          await noticeDialog(`Delete failed: ${result.error}`);
         }
       } finally {
         setDeletingId(null);
@@ -239,7 +240,7 @@ export function AssetLibraryClient({
         }
         setEditingId(null);
       } else {
-        alert(`Update failed: ${result.error}`);
+        await noticeDialog(`Update failed: ${result.error}`);
       }
     },
     [tenantId, assets],
@@ -450,8 +451,8 @@ export function AssetLibraryClient({
                 isDeleting={deletingId === asset.id}
                 onCopy={() => handleCopy(asset)}
                 onEdit={() => setEditingId(asset.id)}
-                onDelete={() => {
-                  if (confirm(`Delete "${asset.title ?? asset.fileName}"? This cannot be undone.`)) {
+                onDelete={async () => {
+                  if ((await confirmDialog(`Delete "${asset.title ?? asset.fileName}"? This cannot be undone.`, { confirmLabel: "Delete", danger: true }))) {
                     void handleDelete(asset.id);
                   }
                 }}
@@ -486,8 +487,8 @@ export function AssetLibraryClient({
                   isEditing={editingId === asset.id}
                   onCopy={() => handleCopy(asset)}
                   onEdit={() => setEditingId(editingId === asset.id ? null : asset.id)}
-                  onDelete={() => {
-                    if (confirm(`Delete "${asset.title ?? asset.fileName}"? This cannot be undone.`)) {
+                  onDelete={async () => {
+                    if ((await confirmDialog(`Delete "${asset.title ?? asset.fileName}"? This cannot be undone.`, { confirmLabel: "Delete", danger: true }))) {
                       void handleDelete(asset.id);
                     }
                   }}

@@ -240,8 +240,8 @@ function SecretField({
       </label>
       {hasExisting && !value && (
         <div className="mb-1.5 flex items-center gap-2 rounded-md border border-neutral-100 bg-neutral-50 px-3 py-1.5">
-          <span className="font-mono text-xs tracking-widest text-neutral-400">••••••••••••••••••••••••••••••••</span>
-          <span className="ml-auto text-[11px] text-green-600 font-medium">configured</span>
+          <span className="min-w-0 truncate font-mono text-xs tracking-widest text-neutral-400">••••••••••••••••••••••••••••••••</span>
+          <span className="ml-auto shrink-0 text-[11px] text-green-600 font-medium">configured</span>
         </div>
       )}
       <input
@@ -1755,8 +1755,8 @@ export function TenantIntegrationsClient({
                   <label className="mb-1 block text-xs font-medium text-neutral-700">Service Account JSON</label>
                   {initialGa4.history.hasServiceAccount && !ga4ServiceJson && (
                     <div className="mb-1.5 flex items-center gap-2 rounded-md border border-neutral-100 bg-neutral-50 px-3 py-1.5">
-                      <span className="font-mono text-xs tracking-widest text-neutral-400">••••••••••••••••••••••••••••••••</span>
-                      <span className="ml-auto text-[11px] text-green-600 font-medium">configured</span>
+                      <span className="min-w-0 truncate font-mono text-xs tracking-widest text-neutral-400">••••••••••••••••••••••••••••••••</span>
+                      <span className="ml-auto shrink-0 text-[11px] text-green-600 font-medium">configured</span>
                     </div>
                   )}
                   <textarea
