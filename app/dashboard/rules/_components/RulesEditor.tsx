@@ -1302,12 +1302,9 @@ export function RulesEditor({ initialConfig, variantCatalogue, saveAction, reset
       />
 
       {/* ── Floating save bar — keeps Save reachable while editing a long rule ─ */}
-      {/* Fixed (not sticky): the dashboard shell scrolls the window while <main> */}
-      {/* keeps overflow-y-auto, which traps position:sticky — so a sticky bar    */}
-      {/* never pins. Fixed is viewport-anchored and immune to that. Anchored     */}
-      {/* bottom-right to stay clear of the left nav in every mount of this shared */}
-      {/* editor. Reuses the same SaveBar handlers as the header — no second save  */}
-      {/* path. Appears only when there are unsaved changes.                       */}
+      {/* Fixed, so the save bar is always in view while editing a long rule list. */}
+      {/* Anchored bottom-right to stay clear of the left nav in every mount of this */}
+      {/* shared editor. Reuses the same SaveBar handlers as the header. */}
       {isDirty && (
         <div
           role="region"

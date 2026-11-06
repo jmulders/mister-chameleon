@@ -89,7 +89,7 @@ export function AdminShell({ sidebar, children }: AdminShellProps) {
 
   return (
     <ResponsiveSidebar sidebar={sidebar}>
-      <main className="flex flex-1 flex-col overflow-y-auto min-w-0">
+      <main className="flex flex-1 flex-col min-w-0">
         <AdminTopBar />
         {children}
       </main>

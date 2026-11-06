@@ -45,7 +45,7 @@ export function ResponsiveSidebar({
         id="app-sidebar"
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex transition-[transform,visibility] duration-200",
-          "lg:static lg:z-auto lg:translate-x-0 lg:transition-none",
+          "lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:translate-x-0 lg:transition-none",
           // invisible, not just moved away: a closed drawer stays out of the tab order.
           open ? "translate-x-0" : "invisible -translate-x-full lg:visible",
         )}

@@ -85,7 +85,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-neutral-50">
       <ResponsiveSidebar sidebar={sidebar}>
         {/* ── Main content ──────────────────────────────────────────────────── */}
-        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+        <main className="flex min-w-0 flex-1 flex-col">
           {/* Below lg the sidebar is a drawer: this bar holds its button. */}
           <div className="sticky top-0 z-10 flex h-11 shrink-0 items-center gap-2 border-b border-neutral-200 bg-white px-4 lg:hidden">
             <SidebarMenuButton />
