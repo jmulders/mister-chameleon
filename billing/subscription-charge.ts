@@ -85,6 +85,11 @@ export async function attemptSubscriptionCharge(
   tenantId:    string,
   amountCents: number,
   description?: string,
+  /**
+   * Stripe idempotency key. With the same key Stripe returns the first payment
+   * instead of taking another, so a repeated or overlapping run charges once.
+   */
+  idempotencyKey?: string,
 ): Promise<SubscriptionChargeResult> {
   // ── Load wallet ──────────────────────────────────────────────────────────────
   const { data: wallet, error: walletErr } = await client
@@ -143,7 +148,7 @@ export async function attemptSubscriptionCharge(
       confirm:          true,
       description:      description ?? `Subscription renewal — tenant: ${tenantId}`,
       metadata:         { tenant_id: tenantId, stripe_mode: mode },
-    });
+    }, idempotencyKey ? { idempotencyKey } : undefined);
 
     if (intent.status === "succeeded") {
       logger.info("[subscription-charge] Charge succeeded", {
