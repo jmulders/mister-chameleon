@@ -94,7 +94,7 @@ export function ContactForm() {
       </div>
       {status === "error" && (
         <p className="text-sm text-red-600">
-          Something went wrong — please email us directly at hello@mister-chameleon.io
+          Something went wrong — please email us directly at info@misterchameleon.nl
         </p>
       )}
       <button

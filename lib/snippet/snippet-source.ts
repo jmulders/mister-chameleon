@@ -85,18 +85,18 @@
  * Returns the minified-ish JavaScript source for the snippet.
  *
  * @param decideUrl  Full URL to the decide endpoint, e.g.
- *                   `https://app.misterchameleon.com/api/snippet/decide`
+ *                   `https://www.misterchameleon.nl/api/snippet/decide`
  *                   Used to allow cross-origin deploys (operator's site ≠ MC platform).
  *
  * The siteKey is NOT baked in here — operators insert it as a data attribute:
- *   `<script src="https://app.misterchameleon.com/api/snippet.js"
+ *   `<script src="https://www.misterchameleon.nl/api/snippet.js"
  *           data-site-key="sk_live_abc123" async></script>`
  */
 import { NOTIF_KEY_PREFIX } from "@/lib/notifications/frequency-cap";
 import { EFFECT_RUNTIME_CSS, effectRuntimeJs } from "@/design-system/effects/effect-runtime";
 
 export function buildSnippetSource(decideUrl: string): string {
-  // Platform origin (e.g. https://app.misterchameleon.com) derived from the
+  // Platform origin (e.g. https://www.misterchameleon.nl) derived from the
   // decide URL, so injected form blocks can submit cross-origin to /api/forms.
   const platformOrigin = decideUrl.replace(/\/api\/snippet\/decide.*$/, "");
   // Declarative block-effects assets, shared with the platform runtime (derived

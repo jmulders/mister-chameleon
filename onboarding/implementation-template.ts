@@ -854,7 +854,7 @@ export function getRequiredEnvVars(
         description: "n8n webhook URL that receives contact form submissions.",
         required:    true,
         secretType:  "secret",
-        exampleValue: "https://n8n.misterchameleon.com/webhook/contact-intake",
+        exampleValue: "https://n8n.example.com/webhook/contact-intake",
         notes:       "The platform-level webhook. Override per-tenant with contact.webhookUrl in the tenant config.",
       });
     }

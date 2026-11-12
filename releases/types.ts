@@ -80,7 +80,7 @@ export type ReleaseId = string;
  *
  * staging     The pre-production environment. Mirrors production infrastructure
  *             but receives changes first. Tenant traffic is internal-only.
- *             Hostname convention: staging.misterchameleon.com or localhost.
+ *             Hostname convention: staging.misterchameleon.nl or localhost.
  *
  * production  Live environment. Real tenant traffic. Changes validated in
  *             staging before promotion. Feature flags may differ per tenant.

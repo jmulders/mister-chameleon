@@ -152,7 +152,7 @@ async function fetchHtml(url: string): Promise<{ html: string; finalUrl: string 
     const response = await fetch(url, {
       signal:  controller.signal,
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; MrChameleonBot/1.0; +https://misterchameleon.com/bot)",
+        "User-Agent": "Mozilla/5.0 (compatible; MrChameleonBot/1.0; +https://www.misterchameleon.nl)",
         "Accept":     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
       redirect: "follow",

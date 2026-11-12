@@ -45,7 +45,7 @@ export function HowItWorksContent() {
             <p className="text-xs text-neutral-500 mb-3">One line in your site&apos;s <code className="font-mono bg-neutral-100 px-1 rounded">&lt;head&gt;</code>. Nothing else to install.</p>
             <pre className="overflow-x-auto rounded-lg bg-neutral-950 px-4 py-3 text-xs text-neutral-100 leading-relaxed">
               <code>{`<script
-  src="https://app.misterchameleon.com/api/snippet.js"
+  src="https://www.misterchameleon.nl/api/snippet.js"
   data-site-key="sk_live_abc123"
   async
 ></script>`}</code>

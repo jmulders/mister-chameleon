@@ -1256,7 +1256,7 @@ export const marketingPagesPart2 = [
         { question: "Do I need to update my cookie banner for Mister Chameleon?", answer: "In most cases, no. We use a single first-party functional cookie (mc_session_id) that is necessary for the service to function - which typically does not require explicit consent under ePrivacy Directive interpretations. We recommend disclosing it in your cookie policy as a transparency measure. Your legal team should confirm for your specific jurisdiction." },
         { question: "Where is visitor data stored?", answer: "In your own Supabase database. You choose the region (EU, US, or others). We never store your visitors' personal data on Mister Chameleon infrastructure." },
         { question: "Is Mister Chameleon GDPR compliant?", answer: "Yes. We act as a data processor under GDPR. We offer a Data Processing Agreement (DPA) for all paying customers, which documents the lawful basis for processing, your rights as controller, and our subprocessor relationships." },
-        { question: "Can I request a security questionnaire or DPA?", answer: "Yes - contact us at security@misterchameleon.io and we'll respond within two business days." },
+        { question: "Can I request a security questionnaire or DPA?", answer: "Yes - contact us at security@misterchameleon.nl and we'll respond within two business days." },
       ]),
       ctaSec("cta", "Questions about compliance?", "Our team is happy to help with security questionnaires, DPA requests, and DPIA support.", "Contact us", "/contact"),
     ],
@@ -1537,7 +1537,7 @@ export const marketingPagesPart2 = [
         { question: "Can I try before I buy?", answer: "Yes. Every plan starts with a 14-day free trial. No credit card required to start. You only enter payment details when you're ready to continue." },
         { question: "What are enrichment credits?", answer: "Enrichment credits cover API-backed data lookups - company data, weather, CRM matching, and ABM targeting. Each lookup costs one credit. The Starter plan includes basic credits; Growth and Pro include more. You can buy additional packs from €6.50 for 250 credits." },
         { question: "Can I change plans mid-month?", answer: "Yes. Upgrades take effect immediately and are prorated. Downgrades take effect at the start of the next billing cycle." },
-        { question: "Do you offer a non-profit or startup discount?", answer: "Yes - contact us at hello@misterchameleon.io with your organisation details and we'll discuss options." },
+        { question: "Do you offer a non-profit or startup discount?", answer: "Yes - contact us at hello@misterchameleon.nl with your organisation details and we'll discuss options." },
       ]),
       ctaSec("cta", "Not sure which plan is right?", "Book a 20-minute call and we'll tell you exactly which plan fits your traffic and goals.", "Book a call", "/contact"),
     ],
@@ -2503,7 +2503,7 @@ export const marketingPagesPart3 = [
           bio: "Former VP Growth at a B2B SaaS scale-up. Built and broke enough generic websites to know there had to be a better way.",
           imageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "lucas@misterchameleon.io",
+          email: "lucas@misterchameleon.nl",
         },
         {
           name: "Noa Bakker",
@@ -2511,7 +2511,7 @@ export const marketingPagesPart3 = [
           bio: "Edge computing specialist. Previously built real-time data pipelines at scale. Obsessed with sub-50ms decision latency.",
           imageUrl: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "noa@misterchameleon.io",
+          email: "noa@misterchameleon.nl",
         },
         {
           name: "Daan Visser",
@@ -2519,7 +2519,7 @@ export const marketingPagesPart3 = [
           bio: "Product leader with 10 years in marketing technology. Spent five years at an enterprise ABM platform before joining us.",
           imageUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "daan@misterchameleon.io",
+          email: "daan@misterchameleon.nl",
         },
         {
           name: "Sofia Martins",
@@ -2527,7 +2527,7 @@ export const marketingPagesPart3 = [
           bio: "Full-stack engineer focused on Next.js and edge infrastructure. Has strong opinions about API design and expresses them clearly.",
           imageUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "sofia@misterchameleon.io",
+          email: "sofia@misterchameleon.nl",
         },
         {
           name: "Thomas Kramer",
@@ -2535,7 +2535,7 @@ export const marketingPagesPart3 = [
           bio: "10 years in B2B SaaS sales and partnerships. Formerly ran European partnerships at a leading CRM platform.",
           imageUrl: "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "thomas@misterchameleon.io",
+          email: "thomas@misterchameleon.nl",
         },
         {
           name: "Ines de Graaf",
@@ -2543,7 +2543,7 @@ export const marketingPagesPart3 = [
           bio: "Product designer focused on clarity and usability. Believes the best interfaces are the ones you don't notice.",
           imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "ines@misterchameleon.io",
+          email: "ines@misterchameleon.nl",
         },
         {
           name: "Lena Brouwer",
@@ -2551,7 +2551,7 @@ export const marketingPagesPart3 = [
           bio: "Has onboarded over 200 customers. If your integration question has a tricky edge case, she's already seen it.",
           imageUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "support@misterchameleon.io",
+          email: "support@misterchameleon.nl",
         },
         {
           name: "Jasper Mulders",
@@ -2559,7 +2559,7 @@ export const marketingPagesPart3 = [
           bio: "Hired for three companies before joining us. Believes the right hire is a better decision than a fast hire.",
           imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
           linkedinUrl: "https://linkedin.com",
-          email: "hello@misterchameleon.io",
+          email: "hello@misterchameleon.nl",
         },
       ]),
 
@@ -2693,7 +2693,7 @@ export const marketingPagesPart3 = [
       recruiterPanel("recruiter", "Questions about working here?", "Jasper Mulders", "Head of People",
         "Happy to tell you more about the team, the culture, or any of the open roles. Drop me a line - I respond to every message personally.",
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
-        "hello@misterchameleon.io",
+        "hello@misterchameleon.nl",
       ),
 
       // 12. Final CTA
@@ -2858,7 +2858,7 @@ export const marketingPagesPart3 = [
         "How we hire",
         "Character and capability. Not keywords on a CV.",
         "We review every application personally - there is no automated screening. We look for people who think clearly, write honestly, and have demonstrably done the kind of work we need. A matching list of buzzwords on a CV tells us very little. A clear explanation of a hard problem you solved tells us a lot. The process is: application review, a short intro call with Jasper, a paid work sample, and a final conversation with the founding team. Total time from application to offer is typically two to three weeks.",
-        [{ label: "Talk to Jasper first", href: "mailto:hello@misterchameleon.io" }],
+        [{ label: "Talk to Jasper first", href: "mailto:hello@misterchameleon.nl" }],
         { type: "image" as const, url: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=900&auto=format&fit=crop&q=80", alt: "Recruiter having a relaxed video interview call", caption: "Every application read by a person. Every candidate treated like an adult." },
       ),
 
@@ -2866,7 +2866,7 @@ export const marketingPagesPart3 = [
       recruiterPanel("recruiter", "Questions about working here?", "Jasper Mulders", "Head of People",
         "Happy to tell you more about the team, the culture, the process, or any of the open roles. I respond to every message personally - usually within a day.",
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
-        "hello@misterchameleon.io",
+        "hello@misterchameleon.nl",
       ),
 
       // 11. No-role fallback CTA
@@ -2890,7 +2890,7 @@ export const marketingPagesPart3 = [
         "What we're looking for: 5+ years of professional software development. Strong TypeScript and modern React. Experience with Next.js (App Router preferred). Comfort working with databases (PostgreSQL / Supabase). Interest in edge computing, personalisation, or data infrastructure. Clear written communication - we're async-first.",
         "What we offer: Competitive salary (€70,000-€95,000 depending on experience). Equity. Remote-first - work from anywhere in Europe. 25 days holiday. Annual learning budget (€1,500). Fast decision-making - no approval chains.",
       )),
-      applyPanel("apply", "Apply for this role", "Send us your CV and a short note about why you're interested. We don't need a cover letter - just tell us what excites you about this role and what you'd bring to it.", "Apply now", "mailto:hello@misterchameleon.io?subject=Application: Senior Full-Stack Engineer"),
+      applyPanel("apply", "Apply for this role", "Send us your CV and a short note about why you're interested. We don't need a cover letter - just tell us what excites you about this role and what you'd bring to it.", "Apply now", "mailto:hello@misterchameleon.nl?subject=Application: Senior Full-Stack Engineer"),
     ],
     undefined,
     ["vacature", "functie", "solliciteren", "careers", "jobs", "apply", "werken bij"],
@@ -2908,7 +2908,7 @@ export const marketingPagesPart3 = [
         "What we're looking for: 4+ years in B2B SaaS growth or digital marketing. Hands-on experience with SEO, paid search, and email. Comfortable with data - you know how to run an experiment and read its results. Strong writer - you can write clear, non-fluffy content about technical topics. Based in Europe (CET +/- 2 hours preferred).",
         "What we offer: Competitive salary (€55,000-€75,000). Equity. Remote-first. 25 days holiday. Annual learning budget. The rare opportunity to be the first marketer at a product-led B2B SaaS company.",
       )),
-      applyPanel("apply", "Apply for this role", "Show us your work. Send your CV and a short note - or link to something you've built or written that shows us how you think.", "Apply now", "mailto:hello@misterchameleon.io?subject=Application: Growth Marketing Manager"),
+      applyPanel("apply", "Apply for this role", "Show us your work. Send your CV and a short note - or link to something you've built or written that shows us how you think.", "Apply now", "mailto:hello@misterchameleon.nl?subject=Application: Growth Marketing Manager"),
     ],
     undefined,
     ["vacature", "functie", "solliciteren", "careers", "jobs", "apply", "werken bij"],
@@ -2926,7 +2926,7 @@ export const marketingPagesPart3 = [
         "What we're looking for: 3+ years in customer success, account management, or similar. Experience with B2B SaaS - you understand the sales cycle, the onboarding journey, and the renewal motion. Technical comfort - you don't need to code, but you need to understand APIs, CMS systems, and analytics tools at a conceptual level. Empathetic communicator - you listen well and can explain complex things clearly.",
         "What we offer: Competitive salary (€45,000-€65,000). Commission on expansion. Equity. Remote-first. 25 days holiday. Annual learning budget. A small, close-knit team where your work visibly matters.",
       )),
-      applyPanel("apply", "Apply for this role", "Tell us about a customer you've helped succeed and what you did to make it happen. That's the most useful thing you can share with us.", "Apply now", "mailto:hello@misterchameleon.io?subject=Application: Customer Success Manager"),
+      applyPanel("apply", "Apply for this role", "Tell us about a customer you've helped succeed and what you did to make it happen. That's the most useful thing you can share with us.", "Apply now", "mailto:hello@misterchameleon.nl?subject=Application: Customer Success Manager"),
     ],
     undefined,
     ["vacature", "functie", "solliciteren", "careers", "jobs", "apply", "werken bij"],
@@ -2938,11 +2938,11 @@ export const marketingPagesPart3 = [
     [
       textSec("intro", "text_single", "Press & media",
         pt(
-          "For press enquiries, interview requests, or media kit access, contact press@misterchameleon.io. We aim to respond within one business day.",
+          "For press enquiries, interview requests, or media kit access, contact press@misterchameleon.nl. We aim to respond within one business day.",
           "We're happy to speak about website personalisation, privacy-first data strategy, the future of adaptive marketing, and the B2B SaaS landscape.",
         ),
       ),
-      ctaSec("cta", "Press enquiries", "Contact our press team directly.", "press@misterchameleon.io", "/contact"),
+      ctaSec("cta", "Press enquiries", "Contact our press team directly.", "press@misterchameleon.nl", "/contact"),
     ],
   ),
 
@@ -2969,9 +2969,9 @@ export const marketingPagesPart3 = [
 
       // 3. Contact channels - 3up grid with icons
       featureGrid("channels", "Choose how you'd like to connect", "feature_grid_3up", [
-        { title: "Sales & demos", description: "hello@misterchameleon.io - trial questions, plan comparisons, and live product demos. We'll walk you through a real setup, not a slide deck.", icon: "mail" },
-        { title: "Technical support", description: "support@misterchameleon.io - integration help, billing queries, and platform questions. Growth and Pro customers receive priority responses.", icon: "life-buoy" },
-        { title: "Press & partnerships", description: "press@misterchameleon.io - media enquiries, partnership proposals, and agency programme questions. We respond to every serious enquiry.", icon: "briefcase" },
+        { title: "Sales & demos", description: "hello@misterchameleon.nl - trial questions, plan comparisons, and live product demos. We'll walk you through a real setup, not a slide deck.", icon: "mail" },
+        { title: "Technical support", description: "support@misterchameleon.nl - integration help, billing queries, and platform questions. Growth and Pro customers receive priority responses.", icon: "life-buoy" },
+        { title: "Press & partnerships", description: "press@misterchameleon.nl - media enquiries, partnership proposals, and agency programme questions. We respond to every serious enquiry.", icon: "briefcase" },
       ]),
 
       // 4. Demo call - visual block, image left
@@ -3024,7 +3024,7 @@ export const marketingPagesPart3 = [
             role: "Head of Customer Success",
             bio: "Lena has onboarded over 200 customers and built the support playbook from scratch. If your question involves a tricky integration, chances are she's solved it before.",
             imageUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
-            email: "support@misterchameleon.io",
+            email: "support@misterchameleon.nl",
             linkedinUrl: "https://linkedin.com",
           },
           {
@@ -3032,15 +3032,15 @@ export const marketingPagesPart3 = [
             role: "Sales & Partnerships",
             bio: "Mark handles demos, plan questions, and partnerships. He'll give you a straight answer on whether Mister Chameleon is a good fit - even if that answer is 'not yet'.",
             imageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80",
-            email: "hello@misterchameleon.io",
+            email: "hello@misterchameleon.nl",
             linkedinUrl: "https://linkedin.com",
           },
           {
             name: "Yasmin Osei",
             role: "Technical Support",
-            bio: "Yasmin is the person behind support@misterchameleon.io. She knows the codebase well enough to spot configuration issues in seconds and explain them in plain English.",
+            bio: "Yasmin is the person behind support@misterchameleon.nl. She knows the codebase well enough to spot configuration issues in seconds and explain them in plain English.",
             imageUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&auto=format&fit=crop&q=80",
-            email: "support@misterchameleon.io",
+            email: "support@misterchameleon.nl",
             linkedinUrl: "https://linkedin.com",
           },
         ],
@@ -3055,15 +3055,15 @@ export const marketingPagesPart3 = [
         { type: "image" as const, url: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=900&auto=format&fit=crop&q=80", alt: "Amsterdam canal with historic buildings, representing the Keizersgracht office location" },
       ),
 
-      mapBlock("office-map", "Find us in Amsterdam", "Keizersgracht 125", "1015 CJ Amsterdam", "Netherlands", "hello@misterchameleon.io", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1234567890123!2d4.8895!3d52.3726!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c609b7f7f7f7f7%3A0x1234567890abcdef!2sKeizersgracht%20125%2C%201015%20CJ%20Amsterdam!5e0!3m2!1sen!2snl!4v1234567890"),
+      mapBlock("office-map", "Find us in Amsterdam", "Keizersgracht 125", "1015 CJ Amsterdam", "Netherlands", "hello@misterchameleon.nl", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1234567890123!2d4.8895!3d52.3726!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c609b7f7f7f7f7%3A0x1234567890abcdef!2sKeizersgracht%20125%2C%201015%20CJ%20Amsterdam!5e0!3m2!1sen!2snl!4v1234567890"),
 
       // 10. FAQ - pre-emptive answers to common questions
       faqSec("contact-faq", "Common questions before reaching out", [
         { question: "How quickly will you respond?", answer: "Within one business day for all channels. Growth and Pro customers receive priority responses, typically within a few hours during Dutch business hours (09:00-18:00 CET)." },
-        { question: "Can I get a refund or cancel my subscription?", answer: "Yes - contact support@misterchameleon.io. We process cancellations within one business day. Refunds are handled case by case; we'll always look at your situation fairly." },
-        { question: "I want a custom enterprise contract. Who do I talk to?", answer: "Reach out to hello@misterchameleon.io with your company size, traffic volume, and requirements. Enterprise proposals include custom limits, SSO, a dedicated CSM, and annual invoicing." },
+        { question: "Can I get a refund or cancel my subscription?", answer: "Yes - contact support@misterchameleon.nl. We process cancellations within one business day. Refunds are handled case by case; we'll always look at your situation fairly." },
+        { question: "I want a custom enterprise contract. Who do I talk to?", answer: "Reach out to hello@misterchameleon.nl with your company size, traffic volume, and requirements. Enterprise proposals include custom limits, SSO, a dedicated CSM, and annual invoicing." },
         { question: "Do you offer implementation support?", answer: "Yes. Every Growth and Pro plan includes an onboarding call. Pro customers also get a Slack channel with direct access to the team for the first 90 days." },
-        { question: "I'm a journalist or researcher. Who do I contact?", answer: "Send your request to press@misterchameleon.io. We respond to all serious media enquiries and are happy to provide data, quotes, or spokesperson access for relevant stories." },
+        { question: "I'm a journalist or researcher. Who do I contact?", answer: "Send your request to press@misterchameleon.nl. We respond to all serious media enquiries and are happy to provide data, quotes, or spokesperson access for relevant stories." },
       ]),
 
       // 11. Final CTA
@@ -3111,8 +3111,8 @@ export const marketingPagesPart3 = [
           "How we use data: To provide and improve the Mister Chameleon service; to communicate with you about your account; to send product updates and marketing communications (with your consent); and to comply with legal obligations.",
           "Data storage: Customer account data is stored in our infrastructure in the European Union. Your visitor personalisation data (behavioural signals, session history) is stored in your own Supabase database - we do not have access to it.",
           "Data sharing: We do not sell personal data. We share data with service providers who help us operate the platform (Supabase, Stripe, Sanity) under data processing agreements.",
-          "Your rights: Under GDPR, you have the right to access, correct, delete, and port your personal data. Contact privacy@misterchameleon.io to exercise these rights.",
-          "Contact: Mister Chameleon B.V., privacy@misterchameleon.io",
+          "Your rights: Under GDPR, you have the right to access, correct, delete, and port your personal data. Contact privacy@misterchameleon.nl to exercise these rights.",
+          "Contact: Mister Chameleon B.V., privacy@misterchameleon.nl",
         ),
       ),
     ],
@@ -3133,7 +3133,7 @@ export const marketingPagesPart3 = [
           "Payment: Subscription fees are charged monthly or annually in advance. Session top-ups and enrichment credit packs are charged at purchase. All fees are non-refundable except as required by law.",
           "Termination: You may cancel at any time. We may suspend or terminate accounts that violate these terms after reasonable notice.",
           "Limitation of liability: Our liability is limited to the fees you paid in the three months preceding the claim.",
-          "Contact: legal@misterchameleon.io",
+          "Contact: legal@misterchameleon.nl",
         ),
       ),
     ],
@@ -3162,7 +3162,7 @@ export const marketingPagesPart3 = [
         { title: "Manage individually", description: "Use the preference centre to choose exactly which cookie categories you accept. Your choices are saved in the mc_consent cookie.", icon: "sliders" },
       ]),
       formSec("cookie-preferences", "Set your preferences", "Choose which cookies you allow. Your choice is saved immediately.", "cookie-settings", "Save preferences"),
-      ctaSec("cta", "Questions about our cookie use?", "Contact our privacy team at privacy@misterchameleon.io and we'll explain exactly what data is stored and how.", "Contact privacy team", "mailto:privacy@misterchameleon.io"),
+      ctaSec("cta", "Questions about our cookie use?", "Contact our privacy team at privacy@misterchameleon.nl and we'll explain exactly what data is stored and how.", "Contact privacy team", "mailto:privacy@misterchameleon.nl"),
     ],
     undefined,
     ["privacy", "gdpr", "security", "compliance", "trust"],
@@ -3178,10 +3178,10 @@ export const marketingPagesPart3 = [
         ),
       ),
       featureGrid("compliance", "Our GDPR commitments", "feature_grid_3up", [
-        { title: "Data Processing Agreement", description: "We offer a standard DPA for all paying customers that documents lawful basis, sub-processors, data transfers, and your rights as controller. Available on request - contact privacy@misterchameleon.io." },
+        { title: "Data Processing Agreement", description: "We offer a standard DPA for all paying customers that documents lawful basis, sub-processors, data transfers, and your rights as controller. Available on request - contact privacy@misterchameleon.nl." },
         { title: "Sub-processors", description: "Our key sub-processors are Supabase (database infrastructure), Stripe (payment processing), and Sanity (CMS). All operate under EU-compliant data processing terms." },
         { title: "Data residency", description: "Your account data is stored in the EU by default. Supabase projects are created in your chosen region. We do not transfer visitor data to third countries." },
-        { title: "Data subject rights", description: "We respond to data subject requests within 30 days. Contact privacy@misterchameleon.io to submit a request or to support your own customers' rights requests." },
+        { title: "Data subject rights", description: "We respond to data subject requests within 30 days. Contact privacy@misterchameleon.nl to submit a request or to support your own customers' rights requests." },
         { title: "No third-party cookies", description: "Mister Chameleon does not use advertising cookies or cross-site tracking. The mc_session_id cookie is a functional first-party cookie - no consent banner required in most implementations." },
         { title: "Privacy by design", description: "Personal data minimisation is built into our architecture. Visitor behavioural data is stored in your own database. We hold only what is necessary to operate the service." },
       ]),
@@ -3198,12 +3198,12 @@ export const marketingPagesPart3 = [
       textSec("body", "text_single", "Service Level Agreement",
         pt(
           "Last updated: April 2026. Applies to Growth and Pro plans.",
-          "Uptime commitment: We target 99.9% monthly uptime for the Mister Chameleon decision engine and admin interface. Planned maintenance windows are excluded and communicated at least 48 hours in advance via status.misterchameleon.io.",
+          "Uptime commitment: We target 99.9% monthly uptime for the Mister Chameleon decision engine and admin interface. Planned maintenance windows are excluded and communicated at least 48 hours in advance via status.misterchameleon.nl.",
           "Incident response: P1 incidents (service unavailable) - initial response within 1 hour; P2 (degraded performance) - initial response within 4 hours; P3 (minor issues) - response within 1 business day.",
           "Compensation: If monthly uptime falls below 99.9%, customers on Growth and Pro plans are entitled to a service credit of 10% of their monthly fee per 0.5% below the target (up to 30% of monthly fees).",
           "Exclusions: The SLA does not cover downtime caused by third-party services (Supabase, Sanity, Stripe), customer-side misconfigurations, or events outside our reasonable control.",
-          "Status page: Real-time and historical uptime data is available at status.misterchameleon.io.",
-          "Questions: sla@misterchameleon.io",
+          "Status page: Real-time and historical uptime data is available at status.misterchameleon.nl.",
+          "Questions: sla@misterchameleon.nl",
         ),
       ),
     ],
@@ -3643,7 +3643,7 @@ export const marketingPagesPart3 = [
       },
 
       // recruiterPanel / default
-      recruiterPanel("recruiter-panel", "recruiterPanel / default", "Recruiter Lennart de Vries", "Head of Talent Acquisition", "I review every application personally. Send me a message if you have questions before applying - I reply to everyone within two working days.", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80", "lennart@misterchameleon.io", "+31 20 123 4567"),
+      recruiterPanel("recruiter-panel", "recruiterPanel / default", "Recruiter Lennart de Vries", "Head of Talent Acquisition", "I review every application personally. Send me a message if you have questions before applying - I reply to everyone within two working days.", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80", "lennart@misterchameleon.nl", "+31 20 123 4567"),
 
       // contactSection / contact_default
       { _type: "contactSection", _key: "contact-default", variant: "contact_default",
@@ -3651,7 +3651,7 @@ export const marketingPagesPart3 = [
         description: "Stacked contact detail cards on a subtle-background section. Shows address, phone, email, and hours in a clean grid layout.",
         address: "Keizersgracht 241",
         phone: "+31 20 123 4567",
-        email: "hello@misterchameleon.io",
+        email: "hello@misterchameleon.nl",
         hours: "Mon-Fri 09:00-17:00 CET",
       },
 
@@ -3661,7 +3661,7 @@ export const marketingPagesPart3 = [
         description: "Contact details on the left, map embed or image on the right. Good for pages where you want to anchor the address visually.",
         address: "Keizersgracht 241, Amsterdam",
         phone: "+31 20 123 4567",
-        email: "hello@misterchameleon.io",
+        email: "hello@misterchameleon.nl",
         hours: "Mon-Fri 09:00-17:00 CET",
         mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1!2d4.892!3d52.373!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNTLCsDIy!5e0!3m2!1sen!2snl!4v1",
       },
@@ -3670,7 +3670,7 @@ export const marketingPagesPart3 = [
       { _type: "contactSection", _key: "contact-minimal", variant: "contact_minimal",
         heading: "contactSection / contact_minimal",
         description: "Compact inline contact row with no section background. Use as a footer strip or between editorial sections where a full contact block would be too heavy.",
-        email: "hello@misterchameleon.io",
+        email: "hello@misterchameleon.nl",
         phone: "+31 20 123 4567",
       },
 
@@ -3991,7 +3991,7 @@ export const marketingPagesPart3 = [
       },
 
       // mapBlock / default
-      mapBlock("map-block", "mapBlock / default", "Keizersgracht 241", "Amsterdam", "Netherlands", "hello@misterchameleon.io", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1!2d4.892!3d52.373!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNTLCsDIy!5e0!3m2!1sen!2snl!4v1"),
+      mapBlock("map-block", "mapBlock / default", "Keizersgracht 241", "Amsterdam", "Netherlands", "hello@misterchameleon.nl", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1!2d4.892!3d52.373!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNTLCsDIy!5e0!3m2!1sen!2snl!4v1"),
 
       // ══════════════════════════════════════════════════════════════════════
       // 7. MISSING VARIANTS — premium family + additional layout variants
@@ -4213,7 +4213,7 @@ export const marketingPagesPart3 = [
         name: "Lennart de Vries",
         role: "Head of Talent",
         avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
-        email: "lennart@misterchameleon.io",
+        email: "lennart@misterchameleon.nl",
         phone: "+31 20 123 4567",
       },
 
@@ -4224,7 +4224,7 @@ export const marketingPagesPart3 = [
         role: "Head of Talent Acquisition",
         bio: "I review every application personally. Elevated card style — stands out when placed as a standalone block between editorial sections rather than inline within the vacancy description.",
         avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
-        email: "lennart@misterchameleon.io",
+        email: "lennart@misterchameleon.nl",
         phone: "+31 20 123 4567",
       },
 
@@ -4507,7 +4507,7 @@ const marketingSiteSettings: Record<string, unknown>[] = [
       { _key: "loc2", code: "de", label: "Deutsch" },
     ],
 
-    contactEmail: "hello@misterchameleon.io",
+    contactEmail: "hello@misterchameleon.nl",
 
     mainNavigation: [
       nref("nav-product",      "mn0"),
@@ -4837,7 +4837,7 @@ const siteSettingsNL: Record<string, unknown>[] = [
       { _key: "loc2", code: "de", label: "Deutsch" },
     ],
 
-    contactEmail: "hallo@misterchameleon.io",
+    contactEmail: "hallo@misterchameleon.nl",
 
     mainNavigation: [
       { _type: "reference", _ref: nlid("nav-product"),      _key: "mn0" },
@@ -4969,7 +4969,7 @@ const siteSettingsDE: Record<string, unknown>[] = [
       { _key: "loc2", code: "de", label: "Deutsch" },
     ],
 
-    contactEmail: "hallo@misterchameleon.io",
+    contactEmail: "hallo@misterchameleon.nl",
 
     mainNavigation: [
       { _type: "reference", _ref: deid("nav-product"),      _key: "mn0" },
@@ -5509,7 +5509,7 @@ const localePages: Record<string, unknown>[] = [
           { question: "Kan ik het uitproberen voordat ik koop?", answer: "Ja. Elk plan start met een gratis proefperiode van 14 dagen. Geen creditcard nodig om te beginnen. U vult betalingsgegevens pas in als u wilt doorgaan." },
           { question: "Wat zijn verrijkingskrediten?", answer: "Verrijkingskrediten dekken API-gestuurde dataopzoekingen - bedrijfsdata, weer, CRM-matching en ABM-targeting. Elke opzoeking kost een krediet. Het Starterplan bevat basiskrediten; Growth en Pro bevatten meer. U kunt extra pakketten kopen vanaf €6,50 voor 250 krediten." },
           { question: "Kan ik van plan wisselen midden in een maand?", answer: "Ja. Upgrades zijn direct van kracht en worden pro rata berekend. Downgrades gaan in aan het begin van de volgende factureringsperiode." },
-          { question: "Biedt u korting voor non-profits of startups?", answer: "Ja - neem contact op via hello@misterchameleon.io met uw organisatiegegevens en we bespreken de mogelijkheden." },
+          { question: "Biedt u korting voor non-profits of startups?", answer: "Ja - neem contact op via hello@misterchameleon.nl met uw organisatiegegevens en we bespreken de mogelijkheden." },
         ]),
         ctaSec("cta", "Niet zeker welk plan past?", "Boek een gesprek van 20 minuten en we vertellen u precies welk plan past bij uw verkeer en doelen.", "Boek een gesprek", "/contact"),
       ],
@@ -5591,7 +5591,7 @@ const localePages: Record<string, unknown>[] = [
           { question: "Kann ich es ausprobieren, bevor ich kaufe?", answer: "Ja. Jeder Plan startet mit einer 14-tagigen kostenlosen Testversion. Keine Kreditkarte erforderlich. Sie geben Zahlungsdaten erst ein, wenn Sie fortfahren mochten." },
           { question: "Was sind Anreicherungsgutschriften?", answer: "Anreicherungsgutschriften decken API-gestutzte Datenabfragen ab - Unternehmensdaten, Wetter, CRM-Matching und ABM-Targeting. Jede Abfrage kostet eine Gutschrift. Der Starter-Plan enthalt Basis-Gutschriften; Growth und Pro enthalten mehr. Zusatzliche Pakete ab €6,50 fur 250 Gutschriften." },
           { question: "Kann ich den Plan mitten im Monat wechseln?", answer: "Ja. Upgrades sind sofort wirksam und werden anteilig berechnet. Downgrades gelten ab Beginn des nachsten Abrechnungszeitraums." },
-          { question: "Bieten Sie Rabatte fur gemeinnutzige Organisationen oder Startups?", answer: "Ja - kontaktieren Sie uns unter hello@misterchameleon.io mit Ihren Organisationsdetails und wir besprechen die Moglichkeiten." },
+          { question: "Bieten Sie Rabatte fur gemeinnutzige Organisationen oder Startups?", answer: "Ja - kontaktieren Sie uns unter hello@misterchameleon.nl mit Ihren Organisationsdetails und wir besprechen die Moglichkeiten." },
         ]),
         ctaSec("cta", "Nicht sicher, welcher Plan passt?", "Buchen Sie ein 20-minutiges Gesprach und wir sagen Ihnen genau, welcher Plan zu Ihrem Traffic und Ihren Zielen passt.", "Gesprach buchen", "/contact"),
       ],
@@ -5621,9 +5621,9 @@ const localePages: Record<string, unknown>[] = [
           { value: "4,9", suffix: "/5", label: "Tevredenheid ondersteuning", description: "Over alle ondersteuningsinteracties in de afgelopen 12 maanden, beoordeeld door klanten." },
         ]),
         featureGrid("channels", "Kies hoe u verbinding wilt maken", "feature_grid_3up", [
-          { title: "Sales en demo's", description: "hello@misterchameleon.io - vragen over proefperiodes, planvergelijkingen en live productdemo's. We nemen u mee door een echte opzet, geen presentatie.", icon: "mail" },
-          { title: "Technische ondersteuning", description: "support@misterchameleon.io - integratiehelp, factuurvragen en platformvragen. Growth- en Pro-klanten ontvangen prioritaire reacties.", icon: "life-buoy" },
-          { title: "Pers en partnerships", description: "press@misterchameleon.io - mediavragen, partnerschapsvoorstellen en vragen over het bureaupartnershipsprogramma. We reageren op elke serieuze aanvraag.", icon: "briefcase" },
+          { title: "Sales en demo's", description: "hello@misterchameleon.nl - vragen over proefperiodes, planvergelijkingen en live productdemo's. We nemen u mee door een echte opzet, geen presentatie.", icon: "mail" },
+          { title: "Technische ondersteuning", description: "support@misterchameleon.nl - integratiehelp, factuurvragen en platformvragen. Growth- en Pro-klanten ontvangen prioritaire reacties.", icon: "life-buoy" },
+          { title: "Pers en partnerships", description: "press@misterchameleon.nl - mediavragen, partnerschapsvoorstellen en vragen over het bureaupartnershipsprogramma. We reageren op elke serieuze aanvraag.", icon: "briefcase" },
         ]),
         textMedia("demo-callout", "text_media_left",
           "Liever een live gesprek?",
@@ -5666,7 +5666,7 @@ const localePages: Record<string, unknown>[] = [
               role: "Head of Customer Success",
               bio: "Lena heeft meer dan 200 klanten begeleid en heeft het ondersteuningsplaybook van de grond af opgebouwd. Als uw vraag een lastige integratie betreft, heeft ze die waarschijnlijk al eerder opgelost.",
               imageUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
-              email: "support@misterchameleon.io",
+              email: "support@misterchameleon.nl",
               linkedinUrl: "https://linkedin.com",
             },
             {
@@ -5674,15 +5674,15 @@ const localePages: Record<string, unknown>[] = [
               role: "Sales en Partnerships",
               bio: "Mark behandelt demo's, planvragen en partnerships. Hij geeft u een eerlijk antwoord of Mister Chameleon een goede keuze is - ook als dat antwoord 'nog niet' is.",
               imageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80",
-              email: "hello@misterchameleon.io",
+              email: "hello@misterchameleon.nl",
               linkedinUrl: "https://linkedin.com",
             },
             {
               name: "Yasmin Osei",
               role: "Technische Ondersteuning",
-              bio: "Yasmin is de persoon achter support@misterchameleon.io. Ze kent de codebase goed genoeg om configuratieproblemen in seconden te herkennen en ze uit te leggen in begrijpelijke taal.",
+              bio: "Yasmin is de persoon achter support@misterchameleon.nl. Ze kent de codebase goed genoeg om configuratieproblemen in seconden te herkennen en ze uit te leggen in begrijpelijke taal.",
               imageUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&auto=format&fit=crop&q=80",
-              email: "support@misterchameleon.io",
+              email: "support@misterchameleon.nl",
               linkedinUrl: "https://linkedin.com",
             },
           ],
@@ -5694,13 +5694,13 @@ const localePages: Record<string, unknown>[] = [
           [{ label: "Routebeschrijving", href: "https://maps.google.com/?q=Keizersgracht+125+Amsterdam" }],
           { type: "image" as const, url: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=900&auto=format&fit=crop&q=80", alt: "Amsterdamse gracht met historische gebouwen, als symbool voor het kantoor aan de Keizersgracht" },
         ),
-        mapBlock("office-map", "Vind ons in Amsterdam", "Keizersgracht 125", "1015 CJ Amsterdam", "Nederland", "hello@misterchameleon.io", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1234567890123!2d4.8895!3d52.3726!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c609b7f7f7f7f7%3A0x1234567890abcdef!2sKeizersgracht%20125%2C%201015%20CJ%20Amsterdam!5e0!3m2!1snl!2snl!4v1234567890"),
+        mapBlock("office-map", "Vind ons in Amsterdam", "Keizersgracht 125", "1015 CJ Amsterdam", "Nederland", "hello@misterchameleon.nl", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1234567890123!2d4.8895!3d52.3726!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c609b7f7f7f7f7%3A0x1234567890abcdef!2sKeizersgracht%20125%2C%201015%20CJ%20Amsterdam!5e0!3m2!1snl!2snl!4v1234567890"),
         faqSec("contact-faq", "Veelgestelde vragen voordat u contact opneemt", [
           { question: "Hoe snel reageert u?", answer: "Binnen een werkdag voor alle kanalen. Growth- en Pro-klanten ontvangen prioritaire reacties, doorgaans binnen een paar uur tijdens Nederlandse kantooruren (09:00-18:00 CET)." },
-          { question: "Kan ik een terugbetaling krijgen of mijn abonnement opzeggen?", answer: "Ja - neem contact op via support@misterchameleon.io. We verwerken opzeggingen binnen een werkdag. Terugbetalingen worden per geval behandeld; we kijken altijd eerlijk naar uw situatie." },
-          { question: "Ik wil een aangepast enterprise-contract. Met wie spreek ik?", answer: "Neem contact op via hello@misterchameleon.io met uw bedrijfsgrootte, verkeersvolume en vereisten. Enterprise-voorstellen bevatten aangepaste limieten, SSO, een toegewijde CSM en jaarlijkse facturering." },
+          { question: "Kan ik een terugbetaling krijgen of mijn abonnement opzeggen?", answer: "Ja - neem contact op via support@misterchameleon.nl. We verwerken opzeggingen binnen een werkdag. Terugbetalingen worden per geval behandeld; we kijken altijd eerlijk naar uw situatie." },
+          { question: "Ik wil een aangepast enterprise-contract. Met wie spreek ik?", answer: "Neem contact op via hello@misterchameleon.nl met uw bedrijfsgrootte, verkeersvolume en vereisten. Enterprise-voorstellen bevatten aangepaste limieten, SSO, een toegewijde CSM en jaarlijkse facturering." },
           { question: "Biedt u implementatieondersteuning?", answer: "Ja. Elk Growth- en Pro-plan bevat een onboardinggesprek. Pro-klanten krijgen ook een Slack-kanaal met directe toegang tot het team gedurende de eerste 90 dagen." },
-          { question: "Ik ben journalist of onderzoeker. Met wie neem ik contact op?", answer: "Stuur uw verzoek naar press@misterchameleon.io. We reageren op alle serieuze mediavragen en geven graag gegevens, citaten of toegang tot een woordvoerder voor relevante verhalen." },
+          { question: "Ik ben journalist of onderzoeker. Met wie neem ik contact op?", answer: "Stuur uw verzoek naar press@misterchameleon.nl. We reageren op alle serieuze mediavragen en geven graag gegevens, citaten of toegang tot een woordvoerder voor relevante verhalen." },
         ]),
         ctaSec("cta", "Klaar om te praten?", "Reserveer een tijdslot van 20 minuten of stuur een bericht - wij nemen het van daar over.", "Boek een demogesprek", "https://cal.com/misterchameleon"),
       ],
@@ -5730,9 +5730,9 @@ const localePages: Record<string, unknown>[] = [
           { value: "4,9", suffix: "/5", label: "Support-Zufriedenheit", description: "Uber alle Support-Interaktionen in den letzten 12 Monaten, bewertet von Kunden." },
         ]),
         featureGrid("channels", "Wahlen Sie, wie Sie sich verbinden mochten", "feature_grid_3up", [
-          { title: "Vertrieb und Demos", description: "hello@misterchameleon.io - Fragen zu Testversionen, Planvergleiche und Live-Produktdemos. Wir fuhren Sie durch ein echtes Setup, keine Prasentationsfolien.", icon: "mail" },
-          { title: "Technischer Support", description: "support@misterchameleon.io - Integrationshilfe, Rechnungsfragen und Plattformfragen. Growth- und Pro-Kunden erhalten prioritare Antworten.", icon: "life-buoy" },
-          { title: "Presse und Partnerschaften", description: "press@misterchameleon.io - Medienanfragen, Partnerschaftsvorschlage und Fragen zum Agenturpartnerprogramm. Wir antworten auf jede ernsthafte Anfrage.", icon: "briefcase" },
+          { title: "Vertrieb und Demos", description: "hello@misterchameleon.nl - Fragen zu Testversionen, Planvergleiche und Live-Produktdemos. Wir fuhren Sie durch ein echtes Setup, keine Prasentationsfolien.", icon: "mail" },
+          { title: "Technischer Support", description: "support@misterchameleon.nl - Integrationshilfe, Rechnungsfragen und Plattformfragen. Growth- und Pro-Kunden erhalten prioritare Antworten.", icon: "life-buoy" },
+          { title: "Presse und Partnerschaften", description: "press@misterchameleon.nl - Medienanfragen, Partnerschaftsvorschlage und Fragen zum Agenturpartnerprogramm. Wir antworten auf jede ernsthafte Anfrage.", icon: "briefcase" },
         ]),
         textMedia("demo-callout", "text_media_left",
           "Bevorzugen Sie ein Live-Gesprach?",
@@ -5775,7 +5775,7 @@ const localePages: Record<string, unknown>[] = [
               role: "Head of Customer Success",
               bio: "Lena hat uber 200 Kunden eingearbeitet und das Support-Playbook von Grund auf aufgebaut. Wenn Ihre Frage eine knifflige Integration betrifft, hat sie sie wahrscheinlich schon gelost.",
               imageUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
-              email: "support@misterchameleon.io",
+              email: "support@misterchameleon.nl",
               linkedinUrl: "https://linkedin.com",
             },
             {
@@ -5783,15 +5783,15 @@ const localePages: Record<string, unknown>[] = [
               role: "Vertrieb und Partnerschaften",
               bio: "Mark kummert sich um Demos, Planfragen und Partnerschaften. Er gibt Ihnen eine direkte Antwort, ob Mister Chameleon gut zu Ihnen passt - auch wenn diese Antwort 'noch nicht' lautet.",
               imageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80",
-              email: "hello@misterchameleon.io",
+              email: "hello@misterchameleon.nl",
               linkedinUrl: "https://linkedin.com",
             },
             {
               name: "Yasmin Osei",
               role: "Technischer Support",
-              bio: "Yasmin ist die Person hinter support@misterchameleon.io. Sie kennt die Codebasis gut genug, um Konfigurationsprobleme in Sekunden zu erkennen und sie in verstandlichem Deutsch zu erklaren.",
+              bio: "Yasmin ist die Person hinter support@misterchameleon.nl. Sie kennt die Codebasis gut genug, um Konfigurationsprobleme in Sekunden zu erkennen und sie in verstandlichem Deutsch zu erklaren.",
               imageUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&auto=format&fit=crop&q=80",
-              email: "support@misterchameleon.io",
+              email: "support@misterchameleon.nl",
               linkedinUrl: "https://linkedin.com",
             },
           ],
@@ -5803,13 +5803,13 @@ const localePages: Record<string, unknown>[] = [
           [{ label: "Wegbeschreibung", href: "https://maps.google.com/?q=Keizersgracht+125+Amsterdam" }],
           { type: "image" as const, url: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=900&auto=format&fit=crop&q=80", alt: "Amsterdamer Kanal mit historischen Gebauden als Symbol fur den Burostandort an der Keizersgracht" },
         ),
-        mapBlock("office-map", "Finden Sie uns in Amsterdam", "Keizersgracht 125", "1015 CJ Amsterdam", "Niederlande", "hello@misterchameleon.io", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1234567890123!2d4.8895!3d52.3726!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c609b7f7f7f7f7%3A0x1234567890abcdef!2sKeizersgracht%20125%2C%201015%20CJ%20Amsterdam!5e0!3m2!1sde!2snl!4v1234567890"),
+        mapBlock("office-map", "Finden Sie uns in Amsterdam", "Keizersgracht 125", "1015 CJ Amsterdam", "Niederlande", "hello@misterchameleon.nl", "+31 20 123 4567", "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2436.1234567890123!2d4.8895!3d52.3726!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c609b7f7f7f7f7%3A0x1234567890abcdef!2sKeizersgracht%20125%2C%201015%20CJ%20Amsterdam!5e0!3m2!1sde!2snl!4v1234567890"),
         faqSec("contact-faq", "Haufige Fragen vor der Kontaktaufnahme", [
           { question: "Wie schnell antworten Sie?", answer: "Innerhalb eines Werktages fur alle Kanale. Growth- und Pro-Kunden erhalten prioritare Antworten, typischerweise innerhalb weniger Stunden wahrend der niederlandischen Geschaftszeiten (09:00-18:00 MEZ)." },
-          { question: "Kann ich eine Ruckerstattung erhalten oder mein Abonnement kundigen?", answer: "Ja - kontaktieren Sie support@misterchameleon.io. Wir bearbeiten Kundigungen innerhalb eines Werktages. Ruckerstattungen werden von Fall zu Fall behandelt; wir schauen immer fair auf Ihre Situation." },
-          { question: "Ich mochte einen benutzerdefinierten Enterprise-Vertrag. Mit wem spreche ich?", answer: "Kontaktieren Sie hello@misterchameleon.io mit Ihrer Unternehmensgrosse, Ihrem Traffic-Volumen und Ihren Anforderungen. Enterprise-Angebote umfassen benutzerdefinierte Limits, SSO, einen dedizierten CSM und jahrliche Rechnungsstellung." },
+          { question: "Kann ich eine Ruckerstattung erhalten oder mein Abonnement kundigen?", answer: "Ja - kontaktieren Sie support@misterchameleon.nl. Wir bearbeiten Kundigungen innerhalb eines Werktages. Ruckerstattungen werden von Fall zu Fall behandelt; wir schauen immer fair auf Ihre Situation." },
+          { question: "Ich mochte einen benutzerdefinierten Enterprise-Vertrag. Mit wem spreche ich?", answer: "Kontaktieren Sie hello@misterchameleon.nl mit Ihrer Unternehmensgrosse, Ihrem Traffic-Volumen und Ihren Anforderungen. Enterprise-Angebote umfassen benutzerdefinierte Limits, SSO, einen dedizierten CSM und jahrliche Rechnungsstellung." },
           { question: "Bieten Sie Implementierungsunterstutzung?", answer: "Ja. Jeder Growth- und Pro-Plan beinhaltet ein Onboarding-Gesprach. Pro-Kunden erhalten auch einen Slack-Kanal mit direktem Zugang zum Team fur die ersten 90 Tage." },
-          { question: "Ich bin Journalist oder Forscher. An wen wende ich mich?", answer: "Senden Sie Ihre Anfrage an press@misterchameleon.io. Wir antworten auf alle ernsthaften Medienanfragen und stellen gerne Daten, Zitate oder Zugang zu einem Sprecher fur relevante Berichte bereit." },
+          { question: "Ich bin Journalist oder Forscher. An wen wende ich mich?", answer: "Senden Sie Ihre Anfrage an press@misterchameleon.nl. Wir antworten auf alle ernsthaften Medienanfragen und stellen gerne Daten, Zitate oder Zugang zu einem Sprecher fur relevante Berichte bereit." },
         ]),
         ctaSec("cta", "Bereit zum Gesprach?", "Buchen Sie einen 20-minutigen Termin oder schicken Sie eine Nachricht - wir kummern uns um den Rest.", "Demo-Gesprach buchen", "https://cal.com/misterchameleon"),
       ],
