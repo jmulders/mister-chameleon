@@ -23,6 +23,8 @@
 import Link from "next/link";
 import { Container } from "@/components/primitives";
 import type { NavigationItemData } from "@/cms/types";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 export interface FooterMinimalProps {
   siteTitle: string;
@@ -31,6 +33,8 @@ export interface FooterMinimalProps {
   footerNav: NavigationItemData[];
   year:      number;
   density:   "compact" | "comfortable" | "spacious";
+  /** Language of the fixed footer words. The caller passes the site language. */
+  locale?:   SiteLocale;
 }
 
 export function FooterMinimal({
@@ -40,7 +44,9 @@ export function FooterMinimal({
   footerNav,
   year,
   density,
+  locale = "en",
 }: FooterMinimalProps) {
+  const t = LAYOUT_TEXTS[locale];
   const py = density === "compact" ? "py-6" : "py-10";
 
   return (
@@ -58,7 +64,7 @@ export function FooterMinimal({
           {/* ── Brand ─────────────────────────────────────────────────────── */}
           <Link
             href="/"
-            aria-label={`${siteTitle} — go to homepage`}
+            aria-label={t.homeLink(siteTitle)}
             className="shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4"
           >
             {logoUrl ? (
@@ -77,7 +83,7 @@ export function FooterMinimal({
 
           {/* ── Footer navigation (centred) ────────────────────────────────── */}
           {footerNav.length > 0 && (
-            <nav aria-label="Footer navigation" className="sm:flex-1">
+            <nav aria-label={t.footerNav} className="sm:flex-1">
               <ul className="flex flex-wrap gap-x-6 gap-y-1 sm:justify-center">
                 {footerNav.map((item) => (
                   <li key={item.href}>

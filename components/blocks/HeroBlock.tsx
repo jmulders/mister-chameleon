@@ -15,6 +15,8 @@ import { HeroBackgroundEmbed } from "@/components/blocks/HeroBackgroundEmbed";
 import { HeroBackgroundVideo } from "@/components/blocks/HeroBackgroundVideo";
 import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
 import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 /**
  * HeroBlock
@@ -170,6 +172,11 @@ export interface HeroBlockProps {
    * not rotate on its own — the visitor steps through with the arrows/dots.
    */
   carouselAutoplay?: boolean;
+  /**
+   * Language of the fixed words (the aria-labels on the section). The renderer
+   * passes the site language. Defaults to English.
+   */
+  locale?: SiteLocale;
 }
 
 // ── CTA row helper ────────────────────────────────────────────────────────────
@@ -497,7 +504,9 @@ export function HeroBlock({
   media,
   slides,
   carouselAutoplay,
+  locale = "en",
 }: HeroBlockProps) {
+  const t = BLOCK_TEXTS[locale];
   const layout = resolveContextBlockVariant("hero", rawLayout) as HeroLayoutVariant;
 
   // ── hero_carousel ────────────────────────────────────────────────────────────
@@ -546,7 +555,7 @@ export function HeroBlock({
           minHeight: "clamp(420px, 70vh, 820px)",
           background: media ? undefined : "var(--hero-bg)",
         }}
-        aria-label="Hero banner"
+        aria-label={t.heroBanner}
       >
         {/* ── Background media — z-index 0 ────────────────────────────── */}
         {media && (
@@ -1307,7 +1316,7 @@ export function HeroBlock({
           paddingTop:    "clamp(2rem, 5vw, 3.5rem)",
           paddingBottom: "clamp(2rem, 5vw, 3.5rem)",
         }}
-        aria-label="Page header"
+        aria-label={t.pageHeader}
       >
         {/* Very subtle wide glow — brand presence, low opacity */}
         <div

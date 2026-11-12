@@ -73,6 +73,8 @@ import { BlockEffectScope } from "./BlockEffectScope";
 import type { BlockTokenSet, BlockTokenRef, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
+import { getSiteLocale } from "@/lib/site-texts/server";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 import {
   resolveAdaptiveVariant,
   adaptiveVariantToHeroBlockData,
@@ -116,6 +118,8 @@ interface ContextSlotRendererProps {
   blockTypeEffects?: Partial<Record<string, readonly BlockEffectConfig[]>> | null;
   /** Tenant-wide default effects — the fallback tier when a slot has no effectRef. */
   defaultEffects?: readonly BlockEffectConfig[] | null;
+  /** Site language for the fixed words of the hero. Defaults to English (previews). */
+  locale?: SiteLocale;
 }
 
 /**
@@ -177,7 +181,7 @@ function ContextSlotRenderer(props: ContextSlotRendererProps) {
   );
 }
 
-function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenContext }: ContextSlotRendererProps) {
+function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenContext, locale }: ContextSlotRendererProps) {
   // Only override layoutVariant when the slot explicitly specifies one.
   // Passing `undefined` after a spread in JSX writes undefined into the prop
   // object and silently discards whatever the spread provided.
@@ -198,6 +202,7 @@ function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenConte
           subtitle={t(contextData.hero.subtitle) ?? contextData.hero.subtitle}
           tag={t(contextData.hero.tag)}
           ctaKey={contextData.hero.ctaKey}
+          locale={locale}
           {...layoutOverride}
         />
       );
@@ -393,6 +398,10 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
   const effectiveContextData: ContextSlotData = contextData
     ?? await fetchContextDataFromSlots(pageConfig.contextSlots, cmsProvider);
 
+  // Site language for the fixed words (aria-labels, fallbacks) of the blocks
+  // that are plain components and take it as a prop.
+  const siteLocale = await getSiteLocale();
+
   // ── Resolve the tenant's named block-token sets once ───────────────────────
   // Used to resolve any block/slot that references a named set by key.
   // Resolution failures are non-fatal — blocks simply fall back to site tokens.
@@ -488,6 +497,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
                 effectSets={effectSets}
                 blockTypeEffects={blockTypeEffects}
                 defaultEffects={defaultEffects}
+                locale={siteLocale}
               />
             </BlockThemeScope>
           );
@@ -501,6 +511,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
             effectSets={effectSets}
             blockTypeEffects={blockTypeEffects}
             defaultEffects={defaultEffects}
+            locale={siteLocale}
           />
         );
       })}

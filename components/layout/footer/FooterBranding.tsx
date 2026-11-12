@@ -23,6 +23,8 @@
 import Link from "next/link";
 import { Container } from "@/components/primitives";
 import type { NavigationItemData, SocialLinkData } from "@/cms/types";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 export interface FooterBrandingProps {
   siteTitle:    string;
@@ -32,6 +34,8 @@ export interface FooterBrandingProps {
   socialLinks?: SocialLinkData[];
   year:         number;
   density:      "compact" | "comfortable" | "spacious";
+  /** Language of the fixed footer words. The caller passes the site language. */
+  locale?:      SiteLocale;
 }
 
 export function FooterBranding({
@@ -42,7 +46,9 @@ export function FooterBranding({
   socialLinks,
   year,
   density,
+  locale = "en",
 }: FooterBrandingProps) {
+  const t = LAYOUT_TEXTS[locale];
   const outerPy  = density === "spacious" ? "py-16" : "py-10";
   const logoH    = density === "spacious" ? "h-10"  : "h-7";
   const gap      = density === "spacious" ? "gap-8" : "gap-6";
@@ -62,7 +68,7 @@ export function FooterBranding({
           {/* ── Brand (centred, prominent) ────────────────────────────────── */}
           <Link
             href="/"
-            aria-label={`${siteTitle} — go to homepage`}
+            aria-label={t.homeLink(siteTitle)}
             className="inline-block rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4"
           >
             {logoUrl ? (
@@ -90,7 +96,7 @@ export function FooterBranding({
 
           {/* ── Footer navigation ─────────────────────────────────────────── */}
           {footerNav.length > 0 && (
-            <nav aria-label="Footer navigation">
+            <nav aria-label={t.footerNav}>
               <ul className="flex flex-wrap justify-center gap-x-8 gap-y-2">
                 {footerNav.map((item) => (
                   <li key={item.href}>
@@ -130,7 +136,7 @@ export function FooterBranding({
 
           {/* ── Copyright ──────────────────────────────────────────────────── */}
           <p className="text-xs opacity-50">
-            © {year} {siteTitle}. All rights reserved.
+            © {year} {siteTitle}. {t.allRightsReserved}
           </p>
 
         </div>

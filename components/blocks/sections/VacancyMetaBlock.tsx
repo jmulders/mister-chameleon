@@ -46,32 +46,22 @@ import { Breadcrumbs, MetaItem, MetaList } from "@/components/molecules";
 import { resolveBlockVariant }          from "@/page-config/block-variants";
 import type { VacancyMetaVariant }      from "@/page-config/block-variants";
 import type { VacancyMetaBlockData }    from "@/page-config";
+import { BLOCK_TEXTS, type BlockTexts } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface VacancyMetaBlockProps {
   data:     VacancyMetaBlockData;
   variant?: string;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const REMOTE_LABELS: Record<NonNullable<VacancyMetaBlockData["remote"]>, string> = {
-  "on-site": "On-site",
-  "hybrid":  "Hybrid",
-  "remote":  "Remote",
-};
-
-const CONTRACT_LABELS: Record<NonNullable<VacancyMetaBlockData["contractType"]>, string> = {
-  "full-time":  "Full-time",
-  "part-time":  "Part-time",
-  "contract":   "Contract",
-  "internship": "Internship",
-  "freelance":  "Freelance",
-};
-
 /** Format an ISO deadline as "closes Apr 30, 2025" or days remaining. */
-function formatDeadline(iso: string): string {
+function formatDeadline(iso: string, t: BlockTexts): string {
   try {
     const [y, m, d] = iso.split("-").map(Number);
     if (!y || !m || !d) return iso;
@@ -80,11 +70,11 @@ function formatDeadline(iso: string): string {
     today.setHours(0, 0, 0, 0);
     const daysLeft = Math.ceil((deadline.getTime() - today.getTime()) / 86_400_000);
 
-    if (daysLeft < 0)  return "Closed";
-    if (daysLeft === 0) return "Closes today";
-    if (daysLeft <= 7)  return `Closes in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+    if (daysLeft < 0)  return t.closed;
+    if (daysLeft === 0) return t.closesToday;
+    if (daysLeft <= 7)  return t.closesInDays(daysLeft);
 
-    return `Closes ${new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(deadline)}`;
+    return t.closesOn(new Intl.DateTimeFormat(t.dateLocale, { day: "numeric", month: "short", year: "numeric" }).format(deadline));
   } catch {
     return iso;
   }
@@ -127,7 +117,8 @@ function MetaBadge({ label }: { label: string }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlockProps) {
+export function VacancyMetaBlock({ data, variant: rawVariant, locale = "en" }: VacancyMetaBlockProps) {
+  const t = BLOCK_TEXTS[locale];
   const variant = resolveBlockVariant("vacancyMeta", rawVariant) as VacancyMetaVariant;
 
   const {
@@ -140,8 +131,8 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
     const badges: string[] = [];
     if (level)        badges.push(level);
     if (location)     badges.push(location);
-    if (remote && remote !== "on-site") badges.push(REMOTE_LABELS[remote]);
-    if (contractType) badges.push(CONTRACT_LABELS[contractType]);
+    if (remote && remote !== "on-site") badges.push(t.remoteLabels[remote]);
+    if (contractType) badges.push(t.contractLabels[contractType]);
     if (hoursPerWeek) badges.push(hoursPerWeek);
 
     return (
@@ -169,7 +160,7 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
               color:      isCloseDeadline(closingDate) ? "var(--color-error-500, #ef4444)" : "var(--text-muted)",
             }}
           >
-            {formatDeadline(closingDate)}
+            {formatDeadline(closingDate, t)}
           </span>
         )}
       </div>
@@ -239,34 +230,34 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
           <MetaList>
             {location && (
               <MetaItem
-                label="Location"
+                label={t.location}
                 value={remote && remote !== "on-site"
-                  ? `${location} · ${REMOTE_LABELS[remote]}`
+                  ? `${location} · ${t.remoteLabels[remote]}`
                   : location}
               />
             )}
             {!location && remote && (
-              <MetaItem label="Work style" value={REMOTE_LABELS[remote]} />
+              <MetaItem label={t.workStyle} value={t.remoteLabels[remote]} />
             )}
             {contractType && (
-              <MetaItem label="Contract" value={CONTRACT_LABELS[contractType]} />
+              <MetaItem label={t.contract} value={t.contractLabels[contractType]} />
             )}
             {hoursPerWeek && (
-              <MetaItem label="Hours" value={hoursPerWeek} />
+              <MetaItem label={t.hours} value={hoursPerWeek} />
             )}
             {level && (
-              <MetaItem label="Level" value={level} />
+              <MetaItem label={t.level} value={level} />
             )}
             {salaryRange && (
-              <MetaItem label="Salary" value={salaryRange} />
+              <MetaItem label={t.salary} value={salaryRange} />
             )}
             {startDate && (
-              <MetaItem label="Start date" value={startDate} />
+              <MetaItem label={t.startDate} value={startDate} />
             )}
             {closingDate && (
               <MetaItem
-                label="Deadline"
-                value={formatDeadline(closingDate)}
+                label={t.deadline}
+                value={formatDeadline(closingDate, t)}
                 urgent={isCloseDeadline(closingDate)}
               />
             )}
@@ -275,7 +266,7 @@ export function VacancyMetaBlock({ data, variant: rawVariant }: VacancyMetaBlock
           {/* Empty state */}
           {!location && !remote && !contractType && !hoursPerWeek && !level && !salaryRange && !startDate && !closingDate && (
             <div style={{ padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-              No details available.
+              {t.noDetails}
             </div>
           )}
         </div>

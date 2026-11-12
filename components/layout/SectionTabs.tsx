@@ -18,6 +18,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { SectionTabData } from "@/cms/types";
 import type { NavigationItemData } from "@/cms/types";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 
 interface SectionTabsProps {
   tabs:        SectionTabData[];
@@ -26,6 +28,7 @@ interface SectionTabsProps {
 
 export function SectionTabs({ tabs, quickLinks = [] }: SectionTabsProps) {
   const pathname = usePathname();
+  const t = LAYOUT_TEXTS[useSiteLocale()];
 
   function isActive(href: string): boolean {
     if (href === "/") return pathname === "/";
@@ -38,7 +41,7 @@ export function SectionTabs({ tabs, quickLinks = [] }: SectionTabsProps) {
       style={{ minHeight: "2rem" }}
     >
       {/* ── Section tabs — left ─────────────────────────────────────── */}
-      <nav aria-label="Site sections" className="flex items-center">
+      <nav aria-label={t.siteSections} className="flex items-center">
         {tabs.map((tab) => {
           const active = isActive(tab.href);
           return (
@@ -72,7 +75,7 @@ export function SectionTabs({ tabs, quickLinks = [] }: SectionTabsProps) {
 
       {/* ── Quick links — right ─────────────────────────────────────── */}
       {quickLinks.length > 0 && (
-        <nav aria-label="Quick links" className="flex items-center gap-0.5">
+        <nav aria-label={t.quickLinks} className="flex items-center gap-0.5">
           {quickLinks.map((link) => (
             <Link
               key={link.id}

@@ -19,6 +19,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { BlockMedia } from "@/lib/media/block-media";
 import { youtubeEmbedSrc, vimeoEmbedSrc, youtubeThumbUrl, MEDIA_IFRAME_ALLOW } from "@/lib/media/block-media";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
 
 export function BlockMediaView({
   media,
@@ -134,6 +136,7 @@ function EmbedFacade({
 }: {
   source: "youtube" | "vimeo"; id: string; poster?: string; autoplay: boolean; isActive: boolean;
 }) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
   const [userLoaded, setUserLoaded] = useState(false);
 
   // The iframe only exists while the slide is active AND playback was requested
@@ -151,7 +154,7 @@ function EmbedFacade({
     return (
       <iframe
         src={src}
-        title="Video"
+        title={t.video}
         allow={MEDIA_IFRAME_ALLOW}
         allowFullScreen
         loading="lazy"
@@ -164,7 +167,7 @@ function EmbedFacade({
     <button
       type="button"
       onClick={() => setUserLoaded(true)}
-      aria-label="Video afspelen"
+      aria-label={t.playVideo}
       className="group absolute inset-0 h-full w-full cursor-pointer"
     >
       {posterSrc && (

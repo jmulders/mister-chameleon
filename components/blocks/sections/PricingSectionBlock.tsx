@@ -35,10 +35,14 @@ import { resolveBlockVariant }   from "@/page-config/block-variants";
 import type { PricingSectionVariant } from "@/page-config/block-variants";
 import type { PricingSectionBlockData, PriceTier } from "@/page-config";
 import { PricingCartButton }     from "@/components/blocks/sections/PricingCartButton";
+import { BLOCK_TEXTS, type BlockTexts } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 interface PricingSectionBlockProps {
   data:     PricingSectionBlockData;
   variant?: string;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
 // ── Check icon ────────────────────────────────────────────────────────────────
@@ -193,11 +197,12 @@ function TierRow({ tier }: { tier: PriceTier }) {
 
 // ── Comparison table (pricing_table variant) ──────────────────────────────────
 
-function PricingTable({ tiers, heading, subheading, footnote }: {
+function PricingTable({ tiers, heading, subheading, footnote, texts }: {
   tiers:       readonly PriceTier[];
   heading?:    string;
   subheading?: string;
   footnote?:   string;
+  texts:       BlockTexts;
 }) {
   // Collect all unique features across tiers to build table rows.
   const allFeatures = Array.from(
@@ -225,7 +230,7 @@ function PricingTable({ tiers, heading, subheading, footnote }: {
                 <tr>
                   {/* Feature column header */}
                   <th className="pb-4 pr-6 text-sm font-medium" style={{ color: "var(--text-muted, #6b7280)", minWidth: "10rem" }}>
-                    Features
+                    {texts.features}
                   </th>
                   {tiers.map((tier) => (
                     <th
@@ -287,7 +292,7 @@ function PricingTable({ tiers, heading, subheading, footnote }: {
                         {tier.features.includes(feature) ? (
                           <CheckIcon />
                         ) : (
-                          <span className="inline-block h-4 w-4" aria-label="Not included" style={{ color: "var(--text-muted, #9ca3af)" }}>—</span>
+                          <span className="inline-block h-4 w-4" aria-label={texts.notIncluded} style={{ color: "var(--text-muted, #9ca3af)" }}>—</span>
                         )}
                       </td>
                     ))}
@@ -308,7 +313,7 @@ function PricingTable({ tiers, heading, subheading, footnote }: {
 
 // ── Block component ────────────────────────────────────────────────────────────
 
-export function PricingSectionBlock({ data, variant: rawVariant }: PricingSectionBlockProps) {
+export function PricingSectionBlock({ data, variant: rawVariant, locale = "en" }: PricingSectionBlockProps) {
   const variant = resolveBlockVariant("pricingSection", rawVariant) as PricingSectionVariant;
   const { heading, subheading, tiers, footnote } = data;
   const items = tiers ?? [];
@@ -322,6 +327,7 @@ export function PricingSectionBlock({ data, variant: rawVariant }: PricingSectio
         heading={heading}
         subheading={subheading}
         footnote={footnote}
+        texts={BLOCK_TEXTS[locale]}
       />
     );
   }

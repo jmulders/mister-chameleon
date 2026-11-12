@@ -39,12 +39,16 @@ import { resolveBlockVariant }      from "@/page-config/block-variants";
 import type { RelatedContentVariant } from "@/page-config/block-variants";
 import type { RelatedContentBlockData, RelatedItem, ListingItem } from "@/page-config";
 import { ResultCard }               from "@/components/blocks/listing/ResultCard";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface RelatedContentBlockProps {
   data:     RelatedContentBlockData;
   variant?: string;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
 // ── Adapter ───────────────────────────────────────────────────────────────────
@@ -71,7 +75,7 @@ function toListingItem(item: RelatedItem): ListingItem {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function RelatedContentBlock({ data, variant: rawVariant }: RelatedContentBlockProps) {
+export function RelatedContentBlock({ data, variant: rawVariant, locale = "en" }: RelatedContentBlockProps) {
   const variant = resolveBlockVariant("relatedContent", rawVariant) as RelatedContentVariant;
 
   const items = data.maxItems
@@ -80,7 +84,7 @@ export function RelatedContentBlock({ data, variant: rawVariant }: RelatedConten
 
   if (items.length === 0) return null;
 
-  const heading = data.heading ?? "Related content";
+  const heading = data.heading ?? BLOCK_TEXTS[locale].relatedContent;
 
   // ── related_slider variant ─────────────────────────────────────────────────
   //

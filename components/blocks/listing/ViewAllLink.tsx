@@ -14,12 +14,17 @@
  *   label  — link text (default: "View all")
  */
 
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+
 interface ViewAllLinkProps {
   href:   string;
   label?: string;
 }
 
-export function ViewAllLink({ href, label = "View all" }: ViewAllLinkProps) {
+export function ViewAllLink({ href, label: labelProp }: ViewAllLinkProps) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
+  const label = labelProp ?? t.viewAll;
   return (
     <div>
       <a

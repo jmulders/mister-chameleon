@@ -25,6 +25,8 @@
 import Link from "next/link";
 import { Container } from "@/components/primitives";
 import type { NavigationItemData, FooterColumnData, SocialLinkData, AddressData } from "@/cms/types";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Platform SVG icons ────────────────────────────────────────────────────────
 // Simple, accessible inline SVGs for the most common social platforms.
@@ -110,6 +112,8 @@ export interface FooterCorporateProps {
   socialLinks?:   SocialLinkData[];
   year:           number;
   density:        "compact" | "comfortable" | "spacious";
+  /** Language of the fixed footer words. The caller passes the site language. */
+  locale?:        SiteLocale;
 }
 
 export function FooterCorporate({
@@ -124,7 +128,9 @@ export function FooterCorporate({
   socialLinks,
   year,
   density,
+  locale = "en",
 }: FooterCorporateProps) {
+  const t = LAYOUT_TEXTS[locale];
   const hasColumns = footerColumns && footerColumns.length > 0;
   const outerPy    = density === "compact" ? "py-8" : density === "spacious" ? "py-12" : "py-10";
   const bottomPt   = density === "compact" ? "pt-5" : "pt-7";
@@ -141,7 +147,7 @@ export function FooterCorporate({
   const BrandMark = (
     <Link
       href="/"
-      aria-label={`${siteTitle} — go to homepage`}
+      aria-label={t.homeLink(siteTitle)}
       className="inline-block shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4"
     >
       {logoUrl ? (
@@ -316,7 +322,7 @@ export function FooterCorporate({
               {BrandMark}
 
               {footerNav.length > 0 && (
-                <nav aria-label="Footer navigation">
+                <nav aria-label={t.footerNav}>
                   <ul className="flex flex-wrap gap-x-7 gap-y-2">
                     {footerNav.map((item) => (
                       <li key={item.href}>
@@ -366,7 +372,7 @@ export function FooterCorporate({
               className={`mt-8 border-t ${bottomPt} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}
               style={{ borderTopColor: "var(--footer-border)" }}
             >
-              <nav aria-label="Footer legal links">
+              <nav aria-label={t.footerLegalLinks}>
                 <ul className="flex flex-wrap gap-x-5 gap-y-1">
                   {footerNav.map((item) => (
                     <li key={item.href}>

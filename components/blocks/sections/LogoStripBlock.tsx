@@ -49,6 +49,8 @@ import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { LogoStripVariant } from "@/page-config/block-variants";
 import type { LogoStripBlockData, LogoItem } from "@/page-config";
 import { resolveSurface, type BlockSurface } from "@/lib/surface";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Animation speed ────────────────────────────────────────────────────────────
 
@@ -64,6 +66,8 @@ interface LogoStripBlockProps {
   data:     LogoStripBlockData;
   variant?: string;
   surface?: BlockSurface;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
 // ── Logo cell ──────────────────────────────────────────────────────────────────
@@ -229,7 +233,7 @@ function LogoSet({
 
 // ── Block component ────────────────────────────────────────────────────────────
 
-export function LogoStripBlock({ data, variant: rawVariant, surface }: LogoStripBlockProps) {
+export function LogoStripBlock({ data, variant: rawVariant, surface, locale = "en" }: LogoStripBlockProps) {
   const variant = resolveBlockVariant("logoStrip", rawVariant) as LogoStripVariant;
 
   const {
@@ -395,7 +399,7 @@ export function LogoStripBlock({ data, variant: rawVariant, surface }: LogoStrip
               }
               style={trackStyle}
               role="list"
-              aria-label={heading ?? "Partner logos"}
+              aria-label={heading ?? BLOCK_TEXTS[locale].partnerLogos}
             >
               {/* Set 1 — accessible, full semantics */}
               <LogoSet

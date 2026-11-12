@@ -52,6 +52,8 @@
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
+import { getSiteLocale } from "@/lib/site-texts/server";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
 import { getActiveTenant, getTenantByIdCached } from "@/tenant/server";
 import { normalizeTenant } from "@/tenant/normalize";
@@ -251,24 +253,27 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
     : null;
   const scenarioKey = (scenarioOverrides as Record<string, unknown> | null)?.["_scenarioKey"] as string | undefined;
 
+  // Fixed header words (aria-labels, fallbacks) in the site language.
+  const t = LAYOUT_TEXTS[await getSiteLocale()];
+
   /** Returns a HeaderCtaData override for demo scenarios, or null for CMS default. */
   function resolveScenarioHeaderCta(key: string | undefined): HeaderCtaData | null {
     if (!key) return null;
     // Customer / post-conversion scenarios → show a "My account" login CTA.
     if (["customer", "post_conversion", "customer_onboarding"].includes(key)) {
-      return { label: "My account", href: "/dashboard", openInNewTab: false };
+      return { label: t.ctaMyAccount, href: "/dashboard", openInNewTab: false };
     }
     // Expansion / churn scenarios → nudge toward an upgrade.
     if (["expansion", "customer_expansion", "churn_risk"].includes(key)) {
-      return { label: "Upgrade plan", href: "/prijzen", openInNewTab: false };
+      return { label: t.ctaUpgradePlan, href: "/prijzen", openInNewTab: false };
     }
     // High-intent visitors → direct to meeting booking.
     if (["high_intent", "trial_ready"].includes(key)) {
-      return { label: "Book a meeting", href: "/contact", openInNewTab: false };
+      return { label: t.ctaBookMeeting, href: "/contact", openInNewTab: false };
     }
     // Form drop-off → nudge back into the funnel.
     if (["form_dropoff", "form_dropout"].includes(key)) {
-      return { label: "Complete request", href: "/contact", openInNewTab: false };
+      return { label: t.ctaCompleteRequest, href: "/contact", openInNewTab: false };
     }
     return null;
   }
@@ -437,7 +442,7 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
   const BrandLink = (
     <Link
       href="/"
-      aria-label={`${siteTitle} — go to homepage`}
+      aria-label={t.homeLink(siteTitle)}
       className="shrink-0 flex items-center focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-4 rounded-sm"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -521,7 +526,7 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
               <div className="hidden md:flex flex-1 justify-center px-4">
                 <SearchBar
                   searchHref={searchHref}
-                  placeholder="Zoek op de site…"
+                  placeholder={t.searchPlaceholder}
                   className="w-full max-w-md"
                 />
               </div>

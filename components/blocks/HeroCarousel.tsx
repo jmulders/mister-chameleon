@@ -22,6 +22,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { HeroBannerMedia, HeroBannerVideoUpload } from "@/cms/types";
 import { Text } from "@/components/primitives/Text";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
 
 export interface HeroCarouselSlide {
   heading?:    string;
@@ -44,6 +46,7 @@ export interface HeroCarouselProps {
 }
 
 export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: HeroCarouselProps) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
   const count = slides.length;
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -76,8 +79,8 @@ export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: Her
 
   return (
     <section
-      aria-roledescription="carousel"
-      aria-label="Hero"
+      aria-roledescription={t.carousel}
+      aria-label={t.hero}
       style={sectionStyle}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -158,7 +161,7 @@ export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: Her
           <ArrowButton side="right" onClick={() => go(index + 1)} />
           <div
             role="tablist"
-            aria-label="Slides"
+            aria-label={t.slides}
             style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 8 }}
           >
             {slides.map((_, i) => (
@@ -166,7 +169,7 @@ export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: Her
                 key={i}
                 role="tab"
                 aria-selected={i === index}
-                aria-label={`Slide ${i + 1}`}
+                aria-label={t.slideN(i + 1)}
                 onClick={() => go(i)}
                 style={{
                   width: 10, height: 10, padding: 0, borderRadius: "50%", border: "none", cursor: "pointer",
@@ -190,6 +193,7 @@ export function HeroCarousel({ slides, autoplay = true, intervalMs = 6000 }: Her
  * slides. Sizing is contained (centred, max ~680px) to fit the carousel layout.
  */
 function SlideMedia({ slide, eager }: { slide: HeroCarouselSlide; eager: boolean }) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
   const media: HeroBannerMedia | undefined =
     slide.media ??
     (slide.mediaUrl ? { kind: "image", url: slide.mediaUrl, alt: slide.mediaAlt ?? "" } : undefined);
@@ -230,7 +234,7 @@ function SlideMedia({ slide, eager }: { slide: HeroCarouselSlide; eager: boolean
       <div style={frameStyle}>
         <iframe
           src={`https://www.youtube-nocookie.com/embed/${video.videoId}?${params}`}
-          title="YouTube video player"
+          title={t.youtubePlayer}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           loading="lazy"
@@ -248,7 +252,7 @@ function SlideMedia({ slide, eager }: { slide: HeroCarouselSlide; eager: boolean
     <div style={frameStyle}>
       <iframe
         src={`https://player.vimeo.com/video/${video.videoId}?${params}`}
-        title="Vimeo video player"
+        title={t.vimeoPlayer}
         allow="autoplay; fullscreen; picture-in-picture"
         allowFullScreen
         loading="lazy"
@@ -295,9 +299,10 @@ function UploadVideo({ video, boxStyle }: { video: HeroBannerVideoUpload; boxSty
 }
 
 function ArrowButton({ side, onClick }: { side: "left" | "right"; onClick: () => void }) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
   return (
     <button
-      aria-label={side === "left" ? "Vorige" : "Volgende"}
+      aria-label={side === "left" ? t.previous : t.next}
       onClick={onClick}
       style={{
         position:   "absolute",

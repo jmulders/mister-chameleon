@@ -45,6 +45,8 @@ import { NavMegaRich }  from "./nav/NavMegaRich";
 import type { MegaMenuStyle } from "./nav/NavMegaRich";
 import { NavGrid }     from "./nav/NavGrid";
 import { NavContent }  from "./nav/NavContent";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 // Inline SVGs keep the bundle lean — no icon library dependency.
@@ -192,6 +194,7 @@ export function UtilityBar({
   /** ISO 639-1 code of the active locale (from cookie). Defaults to locales[0]. */
   currentLocale?: string;
 }) {
+  const t = LAYOUT_TEXTS[useSiteLocale()];
   const [localeOpen, setLocaleOpen] = useState(false);
   const localeRef = useRef<HTMLDivElement>(null);
 
@@ -229,7 +232,7 @@ export function UtilityBar({
 
       {/* Utility links */}
       {hasUtility && (
-        <nav aria-label="Utility navigation" className="flex items-center gap-0.5">
+        <nav aria-label={t.utilityNav} className="flex items-center gap-0.5">
           {utilityItems.map((item, i) => {
             const isSearch = item.label.toLowerCase() === "search";
             const isCart   = item.label.toLowerCase() === "cart";
@@ -241,8 +244,8 @@ export function UtilityBar({
                 href={item.href}
                 target={item.openInNewTab ? "_blank" : undefined}
                 rel={item.openInNewTab ? "noopener noreferrer" : undefined}
-                aria-label={isSearch ? "Search" : isCart ? "Shopping cart" : undefined}
-                title={isSearch ? "Search" : isCart ? "Shopping cart" : undefined}
+                aria-label={isSearch ? t.search : isCart ? t.cart : undefined}
+                title={isSearch ? t.search : isCart ? t.cart : undefined}
                 className={cn(
                   "rounded-md py-1.5 text-sm transition-colors duration-150",
                   isIcon ? "px-2" : "px-3",
@@ -277,7 +280,7 @@ export function UtilityBar({
             onClick={() => setLocaleOpen((v) => !v)}
             aria-expanded={localeOpen}
             aria-haspopup="listbox"
-            aria-label="Select language"
+            aria-label={t.selectLanguage}
             className={cn(
               "flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors duration-150",
               "text-[var(--nav-link,var(--header-fg,var(--text-muted)))]",
@@ -296,7 +299,7 @@ export function UtilityBar({
           {localeOpen && (
             <div
               role="listbox"
-              aria-label="Select language"
+              aria-label={t.selectLanguage}
               className={cn(
                 "absolute right-0 top-full mt-1 z-[200] min-w-[8rem] rounded-md py-1 shadow-xl",
                 "border border-[var(--nav-dropdown-border,var(--border))]",
@@ -362,7 +365,7 @@ export function UtilityBar({
  * Flatten megaMenu columns into a simple link list for mobile rendering.
  * Returns NavigationItemData-compatible child items derived from mega menu columns.
  */
-function flattenMegaMenuForMobile(item: NavigationItemData): NavigationItemData[] {
+function flattenMegaMenuForMobile(item: NavigationItemData, viewLabel: string): NavigationItemData[] {
   if (!item.megaMenu?.columns?.length) return item.children ?? [];
 
   const flattened: NavigationItemData[] = [];
@@ -381,7 +384,7 @@ function flattenMegaMenuForMobile(item: NavigationItemData): NavigationItemData[
       if (mItem.type === "megaMenuMediaItem" && mItem.linkUrl) {
         flattened.push({
           id:           mItem._key,
-          label:        mItem.caption ?? "View",
+          label:        mItem.caption ?? viewLabel,
           href:         mItem.linkUrl,
           openInNewTab: mItem.linkOpenInNewTab,
         });
@@ -394,6 +397,7 @@ function flattenMegaMenuForMobile(item: NavigationItemData): NavigationItemData[
 // ── Mobile nav ────────────────────────────────────────────────────────────────
 
 function MobileNav({ items }: { items: NavigationItemData[] }) {
+  const t = LAYOUT_TEXTS[useSiteLocale()];
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
@@ -405,7 +409,7 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
     <div className="md:hidden">
       {/* Hamburger button */}
       <button
-        aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-label={menuOpen ? t.closeMenu : t.openMenu}
         aria-expanded={menuOpen}
         aria-controls="mobile-nav-menu"
         onClick={() => setMenuOpen((v) => !v)}
@@ -424,7 +428,7 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
         <div
           id="mobile-nav-menu"
           role="navigation"
-          aria-label="Mobile navigation"
+          aria-label={t.mobileNav}
           className={cn(
             // top-full positions the panel flush against the bottom of the
             // sticky <header> element regardless of its current height.
@@ -436,7 +440,7 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
         >
           <div className="px-4 py-3 space-y-1">
             {items.map((item) => {
-              const mobileChildren = flattenMegaMenuForMobile(item);
+              const mobileChildren = flattenMegaMenuForMobile(item, t.view);
               const hasChildren = mobileChildren.length > 0;
               const isExpanded = expandedItem === item.id;
 
@@ -477,7 +481,7 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
 
                         {/* Expand/collapse chevron */}
                         <button
-                          aria-label={`${isExpanded ? "Collapse" : "Expand"} ${item.label} submenu`}
+                          aria-label={isExpanded ? t.collapseSubmenu(item.label) : t.expandSubmenu(item.label)}
                           aria-expanded={isExpanded}
                           onClick={() => toggleItem(item.id)}
                           className={cn(

@@ -18,14 +18,19 @@
 
 import Link           from "next/link";
 import type { FooterBottomData, SocialLinkData } from "@/cms/types";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 interface FooterBottomStripProps {
   data:         FooterBottomData;
   socialLinks?: SocialLinkData[];
   year:         number;
+  /** Language of the fixed footer words. The caller passes the site language. */
+  locale?:      SiteLocale;
 }
 
-export function FooterBottomStrip({ data, socialLinks, year }: FooterBottomStripProps) {
+export function FooterBottomStrip({ data, socialLinks, year, locale = "en" }: FooterBottomStripProps) {
+  const t = LAYOUT_TEXTS[locale];
   const { copyright, showSocial, links, partnerLogoUrl, partnerLogoAlt, partnerHref } = data;
 
   const visibleSocial = showSocial !== false && socialLinks && socialLinks.length > 0
@@ -61,7 +66,7 @@ export function FooterBottomStrip({ data, socialLinks, year }: FooterBottomStrip
               </span>
             )}
             {hasLinks && (
-              <nav aria-label="Legal links">
+              <nav aria-label={t.legalLinks}>
                 <ul className="flex flex-wrap gap-x-4 gap-y-1">
                   {links!.map((link) => (
                     <li key={link.href}>
@@ -107,7 +112,7 @@ export function FooterBottomStrip({ data, socialLinks, year }: FooterBottomStrip
                   target="_blank"
                   rel="noopener noreferrer"
                   className="opacity-60 hover:opacity-100 transition-opacity focus-visible:outline-2 focus-visible:outline-[var(--ring)] rounded-sm"
-                  aria-label={partnerLogoAlt ?? "Partner"}
+                  aria-label={partnerLogoAlt ?? t.partner}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

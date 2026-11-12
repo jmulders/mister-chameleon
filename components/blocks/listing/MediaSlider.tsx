@@ -50,6 +50,8 @@ import type { ReactNode } from "react";
 import type { SliderMediaItem } from "@/page-config";
 import { Text }       from "@/components/primitives/Text";
 import { SliderSlide } from "./SliderSlide";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
 
 // ── Arrow icons ───────────────────────────────────────────────────────────────
 
@@ -96,6 +98,7 @@ interface MediaSliderProps {
 }
 
 export function MediaSlider({ slides, items, heading, pauseInactive = false }: MediaSliderProps) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
   const trackRef = useRef<HTMLDivElement>(null);
 
   const [active,  setActive]  = useState(0);
@@ -211,7 +214,7 @@ export function MediaSlider({ slides, items, heading, pauseInactive = false }: M
         ref={trackRef}
         className="relative flex overflow-x-auto snap-x snap-mandatory scroll-smooth w-full"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
-        aria-label="Mediaslider"
+        aria-label={t.mediaSlider}
       >
         {entries.map((entry, i) => (
           <div
@@ -235,7 +238,7 @@ export function MediaSlider({ slides, items, heading, pauseInactive = false }: M
             // onPointerDown + preventDefault: prevents a focused YouTube iframe
             // from consuming the event before this handler fires.
             onPointerDown={(e) => { e.preventDefault(); prev(); }}
-            aria-label="Vorige slide"
+            aria-label={t.previousSlide}
             aria-hidden={atStart}
             className={arrowClass(atStart)}
             style={{ borderColor: "var(--border)", color: "var(--text-muted)", backgroundColor: "var(--bg)" }}
@@ -252,14 +255,14 @@ export function MediaSlider({ slides, items, heading, pauseInactive = false }: M
           </button>
 
           {/* Dot indicators */}
-          <div className="flex items-center gap-2" role="tablist" aria-label="Slides">
+          <div className="flex items-center gap-2" role="tablist" aria-label={t.slides}>
             {entries.map((_, i) => (
               <button
                 key={i}
                 type="button"
                 role="tab"
                 aria-selected={i === active}
-                aria-label={`Ga naar slide ${i + 1}`}
+                aria-label={t.goToSlide(i + 1)}
                 onPointerDown={(e) => { e.preventDefault(); scrollTo(i); }}
                 className="h-2 rounded-full transition-all duration-200"
                 style={{
@@ -274,7 +277,7 @@ export function MediaSlider({ slides, items, heading, pauseInactive = false }: M
           <button
             type="button"
             onPointerDown={(e) => { e.preventDefault(); next(); }}
-            aria-label="Volgende slide"
+            aria-label={t.nextSlide}
             aria-hidden={atEnd}
             className={arrowClass(atEnd)}
             style={{ borderColor: "var(--border)", color: "var(--text-muted)", backgroundColor: "var(--bg)" }}
