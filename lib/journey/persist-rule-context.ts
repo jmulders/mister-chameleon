@@ -81,6 +81,8 @@ type StateRow = {
 
 type DbResultMany<T> = { data: T[] | null; error: { message: string } | null };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Merges sticky `writes` into the persisted rule_context for (tenant, session).
  *
@@ -109,6 +111,11 @@ export async function persistRuleContext(
   // Skip for unresolved tenants and empty writes.
   if (!tenantId || tenantId === "unknown") return;
   if (!sessionId) return;
+  // The column is a uuid. A visitor without consent runs on a throwaway
+  // "anon_…" id, which the database refused on every pageview: one wasted
+  // round trip and a failed read in the log each time. Nothing may be kept for
+  // such a visitor anyway.
+  if (!UUID_RE.test(sessionId)) return;
   if (!writes || writes.length === 0) return;
 
   try {

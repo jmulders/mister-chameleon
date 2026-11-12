@@ -73,7 +73,6 @@ import {
 }                                  from "@/decision";
 import { loadTenantRulesConfig }   from "@/decision/rules/load-tenant-rules";
 import type { StoredRulesConfig }  from "@/decision/rules/stored-rule"; // used by _fileRulesConfig
-import { fetchVariantCatalogue }   from "@/decision/rules/fetch-variant-catalogue";
 import { buildDecisionContext }    from "@/decision/context/build-decision-context";
 import { isBotUserAgent }          from "@/decision/context/detect-bot";
 import {
@@ -280,13 +279,9 @@ export async function resolveSlugPageConfig(
       consent.personalization ? fetchVisitorHistory(sessionId, tenantId) : Promise.resolve(emptyHistory()),
       (async () => {
         try {
-          const catalogue = await fetchVariantCatalogue(tenantId);
-          const extraKeys = {
-            heroKeys:  catalogue.hero.filter((e) => e.source !== "platform").map((e) => e.key),
-            proofKeys: catalogue.proof.filter((e) => e.source !== "platform").map((e) => e.key),
-            ctaKeys:   catalogue.cta.filter((e) => e.source !== "platform").map((e) => e.key),
-          };
-          return await loadTenantRulesConfig(tenantId, extraKeys, { allowUnknownVariantKeys: true });
+          // No variant catalogue: with allowUnknownVariantKeys the extra keys
+          // are not used, see lib/pipeline/homepage-pipeline.ts.
+          return await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
         } catch {
           return null;
         }

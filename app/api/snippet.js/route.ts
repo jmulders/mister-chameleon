@@ -48,7 +48,10 @@ export function GET(request: NextRequest) {
     status: 200,
     headers: {
       "Content-Type":                "application/javascript; charset=utf-8",
-      "Cache-Control":               "public, s-maxage=3600, stale-while-revalidate=86400",
+      // max-age lets the browser reuse the script across pageviews for five
+      // minutes. With s-maxage alone it fetched the whole file again on every
+      // page. A fix to the snippet reaches visitors at most that much later.
+      "Cache-Control":               "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
       "Access-Control-Allow-Origin": "*",
       "X-Content-Type-Options":      "nosniff",
     },
