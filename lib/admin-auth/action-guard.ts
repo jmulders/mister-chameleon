@@ -10,6 +10,7 @@
  *   await requireSuperAdminAction();          // platform-wide settings
  *   await requireTenantAction(tenantId);      // anything on one tenant
  *   await requireAdminAction();               // any signed-in admin
+ *   await requireTenantOrPlatformAction(id);  // tenant rows, or platform rows when null
  *
  * They redirect to the login page (or the tenant list) when the check fails,
  * which for an action call means the action body never runs.
@@ -21,6 +22,7 @@ import { redirect } from "next/navigation";
 import {
   assertTenantAccess,
   getRequiredAdminSession,
+  isSuperAdmin,
   requireSuperAdmin,
 } from "./authorization";
 import type { AdminSession } from "./session";
@@ -36,14 +38,27 @@ export async function requireSuperAdminAction(): Promise<AdminSession> {
 }
 
 /**
- * A superadmin, or a tenant admin assigned to this tenant. The tenant id comes
- * from the client, so anything that is not a non-empty string is refused.
+ * A superadmin, or a tenant admin assigned to this tenant.
+ *
+ * The tenant id comes from the client. A superadmin may act on any tenant, so
+ * for them it is not checked here. For a tenant admin anything that is not a
+ * non-empty string is refused before the lookup.
  */
 export async function requireTenantAction(tenantId: unknown): Promise<AdminSession> {
   const session = await getRequiredAdminSession();
+  if (isSuperAdmin(session)) return session;
   if (typeof tenantId !== "string" || tenantId === "") {
     redirect("/admin/tenants?denied=1");
   }
   await assertTenantAccess(session, tenantId);
   return session;
+}
+
+/**
+ * For data that is either a tenant's or the platform's own (tenant id null):
+ * platform-level rows are superadmin only, a tenant's rows need access to it.
+ */
+export async function requireTenantOrPlatformAction(tenantId: string | null | undefined): Promise<AdminSession> {
+  if (tenantId === null || tenantId === undefined || tenantId === "") return requireSuperAdmin();
+  return requireTenantAction(tenantId);
 }

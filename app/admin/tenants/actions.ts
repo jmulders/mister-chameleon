@@ -64,6 +64,7 @@ import {
 
 import type { TenantSettings } from "@/tenant/server";
 import { getTenantById, createTenant } from "@/tenant/server";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RESULT TYPE
@@ -158,6 +159,8 @@ export type CreateTenantResult =
 export async function createTenantFromOnboardingAction(
   input: OnboardingInput,
 ): Promise<CreateTenantResult> {
+  await requireSuperAdminAction();
+
 
   // ── Step 1: validate the onboarding input ───────────────────────────────────
   const validation = validateOnboardingInput(input);

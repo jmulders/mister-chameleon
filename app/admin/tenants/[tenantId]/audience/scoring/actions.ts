@@ -30,6 +30,7 @@ import {
   behavioralScoringMatcher,
   type DependentRule,
 } from "@/decision/rules/find-dependent-rules";
+import { requireAdminAction, requireSuperAdminAction, requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Inline sequence seed data ─────────────────────────────────────────────────
 //
@@ -96,6 +97,8 @@ function dbAny() { return getDb() as any; }
 // ── Decay profiles ────────────────────────────────────────────────────────────
 
 export async function getDecayProfilesAction(): Promise<DecayProfile[]> {
+  await requireAdminAction();
+
   const db = dbAny();
   const res = asRows<DecayProfile>(
     await db.from("decay_profiles").select("*").order("slug"),
@@ -106,6 +109,8 @@ export async function getDecayProfilesAction(): Promise<DecayProfile[]> {
 export async function saveDecayProfileAction(
   data: Omit<DecayProfile, "id" | "created_at"> & { id?: string },
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireSuperAdminAction();
+
   const db = dbAny();
 
   if (data.id) {
@@ -130,6 +135,8 @@ export async function saveDecayProfileAction(
 export async function getScoringRulesAction(
   tenantId: string,
 ): Promise<ScoringRule[]> {
+  await requireTenantAction(tenantId);
+
   const db = dbAny();
   const res = asRows<ScoringRule>(
     await db
@@ -222,6 +229,8 @@ export async function deleteScoringRuleAction(
 export async function getSequencePatternsAction(
   tenantId: string,
 ): Promise<SequencePattern[]> {
+  await requireTenantAction(tenantId);
+
   const db = dbAny();
   const res = asRows<SequencePattern>(
     await db
@@ -305,6 +314,8 @@ export async function deactivateScoringRuleAction(
   sessionTenantId: string,
   ruleId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantAction(sessionTenantId);
+
   const db = dbAny();
   const res = asVoid(
     await db
@@ -331,6 +342,8 @@ export async function deactivateScoringRuleAction(
 export async function seedScoringRulesAction(
   tenantId: string,
 ): Promise<{ ok: true; created: number; skipped: number } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
 
   const db = dbAny();
@@ -452,6 +465,8 @@ export async function seedSequencePatternsAction(
 export async function checkScoringRuleDependenciesAction(
   tenantId: string,
 ): Promise<{ ok: true; dependentRules: DependentRule[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
 
   try {

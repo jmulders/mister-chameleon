@@ -29,6 +29,7 @@ import { savePage, getPagesByTenant } from "@/page-store";
 import type { EditablePage, EditableContentBlock, EditableContextSlot } from "@/page-store";
 import type { ContentBlockKey } from "@/tenant/types";
 import { getPreset, REGISTERED_CONTENT_BLOCK_TYPES } from "@/page-config";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -56,6 +57,8 @@ export async function createPageFromPresetAction(
   tenantId: string,
   formData: FormData,
 ): Promise<CreatePageResult> {
+  await requireTenantAction(tenantId);
+
 
   // ── Read + validate inputs ─────────────────────────────────────────────────
 

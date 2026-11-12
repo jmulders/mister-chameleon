@@ -35,17 +35,22 @@ import {
 } from "@/lib/lead-base/webhook-deliveries-store";
 import { deliverAndLog } from "@/lib/lead-base/profile-webhook";
 import { getAbmWebhookUrl } from "@/lib/abm/abm-store";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 export async function listLeadProfilesAction(
   tenantId: string,
   filter:   VisitorProfileFilter = {},
 ): Promise<VisitorProfile[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return listVisitorProfiles(tenantId, filter);
 }
 
 /** First-touch channel → visitors / leads / conversions for the funnel report. */
 export async function getChannelAttributionAction(tenantId: string): Promise<ChannelStat[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return getChannelAttribution(tenantId);
 }
@@ -53,12 +58,16 @@ export async function getChannelAttributionAction(tenantId: string): Promise<Cha
 // ── Suppression list (unsubscribe / opt-out) ────────────────────────────────────
 
 export async function listSuppressionsAction(tenantId: string): Promise<SuppressionRow[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return listSuppressions(tenantId);
 }
 
 /** Add a suppression + pull the email from all ad-platform audiences. */
 export async function addSuppressionAction(tenantId: string, formData: FormData): Promise<void> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) return;
@@ -69,6 +78,8 @@ export async function addSuppressionAction(tenantId: string, formData: FormData)
 
 /** Lift a suppression (re-opt-in). */
 export async function removeSuppressionAction(tenantId: string, formData: FormData): Promise<void> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (email) await removeSuppression(tenantId, email);
@@ -79,6 +90,8 @@ export async function deleteLeadProfilesAction(
   tenantId: string,
   ids:      string[],
 ): Promise<{ ok: boolean; deleted: number; crmArchived: number }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   // GDPR erasure: archive the linked HubSpot contacts (the PII) before removing
@@ -105,6 +118,8 @@ export async function deleteLeadProfilesAction(
 
 /** The page-visit timeline for one visitor (lazy-loaded when a row is expanded). */
 export async function listVisitorEventsAction(tenantId: string, visitorKey: string): Promise<VisitorEvent[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return listVisitorEvents(tenantId, visitorKey, 50);
 }
@@ -112,6 +127,8 @@ export async function listVisitorEventsAction(tenantId: string, visitorKey: stri
 // ── Personalization performance ──────────────────────────────────────────────────
 
 export async function getPersonalizationPerformanceAction(tenantId: string): Promise<PersonalizationPerformance> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return getPersonalizationPerformance(tenantId);
 }
@@ -119,6 +136,8 @@ export async function getPersonalizationPerformanceAction(tenantId: string): Pro
 // ── Webhook deliveries ──────────────────────────────────────────────────────────
 
 export async function listWebhookDeliveriesAction(tenantId: string): Promise<WebhookDelivery[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return listWebhookDeliveries(tenantId, 25);
 }
@@ -128,6 +147,8 @@ export async function replayWebhookDeliveryAction(
   tenantId: string,
   id:       string,
 ): Promise<{ ok: true; status: number | null } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const delivery = await getWebhookDelivery(tenantId, id);
   if (!delivery) return { ok: false, error: "Delivery not found." };

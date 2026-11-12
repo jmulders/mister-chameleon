@@ -101,6 +101,8 @@ export async function getCreditSettingsAction(tenantId: string): Promise<
   | { ok: true;  settings: CreditSettings }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
     const client = getServiceClient();
@@ -150,6 +152,8 @@ export async function saveCreditSettingsAction(
   tenantId: string,
   settings: CreditSettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const { email } = await requireAdmin();
     const client    = getServiceClient();
@@ -197,6 +201,8 @@ export async function saveWalletCapAction(
   tenantId: string,
   input:    WalletCapInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const { email } = await requireAdmin();
     const client    = getServiceClient();
@@ -251,6 +257,8 @@ export async function saveAutoReloadAction(
   tenantId: string,
   input:    AutoReloadInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const { email } = await requireAdmin();
     const client    = getServiceClient();
@@ -302,6 +310,8 @@ export async function saveNotificationSettingsAction(
   tenantId: string,
   input:    NotificationSettingsInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const { email } = await requireAdmin();
     const client    = getServiceClient();
@@ -378,6 +388,8 @@ export async function addCreditsAction(
   tenantId: string,
   input:    AddCreditsInput,
 ): Promise<{ ok: true; newBalanceCents: number } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     // ── 1. Verify admin session + super admin role ───────────────────────────
     const session = await requireAdminSession();
@@ -496,6 +508,8 @@ export async function addCreditsAction(
 export async function reactivateWalletAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const session = await requireAdminSession();
 
@@ -543,6 +557,8 @@ export async function confirmBundlePurchaseAction(
   | { ok: true;  alreadyCredited: boolean; credits: number; bundleLabel: string }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 
@@ -679,6 +695,8 @@ export async function confirmSubscriptionCheckoutAction(
   | { ok: true;  alreadyConfirmed: boolean }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 
@@ -915,6 +933,8 @@ export async function confirmSubscriptionCheckoutAction(
 export async function syncPaymentMethodFromStripeAction(
   tenantId: string,
 ): Promise<{ ok: true; paymentMethodId: string | null } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
     const client = getServiceClient();
@@ -1046,6 +1066,8 @@ export async function confirmSessionBundlePurchaseAction(
   | { ok: true;  alreadyCredited: boolean; sessions: number; bundleLabel: string }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 
@@ -1181,6 +1203,8 @@ export async function updateSubscriptionAction(
   tenantId: string,
   update:   UpdateSubscriptionInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const session = await requireAdminSession();
     if (!isSuperAdmin(session)) {
@@ -1250,6 +1274,8 @@ export async function createSubscriptionAction(
     trial_end?:           string | null;
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const session = await requireAdminSession();
     if (!isSuperAdmin(session)) {
@@ -1311,6 +1337,8 @@ export async function createSubscriptionAction(
 export async function activatePendingPlanNowAction(
   tenantId: string,
 ): Promise<{ ok: true; plan: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const session = await requireAdminSession();
     if (!isSuperAdmin(session)) {
@@ -1379,6 +1407,8 @@ export async function activatePendingPlanNowAction(
 export async function syncSubscriptionFromStripeAction(
   tenantId: string,
 ): Promise<{ ok: true; summary: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const session = await requireAdminSession();
     if (!isSuperAdmin(session)) {
@@ -1513,6 +1543,8 @@ export async function syncSubscriptionFromStripeAction(
 export async function renewSubscriptionNowAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const session = await requireAdminSession();
     if (!isSuperAdmin(session)) {
@@ -1548,6 +1580,7 @@ import {
   type TenantDunningSettings,
   type TenantDunningSettingsInput,
 } from "@/billing/dunning";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 /**
  * Fetch the dunning settings for a tenant.
@@ -1556,6 +1589,8 @@ import {
 export async function getDunningSettingsAction(
   tenantId: string,
 ): Promise<{ ok: true; data: TenantDunningSettings } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdminSession();
     const client = getServiceClient();
@@ -1574,6 +1609,8 @@ export async function saveDunningSettingsAction(
   tenantId: string,
   input:    TenantDunningSettingsInput,
 ): Promise<{ ok: true; data: TenantDunningSettings } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdminSession();
     const client = getServiceClient();
@@ -1593,6 +1630,8 @@ export async function saveDunningSettingsAction(
 export async function clearDunningAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const session = await requireAdminSession();
     if (!isSuperAdmin(session)) {
@@ -1639,6 +1678,8 @@ export async function confirmPlanChangeCheckoutAction(
   | { ok: true;  alreadyConfirmed: boolean }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 
@@ -1853,6 +1894,8 @@ export async function getStripeInvoicesAction(
   | { ok: true;  invoices: StripeInvoiceRow[]; customerId: string }
   | { ok: false; error: string; customerId: string | null }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
     const client = getServiceClient();

@@ -16,6 +16,7 @@ import { revalidatePath }            from "next/cache";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import type { CopyVariable, CopyVariableMapping } from "@/tenant/types";
 import { BUILTIN_SOURCE_KEYS } from "@/lib/blocks/substitute-context-tokens";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 const TOKEN_RE = /^[a-z0-9_-]{1,40}$/;
 const MAX_VARIABLES = 48;
@@ -46,6 +47,8 @@ export interface SaveCopyVariablesResult {
 }
 
 export async function getCopyVariablesAction(tenantId: string): Promise<CopyVariable[]> {
+  await requireTenantAction(tenantId);
+
   const settings = await getTenantById(tenantId);
   return (settings?.copyVariables ?? []).map((v) => ({ ...v }));
 }
@@ -54,6 +57,8 @@ export async function saveCopyVariablesAction(
   tenantId: string,
   drafts:   CopyVariableDraft[],
 ): Promise<SaveCopyVariablesResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId must be a non-empty string." };
   if (drafts.length > MAX_VARIABLES) {
     return { ok: false, error: `At most ${MAX_VARIABLES} variables can be declared.` };

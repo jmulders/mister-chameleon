@@ -29,12 +29,15 @@ import {
   audienceSegmentMatcher,
   type DependentRule,
 } from "@/decision/rules/find-dependent-rules";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── List ──────────────────────────────────────────────────────────────────────
 
 export async function listAudienceSegmentsAction(
   tenantId: string,
 ): Promise<{ ok: true; data: AudienceSegment[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
   return listAudienceSegments(tenantId);
 }
@@ -55,6 +58,8 @@ export async function createAudienceSegmentAction(
   sessionTenantId: string,
   input: AudienceSegmentCreateInput,
 ): Promise<{ ok: boolean; data?: AudienceSegment; error?: string }> {
+  await requireTenantAction(sessionTenantId);
+
   if (!sessionTenantId) return { ok: false, error: "Tenant ID is required." };
 
   // Validate key
@@ -93,6 +98,8 @@ export async function updateAudienceSegmentAction(
   sessionTenantId: string,
   input: AudienceSegmentUpdateInput,
 ): Promise<{ ok: boolean; data?: AudienceSegment; error?: string }> {
+  await requireTenantAction(sessionTenantId);
+
   if (!sessionTenantId) return { ok: false, error: "Tenant ID is required." };
   if (!input.id)        return { ok: false, error: "Segment ID is required." };
 
@@ -111,6 +118,8 @@ export async function deleteAudienceSegmentAction(
   sessionTenantId: string,
   segmentId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantAction(sessionTenantId);
+
   if (!sessionTenantId) return { ok: false, error: "Tenant ID is required." };
   if (!segmentId)       return { ok: false, error: "Segment ID is required." };
 
@@ -128,6 +137,8 @@ export async function toggleAudienceSegmentActiveAction(
   segmentId: string,
   isActive: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantAction(sessionTenantId);
+
   return updateAudienceSegmentAction(sessionTenantId, { id: segmentId, isActive });
 }
 
@@ -143,6 +154,8 @@ export async function checkSegmentDependenciesAction(
   tenantId:   string,
   segmentKey: string,
 ): Promise<{ ok: true; dependentRules: DependentRule[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId)   return { ok: false, error: "Tenant ID is required." };
   if (!segmentKey) return { ok: false, error: "Segment key is required." };
 
@@ -179,6 +192,8 @@ export async function seedAudienceSegmentsAction(
   skipped:           number;
   createdAsInactive: number;
 } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
 
   // 1. Fetch existing keys to determine what's already there.

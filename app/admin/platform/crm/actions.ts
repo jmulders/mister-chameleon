@@ -32,6 +32,7 @@ import {
   savePlatformCrmSettings,
   crmFlags,
 } from "@/platform/platform-store";
+import { requireAdminAction, requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared validation ──────────────────────────────────────────────────────────
 
@@ -60,6 +61,8 @@ export async function getCrmPlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireAdminAction();
+
   const result = await getPlatformCrmSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -87,6 +90,8 @@ export async function saveCrmPlatformSettingsAction(input: {
   provider:      "hubspot";
   accessToken?:  string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const accessToken =
     input.accessToken !== undefined ? trimField(input.accessToken) : undefined;
 
@@ -165,6 +170,8 @@ function parseHubSpotError(
 export async function testCrmConnectionAction(input: {
   accessToken?: string;
 }): Promise<TestCrmConnectionResult> {
+  await requireSuperAdminAction();
+
   // ── Step 1: Load saved settings for fallback ───────────────────────────────
   let savedAccessToken: string | undefined;
 

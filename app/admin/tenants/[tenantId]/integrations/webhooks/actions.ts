@@ -28,6 +28,7 @@ import { summarizeCondition } from "@/lib/webhooks/summarize-condition";
 import { isSafeWebhookUrl } from "@/lib/webhooks/webhook-url";
 import type { RuleCondition, StoredPlan, StoredRule } from "@/decision/rules/stored-rule";
 import { revalidatePath } from "next/cache";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 export interface RuleWebhookRow {
   ruleId:           string;
@@ -52,6 +53,8 @@ export interface OutboundWebhooksOverview {
 }
 
 export async function listOutboundWebhooksAction(tenantId: string): Promise<OutboundWebhooksOverview> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const [url, deliveries, rulesResult] = await Promise.all([
@@ -111,6 +114,8 @@ export async function saveWebhookRuleAction(
   tenantId: string,
   input:    WebhookRuleInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const label = input.label?.trim() ?? "";
@@ -161,6 +166,8 @@ export async function deleteWebhookRuleAction(
   tenantId: string,
   ruleId:   string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const current = await getTenantRulesAction(tenantId);

@@ -35,6 +35,7 @@ import { loadTenantEmailTransport }     from "@/forms/load-tenant-email-transpor
 import { getPlatformEmailSettings }     from "@/platform/platform-store";
 import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
 import { serverEnv }                    from "@/lib/env";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── DB error classification ────────────────────────────────────────────────────
 
@@ -154,6 +155,8 @@ export async function getTenantFormSettingsAction(tenantId: string): Promise<{
   ok:    false;
   error: string;
 }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId is required" };
   }
@@ -269,6 +272,8 @@ export async function saveTenantFormSettingsAction(
   tenantId: string,
   incoming: TenantFormSettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId is required" };
   }
@@ -350,6 +355,8 @@ export async function saveTenantFormSettingsAction(
 export async function getTurnstileSettingsAction(
   tenantId: string,
 ): Promise<{ ok: true; siteKey: string; hasSecret: boolean } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -384,6 +391,8 @@ export async function saveTurnstileSettingsAction(
   tenantId: string,
   input: { siteKey: string; secretKey: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -437,6 +446,8 @@ export async function saveNotificationSettingsAction(
     replyTo?: string;
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   const current = await getTenantFormSettingsAction(tenantId);
@@ -471,6 +482,8 @@ export async function saveFormBehaviorAction(
     successRedirectUrl?:    string;
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   const current = await getTenantFormSettingsAction(tenantId);
@@ -501,6 +514,8 @@ export async function sendTestEmailAction(
   tenantId:        string,
   recipientEmail:  string,
 ): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId)       return { ok: false, error: "tenantId is required" };
   if (!recipientEmail?.includes("@")) return { ok: false, error: "Valid recipient email is required" };
 
@@ -572,6 +587,8 @@ export async function sendTestEmailAction(
 export async function resetTenantEmailTransportAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   try {
@@ -647,6 +664,8 @@ export async function getTenantEmailTransportAction(tenantId: string): Promise<{
   ok:    false;
   error: string;
 }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   try {
@@ -720,6 +739,8 @@ export async function saveTenantEmailTransportAction(
   tenantId: string,
   input:    TransportFormInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   const transportType: "resend" | "smtp" | "none" =

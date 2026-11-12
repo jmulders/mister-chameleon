@@ -48,6 +48,7 @@ import {
   savePlatformVercelSettings,
   vercelFlags,
 } from "@/platform/platform-store";
+import { requireAdminAction, requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared validation ──────────────────────────────────────────────────────────
 
@@ -100,6 +101,8 @@ export async function getPlatformSettingsAction(): Promise<{
     updatedAt:    string | null;
   };
 } | { ok: false; error: string }> {
+  await requireAdminAction();
+
   const [sanityRes, maxmindRes, aiRes, vercelRes] = await Promise.all([
     getPlatformSanitySettings(),
     getPlatformMaxMindSettings(),
@@ -160,6 +163,8 @@ export async function savePlatformSanityAction(input: {
   dataset:      string;
   writeToken?:  string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const projectId  = trimField(input.projectId);
   const dataset    = trimField(input.dataset);
   const writeToken = input.writeToken !== undefined ? trimField(input.writeToken) : undefined;
@@ -197,6 +202,8 @@ export async function savePlatformMaxMindAction(input: {
   accountId:    string;
   licenseKey?:  string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const accountId  = trimField(input.accountId);
   const licenseKey = input.licenseKey !== undefined ? trimField(input.licenseKey) : undefined;
 
@@ -228,6 +235,8 @@ export async function savePlatformAiAction(input: {
   openaiKey?:    string;
   demoSiteKey?:  string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const anthropicKey = input.anthropicKey !== undefined ? trimField(input.anthropicKey) : undefined;
   const openaiKey    = input.openaiKey    !== undefined ? trimField(input.openaiKey)    : undefined;
   const demoSiteKey  = input.demoSiteKey  !== undefined ? trimField(input.demoSiteKey)  : undefined;
@@ -265,6 +274,8 @@ export async function savePlatformVercelAction(input: {
   teamId:     string;
   apiToken?:  string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const teamId   = trimField(input.teamId);
   const apiToken = input.apiToken !== undefined ? trimField(input.apiToken) : undefined;
 

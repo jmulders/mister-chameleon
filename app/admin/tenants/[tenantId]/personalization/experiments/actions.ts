@@ -29,6 +29,7 @@ import {
   type PlanExperimentInsert,
   type PlanExperimentUpdatePatch,
 } from "@/data/repositories/plan-experiments-repository";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -52,6 +53,8 @@ export async function setTenantExperimentsEnabledAction(
   tenantId: string,
   enabled: boolean,
 ): Promise<SaveExperimentsSettingsResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }
@@ -96,6 +99,8 @@ export async function createPlanExperimentAction(
   tenantId: string,
   input: PlanExperimentInsert,
 ): Promise<PlanExperimentActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!input.id?.trim())      return { ok: false, error: "Experiment ID is required." };
   if (!input.name?.trim())    return { ok: false, error: "Name is required." };
   if (!input.rule_id?.trim()) return { ok: false, error: "Rule ID is required." };
@@ -133,6 +138,8 @@ export async function updatePlanExperimentAction(
   id: string,
   patch: PlanExperimentUpdatePatch,
 ): Promise<PlanExperimentActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!id) return { ok: false, error: "Experiment ID is required." };
 
   // Set ended_at when transitioning to ended.
@@ -158,6 +165,8 @@ export async function deletePlanExperimentAction(
   tenantId: string,
   id: string,
 ): Promise<PlanExperimentActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!id) return { ok: false, error: "Experiment ID is required." };
 
   const result = await deletePlanExperiment(tenantId, id);

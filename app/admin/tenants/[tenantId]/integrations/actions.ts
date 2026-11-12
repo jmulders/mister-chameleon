@@ -37,6 +37,7 @@ import type {
   TenantGa4Settings,
   TenantLeadinfoSettings,
 } from "@/tenant/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -151,6 +152,8 @@ export async function saveTenantIntegrationsAction(
   tenantId: string,
   payload:  TenantIntegrationsPayload,
 ): Promise<SaveIntegrationsResult> {
+  await requireTenantAction(tenantId);
+
   const stored = await getTenantById(tenantId);
 
   if (!stored) {

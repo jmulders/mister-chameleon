@@ -26,6 +26,7 @@ import type { TenantFormOverrideSettings, FormLayout } from "@/tenant/types";
 import { DEFAULT_FORM_OVERRIDE_SETTINGS }     from "@/tenant/types";
 import { loadTenantFormOverrides }            from "@/forms/load-tenant-form-overrides";
 import { sanitizeBlockMedia }                 from "@/lib/media/block-media";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 /** Sanitise a form layout from admin input (phase 1). Returns undefined when unusable. */
 function sanitiseLayout(raw: FormLayout | undefined): FormLayout | undefined {
@@ -67,6 +68,8 @@ export async function getTenantFormOverrideAction(
   | { ok: true;  settings: TenantFormOverrideSettings }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     const settings = await loadTenantFormOverrides(tenantId, formKey);
     return { ok: true, settings };
@@ -90,6 +93,8 @@ export async function saveTenantFormOverrideAction(
   formKey:   string,
   overrides: Partial<TenantFormOverrideSettings>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const sanitised: TenantFormOverrideSettings = {
       overrideEnabled:
@@ -183,6 +188,8 @@ export async function resetTenantFormOverrideAction(
   tenantId: string,
   formKey:  string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = (await (getDb() as any)

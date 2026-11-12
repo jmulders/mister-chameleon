@@ -21,6 +21,7 @@
 import { createClient }            from "@supabase/supabase-js";
 import { revalidatePath }          from "next/cache";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,8 @@ export interface ActionResult {
 export async function updateBillingDefaults(
   payload: BillingDefaultsPayload,
 ): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const currency = payload.currency.trim().toLowerCase();

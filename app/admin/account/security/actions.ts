@@ -26,6 +26,7 @@ import {
   generateBackupCodes,
   hashBackupCodes,
 } from "@/lib/admin-auth/backup-codes";
+import { requireAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared: get the authenticated admin session ────────────────────────────────
 
@@ -55,6 +56,8 @@ export async function initSetup2faAction(): Promise<{
   qrCodeDataUrl: string;
   secret: string;
 } | { error: string }> {
+  await requireAdminAction();
+
   const session = await requireAdminSession();
   const user    = await findAdminUserById(session.sub);
   if (!user) return { error: "User not found." };
@@ -81,6 +84,8 @@ export async function initSetup2faAction(): Promise<{
 export async function confirmEnable2faAction(
   formData: FormData,
 ): Promise<{ backupCodes: string[] } | { error: string }> {
+  await requireAdminAction();
+
   const code = (formData.get("code") as string | null)?.replace(/\s/g, "") ?? "";
   if (!code) return { error: "Please enter the 6-digit code." };
 
@@ -123,6 +128,8 @@ export async function confirmEnable2faAction(
  * session cookie alone is not enough to disable 2FA).
  */
 export async function disable2faAction(formData: FormData): Promise<void> {
+  await requireAdminAction();
+
   const code = (formData.get("code") as string | null)?.replace(/\s/g, "") ?? "";
 
   const session = await requireAdminSession();
@@ -163,6 +170,8 @@ export async function disable2faAction(formData: FormData): Promise<void> {
 export async function regenerateBackupCodesAction(
   formData: FormData,
 ): Promise<{ backupCodes: string[] } | { error: string }> {
+  await requireAdminAction();
+
   const code = (formData.get("code") as string | null)?.replace(/\s/g, "") ?? "";
 
   const session = await requireAdminSession();

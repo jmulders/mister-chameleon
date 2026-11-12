@@ -45,6 +45,7 @@ import { indexTenant }                      from "@/search/indexing/meilisearch-
 import {
   decryptSecret,
 }                                           from "@/lib/email-crypto";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Client-safe types (no plaintext secrets)
@@ -97,6 +98,8 @@ export async function getTenantSearchSettingsAction(tenantId: string): Promise<
   | { ok: true;  config: SafeSearchConfig }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   try {
@@ -141,6 +144,8 @@ export async function saveTenantSearchSettingsAction(
   tenantId: string,
   input:    SearchSettingsFormInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   const VALID_PROVIDERS: SearchProviderOption[] = [
@@ -215,6 +220,8 @@ export async function reindexTenantSearchAction(tenantId: string): Promise<
   | { ok: true;  docCount: number; errorCount: number; indexedAt: string }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId is required" };
 
   // ── Load config from DB ──────────────────────────────────────────────────

@@ -14,6 +14,7 @@ import {
   getPlatformPloiSettings,   savePlatformPloiSettings,   ploiFlags,   resolvePloiToken,
 } from "@/platform/platform-store";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 export interface ProvisioningStatus {
   ok: true;
@@ -24,6 +25,8 @@ export interface ProvisioningStatus {
 export async function getProvisioningSettingsAction(): Promise<
   ProvisioningStatus | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
   const [gh, ploi] = await Promise.all([getPlatformGithubSettings(), getPlatformPloiSettings()]);
   if (!gh.ok)   return { ok: false, error: gh.error };
@@ -42,6 +45,8 @@ export async function saveGithubSettingsAction(input: {
   repoOwner?:     string;
   privateRepos?:  boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
   const result = await savePlatformGithubSettings({
     token:         input.token         !== undefined ? input.token.trim()         : undefined,
@@ -61,6 +66,8 @@ export async function savePloiSettingsAction(input: {
   phpVersion?:     string;
   platformApiUrl?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
   const result = await savePlatformPloiSettings({
     apiToken:       input.apiToken       !== undefined ? input.apiToken.trim()       : undefined,
@@ -77,6 +84,8 @@ export async function savePloiSettingsAction(input: {
 export async function testGithubConnectionAction(): Promise<
   { ok: true; message: string } | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
   const gh = await getPlatformGithubSettings();
   if (!gh.ok) return { ok: false, error: gh.error };
@@ -102,6 +111,8 @@ export async function testGithubConnectionAction(): Promise<
 export async function testPloiConnectionAction(): Promise<
   { ok: true; message: string } | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
   const ploi = await getPlatformPloiSettings();
   if (!ploi.ok) return { ok: false, error: ploi.error };

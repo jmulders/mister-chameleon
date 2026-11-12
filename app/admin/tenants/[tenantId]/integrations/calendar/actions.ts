@@ -18,6 +18,7 @@ import { getTenantById, saveTenant }        from "@/tenant/tenant-store";
 import { getPlatformGoogleCalendarSettings } from "@/platform/platform-store";
 import { getRequiredAdminSession }          from "@/lib/admin-auth/authorization";
 import type { TenantSettings }              from "@/tenant/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 export interface TenantCalendarConfig {
   enabled:           boolean;
@@ -40,6 +41,8 @@ export interface TenantCalendarView {
 export async function getTenantCalendarSettingsAction(
   tenantId: string,
 ): Promise<{ ok: true; data: TenantCalendarView } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const tenant = await getTenantById(tenantId);
@@ -83,6 +86,8 @@ export async function saveTenantCalendarSettingsAction(
   tenantId: string,
   input: TenantCalendarConfig,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const existing = await getTenantById(tenantId);

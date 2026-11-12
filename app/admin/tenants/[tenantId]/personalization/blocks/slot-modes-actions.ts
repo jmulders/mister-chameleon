@@ -31,6 +31,7 @@ import type {
   TenantAdaptiveSlotConfig,
   TenantSlotMode,
 } from "@/tenant/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Key prefix guards ─────────────────────────────────────────────────────────
 
@@ -52,6 +53,8 @@ const SLOT_KEY_PREFIXES: Record<"hero" | "proof" | "cta" | "feature" | "conversi
 export async function getSlotModesAction(
   tenantId: string,
 ): Promise<TenantAdaptiveSlotSettings | null> {
+  await requireTenantAction(tenantId);
+
   const settings = await getTenantById(tenantId);
   return settings?.adaptiveSlots ?? null;
 }
@@ -87,6 +90,8 @@ export async function saveSlotModesAction(
   tenantId: string,
   input:    SaveSlotModesInput,
 ): Promise<SaveSlotModesResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string." };
   }

@@ -32,12 +32,14 @@ import {
   type AbmLeadProfile,
   type AbmLeadStatus,
   type AbmLeadVisit,
+  getAbmLeadById,
 }                                  from "@/lib/abm/abm-store";
 import { encryptSecret }           from "@/lib/email-crypto";
 import { syncCompanyToHubspot }    from "@/lib/lead-base/hubspot-sync";
 import { leadScore }               from "@/lib/lead-base/lead-scoring";
 import type { IdentityLevel }      from "@/lib/lead-base/profile-gate";
 import { getTenantById }           from "@/tenant/server";
+import { requireAdminAction, requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 /** Short, URL-safe, unguessable identifier (~8 chars). */
 function genIdentifier(): string {
@@ -47,13 +49,20 @@ function genIdentifier(): string {
 // ── Read ──────────────────────────────────────────────────────────────────────
 
 export async function listAbmLeadsAction(tenantId: string): Promise<AbmLead[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return listAbmLeads(tenantId);
 }
 
 /** Recent visit timeline for a single lead (lazy-loaded when a row is expanded). */
 export async function listAbmLeadVisitsAction(leadId: string): Promise<AbmLeadVisit[]> {
-  await getRequiredAdminSession();
+  await requireAdminAction();
+  // The lead id comes from the client: the lead's own tenant decides who may
+  // read its visits. An unknown id returns nothing.
+  const lead = typeof leadId === "string" && leadId ? await getAbmLeadById(leadId) : null;
+  if (!lead) return [];
+  await requireTenantAction(lead.tenantId);
   return listAbmLeadVisits(leadId);
 }
 
@@ -67,6 +76,8 @@ export interface AbmDashboardRow {
 
 /** Target accounts joined with their observed activity, hottest first. */
 export async function listAbmDashboardAction(tenantId: string): Promise<AbmDashboardRow[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const [leads, activity, tenant] = await Promise.all([
     listAbmLeads(tenantId),
@@ -92,6 +103,8 @@ export async function listAbmDashboardAction(tenantId: string): Promise<AbmDashb
 // ── Settings (outbound webhook) ─────────────────────────────────────────────────
 
 export async function getAbmWebhookUrlAction(tenantId: string): Promise<string | null> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return getAbmWebhookUrl(tenantId);
 }
@@ -100,6 +113,8 @@ export async function saveAbmWebhookUrlAction(
   tenantId: string,
   webhookUrl: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const trimmed = webhookUrl.trim();
   if (trimmed && !/^https:\/\//i.test(trimmed)) {
@@ -112,6 +127,8 @@ export async function saveAbmWebhookUrlAction(
 }
 
 export async function getAbmWebhookSecretAction(tenantId: string): Promise<string | null> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return getAbmWebhookSecret(tenantId);
 }
@@ -120,6 +137,8 @@ export async function saveAbmWebhookSecretAction(
   tenantId: string,
   secret:   string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const ok = await setAbmWebhookSecret(tenantId, secret.trim() || null);
   if (!ok) return { ok: false, error: "Save failed." };
@@ -131,6 +150,8 @@ export async function saveAbmWebhookSecretAction(
 export async function generateAbmWebhookSecretAction(
   tenantId: string,
 ): Promise<{ ok: true; secret: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const secret = `whsec_${randomBytes(32).toString("base64url")}`;
   const ok = await setAbmWebhookSecret(tenantId, secret);
@@ -146,6 +167,8 @@ export async function generateAbmWebhookSecretAction(
  * the key itself — the plaintext is shown only once, at generation.
  */
 export async function getAbmSyncApiKeyStatusAction(tenantId: string): Promise<{ configured: boolean }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const stored = await getAbmSyncApiKey(tenantId);
   return { configured: Boolean(stored) };
@@ -159,6 +182,8 @@ export async function getAbmSyncApiKeyStatusAction(tenantId: string): Promise<{ 
 export async function generateAbmSyncApiKeyAction(
   tenantId: string,
 ): Promise<{ ok: true; key: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const key = `mcsk_${randomBytes(24).toString("base64url")}`;
   const ok = await setAbmSyncApiKey(tenantId, encryptSecret(key));
@@ -171,6 +196,8 @@ export async function generateAbmSyncApiKeyAction(
 export async function revokeAbmSyncApiKeyAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const ok = await setAbmSyncApiKey(tenantId, null);
   if (!ok) return { ok: false, error: "Revoke failed." };
@@ -179,6 +206,8 @@ export async function revokeAbmSyncApiKeyAction(
 }
 
 export async function getAbmNotifySettingsAction(tenantId: string): Promise<AbmNotifySettings> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return getAbmNotifySettings(tenantId);
 }
@@ -188,6 +217,8 @@ export async function saveAbmNotifySettingsAction(
   slackUrl: string,
   minScore: number,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const trimmed = slackUrl.trim();
   if (trimmed && !/^https:\/\/hooks\.slack\.com\//i.test(trimmed)) {
@@ -200,6 +231,8 @@ export async function saveAbmNotifySettingsAction(
 }
 
 export async function getAbmHubspotTokenAction(tenantId: string): Promise<string | null> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return getAbmHubspotToken(tenantId);
 }
@@ -208,6 +241,8 @@ export async function saveAbmHubspotTokenAction(
   tenantId: string,
   token:    string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const ok = await setAbmHubspotToken(tenantId, token.trim() || null);
   if (!ok) return { ok: false, error: "Save failed." };
@@ -224,6 +259,8 @@ export async function saveAbmHubspotTokenAction(
 export async function testAbmHubspotSyncAction(
   tenantId: string,
 ): Promise<{ ok: true; companyId?: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const token = await getAbmHubspotToken(tenantId);
   if (!token) return { ok: false, error: "No HubSpot token set. Save one first." };
@@ -252,6 +289,8 @@ export async function saveAbmLeadAction(
   tenantId: string,
   input:    SaveAbmLeadInput,
 ): Promise<{ ok: true; lead: AbmLead } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const target = input.targetPath.trim() || "/";
@@ -283,6 +322,8 @@ export async function deleteAbmLeadAction(
   tenantId: string,
   id:       string,
 ): Promise<{ ok: boolean }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const ok = await deleteAbmLead(id);
   revalidatePath(`/admin/tenants/${tenantId}/audience/accounts`);
@@ -364,6 +405,8 @@ export async function importAbmLeadsCsvAction(
   csv:        string,
   targetPath: string,
 ): Promise<ImportResult> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const target = targetPath.trim() || "/";

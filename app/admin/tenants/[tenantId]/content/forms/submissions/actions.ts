@@ -21,6 +21,7 @@ import { getTenantFormSettingsAction } from "@/app/admin/tenants/[tenantId]/cont
 import { DEFAULT_TENANT_FORM_SETTINGS } from "@/tenant/types";
 import type { TenantFormSettings }       from "@/tenant/types";
 import { logger }                        from "@/lib/logger";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Page size constant ─────────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ export async function listFormSubmissionsAction(
   | { ok: true; rows: FormSubmissionRow[]; total: number; page: number; pageSize: number }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 
@@ -109,6 +112,8 @@ export async function deleteFormSubmissionAction(
   tenantId:     string,
   submissionId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 
@@ -143,6 +148,8 @@ export async function exportFormSubmissionsAction(
     to?:      string;
   },
 ): Promise<{ ok: true; csv: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 
@@ -213,6 +220,8 @@ export async function saveRetentionSettingAction(
   tenantId:      string,
   retentionDays: number | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await requireAdmin();
 

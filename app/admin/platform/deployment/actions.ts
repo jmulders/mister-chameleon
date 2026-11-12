@@ -12,6 +12,7 @@ import { rethrowNextInternal } from "@/lib/server-action-guard";
 import { createClient }            from "@supabase/supabase-js";
 import { revalidatePath }          from "next/cache";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 export interface ActionResult {
   ok:     boolean;
@@ -34,6 +35,8 @@ function makeClient() {
  * Overwrites any rows where credit_cost = 0 (schema default, never set correctly).
  */
 export async function seedEnrichmentPricingAction(): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   try {
@@ -59,6 +62,8 @@ export async function seedEnrichmentPricingAction(): Promise<ActionResult> {
  * Safe to run multiple times — idempotent via createOrReplace.
  */
 export async function seedPlatformVariantsAction(): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const token     = process.env["SANITY_API_TOKEN"];
@@ -131,6 +136,8 @@ export async function seedPlatformVariantsAction(): Promise<ActionResult> {
  * Used by the "Refresh" button on the deployment dashboard.
  */
 export async function checkDeploymentStatusAction(): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   try {

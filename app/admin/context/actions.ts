@@ -52,6 +52,7 @@ import type {
   ContextVariableMetadataUpdate,
 } from "@/data/types";
 import type { CreateCustomVariableInput } from "@/data/repositories/context-variables-repository";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Action result type ────────────────────────────────────────────────────────
 
@@ -71,6 +72,8 @@ export async function upsertMetadataAction(
   key: string,
   patch: ContextVariableMetadataUpdate,
 ): Promise<ActionResult<ContextVariableMetadataRow>> {
+  await requireSuperAdminAction();
+
   if (!key.trim()) {
     return { ok: false, error: "Key must not be empty." };
   }
@@ -99,6 +102,8 @@ export async function upsertMetadataAction(
 export async function createCustomVariableAction(
   input: CreateCustomVariableInput,
 ): Promise<ActionResult<ContextVariableMetadataRow>> {
+  await requireSuperAdminAction();
+
   const key = input.key.trim();
 
   if (!key) {
@@ -144,6 +149,8 @@ export async function createCustomVariableAction(
 export async function deleteCustomVariableAction(
   key: string,
 ): Promise<ActionResult<void>> {
+  await requireSuperAdminAction();
+
   const result = await deleteCustomVariable(key);
 
   if (!result.ok) {
@@ -170,6 +177,8 @@ export async function toggleEnabledAction(
   key: string,
   enabled: boolean,
 ): Promise<ActionResult<ContextVariableMetadataRow>> {
+  await requireSuperAdminAction();
+
   const result = await upsertMetadata(key, { enabled });
 
   if (!result.ok) {

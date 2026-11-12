@@ -23,6 +23,7 @@
 import { revalidatePath }           from "next/cache";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import type { TenantDebugSettings, TenantScenarioPanelSettings, TenantScenarioPreset, TenantScenarioOverride } from "@/tenant/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -45,6 +46,8 @@ export async function saveTenantDebugSettingsAction(
   tenantId: string,
   debug:    TenantDebugSettings,
 ): Promise<SaveDebugSettingsResult> {
+  await requireTenantAction(tenantId);
+
   const stored = await getTenantById(tenantId);
 
   if (!stored) {
@@ -91,6 +94,8 @@ export async function saveScenarioPanelAction(
   tenantId: string,
   panel:    TenantScenarioPanelSettings,
 ): Promise<SaveScenarioPanelResult> {
+  await requireTenantAction(tenantId);
+
   const stored = await getTenantById(tenantId);
 
   if (!stored) {
@@ -144,6 +149,8 @@ export async function saveScenarioPresetsAction(
   tenantId: string,
   presets:  TenantScenarioPreset[],
 ): Promise<SaveScenarioPresetsResult> {
+  await requireTenantAction(tenantId);
+
   const stored = await getTenantById(tenantId);
 
   if (!stored) {
@@ -186,6 +193,8 @@ export async function saveScenarioOverridesAction(
   tenantId:  string,
   overrides: Record<string, TenantScenarioOverride>,
 ): Promise<SaveScenarioOverridesResult> {
+  await requireTenantAction(tenantId);
+
   const stored = await getTenantById(tenantId);
   if (!stored) return { ok: false, error: `Tenant "${tenantId}" not found.` };
 

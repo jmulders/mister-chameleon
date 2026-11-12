@@ -17,6 +17,7 @@ import { rethrowNextInternal } from "@/lib/server-action-guard";
 import { createClient }            from "@supabase/supabase-js";
 import { revalidatePath }          from "next/cache";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 function makeClient() {
   return createClient(
@@ -44,6 +45,8 @@ async function uniqueSlug(client: ReturnType<typeof makeClient>, base: string): 
 export async function processSignupAction(
   pendingId: string,
 ): Promise<{ ok: true; tenantId: string } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const client = makeClient();
@@ -155,6 +158,8 @@ export async function processSignupAction(
 export async function retryEmailAction(
   pendingId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const client = makeClient();
@@ -198,6 +203,8 @@ export async function retryEmailAction(
 export async function dismissSignupAction(
   pendingId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const client = makeClient();

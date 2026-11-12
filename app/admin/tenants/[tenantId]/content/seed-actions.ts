@@ -41,6 +41,7 @@ import {
   seedMarketingSiteAction,
   seedStoryblokSpaceAction,
 } from "@/app/admin/platform/cms/actions";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Statamic seed result type ──────────────────────────────────────────────────
 
@@ -75,6 +76,8 @@ export type SeedStatamicResult =
  * No secrets cross the server→client boundary.
  */
 export async function seedTenantSanityAction(tenantId: string) {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   // Delegates to the platform seed — the tenantId parameter is passed through
   // for traceability and will drive per-tenant seed data selection in a future
@@ -102,6 +105,8 @@ export async function seedTenantSanityAction(tenantId: string) {
  * boundary.
  */
 export async function seedTenantStoryblokAction(tenantId: string) {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   void tenantId;
   const result = await seedStoryblokSpaceAction();
@@ -131,6 +136,8 @@ export async function seedTenantStoryblokAction(tenantId: string) {
 export async function seedTenantStatamicAction(
   tenantId: string,
 ): Promise<SeedStatamicResult> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const { getTenantById }          = await import("@/tenant/server");
@@ -210,6 +217,8 @@ export interface ResetNavResult {
 export async function resetTenantNavAction(
   tenantId: string,
 ): Promise<ResetNavResult> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   try {

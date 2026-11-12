@@ -19,6 +19,12 @@
 
 import { revalidatePath }          from "next/cache";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
+import {
+  requireAdminAction,
+  requireSuperAdminAction,
+  requireTenantAction,
+  requireTenantOrPlatformAction,
+} from "@/lib/admin-auth/action-guard";
 import { rethrowNextInternal }     from "@/lib/server-action-guard";
 import {
   listAdaptiveBlocks,
@@ -39,7 +45,10 @@ export async function listAdaptiveBlocksAction(
   includePlatform: boolean = true,
 ): Promise<{ ok: true; blocks: AdaptiveBlockData[] } | { ok: false; error: string }> {
   try {
-    await getRequiredAdminSession();
+    // A tenant's blocks need access to that tenant. The platform's own blocks
+    // (tenant id null) are shared templates, readable by any admin.
+    if (tenantId) await requireTenantAction(tenantId);
+    else await requireAdminAction();
     const blocks = await listAdaptiveBlocks(tenantId, includePlatform);
     return { ok: true, blocks };
   } catch (err) {
@@ -55,7 +64,8 @@ export async function getAdaptiveBlockAction(
   tenantId: string | null,
 ): Promise<{ ok: true; block: AdaptiveBlockData } | { ok: false; error: string }> {
   try {
-    await getRequiredAdminSession();
+    if (tenantId) await requireTenantAction(tenantId);
+    else await requireAdminAction();
     const block = await getAdaptiveBlockByKey(key, tenantId);
     if (!block) return { ok: false, error: `No adaptive block found for key "${key}".` };
     return { ok: true, block };
@@ -73,7 +83,8 @@ export async function upsertAdaptiveBlockAction(
   revalidate?: string,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
-    await getRequiredAdminSession();
+    // Writing a platform block (no tenant id) is superadmin only.
+    await requireTenantOrPlatformAction(block.tenantId);
 
     if (!block.key?.trim()) {
       return { ok: false, error: "Block key is required." };
@@ -133,7 +144,7 @@ export async function activateBlockForTenantAction(
   revalidate?: string,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
-    await getRequiredAdminSession();
+    await requireTenantAction(tenantId);
 
     if (!key.trim())      return { ok: false, error: "Block key is required." };
     if (!tenantId.trim()) return { ok: false, error: "Tenant ID is required." };
@@ -174,7 +185,7 @@ export async function seedPlatformBlocksAction(
   overwrite = false,
 ): Promise<{ ok: true; inserted: number; skipped: number } | { ok: false; error: string }> {
   try {
-    await getRequiredAdminSession();
+    await requireSuperAdminAction();
     const { seedPlatformBlocks } = await import("./adaptive-blocks-seed");
     const result = await seedPlatformBlocks(overwrite);
     if (!result.ok) return { ok: false, error: result.errors.join("; ") };
@@ -211,10 +222,12 @@ export async function deleteAdaptiveBlockAction(
   opts?:      { confirmRevert?: boolean },
 ): Promise<DeleteAdaptiveBlockResult> {
   try {
-    await getRequiredAdminSession();
+    await requireAdminAction();
 
     const block = await getAdaptiveBlockById(id);
     const tenantId = block?.tenantId ?? null;
+    // The id comes from the client: the block it names decides who may delete.
+    await requireTenantOrPlatformAction(tenantId);
     if (block && tenantId) {
       const config = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
       const referencingRules = findRulesUsingBlock(block, config);
