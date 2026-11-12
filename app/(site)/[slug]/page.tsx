@@ -445,7 +445,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
     <main>
       <AbmKnownLeadDebugBadge tenant={tenant} hasSlots={finalPageConfig.contextSlots.length > 0} />
       {/* A page without a hero has no h1 of its own: its title becomes the heading. */}
-      {pageNeedsTitleHeading(finalPageConfig.contextSlots) && page.title && (
+      {pageNeedsTitleHeading(finalPageConfig.contextSlots, finalPageConfig.contentBlocks) && page.title && (
         <PageTitleHeader title={page.title} />
       )}
       <TemplateRenderer

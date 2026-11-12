@@ -1834,7 +1834,8 @@ export class StatamicProvider implements CMSProvider {
           rawBlocks.push({
             type:    "text_section",
             variant: "text_split",
-            heading: role ? `${name} — ${role}` : name,
+            // The page prints the name as its h1, so the block names the role.
+            heading: role ?? name,
             body:    bio ?? "",
           });
         }

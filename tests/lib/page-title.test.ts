@@ -17,3 +17,8 @@ test("a hero slot that is switched off does not count", () => {
 test("other slots do not give the page a heading", () => {
   assert.equal(pageNeedsTitleHeading([{ slotId: "cta", variantKey: "cta_default" }]), true);
 });
+
+test("a block that prints the title itself counts as the heading", () => {
+  assert.equal(pageNeedsTitleHeading([], [{ blockType: "articleMeta" }]), false);
+  assert.equal(pageNeedsTitleHeading([], [{ blockType: "textSection" }]), true);
+});

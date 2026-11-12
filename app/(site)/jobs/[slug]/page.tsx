@@ -19,6 +19,8 @@ import type { Metadata }                from "next";
 import { createCMSProvider }            from "@/cms";
 import { mapPageDataToPageConfig }      from "@/cms/mappers/page-config-mapper";
 import { TemplateRenderer }             from "@/components/platform/TemplateRenderer";
+import { pageNeedsTitleHeading }   from "@/lib/page-title";
+import { PageTitleHeader }         from "@/components/site/PageTitleHeader";
 import { getSiteLocale } from "@/lib/site-texts/server";
 import { PAGE_TEXTS } from "@/lib/site-texts/pages";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -63,9 +65,14 @@ export default async function JobDetailPage({ params }: PageProps) {
 
   if (!page) notFound();
 
+  const pageConfig = mapPageDataToPageConfig(page);
+
   return (
     <main>
-      <TemplateRenderer pageConfig={mapPageDataToPageConfig(page)} />
+      {pageNeedsTitleHeading(pageConfig.contextSlots, pageConfig.contentBlocks) && page.title && (
+        <PageTitleHeader title={page.title} />
+      )}
+      <TemplateRenderer pageConfig={pageConfig} />
     </main>
   );
 }
