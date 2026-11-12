@@ -17,6 +17,11 @@
  *     ALL variable-weight fonts are Turbopack-safe (no weight[] array).
  *     Collected in ALL_FONT_VARIABLES; applied to <html> so every @font-face
  *     is registered for the browser to use when a tenant selects that font.
+ *     Every Tier 2 instance sets `preload: false`. With the default, next/font
+ *     emits a <link rel="preload"> for each of these files on EVERY page, so a
+ *     visitor downloaded about 930 KB of fonts to render the two or three
+ *     families the tenant actually uses. Without the preload the browser
+ *     fetches a file only when text on the page needs it.
  *
  * ─── Why fixed-weight fonts are excluded ─────────────────────────────────────
  *
@@ -170,6 +175,7 @@ const inter = Inter({
   subsets:  ["latin"],
   variable: "--font-inter",
   display:  "swap",
+  preload:  false,
 });
 
 /** DM Sans — variable-weight low-contrast geometric. */
@@ -177,6 +183,7 @@ const dmSans = DM_Sans({
   subsets:  ["latin"],
   variable: "--font-dm-sans",
   display:  "swap",
+  preload:  false,
 });
 
 /** Outfit — variable-weight rounded geometric. */
@@ -184,6 +191,7 @@ const outfit = Outfit({
   subsets:  ["latin"],
   variable: "--font-outfit",
   display:  "swap",
+  preload:  false,
 });
 
 /** Manrope — variable-weight elegant geometric. */
@@ -191,6 +199,7 @@ const manrope = Manrope({
   subsets:  ["latin"],
   variable: "--font-manrope",
   display:  "swap",
+  preload:  false,
 });
 
 /** Space Grotesk — variable-weight fixed-width geometric. */
@@ -198,6 +207,7 @@ const spaceGrotesk = Space_Grotesk({
   subsets:  ["latin"],
   variable: "--font-space-grotesk",
   display:  "swap",
+  preload:  false,
 });
 
 /** Plus Jakarta Sans — variable-weight modern geometric humanist. */
@@ -205,6 +215,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   subsets:  ["latin"],
   variable: "--font-plus-jakarta-sans",
   display:  "swap",
+  preload:  false,
 });
 
 /** Figtree — variable-weight clean rounded sans. */
@@ -212,6 +223,7 @@ const figtree = Figtree({
   subsets:  ["latin"],
   variable: "--font-figtree",
   display:  "swap",
+  preload:  false,
 });
 
 /** Urbanist — variable-weight low-contrast geometric. */
@@ -219,6 +231,7 @@ const urbanist = Urbanist({
   subsets:  ["latin"],
   variable: "--font-urbanist",
   display:  "swap",
+  preload:  false,
 });
 
 /** Sora — variable-weight modern geometric. */
@@ -226,6 +239,7 @@ const sora = Sora({
   subsets:  ["latin"],
   variable: "--font-sora",
   display:  "swap",
+  preload:  false,
 });
 
 // ── Sans-serif: workhorse & neutral ──────────────────────────────────────────
@@ -236,6 +250,7 @@ const openSans = Open_Sans({
   subsets:  ["latin"],
   variable: "--font-open-sans",
   display:  "swap",
+  preload:  false,
 });
 
 /** Noto Sans — universal humanist; variable weight. */
@@ -243,6 +258,7 @@ const notoSans = Noto_Sans({
   subsets:  ["latin"],
   variable: "--font-noto-sans",
   display:  "swap",
+  preload:  false,
 });
 
 /** Source Sans 3 — Adobe's screen-optimised humanist; variable weight. */
@@ -250,6 +266,7 @@ const sourceSans3 = Source_Sans_3({
   subsets:  ["latin"],
   variable: "--font-source-sans-3",
   display:  "swap",
+  preload:  false,
 });
 
 /** Work Sans — screen-optimised sans; variable weight. */
@@ -257,6 +274,7 @@ const workSans = Work_Sans({
   subsets:  ["latin"],
   variable: "--font-work-sans",
   display:  "swap",
+  preload:  false,
 });
 
 /** Cabin — humanist sans; variable weight. */
@@ -264,6 +282,7 @@ const cabin = Cabin({
   subsets:  ["latin"],
   variable: "--font-cabin",
   display:  "swap",
+  preload:  false,
 });
 
 // ── Sans-serif: personality & display-ready ───────────────────────────────────
@@ -274,6 +293,7 @@ const montserrat = Montserrat({
   subsets:  ["latin"],
   variable: "--font-montserrat",
   display:  "swap",
+  preload:  false,
 });
 
 /** Raleway — elegant thin-to-heavy range; variable weight. */
@@ -281,6 +301,7 @@ const raleway = Raleway({
   subsets:  ["latin"],
   variable: "--font-raleway",
   display:  "swap",
+  preload:  false,
 });
 
 /** Rubik — slightly rounded humanist; variable weight. */
@@ -288,6 +309,7 @@ const rubik = Rubik({
   subsets:  ["latin"],
   variable: "--font-rubik",
   display:  "swap",
+  preload:  false,
 });
 
 /** Nunito — rounded terminals; variable weight. */
@@ -295,6 +317,7 @@ const nunito = Nunito({
   subsets:  ["latin"],
   variable: "--font-nunito",
   display:  "swap",
+  preload:  false,
 });
 
 /** Mulish — minimalist geometric; variable weight. */
@@ -302,6 +325,7 @@ const mulish = Mulish({
   subsets:  ["latin"],
   variable: "--font-mulish",
   display:  "swap",
+  preload:  false,
 });
 
 // ── Serif ─────────────────────────────────────────────────────────────────────
@@ -313,6 +337,7 @@ const playfairDisplay = Playfair_Display({
   subsets:  ["latin"],
   variable: "--font-playfair-display",
   display:  "swap",
+  preload:  false,
 });
 
 /** Lora — calligraphic serif; variable weight. */
@@ -320,6 +345,7 @@ const lora = Lora({
   subsets:  ["latin"],
   variable: "--font-lora",
   display:  "swap",
+  preload:  false,
 });
 
 /** Source Serif 4 — Adobe's screen-optimised text serif; variable weight. */
@@ -327,6 +353,7 @@ const sourceSerif4 = Source_Serif_4({
   subsets:  ["latin"],
   variable: "--font-source-serif-4",
   display:  "swap",
+  preload:  false,
 });
 
 // EB Garamond is served via CDN (see app/layout.tsx) — Turbopack rejects its
@@ -341,6 +368,7 @@ const oswald = Oswald({
   subsets:  ["latin"],
   variable: "--font-oswald",
   display:  "swap",
+  preload:  false,
 });
 
 // ── Monospace ─────────────────────────────────────────────────────────────────
@@ -351,6 +379,7 @@ const jetbrainsMono = JetBrains_Mono({
   subsets:  ["latin"],
   variable: "--font-jetbrains-mono",
   display:  "swap",
+  preload:  false,
 });
 
 // Fira Code is served via CDN (see app/layout.tsx) — Turbopack rejects its
@@ -362,6 +391,7 @@ const sourceCodePro = Source_Code_Pro({
   subsets:  ["latin"],
   variable: "--font-source-code-pro",
   display:  "swap",
+  preload:  false,
 });
 
 /** Roboto Mono — neutral mono companion to Roboto; variable weight. */
@@ -369,6 +399,7 @@ const robotoMono = Roboto_Mono({
   subsets:  ["latin"],
   variable: "--font-roboto-mono",
   display:  "swap",
+  preload:  false,
 });
 
 // ── GOOGLE_FONT_MAP ───────────────────────────────────────────────────────────
