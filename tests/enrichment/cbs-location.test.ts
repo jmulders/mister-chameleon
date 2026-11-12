@@ -389,7 +389,7 @@ describe("createCbsLocationEnricher — city/coords coherence (the wrong-buurt b
     assert.equal(out.locationConfidence, "low");
     assert.deepEqual(t.calls, ["city:Veenendaal"], "resolved via the city (woonplaats) centroid, not the incoherent coordinates");
     // The resolution note is PERSISTED on the output (not just the stage trace) so
-    // it stays visible on /demo even on a session-cache hit.
+    // it stays visible on /engine-debug even on a session-cache hit.
     assert.equal(typeof out.locationResolutionNote, "string");
     assert.match(out.locationResolutionNote as string, /MISMATCH/);
     assert.match(out.locationResolutionNote as string, /Veenendaal/);

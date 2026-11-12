@@ -81,7 +81,7 @@ laten overleven; voor nu volstaat "auteur in het CP".
    **`mc_loc`-cookie** (via `formLocationFromValues` op de veld-keys postcode/huisnummer).
 3. Herlaad de pagina (of ga naar een andere pagina) → de enrichment-pass draait op het
    form-postcode-pad: **CBS (buurt), BAG (per adres), netbeheer (PC6), EP-Online (label)**.
-   Zichtbaar in de scenario/demo-readout of het `/demo`-debug (afhankelijk van welke keys
+   Zichtbaar in de scenario/demo-readout of het `/engine-debug`-debug (afhankelijk van welke keys
    op prod aanstaan: `BAG_API_KEY`, `NETBEHEER_ENERGY_ENABLED`, `EPONLINE_API_KEY`).
 
 ## C. Volledig in het CP gebouwde (self-service) formulieren

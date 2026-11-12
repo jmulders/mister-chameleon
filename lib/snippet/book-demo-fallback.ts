@@ -12,7 +12,7 @@
  *
  * The label is in the site's language (site copy is localized, not hardcoded
  * English) and the href points at the locale-correct booking page
- * (/book-demo for the default locale, /<locale>/book-demo otherwise).
+ * (/book-demo for English, /demo for Dutch, /<locale>/book-demo otherwise).
  */
 
 import type { ConversionBlockData } from "@/cms/types";
@@ -25,7 +25,7 @@ const DEFAULT_LOCALE = "en";
 // Matches the /book-demo page cardTitle per locale.
 const BOOK_DEMO_LABELS: Record<string, string> = {
   en: "Book a Demo",
-  nl: "Boek een demo",
+  nl: "Plan een demo",
   de: "Demo buchen",
 };
 
@@ -36,6 +36,8 @@ export function bookDemoLabel(locale: string): string {
 
 /** Absolute href to the locale-correct hosted booking page. */
 export function bookDemoHref(origin: string, locale: string): string {
+  // The Dutch booking page has its own address; /nl/book-demo redirects to it.
+  if (locale === "nl") return `${origin}/demo`;
   const prefix = locale === DEFAULT_LOCALE ? "" : `/${locale}`;
   return `${origin}${prefix}/book-demo`;
 }
