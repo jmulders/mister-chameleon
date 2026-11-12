@@ -37,7 +37,7 @@ import { FooterCorporate }   from "./footer/FooterCorporate";
 import { FooterBranding }    from "./footer/FooterBranding";
 import { FooterMinimal }     from "./footer/FooterMinimal";
 import { FooterBottomStrip } from "./footer/FooterBottomStrip";
-import { getSiteLocale }     from "@/lib/site-texts/server";
+import { getSiteLocale, getSiteLanguage } from "@/lib/site-texts/server";
 
 export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChrome | null } = {}) {
   const activeTenant = await getActiveTenant();
@@ -50,7 +50,11 @@ export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChro
   // provider factory — same pattern as Header.tsx.
   const tenantSettings = await getTenantByIdCached(activeTenant.tenantId);
   const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
-  const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings();
+  // Same language as the header asks for. Without it the footer read the
+  // settings under the default key ("en") and the header under the site's own
+  // ("nl"): two cache entries for the same data, which drifted apart. The
+  // header showed the new menu while the footer kept links from weeks ago.
+  const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings(await getSiteLanguage());
 
   const siteTitle    = settings?.siteTitle        ?? activeTenant.name;
   // Dark footer → use the dark-background logo variant when configured. "Dark"
