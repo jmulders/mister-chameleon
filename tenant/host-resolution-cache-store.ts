@@ -47,11 +47,28 @@ export async function readPersistedHostTenant(
   }
 }
 
-/** Upsert the last-known-good tenant settings for a host. Best-effort, never throws. */
+/** When each host was last written by this instance. */
+const lastPersistedAt = new Map<string, number>();
+const PERSIST_EVERY_MS = 60_000;
+
+/**
+ * Upsert the last-known-good tenant settings for a host. Best-effort, never throws.
+ *
+ * At most once a minute per host and instance. The caller runs on every tenant
+ * resolution, about nine times in one page render, and each call used to write
+ * the tenant's whole settings object. The row is a fallback for a cold start,
+ * so a copy that is a minute old serves it just as well.
+ */
 export async function persistHostTenant(
   host: string,
   settings: TenantSettings,
 ): Promise<void> {
+  const key = norm(host);
+  const now = Date.now();
+  const last = lastPersistedAt.get(key);
+  if (last !== undefined && now - last < PERSIST_EVERY_MS) return;
+  lastPersistedAt.set(key, now);
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (getDb() as any)
@@ -61,6 +78,7 @@ export async function persistHostTenant(
         { onConflict: "host" },
       );
   } catch (err) {
+    lastPersistedAt.delete(key); // let the next call try again
     logger.warn("[host-resolution-cache] write failed", { error: String(err) });
   }
 }

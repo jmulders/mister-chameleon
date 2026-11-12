@@ -155,6 +155,12 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  // The decide call is a JSON POST from another origin, so the browser asks
+  // permission first with an OPTIONS request. Without Max-Age it remembers the
+  // answer for about five seconds, which made every pageview two function
+  // calls, the first one inside the window in which the page is still hidden.
+  // A day is the most a browser honours (Chrome stops at two hours).
+  "Access-Control-Max-Age":       "86400",
 } as const;
 
 export function OPTIONS() {

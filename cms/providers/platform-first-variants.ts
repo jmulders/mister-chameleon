@@ -126,12 +126,18 @@ export function platformFirstVariants(
     if (await hasTenantRow(tenantId, key)) {
       const tenantHit = await fallbackGet().catch(() => null);
       if (tenantHit) {
-        if (await hasPlatformEntry(tenantId, type, key)) {
-          logger.info(
-            "[platform-first] tenant adaptive block wins over platform content",
-            { tenantId, type, key },
-          );
-        }
+        // Only a log line depends on this lookup, so the response does not
+        // wait for it (it used to cost one more query per slot).
+        void hasPlatformEntry(tenantId, type, key)
+          .then((shadowed) => {
+            if (shadowed) {
+              logger.info(
+                "[platform-first] tenant adaptive block wins over platform content",
+                { tenantId, type, key },
+              );
+            }
+          })
+          .catch(() => undefined);
         return tenantHit;
       }
       // No servable tenant hit (e.g. wrong-type row) → fall through to platform-first.

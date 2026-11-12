@@ -174,6 +174,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     "/api/wp-plugin/update",
     "/api/snippet/decide",
     "/api/v1/slot",
+    // The snippet script itself: the same file for everyone, served from the
+    // CDN. Counting it cost a database write before every load, and the
+    // per-IP limit could refuse the script to a whole office behind one IP.
+    "/api/snippet.js",
   ]);
   if (pathname.startsWith("/api/") && !RATE_LIMIT_EXEMPT.has(pathname)) {
     const endpoint  = endpointFromPath(pathname);
@@ -211,6 +215,14 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       response.headers.set(k, v);
     }
     return response;
+  }
+
+  // An exempt API path is done here too. It used to fall through to the page
+  // logic below and came back with a visitor cookie and the page CSP: a
+  // Set-Cookie on /api/snippet.js keeps the CDN from caching the script, and
+  // on the cross-origin decide and slot calls the cookie had no use at all.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
   }
 
   const cookieHeader = request.headers.get("cookie");

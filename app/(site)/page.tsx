@@ -29,6 +29,7 @@ import { serverEnv }                       from "@/lib/env";
 import { StatamicClient }                  from "@/cms/providers/statamic-client";
 import { cache, Suspense }                 from "react";
 import { cookies, headers }                from "next/headers";
+import { after }                           from "next/server";
 import { homeTitle, requestOrigin, websiteJsonLd } from "@/lib/seo/site-identity";
 import type { Metadata }                   from "next";
 import { getActiveTenant, getTenantById }  from "@/tenant/server";
@@ -274,45 +275,48 @@ async function HomeBody({ params }: { params: Record<string, string | string[] |
     contextData,
   } = result;
 
-  // ── Analytics side-effect ────────────────────────────────────────────────
+  // ── Side effects, after the response ─────────────────────────────────────
   //
-  // Gate served-variant logging behind the analytics feature flag.
-  // upsertSession ensures the FK (sessions.id) exists before logServedVariants
-  // inserts the served_variants row.  ON CONFLICT DO NOTHING = safe to call
-  // on every page load without double-counting.
-  if (isFeatureEnabled(tenant, "analytics")) {
-    const sessionUpsert = await upsertSession({
-      id: sessionId,
-      ...sessionInputFromContext(input, input.pathname ?? "/"),
-    });
+  // Two writes that the visitor does not need to wait for. They used to be
+  // awaited before the page body rendered (two database round trips on every
+  // homepage view), and the session count was a bare promise that a frozen
+  // serverless instance could drop. after() runs them once the response is
+  // out and keeps the instance alive until they finish.
+  //
+  // Analytics: upsertSession makes sure the FK target (sessions.id) exists
+  // before logServedVariants inserts its row; ON CONFLICT DO NOTHING makes it
+  // safe on every page load. Skipped without consent: there is no persistent
+  // session then, and the throwaway id was refused by the uuid column on every
+  // such pageview, with an error in the log each time.
+  //
+  // Billing: idempotent per (tenant, month, session). Only counted when we
+  // actually served a personalised page. Over the cap the visitor gets the
+  // default experience, so billing them a "personalised session" would charge
+  // for something they did not receive, and would inflate the very counter
+  // that decides the cap. sessionCap comes from the pipeline, which already
+  // computed it to make that decision.
+  const logAnalytics = isFeatureEnabled(tenant, "analytics") && result.analyticsAllowed;
+  const countSession = !result.sessionCap.overLimit;
+  const sessionInput = sessionInputFromContext(input, input.pathname ?? "/");
 
-    if (!sessionUpsert.ok) {
-      logger.warn("[homepage] Session upsert failed — skipping served_variants write", {
-        sessionId,
-        tenantId: tenantConfig.tenantId,
-        error: sessionUpsert.error,
-      });
-    } else {
-      await logServedVariants(sessionId, experience, tenantConfig.tenantId);
+  after(async () => {
+    if (logAnalytics) {
+      const sessionUpsert = await upsertSession({ id: sessionId, ...sessionInput });
+      if (!sessionUpsert.ok) {
+        logger.warn("[homepage] Session upsert failed — skipping served_variants write", {
+          sessionId,
+          tenantId: tenantConfig.tenantId,
+          error: sessionUpsert.error,
+        });
+      } else {
+        await logServedVariants(sessionId, experience, tenantConfig.tenantId);
+      }
     }
-  }
-
-  // ── Billing side-effect ──────────────────────────────────────────────────
-  //
-  // Non-blocking; idempotent per (tenant, month, session) triple.
-  //
-  // Only counted when we actually served a personalised page. Over the cap the
-  // visitor gets the default experience, so billing them a "personalised
-  // session" would charge for something they did not receive — and would inflate
-  // the very counter that decides the cap.
-  //
-  // sessionCap is passed through from the pipeline, which already computed it to
-  // make that decision; without it this function re-ran the same three queries
-  // on every pageview.
-  if (!result.sessionCap.overLimit) {
-    recordPersonalizedSession(tenantConfig.tenantId, result.webSessionId, result.sessionCap)
-      .catch(() => null);
-  }
+    if (countSession) {
+      await recordPersonalizedSession(tenantConfig.tenantId, result.webSessionId, result.sessionCap)
+        .catch(() => null);
+    }
+  });
 
   // ── Token context ─────────────────────────────────────────────────────────
   //

@@ -38,7 +38,6 @@ import { emptyHistory }                    from "@/context/visitor-history";
 import { resolveConsent }                  from "@/lib/consent/server-consent";
 import { RulesDecisionProvider, ExperimentDecisionProvider } from "@/decision";
 import { loadTenantRulesConfig }           from "@/decision/rules/load-tenant-rules";
-import { fetchVariantCatalogue }           from "@/decision/rules/fetch-variant-catalogue";
 import type { DecisionProvider }           from "@/decision/providers/decision-provider";
 import type { ExperiencePlan }             from "@/decision/types";
 import { buildDecisionContext }            from "@/decision/context/build-decision-context";
@@ -245,13 +244,11 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
 
   const tenantRulesConfigPromise = (async () => {
     try {
-      const catalogue = await fetchVariantCatalogue(tenantConfig.tenantId);
-      const extraKeys = {
-        heroKeys:  catalogue.hero.filter((e) => e.source !== "platform").map((e) => e.key),
-        proofKeys: catalogue.proof.filter((e) => e.source !== "platform").map((e) => e.key),
-        ctaKeys:   catalogue.cta.filter((e) => e.source !== "platform").map((e) => e.key),
-      };
-      return await loadTenantRulesConfig(tenantConfig.tenantId, extraKeys, { allowUnknownVariantKeys: true });
+      // No variant catalogue here. A runtime read passes allowUnknownVariantKeys,
+      // and then validateStoredConfig does not look at the extra keys at all, so
+      // fetching the catalogue first (seven queries, awaited, on every pageview)
+      // bought nothing. The editor's save path still validates against it.
+      return await loadTenantRulesConfig(tenantConfig.tenantId, undefined, { allowUnknownVariantKeys: true });
     } catch {
       return null;
     }
@@ -903,6 +900,10 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
     // "capped" when the monthly bundle ran out (see lib/lead-base/holdout.ts).
     // Bill on webSessionId, never sessionId: one visit = one contextual session.
     webSessionId,
+    // Whether this visitor may be written to analytics: consent for analytics,
+    // and a persistent session id to hang the rows on (without personalization
+    // consent the id above is a throwaway "anon_…" that no table accepts).
+    analyticsAllowed: consent.analytics && consent.personalization,
     sessionCap,
     personalizationGroup,
     // Experiment
