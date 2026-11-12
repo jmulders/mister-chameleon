@@ -6,7 +6,7 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 
-import { toSitemapEntries, robotsFor } from "@/lib/seo/sitemap";
+import { toSitemapEntries, robotsFor, sitemapPathsFor } from "@/lib/seo/sitemap";
 import { StatamicProvider }            from "@/cms/providers/statamic-provider";
 import type { StatamicClient }         from "@/cms/providers/statamic-client";
 
@@ -135,4 +135,17 @@ describe("StatamicProvider.listIndexablePaths", () => {
     }).listIndexablePaths();
     assert.deepEqual(paths.map((p) => p.path).sort(), ["/a", "/b"]);
   });
+});
+
+it("the marketing site lists its coded pages and drops moved addresses", () => {
+  const cms = [{ path: "/pricing" }, { path: "/cases" }, { path: "/book-demo" }];
+  for (const origin of ["https://www.misterchameleon.nl", "https://misterchameleon.nl"]) {
+    const paths = sitemapPathsFor(origin, cms).map((p) => p.path);
+    assert.deepEqual(paths, ["/cases", "/prijzen", "/demo"], origin);
+  }
+});
+
+it("another host keeps its own pricing page in the sitemap", () => {
+  const cms = [{ path: "/pricing" }, { path: "/cases" }];
+  assert.deepEqual(sitemapPathsFor("https://www.example.com", cms), cms);
 });

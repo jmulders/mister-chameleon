@@ -67,22 +67,22 @@ import type { SignalSlotInput } from "./detect-noise";
 
 // ── Page path detection helpers ───────────────────────────────────────────────
 
-function isAboutPath(path: string | null): boolean {
+export function isAboutPath(path: string | null): boolean {
   if (!path) return false;
-  return /^\/about(\/|$)/i.test(path) || path === "/over-ons";
+  return /^\/(about|over-ons)(\/|$)/i.test(path);
 }
 
-function isPricingPath(path: string | null): boolean {
+export function isPricingPath(path: string | null): boolean {
   if (!path) return false;
-  return /^\/pricing(\/|$)/i.test(path) || /^\/tarieven(\/|$)/i.test(path);
+  return /^\/(pricing|prijzen|tarieven)(\/|$)/i.test(path);
 }
 
-function isCasesPath(path: string | null): boolean {
+export function isCasesPath(path: string | null): boolean {
   if (!path) return false;
   return /^\/cases?(\/|$)/i.test(path) || /^\/portfolio(\/|$)/i.test(path);
 }
 
-function isContactPath(path: string | null): boolean {
+export function isContactPath(path: string | null): boolean {
   if (!path) return false;
   return /^\/contact(\/|$)/i.test(path);
 }

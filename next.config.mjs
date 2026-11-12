@@ -273,11 +273,30 @@ const nextConfig = {
       ["ad-sync",             "audience/retargeting"],
       ["behavior",            "audience/scoring"],
     ];
-    return moves.map(([from, to]) => ({
+    const adminMoves = moves.map(([from, to]) => ({
       source:      `${t}/${from}/:path*`,
       destination: `${t}/${to}/:path*`,
       permanent:   true,
     }));
+
+    // ── The marketing site ────────────────────────────────────────────────────
+    //
+    // misterchameleon.nl got Dutch addresses. Each old address redirects for
+    // good, so links and search results keep working. These are tied to the
+    // host: another tenant on this platform may have its own page on /pricing.
+    const marketingHost = [{ type: "host", value: "(www\\.)?misterchameleon\\.nl" }];
+    const siteMoves = [
+      ["/pricing",   "/prijzen"],
+      ["/book-demo", "/demo"],
+    ].map(([source, destination]) => ({ source, destination, permanent: true, has: marketingHost }));
+
+    // The Dutch booking page used to be /nl/book-demo. That page is gone on
+    // every host, and the snippet put its address in buttons on customer sites.
+    const everywhere = [
+      { source: "/nl/book-demo", destination: "/demo", permanent: true },
+    ];
+
+    return [...adminMoves, ...siteMoves, ...everywhere];
   },
 
   async rewrites() {
