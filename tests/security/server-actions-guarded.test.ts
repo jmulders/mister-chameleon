@@ -18,7 +18,16 @@ import fs               from "node:fs";
 import path             from "node:path";
 import ts               from "typescript";
 
-const ROOTS = ["app", "lib", "components", "billing", "tenant", "forms"];
+/**
+ * Every source folder of the repo, found at run time. A fixed list of folders
+ * stood here first and missed blueprints/, whose one action (applying a
+ * blueprint over a tenant's rules and pages) therefore stayed unguarded.
+ */
+const SKIP = new Set(["node_modules", "tests", "docs", "public", "supabase", "scripts", "apps", "storybook", "stories"]);
+const ROOTS = fs
+  .readdirSync(".", { withFileTypes: true })
+  .filter((e) => e.isDirectory() && !e.name.startsWith(".") && !SKIP.has(e.name))
+  .map((e) => e.name);
 
 const GUARD =
   /\b(requireAdminAction|requireSuperAdminAction|requireTenantAction|requireTenantOrPlatformAction|getRequiredAdminSession|requireSuperAdmin)\s*\(/;
@@ -92,6 +101,11 @@ describe("server actions", () => {
   const actionFiles = files
     .map((file) => ({ file, parsed: readFile(file) }))
     .filter((f): f is { file: string; parsed: NonNullable<ReturnType<typeof readFile>> } => f.parsed !== null);
+
+  it("the scan covers the folders that hold actions", () => {
+    for (const dir of ["app", "lib", "blueprints"]) assert.ok(ROOTS.includes(dir), `${dir} is scanned`);
+    assert.ok(actionFiles.some((f) => f.file === "blueprints/apply-blueprint.ts"));
+  });
 
   it("are found", () => {
     const count = actionFiles.reduce((n, f) => n + f.parsed.exported.length, 0);

@@ -254,7 +254,9 @@ export async function seedDemoPlatformData(
     } else {
       const { error } = await db
         .from("rules_config")
-        .upsert({ key: rulesKey, config: JSON.stringify(config), updated_at: new Date().toISOString() });
+        // The object, not a JSON string: the column is jsonb, and a string in
+        // it is read back as a string, which the engine rejects.
+        .upsert({ key: rulesKey, config, updated_at: new Date().toISOString() });
       if (error) warnings.push(`Demo rule: ${(error as { message?: string }).message ?? "write failed"}`);
       else       seeded.push(`rule ${DEMO_RULE_ID} in ${rulesKey}`);
     }

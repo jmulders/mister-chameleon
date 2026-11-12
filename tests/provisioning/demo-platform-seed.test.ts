@@ -129,7 +129,7 @@ describe("DEMO_BRAND", () => {
 describe("seedDemoPlatformData", () => {
   interface Upsert { key: string; tenantId?: string | null; defaultVariant: unknown; adaptiveVariants: unknown[] }
   let upserts:    Upsert[];
-  let rulesRows:  Array<{ key: string; config: string }>;
+  let rulesRows:  Array<{ key: string; config: unknown }>;
   let blockFails: boolean;
   let existingConfig: unknown;
 
@@ -144,7 +144,7 @@ describe("seedDemoPlatformData", () => {
     db: () => ({
       from: () => ({
         select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: existingConfig ? { config: existingConfig } : null }) }) }),
-        upsert: async (row: { key: string; config: string }) => { rulesRows.push(row); return { error: null }; },
+        upsert: async (row: { key: string; config: unknown }) => { rulesRows.push(row); return { error: null }; },
       }),
     }),
   });
@@ -163,7 +163,10 @@ describe("seedDemoPlatformData", () => {
 
     assert.equal(rulesRows.length, 1);
     assert.equal(rulesRows[0]!.key, "homepage_acme");
-    const written = JSON.parse(rulesRows[0]!.config) as StoredRulesConfig;
+    // Written as an object: a JSON string in the jsonb column is read back as a
+    // string, which the engine rejects.
+    assert.equal(typeof rulesRows[0]!.config, "object");
+    const written = rulesRows[0]!.config as unknown as StoredRulesConfig;
     assert.equal(written.rules.length, 1);
     assert.deepEqual(validateStoredConfig(written as unknown), []);
   });
@@ -210,7 +213,10 @@ describe("seedDemoPlatformData", () => {
     });
 
     await seedDemoPlatformData("acme", deps());
-    const written = JSON.parse(rulesRows[0]!.config) as StoredRulesConfig;
+    // Written as an object: a JSON string in the jsonb column is read back as a
+    // string, which the engine rejects.
+    assert.equal(typeof rulesRows[0]!.config, "object");
+    const written = rulesRows[0]!.config as unknown as StoredRulesConfig;
     assert.equal(written.rules.length, 2);
     assert.ok(written.rules.some((r) => r.id === "their_rule"));
     assert.deepEqual(validateStoredConfig(written as unknown), []);
