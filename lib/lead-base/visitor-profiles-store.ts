@@ -11,6 +11,7 @@ import "server-only";
 import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
 import type { GatedProfilePatch, IdentityLevel, ProfileStatus, ConsentLabel } from "./profile-gate";
+import { orLikeValue } from "@/data/postgrest-filter";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -533,7 +534,7 @@ export async function listVisitorProfiles(
     if (filter.status)        q = q.eq("status", filter.status);
     if (filter.segmentId)     q = q.contains("segment_ids", [filter.segmentId]);
     if (typeof filter.minIntent === "number") q = q.gte("intent_score", filter.minIntent);
-    if (filter.companyQuery)  q = q.or(`company_name.ilike.%${filter.companyQuery}%,company_domain.ilike.%${filter.companyQuery}%`);
+    if (filter.companyQuery)  q = q.or(`company_name.ilike.${orLikeValue(filter.companyQuery)},company_domain.ilike.${orLikeValue(filter.companyQuery)}`);
 
     q = q.order("last_seen_at", { ascending: false }).limit(filter.limit ?? 200);
 

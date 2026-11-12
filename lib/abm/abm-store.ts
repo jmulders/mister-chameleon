@@ -14,6 +14,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
+import { orValue } from "@/data/postgrest-filter";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,7 +111,7 @@ export async function getAbmLeadByHandle(
       .from("abm_leads")
       .select("*")
       .eq("tenant_id", tenantId)
-      .or(`identifier.eq.${handle},vanity_path.eq.${handle}`)
+      .or(`identifier.eq.${orValue(handle)},vanity_path.eq.${orValue(handle)}`)
       .limit(1)
       .maybeSingle();
     if (error || !data) return null;

@@ -29,6 +29,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { orLikeValue } from "@/data/postgrest-filter";
 // Note: storage adapter is imported dynamically inside uploadToStorage to allow
 // per-tenant override selection without circular imports at module load time.
 
@@ -198,8 +199,8 @@ export async function getAssets(
     .range(offset, offset + limit - 1);
 
   if (search?.trim()) {
-    const term = `%${search.trim()}%`;
-    query = query.or(`title.ilike.${term},file_name.ilike.${term}`);
+    const term = search.trim();
+    query = query.or(`title.ilike.${orLikeValue(term)},file_name.ilike.${orLikeValue(term)}`);
   }
 
   if (tags && tags.length > 0) {

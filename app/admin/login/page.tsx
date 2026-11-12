@@ -24,6 +24,8 @@ export default async function AdminLoginPage({ searchParams }: Props) {
   const errorMessage =
     error === "invalid_credentials"
       ? "Incorrect email or password. Please try again."
+      : error === "too_many_attempts"
+        ? "Too many sign-in attempts. Wait ten minutes and try again."
       : error === "account_disabled"
         ? "This account has been deactivated. Contact your platform administrator."
         : error === "session_expired"

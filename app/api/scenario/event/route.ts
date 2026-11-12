@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveSession }         from "@/data/session";
 import { recordJourneyEvent }     from "@/lib/journey/record-event";
 import { logger }                 from "@/lib/logger";
-import { getActiveTenant }        from "@/tenant/server";
+import { getActiveTenant, getTenantById } from "@/tenant/server";
 import type { JourneyEventType }  from "@/lib/journey/types";
 
 /**
@@ -93,6 +93,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       tenantId = tenant.tenantId;
     } catch {
       // Non-fatal — use "unknown" so events still land
+    }
+
+    // This endpoint records behaviour without asking for consent, which is its
+    // purpose: the operator console drives a demo with it. So in production it
+    // only works for a tenant that switched that console on. For every other
+    // tenant it answers "suppressed" and neither writes nor sets a cookie.
+    // (Site forms post here when the visitor gave no consent; on a normal
+    // tenant that must not leave a trace.)
+    if (process.env.NODE_ENV === "production") {
+      let consoleEnabled = false;
+      try {
+        const settings = tenantId !== "unknown" ? await getTenantById(tenantId) : null;
+        consoleEnabled = settings?.debug?.showScenarioControl === true;
+      } catch {
+        consoleEnabled = false;
+      }
+      if (!consoleEnabled) {
+        return NextResponse.json({ ok: true, suppressed: true }, { status: 200 });
+      }
     }
 
     const pagePath     = typeof b["pagePath"]     === "string" ? b["pagePath"]     : null;

@@ -37,6 +37,35 @@ const FUNNEL_STAGES = ["awareness", "consideration", "intent", "high_intent", "c
 const VISIT_TYPES   = ["first_visit", "returning", "high_intent"];
 const SOURCES       = ["direct", "google", "linkedin", "email", "paid", "organic"];
 
+/**
+ * A search excerpt as text, keeping only the <mark> highlights.
+ *
+ * The excerpt is CMS content with the provider's highlight tags in it. It used
+ * to go into the page as HTML, so an editor of one tenant could put a script
+ * in an entry and have it run in the admin of whoever searched for it.
+ */
+function Excerpt({ html }: { html: string }) {
+  const decode = (text: string) =>
+    text
+      .replace(/<[^>]*>/g, "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;/g, "'")
+      .replace(/&amp;/g, "&");
+  const parts = html.split(/(<mark>[\s\S]*?<\/mark>)/gi);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const marked = /^<mark>([\s\S]*?)<\/mark>$/i.exec(part);
+        return marked
+          ? <mark key={i}>{decode(marked[1])}</mark>
+          : <span key={i}>{decode(part)}</span>;
+      })}
+    </>
+  );
+}
+
 export function SearchDebugPanel() {
   const [searchQuery,   setSearchQuery]   = useState("");
   const [context,       setContext]       = useState<Partial<SearchContext>>({});
@@ -193,7 +222,7 @@ export function SearchDebugPanel() {
                   <p className="text-xs font-medium text-neutral-900 truncate">{r.title}</p>
                   <p className="text-xs text-neutral-400">{r.type} · {r.slug}</p>
                   {r.excerpt && (
-                    <p className="text-xs text-neutral-500 mt-0.5 truncate" dangerouslySetInnerHTML={{ __html: r.excerpt }} />
+                    <p className="text-xs text-neutral-500 mt-0.5 truncate"><Excerpt html={r.excerpt} /></p>
                   )}
                 </div>
               </div>

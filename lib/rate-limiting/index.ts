@@ -179,6 +179,59 @@ export async function checkRateLimit(
   }
 }
 
+// ── Attempt limits (login, 2FA) ───────────────────────────────────────────────
+
+/** Counters live ten minutes at most: the cleanup job deletes older rows. */
+const ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
+
+export interface AttemptLimitResult {
+  allowed:           boolean;
+  retryAfterSeconds: number;
+}
+
+/**
+ * Count one attempt against `identifier` in the current ten-minute window and
+ * say whether it is still within `limit`.
+ *
+ * For things an attacker repeats to guess a secret: a password, a TOTP code.
+ * The per-minute buckets above are too coarse for that (20 a minute is 28,800
+ * password guesses a day). Like checkRateLimit this fails open when the
+ * counter cannot be reached, so a database hiccup does not lock everyone out.
+ */
+export async function checkAttemptLimit(identifier: string, limit: number): Promise<AttemptLimitResult> {
+  const now        = Date.now();
+  const windowKey  = `w10:${Math.floor(now / ATTEMPT_WINDOW_MS)}`;
+  const retryAfter = Math.ceil((ATTEMPT_WINDOW_MS - (now % ATTEMPT_WINDOW_MS)) / 1000);
+
+  if (process.env.NODE_ENV === "test") return { allowed: true, retryAfterSeconds: retryAfter };
+
+  const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const serviceKey  = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!supabaseUrl || !serviceKey) return { allowed: true, retryAfterSeconds: retryAfter };
+
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/increment_rate_limit`, {
+      method:  "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "apikey":        serviceKey,
+        "Authorization": `Bearer ${serviceKey}`,
+      },
+      body:   JSON.stringify({ p_identifier: `attempt:${identifier}`, p_window_key: windowKey }),
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!response.ok) {
+      console.error(`[rate-limit] attempt counter error ${response.status}`);
+      return { allowed: true, retryAfterSeconds: retryAfter };
+    }
+    const count: number = await response.json();
+    return { allowed: count <= limit, retryAfterSeconds: retryAfter };
+  } catch (err) {
+    console.error("[rate-limit] attempt counter fetch error:", err);
+    return { allowed: true, retryAfterSeconds: retryAfter };
+  }
+}
+
 // ── IP extraction helpers ─────────────────────────────────────────────────────
 
 /**

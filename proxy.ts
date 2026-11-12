@@ -415,6 +415,17 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // need it; the redirect target re-enters the proxy and gets its own CSP.)
   response.headers.set(cspHeaderName(), csp);
 
+  // The admin and the dashboard may not be shown inside another site's frame.
+  // The policy above does carry frame-ancestors, but it is report-only unless
+  // CSP_ENFORCE is set, and a report-only frame-ancestors blocks nothing. This
+  // one line is always enforced, so a hostile page cannot lay the admin under
+  // an invisible frame and have an admin click through it. Site pages are left
+  // out on purpose: the CMS live preview frames those.
+  if (isAdminPath(pathname)) {
+    response.headers.append("Content-Security-Policy", "frame-ancestors 'self'");
+    response.headers.set("X-Frame-Options", "SAMEORIGIN");
+  }
+
   const isSecure = process.env.NODE_ENV === "production";
 
   // ── Visitor session cookies ────────────────────────────────────────────────

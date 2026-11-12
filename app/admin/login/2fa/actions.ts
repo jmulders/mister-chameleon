@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin-auth/session";
 import { verifyTotpCode }    from "@/lib/admin-auth/totp";
 import { consumeBackupCode } from "@/lib/admin-auth/backup-codes";
+import { checkAttemptLimit }  from "@/lib/rate-limiting";
 
 // ── Shared: read and validate the pre-2FA session ─────────────────────────────
 
@@ -42,6 +43,13 @@ export async function verifyTotpAction(formData: FormData): Promise<void> {
   const session = await getPreAuthSession();
   if (!session) {
     redirect("/admin/login?error=session_expired");
+  }
+
+  // Five codes per ten minutes for this account. A code has six digits and
+  // three are valid at any moment, so unlimited tries could simply walk them.
+  const attempts = await checkAttemptLimit(`2fa:${session.sub}`, 5);
+  if (!attempts.allowed) {
+    redirect("/admin/login/2fa?error=too_many_attempts");
   }
 
   // Load the user's live TOTP secret from the database.
@@ -83,6 +91,12 @@ export async function verifyBackupCodeAction(formData: FormData): Promise<void> 
   const session = await getPreAuthSession();
   if (!session) {
     redirect("/admin/login?error=session_expired");
+  }
+
+  // The same budget as the TOTP step, shared with it.
+  const attempts = await checkAttemptLimit(`2fa:${session.sub}`, 5);
+  if (!attempts.allowed) {
+    redirect("/admin/login/2fa?error=too_many_attempts");
   }
 
   const user = await findAdminUserById(session.sub);
