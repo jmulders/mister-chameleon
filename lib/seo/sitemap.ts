@@ -40,7 +40,12 @@ export function toSitemapEntries(origin: string, paths: readonly IndexablePath[]
 
 const PLATFORM_SITE_HOST   = new URL(PLATFORM_SITE_URL).hostname.replace(/^www\./, "");
 const PLATFORM_SITE_PAGES  = ["/prijzen", "/demo"];
-const PLATFORM_SITE_MOVED  = new Set(["/pricing", "/book-demo"]);
+const PLATFORM_SITE_MOVED  = new Set([
+  "/pricing", "/book-demo",
+  "/features", "/about", "/werkenbij", "/blog", "/nieuws", "/news",
+  "/services", "/compare", "/sector", "/landing", "/eventsevent", "/casescase",
+  "/signup", "/faq",
+]);
 
 /** True when the origin is the marketing site, with or without www. */
 export function isPlatformSite(origin: string): boolean {
