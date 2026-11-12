@@ -46,7 +46,7 @@ import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 
 import { resolveSession, SESSION_COOKIE, WEB_SESSION_COOKIE } from "@/data/session";
-import { isOverCap }                 from "@/billing/plan-enforcement";
+import { isOverCap, shouldSpendSessionCredit } from "@/billing/plan-enforcement";
 import { nextCalendarMonthStartUnix } from "@/billing/stripe";
 import {
   assignPersonalizationGroup,
@@ -73,10 +73,12 @@ class SessionLedger {
   }): void {
     if (cap.overLimit) return;                       // default page served — nothing to bill
 
-    const pastPlanLimit = cap.planLimit > 0 && cap.current >= cap.planLimit;
-    if (pastPlanLimit && cap.bonusSessions > 0) this.creditsSpent++;
-
-    this.rows.add(`${tenantId}|${monthKey}|${webSessionId}`);
+    // Insert first; a credit is only spent when the row is new. The real
+    // function decides with shouldSpendSessionCredit, so the fake uses it too.
+    const rowKey = `${tenantId}|${monthKey}|${webSessionId}`;
+    const isNewSession = !this.rows.has(rowKey);
+    this.rows.add(rowKey);
+    if (shouldSpendSessionCredit(isNewSession, cap)) this.creditsSpent++;
   }
 
   count(tenantId: string, monthKey: string): number {
@@ -339,5 +341,44 @@ describe("Scenario 6 — new month, new bundle", () => {
 
     assert.strictEqual(anchor.toISOString(), "2026-08-01T00:00:00.000Z");
     assert.strictEqual(monthKeyOfAnchor, "2026-08");
+  });
+});
+
+// ── Credits are spent per session, not per pageview ──────────────────────────
+
+describe("Purchased credits past the plan limit", () => {
+  const CAP = { overLimit: false, current: 25_000, planLimit: 25_000, bonusSessions: 10_000 };
+
+  it("one visit of five pages past the limit costs one credit", () => {
+    const ledger = new SessionLedger();
+    for (let page = 0; page < 5; page++) ledger.record(TENANT, MONTH, "visit-a", CAP);
+    assert.equal(ledger.credits, 1);
+    assert.equal(ledger.count(TENANT, MONTH), 1);
+  });
+
+  it("a session counted under the plan costs nothing on later pageviews", () => {
+    const ledger = new SessionLedger();
+    ledger.record(TENANT, MONTH, "visit-b", { ...CAP, current: 24_999 }); // session 25,000: still the plan
+    ledger.record(TENANT, MONTH, "visit-b", CAP);                          // its next page, limit now reached
+    ledger.record(TENANT, MONTH, "visit-b", CAP);
+    assert.equal(ledger.credits, 0);
+  });
+
+  it("each new session past the limit costs one", () => {
+    const ledger = new SessionLedger();
+    for (const visit of ["v1", "v2", "v3"]) {
+      ledger.record(TENANT, MONTH, visit, CAP);
+      ledger.record(TENANT, MONTH, visit, CAP);
+    }
+    assert.equal(ledger.credits, 3);
+  });
+
+  it("shouldSpendSessionCredit: the four conditions", () => {
+    assert.equal(shouldSpendSessionCredit(true,  CAP), true);
+    assert.equal(shouldSpendSessionCredit(false, CAP), false);                             // not a new session
+    assert.equal(shouldSpendSessionCredit(true,  { ...CAP, overLimit: true }), false);     // default page served
+    assert.equal(shouldSpendSessionCredit(true,  { ...CAP, current: 24_999 }), false);     // plan still covers it
+    assert.equal(shouldSpendSessionCredit(true,  { ...CAP, bonusSessions: 0 }), false);    // nothing to spend
+    assert.equal(shouldSpendSessionCredit(true,  { ...CAP, planLimit: 0, current: 0 }), false); // unlimited plan
   });
 });

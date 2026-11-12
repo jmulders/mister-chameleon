@@ -44,6 +44,7 @@ import {
   markTenantUnpaid,
   sendDunningEmail,
   getTenantDunningSettings,
+  resetDunningState,
 }                                                 from "./dunning";
 import { serializeError }              from "./errors";
 import {
@@ -53,6 +54,7 @@ import {
   validateEventLivemode,
   type StripeMode,
 } from "./stripe-config";
+import { creditCheckoutSessionOnce } from "./checkout-credit-claim";
 
 // ── TypeScript 5.9.3-beta Stripe SDK compatibility shim ───────────────────────
 //
@@ -65,6 +67,9 @@ function stripeAny(mode?: StripeMode): any { return getStripeClient(mode); }
 // ── Local shapes for Stripe objects (TS 5.9.3-beta workaround) ───────────────
 
 interface StripeCheckoutSession {
+  id:              string;
+  /** "paid", "unpaid" (a delayed method such as SEPA, money not in yet) or "no_payment_required". */
+  payment_status?: string | null;
   url:          string | null;
   mode:         string | null;
   metadata:     Record<string, string | undefined> | null;
@@ -642,6 +647,33 @@ export async function getStripeWebhookHealth(): Promise<{
  * with the result so the audit log stays current.
  */
 /**
+ * The subscription an invoice belongs to, in either shape Stripe sends.
+ *
+ * Until API version 2025-03-31 the id sat at `invoice.subscription`. Since
+ * then it lives at `invoice.parent.subscription_details.subscription`. Which
+ * shape a webhook delivers depends on the API version of the webhook endpoint
+ * in the Stripe dashboard, not on the version this code pins. The three
+ * invoice handlers read only the old place, so on a current endpoint they did
+ * nothing at all: no dunning date after a failed payment, and a scheduled
+ * plan change that never applied.
+ */
+export function invoiceSubscriptionId(invoice: unknown): string | null {
+  if (typeof invoice !== "object" || invoice === null) return null;
+  const inv = invoice as {
+    subscription?: unknown;
+    parent?: { subscription_details?: { subscription?: unknown } | null } | null;
+  };
+  const candidates = [inv.parent?.subscription_details?.subscription, inv.subscription];
+  for (const c of candidates) {
+    if (typeof c === "string" && c !== "") return c;
+    if (typeof c === "object" && c !== null && typeof (c as { id?: unknown }).id === "string") {
+      return (c as { id: string }).id;
+    }
+  }
+  return null;
+}
+
+/**
  * Resolve the tenant a Stripe subscription belongs to.
  *
  * Prefers the `tenant_id` stamped into the subscription metadata at creation.
@@ -705,24 +737,39 @@ export async function handleStripeWebhook(
 
     // ── checkout.session.completed ─────────────────────────────────────────────
 
+    // A delayed payment method (SEPA, for example) completes the checkout
+    // before the money arrives and reports the payment in a second event. Both
+    // land here; the credit paths below only pay out on "paid", once.
+    case "checkout.session.async_payment_succeeded":
     case "checkout.session.completed": {
       const session = event.data.object as unknown as StripeCheckoutSession;
+      const isPaid  = session.payment_status == null || session.payment_status === "paid";
 
       // ── Wallet manual top-up ──────────────────────────────────────────────
       if (session.metadata?.type === "wallet_top_up") {
         const tenantId    = session.metadata.tenant_id ?? null;
         const amountCents = parseInt(session.metadata.amount_cents ?? "0", 10);
+        if (tenantId && amountCents > 0 && !isPaid) {
+          return { handled: true, action: "wallet_top_up_awaiting_payment", tenantId };
+        }
         if (tenantId && amountCents > 0) {
           const { creditWallet } = await import("./wallet");
-          await creditWallet(
-            client,
-            tenantId,
-            amountCents,
-            "top_up_manual",
-            "stripe_checkout",
-            session.customer as string | undefined,
-            `Manual top-up via Stripe Checkout (${event.livemode ? "live" : "test"})`,
+          // Once per Checkout session: a redelivered event must not top up again.
+          const outcome = await creditCheckoutSessionOnce(
+            client, session.id, tenantId, event.livemode, "wallet_top_up",
+            () => creditWallet(
+              client,
+              tenantId,
+              amountCents,
+              "top_up_manual",
+              "stripe_checkout",
+              session.customer as string | undefined,
+              `Manual top-up via Stripe Checkout (${event.livemode ? "live" : "test"})`,
+            ),
           );
+          if (outcome === "already-credited") {
+            return { handled: true, action: "wallet_top_up_already_processed", tenantId };
+          }
 
           // In test mode, store the test customer ID on the wallet row so future
           // top-ups and auto-reloads can reuse it without creating a new customer.
@@ -913,12 +960,24 @@ export async function handleStripeWebhook(
         const tenantId = session.metadata.tenant_id ?? null;
         const bundleId = session.metadata.bundle_id;
         const bundle   = CREDIT_BUNDLES.find((b) => b.id === bundleId);
+        if (bundle && tenantId && !isPaid) {
+          return { handled: true, action: "credit_bundle_awaiting_payment", tenantId };
+        }
         if (bundle && tenantId) {
-          await addCredits(client, tenantId, bundle.credits, "purchase", {
-            stripeEventId: event.id,
-            bundleId,
-            description:   `Purchased ${bundle.label}`,
-          });
+          // The same gate as the success-page confirmation, keyed on the Checkout
+          // session: the webhook and the returning browser both get here, and
+          // only the first one credits.
+          const outcome = await creditCheckoutSessionOnce(
+            client, session.id, tenantId, event.livemode, "credit_bundle",
+            () => addCredits(client, tenantId, bundle.credits, "purchase", {
+              stripeEventId: session.id,
+              bundleId,
+              description:   `Purchased ${bundle.label}`,
+            }),
+          );
+          if (outcome === "already-credited") {
+            return { handled: true, action: "credit_bundle_already_processed", tenantId };
+          }
         }
         return { handled: true, action: "credit_bundle_processed", tenantId: tenantId ?? null };
       }
@@ -1006,6 +1065,7 @@ export async function handleStripeWebhook(
 
       // Re-activate tenant if subscription came back to active (payment resolved)
       if (sub.status === "active" || sub.status === "trialing") {
+        await resetDunningState(client, tenantId);
         await client
           .from("tenant_settings")
           .update({ is_active_override: null })  // null = auto (back to subscription-driven)
@@ -1063,7 +1123,7 @@ export async function handleStripeWebhook(
 
     case "invoice.created": {
       const invoice = event.data.object as Stripe.Invoice;
-      const subRef  = (invoice as unknown as { subscription?: string }).subscription;
+      const subRef  = invoiceSubscriptionId(invoice);
       if (!subRef) return { handled: false, action: "no_subscription", tenantId: null };
 
       const stripeObj = await stripeAny().subscriptions.retrieve(subRef) as StripeSubscription;
@@ -1090,7 +1150,7 @@ export async function handleStripeWebhook(
 
     case "invoice.paid": {
       const invoice = event.data.object as Stripe.Invoice;
-      const subRef  = (invoice as unknown as { subscription?: string }).subscription;
+      const subRef  = invoiceSubscriptionId(invoice);
       if (!subRef) return { handled: false, action: "no_subscription", tenantId: null };
 
       const stripeObj = await stripeAny().subscriptions.retrieve(subRef) as StripeSubscription;
@@ -1111,6 +1171,12 @@ export async function handleStripeWebhook(
         const pendingCycle  = (subRow.pending_plan_billing_cycle ?? "monthly") as "monthly" | "annual";
         const newPriceId    = await getResolvedPlanStripePriceId(pendingPlanId, pendingCycle);
 
+        // Set when Stripe refused the price change. The row is then left as it
+        // is: clearing pending_plan anyway (as this did) recorded the new plan
+        // here while the customer kept paying the old price at Stripe, with
+        // nothing left to retry on the next invoice.
+        let swapFailed = false;
+
         if (newPriceId) {
           try {
             const currentSub = await stripeAny().subscriptions.retrieve(subRow.stripe_subscription_id) as { items: { data: Array<{ id: string }> } };
@@ -1128,23 +1194,26 @@ export async function handleStripeWebhook(
               stripeErr,
             );
             // Non-fatal: pending plan remains; will retry next period
+            swapFailed = true;
           }
         }
 
-        await client
-          .from("subscriptions")
-          .update({
-            plan:                        pendingPlanId,
-            billing_cycle:               pendingCycle,
-            pending_plan:                null,
-            pending_plan_billing_cycle:  null,
-            pending_plan_effective_date: null,
-            updated_at:                  new Date().toISOString(),
-          })
-          .eq("tenant_id", tenantId);
+        if (!swapFailed) {
+          await client
+            .from("subscriptions")
+            .update({
+              plan:                        pendingPlanId,
+              billing_cycle:               pendingCycle,
+              pending_plan:                null,
+              pending_plan_billing_cycle:  null,
+              pending_plan_effective_date: null,
+              updated_at:                  new Date().toISOString(),
+            })
+            .eq("tenant_id", tenantId);
 
-        // Sync packageKey now that the deferred plan change has taken effect.
-        await syncPackageKeyFromPlan(client, tenantId, pendingPlanId);
+          // Sync packageKey now that the deferred plan change has taken effect.
+          await syncPackageKeyFromPlan(client, tenantId, pendingPlanId);
+        }
       }
 
       return { handled: true, action: "invoice_paid", tenantId };
@@ -1154,7 +1223,7 @@ export async function handleStripeWebhook(
 
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      const subRef  = (invoice as unknown as { subscription?: string }).subscription;
+      const subRef  = invoiceSubscriptionId(invoice);
       if (!subRef) return { handled: false, action: "no_subscription", tenantId: null };
 
       const stripeObj = await stripeAny().subscriptions.retrieve(subRef) as StripeSubscription;

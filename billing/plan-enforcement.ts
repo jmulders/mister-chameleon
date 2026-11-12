@@ -211,6 +211,25 @@ export async function checkPlanFeature(
 // ── Session tracking ──────────────────────────────────────────────────────────
 
 /**
+ * Does recording this session cost one purchased credit?
+ *
+ * A credit pays for one session beyond the plan limit. So: the session is new
+ * (not a further pageview of a visit that is already counted), a personalised
+ * page was actually served (not over the cap), the plan limit was already
+ * reached before this session, and there are credits to spend.
+ *
+ * Pure, so the rule is testable without a database.
+ */
+export function shouldSpendSessionCredit(
+  isNewSession: boolean,
+  cap: Pick<SessionCapResult, "overLimit" | "current" | "planLimit" | "bonusSessions">,
+): boolean {
+  if (!isNewSession || cap.overLimit) return false;
+  const pastPlanLimit = cap.planLimit > 0 && cap.current >= cap.planLimit;
+  return pastPlanLimit && cap.bonusSessions > 0;
+}
+
+/**
  * Record a single personalised visitor session for billing purposes.
  *
  * Uses INSERT … ON CONFLICT DO NOTHING so the same (tenant, month, session)
@@ -268,29 +287,33 @@ export async function recordPersonalizedSession(
     // question after the fact. The fallback keeps older call sites working.
     const capResult = cap ?? await checkSessionSoftCap(tenantId);
 
+    // ── Record in personalization_sessions (de-duplicated) ────────────────────
+    //
+    // First, and with the answer read back: the PK (tenant, month, session)
+    // makes this insert a no-op for a pageview of a visit that is already
+    // counted, and the returned row tells us whether this call created it.
+    const { data: inserted, error: insertError } = await db
+      .from("personalization_sessions")
+      .upsert(
+        { tenant_id: tenantId, month_key: key, session_id: sessionId },
+        { onConflict: "tenant_id,month_key,session_id", ignoreDuplicates: true },
+      )
+      .select("session_id");
+    const isNewSession = !insertError && Array.isArray(inserted) && inserted.length > 0;
+
     // ── Spend a purchased credit when we are past the plan limit ──────────────
     //
-    // Only when we actually served a personalised page: over the plan limit AND
-    // credits left. If overLimit is true the visitor got the default page, so
-    // there is nothing to bill — charging there would sell them nothing.
-    const pastPlanLimit =
-      capResult.planLimit > 0 && capResult.current >= capResult.planLimit;
-
-    if (!capResult.overLimit && pastPlanLimit && capResult.bonusSessions > 0) {
+    // Once per session, so only when the insert above created the row. This
+    // used to run before the insert on every call: a visitor reading five pages
+    // past the plan limit cost five credits, and a session already counted
+    // under the plan cost one more on each later pageview.
+    if (shouldSpendSessionCredit(isNewSession, capResult)) {
       // Atomic (FOR UPDATE) and writes to session_credit_ledger. Non-fatal.
       await db.rpc("deduct_session_credit", {
         p_tenant_id: tenantId,
         p_session_id: sessionId,
       }).then(() => null, () => null);
     }
-
-    // ── Record in personalization_sessions (de-duplicated) ────────────────────
-    await db.from("personalization_sessions").insert({
-      tenant_id:  tenantId,
-      month_key:  key,
-      session_id: sessionId,
-    });
-    // ON CONFLICT DO NOTHING is handled by the DB constraint — no error on duplicate.
   } catch {
     // Non-fatal — session tracking failure must never break personalisation.
   }

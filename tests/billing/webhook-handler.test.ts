@@ -18,7 +18,7 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 
-import { handleStripeWebhook } from "@/billing/stripe";
+import { handleStripeWebhook, invoiceSubscriptionId } from "@/billing/stripe";
 
 // ── Opnemende mock van de Supabase-client ────────────────────────────────────
 //
@@ -155,5 +155,36 @@ describe("handleStripeWebhook — customer.subscription.deleted", () => {
     const sub = updates.find((u) => u.table === "subscriptions");
     assert.ok(sub, "subscriptions moet ge-update zijn");
     assert.equal(sub!.row["status"], "canceled");
+  });
+});
+
+// ── invoiceSubscriptionId ────────────────────────────────────────────────────
+
+describe("invoiceSubscriptionId", () => {
+  it("reads the current shape (API 2025-03-31 and later)", () => {
+    assert.equal(
+      invoiceSubscriptionId({ parent: { type: "subscription_details", subscription_details: { subscription: "sub_new" } } }),
+      "sub_new",
+    );
+  });
+
+  it("reads the old shape", () => {
+    assert.equal(invoiceSubscriptionId({ subscription: "sub_old" }), "sub_old");
+  });
+
+  it("accepts an expanded subscription object", () => {
+    assert.equal(invoiceSubscriptionId({ subscription: { id: "sub_obj" } }), "sub_obj");
+    assert.equal(
+      invoiceSubscriptionId({ parent: { subscription_details: { subscription: { id: "sub_obj2" } } } }),
+      "sub_obj2",
+    );
+  });
+
+  it("returns null for an invoice without a subscription", () => {
+    assert.equal(invoiceSubscriptionId({ parent: null }), null);
+    assert.equal(invoiceSubscriptionId({ parent: { subscription_details: null } }), null);
+    assert.equal(invoiceSubscriptionId({}), null);
+    assert.equal(invoiceSubscriptionId(null), null);
+    assert.equal(invoiceSubscriptionId({ subscription: "" }), null);
   });
 });

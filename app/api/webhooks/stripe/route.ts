@@ -129,6 +129,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ received: true, error: modeError, action: "livemode_mismatch" });
   }
 
+  // ── 5a. Skip an event we already handled ─────────────────────────────────────
+  //
+  // Stripe delivers at least once, so the same event id can arrive again. The
+  // audit row was only written after handling and never read first, so a second
+  // delivery ran the handler a second time. An event that was handled is
+  // acknowledged and left alone; one that failed before is tried again.
+  try {
+    const { data: seen } = await client
+      .from("wallet_webhook_events")
+      .select("handled")
+      .eq("stripe_event_id", event.id)
+      .maybeSingle();
+    if (seen?.handled === true) {
+      console.log(`[stripe-webhook] ${event.type} ${event.id} already handled, skipping`);
+      return NextResponse.json({ received: true, action: "duplicate_event" });
+    }
+  } catch {
+    // Audit table unreachable: handle the event rather than drop it.
+  }
+
   // ── 5. Handle event ─────────────────────────────────────────────────────────
 
   let result: { handled: boolean; action: string; tenantId: string | null };
