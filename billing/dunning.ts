@@ -43,6 +43,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
 import { logger } from "@/lib/logger";
+import { PLATFORM_EMAIL } from "@/lib/platform-contact";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -390,7 +391,7 @@ export async function sendDunningEmail(
   const fromAddress =
     process.env["MAIL_FROM_ADDRESS"] ??
     process.env["BACKOFFICE_EMAIL"] ??
-    "billing@misterchameleon.com";
+    PLATFORM_EMAIL;
 
   // ── Resolve transport ──────────────────────────────────────────────────────
   // No per-tenant transport loaded here — billing emails always use platform config.

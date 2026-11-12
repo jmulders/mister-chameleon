@@ -55,6 +55,8 @@ import {
   type StripeMode,
 } from "./stripe-config";
 import { creditCheckoutSessionOnce } from "./checkout-credit-claim";
+import { PLATFORM_FROM } from "@/lib/platform-contact";
+import { resolveRequestBaseUrl } from "@/lib/base-url";
 
 // ── TypeScript 5.9.3-beta Stripe SDK compatibility shim ───────────────────────
 //
@@ -921,15 +923,16 @@ export async function handleStripeWebhook(
           const platformEmailResult                    = await getPlatformEmailSettings();
           const platformEmailConfig                    = platformEmailResult.ok ? platformEmailResult.data : null;
           const transport                              = resolveTransportConfig(null, platformEmailConfig);
-          const fromAddress    = serverEnv.email.fromAddress ?? "Mister Chameleon <hello@mister-chameleon.com>";
+          const adminBaseUrl   = await resolveRequestBaseUrl();
+          const fromAddress    = serverEnv.email.fromAddress ?? PLATFORM_FROM;
           const adminAddress   = serverEnv.email.backofficeEmail;
           const trialEndDate   = new Date(trialEndsAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
           const welcomeResult = await sendMail({
             from: fromAddress, to: [email],
             subject: `Welcome to Mister Chameleon — your ${planLabel} trial has started`,
-            text: `Hi ${name},\n\nYour ${planLabel} trial is active until ${trialEndDate}.\n\nLog in: https://mister-chameleon.com/admin\n\nThe Mister Chameleon team`,
-            html: `<p>Hi ${name},</p><p>Your <strong>${planLabel} trial</strong> is active until <strong>${trialEndDate}</strong>.</p><p><a href="https://mister-chameleon.com/admin" style="background:#4f46e5;color:white;padding:0.75rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-weight:600;display:inline-block;">Go to your dashboard</a></p>`,
+            text: `Hi ${name},\n\nYour ${planLabel} trial is active until ${trialEndDate}.\n\nLog in: ${adminBaseUrl}/admin\n\nThe Mister Chameleon team`,
+            html: `<p>Hi ${name},</p><p>Your <strong>${planLabel} trial</strong> is active until <strong>${trialEndDate}</strong>.</p><p><a href="${adminBaseUrl}/admin" style="background:#4f46e5;color:white;padding:0.75rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-weight:600;display:inline-block;">Go to your dashboard</a></p>`,
           }, transport);
           if (!welcomeResult.ok) {
             console.warn("[stripe-webhook] trial_signup: welcome email failed:", welcomeResult.error);

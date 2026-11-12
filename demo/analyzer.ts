@@ -81,7 +81,7 @@ async function fetchHtml(url: string): Promise<{ html: string; finalUrl: string 
     response = await fetch(url, {
       signal:  controller.signal,
       headers: {
-        "User-Agent":      "Mozilla/5.0 (compatible; MrChameleonBot/1.0; +https://misterchameleon.com/bot)",
+        "User-Agent":      "Mozilla/5.0 (compatible; MrChameleonBot/1.0; +https://www.misterchameleon.nl)",
         "Accept":          "text/html,application/xhtml+xml",
         "Accept-Language": "nl,en;q=0.9",
       },

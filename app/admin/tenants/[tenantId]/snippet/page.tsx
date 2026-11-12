@@ -18,6 +18,7 @@
 import { notFound }          from "next/navigation";
 import { getTenantById }     from "@/tenant/server";
 import { SnippetTabs }       from "./_components/SnippetTabs";
+import { resolveRequestBaseUrl } from "@/lib/base-url";
 
 export const metadata = {
   title: "Snippet Integration",
@@ -33,12 +34,14 @@ export default async function SnippetPage({
   const tenant = await getTenantById(tenantId);
   if (!tenant) notFound();
 
-  // Resolve the canonical API origin.
-  // In production this comes from NEXT_PUBLIC_APP_URL; in dev we use a placeholder.
+  // Resolve the origin the snippet is loaded from. Without an explicit setting
+  // it is the host this admin is being served on, which also serves
+  // /api/snippet.js. The fallback used to be a fixed domain that is not ours:
+  // a customer copying the tag would have loaded a script from a stranger.
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
     process.env.NEXTAUTH_URL ??
-    "https://app.misterchameleon.com";
+    (await resolveRequestBaseUrl());
 
   const snippetSrc   = `${appUrl}/api/snippet.js`;
   const siteKey      = tenant.snippet?.siteKey ?? null;

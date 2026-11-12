@@ -8,7 +8,7 @@
  *   Operators add ONE script tag to their site's <head>:
  *
  *     <script
- *       src="https://app.misterchameleon.com/api/snippet.js"
+ *       src="https://www.misterchameleon.nl/api/snippet.js"
  *       data-site-key="sk_live_abc123"
  *       async
  *     ></script>

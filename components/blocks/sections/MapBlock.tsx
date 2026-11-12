@@ -34,7 +34,7 @@ const DEFAULT_EMBED_URL =
   "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d39036.34844027267!2d4.880151!3d52.373082!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c609c7f8d7d3bb%3A0x1fafca0e7d63ed40!2sKeizersgracht%20125%2C%201015%20CJ%20Amsterdam%2C%20Netherlands!5e0!3m2!1sen!2snl!4v1234567890";
 
 const DEFAULT_ADDRESS = "Keizersgracht 125, 1015 CJ Amsterdam, Netherlands";
-const DEFAULT_EMAIL   = "hello@misterchameleon.io";
+const DEFAULT_EMAIL   = "info@misterchameleon.nl";
 const DEFAULT_PHONE   = "+31 20 123 4567";
 
 // ─── Props ────────────────────────────────────────────────────────────────────

@@ -44,6 +44,7 @@ import type { TenantWallet } from "./types";
 import { serializeError } from "./errors";
 import { sendMail, resolveTransportConfig } from "@/forms/mail-transport";
 import { logger } from "@/lib/logger";
+import { PLATFORM_EMAIL } from "@/lib/platform-contact";
 
 // ── Email / SMS delivery ──────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ function resolveFromAddress(): string {
   return (
     process.env["MAIL_FROM_ADDRESS"] ??
     process.env["BACKOFFICE_EMAIL"] ??
-    "billing@misterchameleon.com"
+    PLATFORM_EMAIL
   );
 }
 

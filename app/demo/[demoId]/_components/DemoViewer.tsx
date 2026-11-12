@@ -1012,7 +1012,7 @@ function DemoFooter({
         This is a personalisation preview generated for{" "}
         <span className="font-medium text-neutral-500">{generatedFor}</span>{" "}
         by{" "}
-        <a href="https://misterchameleon.com" target="_blank" rel="noopener noreferrer"
+        <a href="https://www.misterchameleon.nl" target="_blank" rel="noopener noreferrer"
           className="font-medium text-neutral-500 hover:underline">
           Mister Chameleon
         </a>

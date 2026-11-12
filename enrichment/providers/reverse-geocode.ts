@@ -299,7 +299,7 @@ export class NominatimProvider implements ReverseGeocodeProvider {
   readonly name = "nominatim";
 
   constructor(
-    private readonly userAgent: string = "mister-chameleon-enrichment/1.0 (contact@mister-chameleon.com)",
+    private readonly userAgent: string = "mister-chameleon-enrichment/1.0 (info@misterchameleon.nl)",
   ) {}
 
   async lookup(lat: number, lng: number): Promise<ReverseGeocodeAddress | null> {

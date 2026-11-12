@@ -52,6 +52,8 @@ import { getActiveTenant } from "@/tenant/server";
 import { resolveSession } from "@/data/session";
 import { reportInboundConversion } from "@/lib/lead-base/report-inbound-conversion";
 import { escapeHtml } from "@/lib/html-escape";
+import { PLATFORM_FROM } from "@/lib/platform-contact";
+import { resolveRequestBaseUrl } from "@/lib/base-url";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -281,7 +283,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   console.info(`[trial/start] New trial: user=${userId} tenant=${tenantId} plan=${planId}`);
 
   const transport    = resolveTransportConfig();
-  const fromAddress  = serverEnv.email.fromAddress ?? "Mister Chameleon <hello@mister-chameleon.com>";
+  // The host this sign-up came in on, so the link in the mail leads back to the
+  // same site. It was a fixed link to a domain that is not ours.
+  const adminBaseUrl = await resolveRequestBaseUrl();
+  const fromAddress  = serverEnv.email.fromAddress ?? PLATFORM_FROM;
   const adminAddress = serverEnv.email.backofficeEmail;
   const planLabel    = planId.charAt(0).toUpperCase() + planId.slice(1);
   const trialEndDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
@@ -302,7 +307,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         `No credit card required — cancel any time before the trial ends.`,
         "",
         `Log in to your dashboard and start personalising:`,
-        `https://mister-chameleon.com/admin`,
+        `${adminBaseUrl}/admin`,
         "",
         `If you have any questions, reply to this email and we'll be happy to help.`,
         "",
@@ -316,7 +321,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           <li>No credit card required — cancel any time.</li>
         </ul>
         <p>
-          <a href="https://mister-chameleon.com/admin"
+          <a href="${adminBaseUrl}/admin"
              style="display:inline-block;background:#4f46e5;color:white;padding:0.75rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-weight:600;">
             Go to your dashboard
           </a>
@@ -349,7 +354,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           `User ID: ${userId}`,
           `Trial ends: ${trialEndDate}`,
           "",
-          `View in admin: https://mister-chameleon.com/admin/platform/tenants`,
+          `View in admin: ${adminBaseUrl}/admin/platform/tenants`,
         ].join("\n"),
       },
       transport,

@@ -140,7 +140,7 @@ function errorPage(message: string): string {
     <div class="icon">🦎</div>
     <h1>Demo not available</h1>
     <p>${message}</p>
-    <a href="https://misterchameleon.com">Visit Mister Chameleon →</a>
+    <a href="https://www.misterchameleon.nl">Visit Mister Chameleon →</a>
   </div>
 </body>
 </html>`;

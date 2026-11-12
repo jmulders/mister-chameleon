@@ -44,7 +44,7 @@
  * ─── .env.example reference ──────────────────────────────────────────────────
  *
  *   # Public — safe for client bundles
- *   NEXT_PUBLIC_SITE_URL=https://misterchameleon.com
+ *   NEXT_PUBLIC_SITE_URL=https://www.misterchameleon.nl
  *   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
  *   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
  *
@@ -601,7 +601,7 @@ const getVercelConfig = once((): VercelEnvConfig => {
  */
 export const clientEnv = {
   /**
-   * Canonical origin of the site, e.g. "https://misterchameleon.com".
+   * Canonical origin of the site, e.g. "https://www.misterchameleon.nl".
    * Used for OG/SEO tags, sitemaps, and absolute URL construction.
    * Set NEXT_PUBLIC_SITE_URL in your deployment env.
    */

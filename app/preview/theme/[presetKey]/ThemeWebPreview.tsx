@@ -645,7 +645,7 @@ function HomePage({ p }: { p: P }) {
           <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-card, 8px)", overflow: "hidden", background: "var(--card-bg)" }}>
             <div style={{ padding: "0.6rem 1rem", borderBottom: "1px solid var(--border)", display: "flex", gap: "0.4rem", alignItems: "center" }}>
               {["#FF5F57","#FFBD2E","#28CA41"].map(c => <span key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c, display: "block" }} />)}
-              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace", marginLeft: "0.75rem" }}>dashboard — mister-chameleon.io</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace", marginLeft: "0.75rem" }}>dashboard · misterchameleon.nl</span>
             </div>
             <img src={pic("dashboard-saas", 700, 440)} alt="" style={{ width: "100%", display: "block" }} />
           </div>

@@ -49,7 +49,7 @@ export interface InjectOptions {
    */
   siteKey:    string;
   /**
-   * Base URL of the MC platform (e.g. "https://misterchameleon.com" or
+   * Base URL of the MC platform (e.g. "https://www.misterchameleon.nl" or
    * "http://localhost:3000" in dev).  Used to construct the decide URL.
    */
   decideBase: string;
@@ -1093,7 +1093,7 @@ function buildInjection({ siteKey, decideBase, siteName, faviconUrl, scenarioSlo
     <div class="mc-snippet-copy-tip" id="mc-copy-tip">click to copy</div>
   </div>
   <div class="mc-panel-footer">
-    Powered by <a href="https://misterchameleon.com" target="_blank">Mister Chameleon</a>
+    Powered by <a href="https://www.misterchameleon.nl" target="_blank">Mister Chameleon</a>
   </div>
 </div>
 

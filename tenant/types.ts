@@ -504,7 +504,7 @@ export interface TenantPageConfig {
  *
  *   tenantId            Stable lowercase slug.  Used in logs and analytics.
  *   name                Human-readable display name.
- *   canonicalHostname   The primary production hostname, e.g. "misterchameleon.com".
+ *   canonicalHostname   The primary production hostname, e.g. "www.misterchameleon.nl".
  *                       Used for OG tags, canonical <link> elements, and sitemaps.
  *                       Does NOT include protocol or port.
  *   cmsProvider         Which CMS backend to instantiate.
@@ -533,7 +533,7 @@ export interface TenantConfig {
   /**
    * Primary production hostname — no protocol, no trailing slash.
    * Used for absolute URL construction and canonical link generation.
-   * Example: "misterchameleon.com"
+   * Example: "www.misterchameleon.nl"
    *
    * Not used for resolver matching directly — that is handled by the
    * TENANT_REGISTRY map in resolve-tenant.ts, which supports multiple
