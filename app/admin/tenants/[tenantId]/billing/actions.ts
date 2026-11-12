@@ -651,11 +651,21 @@ export async function confirmBundlePurchaseAction(
 
     // ── 5. Credit the wallet (idempotent via reference_id = cs_xxx) ──────────
 
-    await addCredits(client, tenantId, bundle.credits, "purchase", {
-      stripeEventId: checkoutSessionId,   // stored as reference_id in ledger
-      bundleId,
-      description: `Purchased ${bundle.label} (confirmed via checkout session)`,
-    });
+    // The same gate as the webhook, keyed on the Checkout session. The ledger
+    // lookup above never found anything: the wallet function in use stores the
+    // reference in another column, so every reload of the success page
+    // credited the bundle again, on top of the webhook's credit.
+    const outcome = await creditCheckoutSessionOnce(
+      client, checkoutSessionId, tenantId, !stripeSecretKey.startsWith("sk_test_"), "credit_bundle",
+      () => addCredits(client, tenantId, bundle.credits, "purchase", {
+        stripeEventId: checkoutSessionId,
+        bundleId,
+        description: `Purchased ${bundle.label} (confirmed via checkout session)`,
+      }),
+    );
+    if (outcome === "already-credited") {
+      return { ok: true, alreadyCredited: true, credits: bundle.credits, bundleLabel: bundle.label };
+    }
 
     console.info(
       `[billing/actions] confirmBundlePurchaseAction: credited ${bundle.credits} to tenant ${tenantId} ` +
@@ -1581,6 +1591,7 @@ import {
   type TenantDunningSettingsInput,
 } from "@/billing/dunning";
 import { requireTenantAction } from "@/lib/admin-auth/action-guard";
+import { creditCheckoutSessionOnce } from "@/billing/checkout-credit-claim";
 
 /**
  * Fetch the dunning settings for a tenant.

@@ -195,6 +195,30 @@ export async function markTenantUnpaid(
 }
 
 /**
+ * Forget an earlier payment failure, without touching the status.
+ *
+ * For the paths where Stripe reports the subscription as active or trialing
+ * again. They set the status back but left payment_due_since and
+ * dunning_email_sent_at as they were. markTenantPastDue only stamps the date
+ * when it is empty, so the next failed payment, months later, inherited the
+ * old date: the grace period had already run out, the tenant was blocked at
+ * once, and no reminder went out because one "had been sent".
+ */
+export async function resetDunningState(
+  client:   SupabaseClient,
+  tenantId: string,
+): Promise<void> {
+  const { error } = await client
+    .from("subscriptions")
+    .update({ payment_due_since: null, dunning_email_sent_at: null })
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    logger.error("[billing/dunning] resetDunningState error", { tenantId, error: error.message });
+  }
+}
+
+/**
  * Clear dunning state and restore subscription to active.
  * Called after successful payment is confirmed (Stripe webhook or admin action).
  */

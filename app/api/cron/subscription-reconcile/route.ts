@@ -41,7 +41,7 @@ import Stripe                        from "stripe";
 import { STRIPE_API_VERSION }        from "@/billing/stripe-config";
 import { subscriptionPeriod }        from "@/billing/stripe";
 import { syncPackageKeyFromPlan }    from "@/billing/subscriptions";
-import { markTenantPastDue, markTenantUnpaid } from "@/billing/dunning";
+import { markTenantPastDue, markTenantUnpaid, resetDunningState } from "@/billing/dunning";
 import { resolveStripeCredentials }  from "@/platform/platform-store";
 
 export const dynamic = "force-dynamic";
@@ -150,7 +150,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           await markTenantUnpaid(client, row.tenant_id);
           await client.from("tenant_settings").update({ is_active_override: false }).eq("tenant_id", row.tenant_id);
         } else if (sub.status === "active" || sub.status === "trialing") {
-          // Payment resolved → clear a prior payment-failure lock (leave manual overrides).
+          // Payment resolved → forget the failure and clear a prior
+          // payment-failure lock (leave manual overrides).
+          await resetDunningState(client, row.tenant_id);
           await client
             .from("tenant_settings")
             .update({ is_active_override: null })
