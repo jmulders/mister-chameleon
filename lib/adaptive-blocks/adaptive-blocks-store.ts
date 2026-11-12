@@ -41,6 +41,7 @@ import type {
   AdaptiveVariantEntry,
 } from "@/cms/types";
 import type { AdaptiveBlockRow, AdaptiveBlockInsert } from "@/data/types";
+import { orValue } from "@/data/postgrest-filter";
 
 // ── Row → domain mapper ───────────────────────────────────────────────────────
 
@@ -197,7 +198,7 @@ export async function listAdaptiveBlocks(
       .order("key");
 
     if (tenantId && includePlatform) {
-      query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+      query = query.or(`tenant_id.eq.${orValue(tenantId)},tenant_id.is.null`);
     } else if (tenantId) {
       query = query.eq("tenant_id", tenantId);
     } else {

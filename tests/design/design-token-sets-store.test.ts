@@ -43,10 +43,11 @@ function fakeDb() {
         if (f.kind === "eq") return (r as unknown as Record<string, unknown>)[f.a!] === f.b;
         if (f.kind === "is") return (r as unknown as Record<string, unknown>)[f.a!] === null && f.b === null;
         if (f.kind === "or") {
-          // Only the two shapes the store emits: "tenant_id.eq.X,tenant_id.is.null"
+          // Only the two shapes the store emits: 'tenant_id.eq."X",tenant_id.is.null'.
+          // The value is double-quoted (data/postgrest-filter.ts), as PostgREST reads it.
           return String(f.b).split(",").some((clause) => {
             const [col, opn, ...rest] = clause.split(".");
-            const val = rest.join(".");
+            const val = rest.join(".").replace(/^"(.*)"$/, "$1");
             const cur = (r as unknown as Record<string, unknown>)[col];
             if (opn === "eq") return cur === val;
             if (opn === "is") return cur === null && val === "null";

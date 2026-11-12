@@ -22,6 +22,7 @@
 import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
 import type { DesignTokenSetRow, DesignTokenSetInsert } from "@/data/types";
+import { orValue } from "@/data/postgrest-filter";
 
 /**
  * Minimal shape of the Supabase client the store needs. Tests inject a fake via
@@ -100,7 +101,7 @@ export async function listDesignTokenSets(
     let query = resolveDb(db).from("design_token_sets").select("*").order("name");
 
     if (tenantId && includePlatform) {
-      query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+      query = query.or(`tenant_id.eq.${orValue(tenantId)},tenant_id.is.null`);
     } else if (tenantId) {
       query = query.eq("tenant_id", tenantId);
     } else {

@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies }    from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect }   from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import {
@@ -16,6 +16,7 @@ import {
   type AdminSession,
 } from "@/lib/admin-auth/session";
 import { verifyPassword } from "@/lib/admin-auth/password";
+import { checkAttemptLimit, extractClientIp } from "@/lib/rate-limiting";
 
 // ── loginAction ───────────────────────────────────────────────────────────────
 
@@ -60,6 +61,23 @@ async function loginActionInner(
   password: string,
   next: string,
 ): Promise<void> {
+  // ── Attempt limit ─────────────────────────────────────────────────────────
+  //
+  // Counted before the password is looked at, per ten minutes. Without it the
+  // form took unlimited guesses. Three counters: this address from this IP,
+  // this IP on any address, and this address from anywhere. The last one is
+  // roomy on purpose, so a stranger cannot lock an admin out by guessing badly.
+  const ip        = extractClientIp(await headers());
+  const emailKey  = email.toLowerCase().slice(0, 254);
+  const [pair, byIp, byEmail] = await Promise.all([
+    checkAttemptLimit(`login:${emailKey}|${ip}`, 8),
+    checkAttemptLimit(`login-ip:${ip}`, 30),
+    checkAttemptLimit(`login-email:${emailKey}`, 100),
+  ]);
+  if (!pair.allowed || !byIp.allowed || !byEmail.allowed) {
+    redirect(`/admin/login?error=too_many_attempts&next=${encodeURIComponent(next)}`);
+  }
+
   // ── Look up user ──────────────────────────────────────────────────────────
   const user = await findAdminUserByEmailForLogin(email);
 

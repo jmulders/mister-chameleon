@@ -41,6 +41,7 @@ import { resolveCalendarConfig }      from "@/lib/google-calendar/config";
 import { headers }                    from "next/headers";
 import { resolveSession }             from "@/data/session";
 import { reportInboundConversion }    from "@/lib/lead-base/report-inbound-conversion";
+import { escapeHtml }                 from "@/lib/html-escape";
 
 export const runtime = "nodejs";
 
@@ -312,7 +313,12 @@ function buildConfirmationText(d: ConfirmationData): string {
   ].join("\n");
 }
 
-function buildConfirmationHtml(d: ConfirmationData): string {
+function buildConfirmationHtml(raw: ConfirmationData): string {
+  // Everything here was typed into the booking form or derives from it. Escape
+  // it all once, so no field can add markup to a mail sent from our domain.
+  const d = Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, typeof value === "string" ? escapeHtml(value) : value]),
+  ) as ConfirmationData;
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

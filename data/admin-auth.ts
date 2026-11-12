@@ -182,6 +182,22 @@ export async function updateAdminUser(
   const patch: Record<string, unknown> = { ...updates, updated_at: now() };
   if (updates.email) patch.email = (updates.email as string).toLowerCase().trim();
 
+  // A change of role or a deactivation has to end the sessions that are open:
+  // the role sits inside the signed token for eight hours, and is_active is
+  // only looked at when signing in. Bumping session_epoch makes every existing
+  // token fail its next check. Saving a name or address leaves sessions alone.
+  if (updates.role !== undefined || updates.is_active !== undefined) {
+    const { data: current } = await adminTable()
+      .select("role, is_active, session_epoch")
+      .eq("id", id)
+      .single();
+    const roleChanged   = updates.role !== undefined && current?.role !== updates.role;
+    const nowInactive   = updates.is_active === false && current?.is_active !== false;
+    if (current && (roleChanged || nowInactive)) {
+      patch.session_epoch = (typeof current.session_epoch === "number" ? current.session_epoch : 0) + 1;
+    }
+  }
+
   const { data, error } = await adminTable()
     .update(patch)
     .eq("id", id)
@@ -196,15 +212,20 @@ export async function updateAdminUser(
 }
 
 /**
- * Sets a new bcrypt password hash for a user.
+ * Sets a new bcrypt password hash for a user and ends their open sessions.
  * The caller is responsible for hashing the plaintext before calling this.
  */
 export async function resetAdminUserPassword(
   id:           string,
   passwordHash: string,
 ): Promise<boolean> {
+  // A reset by an administrator usually follows a suspected compromise, so the
+  // sessions opened with the old password end here too.
+  const currentEpoch = await getAdminSessionEpoch(id);
+  if (currentEpoch === null) return false;
+
   const { error } = await adminTable()
-    .update({ password_hash: passwordHash, updated_at: now() })
+    .update({ password_hash: passwordHash, session_epoch: currentEpoch + 1, updated_at: now() })
     .eq("id", id);
   return !error;
 }

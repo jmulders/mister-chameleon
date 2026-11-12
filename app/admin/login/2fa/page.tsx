@@ -24,6 +24,7 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
     invalid_code:        "That code is incorrect or has expired. Please try again.",
     invalid_backup_code: "That backup code is not valid or has already been used.",
     session_expired:     "Your session has expired. Please sign in again.",
+    too_many_attempts:   "Too many attempts. Wait ten minutes and try again.",
   };
   const errorMessage = error ? (errorMessages[error] ?? "An error occurred.") : null;
 

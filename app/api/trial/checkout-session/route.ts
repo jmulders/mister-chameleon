@@ -137,7 +137,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   console.log(
     `[trial/checkout-session] Stripe mode=${stripeCredentials.mode} ` +
-    `key=${stripeCredentials.secretKey ? stripeCredentials.secretKey.slice(0, 14) + "…" : "(none)"} ` +
+    `key=${stripeCredentials.secretKey ? "set" : "(none)"} ` +
     `webhookSecret=${stripeCredentials.webhookSecret ? "set" : "(none)"}`,
   );
 

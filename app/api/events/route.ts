@@ -130,11 +130,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // The tenant an event belongs to is the tenant of the host it was sent to.
+    // The body also carries a tenantId, and that used to be stored as it came:
+    // anyone could post page views and form submits into another tenant's
+    // analytics, experiments and journey state. Outside production the body
+    // value still wins, so a local ?tenant= demo keeps working.
+    let hostTenantId: string | undefined;
+    try {
+      hostTenantId = (await getActiveTenant()).tenantId;
+    } catch {
+      hostTenantId = undefined;
+    }
+    const eventTenantId =
+      process.env.NODE_ENV === "production"
+        ? hostTenantId
+        : (validation.value.tenantId ?? hostTenantId);
+
     const result = await saveEvent({
       sessionId,
       eventType: validation.value.eventType,
       payload: validation.value.payload,
-      tenantId: validation.value.tenantId,
+      tenantId: eventTenantId,
     });
 
     if (!result.ok) {
@@ -172,7 +188,7 @@ export async function POST(request: NextRequest) {
         // When provided, the insert uses ON CONFLICT DO NOTHING so retried
         // events that already landed are silently ignored.
         eventId:      validation.value.eventId ?? null,
-        tenantId:     validation.value.tenantId ?? "unknown",
+        tenantId:     eventTenantId ?? "unknown",
         sessionId:    sessionId,
         eventType:    validation.value.eventType as JourneyEventType,
         eventValue:   typeof payload["page_path"] === "string" ? payload["page_path"]

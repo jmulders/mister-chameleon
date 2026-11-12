@@ -14,6 +14,7 @@ import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
 import type { DesignEffectSetRow, DesignEffectSetInsert } from "@/data/types";
 import type { BlockEffectConfig, EffectSet } from "@/design-system/effects/effect-ref";
+import { orValue } from "@/data/postgrest-filter";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DbLike = { from: (table: string) => any };
@@ -54,7 +55,7 @@ export async function listDesignEffectSets(
 ): Promise<EffectSet[]> {
   try {
     let query = resolveDb(db).from("design_effect_sets").select("*").order("name");
-    if (tenantId && includePlatform) query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+    if (tenantId && includePlatform) query = query.or(`tenant_id.eq.${orValue(tenantId)},tenant_id.is.null`);
     else if (tenantId)               query = query.eq("tenant_id", tenantId);
     else                             query = query.is("tenant_id", null);
 

@@ -51,6 +51,7 @@ import { headers } from "next/headers";
 import { getActiveTenant } from "@/tenant/server";
 import { resolveSession } from "@/data/session";
 import { reportInboundConversion } from "@/lib/lead-base/report-inbound-conversion";
+import { escapeHtml } from "@/lib/html-escape";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -308,10 +309,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         `The Mister Chameleon team`,
       ].join("\n"),
       html: `
-        <p>Hi ${name},</p>
-        <p>Your <strong>14-day free trial on the ${planLabel} plan</strong> is now active.</p>
+        <p>Hi ${escapeHtml(name)},</p>
+        <p>Your <strong>14-day free trial on the ${escapeHtml(planLabel)} plan</strong> is now active.</p>
         <ul>
-          <li><strong>Trial ends:</strong> ${trialEndDate}</li>
+          <li><strong>Trial ends:</strong> ${escapeHtml(trialEndDate)}</li>
           <li>No credit card required — cancel any time.</li>
         </ul>
         <p>
