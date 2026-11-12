@@ -195,7 +195,8 @@ export default async function RootLayout({
   // normalize tenantSettings.cms first — layout.tsx runs before tenantSettings is available.
   const [tenantSettings, cmsSettings] = await Promise.all([
     getTenantById(tenantConfig.tenantId),
-    createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings().catch(() => null),
+    // The site's own language, so this shares one cache entry with header and footer.
+    getSiteLanguage().then((lang) => createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings(lang)).catch(() => null),
   ]);
 
   // ── Contextual theme decision ─────────────────────────────────────────────────

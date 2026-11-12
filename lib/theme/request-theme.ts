@@ -14,6 +14,7 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getSiteLanguage } from "@/lib/site-texts/server";
 import { buildTimeContext } from "@/context/time";
 import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
 import { resolveThemeDecision, type ThemeDecisionTrace } from "@/decision/theme-decision";
@@ -43,7 +44,8 @@ export const getRequestThemeDecision = cache(async (): Promise<RequestThemeDecis
   const tenantConfig = await getActiveTenant();
   const [tenantSettings, cmsSettings] = await Promise.all([
     getTenantById(tenantConfig.tenantId),
-    createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings().catch(() => null),
+    // The site's own language, so this shares one cache entry with header and footer.
+    getSiteLanguage().then((lang) => createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings(lang)).catch(() => null),
   ]);
 
   let contextualThemeKey: ThemePresetKey | null = null;
