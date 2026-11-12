@@ -42,6 +42,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { guardSuperAdminRoute } from "@/lib/admin-auth/route-guard";
 import { createClient }              from "@supabase/supabase-js";
 import {
   isTestModeEnabled,
@@ -98,6 +99,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 403 },
     );
   }
+
+  // ── Gate 2: superadmin ────────────────────────────────────────────────────
+  //
+  // The flag alone left this open to anyone once it was set: the route can set
+  // any tenant's wallet balance.
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) return guard.response;
 
   // ── Parse body ────────────────────────────────────────────────────────────
 

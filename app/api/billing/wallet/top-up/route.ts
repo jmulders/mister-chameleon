@@ -35,6 +35,7 @@
  */
 
 import { NextRequest, NextResponse }   from "next/server";
+import { guardTenantRoute } from "@/lib/admin-auth/route-guard";
 import { createClient }                from "@supabase/supabase-js";
 import { getOrCreateStripeCustomer }   from "@/billing/stripe";
 import { getStripeClient, getStripeMode, getStripeModeInfo } from "@/billing/stripe-config";
@@ -61,6 +62,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const { tenantId, amountCents } = body;
+
+  // Auth: an admin session with access to this tenant. Without it, anyone who
+  // knows a tenant id could act on that tenant's billing.
+  const guard = await guardTenantRoute(tenantId);
+  if (!guard.ok) return guard.response;
 
   if (!tenantId) {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });

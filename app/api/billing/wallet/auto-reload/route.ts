@@ -25,11 +25,18 @@
  *
  *   If auto_reload_enabled is set to true without a saved payment method, the
  *   trigger will log a warning and skip the reload — no error is returned here.
+ *
+ * ─── Auth ─────────────────────────────────────────────────────────────────────
+ *
+ *   Admin session with access to the tenant. Only the fields listed above are
+ *   written; see billing/wallet-settings-input.ts.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient }              from "@supabase/supabase-js";
 import { updateWalletAutoReload }    from "@/billing/wallet";
+import { pickAutoReloadSettings }    from "@/billing/wallet-settings-input";
+import { guardTenantRoute }          from "@/lib/admin-auth/route-guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -42,46 +49,29 @@ function serviceRoleClient() {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  let body: {
-    tenantId?:                        string;
-    auto_reload_enabled?:             boolean;
-    auto_reload_trigger_cents?:       number;
-    auto_reload_amount_cents?:        number;
-    auto_reload_monthly_limit_cents?: number;
-  };
+  let body: unknown;
   try {
-    body = await request.json() as typeof body;
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { tenantId, ...settings } = body;
+  const tenantId = (body as { tenantId?: unknown } | null)?.tenantId;
 
-  if (!tenantId) {
+  // Auth before anything else: this route changes when and how much a tenant's
+  // saved card is charged.
+  const guard = await guardTenantRoute(tenantId);
+  if (!guard.ok) return guard.response;
+  if (typeof tenantId !== "string") {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }
 
-  // ── Validate numeric settings ─────────────────────────────────────────────
-
-  if (settings.auto_reload_trigger_cents !== undefined && settings.auto_reload_trigger_cents < 0) {
-    return NextResponse.json({ error: "auto_reload_trigger_cents must be ≥ 0" }, { status: 400 });
+  // Named fields only. The body is never passed on as it came in.
+  const picked = pickAutoReloadSettings(body);
+  if (!picked.ok) {
+    return NextResponse.json({ error: picked.error }, { status: 400 });
   }
-  if (settings.auto_reload_amount_cents !== undefined && settings.auto_reload_amount_cents < 100) {
-    return NextResponse.json(
-      { error: "auto_reload_amount_cents must be ≥ 100 (€1.00 minimum)" },
-      { status: 400 },
-    );
-  }
-  if (
-    settings.auto_reload_monthly_limit_cents !== undefined &&
-    settings.auto_reload_amount_cents !== undefined &&
-    settings.auto_reload_monthly_limit_cents < settings.auto_reload_amount_cents
-  ) {
-    return NextResponse.json(
-      { error: "auto_reload_monthly_limit_cents must be ≥ auto_reload_amount_cents" },
-      { status: 400 },
-    );
-  }
+  const settings = picked.value;
 
   // ── Persist ───────────────────────────────────────────────────────────────
 

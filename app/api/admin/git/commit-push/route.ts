@@ -9,10 +9,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { exec }                      from "child_process";
+import { exec, execFile }            from "child_process";
 import { promisify }                 from "util";
+import { guardSuperAdminRoute }      from "@/lib/admin-auth/route-guard";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export async function POST(req: NextRequest) {
   if (process.env.NODE_ENV === "production") {
@@ -22,8 +24,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Superadmin session, also in development. Without it any web page the
+  // developer has open could POST here and commit and push from their machine.
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) return guard.response;
+
   const { message } = await req.json();
-  if (!message?.trim()) {
+  if (typeof message !== "string" || !message.trim()) {
     return NextResponse.json({ error: "Commit message is required." }, { status: 400 });
   }
 
@@ -43,9 +50,11 @@ export async function POST(req: NextRequest) {
     if (addOut.trim()) lines.push(`Add:\n${addOut.trim()}`);
 
     // 3. Commit
-    const safeMsg = message.trim().replace(/"/g, '\\"');
-    const { stdout: commitOut } = await execAsync(
-      `git commit -m "${safeMsg}\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"`,
+    // The message is passed as an argument, never through a shell: with exec()
+    // a message holding $(…) or backticks ran as a command.
+    const { stdout: commitOut } = await execFileAsync(
+      "git",
+      ["commit", "-m", `${message.trim()}\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`],
       { cwd },
     );
     lines.push(`Commit:\n${commitOut.trim()}`);

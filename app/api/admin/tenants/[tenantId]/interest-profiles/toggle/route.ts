@@ -28,30 +28,8 @@
  */
 
 import { NextRequest, NextResponse }        from "next/server";
-import { cookies }                           from "next/headers";
-import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
+import { guardTenantRoute }                  from "@/lib/admin-auth/route-guard";
 import { setTenantProfileOverride }          from "@/interest-profiles/repository";
-
-// ── Auth guard ─────────────────────────────────────────────────────────────────
-
-async function requireAdminSession(): Promise<
-  | { ok: true }
-  | { ok: false; status: 401 | 403; message: string }
-> {
-  const cookieStore = await cookies();
-  const token       = cookieStore.get(ADMIN_TOKEN_COOKIE)?.value ?? null;
-
-  if (!token) return { ok: false, status: 401, message: "Not authenticated." };
-
-  const session = await verifySession(token);
-  if (!session)  return { ok: false, status: 401, message: "Invalid or expired session." };
-
-  if (session.twoFaEnabled && !session.twoFaVerified) {
-    return { ok: false, status: 403, message: "2FA verification required." };
-  }
-
-  return { ok: true };
-}
 
 // ── Route handler ──────────────────────────────────────────────────────────────
 
@@ -59,13 +37,18 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> },
 ): Promise<NextResponse> {
-  // 1. Auth.
-  const auth = await requireAdminSession();
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, message: auth.message }, { status: auth.status });
+  // 1. Auth: an admin session with access to this tenant. A login alone is
+  //    not enough, or one tenant's admin could switch another tenant's profiles.
+  const { tenantId } = await params;
+  const guard = await guardTenantRoute(tenantId);
+  if (!guard.ok) {
+    const status = guard.response.status;
+    return NextResponse.json(
+      { ok: false, message: status === 401 ? "Not authenticated." : "No access to this tenant." },
+      { status },
+    );
   }
 
-  const { tenantId } = await params;
   if (!tenantId) {
     return NextResponse.json({ ok: false, message: "Tenant ID is required." }, { status: 400 });
   }

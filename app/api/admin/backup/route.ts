@@ -6,7 +6,7 @@
  *
  * ─── Security ─────────────────────────────────────────────────────────────────
  *
- *   Both methods require a valid admin session.
+ *   Both methods require a superadmin session.
  *   The backup data (JSONB) is stored in platform_backups and is never
  *   returned in the GET list response — only metadata.
  *
@@ -23,7 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getRequiredAdminSession }   from "@/lib/admin-auth/authorization";
+import { guardSuperAdminRoute }      from "@/lib/admin-auth/route-guard";
 import { getDb }                     from "@/data/db";
 import { BACKUP_TABLES }             from "@/lib/backup/backup-tables";
 
@@ -57,7 +57,10 @@ export interface BackupMeta {
 // ── POST — create backup ──────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const session = await getRequiredAdminSession();
+  // Superadmin only: a backup holds every tenant's configuration.
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) return guard.response;
+  const session = guard.session;
   const db      = getDb();
 
   // Optional label from request body
@@ -171,7 +174,8 @@ export async function POST(req: NextRequest) {
 // ── GET — list backups ────────────────────────────────────────────────────────
 
 export async function GET() {
-  await getRequiredAdminSession();
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) return guard.response;
   const db = getDb();
 
   const { data, error } = await db

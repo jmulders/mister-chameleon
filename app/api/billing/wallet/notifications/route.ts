@@ -18,11 +18,18 @@
  *
  *   { success: true }  on success.
  *   { error: string }  on failure.
+ *
+ * ─── Auth ─────────────────────────────────────────────────────────────────────
+ *
+ *   Admin session with access to the tenant. Only the fields listed above are
+ *   written; see billing/wallet-settings-input.ts.
  */
 
 import { NextRequest, NextResponse }    from "next/server";
 import { createClient }                 from "@supabase/supabase-js";
 import { updateWalletNotifications }    from "@/billing/wallet";
+import { pickNotificationPrefs }        from "@/billing/wallet-settings-input";
+import { guardTenantRoute }             from "@/lib/admin-auth/route-guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,38 +42,27 @@ function serviceRoleClient() {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  let body: {
-    tenantId?:                     string;
-    notify_email?:                 boolean;
-    notify_sms?:                   boolean;
-    notification_email?:           string | null;
-    notification_phone?:           string | null;
-    low_balance_threshold_cents?:  number;
-  };
+  let body: unknown;
   try {
-    body = await request.json() as typeof body;
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { tenantId, ...prefs } = body;
+  const tenantId = (body as { tenantId?: unknown } | null)?.tenantId;
 
-  if (!tenantId) {
+  const guard = await guardTenantRoute(tenantId);
+  if (!guard.ok) return guard.response;
+  if (typeof tenantId !== "string") {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }
 
-  // ── Basic email format check ──────────────────────────────────────────────
-
-  if (prefs.notification_email && !prefs.notification_email.includes("@")) {
-    return NextResponse.json({ error: "notification_email is not a valid email address" }, { status: 400 });
+  // Named fields only. The body is never passed on as it came in.
+  const picked = pickNotificationPrefs(body);
+  if (!picked.ok) {
+    return NextResponse.json({ error: picked.error }, { status: 400 });
   }
-
-  if (
-    prefs.low_balance_threshold_cents !== undefined &&
-    (typeof prefs.low_balance_threshold_cents !== "number" || prefs.low_balance_threshold_cents < 0)
-  ) {
-    return NextResponse.json({ error: "low_balance_threshold_cents must be ≥ 0" }, { status: 400 });
-  }
+  const prefs = picked.value;
 
   // ── Persist ───────────────────────────────────────────────────────────────
 
@@ -74,7 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const client = serviceRoleClient();
     await updateWalletNotifications(client, tenantId, prefs);
 
-    console.info("[wallet/notifications] prefs saved", { tenantId, prefs });
+    console.info("[wallet/notifications] prefs saved", { tenantId, fields: Object.keys(prefs) });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[wallet/notifications] error:", err);

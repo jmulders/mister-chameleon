@@ -102,6 +102,7 @@ import {
 // ── Admin route helpers ───────────────────────────────────────────────────────
 
 const ADMIN_PREFIX       = "/admin";
+const DASHBOARD_PREFIX   = "/dashboard";
 const ADMIN_LOGIN        = "/admin/login";
 const ADMIN_LOGIN_2FA    = "/admin/login/2fa";
 const ADMIN_FORGOT_PW    = "/admin/forgot-password";
@@ -117,10 +118,17 @@ function isAdminPublicPath(pathname: string): boolean {
          pathname === ADMIN_RESET_PW;
 }
 
-/** True for any /admin/* path (public or protected). */
+/**
+ * True for any path behind the admin login: /admin/* (public or protected) and
+ * /dashboard/*. The dashboard shows visitor sessions, analytics and billing for
+ * every tenant and was reachable by anyone who typed the URL; it has no public
+ * pages of its own, so all of it is protected.
+ */
 function isAdminPath(pathname: string): boolean {
   return pathname === ADMIN_PREFIX ||
-         pathname.startsWith(ADMIN_PREFIX + "/");
+         pathname.startsWith(ADMIN_PREFIX + "/") ||
+         pathname === DASHBOARD_PREFIX ||
+         pathname.startsWith(DASHBOARD_PREFIX + "/");
 }
 
 // ── Proxy ─────────────────────────────────────────────────────────────────────
@@ -543,5 +551,14 @@ export const config = {
      *   touches session cookies or admin auth for these paths.
      */
     "/api/:path*",
+
+    /*
+     * Pattern 3 — Everything behind the admin login, dots included:
+     *   Pattern 1 skips any path with a dot in it, to leave public assets
+     *   alone. That also skipped /admin/pages/some.id, so the guard never ran
+     *   for it. No static file lives under these two prefixes.
+     */
+    "/admin/:path*",
+    "/dashboard/:path*",
   ],
 };

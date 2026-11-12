@@ -8,6 +8,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 function makeClient() {
   return createClient(
@@ -46,6 +47,8 @@ export async function getAnalyticsFunnel(
   tenantId: string,
   days = 30,
 ): Promise<{ ok: true; data: FunnelStage[] } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const db = makeClient();
   try {
     const { data, error } = await db.rpc("get_analytics_funnel", {
@@ -65,6 +68,8 @@ export async function getAnalyticsDaily(
   tenantId: string,
   days = 30,
 ): Promise<{ ok: true; data: DailyDataPoint[] } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const db = makeClient();
   try {
     const { data, error } = await db.rpc("get_analytics_daily", {
@@ -84,6 +89,8 @@ export async function getAnalyticsVariants(
   tenantId: string,
   days = 30,
 ): Promise<{ ok: true; data: VariantRow[] } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const db = makeClient();
   try {
     const { data, error } = await db.rpc("get_analytics_variants", {

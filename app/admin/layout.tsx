@@ -74,16 +74,19 @@ export default async function AdminLayout({
               </div>
             </div>
           )}
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 shrink-0">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-            Dashboard
-          </Link>
+          {/* The dashboard is superadmin only, so a tenant admin gets no link to it. */}
+          {(userRole === "superadmin" || userRole === "admin") && (
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 shrink-0">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              Dashboard
+            </Link>
+          )}
           <Link
             href="/"
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"

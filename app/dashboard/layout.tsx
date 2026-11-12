@@ -6,12 +6,15 @@ import { DashboardNav }   from "@/components/dashboard/DashboardNav";
 import { Badge }          from "@/components/ui/Badge";
 import { DEV_TENANT_COOKIE } from "@/tenant/dev-tenant-cookie";
 import { getActiveTenant } from "@/tenant/server";
+import { requireSuperAdmin } from "@/lib/admin-auth/authorization";
 
 /**
  * Dashboard Layout
  *
- * Internal-facing admin/debug area. Not protected in phase 2 — treated as
- * "obscurity-gated" until an auth layer is added.
+ * Internal-facing admin/debug area: visitor sessions, analytics, AI logs and
+ * billing across tenants. Superadmin only. The proxy redirects a visitor
+ * without a session to the login page; the check here is the authoritative one
+ * (role and session epoch) and also covers anything the proxy does not match.
  *
  * Structure:
  *   ┌─────────────┬──────────────────────────────┐
@@ -35,6 +38,8 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  await requireSuperAdmin();
+
   // Read the active dev tenant override from the cookie (dev only).
   const devTenantId: string | null =
     process.env.NODE_ENV === "development"

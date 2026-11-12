@@ -37,6 +37,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { guardTenantRoute } from "@/lib/admin-auth/route-guard";
 import { createClient }              from "@supabase/supabase-js";
 import Stripe                        from "stripe";
 import { SESSION_CREDIT_BUNDLES }    from "@/billing/plans";
@@ -57,6 +58,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const { tenantId, bundleId } = body;
+
+  // Auth: an admin session with access to this tenant. Without it, anyone who
+  // knows a tenant id could act on that tenant's billing.
+  const guard = await guardTenantRoute(tenantId);
+  if (!guard.ok) return guard.response;
 
   if (!tenantId || !bundleId) {
     return NextResponse.json(

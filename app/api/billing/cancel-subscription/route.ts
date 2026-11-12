@@ -20,6 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { guardTenantRoute } from "@/lib/admin-auth/route-guard";
 import { createClient }              from "@supabase/supabase-js";
 // getStripeClient — NOT getStripe, which has never existed. This route imported
 // a non-existent export, so webpack emitted only a warning ("Attempted import
@@ -45,6 +46,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const { tenantId } = body;
+
+  // Auth: an admin session with access to this tenant. Without it, anyone who
+  // knows a tenant id could act on that tenant's billing.
+  const guard = await guardTenantRoute(tenantId);
+  if (!guard.ok) return guard.response;
   if (!tenantId) {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }

@@ -56,6 +56,7 @@ import {
   ALLOWED_PROOF_KEYS,
   ALLOWED_CTA_KEYS,
 } from "@/decision/rules/stored-rule";
+import { requireAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -143,6 +144,8 @@ function resolveEndedAt(status: Status): string | null {
 export async function listExperimentsAction(): Promise<
   { ok: true; data: ExperimentRow[] } | { ok: false; error: string }
 > {
+  await requireAdminAction();
+
   return listAllExperiments();
 }
 
@@ -160,6 +163,8 @@ export async function listExperimentsAction(): Promise<
 export async function createExperimentAction(
   input: unknown,
 ): Promise<ExperimentActionResult> {
+  await requireAdminAction();
+
   if (typeof input !== "object" || input === null) {
     return { ok: false, error: "Invalid input: expected an object." };
   }
@@ -262,6 +267,8 @@ export async function updateExperimentAction(
   id: string,
   input: unknown,
 ): Promise<ExperimentActionResult> {
+  await requireAdminAction();
+
   if (!id || typeof id !== "string") {
     return { ok: false, error: "Experiment ID is required." };
   }
@@ -359,6 +366,8 @@ export async function updateExperimentAction(
 export async function deleteExperimentAction(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdminAction();
+
   if (!id || typeof id !== "string") {
     return { ok: false, error: "Experiment ID is required." };
   }
@@ -394,6 +403,8 @@ export async function changeExperimentStatusAction(
   id: string,
   status: unknown,
 ): Promise<ExperimentActionResult> {
+  await requireAdminAction();
+
   if (!id || typeof id !== "string") {
     return { ok: false, error: "Experiment ID is required." };
   }
