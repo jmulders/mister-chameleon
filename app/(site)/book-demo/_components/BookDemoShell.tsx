@@ -1,36 +1,15 @@
 /**
- * /nl/book-demo  (Dutch)
+ * The demo booking page, without its language.
  *
- * Dutch-language version of the demo booking page.
- * Shares BookDemoClient and all logic with the English page — only strings differ.
- *
- * English:  /book-demo
- * German:   /de/book-demo
+ * Every address that books a demo renders this: /demo (Dutch), /book-demo
+ * (English) and /de/book-demo (German). Only the strings differ, so they are
+ * passed in. The interactive part is BookDemoClient.
  */
 
-import type { Metadata } from "next";
-import { BookDemoClient } from "../../book-demo/_components/BookDemoClient";
-import { getBookDemoTranslations } from "../../book-demo/_components/translations";
+import { BookDemoClient } from "./BookDemoClient";
+import type { BookDemoTranslations } from "./translations";
 
-const t = getBookDemoTranslations("nl");
-
-export const metadata: Metadata = {
-  title:       t.metaTitle,
-  description: t.metaDescription,
-  openGraph: {
-    title:       t.ogTitle,
-    description: t.ogDescription,
-  },
-  alternates: {
-    languages: {
-      "en": "/book-demo",
-      "nl": "/nl/book-demo",
-      "de": "/de/book-demo",
-    },
-  },
-};
-
-export default function BookDemoNlPage() {
+export function BookDemoShell({ t }: { t: BookDemoTranslations }) {
   return (
     <main className="min-h-screen bg-gray-50 py-16 px-4">
       {/* Page heading */}

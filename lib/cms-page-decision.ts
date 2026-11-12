@@ -107,6 +107,7 @@ import type { ExperiencePlan }     from "@/decision/types";
 import type { PageConfig, ResolvedContextSlot } from "@/page-config";
 import type { TenantSettings }     from "@/tenant/types";
 import { logger }                  from "@/lib/logger";
+import { resolveHeroSlotKeys }     from "@/lib/page-hero-key";
 import { buildTokenContextFromInput, type TokenContext } from "@/lib/tokens/parse-tokens";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 
@@ -582,8 +583,12 @@ export async function resolveSlugPageConfig(
       // Resolution order for the hero slot on CMS pages:
       //   1. resolvedBannerKey   — visitor-adaptive compact banner from rule engine
       //   2. slot.variantKey     — page-specific fallback set by the CMS author
+      //
+      // A page that names its own hero (`hero_page_<slug>`) keeps it, so the
+      // page opens with a heading about that page. The banner then only fills
+      // in when that hero has no content. See lib/page-hero-key.ts.
       if (slot.slotId === "hero") {
-        return resolvedBannerKey ? { ...slot, variantKey: resolvedBannerKey } : slot;
+        return { ...slot, ...resolveHeroSlotKeys(slot.variantKey, resolvedBannerKey) };
       }
 
       const engineKey = planKeyForSlot(plan, slot.slotId);

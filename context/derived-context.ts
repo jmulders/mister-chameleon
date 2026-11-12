@@ -451,20 +451,27 @@ function deriveContentInterestCategory(
   const type = (pageType ?? "").toLowerCase();
 
   if (path === "/" || type === "homepage") return "homepage";
-  if (path.includes("/pricing") || path.includes("/plans") || path.includes("/tarif")) return "pricing";
+  if (
+    path.includes("/pricing") || path.includes("/plans") ||
+    path.includes("/tarif") || path.includes("/prijzen")
+  ) return "pricing";
   if (
     path.includes("/product") || path.includes("/feature") ||
     path.includes("/solution") || path.includes("/demo") ||
-    path.includes("/platform") || type === "product"
+    path.includes("/platform") || path.includes("/functies") ||
+    path.includes("/integraties") || path.includes("/hoe-het-werkt") ||
+    type === "product"
   ) return "product";
   if (
     path.includes("/blog") || path.includes("/resource") ||
+    path.includes("/kennisbank") ||
     path.includes("/guide") || path.includes("/article") ||
     path.includes("/whitepaper") || path.includes("/case-study") ||
     type === "article" || type === "blog" || type === "content"
   ) return "content";
   if (
     path.includes("/about") || path.includes("/company") ||
+    path.includes("/over-ons") ||
     path.includes("/team") || path.includes("/mission") ||
     type === "about"
   ) return "about";

@@ -12,7 +12,7 @@ import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { createCMSProvider } from "@/cms";
 import type { IndexablePath } from "@/cms/providers/cms-provider";
 import { requestOrigin } from "@/lib/seo/site-identity";
-import { toSitemapEntries } from "@/lib/seo/sitemap";
+import { sitemapPathsFor, toSitemapEntries } from "@/lib/seo/sitemap";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -30,5 +30,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (err) {
     logger.warn("[sitemap] CMS paths unavailable — homepage only", { error: String(err) });
   }
-  return toSitemapEntries(origin, paths);
+  return toSitemapEntries(origin, sitemapPathsFor(origin, paths));
 }

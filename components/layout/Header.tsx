@@ -260,7 +260,7 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
     }
     // Expansion / churn scenarios → nudge toward an upgrade.
     if (["expansion", "customer_expansion", "churn_risk"].includes(key)) {
-      return { label: "Upgrade plan", href: "/pricing", openInNewTab: false };
+      return { label: "Upgrade plan", href: "/prijzen", openInNewTab: false };
     }
     // High-intent visitors → direct to meeting booking.
     if (["high_intent", "trial_ready"].includes(key)) {

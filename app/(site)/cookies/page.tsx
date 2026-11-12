@@ -11,16 +11,36 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { CookieDeclaration } from "@/components/tracking/CookieDeclaration";
-import { consentTexts } from "@/tracking/consent-i18n";
+import { consentTexts, toConsentLocale } from "@/tracking/consent-i18n";
+import { getActiveTenant } from "@/tenant/server";
 
-export const metadata: Metadata = {
-  title:       "Cookie policy",
-  description: "Which cookies this website sets, why, and how to manage your consent.",
-  robots:      { index: true, follow: true },
-};
+/**
+ * The language of this page: the visitor's own choice (mc_locale) first, then
+ * the default language of the site they are on. Same order as the cookie banner
+ * in app/layout.tsx, so the banner and this page never disagree.
+ */
+async function pageLocale() {
+  const chosen = (await cookies()).get("mc_locale")?.value;
+  return toConsentLocale(chosen ?? (await getActiveTenant()).defaultLocale);
+}
+
+const META = {
+  nl: {
+    title:       "Cookieverklaring | Mister Chameleon",
+    description: "Welke cookies deze website plaatst, waarvoor ze dienen en hoe je je keuze aanpast.",
+  },
+  en: {
+    title:       "Cookie policy",
+    description: "Which cookies this website sets, why, and how to manage your consent.",
+  },
+} as const;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { ...META[await pageLocale()], robots: { index: true, follow: true } };
+}
 
 export default async function CookiePolicyPage() {
-  const locale = (await cookies()).get("mc_locale")?.value;
+  const locale = await pageLocale();
   const t = consentTexts(locale);
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">

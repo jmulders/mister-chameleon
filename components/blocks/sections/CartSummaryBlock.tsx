@@ -133,7 +133,7 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
   const {
     heading              = "Your order",
     checkoutHref         = "/checkout",
-    continueShoppingHref = "/pricing",
+    continueShoppingHref = "/prijzen",
     checkoutLabel        = "Proceed to checkout",
     continueShoppingLabel = "Back to pricing",
     planId: dataPlanId,
@@ -289,7 +289,7 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
             <div style={{ border: "1px solid var(--card-border, #e5e7eb)", borderRadius: "var(--card-radius, 0.75rem)", padding: "2rem", textAlign: "center", background: "var(--card-bg, white)" }}>
               <p style={{ color: "var(--text-muted, #6b7280)" }}>
                 No plan selected.{" "}
-                <Link href="/pricing" style={{ color: "var(--primary, #4f46e5)" }}>View pricing</Link>
+                <Link href="/prijzen" style={{ color: "var(--primary, #4f46e5)" }}>View pricing</Link>
               </p>
             </div>
           )}

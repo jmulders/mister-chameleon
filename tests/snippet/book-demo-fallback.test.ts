@@ -19,9 +19,9 @@ describe("book-demo href + label localization", () => {
     assert.equal(bookDemoHref(ORIGIN, "en"), "https://app.example.com/book-demo");
     assert.equal(bookDemoLabel("en"), "Book a Demo");
   });
-  it("nl uses the /nl prefix and Dutch label", () => {
-    assert.equal(bookDemoHref(ORIGIN, "nl"), "https://app.example.com/nl/book-demo");
-    assert.equal(bookDemoLabel("nl"), "Boek een demo");
+  it("nl uses /demo and the Dutch label", () => {
+    assert.equal(bookDemoHref(ORIGIN, "nl"), "https://app.example.com/demo");
+    assert.equal(bookDemoLabel("nl"), "Plan een demo");
   });
   it("de uses the /de prefix and German label", () => {
     assert.equal(bookDemoHref(ORIGIN, "de"), "https://app.example.com/de/book-demo");
@@ -35,7 +35,7 @@ describe("book-demo href + label localization", () => {
 describe("withBookDemoFallback", () => {
   it("injects a localized booking CTA for a book-demo block with no CTA", () => {
     const out = withBookDemoFallback(conv({ formKey: "book-demo", ctas: [] }), "nl", ORIGIN);
-    assert.deepEqual(out.ctas, [{ label: "Boek een demo", href: "https://app.example.com/nl/book-demo" }]);
+    assert.deepEqual(out.ctas, [{ label: "Plan een demo", href: "https://app.example.com/demo" }]);
   });
   it("leaves an author-supplied CTA untouched (author wins)", () => {
     const authored = [{ label: "Plan gesprek", href: "/afspraak" }];

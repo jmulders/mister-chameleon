@@ -1,7 +1,7 @@
 /**
  * Ad-click IDs (gclid / fbclid / msclkid / ttclid) are registered as context /
  * rule variables: resolvable in FIELD_REGISTRY (for rule conditions) and present
- * in CONTEXT_VARIABLES (for the /demo context table). Pure registry wiring — the
+ * in CONTEXT_VARIABLES (for the /engine-debug context table). Pure registry wiring — the
  * values already live on the RuleEvaluationContext (VisitorContext).
  */
 

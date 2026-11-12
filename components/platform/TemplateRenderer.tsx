@@ -551,41 +551,46 @@ async function fetchContextDataFromSlots(
   // CachedCMSProvider wrapper so draft content is always fresh.
   const cms = providerOverride ?? createCMSProvider(tenant?.cms, tenantId, locale);
 
+  // One hero by key: the regular variant first, then an adaptive block.
+  const loadHero = async (key: string): Promise<NonNullable<ContextSlotData["hero"]> | null> => {
+    const data = await cms.getHeroVariant(key);
+    if (data) return { ...data, ctaKey: key };
+
+    // ── Adaptive-block fallback ─────────────────────────────────────────────
+    // When no regular hero variant is found for this key, try an adaptive
+    // block (Content Matrix).  The no-engine path has no visitor context,
+    // so we always resolve to the defaultVariant here.  The engine path
+    // (homepage) pre-resolves contextData before calling TemplateRenderer
+    // and therefore bypasses this fetch entirely.
+    const adaptive = await cms.getAdaptiveBlock(key);
+    if (!adaptive || !adaptive.isActive) return null;
+    const { content } = resolveAdaptiveVariant(adaptive);
+    const heroData    = adaptiveVariantToHeroBlockData(content, adaptive.key);
+    // Carry the resolved variant's block-level tokens + effects so the
+    // renderer can scope/animate this hero. Absent → no wrapper.
+    const tokenRef  = tokenRefFromVariant(content);
+    const effectRef = content.effects && (content.effects.effectSet || content.effects.effects?.length || content.effects.disabled)
+      ? content.effects
+      : undefined;
+    return {
+      ...heroData,
+      ctaKey: key,
+      ...(tokenRef  ? { tokenRef }  : {}),
+      ...(effectRef ? { effectRef } : {}),
+    };
+  };
+
   // Fetch all active slots in parallel — no waterfall.
   const partials = await Promise.all(
     activeSlots.map(async (slot): Promise<Partial<ContextSlotData>> => {
       const key = slot.variantKey!;
       switch (slot.slotId) {
         case "hero": {
-          const data = await cms.getHeroVariant(key);
-          if (data) return { hero: { ...data, ctaKey: key } };
-
-          // ── Adaptive-block fallback ─────────────────────────────────────────
-          // When no regular hero variant is found for this key, try an adaptive
-          // block (Content Matrix).  The no-engine path has no visitor context,
-          // so we always resolve to the defaultVariant here.  The engine path
-          // (homepage) pre-resolves contextData before calling TemplateRenderer
-          // and therefore bypasses this fetch entirely.
-          const adaptive = await cms.getAdaptiveBlock(key);
-          if (adaptive && adaptive.isActive) {
-            const { content } = resolveAdaptiveVariant(adaptive);
-            const heroData    = adaptiveVariantToHeroBlockData(content, adaptive.key);
-            // Carry the resolved variant's block-level tokens + effects so the
-            // renderer can scope/animate this hero. Absent → no wrapper.
-            const tokenRef  = tokenRefFromVariant(content);
-            const effectRef = content.effects && (content.effects.effectSet || content.effects.effects?.length || content.effects.disabled)
-              ? content.effects
-              : undefined;
-            return {
-              hero: {
-                ...heroData,
-                ctaKey: key,
-                ...(tokenRef  ? { tokenRef }  : {}),
-                ...(effectRef ? { effectRef } : {}),
-              },
-            };
-          }
-          return {};
+          const hero = await loadHero(key);
+          if (hero) return { hero };
+          // The page's own hero has no content yet: show the banner instead.
+          const fallback = slot.fallbackVariantKey ? await loadHero(slot.fallbackVariantKey) : null;
+          return fallback ? { hero: fallback } : {};
         }
         case "proof": {
           const data = await cms.getProofVariant(key);
