@@ -196,7 +196,7 @@ export function CartPageClient() {
           Head back to pricing to pick a plan or add credit bundles.
         </p>
         <Link
-          href="/pricing"
+          href="/prijzen"
           style={{
             display: "inline-block",
             background: "#111827",
@@ -451,7 +451,7 @@ export function CartPageClient() {
                 Proceed to checkout
               </Link>
               <Link
-                href="/pricing"
+                href="/prijzen"
                 style={{
                   display: "block",
                   textAlign: "center",

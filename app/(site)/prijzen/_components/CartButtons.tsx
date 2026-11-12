@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(site)/pricing/_components/CartButtons.tsx
+ * app/(site)/prijzen/_components/CartButtons.tsx
  *
  * Client-side "Add to cart" buttons used by the pricing page.
  *

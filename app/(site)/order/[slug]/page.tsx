@@ -18,5 +18,5 @@ type PageProps = {
 
 export default async function OrderRedirectPage({ params }: PageProps) {
   const { slug } = await params;
-  redirect(`/pricing?plan=${encodeURIComponent(slug)}`);
+  redirect(`/prijzen?plan=${encodeURIComponent(slug)}`);
 }

@@ -135,7 +135,7 @@ export function CheckoutPageClient() {
           Pick a plan or credit bundle on the pricing page first.
         </p>
         <Link
-          href="/pricing"
+          href="/prijzen"
           style={{
             display: "inline-block",
             background: "#111827",
