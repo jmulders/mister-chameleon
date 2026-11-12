@@ -9,6 +9,9 @@ import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-them
 import { ALL_FONT_VARIABLES, geistSans, geistMono, resolveGoogleFontCss } from "@/lib/fonts";
 import { LeadinfoProvider }      from "@/components/tracking/LeadinfoProvider";
 import { ConsentBanner }         from "@/components/tracking/ConsentBanner";
+import { SiteLocaleProvider }    from "@/components/site/SiteLocale";
+import { toSiteLocale }          from "@/lib/site-texts/locale";
+import { getSiteLanguage }       from "@/lib/site-texts/server";
 import { CookiePreferences }     from "@/components/tracking/CookiePreferences";
 import { toConsentLocale }       from "@/tracking/consent-i18n";
 import { getDesignPreset } from "@/tenant/design-presets-gallery";
@@ -412,6 +415,14 @@ export default async function RootLayout({
   // incognito) fall back to the active tenant's default language so a NL tenant
   // shows the Dutch banner instead of defaulting to English. Clamped to the
   // ConsentLocale union with English as the last resort.
+  // The language of the page itself: the visitor's choice, else the language
+  // the tenant's site is written in. It goes on <html lang> (it said "en" on
+  // every site, also the Dutch ones, which is what a screen reader and a search
+  // engine go by) and down to client components for the platform's own texts.
+  // The admin and the dashboard are English, whatever the site speaks.
+  const isAppShell = _consentPathname.startsWith("/admin") || _consentPathname.startsWith("/dashboard");
+  const htmlLang   = isAppShell ? "en" : await getSiteLanguage();
+
   const consentLocale = toConsentLocale(
     (await cookies()).get("mc_locale")?.value ?? tenantConfig.defaultLocale,
   );
@@ -428,7 +439,7 @@ export default async function RootLayout({
      * exactly this situation.
      */
     <html
-      lang="en"
+      lang={htmlLang}
       data-tenant={tenantConfig.tenantId}
       data-theme={finalThemeKey}
       {...(themeTraceAttr ? { "data-theme-trace": themeTraceAttr } : {})}
@@ -566,7 +577,7 @@ export default async function RootLayout({
             }}
           />
         )}
-        {children}
+        <SiteLocaleProvider locale={toSiteLocale(htmlLang)}>{children}</SiteLocaleProvider>
         {leadinfoEnabled && (
           <LeadinfoProvider
             siteToken={leadinfoSettings!.siteToken!}

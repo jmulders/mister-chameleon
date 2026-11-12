@@ -33,6 +33,8 @@ import type { NotificationPosition } from "@/cms/types";
 import type { BlockMedia } from "@/lib/media/block-media";
 import { isRenderableMedia } from "@/lib/media/block-media";
 import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
 import {
   isNotificationSuppressed,
   recordNotificationDismissal,
@@ -112,6 +114,8 @@ export function NotificationBlock({
   mediaSide     = "left",
   preview       = false,
 }: NotificationBlockProps) {
+  const texts = BLOCK_TEXTS[useSiteLocale()];
+
   // Normalise the legacy alias.
   const pos = position === "bottom-right" ? "right" : position;
   const isModal = pos === "center";
@@ -179,7 +183,7 @@ export function NotificationBlock({
     </a>
   ) : null;
   const closeBtn = (dismissible || isModal) ? (
-    <button type="button" aria-label="Sluit melding" onClick={dismiss}
+    <button type="button" aria-label={texts.closeNotification} onClick={dismiss}
       className={`flex-shrink-0 rounded p-1 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-white/50 ${styles.dismiss}`}>
       <CloseIcon />
     </button>

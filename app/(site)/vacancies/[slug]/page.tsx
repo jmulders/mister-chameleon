@@ -31,6 +31,10 @@ import type { Metadata } from "next";
 import { createCMSProvider }        from "@/cms";
 import { mapPageDataToPageConfig }  from "@/cms/mappers/page-config-mapper";
 import { TemplateRenderer }         from "@/components/platform/TemplateRenderer";
+import { pageNeedsTitleHeading }   from "@/lib/page-title";
+import { PageTitleHeader }         from "@/components/site/PageTitleHeader";
+import { getSiteLocale } from "@/lib/site-texts/server";
+import { PAGE_TEXTS } from "@/lib/site-texts/pages";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -54,7 +58,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const page         = await getPageData(slug, tenantId);
 
   if (!page) {
-    return { title: "Vacancy not found" };
+    return { title: PAGE_TEXTS[await getSiteLocale()].missing.vacancy };
   }
 
   return {
@@ -89,6 +93,9 @@ export default async function VacancyDetailPage({ params }: PageProps) {
 
   return (
     <main>
+      {pageNeedsTitleHeading(pageConfig.contextSlots, pageConfig.contentBlocks) && page.title && (
+        <PageTitleHeader title={page.title} />
+      )}
       <TemplateRenderer pageConfig={pageConfig} />
     </main>
   );

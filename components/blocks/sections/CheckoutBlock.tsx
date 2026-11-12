@@ -30,6 +30,8 @@ import { Container }                  from "@/components/primitives/Container";
 import { Section }                    from "@/components/primitives/Section";
 import type { CheckoutBlockData }     from "@/page-config";
 import { useCartSafe }                from "@/lib/cart/cart-context";
+import { useSiteLocale }              from "@/components/site/SiteLocale";
+import { SHOP_TEXTS }                 from "@/lib/site-texts/shop";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -119,11 +121,12 @@ function Field({
 // ─── Password strength indicator ──────────────────────────────────────────────
 
 function PasswordStrength({ password }: { password: string }) {
+  const t      = SHOP_TEXTS[useSiteLocale()];
   const checks = [
-    { label: "12+ characters",         ok: password.length >= 12 },
-    { label: "Uppercase letter",       ok: /[A-Z]/.test(password) },
-    { label: "Lowercase letter",       ok: /[a-z]/.test(password) },
-    { label: "Number",                 ok: /\d/.test(password) },
+    { label: t.pwCheckLength, ok: password.length >= 12 },
+    { label: t.pwCheckUpper,  ok: /[A-Z]/.test(password) },
+    { label: t.pwCheckLower,  ok: /[a-z]/.test(password) },
+    { label: t.pwCheckNumber, ok: /\d/.test(password) },
   ];
 
   const passed  = checks.filter((c) => c.ok).length;
@@ -179,6 +182,8 @@ function SuccessPanel({
   returnLabel: string;
   email:       string;
 }) {
+  const t = SHOP_TEXTS[useSiteLocale()];
+
   return (
     <div
       style={{
@@ -199,13 +204,13 @@ function SuccessPanel({
           marginBottom: "0.75rem",
         }}
       >
-        Your account is ready
+        {t.accountReady}
       </h2>
       <p style={{ color: "var(--text-muted, #6b7280)", fontSize: "0.9375rem", marginBottom: "0.5rem" }}>
-        We sent a confirmation email to <strong style={{ color: "var(--text)" }}>{email}</strong>.
+        {t.confirmationSentTo}{" "}<strong style={{ color: "var(--text)" }}>{email}</strong>{t.confirmationSentAfter}
       </p>
       <p style={{ color: "var(--text-muted, #6b7280)", fontSize: "0.875rem", marginBottom: "2rem" }}>
-        Your 14-day free trial has started. You can cancel any time - no credit card needed.
+        {t.trialStartedNote}
       </p>
       <a
         href={returnHref}
@@ -229,11 +234,13 @@ function SuccessPanel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CheckoutBlock({ data }: CheckoutBlockProps) {
+  const t = SHOP_TEXTS[useSiteLocale()];
+
   const {
-    heading     = "Create your account",
+    heading     = t.createAccount,
     intro,
     returnHref  = "/admin",
-    returnLabel = "Go to your dashboard",
+    returnLabel = t.goToDashboard,
     planId: dataPlanId,
   } = data;
 
@@ -258,14 +265,14 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
   function validate(): boolean {
     const next: Record<string, string> = {};
 
-    if (!name.trim())                       next.name     = "Full name is required.";
-    if (!email.trim())                      next.email    = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(email))  next.email    = "Enter a valid email address.";
-    if (!company.trim())                    next.company  = "Company name is required.";
-    if (password.length < 12)              next.password = "Password must be at least 12 characters.";
-    else if (!/[A-Z]/.test(password))      next.password = "Password needs an uppercase letter.";
-    else if (!/[a-z]/.test(password))      next.password = "Password needs a lowercase letter.";
-    else if (!/\d/.test(password))         next.password = "Password needs a number.";
+    if (!name.trim())                       next.name     = t.errNameRequired;
+    if (!email.trim())                      next.email    = t.errEmailRequired;
+    else if (!/\S+@\S+\.\S+/.test(email))  next.email    = t.errEmailInvalid;
+    if (!company.trim())                    next.company  = t.errCompanyRequired;
+    if (password.length < 12)              next.password = t.errPasswordShort;
+    else if (!/[A-Z]/.test(password))      next.password = t.errPasswordUpper;
+    else if (!/[a-z]/.test(password))      next.password = t.errPasswordLower;
+    else if (!/\d/.test(password))         next.password = t.errPasswordNumber;
 
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -290,7 +297,7 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
       const body = await res.json() as { error?: string };
 
       if (!res.ok) {
-        setApiError(body.error ?? "Something went wrong. Please try again.");
+        setApiError(body.error ?? t.errGeneric);
       } else {
         setSuccess(true);
         // Scroll to success message
@@ -299,7 +306,7 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
         }, 100);
       }
     } catch {
-      setApiError("Network error. Please check your connection and try again.");
+      setApiError(t.errNetwork);
     } finally {
       setLoading(false);
     }
@@ -387,21 +394,21 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
                 <div className="checkout-row" style={{ display: "flex", gap: "1rem", flexDirection: "column" }}>
                   <Field
                     id="trial-name"
-                    label="Full name"
+                    label={t.fullName}
                     value={name}
                     onChange={setName}
                     required
-                    placeholder="Jane Smith"
+                    placeholder={t.fullNamePlaceholder}
                     autoComplete="name"
                     error={errors.name}
                   />
                   <Field
                     id="trial-company"
-                    label="Company name"
+                    label={t.companyName}
                     value={company}
                     onChange={setCompany}
                     required
-                    placeholder="Acme Inc."
+                    placeholder={t.companyPlaceholder}
                     autoComplete="organization"
                     error={errors.company}
                   />
@@ -409,12 +416,12 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
 
                 <Field
                   id="trial-email"
-                  label="Work email"
+                  label={t.workEmail}
                   type="email"
                   value={email}
                   onChange={setEmail}
                   required
-                  placeholder="you@company.com"
+                  placeholder={t.emailPlaceholder}
                   autoComplete="email"
                   error={errors.email}
                 />
@@ -422,7 +429,7 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
                   <Field
                     id="trial-password"
-                    label="Password"
+                    label={t.password}
                     type="password"
                     value={password}
                     onChange={setPassword}
@@ -460,10 +467,10 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
                         <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
                       </svg>
-                      Creating your account…
+                      {t.creatingAccount}
                     </>
                   ) : (
-                    "Start your free trial"
+                    t.submitStartYourTrial
                   )}
                 </button>
 
@@ -477,10 +484,10 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
                     lineHeight: 1.5,
                   }}
                 >
-                  By creating an account you agree to our{" "}
-                  <Link href="/terms" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>Terms of Service</Link>
-                  {" "}and{" "}
-                  <Link href="/privacy" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>Privacy Policy</Link>.
+                  {t.legalBefore}{" "}
+                  <Link href="/terms" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>{t.legalTerms}</Link>
+                  {" "}{t.legalBetween}{" "}
+                  <Link href="/privacy" style={{ color: "var(--primary, #4f46e5)", textDecoration: "none" }}>{t.legalPrivacy}</Link>{t.legalAfter}
                 </p>
               </form>
             </div>
@@ -497,11 +504,7 @@ export function CheckoutBlock({ data }: CheckoutBlockProps) {
                 flexWrap:     "wrap",
               }}
             >
-              {[
-                "🔒 256-bit SSL",
-                "💳 No credit card",
-                "✓ 14-day free trial",
-              ].map((label) => (
+              {t.checkoutBlockTrust.map((label) => (
                 <span
                   key={label}
                   style={{ fontSize: "0.8rem", color: "var(--text-muted, #6b7280)" }}

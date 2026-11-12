@@ -48,17 +48,22 @@ import type { ListingBlockData } from "@/page-config";
 import { ResultCard }    from "@/components/blocks/listing/ResultCard";
 import { ViewAllLink }   from "@/components/blocks/listing/ViewAllLink";
 import { MediaSlider }   from "@/components/blocks/listing/MediaSlider";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface ListingBlockProps {
   data:     ListingBlockData;
   variant?: string;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
+export function ListingBlock({ data, variant: rawVariant, locale = "en" }: ListingBlockProps) {
+  const t = BLOCK_TEXTS[locale];
   const variant = resolveBlockVariant("listing", rawVariant) as ListingVariant;
 
   const { heading, intro, viewAllHref, viewAllLabel } = data;
@@ -106,7 +111,7 @@ export function ListingBlock({ data, variant: rawVariant }: ListingBlockProps) {
                 className="flex items-center justify-center rounded-xl border-2 border-dashed py-16"
                 style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
               >
-                <span className="text-sm opacity-60">Add slides in the CMS to see the slider</span>
+                <span className="text-sm opacity-60">{t.sliderEmpty}</span>
               </div>
             </Stack>
           )}

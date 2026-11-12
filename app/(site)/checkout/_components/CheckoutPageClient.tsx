@@ -19,13 +19,8 @@
 import { useState, type FormEvent } from "react";
 import Link                          from "next/link";
 import { useCart }                   from "@/lib/cart/cart-context";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmtEuro(cents: number): string {
-  if (cents % 100 === 0) return `€${cents / 100}`;
-  return `€${(cents / 100).toFixed(2)}`;
-}
+import { useSiteLocale }             from "@/components/site/SiteLocale";
+import { SHOP_TEXTS }                from "@/lib/site-texts/shop";
 
 // ── Field component ───────────────────────────────────────────────────────────
 
@@ -111,6 +106,9 @@ function PasswordStrength({ password }: { password: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function CheckoutPageClient() {
+  const t       = SHOP_TEXTS[useSiteLocale()];
+  const fmtEuro = t.money;
+
   const { cart, clearCart: _clearCart, totalCents: _totalCents } = useCart();
 
   const [name,     setName]     = useState("");
@@ -129,10 +127,10 @@ export function CheckoutPageClient() {
       <div style={{ maxWidth: "480px", margin: "6rem auto", padding: "0 1.5rem", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🛒</div>
         <h1 style={{ fontWeight: 700, fontSize: "1.5rem", color: "#111827", marginBottom: "0.75rem" }}>
-          Nothing to check out yet
+          {t.checkoutEmptyTitle}
         </h1>
         <p style={{ color: "#6b7280", marginBottom: "2rem" }}>
-          Pick a plan or credit bundle on the pricing page first.
+          {t.checkoutEmptyBody}
         </p>
         <Link
           href="/prijzen"
@@ -147,7 +145,7 @@ export function CheckoutPageClient() {
             textDecoration: "none",
           }}
         >
-          View pricing
+          {t.viewPricing}
         </Link>
       </div>
     );
@@ -157,14 +155,14 @@ export function CheckoutPageClient() {
 
   function validate(): boolean {
     const next: Record<string, string> = {};
-    if (!name.trim())                      next.name     = "Full name is required.";
-    if (!email.trim())                     next.email    = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(email)) next.email    = "Enter a valid email address.";
-    if (!company.trim())                   next.company  = "Company name is required.";
-    if (password.length < 12)             next.password = "Password must be at least 12 characters.";
-    else if (!/[A-Z]/.test(password))     next.password = "Password needs an uppercase letter.";
-    else if (!/[a-z]/.test(password))     next.password = "Password needs a lowercase letter.";
-    else if (!/\d/.test(password))        next.password = "Password needs a number.";
+    if (!name.trim())                      next.name     = t.errNameRequired;
+    if (!email.trim())                     next.email    = t.errEmailRequired;
+    else if (!/\S+@\S+\.\S+/.test(email)) next.email    = t.errEmailInvalid;
+    if (!company.trim())                   next.company  = t.errCompanyRequired;
+    if (password.length < 12)             next.password = t.errPasswordShort;
+    else if (!/[A-Z]/.test(password))     next.password = t.errPasswordUpper;
+    else if (!/[a-z]/.test(password))     next.password = t.errPasswordLower;
+    else if (!/\d/.test(password))        next.password = t.errPasswordNumber;
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -194,7 +192,7 @@ export function CheckoutPageClient() {
       const data = await res.json() as { url?: string; error?: string };
 
       if (!res.ok || !data.url) {
-        setApiError(data.error ?? "Something went wrong. Please try again.");
+        setApiError(data.error ?? t.errGeneric);
         setLoading(false);
       } else {
         // Hand off to Stripe Checkout — keep loading=true, page is navigating away.
@@ -202,7 +200,7 @@ export function CheckoutPageClient() {
         window.location.href = data.url;
       }
     } catch {
-      setApiError("Network error. Please check your connection and try again.");
+      setApiError(t.errNetwork);
       setLoading(false);
     }
   }
@@ -216,7 +214,7 @@ export function CheckoutPageClient() {
     <div style={{ maxWidth: "960px", margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
 
       <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "#111827", marginBottom: "2.5rem" }}>
-        Create your account
+        {t.createAccount}
       </h1>
 
       <div className="checkout-grid">
@@ -228,11 +226,11 @@ export function CheckoutPageClient() {
             {/* Header */}
             <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid #f3f4f6" }}>
               <h2 style={{ fontWeight: 700, fontSize: "1.125rem", color: "#111827", margin: 0 }}>
-                {cart.plan ? `Starting your ${cart.plan.name} trial` : "Account details"}
+                {cart.plan ? t.startingTrial(cart.plan.name) : t.accountDetails}
               </h2>
               {cart.plan && (
                 <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.375rem", marginBottom: 0 }}>
-                  14-day free trial. You&apos;ll add a card now but won&apos;t be charged until the trial ends.
+                  {t.trialCardNote}
                 </p>
               )}
             </div>
@@ -248,12 +246,12 @@ export function CheckoutPageClient() {
                 )}
 
                 <div className="form-row">
-                  <Field id="co-name"    label="Full name"    value={name}    onChange={setName}    required placeholder="Jane Smith"   autoComplete="name"         error={errors.name}    />
-                  <Field id="co-company" label="Company name" value={company} onChange={setCompany} required placeholder="Acme Inc."    autoComplete="organization" error={errors.company} />
+                  <Field id="co-name"    label={t.fullName}    value={name}    onChange={setName}    required placeholder={t.fullNamePlaceholder}   autoComplete="name"         error={errors.name}    />
+                  <Field id="co-company" label={t.companyName} value={company} onChange={setCompany} required placeholder={t.companyPlaceholder}    autoComplete="organization" error={errors.company} />
                 </div>
 
-                <Field id="co-email"    label="Work email" type="email"    value={email}    onChange={setEmail}    required placeholder="you@company.com" autoComplete="email"        error={errors.email}    />
-                <Field id="co-password" label="Password"   type="password" value={password} onChange={setPassword} required                               autoComplete="new-password" error={errors.password} />
+                <Field id="co-email"    label={t.workEmail} type="email"    value={email}    onChange={setEmail}    required placeholder={t.emailPlaceholder} autoComplete="email"        error={errors.email}    />
+                <Field id="co-password" label={t.password}   type="password" value={password} onChange={setPassword} required                               autoComplete="new-password" error={errors.password} />
                 <PasswordStrength password={password} />
 
                 <button
@@ -276,22 +274,22 @@ export function CheckoutPageClient() {
                     marginTop:    "0.25rem",
                   }}
                 >
-                  {loading ? "Redirecting to Stripe…" : cart.plan ? "Start free trial" : "Complete order"}
+                  {loading ? t.redirectingToStripe : cart.plan ? t.submitStartTrial : t.submitCompleteOrder}
                 </button>
 
                 <p style={{ fontSize: "0.75rem", color: "#9ca3af", textAlign: "center", margin: 0, lineHeight: 1.5 }}>
-                  By creating an account you agree to our{" "}
-                  <Link href="/terms"   style={{ color: "#6366f1", textDecoration: "none" }}>Terms of Service</Link>
-                  {" "}and{" "}
-                  <Link href="/privacy" style={{ color: "#6366f1", textDecoration: "none" }}>Privacy Policy</Link>.
+                  {t.legalBefore}{" "}
+                  <Link href="/terms"   style={{ color: "#6366f1", textDecoration: "none" }}>{t.legalTerms}</Link>
+                  {" "}{t.legalBetween}{" "}
+                  <Link href="/privacy" style={{ color: "#6366f1", textDecoration: "none" }}>{t.legalPrivacy}</Link>{t.legalAfter}
                 </p>
               </form>
             </div>
 
             {/* Trust signals footer */}
             <div style={{ padding: "1rem 2rem", borderTop: "1px solid #f3f4f6", display: "flex", justifyContent: "center", gap: "1.5rem", flexWrap: "wrap" }}>
-              {["🔒 256-bit SSL", "💳 Secure Stripe checkout", "✓ 14-day free trial"].map((t) => (
-                <span key={t} style={{ fontSize: "0.8rem", color: "#9ca3af" }}>{t}</span>
+              {t.checkoutTrust.map((signal) => (
+                <span key={signal} style={{ fontSize: "0.8rem", color: "#9ca3af" }}>{signal}</span>
               ))}
             </div>
           </div>
@@ -301,18 +299,18 @@ export function CheckoutPageClient() {
         <div>
           <div style={{ position: "sticky", top: "5rem", border: "1px solid #e5e7eb", borderRadius: "0.875rem", overflow: "hidden", background: "white" }}>
             <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #f3f4f6" }}>
-              <h2 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#111827", margin: 0 }}>Order summary</h2>
+              <h2 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#111827", margin: 0 }}>{t.orderSummary}</h2>
             </div>
             <div style={{ padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
               {cart.plan && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", color: "#374151" }}>
                   <div>
-                    <div style={{ fontWeight: 500 }}>{cart.plan.name} plan</div>
-                    <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>14-day free trial</div>
+                    <div style={{ fontWeight: 500 }}>{t.planLabel(cart.plan.name)}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{t.freeTrial14}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div>{fmtEuro(planPrice)}/mo</div>
-                    <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>after trial</div>
+                    <div>{t.pricePerMonth(fmtEuro(planPrice))}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{t.afterTrial}</div>
                   </div>
                 </div>
               )}
@@ -326,12 +324,12 @@ export function CheckoutPageClient() {
 
               <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "0.75rem", marginTop: "0.25rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "0.9375rem", color: "#111827" }}>
-                  <span>Due today</span>
-                  <span style={{ color: "#16a34a" }}>€0</span>
+                  <span>{t.dueToday}</span>
+                  <span style={{ color: "#16a34a" }}>{fmtEuro(0)}</span>
                 </div>
                 {creditTotal > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "#6b7280", marginTop: "0.375rem" }}>
-                    <span>Credits (invoiced separately)</span>
+                    <span>{t.creditsInvoicedSeparately}</span>
                     <span>{fmtEuro(creditTotal)}</span>
                   </div>
                 )}
@@ -340,7 +338,7 @@ export function CheckoutPageClient() {
 
             <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #f3f4f6" }}>
               <Link href="/cart" style={{ fontSize: "0.8125rem", color: "#6b7280", textDecoration: "none" }}>
-                ← Edit cart
+                {t.editCart}
               </Link>
             </div>
           </div>

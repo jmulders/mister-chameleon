@@ -46,7 +46,16 @@
  *   --color-error-500
  *   --font-heading / --font-heading-weight
  *   --transition-base
+ *
+ * ─── Why this is a client component ───────────────────────────────────────────
+ *
+ *   The block is rendered from the server (ContentBlockRenderer) and from a
+ *   client component (the theme preview), so it cannot be an async server
+ *   component. Its own texts follow the site language, which a component that
+ *   serves both sides can only read through the useSiteLocale() hook.
  */
+
+"use client";
 
 import { Container }              from "@/components/primitives/Container";
 import { Section }                from "@/components/primitives/Section";
@@ -56,6 +65,8 @@ import type { ApplyPanelVariant } from "@/page-config/block-variants";
 import type { ApplyPanelBlockData } from "@/page-config";
 import { FormSectionBlock }       from "@/components/blocks/sections/FormSectionBlock";
 import { isFormKey }              from "@/forms";
+import { useSiteLocale }          from "@/components/site/SiteLocale";
+import { FORM_TEXTS }             from "@/lib/site-texts/forms";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -80,13 +91,14 @@ function daysUntil(iso: string): number | null {
 }
 
 function UrgencyCallout({ closingDate }: { closingDate: string }) {
+  const t    = FORM_TEXTS[useSiteLocale()].applyPanel;
   const days = daysUntil(closingDate);
   if (days === null || days > 14 || days < 0) return null;
 
   const message =
-    days === 0 ? "Applications close today."
-    : days === 1 ? "Applications close tomorrow."
-    : `Applications close in ${days} days.`;
+    days === 0 ? t.closesToday
+    : days === 1 ? t.closesTomorrow
+    : t.closesIn(days);
 
   return (
     <div
@@ -187,8 +199,9 @@ function SecondaryButton({ label, href }: { label: string; href: string }) {
 
 export function ApplyPanelBlock({ data, variant: rawVariant }: ApplyPanelBlockProps) {
   const variant = resolveBlockVariant("applyPanel", rawVariant) as ApplyPanelVariant;
+  const t       = FORM_TEXTS[useSiteLocale()].applyPanel;
 
-  const heading = data.heading ?? "Apply for this role";
+  const heading = data.heading ?? t.heading;
   const body    = data.body;
 
   // If formKey is valid, render the form inline.
@@ -206,7 +219,7 @@ export function ApplyPanelBlock({ data, variant: rawVariant }: ApplyPanelBlockPr
             formKey:      data.formKey!,
             title:        heading,
             intro:        body,
-            submitLabel:  "Submit application",
+            submitLabel:  t.submit,
           }}
           variant="minimal"
         />
@@ -261,7 +274,7 @@ export function ApplyPanelBlock({ data, variant: rawVariant }: ApplyPanelBlockPr
         )}
         {!data.primaryCta && !data.secondaryCta && (
           <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", margin: 0 }}>
-            No application link configured.
+            {t.noLink}
           </p>
         )}
       </div>

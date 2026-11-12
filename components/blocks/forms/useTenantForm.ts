@@ -26,6 +26,8 @@ import type { ResolvedForm } from "@/forms/context/types";
 import { trackEvent } from "@/tracking/track-event";
 import { pushToJourneyStore, generateEventId, getJourneyStoreVisitorId } from "@/tracking/journey-store";
 import { hasConsent } from "@/tracking/consent-store";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { FORM_TEXTS } from "@/lib/site-texts/forms";
 
 export type SubmitState =
   | { status: "idle" }
@@ -37,8 +39,6 @@ export type SubmitState =
 function isResponseShape(value: unknown): value is { ok: boolean } {
   return typeof value === "object" && value !== null && "ok" in value;
 }
-
-const DEFAULT_SUCCESS = "Thank you. Your submission has been received.";
 
 export interface UseTenantFormResult {
   resolvedForm:  ResolvedForm | null;
@@ -66,7 +66,12 @@ export function useTenantForm(
   const pathname = usePathname();
   const router   = useRouter();
 
-  const formDef = isFormKey(formKey) ? getFormDefinition(formKey) : undefined;
+  // Site language: the built-in form's own thank-you text and the error
+  // messages below. Anything the CMS or the tenant provides still wins.
+  const siteLocale = useSiteLocale();
+  const t          = FORM_TEXTS[siteLocale];
+
+  const formDef = isFormKey(formKey) ? getFormDefinition(formKey, siteLocale) : undefined;
 
   const [overlay, setOverlay] = useState<ResolvedForm | null>(null);
   useEffect(() => {
@@ -91,7 +96,7 @@ export function useTenantForm(
   const blockSuccessMessage   = opts?.blockSuccessMessage ?? opts?.fallbackSuccessMessage;
   const overlaySuccessMessage = overlay?.successMessage;
   const successMessage =
-    overlaySuccessMessage ?? blockSuccessMessage ?? formDef?.action.successMessage ?? DEFAULT_SUCCESS;
+    overlaySuccessMessage ?? blockSuccessMessage ?? formDef?.action.successMessage ?? t.defaultSuccess;
 
   // Post-submit target — see resolveRedirectTarget for the precedence rules.
   const redirectPath = resolveRedirectTarget({
@@ -130,7 +135,7 @@ export function useTenantForm(
       const json = await res.json() as unknown;
 
       if (!isResponseShape(json)) {
-        setSubmitState({ status: "error", message: "Submission failed. Please try again." });
+        setSubmitState({ status: "error", message: t.submissionFailed });
         return;
       }
       if (json.ok) {
@@ -154,12 +159,12 @@ export function useTenantForm(
         setErrorRevision((r) => r + 1);
         return;
       }
-      const errorMessage = "error" in json && typeof json.error === "string" ? json.error : "Submission failed. Please try again.";
+      const errorMessage = "error" in json && typeof json.error === "string" ? json.error : t.submissionFailed;
       setSubmitState({ status: "error", message: errorMessage });
     } catch {
-      setSubmitState({ status: "error", message: "Network error. Please check your connection and try again." });
+      setSubmitState({ status: "error", message: t.networkError });
     }
-  }, [formKey, redirectPath, successMessage, blockSuccessMessage, overlaySuccessMessage, router, fireFormEvent]);
+  }, [formKey, redirectPath, successMessage, blockSuccessMessage, overlaySuccessMessage, router, fireFormEvent, t]);
 
   return { resolvedForm: overlay, submitState, errorRevision, submit, fireFormEvent, successMessage, redirectPath };
 }

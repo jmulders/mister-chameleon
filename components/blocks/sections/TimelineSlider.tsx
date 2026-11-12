@@ -24,6 +24,8 @@ import { Container }              from "@/components/primitives/Container";
 import { Section }                from "@/components/primitives/Section";
 import { Text }                   from "@/components/primitives/Text";
 import type { TimelineBlockData } from "@/page-config";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
 
 interface TimelineSliderProps {
   data:     TimelineBlockData;
@@ -78,6 +80,7 @@ interface SliderMediaProps {
 }
 
 function SliderMedia({ mediaType, mediaUrl, posterUrl, autoPlay, loop, alt }: SliderMediaProps) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
   if (!mediaType || !mediaUrl) {
     // Placeholder when no media is configured
     return (
@@ -94,7 +97,7 @@ function SliderMedia({ mediaType, mediaUrl, posterUrl, autoPlay, loop, alt }: Sl
           fontSize:        "0.875rem",
         }}
       >
-        Geen media
+        {t.noMedia}
       </div>
     );
   }
@@ -156,7 +159,7 @@ function SliderMedia({ mediaType, mediaUrl, posterUrl, autoPlay, loop, alt }: Sl
       // reliably re-trigger autoplay.
       key={src}
       src={src}
-      title={alt ?? "Video"}
+      title={alt ?? t.video}
       allow="autoplay; fullscreen"
       allowFullScreen
       style={{
@@ -172,6 +175,7 @@ function SliderMedia({ mediaType, mediaUrl, posterUrl, autoPlay, loop, alt }: Sl
 // ── Main slider component ─────────────────────────────────────────────────────
 
 export function TimelineSlider({ data, surface }: TimelineSliderProps) {
+  const t = BLOCK_TEXTS[useSiteLocale()];
   const { heading, items } = data;
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -320,7 +324,7 @@ export function TimelineSlider({ data, surface }: TimelineSliderProps) {
             {/* Prev button */}
             <button
               onClick={prev}
-              aria-label="Vorig item"
+              aria-label={t.previousItem}
               style={{
                 flexShrink:      0,
                 width:           "2.75rem",
@@ -358,7 +362,7 @@ export function TimelineSlider({ data, surface }: TimelineSliderProps) {
                   <button
                     key={item.id}
                     onClick={() => setActiveIndex(idx)}
-                    aria-label={`Ga naar ${label}`}
+                    aria-label={t.goTo(label)}
                     aria-current={isActive ? "true" : undefined}
                     style={{
                       flex:            "1 1 0",
@@ -420,7 +424,7 @@ export function TimelineSlider({ data, surface }: TimelineSliderProps) {
             {/* Next button */}
             <button
               onClick={next}
-              aria-label="Volgend item"
+              aria-label={t.nextItem}
               style={{
                 flexShrink:      0,
                 width:           "2.75rem",

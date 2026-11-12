@@ -37,9 +37,13 @@ import { FooterCorporate }   from "./footer/FooterCorporate";
 import { FooterBranding }    from "./footer/FooterBranding";
 import { FooterMinimal }     from "./footer/FooterMinimal";
 import { FooterBottomStrip } from "./footer/FooterBottomStrip";
+import { getSiteLocale }     from "@/lib/site-texts/server";
 
 export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChrome | null } = {}) {
   const activeTenant = await getActiveTenant();
+  // The footer variants are plain components (the theme preview renders them on
+  // the client too), so they take the language of their fixed words as a prop.
+  const siteLocale   = await getSiteLocale();
   // (cached resilient tenant lookup — see Header.tsx / tenant-store.ts)
 
   // Resolve tenant settings first so we can pass the CMS preference to the
@@ -119,6 +123,7 @@ export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChro
       data={footerBottom}
       socialLinks={bottomStripSocial}
       year={year}
+      locale={siteLocale}
     />
   ) : null;
 
@@ -133,6 +138,7 @@ export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChro
           socialLinks={socialLinks}
           year={year}
           density={footerDensity}
+          locale={siteLocale}
         />
         {bottomStrip}
       </>
@@ -148,6 +154,7 @@ export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChro
           footerNav={footerNav}
           year={year}
           density={footerDensity}
+          locale={siteLocale}
         />
         {bottomStrip}
       </>
@@ -168,6 +175,7 @@ export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChro
         socialLinks={socialLinks}
         year={year}
         density={footerDensity}
+        locale={siteLocale}
       />
       {bottomStrip}
     </>

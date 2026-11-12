@@ -104,6 +104,8 @@ import {
 import { loadTenantFormOverrides }      from "@/forms/load-tenant-form-overrides";
 import { resolveContextualForm }         from "@/forms/context/load";
 import { resolveSubmissionPageUrl }      from "@/forms/submission-page";
+import { getSiteLocale }                 from "@/lib/site-texts/server";
+import { FORM_TEXTS }                    from "@/lib/site-texts/forms";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -141,7 +143,12 @@ export async function POST(
     res = await handlePost(request, ctx);
   } catch (err) {
     logger.error("[forms] Unhandled error", { err: err instanceof Error ? err.message : String(err) });
-    res = NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
+    // Shown to the visitor in the form's error banner. Same language rule as
+    // in handlePost: the site language, English for a snippet submission.
+    const locale = request.headers.get("x-mc-site-key")?.trim()
+      ? "en"
+      : await getSiteLocale().catch(() => "en" as const);
+    res = NextResponse.json({ ok: false, error: FORM_TEXTS[locale].server.error }, { status: 500 });
   }
   for (const [k, v] of Object.entries(FORM_CORS)) res.headers.set(k, v);
   return res;
@@ -232,6 +239,15 @@ async function handlePost(
   const resolvedKey = resolveFormKey(formKey);
   const formDef = resolvedKey ? getFormDefinition(resolvedKey) : null;
 
+  // What the submitter reads back (field errors, the thank-you text, the
+  // confirmation mail) follows the site language. `formDef` itself stays the
+  // English definition: it drives the notification to the tenant's own inbox.
+  // A snippet submission (site key) comes from a form the snippet rendered in
+  // English on someone else's site, so that one stays English.
+  const siteLocale     = siteKey ? "en" : await getSiteLocale();
+  const t              = FORM_TEXTS[siteLocale];
+  const visitorFormDef = resolvedKey ? getFormDefinition(resolvedKey, siteLocale) : null;
+
   // ── 1d. Fall back to CMS-managed form definition ─────────────────────────
   const cmsForm = !formDef
     ? await fetchCMSFormByName(formKey, tenantId)
@@ -248,8 +264,8 @@ async function handlePost(
   const formOverride = await formOverridePromise;
 
   // Derive fields for validation — FormField[] (platform) or converted CMS fields.
-  const fieldsForValidation = formDef
-    ? formDef.fields
+  const fieldsForValidation = visitorFormDef
+    ? visitorFormDef.fields
     : toPlatformFields(cmsForm!.fields);
 
   // ── 2. Parse request body ─────────────────────────────────────────────────
@@ -284,9 +300,9 @@ async function handlePost(
   //     Return a fake success so the bot cannot detect it was blocked.
   if (checkHoneypot(body)) {
     const fakeMessage =
-      formDef?.action.successMessage ??
+      visitorFormDef?.action.successMessage ??
       cmsForm?.successMessage ??
-      "Thank you — your submission has been received.";
+      t.server.received;
     return NextResponse.json({ ok: true, message: fakeMessage }, { status: 200 });
   }
 
@@ -296,7 +312,7 @@ async function handlePost(
   const rateResult = checkRateLimit(clientIp, formKey);
   if (!rateResult.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Too many submissions. Please try again later." },
+      { ok: false, error: t.server.tooManySubmissions },
       {
         status:  429,
         headers: { "Retry-After": String(rateResult.retryAfterSeconds) },
@@ -314,7 +330,7 @@ async function handlePost(
       const passed = await verifyTurnstile(body["cf-turnstile-response"] ?? "", secret, clientIp);
       if (!passed) {
         return NextResponse.json(
-          { ok: false, error: "Captcha verification failed. Please try again." },
+          { ok: false, error: t.server.captchaFailed },
           { status: 403 },
         );
       }
@@ -341,7 +357,7 @@ async function handlePost(
         path:  refUrl?.pathname,
         query: ctxQuery,
         country,
-      });
+      }, siteLocale);
       if (resolved) {
         effectiveFields  = resolved.fields;
         contextualSuccess = resolved.successMessage;
@@ -352,7 +368,7 @@ async function handlePost(
   }
 
   // ── 4. Validate against the (possibly segment-specific) field set ─────────
-  const validation = validateSubmission(effectiveFields, body);
+  const validation = validateSubmission(effectiveFields, body, siteLocale);
 
   if (!validation.ok) {
     return NextResponse.json(
@@ -530,7 +546,8 @@ async function handlePost(
       (effectiveConfirm && formDef.action.sendConfirmation)
         ? (async () => {
             const staticSend = () => dispatchSubmitterConfirmation({
-              formDef, values: validation.values, tenantTransport, platformEmailConfig,
+              formDef: visitorFormDef ?? formDef,
+              values: validation.values, tenantTransport, platformEmailConfig,
             });
             // Adaptive confirmation: when the form type maps to an adaptive email
             // template (contact -> contact_followup, etc.) AND the tenant has
@@ -619,8 +636,8 @@ async function handlePost(
     contextualSuccess ??
     tenantFormSettings.successMessage ??
     cmsForm?.successMessage ??
-    formDef?.action.successMessage ??
-    "Thank you — your submission has been received.";
+    visitorFormDef?.action.successMessage ??
+    t.server.received;
 
   const success = NextResponse.json({ ok: true, message }, { status: 200 });
 

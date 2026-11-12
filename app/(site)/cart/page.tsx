@@ -11,11 +11,16 @@
 
 import type { Metadata }     from "next";
 import { CartPageClient }    from "./_components/CartPageClient";
+import { getSiteLocale }     from "@/lib/site-texts/server";
+import { SHOP_TEXTS }        from "@/lib/site-texts/shop";
 
-export const metadata: Metadata = {
-  title:  "Your cart — Mister Chameleon",
-  robots: { index: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = SHOP_TEXTS[await getSiteLocale()];
+  return {
+    title:  t.metaCartTitle,
+    robots: { index: false },
+  };
+}
 
 export default function CartPage() {
   return <CartPageClient />;

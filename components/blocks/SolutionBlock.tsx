@@ -5,6 +5,8 @@ import { Grid } from "@/components/primitives/Grid";
 import { Text } from "@/components/primitives/Text";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 /**
  * SolutionBlock
@@ -27,40 +29,30 @@ export interface SolutionBlockProps {
   headline?: string;
   subheadline?: string;
   features?: FeatureCard[];
+  /** Language of the built-in copy. Defaults to English. */
+  locale?: SiteLocale;
 }
 
-const defaults: Required<SolutionBlockProps> = {
-  label: "How it works",
-  headline: "Three steps to adaptive.",
-  subheadline:
-    "No code changes, no data science team. Just connect, configure, and let Chameleon decide.",
-  features: [
-    {
-      step: 1,
-      icon: "🔌",
-      title: "Connect your sources",
-      description:
-        "Install the snippet or connect via API. Chameleon starts collecting visitor signals — UTM params, referrers, geo, device, and more — immediately.",
-    },
-    {
-      step: 2,
-      icon: "🎨",
-      title: "Define your experiences",
-      description:
-        "Use the visual editor to create content variants. Each experience is a complete page configuration — headline, copy, CTA, even layout.",
-    },
-    {
-      step: 3,
-      icon: "🦎",
-      title: "Let Chameleon decide",
-      description:
-        "The rule engine evaluates every visitor in real time and serves the best-match experience. You see the results in the analytics dashboard.",
-    },
-  ],
-};
+const STEP_ICONS = ["🔌", "🎨", "🦎"] as const;
 
-export function SolutionBlock(props: SolutionBlockProps) {
-  const { label, headline, subheadline, features } = { ...defaults, ...props };
+/** The built-in copy, in the given language. Props override it per field. */
+function defaultsFor(locale: SiteLocale): Required<Omit<SolutionBlockProps, "locale">> {
+  const d = BLOCK_TEXTS[locale].solutionDefaults;
+  return {
+    label:       d.label,
+    headline:    d.headline,
+    subheadline: d.subheadline,
+    features:    d.features.map((f, i) => ({
+      step:        i + 1,
+      icon:        STEP_ICONS[i],
+      title:       f.title,
+      description: f.description,
+    })),
+  };
+}
+
+export function SolutionBlock({ locale = "en", ...props }: SolutionBlockProps) {
+  const { label, headline, subheadline, features } = { ...defaultsFor(locale), ...props };
 
   return (
     <Section spacing="lg" style={{ background: "var(--section-subtle-bg)" }}>

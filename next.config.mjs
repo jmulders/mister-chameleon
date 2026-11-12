@@ -288,6 +288,10 @@ const nextConfig = {
     const siteMoves = [
       ["/pricing",   "/prijzen"],
       ["/book-demo", "/demo"],
+      // The example cases no longer carry the name of an existing company.
+      ["/cases/case-payt",         "/cases/voorbeeld-saas-facturatie"],
+      ["/cases/case-sendcloud",    "/cases/voorbeeld-verzendplatform"],
+      ["/cases/case-indie-agency", "/cases/voorbeeld-bureau"],
     ].map(([source, destination]) => ({ source, destination, permanent: true, has: marketingHost }));
 
     // The Dutch booking page used to be /nl/book-demo. That page is gone on

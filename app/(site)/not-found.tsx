@@ -12,8 +12,12 @@ import { Container } from "@/components/primitives/Container";
 import { Section } from "@/components/primitives/Section";
 import { Stack } from "@/components/primitives/Stack";
 import { Text } from "@/components/primitives/Text";
+import { getSiteLocale } from "@/lib/site-texts/server";
+import { PAGE_TEXTS } from "@/lib/site-texts/pages";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = PAGE_TEXTS[await getSiteLocale()].notFound;
+
   return (
     <main>
       <Section
@@ -47,7 +51,7 @@ export default function NotFound() {
               align="center"
               balance
             >
-              Page not found
+              {t.title}
             </Text>
 
             {/* Supporting copy */}
@@ -57,9 +61,7 @@ export default function NotFound() {
               align="center"
               className="max-w-sm text-neutral-400"
             >
-              The page you&apos;re looking for doesn&apos;t exist or has been
-              moved. Head back to the homepage and we&apos;ll get you back on
-              track.
+              {t.body}
             </Text>
 
             {/* Return home CTA */}
@@ -67,7 +69,7 @@ export default function NotFound() {
               href="/"
               className="mt-2 inline-flex items-center justify-center rounded-lg bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
             >
-              Back to homepage
+              {t.cta}
             </Link>
           </Stack>
         </Container>

@@ -11,6 +11,8 @@ export type ConsentLocale = "nl" | "en";
 
 export interface ConsentTexts {
   banner: {
+    /** aria-label of the banner dialog. */
+    dialogLabel:   string;
     title:         string;
     description:   string;
     essentialLabel: string;
@@ -47,6 +49,7 @@ export interface ConsentTexts {
 
 const EN: ConsentTexts = {
   banner: {
+    dialogLabel:    "Cookie consent",
     title:          "We value your privacy",
     description:    "We use cookies to improve your experience, analyze traffic, and show relevant content. You can choose which types of cookies you allow.",
     essentialLabel: "Essential",
@@ -88,6 +91,7 @@ const EN: ConsentTexts = {
 
 const NL: ConsentTexts = {
   banner: {
+    dialogLabel:    "Cookiekeuze",
     title:          "Jij kiest welke cookies we plaatsen",
     description:    "We gebruiken cookies om de site te laten werken, bezoek te meten en je relevante content te tonen. Je kiest zelf welke soorten je toestaat.",
     essentialLabel: "Essentieel",

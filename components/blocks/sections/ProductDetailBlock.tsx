@@ -28,6 +28,8 @@ import { Text }      from "@/components/primitives/Text";
 import { Grid }      from "@/components/primitives/Grid";
 import { Button }    from "@/components/ui/Button";
 import type { ProductDetailBlockData, ProductCardItem } from "@/page-config";
+import { BLOCK_TEXTS, type BlockTexts } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Badge pill ────────────────────────────────────────────────────────────────
 
@@ -50,9 +52,11 @@ function BadgePill({ label }: { label: string }) {
 function GalleryPanel({
   images,
   title,
+  t,
 }: {
   images: readonly { url: string; alt: string }[];
   title:  string;
+  t:      BlockTexts;
 }) {
   const [hero, ...thumbs] = images;
   if (!hero) {
@@ -65,7 +69,7 @@ function GalleryPanel({
           borderRadius: "var(--card-radius)",
           border: "1px solid var(--border)",
         }}
-        aria-label={`${title} product image placeholder`}
+        aria-label={t.productImagePlaceholder(title)}
       >
         <span className="text-5xl opacity-30" aria-hidden="true">🖼</span>
       </div>
@@ -96,7 +100,7 @@ function GalleryPanel({
             >
               <img
                 src={img.url}
-                alt={img.alt || `${title} image ${i + 2}`}
+                alt={img.alt || t.productImageN(title, i + 2)}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -183,7 +187,7 @@ function RelatedProductCard({ product }: { product: ProductCardItem }) {
 
 // ── Copy panel (right column) ─────────────────────────────────────────────────
 
-function CopyPanel({ data }: { data: ProductDetailBlockData }) {
+function CopyPanel({ data, t }: { data: ProductDetailBlockData; t: BlockTexts }) {
   const { title, description, price, badge, specs, cta, secondaryCta } = data;
   return (
     <Stack gap={6}>
@@ -241,7 +245,7 @@ function CopyPanel({ data }: { data: ProductDetailBlockData }) {
             className="uppercase tracking-wider font-semibold"
             color="muted"
           >
-            Specifications
+            {t.specifications}
           </Text>
           <SpecsTable specs={specs} />
         </Stack>
@@ -255,9 +259,12 @@ function CopyPanel({ data }: { data: ProductDetailBlockData }) {
 interface ProductDetailBlockProps {
   data:     ProductDetailBlockData;
   variant?: string;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
-export function ProductDetailBlock({ data, variant }: ProductDetailBlockProps) {
+export function ProductDetailBlock({ data, variant, locale = "en" }: ProductDetailBlockProps) {
+  const t = BLOCK_TEXTS[locale];
   const { relatedProducts } = data;
   const resolved = variant ?? "product_detail_default";
   const gallery  = data.gallery ?? [];
@@ -271,13 +278,13 @@ export function ProductDetailBlock({ data, variant }: ProductDetailBlockProps) {
           <Stack gap={12}>
             {gallery.length > 0 && (
               <div className="max-w-lg mx-auto w-full">
-                <GalleryPanel images={gallery} title={data.title} />
+                <GalleryPanel images={gallery} title={data.title} t={t} />
               </div>
             )}
-            <CopyPanel data={data} />
+            <CopyPanel data={data} t={t} />
             {relatedProducts && relatedProducts.length > 0 && (
               <Stack gap={6}>
-                <Text variant="h3">Related Products</Text>
+                <Text variant="h3">{t.relatedProducts}</Text>
                 <Grid cols={3} gap="md">
                   {relatedProducts.map((p) => (
                     <RelatedProductCard key={p.title} product={p} />
@@ -300,15 +307,15 @@ export function ProductDetailBlock({ data, variant }: ProductDetailBlockProps) {
           {/* 2-col split */}
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
             {/* Gallery */}
-            <GalleryPanel images={gallery} title={data.title} />
+            <GalleryPanel images={gallery} title={data.title} t={t} />
             {/* Copy */}
-            <CopyPanel data={data} />
+            <CopyPanel data={data} t={t} />
           </div>
 
           {/* Related products */}
           {relatedProducts && relatedProducts.length > 0 && (
             <Stack gap={6}>
-              <Text variant="h3">Related Products</Text>
+              <Text variant="h3">{t.relatedProducts}</Text>
               <Grid cols={3} gap="md">
                 {relatedProducts.map((p) => (
                   <RelatedProductCard key={p.title} product={p} />

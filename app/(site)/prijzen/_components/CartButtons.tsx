@@ -22,6 +22,8 @@
 
 import { useRouter }            from "next/navigation";
 import { useCart, type PlanId } from "@/lib/cart/cart-context";
+import { useSiteLocale }        from "@/components/site/SiteLocale";
+import { SHOP_TEXTS }           from "@/lib/site-texts/shop";
 
 // ── Shared colours ────────────────────────────────────────────────────────────
 
@@ -31,6 +33,11 @@ const BTN_SECONDARY =
   "block w-full rounded-xl py-2.5 text-center text-sm font-semibold transition-colors bg-neutral-900 text-white hover:bg-neutral-700";
 
 // ── Plan price catalogue (mirrors CartSummaryBlock + billing/plans.ts) ─────────
+//
+// This is what the cart stores, and the cart outlives a language switch. So
+// `period` stays "/month" here; the cart page turns it into words in the
+// visitor's language (SHOP_TEXTS.periodAfterTrial). Plan names are not
+// translated.
 
 const PLAN_PRICES: Record<PlanId, { name: string; priceCents: number; period: string }> = {
   starter: { name: "Starter",      priceCents: 14900, period: "/month" },
@@ -49,8 +56,9 @@ interface PlanCartButtonProps {
 export function PlanCartButton({
   planId,
   isPopular = false,
-  label     = "Start free trial",
+  label,
 }: PlanCartButtonProps) {
+  const t           = SHOP_TEXTS[useSiteLocale()];
   const { setPlan } = useCart();
   const router      = useRouter();
 
@@ -65,7 +73,7 @@ export function PlanCartButton({
       onClick={handleClick}
       className={isPopular ? BTN_PRIMARY : BTN_SECONDARY}
     >
-      {label}
+      {label ?? t.planButton}
     </button>
   );
 }
@@ -88,8 +96,9 @@ export function CreditCartButton({
   priceCentsEach,
   creditsEach,
   style       = "outline",
-  buttonLabel = "Add to cart",
+  buttonLabel,
 }: CreditCartButtonProps) {
+  const t                   = SHOP_TEXTS[useSiteLocale()];
   const { addCreditBundle } = useCart();
   const router              = useRouter();
 
@@ -118,7 +127,7 @@ export function CreditCartButton({
       onClick={handleClick}
       className={className}
     >
-      {buttonLabel}
+      {buttonLabel ?? t.addToCart}
     </button>
   );
 }

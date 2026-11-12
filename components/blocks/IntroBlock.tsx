@@ -4,6 +4,8 @@ import { Stack } from "@/components/primitives/Stack";
 import { Grid } from "@/components/primitives/Grid";
 import { Text } from "@/components/primitives/Text";
 import { Badge } from "@/components/ui/Badge";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 /**
  * IntroBlock
@@ -23,21 +25,25 @@ export interface IntroBlockProps {
   headline?: string;
   body?: string;
   points?: ProblemPoint[];
+  /** Language of the built-in copy. Defaults to English. */
+  locale?: SiteLocale;
 }
 
-const defaults: Required<IntroBlockProps> = {
-  label: "The problem",
-  headline: "One website can't speak to everyone.",
-  body: "Marketing teams spend weeks crafting the perfect message — then serve it identically to every visitor, regardless of where they came from, what device they're using, or what they actually need.",
-  points: [
-    { icon: "📡", text: "Traffic from 10+ sources lands on one generic page" },
-    { icon: "💸", text: "Your best leads leave before they see your real value" },
-    { icon: "🛠", text: "True personalisation takes months of engineering" },
-  ],
-};
+const POINT_ICONS = ["📡", "💸", "🛠"] as const;
 
-export function IntroBlock(props: IntroBlockProps) {
-  const { label, headline, body, points } = { ...defaults, ...props };
+/** The built-in copy, in the given language. Props override it per field. */
+function defaultsFor(locale: SiteLocale): Required<Omit<IntroBlockProps, "locale">> {
+  const d = BLOCK_TEXTS[locale].introDefaults;
+  return {
+    label:    d.label,
+    headline: d.headline,
+    body:     d.body,
+    points:   d.points.map((text, i) => ({ icon: POINT_ICONS[i], text })),
+  };
+}
+
+export function IntroBlock({ locale = "en", ...props }: IntroBlockProps) {
+  const { label, headline, body, points } = { ...defaultsFor(locale), ...props };
 
   return (
     <Section spacing="lg" style={{ background: "var(--section-subtle-bg)" }}>

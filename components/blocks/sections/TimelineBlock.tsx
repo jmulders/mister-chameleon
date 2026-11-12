@@ -209,7 +209,7 @@ export function TimelineBlock({ data, variant: rawVariant, surface }: TimelineBl
                 lineHeight: "1.5",
               }}
             >
-              <strong style={{ display: "block", marginBottom: "0.25rem" }}>Timeline</strong>
+              <strong style={{ display: "block", marginBottom: "0.25rem" }}>Tijdlijn</strong>
               Voeg milestones toe in de editor
             </div>
           </Container>

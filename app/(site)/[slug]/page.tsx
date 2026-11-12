@@ -67,8 +67,12 @@ import type { Metadata } from "next";
 import { createCMSProvider, createPreviewCMSProvider, createDraftStatamicProvider } from "@/cms";
 import { mapPageDataToPageConfig }   from "@/cms/mappers/page-config-mapper";
 import { TemplateRenderer }          from "@/components/platform/TemplateRenderer";
+import { getSiteLocale } from "@/lib/site-texts/server";
+import { PAGE_TEXTS } from "@/lib/site-texts/pages";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
+import { pageNeedsTitleHeading } from "@/lib/page-title";
+import { PageTitleHeader }       from "@/components/site/PageTitleHeader";
 import { resolveSlugPageConfig }     from "@/lib/cms-page-decision";
 import { AbmKnownLeadDebugBadge }    from "@/components/blocks/AbmKnownLeadDebugBadge";
 import type { SlugPageConfigResult } from "@/lib/cms-page-decision";
@@ -243,7 +247,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   }
 
   if (!page) {
-    return { title: "Page not found" };
+    return { title: PAGE_TEXTS[await getSiteLocale()].missing.page };
   }
 
   return {
@@ -440,6 +444,10 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
   return (
     <main>
       <AbmKnownLeadDebugBadge tenant={tenant} hasSlots={finalPageConfig.contextSlots.length > 0} />
+      {/* A page without a hero has no h1 of its own: its title becomes the heading. */}
+      {pageNeedsTitleHeading(finalPageConfig.contextSlots, finalPageConfig.contentBlocks) && page.title && (
+        <PageTitleHeader title={page.title} />
+      )}
       <TemplateRenderer
         pageConfig={finalPageConfig}
         tokenContext={tokenContext ?? undefined}

@@ -28,6 +28,8 @@
 
 import type { CSSProperties } from "react";
 import type { SearchResult, SearchResultMeta } from "@/search";
+import type { SiteLocale } from "@/lib/site-texts/locale";
+import { SEARCH_TEXTS } from "@/lib/site-texts/search";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -40,20 +42,20 @@ export interface SearchResultCardProps {
   layout?:      SearchResultCardLayout;
   /** Heading level for the result title; defaults to 3 */
   headingLevel?: 2 | 3 | 4;
+  /**
+   * Language of the type badge. This card has no "use client" of its own, so
+   * the caller hands the site locale down. Defaults to English.
+   */
+  locale?:      SiteLocale;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type badge
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<string, string> = {
-  page:     "Page",
-  post:     "Post",
-  vacancy:  "Vacancy",
-};
-
-function TypeBadge({ type }: { type: string }) {
-  const label = TYPE_LABELS[type] ?? type;
+function TypeBadge({ type, locale }: { type: string; locale: SiteLocale }) {
+  const labels: Record<string, string> = SEARCH_TEXTS[locale].block.typeBadges;
+  const label = labels[type] ?? type;
   return (
     <span style={{
       display:         "inline-block",
@@ -154,9 +156,11 @@ function Excerpt({
 function CardLayout({
   result,
   headingLevel,
+  locale,
 }: {
   result:       SearchResult;
   headingLevel: 2 | 3 | 4;
+  locale:       SiteLocale;
 }) {
   const H = `h${headingLevel}` as "h2" | "h3" | "h4";
 
@@ -190,7 +194,7 @@ function CardLayout({
         </div>
       )}
       <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1 }}>
-        <TypeBadge type={result.type} />
+        <TypeBadge type={result.type} locale={locale} />
         <H style={{
           margin:     0,
           fontSize:   "1rem",
@@ -220,9 +224,11 @@ function CardLayout({
 function RowLayout({
   result,
   headingLevel,
+  locale,
 }: {
   result:       SearchResult;
   headingLevel: 2 | 3 | 4;
+  locale:       SiteLocale;
 }) {
   const H = `h${headingLevel}` as "h2" | "h3" | "h4";
 
@@ -250,7 +256,7 @@ function RowLayout({
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-          <TypeBadge type={result.type} />
+          <TypeBadge type={result.type} locale={locale} />
         </div>
         <H style={{
           margin:     0,
@@ -279,9 +285,11 @@ function RowLayout({
 function CompactLayout({
   result,
   headingLevel,
+  locale,
 }: {
   result:       SearchResult;
   headingLevel: 2 | 3 | 4;
+  locale:       SiteLocale;
 }) {
   const H = `h${headingLevel}` as "h2" | "h3" | "h4";
 
@@ -300,7 +308,7 @@ function CompactLayout({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.125rem" }}>
-        <TypeBadge type={result.type} />
+        <TypeBadge type={result.type} locale={locale} />
       </div>
       <H style={{
         margin:     0,
@@ -328,14 +336,15 @@ export function SearchResultCard({
   result,
   layout = "row",
   headingLevel = 3,
+  locale = "en",
 }: SearchResultCardProps) {
   switch (layout) {
     case "card":
-      return <CardLayout result={result} headingLevel={headingLevel} />;
+      return <CardLayout result={result} headingLevel={headingLevel} locale={locale} />;
     case "compact":
-      return <CompactLayout result={result} headingLevel={headingLevel} />;
+      return <CompactLayout result={result} headingLevel={headingLevel} locale={locale} />;
     case "row":
     default:
-      return <RowLayout result={result} headingLevel={headingLevel} />;
+      return <RowLayout result={result} headingLevel={headingLevel} locale={locale} />;
   }
 }

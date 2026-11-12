@@ -38,6 +38,8 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { NavigationItemData } from "@/cms/types";
 import { useMenuState } from "./useMenuState";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -73,6 +75,7 @@ interface GridItemProps {
 }
 
 function GridItem({ item, density }: GridItemProps) {
+  const t = LAYOUT_TEXTS[useSiteLocale()];
   const {
     open,
     setOpen,
@@ -144,7 +147,7 @@ function GridItem({ item, density }: GridItemProps) {
         {/* Chevron-only submenu toggle — does NOT navigate */}
         <button
           ref={triggerRef}
-          aria-label={`Toggle ${item.label} submenu`}
+          aria-label={t.toggleSubmenu(item.label)}
           aria-haspopup="true"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -226,10 +229,11 @@ function GridItem({ item, density }: GridItemProps) {
  * Renders only in the md+ breakpoint — hidden on mobile.
  */
 export function NavGrid({ items, density }: NavGridProps) {
+  const t = LAYOUT_TEXTS[useSiteLocale()];
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Main navigation" className="hidden md:flex items-center gap-0.5">
+    <nav aria-label={t.mainNav} className="hidden md:flex items-center gap-0.5">
       {items.map((item) => (
         <GridItem key={item.id} item={item} density={density} />
       ))}

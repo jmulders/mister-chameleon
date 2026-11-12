@@ -27,6 +27,8 @@ import type React          from "react";
 import { Container }        from "@/components/primitives/Container";
 import { Section }          from "@/components/primitives/Section";
 import type { MapBlockData } from "@/page-config";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -42,11 +44,14 @@ const DEFAULT_PHONE   = "+31 20 123 4567";
 interface MapBlockProps {
   data:     MapBlockData;
   variant?: string;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function MapBlock({ data }: MapBlockProps) {
+export function MapBlock({ data, locale = "en" }: MapBlockProps) {
+  const t = BLOCK_TEXTS[locale];
   const embedUrl = data.embedUrl ?? DEFAULT_EMBED_URL;
 
   const address = data.address
@@ -102,7 +107,7 @@ export function MapBlock({ data }: MapBlockProps) {
               allowFullScreen
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              title="Office location map"
+              title={t.mapTitle}
             />
           </div>
 
@@ -130,7 +135,7 @@ export function MapBlock({ data }: MapBlockProps) {
                   marginBottom:  "0.375rem",
                 }}
               >
-                Address
+                {t.address}
               </p>
               <address
                 style={{
@@ -156,7 +161,7 @@ export function MapBlock({ data }: MapBlockProps) {
                   marginBottom:  "0.375rem",
                 }}
               >
-                Email
+                {t.email}
               </p>
               <a
                 href={`mailto:${email}`}
@@ -182,7 +187,7 @@ export function MapBlock({ data }: MapBlockProps) {
                   marginBottom:  "0.375rem",
                 }}
               >
-                Phone
+                {t.phone}
               </p>
               <a
                 href={`tel:${phone.replace(/\s/g, "")}`}

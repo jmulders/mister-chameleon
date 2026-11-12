@@ -34,6 +34,8 @@
  */
 
 import type { FormField, FormFieldValidation } from "@/forms/types";
+import { FORM_TEXTS } from "@/lib/site-texts/forms";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -88,6 +90,7 @@ const URL_RE = /^https?:\/\/.+\..+/;
  *
  * @param field     - The FormField definition (provides label + validation rules).
  * @param rawValue  - The raw string value from the form submission.
+ * @param locale    - Language of the error message. Defaults to English.
  *                    undefined = field absent from submission body.
  *
  * @example
@@ -97,6 +100,7 @@ const URL_RE = /^https?:\/\/.+\..+/;
 export function validateField(
   field: FormField,
   rawValue: string | undefined,
+  locale:   SiteLocale = "en",
 ): string | null {
   const rules = field.validation;
   if (!rules) return null;
@@ -104,7 +108,7 @@ export function validateField(
   const value = typeof rawValue === "string" ? rawValue.trim() : "";
   const absent = value === "";
 
-  return applyRules(field.label, value, absent, rules);
+  return applyRules(field.label, value, absent, rules, locale);
 }
 
 function applyRules(
@@ -112,11 +116,13 @@ function applyRules(
   value:  string,
   absent: boolean,
   rules:  FormFieldValidation,
+  locale: SiteLocale,
 ): string | null {
+  const t = FORM_TEXTS[locale].validation;
 
   // 1. required — must be present and non-empty after trimming
   if (rules.required && absent) {
-    return `${label} is required.`;
+    return t.required(label);
   }
 
   // Remaining rules are only evaluated when the field is non-empty.
@@ -125,22 +131,22 @@ function applyRules(
 
   // 2. email — must be a plausible email address
   if (rules.email && !EMAIL_RE.test(value)) {
-    return `${label} must be a valid email address.`;
+    return t.email(label);
   }
 
   // 3. url — must be an absolute http/https URL (only checked when non-empty)
   if (rules.url && !URL_RE.test(value)) {
-    return `${label} must be a valid URL starting with http:// or https://.`;
+    return t.url(label);
   }
 
   // 4. minLength — minimum character count
   if (rules.minLength !== undefined && value.length < rules.minLength) {
-    return `${label} must be at least ${rules.minLength} characters.`;
+    return t.minLength(label, rules.minLength);
   }
 
   // 5. maxLength — maximum character count
   if (rules.maxLength !== undefined && value.length > rules.maxLength) {
-    return `${label} must be no more than ${rules.maxLength} characters.`;
+    return t.maxLength(label, rules.maxLength);
   }
 
   // 6. pattern — custom RegExp pattern
@@ -148,7 +154,7 @@ function applyRules(
     try {
       const re = new RegExp(rules.pattern);
       if (!re.test(value)) {
-        return rules.patternMessage ?? `${label} has an invalid format.`;
+        return rules.patternMessage ?? t.pattern(label);
       }
     } catch {
       // Malformed pattern in definition — skip rather than crash.
@@ -175,6 +181,7 @@ function applyRules(
  *
  * @param fields  - The ordered field definitions from the FormDefinition.
  * @param body    - The raw submission body (keyed by field.key → string).
+ * @param locale  - Language of the error messages. Defaults to English.
  *
  * @returns A ValidationResult — either { ok: true, values } or { ok: false, errors, values }.
  *
@@ -188,6 +195,7 @@ function applyRules(
 export function validateSubmission(
   fields: readonly FormField[],
   body:   Record<string, string>,
+  locale: SiteLocale = "en",
 ): ValidationResult {
   const errors: FieldErrors = {};
   const values: Record<string, string> = {};
@@ -208,7 +216,7 @@ export function validateSubmission(
     // and for re-populating client forms when errors are returned.
     values[field.key] = trimmed;
 
-    const error = validateField(field, rawValue);
+    const error = validateField(field, rawValue, locale);
     if (error !== null) {
       errors[field.key] = error;
     }

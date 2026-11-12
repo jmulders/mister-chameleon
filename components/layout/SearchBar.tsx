@@ -14,11 +14,13 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { SEARCH_TEXTS } from "@/lib/site-texts/search";
 
 interface SearchBarProps {
   /** Path of the search results page. Defaults to "/search". */
   searchHref?: string;
-  /** Placeholder text inside the input. */
+  /** Placeholder text inside the input. Defaults to the site-language text. */
   placeholder?: string;
   className?: string;
 }
@@ -41,9 +43,10 @@ function SearchIcon() {
 
 export function SearchBar({
   searchHref  = "/search",
-  placeholder = "Search…",
+  placeholder,
   className,
 }: SearchBarProps) {
+  const t = SEARCH_TEXTS[useSiteLocale()].bar;
   const [query, setQuery]   = useState("");
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +85,7 @@ export function SearchBar({
         {/* Icon — also acts as submit button */}
         <button
           type="submit"
-          aria-label="Search"
+          aria-label={t.submit}
           className={cn(
             "shrink-0 transition-colors",
             "text-[var(--text-muted)] hover:text-[var(--text-brand,var(--primary))]",
@@ -100,7 +103,7 @@ export function SearchBar({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t.placeholder}
           autoComplete="off"
           className={cn(
             "w-56 min-w-0 bg-transparent text-sm outline-none",

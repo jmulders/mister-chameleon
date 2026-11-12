@@ -84,6 +84,8 @@ import type {
   MegaMenuCtaData,
 } from "@/cms/types";
 import { useMenuState } from "./useMenuState";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 
 // ── Mega menu style variants ──────────────────────────────────────────────────
 
@@ -282,6 +284,7 @@ function MegaMediaItem({
   s:         ReturnType<typeof getStyle>;
   megaStyle: MegaMenuStyle;
 }) {
+  const t = LAYOUT_TEXTS[useSiteLocale()];
   const [isHovered, setIsHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -381,7 +384,7 @@ function MegaMediaItem({
     ) : (
       /* No asset — show a neutral placeholder */
       <div className="w-full h-full bg-[var(--bg-subtle,#f1f5f9)] flex items-center justify-center">
-        <span className="text-[var(--text-muted)] text-xs">No asset</span>
+        <span className="text-[var(--text-muted)] text-xs">{t.noAsset}</span>
       </div>
     );
 
@@ -784,6 +787,7 @@ interface RichMegaItemProps {
 }
 
 function RichMegaItem({ item, density, megaStyle }: RichMegaItemProps) {
+  const t = LAYOUT_TEXTS[useSiteLocale()];
   const {
     open,
     setOpen,
@@ -862,7 +866,7 @@ function RichMegaItem({ item, density, megaStyle }: RichMegaItemProps) {
         {/* Chevron-only toggle — does NOT navigate */}
         <button
           ref={triggerRef}
-          aria-label={`Toggle ${item.label} submenu`}
+          aria-label={t.toggleSubmenu(item.label)}
           aria-haspopup="true"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -1085,10 +1089,11 @@ export interface NavMegaRichProps {
  * MobileNav in NavBar handles mobile rendering separately.
  */
 export function NavMegaRich({ items, density, megaStyle = "clean-corporate" }: NavMegaRichProps) {
+  const t = LAYOUT_TEXTS[useSiteLocale()];
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Main navigation" className="hidden md:flex items-center gap-0.5">
+    <nav aria-label={t.mainNav} className="hidden md:flex items-center gap-0.5">
       {items.map((item) => (
         <RichMegaItem
           key={item.id}

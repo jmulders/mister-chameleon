@@ -54,21 +54,25 @@ import { Breadcrumbs }            from "@/components/molecules";
 import { resolveBlockVariant }    from "@/page-config/block-variants";
 import type { ArticleMetaVariant } from "@/page-config/block-variants";
 import type { ArticleMetaBlockData } from "@/page-config";
+import { BLOCK_TEXTS, type BlockTexts } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface ArticleMetaBlockProps {
   data:     ArticleMetaBlockData;
   variant?: string;
+  /** Language of the fixed words in this block. The renderer passes the site language. */
+  locale?:  SiteLocale;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, dateLocale: string): string {
   try {
     const [y, m, d] = iso.split("-").map(Number);
     if (!y || !m || !d) return iso;
-    return new Intl.DateTimeFormat("en", {
+    return new Intl.DateTimeFormat(dateLocale, {
       day: "numeric", month: "long", year: "numeric",
     }).format(new Date(y, m - 1, d));
   } catch {
@@ -104,9 +108,10 @@ interface MetaRowProps {
   updatedAt?:   string;
   readingTime?: number;
   tags?:        readonly string[];
+  t:            BlockTexts;
 }
 
-function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowProps) {
+function MetaRow({ author, publishedAt, updatedAt, readingTime, tags, t }: MetaRowProps) {
   const displayDate = updatedAt ?? publishedAt;
 
   return (
@@ -166,7 +171,7 @@ function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowP
       {/* Date */}
       {displayDate && (
         <time dateTime={displayDate}>
-          {updatedAt ? `Updated ${formatDate(updatedAt)}` : formatDate(publishedAt!)}
+          {updatedAt ? t.updatedOn(formatDate(updatedAt, t.dateLocale)) : formatDate(publishedAt!, t.dateLocale)}
         </time>
       )}
 
@@ -174,7 +179,7 @@ function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowP
       {readingTime && (
         <>
           <span aria-hidden style={{ opacity: 0.3 }}>·</span>
-          <span>{readingTime} min read</span>
+          <span>{t.readingTime(readingTime)}</span>
         </>
       )}
 
@@ -205,7 +210,8 @@ function MetaRow({ author, publishedAt, updatedAt, readingTime, tags }: MetaRowP
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlockProps) {
+export function ArticleMetaBlock({ data, variant: rawVariant, locale = "en" }: ArticleMetaBlockProps) {
+  const t = BLOCK_TEXTS[locale];
   const variant = resolveBlockVariant("articleMeta", rawVariant) as ArticleMetaVariant;
 
   // ── compact — meta row only, no title or cover image ──────────────────────
@@ -224,6 +230,7 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
                 publishedAt={data.publishedAt}
                 updatedAt={data.updatedAt}
                 readingTime={data.readingTime}
+                t={t}
               />
             </div>
           </Stack>
@@ -249,7 +256,7 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
           >
             <img
               src={data.coverImageUrl}
-              alt={data.coverImageAlt ?? data.title ?? "Article cover"}
+              alt={data.coverImageAlt ?? data.title ?? t.articleCover}
               loading="eager"
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
@@ -345,6 +352,7 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
                 updatedAt={data.updatedAt}
                 readingTime={data.readingTime}
                 tags={data.tags}
+                t={t}
               />
             </Stack>
           </Container>
@@ -370,7 +378,7 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
             >
               <img
                 src={data.coverImageUrl}
-                alt={data.coverImageAlt ?? data.title ?? "Article cover"}
+                alt={data.coverImageAlt ?? data.title ?? t.articleCover}
                 loading="eager"
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
@@ -415,6 +423,7 @@ export function ArticleMetaBlock({ data, variant: rawVariant }: ArticleMetaBlock
               updatedAt={data.updatedAt}
               readingTime={data.readingTime}
               tags={data.tags}
+              t={t}
             />
           </Stack>
         </Stack>

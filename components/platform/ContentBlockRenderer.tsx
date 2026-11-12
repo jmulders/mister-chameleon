@@ -81,6 +81,7 @@ import {
   VideoBlock,
 } from "@/components/blocks/sections";
 import { FloatingContactBlock } from "@/components/blocks/FloatingContactBlock";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,12 @@ interface ContentBlockRendererProps {
   blockTypeEffects?: Partial<Record<string, readonly BlockEffectConfig[]>> | null;
   /** Tenant-wide default effects, applied to blocks with no own effect ref. */
   defaultEffects?: readonly BlockEffectConfig[] | null;
+  /**
+   * Site language, for the fixed words of blocks that are plain components and
+   * so cannot read it themselves (they also render in the client-side theme
+   * preview). TemplateRenderer passes it. Defaults to English.
+   */
+  locale?: SiteLocale;
 }
 
 /**
@@ -109,8 +116,8 @@ interface ContentBlockRendererProps {
  *
  * Unknown block types return null — forward-compatible with registry growth.
  */
-export function ContentBlockRenderer({ block, blockTokenSets, effectSets, blockTypeEffects, defaultEffects }: ContentBlockRendererProps) {
-  const rendered = renderContentBlock(block);
+export function ContentBlockRenderer({ block, blockTokenSets, effectSets, blockTypeEffects, defaultEffects, locale = "en" }: ContentBlockRendererProps) {
+  const rendered = renderContentBlock(block, locale);
   if (!rendered) return null;
 
   // Anchor wrapper (in-page linking) is applied first, then the block-token
@@ -168,7 +175,7 @@ export function ContentBlockRenderer({ block, blockTokenSets, effectSets, blockT
   );
 }
 
-function renderContentBlock(block: ContentBlock) {
+function renderContentBlock(block: ContentBlock, locale: SiteLocale) {
   switch (block.blockType) {
 
     // ── text ──────────────────────────────────────────────────────────────────
@@ -196,7 +203,7 @@ function renderContentBlock(block: ContentBlock) {
       return <StatsBlock data={block.data} variant={block.variant} surface={block.surface} />;
 
     case "logoStrip":
-      return <LogoStripBlock data={block.data} variant={block.variant} surface={block.surface} />;
+      return <LogoStripBlock data={block.data} variant={block.variant} surface={block.surface} locale={locale} />;
 
     case "textMedia":
       return <TextMediaBlock data={block.data} variant={block.variant} surface={block.surface} />;
@@ -220,7 +227,7 @@ function renderContentBlock(block: ContentBlock) {
     // ── listing / detail ──────────────────────────────────────────────────────
 
     case "listing":
-      return <ListingBlock data={block.data} variant={block.variant} />;
+      return <ListingBlock data={block.data} variant={block.variant} locale={locale} />;
 
     case "filterBar":
       return <FilterBarBlock data={block.data} variant={block.variant} />;
@@ -231,16 +238,16 @@ function renderContentBlock(block: ContentBlock) {
     // ── article / vacancy detail ───────────────────────────────────────────────
 
     case "articleMeta":
-      return <ArticleMetaBlock data={block.data} variant={block.variant} />;
+      return <ArticleMetaBlock data={block.data} variant={block.variant} locale={locale} />;
 
     case "articleBody":
       return <ArticleBodyBlock data={block.data} variant={block.variant} />;
 
     case "relatedContent":
-      return <RelatedContentBlock data={block.data} variant={block.variant} />;
+      return <RelatedContentBlock data={block.data} variant={block.variant} locale={locale} />;
 
     case "vacancyMeta":
-      return <VacancyMetaBlock data={block.data} variant={block.variant} />;
+      return <VacancyMetaBlock data={block.data} variant={block.variant} locale={locale} />;
 
     case "applyPanel":
       return <ApplyPanelBlock data={block.data} variant={block.variant} />;
@@ -261,7 +268,7 @@ function renderContentBlock(block: ContentBlock) {
     // ── conversion / pricing ──────────────────────────────────────────────────
 
     case "pricingSection":
-      return <PricingSectionBlock data={block.data} variant={block.variant} />;
+      return <PricingSectionBlock data={block.data} variant={block.variant} locale={locale} />;
 
     // ── content / editorial ───────────────────────────────────────────────────
 
@@ -277,7 +284,7 @@ function renderContentBlock(block: ContentBlock) {
       return <ProductOverviewBlock data={block.data} variant={block.variant} />;
 
     case "productDetail":
-      return <ProductDetailBlock data={block.data} variant={block.variant} />;
+      return <ProductDetailBlock data={block.data} variant={block.variant} locale={locale} />;
 
     case "cartSummary":
       return <CartSummaryBlock data={block.data} variant={block.variant} />;
@@ -293,7 +300,7 @@ function renderContentBlock(block: ContentBlock) {
     // ── map ───────────────────────────────────────────────────────────────────
 
     case "mapBlock":
-      return <MapBlock data={block.data} variant={block.variant} />;
+      return <MapBlock data={block.data} variant={block.variant} locale={locale} />;
 
     // ── timeline ──────────────────────────────────────────────────────────────
 

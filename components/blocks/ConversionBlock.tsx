@@ -18,6 +18,7 @@ import type { ConversionBlockData } from "@/cms/types";
 import { BookDemoClient }           from "@/app/(site)/book-demo/_components/BookDemoClient";
 import { getBookDemoTranslations }  from "@/app/(site)/book-demo/_components/translations";
 import Link                         from "next/link";
+import { useSiteLocale }            from "@/components/site/SiteLocale";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ export function ConversionBlock({ data, preview = false }: ConversionBlockProps)
 // ── Booking embed ─────────────────────────────────────────────────────────────
 
 function BookingEmbed({ data }: { data: ConversionBlockData }) {
-  const t = getBookDemoTranslations("en");
+  const t = getBookDemoTranslations(useSiteLocale());
 
   return (
     <section className="py-20 px-4 bg-[var(--muted)]">
