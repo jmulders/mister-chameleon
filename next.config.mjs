@@ -292,6 +292,25 @@ const nextConfig = {
       ["/cases/case-payt",         "/cases/voorbeeld-saas-facturatie"],
       ["/cases/case-sendcloud",    "/cases/voorbeeld-verzendplatform"],
       ["/cases/case-indie-agency", "/cases/voorbeeld-bureau"],
+      // Pages that got a Dutch address. Only the exact path: /blog/<article>
+      // keeps working.
+      ["/features",  "/functies"],
+      ["/about",     "/over-ons"],
+      ["/werkenbij", "/werken-bij"],
+      ["/blog",      "/kennisbank"],
+      ["/nieuws",    "/kennisbank"],
+      ["/news",      "/kennisbank"],
+      // Template pages that were never real content. Each goes to the page
+      // that answers the same question, so an old link is not a dead end.
+      ["/services",    "/functies"],
+      ["/compare",     "/functies"],
+      ["/sector",      "/functies"],
+      ["/landing",     "/"],
+      ["/eventsevent", "/"],
+      ["/casescase",   "/cases"],
+      // Addresses that blocks and variants link to but that never existed here.
+      ["/signup", "/prijzen"],
+      ["/faq",    "/functies"],
     ].map(([source, destination]) => ({ source, destination, permanent: true, has: marketingHost }));
 
     // The Dutch booking page used to be /nl/book-demo. That page is gone on

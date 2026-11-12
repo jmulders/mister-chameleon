@@ -149,3 +149,10 @@ it("another host keeps its own pricing page in the sitemap", () => {
   const cms = [{ path: "/pricing" }, { path: "/cases" }];
   assert.deepEqual(sitemapPathsFor("https://www.example.com", cms), cms);
 });
+
+it("the marketing site leaves out every address that only redirects", () => {
+  const old = ["/features", "/about", "/werkenbij", "/blog", "/nieuws", "/news", "/services", "/compare", "/sector", "/landing", "/eventsevent", "/casescase", "/signup", "/faq"];
+  const cms = [...old.map((path) => ({ path })), { path: "/functies" }, { path: "/blog/een-artikel" }];
+  const paths = sitemapPathsFor("https://www.misterchameleon.nl", cms).map((p) => p.path);
+  assert.deepEqual(paths, ["/functies", "/blog/een-artikel", "/prijzen", "/demo"]);
+});
