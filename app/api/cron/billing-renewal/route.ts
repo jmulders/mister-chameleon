@@ -52,6 +52,7 @@ import { createClient }              from "@supabase/supabase-js";
 import { renewSubscriptionPeriod, syncPackageKeyFromPlan } from "@/billing/subscriptions";
 import { BILLING_PLANS }             from "@/billing/plans";
 import { attemptSubscriptionCharge } from "@/billing/subscription-charge";
+import { renewalCharge, renewalIdempotencyKey } from "@/billing/renewal-charge";
 import {
   markTenantPastDue,
   markTenantUnpaid,
@@ -100,15 +101,6 @@ function isAuthorized(request: NextRequest): boolean {
   if (!cronSecret) return false;
   const authHeader = request.headers.get("authorization");
   return authHeader === `Bearer ${cronSecret}`;
-}
-
-// ── Price helper ───────────────────────────────────────────────────────────────
-
-function getPlanPriceCents(planId: string, billingCycle: string): number {
-  const plan = BILLING_PLANS[planId as keyof typeof BILLING_PLANS];
-  if (!plan) return 0;
-  // Annual billing: charge the annual total once, otherwise monthly.
-  return billingCycle === "annual" ? plan.annualPriceCents : plan.monthlyPriceCents;
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────────
@@ -170,9 +162,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // ── b. Determine plan and amount for this renewal ────────────────────────
-    const activePlan  = sub.pending_plan ?? sub.plan;
-    const activeCycle = sub.pending_plan_billing_cycle ?? sub.billing_cycle;
-    const amountCents = getPlanPriceCents(activePlan, activeCycle);
+    // One decision for both the charge and the new period (see
+    // billing/renewal-charge.ts): an annual term continues per month, and is
+    // charged the monthly price for it, not the annual price as before.
+    const charge      = renewalCharge(sub);
+    const activePlan  = charge.plan;
+    const amountCents = charge.amountCents;
 
     // ── c. Attempt Stripe charge (skip when first period was pre-paid) ────────
     //
@@ -187,6 +182,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           tenant_id,
           amountCents,
           `Subscription renewal — ${planLabel}`,
+          renewalIdempotencyKey(tenant_id, sub.current_period_end),
         )
       : { ok: true as const, paymentIntentId: isPrepaid ? "pre_paid_plan_change" : "no_charge_starter" };
 
@@ -229,9 +225,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // ── d. Charge succeeded → advance the billing period ────────────────────
-    const isAnnual = activeCycle === "annual";
-
-    if (isAnnual && !sub.pending_plan) {
+    if (charge.annualToMonthly) {
       // Annual → convert to monthly same plan.
       const periodStart = sub.current_period_end ? new Date(sub.current_period_end) : new Date();
       const periodEnd   = new Date(periodStart);
@@ -249,7 +243,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           dunning_email_sent_at: null,
           updated_at:           now,
         })
-        .eq("tenant_id", tenant_id);
+        .eq("tenant_id", tenant_id)
+        // Only from the period this run read: a second run that got here too
+        // must not push the period on by another month.
+        .eq("billing_cycle", "annual");
 
       results.push({ tenantId: tenant_id, action: "annual_to_monthly", error: error?.message });
       console.info(`[billing-renewal] annual→monthly: tenant=${tenant_id}`);
