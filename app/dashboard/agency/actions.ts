@@ -9,6 +9,7 @@
 
 import { createClient }    from "@supabase/supabase-js";
 import { revalidatePath }  from "next/cache";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 function makeClient() {
   return createClient(
@@ -54,6 +55,8 @@ export interface AgencyStats {
 export async function listAgencyMembers(
   agencyTenantId: string,
 ): Promise<{ ok: true; data: AgencyMember[] } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const db = makeClient();
   try {
     const { data, error } = await db
@@ -100,6 +103,8 @@ export async function addAgencyMember(
   invitedBy: string,
   note?: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireSuperAdminAction();
+
   if (!memberTenantId.trim()) return { ok: false, error: "Tenant ID is required." };
   if (memberTenantId === agencyTenantId) return { ok: false, error: "Cannot add your own tenant as a member." };
 
@@ -137,6 +142,8 @@ export async function removeAgencyMember(
   agencyTenantId: string,
   membershipId: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireSuperAdminAction();
+
   const db = makeClient();
   const { error } = await db
     .from("agency_memberships")
@@ -154,6 +161,8 @@ export async function removeAgencyMember(
 export async function getAgencyBranding(
   tenantId: string,
 ): Promise<AgencyBranding> {
+  await requireSuperAdminAction();
+
   const db = makeClient();
   const defaults: AgencyBranding = {
     agency_name: null, logo_url: null, favicon_url: null,
@@ -179,6 +188,8 @@ export async function saveAgencyBranding(
   tenantId: string,
   branding: Partial<AgencyBranding>,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireSuperAdminAction();
+
   const db = makeClient();
   const { error } = await db
     .from("agency_branding")
@@ -196,6 +207,8 @@ export async function saveAgencyBranding(
 export async function getAgencyMemberStats(
   memberTenantIds: string[],
 ): Promise<AgencyStats[]> {
+  await requireSuperAdminAction();
+
   if (memberTenantIds.length === 0) return [];
   const db = makeClient();
 

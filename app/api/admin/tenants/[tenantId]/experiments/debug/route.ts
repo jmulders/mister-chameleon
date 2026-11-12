@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse }              from "next/server";
+import { guardTenantRoute }                       from "@/lib/admin-auth/route-guard";
 import { listAllPlanExperiments,
          getActivePlanExperimentsForRule }         from "@/data/repositories/plan-experiments-repository";
 import { loadTenantRulesConfig }                  from "@/decision/rules/load-tenant-rules";
@@ -22,6 +23,11 @@ export async function GET(
   { params }: { params: Promise<{ tenantId: string }> },
 ) {
   const { tenantId } = await params;
+
+  // An admin session with access to this tenant: the response lists the
+  // tenant's experiments, rule ids and traffic split.
+  const guard = await guardTenantRoute(tenantId);
+  if (!guard.ok) return guard.response;
   if (!tenantId) return NextResponse.json({ error: "tenantId required" }, { status: 400 });
 
   const out: Record<string, unknown> = { tenantId };

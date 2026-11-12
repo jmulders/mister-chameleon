@@ -5,7 +5,7 @@
  *
  * ─── Security ─────────────────────────────────────────────────────────────────
  *
- *   Requires a valid admin session.
+ *   Requires a superadmin session.
  *   This is a destructive, irreversible operation — existing rows in the
  *   restored tables are overwritten (upserted) with the backup's data.
  *   Rows that exist in the DB but not in the backup are NOT deleted, to
@@ -29,7 +29,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Eén lijst, gedeeld met de backup — anders drijven ze uit elkaar en herstelt
 // een restore net die tabellen niet die de backup net wel meenam.
 import { BACKUP_TABLES } from "@/lib/backup/backup-tables";
-import { getRequiredAdminSession }   from "@/lib/admin-auth/authorization";
+import { guardSuperAdminRoute }      from "@/lib/admin-auth/route-guard";
 import { getDb }                     from "@/data/db";
 import type { BackupMeta }           from "@/app/api/admin/backup/route";
 
@@ -37,7 +37,11 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ backupId: string }> },
 ) {
-  const session  = await getRequiredAdminSession();
+  // Superadmin only: a restore writes an old snapshot over every tenant,
+  // admin users and wallets included.
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) return guard.response;
+  const session  = guard.session;
   const db       = getDb();
   const { backupId } = await params;
 

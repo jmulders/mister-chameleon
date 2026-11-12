@@ -48,27 +48,48 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
+      # Workflow inputs are text typed by a person (or sent by the admin API).
+      # Pasting them into a `run:` script with ${{ }} makes them part of the shell
+      # source, so `x; curl … | sh` in the URL field would run on the runner next
+      # to VERCEL_TOKEN. They are passed as environment variables instead, and
+      # the URL is checked against the shape of a Vercel deployment URL first.
+      - name: Check rollback target
+        env:
+          DEPLOYMENT_URL: ${{ github.event.inputs.deployment_url }}
+        run: |
+          if ! printf '%s' "$DEPLOYMENT_URL" | grep -Eq '^(https://)?[a-z0-9][a-z0-9-]*\.vercel\.app/?$'; then
+            echo "deployment_url must be a Vercel deployment URL such as https://mister-chameleon-abc123.vercel.app"
+            exit 1
+          fi
+
       - name: Log rollback intent
+        env:
+          DEPLOYMENT_URL: ${{ github.event.inputs.deployment_url }}
+          REASON:         ${{ github.event.inputs.reason }}
+          ACTOR:          ${{ github.actor }}
         run: |
           echo "═══════════════════════════════════════"
           echo "  PRODUCTION ROLLBACK"
-          echo "  Target: ${{ github.event.inputs.deployment_url }}"
-          echo "  Reason: ${{ github.event.inputs.reason }}"
-          echo "  Initiated by: ${{ github.actor }}"
+          echo "  Target: $DEPLOYMENT_URL"
+          echo "  Reason: $REASON"
+          echo "  Initiated by: $ACTOR"
           echo "  Time: $(date -u)"
           echo "═══════════════════════════════════════"
 
       - name: Alias production domain to previous deployment
+        env:
+          DEPLOYMENT_URL:    ${{ github.event.inputs.deployment_url }}
+          PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}
         run: |
           # PRODUCTION_DOMAIN secret should be set to your live domain (www.misterchameleon.nl).
           # Falls back to the Vercel project default URL if the secret is not set.
-          DOMAIN="${{ secrets.PRODUCTION_DOMAIN }}"
+          DOMAIN="$PRODUCTION_DOMAIN"
           if [ -z "$DOMAIN" ]; then
             DOMAIN="project-w9ql1.vercel.app"
           fi
-          echo "Aliasing $DOMAIN → ${{ github.event.inputs.deployment_url }}"
-          vercel alias ${{ github.event.inputs.deployment_url }} "$DOMAIN" \
-            --token=${{ secrets.VERCEL_TOKEN }}
+          echo "Aliasing $DOMAIN → $DEPLOYMENT_URL"
+          vercel alias "$DEPLOYMENT_URL" "$DOMAIN" --token="$VERCEL_TOKEN"
 
       - name: Post-rollback health check
         run: |
@@ -86,6 +107,8 @@ jobs:
 
       - name: Create rollback annotation (GitHub deployment)
         uses: actions/github-script@v7
+        env:
+          REASON: ${{ github.event.inputs.reason }}
         with:
           script: |
             await github.rest.repos.createDeployment({
@@ -93,7 +116,7 @@ jobs:
               repo: context.repo.repo,
               ref: context.sha,
               environment: 'production',
-              description: 'ROLLBACK: ${{ github.event.inputs.reason }}',
+              description: `ROLLBACK: ${process.env.REASON ?? ''}`.slice(0, 140),
               auto_merge: false,
               required_contexts: [],
             });

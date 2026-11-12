@@ -7,6 +7,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { guardSuperAdminRoute } from "@/lib/admin-auth/route-guard";
 import fs from "fs";
 import path from "path";
 import { parse as parseYaml } from "yaml";
@@ -14,6 +15,10 @@ import { parse as parseYaml } from "yaml";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // Superadmin only: the response holds server file paths and raw CMS files.
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) return guard.response;
+
   const cmsFsPath = process.env.STATAMIC_CMS_PATH;
 
   if (!cmsFsPath) {

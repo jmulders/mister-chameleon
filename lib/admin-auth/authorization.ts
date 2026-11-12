@@ -92,6 +92,29 @@ export function isTenantAdmin(session: AdminSession): boolean {
 // ── Session retrieval ─────────────────────────────────────────────────────────
 
 /**
+ * The same checks as getRequiredAdminSession, without the redirect: returns
+ * null when there is no valid, fully verified, unrevoked session.
+ *
+ * For route handlers, which answer 401 in JSON instead of redirecting a fetch
+ * to the login page. A session that still owes its 2FA step counts as no
+ * session.
+ */
+export async function getAdminSessionOrNull(): Promise<AdminSession | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ADMIN_TOKEN_COOKIE)?.value ?? null;
+  if (!token) return null;
+
+  const session = await verifySession(token);
+  if (!session) return null;
+  if (session.twoFaEnabled && !session.twoFaVerified) return null;
+
+  const currentEpoch = await getAdminSessionEpoch(session.sub);
+  if (currentEpoch === null || currentEpoch !== session.epoch) return null;
+
+  return session;
+}
+
+/**
  * Reads and verifies the admin session from the current request cookies.
  *
  * - Redirects to /admin/login when no valid token is present.

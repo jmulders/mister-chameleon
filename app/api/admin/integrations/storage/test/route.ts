@@ -30,53 +30,28 @@
  *
  * ─── Auth ─────────────────────────────────────────────────────────────────────
  *
- *   Requires a valid mc_admin_token session cookie (same as all admin API routes).
+ *   Requires a superadmin session.
  *   Returns 401 if unauthenticated, 403 if 2FA not completed.
  */
 
 import { NextRequest, NextResponse }      from "next/server";
-import { cookies }                         from "next/headers";
-import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
+import { guardSuperAdminRoute }            from "@/lib/admin-auth/route-guard";
 import {
   buildAdapterForProvider,
   type StorageProviderType,
 }                                          from "@/lib/assets/storage-adapter";
 import { getPlatformStorageSettings }      from "@/platform/platform-store";
 
-// ── Auth guard ─────────────────────────────────────────────────────────────────
-
-async function requireAdminSession(): Promise<
-  | { ok: true }
-  | { ok: false; status: 401 | 403; message: string }
-> {
-  const cookieStore = await cookies();
-  const token       = cookieStore.get(ADMIN_TOKEN_COOKIE)?.value ?? null;
-
-  if (!token) {
-    return { ok: false, status: 401, message: "Not authenticated." };
-  }
-
-  const session = await verifySession(token);
-  if (!session) {
-    return { ok: false, status: 401, message: "Invalid or expired session." };
-  }
-
-  if (session.twoFaEnabled && !session.twoFaVerified) {
-    return { ok: false, status: 403, message: "2FA verification required." };
-  }
-
-  return { ok: true };
-}
-
 // ── Route handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // 1. Auth check.
-  const auth = await requireAdminSession();
-  if (!auth.ok) {
+  // 1. Auth check: superadmin, this tests the platform's storage credentials.
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) {
+    const status = guard.response.status;
     return NextResponse.json(
-      { ok: false, message: auth.message },
-      { status: auth.status },
+      { ok: false, message: status === 401 ? "Not authenticated." : "Superadmin only." },
+      { status },
     );
   }
 

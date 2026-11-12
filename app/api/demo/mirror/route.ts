@@ -25,9 +25,8 @@
  */
 
 import { NextRequest, NextResponse }        from "next/server";
-import { cookies }                          from "next/headers";
 import { createClient }                     from "@supabase/supabase-js";
-import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
+import { guardSuperAdminRoute }             from "@/lib/admin-auth/route-guard";
 import { mirrorSite, proxifyAssets, fillMissingImages } from "@/demo/site-mirror";
 import { resolveRenderConfig }               from "@/demo/site-render";
 import { instrumentHtml }                   from "@/demo/slot-injector";
@@ -70,23 +69,6 @@ async function resolveDemoSiteKey(): Promise<string> {
   return (process.env["MC_DEMO_SITE_KEY"] ?? "").trim() || FALLBACK_DEMO_SITE_KEY;
 }
 
-// ── Auth guard ────────────────────────────────────────────────────────────────
-
-async function getAdminAuth(): Promise<
-  | { ok: true;  adminEmail: string }
-  | { ok: false; detail: "session_missing" | "2fa_required" }
-> {
-  const cookieStore = await cookies();
-  const token       = cookieStore.get(ADMIN_TOKEN_COOKIE)?.value ?? null;
-  if (!token) return { ok: false, detail: "session_missing" };
-
-  const session = await verifySession(token);
-  if (!session) return { ok: false, detail: "session_missing" };
-  if (session.twoFaEnabled && !session.twoFaVerified) return { ok: false, detail: "2fa_required" };
-
-  return { ok: true, adminEmail: session.email };
-}
-
 // ── Request type ──────────────────────────────────────────────────────────────
 
 interface MirrorInput {
@@ -98,19 +80,23 @@ interface MirrorInput {
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const auth = await getAdminAuth();
-
-  if (!auth.ok) {
-    const detail  = auth.detail;
-    const message =
-      detail === "2fa_required"
-        ? "Two-factor authentication is required."
-        : "Admin session expired — please log in.";
+  // Superadmin only. This route makes the server fetch a URL the caller picks
+  // and stores the result as a page on the platform's own origin.
+  const guard = await guardSuperAdminRoute();
+  if (!guard.ok) {
+    const signedOut = guard.response.status === 401;
     return NextResponse.json(
-      { error: "Unauthorized", detail, message },
-      { status: 401 },
+      {
+        error:   signedOut ? "Unauthorized" : "Forbidden",
+        detail:  signedOut ? "session_missing" : "forbidden",
+        message: signedOut
+          ? "Admin session expired — please log in."
+          : "Only a superadmin can generate demos.",
+      },
+      { status: guard.response.status },
     );
   }
+  const auth = { adminEmail: guard.session.email };
 
   // ── Parse body ──────────────────────────────────────────────────────────────
 

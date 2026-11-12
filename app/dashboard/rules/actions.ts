@@ -41,6 +41,7 @@ import {
 import { getDb } from "@/data/db";
 import { fetchVariantCatalogue } from "@/decision/rules/fetch-variant-catalogue";
 import { getActiveTenant }       from "@/tenant/server";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Typed query helper ─────────────────────────────────────────────────────────
 //
@@ -70,6 +71,8 @@ export async function getRulesAction(): Promise<{
   ok:    false;
   error: string;
 }> {
+  await requireSuperAdminAction();
+
   const { data, error } = asSingle<{ config: Record<string, unknown> }>(
     await getDb()
       .from("rules_config")
@@ -112,6 +115,8 @@ export async function getRulesAction(): Promise<{
 export async function saveRulesAction(
   config: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string; fieldErrors?: string[] }> {
+  await requireSuperAdminAction();
+
   // Resolve the active tenant so we can fetch CMS variant keys for validation.
   let tenantId: string | undefined;
   try {
@@ -182,6 +187,8 @@ export async function saveRulesAction(
  * Overwrites the database row with SEED_RULES_CONFIG.
  */
 export async function resetRulesAction(): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const seed: StoredRulesConfig = {
     ...SEED_RULES_CONFIG,
     updatedAt: new Date().toISOString(),
