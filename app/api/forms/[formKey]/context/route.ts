@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getActiveTenant } from "@/tenant/server";
 import { resolveContextualForm } from "@/forms/context/load";
+import { getSiteLocale } from "@/lib/site-texts/server";
 
 export async function POST(
   request: NextRequest,
@@ -59,7 +60,7 @@ export async function POST(
     h.get("cf-ipcountry") ||
     null;
 
-  const form = await resolveContextualForm(tenantId, formKey, { path, query, country });
+  const form = await resolveContextualForm(tenantId, formKey, { path, query, country }, await getSiteLocale());
   if (!form) {
     return NextResponse.json({ ok: false, error: "Form not found" }, { status: 404 });
   }

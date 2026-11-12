@@ -65,6 +65,8 @@ import { Container }           from "@/components/primitives/Container";
 import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { FilterBarVariant } from "@/page-config/block-variants";
 import type { FilterBarBlockData } from "@/page-config";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { SEARCH_TEXTS } from "@/lib/site-texts/search";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -122,6 +124,8 @@ export function FilterBarUI({
   onSortChange,
   onClearAll,
 }: FilterBarUIProps) {
+  const texts        = SEARCH_TEXTS[useSiteLocale()];
+  const t            = texts.filter;
   const showSearch   = data.showSearch !== false;
   const showCategory = data.showCategoryFilter !== false && (data.categories?.length ?? 0) > 0;
   const showTag      = data.showTagFilter      !== false && (data.tags?.length ?? 0) > 0;
@@ -135,7 +139,7 @@ export function FilterBarUI({
           onSubmit={onSearchSubmit}
           style={controlsRowStyle}
           role="search"
-          aria-label="Filter results"
+          aria-label={t.formLabel}
         >
           {/* Search input */}
           {showSearch && (
@@ -168,8 +172,8 @@ export function FilterBarUI({
                 type="search"
                 value={searchValue}
                 onChange={onSearchChange}
-                placeholder={data.placeholder ?? "Search…"}
-                aria-label="Search"
+                placeholder={data.placeholder ?? texts.placeholder}
+                aria-label={texts.inputLabel}
                 style={{
                   ...inputStyle(false),
                   paddingLeft: "2rem",
@@ -192,17 +196,17 @@ export function FilterBarUI({
           {showCategory && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
               {!isCompact && (
-                <label style={labelStyle}>Category</label>
+                <label style={labelStyle}>{t.category}</label>
               )}
               <select
                 value={activeCategory}
                 onChange={(e) => onCategoryChange(e.target.value)}
-                aria-label="Filter by category"
+                aria-label={t.byCategory}
                 style={selectStyle(false)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--form-input-focus-ring)"; }}
                 onBlur={(e)  => { e.currentTarget.style.borderColor = "var(--form-input-border)";     }}
               >
-                <option value="">All categories</option>
+                <option value="">{t.allCategories}</option>
                 {data.categories!.map((cat) => (
                   <option key={cat.value} value={cat.value}>
                     {cat.label}
@@ -217,17 +221,17 @@ export function FilterBarUI({
           {showTag && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
               {!isCompact && (
-                <label style={labelStyle}>Tag</label>
+                <label style={labelStyle}>{t.tag}</label>
               )}
               <select
                 value={activeTag}
                 onChange={(e) => onTagChange(e.target.value)}
-                aria-label="Filter by tag"
+                aria-label={t.byTag}
                 style={selectStyle(false)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--form-input-focus-ring)"; }}
                 onBlur={(e)  => { e.currentTarget.style.borderColor = "var(--form-input-border)";     }}
               >
-                <option value="">All tags</option>
+                <option value="">{t.allTags}</option>
                 {data.tags!.map((tag) => (
                   <option key={tag.value} value={tag.value}>
                     {tag.label}
@@ -242,17 +246,17 @@ export function FilterBarUI({
           {showSort && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
               {!isCompact && (
-                <label style={labelStyle}>Sort by</label>
+                <label style={labelStyle}>{t.sortBy}</label>
               )}
               <select
                 value={activeSort}
                 onChange={(e) => onSortChange(e.target.value)}
-                aria-label="Sort results"
+                aria-label={t.sortResults}
                 style={selectStyle(false)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--form-input-focus-ring)"; }}
                 onBlur={(e)  => { e.currentTarget.style.borderColor = "var(--form-input-border)";     }}
               >
-                {!activeSort && <option value="">Sort by</option>}
+                {!activeSort && <option value="">{t.sortBy}</option>}
                 {data.sortOptions!.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
@@ -303,7 +307,7 @@ export function FilterBarUI({
               >
                 <path d="M2 2l8 8M10 2L2 10" />
               </svg>
-              Clear
+              {t.clear}
             </button>
           )}
         </form>
@@ -326,6 +330,8 @@ function FilterBarFallback({
   const showTag      = data.showTagFilter      !== false && (data.tags?.length ?? 0) > 0;
   const showSort     = (data.sortOptions?.length ?? 0) > 0;
   const isCompact    = variant === "compact";
+  const texts        = SEARCH_TEXTS[useSiteLocale()];
+  const t            = texts.filter;
 
   return (
     <div style={barWrapStyle}>
@@ -334,25 +340,25 @@ function FilterBarFallback({
           {showSearch && (
             <input
               type="search"
-              placeholder={data.placeholder ?? "Search…"}
+              placeholder={data.placeholder ?? texts.placeholder}
               disabled
               style={{ ...inputStyle(false), flexGrow: 1, minWidth: isCompact ? "8rem" : "12rem" }}
-              aria-label="Search"
+              aria-label={texts.inputLabel}
             />
           )}
           {showCategory && (
             <select disabled style={selectStyle(false)}>
-              <option>All categories</option>
+              <option>{t.allCategories}</option>
             </select>
           )}
           {showTag && (
             <select disabled style={selectStyle(false)}>
-              <option>All tags</option>
+              <option>{t.allTags}</option>
             </select>
           )}
           {showSort && (
             <select disabled style={selectStyle(false)}>
-              <option>{data.sortOptions![0]?.label ?? "Sort"}</option>
+              <option>{data.sortOptions![0]?.label ?? t.sort}</option>
             </select>
           )}
         </div>

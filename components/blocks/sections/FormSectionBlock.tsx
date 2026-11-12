@@ -73,7 +73,8 @@ import { getFormDefinition, resolveFormKey } from "@/forms";
 import type { FormField } from "@/forms";
 import { selectFormRender } from "@/forms/context/resolve";
 import { useTenantForm } from "@/components/blocks/forms/useTenantForm";
-import { useActiveLocale } from "@/hooks/useActiveLocale";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { FORM_TEXTS } from "@/lib/site-texts/forms";
 import { TurnstileWidget } from "@/components/blocks/forms/TurnstileWidget";
 
 // Must match HONEYPOT_FIELD in forms/spam.ts — kept here to avoid importing
@@ -124,8 +125,13 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
   // that references a form not yet registered on this deployment.
   // Resolve the CMS handle to a registered FormKey, tolerating Statamic's
   // snake_case ("locatie_test") vs the code's kebab-case ("locatie-test").
+  // The built-in definition comes in the site language. Its title, labels and
+  // hints are only the fallback: CMS copy and the contextual overlay still win.
+  const siteLocale = useSiteLocale();
+  const t          = FORM_TEXTS[siteLocale];
+
   const resolvedFormKey = resolveFormKey(data.formKey);
-  const formDef = resolvedFormKey ? getFormDefinition(resolvedFormKey) : undefined;
+  const formDef = resolvedFormKey ? getFormDefinition(resolvedFormKey, siteLocale) : undefined;
 
   // ── Contextual overlay (rules → segment → copy/fields override) ───────────
   //
@@ -146,11 +152,9 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
       postSubmit:          data.postSubmit,
     });
 
-  // Visitor language, for the default (un-authored) button copy. Read from the
-  // `locale` cookie after mount — see useActiveLocale for why not during render.
-  const locale              = useActiveLocale();
-  const defaultSubmitLabel  = locale === "en" ? "Submit"   : "Verstuur";
-  const defaultSendingLabel = locale === "en" ? "Sending…" : "Bezig…";
+  // Default (un-authored) button copy, in the site language.
+  const defaultSubmitLabel  = t.submit;
+  const defaultSendingLabel = t.sending;
 
   // ── Effective copy + fields: overlay override → CMS copy → definition ─────
   //
@@ -163,9 +167,8 @@ export function FormSectionBlock({ data, variant: rawVariant }: FormSectionBlock
     selectFormRender(formDef?.fields, overlay?.fields);
   const title          = overlay?.title          ?? data.title          ?? formDef?.title;
   const intro          = overlay?.intro          ?? data.intro          ?? formDef?.description;
-  // Default button copy follows the visitor's language. Dutch is the base for
-  // these tenants, so only an explicit "en" gets English; an authored label
-  // (overlay, then the CMS block) always wins over the default.
+  // Default button copy follows the site language. An authored label (overlay,
+  // then the CMS block) always wins over the default.
   const submitLabel    = overlay?.submitLabel    ?? data.submitLabel    ?? defaultSubmitLabel;
   // Canonical key for the DOM/aria-label. Submit + context URLs are owned by
   // useTenantForm (resolvedFormKey ?? data.formKey), so a CMS form posts to its
@@ -467,6 +470,7 @@ function FormFields({
   onFormStart,
   turnstileSiteKey,
 }: FormFieldsProps) {
+  const t       = FORM_TEXTS[useSiteLocale()];
   const formRef = useRef<HTMLFormElement>(null);
 
   // Fire form_start exactly once when the visitor first focuses any field.
@@ -586,7 +590,7 @@ function FormFields({
             gives sighted users a clear top-level cue before scrolling down */}
         {errorCount > 0 && (
           <div role="alert" aria-live="assertive" style={errorBannerStyle}>
-            Please correct {errorCount} {errorCount === 1 ? "error" : "errors"} below.
+            {t.errorSummary(errorCount)}
           </div>
         )}
 
@@ -641,6 +645,7 @@ interface FieldRendererProps {
 }
 
 function FieldRenderer({ field, error }: FieldRendererProps) {
+  const t          = FORM_TEXTS[useSiteLocale()];
   const isRequired = field.validation?.required === true;
   const hasError   = Boolean(error);
 
@@ -757,7 +762,7 @@ function FieldRenderer({ field, error }: FieldRendererProps) {
             aria-describedby={errorId}
           >
             <option value="" disabled>
-              {field.placeholder ?? "Select an option"}
+              {field.placeholder ?? t.selectOption}
             </option>
             {field.options.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -807,12 +812,6 @@ interface RoiCalculatorInteractiveProps {
 
 type LiftScenario = "conservative" | "moderate" | "aggressive";
 
-const LIFT_LABELS: Record<LiftScenario, string> = {
-  conservative: "Conservative (25%)",
-  moderate:     "Moderate (35%)",
-  aggressive:   "Aggressive (50%)",
-};
-
 const LIFT_VALUES: Record<LiftScenario, number> = {
   conservative: 0.25,
   moderate:     0.35,
@@ -821,15 +820,15 @@ const LIFT_VALUES: Record<LiftScenario, number> = {
 
 const GROWTH_PLAN_MONTHLY = 349; // € / month baseline
 
-function fmtEur(n: number): string {
-  return "€" + Math.round(n).toLocaleString("en-GB");
-}
-
-function fmtNum(n: number): string {
-  return Math.round(n).toLocaleString("en-GB");
-}
-
 function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProps) {
+  const t = FORM_TEXTS[useSiteLocale()].roi;
+
+  // Thousands and decimal separators follow the site language.
+  const fmtNum = (n: number): string => Math.round(n).toLocaleString(t.numberLocale);
+  const fmtEur = (n: number): string => "€" + fmtNum(n);
+  const fmtDec = (n: number): string =>
+    n.toLocaleString(t.numberLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
+
   const [visitors,        setVisitors]        = useState(10_000);
   const [conversionRate,  setConversionRate]  = useState(2.0);    // %
   const [contractValue,   setContractValue]   = useState(5_000);  // €
@@ -1003,7 +1002,7 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
   };
 
   return (
-    <section style={sectionStyle} aria-label="ROI Calculator">
+    <section style={sectionStyle} aria-label={t.sectionLabel}>
       {/* Responsive wrapper — collapses to single column on narrow viewports */}
       <style>{`
         @media (max-width: 768px) {
@@ -1026,7 +1025,7 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
           {/* Monthly visitors */}
           <div style={sliderGroupStyle}>
             <label style={labelStyle}>
-              Monthly visitors
+              {t.visitors}
               <span style={valueTagStyle}>{fmtNum(visitors)}</span>
             </label>
             <input
@@ -1037,18 +1036,18 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
               value={visitors}
               onChange={(e) => setVisitors(Number(e.target.value))}
               style={sliderStyle}
-              aria-label="Monthly visitors"
+              aria-label={t.visitors}
             />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-              <span>1,000</span><span>500,000</span>
+              <span>{fmtNum(1_000)}</span><span>{fmtNum(500_000)}</span>
             </div>
           </div>
 
           {/* Current conversion rate */}
           <div style={sliderGroupStyle}>
             <label style={labelStyle}>
-              Current conversion rate
-              <span style={valueTagStyle}>{conversionRate.toFixed(1)}%</span>
+              {t.conversionRate}
+              <span style={valueTagStyle}>{fmtDec(conversionRate)}%</span>
             </label>
             <input
               type="range"
@@ -1058,17 +1057,17 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
               value={conversionRate}
               onChange={(e) => setConversionRate(Number(e.target.value))}
               style={sliderStyle}
-              aria-label="Current conversion rate"
+              aria-label={t.conversionRate}
             />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-              <span>0.1%</span><span>10%</span>
+              <span>{fmtDec(0.1)}%</span><span>10%</span>
             </div>
           </div>
 
           {/* Average contract value */}
           <div style={sliderGroupStyle}>
             <label style={labelStyle}>
-              Average contract value
+              {t.contractValue}
               <span style={valueTagStyle}>{fmtEur(contractValue)}</span>
             </label>
             <input
@@ -1079,18 +1078,18 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
               value={contractValue}
               onChange={(e) => setContractValue(Number(e.target.value))}
               style={sliderStyle}
-              aria-label="Average contract value"
+              aria-label={t.contractValue}
             />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-              <span>€100</span><span>€50,000</span>
+              <span>{fmtEur(100)}</span><span>{fmtEur(50_000)}</span>
             </div>
           </div>
 
           {/* Lift scenario */}
           <div style={{ marginBottom: "0.375rem" }}>
-            <span style={labelStyle}>Lift scenario</span>
-            <div style={scenarioGroupStyle} role="group" aria-label="Lift scenario">
-              {(Object.keys(LIFT_LABELS) as LiftScenario[]).map((key) => {
+            <span style={labelStyle}>{t.liftScenario}</span>
+            <div style={scenarioGroupStyle} role="group" aria-label={t.liftScenario}>
+              {(Object.keys(LIFT_VALUES) as LiftScenario[]).map((key) => {
                 const isActive = liftScenario === key;
                 return (
                   <button
@@ -1115,7 +1114,7 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
                       whiteSpace:      "nowrap",
                     }}
                   >
-                    {LIFT_LABELS[key]}
+                    {t.lift[key]}
                   </button>
                 );
               })}
@@ -1126,37 +1125,37 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
 
         {/* ── Right: Results panel ──────────────────────────────────────────── */}
         <div style={resultsPanelStyle}>
-          <p style={resultsPanelHeadingStyle}>Your projected results</p>
+          <p style={resultsPanelHeadingStyle}>{t.resultsHeading}</p>
 
           <div style={resultRowStyle}>
-            <span style={resultLabelStyle}>Current monthly conversions</span>
+            <span style={resultLabelStyle}>{t.currentConversions}</span>
             <span style={resultValueStyle}>{fmtNum(currentConv)}</span>
           </div>
 
           <div style={resultRowStyle}>
-            <span style={resultLabelStyle}>Projected monthly conversions</span>
+            <span style={resultLabelStyle}>{t.projectedConversions}</span>
             <span style={resultValueStyle}>{fmtNum(projectedConv)}</span>
           </div>
 
           <div style={resultRowStyle}>
-            <span style={resultLabelStyle}>Extra conversions / month</span>
+            <span style={resultLabelStyle}>{t.extraConversions}</span>
             <span style={{ ...resultValueStyle, color: "var(--primary)" }}>+{fmtNum(extraConv)}</span>
           </div>
 
           <div style={resultRowStyle}>
-            <span style={resultLabelStyle}>Extra pipeline / month</span>
+            <span style={resultLabelStyle}>{t.extraPipeline}</span>
             <span style={{ ...resultValueStyle, color: "var(--primary)" }}>{fmtEur(extraPipeline)}</span>
           </div>
 
           <div style={resultRowStyle}>
-            <span style={resultLabelStyle}>Annual revenue lift</span>
+            <span style={resultLabelStyle}>{t.annualLift}</span>
             <span style={{ ...resultValueStyle, fontSize: "1.125rem" }}>{fmtEur(annualLift)}</span>
           </div>
 
           {/* ROI highlight */}
           <div style={highlightRowStyle}>
-            <span style={highlightLabelStyle}>ROI vs Growth plan</span>
-            <span style={highlightValueStyle}>{roiMultiple.toFixed(1)}× / month</span>
+            <span style={highlightLabelStyle}>{t.roiVsPlan}</span>
+            <span style={highlightValueStyle}>{t.perMonth(fmtDec(roiMultiple))}</span>
           </div>
 
           {/* CTA */}
@@ -1166,10 +1165,10 @@ function RoiCalculatorInteractive({ title, intro }: RoiCalculatorInteractiveProp
             onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.88"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1"; }}
           >
-            Start growing — talk to us
+            {t.cta}
           </Link>
           <p style={subNoteStyle}>
-            Based on Growth plan at {fmtEur(GROWTH_PLAN_MONTHLY)}/month &bull; No commitment required
+            {t.note(fmtEur(GROWTH_PLAN_MONTHLY))}
           </p>
 
         </div>

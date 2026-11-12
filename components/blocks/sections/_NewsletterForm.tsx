@@ -16,6 +16,8 @@
 import { useRef } from "react";
 import { useTenantForm } from "@/components/blocks/forms/useTenantForm";
 import { TurnstileWidget } from "@/components/blocks/forms/TurnstileWidget";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { FORM_TEXTS } from "@/lib/site-texts/forms";
 
 // Must match HONEYPOT_FIELD in forms/spam.ts. Inlined to keep this a pure client
 // component (no server-only imports).
@@ -44,6 +46,7 @@ export function NewsletterForm({ formKey, adminPreview }: { formKey?: string; ad
 
 function NewsletterFormInner({ formKey }: { formKey: string }) {
   const { resolvedForm, submitState, submit, fireFormEvent } = useTenantForm(formKey);
+  const t = FORM_TEXTS[useSiteLocale()].newsletter;
   const started = useRef(false);
   const siteKey = resolvedForm?.turnstile?.siteKey;
 
@@ -58,7 +61,7 @@ function NewsletterFormInner({ formKey }: { formKey: string }) {
   const submitting  = submitState.status === "submitting";
   const globalError =
     submitState.status === "error"       ? submitState.message
-    : submitState.status === "fieldErrors" ? (submitState.errors.email ?? "Please enter a valid email address.")
+    : submitState.status === "fieldErrors" ? (submitState.errors.email ?? t.invalidEmail)
     : undefined;
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -76,7 +79,7 @@ function NewsletterFormInner({ formKey }: { formKey: string }) {
     <form
       onSubmit={onSubmit}
       onFocusCapture={() => { if (!started.current) { started.current = true; fireFormEvent("form_start"); } }}
-      aria-label="Newsletter signup"
+      aria-label={t.formLabel}
       className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[360px]"
       noValidate
     >
@@ -87,10 +90,10 @@ function NewsletterFormInner({ formKey }: { formKey: string }) {
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label className="sr-only" htmlFor="newsletter-email">Email address</label>
+        <label className="sr-only" htmlFor="newsletter-email">{t.emailLabel}</label>
         <input
           id="newsletter-email" type="email" name="email" required autoComplete="email"
-          placeholder="Enter your email"
+          placeholder={t.emailPlaceholder}
           className="min-w-0 flex-1 rounded-md border px-4 py-2.5 text-sm outline-none focus:ring-2"
           style={INPUT_STYLE}
         />
@@ -99,7 +102,7 @@ function NewsletterFormInner({ formKey }: { formKey: string }) {
           className="shrink-0 rounded-md px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2"
           style={BUTTON_STYLE}
         >
-          {submitting ? "Subscribing..." : "Subscribe"}
+          {submitting ? t.subscribing : t.subscribe}
         </button>
       </div>
 

@@ -18,7 +18,7 @@ import {
   cookiesForCategory,
   type CookieCategory,
 } from "@/tracking/cookie-registry";
-import { consentTexts } from "@/tracking/consent-i18n";
+import { consentTexts, toConsentLocale } from "@/tracking/consent-i18n";
 
 interface Prefs { analytics: boolean; personalization: boolean; enrichment: boolean; advertising: boolean }
 
@@ -86,7 +86,7 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
 
       {COOKIE_CATEGORY_ORDER.map((cat) => {
         const meta    = t.catMeta[cat];
-        const cookies = cookiesForCategory(cat);
+        const cookies = cookiesForCategory(cat, toConsentLocale(locale));
         const on      = value(cat);
         return (
           <section key={cat} className="rounded-lg border border-neutral-200 p-5">

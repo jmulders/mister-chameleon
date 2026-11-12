@@ -47,6 +47,8 @@ import { APPLICATION_FORM } from "@/forms/definitions/application";
 import { APPOINTMENT_FORM } from "@/forms/definitions/appointment";
 import { NEWSLETTER_FORM }  from "@/forms/definitions/newsletter";
 import { LOCATIE_TEST_FORM } from "@/forms/definitions/locatie-test";
+import { localizeFormDefinition } from "@/forms/definitions/dutch";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
@@ -67,11 +69,19 @@ const FORM_REGISTRY: Record<FormKey, FormDefinition> = {
   "locatie-test": LOCATIE_TEST_FORM,
 };
 
+/** Translated definitions, built on first use. See getFormDefinition(). */
+const LOCALIZED_FORMS = new Map<string, FormDefinition>();
+
 // ── Public helpers ────────────────────────────────────────────────────────────
 
 /**
  * Returns the FormDefinition for the given key, or `undefined` when the key
  * is not registered.
+ *
+ * `locale` picks the language of the visitor-facing texts (title, labels,
+ * placeholders, thank-you text, confirmation mail). It defaults to English,
+ * the language the definitions are written in. Pass the site locale wherever a
+ * visitor gets to read the result. See forms/definitions/dutch.ts.
  *
  * In practice, every valid FormKey has a registered definition (the registry
  * is exhaustive).  The `undefined` return covers the case where the key
@@ -90,8 +100,19 @@ const FORM_REGISTRY: Record<FormKey, FormDefinition> = {
  *   return null;
  * }
  */
-export function getFormDefinition(key: FormKey): FormDefinition | undefined {
-  return FORM_REGISTRY[key];
+export function getFormDefinition(key: FormKey, locale: SiteLocale = "en"): FormDefinition | undefined {
+  const def = FORM_REGISTRY[key];
+  if (!def || locale === "en") return def;
+
+  // One object per form and language, so a component that looks the form up on
+  // every render keeps getting the same fields array.
+  const cacheKey = `${locale}:${key}`;
+  let localized = LOCALIZED_FORMS.get(cacheKey);
+  if (!localized) {
+    localized = localizeFormDefinition(def, locale);
+    LOCALIZED_FORMS.set(cacheKey, localized);
+  }
+  return localized;
 }
 
 /**

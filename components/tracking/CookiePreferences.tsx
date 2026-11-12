@@ -37,7 +37,7 @@ export function CookiePreferences({ locale }: { locale?: string } = {}) {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Cookie preferences"
+          aria-label={t.preferences.title}
           onClick={() => setOpen(false)}
           style={{
             position: "fixed", inset: 0, zIndex: 10000,

@@ -18,6 +18,7 @@ import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
 import { applyFormOverlay, buildCmsResolvedForm } from "./resolve";
 import type { FormVariantContent } from "./variant";
 import type { FormContextSignals, ResolvedForm } from "./types";
+import type { SiteLocale } from "@/lib/site-texts/locale";
 
 /**
  * Resolve the ready-to-render form for a request.
@@ -30,18 +31,23 @@ import type { FormContextSignals, ResolvedForm } from "./types";
  * Returns null only when neither source has the form — the caller then renders a
  * clean empty. Never throws — falls back to the base definition on any config
  * error.
+ *
+ * `locale` is the language of a built-in form's own labels. The fields returned
+ * here replace the ones the page rendered with, so both routes pass the site
+ * locale. A CMS-managed form is returned as authored. Defaults to English.
  */
 export async function resolveContextualForm(
   tenantId: string | null | undefined,
   formKey: string,
   signals: FormContextSignals,
+  locale: SiteLocale = "en",
 ): Promise<ResolvedForm | null> {
   // Resolve the handle to a registered FormKey (tolerating Statamic's
   // snake_case / separatorless CP handle vs the code's kebab-case key), exactly
   // as the submit route does — so a code form is recognised here even when it
   // arrives as a raw CP handle, instead of wrongly falling through to the CMS.
   const resolvedKey = resolveFormKey(formKey);
-  const formDef = resolvedKey ? getFormDefinition(resolvedKey) : null;
+  const formDef = resolvedKey ? getFormDefinition(resolvedKey, locale) : null;
 
   // Per-form override drives BOTH the Turnstile toggle and the presentation
   // layout. Keyed by formKey, so it applies to code AND CMS forms. Load it once.

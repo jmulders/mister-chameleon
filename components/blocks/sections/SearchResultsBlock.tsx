@@ -63,6 +63,8 @@ import { resolveBlockVariant } from "@/page-config/block-variants";
 import type { SearchResultsVariant } from "@/page-config/block-variants";
 import type { SearchResultsBlockData, ListingItem } from "@/page-config";
 import { ResultCard } from "@/components/blocks/listing/ResultCard";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { SEARCH_TEXTS } from "@/lib/site-texts/search";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -238,11 +240,13 @@ function ResultsLayout({
   totalCount,
   filteredCount,
   variant,
-  emptyMessage = "No results found. Try adjusting your search or filters.",
+  emptyMessage: emptyMessageProp,
   isFiltered,
   totalPages = 1,
   paginate = false,
 }: ResultsLayoutProps) {
+  const t            = SEARCH_TEXTS[useSiteLocale()].results;
+  const emptyMessage = emptyMessageProp === undefined ? t.noResults : emptyMessageProp;
   const displayCount = filteredCount ?? items.length;
 
   return (
@@ -271,9 +275,7 @@ function ResultsLayout({
                   aria-atomic="true"
                   style={{ fontSize: "0.875rem", color: "var(--text-muted)", margin: 0 }}
                 >
-                  {displayCount === totalCount
-                    ? `${totalCount} ${totalCount === 1 ? "result" : "results"}`
-                    : `${displayCount} of ${totalCount} ${totalCount === 1 ? "result" : "results"}`}
+                  {t.count(displayCount, totalCount)}
                 </p>
               )}
             </div>

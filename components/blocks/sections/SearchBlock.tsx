@@ -44,6 +44,8 @@ import { useState, useRef, useCallback, type FormEvent, type ChangeEvent } from 
 import type { SearchBlockData }              from "@/page-config";
 import type { SearchQuery, SearchResponse, SearchResult, SearchScope } from "@/search";
 import { SearchResultCard }                  from "./SearchResultCard";
+import { useSiteLocale }                     from "@/components/site/SiteLocale";
+import { SEARCH_TEXTS }                      from "@/lib/site-texts/search";
 import { Section }                           from "@/components/primitives/Section";
 import { Container }                         from "@/components/primitives/Container";
 import { Stack }                             from "@/components/primitives/Stack";
@@ -106,6 +108,7 @@ interface SearchInputProps {
 }
 
 function SearchInput({ value, placeholder, onChange, onSubmit, isLoading }: SearchInputProps) {
+  const t = SEARCH_TEXTS[useSiteLocale()];
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     onSubmit();
@@ -122,7 +125,7 @@ function SearchInput({ value, placeholder, onChange, onSubmit, isLoading }: Sear
         value={value}
         placeholder={placeholder}
         onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-        aria-label="Search"
+        aria-label={t.inputLabel}
         autoComplete="off"
         style={{
           flex:         1,
@@ -147,7 +150,7 @@ function SearchInput({ value, placeholder, onChange, onSubmit, isLoading }: Sear
       <button
         type="submit"
         disabled={isLoading || !value.trim()}
-        aria-label="Submit search"
+        aria-label={t.block.submitLabel}
         style={{
           padding:         "0.625rem 1.25rem",
           background:      "var(--btn-bg)",
@@ -162,7 +165,7 @@ function SearchInput({ value, placeholder, onChange, onSubmit, isLoading }: Sear
           transition:      "opacity 0.15s ease",
         }}
       >
-        {isLoading ? "Searching…" : "Search"}
+        {isLoading ? t.block.searching : t.block.search}
       </button>
     </form>
   );
@@ -178,17 +181,12 @@ interface ScopeFiltersProps {
   onToggle:        (scope: SearchScope) => void;
 }
 
-const SCOPE_LABELS: Record<SearchScope, string> = {
-  pages:     "Pages",
-  posts:     "Posts",
-  vacancies: "Vacancies",
-};
-
 function ScopeFilters({ activeScopes, availableScopes, onToggle }: ScopeFiltersProps) {
+  const t = SEARCH_TEXTS[useSiteLocale()].block;
   return (
     <div
       role="group"
-      aria-label="Filter by content type"
+      aria-label={t.scopesLabel}
       style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}
     >
       {availableScopes.map((scope) => {
@@ -211,7 +209,7 @@ function ScopeFilters({ activeScopes, availableScopes, onToggle }: ScopeFiltersP
               transition:   "all 0.1s ease",
             }}
           >
-            {SCOPE_LABELS[scope]}
+            {t.scopes[scope]}
           </button>
         );
       })}
@@ -242,6 +240,9 @@ function ResultArea({
   noResultsMessage,
   variant,
 }: ResultAreaProps) {
+  const locale = useSiteLocale();
+  const t      = SEARCH_TEXTS[locale];
+
   if (status === "idle") {
     return (
       <p style={{ color: "var(--text-muted, #6b7280)", fontSize: "0.9375rem", margin: 0 }}>
@@ -257,7 +258,7 @@ function ResultArea({
         aria-live="polite"
         style={{ color: "var(--text-muted, #6b7280)", fontSize: "0.9375rem", margin: 0 }}
       >
-        Searching…
+        {t.block.searching}
       </p>
     );
   }
@@ -268,7 +269,7 @@ function ResultArea({
         role="alert"
         style={{ color: "var(--color-error-600, #dc2626)", fontSize: "0.9375rem", margin: 0 }}
       >
-        Something went wrong. Please try again.
+        {t.error}
       </p>
     );
   }
@@ -298,21 +299,19 @@ function ResultArea({
           margin:       "0 0 0.875rem",
         }}
       >
-        {total === 1
-          ? `1 result for "${query}"`
-          : `${total} results for "${query}"`}
+        {t.block.results(total, query)}
       </p>
 
       {variant === "default" || variant === "full" ? (
         <Grid cols={2}>
           {results.map((result) => (
-            <SearchResultCard key={result.id} result={result} layout="card" />
+            <SearchResultCard key={result.id} result={result} layout="card" locale={locale} />
           ))}
         </Grid>
       ) : (
         <div>
           {results.map((result) => (
-            <SearchResultCard key={result.id} result={result} layout={layout} />
+            <SearchResultCard key={result.id} result={result} layout={layout} locale={locale} />
           ))}
         </div>
       )}
@@ -325,6 +324,7 @@ function ResultArea({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function SearchBlock({ data, variant = "default" }: SearchBlockProps) {
+  const t = SEARCH_TEXTS[useSiteLocale()];
   const [inputValue, setInputValue]   = useState("");
   const [results, setResults]         = useState<SearchResult[]>([]);
   const [total, setTotal]             = useState(0);
@@ -397,9 +397,9 @@ export function SearchBlock({ data, variant = "default" }: SearchBlockProps) {
     runSearch(inputValue, activeScopes);
   }, [runSearch, inputValue, activeScopes]);
 
-  const placeholder   = data.placeholder      ?? "Search…";
-  const emptyMsg      = data.emptyMessage      ?? "Start typing to search.";
-  const noResultsMsg  = data.noResultsMessage  ?? `No results found for "${activeQuery}".`;
+  const placeholder   = data.placeholder      ?? t.placeholder;
+  const emptyMsg      = data.emptyMessage      ?? t.block.startTyping;
+  const noResultsMsg  = data.noResultsMessage  ?? t.block.noResults(activeQuery);
 
   // ── Minimal variant ─────────────────────────────────────────────────────────
   if (variant === "minimal") {

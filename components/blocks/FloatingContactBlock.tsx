@@ -24,10 +24,13 @@
  *   --card-radius     Corner rounding
  *
  * No client JavaScript: these are plain links, so this stays a server
- * component (lighter, no hydration).
+ * component (lighter, no hydration). It is async because the labels follow the
+ * site language, which a server component reads with getSiteLocale().
  */
 
 import type { CSSProperties, ReactNode } from "react";
+import { getSiteLocale } from "@/lib/site-texts/server";
+import { FORM_TEXTS, type FormTexts } from "@/lib/site-texts/forms";
 
 export interface FloatingContactBlockData {
   phone?:    string;
@@ -43,23 +46,24 @@ interface ContactItem {
   external?: boolean;
 }
 
-function buildItems(data: FloatingContactBlockData): ContactItem[] {
+function buildItems(data: FloatingContactBlockData, t: FormTexts["floatingContact"]): ContactItem[] {
   const items: ContactItem[] = [];
   if (data.phone) {
-    items.push({ href: `tel:${data.phone.replace(/[^\d+]/g, "")}`, label: "Bel ons", icon: <PhoneIcon /> });
+    items.push({ href: `tel:${data.phone.replace(/[^\d+]/g, "")}`, label: t.call, icon: <PhoneIcon /> });
   }
   if (data.email) {
-    items.push({ href: `mailto:${data.email}`, label: "Mail ons", icon: <MailIcon /> });
+    items.push({ href: `mailto:${data.email}`, label: t.mail, icon: <MailIcon /> });
   }
   if (data.whatsapp) {
     const digits = data.whatsapp.replace(/[^\d]/g, "");
-    items.push({ href: `https://wa.me/${digits}`, label: "WhatsApp", icon: <WhatsAppIcon />, external: true });
+    items.push({ href: `https://wa.me/${digits}`, label: t.whatsapp, icon: <WhatsAppIcon />, external: true });
   }
   return items;
 }
 
-export function FloatingContactBlock({ data }: { data: FloatingContactBlockData }) {
-  const items = buildItems(data);
+export async function FloatingContactBlock({ data }: { data: FloatingContactBlockData }) {
+  const t     = FORM_TEXTS[await getSiteLocale()].floatingContact;
+  const items = buildItems(data, t);
   if (items.length === 0) return null;
 
   const side = data.side ?? "right";
@@ -90,7 +94,7 @@ export function FloatingContactBlock({ data }: { data: FloatingContactBlockData 
   };
 
   return (
-    <aside aria-label="Contact" style={railStyle}>
+    <aside aria-label={t.railLabel} style={railStyle}>
       {items.map((item, i) => {
         const corner = side === "right" ? "Left" : "Right";
         const style: CSSProperties = {

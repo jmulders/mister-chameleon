@@ -32,6 +32,8 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { SearchResult, SearchResponse } from "@/search";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { SEARCH_TEXTS, type SearchTexts } from "@/lib/site-texts/search";
 
 // ── Result grouping ───────────────────────────────────────────────────────────
 //
@@ -42,20 +44,16 @@ import type { SearchResult, SearchResponse } from "@/search";
 // filter checkbox with the collection's CMS title as label.
 //
 // Providers that don't supply collection info fall back to grouping by the
-// generic content type with a static label.
-
-const TYPE_FALLBACK_LABELS: Record<string, string> = {
-  page:    "Pagina's",
-  post:    "Artikelen",
-  vacancy: "Vacatures",
-};
+// generic content type with a static label in the site language
+// (SEARCH_TEXTS.page.typeLabels).
 
 function resultGroupKey(r: SearchResult): string {
   return r.collection ?? r.type;
 }
 
-function resultGroupLabel(r: SearchResult): string {
-  return r.collectionLabel ?? TYPE_FALLBACK_LABELS[r.type] ?? r.type;
+function resultGroupLabel(r: SearchResult, typeLabels: SearchTexts["page"]["typeLabels"]): string {
+  const fallbackLabels: Record<string, string> = typeLabels;
+  return r.collectionLabel ?? fallbackLabels[r.type] ?? r.type;
 }
 
 // ── API helper ────────────────────────────────────────────────────────────────
@@ -223,6 +221,7 @@ interface FilterSidebarProps {
 }
 
 function FilterSidebar({ groups, activeKeys, onToggle }: FilterSidebarProps) {
+  const t = SEARCH_TEXTS[useSiteLocale()].page;
   return (
     <aside>
       <p
@@ -234,7 +233,7 @@ function FilterSidebar({ groups, activeKeys, onToggle }: FilterSidebarProps) {
           fontFamily:   "var(--font-heading, inherit)",
         }}
       >
-        Type
+        {t.typeHeading}
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
         {groups.map(({ key, label, count }) => {
@@ -278,6 +277,8 @@ function FilterSidebar({ groups, activeKeys, onToggle }: FilterSidebarProps) {
 // ── Inner page (reads searchParams) ──────────────────────────────────────────
 
 function SearchPageInner() {
+  const texts        = SEARCH_TEXTS[useSiteLocale()];
+  const t            = texts.page;
   const searchParams = useSearchParams();
   const router       = useRouter();
 
@@ -345,11 +346,11 @@ function SearchPageInner() {
       if (existing) {
         existing.count++;
       } else {
-        map.set(key, { key, label: resultGroupLabel(r), count: 1 });
+        map.set(key, { key, label: resultGroupLabel(r, t.typeLabels), count: 1 });
       }
     }
     return [...map.values()];
-  }, [results]);
+  }, [results, t]);
 
   const effectiveActiveKeys = activeKeys ?? groups.map((g) => g.key);
 
@@ -400,12 +401,12 @@ function SearchPageInner() {
             }}
           >
             {status === "success"
-              ? `${displayed.length} ${displayed.length === 1 ? "resultaat" : "resultaten"} voor '${lastQuery}'`
+              ? t.results(displayed.length, lastQuery)
               : status === "loading"
-                ? "Zoeken…"
+                ? t.searching
                 : hasQuery
-                  ? `Zoeken naar '${initialQuery}'`
-                  : "Zoeken"}
+                  ? t.headingFor(initialQuery)
+                  : t.heading}
           </h1>
 
           {/* Search bar */}
@@ -431,7 +432,7 @@ function SearchPageInner() {
                 type="search"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Zoek op de site…"
+                placeholder={t.placeholder}
                 autoFocus={!initialQuery}
                 autoComplete="off"
                 style={{
@@ -447,7 +448,7 @@ function SearchPageInner() {
               {inputValue && (
                 <button
                   type="button"
-                  aria-label="Wis zoekopdracht"
+                  aria-label={t.clear}
                   onClick={() => { setInputValue(""); setResults([]); setStatus("idle"); setLastQuery(""); }}
                   style={{
                     background: "none",
@@ -480,7 +481,7 @@ function SearchPageInner() {
                 transition:   "opacity 0.15s",
               }}
             >
-              {status === "loading" ? "Zoeken…" : "Zoeken"}
+              {status === "loading" ? t.searching : t.search}
             </button>
           </form>
         </div>
@@ -545,7 +546,7 @@ function SearchPageInner() {
                 }}
               >
                 <p style={{ margin: 0, fontSize: "0.9375rem" }}>
-                  Geen resultaten gevonden voor &apos;{lastQuery}&apos;. Probeer een andere zoekopdracht.
+                  {t.noResults(lastQuery)}
                 </p>
               </div>
             ) : (
@@ -570,7 +571,7 @@ function SearchPageInner() {
             color:    "var(--text-muted, #6b7280)",
           }}
         >
-          <p>Typ een zoekterm en druk op Zoeken.</p>
+          <p>{t.idle}</p>
         </div>
       )}
 
@@ -585,7 +586,7 @@ function SearchPageInner() {
             color:    "var(--color-error, #dc2626)",
           }}
         >
-          <p>Er is iets misgegaan. Probeer het opnieuw.</p>
+          <p>{texts.error}</p>
         </div>
       )}
     </div>
@@ -595,6 +596,7 @@ function SearchPageInner() {
 // ── Page export ───────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
+  const t = SEARCH_TEXTS[useSiteLocale()].page;
   return (
     <Suspense
       fallback={
@@ -608,7 +610,7 @@ export default function SearchPage() {
             color:       "var(--text-muted, #6b7280)",
           }}
         >
-          Zoeken…
+          {t.searching}
         </div>
       }
     >

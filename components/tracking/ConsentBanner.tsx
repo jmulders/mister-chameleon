@@ -139,7 +139,7 @@ export function ConsentBanner({ title, description, locale }: ConsentBannerProps
   return (
     <div
       role="dialog"
-      aria-label="Cookie consent"
+      aria-label={t.banner.dialogLabel}
       aria-live="polite"
       style={{
         position:        "fixed",
