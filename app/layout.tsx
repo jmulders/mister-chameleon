@@ -11,7 +11,7 @@ import { LeadinfoProvider }      from "@/components/tracking/LeadinfoProvider";
 import { ConsentBanner }         from "@/components/tracking/ConsentBanner";
 import { SiteLocaleProvider }    from "@/components/site/SiteLocale";
 import { toSiteLocale }          from "@/lib/site-texts/locale";
-import { getLocale }             from "@/lib/locale";
+import { getSiteLanguage }       from "@/lib/site-texts/server";
 import { CookiePreferences }     from "@/components/tracking/CookiePreferences";
 import { toConsentLocale }       from "@/tracking/consent-i18n";
 import { getDesignPreset } from "@/tenant/design-presets-gallery";
@@ -421,7 +421,7 @@ export default async function RootLayout({
   // engine go by) and down to client components for the platform's own texts.
   // The admin and the dashboard are English, whatever the site speaks.
   const isAppShell = _consentPathname.startsWith("/admin") || _consentPathname.startsWith("/dashboard");
-  const htmlLang   = isAppShell ? "en" : await getLocale();
+  const htmlLang   = isAppShell ? "en" : await getSiteLanguage();
 
   const consentLocale = toConsentLocale(
     (await cookies()).get("mc_locale")?.value ?? tenantConfig.defaultLocale,
