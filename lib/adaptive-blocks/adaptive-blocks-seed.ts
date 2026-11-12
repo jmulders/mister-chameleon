@@ -158,7 +158,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_default",
     content: c(
       "Uw website past zich aan iedere bezoeker aan",
-      "Mister Chameleon personaliseert uw B2B website in real-time — zonder cookies, zonder handmatig segmenteren.",
+      "Mister Chameleon personaliseert uw B2B website in real-time. Zonder cookies, zonder handmatig segmenteren.",
       "Website personalisatie",
       [{ label: "Bekijk een demo", href: "/demo" }, { label: "Hoe het werkt", href: "/features" }],
       { layoutVariant: "hero_default", contentAlign: "center" },
@@ -194,7 +194,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_direct_brand",
     content: c(
       "Slimste personalisatie voor B2B groei",
-      "U kent ons al. Kijk hoe andere B2B-bedrijven hun conversie verhogen met gepersonaliseerde websites — en hoe u morgen kunt beginnen.",
+      "U kent ons al. Kijk hoe andere B2B-bedrijven hun conversie verhogen met gepersonaliseerde websites. En hoe u morgen kunt beginnen.",
       "Welkom bij Mister Chameleon",
       [{ label: "Start gratis proefperiode", href: "/signup" }, { label: "Bekijk demo", href: "/demo" }],
       { layoutVariant: "hero_default", contentAlign: "center" },
@@ -242,7 +242,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_saas_default",
     content: c(
       "Meer trial-aanmeldingen. Minder churn.",
-      "Mister Chameleon helpt SaaS-bedrijven relevanter te zijn voor iedere bezoeker — van eerste bezoek tot klantretentie.",
+      "Mister Chameleon helpt SaaS-bedrijven relevanter te zijn voor iedere bezoeker. Van eerste bezoek tot klantretentie.",
       "B2B SaaS personalisatie",
       [{ label: "Bekijk SaaS use cases", href: "/cases" }, { label: "Start gratis", href: "/signup" }],
       { layoutVariant: "hero_split", contentAlign: "left" },
@@ -278,7 +278,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_saas_trial",
     content: c(
       "Maak het meeste van uw trial",
-      "Ontdek de krachtigste functies, importeer uw content en plan uw lancering — alles in één dashboard.",
+      "Ontdek de krachtigste functies, importeer uw content en plan uw lancering. Alles in één dashboard.",
       "U bent in uw proefperiode",
       [{ label: "Open onboarding", href: "/onboarding" }, { label: "Bekijk features", href: "/features" }],
       { layoutVariant: "hero_proof", contentAlign: "center" },
@@ -325,7 +325,7 @@ const heroBlocks: SeedBlock[] = [
   {
     key:     "hero_careers_high_intent",
     content: c(
-      "Wij zoeken u — start uw sollicitatie vandaag",
+      "Wij zoeken u. Start uw sollicitatie vandaag",
       "U bent er klaar voor. Wij ook. Stuur uw cv en we nemen binnen twee werkdagen contact op.",
       "Solliciteer nu",
       [{ label: "Direct solliciteren", href: "/solliciteren" }, { label: "Stel een vraag", href: "/contact" }],
@@ -353,7 +353,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_page_banner_awareness",
     content: c(
       "Ontdek wat website personalisatie voor u kan doen",
-      "Mister Chameleon past uw B2B website automatisch aan op iedere bezoeker — zonder cookies, zonder code.",
+      "Mister Chameleon past uw B2B website automatisch aan op iedere bezoeker. Zonder cookies, zonder code.",
       "Website personalisatie",
       [{ label: "Bekijk een demo", href: "/demo" }],
       { layoutVariant: "hero_page_banner", contentAlign: "left" },
@@ -383,7 +383,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_page_banner_enterprise",
     content: c(
       "Enterprise-grade personalisatie voor uw B2B-team",
-      "Dedicated onboarding, SLA-garantie en enterprise-integraties — voor teams die serieus personaliseren.",
+      "Dedicated onboarding, SLA-garantie en enterprise-integraties. Voor teams die serieus personaliseren.",
       "Enterprise",
       [{ label: "Neem contact op", href: "/contact" }],
       { layoutVariant: "hero_page_banner", contentAlign: "left" },
@@ -392,7 +392,7 @@ const heroBlocks: SeedBlock[] = [
   {
     key:     "hero_page_banner_returning",
     content: c(
-      "Welkom terug — we hebben het bijgehouden",
+      "Welkom terug. We hebben het bijgehouden",
       "Ontdek de nieuwste functies en verbeteringen die klaarstaan voor u in uw account.",
       "Welkom terug",
       [{ label: "Open dashboard", href: "/dashboard" }],
@@ -403,7 +403,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_page_banner_friction",
     content: c(
       "Nog vragen? We beantwoorden ze graag",
-      "Twijfelt u ergens over? Neem contact op of bekijk onze veelgestelde vragen — we helpen u verder.",
+      "Twijfelt u ergens over? Neem contact op of bekijk onze veelgestelde vragen. We helpen u verder.",
       "Hulp nodig?",
       [{ label: "Stel een vraag", href: "/contact" }, { label: "Veelgestelde vragen", href: "/faq" }],
       { layoutVariant: "hero_page_banner", contentAlign: "left" },
@@ -422,7 +422,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_features",
     content: c(
       "Uw campagne is gesegmenteerd. Uw website niet.",
-      "U investeert in positionering, en dan landt iedereen op dezelfde homepage. Mister Chameleon laat uw bestaande site meebewegen met wie er kijkt — zonder redesign.",
+      "U investeert in positionering, en dan landt iedereen op dezelfde homepage. Mister Chameleon laat uw bestaande site meebewegen met wie er kijkt. Zonder redesign.",
       "Wat het platform doet",
       [{ label: "Demo boeken", href: "/book-demo" }, { label: "Bekijk de prijzen", href: "/pricing" }],
       { layoutVariant: "hero_split", contentAlign: "left" },
@@ -434,7 +434,7 @@ const heroBlocks: SeedBlock[] = [
     key:     "hero_pricing",
     content: c(
       "U betaalt voor geleverde waarde, niet voor complexiteit",
-      "Prijs per gepersonaliseerde sessie. Regels, experimenten, segmenten en pagina's zijn onbeperkt op elk plan — en een plafond dat u zelf zet, dus geen onverwachte factuur.",
+      "Prijs per gepersonaliseerde sessie. Regels, experimenten, segmenten en pagina's zijn onbeperkt op elk plan. En een plafond dat u zelf zet, dus geen onverwachte factuur.",
       "Prijzen",
       [{ label: "14 dagen gratis proberen", href: "/book-demo" }, { label: "Wat het doet", href: "/features" }],
       { layoutVariant: "hero_split", contentAlign: "left" },
@@ -449,13 +449,13 @@ const proofBlocks: SeedBlock[] = [
   {
     key:     "proof_default",
     content: ci(
-      "U hoeft ons niet te geloven — u meet het",
+      "U hoeft ons niet te geloven. U meet het",
       "Elke aanpassing draait tegen een controlegroep die de gewone site ziet. Het verschil tussen beide groepen is uw resultaat.",
       "Meten boven beloven",
       [
-        { title: "Controlegroep standaard", text: "Een deel van uw bezoekers krijgt altijd de ongewijzigde site. Zo weet u wat personalisatie toevoegde — en of het iets toevoegde." },
+        { title: "Controlegroep standaard", text: "Een deel van uw bezoekers krijgt altijd de ongewijzigde site. Zo weet u wat personalisatie toevoegde. En of het iets toevoegde." },
         { title: "Geen cookiebanner nodig", text: "De basis werkt zonder cookies en zonder profielopbouw. Verrijking zit achter instellingen die u zelf bepaalt." },
-        { title: "No-code implementatie",   text: "Eén snippet in uw CMS en u bent live — geen developer nodig, geen IT-traject." },
+        { title: "No-code implementatie",   text: "Eén snippet in uw CMS en u bent live. Geen developer nodig, geen IT-traject." },
       ],
     ),
   },
@@ -466,7 +466,7 @@ const proofBlocks: SeedBlock[] = [
       "Wat personalisatie oplevert hangt af van wie er binnenkomt en wat u ze te vertellen heeft. Dit zijn de patronen die we terugzien.",
       "Uit de praktijk",
       [
-        { title: "Beginnen bij de hero",     text: "Eén blok, drie doelgroepen. Dat is waar het verschil het grootst is en de inspanning het kleinst — vandaar dat vrijwel iedereen daar start." },
+        { title: "Beginnen bij de hero",     text: "Eén blok, drie doelgroepen. Dat is waar het verschil het grootst is en de inspanning het kleinst. Vandaar dat vrijwel iedereen daar start." },
         { title: "Herkennen op bedrijfsniveau", text: "Voor ABM telt niet de persoon maar het account: welk bedrijf zit achter het IP, en wat weet uw CRM daar al van." },
         { title: "Afrekenen met de controlegroep", text: "Zonder controlegroep weet u alleen dát er iets veranderde, niet of het hielp. Daarom staat die standaard aan." },
       ],
@@ -476,11 +476,11 @@ const proofBlocks: SeedBlock[] = [
     key:     "proof_vision",
     content: ci(
       "De personalisatielaag die B2B-marketing miste",
-      "Relevantie verhogen zonder third-party cookies en zonder IT-traject. Dat kon lang niet — daarom deed vrijwel niemand het.",
+      "Relevantie verhogen zonder third-party cookies en zonder IT-traject. Dat kon lang niet. Daarom deed vrijwel niemand het.",
       "Waarom nu wel",
       [
         { title: "Cookievrije personalisatie", text: "Alle segmentering werkt op gedrag en context, niet op third-party data. Geen toestemming nodig om te beginnen." },
-        { title: "Geen IT-traject vereist",    text: "Marketeers beheren de regels zelf. IT plaatst eenmalig de snippet — dat is alles." },
+        { title: "Geen IT-traject vereist",    text: "Marketeers beheren de regels zelf. IT plaatst eenmalig de snippet. Dat is alles." },
         { title: "Naast uw bestaande stack",   text: "Uw CMS blijft uw CMS, uw CRM blijft uw CRM. Wij vervangen niets; we bewegen mee met wat er al staat." },
       ],
     ),
@@ -515,12 +515,12 @@ const proofBlocks: SeedBlock[] = [
     key:     "proof_reassurance",
     content: ci(
       "Personalisatie die u altijd onder controle houdt",
-      "U bepaalt de regels. U goedkeurt de content. Wij zorgen voor de techniek — transparant en zonder black-box magie.",
+      "U bepaalt de regels. U goedkeurt de content. Wij zorgen voor de techniek. Transparant en zonder black-box magie.",
       "Geen verrassingen",
       [
         { title: "U beheert de regels",        text: "Definieer zelf wanneer welke variant getoond wordt. Geen afhankelijkheid van een extern bureau of developer." },
         { title: "Volledige audit trail",      text: "Elke gepersonaliseerde weergave is terug te herleiden. U ziet precies welke variant wanneer aan wie getoond is." },
-        { title: "Altijd terug te draaien",    text: "Zet een variant met één klik uit. De standaard content verschijnt direct — zonder cache-problemen." },
+        { title: "Altijd terug te draaien",    text: "Zet een variant met één klik uit. De standaard content verschijnt direct. Zonder cache-problemen." },
       ],
     ),
   },
@@ -532,7 +532,7 @@ const proofBlocks: SeedBlock[] = [
       "SaaS-benchmarks",
       [
         { title: "+40% trial-aanmeldingen",  text: "SaaS-bedrijven die personaliseren op kanaal en intentie zien gemiddeld 40% meer proefaccounts per maand." },
-        { title: "Kortere sales-cyclus",     text: "Bezoekers die relevante copy zien, zijn al halfwege overtuigd — uw salescyclus wordt meetbaar korter." },
+        { title: "Kortere sales-cyclus",     text: "Bezoekers die relevante copy zien, zijn al halfwege overtuigd. Uw salescyclus wordt meetbaar korter." },
         { title: "Hogere activatiegraad",    text: "Nieuwe gebruikers die via gepersonaliseerde hero binnenkomen, activeren vaker hun account in week één." },
       ],
     ),
@@ -544,7 +544,7 @@ const proofBlocks: SeedBlock[] = [
       "Van developer-tools tot HR-software: Mister Chameleon past zich aan uw specifieke koopproces en doelgroep aan.",
       "Past het bij uw product?",
       [
-        { title: "Developer-tools",      text: "Toon technische diepgang aan developers en een ROI-verhaal aan kopers — automatisch op basis van gedragssignalen." },
+        { title: "Developer-tools",      text: "Toon technische diepgang aan developers en een ROI-verhaal aan kopers. Automatisch op basis van gedragssignalen." },
         { title: "HR- en work-tech",     text: "Personaliseer op rol (HR-manager vs. IT) en fase (oriëntatie vs. beslissing) zonder handmatige segmentatie." },
         { title: "Finance- en legal-SaaS", text: "Compliance en veiligheid voorop bij juridische beslissers; efficiency en integraties bij operationele gebruikers." },
       ],
@@ -559,7 +559,7 @@ const proofBlocks: SeedBlock[] = [
       [
         { title: "Terugkeer telt mee",    text: "Hoe vaak iemand er was en waar hij naar keek, bepaalt of hij de introductie krijgt of meteen de casus en de prijs." },
         { title: "CTA volgt de intentie", text: "Wie oriënteert krijgt een gids; wie vergelijkt krijgt een gesprek. Dezelfde pagina, een andere uitnodiging." },
-        { title: "Sales ziet het ook",    text: "Wat de bezoeker op de site deed, komt mee in uw CRM — zodat het gesprek niet bij nul begint." },
+        { title: "Sales ziet het ook",    text: "Wat de bezoeker op de site deed, komt mee in uw CRM. Zodat het gesprek niet bij nul begint." },
       ],
     ),
   },
@@ -570,8 +570,8 @@ const proofBlocks: SeedBlock[] = [
       "Geen giswerk. Geen black box. Iedere beslissing is traceerbaar en uitlegbaar aan uw hele team.",
       "Vertrouw op de data",
       [
-        { title: "Beslissingen op basis van data",  text: "Alle regels zijn gebaseerd op bewezen patronen in uw eigen verkeer — niet op aannames of generieke segmenten." },
-        { title: "Volledig transparant",            text: "U ziet welke regel getriggerd is, welke variant getoond is en wat het resultaat was — per bezoek." },
+        { title: "Beslissingen op basis van data",  text: "Alle regels zijn gebaseerd op bewezen patronen in uw eigen verkeer. Niet op aannames of generieke segmenten." },
+        { title: "Volledig transparant",            text: "U ziet welke regel getriggerd is, welke variant getoond is en wat het resultaat was. Per bezoek." },
         { title: "Continu verbeterend",             text: "Het systeem leert van uw conversiedata en suggereert aanpassingen die uw team zelf kan goedkeuren." },
       ],
     ),
@@ -579,13 +579,13 @@ const proofBlocks: SeedBlock[] = [
   {
     key:     "proof_careers_default",
     content: ci(
-      "Een bedrijf dat groeit — en u laat meegroeit",
+      "Een bedrijf dat groeit. En u laat meegroeit",
       "Meer dan 40 collega's, een echte leeromgeving en de vrijheid om werk te doen dat ertoe doet.",
       "Werken bij ons",
       [
         { title: "40+ collega's",             text: "Een compact, hecht team van marketeers, engineers en productdenkers die allemaal eigenaarschap nemen." },
         { title: "Leer van de besten",        text: "Wekelijkse kennissessies, een ruim opleidingsbudget en directe toegang tot seniors die u echt helpen groeien." },
-        { title: "Impact op dag één",         text: "Geen inwerkperiode van maanden. U werkt direct aan echte producten voor echte klanten — met echte verantwoordelijkheid." },
+        { title: "Impact op dag één",         text: "Geen inwerkperiode van maanden. U werkt direct aan echte producten voor echte klanten. Met echte verantwoordelijkheid." },
       ],
     ),
   },
@@ -593,12 +593,12 @@ const proofBlocks: SeedBlock[] = [
     key:     "proof_careers_team",
     content: ci(
       "Teamleden die net als u zijn begonnen",
-      "Lees de verhalen van collega's die de stap maakten — en wat hen bindt aan Mister Chameleon.",
+      "Lees de verhalen van collega's die de stap maakten. En wat hen bindt aan Mister Chameleon.",
       "Ontmoet het team",
       [
-        { title: "Van junior naar lead",       text: "Meerdere teamleden groeiden binnen twee jaar door van starter naar teamlead — zonder politiek, op basis van werk." },
+        { title: "Van junior naar lead",       text: "Meerdere teamleden groeiden binnen twee jaar door van starter naar teamlead. Zonder politiek, op basis van werk." },
         { title: "Divers en internationaal",   text: "Ons team komt uit acht landen. Verschillende achtergronden maken de beste producten." },
-        { title: "Echte verhalen",             text: "Geen gladde employer-branding. Onze collega's vertellen eerlijk wat ze fijn vinden — en wat beter kan." },
+        { title: "Echte verhalen",             text: "Geen gladde employer-branding. Onze collega's vertellen eerlijk wat ze fijn vinden. En wat beter kan." },
       ],
     ),
   },
@@ -609,9 +609,9 @@ const proofBlocks: SeedBlock[] = [
       "Geen lang wachten, geen vage feedback. We zijn eerlijk over de rol, de stappen en onze beslissing.",
       "Een fair sollicitatieproces",
       [
-        { title: "Reactie binnen 3 werkdagen", text: "U hoort altijd van ons — ook als het antwoord nee is. Geen maanden wachten op een stilzwijgend afwijzing." },
+        { title: "Reactie binnen 3 werkdagen", text: "U hoort altijd van ons. Ook als het antwoord nee is. Geen maanden wachten op een stilzwijgend afwijzing." },
         { title: "Twee gespreksrondes",        text: "Eén kennismaking en één inhoudelijk gesprek. Geen eindeloze assessment-carrousel of onbetaalde opdrachten." },
-        { title: "Eerlijke feedback",          text: "Als wij nee zeggen, vertellen we waarom. Als u nee zegt, waarderen we dat evenzeer — respect werkt twee kanten op." },
+        { title: "Eerlijke feedback",          text: "Als wij nee zeggen, vertellen we waarom. Als u nee zegt, waarderen we dat evenzeer. Respect werkt twee kanten op." },
       ],
     ),
   },
@@ -629,9 +629,9 @@ const proofBlocks: SeedBlock[] = [
       "Geen tussenlaag die eerst de standaardpagina toont en die daarna verbouwt. De beslissing valt voordat de pagina bij de bezoeker aankomt.",
       "Onder de motorkap",
       [
-        { title: "Server-side",     text: "De pagina komt al goed aan. Geen flikkering, geen sprong — en zoekmachines zien een gewone, snelle pagina." },
+        { title: "Server-side",     text: "De pagina komt al goed aan. Geen flikkering, geen sprong. En zoekmachines zien een gewone, snelle pagina." },
         { title: "Zonder cookies",  text: "De basis werkt op gedrag en context, niet op third-party data. U hoeft niet te wachten op toestemming om relevant te zijn." },
-        { title: "Op uw eigen CMS", text: "Statamic, Sanity of Storyblok — of één snippet op de site die u al heeft. Uw redactie verandert er niets aan." },
+        { title: "Op uw eigen CMS", text: "Statamic, Sanity of Storyblok. Of één snippet op de site die u al heeft. Uw redactie verandert er niets aan." },
       ],
     ),
   },
@@ -644,7 +644,7 @@ const proofBlocks: SeedBlock[] = [
       "De twee vragen die iedereen bij een prijslijst heeft: wat als het tegenvalt, en wat als het uit de hand loopt.",
       "Wat u vooraf wilt weten",
       [
-        { title: "Uw plafond, niet het onze", text: "U stelt in hoeveel er per maand aan verrijking besteed mag worden. Boven dat bedrag stopt het — er komt nooit een onverwachte factuur." },
+        { title: "Uw plafond, niet het onze", text: "U stelt in hoeveel er per maand aan verrijking besteed mag worden. Boven dat bedrag stopt het. Er komt nooit een onverwachte factuur." },
         { title: "Onbeperkt configureren",    text: "Regels, experimenten, segmenten en pagina's zijn op elk plan onbeperkt. U betaalt voor geleverde sessies, niet voor nadenken." },
         { title: "14 dagen proberen",         text: "Genoeg om de controlegroep te laten meelopen en zelf te zien of er iets gebeurt." },
       ],
@@ -668,7 +668,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_guide",
     content: c(
       "Download de B2B personalisatie-gids",
-      "Stap-voor-stap uitleg over hoe u uw website aanpast op verschillende bezoekersprofielen — gratis.",
+      "Stap-voor-stap uitleg over hoe u uw website aanpast op verschillende bezoekersprofielen. Gratis.",
       "Gratis gids",
       [{ label: "Download gratis", href: "/gids" }],
     ),
@@ -686,7 +686,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_meeting",
     content: c(
       "Plan een 20-minuten kennismaking",
-      "Kijk live hoe Mister Chameleon werkt — met uw eigen website als voorbeeld.",
+      "Kijk live hoe Mister Chameleon werkt. Met uw eigen website als voorbeeld.",
       "Persoonlijk gesprek",
       [{ label: "Plan een demo", href: "/demo" }, { label: "Bel ons", href: "/contact" }],
     ),
@@ -695,7 +695,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_demo",
     content: c(
       "Bekijk een gratis demo op uw eigen website",
-      "We laten u in 30 minuten zien hoe personalisatie er voor uw bezoekers uitziet — volledig vrijblijvend.",
+      "We laten u in 30 minuten zien hoe personalisatie er voor uw bezoekers uitziet. Volledig vrijblijvend.",
       "Live demo",
       [{ label: "Gratis demo bekijken", href: "/demo" }],
     ),
@@ -704,7 +704,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_onboarding",
     content: c(
       "Start uw onboarding nu",
-      "Volg de stappen en ga live met uw eerste personalisatieregel — vandaag nog.",
+      "Volg de stappen en ga live met uw eerste personalisatieregel. Vandaag nog.",
       "Aan de slag",
       [{ label: "Open onboarding", href: "/onboarding" }],
     ),
@@ -713,7 +713,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_expansion",
     content: c(
       "Ontgrendel meer met uw plan",
-      "Meer domeinen, meer segmenten, meer regels — bekijk welke uitbreidingen bij uw groei passen.",
+      "Meer domeinen, meer segmenten, meer regels. Bekijk welke uitbreidingen bij uw groei passen.",
       "Meer mogelijkheden",
       [{ label: "Bekijk uitbreidingen", href: "/pricing" }, { label: "Neem contact op", href: "/contact" }],
     ),
@@ -758,7 +758,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_saas_expansion",
     content: c(
       "Klaar voor meer? Bekijk uw uitbreidingsopties",
-      "Meer domeinen, meer regels, meer segmenten — precies wat u nodig heeft voor de volgende groeifase.",
+      "Meer domeinen, meer regels, meer segmenten. Precies wat u nodig heeft voor de volgende groeifase.",
       "Schaal op",
       [{ label: "Bekijk uitbreidingen", href: "/pricing" }],
     ),
@@ -775,7 +775,7 @@ const ctaBlocks: SeedBlock[] = [
   {
     key:     "cta_careers_apply",
     content: c(
-      "Stuur uw sollicitatie in — het duurt 5 minuten",
+      "Stuur uw sollicitatie in. Het duurt 5 minuten",
       "Direct solliciteren via ons formulier. We nemen altijd persoonlijk contact op binnen twee werkdagen.",
       "Solliciteer nu",
       [{ label: "Solliciteer direct", href: "/solliciteren" }],
@@ -832,10 +832,10 @@ const featureBlocks: SeedBlock[] = [
     key:     "feature_default",
     content: ci(
       "Alles wat u nodig heeft voor slimme personalisatie",
-      "Van real-time segmentering tot content management — alle functies die B2B-groei ondersteunen, in één platform.",
+      "Van real-time segmentering tot content management. Alle functies die B2B-groei ondersteunen, in één platform.",
       "Functies",
       [
-        { title: "Real-time segmentering",  body: "Classificeer iedere bezoeker direct op basis van kanaal, gedrag en apparaat — zonder cookiemuur of log-in." },
+        { title: "Real-time segmentering",  body: "Classificeer iedere bezoeker direct op basis van kanaal, gedrag en apparaat. Zonder cookiemuur of log-in." },
         { title: "Visuele variant-editor",  body: "Stel hero, proof en CTA-varianten in via een no-code editor. Publiceer en test zonder uw developer lastig te vallen." },
         { title: "Webhooks & API",          body: "Koppel Mister Chameleon aan uw CRM, MAP of datalayer. Data stroomt automatisch van en naar uw bestaande tools." },
       ],
@@ -847,12 +847,12 @@ const featureBlocks: SeedBlock[] = [
     key:     "feature_grid_primary",
     content: ci(
       "Alles wat u nodig heeft voor slimme personalisatie",
-      "Van real-time segmentering tot content management — alle functies die B2B-groei ondersteunen, in één platform.",
+      "Van real-time segmentering tot content management. Alle functies die B2B-groei ondersteunen, in één platform.",
       "Functies",
       [
         {
           title: "Real-time segmentering",
-          body:  "Classificeer iedere bezoeker direct op basis van kanaal, gedrag en apparaat — zonder cookiemuur of log-in.",
+          body:  "Classificeer iedere bezoeker direct op basis van kanaal, gedrag en apparaat. Zonder cookiemuur of log-in.",
           cta:   "Meer over segmentering",
           ctaHref: "/features#segmentering",
         },
@@ -875,12 +875,12 @@ const featureBlocks: SeedBlock[] = [
     key:     "feature_highlights",
     content: ci(
       "De functies die het verschil maken",
-      "Selectief en krachtig: de kerncapaciteiten van Mister Chameleon op een rij — voor marketeers en groeiteams.",
+      "Selectief en krachtig: de kerncapaciteiten van Mister Chameleon op een rij. Voor marketeers en groeiteams.",
       "Kerncapaciteiten",
       [
         {
           title: "Regelgebaseerde personalisatie",
-          body:  "Definieer zelf wanneer welke variant getoond wordt. Van simpele kanaalregels tot complexe gedragscondities — allemaal zonder code.",
+          body:  "Definieer zelf wanneer welke variant getoond wordt. Van simpele kanaalregels tot complexe gedragscondities. Allemaal zonder code.",
         },
         {
           title: "A/B-testinfrastructuur",
@@ -897,7 +897,7 @@ const featureBlocks: SeedBlock[] = [
     key:     "feature_comparison",
     content: ci(
       "Kies het plan dat bij uw groei past",
-      "Vergelijk functies, limieten en prijzen van alle pakketten naast elkaar — zonder verborgen kosten.",
+      "Vergelijk functies, limieten en prijzen van alle pakketten naast elkaar. Zonder verborgen kosten.",
       "Vergelijk opties",
       [
         {
@@ -929,15 +929,15 @@ const featureBlocks: SeedBlock[] = [
     key:     "feature_full_platform",
     content: ci(
       "Wat het platform doet",
-      "Zes onderdelen die samen één ding doen: de juiste boodschap bij de juiste bezoeker krijgen — en aantonen dat het werkte.",
+      "Zes onderdelen die samen één ding doen: de juiste boodschap bij de juiste bezoeker krijgen. En aantonen dat het werkte.",
       "Het hele platform",
       [
         { title: "Herkennen",       body: "Bron, campagne, zoekwoord, gedrag en terugkeer. En zakelijk: welk bedrijf achter het IP zit, aangevuld met KvK-gegevens en wat er al in uw CRM staat." },
-        { title: "Aanpassen",       body: "U wijst de blokken aan die mogen meebewegen — hero, bewijs, CTA. De rest van de pagina blijft staan zoals hij staat." },
+        { title: "Aanpassen",       body: "U wijst de blokken aan die mogen meebewegen. Hero, bewijs, CTA. De rest van de pagina blijft staan zoals hij staat." },
         { title: "Bewijzen",        body: "Elke aanpassing draait tegen een controlegroep die de gewone site ziet. U meet de werkelijke lift in plaats van te geloven dat het hielp." },
         { title: "Server-side",     body: "De beslissing valt vóórdat de pagina aankomt. Geen flikkering, geen vertraging, en zoekmachines zien een gewone pagina." },
         { title: "AVG-first",       body: "De basis werkt zonder cookies. Een verwijderverzoek loopt door tot in uw CRM en onderdrukt het profiel ook bij de advertentieplatforms." },
-        { title: "Op uw eigen CMS", body: "Statamic, Sanity of Storyblok — of één snippet op een site die u houdt zoals hij is." },
+        { title: "Op uw eigen CMS", body: "Statamic, Sanity of Storyblok. Of één snippet op een site die u houdt zoals hij is." },
       ],
     ),
   },
