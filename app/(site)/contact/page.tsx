@@ -42,10 +42,11 @@ import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { resolveSlugPageConfig } from "@/lib/cms-page-decision";
 import { headers } from "next/headers";
+import { PLATFORM_EMAIL } from "@/lib/platform-contact";
 
 export const metadata: Metadata = {
-  title: "Contact",
-  description: "Neem contact op met Mister Chameleon. We helpen je graag met een demo of beantwoorden je vragen over website-personalisatie.",
+  title:       "Contact | Mister Chameleon",
+  description: "Stel je vraag over het product, de prijzen of een demo. Je krijgt binnen één werkdag antwoord.",
 };
 
 type PageProps = {
@@ -222,17 +223,14 @@ export default async function ContactPage({ searchParams }: PageProps) {
   return (
     <div className="min-h-screen bg-white">
 
-      {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-5xl px-6 pt-20 pb-12 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-500 mb-6">
-          <span>🦎</span> Get in touch
-        </div>
+      {/* ── HEADING ──────────────────────────────────────────────────────── */}
+      <section className="mx-auto max-w-5xl px-6 pb-12 pt-20 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-neutral-900 sm:text-5xl">
-          Let&apos;s talk personalisation
+          Neem contact op
         </h1>
-        <p className="mt-5 text-lg text-neutral-500 max-w-xl mx-auto">
-          Questions about the platform, a custom plan, or just want to see a demo?
-          We respond within one business day.
+        <p className="mx-auto mt-5 max-w-xl text-lg text-neutral-600">
+          Een vraag over het product, de prijzen of een demo?
+          Je krijgt binnen één werkdag antwoord.
         </p>
       </section>
 
@@ -240,56 +238,53 @@ export default async function ContactPage({ searchParams }: PageProps) {
       <section className="mx-auto max-w-5xl px-6 pb-20">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
 
-          {/* Left — form */}
+          {/* Left: the form */}
           <div>
-            <h2 className="text-lg font-semibold text-neutral-900 mb-6">Send us a message</h2>
+            <h2 className="mb-6 text-lg font-semibold text-neutral-900">Stuur ons een bericht</h2>
             <ContactForm />
           </div>
 
-          {/* Right — contact details + options */}
+          {/* Right: other ways to reach us */}
           <div className="space-y-8">
-            {/* Email */}
             <div>
-              <h2 className="text-lg font-semibold text-neutral-900 mb-4">Direct contact</h2>
+              <h2 className="mb-4 text-lg font-semibold text-neutral-900">Liever mailen?</h2>
               <a
-                href="mailto:info@misterchameleon.nl"
-                className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700 hover:border-neutral-400 transition-colors"
+                href={`mailto:${PLATFORM_EMAIL}`}
+                className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700 transition-colors hover:border-neutral-400"
               >
-                <span className="text-xl">✉️</span>
-                info@misterchameleon.nl
+                <span aria-hidden className="text-xl">✉️</span>
+                {PLATFORM_EMAIL}
               </a>
             </div>
 
             <hr className="border-neutral-200" />
 
-            {/* Book a demo */}
             <div>
-              <h2 className="text-lg font-semibold text-neutral-900 mb-2">Book a demo</h2>
-              <p className="text-sm text-neutral-500 mb-4">
-                Prefer to see it live? Book a 20-minute walkthrough — we&apos;ll show you
-                how to go live on your site in one afternoon.
+              <h2 className="mb-2 text-lg font-semibold text-neutral-900">Zie het liever werken?</h2>
+              <p className="mb-4 text-sm text-neutral-600">
+                In een demo van dertig minuten laten we zien hoe jouw site eruitziet
+                voor verschillende bezoekers.
               </p>
               <Link
-                href="/book-demo"
-                className="inline-flex items-center gap-2 rounded-xl border border-neutral-900 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors"
+                href="/demo"
+                className="inline-flex items-center gap-2 rounded-xl border border-neutral-900 px-5 py-2.5 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-white"
               >
-                📅 Book a 20-min demo
+                Plan een demo
               </Link>
             </div>
 
             <hr className="border-neutral-200" />
 
-            {/* FAQ pointer */}
             <div>
-              <h2 className="text-lg font-semibold text-neutral-900 mb-2">Common questions</h2>
-              <p className="text-sm text-neutral-500 mb-4">
-                Have a billing or pricing question? Check our FAQ first.
+              <h2 className="mb-2 text-lg font-semibold text-neutral-900">Een vraag over de prijs?</h2>
+              <p className="mb-4 text-sm text-neutral-600">
+                De pakketten en wat je ervoor krijgt staan op een rij.
               </p>
               <Link
-                href="/pricing"
+                href="/prijzen"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-900 hover:underline"
               >
-                See pricing &amp; FAQ →
+                Bekijk de prijzen
               </Link>
             </div>
           </div>

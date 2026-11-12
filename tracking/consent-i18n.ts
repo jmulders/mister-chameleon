@@ -88,8 +88,8 @@ const EN: ConsentTexts = {
 
 const NL: ConsentTexts = {
   banner: {
-    title:          "We hechten waarde aan uw privacy",
-    description:    "We gebruiken cookies om uw ervaring te verbeteren, het verkeer te analyseren en relevante content te tonen. U kiest zelf welke soorten cookies u toestaat.",
+    title:          "Jij kiest welke cookies we plaatsen",
+    description:    "We gebruiken cookies om de site te laten werken, bezoek te meten en je relevante content te tonen. Je kiest zelf welke soorten je toestaat.",
     essentialLabel: "Essentieel",
     essentialNote:  "Nodig om de site te laten werken. Kan niet worden uitgezet.",
     acceptAll:      "Alles accepteren",
@@ -99,11 +99,11 @@ const NL: ConsentTexts = {
     moreLink:       "Meer over cookies →",
   },
   catMeta: {
-    essential:       { label: "Strikt noodzakelijk", description: "Nodig om de site te laten werken (sessie, uw keuze, taal). Altijd aan." },
+    essential:       { label: "Strikt noodzakelijk", description: "Nodig om de site te laten werken (sessie, je keuze, taal). Altijd aan." },
     analytics:       { label: "Analytics",           description: "Helpt ons begrijpen hoe bezoekers de site gebruiken (paginaweergaven, gebeurtenissen)." },
-    personalization: { label: "Personalisatie",      description: "Laat ons u over bezoeken heen herkennen om content op uw gedrag in de tijd af te stemmen. Anonieme, sessie-only aanpassingen hebben dit niet nodig." },
-    enrichment:      { label: "Verrijking",          description: "Stelt ons in staat uw bedrijf en context te herkennen voor relevantere informatie." },
-    advertising:     { label: "Advertenties",        description: "Laat ons advertentie-klik-ID's delen met advertentieplatforms (Google, Meta) zodat een conversie kan worden gekoppeld aan de advertentie waarop u klikte. Zonder deze keuze worden geen advertentiegegevens gedeeld." },
+    personalization: { label: "Personalisatie",      description: "Hiermee herkennen we je bij een volgend bezoek en stemmen we de content af op wat je eerder bekeek. Aanpassingen binnen één bezoek hebben dit niet nodig." },
+    enrichment:      { label: "Verrijking",          description: "Hiermee herkennen we het bedrijf waar je werkt, zodat je relevantere informatie ziet." },
+    advertising:     { label: "Advertenties",        description: "Hiermee delen we de klik-ID van een advertentie met Google en Meta. Zo weten zij welke advertentie tot een aanvraag leidde. Zonder deze keuze delen we geen advertentiegegevens." },
   },
   declaration: {
     acceptAll:          "Alles accepteren",
@@ -121,9 +121,9 @@ const NL: ConsentTexts = {
     close:    "Sluiten",
   },
   policyPage: {
-    heading: "Cookiebeleid",
-    intro:   "Hieronder staat elke cookie die deze website kan plaatsen, gegroepeerd per doel. Per cookie ziet u wie hem plaatst, waarvoor hij dient, hoe lang hij bewaard wordt (bewaartermijn), het type en het domein. U kunt uw keuze op elk moment aanpassen — die geldt direct en wordt onthouden.",
-    note:    "Integratie-cookies (Google Analytics, Leadinfo) worden alleen geplaatst als die integratie voor deze site aanstaat. Strikt noodzakelijke cookies staan altijd aan omdat de site zonder deze niet werkt.",
+    heading: "Cookieverklaring",
+    intro:   "Hieronder staat elke cookie die deze website kan plaatsen, gegroepeerd per doel. Per cookie zie je wie hem plaatst, waarvoor hij dient, hoe lang hij blijft staan, het type en het domein. Je kunt je keuze op elk moment aanpassen. Die geldt meteen en wordt onthouden.",
+    note:    "Cookies van Google Analytics en Leadinfo plaatsen we alleen als die koppeling voor deze site aanstaat. Strikt noodzakelijke cookies staan altijd aan, want zonder werkt de site niet.",
   },
 };
 
