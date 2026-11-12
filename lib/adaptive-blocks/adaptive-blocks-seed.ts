@@ -677,7 +677,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_platform",
     content: c(
       "Start vandaag kosteloos met bouwen",
-      "Maak een account aan en verken het platform in uw eigen tempo. Geen creditcard nodig.",
+      "Maak een account aan en verken het platform in uw eigen tempo.",
       "Gratis starten",
       [{ label: "Gratis account aanmaken", href: "/signup" }],
     ),
@@ -740,7 +740,7 @@ const ctaBlocks: SeedBlock[] = [
     key:     "cta_saas_trial",
     content: c(
       "Start uw gratis proefperiode",
-      "14 dagen volledig toegang. Geen creditcard. Opzeggen met één klik.",
+      "14 dagen volledige toegang en u betaalt pas daarna. Opzeggen kan altijd.",
       "Gratis proberen",
       [{ label: "Start gratis trial", href: "/signup" }],
     ),
@@ -950,7 +950,7 @@ const conversionBlocks: SeedBlock[] = [
     key:     "conversion_default",
     content: c(
       "Start vandaag met bouwen",
-      "Maak uw account aan en verken het platform — helemaal gratis, geen creditcard vereist.",
+      "Maak uw account aan en verken het platform. U betaalt pas na 14 dagen.",
       "Aan de slag",
       [{ label: "Account aanmaken", href: "/signup" }, { label: "Plan een demo", href: "/demo" }],
       { layoutVariant: "default" },
@@ -960,7 +960,7 @@ const conversionBlocks: SeedBlock[] = [
     key:     "conversion_signup",
     content: c(
       "Start vandaag met bouwen",
-      "Maak uw account aan en verken het platform — helemaal gratis, geen creditcard vereist.",
+      "Maak uw account aan en verken het platform. U betaalt pas na 14 dagen.",
       "Gratis account aanmaken",
       [{ label: "Account aanmaken", href: "/signup" }],
     ),
@@ -1001,7 +1001,7 @@ const notificationBlocks: SeedBlock[] = [
     key:     "notification_offer",
     content: c(
       "Start nu en ontvang 30 dagen gratis",
-      "Tijdelijke aanbieding: geldig tot einde van de maand. Geen creditcard nodig.",
+      "Tijdelijke aanbieding: geldig tot einde van de maand.",
       "Tijdelijke aanbieding",
       [{ label: "Aanbieding benutten", href: "/signup" }],
     ),

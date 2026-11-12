@@ -192,7 +192,7 @@ export default function PrijzenPage() {
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-neutral-600">
           Drie pakketten. Je betaalt per maand voor een aantal gepersonaliseerde bezoeken.
-          Je kunt elk pakket 14 dagen gratis proberen, zonder creditcard.
+          Je kunt elk pakket 14 dagen gratis proberen. Je betaalt pas na 14 dagen.
         </p>
       </section>
 

@@ -483,14 +483,10 @@ function HeroBackgroundMedia({ media }: { media: HeroBannerMedia }) {
 
 // ── Block component ───────────────────────────────────────────────────────────
 
-// Default proof bar items used when the CMS document does not supply any.
-// These are the built-in fallback values — editors can override them via the
-// `proofItems` field on any heroVariant document that uses the hero_proof layout.
-const DEFAULT_PROOF_ITEMS: readonly HeroProofItem[] = [
-  { metric: "10,000+", label: "customers"    },
-  { metric: "99.9%",   label: "uptime SLA"   },
-  { metric: "< 5 min", label: "setup time"   },
-];
+// The proof bar shows what the CMS document supplies and nothing else. It used
+// to fall back to three made-up figures ("10,000+ customers", "99.9% uptime
+// SLA", "< 5 min setup time"), printed on any tenant's site that left the field
+// empty.
 
 export function HeroBlock({
   title,
@@ -700,15 +696,6 @@ export function HeroBlock({
                   <InlineRichText source={subtitle} />
                 </Text>
                 <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
-                {ctas.length > 0 && (
-                  <Text
-                    variant="caption"
-                    className="text-left"
-                    style={{ color: "var(--hero-subtitle-color)" }}
-                  >
-                    No credit card required · Setup in &lt; 5 minutes
-                  </Text>
-                )}
               </Stack>
             </div>
 
@@ -858,12 +845,13 @@ export function HeroBlock({
               <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
             </Stack>
 
-            {/* Compact proof bar — use CMS items when provided, else fall back to defaults */}
+            {/* Compact proof bar: only the items the CMS document supplies */}
+            {proofItems && proofItems.length > 0 && (
             <div
               className="flex flex-wrap items-center justify-center gap-6 border-t pt-6"
               style={{ borderColor: "color-mix(in srgb, var(--hero-subtitle-color) 25%, transparent)" }}
             >
-              {(proofItems && proofItems.length > 0 ? proofItems : DEFAULT_PROOF_ITEMS).map(({ metric, label }) => (
+              {proofItems.map(({ metric, label }) => (
                 <div key={label} className="flex flex-col items-center gap-0.5">
                   <span
                     className="text-xl font-bold tabular-nums"
@@ -880,6 +868,7 @@ export function HeroBlock({
                 </div>
               ))}
             </div>
+            )}
 
             {/* Media block — below proof bar, full container width */}
             {media && (
@@ -1030,15 +1019,6 @@ export function HeroBlock({
                   <InlineRichText source={subtitle} />
                 </Text>
                 <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
-                {ctas.length > 0 && (
-                  <Text
-                    variant="caption"
-                    className="text-left"
-                    style={{ color: "var(--text-subtle, #94a3b8)" }}
-                  >
-                    No credit card required · Setup in &lt; 5 minutes
-                  </Text>
-                )}
               </Stack>
             </div>
 
@@ -1495,15 +1475,6 @@ export function HeroBlock({
           {/* CTA buttons — 0, 1, or 2 rendered */}
           <HeroCTARow ctas={ctas} ctaKey={ctaKey} />
 
-          {/* Social proof micro-copy — only shown when at least one CTA is present */}
-          {ctas.length > 0 && (
-            <Text
-              variant="caption"
-              style={{ color: "var(--hero-subtitle-color)" }}
-            >
-              No credit card required · Setup in &lt; 5 minutes
-            </Text>
-          )}
 
           {/* Media — product screenshot, promo video, or embed below the CTA */}
           {media && (
