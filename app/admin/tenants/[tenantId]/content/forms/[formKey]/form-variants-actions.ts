@@ -24,6 +24,7 @@ import {
 import type { AdaptiveVariantContent, AdaptiveVariantEntry } from "@/cms/types";
 import type { FormVariantContent, FormVariantEntry } from "@/forms/context/variant";
 import { logger } from "@/lib/logger";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -32,6 +33,8 @@ export async function listFormVariantsAction(
   tenantId: string,
   formType: string,
 ): Promise<FormVariantEntry[]> {
+  await requireTenantAction(tenantId);
+
   try {
     const block = await getAdaptiveBlockByKey(`form:${formType}`, tenantId);
     return (block?.adaptiveVariants ?? []).map((v) => ({
@@ -51,6 +54,8 @@ export async function saveFormVariantAction(
   formType: string,
   entry:    FormVariantEntry,
 ): Promise<Result> {
+  await requireTenantAction(tenantId);
+
   const variantKey = entry.variantKey.trim();
   if (!variantKey) return { ok: false, error: "Variant key is required." };
   try {
@@ -87,6 +92,8 @@ export async function deleteFormVariantAction(
   formType: string,
   variantKey: string,
 ): Promise<Result> {
+  await requireTenantAction(tenantId);
+
   try {
     const key   = `form:${formType}`;
     const block = await getAdaptiveBlockByKey(key, tenantId);

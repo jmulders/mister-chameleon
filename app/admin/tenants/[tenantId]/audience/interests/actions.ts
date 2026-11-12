@@ -153,6 +153,8 @@ function validateTags(raw: unknown): { tags: InterestTag[]; errors: string[] } {
 export async function listTenantInterestProfilesAction(
   tenantId: string,
 ): Promise<{ ok: true; data: InterestProfile[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
   return listAllInterestProfilesForTenant(tenantId);
 }
@@ -161,10 +163,13 @@ export async function listTenantInterestProfilesAction(
 
 export type { AnnotatedInterestProfile } from "@/interest-profiles/repository";
 import type { AnnotatedInterestProfile } from "@/interest-profiles/repository";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 export async function listProfilesWithOverridesAction(
   tenantId: string,
 ): Promise<{ ok: true; data: AnnotatedInterestProfile[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
   return listInterestProfilesWithOverrides(tenantId);
 }
@@ -181,6 +186,8 @@ export async function setProfileEnabledAction(
   profileKey: string,
   enabled:    boolean,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId)   return { ok: false, error: "Tenant ID is required." };
   if (!profileKey) return { ok: false, error: "Profile key is required." };
 
@@ -199,6 +206,8 @@ export async function getTenantInterestProfileAction(
   tenantId: string,
   id:       string,
 ): Promise<{ ok: true; profile: InterestProfile } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
   if (!id)       return { ok: false, error: "Profile ID is required." };
 
@@ -221,6 +230,8 @@ export async function createTenantInterestProfileAction(
   tenantId: string,
   input:    unknown,
 ): Promise<TenantProfileActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
   if (typeof input !== "object" || input === null) {
     return { ok: false, error: "Invalid input: expected an object." };
@@ -292,6 +303,8 @@ export async function updateTenantInterestProfileAction(
   id:       string,
   input:    unknown,
 ): Promise<TenantProfileActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
   if (!id)       return { ok: false, error: "Profile ID is required." };
 
@@ -388,6 +401,8 @@ export async function checkInterestProfileDependenciesAction(
   tenantId:   string,
   profileKey: string,
 ): Promise<{ ok: true; dependentRules: DependentRule[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId)   return { ok: false, error: "Tenant ID is required." };
   if (!profileKey) return { ok: false, error: "Profile key is required." };
 
@@ -408,6 +423,8 @@ export async function deleteTenantInterestProfileAction(
   tenantId: string,
   id:       string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "Tenant ID is required." };
   if (!id)       return { ok: false, error: "Profile ID is required." };
 

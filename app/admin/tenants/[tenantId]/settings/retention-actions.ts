@@ -13,8 +13,11 @@ import {
   setRetentionPolicy,
   type RetentionPolicy,
 } from "@/lib/retention/retention-policy-store";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 export async function getRetentionPolicyAction(tenantId: string): Promise<RetentionPolicy> {
+  await requireTenantAction(tenantId);
+
   return getRetentionPolicy(tenantId);
 }
 
@@ -23,6 +26,8 @@ export async function setRetentionPolicyAction(
   postTerminationDeletionDays: number,
   effectiveFrom: string | null,
 ): Promise<{ ok: true; policy: RetentionPolicy } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   const result = await setRetentionPolicy(tenantId, { postTerminationDeletionDays, effectiveFrom });
   if (result.ok) {
     revalidatePath(`/admin/tenants/${tenantId}/settings`);

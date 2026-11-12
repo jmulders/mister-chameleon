@@ -36,6 +36,7 @@ import {
   getPlatformGa4HistorySettings,
 } from "@/platform/platform-store";
 import { testGa4Connection } from "@/enrichment/providers/ga4-history";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared result type ────────────────────────────────────────────────────────
 
@@ -101,6 +102,8 @@ function authError(status: number, latencyMs: number): TestConnectionResult {
  * Shows: holiday count for NL in the current year, first holiday name and date.
  */
 export async function testNagerDateConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start = Date.now();
   const year  = new Date().getFullYear();
 
@@ -163,6 +166,8 @@ export async function testOpenKvKConnectionAction(
   query: string = "ING",
   city?: string,
 ): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start = Date.now();
 
   // Sanitise inputs — trim and fall back to defaults.
@@ -374,6 +379,8 @@ export async function testOpenKvKConnectionAction(
  * Shows: country, city, org (ASN + name), hostname.
  */
 export async function testIpinfoConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start    = Date.now();
   const settings = await getPlatformEnrichmentSettings();
 
@@ -448,6 +455,8 @@ export async function testIpinfoConnectionAction(): Promise<TestConnectionResult
  * Shows: company name, domain, industry, country.
  */
 export async function testLeadinfoConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start    = Date.now();
   const settings = await getPlatformEnrichmentSettings();
 
@@ -531,6 +540,8 @@ export async function testLeadinfoConnectionAction(): Promise<TestConnectionResu
  * Shows: country ISO code, country name, city, latitude/longitude.
  */
 export async function testMaxMindConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start    = Date.now();
   const settings = await getPlatformMaxMindSettings();
 
@@ -624,6 +635,8 @@ export async function testMaxMindConnectionAction(): Promise<TestConnectionResul
  * Shows: which provider was used, country, region, city, postcode, formatted address.
  */
 export async function testReverseGeocodeConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start    = Date.now();
   const settings = await getPlatformReverseGeocodeSettings();
 
@@ -826,6 +839,8 @@ function describeWeatherCode(code: number): string {
  *        precipitation probability, wind speed, cloud cover.
  */
 export async function testWeatherConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start = Date.now();
 
   // Fixed test coordinates: Amsterdam, Netherlands
@@ -914,6 +929,8 @@ export async function testWeatherConnectionAction(): Promise<TestConnectionResul
  * visitor ID or custom dimension is required for the test.
  */
 export async function testGa4HistoryConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start    = Date.now();
   const settings = await getPlatformGa4HistorySettings();
 
@@ -1001,6 +1018,8 @@ export async function testGa4HistoryConnectionAction(): Promise<TestConnectionRe
  * Endpoint: GET https://api.kvk.nl/[test/]api/v2/zoeken?naam=ING&resultatenPerPagina=5
  */
 export async function testKvkZoekenConnectionAction(): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   const start = Date.now();
 
   // Read kvkApiKey from platform store

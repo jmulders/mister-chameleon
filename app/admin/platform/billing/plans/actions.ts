@@ -43,6 +43,7 @@ import { createClient }            from "@supabase/supabase-js";
 import { revalidatePath }          from "next/cache";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
 import { BILLING_PLANS }           from "@/billing/plans";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,8 @@ function makeClient() {
  * ON CONFLICT (plan_id) DO UPDATE handles both insert and edit paths.
  */
 export async function upsertPlan(payload: PlanUpsertPayload): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   // ── Validation ─────────────────────────────────────────────────────────────
@@ -188,6 +191,8 @@ export async function togglePlanActive(
   planId: string,
   active: boolean,
 ): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const db = makeClient();
@@ -216,6 +221,8 @@ export async function reorderPlan(
   planId:    string,
   direction: "up" | "down",
 ): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const db = makeClient();
@@ -264,6 +271,8 @@ export async function reorderPlan(
  * Built-in plans (starter / growth / pro) cannot be deleted — deactivate instead.
  */
 export async function deletePlan(planId: string): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   if (BUILTIN_PLAN_IDS.has(planId)) {
@@ -292,6 +301,8 @@ export async function deletePlan(planId: string): Promise<ActionResult> {
  * existing rows.  Safe to call multiple times (idempotent).
  */
 export async function seedDefaultPlans(): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const db  = makeClient();

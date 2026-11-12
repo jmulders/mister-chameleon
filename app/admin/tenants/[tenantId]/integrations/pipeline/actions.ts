@@ -23,6 +23,7 @@ import {
   getPlatformFirstPartyCompanySettings,
   firstPartyCompanyFlags,
 } from "@/platform/platform-store";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── First-party company-DB ToS toggles ────────────────────────────────────────
 //
@@ -81,6 +82,8 @@ export interface FirstPartyTogglesConfig {
 export async function getFirstPartyTogglesAction(
   tenantId: string,
 ): Promise<FirstPartyTogglesConfig> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const db = makeClient();
@@ -140,6 +143,8 @@ export async function saveFirstPartyTogglesAction(
   consume:    FirstPartyToggleState,
   contribute: FirstPartyToggleState,
 ): Promise<PipelineActionResult> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   if (!tenantId) return { ok: false, error: "tenantId is required." };
 
@@ -175,6 +180,8 @@ export async function saveFirstPartyTogglesAction(
 export async function getPipelineConfigAction(
   tenantId: string,
 ): Promise<PipelineConfig> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const db = makeClient();
@@ -232,6 +239,8 @@ export async function savePipelineConfigAction(
   tenantId: string,
   stages: Array<{ stageKey: string; position: number; enabled: boolean }>,
 ): Promise<PipelineActionResult> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   if (!tenantId) {
@@ -287,6 +296,8 @@ export async function savePipelineConfigAction(
 export async function resetPipelineConfigAction(
   tenantId: string,
 ): Promise<PipelineActionResult> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   if (!tenantId) {

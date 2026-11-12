@@ -26,6 +26,7 @@ import {
   savePlatformForgeSettings,
   forgeFlags,
 }                                     from "@/platform/platform-store";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Read ───────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,8 @@ export async function getPlatformForgeSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformForgeSettings();
   if (!result.ok) return result;
 
@@ -78,6 +81,8 @@ export async function savePlatformForgeSettingsAction(input: {
   gitBranch?:       string;
   phpVersion?:      string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const apiKey          = input.apiKey          !== undefined ? input.apiKey.trim() : undefined;
   const gitRepository   = input.gitRepository   !== undefined ? input.gitRepository.trim() : undefined;
   const gitBranch       = input.gitBranch       !== undefined ? input.gitBranch.trim() : undefined;
@@ -121,6 +126,8 @@ export async function testForgeConnectionAction(): Promise<
   | { ok: true;  serverCount: number; message: string }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformForgeSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -172,6 +179,8 @@ export async function listForgeServersAction(): Promise<
   | { ok: true;  servers: { id: number; name: string; ip: string; status: string }[] }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformForgeSettings();
   if (!result.ok) return { ok: false, error: result.error };
 

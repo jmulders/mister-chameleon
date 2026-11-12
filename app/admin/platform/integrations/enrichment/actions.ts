@@ -38,6 +38,7 @@ import {
   ga4HistoryFlags,
 } from "@/platform/platform-store";
 import type { PlatformOpenKvKSettings, PlatformHolidaySettings, PlatformWeatherSettings, PlatformGa4HistorySettings } from "@/platform/platform-store";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Read ──────────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ export async function getEnrichmentPlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformEnrichmentSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -98,6 +101,8 @@ export async function saveEnrichmentPlatformSettingsAction(input: {
   ovioApiKey?:        string;
   kvkApiKey?:         string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   // Validate lengths
   for (const [field, raw] of Object.entries(input)) {
     if (raw === undefined) continue;
@@ -150,6 +155,8 @@ export async function getOpenKvKPlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformOpenKvKSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -172,6 +179,8 @@ export async function getOpenKvKPlatformSettingsAction(): Promise<
 export async function saveOpenKvKPlatformSettingsAction(
   input: PlatformOpenKvKSettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   // Validate confidenceThreshold range
   if (
     input.confidenceThreshold !== undefined &&
@@ -205,6 +214,8 @@ export async function getHolidayPlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformHolidaySettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -227,6 +238,8 @@ export async function getHolidayPlatformSettingsAction(): Promise<
 export async function saveHolidayPlatformSettingsAction(
   input: PlatformHolidaySettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   // Validate cacheTtlHours range
   if (
     input.cacheTtlHours !== undefined &&
@@ -261,6 +274,8 @@ export async function getReverseGeocodePlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformReverseGeocodeSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -288,6 +303,8 @@ export async function saveReverseGeocodePlatformSettingsAction(input: {
   locationIqApiKey?: string;
   cacheTtlHours?:    number;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   // Validate cacheTtlHours range
   if (
     input.cacheTtlHours !== undefined &&
@@ -336,6 +353,8 @@ export async function getWeatherPlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformWeatherSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -358,6 +377,8 @@ export async function getWeatherPlatformSettingsAction(): Promise<
 export async function saveWeatherPlatformSettingsAction(
   input: PlatformWeatherSettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   // Validate cacheTtlHours range
   if (
     input.cacheTtlHours !== undefined &&
@@ -398,6 +419,8 @@ export async function getGa4HistoryPlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformGa4HistorySettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -428,6 +451,8 @@ export async function getGa4HistoryPlatformSettingsAction(): Promise<
 export async function saveGa4HistoryPlatformSettingsAction(
   input: PlatformGa4HistorySettings,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   // Validate serviceAccountJson when provided — must be parseable JSON with
   // the required fields.
   if (input.serviceAccountJson && input.serviceAccountJson.trim().length > 0) {

@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, isSuperAdmin } from "@/lib/admin-auth/authorization";
 import { getDb } from "@/data/db";
 import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/platform-store";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -52,6 +53,8 @@ export interface PublishersOverview {
 const norm = (d: string | null | undefined) => (d && d.trim() ? d.trim().toLowerCase() : "(unknown)");
 
 export async function fetchPublishersOverviewAction(): Promise<PublishersOverview> {
+  await requireSuperAdminAction();
+
   const session = await getRequiredAdminSession();
   const admin   = isSuperAdmin(session);
   const windowDays = 30;
@@ -135,6 +138,8 @@ async function requireSuper(): Promise<{ ok: true } | { ok: false; error: string
 export async function setPublisherRevshareAction(
   domain: string, pct: number | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const gate = await requireSuper(); if (!gate.ok) return gate;
   const d = norm(domain);
   if (d === "(unknown)") return { ok: false, error: "Missing publisher domain." };
@@ -153,6 +158,8 @@ export async function setPublisherAccountAction(
   domain: string,
   input: { name?: string | null; contactEmail?: string | null; vatNumber?: string | null; cocNumber?: string | null; payoutNotes?: string | null },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const gate = await requireSuper(); if (!gate.ok) return gate;
   const d = norm(domain);
   if (d === "(unknown)") return { ok: false, error: "Missing publisher domain." };
@@ -181,6 +188,8 @@ export async function setPublisherAccountAction(
 export async function recordPublisherPayoutAction(
   domain: string, amountCents: number, note?: string | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const gate = await requireSuper(); if (!gate.ok) return gate;
   const d = norm(domain);
   if (d === "(unknown)") return { ok: false, error: "Missing publisher domain." };

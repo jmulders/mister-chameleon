@@ -16,6 +16,7 @@ import { sanitizeEffectConfigs, type BlockEffectConfig } from "@/design-system/e
 import { upsertDesignEffectSet, deleteDesignEffectSet } from "@/lib/design-effect-sets/effect-sets-store";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { isRegisteredBlockType } from "@/page-config/registry";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 function designPath(tenantId: string): string {
   return `/admin/tenants/${tenantId}/design`;
@@ -42,6 +43,8 @@ export async function saveEffectSetAction(
   tenantId: string,
   input: { id?: string; name: string; effects: unknown; slots?: string[] | null },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const name = (input.name ?? "").trim();
@@ -65,6 +68,8 @@ export async function deleteEffectSetAction(
   tenantId: string,
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const res = await deleteDesignEffectSet(id);
   if (res.ok) revalidatePath(designPath(tenantId));
@@ -79,6 +84,8 @@ export async function setDefaultEffectsAction(
   tenantId: string,
   effects: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const tenant = await getTenantById(tenantId);
@@ -109,6 +116,8 @@ export async function setBlockTypeEffectsAction(
   blockType: string,
   effects: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   if (!isEffectBlockType(blockType)) return { ok: false, error: "Unknown block type." };

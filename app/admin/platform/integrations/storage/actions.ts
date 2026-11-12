@@ -29,6 +29,7 @@ import {
 }                                    from "@/platform/platform-store";
 import { serverEnv }                 from "@/lib/env";
 import { buildAdapterForProvider }   from "@/lib/assets/storage-adapter";
+import { requireAdminAction, requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Safe types returned to the client ─────────────────────────────────────────
 
@@ -74,6 +75,8 @@ export async function getStorageSettingsAction(): Promise<
   | { ok: true;  config: SafeStorageConfig }
   | { ok: false; error: string }
 > {
+  await requireAdminAction();
+
   const [storageResult, sanityResult] = await Promise.all([
     getPlatformStorageSettings(),
     getPlatformSanitySettings(),
@@ -148,6 +151,8 @@ export async function getStorageSettingsAction(): Promise<
 export async function setActiveProviderAction(
   provider: "cloudflare_r2" | "supabase_storage" | "sanity_assets" | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const result = await savePlatformStorageSettings({ activeProvider: provider });
   if (result.ok) {
     revalidatePath("/admin/platform/integrations/storage");
@@ -169,6 +174,8 @@ export interface SaveR2CredentialsInput {
 export async function saveR2CredentialsAction(
   input: SaveR2CredentialsInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const result = await savePlatformStorageSettings({
     cloudflareR2: {
       accountId:       input.accountId        ?? undefined,
@@ -195,6 +202,8 @@ export interface SaveSupabaseStorageInput {
 export async function saveSupabaseStorageAction(
   input: SaveSupabaseStorageInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const result = await savePlatformStorageSettings({
     supabaseStorage: {
       bucketName: input.bucketName ?? undefined,
@@ -217,6 +226,8 @@ export async function saveSupabaseStorageAction(
 export async function testProviderConnectionAction(
   provider: "cloudflare_r2" | "supabase_storage" | "sanity_assets",
 ): Promise<{ ok: boolean; message: string }> {
+  await requireSuperAdminAction();
+
   try {
     const storageResult = await getPlatformStorageSettings();
     const storageCfg    = storageResult.ok ? storageResult.data : {};

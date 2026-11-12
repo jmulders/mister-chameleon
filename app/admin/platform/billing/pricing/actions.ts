@@ -25,6 +25,7 @@ import { createClient }            from "@supabase/supabase-js";
 import { revalidatePath }          from "next/cache";
 import { getRequiredAdminSession } from "@/lib/admin-auth/authorization";
 import { CREDIT_PRICING_DEFAULTS } from "@/billing/pricing";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,8 @@ function makeClient() {
 export async function upsertEnrichmentPricing(
   payload: PricingUpdatePayload,
 ): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   if (payload.unit_price < 0) {
@@ -127,6 +130,8 @@ export async function upsertEnrichmentPricing(
 export async function deleteEnrichmentPricing(
   enrichmentType: string,
 ): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   if (Object.keys(CREDIT_PRICING_DEFAULTS).includes(enrichmentType)) {
@@ -167,6 +172,8 @@ export async function deleteEnrichmentPricing(
  * are not touched.  Use resetToDefaultPricing() to forcefully overwrite all rows.
  */
 export async function seedDefaultPricing(): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const db  = makeClient();
@@ -223,6 +230,8 @@ export async function seedDefaultPricing(): Promise<ActionResult> {
  * Admin-only.  Existing custom rows with non-default enrichment_types are not touched.
  */
 export async function resetToDefaultPricing(): Promise<ActionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const db  = makeClient();

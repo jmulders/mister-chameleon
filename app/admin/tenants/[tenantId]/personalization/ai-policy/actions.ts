@@ -26,6 +26,7 @@ import type {
   TenantAiPolicyConfig,
   TenantAiPolicyMode,
 } from "@/tenant/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -49,6 +50,8 @@ export interface SaveAiPolicyResult {
 export async function getAiPolicyAction(
   tenantId: string,
 ): Promise<TenantAiPolicies | null> {
+  await requireTenantAction(tenantId);
+
   const settings = await getTenantById(tenantId);
   return settings?.aiPolicies ?? null;
 }
@@ -59,6 +62,8 @@ export async function saveAiPolicyAction(
   tenantId: string,
   input:    SaveAiPolicyInput,
 ): Promise<SaveAiPolicyResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string." };
   }

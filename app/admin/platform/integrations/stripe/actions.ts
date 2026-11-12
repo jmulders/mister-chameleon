@@ -30,6 +30,7 @@ import {
   savePlatformStripeSettings,
   stripeFlags,
 }                                   from "@/platform/platform-store";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared validation ──────────────────────────────────────────────────────────
 
@@ -86,6 +87,8 @@ export async function getStripePlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformStripeSettings();
   if (!result.ok) return result;
 
@@ -139,6 +142,8 @@ export async function saveStripePlatformSettingsAction(input: {
   planProMonthlyPriceId?:     string;
   planProAnnualPriceId?:      string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const publishableKey            = input.publishableKey            !== undefined ? trimField(input.publishableKey)            : undefined;
   const secretKey                 = input.secretKey                 !== undefined ? trimField(input.secretKey)                 : undefined;
   const webhookSecret             = input.webhookSecret             !== undefined ? trimField(input.webhookSecret)             : undefined;
@@ -241,6 +246,8 @@ export async function testStripeConnectionAction(): Promise<
   | { ok: true;  liveMode: boolean; message: string }
   | { ok: false; error:    string }
 > {
+  await requireSuperAdminAction();
+
   const result = await getPlatformStripeSettings();
   if (!result.ok) return { ok: false, error: result.error };
 

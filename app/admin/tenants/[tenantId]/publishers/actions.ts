@@ -18,6 +18,7 @@ import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, assertTenantAccess } from "@/lib/admin-auth/authorization";
 import { getDb } from "@/data/db";
 import { getPlatformAdPricingSettings, AD_PRICING_DEFAULTS } from "@/platform/platform-store";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -150,6 +151,8 @@ async function upsertAccount(tenantId: string, domain: string, patch: Record<str
 }
 
 export async function setTenantPublisherRevshareAction(tenantId: string, domain: string, pct: number | null): Promise<Result> {
+  await requireTenantAction(tenantId);
+
   const g = await gate(tenantId); if (!g.ok) return g;
   const d = norm(domain);
   if (d === "(unknown)") return { ok: false, error: "Missing publisher domain." };
@@ -162,6 +165,8 @@ export async function setTenantPublisherAccountAction(
   tenantId: string, domain: string,
   input: { name?: string | null; contactEmail?: string | null; vatNumber?: string | null; cocNumber?: string | null; payoutNotes?: string | null },
 ): Promise<Result> {
+  await requireTenantAction(tenantId);
+
   const g = await gate(tenantId); if (!g.ok) return g;
   const d = norm(domain);
   if (d === "(unknown)") return { ok: false, error: "Missing publisher domain." };
@@ -178,6 +183,8 @@ export async function setTenantPublisherAccountAction(
 export async function recordTenantPublisherPayoutAction(
   tenantId: string, domain: string, amountCents: number, note?: string | null,
 ): Promise<Result> {
+  await requireTenantAction(tenantId);
+
   const g = await gate(tenantId); if (!g.ok) return g;
   const d = norm(domain);
   if (d === "(unknown)") return { ok: false, error: "Missing publisher domain." };

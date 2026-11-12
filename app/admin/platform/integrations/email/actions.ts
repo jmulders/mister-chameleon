@@ -32,6 +32,7 @@ import { encryptSecret }                    from "@/lib/email-crypto";
 import { getRequiredAdminSession, isSuperAdmin } from "@/lib/admin-auth/authorization";
 import { sendMail, resolveTransportConfig }  from "@/forms/mail-transport";
 import { serverEnv }                         from "@/lib/env";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Read ───────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,8 @@ export async function getPlatformEmailAction(): Promise<{
   ok:     false;
   error:  string;
 }> {
+  await requireSuperAdminAction();
+
   const result = await getPlatformEmailSettings();
 
   if (!result.ok) {
@@ -111,6 +114,8 @@ export interface PlatformEmailFormInput {
 export async function savePlatformEmailAction(
   input: PlatformEmailFormInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const transportType: "resend" | "smtp" | "none" =
     input.transportType === "resend" || input.transportType === "smtp"
       ? input.transportType
@@ -165,6 +170,8 @@ export async function savePlatformEmailAction(
 export async function sendPlatformTestEmailAction(
   recipientEmail: string,
 ): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const session = await getRequiredAdminSession();
   if (!isSuperAdmin(session)) return { ok: false, error: "Only platform admins can send a test email." };
 
@@ -205,6 +212,8 @@ export async function sendPlatformTestEmailAction(
 export async function clearPlatformEmailTransportAction(): Promise<
   { ok: true } | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await savePlatformEmailSettings({
     transportType: "none",
     resendApiKey:  "",

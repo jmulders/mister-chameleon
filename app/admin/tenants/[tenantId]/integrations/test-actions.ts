@@ -24,6 +24,7 @@
 
 import { getTenantById } from "@/tenant/server";
 import { testGa4Connection } from "@/enrichment/providers/ga4-history";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared result type ────────────────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ export type TestConnectionResult =
 export async function testTenantGa4TrackingAction(
   tenantId: string,
 ): Promise<TestConnectionResult> {
+  await requireTenantAction(tenantId);
+
   const start = Date.now();
 
   try {
@@ -157,6 +160,8 @@ export async function testTenantGa4TrackingAction(
 export async function testTenantGa4HistoryAction(
   tenantId: string,
 ): Promise<TestConnectionResult> {
+  await requireTenantAction(tenantId);
+
   const start = Date.now();
 
   try {

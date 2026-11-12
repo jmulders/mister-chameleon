@@ -9,8 +9,11 @@
 
 import { revalidatePath } from "next/cache";
 import { isSelfServiceEnabled, setSelfServiceEnabled } from "@/lib/self-service/self-service-store";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 export async function getSelfServiceEnabledAction(tenantId: string): Promise<boolean> {
+  await requireTenantAction(tenantId);
+
   return isSelfServiceEnabled(tenantId);
 }
 
@@ -18,6 +21,8 @@ export async function setSelfServiceEnabledAction(
   tenantId: string,
   enabled: boolean,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   const result = await setSelfServiceEnabled(tenantId, enabled);
   if (result.ok) {
     revalidatePath(`/admin/tenants/${tenantId}/settings`);

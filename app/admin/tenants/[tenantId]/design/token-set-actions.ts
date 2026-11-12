@@ -22,6 +22,7 @@ import { saveTokenSet, tokenSetToUploadPayload } from "@/lib/design-token-sets/s
 import { getTenantById, saveTenant } from "@/tenant/server";
 import { buildCompleteLookDesign, mergeUploadTokensIntoOverrides } from "@/lib/design/complete-look";
 import type { ApplyTokensResult } from "@/app/admin/tenants/[tenantId]/actions";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 function designPath(tenantId: string): string {
   return `/admin/tenants/${tenantId}/design`;
@@ -35,6 +36,8 @@ export async function saveDesignTokenSetAction(
   tenantId: string,
   input: { name: string; tokens: unknown; baseTheme?: string | null; typographyOverride?: Record<string, unknown> | null },
 ): Promise<{ ok: true; id: string } | { ok: false; errors: string[] }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const res = await saveTokenSet({
@@ -56,6 +59,8 @@ export async function updateDesignTokenSetAction(
   tenantId: string,
   input: { id: string; name: string; tokens: unknown; baseTheme?: string | null; typographyOverride?: Record<string, unknown> | null },
 ): Promise<{ ok: true; id: string } | { ok: false; errors: string[] }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const res = await saveTokenSet({
@@ -76,6 +81,8 @@ export async function deleteDesignTokenSetAction(
   tenantId: string,
   id: string,
 ): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const res = await deleteDesignTokenSet(id);
@@ -94,6 +101,8 @@ export async function applyDesignTokenSetAction(
   tenantId: string,
   id: string,
 ): Promise<ApplyTokensResult> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   const set = await getDesignTokenSetById(id);

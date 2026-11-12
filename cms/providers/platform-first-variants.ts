@@ -94,7 +94,7 @@ async function defaultHasPlatformContentEntry(
   tenantId: string, variantType: string, variantKey: string,
 ): Promise<boolean> {
   try {
-    const { hasPlatformContentEntry } = await import("@/lib/adaptive-blocks/platform-content-override");
+    const { hasPlatformContentEntry } = await import("@/lib/adaptive-blocks/platform-content-entry");
     return await hasPlatformContentEntry(tenantId, variantType, variantKey);
   } catch {
     return false;

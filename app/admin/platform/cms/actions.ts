@@ -53,6 +53,7 @@ import {
   savePlatformStatamicSettings,
   statamicFlags,
 } from "@/platform/platform-store";
+import { requireAdminAction, requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared validation ──────────────────────────────────────────────────────────
 
@@ -90,6 +91,8 @@ export async function getCmsPlatformSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireAdminAction();
+
   const result = await getPlatformSanitySettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -122,6 +125,8 @@ export async function saveCmsPlatformSettingsAction(input: {
   dataset:     string;
   writeToken?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const projectId  = trimField(input.projectId);
   const dataset    = trimField(input.dataset);
   const writeToken = input.writeToken !== undefined ? trimField(input.writeToken) : undefined;
@@ -226,6 +231,8 @@ export async function testCmsPlatformConnectionAction(input: {
   dataset:     string;
   writeToken?: string;
 }): Promise<TestConnectionResult> {
+  await requireSuperAdminAction();
+
   // ── Step 1: Load saved settings for fallback ───────────────────────────────
   let savedProjectId:  string | undefined;
   let savedDataset:    string | undefined;
@@ -374,6 +381,8 @@ export async function getCmsStoryblokSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireAdminAction();
+
   const result = await getPlatformStoryblokSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -409,6 +418,8 @@ export async function saveCmsStoryblokSettingsAction(input: {
   managementToken?: string;
   webhookSecret?:   string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const region          = typeof input.region   === "string" ? input.region.trim()   : "";
   const version         = typeof input.version  === "string" ? input.version.trim()  : "";
   const spaceId         = typeof input.spaceId  === "string" ? input.spaceId.trim().replace(/^#\s*/, "") : "";
@@ -466,6 +477,8 @@ export async function testCmsStoryblokConnectionAction(input: {
   accessToken?: string;
   region?:      string;
 }): Promise<StoryblokTestConnectionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   // Resolve token: form input → DB → env var
@@ -537,6 +550,8 @@ export async function testCmsStoryblokManagementAction(input: {
   managementToken?: string;
   spaceId?:         string;
 }): Promise<StoryblokManagementTestResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   // Resolve token + spaceId: form input → DB → env var
@@ -609,6 +624,8 @@ export async function getCmsStatamicSettingsAction(): Promise<
     }
   | { ok: false; error: string }
 > {
+  await requireAdminAction();
+
   const result = await getPlatformStatamicSettings();
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -636,6 +653,8 @@ export async function saveCmsStatamicSettingsAction(input: {
   apiKey?:        string;
   webhookSecret?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const baseUrl       = typeof input.baseUrl === "string" ? input.baseUrl.trim() : "";
   const apiKey        = input.apiKey !== undefined
     ? (typeof input.apiKey === "string" ? input.apiKey.trim() : "")
@@ -679,6 +698,8 @@ export async function testCmsStatamicConnectionAction(input: {
   baseUrl?: string;
   apiKey?:  string;
 }): Promise<StatamicTestConnectionResult> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   // Resolve: form input → DB → env var
@@ -797,6 +818,8 @@ export type SeedMarketingSiteResult =
  *   The Sanity write token is read from the DB / env var server-side only.
  */
 export async function seedMarketingSiteAction(): Promise<SeedMarketingSiteResult> {
+  await requireAdminAction();
+
   // ── 1. Resolve Sanity credentials ──────────────────────────────────────────
   let savedProjectId:  string | undefined;
   let savedDataset:    string | undefined;

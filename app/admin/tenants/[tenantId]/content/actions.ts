@@ -24,6 +24,7 @@ import { getDb }                 from "@/data/db";
 import type { PlatformCmsContentInsert } from "@/data/types";
 import { PlatformCMSProvider }  from "@/cms/providers/platform-provider";
 import { logger }               from "@/lib/logger";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -49,6 +50,8 @@ function asMany<T>(r: unknown):   ManyResult<T>   { return r as ManyResult<T>;  
 export async function listPlatformVariantsAction(
   tenantId: string,
 ): Promise<{ ok: true; variants: PlatformVariantRow[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const { data, error } = asMany<PlatformVariantRow>(
       await getDb()
@@ -75,6 +78,8 @@ export async function savePlatformVariantAction(
   variantKey:  string,
   content:     Record<string, unknown>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId || !variantKey.trim()) {
     return { ok: false, error: "tenantId and variantKey are required." };
   }
@@ -111,6 +116,8 @@ export async function deletePlatformVariantAction(
   variantType: VariantType,
   variantKey:  string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const { error } = await getDb()
       .from("platform_cms_content")
@@ -138,6 +145,8 @@ export async function deletePlatformVariantAction(
 export async function seedPlatformVariantsAction(
   tenantId: string,
 ): Promise<{ ok: true; seeded: number; warnings: string[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     const provider = new PlatformCMSProvider(tenantId);
     const result   = await provider.provisionSite(

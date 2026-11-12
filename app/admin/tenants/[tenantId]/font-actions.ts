@@ -26,6 +26,7 @@ import { getDb }                          from "@/data/db";
 import { getTenantById, saveTenant }      from "@/tenant/tenant-store";
 import type { CustomFontFace, TenantCustomFonts, TenantSettings } from "@/tenant/types";
 import type { FontRole, CustomFontWeight }                        from "./types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,8 @@ export async function uploadCustomFontAction(
   weight:   CustomFontWeight,
   formData: FormData,
 ): Promise<FontActionResult<{ url: string }>> {
+  await requireTenantAction(tenantId);
+
   // ── Validate inputs ───────────────────────────────────────────────────────
   const file = formData.get("file");
   const name = (formData.get("name") as string | null)?.trim() ?? "";
@@ -177,6 +180,8 @@ export async function removeCustomFontWeightAction(
   role:     FontRole,
   weight:   CustomFontWeight,
 ): Promise<FontActionResult> {
+  await requireTenantAction(tenantId);
+
   const tenant = await getTenantById(tenantId);
   if (!tenant) return { ok: false, error: `Tenant "${tenantId}" not found.` };
 
@@ -236,6 +241,8 @@ export async function updateCustomFontNameAction(
   role:     FontRole,
   name:     string,
 ): Promise<FontActionResult> {
+  await requireTenantAction(tenantId);
+
   const trimmedName = name.trim();
   if (!trimmedName) return { ok: false, error: "Font name must not be empty." };
 

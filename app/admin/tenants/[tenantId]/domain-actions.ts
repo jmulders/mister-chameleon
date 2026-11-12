@@ -43,6 +43,7 @@ import {
   checkVercelDomain,
 }                                        from "@/lib/vercel-domains";
 import type { TenantDomainRow }          from "@/data/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Result types ─────────────────────────────────────────────────────────────
 
@@ -142,6 +143,8 @@ export async function addDomainAction(
   tenantId:  string,
   rawDomain: string,
 ): Promise<AddDomainActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId?.trim() || !rawDomain?.trim()) {
     return { ok: false, error: "tenantId and domain are required." };
   }
@@ -215,6 +218,8 @@ export async function removeDomainAction(
   id:       number,
   tenantId: string,
 ): Promise<RemoveDomainActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!Number.isFinite(id) || !tenantId?.trim()) {
     return { ok: false, error: "id and tenantId are required." };
   }
@@ -257,6 +262,8 @@ export async function setPrimaryDomainAction(
   id:       number,
   tenantId: string,
 ): Promise<SetPrimaryDomainActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!Number.isFinite(id) || !tenantId?.trim()) {
     return { ok: false, error: "id and tenantId are required." };
   }
@@ -284,6 +291,8 @@ export async function checkDomainAction(
   id:       number,
   tenantId: string,
 ): Promise<CheckDomainActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!Number.isFinite(id) || !tenantId?.trim()) {
     return { ok: false, error: "id and tenantId are required." };
   }
@@ -351,6 +360,8 @@ export async function checkDomainAction(
 export async function listDomainsAction(
   tenantId: string,
 ): Promise<ListDomainsActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId?.trim()) {
     return { ok: false, error: "tenantId is required." };
   }

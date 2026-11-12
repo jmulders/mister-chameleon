@@ -36,6 +36,7 @@ import type {
   MetaConfig,
   PlatformSyncResult,
 } from "@/lib/ad-sync/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 const path = (tenantId: string) => `/admin/tenants/${tenantId}/audience/retargeting`;
 
@@ -60,11 +61,15 @@ function redact(settings: AdSyncSettings): AdSyncSettings {
 }
 
 export async function getAdSyncSettingsAction(tenantId: string): Promise<AdSyncSettings> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return redact(await getAdSyncSettings(tenantId));
 }
 
 export async function listAdSyncRunsAction(tenantId: string): Promise<AdSyncRun[]> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return listAdSyncRuns(tenantId);
 }
@@ -73,6 +78,8 @@ export async function saveAdSyncEnabledAction(
   tenantId: string,
   enabled: boolean,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const ok = await setAdSyncEnabled(tenantId, enabled);
   if (!ok) return { ok: false, error: "Save failed." };
@@ -84,6 +91,8 @@ export async function saveAdSyncSegmentAction(
   tenantId: string,
   segment: AdSyncSegment,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const ok = await setAdSyncSegment(tenantId, segment);
   if (!ok) return { ok: false, error: "Save failed." };
@@ -102,6 +111,8 @@ export async function savePlatformConfigAction(
   config: GoogleAdsConfig | MetaConfig | LinkedInConfig,
   clear = false,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   if (clear) {
     const ok = await setPlatformConfig(tenantId, platform, null);
@@ -121,6 +132,8 @@ export async function savePlatformConfigAction(
 
 /** Count of matchable members the current segment resolves to (dry run). */
 export async function previewSegmentAction(tenantId: string): Promise<{ count: number }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const settings = await getAdSyncSettings(tenantId);
   const members = await resolveAudienceMembers(tenantId, settings.segment);
@@ -132,6 +145,8 @@ export async function testPlatformConnectionAction(
   tenantId: string,
   platform: AdPlatform,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const s = await getAdSyncSettings(tenantId);
   if (platform === "google")   return s.google   ? testGoogleConnection(s.google)     : { ok: false, error: "Not configured." };
@@ -143,6 +158,8 @@ export async function testPlatformConnectionAction(
 // ── Conversion feedback ─────────────────────────────────────────────────────────
 
 export async function getConversionConfigAction(tenantId: string): Promise<ConversionConfig | null> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   return getConversionConfig(tenantId);
 }
@@ -151,6 +168,8 @@ export async function saveConversionConfigAction(
   tenantId:    string,
   conversions: ConversionConfig,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const ok = await setConversionConfig(tenantId, conversions);
   if (!ok) return { ok: false, error: "Save failed." };
@@ -162,6 +181,8 @@ export async function saveConversionConfigAction(
 export async function syncNowAction(
   tenantId: string,
 ): Promise<{ ok: true; membersTotal: number; results: PlatformSyncResult[] } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   const summary = await runTenantAdSync(tenantId, "manual");
   revalidatePath(path(tenantId));

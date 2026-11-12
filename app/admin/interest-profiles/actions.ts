@@ -38,6 +38,7 @@ import {
   upsertPlatformCatalog,
 } from "@/interest-profiles/repository";
 import type { InterestProfile, InterestTag } from "@/interest-profiles/types";
+import { requireAdminAction, requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Shared result type ────────────────────────────────────────────────────────
 
@@ -101,6 +102,8 @@ function validateTags(raw: unknown): { tags: InterestTag[]; errors: string[] } {
 export async function listInterestProfilesAction(): Promise<
   { ok: true; data: InterestProfile[] } | { ok: false; error: string }
 > {
+  await requireAdminAction();
+
   return listAllInterestProfiles();
 }
 
@@ -114,6 +117,8 @@ export async function listInterestProfilesAction(): Promise<
 export async function getInterestProfileByIdAction(
   id: string,
 ): Promise<{ ok: true; data: InterestProfile } | { ok: false; error: string }> {
+  await requireAdminAction();
+
   if (!id || typeof id !== "string") {
     return { ok: false, error: "Profile ID is required." };
   }
@@ -125,6 +130,8 @@ export async function getInterestProfileByIdAction(
 export async function createInterestProfileAction(
   input: unknown,
 ): Promise<ProfileActionResult> {
+  await requireSuperAdminAction();
+
   if (typeof input !== "object" || input === null) {
     return { ok: false, error: "Invalid input: expected an object." };
   }
@@ -192,6 +199,8 @@ export async function updateInterestProfileAction(
   id: string,
   input: unknown,
 ): Promise<ProfileActionResult> {
+  await requireSuperAdminAction();
+
   if (!id || typeof id !== "string") {
     return { ok: false, error: "Profile ID is required." };
   }
@@ -265,6 +274,8 @@ export async function updateInterestProfileAction(
 export async function deleteInterestProfileAction(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   if (!id || typeof id !== "string") {
     return { ok: false, error: "Profile ID is required." };
   }
@@ -289,6 +300,8 @@ export async function deleteInterestProfileAction(
 export async function seedPlatformCatalogAction(): Promise<
   { ok: true; inserted: number } | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const result = await upsertPlatformCatalog();
   if (!result.ok) {
     return { ok: false, error: result.error };
@@ -303,5 +316,7 @@ export async function seedPlatformCatalogAction(): Promise<
  * (the page re-renders via revalidatePath after the catalog is seeded).
  */
 export async function seedPlatformCatalogFormAction(): Promise<void> {
+  await requireSuperAdminAction();
+
   await seedPlatformCatalogAction();
 }

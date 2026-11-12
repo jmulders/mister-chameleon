@@ -34,6 +34,7 @@ import {
   type GeneratorSlot,
 }                                  from "@/ai/variant-generator";
 import type { AdaptiveVariantContent } from "@/cms/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 async function countForSlot(tenantId: string, slot: GeneratorSlot): Promise<number> {
   const blocks = await listAdaptiveBlocks(tenantId, false); // tenant-only, exclude platform
@@ -47,6 +48,8 @@ export async function generateVariantAction(
   | { ok: true; variant: GeneratedVariant; count: number; cap: number }
   | { ok: false; error: string }
 > {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   // Self-service gate: AI variant generation is a self-service authoring feature.
   // Agency-led tenants (default) can't reach it; the switch in Settings turns it on.
@@ -84,6 +87,8 @@ export async function saveGeneratedVariantAction(
   content:   AdaptiveVariantContent,
   decision:  GeneratedVariant["decision"],
 ): Promise<{ ok: true; id: string; key: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
 
   // Self-service gate (defense in depth — mirrors generateVariantAction).

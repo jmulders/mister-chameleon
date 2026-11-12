@@ -54,6 +54,7 @@ import type {
   DeployStatamicStep,
 } from "./types";
 import type { SiteIntakeData } from "@/site/types";
+import { requireSuperAdminAction, requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── API key preservation ───────────────────────────────────────────────────────
 //
@@ -148,6 +149,8 @@ function mergeStoredTokenOverrides(
 export async function saveTenantAction(
   incoming: TenantSettings,
 ): Promise<StoreResult<TenantSettings>> {
+  await requireTenantAction(incoming?.tenantId);
+
   // Re-read the stored record so we can merge back values the browser
   // never received (and therefore couldn't echo back in the form payload).
   const stored = await getTenantById(incoming.tenantId);
@@ -191,6 +194,8 @@ export async function saveTenantAction(
  * Only works in development — silently no-ops in production.
  */
 export async function setDevTenantAction(tenantId: string): Promise<void> {
+  await requireTenantAction(tenantId);
+
   if (process.env.NODE_ENV !== "development") return;
 
   const c = await cookies();
@@ -211,6 +216,8 @@ export async function setDevTenantAction(tenantId: string): Promise<void> {
  * Only works in development — silently no-ops in production.
  */
 export async function clearDevTenantAction(tenantId: string): Promise<void> {
+  await requireTenantAction(tenantId);
+
   if (process.env.NODE_ENV !== "development") return;
 
   const c = await cookies();
@@ -247,6 +254,8 @@ export async function applyDesignTokensAction(
   tenantId: string,
   rawTokens: unknown,
 ): Promise<ApplyTokensResult> {
+  await requireTenantAction(tenantId);
+
   // ── Server-side validation (authoritative) ─────────────────────────────────
   const validation = validateDesignTokenUpload(rawTokens);
   if (!validation.ok) {
@@ -369,6 +378,8 @@ export async function applyDesignPresetAction(
   tenantId: string,
   presetId: string,
 ): Promise<{ ok: true; presetId: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   const { getDesignPreset } = await import("@/tenant/design-presets-gallery");
   const preset = getDesignPreset(presetId);
   if (!preset) return { ok: false, error: `Unknown preset "${presetId}".` };
@@ -428,6 +439,8 @@ export async function saveBrandingAction(
     logoLight?: { url: string; alt?: string };
   },
 ): Promise<SaveBrandingResult> {
+  await requireTenantAction(tenantId);
+
   try {
     await getRequiredAdminSession();
 
@@ -470,6 +483,8 @@ export async function saveTenantAvatarAction(
   tenantId: string,
   avatar:   AdminAvatarConfig | null,
 ): Promise<{ success: true } | { success: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await getRequiredAdminSession();
 
@@ -521,6 +536,8 @@ export async function importDesignPresetAction(
   tenantId: string,
   rawJson: string,
 ): Promise<ImportPresetResult> {
+  await requireTenantAction(tenantId);
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawJson);
@@ -617,6 +634,8 @@ export async function saveCmsCredentialsAction(
   tenantId:   string,
   writeToken: string,
 ): Promise<StoreResult<{ hasCmsWriteToken: boolean }>> {
+  await requireTenantAction(tenantId);
+
   const current = await getTenantById(tenantId);
   if (!current) {
     return { ok: false, error: `Tenant "${tenantId}" not found.` };
@@ -676,6 +695,8 @@ export type { ProvisionSiteResult } from "./types";
 export async function provisionSiteAction(
   tenantId: string,
 ): Promise<ProvisionSiteResult> {
+  await requireTenantAction(tenantId);
+
   try {
   // ── Load tenant ───────────────────────────────────────────────────────────
   const tenant = await getTenantById(tenantId);
@@ -817,6 +838,8 @@ export async function createSiteAction(
   referenceUrl?:           string,
   selectedModules?:        string[],
 ): Promise<CreateSiteResult> {
+  await requireTenantAction(tenantId);
+
 
   const allWarnings: string[] = [];
 
@@ -1321,6 +1344,8 @@ export async function saveVisualTokensAction(
   tenantId: string,
   fields:   VisualTokenFields,
 ): Promise<SaveVisualTokensResult> {
+  await requireTenantAction(tenantId);
+
   // ── Load current settings ─────────────────────────────────────────────────
   const current = await getTenantById(tenantId);
   if (!current) {
@@ -1569,6 +1594,8 @@ export async function saveRuleThemeKeyAction(
   ruleId:   string,
   themeKey: import("@/design-system/theme/presets").ThemePresetKey | null,
 ): Promise<{ ok: boolean; errors?: string[] }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId || !ruleId) {
     return { ok: false, errors: ["tenantId and ruleId are required."] };
   }
@@ -1645,6 +1672,8 @@ export async function saveRuleThemeSelectionAction(
     themePresetId?: string | null;
   },
 ): Promise<{ ok: boolean; errors?: string[] }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId || !ruleId) return { ok: false, errors: ["tenantId and ruleId are required."] };
 
   const { getTenantRulesAction, saveTenantRulesAction } =
@@ -1707,6 +1736,8 @@ export async function saveThemeRulesAction(
   tenantId: string,
   config:   ThemeRuleConfig,
 ): Promise<{ ok: boolean; errors?: string[] }> {
+  await requireTenantAction(tenantId);
+
   const current = await getTenantById(tenantId);
   if (!current) {
     return { ok: false, errors: [`Tenant "${tenantId}" not found.`] };
@@ -1811,6 +1842,8 @@ export async function addThemeMappingAction(
   rule?:  { id: string; label: string; priority: number; enabled: boolean };
   errors?: string[];
 }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId || !source || (!themeKey && !themePresetId)) {
     return { ok: false, errors: ["tenantId, source, and a theme (curated or gallery) are required."] };
   }
@@ -1946,6 +1979,8 @@ export async function removeThemeMappingAction(
   tenantId: string,
   ruleId:   string,
 ): Promise<{ ok: boolean; errors?: string[] }> {
+  await requireTenantAction(tenantId);
+
   return saveRuleThemeKeyAction(tenantId, ruleId, null);
 }
 
@@ -1960,6 +1995,8 @@ export async function setThemeMappingEnabledAction(
   ruleId:   string,
   enabled:  boolean,
 ): Promise<{ ok: boolean; errors?: string[] }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId || !ruleId) {
     return { ok: false, errors: ["tenantId and ruleId are required."] };
   }
@@ -2049,6 +2086,8 @@ export async function addContextLibraryThemeMappingAction(
   rule?:  { id: string; label: string; priority: number; enabled: boolean };
   errors?: string[];
 }> {
+  await requireTenantAction(tenantId);
+
   const { contextIds, minConfidence, themeKey, themePresetId, label, extraCondition } = params;
   const priority = params.priority ?? 80;
 
@@ -2166,6 +2205,8 @@ export async function addContextLibraryThemeMappingAction(
  * that manually in the Stripe Dashboard first if needed.
  */
 export async function deleteTenantAction(tenantId: string): Promise<{ error: string }> {
+  await requireTenantAction(tenantId);
+
   const session = await getRequiredAdminSession();
   if (!isSuperAdmin(session)) {
     return { error: "Only super-admins can delete tenants." };
@@ -2308,6 +2349,8 @@ export type SyncBlueprintResult =
 export async function syncStatamicBlueprintAction(
   tenantId: string,
 ): Promise<SyncBlueprintResult> {
+  await requireTenantAction(tenantId);
+
   try {
     // ── 1. Resolve STATAMIC_CMS_PATH ─────────────────────────────────────────
     const cmsFsPath = process.env.STATAMIC_CMS_PATH?.trim();
@@ -2496,6 +2539,8 @@ export async function deployStatamicSiteAction(
   domain:   string,
   serverId?: number,
 ): Promise<DeployStatamicResult> {
+  await requireTenantAction(tenantId);
+
   const completedSteps: DeployStatamicStep[] = [];
 
   function step(name: string): {
@@ -2728,6 +2773,8 @@ export async function saveTenantDeployHookAction(
   tenantId: string,
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string; detail?: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   try {
     const url = String(formData.get("cmsDeployHookUrl") ?? "").trim();
@@ -2758,6 +2805,8 @@ export async function saveTenantDeployHookAction(
 export async function triggerTenantCmsDeployAction(
   tenantId: string,
 ): Promise<{ ok: boolean; error?: string; detail?: string }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   try {
     const tenant = await getTenantById(tenantId);
@@ -2800,6 +2849,8 @@ export async function provisionTenantCmsAction(
   appName?: string;
   changes?: string[];
 }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   try {
     const tenant = await getTenantById(tenantId);
@@ -2976,6 +3027,8 @@ export async function finalizeTenantProvisioningAction(
   ploiEnv?: { key: string; value: string }[];
   manualSteps?: { label: string; detail: string }[];
 }> {
+  await requireTenantAction(tenantId);
+
   await getRequiredAdminSession();
   try {
     const tenant = await getTenantById(tenantId);
@@ -3114,6 +3167,8 @@ export async function saveBlockTokenSetsAction(
   tenantId: string,
   rawSets:  unknown,
 ): Promise<SaveBlockTokenSetsResult> {
+  await requireTenantAction(tenantId);
+
   try {
     await getRequiredAdminSession();
 
@@ -3203,6 +3258,8 @@ export async function saveDefaultTokensAction(
   tenantId:  string,
   rawTokens: unknown,
 ): Promise<SaveBlockTokenSetsResult> {
+  await requireTenantAction(tenantId);
+
   try {
     await getRequiredAdminSession();
 
@@ -3265,6 +3322,8 @@ export async function saveDefaultTokensAction(
 export async function resetDesignAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   try {
     await getRequiredAdminSession();
 
@@ -3423,6 +3482,8 @@ export async function provisionTenantSiteAction(
   name: string,
   opts?: { mode?: RolloutMode; hostPollAttempts?: number; hostPollIntervalMs?: number },
 ): Promise<RolloutResult> {
+  await requireSuperAdminAction();
+
   const mode: RolloutMode = opts?.mode ?? "demo";
   await getRequiredAdminSession();
   try {

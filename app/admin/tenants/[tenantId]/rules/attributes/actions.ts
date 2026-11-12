@@ -14,6 +14,7 @@
 import { revalidatePath }            from "next/cache";
 import { getTenantById, saveTenant } from "@/tenant/server";
 import type { CustomAttributeDeclaration } from "@/tenant/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 const NAME_RE = /^[a-z0-9_-]{1,40}$/;
 const MAX_DECLARATIONS = 32;
@@ -35,6 +36,8 @@ export interface SaveAttributesResult {
 export async function getCustomAttributesAction(
   tenantId: string,
 ): Promise<CustomAttributeDeclaration[]> {
+  await requireTenantAction(tenantId);
+
   const settings = await getTenantById(tenantId);
   return (settings?.customAttributes ?? []).map((d) => ({ ...d }));
 }
@@ -43,6 +46,8 @@ export async function saveCustomAttributesAction(
   tenantId: string,
   drafts:   AttributeDraft[],
 ): Promise<SaveAttributesResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) return { ok: false, error: "tenantId must be a non-empty string." };
   if (drafts.length > MAX_DECLARATIONS) {
     return { ok: false, error: `At most ${MAX_DECLARATIONS} attributes can be declared.` };

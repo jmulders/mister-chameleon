@@ -40,6 +40,7 @@ import { listDemoInstances } from "@/demo/store";
 import { MIN_RENDER_TIMEOUT_MS, MAX_RENDER_TIMEOUT_MS } from "@/demo/site-render";
 import { savePlatformAiSettings } from "@/platform/platform-store";
 import type { SiteAnalysis, DemoInstance } from "@/demo/types";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,8 @@ export async function getDemoImporterStatusAction(): Promise<
   | { ok: true;  status: DemoImporterStatus }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -257,6 +260,8 @@ export async function getDemoImporterSettingsAction(): Promise<
   | { ok: true;  settings: DemoImporterSettings; updatedAt: string | null }
   | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -300,6 +305,8 @@ export async function getDemoImporterSettingsAction(): Promise<
 export async function saveDemoImporterSettingsAction(
   input: Partial<DemoImporterSettings>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -350,6 +357,8 @@ export async function saveDemoImporterSettingsAction(
 export async function saveScreenshotOneKeyAction(
   key: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -380,6 +389,8 @@ export async function testAnalyzerConnectionAction(url: string): Promise<
     }
   | { ok: false; step: string; error: string }
 > {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, step: "auth", error: auth.error };
 
@@ -442,6 +453,8 @@ export async function runDemoTestAction(input: {
     }
   | { ok: false; step: "auth" | "validation" | "analyzer" | "generator" | "store"; error: string }
 > {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, step: "auth", error: auth.error };
 
@@ -516,6 +529,8 @@ export async function runDemoTestAction(input: {
 export async function deleteDemoInstanceAction(
   demoId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 

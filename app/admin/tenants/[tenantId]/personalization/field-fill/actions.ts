@@ -27,6 +27,7 @@ import type {
   TenantSlotFieldFillConfig,
   TenantFieldFillSpec,
 } from "@/tenant/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ export interface SaveFieldFillResult {
 export async function getFieldFillAction(
   tenantId: string,
 ): Promise<TenantFieldFillSettings | null> {
+  await requireTenantAction(tenantId);
+
   const settings = await getTenantById(tenantId);
   return settings?.fieldFill ?? null;
 }
@@ -79,6 +82,8 @@ export async function saveFieldFillAction(
   tenantId: string,
   input:    SaveFieldFillInput,
 ): Promise<SaveFieldFillResult> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string." };
   }

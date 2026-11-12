@@ -14,6 +14,7 @@
 
 import { cookies } from "next/headers";
 import { verifySession, ADMIN_TOKEN_COOKIE } from "@/lib/admin-auth";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
   const cookieStore = await cookies();
@@ -31,6 +32,8 @@ export type ExtractTokensResult =
   | { ok: false; error: string };
 
 export async function extractDesignTokensFromUrlAction(url: string, maxPages = 5): Promise<ExtractTokensResult> {
+  await requireSuperAdminAction();
+
   const auth = await requireAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 

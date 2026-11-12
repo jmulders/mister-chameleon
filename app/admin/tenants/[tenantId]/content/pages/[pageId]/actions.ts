@@ -23,6 +23,7 @@ import { revalidatePath } from "next/cache";
 import { getPageById, savePage } from "@/page-store";
 import type { EditableContentBlock, EditableContextSlot } from "@/page-store";
 import { SLOT_VOCABULARY } from "@/decision/types";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Result shape ────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ export async function savePageMetaAction(
   title:    string,
   slug:     string,
 ): Promise<ActionResult> {
+  await requireTenantAction(tenantId);
+
   const cleanTitle = title.trim();
   const cleanSlug  = slug.trim().replace(/^\/+/, "");
 
@@ -95,6 +98,8 @@ export async function saveContentBlocksAction(
   pageId:   string,
   blocks:   EditableContentBlock[],
 ): Promise<ActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!Array.isArray(blocks)) return { ok: false, error: "Invalid blocks payload." };
 
   const { page, error } = await loadAndVerify(tenantId, pageId);
@@ -120,6 +125,8 @@ export async function saveContextSlotsAction(
   pageId:   string,
   slots:    EditableContextSlot[],
 ): Promise<ActionResult> {
+  await requireTenantAction(tenantId);
+
   if (!Array.isArray(slots)) return { ok: false, error: "Invalid slots payload." };
 
   const { page, error } = await loadAndVerify(tenantId, pageId);

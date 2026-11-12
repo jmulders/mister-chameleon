@@ -47,6 +47,7 @@ import {
 }                                  from "@/billing/ai-generation-guard";
 import { safeBaseConfig, type RuleSuggestionBrief } from "@/ai/rule-suggester";
 import { runRuleSuggestion, chargeForRuleSuggestion } from "@/ai/rule-suggestion-flow";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 // ── Typed query helpers ────────────────────────────────────────────────────────
 //
@@ -83,6 +84,8 @@ export async function getTenantRulesAction(tenantId: string): Promise<{
   ok:    false;
   error: string;
 }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }
@@ -149,6 +152,8 @@ export async function saveTenantRulesAction(
   tenantId: string,
   config:   unknown,
 ): Promise<{ ok: true } | { ok: false; error: string; fieldErrors?: string[] }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }
@@ -242,6 +247,8 @@ export async function suggestRuleAction(
   brief:    RuleSuggestionBrief,
   existing: { id: string; priority: number }[] = [],
 ): Promise<{ ok: true; rule: StoredRule } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }
@@ -316,6 +323,8 @@ export async function suggestRuleAction(
 export async function exportTenantDataAction(
   tenantId: string,
 ): Promise<{ ok: true; json: string; filename: string } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }
@@ -348,6 +357,8 @@ export async function setTenantRulesEnabledAction(
   tenantId: string,
   enabled:  boolean,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }
@@ -396,6 +407,8 @@ export async function setTenantRulesEnabledAction(
 export async function resetTenantRulesAction(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }
@@ -444,6 +457,8 @@ export async function resetTenantRulesAction(
 export async function seedPresetRulesAction(
   tenantId: string,
 ): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
   if (!tenantId) {
     return { ok: false, error: "tenantId must be a non-empty string" };
   }

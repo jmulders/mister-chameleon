@@ -25,6 +25,7 @@ import {
 import type { AdaptiveVariantContent, AdaptiveVariantEntry } from "@/cms/types";
 import type { EmailVariantContent, EmailVariantEntry } from "@/lib/email/email-variant";
 import { logger } from "@/lib/logger";
+import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -33,6 +34,8 @@ export async function listEmailVariantsAction(
   tenantId:    string,
   templateKey: string,
 ): Promise<EmailVariantEntry[]> {
+  await requireTenantAction(tenantId);
+
   try {
     const block = await getAdaptiveBlockByKey(`email:${templateKey}`, tenantId);
     return (block?.adaptiveVariants ?? []).map((v) => ({
@@ -52,6 +55,8 @@ export async function saveEmailVariantAction(
   templateKey: string,
   entry:       EmailVariantEntry,
 ): Promise<Result> {
+  await requireTenantAction(tenantId);
+
   const variantKey = entry.variantKey.trim();
   if (!variantKey) return { ok: false, error: "Variant key is required." };
   try {
@@ -88,6 +93,8 @@ export async function deleteEmailVariantAction(
   templateKey: string,
   variantKey:  string,
 ): Promise<Result> {
+  await requireTenantAction(tenantId);
+
   try {
     const key   = `email:${templateKey}`;
     const block = await getAdaptiveBlockByKey(key, tenantId);

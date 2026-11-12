@@ -21,6 +21,7 @@ import { revalidatePath } from "next/cache";
 import { getRequiredAdminSession, isSuperAdmin, requireSuperAdmin } from "@/lib/admin-auth/authorization";
 import { getDb } from "@/data/db";
 import { freshness, type Freshness } from "@/enrichment/ip-company-cache-ttl";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function db(): any { return getDb() as any; }
@@ -162,6 +163,8 @@ export async function fetchIpCacheAction(): Promise<IpCacheOverview> {
  * Super-admin only; the client confirms before calling.
  */
 export async function clearIpCacheAction(): Promise<{ ok: true; cleared: number } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const session = await getRequiredAdminSession();
   if (!isSuperAdmin(session)) return { ok: false, error: "Only platform admins can clear the IP cache." };
 

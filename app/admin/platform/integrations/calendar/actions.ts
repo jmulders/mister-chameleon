@@ -24,6 +24,7 @@ import {
   googleCalendarFlags,
 }                                                 from "@/platform/platform-store";
 import { getRequiredAdminSession }                from "@/lib/admin-auth/authorization";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 // ── Safe client type ──────────────────────────────────────────────────────────
 
@@ -43,6 +44,8 @@ export interface SafeGoogleCalendarConfig {
 export async function getGoogleCalendarSettingsAction(): Promise<
   { ok: true; config: SafeGoogleCalendarConfig } | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const result = await getPlatformGoogleCalendarSettings();
@@ -70,6 +73,8 @@ export interface GoogleCalendarFormInput {
 export async function saveGoogleCalendarSettingsAction(
   input: GoogleCalendarFormInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const patch: Parameters<typeof savePlatformGoogleCalendarSettings>[0] = {
@@ -96,6 +101,8 @@ export async function saveGoogleCalendarSettingsAction(
 export async function clearGoogleCalendarSettingsAction(): Promise<
   { ok: true } | { ok: false; error: string }
 > {
+  await requireSuperAdminAction();
+
   await getRequiredAdminSession();
 
   const result = await savePlatformGoogleCalendarSettings({

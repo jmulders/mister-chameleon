@@ -15,10 +15,13 @@ import {
   savePlatformAdPricingSettings,
   AD_PRICING_DEFAULTS,
 } from "@/platform/platform-store";
+import { requireSuperAdminAction } from "@/lib/admin-auth/action-guard";
 
 export type AdPricing = { cpmCents: number; cpcCents: number; revsharePct: number; updatedAt: string | null };
 
 export async function getAdPricingAction(): Promise<{ ok: true; data: AdPricing } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const res = await getPlatformAdPricingSettings();
   if (!res.ok) return { ok: false, error: res.error };
   return {
@@ -35,6 +38,8 @@ export async function getAdPricingAction(): Promise<{ ok: true; data: AdPricing 
 export async function saveAdPricingAction(
   input: { cpmCents: number; cpcCents: number; revsharePct: number },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdminAction();
+
   const session = await getRequiredAdminSession();
   if (!isSuperAdmin(session)) return { ok: false, error: "Only platform admins can change ad pricing." };
 
