@@ -31,6 +31,7 @@ import {
   ALLOWED_PROOF_KEYS,
   ALLOWED_CTA_KEYS,
 } from "@/decision/rules/stored-rule";
+import { useFieldLabel } from "@/components/admin/use-field-label";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -543,7 +544,7 @@ function Field({
   hint,
   required,
   span2,
-  children,
+  children: rawChildren,
 }: {
   label: string;
   hint?: string;
@@ -551,9 +552,10 @@ function Field({
   span2?: boolean;
   children: React.ReactNode;
 }) {
+  const { htmlFor, children } = useFieldLabel(rawChildren);
   return (
     <div className={span2 ? "sm:col-span-2" : undefined}>
-      <label className="mb-1.5 block">
+      <label htmlFor={htmlFor} className="mb-1.5 block">
         <span className="text-xs font-semibold text-neutral-700">
           {label}
           {required && <span className="ml-0.5 text-red-500">*</span>}

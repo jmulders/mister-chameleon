@@ -24,6 +24,7 @@ import type { HeroBannerMedia } from "@/cms/types";
 import { SlideMediaEditor } from "@/components/admin/media/MediaEditor";
 import { heroBannerMediaToBlockMedia, blockMediaToHeroBannerMedia } from "@/lib/media/hero-banner-to-block-media";
 import { legacyPhotoUrlToBlockMedia } from "@/lib/media/block-media";
+import { useFieldLabel } from "@/components/admin/use-field-label";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Template = "single" | "split-left" | "split-right";
@@ -391,10 +392,11 @@ export function FormVariantsEditor({ tenantId, definitionFields, initialVariants
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children: rawChildren }: { label: string; children: ReactNode }) {
+  const { htmlFor, children } = useFieldLabel(rawChildren);
   return (
     <div>
-      <label className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
+      <label htmlFor={htmlFor} className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
       {children}
     </div>
   );

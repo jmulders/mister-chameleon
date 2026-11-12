@@ -24,6 +24,7 @@ import {
   deleteEmailVariantAction,
 } from "../email-variants-actions";
 import { HtmlBlockEditor } from "./HtmlBlockEditor";
+import { useFieldLabel } from "@/components/admin/use-field-label";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -287,10 +288,11 @@ function TemplateVariants({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children: rawChildren }: { label: string; children: ReactNode }) {
+  const { htmlFor, children } = useFieldLabel(rawChildren);
   return (
     <div>
-      <label className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
+      <label htmlFor={htmlFor} className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
       {children}
     </div>
   );

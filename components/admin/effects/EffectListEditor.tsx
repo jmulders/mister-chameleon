@@ -101,7 +101,7 @@ export function EffectListEditor({
   return (
     <div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
-        <select className={effectInputCls} value={addId} onChange={(e) => setAddId(e.target.value)}>
+        <select aria-label="Effect to add" className={effectInputCls} value={addId} onChange={(e) => setAddId(e.target.value)}>
           <option value="">Select an effect...</option>
           {EFFECT_GROUPS.map((g) => (
             byGroup[g.key].length > 0 && (

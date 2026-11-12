@@ -61,6 +61,7 @@ import { DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
 import { getThemeLayoutProfile } from "@/design-system/theme/layout-profiles";
 import { tenantThemeToVarsRecord } from "@/design-system/theme";
 import type { OnboardingInput } from "@/onboarding";
+import { useFieldLabel } from "@/components/admin/use-field-label";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -220,7 +221,7 @@ function Field({
   hint,
   error,
   required,
-  children,
+  children: rawChildren,
 }: {
   label:    string;
   hint?:    string;
@@ -228,9 +229,10 @@ function Field({
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const { htmlFor, children } = useFieldLabel(rawChildren);
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-neutral-700">
+      <label htmlFor={htmlFor} className="block text-sm font-medium text-neutral-700">
         {label}
         {required && <span className="ml-0.5 text-error-500" aria-hidden>*</span>}
       </label>

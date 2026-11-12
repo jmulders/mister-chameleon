@@ -43,7 +43,7 @@
 
 "use client";
 
-import React, { useState, useTransition, useRef } from "react";
+import React, { useId, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent }                        from "@/components/ui/Card";
 import { saveVisualTokensAction }                   from "@/app/admin/tenants/[tenantId]/actions";
@@ -288,11 +288,13 @@ function TokenInput({
   showSwatch?:  boolean;
   disabled?:    boolean;
 }) {
+  const inputId = useId();
   return (
     <div>
-      <label className={labelCls}>{label}</label>
+      <label htmlFor={inputId} className={labelCls}>{label}</label>
       <div className="flex items-center gap-1.5">
         <input
+          id={inputId}
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
