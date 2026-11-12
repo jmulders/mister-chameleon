@@ -110,6 +110,15 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 /**
+ * True when the CMS value names an icon ("shield", "bar-chart") rather than
+ * holding an emoji. The default grid used to print whatever it got, so a page
+ * that named its icons showed the words "layout" and "code" above each card.
+ */
+function isIconName(value: string): boolean {
+  return /^[a-z][a-z0-9-]*$/i.test(value.trim());
+}
+
+/**
  * Renders a named SVG icon from the built-in registry.
  * Falls back to a generic circle dot for unknown icon names.
  *
@@ -673,7 +682,15 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     boxShadow:    "var(--block-feature-card-shadow)",
                   }}
                 >
-                  {feature.icon && (
+                  {feature.icon && (isIconName(feature.icon) ? (
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
+                      aria-hidden="true"
+                    >
+                      <FeatureIcon name={feature.icon} size={20} />
+                    </div>
+                  ) : (
                     <span
                       className="text-2xl"
                       role="img"
@@ -681,7 +698,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     >
                       {feature.icon}
                     </span>
-                  )}
+                  ))}
                   <Text
                     variant="h4"
                     style={{ fontWeight: "var(--font-subheading-weight)" }}
