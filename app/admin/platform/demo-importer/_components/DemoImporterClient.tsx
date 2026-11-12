@@ -1105,8 +1105,10 @@ function ToggleRow({
         <p className="text-xs text-neutral-400 mt-0.5">{note}</p>
       </div>
       <button
+        type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={label}
         onClick={() => !isDisabled && onChange()}
         disabled={isDisabled}
         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${

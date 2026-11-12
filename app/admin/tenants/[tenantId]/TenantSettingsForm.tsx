@@ -59,6 +59,7 @@ import type {
 import { THEME_CATALOG } from "@/design-system/theme/presets";
 import { BlockCatalogue }  from "./_components/BlockCatalogue";
 import { BlockTypeEffectsEditor } from "@/components/admin/effects/BlockTypeEffectsEditor";
+import { useFieldLabel } from "@/components/admin/use-field-label";
 
 // ── Local aliases ──────────────────────────────────────────────────────────────
 
@@ -683,15 +684,16 @@ function SectionCard({
 function Field({
   label,
   hint,
-  children,
+  children: rawChildren,
 }: {
   label: string;
   hint?: string;
   children: React.ReactNode;
 }) {
+  const { htmlFor, children } = useFieldLabel(rawChildren);
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-neutral-700">{label}</label>
+      <label htmlFor={htmlFor} className="block text-sm font-medium text-neutral-700">{label}</label>
       {hint && <p className="text-xs text-neutral-400">{hint}</p>}
       {children}
     </div>
@@ -702,16 +704,20 @@ function Toggle({
   checked,
   onChange,
   disabled,
+  label,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  /** What the switch turns on. Without it a screen reader only says "switch, off". */
+  label?: string;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       className={cn(
@@ -760,7 +766,7 @@ function ToggleRow({
         </div>
         {hint && <p className="text-xs text-neutral-400">{hint}</p>}
       </div>
-      <Toggle checked={checked} onChange={onChange} disabled={disabled} />
+      <Toggle checked={checked} onChange={onChange} disabled={disabled} label={label} />
     </div>
   );
 }

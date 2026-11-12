@@ -6,6 +6,7 @@ import type {
   SafeGoogleCalendarConfig,
   GoogleCalendarFormInput,
 }                                           from "../actions";
+import { useFieldLabel } from "@/components/admin/use-field-label";
 
 interface Props {
   initialConfig: SafeGoogleCalendarConfig;
@@ -212,10 +213,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, children: rawChildren }: { label: string; hint?: string; children: React.ReactNode }) {
+  const { htmlFor, children } = useFieldLabel(rawChildren);
   return (
     <div>
-      <label className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
+      <label htmlFor={htmlFor} className="block text-xs font-medium text-neutral-700 mb-1">{label}</label>
       {children}
       {hint && <p className="mt-1 text-xs text-neutral-400">{hint}</p>}
     </div>

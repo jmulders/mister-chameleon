@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { useFieldLabel } from "@/components/admin/use-field-label";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS — known variant keys from decision/types.ts
@@ -527,16 +528,17 @@ function StepShell({ title, subtitle, children }: {
   );
 }
 
-function Field({ label, hint, error, required, children }: {
+function Field({ label, hint, error, required, children: rawChildren }: {
   label:    string;
   hint?:    string;
   error?:   string;
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const { htmlFor, children } = useFieldLabel(rawChildren);
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-neutral-700">
+      <label htmlFor={htmlFor} className="text-sm font-medium text-neutral-700">
         {label}
         {required && <span className="ml-0.5 text-error-500">*</span>}
       </label>

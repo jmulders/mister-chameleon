@@ -173,8 +173,8 @@ export function PresetBuilder({ tenantId }: Props) {
       {/* Controls */}
       <div style={{ border: "1px solid #e6e8ec", borderRadius: 12, padding: 16, background: "#fff" }}>
         <div style={{ marginBottom: 8 }}>
-          <label style={lbl}>Start from</label>
-          <select style={sel} value={base} onChange={(e) => pickBase(e.target.value)}>
+          <label htmlFor="preset-start-from" style={lbl}>Start from</label>
+          <select id="preset-start-from" style={sel} value={base} onChange={(e) => pickBase(e.target.value)}>
             {DESIGN_PRESET_GALLERY.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
@@ -189,24 +189,24 @@ export function PresetBuilder({ tenantId }: Props) {
         ))}
 
         <div style={sub}>Typography</div>
-        <label style={lbl}>Heading font</label>
-        <select style={sel} value={g.typography.fontHeading || FONTS[0][0]} onChange={(e) => set("typography", "fontHeading", e.target.value)}>
+        <label htmlFor="preset-heading-font" style={lbl}>Heading font</label>
+        <select id="preset-heading-font" style={sel} value={g.typography.fontHeading || FONTS[0][0]} onChange={(e) => set("typography", "fontHeading", e.target.value)}>
           {FONTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
         </select>
-        <label style={{ ...lbl, marginTop: 9 }}>Body font</label>
-        <select style={sel} value={g.typography.fontBody || FONTS[0][0]} onChange={(e) => set("typography", "fontBody", e.target.value)}>
+        <label htmlFor="preset-body-font" style={{ ...lbl, marginTop: 9 }}>Body font</label>
+        <select id="preset-body-font" style={sel} value={g.typography.fontBody || FONTS[0][0]} onChange={(e) => set("typography", "fontBody", e.target.value)}>
           {FONTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
         </select>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 9 }}>
           <div>
-            <label style={lbl}>Heading weight</label>
-            <select style={sel} value={g.typography.headingWeight || "700"} onChange={(e) => set("typography", "headingWeight", e.target.value)}>
+            <label htmlFor="preset-heading-weight" style={lbl}>Heading weight</label>
+            <select id="preset-heading-weight" style={sel} value={g.typography.headingWeight || "700"} onChange={(e) => set("typography", "headingWeight", e.target.value)}>
               {["500", "600", "700", "800"].map((w) => <option key={w} value={w}>{w}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Letter case</label>
-            <select style={sel} value={g.typography.headingTransform || "none"} onChange={(e) => set("typography", "headingTransform", e.target.value)}>
+            <label htmlFor="preset-letter-case" style={lbl}>Letter case</label>
+            <select id="preset-letter-case" style={sel} value={g.typography.headingTransform || "none"} onChange={(e) => set("typography", "headingTransform", e.target.value)}>
               <option value="none">Aa</option><option value="uppercase">AA</option><option value="capitalize">Title case</option>
             </select>
           </div>
@@ -215,26 +215,26 @@ export function PresetBuilder({ tenantId }: Props) {
         <div style={sub}>Shape &amp; buttons</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
           <div>
-            <label style={lbl}>Button radius</label>
-            <select style={sel} value={g.radius.interactive || "8px"} onChange={(e) => set("radius", "interactive", e.target.value)}>
+            <label htmlFor="preset-button-radius" style={lbl}>Button radius</label>
+            <select id="preset-button-radius" style={sel} value={g.radius.interactive || "8px"} onChange={(e) => set("radius", "interactive", e.target.value)}>
               {["0px", "4px", "8px", "16px", "9999px"].map((v) => <option key={v} value={v}>{v === "9999px" ? "pill" : v}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Card radius</label>
-            <select style={sel} value={g.radius.card || "12px"} onChange={(e) => set("radius", "card", e.target.value)}>
+            <label htmlFor="preset-card-radius" style={lbl}>Card radius</label>
+            <select id="preset-card-radius" style={sel} value={g.radius.card || "12px"} onChange={(e) => set("radius", "card", e.target.value)}>
               {["0px", "6px", "12px", "20px"].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Button weight</label>
-            <select style={sel} value={g.button.weight || "600"} onChange={(e) => set("button", "weight", e.target.value)}>
+            <label htmlFor="preset-button-weight" style={lbl}>Button weight</label>
+            <select id="preset-button-weight" style={sel} value={g.button.weight || "600"} onChange={(e) => set("button", "weight", e.target.value)}>
               {["500", "600", "700"].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Button case</label>
-            <select style={sel} value={g.button.transform || "none"} onChange={(e) => set("button", "transform", e.target.value)}>
+            <label htmlFor="preset-button-case" style={lbl}>Button case</label>
+            <select id="preset-button-case" style={sel} value={g.button.transform || "none"} onChange={(e) => set("button", "transform", e.target.value)}>
               <option value="none">Aa</option><option value="uppercase">AA</option>
             </select>
           </div>
@@ -249,26 +249,26 @@ export function PresetBuilder({ tenantId }: Props) {
         <div style={sub}>Spacing &amp; sections</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
           <div>
-            <label style={lbl}>Section spacing</label>
-            <select style={sel} value={g.spacing.sectionPadding || SECTION_PADDING[1][0]} onChange={(e) => set("spacing", "sectionPadding", e.target.value)}>
+            <label htmlFor="preset-section-spacing" style={lbl}>Section spacing</label>
+            <select id="preset-section-spacing" style={sel} value={g.spacing.sectionPadding || SECTION_PADDING[1][0]} onChange={(e) => set("spacing", "sectionPadding", e.target.value)}>
               {SECTION_PADDING.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Content width</label>
-            <select style={sel} value={g.spacing.container || CONTAINER_WIDTH[1][0]} onChange={(e) => set("spacing", "container", e.target.value)}>
+            <label htmlFor="preset-content-width" style={lbl}>Content width</label>
+            <select id="preset-content-width" style={sel} value={g.spacing.container || CONTAINER_WIDTH[1][0]} onChange={(e) => set("spacing", "container", e.target.value)}>
               {CONTAINER_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Alignment</label>
-            <select style={sel} value={g.spacing.align || "left"} onChange={(e) => set("spacing", "align", e.target.value)}>
+            <label htmlFor="preset-alignment" style={lbl}>Alignment</label>
+            <select id="preset-alignment" style={sel} value={g.spacing.align || "left"} onChange={(e) => set("spacing", "align", e.target.value)}>
               <option value="left">Left</option><option value="center">Centered</option>
             </select>
           </div>
           <div>
-            <label style={lbl}>Border width</label>
-            <select style={sel} value={g.border.width || "1px"} onChange={(e) => set("border", "width", e.target.value)}>
+            <label htmlFor="preset-border-width" style={lbl}>Border width</label>
+            <select id="preset-border-width" style={sel} value={g.border.width || "1px"} onChange={(e) => set("border", "width", e.target.value)}>
               {BORDER_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
@@ -277,20 +277,20 @@ export function PresetBuilder({ tenantId }: Props) {
         <div style={sub}>Interaction &amp; focus</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
           <div>
-            <label style={lbl}>Hover lift (buttons)</label>
-            <select style={sel} value={g.motion.hoverLift || "0px"} onChange={(e) => set("motion", "hoverLift", e.target.value)}>
+            <label htmlFor="preset-hover-lift-buttons" style={lbl}>Hover lift (buttons)</label>
+            <select id="preset-hover-lift-buttons" style={sel} value={g.motion.hoverLift || "0px"} onChange={(e) => set("motion", "hoverLift", e.target.value)}>
               {HOVER_LIFT.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div>
-            <label style={lbl}>Focus ring width</label>
-            <select style={sel} value={g.focus.ringWidth || "2px"} onChange={(e) => set("focus", "ringWidth", e.target.value)}>
+            <label htmlFor="preset-focus-ring-width" style={lbl}>Focus ring width</label>
+            <select id="preset-focus-ring-width" style={sel} value={g.focus.ringWidth || "2px"} onChange={(e) => set("focus", "ringWidth", e.target.value)}>
               {RING_WIDTH.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </div>
           <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ ...lbl, margin: 0 }}>Focus ring color</label>
-            <input
+            <label htmlFor="preset-focus-ring-color" style={{ ...lbl, margin: 0 }}>Focus ring color</label>
+            <input id="preset-focus-ring-color"
               type="color"
               value={/^#([0-9a-f]{6})$/i.test(g.focus.ringColor || "") ? g.focus.ringColor : (g.color.primary || "#4f46e5")}
               onChange={(e) => set("focus", "ringColor", e.target.value)}

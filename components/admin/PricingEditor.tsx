@@ -150,6 +150,7 @@ function RowEditor({ row }: RowEditorProps) {
             type="number"
             min={0}
             step={0.000001}
+            aria-label={`${row.displayName}: unit price in euro per call`}
             value={unitPrice}
             onChange={(e) => { setUnitPrice(e.target.value); setStatus("idle"); }}
             className="w-24 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
@@ -170,6 +171,7 @@ function RowEditor({ row }: RowEditorProps) {
             type="number"
             min={0}
             step={0.001}
+            aria-label={`${row.displayName}: credit cost per call`}
             value={creditCost}
             onChange={(e) => { setCreditCost(e.target.value); setStatus("idle"); }}
             className="w-20 rounded border border-neutral-200 bg-white px-2 py-1 text-right text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
@@ -185,6 +187,7 @@ function RowEditor({ row }: RowEditorProps) {
             type="number"
             min={0}
             step={0.000001}
+            aria-label={`${row.displayName}: internal cost in euro per call`}
             placeholder="—"
             value={internalCost}
             onChange={(e) => { setInternalCost(e.target.value); setStatus("idle"); }}
