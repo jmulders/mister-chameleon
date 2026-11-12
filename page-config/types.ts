@@ -2041,6 +2041,12 @@ export interface ResolvedContextSlot {
    */
   readonly variantKey: string | null;
   /**
+   * A second key to try when `variantKey` has no content. Set on the hero slot
+   * of a CMS page that names its own hero: the visitor-adaptive banner stays
+   * available for a page whose own hero is not filled in yet.
+   */
+  readonly fallbackVariantKey?: string;
+  /**
    * Structural position relative to content blocks.
    *
    * Used by the template-based rendering path (Sanity, Storyblok) where slots

@@ -1292,7 +1292,8 @@ export function HeroBlock({
   // Design principles:
   //   • Same dark brand surface (--hero-bg) as other dark variants.
   //   • Subtle wide glow at very low opacity — brand presence without bloat.
-  //   • Title at h2 scale (not display-scale — this is a label/pitch hybrid).
+  //   • Title at h2 scale (not display-scale — this is a label/pitch hybrid),
+  //     but an h1 in the markup: it is the heading of the page.
   //   • CTAs rendered when present (adaptive variants include conversion CTAs).
 
   if (layout === "hero_page_banner") {
@@ -1336,6 +1337,7 @@ export function HeroBlock({
                   )}
                   <Text
                     variant="h2"
+                    as="h1"
                     balance
                     className="whitespace-pre-line"
                     style={{
@@ -1380,6 +1382,7 @@ export function HeroBlock({
               )}
               <Text
                 variant="h2"
+                as="h1"
                 align="center"
                 balance
                 className="max-w-3xl whitespace-pre-line"
