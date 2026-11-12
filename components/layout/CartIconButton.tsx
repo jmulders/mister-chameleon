@@ -12,9 +12,12 @@
 
 import Link           from "next/link";
 import { useCartSafe } from "@/lib/cart/cart-context";
+import { useSiteLocale } from "@/components/site/SiteLocale";
+import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 
 export function CartIconButton() {
   const cart = useCartSafe();
+  const t    = LAYOUT_TEXTS[useSiteLocale()];
 
   // Don't render if CartProvider is missing (admin / server-only pages)
   if (!cart) return null;
@@ -24,7 +27,7 @@ export function CartIconButton() {
   return (
     <Link
       href="/cart"
-      aria-label={count > 0 ? `View cart — ${count} item${count !== 1 ? "s" : ""}` : "View cart"}
+      aria-label={t.viewCart(count)}
       style={{
         position:        "relative",
         display:         "inline-flex",

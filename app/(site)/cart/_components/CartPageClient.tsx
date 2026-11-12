@@ -22,6 +22,8 @@
 import Link                   from "next/link";
 import { useCart }            from "@/lib/cart/cart-context";
 import type { CartCreditBundle } from "@/lib/cart/cart-context";
+import { useSiteLocale }      from "@/components/site/SiteLocale";
+import { SHOP_TEXTS }         from "@/lib/site-texts/shop";
 
 // ── Static credit catalogue (mirrors pricing page) ────────────────────────────
 
@@ -46,41 +48,10 @@ const AVAILABLE_BUNDLES: Array<Omit<CartCreditBundle, "quantity">> = [
   },
 ];
 
-// ── Plan feature catalogue ────────────────────────────────────────────────────
-
-const PLAN_FEATURES: Record<string, string[]> = {
-  starter: [
-    "25,000 personalised sessions/month",
-    "Rule-based personalisation engine",
-    "IP-to-company enrichment",
-    "3 content variants per page",
-    "Sanity CMS integration",
-    "Email support",
-  ],
-  growth: [
-    "150,000 personalised sessions/month",
-    "AI-assisted variant decisions",
-    "CRM & ABM enrichment (HubSpot, Salesforce)",
-    "Custom audience segments",
-    "A/B & multivariate testing",
-    "Full analytics dashboard",
-  ],
-  pro: [
-    "500,000 personalised sessions/month",
-    "Unlimited client sites",
-    "White-label interface & custom domain",
-    "SLA + Data Processing Agreement",
-    "Priority support + onboarding call",
-    "Everything in Growth",
-  ],
-};
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmtEuro(cents: number): string {
-  if (cents % 100 === 0) return `€${cents / 100}`;
-  return `€${(cents / 100).toFixed(2)}`;
-}
+//
+// The plan features and the way an amount is written live with the other shop
+// texts in lib/site-texts/shop.ts (planFeatures, money).
 
 function Check() {
   return (
@@ -117,6 +88,8 @@ function QtyControl({
   onDec:    () => void;
   onRemove: () => void;
 }) {
+  const t = SHOP_TEXTS[useSiteLocale()];
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
       <button
@@ -134,7 +107,7 @@ function QtyControl({
           display: "flex", alignItems: "center", justifyContent: "center",
           lineHeight: 1,
         }}
-        title={qty === 1 ? "Remove" : "Decrease"}
+        title={qty === 1 ? t.qtyRemove : t.qtyDecrease}
       >
         {qty === 1 ? "×" : "−"}
       </button>
@@ -154,7 +127,7 @@ function QtyControl({
           display: "flex", alignItems: "center", justifyContent: "center",
           lineHeight: 1,
         }}
-        title="Increase"
+        title={t.qtyIncrease}
       >
         +
       </button>
@@ -165,6 +138,9 @@ function QtyControl({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function CartPageClient() {
+  const t       = SHOP_TEXTS[useSiteLocale()];
+  const fmtEuro = t.money;
+
   const {
     cart,
     removePlan,
@@ -190,10 +166,10 @@ export function CartPageClient() {
       >
         <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🛒</div>
         <h1 style={{ fontWeight: 700, fontSize: "1.75rem", color: "#111827", marginBottom: "0.75rem" }}>
-          Your cart is empty
+          {t.cartEmptyTitle}
         </h1>
         <p style={{ color: "#6b7280", marginBottom: "2rem" }}>
-          Head back to pricing to pick a plan or add credit bundles.
+          {t.cartEmptyBody}
         </p>
         <Link
           href="/prijzen"
@@ -208,7 +184,7 @@ export function CartPageClient() {
             textDecoration: "none",
           }}
         >
-          View pricing
+          {t.viewPricing}
         </Link>
       </div>
     );
@@ -216,7 +192,7 @@ export function CartPageClient() {
 
   // ── Filled cart ─────────────────────────────────────────────────────────────
 
-  const features = cart.plan ? PLAN_FEATURES[cart.plan.planId] ?? [] : [];
+  const features = cart.plan ? t.planFeatures[cart.plan.planId] ?? [] : [];
 
   return (
     <div style={{ maxWidth: "860px", margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
@@ -231,7 +207,7 @@ export function CartPageClient() {
           lineHeight: 1.2,
         }}
       >
-        Your order
+        {t.cartHeading}
       </h1>
 
       <div className="cart-layout">
@@ -263,7 +239,7 @@ export function CartPageClient() {
               >
                 <div>
                   <p style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#9ca3af", marginBottom: "0.25rem" }}>
-                    Subscription plan — 14-day free trial
+                    {t.planEyebrow}
                   </p>
                   <h2 style={{ fontWeight: 700, fontSize: "1.125rem", color: "#111827", margin: 0 }}>
                     {cart.plan.name}
@@ -274,7 +250,7 @@ export function CartPageClient() {
                     {fmtEuro(cart.plan.priceCents)}
                   </div>
                   <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginTop: "0.2rem" }}>
-                    {cart.plan.period} after trial
+                    {t.periodAfterTrial(cart.plan.period)}
                   </div>
                 </div>
               </div>
@@ -298,7 +274,7 @@ export function CartPageClient() {
                   onClick={removePlan}
                   style={{ fontSize: "0.8125rem", color: "#9ca3af", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                 >
-                  Remove plan
+                  {t.removePlan}
                 </button>
               </div>
             </div>
@@ -322,13 +298,13 @@ export function CartPageClient() {
             >
               <div>
                 <p style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#9ca3af", marginBottom: "0.25rem" }}>
-                  Credit bundle — {(b.creditsEach).toLocaleString("nl-NL")} credits
+                  {t.bundleEyebrow((b.creditsEach).toLocaleString("nl-NL"))}
                 </p>
                 <h3 style={{ fontWeight: 600, fontSize: "1rem", color: "#111827", margin: 0 }}>
                   {b.label}
                 </h3>
                 <p style={{ fontSize: "0.8125rem", color: "#6b7280", marginTop: "0.2rem" }}>
-                  {fmtEuro(b.priceCentsEach)} each · credits never expire
+                  {t.bundleEachNote(fmtEuro(b.priceCentsEach))}
                 </p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
@@ -350,7 +326,7 @@ export function CartPageClient() {
           {/* Add credits section */}
           <div>
             <p style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#6b7280", marginBottom: "0.875rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Add Chameleon Credits (optional)
+              {t.addCreditsHeading}
             </p>
             <div className="bundle-grid">
               {AVAILABLE_BUNDLES.filter(
@@ -383,7 +359,7 @@ export function CartPageClient() {
                     {(ab.creditsEach).toLocaleString("nl-NL")} credits · {fmtEuro(ab.priceCentsEach)}
                   </div>
                   <div style={{ marginTop: "0.75rem", fontSize: "0.75rem", fontWeight: 600, color: "#6366f1" }}>
-                    + Add to order
+                    {t.addToOrder}
                   </div>
                 </button>
               ))}
@@ -404,14 +380,14 @@ export function CartPageClient() {
             }}
           >
             <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #f3f4f6" }}>
-              <h2 style={{ fontWeight: 700, fontSize: "1rem", color: "#111827", margin: 0 }}>Order summary</h2>
+              <h2 style={{ fontWeight: 700, fontSize: "1rem", color: "#111827", margin: 0 }}>{t.orderSummary}</h2>
             </div>
 
             <div style={{ padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
               {cart.plan && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", color: "#374151" }}>
-                  <span>{cart.plan.name} plan</span>
-                  <span>{fmtEuro(cart.plan.priceCents)}/mo</span>
+                  <span>{t.planLabel(cart.plan.name)}</span>
+                  <span>{t.pricePerMonth(fmtEuro(cart.plan.priceCents))}</span>
                 </div>
               )}
               {cart.creditBundles.map((b) => (
@@ -422,13 +398,13 @@ export function CartPageClient() {
               ))}
 
               <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "0.625rem", marginTop: "0.25rem", display: "flex", justifyContent: "space-between", fontWeight: 700, color: "#111827" }}>
-                <span>Due today</span>
-                <span style={{ color: "#16a34a" }}>€0</span>
+                <span>{t.dueToday}</span>
+                <span style={{ color: "#16a34a" }}>{fmtEuro(0)}</span>
               </div>
               {cart.plan && (
                 <p style={{ fontSize: "0.75rem", color: "#6b7280", margin: 0 }}>
-                  Plan charges ({fmtEuro(totalCents - cart.creditBundles.reduce((s, b) => s + b.priceCentsEach * b.quantity, 0))}/mo) begin after your 14-day free trial.
-                  {cart.creditBundles.length > 0 && " Credit bundles are invoiced separately."}
+                  {t.planChargesNote(fmtEuro(totalCents - cart.creditBundles.reduce((s, b) => s + b.priceCentsEach * b.quantity, 0)))}
+                  {cart.creditBundles.length > 0 && ` ${t.bundlesInvoicedSeparately}`}
                 </p>
               )}
             </div>
@@ -448,7 +424,7 @@ export function CartPageClient() {
                   textDecoration: "none",
                 }}
               >
-                Proceed to checkout
+                {t.proceedToCheckout}
               </Link>
               <Link
                 href="/prijzen"
@@ -460,7 +436,7 @@ export function CartPageClient() {
                   textDecoration: "none",
                 }}
               >
-                Back to pricing
+                {t.backToPricing}
               </Link>
             </div>
 
@@ -474,13 +450,8 @@ export function CartPageClient() {
                 gap: "0.375rem",
               }}
             >
-              {[
-                "🔒 Secure — 256-bit SSL",
-                "💳 No credit card during trial",
-                "🚀 Live in under 15 minutes",
-                "✖ Cancel any time",
-              ].map((t) => (
-                <span key={t} style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{t}</span>
+              {t.cartTrust.map((signal) => (
+                <span key={signal} style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{signal}</span>
               ))}
             </div>
           </div>

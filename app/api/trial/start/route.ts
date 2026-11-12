@@ -41,6 +41,8 @@
  *   - Never logs the plaintext password or hash
  */
 
+import { getSiteLocale } from "@/lib/site-texts/server";
+import { TRIAL_TEXTS }    from "@/lib/site-texts/trial";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb }                     from "@/data/db";
 import { hashPassword, validatePasswordStrength } from "@/lib/admin-auth/password";
@@ -99,13 +101,16 @@ function isValidEmail(email: string): boolean {
 // ── Route handler ──────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // The form shows these answers to the visitor, so they follow the site language.
+  const t = TRIAL_TEXTS[await getSiteLocale().catch(() => "en" as const)];
+
   // ── 1. Parse body ────────────────────────────────────────────────────────────
 
   let body: { name?: string; email?: string; company?: string; password?: string; planId?: string };
   try {
     body = await request.json() as typeof body;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: t.invalidRequest }, { status: 400 });
   }
 
   const name     = (body.name    ?? "").trim();
@@ -117,13 +122,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── 2. Validate inputs ───────────────────────────────────────────────────────
 
   if (!name) {
-    return NextResponse.json({ error: "Full name is required." }, { status: 400 });
+    return NextResponse.json({ error: t.nameRequired }, { status: 400 });
   }
   if (!email || !isValidEmail(email)) {
-    return NextResponse.json({ error: "A valid email address is required." }, { status: 400 });
+    return NextResponse.json({ error: t.emailRequired }, { status: 400 });
   }
   if (!company) {
-    return NextResponse.json({ error: "Company name is required." }, { status: 400 });
+    return NextResponse.json({ error: t.companyRequired }, { status: 400 });
   }
 
   const passwordError = validatePasswordStrength(password);
@@ -132,7 +137,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   if (!["starter", "growth", "pro"].includes(planId)) {
-    return NextResponse.json({ error: "Invalid plan." }, { status: 400 });
+    return NextResponse.json({ error: t.invalidPlan }, { status: 400 });
   }
 
   // ── 3. Check email uniqueness ────────────────────────────────────────────────
@@ -141,13 +146,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const existing = await findAdminUserByEmailForLogin(email);
     if (existing) {
       return NextResponse.json(
-        { error: "An account with this email address already exists. Please sign in instead." },
+        { error: t.accountExists },
         { status: 409 },
       );
     }
   } catch (err) {
     console.error("[trial/start] email lookup error:", err);
-    return NextResponse.json({ error: "Database error. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.tryAgain }, { status: 500 });
   }
 
   // ── 4. Hash password ─────────────────────────────────────────────────────────
@@ -157,7 +162,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     passwordHash = await hashPassword(password);
   } catch (err) {
     console.error("[trial/start] bcrypt error:", err);
-    return NextResponse.json({ error: "Server error. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.tryAgain }, { status: 500 });
   }
 
   // ── 5. Create admin user ─────────────────────────────────────────────────────
@@ -184,11 +189,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Catch duplicate email at DB level in case of race condition
     if (userError?.message?.includes("unique") || userError?.code === "23505") {
       return NextResponse.json(
-        { error: "An account with this email address already exists." },
+        { error: t.accountExists },
         { status: 409 },
       );
     }
-    return NextResponse.json({ error: "Failed to create account. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.accountFailed }, { status: 500 });
   }
 
   const userId = newUser.id as string;
@@ -200,7 +205,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     tenantId = await uniqueTenantSlug(company);
   } catch (err) {
     console.error("[trial/start] slug generation error:", err);
-    return NextResponse.json({ error: "Server error. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.tryAgain }, { status: 500 });
   }
 
   const trialStartedAt = new Date().toISOString();
@@ -238,7 +243,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Best-effort cleanup of the orphaned admin_users row
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (db as any).from("admin_users").delete().eq("id", userId);
-    return NextResponse.json({ error: "Failed to create tenant. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.accountFailed }, { status: 500 });
   }
 
   // ── 7. Bind user to tenant ───────────────────────────────────────────────────

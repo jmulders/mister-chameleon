@@ -37,6 +37,8 @@
  *   { error: string }
  */
 
+import { getSiteLocale } from "@/lib/site-texts/server";
+import { TRIAL_TEXTS }    from "@/lib/site-texts/trial";
 import { NextRequest, NextResponse }             from "next/server";
 import { getDb }                                 from "@/data/db";
 import { hashPassword, validatePasswordStrength } from "@/lib/admin-auth/password";
@@ -57,6 +59,9 @@ function isValidEmail(email: string): boolean {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // The form shows these answers to the visitor, so they follow the site language.
+  const t = TRIAL_TEXTS[await getSiteLocale().catch(() => "en" as const)];
+
 
   // ── 1. Parse body ────────────────────────────────────────────────────────────
 
@@ -64,7 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     body = await request.json() as typeof body;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: t.invalidRequest }, { status: 400 });
   }
 
   const name     = (body.name    ?? "").trim();
@@ -75,15 +80,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // ── 2. Validate ──────────────────────────────────────────────────────────────
 
-  if (!name)                        return NextResponse.json({ error: "Full name is required." }, { status: 400 });
-  if (!email || !isValidEmail(email)) return NextResponse.json({ error: "A valid email address is required." }, { status: 400 });
-  if (!company)                     return NextResponse.json({ error: "Company name is required." }, { status: 400 });
+  if (!name)                        return NextResponse.json({ error: t.nameRequired }, { status: 400 });
+  if (!email || !isValidEmail(email)) return NextResponse.json({ error: t.emailRequired }, { status: 400 });
+  if (!company)                     return NextResponse.json({ error: t.companyRequired }, { status: 400 });
 
   const passwordError = validatePasswordStrength(password);
   if (passwordError) return NextResponse.json({ error: passwordError }, { status: 400 });
 
   if (!["starter", "growth", "pro"].includes(planId)) {
-    return NextResponse.json({ error: "Invalid plan." }, { status: 400 });
+    return NextResponse.json({ error: t.invalidPlan }, { status: 400 });
   }
 
   // ── 3. Check email uniqueness ────────────────────────────────────────────────
@@ -92,13 +97,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const existing = await findAdminUserByEmailForLogin(email);
     if (existing) {
       return NextResponse.json(
-        { error: "An account with this email address already exists. Please sign in instead." },
+        { error: t.accountExists },
         { status: 409 },
       );
     }
   } catch (err) {
     console.error("[trial/checkout-session] email lookup error:", err);
-    return NextResponse.json({ error: "Database error. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.tryAgain }, { status: 500 });
   }
 
   // ── 4. Hash password ─────────────────────────────────────────────────────────
@@ -108,7 +113,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     passwordHash = await hashPassword(password);
   } catch (err) {
     console.error("[trial/checkout-session] bcrypt error:", err);
-    return NextResponse.json({ error: "Server error. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.tryAgain }, { status: 500 });
   }
 
   // ── 5. Store pending signup ──────────────────────────────────────────────────
@@ -124,7 +129,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (pendingError || !pending?.id) {
     console.error("[trial/checkout-session] pending insert error:", pendingError?.message);
-    return NextResponse.json({ error: "Server error. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.tryAgain }, { status: 500 });
   }
 
   const pendingId = pending.id as string;
@@ -170,7 +175,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { secretKey } = stripeCredentials;
     if (!secretKey) {
       console.error("[trial/checkout-session] No Stripe secret key configured.");
-      return NextResponse.json({ error: "Payment provider not configured. Contact support." }, { status: 500 });
+      return NextResponse.json({ error: t.paymentDown }, { status: 500 });
     }
     const stripe = new Stripe(secretKey, {
       apiVersion: STRIPE_API_VERSION,
@@ -224,7 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Clean up the pending row so the user can retry without hitting an email conflict
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (db as any).from("pending_trial_signups").delete().eq("id", pendingId);
-    return NextResponse.json({ error: "Payment provider error. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t.paymentError }, { status: 500 });
   }
 
   return NextResponse.json({ url: checkoutUrl });

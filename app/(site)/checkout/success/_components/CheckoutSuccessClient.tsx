@@ -12,6 +12,8 @@
 import { useEffect, useState } from "react";
 import Link                    from "next/link";
 import { useCart }             from "@/lib/cart/cart-context";
+import { useSiteLocale }       from "@/components/site/SiteLocale";
+import { SHOP_TEXTS }          from "@/lib/site-texts/shop";
 
 // ── Animated checkmark ────────────────────────────────────────────────────────
 
@@ -44,10 +46,11 @@ function AnimatedCheck() {
 // ── Step indicator ────────────────────────────────────────────────────────────
 
 function Steps() {
+  const t     = SHOP_TEXTS[useSiteLocale()];
   const steps = [
-    { label: "Payment confirmed",     done: true  },
-    { label: "Account being created", done: false },
-    { label: "Welcome email on its way", done: false },
+    { label: t.stepPayment, done: true  },
+    { label: t.stepAccount, done: false },
+    { label: t.stepEmail,   done: false },
   ];
 
   return (
@@ -79,6 +82,7 @@ export default function CheckoutSuccessClient() {
   // Give the webhook more time — account creation happens asynchronously
   // after Stripe fires checkout.session.completed. 30s is generous but avoids
   // landing on the login page before the admin_user row exists.
+  const t = SHOP_TEXTS[useSiteLocale()];
   const [countdown, setCountdown] = useState(30);
   const { clearCart } = useCart();
 
@@ -114,15 +118,14 @@ export default function CheckoutSuccessClient() {
         <AnimatedCheck />
 
         <h1 style={{ fontWeight: 800, fontSize: "clamp(1.625rem, 4vw, 2.25rem)", color: "#111827", marginBottom: "0.75rem", lineHeight: 1.2 }}>
-          Payment confirmed!
+          {t.paymentConfirmed}
         </h1>
 
         <p style={{ color: "#6b7280", fontSize: "1rem", lineHeight: 1.6, marginBottom: "0.25rem" }}>
-          Thank you — your 14-day free trial has started.
+          {t.thanksTrialStarted}
         </p>
         <p style={{ color: "#6b7280", fontSize: "0.9375rem", lineHeight: 1.6, marginBottom: 0 }}>
-          We&apos;re setting up your account now and will send a welcome email
-          with login instructions within a few minutes.
+          {t.settingUpAccount}
         </p>
 
         <Steps />
@@ -142,10 +145,10 @@ export default function CheckoutSuccessClient() {
               textAlign: "center",
             }}
           >
-            Go to your dashboard
+            {t.goToDashboard}
           </Link>
           <p style={{ fontSize: "0.8125rem", color: "#9ca3af", margin: 0 }}>
-            Redirecting automatically in {countdown}s…
+            {t.redirectingIn(countdown)}
           </p>
         </div>
 
@@ -160,11 +163,11 @@ export default function CheckoutSuccessClient() {
           lineHeight: 1.6,
           maxWidth: 400,
         }}>
-          <strong style={{ color: "#374151" }}>Need help?</strong>{" "}
-          If you don&apos;t receive a welcome email within 5 minutes, please check your spam folder or{" "}
+          <strong style={{ color: "#374151" }}>{t.needHelp}</strong>{" "}
+          {t.helpBefore}{" "}
           <Link href="/contact" style={{ color: "#6366f1", textDecoration: "none" }}>
-            contact our support team
-          </Link>.
+            {t.helpLink}
+          </Link>{t.helpAfter}
         </div>
       </div>
     </div>

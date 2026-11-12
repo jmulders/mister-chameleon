@@ -12,11 +12,16 @@
 
 import type { Metadata } from "next";
 import CheckoutSuccessClient from "./_components/CheckoutSuccessClient";
+import { getSiteLocale }     from "@/lib/site-texts/server";
+import { SHOP_TEXTS }        from "@/lib/site-texts/shop";
 
-export const metadata: Metadata = {
-  title:  "Payment confirmed — Mister Chameleon",
-  robots: { index: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = SHOP_TEXTS[await getSiteLocale()];
+  return {
+    title:  t.metaSuccessTitle,
+    robots: { index: false },
+  };
+}
 
 export default function CheckoutSuccessPage() {
   return <CheckoutSuccessClient />;

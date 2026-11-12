@@ -38,62 +38,25 @@ import { Container }       from "@/components/primitives/Container";
 import { Section }         from "@/components/primitives/Section";
 import type { CartSummaryBlockData } from "@/page-config";
 import { useCartSafe }     from "@/lib/cart/cart-context";
+import { useSiteLocale }   from "@/components/site/SiteLocale";
+import { SHOP_TEXTS }      from "@/lib/site-texts/shop";
 
 // ─── Static plan catalogue ────────────────────────────────────────────────────
+//
+// Only what is the same in every language. The words around it (the period,
+// the badge, the feature list) come from lib/site-texts/shop.ts.
 
 interface PlanSummary {
-  name:      string;
-  price:     string;
-  period:    string;
-  trialDays: number;
-  features:  string[];
-  badge?:    string;
+  name:       string;
+  priceCents: number;
+  trialDays:  number;
+  popular?:   boolean;
 }
 
 const PLAN_CATALOGUE: Record<string, PlanSummary> = {
-  starter: {
-    name:      "Starter",
-    price:     "€149",
-    period:    "/month after trial",
-    trialDays: 14,
-    features: [
-      "25,000 personalised sessions/month",
-      "Rule-based personalisation engine",
-      "IP-to-company enrichment",
-      "3 content variants per page",
-      "Sanity CMS integration",
-      "Email support",
-    ],
-  },
-  growth: {
-    name:      "Growth",
-    price:     "€349",
-    period:    "/month after trial",
-    trialDays: 14,
-    badge:     "Most popular",
-    features: [
-      "150,000 personalised sessions/month",
-      "AI-assisted variant decisions",
-      "CRM & ABM enrichment (HubSpot, Salesforce)",
-      "Custom audience segments",
-      "A/B & multivariate testing",
-      "Full analytics dashboard",
-    ],
-  },
-  pro: {
-    name:      "Pro / Agency",
-    price:     "€749",
-    period:    "/month after trial",
-    trialDays: 14,
-    features: [
-      "500,000 personalised sessions/month",
-      "Unlimited client sites",
-      "White-label interface & custom domain",
-      "SLA + Data Processing Agreement",
-      "Priority support + onboarding call",
-      "Everything in Growth",
-    ],
-  },
+  starter: { name: "Starter",      priceCents: 14900, trialDays: 14 },
+  growth:  { name: "Growth",       priceCents: 34900, trialDays: 14, popular: true },
+  pro:     { name: "Pro / Agency", priceCents: 74900, trialDays: 14 },
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -130,12 +93,14 @@ function Check() {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
+  const t = SHOP_TEXTS[useSiteLocale()];
+
   const {
-    heading              = "Your order",
+    heading              = t.yourOrder,
     checkoutHref         = "/checkout",
     continueShoppingHref = "/prijzen",
-    checkoutLabel        = "Proceed to checkout",
-    continueShoppingLabel = "Back to pricing",
+    checkoutLabel        = t.proceedToCheckout,
+    continueShoppingLabel = t.backToPricing,
     planId: dataPlanId,
   } = data;
 
@@ -143,6 +108,7 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
   const cart      = useCartSafe();
   const planId    = cart?.cart.plan?.planId ?? dataPlanId;
   const plan      = planId ? PLAN_CATALOGUE[planId] : undefined;
+  const features  = planId ? t.planFeatures[planId] ?? [] : [];
 
   // Credit bundles from cart (if available).
   const creditBundles = cart?.cart.creditBundles ?? [];
@@ -195,7 +161,7 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
                 }}
               >
                 <div>
-                  {plan.badge && (
+                  {plan.popular && (
                     <span
                       style={{
                         display:       "inline-block",
@@ -208,14 +174,14 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
                         marginBottom:  "0.5rem",
                       }}
                     >
-                      {plan.badge}
+                      {t.mostPopular}
                     </span>
                   )}
                   <div style={{ fontWeight: 600, fontSize: "1.125rem", color: "var(--text)" }}>
-                    {plan.name} plan
+                    {t.planLabel(plan.name)}
                   </div>
                   <div style={{ fontSize: "0.8rem", color: "var(--text-muted, #6b7280)", marginTop: "0.2rem" }}>
-                    14-day free trial
+                    {t.freeTrial14}
                   </div>
                 </div>
 
@@ -229,10 +195,10 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
                       lineHeight: 1,
                     }}
                   >
-                    {plan.price}
+                    {t.money(plan.priceCents)}
                   </div>
                   <div style={{ fontSize: "0.8125rem", color: "var(--text-muted, #6b7280)", marginTop: "0.25rem" }}>
-                    {plan.period}
+                    {t.perMonthAfterTrial}
                   </div>
                 </div>
               </div>
@@ -249,10 +215,10 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
                     marginBottom:  "1rem",
                   }}
                 >
-                  Included in your trial
+                  {t.includedInTrial}
                 </p>
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-                  {plan.features.map((f) => (
+                  {features.map((f) => (
                     <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.9375rem", color: "var(--text)" }}>
                       <Check />
                       {f}
@@ -279,8 +245,8 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
                   <line x1="3"  y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
                 </svg>
                 <p style={{ fontSize: "0.875rem", color: "var(--text-muted, #6b7280)", margin: 0 }}>
-                  <strong style={{ color: "var(--text)" }}>{plan.trialDays}-day free trial.</strong>{" "}
-                  No credit card required. Cancel any time.
+                  <strong style={{ color: "var(--text)" }}>{t.trialDaysBold(plan.trialDays)}</strong>{" "}
+                  {t.noCardCancelAnyTime}
                 </p>
               </div>
             </div>
@@ -288,8 +254,8 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
             /* No plan selected — link back to pricing */
             <div style={{ border: "1px solid var(--card-border, #e5e7eb)", borderRadius: "var(--card-radius, 0.75rem)", padding: "2rem", textAlign: "center", background: "var(--card-bg, white)" }}>
               <p style={{ color: "var(--text-muted, #6b7280)" }}>
-                No plan selected.{" "}
-                <Link href="/prijzen" style={{ color: "var(--primary, #4f46e5)" }}>View pricing</Link>
+                {t.noPlanSelected}{" "}
+                <Link href="/prijzen" style={{ color: "var(--primary, #4f46e5)" }}>{t.viewPricing}</Link>
               </p>
             </div>
           )}
@@ -299,7 +265,7 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
             <div style={{ border: "1px solid var(--card-border, #e5e7eb)", borderRadius: "var(--card-radius, 0.75rem)", overflow: "hidden" }}>
               <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--card-border, #e5e7eb)", background: "var(--card-bg, white)" }}>
                 <p style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted, #6b7280)", margin: 0 }}>
-                  Credit bundles
+                  {t.creditBundles}
                 </p>
               </div>
               <div style={{ background: "var(--bg-subtle, #f9fafb)" }}>
@@ -318,11 +284,11 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
                     <div>
                       <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "0.9375rem" }}>{b.label}</div>
                       <div style={{ fontSize: "0.8125rem", color: "var(--text-muted, #6b7280)" }}>
-                        {(b.creditsEach).toLocaleString("nl-NL")} credits · qty {b.quantity}
+                        {t.creditsAndQty((b.creditsEach).toLocaleString("nl-NL"), b.quantity)}
                       </div>
                     </div>
                     <div style={{ fontWeight: 600, color: "var(--text)" }}>
-                      €{(b.priceCentsEach * b.quantity / 100).toFixed(0)}
+                      {t.moneyWhole(b.priceCentsEach * b.quantity)}
                     </div>
                   </div>
                 ))}
@@ -376,9 +342,9 @@ export function CartSummaryBlock({ data }: CartSummaryBlockProps) {
             }}
           >
             {[
-              { icon: "🔒", text: "Secure signup" },
-              { icon: "💳", text: "No credit card needed" },
-              { icon: "🚀", text: "Live in 15 minutes" },
+              { icon: "🔒", text: t.trustSecureSignup },
+              { icon: "💳", text: t.trustNoCard },
+              { icon: "🚀", text: t.trustLiveFast },
             ].map(({ icon, text }) => (
               <div key={text} style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--text-muted, #6b7280)" }}>
                 <span>{icon}</span>
