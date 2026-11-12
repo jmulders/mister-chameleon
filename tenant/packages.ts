@@ -301,10 +301,10 @@ const PRO_CONTENT_BLOCKS: readonly ContentBlockKey[] = [
  *
  *   Context blocks:    hero, proof, cta
  *   Content blocks:    textSection
- *   Features:          analytics only (no experiments, no AI)
+ *   Features:          experiments + analytics (no AI)
  *   Themes:            default only
  *   Sites:             1
- *   Experiments:       not permitted (maxExperiments: 0)
+ *   Experiments:       unlimited
  *   Variants per slot: up to 2 CMS variants per adaptive slot
  */
 export const STARTER_PACKAGE: PackageDefinition = {
@@ -312,16 +312,21 @@ export const STARTER_PACKAGE: PackageDefinition = {
   displayName: "Starter",
 
   shortDescription:
-    "Rules-based personalisation for a single site. " +
-    "No experiments, no AI — just adaptive content that works.",
+    "Rules-based personalisation for a single site, with A/B experiments. " +
+    "No AI — just adaptive content that works.",
 
   allowedBlocks: {
     context: ALL_CONTEXT_BLOCKS,
     content: STARTER_CONTENT_BLOCKS,
   },
 
+  // Kept equal to what the price list promises (billing/plans.ts, the pricing
+  // page): experiments are part of every plan, AI starts at Growth. These gates
+  // used to say "no experiments on Starter" and "no AI on Growth", so a customer
+  // got less than the page they bought from. tests/tenant/packages-match-plans
+  // fails when the two drift apart again.
   allowedFeatures: {
-    experiments: false,
+    experiments: true,
     ai:          false,
     analytics:   true,
   },
@@ -330,8 +335,7 @@ export const STARTER_PACKAGE: PackageDefinition = {
 
   limits: {
     maxSites:            1,
-    maxExperiments:      0,
-    // maxVariantsPerExperiment: absent — experiments not permitted on Starter
+    maxExperiments:      Infinity,
     maxVariantsPerSlot:  2,
   },
 
@@ -368,10 +372,10 @@ export const STARTER_PACKAGE: PackageDefinition = {
  *   Context blocks:       hero, proof, cta
  *   Content blocks:       textSection, featureGrid, faqSection, listing/editorial,
  *                         forms, and the search input block
- *   Features:             experiments + analytics (no AI)
+ *   Features:             experiments + AI (shadow or live) + analytics
  *   Themes:               default, minimal
  *   Sites:                up to 3
- *   Experiments:          up to 5 concurrent, up to 3 variants each
+ *   Experiments:          unlimited concurrent, up to 3 variants each
  *   Variants per slot:    up to 4 CMS variants per adaptive slot
  */
 export const GROWTH_PACKAGE: PackageDefinition = {
@@ -379,8 +383,8 @@ export const GROWTH_PACKAGE: PackageDefinition = {
   displayName: "Growth",
 
   shortDescription:
-    "A/B experiments, richer layouts, and two theme options. " +
-    "Up to 3 sites and 5 concurrent experiments.",
+    "AI personalisation, A/B experiments, richer layouts, and two theme options. " +
+    "Up to 3 sites.",
 
   allowedBlocks: {
     context: ALL_CONTEXT_BLOCKS,
@@ -389,7 +393,7 @@ export const GROWTH_PACKAGE: PackageDefinition = {
 
   allowedFeatures: {
     experiments: true,
-    ai:          false,
+    ai:          true,
     analytics:   true,
   },
 
@@ -422,7 +426,7 @@ export const GROWTH_PACKAGE: PackageDefinition = {
 
   limits: {
     maxSites:                 3,
-    maxExperiments:           5,
+    maxExperiments:           Infinity,
     maxVariantsPerExperiment: 3,
     maxVariantsPerSlot:       4,
   },

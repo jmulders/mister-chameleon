@@ -252,11 +252,11 @@ export default async function ContactPage({ searchParams }: PageProps) {
             <div>
               <h2 className="text-lg font-semibold text-neutral-900 mb-4">Direct contact</h2>
               <a
-                href="mailto:hello@mister-chameleon.io"
+                href="mailto:info@misterchameleon.nl"
                 className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700 hover:border-neutral-400 transition-colors"
               >
                 <span className="text-xl">✉️</span>
-                hello@mister-chameleon.io
+                info@misterchameleon.nl
               </a>
             </div>
 

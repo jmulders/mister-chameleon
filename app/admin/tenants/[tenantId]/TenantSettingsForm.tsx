@@ -1276,7 +1276,7 @@ export function TenantSettingsForm({
       {/* ── AI ────────────────────────────────────────────────────────────── */}
       <SectionCard
         title="AI Settings"
-        badge={!canUseAi ? "Pro plan required" : undefined}
+        badge={!canUseAi ? "Growth or Pro plan required" : undefined}
         hint={aiSectionHint}
       >
         <div className="space-y-4">
@@ -1904,7 +1904,7 @@ export function TenantSettingsForm({
           <ToggleRow
             label="AI"
             hint="Allow the AI decision layer to run in shadow or live mode."
-            blockedHint={!canUseAi ? "Pro only" : undefined}
+            blockedHint={!canUseAi ? "Growth or Pro" : undefined}
             checked={form.features.ai}
             disabled={!canUseAi}
             onChange={(v) =>
