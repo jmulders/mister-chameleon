@@ -99,6 +99,7 @@ import { adaptiveVariantToConversionData, adaptiveVariantToNotificationData } fr
 import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-media";
 import type { IndexablePath, ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type { TenantSettings } from "@/tenant/types";
+import { mapStatamicSeoFields } from "@/cms/mappers/statamic/seo-fields";
 
 // ── Direct file reader (bypasses StatamicClient for local dev reliability) ────
 //
@@ -1537,7 +1538,11 @@ export class StatamicProvider implements CMSProvider {
         id:             entry.id ?? slug,
         title:          entry.title ?? slug,
         slug,
-        seoDescription: entry.seo_description ?? undefined,
+        // Every SEO field the blueprint offers. Only the description used to be
+        // read here: a page's own title for Google, its noindex switch, its
+        // canonical URL and its social card were filled in in the CMS and then
+        // ignored, while collection entries (blog, cases) did get them.
+        ...mapStatamicSeoFields(entry as unknown as Record<string, unknown>, (v) => this.resolveAssetUrl(v) ?? undefined),
         metaKeywords,
         sections,
         templateKey,
@@ -1850,23 +1855,12 @@ export class StatamicProvider implements CMSProvider {
       const resolvedBlocks = await this.resolveFaqBlocks(rawBlocks);
       const sections = mapStatamicPageBlocksToSections(resolvedBlocks);
 
-      const hasRobots = entry.robots_noindex || entry.robots_nofollow;
       return {
         id:             entry.id ?? entrySlug,
         title:          entry.title ?? entrySlug,
         slug:           fullPath,
         metaKeywords:   normalizeMetaKeywords(entry.meta_keywords),
-        seoTitle:       typeof entry.seo_title       === "string" ? entry.seo_title       : undefined,
-        seoDescription: typeof entry.seo_description === "string" ? entry.seo_description : undefined,
-        robots:         hasRobots
-                          ? { noindex: entry.robots_noindex === true, nofollow: entry.robots_nofollow === true }
-                          : undefined,
-        canonicalUrl:   typeof entry.canonical_url   === "string" ? entry.canonical_url   : undefined,
-        ogTitle:        typeof entry.og_title        === "string" ? entry.og_title        : undefined,
-        ogDescription:  typeof entry.og_description  === "string" ? entry.og_description  : undefined,
-        ogImage:        this.resolveAssetUrl(
-                          entry.og_image as Array<{ url?: string; permalink?: string } | string> | string | undefined,
-                        ) ?? undefined,
+        ...mapStatamicSeoFields(entry as unknown as Record<string, unknown>, (v) => this.resolveAssetUrl(v) ?? undefined),
         sections,
         templateKey:    "article-page",
       };
