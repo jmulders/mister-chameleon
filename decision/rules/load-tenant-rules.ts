@@ -143,8 +143,31 @@ function readRawTenantConfig(tenantId: string): Promise<Record<string, unknown> 
       return null;
     }
 
-    return row.config as Record<string, unknown>;
+    return unwrapStoredConfig(row.config);
   });
+}
+
+/**
+ * The stored config as an object.
+ *
+ * Two writers (applying a blueprint, the demo seed) used to store
+ * JSON.stringify(config) in the jsonb column. Such a row comes back as a string
+ * and validation rejects it, so the tenant silently ran on the platform's
+ * built-in rules. The writers store the object now; this reads the rows they
+ * left behind.
+ */
+export function unwrapStoredConfig(config: unknown): Record<string, unknown> | null {
+  if (typeof config === "string") {
+    try {
+      const parsed: unknown = JSON.parse(config);
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  return typeof config === "object" && config !== null ? (config as Record<string, unknown>) : null;
 }
 
 /**

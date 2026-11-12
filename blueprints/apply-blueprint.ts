@@ -38,8 +38,9 @@
 "use server";
 
 import { getDb }                                 from "@/data/db";
-import type { StoredRulesConfig }                from "@/decision/rules/stored-rule";
-import { loadTenantRulesConfig }                 from "@/decision/rules/load-tenant-rules";
+import { loadTenantRulesConfig, tenantRulesConfigKey, tenantRulesCacheTag } from "@/decision/rules/load-tenant-rules";
+import { buildBlueprintRulesConfig }             from "./build-rules-config";
+import { requireTenantAction }                   from "@/lib/admin-auth/action-guard";
 import { savePage, getPagesByTenant }            from "@/page-store";
 import type { EditablePage, EditableContentBlock } from "@/page-store";
 import { REGISTERED_CONTENT_BLOCK_TYPES }        from "@/page-config";
@@ -52,7 +53,7 @@ import type {
   BlueprintScoringRule,
   BlueprintSequencePattern,
 } from "./blueprint-types";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 // ── DB type cast helpers (mirrors pattern used in behavior/actions.ts) ────────
 
@@ -66,6 +67,10 @@ function asVoid(res: any): { error: any } { return res as any; }
 export async function applyBlueprint(
   options: ApplyBlueprintOptions,
 ): Promise<ApplyBlueprintResult> {
+  // A server action is a public endpoint: without this anyone could overwrite a
+  // tenant's rules, scoring, pages and theme.
+  await requireTenantAction(options?.tenantId);
+
   const { tenantId, blueprint, force = false, applyTheme = true } = options;
 
   let rulesCreated        = 0;
@@ -80,44 +85,34 @@ export async function applyBlueprint(
   // ── Step 1: Upsert behavioral rules ──────────────────────────────────────
 
   try {
-    // Load existing config (or empty seed).
-    const existing = await loadTenantRulesConfig(tenantId);
-    const rulesKey = `homepage_${tenantId}`;
+    // Load what the tenant has now. The lenient read, like the engine's own:
+    // a strict read returns null for a tenant whose rules use CMS variant
+    // keys, and null here meant "no rules yet", so every existing rule was
+    // replaced even without force.
+    const existing = await loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true });
 
-    // Assign stable IDs to blueprint rules.
-    const blueprintRules = blueprint.rules.map((r, i) => ({
-      ...r,
-      id: `${blueprint.key}_rule_${i + 1}`,
-    }));
-
-    let finalRules = blueprintRules;
-
-    if (!force && existing && (existing as any).rules?.length > 0) {
-      // Non-destructive: keep existing custom rules, add any missing blueprint rules.
-      const existingIds = new Set((existing as any).rules?.map((r: any) => r.id) ?? []);
-      const newRules = blueprintRules.filter((r) => !existingIds.has(r.id));
-      finalRules = [...((existing as any).rules ?? []), ...newRules];
-      rulesSkipped = blueprintRules.length - newRules.length;
-      rulesCreated = newRules.length;
-    } else {
-      rulesCreated = blueprintRules.length;
+    const built = buildBlueprintRulesConfig(existing, blueprint, force, new Date().toISOString());
+    if (built.errors.length > 0) {
+      return {
+        ok:                  false,
+        error:               `The blueprint's rules are not valid, nothing was written: ${built.errors.slice(0, 3).join("; ")}`,
+        pagesCreated:        0,
+        rulesCreated:        0,
+        rulesSkipped:        0,
+        scoringRulesCreated: 0,
+        sequencesCreated:    0,
+        themeApplied:        false,
+      };
     }
+    rulesCreated = built.rulesCreated;
+    rulesSkipped = built.rulesSkipped;
 
-    const config: StoredRulesConfig = {
-      ...((existing as any) ?? {}),
-      rules: finalRules,
-      defaultPlan: (existing as any)?.defaultPlan ?? {
-        heroKey:  "hero_default",
-        proofKey: "proof_default",
-        ctaKey:   "cta_default",
-      },
-    };
-
-    const serialized = JSON.stringify(config);
+    // The object itself, not JSON.stringify of it: the column is jsonb, and a
+    // string in it is read back as a string, which the engine rejects.
     const upsertRes = asVoid(
       await db
         .from("rules_config")
-        .upsert({ key: rulesKey, config: serialized, updated_at: new Date().toISOString() }),
+        .upsert({ key: tenantRulesConfigKey(tenantId), config: built.config, updated_at: built.config.updatedAt }),
     );
 
     if (upsertRes.error) {
@@ -132,6 +127,10 @@ export async function applyBlueprint(
         themeApplied:        false,
       };
     }
+
+    // The engine caches the config per tenant; without this the new rules only
+    // took effect after the cache expired.
+    revalidateTag(tenantRulesCacheTag(tenantId), {});
   } catch (err) {
     return {
       ok:                  false,

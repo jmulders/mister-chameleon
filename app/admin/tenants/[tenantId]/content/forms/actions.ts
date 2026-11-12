@@ -250,6 +250,13 @@ export async function getTenantFormSettingsAction(tenantId: string): Promise<{
       turnstileSiteKey: typeof raw.turnstileSiteKey === "string" && raw.turnstileSiteKey.trim() !== ""
         ? raw.turnstileSiteKey.trim()
         : undefined,
+
+      // Was missing here, so the admin always showed the retention period as
+      // unset, whatever was stored.
+      submissionRetentionDays:
+        typeof raw.submissionRetentionDays === "number" && raw.submissionRetentionDays > 0
+          ? raw.submissionRetentionDays
+          : null,
     };
 
     return { ok: true, settings };
@@ -285,6 +292,11 @@ export async function saveTenantFormSettingsAction(
   // incoming payload explicitly provides one.
   let prevTurnstileSiteKey: string | undefined;
   let prevTurnstileSecretKey: string | undefined;
+  // Everything that is stored now. The row also holds fields this form does not
+  // edit (the retention period is saved from the submissions page). Writing back
+  // only the fields listed below dropped those: saving the notification settings
+  // erased the retention period, and the purge then kept submissions forever.
+  let prevSettings: Record<string, unknown> = {};
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prev = (await (getDb() as any)
@@ -293,6 +305,7 @@ export async function saveTenantFormSettingsAction(
       .eq("tenant_id", tenantId)
       .maybeSingle()) as { data: { settings: Record<string, unknown> } | null };
     const p = prev.data?.settings ?? {};
+    prevSettings = p;
     if (typeof p.turnstileSiteKey === "string")   prevTurnstileSiteKey   = p.turnstileSiteKey;
     if (typeof p.turnstileSecretKey === "string") prevTurnstileSecretKey = p.turnstileSecretKey;
   } catch { /* no previous row — nothing to preserve */ }
@@ -321,7 +334,7 @@ export async function saveTenantFormSettingsAction(
       .upsert(
         {
           tenant_id:  tenantId,
-          settings:   settings as unknown as Record<string, unknown>,
+          settings:   { ...prevSettings, ...(settings as unknown as Record<string, unknown>) },
           updated_at: new Date().toISOString(),
         },
         { onConflict: "tenant_id" },

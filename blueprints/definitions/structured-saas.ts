@@ -122,7 +122,11 @@ export const structuredSaasBlueprint: Blueprint = {
       priority:        10,
       source:          "blueprint",
       precedenceLevel: "high_intent",
-      condition: { type: "context", contextId: "ctx_pricing_visitor" },
+      // "ctx_pricing_visitor" stood here, a context that does not exist. The
+      // engine rejects a config with an unknown context, so applying this
+      // blueprint left the tenant without working rules. The journey field
+      // says the same thing.
+      condition: { type: "field", field: "journey.hasVisitedPricing", operator: "equals", value: true },
       plan: {
         heroKey:  "hero_intent_direct",
         proofKey: "proof_stats",
@@ -136,7 +140,8 @@ export const structuredSaasBlueprint: Blueprint = {
       priority:        20,
       source:          "blueprint",
       precedenceLevel: "medium_segmentation",
-      condition: { type: "context", contextId: "ctx_content_referral" },
+      // Was "ctx_content_referral", which does not exist either.
+      condition: { type: "context", contextId: "ctx_referral_traffic" },
       plan: {
         heroKey:  "hero_consideration",
         proofKey: "proof_vision",

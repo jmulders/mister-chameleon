@@ -17,9 +17,7 @@ import {
   type FormSubmissionRow,
   type ListFormSubmissionsInput,
 } from "@/data/repositories/form-submissions-repository";
-import { getTenantFormSettingsAction } from "@/app/admin/tenants/[tenantId]/content/forms/actions";
 import { DEFAULT_TENANT_FORM_SETTINGS } from "@/tenant/types";
-import type { TenantFormSettings }       from "@/tenant/types";
 import { logger }                        from "@/lib/logger";
 import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 
@@ -225,27 +223,35 @@ export async function saveRetentionSettingAction(
   try {
     await requireAdmin();
 
-    // Read current settings.
-    const current = await getTenantFormSettingsAction(tenantId);
-    const base: TenantFormSettings = current.ok
-      ? current.settings
-      : { ...DEFAULT_TENANT_FORM_SETTINGS };
+    // Read the stored row as it is and change one field in it. This used to go
+    // through the reader for the admin form, which leaves out the encrypted
+    // Turnstile secret (it must not reach the browser), and then wrote that
+    // reduced object back: saving a retention period erased the secret, after
+    // which the form still showed the widget but skipped the verification.
+    const client = getServiceClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prev = (await (client as any)
+      .from("tenant_form_settings")
+      .select("settings")
+      .eq("tenant_id", tenantId)
+      .maybeSingle()) as { data: { settings: Record<string, unknown> | null } | null; error: { message: string } | null };
+    if (prev.error) {
+      return { ok: false, error: `Could not read the current settings: ${prev.error.message}` };
+    }
 
-    // Merge the retention setting.
-    const merged: TenantFormSettings = {
-      ...base,
+    const merged: Record<string, unknown> = {
+      ...(prev.data?.settings ?? { ...DEFAULT_TENANT_FORM_SETTINGS }),
       submissionRetentionDays: retentionDays,
     };
 
     // Persist via raw upsert (mirrors saveFormBehaviorAction pattern).
-    const client = getServiceClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = (await (client as any)
       .from("tenant_form_settings")
       .upsert(
         {
           tenant_id:  tenantId,
-          settings:   merged as unknown as Record<string, unknown>,
+          settings:   merged,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "tenant_id" },

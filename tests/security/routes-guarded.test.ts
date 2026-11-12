@@ -65,3 +65,15 @@ describe("the dashboard", () => {
     assert.match(proxy, /"\/dashboard\/:path\*"/);
   });
 });
+
+describe("superadmin sections of the admin", () => {
+  const SECTIONS = ["platform", "users", "context", "interest-profiles", "ai-logs", "pages", "demo", "onboarding"];
+
+  it("each have a layout that requires a superadmin", () => {
+    for (const section of SECTIONS) {
+      const file = `app/admin/${section}/layout.tsx`;
+      assert.ok(fs.existsSync(file), `${file} exists`);
+      assert.match(fs.readFileSync(file, "utf8"), /await requireSuperAdmin\(\)/, `${file} checks the role`);
+    }
+  });
+});
