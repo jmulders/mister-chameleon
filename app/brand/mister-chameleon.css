@@ -1,12 +1,20 @@
 /*
  * Brand layer — Mister Chameleon's own marketing site.
  *
- * The logo is an arc of eighteen dots that runs through the spectrum. This
- * file brings those dots back on the page. Everything is scoped to
- * html[data-brand="mister-chameleon"] (see lib/brand/brand-layer.ts), so no
- * other tenant is touched, and it only decorates: no layout, no text.
+ * Follows docs/website/huisstijl.md, which sums up the logo manual, the
+ * leaflets and the folder. The house style works with large flat circles in
+ * the colours of the logo: solid, never transparent, never overlapping, and of
+ * clearly different sizes.
  *
- * The colours are the logo's own (public/logo.svg) and do not follow the
+ * What it deliberately does not do, because the logo manual forbids it:
+ *   - show the logo's dots on their own, cut off or rotated;
+ *   - rebuild the dots into rows or trails.
+ *
+ * Everything is scoped to html[data-brand="mister-chameleon"] (see
+ * lib/brand/brand-layer.ts), so no other tenant is touched, and it only
+ * decorates: no layout, no text.
+ *
+ * The colours are the RGB values from the logo manual. They do not follow the
  * tenant theme, so they look the same in every contextual theme.
  *
  * The hooks are data-part attributes that the shared blocks set for every
@@ -14,47 +22,36 @@
  */
 
 [data-brand="mister-chameleon"] {
-  --mc-orange:  #e54415;
-  --mc-red:     #e1001a;
+  --mc-orange:  #e64415;
+  --mc-red:     #e2001a;
   --mc-magenta: #cb005a;
-  --mc-plum:    #a0057d;
+  --mc-plum:    #a1057d;
   --mc-purple:  #672180;
-  --mc-navy:    #00519c;
-  --mc-blue:    #006ab1;
-  --mc-sky:     #008ed3;
-  --mc-teal:    #00979a;
-  --mc-green:   #40a52b;
+  --mc-navy:    #00519e;
+  --mc-blue:    #006ab3;
+  --mc-sky:     #008fd3;
+  --mc-teal:    #00989c;
+  --mc-green:   #41a62a;
+  --mc-lime:    #bdcd00;
 }
 
-/* ── 1. A short trail of dots above every section heading ───────────────────
+/* ── 1. Step numbers as solid circles ───────────────────────────────────────
  *
- * The pseudo-element is a block that holds the image inline, so the trail
- * follows the heading's own alignment: left, centred or right.
- */
-[data-brand="mister-chameleon"] main [data-part="section-heading"]::before {
-  content: url("/brand/mc-dot-trail.svg") "";
-  display: block;
-  line-height: 0;
-  margin-bottom: 0.5em;
-}
-
-/* ── 2. Step numbers as solid dots, one colour per step ─────────────────────
- *
- * White on each of these is at least 4.9 : 1.
+ * As the chapter numbers in the logo manual: a full circle in one colour with
+ * a white figure. White on each of these is at least 4.9 : 1.
  */
 [data-brand="mister-chameleon"] [data-part="step-number"] {
   background: var(--mc-step, var(--mc-red)) !important;
   color: #fff !important;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mc-step, var(--mc-red)) 22%, transparent);
 }
-[data-brand="mister-chameleon"] [data-part="step-number"][data-step="1"] { --mc-step: var(--mc-red); }
-[data-brand="mister-chameleon"] [data-part="step-number"][data-step="2"] { --mc-step: var(--mc-plum); }
-[data-brand="mister-chameleon"] [data-part="step-number"][data-step="3"] { --mc-step: var(--mc-blue); }
-[data-brand="mister-chameleon"] [data-part="step-number"][data-step="4"] { --mc-step: var(--mc-purple); }
-[data-brand="mister-chameleon"] [data-part="step-number"][data-step="5"] { --mc-step: var(--mc-navy); }
-[data-brand="mister-chameleon"] [data-part="step-number"][data-step="6"] { --mc-step: var(--mc-magenta); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="1"] { --mc-step: var(--mc-magenta); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="2"] { --mc-step: var(--mc-navy); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="3"] { --mc-step: var(--mc-plum); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="4"] { --mc-step: var(--mc-red); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="5"] { --mc-step: var(--mc-blue); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="6"] { --mc-step: var(--mc-purple); }
 
-/* ── 3. Feature icons as dots, running through the spectrum ─────────────────
+/* ── 2. Feature icons in solid circles ──────────────────────────────────────
  *
  * The white icon on each of these is at least 3.1 : 1, the bar for graphics.
  */
@@ -68,17 +65,23 @@
   color: #fff;
   stroke: #fff;
 }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 1) { --mc-icon: var(--mc-orange); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 2) { --mc-icon: var(--mc-magenta); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 3) { --mc-icon: var(--mc-purple); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 4) { --mc-icon: var(--mc-sky); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 5) { --mc-icon: var(--mc-teal); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 1) { --mc-icon: var(--mc-magenta); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 2) { --mc-icon: var(--mc-navy); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 3) { --mc-icon: var(--mc-teal); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 4) { --mc-icon: var(--mc-plum); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 5) { --mc-icon: var(--mc-sky); }
 [data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 6) { --mc-icon: var(--mc-green); }
 [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] {
   transform: scale(1.1);
 }
 
-/* ── 4. The logo's arc in the corner of a call-to-action section ───────────── */
+/* ── 3. A group of large circles beside a call-to-action section ────────────
+ *
+ * As on the leaflets: a few flat circles of different sizes, the largest cut
+ * off by the edge of the page. The group lives in the margin beside the
+ * content and grows with it, so it never sits on the text. The content column
+ * is at most 1100 px wide.
+ */
 [data-brand="mister-chameleon"] [data-part="cta-section"] {
   position: relative;
   overflow: hidden;
@@ -91,16 +94,15 @@
   content: "";
   position: absolute;
   z-index: 0;
-  right: -60px;
-  bottom: -56px;
-  width: 240px;
-  height: 240px;
-  background: url("/favicon.svg") no-repeat center / contain;
-  transform: rotate(-8deg);
+  right: 0;
+  bottom: 24px;
+  width: min(420px, calc((100vw - 1100px) / 2 + 24px));
+  aspect-ratio: 360 / 320;
+  background: url("/brand/mc-circles.svg") no-repeat right bottom / contain;
   pointer-events: none;
 }
-@media (max-width: 1279px) {
-  /* Below this width the arc would sit on the text instead of in the margin. */
+@media (max-width: 1359px) {
+  /* Below this width the margin is too narrow for the group to read. */
   [data-brand="mister-chameleon"] [data-part="cta-section"]::after { display: none; }
 }
 
