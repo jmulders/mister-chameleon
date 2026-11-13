@@ -31,6 +31,7 @@ const JOBS = [
   "/api/cron/form-submission-purge",
   "/api/cron/visitor-profile-purge",
   "/api/cron/ip-company-cache-purge",
+  "/api/cron/rate-limit-cleanup",
   "/api/cron/ad-sync",
   "/api/cron/ad-billing",
 ] as const;

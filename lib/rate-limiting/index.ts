@@ -19,6 +19,12 @@
  * If the returned count exceeds the configured limit for this endpoint type,
  * the request is rate-limited and should receive a 429 response.
  *
+ * The first quarter of a caller's limit in a minute is counted in memory and
+ * never reaches the database (see ./local-window.ts). "auth" has no such
+ * allowance. The database call gives up after RATE_LIMIT_TIMEOUT_MS and then
+ * lets the request through, so a database that does not answer cannot hold up
+ * every API call.
+ *
  * ─── Usage ────────────────────────────────────────────────────────────────────
  *
  *   // In middleware or a route handler:
@@ -51,6 +57,8 @@
  *   This module may run in the Next.js Edge Runtime (middleware).  It uses the
  *   Supabase REST API via fetch — no Node-only crypto or fs dependencies.
  */
+
+import { decideLocally, effectiveCount } from "@/lib/rate-limiting/local-window";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -110,6 +118,13 @@ export function secondsUntilWindowReset(): number {
   return 60 - now.getSeconds();
 }
 
+/**
+ * How long a counter call may take before the request is let through.
+ * On 13 Nov 2026 the database stopped answering for five and a half hours and
+ * every API call waited on this counter until the platform timeout.
+ */
+export const RATE_LIMIT_TIMEOUT_MS = 2000;
+
 // ── Core function ─────────────────────────────────────────────────────────────
 
 /**
@@ -135,6 +150,12 @@ export async function checkRateLimit(
     return { allowed: true, count: 0, limit, retryAfterSeconds: retryAfter };
   }
 
+  // ── Local allowance: the first calls of a caller never reach the database ──
+  const local = decideLocally(endpoint, key, windowKey, limit);
+  if (!local.askDatabase) {
+    return { allowed: true, count: local.localCount, limit, retryAfterSeconds: retryAfter };
+  }
+
   const supabaseUrl  = process.env["NEXT_PUBLIC_SUPABASE_URL"];
   const serviceKey   = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
@@ -156,6 +177,7 @@ export async function checkRateLimit(
         p_identifier: key,
         p_window_key: windowKey,
       }),
+      signal: AbortSignal.timeout(RATE_LIMIT_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -164,7 +186,8 @@ export async function checkRateLimit(
       return { allowed: true, count: 0, limit, retryAfterSeconds: retryAfter };
     }
 
-    const count: number = await response.json();
+    const databaseCount: number = await response.json();
+    const count = effectiveCount(endpoint, limit, databaseCount);
 
     return {
       allowed:           count <= limit,
@@ -173,7 +196,7 @@ export async function checkRateLimit(
       retryAfterSeconds: retryAfter,
     };
   } catch (err) {
-    // Network failure — fail open.
+    // Network failure or no answer within RATE_LIMIT_TIMEOUT_MS — fail open.
     console.error("[rate-limit] fetch error:", err);
     return { allowed: true, count: 0, limit, retryAfterSeconds: retryAfter };
   }
@@ -218,7 +241,7 @@ export async function checkAttemptLimit(identifier: string, limit: number): Prom
         "Authorization": `Bearer ${serviceKey}`,
       },
       body:   JSON.stringify({ p_identifier: `attempt:${identifier}`, p_window_key: windowKey }),
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(RATE_LIMIT_TIMEOUT_MS),
     });
     if (!response.ok) {
       console.error(`[rate-limit] attempt counter error ${response.status}`);
