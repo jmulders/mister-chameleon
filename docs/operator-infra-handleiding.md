@@ -81,6 +81,9 @@ Het publieke domein draait via het platform; content komt uit Statamic. Formulie
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel + lokaal | ja | Anon key (RLS). Public |
 | `SUPABASE_SERVICE_ROLE_KEY` | Vercel + lokaal | ja | Server-side writes. **Secret** |
 | `SUPABASE_ACCESS_TOKEN` | lokaal | nee | Migratie-scripts (Management API). **Secret** |
+| `SUPABASE_REST_READ_TIMEOUT_MS` | Vercel | nee | Na hoeveel milliseconden een leesvraag aan de database opgeeft. Standaard 8000, 0 zet de limiet uit |
+| `SUPABASE_REST_WRITE_TIMEOUT_MS` | Vercel | nee | Hetzelfde voor schrijfacties en RPC-aanroepen. Standaard 15000, 0 zet de limiet uit |
+| `SUPABASE_REST_BREAKER_OPEN_MS` | Vercel | nee | Hoe lang de database wordt overgeslagen na twee keer geen antwoord. Standaard 15000, 0 zet de zekering uit |
 
 ### Admin / auth
 | Variabele | Waar | Verplicht | Waarvoor |
