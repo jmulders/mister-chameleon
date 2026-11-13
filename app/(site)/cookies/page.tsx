@@ -45,13 +45,13 @@ export default async function CookiePolicyPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">{t.policyPage.heading}</h1>
-        <p className="mt-2 text-sm text-neutral-600">{t.policyPage.intro}</p>
+        <h1 className="text-2xl font-semibold text-[color:var(--text)]">{t.policyPage.heading}</h1>
+        <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t.policyPage.intro}</p>
       </header>
 
       <CookieDeclaration locale={locale} />
 
-      <p className="mt-8 text-xs text-neutral-400">{t.policyPage.note}</p>
+      <p className="mt-8 text-xs text-[color:var(--text-muted)]">{t.policyPage.note}</p>
     </main>
   );
 }

@@ -49,7 +49,10 @@ export function CookiePreferences({ locale }: { locale?: string } = {}) {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: "#ffffff", borderRadius: "12px",
+              // The window takes the theme's card surface, so the declaration
+              // inside it (theme text colours) stays readable in every theme.
+              backgroundColor: "var(--card-bg, #ffffff)", borderRadius: "12px",
+              color: "var(--text, #111827)",
               maxWidth: "820px", width: "100%", margin: "32px auto",
               padding: "24px",
               fontFamily: "var(--font-sans, system-ui, sans-serif)",
@@ -57,11 +60,11 @@ export function CookiePreferences({ locale }: { locale?: string } = {}) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-              <strong style={{ fontSize: "16px", color: "#111827" }}>{t.preferences.title}</strong>
+              <strong style={{ fontSize: "16px", color: "var(--text, #111827)" }}>{t.preferences.title}</strong>
               <button
                 onClick={() => setOpen(false)}
                 aria-label={t.preferences.close}
-                style={{ border: "none", background: "transparent", fontSize: "20px", cursor: "pointer", color: "#6b7280", lineHeight: 1 }}
+                style={{ border: "none", background: "transparent", fontSize: "20px", cursor: "pointer", color: "var(--text-muted, #6b7280)", lineHeight: 1 }}
               >
                 ×
               </button>
