@@ -64,6 +64,7 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { clientEnv, serverEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { RestBreaker, DatabaseUnavailableError } from "./db-breaker";
 import type { Database } from "./types";
 
 // ── Singleton instance ─────────────────────────────────────────────────────────
@@ -95,8 +96,105 @@ function isNetworkError(message: string | undefined | null): boolean {
     message.includes("ECONNRESET")   ||
     message.includes("ETIMEDOUT")    ||
     message.includes("network")      ||
+    // A request this module gave up on (see REST timeouts below), or one the
+    // caller aborted. Not "timeout" on its own: Postgres words a cancelled
+    // statement that way and that is a query error, not a transport failure.
+    message.includes("TimeoutError") ||
+    message.includes("AbortError")   ||
+    message.includes("DatabaseUnavailableError") ||
     message.toLowerCase().includes("typeerror")
   );
+}
+
+// ── REST timeouts ──────────────────────────────────────────────────────────────
+//
+// On 13 Nov 2026 the production database stopped answering for five and a half
+// hours. Requests to it did not fail, they hung, and every page that read from
+// it hung with them for longer than 25 seconds. A database call now gives up
+// after a fixed time and fails like any other transport error, so the caller's
+// own fallback (a cached copy, a default, an error message) gets its turn.
+//
+// Only PostgREST calls (/rest/v1/) are limited. Storage uploads and downloads
+// can legitimately take longer and are left alone.
+//
+// A write that times out here may still have been applied by the database: the
+// limit ends the wait, not the statement. Writes therefore get more time.
+
+/** Reads (GET, HEAD) give up after this many milliseconds. */
+export const DEFAULT_REST_READ_TIMEOUT_MS = 8_000;
+
+/** Writes and RPC calls (POST, PATCH, PUT, DELETE) give up after this many. */
+export const DEFAULT_REST_WRITE_TIMEOUT_MS = 15_000;
+
+/** A non-negative integer from the environment, else the fallback. */
+function envTimeout(value: string | undefined, fallback: number): number {
+  if (value === undefined || value.trim() === "") return fallback;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+/**
+ * How long a request to `url` may take, or null for no limit.
+ *
+ *   SUPABASE_REST_READ_TIMEOUT_MS   overrides the read limit
+ *   SUPABASE_REST_WRITE_TIMEOUT_MS  overrides the write limit
+ *
+ * 0 switches a limit off.
+ */
+export function restTimeoutMs(
+  url: string,
+  method: string | undefined,
+  env: Record<string, string | undefined> = process.env,
+): number | null {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  if (!pathname.startsWith("/rest/v1/")) return null;
+
+  const verb   = (method ?? "GET").toUpperCase();
+  const isRead = verb === "GET" || verb === "HEAD";
+  const ms = isRead
+    ? envTimeout(env["SUPABASE_REST_READ_TIMEOUT_MS"],  DEFAULT_REST_READ_TIMEOUT_MS)
+    : envTimeout(env["SUPABASE_REST_WRITE_TIMEOUT_MS"], DEFAULT_REST_WRITE_TIMEOUT_MS);
+  return ms > 0 ? ms : null;
+}
+
+/** After two timeouts in a row, calls are rejected at once for this long. */
+export const DEFAULT_REST_BREAKER_OPEN_MS = 15_000;
+
+/**
+ * The single call that tests the water after that gets at most this long. A
+ * healthy database answers in well under a second, so the visitor whose render
+ * carries the probe does not wait a full limit again.
+ */
+export const REST_PROBE_TIMEOUT_MS = 2_000;
+
+/**
+ * One breaker per server instance (see ./db-breaker.ts).
+ *
+ *   SUPABASE_REST_BREAKER_OPEN_MS  overrides how long it stays open; 0 switches it off
+ */
+let _breaker: RestBreaker | undefined;
+function breaker(): RestBreaker {
+  _breaker ??= new RestBreaker(
+    envTimeout(process.env["SUPABASE_REST_BREAKER_OPEN_MS"], DEFAULT_REST_BREAKER_OPEN_MS),
+  );
+  return _breaker;
+}
+
+/** Start again with a closed breaker, re-reading the environment. For tests. */
+export function resetRestBreaker(): void {
+  _breaker = undefined;
+}
+
+/** The URL a fetch call targets, as a string. */
+function requestUrl(input: RequestInfo | URL): string {
+  return typeof input === "string" ? input
+    : input instanceof URL         ? input.href
+    : (input as Request).url;
 }
 
 // ── Custom fetch with Next.js cache bypass ─────────────────────────────────────
@@ -105,28 +203,58 @@ function isNetworkError(message: string | undefined | null): boolean {
  * Wraps the global `fetch` to:
  *   1. Force `cache: "no-store"` on every call so Next.js's built-in fetch
  *      deduplication/caching layer is bypassed for all Supabase REST requests.
- *   2. Re-throw network errors with a more actionable message that includes:
+ *   2. Give a PostgREST call a time limit (see REST timeouts above). A signal
+ *      the caller passed keeps working next to it. After two timeouts in a row
+ *      the breaker rejects PostgREST calls at once for a short while.
+ *   3. Re-throw network errors with a more actionable message that includes:
  *        - the URL host that was targeted
  *        - the original error cause
  *        - a hint about common causes (Supabase project paused, DNS failure)
  */
-function supabaseFetch(
+export function supabaseFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
+  let url = "";
+  try { url = requestUrl(input); } catch { /* keep "" — no limit, no host */ }
+
+  const method  = init?.method ?? (input instanceof Request ? input.method : undefined);
+  const limitMs = restTimeoutMs(url, method);
+
+  // Only calls with a time limit go through the breaker: they are the ones
+  // that can tell whether the database answers.
+  const guarded   = limitMs !== null;
+  const admission = guarded ? breaker().admit(Date.now()) : "pass";
+  if (admission === "reject") {
+    return Promise.reject(new DatabaseUnavailableError(breaker().retryInMs(Date.now())));
+  }
+
+  const timeoutMs = limitMs !== null && admission === "probe"
+    ? Math.min(limitMs, REST_PROBE_TIMEOUT_MS)
+    : limitMs;
+  const signal    = timeoutMs === null
+    ? init?.signal
+    : init?.signal
+      ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
+      : AbortSignal.timeout(timeoutMs);
+
   return fetch(input, {
     ...init,
+    ...(signal ? { signal } : {}),
     // Bypass Next.js's fetch cache entirely for all Supabase calls.
     // Without this, Next.js 15+ may serve stale rows or fail with
     // "TypeError: fetch failed" when the cache store is not ready.
     cache: "no-store",
+  }).then((response) => {
+    // Any answer, also an error status, means the database is reachable.
+    if (guarded && breaker().answered(admission)) {
+      logger.info("[db] Database answers again, calls resumed");
+    }
+    return response;
   }).catch((cause: unknown) => {
     // Extract the target host for diagnostic logging (never the service key).
     let host = "(unknown host)";
     try {
-      const url = typeof input === "string" ? input
-        : input instanceof URL       ? input.href
-        : (input as Request).url;
       host = new URL(url).hostname;
     } catch {
       // URL parse failure — keep the fallback.
@@ -134,12 +262,27 @@ function supabaseFetch(
 
     const causeMessage =
       cause instanceof Error ? cause.message : String(cause);
+    const timedOut = cause instanceof Error && cause.name === "TimeoutError";
 
-    logger.error("[db] Supabase fetch failed", {
+    if (guarded) {
+      if (!timedOut) {
+        breaker().inconclusive(admission);
+      } else if (breaker().timedOut(Date.now(), admission)) {
+        logger.error("[db] Database does not answer, skipping calls for a while", {
+          host,
+          skipMs: breaker().retryInMs(Date.now()),
+        });
+      }
+    }
+
+    logger.error(timedOut ? "[db] Supabase request timed out" : "[db] Supabase fetch failed", {
       host,
       cause: causeMessage,
-      hint: "Common causes: Supabase project is paused (check dashboard.supabase.com), " +
-            "DNS resolution failed, or the server has no outbound internet access.",
+      ...(timedOut ? { timeoutMs, method: (method ?? "GET").toUpperCase() } : {}),
+      hint: timedOut
+        ? "The database did not answer in time. Check its load and its Disk IO budget in the Supabase dashboard."
+        : "Common causes: Supabase project is paused (check dashboard.supabase.com), " +
+          "DNS resolution failed, or the server has no outbound internet access.",
     });
 
     // Re-throw so the Supabase client wraps it in a PostgrestError as usual.
