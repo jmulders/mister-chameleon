@@ -51,10 +51,16 @@ describe("the brand stylesheet", () => {
 
   it("only uses images that exist", () => {
     const urls = [...css.matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]!);
-    assert.ok(urls.length >= 3);
+    assert.ok(urls.length > 0, "the stylesheet uses images");
     for (const url of urls) {
       assert.doesNotThrow(() => readFileSync(`public${url}`), `missing public${url}`);
     }
+  });
+
+  it("leaves the footer alone", () => {
+    // A line of dots above the footer was tried and taken out again on
+    // 13 Nov 2026: it read as a garland, not as the logo.
+    assert.doesNotMatch(css, /site-footer/);
   });
 
   it("switches its movement off for visitors who ask for less motion", () => {

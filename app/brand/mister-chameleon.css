@@ -104,21 +104,6 @@
   [data-brand="mister-chameleon"] [data-part="cta-section"]::after { display: none; }
 }
 
-/* ── 5. A line of dots where the footer begins ─────────────────────────────── */
-[data-brand="mister-chameleon"] [data-part="site-footer"] {
-  position: relative;
-}
-[data-brand="mister-chameleon"] [data-part="site-footer"]::before {
-  content: "";
-  position: absolute;
-  top: -5px;
-  left: 0;
-  right: 0;
-  height: 10px;
-  background: url("/brand/mc-dot-line.svg") repeat-x center / auto 10px;
-  pointer-events: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   [data-brand="mister-chameleon"] [data-part="feature-icon"] { transition: none; }
   [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] { transform: none; }
