@@ -190,6 +190,28 @@ export function resetRestBreaker(): void {
   _breaker = undefined;
 }
 
+/**
+ * Give `pending` at most `ms`, without an abort signal.
+ *
+ * Next.js shares one request between identical GET fetches within a render,
+ * and skips that for any fetch that carries a signal (next/dist/server/lib/
+ * dedupe-fetch.js). A read therefore gets its limit by racing a timer: the
+ * wait ends, the request itself is left to finish. That is harmless for a
+ * read, and the breaker keeps the number of such leftovers small.
+ */
+function withDeadline(pending: Promise<Response>, ms: number): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new DOMException("The operation was aborted due to timeout", "TimeoutError")),
+      ms,
+    );
+    pending.then(
+      (response) => { clearTimeout(timer); resolve(response); },
+      (cause)    => { clearTimeout(timer); reject(cause); },
+    );
+  });
+}
+
 /** The URL a fetch call targets, as a string. */
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === "string" ? input
@@ -204,7 +226,8 @@ function requestUrl(input: RequestInfo | URL): string {
  *   1. Force `cache: "no-store"` on every call so Next.js's built-in fetch
  *      deduplication/caching layer is bypassed for all Supabase REST requests.
  *   2. Give a PostgREST call a time limit (see REST timeouts above). A signal
- *      the caller passed keeps working next to it. After two timeouts in a row
+ *      the caller passed keeps working next to it. A read gets no signal of
+ *      ours, so Next.js keeps sharing identical reads. After two timeouts in a row
  *      the breaker rejects PostgREST calls at once for a short while.
  *   3. Re-throw network errors with a more actionable message that includes:
  *        - the URL host that was targeted
@@ -232,20 +255,27 @@ export function supabaseFetch(
   const timeoutMs = limitMs !== null && admission === "probe"
     ? Math.min(limitMs, REST_PROBE_TIMEOUT_MS)
     : limitMs;
-  const signal    = timeoutMs === null
+
+  // A write is aborted at its limit. A read is not given a signal of ours, so
+  // identical reads within one render keep sharing a request (see withDeadline).
+  const verb   = (method ?? "GET").toUpperCase();
+  const isRead = verb === "GET" || verb === "HEAD";
+  const signal = timeoutMs === null || isRead
     ? init?.signal
     : init?.signal
       ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
       : AbortSignal.timeout(timeoutMs);
 
-  return fetch(input, {
+  const request = fetch(input, {
     ...init,
     ...(signal ? { signal } : {}),
     // Bypass Next.js's fetch cache entirely for all Supabase calls.
     // Without this, Next.js 15+ may serve stale rows or fail with
     // "TypeError: fetch failed" when the cache store is not ready.
     cache: "no-store",
-  }).then((response) => {
+  });
+
+  return (timeoutMs !== null && isRead ? withDeadline(request, timeoutMs) : request).then((response) => {
     // Any answer, also an error status, means the database is reachable.
     if (guarded && breaker().answered(admission)) {
       logger.info("[db] Database answers again, calls resumed");
