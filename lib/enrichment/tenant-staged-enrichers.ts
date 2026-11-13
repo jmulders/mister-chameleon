@@ -15,17 +15,8 @@
  */
 
 import {
-  getPlatformEnrichmentSettings,
-  getPlatformCrmSettings,
-  getPlatformOpenKvKSettings,
-  getPlatformReverseGeocodeSettings,
-  getPlatformWeatherSettings,
-  getPlatformGa4HistorySettings,
-  getPlatformHolidaySettings,
-  getPlatformMaxMindSettings,
-  getPlatformFirstPartyCompanySettings,
+  getPlatformEnricherSettings,
   firstPartyCompanyFlags,
-  getPlatformCbsLocationSettings,
 } from "@/platform/platform-store";
 import { getTenantPipelineStages } from "@/tenant/server";
 import { buildCompanyCrmChain, type StagedEnricher } from "@/enrichment";
@@ -57,35 +48,22 @@ export async function buildTenantStagedEnrichers(
   tenant: TenantSettings | null | undefined,
   tenantId: string,
 ): Promise<StagedEnricher[]> {
-  const [
-    [
-      platformEnrichmentResult,
-      platformCrmResult,
-      platformOpenKvKResult,
-      platformReverseGeocodeResult,
-      platformWeatherResult,
-      platformGa4HistoryResult,
-      platformHolidayResult,
-      platformMaxMindResult,
-      platformFirstPartyResult,
-      platformCbsLocationResult,
-    ],
-    tenantPipelineStages,
-  ] = await Promise.all([
-    Promise.all([
-      getPlatformEnrichmentSettings(),
-      getPlatformCrmSettings(),
-      getPlatformOpenKvKSettings(),
-      getPlatformReverseGeocodeSettings(),
-      getPlatformWeatherSettings(),
-      getPlatformGa4HistorySettings(),
-      getPlatformHolidaySettings(),
-      getPlatformMaxMindSettings(),
-      getPlatformFirstPartyCompanySettings(),
-      getPlatformCbsLocationSettings(),
-    ] as const),
+  // One query for the ten platform sections (it used to be ten), next to the
+  // tenant's pipeline stages.
+  const [platform, tenantPipelineStages] = await Promise.all([
+    getPlatformEnricherSettings(),
     getTenantPipelineStages(tenantId),
   ]);
+  const platformEnrichmentResult     = platform.enrichment;
+  const platformCrmResult            = platform.crm;
+  const platformOpenKvKResult        = platform.openkvk;
+  const platformReverseGeocodeResult = platform.reverseGeocode;
+  const platformWeatherResult        = platform.weather;
+  const platformGa4HistoryResult     = platform.ga4History;
+  const platformHolidayResult        = platform.holidays;
+  const platformMaxMindResult        = platform.maxmind;
+  const platformFirstPartyResult     = platform.firstPartyCompany;
+  const platformCbsLocationResult    = platform.cbsLocation;
 
   const pipelineStageCfg = new Map(
     tenantPipelineStages.map((s) => [s.stageKey, s]),
