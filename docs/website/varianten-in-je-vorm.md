@@ -301,3 +301,72 @@ De oude teksten bevatten beweringen die niet kloppen met het product of die niem
 - Tekst: Plan een demo. We laten zien hoe je begint.
 - Knoppen: Plan een demo (`/demo`)
 
+## Acht koppen die ontbraken
+
+Acht regels wezen elk naar een eigen kop waar geen tekst voor was. Een bezoeker voor wie zo'n regel afging, zag daardoor de standaardkop. De teksten hieronder staan in `acht-koppen-voor-de-regels.sql`. Bij elke kop staat voor welke bezoeker de regel hem kiest.
+
+Alle acht gebruiken de gewone opmaak met de tekst in het midden. Een beeld kun je er later in het beheer bij zetten. De SQL laat dat beeld staan als je hem nog eens draait.
+
+**`hero_returning`**
+
+- Voor wie: Je was hier al eerder
+- Label: Welkom terug
+- Kop: Fijn dat je er weer bent
+- Tekst: Je was hier al eerder. Bekijk de voorbeelden, of plan een demo als je het op je eigen site wilt zien.
+- Knoppen: Bekijk de voorbeelden (`/cases`), Plan een demo (`/demo`)
+
+**`hero_trial_ready`**
+
+- Voor wie: Je hebt de prijzen bekeken en bent geen klant
+- Label: Proefperiode
+- Kop: Probeer het 14 dagen op je eigen site
+- Tekst: Je hebt de pakketten gezien. Maak een account aan en zet je eerste regel aan. Je betaalt pas na 14 dagen.
+- Knoppen: Probeer 14 dagen gratis (`/prijzen`), Plan een demo (`/demo`)
+
+**`hero_enterprise`**
+
+- Voor wie: Je komt van LinkedIn en bent aan het vergelijken. Ook twee locatieregels kiezen deze kop
+- Label: Voor grotere organisaties
+- Kop: Eén website, voor elke doelgroep het juiste verhaal
+- Tekst: Heb je veel soorten bezoekers? Elke groep ziet zijn eigen kop, bewijs en knop. Je beheert nog steeds één site.
+- Knoppen: Plan een demo (`/demo`), Bekijk hoe het werkt (`/hoe-het-werkt`)
+
+**`hero_form_dropoff`**
+
+- Voor wie: Je begon aan een formulier en stuurde het niet in
+- Label: Nog vragen?
+- Kop: Twijfel je nog? Stel eerst je vraag
+- Tekst: Een vraag stellen verplicht je tot niets. Je krijgt binnen één werkdag antwoord.
+- Knoppen: Stuur een bericht (`/contact`), Plan een demo (`/demo`)
+
+**`hero_customer_expansion`**
+
+- Voor wie: Je bent klant en bekijkt de prijzen opnieuw
+- Label: Voor klanten
+- Kop: Haal meer uit je site
+- Tekst: Je kijkt naar de pakketten. Vergelijk Starter, Growth en Pro en zie wat een stap omhoog je geeft.
+- Knoppen: Vergelijk de pakketten (`/prijzen`), Stuur een bericht (`/contact`)
+
+**`hero_post_conversion`**
+
+- Voor wie: Je hebt net een formulier verstuurd
+- Label: Bedankt
+- Kop: Bedankt, je aanvraag is binnen
+- Tekst: Je krijgt binnen één werkdag antwoord. Lees in de tussentijd hoe het werkt.
+- Knoppen: Bekijk hoe het werkt (`/hoe-het-werkt`), Naar de kennisbank (`/kennisbank`)
+
+**`hero_high_friction`**
+
+- Voor wie: Je klikt veel rond zonder verder te komen
+- Label: Even vastgelopen?
+- Kop: Vind je niet wat je zoekt?
+- Tekst: Zeg wat je zoekt, dan wijzen we je de weg. Of lees stap voor stap hoe het werkt.
+- Knoppen: Stuur een bericht (`/contact`), Bekijk hoe het werkt (`/hoe-het-werkt`)
+
+**`hero_churn_risk`**
+
+- Voor wie: Je bent klant en komt nog maar weinig langs
+- Label: Voor klanten
+- Kop: Loopt het niet zoals je wilt?
+- Tekst: Vertel ons waar je tegenaan loopt. Je krijgt binnen één werkdag antwoord.
+- Knoppen: Stuur een bericht (`/contact`), Naar de kennisbank (`/kennisbank`)
