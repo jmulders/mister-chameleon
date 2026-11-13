@@ -26,6 +26,8 @@ export interface SectionProps {
   as?: React.ElementType;
   spacing?: "none" | "sm" | "md" | "lg" | "xl";
   id?: string;
+  /** Names the section for a brand layer (app/brand/*.css), e.g. "cta-section". */
+  part?: string;
 }
 
 // Token-driven vertical rhythm.
@@ -54,13 +56,14 @@ export function Section({
   as: Tag = "section",
   spacing = "md",
   id,
+  part,
 }: SectionProps) {
   const fallback = SECTION_PY_FALLBACK[spacing];
   const paddingStyle: React.CSSProperties =
     fallback ? { paddingBlock: `var(--section-py, ${fallback})` } : {};
 
   return (
-    <Tag id={id} style={{ ...paddingStyle, ...style }} className={cn(className)}>
+    <Tag id={id} data-part={part} style={{ ...paddingStyle, ...style }} className={cn(className)}>
       {children}
     </Tag>
   );

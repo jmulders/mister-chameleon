@@ -51,6 +51,9 @@ interface ProcessStepsBlockProps {
 function StepNumber({ n }: { n: number }) {
   return (
     <span
+      // Hooks for a brand layer (app/brand/*.css): six colours, then round again.
+      data-part="step-number"
+      data-step={((n - 1) % 6) + 1}
       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
       style={{
         background: "color-mix(in srgb, var(--primary) 12%, transparent)",

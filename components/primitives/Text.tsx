@@ -167,6 +167,8 @@ export function Text({
   return (
     <Tag
       style={resolvedStyle}
+      // Hook for a brand layer (app/brand/*.css): marks a section heading.
+      {...(variant === "h2" ? { "data-part": "section-heading" } : {})}
       className={cn(
         variantClasses[variant],
         colorClasses[color],
