@@ -289,7 +289,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
-                    data-part="feature-card"
+                    part="feature-card"
                     gap={3}
                     style={{
                       padding:    "var(--block-card-padding)",
@@ -421,7 +421,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
-                    data-part="feature-card"
+                    part="feature-card"
                     gap={2}
                     style={{
                       padding:      "var(--block-card-padding)",
@@ -485,7 +485,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
-                    data-part="feature-card"
+                    part="feature-card"
                     gap={3}
                     style={{
                       padding:      "var(--block-card-padding)",
@@ -555,7 +555,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
-                    data-part="feature-card"
+                    part="feature-card"
                     gap={3}
                     style={{
                       padding:      "var(--block-card-padding)",
@@ -620,7 +620,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
-                    data-part="feature-card"
+                    part="feature-card"
                     gap={4}
                     style={{
                       padding:      "2rem",
@@ -685,7 +685,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
               {items.map((feature) => (
                 <Stack
                   key={feature.title}
-                    data-part="feature-card"
+                    part="feature-card"
                   gap={3}
                   style={{
                     padding:      "var(--block-card-padding)",
