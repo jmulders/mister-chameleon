@@ -57,10 +57,31 @@ describe("the brand stylesheet", () => {
     }
   });
 
-  it("leaves the footer alone", () => {
-    // A line of dots above the footer was tried and taken out again on
-    // 13 Nov 2026: it read as a garland, not as the logo.
+  it("leaves the footer and the section headings alone", () => {
+    // A line of dots above the footer and a trail of dots above every heading
+    // were tried and taken out again on 13 Nov 2026. They rebuild the logo's
+    // dots into another shape, which the logo manual forbids.
     assert.doesNotMatch(css, /site-footer/);
+    assert.doesNotMatch(css, /section-heading/);
+  });
+
+  it("never uses the logo or its mark as decoration", () => {
+    // docs/website/huisstijl.md: the mark does not stand on its own, cut off
+    // or rotated. The favicon is the mark without the wordmark.
+    assert.doesNotMatch(css, /favicon|logo[^']*\.svg/);
+    assert.doesNotMatch(css, /rotate\(/);
+  });
+
+  it("keeps the circles solid", () => {
+    // The house style has no transparent or blended circles.
+    assert.doesNotMatch(css, /opacity|color-mix|rgba\(/);
+  });
+
+  it("uses the colours of the logo manual", () => {
+    const manual = ["#e64415", "#e2001a", "#cb005a", "#a1057d", "#672180", "#00519e", "#006ab3", "#008fd3", "#00989c", "#41a62a", "#bdcd00"];
+    const used   = [...css.matchAll(/--mc-[a-z]+:\s*(#[0-9a-f]{6})/g)].map((m) => m[1]!);
+    assert.ok(used.length >= 10);
+    for (const colour of used) assert.ok(manual.includes(colour), `${colour} is not in the manual`);
   });
 
   it("switches its movement off for visitors who ask for less motion", () => {

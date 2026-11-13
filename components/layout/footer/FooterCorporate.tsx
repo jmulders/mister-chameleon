@@ -167,7 +167,6 @@ export function FooterCorporate({
 
   return (
     <footer
-      data-part="site-footer"
       style={{
         backgroundColor: "var(--footer-bg)",
         color:           "var(--footer-fg)",
