@@ -37,7 +37,7 @@ function hang(): void {
   globalThis.fetch = ((input: RequestInfo | URL, init: RequestInit = {}) => {
     calls.push({ url: String(input), init });
     return new Promise<Response>((_resolve, reject) => {
-      const keepAlive = setTimeout(() => reject(new Error("no abort signal fired")), 5000);
+      const keepAlive = setTimeout(() => reject(new Error("no abort signal fired")), 1500);
       init.signal?.addEventListener("abort", () => {
         clearTimeout(keepAlive);
         reject(init.signal!.reason);
@@ -133,7 +133,30 @@ describe("requests the limit must not disturb", () => {
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), [{ id: 1 }]);
     assert.equal(calls[0]!.init.cache, "no-store");
-    assert.ok(calls[0]!.init.signal, "a PostgREST call carries a signal");
+  });
+
+  it("gives a read no signal, so Next.js keeps sharing identical reads in a render", async () => {
+    // next/dist/server/lib/dedupe-fetch.js skips its request sharing for any
+    // fetch that carries a signal. A limit by signal would switch it off.
+    calls = []; answer("[]");
+    await db.supabaseFetch(REST);
+    await db.supabaseFetch(REST, { method: "HEAD" });
+    assert.equal(calls[0]!.init.signal, undefined);
+    assert.equal(calls[1]!.init.signal, undefined);
+  });
+
+  it("aborts a write at its limit with a signal", async () => {
+    calls = []; answer("[]");
+    await db.supabaseFetch(REST, { method: "POST", body: "{}" });
+    assert.ok(calls[0]!.init.signal, "a write carries a signal");
+  });
+
+  it("passes on a read's own failure at once", async () => {
+    calls = [];
+    globalThis.fetch = (() => Promise.reject(new TypeError("fetch failed"))) as typeof fetch;
+    const started = Date.now();
+    await assert.rejects(db.supabaseFetch(REST), (err: Error) => err.message === "fetch failed");
+    assert.ok(Date.now() - started < 100);
   });
 
   it("gives a storage call no signal of its own", async () => {
