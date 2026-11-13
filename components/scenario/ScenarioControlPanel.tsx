@@ -69,6 +69,8 @@ import type { TenantScenarioPanelSettings, TenantScenarioPreset, TenantScenarioO
 import { DemoStageSection, ROLES } from "./DemoStageSection";
 import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows";
 import { applyScenarioOverride } from "./apply-scenario-override";
+import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
+import { getConsent } from "@/tracking/consent-store";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
 
 import {
@@ -2275,13 +2277,17 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
 
       const local = getJourneyStoreEvents();
       let backendState: JourneyState | null = null;
-      try {
-        const r = await fetch("/api/journey/state", { credentials: "include" });
-        if (r.ok) {
-          const data = await r.json() as { journey?: JourneyState };
-          backendState = data.journey ?? null;
-        }
-      } catch { /* offline / preview */ }
+      // Without personalization consent the endpoint answers `journey: null`,
+      // so the call is skipped (see ./journey-poll.ts).
+      if (shouldFetchBackendState(getConsent())) {
+        try {
+          const r = await fetch("/api/journey/state", { credentials: "include" });
+          if (r.ok) {
+            const data = await r.json() as { journey?: JourneyState };
+            backendState = data.journey ?? null;
+          }
+        } catch { /* offline / preview */ }
+      }
 
       const mergedEvents = mergeJourneyEvents(local, []);
       setMerged(mergedEvents.length);
@@ -2318,22 +2324,39 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Initial + pathname/scenario-change refresh.
+  // Initial + pathname/scenario-change refresh. Skipped when the console does
+  // not exist for this browser: the component then renders nothing.
   useEffect(() => {
+    if (!consoleIsActive({ visible, demoControlsEnabled })) return;
     void refreshJourneyState();
-  }, [pathname, refreshJourneyState]);
+  }, [pathname, refreshJourneyState, visible, demoControlsEnabled]);
 
   // ── Auto-poll journey state ───────────────────────────────────────────────
-  // Poll every 3 s whenever the panel is not minimized, regardless of which
-  // tab is active.  refreshJourneyState is stable so this interval is only
-  // set up/torn down when minimized changes — never on every scenario update.
+  // Poll every 3 s while the console is open on screen in a foreground tab,
+  // regardless of which console tab is active (see ./journey-poll.ts).
+  // refreshJourneyState is stable, so the interval is only set up/torn down
+  // when the console opens or closes — never on every scenario update.
   useEffect(() => {
-    if (minimized) return;
-    const intervalId = setInterval(() => {
-      void refreshJourneyState();
-    }, 3000);
-    return () => clearInterval(intervalId);
-  }, [minimized, refreshJourneyState]);
+    // Collapsed or switched off: no interval and no listener at all.
+    if (minimized || !consoleIsActive({ visible, demoControlsEnabled })) return;
+    // Open: refresh on every tick, but only while the tab is in the foreground.
+    // The visibilitychange listener catches up when the tab comes back.
+    const refreshIfWatched = () => {
+      const watched = shouldPollJourneyState({
+        minimized,
+        visible,
+        demoControlsEnabled,
+        documentVisible: document.visibilityState === "visible",
+      });
+      if (watched) void refreshJourneyState();
+    };
+    const intervalId = setInterval(refreshIfWatched, 3000);
+    document.addEventListener("visibilitychange", refreshIfWatched);
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshIfWatched);
+    };
+  }, [minimized, visible, demoControlsEnabled, refreshJourneyState]);
 
   // ── Enricher re-run ───────────────────────────────────────────────────────
   const handleRunEnricher = useCallback(async (key: EnricherKey) => {
