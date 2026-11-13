@@ -25,10 +25,13 @@ import type { TenantSettings } from "@/tenant/types";
 const TABLE = "tenant_host_resolution_cache";
 const norm  = (host: string) => host.toLowerCase().trim();
 
-/** Read the persisted last-known-good tenant settings for a host, or null. */
-export async function readPersistedHostTenant(
+/**
+ * Read the persisted last-known-good tenant settings for a host and say
+ * whether the database answered. `ok: false` means the read failed.
+ */
+export async function lookupPersistedHostTenant(
   host: string,
-): Promise<TenantSettings | null> {
+): Promise<{ settings: TenantSettings | null; ok: boolean }> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = (await (getDb() as any)
@@ -39,12 +42,19 @@ export async function readPersistedHostTenant(
         data: { settings: TenantSettings } | null;
         error: { message: string } | null;
       };
-    if (error || !data) return null;
-    return data.settings ?? null;
+    if (error) return { settings: null, ok: false };
+    return { settings: data?.settings ?? null, ok: true };
   } catch (err) {
     logger.warn("[host-resolution-cache] read failed", { error: String(err) });
-    return null;
+    return { settings: null, ok: false };
   }
+}
+
+/** Read the persisted last-known-good tenant settings for a host, or null. */
+export async function readPersistedHostTenant(
+  host: string,
+): Promise<TenantSettings | null> {
+  return (await lookupPersistedHostTenant(host)).settings;
 }
 
 /** When each host was last written by this instance. */

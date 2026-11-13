@@ -70,7 +70,7 @@ import type {
 import { enforcePackageLimits }  from "./package-enforcement";
 import { DESIGN_PRESETS }        from "./design-theme";
 import { getDb, isNetworkError } from "@/data/db";
-import { getDomainByHostname }   from "./domain-store";
+import { lookupDomainByHostname } from "./domain-store";
 import { logger }                from "@/lib/logger";
 import { generateSiteKey }       from "@/lib/snippet/generate-site-key";
 
@@ -611,6 +611,14 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
  * inserted rows, legacy data written before validation was enforced).
  */
 async function fetchAllTenants(): Promise<TenantSettings[]> {
+  return (await fetchAllTenantsResult()).tenants;
+}
+
+/**
+ * fetchAllTenants(), plus whether the database answered. `ok: false` means
+ * the read failed and the empty list says nothing about which tenants exist.
+ */
+async function fetchAllTenantsResult(): Promise<{ tenants: TenantSettings[]; ok: boolean }> {
   const { data, error } = asRows<{ tenant_id: string; settings: Record<string, unknown> }>(
     await getDb()
       .from("tenant_settings")
@@ -630,15 +638,16 @@ async function fetchAllTenants(): Promise<TenantSettings[]> {
         message: error.message,
       });
     }
-    return [];
+    return { tenants: [], ok: false };
   }
 
-  return (data ?? []).map((row) => ({
+  const tenants = (data ?? []).map((row) => ({
     // Spread the JSONB blob first, then override tenantId with the DB column.
     // The DB column is the true primary key and is always present and unique.
     ...(row.settings as unknown as TenantSettings),
     tenantId: row.tenant_id,
   }));
+  return { tenants, ok: true };
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -741,15 +750,33 @@ export async function getTenantById(tenantId: string): Promise<TenantSettings | 
  * if (tenant) { ... }
  */
 export async function getTenantByDomain(hostname: string): Promise<TenantSettings | null> {
+  return (await resolveTenantByDomain(hostname)).tenant;
+}
+
+/**
+ * getTenantByDomain(), plus whether a miss is definitive.
+ *
+ * `definitive: true` with `tenant: null` means every lookup answered without
+ * an error and no tenant claims the hostname. `definitive: false` means a
+ * lookup failed, so the miss says nothing about the hostname. Only a
+ * definitive miss may be remembered (see ./unknown-host-memo.ts).
+ */
+export async function resolveTenantByDomain(
+  hostname: string,
+): Promise<{ tenant: TenantSettings | null; definitive: boolean }> {
   const normalised = hostname.toLowerCase().trim();
+  let lookupsOk = true;
 
   // ── Step 1: tenant_domains table (fast path) ──────────────────────────────
   try {
-    const domainRow = await getDomainByHostname(normalised);
+    const { row: domainRow, ok } = await lookupDomainByHostname(normalised);
+    if (!ok) lookupsOk = false;
     if (domainRow) {
       const tenant = await getTenantById(domainRow.tenant_id);
-      if (tenant) return tenant;
-      // Row found but tenant missing — fall through to JSONB scan.
+      if (tenant) return { tenant, definitive: true };
+      // Row found but tenant missing or unreadable — fall through to JSONB
+      // scan. The hostname IS registered, so a miss here is never definitive.
+      lookupsOk = false;
       console.warn(
         `[tenant-store] tenant_domains has hostname "${normalised}" for tenant ` +
         `"${domainRow.tenant_id}" but no matching tenant_settings row was found.`,
@@ -757,17 +784,21 @@ export async function getTenantByDomain(hostname: string): Promise<TenantSetting
     }
   } catch (err) {
     // Never let a domain-store error break tenant resolution — fall through.
+    lookupsOk = false;
     console.error("[tenant-store] getTenantByDomain domain-store error:", err);
   }
 
   // ── Step 2: JSONB scan (legacy backward compat) ───────────────────────────
-  const tenants = await fetchAllTenants();
+  const { tenants, ok: scanOk } = await fetchAllTenantsResult();
+  if (!scanOk) lookupsOk = false;
 
-  return tenants.find((t) => {
+  const tenant = tenants.find((t) => {
     if (t.primaryDomain?.toLowerCase().trim() === normalised) return true;
     if (t.additionalDomains?.some((d) => d.toLowerCase().trim() === normalised)) return true;
     return false;
   }) ?? null;
+
+  return { tenant, definitive: tenant !== null || lookupsOk };
 }
 
 // ── Render-path resilient cached reads ────────────────────────────────────────
@@ -800,12 +831,20 @@ export async function getTenantByDomain(hostname: string): Promise<TenantSetting
 const TENANT_RENDER_CACHE_REVALIDATE_SECONDS = 120;
 export const TENANT_RENDER_CACHE_TAG = "tenant-render-cache";
 
+/** Thrown by the cached domain lookup on a miss; carries whether it is definitive. */
+class TenantHostMiss extends Error {
+  constructor(hostname: string, readonly definitive: boolean) {
+    super(`[tenant-store] no tenant for host "${hostname}"`);
+    this.name = "TenantHostMiss";
+  }
+}
+
 const cachedTenantByDomainHit = unstable_cache(
   async (hostname: string): Promise<TenantSettings> => {
-    const tenant = await getTenantByDomain(hostname);
+    const { tenant, definitive } = await resolveTenantByDomain(hostname);
     // Throw on miss so unstable_cache does NOT persist a null (which would pin
     // the wrong fallback tenant for the whole revalidate window).
-    if (!tenant) throw new Error(`[tenant-store] no tenant for host "${hostname}"`);
+    if (!tenant) throw new TenantHostMiss(hostname, definitive);
     return tenant;
   },
   ["tenant-by-domain-render"],
@@ -830,12 +869,23 @@ const cachedTenantByIdHit = unstable_cache(
  * so cold instances stop flipping the site to the fallback tenant.
  */
 export async function getTenantByDomainCached(hostname: string): Promise<TenantSettings | null> {
+  return (await resolveTenantByDomainCached(hostname)).tenant;
+}
+
+/**
+ * getTenantByDomainCached(), plus whether a miss is definitive: every lookup
+ * answered without an error and no tenant claims the hostname. A miss after a
+ * failed lookup, or any other error, is not definitive.
+ */
+export async function resolveTenantByDomainCached(
+  hostname: string,
+): Promise<{ tenant: TenantSettings | null; definitive: boolean }> {
   try {
-    return await cachedTenantByDomainHit(hostname.toLowerCase().trim());
-  } catch {
+    return { tenant: await cachedTenantByDomainHit(hostname.toLowerCase().trim()), definitive: true };
+  } catch (err) {
     // Genuine miss (or transient error) — let the caller apply its own
     // last-known-good / fallback logic.
-    return null;
+    return { tenant: null, definitive: err instanceof TenantHostMiss && err.definitive };
   }
 }
 
