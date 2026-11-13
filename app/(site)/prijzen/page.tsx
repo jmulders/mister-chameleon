@@ -97,40 +97,58 @@ function count(n: number): string {
 
 // ── Components ────────────────────────────────────────────────────────────────
 
+// Colours come from the tenant theme (design-system/theme/theme.css), so the
+// page follows the same contextual theme as the rest of the site. Until
+// 13 Nov 2026 it used fixed white and near-black, and stayed white under a
+// dark header.
+const ON_INVERSE_MUTED = "color-mix(in srgb, var(--text-inverse) 72%, transparent)";
+const ON_INVERSE_TINT  = "color-mix(in srgb, var(--text-inverse) 12%, transparent)";
+
 function PlanCard({ plan }: { plan: BillingPlan }) {
   const popular = plan.id === "growth";
-  const muted   = popular ? "text-neutral-400" : "text-neutral-500";
+  const strong  = popular ? "var(--text-inverse)" : "var(--text)";
+  const muted   = popular ? ON_INVERSE_MUTED      : "var(--text-muted)";
+  const accent  = popular ? "var(--text-inverse)" : "var(--text-brand)";
 
   return (
-    <div className={`relative flex flex-col rounded-2xl border p-6 ${
-      popular ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white"
-    }`}>
+    <div
+      className="relative flex flex-col rounded-2xl border p-6"
+      style={popular
+        ? { background: "var(--bg-inverse)", borderColor: "var(--bg-inverse)", color: "var(--text-inverse)" }
+        : { background: "var(--card-bg)",    borderColor: "var(--card-border)", color: "var(--text)" }}
+    >
       {popular && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="rounded-full bg-amber-400 px-3 py-0.5 text-xs font-semibold text-neutral-900">
+          <span
+            className="rounded-full border px-3 py-0.5 text-xs font-semibold"
+            style={{ background: "var(--card-bg)", borderColor: "var(--card-border)", color: "var(--text)" }}
+          >
             Meest gekozen
           </span>
         </div>
       )}
 
-      <h3 className={`text-lg font-semibold ${popular ? "text-white" : "text-neutral-900"}`}>{plan.name}</h3>
-      <p className={`mt-1 text-sm ${muted}`}>{PLAN_FOR_WHO[plan.id]}</p>
+      <h3 className="text-lg font-semibold" style={{ color: strong }}>{plan.name}</h3>
+      <p className="mt-1 text-sm" style={{ color: muted }}>{PLAN_FOR_WHO[plan.id]}</p>
 
       <div className="mt-5 flex items-end gap-1">
-        <span className={`text-3xl font-bold ${popular ? "text-white" : "text-neutral-900"}`}>
+        <span className="text-3xl font-bold" style={{ color: strong }}>
           {euro(plan.monthlyPriceCents)}
         </span>
-        <span className={`mb-1 text-sm ${muted}`}>per maand</span>
+        <span className="mb-1 text-sm" style={{ color: muted }}>per maand</span>
       </div>
-      <p className={`mt-1 text-xs ${popular ? "text-emerald-400" : "text-emerald-700"}`}>
+      <p className="mt-1 text-xs" style={{ color: accent }}>
         {euro(plan.annualMonthlyCents)} per maand als je per jaar betaalt
       </p>
 
-      <div className={`mt-4 rounded-lg px-3 py-2 text-sm ${popular ? "bg-white/10" : "bg-neutral-50"}`}>
-        <span className={`font-semibold ${popular ? "text-white" : "text-neutral-900"}`}>
+      <div
+        className="mt-4 rounded-lg px-3 py-2 text-sm"
+        style={{ background: popular ? ON_INVERSE_TINT : "var(--bg-subtle)" }}
+      >
+        <span className="font-semibold" style={{ color: strong }}>
           {count(plan.limits.personalizedSessionsPerMonth)}
         </span>{" "}
-        <span className={popular ? "text-neutral-300" : "text-neutral-600"}>
+        <span style={{ color: muted }}>
           gepersonaliseerde bezoeken per maand
         </span>
       </div>
@@ -138,8 +156,8 @@ function PlanCard({ plan }: { plan: BillingPlan }) {
       <ul className="mt-5 flex-1 space-y-2">
         {planFeatures(plan).map((feature) => (
           <li key={feature} className="flex items-start gap-2 text-sm">
-            <span aria-hidden className={`mt-0.5 ${popular ? "text-emerald-400" : "text-emerald-600"}`}>✓</span>
-            <span className={popular ? "text-neutral-300" : "text-neutral-700"}>{feature}</span>
+            <span aria-hidden className="mt-0.5" style={{ color: accent }}>✓</span>
+            <span style={{ color: popular ? ON_INVERSE_MUTED : "var(--text)" }}>{feature}</span>
           </li>
         ))}
       </ul>
@@ -153,17 +171,22 @@ function PlanCard({ plan }: { plan: BillingPlan }) {
 
 function CreditCard({ pkg }: { pkg: typeof CREDIT_PACKAGES[number] }) {
   return (
-    <div className={`flex flex-col rounded-2xl border bg-white p-6 ${
-      pkg.highlight ? "border-neutral-900 ring-1 ring-neutral-900" : "border-neutral-200"
-    }`}>
-      <h3 className="text-lg font-semibold text-neutral-900">{count(pkg.credits)} credits</h3>
-      <p className="mt-1 text-sm text-neutral-500">{pkg.forWho}</p>
+    <div
+      className="flex flex-col rounded-2xl border p-6"
+      style={{
+        background:  "var(--card-bg)",
+        borderColor: pkg.highlight ? "var(--text)" : "var(--card-border)",
+        boxShadow:   pkg.highlight ? "0 0 0 1px var(--text)" : undefined,
+      }}
+    >
+      <h3 className="text-lg font-semibold" style={{ color: "var(--text)" }}>{count(pkg.credits)} credits</h3>
+      <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>{pkg.forWho}</p>
 
       <div className="mt-5 flex items-end gap-2">
-        <span className="text-3xl font-bold text-neutral-900">{euro(pkg.priceCents)}</span>
-        <span className="mb-1 text-sm text-neutral-500">eenmalig</span>
+        <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>{euro(pkg.priceCents)}</span>
+        <span className="mb-1 text-sm" style={{ color: "var(--text-muted)" }}>eenmalig</span>
       </div>
-      <p className="mt-1 text-xs text-neutral-500">{pkg.perCredit}</p>
+      <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>{pkg.perCredit}</p>
 
       <div className="mt-6">
         <CreditCartButton
@@ -184,13 +207,13 @@ export default function PrijzenPage() {
   const plans = Object.values(BILLING_PLANS);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: "var(--bg)", color: "var(--text)" }}>
       {/* ── Heading ──────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-6 pb-12 pt-20 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-neutral-900 sm:text-5xl">
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl" style={{ color: "var(--text)" }}>
           Wat kost website personalisatie?
         </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-lg text-neutral-600">
+        <p className="mx-auto mt-5 max-w-2xl text-lg" style={{ color: "var(--text-muted)" }}>
           Drie pakketten. Je betaalt per maand voor een aantal gepersonaliseerde bezoeken.
           Je kunt elk pakket 14 dagen gratis proberen. Je betaalt pas na 14 dagen.
         </p>
@@ -204,14 +227,18 @@ export default function PrijzenPage() {
       </section>
 
       {/* ── Questions ────────────────────────────────────────────────────── */}
-      <section className="bg-neutral-50 py-20">
+      <section className="py-20" style={{ background: "var(--section-subtle-bg)" }}>
         <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center text-2xl font-bold text-neutral-900 sm:text-3xl">Goed om te weten</h2>
+          <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: "var(--text)" }}>Goed om te weten</h2>
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {QUESTIONS.map((item) => (
-              <div key={item.q} className="rounded-2xl border border-neutral-200 bg-white p-6">
-                <h3 className="font-semibold text-neutral-900">{item.q}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-600">{item.a}</p>
+              <div
+                key={item.q}
+                className="rounded-2xl border p-6"
+                style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}
+              >
+                <h3 className="font-semibold" style={{ color: "var(--text)" }}>{item.q}</h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>{item.a}</p>
               </div>
             ))}
           </div>
@@ -221,8 +248,8 @@ export default function PrijzenPage() {
       {/* ── Credits ──────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-6 py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Credits voor bedrijven herkennen</h2>
-          <p className="mt-3 text-base text-neutral-600">
+          <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: "var(--text)" }}>Credits voor bedrijven herkennen</h2>
+          <p className="mt-3 text-base" style={{ color: "var(--text-muted)" }}>
             Je hebt ze alleen nodig als je bedrijven opzoekt. Credits verlopen niet.
             Wat je deze maand niet gebruikt, blijft staan.
           </p>
@@ -233,23 +260,30 @@ export default function PrijzenPage() {
       </section>
 
       {/* ── Call to action ───────────────────────────────────────────────── */}
-      <section className="bg-neutral-900 py-20 text-center">
+      {/* data-part: the brand layer of the marketing site decorates this section (app/brand). */}
+      <section
+        data-part="cta-section"
+        className="py-20 text-center"
+        style={{ background: "var(--bg-inverse)", color: "var(--text-inverse)" }}
+      >
         <div className="mx-auto max-w-3xl px-6">
-          <h2 className="text-2xl font-bold text-white sm:text-3xl">Zie het werken op je eigen site</h2>
-          <p className="mx-auto mt-4 max-w-xl text-base text-neutral-300">
+          <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: "var(--text-inverse)" }}>Zie het werken op je eigen site</h2>
+          <p className="mx-auto mt-4 max-w-xl text-base" style={{ color: ON_INVERSE_MUTED }}>
             In een demo van dertig minuten laten we zien hoe jouw homepage eruitziet voor drie
             verschillende bezoekers. Je kunt ook zelf beginnen. De eerste veertien dagen zijn gratis.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/demo"
-              className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100"
+              className="rounded-xl px-6 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+              style={{ background: "var(--text-inverse)", color: "var(--bg-inverse)" }}
             >
               Plan een demo
             </Link>
             <a
               href="#pakketten"
-              className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition-colors hover:border-white"
+              className="rounded-xl border px-6 py-3 text-sm font-semibold transition-opacity hover:opacity-80"
+              style={{ borderColor: ON_INVERSE_MUTED, color: "var(--text-inverse)" }}
             >
               Probeer 14 dagen gratis
             </a>
