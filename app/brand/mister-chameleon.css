@@ -1,0 +1,125 @@
+/*
+ * Brand layer — Mister Chameleon's own marketing site.
+ *
+ * The logo is an arc of eighteen dots that runs through the spectrum. This
+ * file brings those dots back on the page. Everything is scoped to
+ * html[data-brand="mister-chameleon"] (see lib/brand/brand-layer.ts), so no
+ * other tenant is touched, and it only decorates: no layout, no text.
+ *
+ * The colours are the logo's own (public/logo.svg) and do not follow the
+ * tenant theme, so they look the same in every contextual theme.
+ *
+ * The hooks are data-part attributes that the shared blocks set for every
+ * tenant; without this file they do nothing.
+ */
+
+[data-brand="mister-chameleon"] {
+  --mc-orange:  #e54415;
+  --mc-red:     #e1001a;
+  --mc-magenta: #cb005a;
+  --mc-plum:    #a0057d;
+  --mc-purple:  #672180;
+  --mc-navy:    #00519c;
+  --mc-blue:    #006ab1;
+  --mc-sky:     #008ed3;
+  --mc-teal:    #00979a;
+  --mc-green:   #40a52b;
+}
+
+/* ── 1. A short trail of dots above every section heading ───────────────────
+ *
+ * The pseudo-element is a block that holds the image inline, so the trail
+ * follows the heading's own alignment: left, centred or right.
+ */
+[data-brand="mister-chameleon"] main [data-part="section-heading"]::before {
+  content: url("/brand/mc-dot-trail.svg") "";
+  display: block;
+  line-height: 0;
+  margin-bottom: 0.5em;
+}
+
+/* ── 2. Step numbers as solid dots, one colour per step ─────────────────────
+ *
+ * White on each of these is at least 4.9 : 1.
+ */
+[data-brand="mister-chameleon"] [data-part="step-number"] {
+  background: var(--mc-step, var(--mc-red)) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mc-step, var(--mc-red)) 22%, transparent);
+}
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="1"] { --mc-step: var(--mc-red); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="2"] { --mc-step: var(--mc-plum); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="3"] { --mc-step: var(--mc-blue); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="4"] { --mc-step: var(--mc-purple); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="5"] { --mc-step: var(--mc-navy); }
+[data-brand="mister-chameleon"] [data-part="step-number"][data-step="6"] { --mc-step: var(--mc-magenta); }
+
+/* ── 3. Feature icons as dots, running through the spectrum ─────────────────
+ *
+ * The white icon on each of these is at least 3.1 : 1, the bar for graphics.
+ */
+[data-brand="mister-chameleon"] [data-part="feature-icon"] {
+  background-color: var(--mc-icon, var(--mc-sky)) !important;
+  color: #fff !important;
+  border-radius: 9999px !important;
+  transition: transform 200ms ease;
+}
+[data-brand="mister-chameleon"] [data-part="feature-icon"] svg {
+  color: #fff;
+  stroke: #fff;
+}
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 1) { --mc-icon: var(--mc-orange); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 2) { --mc-icon: var(--mc-magenta); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 3) { --mc-icon: var(--mc-purple); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 4) { --mc-icon: var(--mc-sky); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 5) { --mc-icon: var(--mc-teal); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 6) { --mc-icon: var(--mc-green); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] {
+  transform: scale(1.1);
+}
+
+/* ── 4. The logo's arc in the corner of a call-to-action section ───────────── */
+[data-brand="mister-chameleon"] [data-part="cta-section"] {
+  position: relative;
+  overflow: hidden;
+}
+[data-brand="mister-chameleon"] [data-part="cta-section"] > * {
+  position: relative;
+  z-index: 1;
+}
+[data-brand="mister-chameleon"] [data-part="cta-section"]::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  right: -60px;
+  bottom: -56px;
+  width: 240px;
+  height: 240px;
+  background: url("/favicon.svg") no-repeat center / contain;
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+@media (max-width: 1279px) {
+  /* Below this width the arc would sit on the text instead of in the margin. */
+  [data-brand="mister-chameleon"] [data-part="cta-section"]::after { display: none; }
+}
+
+/* ── 5. A line of dots where the footer begins ─────────────────────────────── */
+[data-brand="mister-chameleon"] [data-part="site-footer"] {
+  position: relative;
+}
+[data-brand="mister-chameleon"] [data-part="site-footer"]::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: url("/brand/mc-dot-line.svg") repeat-x center / auto 10px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-brand="mister-chameleon"] [data-part="feature-icon"] { transition: none; }
+  [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] { transform: none; }
+}

@@ -289,6 +289,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
+                    data-part="feature-card"
                     gap={3}
                     style={{
                       padding:    "var(--block-card-padding)",
@@ -300,6 +301,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   >
                     {feature.icon && (
                       <span
+                        data-part="feature-icon"
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -352,9 +354,11 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <div
                     key={feature.title}
+                    data-part="feature-card"
                     className="flex items-start gap-4 py-3"
                   >
                     <span
+                      data-part="feature-icon"
                       className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
                       style={{
                         backgroundColor: "var(--feature-grid-icon-bg)",
@@ -417,6 +421,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
+                    data-part="feature-card"
                     gap={2}
                     style={{
                       padding:      "var(--block-card-padding)",
@@ -427,6 +432,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   >
                     {feature.icon && (
                       <span
+                        data-part="feature-icon"
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -479,6 +485,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
+                    data-part="feature-card"
                     gap={3}
                     style={{
                       padding:      "var(--block-card-padding)",
@@ -490,6 +497,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   >
                     {feature.icon && (
                       <span
+                        data-part="feature-icon"
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -547,6 +555,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
+                    data-part="feature-card"
                     gap={3}
                     style={{
                       padding:      "var(--block-card-padding)",
@@ -557,6 +566,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   >
                     {feature.icon && (
                       <span
+                        data-part="feature-icon"
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -610,6 +620,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 {items.map((feature) => (
                   <Stack
                     key={feature.title}
+                    data-part="feature-card"
                     gap={4}
                     style={{
                       padding:      "2rem",
@@ -621,6 +632,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   >
                     {feature.icon && (
                       <span
+                        data-part="feature-icon"
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -673,6 +685,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
               {items.map((feature) => (
                 <Stack
                   key={feature.title}
+                    data-part="feature-card"
                   gap={3}
                   style={{
                     padding:      "var(--block-card-padding)",
@@ -684,7 +697,8 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                 >
                   {feature.icon && (isIconName(feature.icon) ? (
                     <div
-                      className="flex h-10 w-10 items-center justify-center rounded-lg"
+                      data-part="feature-icon"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg"
                       style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       aria-hidden="true"
                     >

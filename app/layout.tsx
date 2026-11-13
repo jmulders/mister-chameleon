@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { tenantIcons } from "@/lib/seo/icons";
 import "./globals.css";
+// Brand layer for Mister Chameleon's own site; every rule is scoped to html[data-brand].
+import "./brand/mister-chameleon.css";
 
 import { cookies, headers }      from "next/headers";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
@@ -19,6 +21,7 @@ import { buildCompleteLookDesign } from "@/lib/design/complete-look";
 import { THEME_PRESETS, isThemePresetKey, type ThemePresetKey } from "@/design-system/theme/presets";
 import { createCMSProvider }     from "@/cms/providers/create-cms-provider";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
+import { brandLayerFor }          from "@/lib/brand/brand-layer";
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 //
@@ -443,6 +446,9 @@ export default async function RootLayout({
       lang={htmlLang}
       data-tenant={tenantConfig.tenantId}
       data-theme={finalThemeKey}
+      // Decoration from the logo, only on Mister Chameleon's own site
+      // (app/brand/mister-chameleon.css).
+      data-brand={brandLayerFor(tenantConfig.tenantId) ?? undefined}
       {...(themeTraceAttr ? { "data-theme-trace": themeTraceAttr } : {})}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${ALL_FONT_VARIABLES}`}

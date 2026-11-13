@@ -125,7 +125,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
 
   if (variant === "cta_banner_default") {
     return (
-      <Section
+      <Section part="cta-section"
         spacing="none"
         className="border-y py-4 sm:py-5"
         style={{
@@ -176,7 +176,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
 
   if (variant === "cta_banner_compact") {
     return (
-      <Section
+      <Section part="cta-section"
         spacing="none"
         className="py-3"
         style={{ background: "var(--section-cta-bg)" }}
@@ -220,7 +220,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
   if (variant === "cta_split") {
     const sectionBg = "var(--section-cta-bg)";
     return (
-      <Section
+      <Section part="cta-section"
         spacing="lg"
         style={{ background: sectionBg }}
         className="relative overflow-hidden"
@@ -276,7 +276,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
 
   if (variant === "cta_card") {
     return (
-      <Section
+      <Section part="cta-section"
         spacing="xl"
         style={{
           background:        "var(--section-subtle-bg)",
@@ -346,7 +346,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
       : data.mediaSide === "right" ? 1
       : "var(--cta-media-side, 1)";
     return (
-      <Section spacing="lg">
+      <Section part="cta-section" spacing="lg">
         <Container size="lg">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
             {isRenderableMedia(data.media) && (
@@ -381,7 +381,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
   if (variant === "cta_media_first") {
     const { imageUrl, imageAlt, media } = data;
     return (
-      <Section
+      <Section part="cta-section"
         spacing="xl"
         className="relative overflow-hidden"
         style={{ background: "var(--neutral-900, #111827)" }}
@@ -454,7 +454,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
 
   if (variant === "cta_glow") {
     return (
-      <Section
+      <Section part="cta-section"
         spacing="xl"
         style={{ background: "var(--cta-dark-bg, #0a0a0f)" }}
         className="relative overflow-hidden"
@@ -531,7 +531,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
 
   if (variant === "cta_soft") {
     return (
-      <Section
+      <Section part="cta-section"
         spacing="xl"
         style={{
           background:        "var(--section-subtle-bg)",
@@ -588,7 +588,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
 
   if (variant === "cta_newsletter") {
     return (
-      <Section
+      <Section part="cta-section"
         spacing="lg"
         style={{
           background:        "var(--section-subtle-bg)",
@@ -642,7 +642,7 @@ export function CtaSectionBlock({ data, variant: rawVariant }: CtaSectionBlockPr
   const glowColour = variant === "dark" ? "transparent" : "var(--primary)";
 
   return (
-    <Section
+    <Section part="cta-section"
       spacing="xl"
       style={{ background: sectionBg }}
       className="relative overflow-hidden"
