@@ -42,6 +42,7 @@
  */
 
 import { getSiteLocale } from "@/lib/site-texts/server";
+import { buildTrialWelcomeMail } from "@/lib/trial/welcome-mail";
 import { TRIAL_TEXTS }    from "@/lib/site-texts/trial";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb }                     from "@/data/db";
@@ -53,7 +54,6 @@ import { headers } from "next/headers";
 import { getActiveTenant } from "@/tenant/server";
 import { resolveSession } from "@/data/session";
 import { reportInboundConversion } from "@/lib/lead-base/report-inbound-conversion";
-import { escapeHtml } from "@/lib/html-escape";
 import { PLATFORM_FROM } from "@/lib/platform-contact";
 import { resolveRequestBaseUrl } from "@/lib/base-url";
 
@@ -294,47 +294,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const fromAddress  = serverEnv.email.fromAddress ?? PLATFORM_FROM;
   const adminAddress = serverEnv.email.backofficeEmail;
   const planLabel    = planId.charAt(0).toUpperCase() + planId.slice(1);
-  const trialEndDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+  const trialEnds    = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  const trialEndDate = trialEnds
     .toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
-  // Welcome email to the new user
+  // Welcome email to the new user, in the language of the site they signed up on
+  const welcome = buildTrialWelcomeMail(
+    await getSiteLocale().catch(() => "en" as const),
+    { name, planLabel, trialEnds, adminUrl: adminBaseUrl },
+  );
   void sendMail(
     {
       from:    fromAddress,
       to:      [email],
-      subject: `Welcome to Mister Chameleon — your ${planLabel} trial has started`,
-      text: [
-        `Hi ${name},`,
-        "",
-        `Your 14-day free trial on the ${planLabel} plan is now active.`,
-        "",
-        `Trial ends: ${trialEndDate}`,
-        `No credit card required — cancel any time before the trial ends.`,
-        "",
-        `Log in to your dashboard and start personalising:`,
-        `${adminBaseUrl}/admin`,
-        "",
-        `If you have any questions, reply to this email and we'll be happy to help.`,
-        "",
-        `The Mister Chameleon team`,
-      ].join("\n"),
-      html: `
-        <p>Hi ${escapeHtml(name)},</p>
-        <p>Your <strong>14-day free trial on the ${escapeHtml(planLabel)} plan</strong> is now active.</p>
-        <ul>
-          <li><strong>Trial ends:</strong> ${escapeHtml(trialEndDate)}</li>
-          <li>No credit card required — cancel any time.</li>
-        </ul>
-        <p>
-          <a href="${adminBaseUrl}/admin"
-             style="display:inline-block;background:#4f46e5;color:white;padding:0.75rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-weight:600;">
-            Go to your dashboard
-          </a>
-        </p>
-        <p style="color:#6b7280;font-size:0.875rem;">
-          Questions? Just reply to this email.
-        </p>
-      `.trim(),
+      subject: welcome.subject,
+      text:    welcome.text,
+      html:    welcome.html,
     },
     transport,
   ).then((r) => {
