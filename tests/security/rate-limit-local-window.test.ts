@@ -212,9 +212,16 @@ describe("checkRateLimit wiring", () => {
 
   it("lets the request through when the database does not answer in time", async () => {
     await asProduction(
-      // Never answers; only the abort signal ends it.
+      // Never answers; only the abort signal ends it. A real fetch holds a
+      // socket and so keeps the process running while it waits. This stub holds
+      // nothing, and the timer behind AbortSignal.timeout does not keep Node
+      // alive, so the stub holds a timer of its own until the signal fires.
       (_url, init) => new Promise<Response>((_resolve, reject) => {
-        init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        const keepAlive = setTimeout(() => reject(new Error("no abort signal fired")), RATE_LIMIT_TIMEOUT_MS + 3000);
+        init.signal?.addEventListener("abort", () => {
+          clearTimeout(keepAlive);
+          reject(new Error("aborted"));
+        });
       }),
       async (calls) => {
         const started = Date.now();
