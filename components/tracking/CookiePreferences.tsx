@@ -8,13 +8,21 @@
  * badge). The modal hosts the full CookieDeclaration. Mount once in the layout.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CookieDeclaration } from "./CookieDeclaration";
 import { consentTexts } from "@/tracking/consent-i18n";
+import { claimLauncherSide } from "@/lib/layout/floating-stack";
 
 export function CookiePreferences({ locale }: { locale?: string } = {}) {
   const t = consentTexts(locale);
   const [open, setOpen] = useState(false);
+
+  // The pill takes the left side of the launcher row, so a corner toast on
+  // that side (or any toast on a narrow screen) sits above it.
+  useEffect(() => {
+    claimLauncherSide("left", true);
+    return () => claimLauncherSide("left", false);
+  }, []);
 
   return (
     <>

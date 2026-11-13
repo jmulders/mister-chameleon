@@ -61,6 +61,25 @@
 }
 
 /*
+ * Launcher row — the small things that float in the bottom corners.
+ *
+ * The cookie-settings pill takes the left side and the scenario-console button
+ * the right side. Each sets an attribute on <html> while it is on screen
+ * (lib/layout/floating-stack.ts). A corner toast reads the offset for its own
+ * side and sits above the row instead of on top of it. On a narrow screen a
+ * toast spans the width, so either launcher lifts it.
+ */
+html[data-cookie-launcher]   { --floating-offset-left: 44px; }
+html[data-scenario-launcher] { --floating-offset-right: 44px; }
+@media (max-width: 639px) {
+  html[data-cookie-launcher],
+  html[data-scenario-launcher] {
+    --floating-offset-left: 44px;
+    --floating-offset-right: 44px;
+  }
+}
+
+/*
  * Base element typography — use the semantic role tokens so tenant overrides
  * to --font-heading / --font-body / --font-ui / --font-code are automatically
  * reflected everywhere without extra CSS.
