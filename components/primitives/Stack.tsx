@@ -32,6 +32,12 @@ interface StackProps {
   align?: AlignValue;
   justify?: JustifyValue;
   wrap?: boolean;
+  /**
+   * Names the element for a brand layer (app/brand/*.css), e.g. "feature-card".
+   * A `data-part` attribute written on <Stack> itself is not passed on to the
+   * DOM, and TypeScript does not flag it, so it has to come in through here.
+   */
+  part?: string;
 }
 
 const alignMap: Record<AlignValue, string> = {
@@ -61,9 +67,11 @@ export function Stack({
   align,
   justify,
   wrap = false,
+  part,
 }: StackProps) {
   return (
     <Tag
+      data-part={part}
       style={style}
       className={cn(
         "flex",
