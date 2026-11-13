@@ -11,16 +11,16 @@ import type { BookDemoTranslations } from "./translations";
 
 export function BookDemoShell({ t }: { t: BookDemoTranslations }) {
   return (
-    <main className="min-h-screen bg-gray-50 py-16 px-4">
+    <main className="min-h-screen bg-[var(--bg)] py-16 px-4">
       {/* Page heading */}
       <div className="mx-auto max-w-2xl mb-10 text-center">
         <div className="inline-flex items-center gap-2 rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 px-4 py-1.5 mb-4">
           <span className="text-xs font-semibold text-[var(--primary)] uppercase tracking-wide">{t.badge}</span>
         </div>
-        <h1 className="text-4xl font-bold text-gray-900 tracking-tight mb-4">
+        <h1 className="text-4xl font-bold text-[color:var(--text)] tracking-tight mb-4">
           {t.pageHeading}
         </h1>
-        <p className="text-lg text-gray-500 leading-relaxed">
+        <p className="text-lg text-[color:var(--text-muted)] leading-relaxed">
           {t.pageSubheading}
         </p>
       </div>
@@ -29,7 +29,7 @@ export function BookDemoShell({ t }: { t: BookDemoTranslations }) {
       <BookDemoClient t={t} />
 
       {/* Trust badges */}
-      <div className="mx-auto max-w-2xl mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400">
+      <div className="mx-auto max-w-2xl mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-[color:var(--text-muted)]">
         <span className="flex items-center gap-1.5">
           <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />

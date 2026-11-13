@@ -37,7 +37,7 @@ export function ContactForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-neutral-700 mb-1">
+          <label htmlFor="name" className="block text-sm font-medium text-[color:var(--text)] mb-1">
             Naam
           </label>
           <input
@@ -47,11 +47,11 @@ export function ContactForm() {
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Jan de Vries"
-            className="w-full rounded-xl border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+            className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-2.5 text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-muted)] focus:border-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--text)]"
           />
         </div>
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-1">
+          <label htmlFor="email" className="block text-sm font-medium text-[color:var(--text)] mb-1">
             Zakelijk e-mailadres
           </label>
           <input
@@ -61,12 +61,12 @@ export function ContactForm() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             placeholder="jan@bedrijf.nl"
-            className="w-full rounded-xl border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+            className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-2.5 text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-muted)] focus:border-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--text)]"
           />
         </div>
       </div>
       <div>
-        <label htmlFor="company" className="block text-sm font-medium text-neutral-700 mb-1">
+        <label htmlFor="company" className="block text-sm font-medium text-[color:var(--text)] mb-1">
           Bedrijf
         </label>
         <input
@@ -75,11 +75,11 @@ export function ContactForm() {
           value={form.company}
           onChange={(e) => setForm({ ...form, company: e.target.value })}
           placeholder="Acme B.V."
-          className="w-full rounded-xl border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+          className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-2.5 text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-muted)] focus:border-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--text)]"
         />
       </div>
       <div>
-        <label htmlFor="message" className="block text-sm font-medium text-neutral-700 mb-1">
+        <label htmlFor="message" className="block text-sm font-medium text-[color:var(--text)] mb-1">
           Je vraag
         </label>
         <textarea
@@ -89,18 +89,18 @@ export function ContactForm() {
           value={form.message}
           onChange={(e) => setForm({ ...form, message: e.target.value })}
           placeholder="Waar kunnen we je mee helpen?"
-          className="w-full rounded-xl border border-neutral-300 px-4 py-2.5 text-sm text-neutral-900 placeholder-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 resize-none"
+          className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-2.5 text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-muted)] focus:border-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--text)] resize-none"
         />
       </div>
       {status === "error" && (
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-[color:color-mix(in_srgb,#dc2626_50%,var(--text))]">
           Versturen is niet gelukt. Mail ons dan op info@misterchameleon.nl.
         </p>
       )}
       <button
         type="submit"
         disabled={status === "sending"}
-        className="w-full rounded-xl bg-neutral-900 px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 transition-colors"
+        className="w-full rounded-xl bg-[var(--bg-inverse)] px-6 py-3 text-sm font-semibold text-[color:var(--text-inverse)] hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {status === "sending" ? "Bezig met versturen…" : "Verstuur"}
       </button>
