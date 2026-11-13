@@ -70,6 +70,7 @@ import { DemoStageSection, ROLES } from "./DemoStageSection";
 import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows";
 import { applyScenarioOverride } from "./apply-scenario-override";
 import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
+import { startsMinimized } from "./panel-start";
 import { getConsent } from "@/tracking/consent-store";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
 
@@ -2054,10 +2055,15 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
   });
   const [minimized, setMinimized] = useState(() => {
     if (typeof window === "undefined") return false;
-    // On the demo-controls page the panel is always open so visitors can
-    // immediately interact with it.  Ignore any persisted minimized preference.
-    if (window.location.pathname === "/demo-controls") return false;
-    return localStorage.getItem("mc_scenario_panel_minimized") === "1";
+    // Collapsed on a first visit, open on /demo-controls, with ?scenario=true
+    // or when the visitor opened it before (see ./panel-start.ts).
+    let stored: string | null = null;
+    try { stored = localStorage.getItem("mc_scenario_panel_minimized"); } catch { /* localStorage unavailable */ }
+    return startsMinimized({
+      pathname: window.location.pathname,
+      search:   window.location.search,
+      stored,
+    });
   });
   // Whether the DemoControlsToggle on /demo-controls has enabled the panel.
   // Default true — absence of the key means "enabled".
