@@ -119,8 +119,8 @@ krijgt de cirkels nog op grond van zijn naam.
 
 - Stapnummers als volle cirkel met een wit cijfer, zoals de hoofdstuknummers.
 - Icoontjes van functiekaarten in een volle cirkel, in kleuren uit het verloop.
-- Bolletjes die van het laatste blok de voettekst in drijven, zoals op de
-  foldermap. Dicht op elkaar aan de rechterkant, steeds losser naar links.
+- Een klein groepje bolletjes in de hoek waar het laatste blok de voettekst
+  raakt. Dicht op elkaar rechts, losser naar links, zoals op de foldermap.
 
 ## Wat de site niet overneemt, en waarom
 

@@ -120,7 +120,7 @@ describe("the brand stylesheet", () => {
       // On 13 Nov 2026 a row of small equal dots along the footer was removed
       // as ugly, and as another arrangement of the logo's mark. The folder's
       // own bubbles differ a lot in size and never line up.
-      assert.ok(circles.length >= 10, "enough circles to read as a drift");
+      assert.ok(circles.length >= 6, "enough circles to read as a drift");
       const radii = circles.map((c) => c.r);
       assert.equal(new Set(radii).size, radii.length, "no two circles are the same size");
       assert.ok(Math.max(...radii) / Math.min(...radii) >= 5, "sizes differ a lot");
@@ -154,14 +154,25 @@ describe("the brand stylesheet", () => {
     });
 
     it("straddle the top edge of the footer and leave the footer's text clear", () => {
-      // The edge lies at 100 of the band's 240 units. The stylesheet lifts the
-      // band by that share and gives the footer the rest as extra room.
-      assert.match(css, /top:\s*calc\(var\(--mc-band\) \* -0\.4167\)/);
-      assert.match(css, /padding-top:\s*calc\(var\(--mc-band\) \* 0\.42\)/);
+      // The edge lies halfway the band. The stylesheet lifts the band by half
+      // its height and gives the footer extra room for the other half.
+      assert.equal(height, 200);
+      assert.match(css, /top:\s*calc\(var\(--mc-band\) \* -0\.5\)/);
+      assert.match(css, /padding-top:\s*calc\(var\(--mc-band\) \* 0\.3\)/);
       assert.ok(circles.some((c) => c.y + c.r <= 100), "a circle wholly above the edge");
       assert.ok(circles.some((c) => c.y - c.r >= 100), "a circle wholly in the footer");
       assert.ok(circles.some((c) => c.y - c.r < 100 && c.y + c.r > 100), "a circle across the edge");
       assert.match(css, /pointer-events:\s*none/);
+    });
+
+    it("stay small and in the corner", () => {
+      // The first version ran across the whole width at up to 240 px high. The
+      // user found it too present on 14 Nov 2026 and asked for a subtle corner.
+      const band = /--mc-band:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(css)!;
+      assert.ok(Number(band[2]) <= 140, "the band stays low");
+      assert.match(css, /right:\s*0;/);
+      assert.doesNotMatch(css.slice(css.indexOf("site-footer\"]::before")), /left:\s*0/);
+      assert.ok(circles.length <= 10, "a few circles, not a field");
     });
   });
 
