@@ -195,6 +195,36 @@ describe("the brand stylesheet", () => {
     for (const colour of used) assert.ok(manual.includes(colour), `${colour} is not in the manual`);
   });
 
+  describe("the feature icons", () => {
+    const pairs = [...css.matchAll(/nth-child\(6n \+ (\d)\) \{ --mc-icon: var\(--mc-([a-z]+)\);\s+--mc-icon-2: var\(--mc-([a-z]+)\); \}/g)]
+      .map((m) => ({ n: Number(m[1]), large: m[2]!, small: m[3]! }));
+
+    it("are a large circle with a smaller one beside it, as on the leaflets", () => {
+      // The first version was one 40 px circle with a 20 px icon. On 14 Nov
+      // 2026 the user said the icons could be better: it read as a stock set.
+      assert.match(css, /\[data-part="feature-icon"\] \{[^}]*width: 56px !important/);
+      assert.match(css, /\[data-part="feature-icon"\]::after \{[^}]*width: 16px/);
+      assert.equal(pairs.length, 6, "six cards, six pairs");
+      for (const pair of pairs) assert.notEqual(pair.large, pair.small, `card ${pair.n} has two circles of one colour`);
+      assert.equal(new Set(pairs.map((p) => p.large)).size, 6, "six different large circles");
+    });
+
+    it("only put the white icon on a colour that carries it", () => {
+      // White on these is at least 3.5 : 1; the bar for a graphic is 3 : 1.
+      const carriesWhite = ["magenta", "navy", "teal", "plum", "blue", "purple", "red"];
+      for (const pair of pairs) assert.ok(carriesWhite.includes(pair.large), `${pair.large} is too light for a white icon`);
+    });
+
+    it("keep the small circle clear of the large one", () => {
+      // Large: centre 28,28 radius 28. Small: 16 px across at left 51, top -2.
+      const after = /\[data-part="feature-icon"\]::after \{[^}]*left: (-?\d+)px;[^}]*top: (-?\d+)px;[^}]*width: (\d+)px/.exec(css)!;
+      const [left, top, size] = [Number(after[1]), Number(after[2]), Number(after[3])];
+      const distance = Math.hypot(left + size / 2 - 28, top + size / 2 - 28);
+      assert.ok(distance >= 28 + size / 2, "the circles overlap");
+      assert.ok(distance <= 28 + size / 2 + 6, "the small circle drifted away from the large one");
+    });
+  });
+
   it("switches its movement off for visitors who ask for less motion", () => {
     assert.match(css, /prefers-reduced-motion: reduce/);
   });
