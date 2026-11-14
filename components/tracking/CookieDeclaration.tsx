@@ -70,15 +70,15 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => save({ analytics: true, personalization: true, enrichment: true, advertising: true })}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700">
+          className="rounded-md bg-[var(--bg-inverse)] px-4 py-2 text-sm font-medium text-[color:var(--text-inverse)] hover:opacity-90">
           {t.declaration.acceptAll}
         </button>
         <button onClick={() => save({ analytics: false, personalization: false, enrichment: false, advertising: false })}
-          className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50">
+          className="rounded-md border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-2 text-sm font-medium text-[color:var(--text)] hover:bg-[var(--bg-subtle)]">
           {t.declaration.rejectNonEssential}
         </button>
         <button onClick={() => save()}
-          className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50">
+          className="rounded-md border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-2 text-sm font-medium text-[color:var(--text)] hover:bg-[var(--bg-subtle)]">
           {t.declaration.savePreferences}
         </button>
         {saved && <span className="text-xs text-green-600">{t.declaration.saved}</span>}
@@ -89,13 +89,13 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
         const cookies = cookiesForCategory(cat, toConsentLocale(locale));
         const on      = value(cat);
         return (
-          <section key={cat} className="rounded-lg border border-neutral-200 p-5">
+          <section key={cat} className="rounded-lg border border-[var(--card-border)] p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-sm font-semibold text-neutral-900">{meta.label}</h3>
-                <p className="mt-1 text-xs text-neutral-500">{meta.description}</p>
+                <h3 className="text-sm font-semibold text-[color:var(--text)]">{meta.label}</h3>
+                <p className="mt-1 text-xs text-[color:var(--text-muted)]">{meta.description}</p>
               </div>
-              <label className="flex shrink-0 items-center gap-2 text-xs text-neutral-600">
+              <label className="flex shrink-0 items-center gap-2 text-xs text-[color:var(--text-muted)]">
                 <input
                   type="checkbox"
                   checked={on}
@@ -109,7 +109,7 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
             {cookies.length > 0 && (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="text-neutral-400">
+                  <thead className="text-[color:var(--text-muted)]">
                     <tr>
                       <th className="px-2 py-1 text-left">{t.declaration.cols.cookie}</th>
                       <th className="px-2 py-1 text-left">{t.declaration.cols.provider}</th>
@@ -119,17 +119,17 @@ export function CookieDeclaration({ locale }: { locale?: string } = {}) {
                       <th className="px-2 py-1 text-left whitespace-nowrap">{t.declaration.cols.domain}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-100">
+                  <tbody className="divide-y divide-[var(--card-border)]">
                     {cookies.map((c) => (
                       <tr key={c.name}>
-                        <td className="px-2 py-1 font-mono text-neutral-800">{c.name}</td>
-                        <td className="px-2 py-1 text-neutral-600">{c.provider}</td>
-                        <td className="px-2 py-1 text-neutral-600">{c.purpose}</td>
-                        <td className="px-2 py-1 text-neutral-500 whitespace-nowrap">{c.expiry}</td>
-                        <td className="px-2 py-1 text-neutral-500 whitespace-nowrap">
+                        <td className="px-2 py-1 font-mono text-[color:var(--text)]">{c.name}</td>
+                        <td className="px-2 py-1 text-[color:var(--text-muted)]">{c.provider}</td>
+                        <td className="px-2 py-1 text-[color:var(--text-muted)]">{c.purpose}</td>
+                        <td className="px-2 py-1 text-[color:var(--text-muted)] whitespace-nowrap">{c.expiry}</td>
+                        <td className="px-2 py-1 text-[color:var(--text-muted)] whitespace-nowrap">
                           {c.type}{c.httpOnly ? " · HttpOnly" : ""}
                         </td>
-                        <td className="px-2 py-1 text-neutral-500 whitespace-nowrap">{c.domain}</td>
+                        <td className="px-2 py-1 text-[color:var(--text-muted)] whitespace-nowrap">{c.domain}</td>
                       </tr>
                     ))}
                   </tbody>
