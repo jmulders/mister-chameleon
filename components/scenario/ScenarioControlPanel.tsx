@@ -71,6 +71,7 @@ import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows
 import { applyScenarioOverride } from "./apply-scenario-override";
 import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
 import { startsMinimized } from "./panel-start";
+import { claimLauncherSide } from "@/lib/layout/floating-stack";
 import { getConsent } from "@/tracking/consent-store";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
 
@@ -2134,6 +2135,15 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
       setMinimized(false);
     }
   }, [pathname, demoControlsEnabled]);
+
+  // The collapsed console is a button in the bottom-right corner. While it is
+  // on screen it takes that side of the launcher row, so a corner toast sits
+  // above it instead of under it.
+  useEffect(() => {
+    const shown = visible && demoControlsEnabled && minimized;
+    claimLauncherSide("right", shown);
+    return () => claimLauncherSide("right", false);
+  }, [visible, demoControlsEnabled, minimized]);
 
   // ── Router refresh helper ─────────────────────────────────────────────────
   const triggerRefresh = useCallback(() => {

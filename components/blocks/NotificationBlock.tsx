@@ -35,6 +35,7 @@ import { isRenderableMedia } from "@/lib/media/block-media";
 import { BlockMediaView } from "@/components/blocks/media/BlockMediaView";
 import { useSiteLocale } from "@/components/site/SiteLocale";
 import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import { toastBottom } from "@/lib/layout/floating-stack";
 import {
   isNotificationSuppressed,
   recordNotificationDismissal,
@@ -270,7 +271,11 @@ export function NotificationBlock({
   const corner = pos === "left" ? "left-5" : "right-5";
   return (
     <div role="alert" aria-live="polite"
-      className={`${anchor} bottom-5 ${corner} z-[9999] flex max-w-sm flex-col gap-2 rounded-xl px-4 py-3 shadow-xl text-sm font-medium ${styles.wrapper}`}>
+      // The toast sits above the row of small launchers in the bottom corners
+      // (cookie settings, scenario console) instead of on top of them. The
+      // offset is 0 unless something claims that row; see lib/layout/floating-stack.ts.
+      style={{ bottom: toastBottom(pos === "left" ? "left" : "right") }}
+      className={`${anchor} ${corner} z-[9999] flex max-w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-2 rounded-xl px-4 py-3 shadow-xl text-sm font-medium ${styles.wrapper}`}>
       <div className="flex items-start gap-3">
         {!sideRight && mediaCol("w-20")}
         <p className="flex-1 leading-snug">{message}</p>
