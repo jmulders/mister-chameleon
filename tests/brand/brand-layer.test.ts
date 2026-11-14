@@ -103,12 +103,77 @@ describe("the brand stylesheet", () => {
     }
   });
 
-  it("leaves the footer and the section headings alone", () => {
-    // A line of dots above the footer and a trail of dots above every heading
-    // were tried and taken out again on 13 Nov 2026. They rebuild the logo's
-    // dots into another shape, which the logo manual forbids.
-    assert.doesNotMatch(css, /site-footer/);
+  it("leaves the section headings alone", () => {
+    // A trail of dots above every heading was tried and taken out again on
+    // 13 Nov 2026. It rebuilds the logo's dots into another shape, which the
+    // logo manual forbids.
     assert.doesNotMatch(css, /section-heading/);
+  });
+
+  describe("the bubbles that drift into the footer", () => {
+    const svg     = readFileSync("public/brand/mc-bubbels.svg", "utf8");
+    const circles = [...svg.matchAll(/<circle cx="(\d+)" cy="(\d+)" r="(\d+)" fill="(#[0-9a-f]{6})"\/>/g)]
+      .map((m) => ({ x: Number(m[1]), y: Number(m[2]), r: Number(m[3]), fill: m[4]! }));
+    const [, , , width, height] = /viewBox="(\d+) (\d+) (\d+) (\d+)"/.exec(svg)!.map(Number) as [number, number, number, number, number];
+
+    it("are a drift of circles, not a trail of equal dots", () => {
+      // On 13 Nov 2026 a row of small equal dots along the footer was removed
+      // as ugly, and as another arrangement of the logo's mark. The folder's
+      // own bubbles differ a lot in size and never line up.
+      assert.ok(circles.length >= 6, "enough circles to read as a drift");
+      const radii = circles.map((c) => c.r);
+      assert.equal(new Set(radii).size, radii.length, "no two circles are the same size");
+      assert.ok(Math.max(...radii) / Math.min(...radii) >= 5, "sizes differ a lot");
+      const byX = [...circles].sort((a, b) => a.x - b.x);
+      for (let i = 2; i < byX.length; i++) {
+        const [a, b, c] = [byX[i - 2]!, byX[i - 1]!, byX[i]!];
+        assert.ok(!(a.y === b.y && b.y === c.y), "three circles in a row on one line");
+      }
+    });
+
+    it("thin out to the left, as on the folder", () => {
+      const area = (from: number, to: number) =>
+        circles.filter((c) => c.x >= from && c.x < to).reduce((sum, c) => sum + c.r * c.r, 0);
+      assert.ok(area(width / 2, width) > 4 * area(0, width / 2), "the right half carries the weight");
+    });
+
+    it("never overlap and are never cut off by the band, only by the edge of the page", () => {
+      for (const [i, a] of circles.entries()) {
+        assert.ok(a.y - a.r >= 0 && a.y + a.r <= height, `circle at ${a.x} is cut off at the top or bottom`);
+        assert.ok(a.x - a.r >= 0, `circle at ${a.x} is cut off on the left`);
+        for (const b of circles.slice(i + 1)) {
+          assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= a.r + b.r, `circles at ${a.x} and ${b.x} overlap`);
+        }
+      }
+    });
+
+    it("use the colours of the logo manual", () => {
+      const manual = ["#e64415", "#e2001a", "#cb005a", "#a1057d", "#672180", "#00519e", "#006ab3", "#008fd3", "#009ee0",
+        "#00989c", "#00957a", "#009036", "#41a62a", "#92bd11", "#bdcd00", "#d2d600", "#e5de00", "#ede100"];
+      for (const c of circles) assert.ok(manual.includes(c.fill), `${c.fill} is not in the manual`);
+    });
+
+    it("straddle the top edge of the footer and leave the footer's text clear", () => {
+      // The edge lies halfway the band. The stylesheet lifts the band by half
+      // its height and gives the footer extra room for the other half.
+      assert.equal(height, 200);
+      assert.match(css, /top:\s*calc\(var\(--mc-band\) \* -0\.5\)/);
+      assert.match(css, /padding-top:\s*calc\(var\(--mc-band\) \* 0\.3\)/);
+      assert.ok(circles.some((c) => c.y + c.r <= 100), "a circle wholly above the edge");
+      assert.ok(circles.some((c) => c.y - c.r >= 100), "a circle wholly in the footer");
+      assert.ok(circles.some((c) => c.y - c.r < 100 && c.y + c.r > 100), "a circle across the edge");
+      assert.match(css, /pointer-events:\s*none/);
+    });
+
+    it("stay small and in the corner", () => {
+      // The first version ran across the whole width at up to 240 px high. The
+      // user found it too present on 14 Nov 2026 and asked for a subtle corner.
+      const band = /--mc-band:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(css)!;
+      assert.ok(Number(band[2]) <= 140, "the band stays low");
+      assert.match(css, /right:\s*0;/);
+      assert.doesNotMatch(css.slice(css.indexOf("site-footer\"]::before")), /left:\s*0/);
+      assert.ok(circles.length <= 10, "a few circles, not a field");
+    });
   });
 
   it("never uses the logo or its mark as decoration", () => {
@@ -128,6 +193,36 @@ describe("the brand stylesheet", () => {
     const used   = [...css.matchAll(/--mc-[a-z]+:\s*(#[0-9a-f]{6})/g)].map((m) => m[1]!);
     assert.ok(used.length >= 10);
     for (const colour of used) assert.ok(manual.includes(colour), `${colour} is not in the manual`);
+  });
+
+  describe("the feature icons", () => {
+    const pairs = [...css.matchAll(/nth-child\(6n \+ (\d)\) \{ --mc-icon: var\(--mc-([a-z]+)\);\s+--mc-icon-2: var\(--mc-([a-z]+)\); \}/g)]
+      .map((m) => ({ n: Number(m[1]), large: m[2]!, small: m[3]! }));
+
+    it("are a large circle with a smaller one beside it, as on the leaflets", () => {
+      // The first version was one 40 px circle with a 20 px icon. On 14 Nov
+      // 2026 the user said the icons could be better: it read as a stock set.
+      assert.match(css, /\[data-part="feature-icon"\] \{[^}]*width: 56px !important/);
+      assert.match(css, /\[data-part="feature-icon"\]::after \{[^}]*width: 16px/);
+      assert.equal(pairs.length, 6, "six cards, six pairs");
+      for (const pair of pairs) assert.notEqual(pair.large, pair.small, `card ${pair.n} has two circles of one colour`);
+      assert.equal(new Set(pairs.map((p) => p.large)).size, 6, "six different large circles");
+    });
+
+    it("only put the white icon on a colour that carries it", () => {
+      // White on these is at least 3.5 : 1; the bar for a graphic is 3 : 1.
+      const carriesWhite = ["magenta", "navy", "teal", "plum", "blue", "purple", "red"];
+      for (const pair of pairs) assert.ok(carriesWhite.includes(pair.large), `${pair.large} is too light for a white icon`);
+    });
+
+    it("keep the small circle clear of the large one", () => {
+      // Large: centre 28,28 radius 28. Small: 16 px across at left 51, top -2.
+      const after = /\[data-part="feature-icon"\]::after \{[^}]*left: (-?\d+)px;[^}]*top: (-?\d+)px;[^}]*width: (\d+)px/.exec(css)!;
+      const [left, top, size] = [Number(after[1]), Number(after[2]), Number(after[3])];
+      const distance = Math.hypot(left + size / 2 - 28, top + size / 2 - 28);
+      assert.ok(distance >= 28 + size / 2, "the circles overlap");
+      assert.ok(distance <= 28 + size / 2 + 6, "the small circle drifted away from the large one");
+    });
   });
 
   it("switches its movement off for visitors who ask for less motion", () => {

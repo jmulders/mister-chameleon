@@ -8,7 +8,7 @@
  *
  * What it deliberately does not do, because the logo manual forbids it:
  *   - show the logo's dots on their own, cut off or rotated;
- *   - rebuild the dots into rows or trails.
+ *   - rebuild the dots into rows or trails of equal dots.
  *
  * Everything is scoped to html[data-brand="mister-chameleon"] (see
  * lib/brand/brand-layer.ts), so no other tenant is touched, and it only
@@ -51,62 +51,109 @@
 [data-brand="mister-chameleon"] [data-part="step-number"][data-step="5"] { --mc-step: var(--mc-blue); }
 [data-brand="mister-chameleon"] [data-part="step-number"][data-step="6"] { --mc-step: var(--mc-purple); }
 
-/* ── 2. Feature icons in solid circles ──────────────────────────────────────
+/* ── 2. Feature icons: a circle with a smaller one beside it ────────────────
  *
- * The white icon on each of these is at least 3.1 : 1, the bar for graphics.
+ * The leaflets never show one circle alone. A large one always has a small
+ * one beside it, close but not touching. So each icon is a white line icon in
+ * a solid circle with a small circle in the next colour of the gradient at
+ * its shoulder.
+ *
+ * The first version was a 40 px circle with a 20 px icon. It read as a stock
+ * icon set with a coloured background. This one is 56 px with a 26 px icon and
+ * a slightly heavier line.
+ *
+ * The white icon on each of the six large circles is at least 3.1 : 1, the bar
+ * for graphics. The small circle carries nothing, so it may be a light colour.
  */
 [data-brand="mister-chameleon"] [data-part="feature-icon"] {
+  position: relative;
+  width: 56px !important;
+  height: 56px !important;
+  flex: none;
   background-color: var(--mc-icon, var(--mc-sky)) !important;
   color: #fff !important;
   border-radius: 9999px !important;
   transition: transform 200ms ease;
 }
 [data-brand="mister-chameleon"] [data-part="feature-icon"] svg {
+  width: 26px;
+  height: 26px;
   color: #fff;
   stroke: #fff;
+  stroke-width: 2.25;
 }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 1) { --mc-icon: var(--mc-magenta); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 2) { --mc-icon: var(--mc-navy); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 3) { --mc-icon: var(--mc-teal); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 4) { --mc-icon: var(--mc-plum); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 5) { --mc-icon: var(--mc-sky); }
-[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 6) { --mc-icon: var(--mc-green); }
+/* The small circle: 16 px across, 2 px clear of the large one, up and to the
+   right. Centre of the large one is 28,28 with radius 28; the small one's
+   centre lies 38 px from it at 35 degrees. */
+[data-brand="mister-chameleon"] [data-part="feature-icon"]::after {
+  content: "";
+  position: absolute;
+  left: 51px;
+  top: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background-color: var(--mc-icon-2, var(--mc-lime));
+  transition: transform 200ms ease;
+}
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 1) { --mc-icon: var(--mc-magenta); --mc-icon-2: var(--mc-orange); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 2) { --mc-icon: var(--mc-navy);    --mc-icon-2: var(--mc-sky); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 3) { --mc-icon: var(--mc-teal);    --mc-icon-2: var(--mc-lime); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 4) { --mc-icon: var(--mc-plum);    --mc-icon-2: var(--mc-magenta); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 5) { --mc-icon: var(--mc-blue);    --mc-icon-2: var(--mc-green); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(6n + 6) { --mc-icon: var(--mc-purple);  --mc-icon-2: var(--mc-red); }
 [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] {
-  transform: scale(1.1);
+  transform: scale(1.06);
+}
+[data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"]::after {
+  transform: translate(3px, -3px);
 }
 
-/* ── 3. A group of large circles beside a call-to-action section ────────────
+/* ── 3. A few bubbles in the corner where the last block meets the footer ───
  *
- * As on the leaflets: a few flat circles of different sizes, the largest cut
- * off by the edge of the page. The group lives in the margin beside the
- * content and grows with it, so it never sits on the text. The content column
- * is at most 1100 px wide.
+ * As on the folder: circles of very different sizes, close together on one
+ * side and thinning out as they drift away. Here it is a small cluster in the
+ * right-hand corner that straddles the top edge of the footer, so the bubbles
+ * run on from the block above into the footer.
+ *
+ * It is meant to be noticed in passing, not to carry the page. A first version
+ * ran across the whole width at up to 240 px high and was too present.
+ *
+ * The part above the edge stays inside the bottom padding of the block above,
+ * and the footer gets a little extra room at the top for the part below it.
+ *
+ * On 13 Nov 2026 a row of small dots along the footer was taken out again: a
+ * trail of equal dots rebuilds the logo's mark. This is not that. No two
+ * circles are the same size and nothing lines up.
  */
-[data-brand="mister-chameleon"] [data-part="cta-section"] {
+[data-brand="mister-chameleon"] [data-part="site-footer"] {
+  --mc-band: clamp(72px, 9vw, 130px);
   position: relative;
-  overflow: hidden;
+  z-index: 1;
+  /* Half the band lies below the footer's edge; the footer's own padding
+     covers the rest. */
+  padding-top: calc(var(--mc-band) * 0.3);
 }
-[data-brand="mister-chameleon"] [data-part="cta-section"] > * {
+[data-brand="mister-chameleon"] [data-part="site-footer"] > * {
   position: relative;
   z-index: 1;
 }
-[data-brand="mister-chameleon"] [data-part="cta-section"]::after {
+[data-brand="mister-chameleon"] [data-part="site-footer"]::before {
   content: "";
   position: absolute;
   z-index: 0;
   right: 0;
-  bottom: 24px;
-  width: min(420px, calc((100vw - 1100px) / 2 + 24px));
-  aspect-ratio: 360 / 320;
-  background: url("/brand/mc-circles.svg") no-repeat right bottom / contain;
+  /* Half the band lies above the footer's edge. */
+  top: calc(var(--mc-band) * -0.5);
+  /* The image is 560 by 200. */
+  width: calc(var(--mc-band) * 2.8);
+  height: var(--mc-band);
+  background: url("/brand/mc-bubbels.svg") no-repeat right top / auto 100%;
   pointer-events: none;
-}
-@media (max-width: 1359px) {
-  /* Below this width the margin is too narrow for the group to read. */
-  [data-brand="mister-chameleon"] [data-part="cta-section"]::after { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-brand="mister-chameleon"] [data-part="feature-icon"] { transition: none; }
   [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] { transform: none; }
+  [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"]::after { transform: none; }
 }
