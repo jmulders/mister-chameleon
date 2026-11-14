@@ -446,9 +446,9 @@ export default async function RootLayout({
       lang={htmlLang}
       data-tenant={tenantConfig.tenantId}
       data-theme={finalThemeKey}
-      // Decoration from the logo, only on Mister Chameleon's own site
-      // (app/brand/mister-chameleon.css).
-      data-brand={brandLayerFor(tenantConfig.tenantId) ?? undefined}
+      // Decoration that comes with the applied preset: the circles of the
+      // "Mister Chameleon" preset (app/brand/mister-chameleon.css).
+      data-brand={brandLayerFor(tenantSettings?.design, galleryCard) ?? undefined}
       {...(themeTraceAttr ? { "data-theme-trace": themeTraceAttr } : {})}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${ALL_FONT_VARIABLES}`}

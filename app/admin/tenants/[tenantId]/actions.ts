@@ -408,6 +408,9 @@ export async function applyDesignPresetAction(
     // Snippet inherit-host-style flag: on for the "Inherit host style" preset,
     // cleared for every other preset so switching away turns it off.
     inheritHostStyle: preset.inheritHostStyle ?? false,
+    // Decoration that comes with the preset (the circles of "Mister Chameleon").
+    // buildCompleteLookDesign cleared it, so every other preset leaves it off.
+    ...(preset.brandLayer ? { brandLayer: preset.brandLayer } : {}),
   };
 
   const saveResult = await saveTenant({ ...current, design: updatedDesign });
@@ -591,6 +594,8 @@ export async function importDesignPresetAction(
       tokenOverrides:            overrides,
       typographyOverrideEnabled: true,
       selectedStyleFamily:       undefined,
+      // An imported look replaces the preset, and with it the preset's decoration.
+      brandLayer:                undefined,
     };
 
     const saveResult = await saveTenant({ ...current, design: updatedDesign });
@@ -1520,6 +1525,9 @@ export async function saveVisualTokensAction(
     // clearTokenOverrides wipes all design-preset/Builder tokens so a curated
     // Style fully replaces them (mutually exclusive with the Presets tab).
     tokenOverrides: fields.clearTokenOverrides ? undefined : finalOverrides,
+    // A curated Style that replaces the preset tokens takes the preset's
+    // decoration with it.
+    ...(fields.clearTokenOverrides ? { brandLayer: undefined } : {}),
   };
 
   const updated: TenantSettings = { ...current, design: updatedDesign };

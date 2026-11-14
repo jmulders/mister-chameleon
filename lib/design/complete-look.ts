@@ -84,6 +84,9 @@ export function buildCompleteLookDesign(
     // Clear any curated Style family so the applied look is the single source of
     // truth, not mixed with a lingering family personality.
     selectedStyleFamily: undefined,
+    // Decoration belongs to the preset that brought it. A new look starts
+    // without; the gallery apply puts it back when its preset carries one.
+    brandLayer: undefined,
     // Site-wide block tokens derived from the overrides (the complete look).
     defaultTokens: Object.keys(derived).length > 0 ? derived : undefined,
   };
