@@ -67,8 +67,9 @@ export function DailyCronPanel({ record, nowMs }: { record: DailyRunRecord | nul
 
       {(health.state === "never" || health.state === "stale") && (
         <ol className="list-decimal space-y-1 pl-5 text-sm text-neutral-700">
-          <li>Vercel, project, Settings, Cron Jobs: is <code>/api/cron/daily</code> listed and enabled?</li>
-          <li>Press Run there and open the log of that run. A 401 means <code>CRON_SECRET</code> is not set in the production environment variables.</li>
+          <li>Vercel, project, Schedules, Cron Jobs: is <code>/api/cron/daily</code> listed, and are cron jobs enabled?</li>
+          <li>Open View Logs there. A 401 means <code>CRON_SECRET</code> is not set for Production. Vercel does not create it: add it yourself and redeploy.</li>
+          <li>No log line at all means the cron never reached the app. A firewall rule that challenges traffic can stop it: exclude <code>/api/cron/</code> from that rule.</li>
           <li>A 500 means the cron arrived and a job failed. Reload this page to see which.</li>
         </ol>
       )}
