@@ -2289,6 +2289,16 @@ export interface TenantDesignSettings {
    */
   readonly inheritHostStyle?: boolean;
   /**
+   * Decoration that belongs to the applied gallery preset.
+   *
+   * A preset is colours, type and spacing. Some house styles carry one thing
+   * more that tokens cannot express: shapes. The "Mister Chameleon" preset
+   * sets this to "mister-chameleon", which switches on the flat circles of
+   * app/brand/mister-chameleon.css. Set by applying a preset that carries a
+   * brand layer, cleared by applying any other look (lib/brand/brand-layer.ts).
+   */
+  readonly brandLayer?: "mister-chameleon";
+  /**
    * Header structural variant override.
    *
    * When set, this takes precedence over the theme family's default header

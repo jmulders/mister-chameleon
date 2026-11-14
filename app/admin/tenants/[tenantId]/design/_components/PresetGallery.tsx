@@ -108,7 +108,7 @@ export function PresetGallery({ tenantId, design }: Props) {
   // then the statement / collection / pride-midnight expansions. Any unknown
   // category falls to the end in first-appearance order (future-proof).
   const CATEGORY_ORDER = [
-    "General", "Neutrals & Stone", "Warm & Earthy", "Cool & Green", "Deep & Editorial",
+    "House style", "General", "Neutrals & Stone", "Warm & Earthy", "Cool & Green", "Deep & Editorial",
     "Bold & Vivid", "Metallic", "Occasion & Themed", "Seasonal", "Pastel Neon",
     "Brand Archetypes", "Pride", "Midnight",
   ];

@@ -1,33 +1,72 @@
 /**
- * Only Mister Chameleon's own marketing site carries the brand layer.
+ * The brand layer comes with the preset the operator applied, not with a tenant.
  */
 
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { brandLayerFor } from "@/lib/brand/brand-layer";
+import { getDesignPreset, DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
+import { buildCompleteLookDesign } from "@/lib/design/complete-look";
+import { buildAdGalleryDesign } from "@/lib/design/ad-theme";
 
-describe("brand layer per tenant", () => {
-  it("is on for the marketing-site tenant", () => {
-    assert.equal(brandLayerFor("statamic", {}), "mister-chameleon");
+describe("brand layer follows the applied preset", () => {
+  const card = getDesignPreset("mister-chameleon")!;
+
+  it("is on for a design the Mister Chameleon preset was applied to", () => {
+    assert.equal(brandLayerFor({ theme: "custom", brandLayer: "mister-chameleon" }), "mister-chameleon");
   });
 
-  it("is off for every other tenant", () => {
-    for (const tenant of ["nascita", "another-statamic", "mister-chameleon", "demo", "workengine"]) {
-      assert.equal(brandLayerFor(tenant, {}), null, tenant);
-    }
+  it("is off for a design without the flag, whichever tenant it belongs to", () => {
+    assert.equal(brandLayerFor({ theme: "custom" }), null);
+    assert.equal(brandLayerFor({ theme: "modern-saas" }), null);
+    assert.equal(brandLayerFor(null), null);
+    assert.equal(brandLayerFor(undefined), null);
   });
 
-  it("is off without a tenant", () => {
-    assert.equal(brandLayerFor(null, {}), null);
-    assert.equal(brandLayerFor(undefined, {}), null);
-    assert.equal(brandLayerFor("", {}), null);
+  it("is off once the operator switched to a curated theme, even if the flag lingers", () => {
+    assert.equal(brandLayerFor({ theme: "modern-saas", brandLayer: "mister-chameleon" }), null);
+    assert.equal(brandLayerFor({ theme: "default",     brandLayer: "mister-chameleon" }), null);
   });
 
-  it("follows MARKETING_SITE_TENANT when it is set", () => {
-    assert.equal(brandLayerFor("site-nl", { MARKETING_SITE_TENANT: "site-nl" }), "mister-chameleon");
-    assert.equal(brandLayerFor("statamic", { MARKETING_SITE_TENANT: "site-nl" }), null);
-    assert.equal(brandLayerFor("statamic", { MARKETING_SITE_TENANT: "  " }), "mister-chameleon");
+  it("ignores a value it does not know", () => {
+    const design = { theme: "custom", brandLayer: "something-else" } as unknown as Parameters<typeof brandLayerFor>[0];
+    assert.equal(brandLayerFor(design), null);
+  });
+
+  it("lets a contextual gallery preset decide, on or off", () => {
+    const other = getDesignPreset("aurora-purple-gold")!;
+    // A rule picked the Mister Chameleon preset on a tenant that has another look.
+    assert.equal(brandLayerFor({ theme: "modern-saas" }, card), "mister-chameleon");
+    // A rule picked another preset on a tenant that has the Mister Chameleon look.
+    assert.equal(brandLayerFor({ theme: "custom", brandLayer: "mister-chameleon" }, other), null);
+  });
+
+  it("is carried by exactly one preset in the gallery", () => {
+    const withLayer = DESIGN_PRESET_GALLERY.filter((p) => p.brandLayer).map((p) => p.id);
+    assert.deepEqual(withLayer, ["mister-chameleon"]);
+  });
+
+  it("is dropped when any look is built, so another preset takes the circles away", () => {
+    const withCircles = { theme: "custom" as const, brandLayer: "mister-chameleon" as const };
+    const other       = getDesignPreset("aurora-purple-gold")!;
+    const next        = buildCompleteLookDesign(withCircles, other.tokenOverrides, other.baseTheme);
+    assert.equal(next.brandLayer, undefined);
+    assert.equal(brandLayerFor(next), null);
+    // The ad look is built the same way and never carries the layer either.
+    assert.equal(buildAdGalleryDesign(withCircles, "aurora-purple-gold")!.brandLayer, undefined);
+  });
+
+  it("is no longer decided by a tenant id or an environment variable", () => {
+    const source = readFileSync("lib/brand/brand-layer.ts", "utf8");
+    assert.doesNotMatch(source, /MARKETING_SITE_TENANT|process\.env|tenantId/);
+    const layout = readFileSync("app/layout.tsx", "utf8");
+    assert.match(layout, /data-brand=\{brandLayerFor\(tenantSettings\?\.design, galleryCard\)/);
+  });
+
+  it("is written by the gallery apply when the preset carries one", () => {
+    const actions = readFileSync("app/admin/tenants/[tenantId]/actions.ts", "utf8");
+    assert.match(actions, /preset\.brandLayer \? \{ brandLayer: preset\.brandLayer \} : \{\}/);
   });
 });
 

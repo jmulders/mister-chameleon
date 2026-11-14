@@ -37,6 +37,7 @@ import { STATEMENT_PRESET_CARDS } from "./design-presets-statement";
 import { COLLECTION_PRESET_CARDS } from "./design-presets-collections";
 import { PRIDE_MIDNIGHT_PRESET_CARDS } from "./design-presets-pride-midnight";
 import { TEAMNL_PRESET_CARDS } from "./design-presets-teamnl";
+import { MISTER_CHAMELEON_PRESET_CARDS } from "./design-presets-mister-chameleon";
 
 export interface DesignPresetCard {
   /** Stable id (used as the gallery key + analytics). */
@@ -64,6 +65,11 @@ export interface DesignPresetCard {
    * (see render-block-html.ts). Only the "Inherit host style" preset sets this.
    */
   readonly inheritHostStyle?: boolean;
+  /**
+   * Decoration that comes with this preset (design.brandLayer on apply). Only
+   * the "Mister Chameleon" preset has one: the flat circles of its house style.
+   */
+  readonly brandLayer?: "mister-chameleon";
 }
 
 export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
@@ -298,6 +304,8 @@ export const DESIGN_PRESET_GALLERY: readonly DesignPresetCard[] = [
   ...PRIDE_MIDNIGHT_PRESET_CARDS,
   // TeamNL Oranje — official Holland Orange (Occasion & Themed).
   ...TEAMNL_PRESET_CARDS,
+  // Mister Chameleon's own house style (House style).
+  ...MISTER_CHAMELEON_PRESET_CARDS,
 ];
 
 /** Look up a preset by id. Resolves synthetic `curated:<key>` bridge ids too. */

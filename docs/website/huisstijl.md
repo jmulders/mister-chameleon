@@ -1,8 +1,9 @@
 # Huisstijl Mister Chameleon
 
 Dit bestand vat samen wat de drie huisstijldocumenten voorschrijven en laten
-zien. De merklaag van de eigen site (`app/brand/mister-chameleon.css`) volgt
-dit bestand.
+zien. De preset Mister Chameleon (`tenant/design-presets-mister-chameleon.ts`)
+en de cirkels die erbij horen (`app/brand/mister-chameleon.css`) volgen dit
+bestand.
 
 Bronnen, aangeleverd op 13-11-2026:
 
@@ -81,6 +82,36 @@ Zwart is 26, 23, 27 (`#1a171b`).
   kapitalen. Tussenkoppen vet in de kleur van de uiting, lopende tekst zwart.
 - **Veel wit.** De leaflets zijn wit, de foldermap is zwart met witte tekst en
   een lichtblauwe kop.
+
+## Het lettertype
+
+De documenten zijn gezet in Gotham, in de snedes Black, Bold, Medium en Book.
+Gotham is een betaald lettertype waar het platform geen weblicentie voor heeft.
+De preset gebruikt daarom Montserrat, het lettertype in het platform dat er
+het dichtst bij komt. Komt er een weblicentie voor Gotham, dan vervang je het
+onder Design, Typography.
+
+## De preset
+
+De huisstijl is een preset in de galerij van de admin, onder Design, Presets,
+in de groep House style. Je kiest hem daar, net als elke andere preset.
+
+| Onderdeel | Waarde | Waar het vandaan komt |
+| --- | --- | --- |
+| Achtergrond | wit | de leaflets |
+| Tekst | `#1a171b` | het zwart van de handleiding |
+| Knoppen en accent | `#672180`, paars | een van de vier kleuren van de leaflets |
+| Tweede kleur | `#cb005a`, magenta | idem |
+| Links | `#00519e` | het verloop |
+| Koppen | vette kapitalen | de leaflets |
+| Hoofdbeeld en voettekst | zwart met witte tekst | de foldermap |
+| Lijn boven de voettekst | `#009ee0` | de lichtblauwe kop van de foldermap |
+| Verlopen en schaduw | geen verloop, nauwelijks schaduw | de vlakke beeldtaal |
+
+De cirkels horen bij de preset. Wie de preset toepast krijgt ze erbij, en wie
+daarna een andere preset of een ander thema kiest is ze weer kwijt. In de
+opgeslagen instellingen is dat het veld `design.brandLayer`. Geen enkele tenant
+krijgt de cirkels nog op grond van zijn naam.
 
 ## Wat de site daarvan gebruikt
 

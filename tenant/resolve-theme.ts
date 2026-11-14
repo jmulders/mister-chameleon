@@ -630,6 +630,19 @@ export function resolveThemeForTenant(
       }
     }
 
+    // ── Heading capitals reach the blocks too ─────────────────────────────────
+    //
+    // typography.headingTransform maps to --heading-transform, which only plain
+    // h1–h6 read (theme.css). Block headings read --block-heading-transform,
+    // which the base theme pins to its own value, so a preset that sets its
+    // headings in capitals got capitals on a few headings and not on the rest.
+    // "none" is left alone: it is the default, and passing it on would switch
+    // off the capitals a Style family sets for its blocks.
+    const headingTransform = (to.typography as Readonly<Record<string, string>> | undefined)?.headingTransform;
+    if (typographyOverrideEnabled && headingTransform && headingTransform !== "none") {
+      vars["--block-heading-transform"] = headingTransform;
+    }
+
     // ── Hero gradient (applied last so it wins over the solid foreground→hero
     // mapping above). When a preset supplies color.gradientHero, the hero
     // section background becomes that gradient instead of a flat colour.

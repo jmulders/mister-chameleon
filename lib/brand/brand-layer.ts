@@ -1,28 +1,45 @@
 /**
  * lib/brand/brand-layer.ts
  *
- * Which brand layer a site carries.
+ * Which brand layer a page carries.
  *
- * The platform serves many tenants, each with its own theme. Mister Chameleon's
- * own marketing site carries one thing more: decoration taken from the logo
- * (the arc of coloured dots). That decoration lives in
- * app/brand/mister-chameleon.css and is scoped to `html[data-brand]`, so no
- * other tenant ever sees it.
+ * A gallery preset sets a tenant's colours, type and spacing. A house style can
+ * carry one thing more that tokens cannot express: shapes. The "Mister
+ * Chameleon" preset comes with the flat circles of its leaflets. They live in
+ * app/brand/mister-chameleon.css, scoped to `html[data-brand]`.
+ *
+ * The layer belongs to the preset, not to a tenant. The operator chooses the
+ * preset in the admin (Design → Presets) and the circles come with it. Any
+ * other look takes them away again.
  */
 
-export type BrandLayer = "mister-chameleon";
+import type { TenantDesignSettings } from "@/tenant/types";
 
-/** Tenant that runs the marketing site when MARKETING_SITE_TENANT is not set. */
-export const DEFAULT_MARKETING_SITE_TENANT = "statamic";
+export type BrandLayer = NonNullable<TenantDesignSettings["brandLayer"]>;
+
+const KNOWN_LAYERS: readonly BrandLayer[] = ["mister-chameleon"];
+
+function knownLayer(value: unknown): BrandLayer | null {
+  return KNOWN_LAYERS.includes(value as BrandLayer) ? (value as BrandLayer) : null;
+}
 
 /**
- * The brand layer for a tenant, or null for none. Only the marketing-site
- * tenant gets one (MARKETING_SITE_TENANT, default "statamic").
+ * The brand layer for a page, or null for none.
+ *
+ * `contextualCard` is the gallery preset a rule or a session lock selected for
+ * this request. Such a preset is a complete look, so it decides: its own layer
+ * or none at all, whatever the tenant has stored.
+ *
+ * Without one, the tenant's stored design decides. The stored flag only counts
+ * while the design is still a preset look (theme "custom"). An operator who
+ * switches to a curated theme has chosen another look, and that switch does
+ * not pass through the preset code that clears the flag.
  */
 export function brandLayerFor(
-  tenantId: string | null | undefined,
-  env: Record<string, string | undefined> = process.env,
+  design: Pick<TenantDesignSettings, "theme" | "brandLayer"> | null | undefined,
+  contextualCard?: { readonly brandLayer?: string } | null,
 ): BrandLayer | null {
-  const marketingTenant = env["MARKETING_SITE_TENANT"]?.trim() || DEFAULT_MARKETING_SITE_TENANT;
-  return tenantId && tenantId === marketingTenant ? "mister-chameleon" : null;
+  if (contextualCard) return knownLayer(contextualCard.brandLayer);
+  if (!design || design.theme !== "custom") return null;
+  return knownLayer(design.brandLayer);
 }

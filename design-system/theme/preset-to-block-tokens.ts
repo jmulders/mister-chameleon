@@ -87,6 +87,12 @@ function isLightGradient(gradient: string): boolean {
   return lum !== null && lum > 0.5;
 }
 
+/** The one colour of a "gradient" whose stops are all the same, or null. */
+function solidGradientColour(gradient: string): string | null {
+  const stops = [...gradient.matchAll(/#[0-9a-f]{3,8}\b/gi)].map((m) => m[0].toLowerCase());
+  return stops.length >= 2 && new Set(stops).size === 1 ? stops[0]! : null;
+}
+
 export function blockTokensFromOverrides(
   o: TenantTokenOverrides | null | undefined,
 ): CuratedBlockTokens {
@@ -171,6 +177,10 @@ export function blockTokensFromOverrides(
       put("heroSubtitleColor", "rgba(255,255,255,0.85)");
       put("heroGlowColor",     c.secondary);
     }
+    // A hero in one solid colour is meant to be flat. A glow would turn it back
+    // into a gradient, so the glow takes the colour of the surface and vanishes.
+    const solid = solidGradientColour(c.gradientHero);
+    if (solid) put("heroGlowColor", solid);
   }
 
   // CTA — same luminance-aware treatment for the gradient banner / split section.
