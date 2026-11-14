@@ -109,7 +109,9 @@ in de groep House style. Je kiest hem daar, net als elke andere preset.
 | Verlopen en schaduw | geen verloop, nauwelijks schaduw | de vlakke beeldtaal |
 
 De cirkels horen bij de preset. Wie de preset toepast krijgt ze erbij, en wie
-daarna een andere preset of een ander thema kiest is ze weer kwijt. In de
+daarna een andere preset of een ander thema kiest is ze weer kwijt. Een regel
+die tijdelijk een andere kleurpreset toont, naar tijdstip of doelgroep, laat
+de cirkels staan. In de
 opgeslagen instellingen is dat het veld `design.brandLayer`. Geen enkele tenant
 krijgt de cirkels nog op grond van zijn naam.
 
