@@ -8,7 +8,7 @@
  *
  * What it deliberately does not do, because the logo manual forbids it:
  *   - show the logo's dots on their own, cut off or rotated;
- *   - rebuild the dots into rows or trails.
+ *   - rebuild the dots into rows or trails of equal dots.
  *
  * Everything is scoped to html[data-brand="mister-chameleon"] (see
  * lib/brand/brand-layer.ts), so no other tenant is touched, and it only
@@ -75,35 +75,44 @@
   transform: scale(1.1);
 }
 
-/* ── 3. A group of large circles beside a call-to-action section ────────────
+/* ── 3. Bubbles that drift from the last block into the footer ──────────────
  *
- * As on the leaflets: a few flat circles of different sizes, the largest cut
- * off by the edge of the page. The group lives in the margin beside the
- * content and grows with it, so it never sits on the text. The content column
- * is at most 1100 px wide.
+ * As on the folder: circles of very different sizes, close together on the
+ * right and thinning out to the left as they drift across the dark panel. The
+ * band straddles the top edge of the footer, so the bubbles run on from the
+ * block above into the footer. They never sit on text: the part above the edge
+ * stays inside the bottom padding of the block above, and the footer gets extra
+ * room at the top for the part below it.
+ *
+ * The band scales with the screen and is anchored on the right, so a phone
+ * shows the dense end and a wide screen shows the whole drift.
+ *
+ * On 13 Nov 2026 a row of small dots along the footer was taken out again: a
+ * trail of equal dots rebuilds the logo's mark. This is not that. No two
+ * neighbours are the same size and nothing lines up.
  */
-[data-brand="mister-chameleon"] [data-part="cta-section"] {
+[data-brand="mister-chameleon"] [data-part="site-footer"] {
+  --mc-band: clamp(120px, 15vw, 240px);
   position: relative;
-  overflow: hidden;
+  z-index: 1;
+  /* 140 of the band's 240 units lie below the footer's edge. */
+  padding-top: calc(var(--mc-band) * 0.42);
 }
-[data-brand="mister-chameleon"] [data-part="cta-section"] > * {
+[data-brand="mister-chameleon"] [data-part="site-footer"] > * {
   position: relative;
   z-index: 1;
 }
-[data-brand="mister-chameleon"] [data-part="cta-section"]::after {
+[data-brand="mister-chameleon"] [data-part="site-footer"]::before {
   content: "";
   position: absolute;
   z-index: 0;
+  left: 0;
   right: 0;
-  bottom: 24px;
-  width: min(420px, calc((100vw - 1100px) / 2 + 24px));
-  aspect-ratio: 360 / 320;
-  background: url("/brand/mc-circles.svg") no-repeat right bottom / contain;
+  /* 100 of the band's 240 units lie above the footer's edge. */
+  top: calc(var(--mc-band) * -0.4167);
+  height: var(--mc-band);
+  background: url("/brand/mc-bubbels.svg") no-repeat right top / auto 100%;
   pointer-events: none;
-}
-@media (max-width: 1359px) {
-  /* Below this width the margin is too narrow for the group to read. */
-  [data-brand="mister-chameleon"] [data-part="cta-section"]::after { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

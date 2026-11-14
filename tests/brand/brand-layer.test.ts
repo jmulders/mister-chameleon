@@ -103,12 +103,66 @@ describe("the brand stylesheet", () => {
     }
   });
 
-  it("leaves the footer and the section headings alone", () => {
-    // A line of dots above the footer and a trail of dots above every heading
-    // were tried and taken out again on 13 Nov 2026. They rebuild the logo's
-    // dots into another shape, which the logo manual forbids.
-    assert.doesNotMatch(css, /site-footer/);
+  it("leaves the section headings alone", () => {
+    // A trail of dots above every heading was tried and taken out again on
+    // 13 Nov 2026. It rebuilds the logo's dots into another shape, which the
+    // logo manual forbids.
     assert.doesNotMatch(css, /section-heading/);
+  });
+
+  describe("the bubbles that drift into the footer", () => {
+    const svg     = readFileSync("public/brand/mc-bubbels.svg", "utf8");
+    const circles = [...svg.matchAll(/<circle cx="(\d+)" cy="(\d+)" r="(\d+)" fill="(#[0-9a-f]{6})"\/>/g)]
+      .map((m) => ({ x: Number(m[1]), y: Number(m[2]), r: Number(m[3]), fill: m[4]! }));
+    const [, , , width, height] = /viewBox="(\d+) (\d+) (\d+) (\d+)"/.exec(svg)!.map(Number) as [number, number, number, number, number];
+
+    it("are a drift of circles, not a trail of equal dots", () => {
+      // On 13 Nov 2026 a row of small equal dots along the footer was removed
+      // as ugly, and as another arrangement of the logo's mark. The folder's
+      // own bubbles differ a lot in size and never line up.
+      assert.ok(circles.length >= 10, "enough circles to read as a drift");
+      const radii = circles.map((c) => c.r);
+      assert.equal(new Set(radii).size, radii.length, "no two circles are the same size");
+      assert.ok(Math.max(...radii) / Math.min(...radii) >= 5, "sizes differ a lot");
+      const byX = [...circles].sort((a, b) => a.x - b.x);
+      for (let i = 2; i < byX.length; i++) {
+        const [a, b, c] = [byX[i - 2]!, byX[i - 1]!, byX[i]!];
+        assert.ok(!(a.y === b.y && b.y === c.y), "three circles in a row on one line");
+      }
+    });
+
+    it("thin out to the left, as on the folder", () => {
+      const area = (from: number, to: number) =>
+        circles.filter((c) => c.x >= from && c.x < to).reduce((sum, c) => sum + c.r * c.r, 0);
+      assert.ok(area(width / 2, width) > 4 * area(0, width / 2), "the right half carries the weight");
+    });
+
+    it("never overlap and are never cut off by the band, only by the edge of the page", () => {
+      for (const [i, a] of circles.entries()) {
+        assert.ok(a.y - a.r >= 0 && a.y + a.r <= height, `circle at ${a.x} is cut off at the top or bottom`);
+        assert.ok(a.x - a.r >= 0, `circle at ${a.x} is cut off on the left`);
+        for (const b of circles.slice(i + 1)) {
+          assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= a.r + b.r, `circles at ${a.x} and ${b.x} overlap`);
+        }
+      }
+    });
+
+    it("use the colours of the logo manual", () => {
+      const manual = ["#e64415", "#e2001a", "#cb005a", "#a1057d", "#672180", "#00519e", "#006ab3", "#008fd3", "#009ee0",
+        "#00989c", "#00957a", "#009036", "#41a62a", "#92bd11", "#bdcd00", "#d2d600", "#e5de00", "#ede100"];
+      for (const c of circles) assert.ok(manual.includes(c.fill), `${c.fill} is not in the manual`);
+    });
+
+    it("straddle the top edge of the footer and leave the footer's text clear", () => {
+      // The edge lies at 100 of the band's 240 units. The stylesheet lifts the
+      // band by that share and gives the footer the rest as extra room.
+      assert.match(css, /top:\s*calc\(var\(--mc-band\) \* -0\.4167\)/);
+      assert.match(css, /padding-top:\s*calc\(var\(--mc-band\) \* 0\.42\)/);
+      assert.ok(circles.some((c) => c.y + c.r <= 100), "a circle wholly above the edge");
+      assert.ok(circles.some((c) => c.y - c.r >= 100), "a circle wholly in the footer");
+      assert.ok(circles.some((c) => c.y - c.r < 100 && c.y + c.r > 100), "a circle across the edge");
+      assert.match(css, /pointer-events:\s*none/);
+    });
   });
 
   it("never uses the logo or its mark as decoration", () => {
