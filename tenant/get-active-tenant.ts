@@ -78,8 +78,9 @@
 
 import { headers, cookies }  from "next/headers";
 import { resolveTenant, resolveTenantOrNull, resolveTenantById } from "./resolve-tenant";
-import { getTenantByDomainCached, getTenantByIdCached, getTenantById }  from "./tenant-store";
-import { readPersistedHostTenant, persistHostTenant } from "./host-resolution-cache-store";
+import { resolveTenantByDomainCached, getTenantByIdCached, getTenantById }  from "./tenant-store";
+import { lookupPersistedHostTenant, persistHostTenant } from "./host-resolution-cache-store";
+import { isUnknownHost, rememberUnknownHost, forgetUnknownHost, mayRememberUnknown } from "./unknown-host-memo";
 import { DEV_TENANT_COOKIE, isTenantOverrideEnabled }  from "./dev-tenant-cookie";
 import { buildTenantConfigFromSettings } from "./build-tenant-config";
 import type { TenantConfig }  from "./types";
@@ -180,12 +181,19 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   // If a settings match is found, we use the stored tenantId to look up the
   // TenantConfig (so the full runtime config is returned, not just settings).
   const hostKey = host.toLowerCase();
+
+  // A hostname the database confirmed as unknown less than a minute ago goes
+  // straight to the fallback: no domain lookup, no scan of every tenant, no
+  // read of the host cache. See ./unknown-host-memo.ts.
+  if (isUnknownHost(hostKey)) return resolveTenant(host);
   // Resilient cross-instance cached lookup: once any instance resolves this host
   // the result is shared via Next's persistent data cache, so cold instances no
   // longer fall back to FALLBACK_TENANT on a transient DB miss (the nav/header
   // flip-flop).  Returns null only on a genuine, sustained miss.
-  const storedTenant = await getTenantByDomainCached(host);
+  const { tenant: storedTenant, definitive: domainLookupDefinitive } =
+    await resolveTenantByDomainCached(host);
   if (storedTenant) {
+    forgetUnknownHost(hostKey);
     // Tenant is in the store but not in the static registry (admin-onboarded).
     // Build its runtime config from the stored settings so its domain is fully
     // served on production without needing a code entry in resolve-tenant.ts.
@@ -214,7 +222,7 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   // right after a deploy), so without this a cold instance + transient store
   // miss would flip the whole site to FALLBACK_TENANT. The persisted host →
   // settings mapping is stable and always correct.
-  const persisted = await readPersistedHostTenant(hostKey);
+  const { settings: persisted, ok: persistedLookupOk } = await lookupPersistedHostTenant(hostKey);
   if (persisted) {
     const config = resolveTenantById(persisted.tenantId)
       ?? buildTenantConfigFromSettings(persisted);
@@ -242,5 +250,15 @@ export async function getActiveTenant(): Promise<TenantConfig> {
   }
 
   // ── 4. Fallback ──────────────────────────────────────────────────────────
+  // Remember the miss, but only when the database confirmed it: both lookups
+  // answered without an error and found nothing. A failed lookup says nothing
+  // about the host, and a hard-coded production host is never written off.
+  if (mayRememberUnknown({
+    domainLookupDefinitive,
+    persistedLookupOk,
+    knownProductionHost: Boolean(knownTenantId),
+  })) {
+    rememberUnknownHost(hostKey);
+  }
   return resolveTenant(host); // returns FALLBACK_TENANT for unknown hosts
 }

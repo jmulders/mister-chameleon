@@ -153,16 +153,15 @@ export async function listDomainsForTenant(
 }
 
 /**
- * Fetches a single domain row by hostname.
- *
- * Used by getTenantByDomain() in tenant-store.ts for O(1) routing lookups.
- * Returns null when no row matches (hostname not registered).
+ * Looks up a single domain row by hostname and says whether the database
+ * answered. `ok: false` means the lookup failed, which says nothing about the
+ * hostname; `ok: true` with `row: null` means it is not registered.
  *
  * @param hostname  Normalised hostname to look up.
  */
-export async function getDomainByHostname(
+export async function lookupDomainByHostname(
   hostname: string,
-): Promise<TenantDomainRow | null> {
+): Promise<{ row: TenantDomainRow | null; ok: boolean }> {
   const { data, error } = asSingle<TenantDomainRow>(
     await getDb()
       .from("tenant_domains")
@@ -173,10 +172,25 @@ export async function getDomainByHostname(
 
   if (error) {
     console.error("[domain-store] getDomainByHostname error:", error.message);
-    return null;
+    return { row: null, ok: false };
   }
 
-  return data ?? null;
+  return { row: data ?? null, ok: true };
+}
+
+/**
+ * Fetches a single domain row by hostname.
+ *
+ * Used by getTenantByDomain() in tenant-store.ts for O(1) routing lookups.
+ * Returns null when no row matches (hostname not registered) and when the
+ * lookup fails; use lookupDomainByHostname() to tell the two apart.
+ *
+ * @param hostname  Normalised hostname to look up.
+ */
+export async function getDomainByHostname(
+  hostname: string,
+): Promise<TenantDomainRow | null> {
+  return (await lookupDomainByHostname(hostname)).row;
 }
 
 /**
