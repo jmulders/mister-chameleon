@@ -115,8 +115,8 @@ function StepIndicator({ step, t }: { step: Step; t: BookDemoTranslations }) {
                 ${i < current
                   ? "bg-emerald-500 border-emerald-500 text-white"
                   : i === current
-                    ? "border-[var(--primary)] text-[var(--primary)] bg-white"
-                    : "border-gray-200 text-gray-400 bg-white"
+                    ? "border-[var(--primary)] text-[var(--primary)] bg-[var(--card-bg)]"
+                    : "border-[var(--card-border)] text-[color:var(--text-muted)] bg-[var(--card-bg)]"
                 }
               `}
             >
@@ -130,7 +130,7 @@ function StepIndicator({ step, t }: { step: Step; t: BookDemoTranslations }) {
             </div>
             <span
               className={`text-xs font-medium ${
-                i === current ? "text-[var(--primary)]" : i < current ? "text-emerald-600" : "text-gray-400"
+                i === current ? "text-[var(--primary)]" : "text-[color:var(--text-muted)]"
               }`}
             >
               {s.label}
@@ -139,7 +139,7 @@ function StepIndicator({ step, t }: { step: Step; t: BookDemoTranslations }) {
           {i < steps.length - 1 && (
             <div
               className={`flex-1 h-0.5 mx-2 mb-5 transition-all ${
-                i < current ? "bg-emerald-400" : "bg-gray-200"
+                i < current ? "bg-emerald-400" : "bg-[var(--card-border)]"
               }`}
             />
           )}
@@ -186,22 +186,22 @@ function MiniCalendar({
         <button
           onClick={prevMonth}
           disabled={isCurrentMonth}
-          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg hover:bg-[var(--bg-subtle)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           aria-label="Previous month"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-[color:var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <span className="font-semibold text-gray-900 text-base">
+        <span className="font-semibold text-[color:var(--text)] text-base">
           {t.months[viewMonth - 1]} {viewYear}
         </span>
         <button
           onClick={nextMonth}
-          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-[var(--bg-subtle)] transition-colors"
           aria-label="Next month"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-[color:var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -210,7 +210,7 @@ function MiniCalendar({
       {/* Day headers */}
       <div className="grid grid-cols-7 mb-1">
         {t.dayHeaders.map((d) => (
-          <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
+          <div key={d} className="text-center text-xs font-medium text-[color:var(--text-muted)] py-1">{d}</div>
         ))}
       </div>
 
@@ -238,10 +238,10 @@ function MiniCalendar({
               className={`
                 relative h-9 w-full rounded-lg text-sm font-medium transition-all
                 ${isSelected
-                  ? "bg-[var(--primary)] text-white shadow-sm"
+                  ? "bg-[var(--primary)] text-[color:var(--primary-text)] shadow-sm"
                   : disabled
-                    ? "text-gray-300 cursor-not-allowed"
-                    : "text-gray-700 hover:bg-[var(--primary)] hover:text-white cursor-pointer"
+                    ? "text-[color:var(--text-subtle)] cursor-not-allowed"
+                    : "text-[color:var(--text)] hover:bg-[var(--primary)] hover:text-[color:var(--primary-text)] cursor-pointer"
                 }
                 ${isToday && !isSelected ? "ring-2 ring-[var(--primary)] ring-offset-1" : ""}
               `}
@@ -252,7 +252,7 @@ function MiniCalendar({
         })}
       </div>
 
-      <p className="mt-3 text-xs text-gray-400 text-center">
+      <p className="mt-3 text-xs text-[color:var(--text-muted)] text-center">
         {t.weekendsNote}
       </p>
     </div>
@@ -306,7 +306,7 @@ function TimeSlotsGrid({
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
         <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-500">{t.loadingSlots}</p>
+        <p className="text-sm text-[color:var(--text-muted)]">{t.loadingSlots}</p>
       </div>
     );
   }
@@ -314,10 +314,10 @@ function TimeSlotsGrid({
   if (error) {
     return (
       <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-center">
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-700">{error}</p>
         <button
           onClick={() => setError(null)}
-          className="mt-2 text-xs text-red-500 underline"
+          className="mt-2 text-xs text-red-700 underline"
         >
           {t.tryAgain}
         </button>
@@ -329,15 +329,15 @@ function TimeSlotsGrid({
     return (
       <div className="text-center py-10">
         <div className="text-4xl mb-3">📅</div>
-        <p className="text-gray-600 font-medium">{t.noSlotsTitle}</p>
-        <p className="text-sm text-gray-400 mt-1">{t.noSlotsBody}</p>
+        <p className="text-[color:var(--text-muted)] font-medium">{t.noSlotsTitle}</p>
+        <p className="text-sm text-[color:var(--text-muted)] mt-1">{t.noSlotsBody}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+      <p className="text-xs font-medium text-[color:var(--text-muted)] uppercase tracking-wide mb-3">
         {t.availableTimesPrefix}{formatDisplayDate(date)}
       </p>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
@@ -348,8 +348,8 @@ function TimeSlotsGrid({
             className={`
               py-2.5 rounded-lg text-sm font-medium border transition-all text-center
               ${selected === slot
-                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm"
-                : "bg-white text-gray-700 border-gray-200 hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                ? "bg-[var(--primary)] text-[color:var(--primary-text)] border-[var(--primary)] shadow-sm"
+                : "bg-[var(--card-bg)] text-[color:var(--text)] border-[var(--card-border)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
               }
             `}
           >
@@ -376,18 +376,25 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="block text-sm font-medium text-[color:var(--text)] mb-1">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className={`${ERROR_TEXT} ml-0.5`}>*</span>}
       </label>
       {children}
-      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-[color:var(--text-muted)]">{hint}</p>}
     </div>
   );
 }
 
+/**
+ * Red for text that sits on the card itself. Mixed half and half with the
+ * theme's text colour, so it is dark red on a light theme and light red on a
+ * dark one. There is no danger colour in the theme tokens.
+ */
+const ERROR_TEXT = "text-[color:color-mix(in_srgb,#dc2626_50%,var(--text))]";
+
 const inputClass =
-  "w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 " +
+  "w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3.5 py-2.5 text-sm text-[color:var(--text)] placeholder:text-[color:var(--text-muted)] " +
   "focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,22 +486,22 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
   return (
     <div className="mx-auto max-w-2xl">
       {/* Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] shadow-sm overflow-hidden">
 
         {/* Header band */}
-        <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-8 pt-8 pb-6">
+        <div className="bg-[var(--bg-inverse)] px-8 pt-8 pb-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text-inverse)_12%,transparent)] flex items-center justify-center">
+              <svg className="w-5 h-5 text-[color:var(--text-inverse)]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
               </svg>
             </div>
             <div>
-              <h2 className="text-white font-bold text-lg leading-tight">{t.cardTitle}</h2>
-              <p className="text-white/60 text-xs">{t.cardSubtitle}</p>
+              <h2 className="text-[color:var(--text-inverse)] font-bold text-lg leading-tight">{t.cardTitle}</h2>
+              <p className="text-[color:color-mix(in_srgb,var(--text-inverse)_72%,transparent)] text-xs">{t.cardSubtitle}</p>
             </div>
           </div>
-          <p className="text-white/70 text-sm leading-relaxed">
+          <p className="text-[color:color-mix(in_srgb,var(--text-inverse)_72%,transparent)] text-sm leading-relaxed">
             {t.cardDescription}
           </p>
         </div>
@@ -506,7 +513,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
           {/* ── Step 1: Date ────────────────────────────────────────────── */}
           {step === "date" && (
             <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-6">{t.chooseDateTitle}</h3>
+              <h3 className="text-base font-semibold text-[color:var(--text)] mb-6">{t.chooseDateTitle}</h3>
               <MiniCalendar
                 selected={booking.date}
                 onSelect={handleDateSelect}
@@ -520,7 +527,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
             <div>
               <button
                 onClick={() => setStep("date")}
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors"
+                className="flex items-center gap-1 text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text)] mb-5 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -528,8 +535,8 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                 {t.backToCalendar}
               </button>
 
-              <h3 className="text-base font-semibold text-gray-900 mb-2">{t.chooseTimeTitle}</h3>
-              <p className="text-sm text-gray-500 mb-5">
+              <h3 className="text-base font-semibold text-[color:var(--text)] mb-2">{t.chooseTimeTitle}</h3>
+              <p className="text-sm text-[color:var(--text-muted)] mb-5">
                 {formatDisplayDate(booking.date)} · {t.timezone}
               </p>
 
@@ -546,15 +553,15 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
           {step === "details" && booking.date && booking.time && (
             <div>
               {/* Booking summary pill */}
-              <div className="flex items-center gap-2 mb-6 p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-2 mb-6 p-3 bg-[var(--bg-subtle)] rounded-xl border border-[var(--card-border)]">
                 <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center flex-shrink-0">
                   <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{formatDisplayDate(booking.date)}</p>
-                  <p className="text-xs text-gray-500">{formatTime12h(booking.time)} · {t.duration}</p>
+                  <p className="text-sm font-semibold text-[color:var(--text)] truncate">{formatDisplayDate(booking.date)}</p>
+                  <p className="text-xs text-[color:var(--text-muted)]">{formatTime12h(booking.time)} · {t.duration}</p>
                 </div>
                 <button
                   onClick={() => setStep("time")}
@@ -564,7 +571,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                 </button>
               </div>
 
-              <h3 className="text-base font-semibold text-gray-900 mb-5">{t.yourDetailsTitle}</h3>
+              <h3 className="text-base font-semibold text-[color:var(--text)] mb-5">{t.yourDetailsTitle}</h3>
 
               <form onSubmit={handleSubmit} noValidate className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -577,7 +584,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                       className={`${inputClass} ${formErrors.name ? "ring-2 ring-red-300 border-red-300" : ""}`}
                       autoComplete="name"
                     />
-                    {formErrors.name && <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
+                    {formErrors.name && <p className={`mt-1 text-xs ${ERROR_TEXT}`}>{formErrors.name}</p>}
                   </Field>
 
                   <Field label={t.labelWorkEmail} required>
@@ -589,7 +596,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                       className={`${inputClass} ${formErrors.email ? "ring-2 ring-red-300 border-red-300" : ""}`}
                       autoComplete="email"
                     />
-                    {formErrors.email && <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>}
+                    {formErrors.email && <p className={`mt-1 text-xs ${ERROR_TEXT}`}>{formErrors.email}</p>}
                   </Field>
                 </div>
 
@@ -629,18 +636,18 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
 
                 {submitError && (
                   <div className="rounded-lg bg-red-50 border border-red-100 p-3">
-                    <p className="text-sm text-red-600">{submitError}</p>
+                    <p className="text-sm text-red-700">{submitError}</p>
                   </div>
                 )}
 
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-3 px-6 rounded-xl bg-[var(--primary)] text-white font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-3 px-6 rounded-xl bg-[var(--primary)] text-[color:var(--primary-text)] font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[color-mix(in_srgb,var(--primary-text)_40%,transparent)] border-t-[var(--primary-text)] rounded-full animate-spin" />
                       {t.submittingLabel}
                     </>
                   ) : (
@@ -653,7 +660,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                   )}
                 </button>
 
-                <p className="text-center text-xs text-gray-400">
+                <p className="text-center text-xs text-[color:var(--text-muted)]">
                   {t.submitNote}
                 </p>
               </form>
@@ -672,47 +679,47 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                 </div>
               </div>
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{t.confirmedTitle}</h3>
-              <p className="text-gray-500 text-sm mb-8">
+              <h3 className="text-xl font-bold text-[color:var(--text)] mb-2">{t.confirmedTitle}</h3>
+              <p className="text-[color:var(--text-muted)] text-sm mb-8">
                 {t.confirmedBody}{" "}
-                <span className="font-medium text-gray-700">{booking.email}</span>.
+                <span className="font-medium text-[color:var(--text)]">{booking.email}</span>.
               </p>
 
               {/* Booking summary card */}
-              <div className="bg-gray-50 rounded-xl border border-gray-100 p-5 mb-8 text-left">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">{t.confirmedBookingLabel}</p>
+              <div className="bg-[var(--bg-subtle)] rounded-xl border border-[var(--card-border)] p-5 mb-8 text-left">
+                <p className="text-xs text-[color:var(--text-muted)] font-medium uppercase tracking-wide mb-3">{t.confirmedBookingLabel}</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-[color:var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                     </svg>
-                    <span className="text-sm text-gray-700 font-medium">{formatDisplayDate(booking.date)}</span>
+                    <span className="text-sm text-[color:var(--text)] font-medium">{formatDisplayDate(booking.date)}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-[color:var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-sm text-gray-700">{formatTime12h(booking.time)} · {t.duration} · {t.timezone}</span>
+                    <span className="text-sm text-[color:var(--text)]">{formatTime12h(booking.time)} · {t.duration} · {t.timezone}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-[color:var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                     </svg>
-                    <span className="text-sm text-gray-700">{booking.name}{booking.company ? ` · ${booking.company}` : ""}</span>
+                    <span className="text-sm text-[color:var(--text)]">{booking.name}{booking.company ? ` · ${booking.company}` : ""}</span>
                   </div>
                 </div>
               </div>
 
               {/* What to expect */}
               <div className="text-left mb-8">
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">{t.confirmedExpectLabel}</p>
+                <p className="text-xs text-[color:var(--text-muted)] font-medium uppercase tracking-wide mb-3">{t.confirmedExpectLabel}</p>
                 <ul className="space-y-2">
                   {t.confirmedExpectItems.map((item) => (
                     <li key={item} className="flex items-start gap-2">
                       <svg className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
-                      <span className="text-sm text-gray-600">{item}</span>
+                      <span className="text-sm text-[color:var(--text-muted)]">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -720,7 +727,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
 
               <button
                 onClick={resetBooking}
-                className="text-sm text-gray-500 hover:text-gray-800 underline transition-colors"
+                className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text)] underline transition-colors"
               >
                 {t.bookAnother}
               </button>

@@ -221,14 +221,14 @@ export default async function ContactPage({ searchParams }: PageProps) {
   // Shown when STATAMIC_CMS_PATH is not configured or contact.md has no
   // page_blocks.  Preserves the classic hero + ContactForm layout.
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[var(--bg)]">
 
       {/* ── HEADING ──────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-6 pb-12 pt-20 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-neutral-900 sm:text-5xl">
+        <h1 className="text-4xl font-bold tracking-tight text-[color:var(--text)] sm:text-5xl">
           Neem contact op
         </h1>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-neutral-600">
+        <p className="mx-auto mt-5 max-w-xl text-lg text-[color:var(--text-muted)]">
           Een vraag over het product, de prijzen of een demo?
           Je krijgt binnen één werkdag antwoord.
         </p>
@@ -240,49 +240,49 @@ export default async function ContactPage({ searchParams }: PageProps) {
 
           {/* Left: the form */}
           <div>
-            <h2 className="mb-6 text-lg font-semibold text-neutral-900">Stuur ons een bericht</h2>
+            <h2 className="mb-6 text-lg font-semibold text-[color:var(--text)]">Stuur ons een bericht</h2>
             <ContactForm />
           </div>
 
           {/* Right: other ways to reach us */}
           <div className="space-y-8">
             <div>
-              <h2 className="mb-4 text-lg font-semibold text-neutral-900">Liever mailen?</h2>
+              <h2 className="mb-4 text-lg font-semibold text-[color:var(--text)]">Liever mailen?</h2>
               <a
                 href={`mailto:${PLATFORM_EMAIL}`}
-                className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700 transition-colors hover:border-neutral-400"
+                className="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--bg-subtle)] px-4 py-3 text-sm text-[color:var(--text)] transition-colors hover:border-[var(--text-muted)]"
               >
                 <span aria-hidden className="text-xl">✉️</span>
                 {PLATFORM_EMAIL}
               </a>
             </div>
 
-            <hr className="border-neutral-200" />
+            <hr className="border-[var(--card-border)]" />
 
             <div>
-              <h2 className="mb-2 text-lg font-semibold text-neutral-900">Zie het liever werken?</h2>
-              <p className="mb-4 text-sm text-neutral-600">
+              <h2 className="mb-2 text-lg font-semibold text-[color:var(--text)]">Zie het liever werken?</h2>
+              <p className="mb-4 text-sm text-[color:var(--text-muted)]">
                 In een demo van dertig minuten laten we zien hoe jouw site eruitziet
                 voor verschillende bezoekers.
               </p>
               <Link
                 href="/demo"
-                className="inline-flex items-center gap-2 rounded-xl border border-neutral-900 px-5 py-2.5 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-white"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--text)] px-5 py-2.5 text-sm font-semibold text-[color:var(--text)] transition-colors hover:bg-[var(--bg-inverse)] hover:text-[color:var(--text-inverse)]"
               >
                 Plan een demo
               </Link>
             </div>
 
-            <hr className="border-neutral-200" />
+            <hr className="border-[var(--card-border)]" />
 
             <div>
-              <h2 className="mb-2 text-lg font-semibold text-neutral-900">Een vraag over de prijs?</h2>
-              <p className="mb-4 text-sm text-neutral-600">
+              <h2 className="mb-2 text-lg font-semibold text-[color:var(--text)]">Een vraag over de prijs?</h2>
+              <p className="mb-4 text-sm text-[color:var(--text-muted)]">
                 De pakketten en wat je ervoor krijgt staan op een rij.
               </p>
               <Link
                 href="/prijzen"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-900 hover:underline"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[color:var(--text)] hover:underline"
               >
                 Bekijk de prijzen
               </Link>
