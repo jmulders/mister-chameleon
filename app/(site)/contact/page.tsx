@@ -5,49 +5,56 @@
  * searchParams (including _mc_draft for Statamic Live Preview) and is
  * compatible with Next.js App Router metadata exports.
  *
- * Only the form is interactive — ContactForm handles state and the
- * POST to /api/contact.  Keeping the form as a client island avoids
- * making the entire page a client bundle.
- *
  * ─── Three rendering paths ────────────────────────────────────────────────────
  *
- *  1. Statamic Live Preview draft  (_mc_draft=TOKEN, development only)
+ *  1. Statamic Live Preview draft  (_mc_draft=TOKEN)
  *     Builds PageData from the unsaved in-memory draft so every CP change
  *     (add/toggle/reorder blocks) is visible live in the preview iframe.
  *
- *  2. CMS path  (Statamic file on disk, STATAMIC_CMS_PATH is set)
- *     Reads contact.md from the Statamic CMS directory, maps page_blocks to
- *     sections, and renders via TemplateRenderer — same result as path 1 after
- *     saving.  This makes localhost:3000/contact match the CP Live Preview.
+ *  2. CMS path  (the tenant's CMS has a contact page)
+ *     Asks the tenant's CMS provider for the page with slug "contact" and
+ *     renders its blocks via TemplateRenderer: the same provider path as
+ *     app/(site)/[slug]/page.tsx. This route used to read contact.md from disk
+ *     (STATAMIC_CMS_PATH) instead. Production reaches the CMS over its REST
+ *     API, so the published page was never shown there.
  *
- *  3. Hardcoded fallback
- *     Shown when no STATAMIC_CMS_PATH is set or contact.md has no CMS blocks.
- *     Keeps the classic hero + ContactForm layout.
+ *  3. Built-in page
+ *     Shown when the CMS has no contact page, the page has no blocks, the CMS
+ *     cannot be reached, or the tenant runs on the mock CMS. Keeps the classic
+ *     heading + ContactForm layout.
+ *
+ * ─── The form ─────────────────────────────────────────────────────────────────
+ *
+ *  The built-in page uses ContactForm (POST /api/contact). On the CMS path the
+ *  form is a form section block: FormSectionBlock renders the platform contact
+ *  form and posts to /api/forms/contact. A CMS page without a usable form
+ *  section gets that form added, see withContactForm().
  */
 
 export const dynamic = "force-dynamic";
 
-import fs             from "fs";
-import * as nodePath  from "path";
-import { parse as parseYaml } from "yaml";
+import { cache }       from "react";
 import Link            from "next/link";
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
 import { ContactForm } from "@/components/contact/ContactForm";
 import { getDraft }    from "@/lib/statamic-draft-store";
+import { createCMSProvider } from "@/cms";
 import type { PageData, CmsPageContextConfig } from "@/cms/types";
 import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
-import { isContextSlotBlockType } from "@/cms/mappers/statamic/context-slot-block";
 import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
+import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
+import { PageTitleHeader }  from "@/components/site/PageTitleHeader";
 import { getActiveTenant, getTenantById } from "@/tenant/server";
 import { resolveSlugPageConfig } from "@/lib/cms-page-decision";
-import { headers } from "next/headers";
+import { loadCmsContactPage, withContactForm } from "@/lib/contact-page";
+import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
+import { pageNeedsTitleHeading } from "@/lib/page-title";
 import { PLATFORM_EMAIL } from "@/lib/platform-contact";
 
-export const metadata: Metadata = {
-  title:       "Contact | Mister Chameleon",
-  description: "Stel je vraag over het product, de prijzen of een demo. Je krijgt binnen één werkdag antwoord.",
-};
+const FALLBACK_TITLE       = "Contact | Mister Chameleon";
+const FALLBACK_DESCRIPTION = "Stel je vraag over het product, de prijzen of een demo. Je krijgt binnen één werkdag antwoord.";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -58,81 +65,55 @@ type PageProps = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Reads contact.md from the Statamic CMS directory (STATAMIC_CMS_PATH) and
- * maps it to a minimal PageData.  Returns null when STATAMIC_CMS_PATH is not
- * set, the file doesn't exist, or parsing fails.
+ * The tenant's CMS contact page, fetched once per request and shared between
+ * the page component and generateMetadata. Null means: show the built-in page.
  *
- * Mirrors the readStatamicPageFromDisk() helper in [slug]/page.tsx.
+ * A tenant on the mock CMS keeps the built-in page. The mock provider does
+ * answer for "contact", but with the demo content of a made-up company.
  */
-function readContactPageFromDisk(): PageData | null {
-  try {
-    const cmsFsPath = process.env.STATAMIC_CMS_PATH;
-    if (!cmsFsPath) return null;
+const getCmsContactPage = cache(async (): Promise<PageData | null> => {
+  const { tenantId } = await getActiveTenant();
+  const tenant       = await getTenantById(tenantId ?? "");
+  if (tenant?.cms?.provider === "mock") return null;
 
-    const absRoot  = nodePath.resolve(process.cwd(), cmsFsPath);
-    const filePath = nodePath.join(absRoot, "content", "collections", "pages", "contact.md");
+  const cookieStore = await cookies();
+  const localeRaw   = cookieStore.get(LOCALE_COOKIE)?.value ?? "";
+  const locale      = isSupportedLocale(localeRaw) ? localeRaw : DEFAULT_LOCALE;
 
-    if (!fs.existsSync(filePath)) return null;
+  const page = await loadCmsContactPage(createCMSProvider(tenant?.cms, tenantId), locale);
+  return page ? withContactForm(page) : null;
+});
 
-    const raw   = fs.readFileSync(filePath, "utf-8");
-    const match = raw.match(/^---\n([\s\S]*?)\n---/);
-    if (!match) return null;
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getCmsContactPage();
+  if (!page) return { title: FALLBACK_TITLE, description: FALLBACK_DESCRIPTION };
 
-    const data       = parseYaml(match[1]) as Record<string, unknown>;
-    const pageBlocks = Array.isArray(data.page_blocks)
-      ? (data.page_blocks as Array<Record<string, unknown>>)
-      : [];
-
-    // Only render via TemplateRenderer when there are CMS-authored blocks.
-    if (pageBlocks.length === 0) return null;
-
-    // Build contextConfig from context_slot blocks.
-    const contextConfigObj: Record<string, { fallbackVariantKey: string }> = {};
-    for (const block of pageBlocks) {
-      if (
-        isContextSlotBlockType(block.type) &&
-        block.is_active !== false &&
-        block.enabled !== false
-      ) {
-        const slotType   = block.slot_type as string | undefined;
-        const variantKey = block.variant_key as string | undefined;
-        if (slotType === "hero" || slotType === "proof" || slotType === "cta") {
-          contextConfigObj[slotType] = {
-            fallbackVariantKey: variantKey ?? `${slotType}_default`,
-          };
-        }
-      }
-    }
-
-    const hasSlots = Object.keys(contextConfigObj).length > 0;
-
-    return {
-      id:             "contact",
-      title:          typeof data.title          === "string" ? data.title          : "Contact",
-      slug:           "contact",
-      seoDescription: typeof data.seo_description === "string" ? data.seo_description : undefined,
-      sections:       mapStatamicPageBlocksToSections(pageBlocks),
-      templateKey:    hasSlots ? "marketing-page" : "article-page",
-      contextConfig:  hasSlots ? (contextConfigObj as CmsPageContextConfig) : undefined,
-    };
-  } catch {
-    return null;
-  }
+  // What the editor filled in wins. An empty field keeps the built-in text.
+  return {
+    title:       page.seoTitle       ?? FALLBACK_TITLE,
+    description: page.seoDescription ?? FALLBACK_DESCRIPTION,
+    robots:      (page.robots?.noindex || page.robots?.nofollow)
+                   ? { index: !page.robots.noindex, follow: !page.robots.nofollow }
+                   : undefined,
+    alternates:  page.canonicalUrl ? { canonical: page.canonicalUrl } : undefined,
+  };
 }
 
 /**
  * Shared helper: maps a PageData + resolves slug page config, returns JSX
  * rendered by TemplateRenderer.  Used by both the draft path and the CMS path.
+ * Mirrors the render steps of app/(site)/[slug]/page.tsx.
  */
 async function renderCmsContactPage(page: PageData) {
   const pageConfig   = mapPageDataToPageConfig(page);
   const { tenantId } = await getActiveTenant();
   const tenant       = await getTenantById(tenantId ?? "");
   const headerStore  = await headers();
+  const proto        = headerStore.get("x-forwarded-proto") ?? "http";
 
   const { pageConfig: resolvedPageConfig, tokenContext } = await resolveSlugPageConfig(
     new Request(
-      `http://${headerStore.get("host") ?? "localhost"}/contact`,
+      `${proto}://${headerStore.get("host") ?? "localhost"}/contact`,
       { headers: headerStore },
     ),
     headerStore.get("cookie"),
@@ -142,10 +123,21 @@ async function renderCmsContactPage(page: PageData) {
     tenantId ?? "",
   );
 
+  // Blocks that list a collection (news, related content) arrive with no
+  // items. Fill them the way the [slug] route does.
+  const finalPageConfig = await resolvePageConfigItems(
+    createCMSProvider(tenant?.cms, tenantId),
+    resolvedPageConfig,
+  );
+
   return (
     <main>
+      {/* A page without a hero has no h1 of its own: its title becomes the heading. */}
+      {pageNeedsTitleHeading(finalPageConfig.contextSlots, finalPageConfig.contentBlocks) && page.title && (
+        <PageTitleHeader title={page.title} />
+      )}
       <TemplateRenderer
-        pageConfig={resolvedPageConfig}
+        pageConfig={finalPageConfig}
         tokenContext={tokenContext ?? undefined}
       />
     </main>
@@ -205,21 +197,19 @@ export default async function ContactPage({ searchParams }: PageProps) {
     }
   }
 
-  // ── Path 2: CMS path — read saved Statamic content from disk ───────────────
+  // ── Path 2: CMS path — the tenant's own contact page ───────────────────────
   //
-  // Reads contact.md from the Statamic CMS directory so that
-  // localhost:3000/contact shows the same content as the CP Live Preview
-  // after saving.  Falls through to the hardcoded fallback when no CMS blocks
-  // are present (e.g. STATAMIC_CMS_PATH not set, or empty page_blocks).
-  const cmsPage = readContactPageFromDisk();
+  // Same provider the [slug] route uses, so this works wherever the CMS is
+  // reached: over its REST API in production, from disk in local development.
+  const cmsPage = await getCmsContactPage();
   if (cmsPage) {
     return renderCmsContactPage(cmsPage);
   }
 
-  // ── Path 3: Hardcoded fallback ──────────────────────────────────────────────
+  // ── Path 3: Built-in page ───────────────────────────────────────────────────
   //
-  // Shown when STATAMIC_CMS_PATH is not configured or contact.md has no
-  // page_blocks.  Preserves the classic hero + ContactForm layout.
+  // Shown when the CMS has no contact page or did not answer.
+  // Preserves the classic heading + ContactForm layout.
   return (
     <div className="min-h-screen bg-[var(--bg)]">
 
