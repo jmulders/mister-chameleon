@@ -27,10 +27,17 @@ import { SHOP_TEXTS }           from "@/lib/site-texts/shop";
 
 // ── Shared colours ────────────────────────────────────────────────────────────
 
+// Colours come from the tenant theme, as on the page itself.
+//   BTN_PRIMARY    sits on the inverse (featured) card: the page's own surface colours.
+//   BTN_SECONDARY  sits on a normal card: the inverse pair, which keeps its
+//                  contrast in every theme. The theme's own button colours
+//                  measured 4.1 : 1 on the light preset, under the 4.5 for text.
+const BTN_BASE =
+  "block w-full rounded-xl py-2.5 text-center text-sm font-semibold transition-opacity hover:opacity-90";
 const BTN_PRIMARY =
-  "block w-full rounded-xl py-2.5 text-center text-sm font-semibold transition-colors bg-white text-neutral-900 hover:bg-neutral-100";
+  `${BTN_BASE} bg-[var(--text-inverse)] text-[color:var(--bg-inverse)]`;
 const BTN_SECONDARY =
-  "block w-full rounded-xl py-2.5 text-center text-sm font-semibold transition-colors bg-neutral-900 text-white hover:bg-neutral-700";
+  `${BTN_BASE} bg-[var(--bg-inverse)] text-[color:var(--text-inverse)]`;
 
 // ── Plan price catalogue (mirrors CartSummaryBlock + billing/plans.ts) ─────────
 //
@@ -103,7 +110,7 @@ export function CreditCartButton({
   const router              = useRouter();
 
   const OUTLINE =
-    "block w-full rounded-xl border border-neutral-900 py-2.5 text-center text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-white";
+    "block w-full rounded-xl border border-[var(--text)] py-2.5 text-center text-sm font-semibold text-[color:var(--text)] transition-colors hover:bg-[var(--text)] hover:text-[color:var(--bg)]";
 
   const className =
     style === "primary"   ? BTN_PRIMARY   :
