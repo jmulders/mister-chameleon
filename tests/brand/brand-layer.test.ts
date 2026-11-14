@@ -34,12 +34,19 @@ describe("brand layer follows the applied preset", () => {
     assert.equal(brandLayerFor(design), null);
   });
 
-  it("lets a contextual gallery preset decide, on or off", () => {
-    const other = getDesignPreset("aurora-purple-gold")!;
+  it("is switched on by a contextual gallery preset that carries one", () => {
     // A rule picked the Mister Chameleon preset on a tenant that has another look.
     assert.equal(brandLayerFor({ theme: "modern-saas" }, card), "mister-chameleon");
-    // A rule picked another preset on a tenant that has the Mister Chameleon look.
-    assert.equal(brandLayerFor({ theme: "custom", brandLayer: "mister-chameleon" }, other), null);
+  });
+
+  it("survives a contextual colour preset, so a site that changes colour keeps its shapes", () => {
+    // The live site switches gallery presets by time of day. On 14 Nov 2026 the
+    // circles vanished whenever such a rule had fired.
+    const other = getDesignPreset("aurora-purple-gold")!;
+    assert.equal(brandLayerFor({ theme: "custom", brandLayer: "mister-chameleon" }, other), "mister-chameleon");
+    // A contextual preset does not switch it on for a tenant that never had it.
+    assert.equal(brandLayerFor({ theme: "custom" }, other), null);
+    assert.equal(brandLayerFor({ theme: "modern-saas", brandLayer: "mister-chameleon" }, other), null);
   });
 
   it("is carried by exactly one preset in the gallery", () => {

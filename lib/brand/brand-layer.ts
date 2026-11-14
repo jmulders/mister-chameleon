@@ -26,20 +26,25 @@ function knownLayer(value: unknown): BrandLayer | null {
 /**
  * The brand layer for a page, or null for none.
  *
- * `contextualCard` is the gallery preset a rule or a session lock selected for
- * this request. Such a preset is a complete look, so it decides: its own layer
- * or none at all, whatever the tenant has stored.
+ * The tenant's stored design decides: it is the look the operator applied in
+ * the admin. The stored flag only counts while that design is still a preset
+ * look (theme "custom"). An operator who switches to a curated theme has
+ * chosen another look, and that switch does not pass through the preset code
+ * that clears the flag.
  *
- * Without one, the tenant's stored design decides. The stored flag only counts
- * while the design is still a preset look (theme "custom"). An operator who
- * switches to a curated theme has chosen another look, and that switch does
- * not pass through the preset code that clears the flag.
+ * `contextualCard` is the gallery preset a rule or a session lock selected for
+ * this request. It can add its own layer, but it never takes the tenant's
+ * away. A site that changes colour by time of day or audience keeps its house
+ * shapes through every one of those colours. The first version let the
+ * contextual preset decide alone, and on 14 Nov 2026 the live site lost its
+ * circles for as long as a rule had picked a colour preset.
  */
 export function brandLayerFor(
   design: Pick<TenantDesignSettings, "theme" | "brandLayer"> | null | undefined,
   contextualCard?: { readonly brandLayer?: string } | null,
 ): BrandLayer | null {
-  if (contextualCard) return knownLayer(contextualCard.brandLayer);
+  const fromRule = knownLayer(contextualCard?.brandLayer);
+  if (fromRule) return fromRule;
   if (!design || design.theme !== "custom") return null;
   return knownLayer(design.brandLayer);
 }
