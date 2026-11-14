@@ -26,7 +26,7 @@ Het publieke domein draait via het platform; content komt uit Statamic. Formulie
 |---|---|
 | Lokaal | `.env.local`; cron-secrets zelf zetten |
 | Staging | Vercel preview/branch; zet `MC_FALLBACK_TENANT_ID` zodat `*.vercel.app` naar een tenant resolvet |
-| Productie | Vercel production; `CRON_SECRET` wordt automatisch geïnjecteerd voor cron-routes |
+| Productie | Vercel production; `CRON_SECRET` zet je zelf als env var, Vercel stuurt hem daarna mee met elke cron-aanroep |
 
 ---
 
@@ -110,7 +110,7 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 ### Cron / jobs
 | Variabele | Waar | Verplicht | Waarvoor |
 |---|---|---|---|
-| `CRON_SECRET` | Vercel | ja (prod) | Gate op alle cron-endpoints (ad-sync 03:30, purges 03:00, billing-renewal, keep-warm). **Secret** |
+| `CRON_SECRET` | Vercel | ja (prod) | Gate op alle cron-endpoints. Eén cron in `vercel.json` (`/api/cron/daily`, 03:00 UTC) draait alle jobs na elkaar. Zonder deze variabele antwoordt elke cron 401 en draait er niets. **Secret** |
 | `KEEP_WARM_URLS` | Vercel | nee | URL's voor de keep-warm-cron |
 
 ### Lead-base & webhooks
@@ -241,6 +241,7 @@ Resolutie: tenant → platform_settings → env.
 
 **Nog open:**
 
+- **De dagelijkse cron deed op productie niets** (vastgesteld 14-11-2026): 1.164 bezoekersprofielen stonden over hun bewaartermijn, de oudste sinds 26 september, en de ad-sync liep voor het laatst op 25 augustus. De oorzaak is nog niet vastgesteld, die staat in het Vercel-log van de cron. Admin → Platform → System toont sindsdien per nacht of de cron gelopen heeft en wat elke job deed. Staat daar "No run on record" of "too long ago": controleer in Vercel (Schedules → Cron Jobs) of de cron bestaat en aan staat, en lees View Logs. Een 401 betekent dat `CRON_SECRET` niet voor Production gezet is (Vercel maakt hem niet zelf aan, en een nieuwe waarde werkt pas na een redeploy). Geen logregel betekent dat de cron de app niet bereikt, bijvoorbeeld door een firewallregel die `/api/cron/` challenget.
 - `/api/cron/billing-renewal` en `/api/cron/keep-warm` bestaan als routes maar staan **niet in `vercel.json`** → draaien niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen.
 - `NEXTAUTH_URL` wordt alleen als fallback-base-URL gelezen; er is geen NextAuth-implementatie (admin-auth is een eigen JWT).
 - `.nvmrc` zegt Node 22, CI draait Node 20.

@@ -89,7 +89,7 @@ const ENV_VAR_MANIFEST: EnvVarEntry[] = [
   { key: "STATAMIC_API_KEY",           required: false, group: "Statamic CMS", description: "API token AND shared secret for the CMS write route, must equal MISTER_CHAMELEON_CMS_WRITE_TOKEN in the Statamic app's .env", howToGet: "Generate: openssl rand -base64 32, set the same value in Ploi", canUseDb: true },
   { key: "STATAMIC_WEBHOOK_SECRET",    required: false, group: "Statamic CMS", description: "x-statamic-secret for the cache-flush webhook",   howToGet: "Generate: openssl rand -base64 32, set as MISTER_CHAMELEON_WEBHOOK_SECRET in Ploi", canUseDb: true },
   // Cron
-  { key: "CRON_SECRET",                required: true,  group: "Cron",        description: "Gates every /api/cron/* endpoint",       howToGet: "Auto-injected by Vercel in production; set manually for local/staging" },
+  { key: "CRON_SECRET",                required: true,  group: "Cron",        description: "Gates every /api/cron/* endpoint",       howToGet: "Not created by Vercel: add it yourself as a Production env var (random, 16+ letters and digits) and redeploy. Vercel then sends it with every cron call" },
   // Lead base & webhooks
   { key: "LEAD_INBOUND_SECRET",        required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/inbound-form (Statamic form bridge)", howToGet: "Generate: openssl rand -base64 32, same value in the Statamic app's .env" },
   { key: "LEAD_SUPPRESSION_SECRET",    required: false, group: "Lead base",   description: "x-mc-secret for /api/webhooks/suppression (ESP unsubscribes)",     howToGet: "Generate: openssl rand -base64 32, give it to your ESP" },

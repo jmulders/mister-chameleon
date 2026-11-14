@@ -3,6 +3,7 @@
  *
  * System Operations — the single place to run, trigger, or understand:
  *
+ *   • Daily cron      — when it last ran and what each job did
  *   • Backup          — interactive create + version history with rollback
  *   • Build pipeline  — production deploy, hotfix, rollback flows
  *   • Environments    — what each environment is and how to deploy to it
@@ -23,6 +24,8 @@ import { CodeBlock }           from "./_components/CodeBlock";
 import { WorkflowButton }      from "./_components/WorkflowButton";
 import { RollbackTriggerButton } from "./_components/RollbackTriggerButton";
 import { GitCommitPanel }      from "./_components/GitCommitPanel";
+import { DailyCronPanel }      from "./_components/DailyCronPanel";
+import { readDailyRun }        from "@/lib/cron/daily-run-store";
 import type { BackupMeta }     from "@/app/api/admin/backup/route";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +104,7 @@ async function loadBackups(): Promise<BackupMeta[]> {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function SystemPage() {
-  const initialBackups = await loadBackups();
+  const [initialBackups, dailyRun] = await Promise.all([loadBackups(), readDailyRun()]);
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl space-y-8">
@@ -120,6 +123,11 @@ export default async function SystemPage() {
           <GitCommitPanel />
         </Section>
       )}
+
+      {/* ── DAILY CRON ──────────────────────────────────────────────────────── */}
+      <Section title="Daily cron">
+        <DailyCronPanel record={dailyRun} nowMs={Date.now()} />
+      </Section>
 
       {/* ── PART 1: BACKUP ──────────────────────────────────────────────────── */}
       <Section title="Backup">

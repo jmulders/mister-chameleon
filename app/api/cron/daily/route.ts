@@ -5,36 +5,33 @@
  *
  * Vercel Hobby staat maar een handvol cron-jobs toe. We hadden er vier nodig
  * (billing-renewal, de twee AVG-purges, ad-sync) — over de limiet. In plaats van
- * er een te schrappen, roept deze ene dagelijkse cron ze allemaal op volgorde aan
- * via een interne, geauthenticeerde fetch. Zo staat er in vercel.json één cron,
- * ruim binnen de limiet, en blijven de losse endpoints los aanroepbaar (de
- * "Run"-knop in Vercel, of handmatig).
+ * er een te schrappen, roept deze ene dagelijkse cron ze allemaal op volgorde aan.
+ * Zo staat er in vercel.json één cron, ruim binnen de limiet, en blijven de
+ * losse endpoints los aanroepbaar (de "Run"-knop in Vercel, of handmatig).
+ *
+ * De jobs draaien in deze functie zelf (lib/cron/daily-jobs.ts), niet via een
+ * fetch naar de eigen origin: wat daar tussen zat kon in plaats van de job
+ * antwoorden zonder dat iemand het zag. Elke run wordt vastgelegd
+ * (lib/cron/daily-run-store.ts) en staat op /admin/platform/system. Faalt er
+ * een job, dan antwoordt deze cron 500, zodat Vercel de run als mislukt toont.
  *
  * ─── Auth ─────────────────────────────────────────────────────────────────────
  *
  * Vercel stuurt cron-verzoeken met `Authorization: Bearer <CRON_SECRET>` zodra
- * CRON_SECRET als env var is gezet. Die header verifiëren we hier, en we sturen
- * hem door naar elk sub-endpoint — die checken hetzelfde secret.
+ * CRON_SECRET als env var is gezet. Die header verifiëren we hier, en we geven
+ * hem door aan elke job — die checkt hetzelfde secret.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { DAILY_JOB_PATHS, runDailyJobs } from "@/lib/cron/daily-run";
+import { invokeDailyJob }                from "@/lib/cron/daily-jobs";
+import { saveDailyRun }                  from "@/lib/cron/daily-run-store";
+import { logger }                        from "@/lib/logger";
 
 export const dynamic     = "force-dynamic";
 export const runtime     = "nodejs";
-// Vier sequentiële sub-jobs: geef de functie ruim de tijd (Hobby staat tot 60s toe).
+// De jobs lopen na elkaar in deze ene functie (Hobby staat tot 60s toe).
 export const maxDuration = 60;
-
-// Volgorde is bewust: billing eerst (raakt de administratie), dan opruimen, dan sync.
-const JOBS = [
-  "/api/cron/billing-renewal",
-  "/api/cron/subscription-reconcile",
-  "/api/cron/form-submission-purge",
-  "/api/cron/visitor-profile-purge",
-  "/api/cron/ip-company-cache-purge",
-  "/api/cron/rate-limit-cleanup",
-  "/api/cron/ad-sync",
-  "/api/cron/ad-billing",
-] as const;
 
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env["CRON_SECRET"];
@@ -48,26 +45,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const origin = new URL(request.url).origin;
-  const auth   = request.headers.get("authorization") ?? "";
-
-  const results: Array<{ path: string; status: number; ok: boolean; error?: string }> = [];
-
   // Sequentieel, niet parallel: de jobs raken deels dezelfde tabellen, en één cron
-  // die netjes op volgorde loopt is voorspelbaarder dan vier die door elkaar rennen.
-  for (const path of JOBS) {
-    try {
-      const res = await fetch(`${origin}${path}`, {
-        headers: { authorization: auth },
-        cache:   "no-store",
-      });
-      results.push({ path, status: res.status, ok: res.ok });
-    } catch (err) {
-      // Eén job die faalt mag de rest niet tegenhouden.
-      results.push({ path, status: 0, ok: false, error: (err as Error).message });
-    }
+  // die netjes op volgorde loopt is voorspelbaarder dan acht die door elkaar rennen.
+  const record   = await runDailyJobs(DAILY_JOB_PATHS, (path) => invokeDailyJob(path, request));
+  const recorded = await saveDailyRun(record);
+
+  if (!record.ok) {
+    logger.error("[cron/daily] jobs failed", {
+      failed: record.results.filter((r) => !r.ok).map((r) => `${r.path}: ${r.error ?? r.status}`),
+    });
   }
 
-  const failed = results.filter((r) => !r.ok).length;
-  return NextResponse.json({ ok: failed === 0, ran: results.length, failed, results });
+  return NextResponse.json({ ...record, recorded }, { status: record.ok ? 200 : 500 });
 }
