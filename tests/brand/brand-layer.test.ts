@@ -4,7 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { brandLayerFor } from "@/lib/brand/brand-layer";
 import { getDesignPreset, DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
 import { buildCompleteLookDesign } from "@/lib/design/complete-look";
@@ -96,8 +96,9 @@ describe("the brand stylesheet", () => {
   });
 
   it("only uses images that exist", () => {
+    // Since the footer's bubbles left on 15 Nov 2026 the stylesheet uses no
+    // image at all. The check stays for the day one comes back.
     const urls = [...css.matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]!);
-    assert.ok(urls.length > 0, "the stylesheet uses images");
     for (const url of urls) {
       assert.doesNotThrow(() => readFileSync(`public${url}`), `missing public${url}`);
     }
@@ -110,75 +111,16 @@ describe("the brand stylesheet", () => {
     assert.doesNotMatch(css, /section-heading/);
   });
 
-  describe("the bubbles at the footer", () => {
-    const svg     = readFileSync("public/brand/mc-bubbels.svg", "utf8");
-    const circles = [...svg.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" fill="(#[0-9a-f]{6})"\/>/g)]
-      .map((m) => ({ x: Number(m[1]), y: Number(m[2]), r: Number(m[3]), fill: m[4]! }));
-    const [, , , width, height] = /viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/.exec(svg)!.map(Number) as [number, number, number, number, number];
-
-    it("are the 21 circles of the business card", () => {
-      // Read from 032005_VISITEKAARTJES on 15 Nov 2026. The radii below are the
-      // card's own, in points, smallest to largest.
-      assert.equal(circles.length, 21);
-      const radii = circles.map((c) => c.r).sort((a, b) => a - b);
-      assert.deepEqual(radii, [7.6, 8.2, 9, 9.3, 10.1, 10.8, 11.3, 11.8, 12.2, 12.7, 12.7, 13.2, 13.7, 14.3, 14.5, 14.7, 15.1, 16.3, 18.6, 19.7, 21]);
-    });
-
-    it("lie over one another, as on the card", () => {
-      // An earlier rule here said circles never overlap. The card shows they do:
-      // opaque, one on top of the other.
-      let overlaps = 0;
-      for (const [i, a] of circles.entries()) {
-        for (const b of circles.slice(i + 1)) if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r - 1) overlaps++;
-      }
-      assert.ok(overlaps >= 10, `only ${overlaps} pairs overlap`);
-      assert.doesNotMatch(svg, /opacity|rgba\(/);
-    });
-
-    it("are not a trail of equal dots", () => {
-      // On 13 Nov 2026 a row of small equal dots along the footer was removed.
-      const byX = [...circles].sort((a, b) => a.x - b.x);
-      for (let i = 2; i < byX.length; i++) {
-        const [a, b, c] = [byX[i - 2]!, byX[i - 1]!, byX[i]!];
-        assert.ok(!(a.r === b.r && b.r === c.r && Math.abs(a.y - b.y) < 2 && Math.abs(b.y - c.y) < 2), "three equal dots in a row");
-      }
-    });
-
-    it("are cut off only by the right edge of the page", () => {
-      for (const c of circles) {
-        assert.ok(c.y - c.r >= -0.05 && c.y + c.r <= height + 0.05, `circle at ${c.x} is cut off at the top or bottom`);
-        assert.ok(c.x - c.r >= -0.05, `circle at ${c.x} is cut off on the left`);
-      }
-      assert.ok(circles.some((c) => c.x + c.r > width), "the stream runs off the right edge, as it ran off the card");
-    });
-
-    it("use the colours of the logo manual", () => {
-      const manual = ["#e64415", "#e2001a", "#cb005a", "#a1057d", "#672180", "#00519e", "#006ab3", "#008fd3", "#009ee0",
-        "#00989c", "#00957a", "#009036", "#41a62a", "#92bd11", "#bdcd00", "#d2d600", "#e5de00", "#ede100"];
-      for (const c of circles) assert.ok(manual.includes(c.fill), `${c.fill} is not in the manual`);
-    });
-
-    it("straddle the top edge of the footer and leave the footer's text clear", () => {
-      const lift  = Number(/top:\s*calc\(var\(--mc-band\) \* -([\d.]+)\)/.exec(css)![1]);
-      const edge  = lift * height;
-      assert.ok(circles.some((c) => c.y + c.r <= edge), "a circle wholly above the edge");
-      assert.ok(circles.some((c) => c.y - c.r >= edge), "a circle wholly in the footer");
-      assert.ok(circles.some((c) => c.y - c.r < edge && c.y + c.r > edge), "a circle across the edge");
-      assert.match(css, /padding-top:\s*calc\(var\(--mc-band\) \* 0\.3\)/);
-      assert.match(css, /pointer-events:\s*none/);
-      // The image keeps its own proportions.
-      const ratio = Number(/width:\s*calc\(var\(--mc-band\) \* ([\d.]+)\)/.exec(css)![1]);
-      assert.ok(Math.abs(ratio - width / height) < 0.01, "the band's width does not match the image");
-    });
-
-    it("stay small and in the corner", () => {
-      // The first version ran across the whole width at up to 240 px high. The
-      // user found it too present on 14 Nov 2026 and asked for a subtle corner.
-      const band = /--mc-band:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(css)!;
-      assert.ok(Number(band[2]) <= 150, "the band stays low");
-      assert.match(css, /right:\s*0;/);
-      assert.doesNotMatch(css.slice(css.indexOf("site-footer\"]::before")), /left:\s*0/);
-    });
+  it("leaves the footer alone", () => {
+    // From 14 to 15 Nov 2026 the 21 circles of the business card sat in the
+    // footer's corner. The user found them crammed, and the positioned footer
+    // hid the buttons of the block above it on a phone (measured on production
+    // at 375 px). The bubbles moved into the house images in the CMS.
+    assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ""), /site-footer|mc-bubbels|mc-band/);
+    assert.equal(existsSync("public/brand/mc-bubbels.svg"), false);
+    for (const file of ["components/layout/footer/FooterCorporate.tsx", "components/layout/footer/FooterMinimal.tsx"]) {
+      assert.doesNotMatch(readFileSync(file, "utf8"), /data-part="site-footer"/, `${file} still carries a hook nothing uses`);
+    }
   });
 
   it("never uses the logo or its mark as decoration", () => {

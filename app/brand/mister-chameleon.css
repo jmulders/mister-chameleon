@@ -3,8 +3,8 @@
  *
  * Follows docs/website/huisstijl.md, which sums up the logo manual, the
  * leaflets and the folder. The house style works with large flat circles in
- * the colours of the logo: solid, never transparent, never overlapping, and of
- * clearly different sizes.
+ * the colours of the logo: solid, never transparent, and of clearly different
+ * sizes.
  *
  * What it deliberately does not do, because the logo manual forbids it:
  *   - show the logo's dots on their own, cut off or rotated;
@@ -109,53 +109,16 @@
   transform: translate(3px, -3px);
 }
 
-/* ── 3. The bubbles of the business card, in the corner at the footer ───────
- *
- * The back of the business card (032005, 2011) carries a dense stream of 21
- * flat circles in the colours of the gradient. They lie over one another,
- * never transparent, and run off the edge of the card. public/brand/
- * mc-bubbels.svg holds those same 21 circles, read from the card's own file:
- * same sizes, same order of stacking, same colours. Only the direction
- * differs. The stream is turned a quarter so that it lies along the top edge
- * of the footer, and what ran off the bottom of the card runs off the right of
- * the page.
- *
- * It sits small in the right-hand corner and straddles the footer's edge, so
- * the bubbles run on from the block above into the footer. A first version ran
- * across the whole width at up to 240 px high and was too present.
- *
- * On 13 Nov 2026 a row of small dots along the footer was taken out again: a
- * trail of equal dots rebuilds the logo's mark. This is the house's own
- * pattern instead.
+/* The footer carries no circles. On 13 Nov 2026 a row of small dots along the
+ * footer was taken out: a trail of equal dots rebuilds the logo's mark. From
+ * 14 to 15 Nov 2026 the 21 circles of the business card sat in its corner.
+ * At that size they read as a crammed blob, and positioning the footer for
+ * them hid the buttons of the block above it on a phone. The card's bubbles
+ * now live, loose, in a few of the house images (tools/mc-beeld in the CMS
+ * repository).
  */
-[data-brand="mister-chameleon"] [data-part="site-footer"] {
-  --mc-band: clamp(84px, 10vw, 140px);
-  position: relative;
-  z-index: 1;
-  /* Two fifths of the stream lie below the footer's edge; the footer's own
-     padding covers the rest. */
-  padding-top: calc(var(--mc-band) * 0.3);
-}
-[data-brand="mister-chameleon"] [data-part="site-footer"] > * {
-  position: relative;
-  z-index: 1;
-}
-[data-brand="mister-chameleon"] [data-part="site-footer"]::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  right: 0;
-  /* The dense line of the stream lies at 0.59 of its height; that line goes
-     on the footer's edge. */
-  top: calc(var(--mc-band) * -0.59);
-  /* The image is 178.3 by 145.3. */
-  width: calc(var(--mc-band) * 1.227);
-  height: var(--mc-band);
-  background: url("/brand/mc-bubbels.svg") no-repeat right top / auto 100%;
-  pointer-events: none;
-}
 
-/* ── 4. Transparent house images stand on paper where the ground is dark ────
+/* ── 3. Transparent house images stand on paper where the ground is dark ────
  *
  * The engravings and the photo compositions have no background of their own.
  * The ink and the photo are black with see-through whites, so on a light
