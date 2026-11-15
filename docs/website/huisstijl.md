@@ -118,7 +118,13 @@ krijgt de cirkels nog op grond van zijn naam.
 ## Wat de site daarvan gebruikt
 
 - Stapnummers als volle cirkel met een wit cijfer, zoals de hoofdstuknummers.
-- Icoontjes van functiekaarten in een volle cirkel, in kleuren uit het verloop.
+- Icoontjes van functiekaarten als kleine krantenfoto in een cirkel: een echt
+  voorwerp in zwart-wit op het papier van de huisstijl, met een klein gekleurd
+  bolletje ernaast. Foto's zijn altijd zwart-wit en staan altijd in een cirkel
+  (15-11-2026). De bestanden staan in `public/brand/icoon` en komen uit
+  `tools/mc-iconen` in de CMS-repo. Een icoonnaam zonder bestand houdt het
+  lijnicoon in een volle gekleurde cirkel.
+- In een cirkel staat geen tekst (15-11-2026). Stapnummers zijn de uitzondering.
 - De bolletjes van de achterkant van het visitekaartje, los en met lucht
   ertussen, in een paar gravures. Maat en kleur komen van het kaartje. In de
   voettekst staan ze niet meer. Daar lazen ze klein als een propje (15-11-2026).
