@@ -22,6 +22,7 @@ import { THEME_PRESETS, isThemePresetKey, type ThemePresetKey } from "@/design-s
 import { createCMSProvider }     from "@/cms/providers/create-cms-provider";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
 import { brandLayerFor }          from "@/lib/brand/brand-layer";
+import { schemeFor }              from "@/lib/theme/scheme";
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 //
@@ -449,6 +450,9 @@ export default async function RootLayout({
       // Decoration that comes with the applied preset: the circles of the
       // "Mister Chameleon" preset (app/brand/mister-chameleon.css).
       data-brand={brandLayerFor(tenantSettings?.design, galleryCard) ?? undefined}
+      // Dark or light, worked out from the page background of the look this
+      // request gets. For stylesheets that need to know (lib/theme/scheme.ts).
+      data-scheme={schemeFor(resolvedTheme.vars["--background"], resolvedTheme.vars["--bg"], finalThemePreset.colors.background.bg)}
       {...(themeTraceAttr ? { "data-theme-trace": themeTraceAttr } : {})}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${ALL_FONT_VARIABLES}`}

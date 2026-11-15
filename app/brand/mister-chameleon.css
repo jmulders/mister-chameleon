@@ -109,29 +109,31 @@
   transform: translate(3px, -3px);
 }
 
-/* ── 3. A few bubbles in the corner where the last block meets the footer ───
+/* ── 3. The bubbles of the business card, in the corner at the footer ───────
  *
- * As on the folder: circles of very different sizes, close together on one
- * side and thinning out as they drift away. Here it is a small cluster in the
- * right-hand corner that straddles the top edge of the footer, so the bubbles
- * run on from the block above into the footer.
+ * The back of the business card (032005, 2011) carries a dense stream of 21
+ * flat circles in the colours of the gradient. They lie over one another,
+ * never transparent, and run off the edge of the card. public/brand/
+ * mc-bubbels.svg holds those same 21 circles, read from the card's own file:
+ * same sizes, same order of stacking, same colours. Only the direction
+ * differs. The stream is turned a quarter so that it lies along the top edge
+ * of the footer, and what ran off the bottom of the card runs off the right of
+ * the page.
  *
- * It is meant to be noticed in passing, not to carry the page. A first version
- * ran across the whole width at up to 240 px high and was too present.
- *
- * The part above the edge stays inside the bottom padding of the block above,
- * and the footer gets a little extra room at the top for the part below it.
+ * It sits small in the right-hand corner and straddles the footer's edge, so
+ * the bubbles run on from the block above into the footer. A first version ran
+ * across the whole width at up to 240 px high and was too present.
  *
  * On 13 Nov 2026 a row of small dots along the footer was taken out again: a
- * trail of equal dots rebuilds the logo's mark. This is not that. No two
- * circles are the same size and nothing lines up.
+ * trail of equal dots rebuilds the logo's mark. This is the house's own
+ * pattern instead.
  */
 [data-brand="mister-chameleon"] [data-part="site-footer"] {
-  --mc-band: clamp(72px, 9vw, 130px);
+  --mc-band: clamp(84px, 10vw, 140px);
   position: relative;
   z-index: 1;
-  /* Half the band lies below the footer's edge; the footer's own padding
-     covers the rest. */
+  /* Two fifths of the stream lie below the footer's edge; the footer's own
+     padding covers the rest. */
   padding-top: calc(var(--mc-band) * 0.3);
 }
 [data-brand="mister-chameleon"] [data-part="site-footer"] > * {
@@ -143,13 +145,38 @@
   position: absolute;
   z-index: 0;
   right: 0;
-  /* Half the band lies above the footer's edge. */
-  top: calc(var(--mc-band) * -0.5);
-  /* The image is 560 by 200. */
-  width: calc(var(--mc-band) * 2.8);
+  /* The dense line of the stream lies at 0.59 of its height; that line goes
+     on the footer's edge. */
+  top: calc(var(--mc-band) * -0.59);
+  /* The image is 178.3 by 145.3. */
+  width: calc(var(--mc-band) * 1.227);
   height: var(--mc-band);
   background: url("/brand/mc-bubbels.svg") no-repeat right top / auto 100%;
   pointer-events: none;
+}
+
+/* ── 4. Transparent house images stand on paper where the ground is dark ────
+ *
+ * The engravings and the photo compositions have no background of their own.
+ * The ink and the photo are black with see-through whites, so on a light
+ * preset they take the colour of the page, as print takes the colour of its
+ * paper. On a dark ground black ink would vanish. There the image gets a sheet
+ * of paper in the preset's own light colour.
+ *
+ * Two cases need the sheet: any of these images when the page is dark
+ * (<html data-scheme="dark">, lib/theme/scheme.ts), and the hero images always,
+ * because a hero is dark in every preset.
+ */
+[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-gravure-"],
+[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-foto-"] {
+  background-color: var(--foreground, #f5efe2);
+  border-radius: 16px;
+}
+[data-brand="mister-chameleon"] img[src*="mc-kop-"] {
+  background-color: var(--background, #ffffff);
+}
+[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-kop-"] {
+  background-color: var(--foreground, #f5efe2);
 }
 
 @media (prefers-reduced-motion: reduce) {
