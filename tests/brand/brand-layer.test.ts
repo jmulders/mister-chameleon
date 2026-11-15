@@ -230,6 +230,17 @@ describe("the brand stylesheet", () => {
     });
   });
 
+  it("gives the transparent images a sheet of paper where the ground is dark", () => {
+    // The images are black ink with see-through whites. On the evening preset
+    // (midnight-amber, #1a150c) the ink would vanish without this.
+    assert.match(css, /\[data-scheme="dark"\] img\[src\*="mc-gravure-"\]/);
+    assert.match(css, /\[data-scheme="dark"\] img\[src\*="mc-foto-"\]/);
+    // A hero is dark in every preset, so a hero image always gets the sheet.
+    assert.match(css, /\[data-brand="mister-chameleon"\] img\[src\*="mc-kop-"\] \{\s*background-color: var\(--background/);
+    const layout = readFileSync("app/layout.tsx", "utf8");
+    assert.match(layout, /data-scheme=\{schemeFor\(/);
+  });
+
   it("switches its movement off for visitors who ask for less motion", () => {
     assert.match(css, /prefers-reduced-motion: reduce/);
   });

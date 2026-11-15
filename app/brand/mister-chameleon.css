@@ -155,6 +155,30 @@
   pointer-events: none;
 }
 
+/* ── 4. Transparent house images stand on paper where the ground is dark ────
+ *
+ * The engravings and the photo compositions have no background of their own.
+ * The ink and the photo are black with see-through whites, so on a light
+ * preset they take the colour of the page, as print takes the colour of its
+ * paper. On a dark ground black ink would vanish. There the image gets a sheet
+ * of paper in the preset's own light colour.
+ *
+ * Two cases need the sheet: any of these images when the page is dark
+ * (<html data-scheme="dark">, lib/theme/scheme.ts), and the hero images always,
+ * because a hero is dark in every preset.
+ */
+[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-gravure-"],
+[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-foto-"] {
+  background-color: var(--foreground, #f5efe2);
+  border-radius: 16px;
+}
+[data-brand="mister-chameleon"] img[src*="mc-kop-"] {
+  background-color: var(--background, #ffffff);
+}
+[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-kop-"] {
+  background-color: var(--foreground, #f5efe2);
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-brand="mister-chameleon"] [data-part="feature-icon"] { transition: none; }
   [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] { transform: none; }
