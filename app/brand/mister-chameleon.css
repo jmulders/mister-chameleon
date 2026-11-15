@@ -109,6 +109,115 @@
   transform: translate(3px, -3px);
 }
 
+/* ── 2b. A newspaper photo where the icon has one ───────────────────────────
+ *
+ * The owner on 15 Nov 2026: carry the black-and-white newspaper photo through
+ * to the icons, always black and white, always in a circle. For every icon
+ * name with a file in public/brand/icoon the line icon makes way for a small
+ * engraved photo of a real object: black ink on the house's paper, cut round.
+ * The small circle beside it keeps its colour from the card.
+ *
+ * The photo carries its own paper, so it reads the same on a light and on a
+ * dark card. An icon name without a file keeps the line icon above.
+ *
+ * The files come from tools/mc-iconen in the CMS repository, which also lists
+ * the source photos. A new icon name needs a file there and a line here.
+ */
+[data-brand="mister-chameleon"] [data-part="feature-icon"]:is(
+    [data-icon="award"],
+    [data-icon="bar-chart"],
+    [data-icon="building"],
+    [data-icon="check-circle"],
+    [data-icon="code"],
+    [data-icon="edit-3"],
+    [data-icon="globe"],
+    [data-icon="layers"],
+    [data-icon="layout"],
+    [data-icon="message-circle"],
+    [data-icon="mouse-pointer"],
+    [data-icon="repeat"],
+    [data-icon="shield"],
+    [data-icon="sliders"],
+    [data-icon="sparkles"],
+    [data-icon="target"],
+    [data-icon="users"],
+    [data-icon="zap"]
+  ) {
+  width: 80px !important;
+  height: 80px !important;
+  background-color: #f5efe2 !important;
+  background-image: var(--mc-photo);
+  background-size: cover;
+  background-position: center;
+}
+[data-brand="mister-chameleon"] [data-part="feature-icon"]:is(
+    [data-icon="award"],
+    [data-icon="bar-chart"],
+    [data-icon="building"],
+    [data-icon="check-circle"],
+    [data-icon="code"],
+    [data-icon="edit-3"],
+    [data-icon="globe"],
+    [data-icon="layers"],
+    [data-icon="layout"],
+    [data-icon="message-circle"],
+    [data-icon="mouse-pointer"],
+    [data-icon="repeat"],
+    [data-icon="shield"],
+    [data-icon="sliders"],
+    [data-icon="sparkles"],
+    [data-icon="target"],
+    [data-icon="users"],
+    [data-icon="zap"]
+  ) svg {
+  display: none;
+}
+/* Large: centre 40,40 with radius 40. Small: 18 px across, 2 px clear of it,
+   up and to the right at 35 degrees. */
+[data-brand="mister-chameleon"] [data-part="feature-icon"]:is(
+    [data-icon="award"],
+    [data-icon="bar-chart"],
+    [data-icon="building"],
+    [data-icon="check-circle"],
+    [data-icon="code"],
+    [data-icon="edit-3"],
+    [data-icon="globe"],
+    [data-icon="layers"],
+    [data-icon="layout"],
+    [data-icon="message-circle"],
+    [data-icon="mouse-pointer"],
+    [data-icon="repeat"],
+    [data-icon="shield"],
+    [data-icon="sliders"],
+    [data-icon="sparkles"],
+    [data-icon="target"],
+    [data-icon="users"],
+    [data-icon="zap"]
+  )::after {
+  left: 73px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+}
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="award"] { --mc-photo: url("/brand/icoon/award.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="bar-chart"] { --mc-photo: url("/brand/icoon/bar-chart.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="building"] { --mc-photo: url("/brand/icoon/building.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="check-circle"] { --mc-photo: url("/brand/icoon/check-circle.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="code"] { --mc-photo: url("/brand/icoon/code.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="edit-3"] { --mc-photo: url("/brand/icoon/edit-3.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="globe"] { --mc-photo: url("/brand/icoon/globe.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="layers"] { --mc-photo: url("/brand/icoon/layers.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="layout"] { --mc-photo: url("/brand/icoon/layout.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="message-circle"] { --mc-photo: url("/brand/icoon/message-circle.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="mouse-pointer"] { --mc-photo: url("/brand/icoon/mouse-pointer.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="repeat"] { --mc-photo: url("/brand/icoon/repeat.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="shield"] { --mc-photo: url("/brand/icoon/shield.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="sliders"] { --mc-photo: url("/brand/icoon/sliders.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="sparkles"] { --mc-photo: url("/brand/icoon/sparkles.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="target"] { --mc-photo: url("/brand/icoon/target.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="users"] { --mc-photo: url("/brand/icoon/users.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="zap"] { --mc-photo: url("/brand/icoon/zap.png"); }
+
 /* The footer carries no circles. On 13 Nov 2026 a row of small dots along the
  * footer was taken out: a trail of equal dots rebuilds the logo's mark. From
  * 14 to 15 Nov 2026 the 21 circles of the business card sat in its corner.

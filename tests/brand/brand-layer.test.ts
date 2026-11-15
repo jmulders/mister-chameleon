@@ -4,7 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { brandLayerFor } from "@/lib/brand/brand-layer";
 import { getDesignPreset, DESIGN_PRESET_GALLERY } from "@/tenant/design-presets-gallery";
 import { buildCompleteLookDesign } from "@/lib/design/complete-look";
@@ -86,7 +86,9 @@ describe("the brand stylesheet", () => {
       .filter(Boolean);
     assert.ok(selectors.length > 10, "the stylesheet has rules");
     for (const selector of selectors) {
-      for (const part of selector.split(",")) {
+      // A comma inside :is(…) separates alternatives of one scoped selector,
+      // not selectors.
+      for (const part of selector.split(/,(?![^()]*\))/)) {
         assert.ok(
           part.trim().startsWith('[data-brand="mister-chameleon"]'),
           `unscoped selector: ${part.trim()}`,
@@ -109,6 +111,54 @@ describe("the brand stylesheet", () => {
     // 13 Nov 2026. It rebuilds the logo's dots into another shape, which the
     // logo manual forbids.
     assert.doesNotMatch(css, /section-heading/);
+  });
+
+  describe("the newspaper photo icons", () => {
+    const files = readdirSync("public/brand/icoon").filter((f) => f.endsWith(".png")).map((f) => f.slice(0, -4)).sort();
+    const urls  = [...css.matchAll(/\[data-part="feature-icon"\]\[data-icon="([a-z0-9-]+)"\] \{ --mc-photo: url\("\/brand\/icoon\/([a-z0-9-]+)\.png"\); \}/g)];
+    const lists = [...css.matchAll(/\[data-part="feature-icon"\]:is\(([^)]*)\)(::after| svg)? \{([^}]*)\}/g)];
+
+    it("have one rule per file and one file per rule", () => {
+      // The owner asked on 15 Nov 2026 to carry the black-and-white newspaper
+      // photo through to the icons. A rule without a file shows an empty
+      // circle; a file without a rule is never shown.
+      assert.ok(files.length >= 18, `only ${files.length} icons`);
+      assert.deepEqual(urls.map((m) => m[1]!).sort(), files);
+      for (const m of urls) assert.equal(m[1], m[2], "the rule points at another icon's file");
+    });
+
+    it("name the same icons in every rule that shapes them", () => {
+      assert.equal(lists.length, 3, "the circle, its hidden line icon and its small circle");
+      for (const m of lists) {
+        const named = [...m[1]!.matchAll(/\[data-icon="([a-z0-9-]+)"\]/g)].map((x) => x[1]!).sort();
+        assert.deepEqual(named, files);
+      }
+    });
+
+    it("are a round photo on paper of its own, without the line icon", () => {
+      const circle = lists.find((m) => m[2] === undefined)![3]!;
+      assert.match(circle, /background-image:\s*var\(--mc-photo\)/);
+      assert.match(circle, /background-size:\s*cover/);
+      // A light paper, so black ink reads on a dark card as well.
+      assert.match(circle, /background-color:\s*#f5efe2 !important/);
+      assert.match(lists.find((m) => m[2] === " svg")![3]!, /display:\s*none/);
+    });
+
+    it("keep the small circle clear of the photo", () => {
+      const circle = lists.find((m) => m[2] === undefined)![3]!;
+      const after  = lists.find((m) => m[2] === "::after")![3]!;
+      const size   = Number(/width:\s*(\d+)px/.exec(circle)![1]);
+      const [left, top, small] = [/left:\s*(-?\d+)px/, /top:\s*(-?\d+)px/, /width:\s*(\d+)px/].map((re) => Number(re.exec(after)![1]));
+      const distance = Math.hypot(left! + small! / 2 - size / 2, top! + small! / 2 - size / 2);
+      assert.ok(distance >= size / 2 + small! / 2, "the circles overlap");
+    });
+
+    it("get the icon's name from the block, in small letters", () => {
+      const block = readFileSync("components/blocks/sections/FeatureGridBlock.tsx", "utf8");
+      const hooks = block.match(/data-part="feature-icon"/g)!.length;
+      assert.equal(block.match(/data-icon=\{iconKey\(feature\.icon\)\}/g)!.length, hooks, "a feature icon without its name");
+      assert.match(block, /function iconKey[^}]*toLowerCase\(\)/);
+    });
   });
 
   it("leaves the footer alone", () => {

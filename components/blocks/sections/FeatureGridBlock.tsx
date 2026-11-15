@@ -114,6 +114,15 @@ const ICON_MAP: Record<string, React.ReactNode> = {
  * holding an emoji. The default grid used to print whatever it got, so a page
  * that named its icons showed the words "layout" and "code" above each card.
  */
+/**
+ * The icon's name as a hook for a brand layer (app/brand/*.css), which may
+ * show something of its own for that name. It does nothing by itself.
+ */
+function iconKey(value: string | undefined | null): string | undefined {
+  const key = value?.trim().toLowerCase();
+  return key ? key : undefined;
+}
+
 function isIconName(value: string): boolean {
   return /^[a-z][a-z0-9-]*$/i.test(value.trim());
 }
@@ -302,6 +311,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     {feature.icon && (
                       <span
                         data-part="feature-icon"
+                        data-icon={iconKey(feature.icon)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -359,6 +369,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   >
                     <span
                       data-part="feature-icon"
+                      data-icon={iconKey(feature.icon)}
                       className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
                       style={{
                         backgroundColor: "var(--feature-grid-icon-bg)",
@@ -433,6 +444,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     {feature.icon && (
                       <span
                         data-part="feature-icon"
+                        data-icon={iconKey(feature.icon)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -498,6 +510,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     {feature.icon && (
                       <span
                         data-part="feature-icon"
+                        data-icon={iconKey(feature.icon)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -567,6 +580,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     {feature.icon && (
                       <span
                         data-part="feature-icon"
+                        data-icon={iconKey(feature.icon)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -633,6 +647,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     {feature.icon && (
                       <span
                         data-part="feature-icon"
+                        data-icon={iconKey(feature.icon)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                         style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       >
@@ -698,6 +713,7 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   {feature.icon && (isIconName(feature.icon) ? (
                     <div
                       data-part="feature-icon"
+                      data-icon={iconKey(feature.icon)}
                         className="flex h-10 w-10 items-center justify-center rounded-lg"
                       style={{ backgroundColor: "var(--feature-grid-icon-bg)" }}
                       aria-hidden="true"
