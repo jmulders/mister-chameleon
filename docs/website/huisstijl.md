@@ -119,8 +119,9 @@ krijgt de cirkels nog op grond van zijn naam.
 
 - Stapnummers als volle cirkel met een wit cijfer, zoals de hoofdstuknummers.
 - Icoontjes van functiekaarten in een volle cirkel, in kleuren uit het verloop.
-- De bolletjes van de achterkant van het visitekaartje, klein in de hoek waar
-  het laatste blok de voettekst raakt. Dezelfde 21 cirkels, een kwartslag gedraaid.
+- De bolletjes van de achterkant van het visitekaartje, los en met lucht
+  ertussen, in een paar gravures. Maat en kleur komen van het kaartje. In de
+  voettekst staan ze niet meer. Daar lazen ze klein als een propje (15-11-2026).
 
 ## Wat de site niet overneemt, en waarom
 

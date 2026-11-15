@@ -51,8 +51,6 @@ export function FooterMinimal({
 
   return (
     <footer
-      // Hook for a brand layer (app/brand/*.css); it does nothing on its own.
-      data-part="site-footer"
       style={{
         backgroundColor: "var(--footer-bg)",
         color:           "var(--footer-fg)",
