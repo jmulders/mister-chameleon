@@ -161,6 +161,15 @@ describe("the brand stylesheet", () => {
     });
   });
 
+  it("takes the pale box away behind a round photo", () => {
+    // BlockMediaView paints var(--block-media-bg, …, #f4f4f5) behind its image.
+    // A round photo is see-through outside its circle, so the box would show.
+    const rule = /\[data-brand="mister-chameleon"\] :has\(> img\[src\*="mc-rond-"\]\) \{([^}]*)\}/.exec(css);
+    assert.ok(rule, "no rule for the frame of a round photo");
+    assert.match(rule[1]!, /background:\s*transparent !important/);
+    assert.match(readFileSync("components/blocks/media/BlockMediaView.tsx", "utf8"), /background: "var\(--block-media-bg/, "the frame no longer paints a box; the rule may go");
+  });
+
   it("leaves the footer alone", () => {
     // From 14 to 15 Nov 2026 the 21 circles of the business card sat in the
     // footer's corner. The user found them crammed, and the positioned footer
