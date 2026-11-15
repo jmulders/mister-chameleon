@@ -158,17 +158,31 @@ describe("the brand stylesheet", () => {
       for (const c of circles) assert.ok(manual.includes(c.fill), `${c.fill} is not in the manual`);
     });
 
-    it("straddle the top edge of the footer and leave the footer's text clear", () => {
-      const lift  = Number(/top:\s*calc\(var\(--mc-band\) \* -([\d.]+)\)/.exec(css)![1]);
+    it("straddle the top edge of the footer and take their own room inside it", () => {
+      const lift  = Number(/margin-top:\s*calc\(var\(--mc-band\) \* -([\d.]+)\)/.exec(css)![1]);
       const edge  = lift * height;
       assert.ok(circles.some((c) => c.y + c.r <= edge), "a circle wholly above the edge");
       assert.ok(circles.some((c) => c.y - c.r >= edge), "a circle wholly in the footer");
       assert.ok(circles.some((c) => c.y - c.r < edge && c.y + c.r > edge), "a circle across the edge");
-      assert.match(css, /padding-top:\s*calc\(var\(--mc-band\) \* 0\.3\)/);
       assert.match(css, /pointer-events:\s*none/);
       // The image keeps its own proportions.
       const ratio = Number(/width:\s*calc\(var\(--mc-band\) \* ([\d.]+)\)/.exec(css)![1]);
       assert.ok(Math.abs(ratio - width / height) < 0.01, "the band's width does not match the image");
+    });
+
+    it("never position the footer itself", () => {
+      // A positioned footer paints over whatever the block above lets slide
+      // into it. The homepage's last block has a parallax effect that moves it
+      // down by up to 180 px. Measured on production on 15 Nov 2026 at 375 px:
+      // at the end of the page its two buttons lay under the footer.
+      const footerRule = /\[data-part="site-footer"\] \{([^}]*)\}/.exec(css)![1]!.replace(/\/\*[\s\S]*?\*\//g, "");
+      assert.doesNotMatch(footerRule, /position|z-index/);
+      assert.doesNotMatch(css, /\[data-part="site-footer"\] > \*/);
+      // The stream is in the normal flow, pulled up and pushed to the right.
+      const before = /\[data-part="site-footer"\]::before \{([^}]*)\}/.exec(css)![1]!;
+      assert.match(before, /display:\s*block/);
+      assert.match(before, /margin-left:\s*auto/);
+      assert.doesNotMatch(before, /position:\s*absolute/);
     });
 
     it("stay small and in the corner", () => {
@@ -176,8 +190,6 @@ describe("the brand stylesheet", () => {
       // user found it too present on 14 Nov 2026 and asked for a subtle corner.
       const band = /--mc-band:\s*clamp\((\d+)px,\s*[\d.]+vw,\s*(\d+)px\)/.exec(css)!;
       assert.ok(Number(band[2]) <= 150, "the band stays low");
-      assert.match(css, /right:\s*0;/);
-      assert.doesNotMatch(css.slice(css.indexOf("site-footer\"]::before")), /left:\s*0/);
     });
   });
 

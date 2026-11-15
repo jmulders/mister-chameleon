@@ -130,27 +130,26 @@
  */
 [data-brand="mister-chameleon"] [data-part="site-footer"] {
   --mc-band: clamp(84px, 10vw, 140px);
-  position: relative;
-  z-index: 1;
-  /* Two fifths of the stream lie below the footer's edge; the footer's own
-     padding covers the rest. */
-  padding-top: calc(var(--mc-band) * 0.3);
-}
-[data-brand="mister-chameleon"] [data-part="site-footer"] > * {
-  position: relative;
-  z-index: 1;
+  /* No position and no z-index here. A positioned footer paints over whatever
+     the block above lets slide into it, and the block above the footer on the
+     homepage does slide: its parallax effect moves it down by up to 180 px.
+     From 14 to 15 Nov 2026 the footer was positioned for the bubbles' sake and
+     hid that block's buttons on a phone at the very end of the page. */
 }
 [data-brand="mister-chameleon"] [data-part="site-footer"]::before {
   content: "";
-  position: absolute;
-  z-index: 0;
-  right: 0;
-  /* The dense line of the stream lies at 0.59 of its height; that line goes
-     on the footer's edge. */
-  top: calc(var(--mc-band) * -0.59);
+  display: block;
+  /* Positioned itself, so it paints above the block it reaches into, while the
+     footer around it keeps its place in the normal order. */
+  position: relative;
+  z-index: 1;
   /* The image is 178.3 by 145.3. */
   width: calc(var(--mc-band) * 1.227);
   height: var(--mc-band);
+  margin-left: auto;
+  /* The dense line of the stream lies at 0.59 of its height; that line goes
+     on the footer's edge. The rest takes its room inside the footer. */
+  margin-top: calc(var(--mc-band) * -0.59);
   background: url("/brand/mc-bubbels.svg") no-repeat right top / auto 100%;
   pointer-events: none;
 }
