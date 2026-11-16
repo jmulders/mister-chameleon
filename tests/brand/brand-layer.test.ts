@@ -161,11 +161,11 @@ describe("the brand stylesheet", () => {
     });
   });
 
-  it("takes the pale box away behind a round photo", () => {
+  it("takes the pale box away behind a house image", () => {
     // BlockMediaView paints var(--block-media-bg, …, #f4f4f5) behind its image.
-    // A round photo is see-through outside its circle, so the box would show.
-    const rule = /\[data-brand="mister-chameleon"\] :has\(> img\[src\*="mc-rond-"\]\) \{([^}]*)\}/.exec(css);
-    assert.ok(rule, "no rule for the frame of a round photo");
+    // A house image is see-through outside its circles, so the box would show.
+    const rule = /\[data-brand="mister-chameleon"\] :has\(> img\[src\*="mc-rond-"\]\),\s*\[data-brand="mister-chameleon"\] :has\(> img\[src\*="mc-open-"\]\) \{([^}]*)\}/.exec(css);
+    assert.ok(rule, "no rule for the frame of a house image");
     assert.match(rule[1]!, /background:\s*transparent !important/);
     assert.match(readFileSync("components/blocks/media/BlockMediaView.tsx", "utf8"), /background: "var\(--block-media-bg/, "the frame no longer paints a box; the rule may go");
   });
@@ -234,10 +234,14 @@ describe("the brand stylesheet", () => {
   it("gives the transparent images a sheet of paper where the ground is dark", () => {
     // The images are black ink with see-through whites. On the evening preset
     // (midnight-amber, #1a150c) the ink would vanish without this.
-    assert.match(css, /\[data-scheme="dark"\] img\[src\*="mc-gravure-"\]/);
-    assert.match(css, /\[data-scheme="dark"\] img\[src\*="mc-foto-"\]/);
-    // A hero is dark in every preset, so a hero image always gets the sheet.
-    assert.match(css, /\[data-brand="mister-chameleon"\] img\[src\*="mc-kop-"\] \{\s*background-color: var\(--background/);
+    const sheet = /\[data-brand="mister-chameleon"\]\[data-scheme="dark"\] img\[src\*="mc-open-"\] \{([^}]*)\}/.exec(css);
+    assert.ok(sheet, "no sheet for a see-through image on a dark page");
+    assert.match(sheet[1]!, /background-color:\s*var\(--foreground/);
+    // An image on its own paper (mc-rond-) needs no sheet, and the images of
+    // before 16 Nov 2026 are gone.
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.doesNotMatch(rules, /data-scheme="dark"\] img\[src\*="mc-rond-"/);
+    assert.doesNotMatch(rules, /mc-gravure-|mc-foto-|mc-kop-/);
     const layout = readFileSync("app/layout.tsx", "utf8");
     assert.match(layout, /data-scheme=\{schemeFor\(/);
   });

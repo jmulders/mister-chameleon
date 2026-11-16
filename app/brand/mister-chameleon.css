@@ -227,39 +227,37 @@
  * repository).
  */
 
-/* ── 3. Transparent house images stand on paper where the ground is dark ────
+/* ── 3. The house images on a ground that does not carry them ───────────────
  *
- * The engravings and the photo compositions have no background of their own.
- * The ink and the photo are black with see-through whites, so on a light
- * preset they take the colour of the page, as print takes the colour of its
- * paper. On a dark ground black ink would vanish. There the image gets a sheet
- * of paper in the preset's own light colour.
+ * The house images are round newspaper photos (tools/mc-beeld in the CMS
+ * repository). There are two kinds, and the file name says which.
  *
- * Two cases need the sheet: any of these images when the page is dark
- * (<html data-scheme="dark">, lib/theme/scheme.ts), and the hero images always,
- * because a hero is dark in every preset.
+ *   mc-open-*  The photo has no ground of its own: black ink with see-through
+ *              whites, so the page and the flat circle behind it show through
+ *              the screen. The owner chose this on 16 Nov 2026.
+ *   mc-rond-*  The photo lies on its own circle of paper. For a hero and for
+ *              the notification, whose ground is dark or blue in every preset.
+ *
+ * On a dark page black ink vanishes. There an mc-open image gets a sheet in
+ * the preset's own light colour (<html data-scheme="dark">, lib/theme/
+ * scheme.ts). An mc-rond image needs nothing.
+ *
+ * Until 16 Nov 2026 this section served the earlier images (mc-gravure-,
+ * mc-foto-, mc-kop-). No page points at those any more.
  */
-[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-gravure-"],
-[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-foto-"] {
+[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-open-"] {
   background-color: var(--foreground, #f5efe2);
   border-radius: 16px;
 }
-[data-brand="mister-chameleon"] img[src*="mc-kop-"] {
-  background-color: var(--background, #ffffff);
-}
-[data-brand="mister-chameleon"][data-scheme="dark"] img[src*="mc-kop-"] {
-  background-color: var(--foreground, #f5efe2);
-}
 
-/* ── 4. A round photo brings its own paper ──────────────────────────────────
+/* ── 4. No pale box behind a house image ────────────────────────────────────
  *
- * The round newspaper photos (mc-rond-*.svg, tools/mc-beeld in the CMS
- * repository) are a circle of paper with ink on it and two flat circles; the
- * rest of the image is see-through. The shared media frame of a CTA and of a
- * notification paints a pale box behind its image. Behind a round photo that
- * box would be a rectangle around a circle, so it goes.
+ * Outside its circles a house image is see-through. The shared media frame of
+ * a CTA, a proof block and a notification paints a pale box behind its image.
+ * That box would show as a rectangle around the circles, so it goes.
  */
-[data-brand="mister-chameleon"] :has(> img[src*="mc-rond-"]) {
+[data-brand="mister-chameleon"] :has(> img[src*="mc-rond-"]),
+[data-brand="mister-chameleon"] :has(> img[src*="mc-open-"]) {
   background: transparent !important;
 }
 

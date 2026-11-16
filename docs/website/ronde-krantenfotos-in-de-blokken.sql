@@ -60,3 +60,29 @@ order by key;
 -- set default_variant = jsonb_set(jsonb_set(default_variant, '{layoutVariant}', '"hero_background"'), '{media}',
 --   '{"kind":"video","video":{"url":"https://kdhfpvjeriszteqhpgll.supabase.co/storage/v1/object/public/tenant-assets/statamic/affb2c4c-f86a-4a2e-805b-43f0341fa4fc.mp4","loop":true,"muted":true,"poster":"https://kdhfpvjeriszteqhpgll.supabase.co/storage/v1/object/public/tenant-assets/statamic/49e8b1f5-eb70-4517-93df-4ae3eeb56b46.jpg","source":"upload","autoplay":true,"controls":false,"objectPosition":"center top"}}'::jsonb)
 -- where tenant_id = 'statamic' and key = 'hero_default';
+
+
+-- ── 16-11-2026, tweede ronde ────────────────────────────────────────────────
+-- De eigenaar koos voor de doorzichtige foto. Het blok onderaan de homepage en
+-- de drie onderdelen van het bewijsblok staan op de paginakleur en krijgen een
+-- mc-open-beeld. De hoofdbeelden en de meldingen houden hun beeld op papier.
+-- PAS DRAAIEN als CMS-PR 25 en de platform-PR voor de donkere pagina live zijn.
+
+update adaptive_blocks
+set default_variant = jsonb_set(
+      default_variant, '{media,url}',
+      '"https://cms.misterchameleon.nl/assets/mc-open-kameleon-tak-cta.svg"')
+where tenant_id = 'statamic'
+  and key = 'cta_default'
+  and default_variant->'media'->>'url' like '%/mc-rond-kameleon-tak-breed.svg';
+
+update adaptive_blocks
+set default_variant = jsonb_set(jsonb_set(jsonb_set(default_variant,
+      '{items,0,media,url}', '"https://cms.misterchameleon.nl/assets/mc-open-weegschaal-breed.svg"'),
+      '{items,1,media,url}', '"https://cms.misterchameleon.nl/assets/mc-open-bord-breed.svg"'),
+      '{items,2,media,url}', '"https://cms.misterchameleon.nl/assets/mc-open-stekker-breed.svg"')
+where tenant_id = 'statamic'
+  and key = 'proof_default'
+  and default_variant->'items'->0->'media'->>'url' like '%/mc-rond-weegschaal-breed.svg'
+  and default_variant->'items'->1->'media'->>'url' like '%/mc-rond-bord-breed.svg'
+  and default_variant->'items'->2->'media'->>'url' like '%/mc-rond-stekker-breed.svg';
