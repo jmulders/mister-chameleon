@@ -251,6 +251,18 @@
   background-color: var(--foreground, #f5efe2);
 }
 
+/* ── 4. A round photo brings its own paper ──────────────────────────────────
+ *
+ * The round newspaper photos (mc-rond-*.svg, tools/mc-beeld in the CMS
+ * repository) are a circle of paper with ink on it and two flat circles; the
+ * rest of the image is see-through. The shared media frame of a CTA and of a
+ * notification paints a pale box behind its image. Behind a round photo that
+ * box would be a rectangle around a circle, so it goes.
+ */
+[data-brand="mister-chameleon"] :has(> img[src*="mc-rond-"]) {
+  background: transparent !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-brand="mister-chameleon"] [data-part="feature-icon"] { transition: none; }
   [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] { transform: none; }
