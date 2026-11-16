@@ -165,6 +165,13 @@ function withDecisionBudget(provider: DecisionProvider, tenantId: string): Decis
 export interface HomepagePipelineInput {
   /** Next.js searchParams (from PageProps) */
   params: Record<string, string | string[] | undefined>;
+  /**
+   * Also load the visitor's recent journey events for the debug view. Only the
+   * engine-debug page shows them. The homepage never read the result, and with
+   * the tenant's debug level on "full" it paid one database read per pageview
+   * for it (measured on production, 16 Nov 2026).
+   */
+  includeJourneyDebug?: boolean;
 }
 
 // ── Pipeline result ───────────────────────────────────────────────────────────
@@ -176,7 +183,7 @@ export interface HomepagePipelineInput {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
+export async function runHomepagePipeline({ params, includeJourneyDebug = false }: HomepagePipelineInput) {
   const h             = await headers();
   const cookieHeader  = h.get("cookie");
   // Keep-warm pings (from /api/cron/keep-warm) carry this header. They exist
@@ -236,6 +243,25 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   const historyPromise = consent.personalization
     ? fetchVisitorHistory(sessionId, tenantConfig.tenantId)
     : Promise.resolve(emptyHistory());
+
+  // The two reads of the visitor's stored profile need only the tenant and the
+  // session, so they start here with the other reads instead of one after the
+  // other further down. Both catch their own errors and resolve to null.
+  //
+  // Firmographic reuse is a persistent, identity-keyed read, gated on enrichment
+  // consent. The returning-visitor signals are gated on personalization consent:
+  // without it the session id is a fresh `anon_…` that no stored profile can
+  // carry, so the read could only ever come back empty.
+  const seedFirmographicsPromise = (consent.enrichment && sessionId)
+    ? getKnownFirmographics(
+        tenantConfig.tenantId,
+        sessionId,
+        tenant?.enrichment?.firmographicFreshnessDays ?? 30,
+      )
+    : Promise.resolve(null);
+  const returningSignalsPromise = (consent.personalization && sessionId)
+    ? getReturningProfileSignals(tenantConfig.tenantId, sessionId)
+    : Promise.resolve(null);
 
   // Full firmographic enrichment chain — built once and shared with the snippet
   // decide path so both surfaces enrich identically. Loads its own platform
@@ -360,6 +386,26 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   }
 
   // ── CMS provider ──────────────────────────────────────────────────────────
+  // The AI's variant candidates come from the tenant's adaptive blocks. That
+  // list needs only the tenant, so the read starts here, as soon as it is known
+  // that an AI provider is active, and is picked up further down. It used to
+  // start there, after the decision context was built: one more read in a row.
+  const aiProviderActive = !isControl && (
+    decisionProvider instanceof AiDecisionProvider ||
+    decisionProvider instanceof ShadowAiDecisionProvider
+  );
+  const candidateBlocksPromise = aiProviderActive
+    ? import("@/lib/adaptive-blocks/adaptive-blocks-store")
+        .then(({ listAdaptiveBlocks }) => listAdaptiveBlocks(tenantConfig.tenantId, true))
+        .catch((err: unknown) => {
+          logger.warn("[pipeline] adaptive blocks for variant candidates failed to load", {
+            tenantId: tenantConfig.tenantId,
+            err:      err instanceof Error ? err.message : String(err),
+          });
+          return null;
+        })
+    : null;
+
   const { isEnabled: isPreview } = await draftMode();
 
   // Statamic Live Preview draft mode: _mc_draft=TOKEN means the Antlers
@@ -419,21 +465,14 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // That saves the external lookups and avoids re-charging recognition, while
   // volatile enrichment (current geo, weather) still runs every visit. Stale or
   // absent → null → full enrichment runs and refreshes the firmographics.
-  // Firmographic reuse is a persistent, identity-keyed read — gated on enrichment
-  // consent (it also seeds the firmographic stages, which are gated below).
-  const seedFirmographics = (consent.enrichment && sessionId)
-    ? await getKnownFirmographics(
-        tenantConfig.tenantId,
-        sessionId,
-        tenant?.enrichment?.firmographicFreshnessDays ?? 30,
-      )
-    : null;
-
-  // Returning-visitor signals — the prior stored profile, loaded so the engine
-  // can adapt content for someone we already know (closes the personalization loop).
-  const returningSignals = sessionId
-    ? await getReturningProfileSignals(tenantConfig.tenantId, sessionId)
-    : null;
+  // Firmographic reuse also seeds the firmographic stages, which are gated below.
+  // Returning-visitor signals are the prior stored profile, loaded so the engine
+  // can adapt content for someone we already know (closes the personalization
+  // loop). Both reads were started with the parallel kicks above.
+  const [seedFirmographics, returningSignals] = await Promise.all([
+    seedFirmographicsPromise,
+    returningSignalsPromise,
+  ]);
 
   // ── Decision context ──────────────────────────────────────────────────────
   let debugInfo: EnrichmentDebugInfo | null = null;
@@ -538,25 +577,21 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
   // on any failure — or when no block carries authored metadata — it stays
   // undefined and the AI falls back to platform-only candidates (prior behaviour,
   // no regression). Only runs when an AI provider is actually active.
-  if (
-    !isControl && (
-      decisionProvider instanceof AiDecisionProvider ||
-      decisionProvider instanceof ShadowAiDecisionProvider
-    )
-  ) {
+  if (candidateBlocksPromise) {
     try {
       const [
-        { listAdaptiveBlocks },
+        blocks,
         { resolveVariantCandidates },
         { adaptiveBlocksToResolveInput, hasAnyDecisionMeta },
       ] = await Promise.all([
-        import("@/lib/adaptive-blocks/adaptive-blocks-store"),
+        candidateBlocksPromise,
         import("@/ai/resolve-variant-candidates"),
         import("@/ai/adaptive-blocks-candidates"),
       ]);
 
-      const blocks       = await listAdaptiveBlocks(tenantConfig.tenantId, true);
-      const resolveInput = adaptiveBlocksToResolveInput(blocks);
+      // A failed read was logged where it started; no blocks means platform-only
+      // candidates, as before.
+      const resolveInput = adaptiveBlocksToResolveInput(blocks ?? []);
 
       if (hasAnyDecisionMeta(resolveInput)) {
         (input as { variantCandidates?: import("@/ai/variant-meta").SlotCandidates }).variantCandidates =
@@ -646,7 +681,7 @@ export async function runHomepagePipeline({ params }: HomepagePipelineInput) {
       })
     : null;
 
-  const journeyDebugEvents = debugLevel === "full"
+  const journeyDebugEvents = (includeJourneyDebug && debugLevel === "full")
     ? await fetchRecentJourneyEvents(sessionId, tenantConfig.tenantId, 20)
     : [];
 
