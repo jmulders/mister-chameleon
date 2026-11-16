@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "regions": ["fra1"],
+  "regions": ["dub1"],
   "functions": {
     "app/api/demo/mirror/route.ts": {
       "memory": 1600,
