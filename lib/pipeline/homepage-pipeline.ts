@@ -166,12 +166,17 @@ export interface HomepagePipelineInput {
   /** Next.js searchParams (from PageProps) */
   params: Record<string, string | string[] | undefined>;
   /**
-   * Also load the visitor's recent journey events for the debug view. Only the
-   * engine-debug page shows them. The homepage never read the result, and with
-   * the tenant's debug level on "full" it paid one database read per pageview
-   * for it (measured on production, 16 Nov 2026).
+   * Also build the debug data: the full context snapshot and the visitor's
+   * recent journey events. Only the debug screen (engine-debug) shows them, so
+   * only that page asks for them. The debug screen itself still needs the
+   * tenant's debug overlay switched on in the admin.
+   *
+   * The homepage never read this data. With the tenant's debug level on "full"
+   * it built the snapshot and paid one database read on every pageview
+   * (measured on production, 16 Nov 2026). The owner's rule since then: debug
+   * work starts when the debug screen is opened, not before.
    */
-  includeJourneyDebug?: boolean;
+  includeDebug?: boolean;
 }
 
 // ── Pipeline result ───────────────────────────────────────────────────────────
@@ -183,7 +188,7 @@ export interface HomepagePipelineInput {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export async function runHomepagePipeline({ params, includeJourneyDebug = false }: HomepagePipelineInput) {
+export async function runHomepagePipeline({ params, includeDebug = false }: HomepagePipelineInput) {
   const h             = await headers();
   const cookieHeader  = h.get("cookie");
   // Keep-warm pings (from /api/cron/keep-warm) carry this header. They exist
@@ -672,7 +677,7 @@ export async function runHomepagePipeline({ params, includeJourneyDebug = false 
 
   // ── Debug snapshot ────────────────────────────────────────────────────────
   const capturedDebugInfo = debugInfo as EnrichmentDebugInfo | null;
-  const contextSnapshot = debugLevel === "full"
+  const contextSnapshot = (includeDebug && debugLevel === "full")
     ? buildFullContextSnapshot(input, {
         enrichmentTrace:   capturedDebugInfo?.enrichmentTrace,
         scenarioOverrides: scenarioOverrides ?? null,
@@ -681,7 +686,7 @@ export async function runHomepagePipeline({ params, includeJourneyDebug = false 
       })
     : null;
 
-  const journeyDebugEvents = (includeJourneyDebug && debugLevel === "full")
+  const journeyDebugEvents = (includeDebug && debugLevel === "full")
     ? await fetchRecentJourneyEvents(sessionId, tenantConfig.tenantId, 20)
     : [];
 

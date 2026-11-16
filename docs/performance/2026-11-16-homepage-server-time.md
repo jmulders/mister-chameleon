@@ -67,9 +67,12 @@ request after the deploy took 1.3 s.
 
 Three of the nine steps go, without changing what a visitor gets.
 
-- **Step 7** (`visitor_journey_events`) was a debug read. Only the engine-debug
-  page shows its result; the homepage paid for it on every pageview while the
-  tenant's debug level was "full". It now runs for that page only.
+- **Step 7** (`visitor_journey_events`) was a debug read. Only the debug screen
+  (engine-debug) shows its result; the homepage paid for it on every pageview
+  while the tenant's debug level was "full", and built the full context
+  snapshot besides. The owner's rule: debug work starts when the debug screen
+  is opened, and that screen must be switched on first. Both now happen for
+  that page only.
 - **Step 3** (`visitor_profiles`) looked for a returning visitor. Without
   consent for personalization the session id is a fresh `anon_…`, which no
   stored profile can carry, so the read could only come back empty. It is

@@ -21,12 +21,22 @@ const at       = (needle: string) => {
 };
 
 describe("homepage pipeline: database reads", () => {
-  it("loads the debug journey events only for the page that shows them", () => {
-    // The homepage never read them. With the tenant's debug level on "full" it
-    // paid one read per pageview.
-    assert.match(code, /journeyDebugEvents = \(includeJourneyDebug && debugLevel === "full"\)/);
-    assert.match(code, /includeJourneyDebug = false/, "the default must be off");
-    assert.match(readFileSync("app/(site)/engine-debug/page.tsx", "utf8"), /runHomepagePipeline\(\{ params, includeJourneyDebug: true \}\)/);
+  it("does debug work only for the debug screen", () => {
+    // The owner on 16 Nov 2026: debug starts when the debug screen is opened,
+    // and that screen must be switched on first. The homepage never read the
+    // snapshot or the journey events; with the tenant's debug level on "full"
+    // it built the one and paid a database read for the other on every pageview.
+    assert.match(code, /contextSnapshot = \(includeDebug && debugLevel === "full"\)/);
+    assert.match(code, /journeyDebugEvents = \(includeDebug && debugLevel === "full"\)/);
+    assert.match(code, /includeDebug = false/, "the default must be off");
+    // Nothing else in the pipeline may do work for the debug level alone.
+    const uses = code.match(/debugLevel === "full"/g) ?? [];
+    assert.equal(uses.length, 2, "a new use of the debug level must go behind includeDebug too");
+
+    const debugPage = readFileSync("app/(site)/engine-debug/page.tsx", "utf8");
+    assert.match(debugPage, /runHomepagePipeline\(\{ params, includeDebug: true \}\)/);
+    // The debug screen itself stays behind the tenant's switch in the admin.
+    assert.match(debugPage, /if \(!debugOverlayEnabled\)/);
     assert.match(readFileSync("app/(site)/page.tsx", "utf8"), /runHomepagePipeline\(\{ params \}\)/);
   });
 
