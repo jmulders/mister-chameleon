@@ -49,14 +49,35 @@ import type { RuleCondition }         from "@/decision/rules/stored-rule";
  * @returns        Comma-joined keys of matching segments, or null if none match.
  *                 Empty string is never returned — null is used for "no match".
  */
+/** The list of a tenant's active segments, as the repository returns it. */
+export type ActiveAudienceSegments = Awaited<ReturnType<typeof listActiveAudienceSegments>>;
+
+/**
+ * Start reading a tenant's active segments, to hand to
+ * evaluateAudienceSegments() later.
+ *
+ * The list is the same for every visitor of a tenant and needs nothing but the
+ * tenant. A caller that knows early that it will evaluate segments starts the
+ * read here, so it is under way while the decision context is built instead of
+ * waiting for it. Never rejects: a failed read becomes "no segments", which is
+ * what evaluateAudienceSegments() makes of a failure anyway.
+ */
+export function startActiveAudienceSegments(tenantId: string): Promise<ActiveAudienceSegments> {
+  return listActiveAudienceSegments(tenantId).catch(
+    (err: unknown): ActiveAudienceSegments => ({ ok: false, error: err instanceof Error ? err.message : String(err) }),
+  );
+}
+
 export async function evaluateAudienceSegments(
   ctx:      RuleEvaluationContext,
   tenantId: string,
+  /** A read started with startActiveAudienceSegments(); read now when absent. */
+  preloaded?: Promise<ActiveAudienceSegments>,
 ): Promise<string | null> {
   if (!tenantId) return null;
 
   try {
-    const result = await listActiveAudienceSegments(tenantId);
+    const result = await (preloaded ?? listActiveAudienceSegments(tenantId));
     if (!result.ok || result.data.length === 0) return null;
 
     const matched: string[] = [];

@@ -63,7 +63,7 @@ import {
   applyScenarioToHistory,
   applyScenarioToDecisionContext,
 } from "@/lib/scenario/server-scenario";
-import { evaluateAudienceSegments } from "@/audience-segments/evaluate";
+import { evaluateAudienceSegments, startActiveAudienceSegments } from "@/audience-segments/evaluate";
 import { applyAudienceSegments }    from "@/decision/decision-context";
 import {
   resolveActiveKnownLead,
@@ -411,6 +411,14 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
         })
     : null;
 
+  // The tenant's active audience segments are the same for every visitor and
+  // need only the tenant. The control group gets none, so for everyone else the
+  // read starts here and is picked up where the segments are evaluated, after
+  // the decision context is built and patched.
+  const audienceSegmentsPromise = isControl
+    ? null
+    : startActiveAudienceSegments(tenantConfig.tenantId);
+
   const { isEnabled: isPreview } = await draftMode();
 
   // Statamic Live Preview draft mode: _mc_draft=TOKEN means the Antlers
@@ -571,7 +579,7 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
     ? postScenarioInput  // already set by applyScenarioToDecisionContext
     : applyAudienceSegments(
         postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
-        await evaluateAudienceSegments(postScenarioInput, tenantConfig.tenantId),
+        await evaluateAudienceSegments(postScenarioInput, tenantConfig.tenantId, audienceSegmentsPromise ?? undefined),
       ) as typeof postScenarioInput;
 
   // ── AI variant candidates from admin adaptive blocks ──────────────────────

@@ -1462,37 +1462,42 @@ export async function buildDecisionContext(
   let interestContext: import("@/interest-profiles/types").InterestContextVars | null = null;
 
   try {
-    const profilesResult = await listActiveInterestProfiles(tenantId);
-    const profiles = profilesResult.ok ? profilesResult.data : [];
+    // Build a keyword cloud from all available server-side signals.
+    // Keywords are lowercased to match the case-insensitive matching contract.
+    const cloud: Record<string, number> = {};
 
-    if (profiles.length > 0) {
-      // Build a keyword cloud from all available server-side signals.
-      // Keywords are lowercased to match the case-insensitive matching contract.
-      const cloud: Record<string, number> = {};
-
-      // Source 1: UTM search term (highest intent — visitor typed this query).
-      if (visitorContext.utmTerm) {
-        // Split UTM term into individual words so multi-word queries match more tags.
-        const terms = visitorContext.utmTerm.toLowerCase().trim().split(/\s+/);
-        for (const term of terms) {
-          if (term) cloud[term] = (cloud[term] ?? 0) + 2;
-        }
-        // Also add the full term as a keyword to support exact phrase matching.
-        const fullTerm = visitorContext.utmTerm.toLowerCase().trim();
-        if (fullTerm) cloud[fullTerm] = (cloud[fullTerm] ?? 0) + 2;
+    // Source 1: UTM search term (highest intent — visitor typed this query).
+    if (visitorContext.utmTerm) {
+      // Split UTM term into individual words so multi-word queries match more tags.
+      const terms = visitorContext.utmTerm.toLowerCase().trim().split(/\s+/);
+      for (const term of terms) {
+        if (term) cloud[term] = (cloud[term] ?? 0) + 2;
       }
+      // Also add the full term as a keyword to support exact phrase matching.
+      const fullTerm = visitorContext.utmTerm.toLowerCase().trim();
+      if (fullTerm) cloud[fullTerm] = (cloud[fullTerm] ?? 0) + 2;
+    }
 
-      // Source 2: Page keywords accumulated from all visited pages this session.
-      // Stored in visitor_behavior_state.viewed_keywords (deduplicated Set across
-      // all page_view events) and surfaced via history.journey.viewedKeywords.
-      // Each keyword contributes count=1 — page-browse intent is lower than UTM.
-      const viewedKeywords = history.journey?.viewedKeywords ?? [];
-      for (const kw of viewedKeywords) {
-        const normalized = kw.toLowerCase().trim();
-        if (normalized) cloud[normalized] = (cloud[normalized] ?? 0) + 1;
-      }
+    // Source 2: Page keywords accumulated from all visited pages this session.
+    // Stored in visitor_behavior_state.viewed_keywords (deduplicated Set across
+    // all page_view events) and surfaced via history.journey.viewedKeywords.
+    // Each keyword contributes count=1 — page-browse intent is lower than UTM.
+    const viewedKeywords = history.journey?.viewedKeywords ?? [];
+    for (const kw of viewedKeywords) {
+      const normalized = kw.toLowerCase().trim();
+      if (normalized) cloud[normalized] = (cloud[normalized] ?? 0) + 1;
+    }
 
-      if (Object.keys(cloud).length > 0) {
+    // The cloud comes first because it decides whether the profiles are needed
+    // at all. Without a keyword nothing can score, whatever the profiles say,
+    // so the two database reads behind listActiveInterestProfiles are skipped.
+    // That is every visitor who arrives without a search term and has no
+    // history, which is most first pageviews.
+    if (Object.keys(cloud).length > 0) {
+      const profilesResult = await listActiveInterestProfiles(tenantId);
+      const profiles = profilesResult.ok ? profilesResult.data : [];
+
+      if (profiles.length > 0) {
         const scored = scoreInterests(cloud, profiles);
         if (scored.some((s) => s.rawScore > 0)) {
           interestScores   = scored;
