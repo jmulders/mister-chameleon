@@ -12,7 +12,8 @@
  *
  * Everything is scoped to html[data-brand="mister-chameleon"] (see
  * lib/brand/brand-layer.ts), so no other tenant is touched, and it only
- * decorates: no layout, no text.
+ * decorates: no text and no layout, with one exception at the end, the room
+ * between sections.
  *
  * The colours are the RGB values from the logo manual. They do not follow the
  * tenant theme, so they look the same in every contextual theme.
@@ -259,6 +260,24 @@
 [data-brand="mister-chameleon"] :has(> img[src*="mc-rond-"]),
 [data-brand="mister-chameleon"] :has(> img[src*="mc-open-"]) {
   background: transparent !important;
+}
+
+/* ── 5. The room between sections ───────────────────────────────────────────
+ *
+ * Every preset in the gallery gives a section clamp(56px, 8vw, 128px) above
+ * and below. On a wide screen that is 115 px, so 230 px between the content of
+ * two sections. On a page that stacks blocks of text with an image, such as
+ * /hoe-het-werkt, the owner found that a lot of empty room (19 Nov 2026).
+ *
+ * The house style keeps its air, with less of it: 64 px on a wide screen,
+ * 128 px between two sections, and 36 px on a phone.
+ *
+ * It sits here and not in a preset because the site wears a different preset
+ * by time of day, and each brings its own value. The token lives on
+ * [data-site], which carries the active preset's variables.
+ */
+[data-brand="mister-chameleon"] [data-site] {
+  --section-py: clamp(36px, 4.5vw, 64px);
 }
 
 @media (prefers-reduced-motion: reduce) {

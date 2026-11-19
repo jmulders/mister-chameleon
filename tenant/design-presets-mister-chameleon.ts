@@ -79,7 +79,7 @@ export const MISTER_CHAMELEON_PRESET_CARDS: readonly DesignPresetCard[] = [
       radius: { interactive: "6px", card: "10px", popover: "8px", sm: "4px", md: "6px", lg: "10px", full: "9999px" },
       shadow: { md: "0 1px 2px rgba(26,23,27,.08)", lg: "0 6px 18px rgba(26,23,27,.10)" },
       border: { width: "1px" },
-      spacing: { base: "1rem", sectionPadding: "clamp(56px,8vw,128px)", container: "72rem", align: "center" },
+      spacing: { base: "1rem", sectionPadding: "clamp(36px,4.5vw,64px)", container: "72rem", align: "center" },
       component: { buttonPaddingX: "1.4rem", buttonPaddingY: ".75rem" },
       motion: { hoverLift: "-2px" },
       layout: {
