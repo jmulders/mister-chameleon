@@ -69,7 +69,7 @@ import type {
 import type { TenantSettings }         from "@/tenant/types";
 import type { CollectionContentSource, CollectionItem } from "@/page-config/collection-source";
 import {
-  getCmsVariant,
+  lookupCmsVariant,
   setCmsVariant,
   getCmsSingleton,
   setCmsSingleton,
@@ -136,8 +136,8 @@ export class CachedCMSProvider implements CMSProvider {
 
   async getHeroVariant(key: string): Promise<HeroBlockData | null> {
     const cacheKey = this.variantKey("hero", key);
-    const cached = getCmsVariant<HeroBlockData | null>(this.tenantId, "hero", cacheKey);
-    if (cached !== null) return cached;  // cache hit (including negative cache)
+    const hit = lookupCmsVariant<HeroBlockData>(this.tenantId, "hero", cacheKey);
+    if (hit.found) return hit.value;  // a remembered miss counts as an answer
     const value = await this.inner.getHeroVariant(key);
     setCmsVariant(this.tenantId, "hero", cacheKey, value);
     return value;
@@ -145,8 +145,8 @@ export class CachedCMSProvider implements CMSProvider {
 
   async getProofVariant(key: string): Promise<ProofBlockData | null> {
     const cacheKey = this.variantKey("proof", key);
-    const cached = getCmsVariant<ProofBlockData | null>(this.tenantId, "proof", cacheKey);
-    if (cached !== null) return cached;
+    const hit = lookupCmsVariant<ProofBlockData>(this.tenantId, "proof", cacheKey);
+    if (hit.found) return hit.value;  // a remembered miss counts as an answer
     const value = await this.inner.getProofVariant(key);
     setCmsVariant(this.tenantId, "proof", cacheKey, value);
     return value;
@@ -154,8 +154,8 @@ export class CachedCMSProvider implements CMSProvider {
 
   async getCTAVariant(key: string): Promise<CTABlockData | null> {
     const cacheKey = this.variantKey("cta", key);
-    const cached = getCmsVariant<CTABlockData | null>(this.tenantId, "cta", cacheKey);
-    if (cached !== null) return cached;
+    const hit = lookupCmsVariant<CTABlockData>(this.tenantId, "cta", cacheKey);
+    if (hit.found) return hit.value;  // a remembered miss counts as an answer
     const value = await this.inner.getCTAVariant(key);
     setCmsVariant(this.tenantId, "cta", cacheKey, value);
     return value;
@@ -163,8 +163,8 @@ export class CachedCMSProvider implements CMSProvider {
 
   async getFeatureVariant(key: string): Promise<FeatureBlockData | null> {
     const cacheKey = this.variantKey("feature", key);
-    const cached = getCmsVariant<FeatureBlockData | null>(this.tenantId, "feature", cacheKey);
-    if (cached !== null) return cached;
+    const hit = lookupCmsVariant<FeatureBlockData>(this.tenantId, "feature", cacheKey);
+    if (hit.found) return hit.value;  // a remembered miss counts as an answer
     const value = await this.inner.getFeatureVariant(key);
     setCmsVariant(this.tenantId, "feature", cacheKey, value);
     return value;
@@ -172,8 +172,8 @@ export class CachedCMSProvider implements CMSProvider {
 
   async getConversionVariant(key: string): Promise<ConversionBlockData | null> {
     const cacheKey = this.variantKey("conversion", key);
-    const cached = getCmsVariant<ConversionBlockData | null>(this.tenantId, "conversion", cacheKey);
-    if (cached !== null) return cached;
+    const hit = lookupCmsVariant<ConversionBlockData>(this.tenantId, "conversion", cacheKey);
+    if (hit.found) return hit.value;  // a remembered miss counts as an answer
     const value = await this.inner.getConversionVariant(key);
     setCmsVariant(this.tenantId, "conversion", cacheKey, value);
     return value;
@@ -181,8 +181,8 @@ export class CachedCMSProvider implements CMSProvider {
 
   async getNotificationVariant(key: string): Promise<NotificationBlockData | null> {
     const cacheKey = this.variantKey("notification", key);
-    const cached = getCmsVariant<NotificationBlockData | null>(this.tenantId, "notification", cacheKey);
-    if (cached !== null) return cached;
+    const hit = lookupCmsVariant<NotificationBlockData>(this.tenantId, "notification", cacheKey);
+    if (hit.found) return hit.value;  // a remembered miss counts as an answer
     const value = await this.inner.getNotificationVariant(key);
     setCmsVariant(this.tenantId, "notification", cacheKey, value);
     return value;
@@ -192,8 +192,8 @@ export class CachedCMSProvider implements CMSProvider {
     // Cached under the "adaptive" slot.  5-min TTL applies.
     // Negative results (null) are also cached so a missing key doesn't fan out.
     const cacheKey = this.variantKey("adaptive", key);
-    const cached = getCmsVariant<AdaptiveBlockData | null>(this.tenantId, "adaptive", cacheKey);
-    if (cached !== null) return cached;
+    const hit = lookupCmsVariant<AdaptiveBlockData>(this.tenantId, "adaptive", cacheKey);
+    if (hit.found) return hit.value;  // a remembered miss counts as an answer
     const value = await this.inner.getAdaptiveBlock(key);
     setCmsVariant(this.tenantId, "adaptive", cacheKey, value);
     return value;
