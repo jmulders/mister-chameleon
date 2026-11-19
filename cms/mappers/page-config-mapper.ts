@@ -89,6 +89,30 @@ import type { ContentSource,
  * @param sections  Array of CMS PageSectionData (may be empty).
  * @returns         Ordered array of ContentBlocks (unknown types removed).
  */
+/**
+ * A plain-text body as PortableText: one block per paragraph.
+ *
+ * A blank line separates two paragraphs, as an editor types them in a textarea.
+ * Until 19 Nov 2026 the whole body became one block, so a second paragraph ran
+ * on into the first. A single line break inside a paragraph stays part of it.
+ * Returns undefined for a body with no text, so the block renders no empty
+ * paragraph.
+ */
+export function plainTextToParagraphs(text: string): PortableTextBlock[] | undefined {
+  const paragraphs = text
+    .split(/\r?\n[ \t]*\r?\n/)
+    .map((p) => p.replace(/\s*\r?\n\s*/g, " ").trim())
+    .filter((p) => p.length > 0);
+  if (paragraphs.length === 0) return undefined;
+  return paragraphs.map((p, i) => ({
+    _type:    "block",
+    _key:     `b${i}`,
+    style:    "normal",
+    markDefs: [],
+    children: [{ _type: "span", _key: "s0", text: p, marks: [] }],
+  }) as unknown as PortableTextBlock);
+}
+
 export function mapSectionsToContentBlocks(sections: PageSectionData[]): ContentBlock[] {
   const blocks: ContentBlock[] = [];
   for (const section of sections) {
@@ -465,10 +489,11 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
       };
 
     case "textMedia": {
-      // body is stored as plain text (type:"text") in Sanity.
-      // Wrap it in a minimal PortableText block so PortableTextRenderer can consume it.
+      // body is stored as plain text (type:"text") in Sanity and as a textarea in
+      // Statamic. Each paragraph becomes a PortableText block so
+      // PortableTextRenderer can consume it.
       const tmBody: PortableTextBlock[] | undefined = section.body
-        ? [{ _type: "block", _key: "b0", style: "normal", markDefs: [], children: [{ _type: "span", _key: "s0", text: section.body, marks: [] }] } as unknown as PortableTextBlock]
+        ? plainTextToParagraphs(section.body)
         : undefined;
       return {
         id:        section._key,
