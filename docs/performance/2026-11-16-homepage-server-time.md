@@ -82,15 +82,27 @@ Three of the nine steps go, without changing what a visitor gets.
   the tenant. It now starts as soon as it is known that an AI provider is
   active, and is under way while the decision context is built.
 
+## After the first round (16 Nov, 10:00 UTC)
+
+The same measurement, warm: the homepage's content after 0.33 to 0.55 s, most
+often around 0.4 s. The first request after the deploy took 1.8 s.
+
+## A missing block is remembered (19 Nov)
+
+The CMS cache stored that a variant key had no content, but the cached
+provider read "null" as "not in the cache" and asked the database again on
+every pageview. It now takes a remembered miss as an answer. A miss is kept
+for half a minute, a hit for five: the providers answer null both for a
+missing key and for a failed read, so a miss may be a hiccup, and a block an
+editor has just created should show up soon.
+
 ## Still open
 
 - Steps 4 and 5 (`interest_profiles`, `audience_segments`) read the same rows
   for every visitor of a tenant and could start with step 2. That needs a small
   change in how the decision context and the segment evaluation take their
   input.
-- Step 9's second batch re-fetches three blocks after the confidence gate. And
-  a block key that does not exist is asked again on every request, because the
-  CMS cache does not remember a miss.
+- Step 9's second batch re-fetches three blocks after the confidence gate.
 - Step 1 (`tenant_settings`) has a cache that the pipeline does not use.
 - Every anonymous pageview in AI shadow mode tries to save a decision log with
   a session id that is not a UUID. The insert fails and is logged. It does not

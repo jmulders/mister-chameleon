@@ -56,6 +56,17 @@ export const CMS_CACHE_ENABLED: boolean = !_IS_DEV || _FORCE_CACHE;
 /** TTL for every entry.  Defaults to 5 minutes. */
 export const CMS_CACHE_TTL_MS: number = _TTL_OVERRIDE ?? 5 * 60 * 1_000;
 
+/**
+ * How long a miss is remembered: "the source had nothing under this key".
+ *
+ * Shorter than a hit on purpose. The providers answer null both when a key
+ * does not exist and when the read failed, so a remembered miss may be a
+ * hiccup. Half a minute keeps a key that really is missing from being asked
+ * again on every pageview, and lets a hiccup, or a block an editor has just
+ * created, show up within that half minute.
+ */
+export const CMS_CACHE_MISS_TTL_MS: number = Math.min(CMS_CACHE_TTL_MS, 30 * 1_000);
+
 // ── Internal store ────────────────────────────────────────────────────────────
 
 /** Sentinel stored when the CMS returned null — distinguishes negative hits. */
@@ -76,7 +87,8 @@ function _tid(tenantId: string | null | undefined): string {
 }
 
 function _isStale(entry: CmsEntry): boolean {
-  return Date.now() - entry.cachedAt > CMS_CACHE_TTL_MS;
+  const ttl = entry.value === _NULL_SENTINEL ? CMS_CACHE_MISS_TTL_MS : CMS_CACHE_TTL_MS;
+  return Date.now() - entry.cachedAt > ttl;
 }
 
 function _get<T>(key: string): T | null {
@@ -130,6 +142,24 @@ export function getCmsVariant<T>(
   const result = _getWithHit(`${_tid(tenantId)}:variant:${type}:${key}`);
   if (!result.found) return null;
   return result.value as T | null;
+}
+
+/**
+ * Look a CMS variant up and say whether the cache knows the answer.
+ *
+ * `getCmsVariant` returns null both for "not in the cache" and for "in the
+ * cache, and the answer is null". A caller that reads null as "go and ask"
+ * therefore asks again on every request for a key that does not exist. Until
+ * 19 Nov 2026 the cached provider did exactly that. This tells the two apart.
+ */
+export function lookupCmsVariant<T>(
+  tenantId: string | null | undefined,
+  type:     string,
+  key:      string,
+): { found: true; value: T | null } | { found: false } {
+  const result = _getWithHit(`${_tid(tenantId)}:variant:${type}:${key}`);
+  if (!result.found) return { found: false };
+  return { found: true, value: result.value as T | null };
 }
 
 /**
