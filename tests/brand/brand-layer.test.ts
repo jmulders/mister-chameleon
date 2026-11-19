@@ -246,6 +246,23 @@ describe("the brand stylesheet", () => {
     assert.match(layout, /data-scheme=\{schemeFor\(/);
   });
 
+  it("gives sections less room above and below than the gallery's presets", () => {
+    // The owner on 19 Nov 2026: a lot of empty room between the blocks on
+    // /hoe-het-werkt. The gallery's presets all bring clamp(56px, 8vw, 128px);
+    // at 1440 px wide that is 115 px, so 230 px between two sections.
+    const rule = /\[data-brand="mister-chameleon"\] \[data-site\] \{\s*--section-py:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\);\s*\}/.exec(css);
+    assert.ok(rule, "no section rhythm for the house style");
+    const [min, vw, max] = [Number(rule[1]), Number(rule[2]), Number(rule[3])];
+    assert.ok(max <= 72, "the room on a wide screen crept up again");
+    assert.ok(min >= 32, "sections must not touch on a phone");
+    assert.ok(Math.min(max, 14.4 * vw) <= 72, "at 1440 px wide it stays at 72 px or under");
+    // The token is read by the Section primitive; if that changes, this rule does nothing.
+    assert.match(readFileSync("components/primitives/Section.tsx", "utf8"), /var\(--section-py,/);
+    // The preset itself agrees, so a tenant who applies it gets the same rhythm.
+    const preset = getDesignPreset("mister-chameleon")!;
+    assert.equal(JSON.stringify(preset).includes(`clamp(${min}px,${vw}vw,${max}px)`), true, "the preset and the brand layer disagree");
+  });
+
   it("switches its movement off for visitors who ask for less motion", () => {
     assert.match(css, /prefers-reduced-motion: reduce/);
   });

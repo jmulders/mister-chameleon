@@ -125,6 +125,10 @@ krijgt de cirkels nog op grond van zijn naam.
   `tools/mc-iconen` in de CMS-repo. Een icoonnaam zonder bestand houdt het
   lijnicoon in een volle gekleurde cirkel.
 - In een cirkel staat geen tekst (15-11-2026). Stapnummers zijn de uitzondering.
+- Minder lucht tussen de secties dan de presets uit de galerij meegeven. Die
+  geven op een breed scherm 115 pixels boven en onder elke sectie. De huisstijl
+  houdt 64 pixels aan, en 36 op een telefoon (19-11-2026, na de opmerking dat
+  er op /hoe-het-werkt veel loze ruimte tussen de blokken zat).
 - De bolletjes van de achterkant van het visitekaartje, los en met lucht
   ertussen, in een paar gravures. Maat en kleur komen van het kaartje. In de
   voettekst staan ze niet meer. Daar lazen ze klein als een propje (15-11-2026).
