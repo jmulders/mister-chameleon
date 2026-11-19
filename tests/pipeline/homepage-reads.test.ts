@@ -76,4 +76,40 @@ describe("homepage pipeline: database reads", () => {
     assert.match(code, /adaptiveBlocksToResolveInput\(blocks \?\? \[\]\)/);
     assert.equal(code.match(/listAdaptiveBlocks\(tenantConfig\.tenantId, true\)/g)?.length, 1, "the list is read once");
   });
+
+  it("starts the tenant's audience segments before the decision context is built", () => {
+    // Same list for every visitor, and it needs only the tenant. The evaluation
+    // itself stays where it was: after the context is built and patched.
+    const start   = at("const audienceSegmentsPromise");
+    const context = at("await buildDecisionContext(");
+    assert.ok(start < context, "the read must be under way while the context is built");
+    // The control group gets no segments, so it pays for no read.
+    assert.match(code, /audienceSegmentsPromise = isControl\s*\? null\s*: startActiveAudienceSegments\(tenantConfig\.tenantId\)/);
+    const evaluate = at("await evaluateAudienceSegments(postScenarioInput, tenantConfig.tenantId, audienceSegmentsPromise ?? undefined)");
+    assert.ok(evaluate > context, "segments are evaluated against the finished context");
+    // The other pages decide in lib/cms-page-decision.ts and do the same.
+    const pages = readFileSync("lib/cms-page-decision.ts", "utf8");
+    const pStart = pages.indexOf("const audienceSegmentsPromise = isControl ? null : startActiveAudienceSegments(tenantId);");
+    const pBuild = pages.indexOf("await buildDecisionContext(");
+    const pEval  = pages.indexOf("await evaluateAudienceSegments(postScenarioInput, tenantId, audienceSegmentsPromise ?? undefined)");
+    assert.ok(pStart > 0 && pStart < pBuild && pBuild < pEval, "the other pages start the read early too");
+    // The helper never rejects, so a read that nobody picks up cannot go unhandled.
+    const helper = readFileSync("audience-segments/evaluate.ts", "utf8");
+    assert.match(helper, /export function startActiveAudienceSegments[\s\S]*?listActiveAudienceSegments\(tenantId\)\.catch\(/);
+  });
+
+  it("reads the interest profiles only when there is a keyword to score", () => {
+    // Without a search term in the address and without keywords from earlier
+    // pages nothing can score, whatever the profiles say. That is most first
+    // pageviews, and each paid two database reads in a row for it.
+    const context = readFileSync("decision/context/build-decision-context.ts", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    const cloud = context.indexOf("const cloud: Record<string, number> = {};");
+    const gate  = context.indexOf("if (Object.keys(cloud).length > 0) {", cloud);
+    const read  = context.indexOf("await listActiveInterestProfiles(tenantId)");
+    assert.ok(cloud > 0 && gate > cloud && read > gate, "the keyword cloud must be built and checked before the read");
+    assert.equal(context.match(/listActiveInterestProfiles\(tenantId\)/g)?.length, 1, "one place reads the profiles");
+    // Nothing between the check and the read may leave the block.
+    assert.doesNotMatch(context.slice(gate, read), /\n {4}\}/);
+  });
 });

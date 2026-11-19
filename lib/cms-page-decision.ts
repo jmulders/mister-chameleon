@@ -100,7 +100,7 @@ import {
   applyScenarioToHistory,
   applyScenarioToDecisionContext,
 }                                  from "@/lib/scenario/server-scenario";
-import { evaluateAudienceSegments } from "@/audience-segments/evaluate";
+import { evaluateAudienceSegments, startActiveAudienceSegments } from "@/audience-segments/evaluate";
 import { applyAudienceSegments }    from "@/decision/decision-context";
 import type { DecisionProvider }   from "@/decision/providers/decision-provider";
 import type { ExperiencePlan }     from "@/decision/types";
@@ -313,6 +313,11 @@ export async function resolveSlugPageConfig(
     );
     const isControl = servesDefaultExperience(personalizationGroup);
 
+    // The tenant's active audience segments need only the tenant, so the read
+    // starts here and is under way while the decision context is built. Same
+    // as in the homepage pipeline. The control group gets no segments.
+    const audienceSegmentsPromise = isControl ? null : startActiveAudienceSegments(tenantId);
+
     // ── Billing: count this visit ─────────────────────────────────────────────
     //
     // A contextual session is one visit to the site, not one visit to the
@@ -463,7 +468,7 @@ export async function resolveSlugPageConfig(
       ? postScenarioInput
       : applyAudienceSegments(
           postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
-          await evaluateAudienceSegments(postScenarioInput, tenantId),
+          await evaluateAudienceSegments(postScenarioInput, tenantId, audienceSegmentsPromise ?? undefined),
         ) as typeof postScenarioInput;
 
     // ── ABM known-lead — phase 2: force the explicitly-linked segment ─────────

@@ -96,12 +96,19 @@ for half a minute, a hit for five: the providers answer null both for a
 missing key and for a failed read, so a miss may be a hiccup, and a block an
 editor has just created should show up soon.
 
+## Two more steps (19 Nov)
+
+- **Step 5** (`audience_segments`): the list is the same for every visitor and
+  needs only the tenant. It now starts before the decision context is built
+  and is picked up where the segments are evaluated, on the homepage and on
+  the other pages. The control group, which gets no segments, pays no read.
+- **Step 4** (`interest_profiles`, and `tenant_interest_profiles` after it):
+  the keyword cloud is built first. Without a search term in the address and
+  without keywords from earlier pages nothing can score, so the two reads are
+  skipped. That is most first pageviews.
+
 ## Still open
 
-- Steps 4 and 5 (`interest_profiles`, `audience_segments`) read the same rows
-  for every visitor of a tenant and could start with step 2. That needs a small
-  change in how the decision context and the segment evaluation take their
-  input.
 - Step 9's second batch re-fetches three blocks after the confidence gate.
 - Step 1 (`tenant_settings`) has a cache that the pipeline does not use.
 - Every anonymous pageview in AI shadow mode tries to save a decision log with
