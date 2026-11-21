@@ -12,6 +12,7 @@ import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
 import type { GatedProfilePatch, IdentityLevel, ProfileStatus, ConsentLabel } from "./profile-gate";
 import { orLikeValue } from "@/data/postgrest-filter";
+import type { VisitorStoredContext } from "@/context/visitor-stored-context";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,17 +222,26 @@ export async function getKnownFirmographics(
   tenantId:     string,
   visitorKey:   string,
   freshnessDays: number,
+  /** The one read of everything stored about this visitor; see fetchVisitorHistory. */
+  stored?: Promise<VisitorStoredContext | null>,
 ): Promise<KnownFirmographics | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = getDb() as any;
-    const { data, error } = await db
-      .from("visitor_profiles")
-      .select("company_name, company_domain, company_industry, company_size, firmographics_at")
-      .eq("tenant_id", tenantId)
-      .eq("visitor_key", visitorKey)
-      .maybeSingle();
-    if (error || !data) return null;
+    const preloaded = stored ? await stored : null;
+    let data: Record<string, unknown> | null;
+    if (preloaded) {
+      data = preloaded.profile;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = getDb() as any;
+      const result = await db
+        .from("visitor_profiles")
+        .select("company_name, company_domain, company_industry, company_size, firmographics_at")
+        .eq("tenant_id", tenantId)
+        .eq("visitor_key", visitorKey)
+        .maybeSingle();
+      data = result.error ? null : result.data;
+    }
+    if (!data) return null;
 
     const at = data.firmographics_at ? new Date(String(data.firmographics_at)).getTime() : 0;
     if (!at) return null;
@@ -410,17 +420,26 @@ export interface ReturningProfileSignals {
 export async function getReturningProfileSignals(
   tenantId:   string,
   visitorKey: string,
+  /** The one read of everything stored about this visitor; see fetchVisitorHistory. */
+  stored?: Promise<VisitorStoredContext | null>,
 ): Promise<ReturningProfileSignals | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = getDb() as any;
-    const { data, error } = await db
-      .from("visitor_profiles")
-      .select("identity_level, status, intent_score, visit_count, last_seen_at")
-      .eq("tenant_id", tenantId)
-      .eq("visitor_key", visitorKey)
-      .maybeSingle();
-    if (error || !data) return null;
+    const preloaded = stored ? await stored : null;
+    let data: Record<string, unknown> | null;
+    if (preloaded) {
+      data = preloaded.profile;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = getDb() as any;
+      const result = await db
+        .from("visitor_profiles")
+        .select("identity_level, status, intent_score, visit_count, last_seen_at")
+        .eq("tenant_id", tenantId)
+        .eq("visitor_key", visitorKey)
+        .maybeSingle();
+      data = result.error ? null : result.data;
+    }
+    if (!data) return null;
     return {
       identityLevel: (data.identity_level as IdentityLevel) ?? "anonymous",
       status:        (data.status as ProfileStatus) ?? "visitor",
