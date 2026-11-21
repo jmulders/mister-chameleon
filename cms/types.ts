@@ -1656,6 +1656,8 @@ export interface ListingSectionData extends PageSectionBase {
    * When set to a CmsCollectionSource, the block fetches items at render time.
    */
   contentSource?: CmsContentSource;
+  /** Show a row of buttons above the grid that filters the items on their tags. */
+  filterable?:    boolean;
   /**
    * Media slides for the listing_slider variant.
    * Only populated when variant === "listing_slider".

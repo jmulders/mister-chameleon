@@ -1893,6 +1893,8 @@ export function mapStatamicPageBlocksToSections(
           intro:   introRaw || undefined,
           items:   [],  // populated at render time by resolveListingItems()
           contentSource,
+          // "Filter by: Theme" in the CMS. Any other value, or none, shows no filter.
+          ...(extractString(block.filter_by) === "theme" ? { filterable: true } : {}),
         };
         sections.push(clSection);
         break;

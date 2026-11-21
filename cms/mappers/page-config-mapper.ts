@@ -621,6 +621,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
           viewAllHref:   section.viewAllHref,
           viewAllLabel:  section.viewAllLabel,
           contentSource: mapCmsContentSource(section.contentSource),
+          filterable:    section.filterable,
           // Media slides for the listing_slider variant — forwarded verbatim.
           mediaItems: section.mediaItems?.map((slide) => ({
             key:         slide._key,

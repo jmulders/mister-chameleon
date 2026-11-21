@@ -932,6 +932,12 @@ export interface ListingBlockData {
    */
   readonly contentSource?: ContentSource;
   /**
+   * Show a row of buttons above the grid, one per tag of the items, that
+   * filters the cards. For an article the tags are its themes. Shown only
+   * when the items carry at least two different tags.
+   */
+  readonly filterable?:    boolean;
+  /**
    * Media slides for the listing_slider variant.
    * Only populated when variant === "listing_slider".
    */
