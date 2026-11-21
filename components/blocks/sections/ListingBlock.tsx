@@ -48,6 +48,8 @@ import type { ListingBlockData } from "@/page-config";
 import { ResultCard }    from "@/components/blocks/listing/ResultCard";
 import { ViewAllLink }   from "@/components/blocks/listing/ViewAllLink";
 import { MediaSlider }   from "@/components/blocks/listing/MediaSlider";
+import { ListingTagFilter } from "@/components/blocks/listing/ListingTagFilter";
+import { distinctTags }  from "@/components/blocks/listing/listing-tags";
 import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
 import type { SiteLocale } from "@/lib/site-texts/locale";
 
@@ -221,6 +223,10 @@ export function ListingBlock({ data, variant: rawVariant, locale = "en" }: Listi
     );
   }
 
+  // A filter is worth showing when the block asks for one and the items carry
+  // at least two different tags. One theme, or none, filters nothing.
+  const filterTags = data.filterable ? distinctTags(items) : [];
+
   // ── default / grid variant ──────────────────────────────────────────────────
   //
   // 3-column card grid (default) with a subtle section background.
@@ -261,11 +267,26 @@ export function ListingBlock({ data, variant: rawVariant, locale = "en" }: Listi
             </Stack>
           )}
 
-          <Grid cols={3} gap="lg">
-            {items.map((item, i) => (
-              <ResultCard key={item.id ?? i} item={item} layout="card" headingLevel={3} />
-            ))}
-          </Grid>
+          {filterTags.length >= 2 ? (
+            // The cards are rendered here, on the server, and handed to the
+            // filter. It only chooses which of them are shown.
+            <ListingTagFilter
+              label={BLOCK_TEXTS[locale].filterByTheme}
+              all={BLOCK_TEXTS[locale].filterAll}
+              tags={filterTags}
+              cards={items.map((item, i) => ({
+                key:  item.id ?? String(i),
+                tags: item.tags ?? [],
+                node: <ResultCard item={item} layout="card" headingLevel={3} />,
+              }))}
+            />
+          ) : (
+            <Grid cols={3} gap="lg">
+              {items.map((item, i) => (
+                <ResultCard key={item.id ?? i} item={item} layout="card" headingLevel={3} />
+              ))}
+            </Grid>
+          )}
 
           {viewAllHref && (
             <ViewAllLink href={viewAllHref} label={viewAllLabel} />

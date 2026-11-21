@@ -101,6 +101,7 @@ import type { IndexablePath, ProvisionResult, TestConnectionResult } from "./cms
 import type { TenantSettings } from "@/tenant/types";
 import { mapStatamicSeoFields } from "@/cms/mappers/statamic/seo-fields";
 import { dateOnly, isPublishedBy, newestEntriesFirst, newestFirst } from "./listing-dates";
+import { tagsWithThemes } from "./listing-themes";
 
 // ── Direct file reader (bypasses StatamicClient for local dev reliability) ────
 //
@@ -1980,6 +1981,8 @@ export class StatamicProvider implements CMSProvider {
           overview_image?:       Array<{ url?: string; permalink?: string } | string> | string;
           overview_image_hover?: Array<{ url?: string; permalink?: string } | string> | string;
           tags?:                 unknown[];
+          /** Terms of the "theme" taxonomy: objects from the REST API, slugs from the file reader. */
+          theme?:                unknown;
         };
         // The CMS returns articles in no particular order, so the newest can
         // only be picked after all of them are in. The limit is applied below.
@@ -2000,9 +2003,9 @@ export class StatamicProvider implements CMSProvider {
           showDate:      entry.show_date !== false,
           imageUrl:      this.resolveAssetUrl(entry.overview_image)       ?? undefined,
           hoverImageUrl: this.resolveAssetUrl(entry.overview_image_hover) ?? undefined,
-          tags:          Array.isArray(entry.tags)
-                           ? entry.tags.filter((t): t is string => typeof t === "string")
-                           : undefined,
+          // The themes of the article first, then its free tags. The card shows
+          // them, and a listing with a filter offers them as buttons.
+          tags:          tagsWithThemes(entry.tags, entry.theme),
         }));
         items = newestFirst(items);
       } catch {

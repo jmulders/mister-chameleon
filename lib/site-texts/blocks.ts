@@ -27,6 +27,9 @@ export type BlockTexts = {
   relatedContent: string;
   /** Shown in place of a slider that has no slides yet. */
   sliderEmpty:    string;
+  /** The filter above a listing: the name of the group and the button that shows everything. */
+  filterByTheme:  string;
+  filterAll:      string;
 
   // ── Media slider ───────────────────────────────────────────────────────────
   mediaSlider:   string;
@@ -129,6 +132,8 @@ export const BLOCK_TEXTS: SiteTexts<BlockTexts> = {
     viewAll:        "View all",
     relatedContent: "Related content",
     sliderEmpty:    "Add slides in the CMS to see the slider",
+    filterByTheme:  "Filter by theme",
+    filterAll:      "All",
 
     mediaSlider:   "Media slider",
     slides:        "Slides",
@@ -238,6 +243,8 @@ export const BLOCK_TEXTS: SiteTexts<BlockTexts> = {
     viewAll:        "Bekijk alles",
     relatedContent: "Ook interessant",
     sliderEmpty:    "Voeg slides toe in het CMS om de slider te zien",
+    filterByTheme:  "Filter op thema",
+    filterAll:      "Alle",
 
     mediaSlider:   "Mediaslider",
     slides:        "Slides",
