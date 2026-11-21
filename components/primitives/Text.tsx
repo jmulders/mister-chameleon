@@ -91,6 +91,16 @@ const variantElements: Record<TextVariant, React.ElementType> = {
   label: "span",
 };
 
+// ── Hooks for a brand layer ───────────────────────────────────────────────────
+//
+// The display variant is the headline of a hero. A brand layer may size it to
+// its own measure, so it carries a part name, and its alignment tells a centred
+// hero from a split one. The spread is on the element itself, so it reaches the
+// page.
+const PART_ATTRS: Partial<Record<TextVariant, Record<string, string>>> = {
+  display: { "data-part": "display-title" },
+};
+
 // ── Heading profile CSS vars ───────────────────────────────────────────────────
 //
 // Applied to all heading variants so block style profile changes to
@@ -166,6 +176,8 @@ export function Text({
 
   return (
     <Tag
+      {...PART_ATTRS[variant]}
+      data-align={PART_ATTRS[variant] ? align : undefined}
       style={resolvedStyle}
       className={cn(
         variantClasses[variant],

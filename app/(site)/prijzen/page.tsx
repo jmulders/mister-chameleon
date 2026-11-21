@@ -211,7 +211,7 @@ export default function PrijzenPage() {
       {/* ── Heading ──────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-6 pb-12 pt-20 text-center">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl" style={{ color: "var(--text)" }}>
-          Wat kost website personalisatie?
+          Wat kost het?
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg" style={{ color: "var(--text-muted)" }}>
           Drie pakketten. Je betaalt per maand voor een aantal gepersonaliseerde bezoeken.
