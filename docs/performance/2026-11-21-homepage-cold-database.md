@@ -129,3 +129,30 @@ after a deployment and was not seen later.
 - The refresh opens at most three reads at a time. The rest follow as those
   finish and find the connections warm. A read that has waited two seconds
   for its turn goes anyway.
+
+## After the second round (21 Nov, 18:50 UTC)
+
+The same twelve visits thirty seconds apart, three minutes after the deploy.
+Time until the whole page, hero included, has arrived:
+
+| | Fastest | Median | Slowest |
+| --- | --- | --- | --- |
+| Before | 0.5 s | 2.4 s | 5.0 s |
+| After the first round, twice | 0.3 to 0.4 s | 0.9 s | 4.0 to 7.5 s |
+| After the second round | 0.24 s | 0.39 s | 3.9 s |
+
+Eleven of twelve visits had the whole page within 0.85 s. A visit after two
+and a half minutes of silence took 0.5 s.
+
+The one slow visit (3.9 s) waited 3.6 s for its first byte. The Supabase log
+shows no read in that time: the only reads of that request came after the
+response, the refresh of five blocks, three at a time. So that wait was not
+the database. It fits a function instance that had to start, which is the
+cold start listed as open on 16 Nov (the Hobby plan lets a function sleep;
+keeping it awake needs a pinger from outside or the Pro plan).
+
+A note on reading these numbers: the largest contentful paint that Chrome
+reports is not usable here. The hero fades in, and an element that is
+invisible at its first paint is not counted, so the cookie banner is reported
+as the largest paint in most runs. The moment the document has arrived is the
+number to compare.
