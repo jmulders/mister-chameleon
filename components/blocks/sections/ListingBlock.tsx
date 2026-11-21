@@ -163,7 +163,7 @@ export function ListingBlock({ data, variant: rawVariant, locale = "en" }: Listi
 
             <div>
               {items.map((item, i) => (
-                <ResultCard key={item.id ?? i} item={item} layout="compact" headingLevel={3} />
+                <ResultCard key={item.id ?? i} item={item} layout="compact" headingLevel={3} locale={locale} />
               ))}
             </div>
 
@@ -208,7 +208,7 @@ export function ListingBlock({ data, variant: rawVariant, locale = "en" }: Listi
 
             <Stack gap={4}>
               {items.map((item, i) => (
-                <ResultCard key={item.id ?? i} item={item} layout="row" headingLevel={3} />
+                <ResultCard key={item.id ?? i} item={item} layout="row" headingLevel={3} locale={locale} />
               ))}
             </Stack>
 
@@ -263,7 +263,7 @@ export function ListingBlock({ data, variant: rawVariant, locale = "en" }: Listi
 
           <Grid cols={3} gap="lg">
             {items.map((item, i) => (
-              <ResultCard key={item.id ?? i} item={item} layout="card" headingLevel={3} />
+              <ResultCard key={item.id ?? i} item={item} layout="card" headingLevel={3} locale={locale} />
             ))}
           </Grid>
 

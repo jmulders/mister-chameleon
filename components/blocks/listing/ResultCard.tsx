@@ -46,6 +46,10 @@
  */
 
 import type { ListingItem } from "@/page-config";
+import { formatContentDate } from "@/lib/content-date";
+import { BLOCK_TEXTS } from "@/lib/site-texts/blocks";
+import type { SiteLocale } from "@/lib/site-texts/locale";
+import { useSiteLocale } from "@/components/site/SiteLocale";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -56,32 +60,30 @@ interface ResultCardProps {
   layout?:       ResultCardLayout;
   /** Semantic heading level for the item title */
   headingLevel?: 2 | 3 | 4;
+  /**
+   * Language the date is written in. A block that knows the site language
+   * passes it down; without it the card reads the site language itself.
+   */
+  locale?:       SiteLocale;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Formats an ISO 8601 date string (e.g. "2024-09-01") as dd-mm-yyyy
- * (e.g. "01-09-2024"). Parses year/month/day parts directly to avoid
- * timezone-driven day shifts from UTC midnight parsing.
+ * The item date, written out in the site language ("23 juli 2026") inside a
+ * <time> element that keeps the machine-readable value.
+ *
+ * The CMS delivers dates in more than one shape — "2024-09-01",
+ * "2026-08-01 00:00", "2026-07-23T09:00:00.000000Z" — and formatContentDate
+ * reads them all. A value it does not recognise as a date (a free-text label)
+ * is shown as written, without a <time> element.
  */
-function formatDate(iso: string): string {
-  try {
-    // Strip any time component ("2026-08-01 00:00" → "2026-08-01")
-    const datePart = iso.split(" ")[0] ?? iso;
-    const parts = datePart.split("-").map(Number);
-    const year  = parts[0];
-    const month = parts[1];
-    const day   = parts[2];
-    if (!year || !month || !day) return iso;
-    return [
-      String(day).padStart(2, "0"),
-      String(month).padStart(2, "0"),
-      String(year),
-    ].join("-");
-  } catch {
-    return iso;
-  }
+function CardDate({ date, locale }: { date: string; locale: SiteLocale }) {
+  const style     = { fontSize: "0.75rem", color: "var(--text-muted)" };
+  const formatted = formatContentDate(date, BLOCK_TEXTS[locale].dateLocale);
+
+  if (!formatted) return <span style={style}>{date}</span>;
+  return <time dateTime={formatted.dateTime} style={style}>{formatted.label}</time>;
 }
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
@@ -90,9 +92,10 @@ interface MetaRowProps {
   date?:   string;
   meta?:   readonly { readonly label: string; readonly value: string }[];
   tags?:   readonly string[];
+  locale:  SiteLocale;
 }
 
-function MetaRow({ date, meta, tags }: MetaRowProps) {
+function MetaRow({ date, meta, tags, locale }: MetaRowProps) {
   const hasDate = Boolean(date);
   const hasMeta = meta && meta.length > 0;
   const hasTags = tags && tags.length > 0;
@@ -103,11 +106,7 @@ function MetaRow({ date, meta, tags }: MetaRowProps) {
     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem" }}>
 
       {/* Date */}
-      {hasDate && (
-        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-          {formatDate(date!)}
-        </span>
-      )}
+      {hasDate && <CardDate date={date!} locale={locale} />}
 
       {/* Separator between date and meta */}
       {hasDate && hasMeta && (
@@ -176,9 +175,10 @@ function CategoryBadge({ category }: { category: string }) {
 interface InnerCardProps {
   item:       ListingItem;
   HeadingTag: "h2" | "h3" | "h4";
+  locale:     SiteLocale;
 }
 
-function GridCard({ item, HeadingTag }: InnerCardProps) {
+function GridCard({ item, HeadingTag, locale }: InnerCardProps) {
   const hasHoverImage = Boolean(item.imageUrl && item.hoverImageUrl);
 
   return (
@@ -316,7 +316,7 @@ function GridCard({ item, HeadingTag }: InnerCardProps) {
         )}
 
         {/* Date / meta / tags */}
-        <MetaRow date={item.showDate !== false ? item.date : undefined} meta={item.meta} tags={item.tags} />
+        <MetaRow date={item.showDate !== false ? item.date : undefined} meta={item.meta} tags={item.tags} locale={locale} />
       </div>
     </article>
   );
@@ -324,7 +324,7 @@ function GridCard({ item, HeadingTag }: InnerCardProps) {
 
 // ── Row layout (horizontal) ───────────────────────────────────────────────────
 
-function RowCard({ item, HeadingTag }: InnerCardProps) {
+function RowCard({ item, HeadingTag, locale }: InnerCardProps) {
   const hasHoverImage = Boolean(item.imageUrl && item.hoverImageUrl);
 
   return (
@@ -457,7 +457,7 @@ function RowCard({ item, HeadingTag }: InnerCardProps) {
         )}
 
         {/* Date / meta */}
-        <MetaRow date={item.showDate !== false ? item.date : undefined} meta={item.meta} />
+        <MetaRow date={item.showDate !== false ? item.date : undefined} meta={item.meta} locale={locale} />
       </div>
     </article>
   );
@@ -465,7 +465,7 @@ function RowCard({ item, HeadingTag }: InnerCardProps) {
 
 // ── Compact layout (text-only) ────────────────────────────────────────────────
 
-function CompactCard({ item, HeadingTag }: InnerCardProps) {
+function CompactCard({ item, HeadingTag, locale }: InnerCardProps) {
   return (
     <article
       style={{
@@ -479,11 +479,7 @@ function CompactCard({ item, HeadingTag }: InnerCardProps) {
       {/* Top row: category + date */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
         {item.category && <CategoryBadge category={item.category} />}
-        {item.showDate !== false && item.date && (
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            {formatDate(item.date)}
-          </span>
-        )}
+        {item.showDate !== false && item.date && <CardDate date={item.date} locale={locale} />}
         {item.meta && item.meta.map((m) => (
           <span key={m.label} style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             {m.value}
@@ -534,11 +530,15 @@ function CompactCard({ item, HeadingTag }: InnerCardProps) {
  * @param item          — The content item to render.
  * @param layout        — Visual layout: "card" (default), "row", or "compact".
  * @param headingLevel  — Semantic heading level for the title (default: 3).
+ * @param locale        — Language of the date (default: the site language).
  */
-export function ResultCard({ item, layout = "card", headingLevel = 3 }: ResultCardProps) {
+export function ResultCard({ item, layout = "card", headingLevel = 3, locale: localeProp }: ResultCardProps) {
   const HeadingTag = `h${headingLevel}` as "h2" | "h3" | "h4";
+  // The hook runs unconditionally; an explicit prop from the block wins.
+  const siteLocale = useSiteLocale();
+  const locale     = localeProp ?? siteLocale;
 
-  if (layout === "compact") return <CompactCard item={item} HeadingTag={HeadingTag} />;
-  if (layout === "row")     return <RowCard     item={item} HeadingTag={HeadingTag} />;
-  return                           <GridCard    item={item} HeadingTag={HeadingTag} />;
+  if (layout === "compact") return <CompactCard item={item} HeadingTag={HeadingTag} locale={locale} />;
+  if (layout === "row")     return <RowCard     item={item} HeadingTag={HeadingTag} locale={locale} />;
+  return                           <GridCard    item={item} HeadingTag={HeadingTag} locale={locale} />;
 }

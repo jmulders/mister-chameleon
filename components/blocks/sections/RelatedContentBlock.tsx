@@ -115,7 +115,7 @@ export function RelatedContentBlock({ data, variant: rawVariant, locale = "en" }
             >
               {items.map((item, i) => (
                 <div key={item.id ?? String(i)} className="min-w-72 flex-shrink-0 snap-start sm:min-w-80">
-                  <ResultCard item={toListingItem(item)} layout="card" headingLevel={3} />
+                  <ResultCard item={toListingItem(item)} layout="card" headingLevel={3} locale={locale} />
                 </div>
               ))}
             </div>
@@ -167,7 +167,7 @@ export function RelatedContentBlock({ data, variant: rawVariant, locale = "en" }
             >
               {items.map((item, i) => (
                 <div key={item.id ?? String(i)} style={{ scrollSnapAlign: "start" }}>
-                  <ResultCard item={toListingItem(item)} layout="card" headingLevel={3} />
+                  <ResultCard item={toListingItem(item)} layout="card" headingLevel={3} locale={locale} />
                 </div>
               ))}
             </div>
@@ -200,7 +200,7 @@ export function RelatedContentBlock({ data, variant: rawVariant, locale = "en" }
 
             <Stack gap={4}>
               {items.map((item, i) => (
-                <ResultCard key={item.id ?? String(i)} item={toListingItem(item)} layout="row" headingLevel={3} />
+                <ResultCard key={item.id ?? String(i)} item={toListingItem(item)} layout="row" headingLevel={3} locale={locale} />
               ))}
             </Stack>
           </Stack>
@@ -234,7 +234,7 @@ export function RelatedContentBlock({ data, variant: rawVariant, locale = "en" }
 
           <Grid cols={3} gap="lg">
             {items.map((item, i) => (
-              <ResultCard key={item.id ?? String(i)} item={toListingItem(item)} layout="card" headingLevel={3} />
+              <ResultCard key={item.id ?? String(i)} item={toListingItem(item)} layout="card" headingLevel={3} locale={locale} />
             ))}
           </Grid>
         </Stack>
