@@ -10,7 +10,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { noteFailedRead, rememberedRead, REMEMBERED_READ_TAG, type CacheLayer } from "@/lib/cache/remembered-read";
+import { noteFailedRead, READS_AT_ONCE, rememberedRead, REMEMBERED_READ_TAG, WAIT_FOR_A_TURN_MS, type CacheLayer } from "@/lib/cache/remembered-read";
 
 /**
  * A small stand-in for Next's data cache with the behaviour this code leans
@@ -191,6 +191,73 @@ describe("rememberedRead", () => {
     assert.equal(await read("hero", null as unknown as string), "hero van null");
     assert.equal(await read("hero", "null"), "hero van null");
     assert.equal(cache.entries.size, 4);
+  });
+});
+
+describe("a few reads at a time", () => {
+  /** Reads that stay open until released, and count how many are open at once. */
+  function gatedReads() {
+    let open = 0;
+    let most = 0;
+    const release: Array<() => void> = [];
+    const read = async (name: string) => {
+      open++;
+      most = Math.max(most, open);
+      await new Promise<void>((r) => release.push(r));
+      open--;
+      return name;
+    };
+    return { read, release, most: () => most, open: () => open };
+  }
+  const tick = () => new Promise<void>((r) => setImmediate(r));
+
+  it("opens no more than three reads at once, and the rest follow as they finish", async () => {
+    const cache = fakeCache();
+    const gate = gatedReads();
+    const read = rememberedRead("turns", gate.read, { seconds: 60 }, cache.layer);
+    const all = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"].map((n) => read(n));
+    await tick();
+    assert.equal(gate.open(), READS_AT_ONCE);
+    while (gate.release.length > 0) { gate.release.shift()!(); await tick(); }
+    assert.deepEqual(await Promise.all(all), ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]);
+    assert.equal(gate.most(), READS_AT_ONCE);
+  });
+
+  it("gives the slot back when a read fails, so the next ones are not held up", async () => {
+    const cache = fakeCache();
+    const broken = rememberedRead("turns-broken", async (_n: number): Promise<number> => { throw new Error("stuk"); }, { seconds: 60 }, cache.layer);
+    for (let i = 0; i < 8; i++) await assert.rejects(broken(i), /stuk/);
+    const gate = gatedReads();
+    const read = rememberedRead("turns-after", gate.read, { seconds: 60 }, cache.layer);
+    const pending = [read("a"), read("b"), read("c")];
+    await tick();
+    assert.equal(gate.open(), 3, "all three slots are free again");
+    gate.release.splice(0).forEach((r) => r());
+    await Promise.all(pending);
+  });
+
+  it("lets a read go after two seconds of waiting, whatever holds the slots", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const cache = fakeCache();
+    const gate = gatedReads();
+    const read = rememberedRead("turns-hang", gate.read, { seconds: 60 }, cache.layer);
+    const hanging = [read("a"), read("b"), read("c")];
+    const late = read("d");
+    await tick();
+    assert.equal(gate.open(), 3);
+    t.mock.timers.tick(WAIT_FOR_A_TURN_MS);
+    await tick();
+    assert.equal(gate.open(), 4, "the fourth read no longer waits for a slot");
+    gate.release.splice(0).forEach((r) => r());
+    assert.deepEqual(await Promise.all([...hanging, late]), ["a", "b", "c", "d"]);
+    // The read that went without a slot must not give one back it never had.
+    const gate2 = gatedReads();
+    const read2 = rememberedRead("turns-hang-2", gate2.read, { seconds: 60 }, cache.layer);
+    const more = ["e", "f", "g", "h"].map((n) => read2(n));
+    await tick();
+    assert.equal(gate2.open(), READS_AT_ONCE);
+    while (gate2.release.length > 0) { gate2.release.shift()!(); await tick(); }
+    await Promise.all(more);
   });
 });
 

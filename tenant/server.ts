@@ -47,6 +47,7 @@ export {
   getAllTenants,
   getTenantById,
   getTenantByIdCached,
+  getTenantForRender,
   getTenantBySiteKey,
   getTenantByDomain,
   getTenantByDomainCached,

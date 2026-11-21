@@ -95,3 +95,37 @@ effect sets.
   that keeps the connections open. The owner's choice.
 - The steps left open on 19 Nov (the second batch of block reads after the
   confidence gate, the decision log insert that fails for an anonymous id).
+
+## After the first deploy (21 Nov, 18:22 UTC)
+
+The same twelve visits thirty seconds apart, starting half a minute after the
+deploy. Time until the whole page, hero included, has arrived:
+
+| | Fastest | Median | Slowest |
+| --- | --- | --- | --- |
+| Before | 0.5 s | 2.4 s | 5.0 s |
+| After | 0.4 s | 0.9 s | 7.5 s |
+
+Seven of twelve visits under a second, where it was three. But three visits
+still took 2.4 to 7.5 s, and that had a cause of its own.
+
+The Supabase log of one of them (18:24:10) shows ten reads in the same
+instant: the refresh of every stale answer, behind the response as intended.
+Among them one read that the page did wait for: `tenant_settings`. The root
+layout, the site layout, the theme decision and the renderer read the tenant
+with `getTenantById()`, straight from the database. That read used to take
+0.6 s on a cold database. Now it stood in line with nine others that each
+opened a connection, and took 2.2 s.
+
+Two of the slow visits also had a slow first byte (3.4 and 5.4 s), both
+within four minutes of the deploy. That fits a cold function instance right
+after a deployment and was not seen later.
+
+## Second round
+
+- Everything that renders a public page reads the tenant with
+  `getTenantForRender()`: the cross-instance tenant cache first, the database
+  only when that has nothing. A test holds the list of files.
+- The refresh opens at most three reads at a time. The rest follow as those
+  finish and find the connections warm. A read that has waited two seconds
+  for its turn goes anyway.

@@ -103,7 +103,7 @@ describe("homepage pipeline: database reads", () => {
     // at Supabase took 0.4 to 1 s each, and the hero waited for six steps of
     // them. Everything below is the same for every visitor. Each must be read
     // through its remembered variant on the public path.
-    assert.match(code, /await getTenantByIdCached\(tenantConfig\.tenantId\)/);
+    assert.match(code, /tenant = await getTenantForRender\(tenantConfig\.tenantId\)/);
     assert.match(code, /sessionCap = await checkSessionSoftCapRemembered\(tenantConfig\.tenantId\)/);
     assert.doesNotMatch(code, /checkSessionSoftCap\(/);
     assert.match(code, /listAdaptiveBlocksRemembered\(tenantConfig\.tenantId, true\)/);
@@ -120,6 +120,37 @@ describe("homepage pipeline: database reads", () => {
     assert.match(read("components/platform/TemplateRenderer.tsx"), /await listDesignEffectSetsRemembered\(tenantId\)/);
     assert.match(read("cms/providers/statamic-provider.ts"), /getAdaptiveBlockByKeyRemembered\(key, this\.tenantId \?\? null\)/);
     assert.match(read("lib/cms-page-decision.ts"), /sessionCap = await checkSessionSoftCapRemembered\(tenantId\)/);
+  });
+
+  it("reads the tenant from memory in everything that renders a public page", () => {
+    // After the configuration had moved to memory, the tenant settings were the
+    // one read the page still waited for: the layouts and the renderer read
+    // them straight from the database, two seconds on a quiet site.
+    const files = [
+      "app/layout.tsx",
+      "app/(site)/layout.tsx",
+      "app/(site)/page.tsx",
+      "app/(site)/[slug]/page.tsx",
+      "app/(site)/blog/[slug]/page.tsx",
+      "app/(site)/cases/[slug]/page.tsx",
+      "app/(site)/team/[slug]/page.tsx",
+      "app/(site)/jobs/[slug]/page.tsx",
+      "app/(site)/events/[slug]/page.tsx",
+      "app/(site)/vacancies/[slug]/page.tsx",
+      "app/(site)/contact/page.tsx",
+      "components/platform/TemplateRenderer.tsx",
+      "components/layout/Header.tsx",
+      "components/layout/Footer.tsx",
+      "lib/theme/request-theme.ts",
+      "lib/theme/contextual-block-tokens.ts",
+      "lib/pipeline/homepage-pipeline.ts",
+    ];
+    for (const file of files) {
+      const source = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      assert.doesNotMatch(source, /\bgetTenantById\(/, `${file} reads the tenant from the database on every request`);
+    }
+    const store = readFileSync("tenant/tenant-store.ts", "utf8");
+    assert.match(store, /export async function getTenantForRender[\s\S]*?\(await getTenantByIdCached\(tenantId\)\) \?\? \(await getTenantById\(tenantId\)\)/);
   });
 
   it("drops the remembered configuration when it is saved", () => {

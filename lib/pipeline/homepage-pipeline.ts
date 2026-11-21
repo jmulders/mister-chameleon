@@ -89,8 +89,7 @@ import { ShadowAiDecisionProvider }        from "@/decision/providers/shadow-ai-
 import { DEFAULT_CONFIDENCE_POLICY }       from "@/decision/ai-confidence-policy";
 import { logger }                          from "@/lib/logger";
 import {
-  getTenantById,
-  getTenantByIdCached,
+  getTenantForRender,
   getActiveTenantWithDevOverride,
   resolveThemeForTenant,
   resolvedThemeToCSS,
@@ -236,9 +235,7 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   // the admin). This was a database read on every pageview, the first of the
   // steps the hero waited for. The direct read stays as the fallback for a
   // cache that has nothing yet.
-  const tenant =
-    (await getTenantByIdCached(tenantConfig.tenantId)) ??
-    (await getTenantById(tenantConfig.tenantId));
+  const tenant = await getTenantForRender(tenantConfig.tenantId);
 
   // ── Anonymity boundary ─────────────────────────────────────────────────────
   // The anonymous context layer (device, coarse geo, source/UTM/referrer, time)

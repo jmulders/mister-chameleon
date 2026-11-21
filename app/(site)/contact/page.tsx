@@ -46,7 +46,7 @@ import { mapPageDataToPageConfig } from "@/cms/mappers/page-config-mapper";
 import { resolvePageConfigItems } from "@/cms/collection-resolver";
 import { TemplateRenderer } from "@/components/platform/TemplateRenderer";
 import { PageTitleHeader }  from "@/components/site/PageTitleHeader";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { resolveSlugPageConfig } from "@/lib/cms-page-decision";
 import { loadCmsContactPage, withContactForm } from "@/lib/contact-page";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
@@ -73,7 +73,7 @@ type PageProps = {
  */
 const getCmsContactPage = cache(async (): Promise<PageData | null> => {
   const { tenantId } = await getActiveTenant();
-  const tenant       = await getTenantById(tenantId ?? "");
+  const tenant       = await getTenantForRender(tenantId ?? "");
   if (tenant?.cms?.provider === "mock") return null;
 
   const cookieStore = await cookies();
@@ -107,7 +107,7 @@ export async function generateMetadata(): Promise<Metadata> {
 async function renderCmsContactPage(page: PageData) {
   const pageConfig   = mapPageDataToPageConfig(page);
   const { tenantId } = await getActiveTenant();
-  const tenant       = await getTenantById(tenantId ?? "");
+  const tenant       = await getTenantForRender(tenantId ?? "");
   const headerStore  = await headers();
   const proto        = headerStore.get("x-forwarded-proto") ?? "http";
 

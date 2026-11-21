@@ -70,7 +70,7 @@ import { TimezoneCapture } from "@/components/tracking/TimezoneCapture";
 import { ClientContextCollector } from "@/components/tracking/ClientContextCollector";
 import { Ga4TrackingProvider } from "@/components/tracking/Ga4TrackingProvider";
 import { BlockEffectRuntime } from "@/components/platform/BlockEffectRuntime";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
 import type { ResolvedChrome } from "@/components/layout/chrome-bg";
 
@@ -112,7 +112,7 @@ export default async function SiteLayout({
   let ga4: { measurementId: string; visitorIdParamName: string } | null = null;
   if (tenantId !== "unknown") {
     try {
-      const settings = await getTenantById(tenantId);
+      const settings = await getTenantForRender(tenantId);
       showScenarioControl = settings?.debug?.showScenarioControl === true;
       // Per-tenant curation of what the console offers (presets/roles/time).
       // Absent → null → the panel shows the full built-in lists (current default).

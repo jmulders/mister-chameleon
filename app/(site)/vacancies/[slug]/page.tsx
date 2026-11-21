@@ -35,7 +35,7 @@ import { pageNeedsTitleHeading }   from "@/lib/page-title";
 import { PageTitleHeader }         from "@/components/site/PageTitleHeader";
 import { getSiteLocale } from "@/lib/site-texts/server";
 import { PAGE_TEXTS } from "@/lib/site-texts/pages";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ type PageProps = {
 // ── Memoised data fetch ───────────────────────────────────────────────────────
 
 const getPageData = cache(async (slug: string, tenantId: string | null) => {
-  const tenant = await getTenantById(tenantId ?? "");
+  const tenant = await getTenantForRender(tenantId ?? "");
   return createCMSProvider(tenant?.cms, tenantId).getPageBySlug(`vacancies/${slug}`);
 });
 

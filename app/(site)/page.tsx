@@ -29,7 +29,7 @@ import { cookies, headers }                from "next/headers";
 import { after }                           from "next/server";
 import { homeTitle, requestOrigin, websiteJsonLd } from "@/lib/seo/site-identity";
 import type { Metadata }                   from "next";
-import { getActiveTenant, getTenantById, getTenantByIdCached } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { createCMSProvider }               from "@/cms";
 import { LOCALE_COOKIE, isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 
@@ -50,7 +50,7 @@ export const dynamic = "force-dynamic";
 
 const getHomePageForMeta = cache(
   async (tenantId: string | null, locale: string) => {
-    const tenant = (await getTenantByIdCached(tenantId ?? "")) ?? (await getTenantById(tenantId ?? ""));
+    const tenant = await getTenantForRender(tenantId ?? "");
     return createCMSProvider(tenant?.cms, tenantId, locale).getPageBySlug("home", locale);
   },
 );

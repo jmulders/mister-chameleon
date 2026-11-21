@@ -21,7 +21,7 @@ import "server-only";
 
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { buildTimeContext } from "@/context/time";
 import { emptyHistory } from "@/context/visitor-history";
 import { parseScenarioCookie, applyScenarioToDecisionContext } from "@/lib/scenario/server-scenario";
@@ -50,7 +50,7 @@ export const getContextualGalleryDefaultTokens = cache(async (): Promise<Curated
 
     const { tenantId } = await getActiveTenant();
     if (!tenantId) return null;
-    const settings = await getTenantById(tenantId);
+    const settings = await getTenantForRender(tenantId);
 
     const ua        = headersList.get("user-agent") ?? "";
     const timezone  = settings?.timezone ?? "UTC";
