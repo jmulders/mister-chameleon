@@ -215,18 +215,32 @@ export async function recordVisitorProfile(args: {
 
 const SESSION_GAP_MS = 30 * 60 * 1000;
 
-/** A short HTML "website visit" note body for the HubSpot timeline. */
-function buildNoteBody(
-  patch:  ReturnType<typeof gateProfileWrite>,
+/**
+ * A short HTML "website visit" note body for the HubSpot timeline.
+ *
+ * The note says how the visitor was recognised. It used to say "via
+ * personalized link" for every visit, also when nobody had clicked such a
+ * link and only the company was recognised from the visit. Sales read that as
+ * "our mail was opened". A visit through a personal link carries an ABM lead
+ * id; without one the company was recognised and no contact is known.
+ */
+export function buildNoteBody(
+  patch:  Pick<ReturnType<typeof gateProfileWrite>, "abmLeadId" | "companyName" | "funnelStage" | "intentScore">,
   person: LeadPerson | null,
+  now:    Date = new Date(),
 ): string {
-  const when = new Date().toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" });
-  const who  = person && (person.firstName || person.lastName)
+  const when = now.toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" });
+  const viaLink = Boolean(patch.abmLeadId);
+  const name = person && (person.firstName || person.lastName)
     ? `${[person.firstName, person.lastName].filter(Boolean).join(" ")}${person.jobTitle ? `, ${person.jobTitle}` : ""}`
-    : "Known visitor";
+    : null;
   const lines = [
-    `<strong>Website visit via personalized link</strong> — ${when}`,
-    `Contact: ${who}`,
+    viaLink
+      ? `<strong>Website visit via personalized link</strong> — ${when}`
+      : `<strong>Website visit from a recognised company</strong> — ${when}`,
+    viaLink
+      ? `Contact: ${name ?? "Known contact"}`
+      : "Contact: not identified. The company was recognised from the visit.",
     patch.companyName ? `Account: ${patch.companyName}` : null,
     patch.funnelStage ? `Funnel stage: ${patch.funnelStage}` : null,
     typeof patch.intentScore === "number" ? `Intent score: ${patch.intentScore}` : null,
