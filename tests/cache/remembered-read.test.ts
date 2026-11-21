@@ -173,14 +173,24 @@ describe("rememberedRead", () => {
     assert.equal(await bad(), "leeg");
     release();
     assert.equal(await pending, "goed");
-    assert.deepEqual([...cache.entries.keys()], ["remembered-read|good"]);
+    assert.deepEqual([...cache.entries.keys()], ["remembered-read|good|[]"]);
   });
 
   it("gives every answer its lifetime and the tag a save drops it by", async () => {
     const cache = fakeCache();
     const read = rememberedRead("t", async (a: string, b: boolean) => `${a}${b}`, { seconds: 45 }, cache.layer);
     await read("x", true);
-    assert.deepEqual(cache.seen[0], { key: "remembered-read|t|x|true", revalidate: 45, tags: [REMEMBERED_READ_TAG] });
+    assert.deepEqual(cache.seen[0], { key: 'remembered-read|t|["x",true]', revalidate: 45, tags: [REMEMBERED_READ_TAG] });
+  });
+
+  it("never lets two sets of arguments share a key", async () => {
+    const cache = fakeCache();
+    const read = rememberedRead("t", async (key: string, tenant: string) => `${key} van ${tenant}`, { seconds: 60 }, cache.layer);
+    assert.equal(await read("a,b", "c"), "a,b van c");
+    assert.equal(await read("a", "b,c"), "a van b,c");
+    assert.equal(await read("hero", null as unknown as string), "hero van null");
+    assert.equal(await read("hero", "null"), "hero van null");
+    assert.equal(cache.entries.size, 4);
   });
 });
 

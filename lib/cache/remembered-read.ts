@@ -125,7 +125,10 @@ export function rememberedRead<A extends KeyPart[], T>(
         if (state.failed || (options.keep && !options.keep(value))) throw new NotKept(value);
         return value;
       },
-      ["remembered-read", name, ...args.map((a) => String(a))],
+      // The arguments as one JSON part: joined as loose strings, ("a,b", "c")
+      // and ("a", "b,c") would share a key, and one tenant would get the
+      // answer of another.
+      ["remembered-read", name, JSON.stringify(args)],
       { revalidate: options.seconds, tags: [REMEMBERED_READ_TAG] },
     );
 
