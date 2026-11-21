@@ -54,9 +54,8 @@ import { cookies, headers } from "next/headers";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/lib/locale";
 import { getSiteLocale } from "@/lib/site-texts/server";
 import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
-import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
+import { getTenantSiteSettings } from "@/cms/providers/tenant-site-settings";
 import { getActiveTenant, getTenantByIdCached } from "@/tenant/server";
-import { normalizeTenant } from "@/tenant/normalize";
 import type { HeaderVariant } from "@/tenant/types";
 import { getSiteNavigation }  from "@/site/navigation-store";
 import { Container } from "@/components/primitives";
@@ -205,8 +204,7 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
   // site identity / navigation data further below.  We fetch early so the
   // headerVariant fallback is available before Layer 2 overrides it.
   const tenantSettings = await getTenantByIdCached(activeTenant.tenantId);
-  const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
-  const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings(locale);
+  const settings = await getTenantSiteSettings(activeTenant.tenantId, tenantSettings, locale);
 
   // Layer 1.5 — CMS-level layout override (fallback between family default and
   // tenant DB).  Applied only when the CMS entry has an explicit value and the
