@@ -100,6 +100,7 @@ import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-me
 import type { IndexablePath, ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type { TenantSettings } from "@/tenant/types";
 import { mapStatamicSeoFields } from "@/cms/mappers/statamic/seo-fields";
+import { dateOnly, isPublishedBy, newestFirst } from "./listing-dates";
 
 // ── Direct file reader (bypasses StatamicClient for local dev reliability) ────
 //
@@ -1977,22 +1978,19 @@ export class StatamicProvider implements CMSProvider {
           overview_image_hover?: Array<{ url?: string; permalink?: string } | string> | string;
           tags?:                 unknown[];
         };
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const allBlogEntries = await this.client.fetchAll<BlogListingEntry>("blog", fetchLimit);
-        // Filter out posts whose publication date is in the future.
-        const entries = allBlogEntries.filter((entry) => {
-          if (!entry.date) return true; // no date → always visible
-          const dateStr = String(entry.date).split(" ")[0];
-          const pubDate = new Date(dateStr ?? "");
-          return isNaN(pubDate.getTime()) || pubDate <= today;
-        });
+        // The CMS returns articles in no particular order, so the newest can
+        // only be picked after all of them are in. The limit is applied below.
+        const allBlogEntries = await this.client.fetchAll<BlogListingEntry>("blog", Math.max(fetchLimit, 100));
+        // Filter out posts whose publication date is in the future. A post
+        // dated today is shown, whatever time of day its date carries.
+        const now = new Date();
+        const entries = allBlogEntries.filter((entry) => isPublishedBy(entry.date, now));
         items = entries.map((entry): CollectionItem => ({
           id:            entry.id,
           title:         entry.title ?? entry.slug,
           href:          `/blog/${entry.slug}`,
           excerpt:       typeof entry.excerpt === "string" ? entry.excerpt : undefined,
-          date:          typeof entry.date    === "string" ? entry.date.split(" ")[0] : undefined,
+          date:          dateOnly(entry.date),
           showDate:      entry.show_date !== false,
           imageUrl:      this.resolveAssetUrl(entry.overview_image)       ?? undefined,
           hoverImageUrl: this.resolveAssetUrl(entry.overview_image_hover) ?? undefined,
@@ -2000,6 +1998,7 @@ export class StatamicProvider implements CMSProvider {
                            ? entry.tags.filter((t): t is string => typeof t === "string")
                            : undefined,
         }));
+        items = newestFirst(items);
       } catch {
         return [];
       }
