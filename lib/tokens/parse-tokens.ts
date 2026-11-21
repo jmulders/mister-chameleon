@@ -43,6 +43,10 @@
  *   // → "Welkom, Philips N.V.!"
  *
  *   const title = parseTokens("Klanten in {{location}} kiezen voor ons.", {});
+ *   // → "Klanten in je regio kiezen voor ons."
+ *
+ *   // The writer can name the stand-in, for a text in the u-form for example:
+ *   const title = parseTokens("Klanten in {{location|uw regio}} kiezen voor ons.", {});
  *   // → "Klanten in uw regio kiezen voor ons."
  */
 
@@ -115,21 +119,28 @@ export interface TokenContext {
 // gebruikt.  Kies neutrale, geloofwaardige tekst die ook onpersoonlijk goed
 // leest in de zin.
 
+//
+// In the je-form since 21 Nov 2026. They were in the u-form ("uw organisatie")
+// and one was English ("your device"), on a platform whose own site and
+// templates address the reader with je. No tenant used a token at the time. A
+// text in another form of address, or another language, names its own
+// stand-in: {{company_name|uw organisatie}}.
+
 const FALLBACKS: Record<string, string> = {
   // Enrichment / CRM
-  company_name:  "uw organisatie",
-  company_short: "uw organisatie",
-  location:      "uw regio",
-  city:          "uw stad",
-  region:        "uw regio",
-  industry:      "uw sector",
-  company:       "uw organisatie",
+  company_name:  "je organisatie",
+  company_short: "je organisatie",
+  location:      "je regio",
+  city:          "je stad",
+  region:        "je regio",
+  industry:      "je sector",
+  company:       "je organisatie",
   first_name:    "",           // stille fallback — vermijd "Beste ,"
   full_name:     "",           // stille fallback
   role:          "",           // stille fallback
   // Visitor context
   source:        "",           // stille fallback — "via [leeg]" laat geen spoor
-  device:        "your device",
+  device:        "je apparaat",
   visit_type:    "",           // stille fallback — "new"/"returning" past slecht rauw in copy
   campaign:      "",           // stille fallback — alleen zichtbaar als UTM aanwezig
   medium:        "",           // stille fallback
@@ -160,7 +171,7 @@ function escapeHtml(value: string): string {
  * Geeft de fallback terug als de waarde ontbreekt of leeg is.
  * Onbekende tokens worden ongewijzigd teruggegeven.
  */
-function resolveToken(token: string, ctx: TokenContext): string {
+function resolveToken(token: string, ctx: TokenContext, ownFallback?: string): string {
   let resolved: string | null | undefined;
 
   switch (token) {
@@ -236,12 +247,16 @@ function resolveToken(token: string, ctx: TokenContext): string {
 
     default:
       // Onbekend token — ongewijzigd laten zodat typo's zichtbaar zijn.
-      return `{{${token}}}`;
+      return ownFallback === undefined ? `{{${token}}}` : `{{${token}|${ownFallback}}}`;
   }
 
   const value = resolved?.trim() || null;
 
   if (!value) {
+    // The writer's own stand-in comes first: it is part of the copy, written
+    // for this sentence. It is not escaped, like the text around it. An empty
+    // one ({{first_name|}}) says "nothing here", which is also an answer.
+    if (ownFallback !== undefined) return ownFallback;
     // Gebruik de fallback of een lege string als er geen fallback is.
     return FALLBACKS[token] ?? "";
   }
@@ -251,8 +266,12 @@ function resolveToken(token: string, ctx: TokenContext): string {
 
 // ── Publieke API ──────────────────────────────────────────────────────────────
 
-/** Regex die alle {{token}}-patronen matcht (token = alfanumeriek + underscore). */
-const TOKEN_PATTERN = /\{\{([a-z_][a-z0-9_]*)\}\}/gi;
+/**
+ * Regex die alle {{token}}-patronen matcht (token = alfanumeriek + underscore),
+ * with an optional stand-in after a bar: {{token|text when unknown}}. The
+ * stand-in runs to the closing braces and holds no brace of its own.
+ */
+const TOKEN_PATTERN = /\{\{\s*([a-z_][a-z0-9_]*)\s*(?:\|([^{}]*))?\}\}/gi;
 
 /**
  * Vervangt alle `{{token}}`-placeholders in `text` met echte waarden uit `ctx`.
@@ -278,8 +297,8 @@ const TOKEN_PATTERN = /\{\{([a-z_][a-z0-9_]*)\}\}/gi;
  */
 export function parseTokens(text: string, ctx: TokenContext): string {
   if (!text.includes("{{")) return text; // Fast path — geen tokens aanwezig.
-  return text.replace(TOKEN_PATTERN, (_, token: string) =>
-    resolveToken(token.toLowerCase(), ctx),
+  return text.replace(TOKEN_PATTERN, (_, token: string, ownFallback: string | undefined) =>
+    resolveToken(token.toLowerCase(), ctx, ownFallback),
   );
 }
 

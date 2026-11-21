@@ -10,7 +10,10 @@
  *   2. CreatePlanExperimentForm — create a new plan experiment tied to a rule,
  *      with a challenger plan that overrides one or more slots.
  *
- *   3. PlanExperimentsTable — list of all plan experiments with per-experiment
+ *   3. PlanExperimentResults — visitors and requests per arm of each
+ *      experiment, with a verdict that says when it is too early to tell.
+ *
+ *   4. PlanExperimentsTable — list of all plan experiments with per-experiment
  *      draft → active → paused → ended lifecycle management.
  *
  * ─── Data flow ─────────────────────────────────────────────────────────────────
@@ -41,13 +44,14 @@
 import { notFound }                    from "next/navigation";
 import { getTenantById }               from "@/tenant/server";
 import { normalizeTenant }             from "@/tenant/normalize";
-import { listAllPlanExperiments }      from "@/data/repositories/plan-experiments-repository";
+import { getPlanExperimentResults, listAllPlanExperiments } from "@/data/repositories/plan-experiments-repository";
 import { loadTenantRulesConfig }       from "@/decision/rules/load-tenant-rules";
 import { fetchVariantCatalogue }       from "@/decision/rules/fetch-variant-catalogue";
 import { setTenantExperimentsEnabledAction } from "./actions";
 import { GlobalExperimentsToggle }     from "./_components/GlobalExperimentsToggle";
 import { PlanExperimentsTable }        from "./_components/PlanExperimentsTable";
 import { CreatePlanExperimentForm }    from "./_components/CreatePlanExperimentForm";
+import { PlanExperimentResults }       from "./_components/PlanExperimentResults";
 import { Text }                        from "@/components/primitives/Text";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -70,6 +74,12 @@ export default async function TenantExperimentsPage({
     loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true }),
     fetchVariantCatalogue(tenantId),
   ]);
+
+  // Which arm did better. Needs the ids of the experiments, so it comes after
+  // the list. A failed read shows as a note, the page itself still loads.
+  const resultsResult = planExperimentsResult.ok
+    ? await getPlanExperimentResults(tenantId, planExperimentsResult.data.map((e) => e.id))
+    : null;
 
   // Build the rule list for the create/edit forms.
   // Include id, label, and the rule's plan so the create form can show the
@@ -126,6 +136,23 @@ export default async function TenantExperimentsPage({
           variantCatalogue={variantCatalogue}
         />
       </div>
+
+      {/* ── Results ───────────────────────────────────────────────────────── */}
+      {planExperimentsResult.ok && resultsResult && (
+        <div className="mb-6">
+          {resultsResult.ok ? (
+            <PlanExperimentResults
+              experiments={planExperimentsResult.data}
+              results={resultsResult.data.results}
+              truncated={resultsResult.data.truncated}
+            />
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <strong>The results could not be loaded:</strong> {resultsResult.error}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Plan experiments table ────────────────────────────────────────── */}
       <div className="mb-2">

@@ -95,7 +95,7 @@ describe("parseTokens — known-lead personalization", () => {
   it("falls back silently when the lead is unknown", () => {
     const ctx = buildTokenContextFromInput({});
     assert.strictEqual(parseTokens("Welkom{{first_name}}", ctx), "Welkom");
-    assert.strictEqual(parseTokens("Voor {{company}}", ctx), "Voor uw organisatie");
+    assert.strictEqual(parseTokens("Voor {{company}}", ctx), "Voor je organisatie");
   });
 });
 
