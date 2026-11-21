@@ -47,6 +47,28 @@ function asResultMany<T>(r: unknown): DbResultMany<T> {
   return r as DbResultMany<T>;
 }
 
+// ── From a row to the state ─────────────────────────────────
+
+/**
+ * The journey state for a visitor_behavior_state row, or the empty state
+ * without one. Shared by fetchJourneyState() and by the page, which gets the
+ * row in the one read of context/visitor-stored-context.ts.
+ */
+export function journeyStateFromRow(row: BehaviorStateRow | null): JourneyState {
+  if (!row) {
+    // No state yet — visitor hasn't generated journey events that have been processed.
+    return emptyJourneyState();
+  }
+
+  // Map DB row to JourneyState (confidence is set to emptyConfidence() placeholder).
+  const state = rowToJourneyState(row);
+
+  // Attach real computed confidence — overwrites the placeholder set in rowToJourneyState().
+  state.confidence = computeBehaviorConfidence(state);
+
+  return state;
+}
+
 // ── Main function ─────────────────────────────────────────────────────────────
 
 /**
@@ -94,20 +116,7 @@ export async function fetchJourneyState(
       return emptyJourneyState();
     }
 
-    const row = result.data?.[0] ?? null;
-
-    if (!row) {
-      // No state yet — visitor hasn't generated journey events that have been processed.
-      return emptyJourneyState();
-    }
-
-    // Map DB row to JourneyState (confidence is set to emptyConfidence() placeholder).
-    const state = rowToJourneyState(row);
-
-    // Attach real computed confidence — overwrites the placeholder set in rowToJourneyState().
-    state.confidence = computeBehaviorConfidence(state);
-
-    return state;
+    return journeyStateFromRow(result.data?.[0] ?? null);
   } catch (err) {
     logger.debug("[fetch-journey-state] Unexpected error", {
       sessionId,

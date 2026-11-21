@@ -55,7 +55,7 @@ import { buildTimeContext } from "@/context/time";
 import type { SeasonalEvent } from "@/context/time";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { computeDerivedContext } from "@/context/derived-context";
-import { listActiveInterestProfiles } from "@/interest-profiles/repository";
+import { listActiveInterestProfilesRemembered } from "@/interest-profiles/repository";
 import { scoreInterests, buildInterestContextVars } from "@/interest-profiles/scoring";
 import {
   parseUA,
@@ -1494,7 +1494,7 @@ export async function buildDecisionContext(
     // That is every visitor who arrives without a search term and has no
     // history, which is most first pageviews.
     if (Object.keys(cloud).length > 0) {
-      const profilesResult = await listActiveInterestProfiles(tenantId);
+      const profilesResult = await listActiveInterestProfilesRemembered(tenantId ?? null);
       const profiles = profilesResult.ok ? profilesResult.data : [];
 
       if (profiles.length > 0) {

@@ -156,3 +156,48 @@ reports is not usable here. The hero fades in, and an element that is
 invisible at its first paint is not counted, so the cookie banner is reported
 as the largest paint in most runs. The moment the document has arrived is the
 number to compare.
+
+## A visitor who accepted cookies (21 Nov, 19:50 UTC)
+
+The rounds above were measured with a fresh visitor, who has nothing stored.
+A visitor who accepted cookies has, and the page reads it before it decides:
+history, behaviour state and profile. One such visitor, nine and then six
+visits thirty seconds apart; time until the hero is in the document:
+
+| Fastest | Median | Slowest |
+| --- | --- | --- |
+| 0.4 s | 1.5 s | 7.1 s |
+
+The Supabase log of the slowest visit: five reads at once (`events`,
+`served_variants`, `visitor_behavior_state`, `visitor_profiles` twice) that
+took 5.3 to 5.9 s each, then `interest_profiles` (0.6 s) and
+`tenant_interest_profiles` (0.35 s) one after the other. Reads that arrive
+together on a quiet database each open a connection, and the more of them,
+the longer each takes: one read alone took about 0.4 s that day, five
+together 0.7 to 5.9 s, ten together 1.7 to 2.7 s.
+
+### What changes
+
+- **One read for the visitor.** Migration 188 adds the function
+  `visitor_stored_context(tenant, session)`, which returns the page views, the
+  clicks, the last served variant, the behaviour state and the profile columns
+  in one request. The page starts it once (`context/visitor-stored-context.ts`)
+  and hands the promise to the three readers, which take their rows from it
+  instead of reading themselves. On the other pages the returning-visitor
+  signals were a read of their own after the history; they come from the same
+  answer now.
+- **Deployable before the migration.** While the function is not there, or
+  when the read fails, the promise resolves to null and every reader does its
+  own reads as before. A missing function is remembered for five minutes, so
+  the page does not pay for a failed call on every request.
+- **The interest profiles are configuration** and go through
+  `rememberedRead()` like the rest: two steps less for every visitor with a
+  keyword to score.
+- **The visitor's read goes first.** The refresh of remembered configuration
+  runs behind the response, but it started in the same instant as the
+  visitor's read and competed for the cold database. A remembered read now
+  waits until a read marked with `foregroundRead()` has answered, two seconds
+  at most.
+
+The migration is applied by hand (`npm run db:migrate`). The measurement
+after it follows below.

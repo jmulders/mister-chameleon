@@ -34,6 +34,7 @@ import { headers, cookies, draftMode }     from "next/headers";
 import { after }                            from "next/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import { fetchVisitorHistory }             from "@/context/fetch-visitor-history";
+import { startVisitorStoredContext }       from "@/context/visitor-stored-context";
 import { emptyHistory }                    from "@/context/visitor-history";
 import { resolveConsent }                  from "@/lib/consent/server-consent";
 import { RulesDecisionProvider, ExperimentDecisionProvider } from "@/decision";
@@ -250,8 +251,18 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   const sessionId = consent.personalization ? persistentSessionId : `anon_${crypto.randomUUID()}`;
 
   // ── Parallel DB kicks ─────────────────────────────────────────────────────
+  //
+  // Everything stored about this visitor comes in one read (migration 188):
+  // history, behaviour state and profile. It is started once, here, and the
+  // three readers below take their rows from it. Without consent nothing is
+  // stored for the throwaway id, so nothing is read. While the migration is
+  // not applied the promise resolves to null and each reader does its own
+  // reads, as before.
+  const storedContextPromise = ((consent.personalization || consent.enrichment) && sessionId)
+    ? startVisitorStoredContext(tenantConfig.tenantId, sessionId)
+    : undefined;
   const historyPromise = consent.personalization
-    ? fetchVisitorHistory(sessionId, tenantConfig.tenantId)
+    ? fetchVisitorHistory(sessionId, tenantConfig.tenantId, storedContextPromise)
     : Promise.resolve(emptyHistory());
 
   // The two reads of the visitor's stored profile need only the tenant and the
@@ -267,10 +278,11 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
         tenantConfig.tenantId,
         sessionId,
         tenant?.enrichment?.firmographicFreshnessDays ?? 30,
+        storedContextPromise,
       )
     : Promise.resolve(null);
   const returningSignalsPromise = (consent.personalization && sessionId)
-    ? getReturningProfileSignals(tenantConfig.tenantId, sessionId)
+    ? getReturningProfileSignals(tenantConfig.tenantId, sessionId, storedContextPromise)
     : Promise.resolve(null);
 
   // Full firmographic enrichment chain — built once and shared with the snippet

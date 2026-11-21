@@ -171,9 +171,10 @@ describe("homepage pipeline: database reads", () => {
       .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     const cloud = context.indexOf("const cloud: Record<string, number> = {};");
     const gate  = context.indexOf("if (Object.keys(cloud).length > 0) {", cloud);
-    const read  = context.indexOf("await listActiveInterestProfiles(tenantId)");
+    const read  = context.indexOf("await listActiveInterestProfilesRemembered(tenantId ?? null)");
     assert.ok(cloud > 0 && gate > cloud && read > gate, "the keyword cloud must be built and checked before the read");
-    assert.equal(context.match(/listActiveInterestProfiles\(tenantId\)/g)?.length, 1, "one place reads the profiles");
+    assert.equal(context.match(/listActiveInterestProfilesRemembered\(tenantId \?\? null\)/g)?.length, 1, "one place reads the profiles");
+    assert.doesNotMatch(context, /listActiveInterestProfiles\(/, "and it reads them from memory");
     // Nothing between the check and the read may leave the block.
     assert.doesNotMatch(context.slice(gate, read), /\n {4}\}/);
   });
