@@ -10,6 +10,7 @@ import { tenantThemeToCSS }      from "@/design-system/theme/tenant-theme";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 import { ALL_FONT_VARIABLES, geistSans, geistMono, resolveGoogleFontCss } from "@/lib/fonts";
 import { LeadinfoProvider }      from "@/components/tracking/LeadinfoProvider";
+import { GtmLoader }             from "@/components/tracking/GtmLoader";
 import { ConsentBanner }         from "@/components/tracking/ConsentBanner";
 import { SiteLocaleProvider }    from "@/components/site/SiteLocale";
 import { toSiteLocale }          from "@/lib/site-texts/locale";
@@ -409,6 +410,11 @@ export default async function RootLayout({
   // Never show the consent banner on admin pages, the internal dashboard or the
   // block-preview surface (it renders inside the editor's iframe — the cookie
   // chrome is noise).
+  // A tenant that shows the platform's banner gets its tag manager only after
+  // the visitor allowed something a tag can fall under (GtmLoader). A tenant
+  // that turned the banner off asks for consent in its own way, inside its
+  // container, and keeps the plain snippet.
+  const gtmWaitsForConsent = privacySettings?.showConsentBanner !== false;
   const showConsentBanner =
     privacySettings?.showConsentBanner !== false &&
     !_consentPathname.startsWith("/admin") &&
@@ -557,8 +563,10 @@ export default async function RootLayout({
           />
         )}
 
-        {/* Google Tag Manager (per-tenant) — establishes window.dataLayer. */}
-        {gtmContainerId && (
+        {/* Google Tag Manager (per-tenant) — establishes window.dataLayer.
+            Only for a tenant without the platform's banner. With the banner
+            the container waits for consent and GtmLoader loads it. */}
+        {gtmContainerId && !gtmWaitsForConsent && (
           <script
             id="gtm-base"
             nonce={cspNonce}
@@ -579,7 +587,7 @@ export default async function RootLayout({
         )}
       </head>
       <body className="antialiased">
-        {gtmContainerId && (
+        {gtmContainerId && !gtmWaitsForConsent && (
           <noscript
             dangerouslySetInnerHTML={{
               __html:
@@ -589,6 +597,7 @@ export default async function RootLayout({
           />
         )}
         <SiteLocaleProvider locale={toSiteLocale(htmlLang)}>{children}</SiteLocaleProvider>
+        {gtmContainerId && gtmWaitsForConsent && <GtmLoader containerId={gtmContainerId} />}
         {leadinfoEnabled && (
           <LeadinfoProvider
             siteToken={leadinfoSettings!.siteToken!}
