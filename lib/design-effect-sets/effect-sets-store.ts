@@ -12,6 +12,7 @@
 
 import { getDb }  from "@/data/db";
 import { logger } from "@/lib/logger";
+import { forgetRememberedReads, noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 import type { DesignEffectSetRow, DesignEffectSetInsert } from "@/data/types";
 import type { BlockEffectConfig, EffectSet } from "@/design-system/effects/effect-ref";
 import { orValue } from "@/data/postgrest-filter";
@@ -60,13 +61,28 @@ export async function listDesignEffectSets(
     else                             query = query.is("tenant_id", null);
 
     const { data, error } = asMany<DesignEffectSetRow>(await query);
-    if (error || !data) return [];
+    if (error || !data) {
+      if (error) noteFailedRead();
+      return [];
+    }
     return data.map(rowToSet);
   } catch (err) {
+    noteFailedRead();
     logger.warn("[DesignEffectSetsStore] list error", { tenantId, error: err instanceof Error ? err.message : String(err) });
     return [];
   }
 }
+
+/**
+ * The effect sets of a tenant plus the platform-wide ones, for the public
+ * render path: remembered for a minute, so a visitor does not wait for the
+ * read. A save or delete of a set drops the answer.
+ */
+export const listDesignEffectSetsRemembered = rememberedRead(
+  "design-effect-sets",
+  (tenantId: string) => listDesignEffectSets(tenantId),
+  { seconds: 60 },
+);
 
 /** Create or update an effect set (upsert on (tenant_id, name), or update by id). */
 export async function upsertDesignEffectSet(
@@ -90,6 +106,7 @@ export async function upsertDesignEffectSet(
     const { data, error } = asSingle<{ id: string }>(await query);
     if (error) return { ok: false, error: error.message };
     if (!data) return { ok: false, error: "Save returned no data." };
+    forgetRememberedReads();
     return { ok: true, id: data.id };
   } catch (err) {
     logger.error("[DesignEffectSetsStore] upsert error", { name: set.name, error: err instanceof Error ? err.message : String(err) });
@@ -107,6 +124,7 @@ export async function deleteDesignEffectSet(
     if (error) return { ok: false, error: error.message };
     const deleted = Array.isArray(data) ? data.length : 0;
     if (deleted === 0) return { ok: false, error: `No effect set was deleted for id "${id}".` };
+    forgetRememberedReads();
     return { ok: true };
   } catch (err) {
     logger.error("[DesignEffectSetsStore] delete error", { id, error: err instanceof Error ? err.message : String(err) });

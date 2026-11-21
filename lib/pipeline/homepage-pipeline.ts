@@ -79,7 +79,7 @@ import {
   applySessionCap,
   servesDefaultExperience,
 }                                          from "@/lib/lead-base/holdout";
-import { checkSessionSoftCap }             from "@/billing/plan-enforcement";
+import { checkSessionSoftCapRemembered }   from "@/billing/plan-enforcement";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 import { getTenantAiRuntimeConfig }        from "@/ai/config";
 import { createAiProvider }                from "@/ai/providers/create-ai-provider";
@@ -90,6 +90,7 @@ import { DEFAULT_CONFIDENCE_POLICY }       from "@/decision/ai-confidence-policy
 import { logger }                          from "@/lib/logger";
 import {
   getTenantById,
+  getTenantByIdCached,
   getActiveTenantWithDevOverride,
   resolveThemeForTenant,
   resolvedThemeToCSS,
@@ -230,7 +231,14 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
 
   // Full tenant settings (needed for the privacy ceiling) — resolved before the
   // history read so the anonymity boundary can gate it.
-  const tenant = await getTenantById(tenantConfig.tenantId);
+  //
+  // From the cross-instance tenant cache (two minutes, dropped on every save in
+  // the admin). This was a database read on every pageview, the first of the
+  // steps the hero waited for. The direct read stays as the fallback for a
+  // cache that has nothing yet.
+  const tenant =
+    (await getTenantByIdCached(tenantConfig.tenantId)) ??
+    (await getTenantById(tenantConfig.tenantId));
 
   // ── Anonymity boundary ─────────────────────────────────────────────────────
   // The anonymous context layer (device, coarse geo, source/UTM/referrer, time)
@@ -324,7 +332,10 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   // recordPersonalizedSession used to do on every pageview — that function now
   // takes this verdict as an argument. Net: same query count, and the answer is
   // computed BEFORE we decide instead of after we already personalised.
-  const sessionCap = await checkSessionSoftCap(tenantConfig.tenantId);
+  //
+  // The verdict is remembered for a minute (checkSessionSoftCapRemembered), so
+  // a visitor does not wait four reads for it.
+  const sessionCap = await checkSessionSoftCapRemembered(tenantConfig.tenantId);
 
   const personalizationGroup = applySessionCap(
     assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
@@ -401,7 +412,7 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   );
   const candidateBlocksPromise = aiProviderActive
     ? import("@/lib/adaptive-blocks/adaptive-blocks-store")
-        .then(({ listAdaptiveBlocks }) => listAdaptiveBlocks(tenantConfig.tenantId, true))
+        .then(({ listAdaptiveBlocksRemembered }) => listAdaptiveBlocksRemembered(tenantConfig.tenantId, true))
         .catch((err: unknown) => {
           logger.warn("[pipeline] adaptive blocks for variant candidates failed to load", {
             tenantId: tenantConfig.tenantId,

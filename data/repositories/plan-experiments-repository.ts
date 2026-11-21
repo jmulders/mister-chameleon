@@ -52,6 +52,7 @@ import type {
 } from "@/data/types";
 import type { RepositoryResult } from "./sessions-repository";
 import { logger } from "@/lib/logger";
+import { forgetRememberedReads, rememberedRead } from "@/lib/cache/remembered-read";
 
 // ── Type assertion helper ──────────────────────────────────────────────────────
 
@@ -122,6 +123,17 @@ export async function getActivePlanExperimentsForRule(
     return { ok: false, error: message };
   }
 }
+
+/**
+ * getActivePlanExperimentsForRule() for the public render path: remembered for
+ * a minute, so a visitor does not wait for the read. A failed read (ok: false)
+ * is not kept. Creating, changing or deleting an experiment drops the answer.
+ */
+export const getActivePlanExperimentsForRuleRemembered = rememberedRead(
+  "active-plan-experiments-for-rule",
+  getActivePlanExperimentsForRule,
+  { seconds: 60, keep: (result) => result.ok },
+);
 
 // ── getActiveExperimentsForTenant ─────────────────────────────────────────────
 
@@ -317,6 +329,7 @@ export async function createPlanExperiment(
     }
 
     logger.debug("[plan-experiments] Experiment created", { id: input.id });
+    forgetRememberedReads();
     return { ok: true, data: data as unknown as PlanExperimentRow };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -365,6 +378,7 @@ export async function updatePlanExperiment(
     }
 
     logger.debug("[plan-experiments] Experiment updated", { tenantId, id });
+    forgetRememberedReads();
     return { ok: true, data: data as unknown as PlanExperimentRow };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -420,6 +434,7 @@ export async function deletePlanExperiment(
     }
 
     logger.debug("[plan-experiments] Experiment deleted", { tenantId, id });
+    forgetRememberedReads();
     return { ok: true, data: undefined };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

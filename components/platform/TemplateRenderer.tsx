@@ -64,7 +64,7 @@ import { NotificationBlock }  from "@/components/blocks/NotificationBlock";
 import { FeatureGridBlock }   from "@/components/blocks/sections/FeatureGridBlock";
 import { mapHeroBlockData } from "@/cms/mappers/content-mappers";
 import { ContentBlockRenderer } from "./ContentBlockRenderer";
-import { listDesignEffectSets } from "@/lib/design-effect-sets/effect-sets-store";
+import { listDesignEffectSetsRemembered } from "@/lib/design-effect-sets/effect-sets-store";
 import type { EffectSet, BlockEffectConfig } from "@/design-system/effects/effect-ref";
 import { getContextualGalleryDefaultTokens } from "@/lib/theme/contextual-block-tokens";
 import { liftDarkCardTokens } from "@/design-system/theme/preset-to-block-tokens";
@@ -428,7 +428,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
     if (injected) defaultTokens = injected;
     // Named effect sets referenced by blocks are resolved from the library.
     // Non-fatal: on failure blocks simply fall back to inline / default effects.
-    effectSets = tenantId ? await listDesignEffectSets(tenantId) : undefined;
+    effectSets = tenantId ? await listDesignEffectSetsRemembered(tenantId) : undefined;
   } catch {
     blockTokenSets = undefined;
     defaultTokens  = undefined;

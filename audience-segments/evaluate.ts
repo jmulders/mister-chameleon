@@ -36,7 +36,7 @@
 
 import "server-only";
 
-import { listActiveAudienceSegments } from "./repository";
+import { listActiveAudienceSegmentsRemembered } from "./repository";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { evaluateCondition }          from "@/decision/rules/stored-rule";
 import type { RuleCondition }         from "@/decision/rules/stored-rule";
@@ -50,7 +50,7 @@ import type { RuleCondition }         from "@/decision/rules/stored-rule";
  *                 Empty string is never returned — null is used for "no match".
  */
 /** The list of a tenant's active segments, as the repository returns it. */
-export type ActiveAudienceSegments = Awaited<ReturnType<typeof listActiveAudienceSegments>>;
+export type ActiveAudienceSegments = Awaited<ReturnType<typeof listActiveAudienceSegmentsRemembered>>;
 
 /**
  * Start reading a tenant's active segments, to hand to
@@ -63,7 +63,7 @@ export type ActiveAudienceSegments = Awaited<ReturnType<typeof listActiveAudienc
  * what evaluateAudienceSegments() makes of a failure anyway.
  */
 export function startActiveAudienceSegments(tenantId: string): Promise<ActiveAudienceSegments> {
-  return listActiveAudienceSegments(tenantId).catch(
+  return listActiveAudienceSegmentsRemembered(tenantId).catch(
     (err: unknown): ActiveAudienceSegments => ({ ok: false, error: err instanceof Error ? err.message : String(err) }),
   );
 }
@@ -77,7 +77,7 @@ export async function evaluateAudienceSegments(
   if (!tenantId) return null;
 
   try {
-    const result = await (preloaded ?? listActiveAudienceSegments(tenantId));
+    const result = await (preloaded ?? listActiveAudienceSegmentsRemembered(tenantId));
     if (!result.ok || result.data.length === 0) return null;
 
     const matched: string[] = [];

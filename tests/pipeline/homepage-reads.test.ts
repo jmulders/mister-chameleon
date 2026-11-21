@@ -74,7 +74,7 @@ describe("homepage pipeline: database reads", () => {
     assert.equal(code.slice(start).match(/\bdecisionProvider = /g), null);
     // A failed read falls back to platform-only candidates, as before.
     assert.match(code, /adaptiveBlocksToResolveInput\(blocks \?\? \[\]\)/);
-    assert.equal(code.match(/listAdaptiveBlocks\(tenantConfig\.tenantId, true\)/g)?.length, 1, "the list is read once");
+    assert.equal(code.match(/listAdaptiveBlocksRemembered\(tenantConfig\.tenantId, true\)/g)?.length, 1, "the list is read once");
   });
 
   it("starts the tenant's audience segments before the decision context is built", () => {
@@ -95,7 +95,41 @@ describe("homepage pipeline: database reads", () => {
     assert.ok(pStart > 0 && pStart < pBuild && pBuild < pEval, "the other pages start the read early too");
     // The helper never rejects, so a read that nobody picks up cannot go unhandled.
     const helper = readFileSync("audience-segments/evaluate.ts", "utf8");
-    assert.match(helper, /export function startActiveAudienceSegments[\s\S]*?listActiveAudienceSegments\(tenantId\)\.catch\(/);
+    assert.match(helper, /export function startActiveAudienceSegments[\s\S]*?listActiveAudienceSegmentsRemembered\(tenantId\)\.catch\(/);
+  });
+
+  it("takes the configuration from memory, so a visitor does not wait for the database", () => {
+    // Measured on 21 Nov 2026: after half a minute of silence the first reads
+    // at Supabase took 0.4 to 1 s each, and the hero waited for six steps of
+    // them. Everything below is the same for every visitor. Each must be read
+    // through its remembered variant on the public path.
+    assert.match(code, /await getTenantByIdCached\(tenantConfig\.tenantId\)/);
+    assert.match(code, /sessionCap = await checkSessionSoftCapRemembered\(tenantConfig\.tenantId\)/);
+    assert.doesNotMatch(code, /checkSessionSoftCap\(/);
+    assert.match(code, /listAdaptiveBlocksRemembered\(tenantConfig\.tenantId, true\)/);
+    assert.doesNotMatch(code, /listAdaptiveBlocks\(/);
+
+    const read = (file: string) => readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    const enrichers = read("lib/enrichment/tenant-staged-enrichers.ts");
+    assert.match(enrichers, /getPlatformEnricherSettingsRemembered\(\)/);
+    assert.match(enrichers, /getTenantPipelineStagesRemembered\(tenantId\)/);
+    assert.doesNotMatch(enrichers, /getPlatformEnricherSettings\(|getTenantPipelineStages\(/);
+
+    assert.doesNotMatch(read("audience-segments/evaluate.ts"), /listActiveAudienceSegments\(/);
+    assert.match(read("decision/providers/experiment-decision-provider.ts"), /await getActivePlanExperimentsForRuleRemembered\(matchedRuleId, this\.tenantId\)/);
+    assert.match(read("components/platform/TemplateRenderer.tsx"), /await listDesignEffectSetsRemembered\(tenantId\)/);
+    assert.match(read("cms/providers/statamic-provider.ts"), /getAdaptiveBlockByKeyRemembered\(key, this\.tenantId \?\? null\)/);
+    assert.match(read("lib/cms-page-decision.ts"), /sessionCap = await checkSessionSoftCapRemembered\(tenantId\)/);
+  });
+
+  it("drops the remembered configuration when it is saved", () => {
+    const calls = (file: string) => (readFileSync(file, "utf8").match(/forgetRememberedReads\(\);/g) ?? []).length;
+    assert.equal(calls("lib/adaptive-blocks/adaptive-blocks-store.ts"), 2, "block save and delete");
+    assert.equal(calls("lib/design-effect-sets/effect-sets-store.ts"), 2, "effect set save and delete");
+    assert.equal(calls("audience-segments/repository.ts"), 3, "segment create, update and delete");
+    assert.equal(calls("data/repositories/plan-experiments-repository.ts"), 3, "experiment create, update and delete");
+    assert.equal(calls("platform/platform-store.ts"), 1, "platform settings save");
+    assert.equal(calls("tenant/tenant-store.ts"), 1, "tenant save");
   });
 
   it("reads the interest profiles only when there is a keyword to score", () => {

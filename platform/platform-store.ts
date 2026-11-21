@@ -47,6 +47,7 @@
  */
 
 import { getDb } from "@/data/db";
+import { forgetRememberedReads, noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 
 // ── Integration section types ──────────────────────────────────────────────────
 
@@ -974,9 +975,13 @@ async function readSections(
         error: { message: string } | null;
       };
 
-    if (error) return sectionsFromError(keys, error.message);
+    if (error) {
+      noteFailedRead();
+      return sectionsFromError(keys, error.message);
+    }
     return sectionsFromRows(keys, data ?? []);
   } catch (err) {
+    noteFailedRead();
     return sectionsFromError(keys, err instanceof Error ? err.message : String(err), true);
   }
 }
@@ -1019,6 +1024,7 @@ async function writeSection<T extends Record<string, unknown>>(
       return { ok: false, error: `Failed to save platform settings [${key}]: ${error.message}` };
     }
 
+    forgetRememberedReads();
     return { ok: true };
   } catch (err) {
     return {
@@ -1564,6 +1570,17 @@ export async function getPlatformEnricherSettings(): Promise<PlatformEnricherSet
     cbsLocation:       pick<PlatformCbsLocationSettings>(KEYS.cbsLocation),
   };
 }
+
+/**
+ * getPlatformEnricherSettings() for the public render path: the answer is
+ * remembered for a minute, so a visitor does not wait for the read. A save of
+ * any platform section drops it (writeSection).
+ */
+export const getPlatformEnricherSettingsRemembered = rememberedRead(
+  "platform-enricher-settings",
+  getPlatformEnricherSettings,
+  { seconds: 60 },
+);
 
 /** Persist platform CBS location settings. All fields non-secret. */
 export async function savePlatformCbsLocationSettings(
