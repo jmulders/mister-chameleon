@@ -451,3 +451,73 @@ export type {
   PlanExperimentAssignmentRow,
   PlanExperimentAssignmentInsert,
 };
+
+// ── getPlanExperimentResults ──────────────────────────────────────────────────
+
+/** Rows per request, and how many requests a result may take. */
+const RESULT_PAGE_SIZE = 1000;
+const RESULT_MAX_PAGES = 20;
+
+export interface PlanExperimentResults {
+  /** experiment id to its two arms. An experiment without enrolments is absent. */
+  results: Record<string, import("@/experiments/plan-experiment-results").ExperimentResult>;
+  /** True when there were more rows than were read, so the counts are a floor. */
+  truncated: boolean;
+}
+
+/**
+ * Visitors and conversions per arm for a tenant's experiments.
+ *
+ * Two reads, both paged: the enrolments of the given experiments, and the
+ * tenant's converted profiles. The sum is in experiments/plan-experiment-results.
+ * For the admin only: it reads up to twenty thousand rows of each.
+ */
+export async function getPlanExperimentResults(
+  tenantId: string,
+  experimentIds: readonly string[],
+): Promise<RepositoryResult<PlanExperimentResults>> {
+  if (experimentIds.length === 0) return { ok: true, data: { results: {}, truncated: false } };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = getDb() as any;
+    const { tallyExperimentResults } = await import("@/experiments/plan-experiment-results");
+
+    let truncated = false;
+    const readAll = async <T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> => {
+      const rows: T[] = [];
+      for (let n = 0; n < RESULT_MAX_PAGES; n++) {
+        const { data, error } = await page(n * RESULT_PAGE_SIZE, (n + 1) * RESULT_PAGE_SIZE - 1);
+        if (error) throw new Error(error.message);
+        rows.push(...(data ?? []));
+        if (!data || data.length < RESULT_PAGE_SIZE) return rows;
+      }
+      truncated = true;
+      return rows;
+    };
+
+    const [assignments, converted] = await Promise.all([
+      readAll<{ experiment_id: string; session_id: string; bucket: number; created_at: string }>((from, to) =>
+        db.from("plan_experiment_assignments")
+          .select("experiment_id, session_id, bucket, created_at")
+          .in("experiment_id", [...experimentIds])
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to)),
+      readAll<{ visitor_key: string; converted_at: string }>((from, to) =>
+        db.from("visitor_profiles")
+          .select("visitor_key, converted_at")
+          .eq("tenant_id", tenantId)
+          .not("converted_at", "is", null)
+          .order("converted_at", { ascending: false })
+          .order("visitor_key", { ascending: true })
+          .range(from, to)),
+    ]);
+
+    const convertedAt = new Map(converted.map((r) => [r.visitor_key, r.converted_at]));
+    return { ok: true, data: { results: Object.fromEntries(tallyExperimentResults(assignments, convertedAt)), truncated } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("[plan-experiments] Failed to read experiment results", { tenantId, error: message });
+    return { ok: false, error: message };
+  }
+}

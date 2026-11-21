@@ -49,8 +49,11 @@ export default async function PerformancePage({
         <h1 className="mt-1 text-xl font-semibold text-neutral-900">Performance</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Does adaptive content convert? Conversion rate (form submissions) for personalized
-          visitors (matched a segment) vs baseline, and per segment. A randomized holdout for
-          true causal lift is a planned next step.
+          visitors (matched a segment) vs baseline, and per segment. With a holdout set under
+          Integrations (&quot;Personalization holdout&quot;), a random share of visitors keeps
+          the default page and the report adds the comparison that shows true lift. It counts
+          visitors who gave consent, and it does not test whether a difference could be chance:
+          read the numbers of visitors and conversions beside the rates.
         </p>
       </div>
 
