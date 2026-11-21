@@ -52,6 +52,7 @@ import { ipCompanyCache }             from "@/enrichment/ip-company-store";
 import { leadinfoDataToCacheOutput }  from "@/enrichment/leadinfo-cache-map";
 import { extractIpFromRequest }       from "@/lib/request-ip";
 import { readConsentFromCookieHeader } from "@/lib/consent/server-consent";
+import { leadinfoAllowed }             from "@/lib/enrichment/leadinfo-consent";
 import {
   serializeLeadinfoData,
   LEADINFO_COOKIE,
@@ -140,6 +141,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { error: "Invalid request body: 'matched' (boolean) is required." },
       { status: 400 },
     );
+  }
+
+  // ── Consent ───────────────────────────────────────────────────────────────
+  //
+  // Recognising the company behind a visit is what the enrichment category asks
+  // the visitor's permission for. Without it nothing is kept: no mc_li cookie,
+  // no charge to the tenant, no entry in the shared cache. The browser side
+  // (LeadinfoProvider) does not load Leadinfo without consent either. This is
+  // the server's own check, for a post that comes anyway. Until 21 Nov 2026
+  // the cookie was set and the lookup charged whatever the visitor had chosen,
+  // and only the cache write looked at consent.
+  if (!leadinfoAllowed(request.headers.get("cookie"))) {
+    return NextResponse.json({ ok: true, stored: false, reason: "no-consent" });
   }
 
   logger.debug("[api/enrichment/leadinfo] persisting Leadinfo result", {

@@ -30,6 +30,12 @@
  *   • The `siteToken` prop is the Leadinfo site-ID.
  *   • Rendered by the root layout when leadinfo.enabled is true and a siteToken
  *     is configured.
+ *   • Loads nothing until the visitor has given consent for enrichment. Leadinfo
+ *     identifies the company behind a visit from the IP address and sets
+ *     cookies of its own, which is exactly what that category asks permission
+ *     for. Until 21 Nov 2026 the script loaded for every visitor of a tenant
+ *     that had Leadinfo on. A visitor who gives consent later gets it then,
+ *     without a reload.
  *
  * `siteToken` is a non-secret public identifier (Leadinfo embeds it in their
  * standard browser snippet), safe to pass from the server layout as a prop.
@@ -38,6 +44,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { hasConsent, onConsentChange } from "@/tracking/consent-store";
 
 export interface LeadinfoProviderProps {
   /** Leadinfo site-ID (non-secret public identifier), e.g. "LI-6193BB3EDDE0D". */
@@ -98,6 +105,9 @@ function entryCompanyName(entry: unknown): string | null {
 }
 
 function handleDataLayerEntry(entry: unknown): void {
+  // The tap on dataLayer.push stays in place once set. A visitor who withdraws
+  // consent afterwards must not have a company posted for them.
+  if (!hasConsent("enrichment")) return;
   const name = entryCompanyName(entry);
   if (!name) return;
   const e = entry as Record<string, unknown>;
@@ -142,6 +152,35 @@ export function LeadinfoProvider({ siteToken }: LeadinfoProviderProps): null {
   useEffect(() => {
     if (injected || !siteToken) return;
 
+    let stopPolling: (() => void) | undefined;
+    const start = () => {
+      if (injected) return;
+      stopPolling = loadLeadinfo(siteToken);
+    };
+
+    // Consent first. With it, load now. Without it, wait for the visitor to
+    // give it in the banner and load then.
+    if (hasConsent("enrichment")) {
+      start();
+      return () => stopPolling?.();
+    }
+    const stopListening = onConsentChange((state) => {
+      if (state.enrichment) start();
+    });
+    return () => {
+      stopListening();
+      stopPolling?.();
+    };
+  }, [siteToken]);
+
+  return null;
+}
+
+/**
+ * Injects ping.js and starts reading the dataLayer. Returns a function that
+ * stops the polling. Only called with the visitor's consent for enrichment.
+ */
+function loadLeadinfo(siteToken: string): () => void {
     const token = siteToken;
     const w = window as unknown as {
       leadinfo?:  LeadinfoFn;
@@ -219,9 +258,6 @@ export function LeadinfoProvider({ siteToken }: LeadinfoProviderProps): null {
     }, 500);
 
     return () => window.clearInterval(pollId);
-  }, [siteToken]);
-
-  return null;
 }
 
 export default LeadinfoProvider;
