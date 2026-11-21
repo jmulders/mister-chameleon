@@ -100,7 +100,7 @@ import { heroBannerMediaToBlockMedia } from "@/lib/media/hero-banner-to-block-me
 import type { IndexablePath, ProvisionResult, TestConnectionResult } from "./cms-provider";
 import type { TenantSettings } from "@/tenant/types";
 import { mapStatamicSeoFields } from "@/cms/mappers/statamic/seo-fields";
-import { dateOnly, isPublishedBy, newestFirst } from "./listing-dates";
+import { dateOnly, isPublishedBy, newestEntriesFirst, newestFirst } from "./listing-dates";
 
 // ── Direct file reader (bypasses StatamicClient for local dev reliability) ────
 //
@@ -1987,7 +1987,10 @@ export class StatamicProvider implements CMSProvider {
         // Filter out posts whose publication date is in the future. A post
         // dated today is shown, whatever time of day its date carries.
         const now = new Date();
-        const entries = allBlogEntries.filter((entry) => isPublishedBy(entry.date, now));
+        // Ordered here, on the full date with its time of day: the items below
+        // carry the day only, and newestFirst() keeps items of one day in the
+        // order they arrive.
+        const entries = newestEntriesFirst(allBlogEntries.filter((entry) => isPublishedBy(entry.date, now)));
         items = entries.map((entry): CollectionItem => ({
           id:            entry.id,
           title:         entry.title ?? entry.slug,
