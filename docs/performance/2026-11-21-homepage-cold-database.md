@@ -166,7 +166,10 @@ visits thirty seconds apart; time until the hero is in the document:
 
 | Fastest | Median | Slowest |
 | --- | --- | --- |
-| 0.4 s | 1.5 s | 7.1 s |
+| 0.4 s | 1.3 s | 7.1 s |
+
+(An earlier version of this note said 1.5 s. The fifteen visits sorted give
+1.3 s; six of them had the hero within a second.)
 
 The Supabase log of the slowest visit: five reads at once (`events`,
 `served_variants`, `visitor_behavior_state`, `visitor_profiles` twice) that
@@ -199,5 +202,29 @@ together 0.7 to 5.9 s, ten together 1.7 to 2.7 s.
   waits until a read marked with `foregroundRead()` has answered, two seconds
   at most.
 
-The migration is applied by hand (`npm run db:migrate`). The measurement
-after it follows below.
+The migration is applied by hand. `npm run db:migrate` reaches the database
+that `.env.local` points to, which on the owner's machine is the development
+one; production got the same SQL through the SQL editor on 21 Nov, 20:50 UTC.
+
+### After the migration (21 Nov, 20:53 UTC)
+
+The same visitor, twelve visits thirty seconds apart:
+
+| | Fastest | Median | Slowest | Within a second |
+| --- | --- | --- | --- | --- |
+| Before | 0.4 s | 1.3 s | 7.1 s | 6 of 15 |
+| After | 0.3 s | 0.7 s | 3.3 s | 10 of 12 |
+
+The Supabase log of a slow visit after the change (2.4 s) shows what is left:
+the page made one request, `rpc/visitor_stored_context`, and the database
+took 2.2 s to answer it. Two requests from the browser of the same visitor
+(session and journey events) arrived in the same moment and took 1.4 and
+1.6 s. So one read is what the page waits for now, and when the database is
+cold that one read is still slow. Nothing more can be taken out on this side;
+what remains is the cold database itself (the size of the Supabase instance,
+or keeping its connections open), which is the owner's choice.
+
+Between the deploy and the migration the page asked for a function that was
+not there yet, once per five minutes per instance, and then fell back to the
+six reads. The first visit in that window took 7.6 s. Apply a migration like
+this one before the code that calls it, or right after.
