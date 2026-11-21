@@ -78,3 +78,37 @@ describe("secondary button — block-token layer (site-default scope)", () => {
     assert.equal(style["--btn-secondary-text"], "#8a1c1c");
   });
 });
+
+// The badge is the same pair (brand tint with brand text). In a dark preset
+// with an amber brand the tag above the hero headline was yellow on yellow.
+describe("badge — the same readability rule on all three surfaces", () => {
+  it("custom/gallery override path flips an illegible brand text", () => {
+    const { vars } = resolveThemeForTenant(customWithColors(AMBER));
+    const ratio = contrastRatio(vars["--badge-primary-text"], vars["--badge-primary-bg"])!;
+    assert.ok(ratio >= 4.5, `badge text should be legible, got ${ratio.toFixed(2)}`);
+  });
+
+  it("custom/gallery override path keeps a legible brand text", () => {
+    const { vars } = resolveThemeForTenant(customWithColors(DARKBRAND));
+    assert.equal(vars["--badge-primary-text"], "#8a1c1c");
+  });
+
+  it("every curated preset resolves a legible badge (>= 4.5:1)", () => {
+    const fails: string[] = [];
+    for (const k of Object.keys(THEME_PRESETS).filter(isThemePresetKey)) {
+      const vars = tenantThemeToVarsRecord(THEME_PRESETS[k]);
+      const bg = vars["--badge-primary-bg"], text = vars["--badge-primary-text"];
+      const ratio = contrastRatio(text, bg);
+      if (ratio === null || ratio < 4.5) fails.push(`${k}: ${ratio?.toFixed(2)} (${bg}/${text})`);
+    }
+    assert.deepEqual(fails, [], `badge below 4.5 on:\n${fails.join("\n")}`);
+  });
+
+  it("block-token layer flips an illegible brand text and keeps a legible one", () => {
+    const amber = resolveBlockTokenStyle({ tokens: blockTokensFromOverrides({ color: AMBER } as never) }, null) as Record<string, string>;
+    const ratio = contrastRatio(amber["--badge-primary-text"], amber["--badge-primary-bg"])!;
+    assert.ok(ratio >= 4.5, `block-layer badge should be legible, got ${ratio.toFixed(2)}`);
+    const dark = resolveBlockTokenStyle({ tokens: blockTokensFromOverrides({ color: DARKBRAND } as never) }, null) as Record<string, string>;
+    assert.equal(dark["--badge-primary-text"], "#8a1c1c");
+  });
+});

@@ -10,6 +10,7 @@
  */
 
 import { EFFECT_DEFINITIONS, type EffectGroupKey } from "./effect-defs";
+import { PARALLAX_MAX_TRAVEL, PARALLAX_TRAVEL_PER_SPEED } from "./parallax-offset";
 
 /** id → group, generated from the registry so the snippet player needs no copy. */
 export const EFFECT_GROUP_MAP: Readonly<Record<string, EffectGroupKey>> =
@@ -93,6 +94,19 @@ export function effectRuntimeJs(): string {
       for (var m = 0; m < entrance.length; m++) io.observe(entrance[m]);
     }
     if (parallax.length) {
+      // The same sum as parallaxOffset() in parallax-offset.ts: a bounded drift,
+      // so a block never slides over its neighbour.
+      var mcParallaxOffset = function(top, height, vh, speed, current) {
+        var travel = Math.min(${PARALLAX_MAX_TRAVEL}, Math.abs(speed) * ${PARALLAX_TRAVEL_PER_SPEED});
+        var center = top - current + height / 2;
+        var reach = vh / 2 + height / 2;
+        if (!(reach > 0)) return 0;
+        var progress = (center - vh / 2) / reach;
+        if (progress > 1) progress = 1;
+        if (progress < -1) progress = -1;
+        var offset = -progress * travel * (speed < 0 ? -1 : 1);
+        return offset === 0 ? 0 : offset;
+      };
       var raf = 0;
       var onScroll = function(){
         if (raf) return;
@@ -101,7 +115,8 @@ export function effectRuntimeJs(): string {
           for (var p = 0; p < parallax.length; p++) {
             var pe = parallax[p]; var r = pe.getBoundingClientRect();
             var sp = parseFloat(getComputedStyle(pe).getPropertyValue("--mc-fx-parallax-speed")) || 0.2;
-            var d = ((r.top + r.height / 2) - vh / 2) * -sp;
+            var cur = parseFloat(pe.style.getPropertyValue("--mc-fx-parallax-y")) || 0;
+            var d = mcParallaxOffset(r.top, r.height, vh, sp, cur);
             pe.style.setProperty("--mc-fx-parallax-y", d.toFixed(1) + "px");
           }
         });
