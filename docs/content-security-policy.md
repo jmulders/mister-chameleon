@@ -18,7 +18,8 @@ en zet daarna pas `CSP_ENFORCE=true` (in Vercel env). Terugdraaien = de var wegh
 
 ## Allowances (waarom)
 - **script-src**: `'self'` + per-request **nonce** (Next-hydration + de GTM inline
-  snippet) + `www.googletagmanager.com` (GTM) + `cdn.leadinfo.net` (ping.js) +
+  snippet, die alleen nog rendert voor een tenant zonder de banner van het platform,
+  zie `docs/tag-manager-consent.md`) + `www.googletagmanager.com` (GTM) + `cdn.leadinfo.net` (ping.js) +
   `code.jquery.com` (Leadinfo's ping.js laadt jQuery — gevonden via report-only
   verificatie). Geen kale `'unsafe-inline'`. **Dev** relaxt naar
   `'unsafe-inline' 'unsafe-eval'` (Turbopack HMR + React dev-eval) — nooit in prod.
