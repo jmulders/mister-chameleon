@@ -186,7 +186,7 @@ const nl: BookDemoTranslations = {
   ogDescription:   "Kies een moment dat je past. We laten het platform live zien op jouw site.",
 
   badge:          "Gratis · 30 minuten · Zonder verplichting",
-  pageHeading:    "Plan een demo van Mister Chameleon",
+  pageHeading:    "Plan een demo",
   pageSubheading: "Dertig minuten, gratis en zonder verplichting. We laten zien hoe jouw site eruitziet voor verschillende bezoekers. Kies een moment en je krijgt meteen een uitnodiging in je agenda.",
 
   trustNoCreditCard:   "Geen creditcard nodig",

@@ -263,6 +263,24 @@ describe("the brand stylesheet", () => {
     assert.equal(JSON.stringify(preset).includes(`clamp(${min}px,${vw}vw,${max}px)`), true, "the preset and the brand layer disagree");
   });
 
+  it("keeps a hero headline of twenty characters on one line", () => {
+    const css = readFileSync("app/brand/mister-chameleon.css", "utf8");
+    // The column the split hero gives its headline, measured on production on
+    // 21 Nov 2026, and the size the stylesheet sets at that width.
+    const base = /\[data-part="display-title"\] \{\s*font-size: clamp\(([\d.]+)rem, ([\d.]+)vw, ([\d.]+)rem\) !important;/.exec(css);
+    assert.ok(base, "the headline has a size of its own");
+    const at1024 = /min-width: 1024px\) \{\s*\[data-brand="mister-chameleon"\] \[data-part="display-title"\] \{ font-size: ([\d.]+)rem/.exec(css);
+    const at1280 = /min-width: 1280px\) \{\s*\[data-brand="mister-chameleon"\] \[data-part="display-title"\]:not\(\[data-align="center"\]\) \{ font-size: ([\d.]+)rem/.exec(css);
+    assert.ok(at1024 && at1280, "the headline has a size for a wide screen");
+    const WIDE_BOLD = 0.62;  // em a character, a wide bold face such as Montserrat
+    const fits = (px: number, column: number) => 20 * WIDE_BOLD * px <= column;
+    const vw = Number(base[2]), cap = Number(base[3]) * 16;
+    assert.ok(fits(Math.min(cap, 375 * vw / 100), 343), "on a phone");
+    assert.ok(fits(Math.min(cap, 768 * vw / 100), 384), "at 768");
+    assert.ok(fits(Number(at1024[1]) * 16, 416), "at 1024");
+    assert.ok(fits(Number(at1280[1]) * 16, 480), "from 1280");
+  });
+
   it("switches its movement off for visitors who ask for less motion", () => {
     assert.match(css, /prefers-reduced-motion: reduce/);
   });

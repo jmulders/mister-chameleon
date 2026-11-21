@@ -280,6 +280,32 @@
   --section-py: clamp(36px, 4.5vw, 64px);
 }
 
+/* ── 6. A hero headline on one line ─────────────────────────────────────────
+ *
+ * The shared hero sets its headline at 72 px on a wide screen. Beside an image
+ * the headline has a column of 480 px, so a sentence broke over six lines. The
+ * owner asked for headlines that are short and stay on one line (21 Nov 2026).
+ *
+ * The headlines are now at most twenty characters. The sizes below fit twenty
+ * characters of a wide bold face (0.62 em a character) in the column the hero
+ * gives them: 343 px on a phone, 384 px at 768, 416 px at 1024 and 480 px from
+ * 1280. A centred hero has the full width and may be larger.
+ *
+ * A longer headline still wraps, it does not run off the page.
+ */
+[data-brand="mister-chameleon"] [data-part="display-title"] {
+  font-size: clamp(1.25rem, 6.9vw, 1.875rem) !important;
+  line-height: 1.15 !important;
+  max-width: none !important;
+}
+@media (min-width: 1024px) {
+  [data-brand="mister-chameleon"] [data-part="display-title"] { font-size: 2.0625rem !important; }
+  [data-brand="mister-chameleon"] [data-part="display-title"][data-align="center"] { font-size: 3rem !important; }
+}
+@media (min-width: 1280px) {
+  [data-brand="mister-chameleon"] [data-part="display-title"]:not([data-align="center"]) { font-size: 2.375rem !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-brand="mister-chameleon"] [data-part="feature-icon"] { transition: none; }
   [data-brand="mister-chameleon"] [data-part="feature-card"]:hover [data-part="feature-icon"] { transform: none; }
