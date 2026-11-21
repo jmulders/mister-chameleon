@@ -35,6 +35,7 @@
 
 import { getDb }   from "@/data/db";
 import { logger }  from "@/lib/logger";
+import { forgetRememberedReads, noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 import type {
   AdaptiveBlockData,
   AdaptiveVariantContent,
@@ -106,12 +107,14 @@ export async function getAdaptiveBlockByKey(
         .limit(2),
     );
 
+    if (error) noteFailedRead();
     if (error || !data || data.length === 0) return null;
 
     // Prefer tenant-specific row over platform-wide row.
     const row = data.find((r) => r.tenant_id === tenantId) ?? data[0];
     return rowToAdaptiveBlock(row);
   } catch (err) {
+    noteFailedRead();
     logger.warn("[AdaptiveBlocksStore] getAdaptiveBlockByKey error", {
       key,
       tenantId,
@@ -206,9 +209,13 @@ export async function listAdaptiveBlocks(
     }
 
     const { data, error } = asMany<AdaptiveBlockRow>(await query);
-    if (error || !data) return [];
+    if (error || !data) {
+      if (error) noteFailedRead();
+      return [];
+    }
     return data.map(rowToAdaptiveBlock);
   } catch (err) {
+    noteFailedRead();
     logger.warn("[AdaptiveBlocksStore] listAdaptiveBlocks error", {
       tenantId,
       error: err instanceof Error ? err.message : String(err),
@@ -216,6 +223,27 @@ export async function listAdaptiveBlocks(
     return [];
   }
 }
+
+// ── The same reads for the public render path ────────────────────────────────
+//
+// Remembered for a minute across instances, so a visitor does not wait for the
+// database (see lib/cache/remembered-read.ts). A block that does not exist is
+// remembered too: a variant key without content is an answer, and without it
+// every cold instance asked again. A failed read is never kept. A save or
+// delete in the admin drops the answers; an edit made straight in the database
+// shows after a minute at most, on the visit after that.
+
+export const getAdaptiveBlockByKeyRemembered = rememberedRead(
+  "adaptive-block-by-key",
+  (key: string, tenantId: string | null) => getAdaptiveBlockByKey(key, tenantId),
+  { seconds: 60 },
+);
+
+export const listAdaptiveBlocksRemembered = rememberedRead(
+  "adaptive-blocks-list",
+  (tenantId: string | null, includePlatform: boolean) => listAdaptiveBlocks(tenantId, includePlatform),
+  { seconds: 60 },
+);
 
 // ── Write operations ──────────────────────────────────────────────────────────
 
@@ -251,6 +279,7 @@ export async function upsertAdaptiveBlock(
 
     if (error) return { ok: false, error: error.message };
     if (!data) return { ok: false, error: "Upsert returned no data." };
+    forgetRememberedReads();
 
     return { ok: true, id: data.id };
   } catch (err) {
@@ -294,6 +323,7 @@ export async function deleteAdaptiveBlock(
     }
 
     logger.info("[AdaptiveBlocksStore] Adaptive block deleted", { id, deleted });
+    forgetRememberedReads();
     return { ok: true };
   } catch (err) {
     logger.error("[AdaptiveBlocksStore] deleteAdaptiveBlock error", {

@@ -89,7 +89,7 @@ import {
   applySessionCap,
   servesDefaultExperience,
 }                                        from "@/lib/lead-base/holdout";
-import { checkSessionSoftCap, recordPersonalizedSession } from "@/billing/plan-enforcement";
+import { checkSessionSoftCapRemembered, recordPersonalizedSession } from "@/billing/plan-enforcement";
 import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
@@ -306,7 +306,9 @@ export async function resolveSlugPageConfig(
     //
     // Runs before the provider stack because "default experience" means the
     // tenant's defaultPlan, which is a constructor flag on RulesDecisionProvider.
-    const sessionCap = await checkSessionSoftCap(tenantId);
+    // Remembered for a minute (see checkSessionSoftCapRemembered), so the page
+    // does not wait four reads for it.
+    const sessionCap = await checkSessionSoftCapRemembered(tenantId);
     const personalizationGroup = applySessionCap(
       assignPersonalizationGroup(sessionId, tenant?.enrichment?.personalizationHoldoutPct ?? 0),
       sessionCap.overLimit,

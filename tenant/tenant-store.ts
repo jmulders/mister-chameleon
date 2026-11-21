@@ -54,6 +54,7 @@
 import "server-only";
 
 import { unstable_cache, revalidateTag } from "next/cache";
+import { forgetRememberedReads, noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 import type {
   TenantSettings,
   PackageKey,
@@ -1040,6 +1041,9 @@ export async function saveTenant(
   } catch {
     // Outside a request scope (e.g. a CLI script) — safe to ignore.
   }
+  // The same for the remembered configuration reads (session cap, segments,
+  // effect sets and so on): a plan or package change must not wait a minute.
+  forgetRememberedReads();
 
   return {
     ok:   true,
@@ -1161,6 +1165,7 @@ export async function getTenantPipelineStages(
     // 42P01 = table does not exist (migration 090 not yet applied) — silent fallback.
     if (error) {
       if (error.code !== "42P01") {
+        noteFailedRead();
         logger.warn("[tenant-store] getTenantPipelineStages DB error", {
           tenantId,
           code:    error.code,
@@ -1178,6 +1183,17 @@ export async function getTenantPipelineStages(
       enabled:  Boolean(r.enabled),
     }));
   } catch {
+    noteFailedRead();
     return [];
   }
 }
+
+/**
+ * getTenantPipelineStages() for the public render path: the answer is
+ * remembered for a minute, so a visitor does not wait for the read.
+ */
+export const getTenantPipelineStagesRemembered = rememberedRead(
+  "tenant-pipeline-stages",
+  getTenantPipelineStages,
+  { seconds: 60 },
+);

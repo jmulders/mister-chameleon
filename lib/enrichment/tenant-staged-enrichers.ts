@@ -15,10 +15,10 @@
  */
 
 import {
-  getPlatformEnricherSettings,
+  getPlatformEnricherSettingsRemembered,
   firstPartyCompanyFlags,
 } from "@/platform/platform-store";
-import { getTenantPipelineStages } from "@/tenant/server";
+import { getTenantPipelineStagesRemembered } from "@/tenant/server";
 import { buildCompanyCrmChain, type StagedEnricher } from "@/enrichment";
 import type { TenantSettings } from "@/tenant/types";
 
@@ -49,10 +49,11 @@ export async function buildTenantStagedEnrichers(
   tenantId: string,
 ): Promise<StagedEnricher[]> {
   // One query for the ten platform sections (it used to be ten), next to the
-  // tenant's pipeline stages.
+  // tenant's pipeline stages. Both are configuration, the same for every
+  // visitor, so both answers are remembered and a visitor waits for neither.
   const [platform, tenantPipelineStages] = await Promise.all([
-    getPlatformEnricherSettings(),
-    getTenantPipelineStages(tenantId),
+    getPlatformEnricherSettingsRemembered(),
+    getTenantPipelineStagesRemembered(tenantId),
   ]);
   const platformEnrichmentResult     = platform.enrichment;
   const platformCrmResult            = platform.crm;

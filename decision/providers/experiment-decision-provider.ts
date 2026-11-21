@@ -58,7 +58,7 @@
 import type { ExperiencePlan, DecisionInput } from "@/decision/types";
 import type { DecisionProvider }              from "./decision-provider";
 import {
-  getActivePlanExperimentsForRule,
+  getActivePlanExperimentsForRuleRemembered,
   getActiveExperimentsForTenant,
   savePlanExperimentAssignment,
 }                                             from "@/data/repositories/plan-experiments-repository";
@@ -202,7 +202,7 @@ export class ExperimentDecisionProvider implements DecisionProvider {
     // When forceBucket is set and no rule matched (dev preview), fetch ALL
     // active experiments for the tenant and use the first one.
     const experimentsResult = matchedRuleId
-      ? await getActivePlanExperimentsForRule(matchedRuleId, this.tenantId)
+      ? await getActivePlanExperimentsForRuleRemembered(matchedRuleId, this.tenantId)
       : await getActiveExperimentsForTenant(this.tenantId);
 
     if (this.forceBucket !== undefined) {

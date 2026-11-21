@@ -9,6 +9,7 @@
 import "server-only";
 
 import { getDb }  from "@/data/db";
+import { forgetRememberedReads, rememberedRead } from "@/lib/cache/remembered-read";
 import { parseAvatarConfig } from "@/components/admin/avatar-util";
 import type {
   AudienceSegment,
@@ -90,6 +91,17 @@ export async function listActiveAudienceSegments(
   return { ok: true, data: (res.data ?? []).map(fromRow) };
 }
 
+/**
+ * listActiveAudienceSegments() for the public render path: remembered for a
+ * minute, so a visitor does not wait for the read. A failed read (ok: false)
+ * is not kept. Creating, changing or deleting a segment drops the answer.
+ */
+export const listActiveAudienceSegmentsRemembered = rememberedRead(
+  "active-audience-segments",
+  listActiveAudienceSegments,
+  { seconds: 60, keep: (result) => result.ok },
+);
+
 // ── Get single ────────────────────────────────────────────────────────────────
 
 /**
@@ -137,6 +149,7 @@ export async function createAudienceSegment(
   );
   if (res.error) return { ok: false, error: res.error.message };
   if (!res.data)  return { ok: false, error: "Insert returned no data." };
+  forgetRememberedReads();
   return { ok: true, data: fromRow(res.data) };
 }
 
@@ -171,6 +184,7 @@ export async function updateAudienceSegment(
   );
   if (res.error) return { ok: false, error: res.error.message };
   if (!res.data)  return { ok: false, error: "Segment not found or update returned no data." };
+  forgetRememberedReads();
   return { ok: true, data: fromRow(res.data) };
 }
 
@@ -192,6 +206,7 @@ export async function deleteAudienceSegment(
       .eq("tenant_id", tenantId),
   );
   if (res.error) return { ok: false, error: res.error.message };
+  forgetRememberedReads();
   return { ok: true, data: null };
 }
 

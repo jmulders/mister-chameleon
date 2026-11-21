@@ -54,6 +54,7 @@ export {
   saveTenant,
   createTenant,
   getTenantPipelineStages,
+  getTenantPipelineStagesRemembered,
 } from "./tenant-store";
 export type { StoreResult } from "./tenant-store";
 

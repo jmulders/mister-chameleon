@@ -66,6 +66,7 @@
  */
 
 import "server-only";
+import { noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 import { getDb }                  from "@/data/db";
 import { BILLING_PLANS }          from "./plans";
 import type { BillingPlan }       from "./plans";
@@ -146,6 +147,10 @@ export async function getEffectivePlan(tenantId: string): Promise<BillingPlan> {
     db.from("tenant_settings").select("settings").eq("tenant_id", tenantId).maybeSingle(),
   ]);
 
+  // A failed read falls back to the starter plan below. That answer is right
+  // for this one request and wrong to remember.
+  if (subResult.error || settingsResult.error) noteFailedRead();
+
   let planId = "starter";
 
   if (subResult.data?.plan && subResult.data.status !== "canceled") {
@@ -160,12 +165,13 @@ export async function getEffectivePlan(tenantId: string): Promise<BillingPlan> {
   const staticPlan =
     BILLING_PLANS[planId as keyof typeof BILLING_PLANS] ?? BILLING_PLANS["starter"];
 
-  const { data: dbRow } = await db
+  const { data: dbRow, error: planError } = await db
     .from("billing_plans")
     .select("label, features, limits")
     .eq("plan_id", planId)
     .maybeSingle();
 
+  if (planError) noteFailedRead();
   if (!dbRow) return staticPlan;
 
   return {
@@ -341,9 +347,13 @@ export async function getMonthlySessionCount(
       .eq("tenant_id", tenantId)
       .eq("month_key",  key);
 
-    if (error) return 0;
+    if (error) {
+      noteFailedRead();
+      return 0;
+    }
     return count ?? 0;
   } catch {
+    noteFailedRead();
     return 0;
   }
 }
@@ -363,9 +373,11 @@ export async function getSessionCreditBalance(tenantId: string): Promise<number>
       .select("balance")
       .eq("tenant_id", tenantId)
       .maybeSingle();
+    if (error) noteFailedRead();
     if (error || !data) return 0;
     return (data as { balance: number }).balance ?? 0;
   } catch {
+    noteFailedRead();
     return 0;
   }
 }
@@ -477,4 +489,33 @@ export async function checkSessionSoftCap(tenantId: string): Promise<SessionCapR
     bonusSessions,
     monthKey,
   };
+}
+
+/**
+ * The cap verdict for the public render path, remembered for a minute.
+ *
+ * The verdict costs four reads in two steps, and every page waited for them
+ * before it could decide anything. It answers one question, "may this tenant
+ * still personalise", and a minute-old answer answers it as well: the cap is a
+ * soft one, and the worst case is a handful of sessions served past it on a
+ * busy site.
+ *
+ * The same verdict goes on to recordPersonalizedSession, as before. So the
+ * moment a tenant crosses the plan limit is seen up to a minute and one visit
+ * late: the sessions in between count under the plan instead of spending a
+ * purchased credit. The count itself is exact, it is one row per session. The
+ * dashboards read checkSessionSoftCap() and show the number of this moment.
+ *
+ * The month is part of the key, so the first visit of a new month does not get
+ * the verdict of the old one. A verdict built on a failed read is not kept.
+ */
+const rememberedSessionSoftCap = rememberedRead(
+  "session-soft-cap",
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  (tenantId: string, _monthKey: string) => checkSessionSoftCap(tenantId),
+  { seconds: 60 },
+);
+
+export function checkSessionSoftCapRemembered(tenantId: string): Promise<SessionCapResult> {
+  return rememberedSessionSoftCap(tenantId, currentMonthKey());
 }

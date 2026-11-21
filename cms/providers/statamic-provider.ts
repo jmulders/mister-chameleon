@@ -646,8 +646,11 @@ export class StatamicProvider implements CMSProvider {
     // Reading DB-first also avoids firing extra requests at the Statamic
     // instance on every slot lookup — important because that instance can be
     // slow to cold-start, and those requests would add latency / flakiness.
-    const { getAdaptiveBlockByKey } = await import("@/lib/adaptive-blocks/adaptive-blocks-store");
-    return getAdaptiveBlockByKey(key, this.tenantId);
+    //
+    // Remembered across instances for a minute: a cold instance used to read
+    // every block of the page from the database before it could render.
+    const { getAdaptiveBlockByKeyRemembered } = await import("@/lib/adaptive-blocks/adaptive-blocks-store");
+    return getAdaptiveBlockByKeyRemembered(key, this.tenantId ?? null);
   }
 
   async getSiteSettings(_locale = "en"): Promise<SiteSettingsData | null> {
