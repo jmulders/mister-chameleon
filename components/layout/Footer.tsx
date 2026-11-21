@@ -25,9 +25,8 @@
  *   and renders a fully static footer with no client-side interactivity.
  */
 
-import { createCMSProvider }  from "@/cms/providers/create-cms-provider";
+import { getTenantSiteSettings } from "@/cms/providers/tenant-site-settings";
 import { getActiveTenant, getTenantByIdCached } from "@/tenant/server";
-import { normalizeTenant } from "@/tenant/normalize";
 import {
   FEATURED_FAMILY_CONFIGS,
   isFeaturedFamilyKey,
@@ -49,12 +48,11 @@ export async function Footer({ resolvedChrome }: { resolvedChrome?: ResolvedChro
   // Resolve tenant settings first so we can pass the CMS preference to the
   // provider factory — same pattern as Header.tsx.
   const tenantSettings = await getTenantByIdCached(activeTenant.tenantId);
-  const tenantCms = tenantSettings ? normalizeTenant(tenantSettings).cms : undefined;
   // Same language as the header asks for. Without it the footer read the
   // settings under the default key ("en") and the header under the site's own
   // ("nl"): two cache entries for the same data, which drifted apart. The
   // header showed the new menu while the footer kept links from weeks ago.
-  const settings = await createCMSProvider(tenantCms, activeTenant.tenantId).getSiteSettings(await getSiteLanguage());
+  const settings = await getTenantSiteSettings(activeTenant.tenantId, tenantSettings, await getSiteLanguage());
 
   const siteTitle    = settings?.siteTitle        ?? activeTenant.name;
   // Dark footer → use the dark-background logo variant when configured. "Dark"

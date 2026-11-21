@@ -24,7 +24,7 @@ import { emptyHistory } from "@/context/visitor-history";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { isThemePresetKey, type ThemePresetKey } from "@/design-system/theme/presets";
 import { parseScenarioCookie, applyScenarioToDecisionContext } from "@/lib/scenario/server-scenario";
-import { createCMSProvider } from "@/cms/providers/create-cms-provider";
+import { getTenantSiteSettings } from "@/cms/providers/tenant-site-settings";
 
 export interface RequestThemeDecision {
   /** Contextual curated theme key (rule / scenario override), else null. */
@@ -42,11 +42,15 @@ export interface RequestThemeDecision {
  */
 export const getRequestThemeDecision = cache(async (): Promise<RequestThemeDecision> => {
   const tenantConfig = await getActiveTenant();
-  const [tenantSettings, cmsSettings] = await Promise.all([
+  // The tenant first: it says which CMS is the tenant's. Same read as the
+  // root layout, header and footer (cms/providers/tenant-site-settings.ts).
+  const [tenantSettings, siteLanguage] = await Promise.all([
     getTenantForRender(tenantConfig.tenantId),
-    // The site's own language, so this shares one cache entry with header and footer.
-    getSiteLanguage().then((lang) => createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings(lang)).catch(() => null),
+    getSiteLanguage().catch(() => null),
   ]);
+  const cmsSettings = siteLanguage
+    ? await getTenantSiteSettings(tenantConfig.tenantId, tenantSettings, siteLanguage).catch(() => null)
+    : null;
 
   let contextualThemeKey: ThemePresetKey | null = null;
   let contextualPresetId: string | null = null;

@@ -20,7 +20,7 @@ import { toConsentLocale }       from "@/tracking/consent-i18n";
 import { getDesignPreset } from "@/tenant/design-presets-gallery";
 import { buildCompleteLookDesign } from "@/lib/design/complete-look";
 import { THEME_PRESETS, isThemePresetKey, type ThemePresetKey } from "@/design-system/theme/presets";
-import { createCMSProvider }     from "@/cms/providers/create-cms-provider";
+import { getTenantSiteSettings } from "@/cms/providers/tenant-site-settings";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
 import { brandLayerFor }          from "@/lib/brand/brand-layer";
 import { schemeFor }              from "@/lib/theme/scheme";
@@ -195,14 +195,18 @@ export default async function RootLayout({
   // precedence over CMS (siteSettings.themePreset) so the visual editor in the admin
   // is always the source of truth.  CMS themePreset is a fallback only.
   //
-  // createCMSProvider(undefined, tenantId) uses env-var priority (Statamic/Storyblok/Sanity).
-  // Tenant-specific CMS overrides are handled by the Header/Footer components which
-  // normalize tenantSettings.cms first — layout.tsx runs before tenantSettings is available.
-  const [tenantSettings, cmsSettings] = await Promise.all([
+  // The tenant first, because it says which CMS is the tenant's. The settings
+  // are then read from that CMS, the same one header and footer read, in the
+  // site's own language, so all four share one remembered answer. Asking the
+  // platform's default CMS here broke that answer's refresh: see
+  // cms/providers/tenant-site-settings.ts.
+  const [tenantSettings, siteLanguage] = await Promise.all([
     getTenantForRender(tenantConfig.tenantId),
-    // The site's own language, so this shares one cache entry with header and footer.
-    getSiteLanguage().then((lang) => createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings(lang)).catch(() => null),
+    getSiteLanguage().catch(() => null),
   ]);
+  const cmsSettings = siteLanguage
+    ? await getTenantSiteSettings(tenantConfig.tenantId, tenantSettings, siteLanguage).catch(() => null)
+    : null;
 
   // ── Contextual theme decision ─────────────────────────────────────────────────
   //
