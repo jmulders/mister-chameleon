@@ -71,7 +71,7 @@ import { liftDarkCardTokens } from "@/design-system/theme/preset-to-block-tokens
 import { BlockThemeScope } from "./BlockThemeScope";
 import { BlockEffectScope } from "./BlockEffectScope";
 import type { BlockTokenSet, BlockTokenRef, CuratedBlockTokens } from "@/design-system/theme/block-token-set";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import { getSiteLocale } from "@/lib/site-texts/server";
 import type { SiteLocale } from "@/lib/site-texts/locale";
@@ -415,7 +415,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
   let blockTypeEffects: Partial<Record<string, readonly BlockEffectConfig[]>> | undefined;
   try {
     const { tenantId } = await getActiveTenant();
-    const tenant = tenantId ? await getTenantById(tenantId) : null;
+    const tenant = tenantId ? await getTenantForRender(tenantId) : null;
     blockTokenSets = tenant?.design?.blockTokenSets;
     defaultTokens  = tenant?.design?.defaultTokens;
     defaultEffects = tenant?.design?.defaultEffects;
@@ -555,7 +555,7 @@ async function fetchContextDataFromSlots(
   const localeRaw    = cookieStore.get(LOCALE_COOKIE)?.value ?? "";
   const locale       = isSupportedLocale(localeRaw) ? localeRaw : DEFAULT_LOCALE;
   const { tenantId } = await getActiveTenant();
-  const tenant       = tenantId ? await getTenantById(tenantId) : null;
+  const tenant       = tenantId ? await getTenantForRender(tenantId) : null;
 
   // When a provider override is supplied (e.g. createDraftStatamicProvider from
   // the Live Preview path), use it directly — skips the factory and the

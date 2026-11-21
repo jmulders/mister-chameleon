@@ -5,7 +5,7 @@ import "./globals.css";
 import "./brand/mister-chameleon.css";
 
 import { cookies, headers }      from "next/headers";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { tenantThemeToCSS }      from "@/design-system/theme/tenant-theme";
 import { resolveThemeForTenant, resolvedThemeToCSS } from "@/tenant/resolve-theme";
 import { ALL_FONT_VARIABLES, geistSans, geistMono, resolveGoogleFontCss } from "@/lib/fonts";
@@ -198,7 +198,7 @@ export default async function RootLayout({
   // Tenant-specific CMS overrides are handled by the Header/Footer components which
   // normalize tenantSettings.cms first — layout.tsx runs before tenantSettings is available.
   const [tenantSettings, cmsSettings] = await Promise.all([
-    getTenantById(tenantConfig.tenantId),
+    getTenantForRender(tenantConfig.tenantId),
     // The site's own language, so this shares one cache entry with header and footer.
     getSiteLanguage().then((lang) => createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings(lang)).catch(() => null),
   ]);

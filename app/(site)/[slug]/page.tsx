@@ -69,7 +69,7 @@ import { mapPageDataToPageConfig }   from "@/cms/mappers/page-config-mapper";
 import { TemplateRenderer }          from "@/components/platform/TemplateRenderer";
 import { getSiteLocale } from "@/lib/site-texts/server";
 import { PAGE_TEXTS } from "@/lib/site-texts/pages";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import { pageNeedsTitleHeading } from "@/lib/page-title";
 import { PageTitleHeader }       from "@/components/site/PageTitleHeader";
@@ -208,7 +208,7 @@ function buildDraftPageData(
  * and different language variants are never accidentally deduped against each other.
  */
 const getPageData = cache(async (slug: string, preview: boolean, tenantId: string | null, locale: string) => {
-  const tenant = await getTenantById(tenantId ?? "");
+  const tenant = await getTenantForRender(tenantId ?? "");
   const provider = preview
     ? createPreviewCMSProvider(tenant?.cms, tenantId)
     : createCMSProvider(tenant?.cms, tenantId);
@@ -308,7 +308,7 @@ export default async function CmsPage({ params, searchParams }: PageProps) {
           return draftPage ?? buildDraftPageData(draftEntry, slug).pageData;
         })()
       : getPageData(slug, preview, tenantId, locale),
-    getTenantById(tenantId ?? ""),
+    getTenantForRender(tenantId ?? ""),
   ]);
   let page = resolvedPage;
 

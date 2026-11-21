@@ -60,6 +60,49 @@ export function forgetRememberedReads(): void {
   }
 }
 
+// ── A few reads at a time ─────────────────────────────────────────────────────
+//
+// After a quiet minute every answer is stale at once, and the first visit
+// refreshes them all behind its response: ten reads in the same instant. On a
+// cold database each of those opens a connection of its own, and on 21 Nov 2026
+// they took two seconds each, together with any read the visitor did wait for.
+// Three at a time open three connections, and the reads after them find those
+// warm. A read that waits longer than WAIT_FOR_A_TURN_MS goes anyway: a slot
+// held by a request that hangs must not hold up a page.
+
+export const READS_AT_ONCE = 3;
+export const WAIT_FOR_A_TURN_MS = 2000;
+
+let reading = 0;
+const queue: Array<() => void> = [];
+
+async function inTurn<T>(work: () => Promise<T>): Promise<T> {
+  let hasSlot = true;
+  if (reading < READS_AT_ONCE) {
+    reading++;
+  } else {
+    hasSlot = await new Promise<boolean>((resolve) => {
+      const take = () => { clearTimeout(timer); resolve(true); };
+      const timer = setTimeout(() => {
+        const at = queue.indexOf(take);
+        if (at >= 0) queue.splice(at, 1);
+        resolve(false);
+      }, WAIT_FOR_A_TURN_MS);
+      queue.push(take);
+    });
+  }
+  try {
+    return await work();
+  } finally {
+    if (hasSlot) {
+      // Hand the slot to the next in line, or give it back.
+      const next = queue.shift();
+      if (next) next();
+      else reading--;
+    }
+  }
+}
+
 /** Arguments become part of the cache key, so they must be plain values. */
 type KeyPart = string | number | boolean | null | undefined;
 
@@ -118,7 +161,7 @@ export function rememberedRead<A extends KeyPart[], T>(
         const state = { failed: false };
         let value: T;
         try {
-          value = await watch.run(state, () => read(...args));
+          value = await inTurn(() => watch.run(state, () => read(...args)));
         } catch (reason) {
           throw new ReadThrew(reason);
         }

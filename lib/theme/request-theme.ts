@@ -13,7 +13,7 @@
 
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
-import { getActiveTenant, getTenantById } from "@/tenant/server";
+import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { getSiteLanguage } from "@/lib/site-texts/server";
 import { buildTimeContext } from "@/context/time";
 import { loadTenantRulesConfig } from "@/decision/rules/load-tenant-rules";
@@ -43,7 +43,7 @@ export interface RequestThemeDecision {
 export const getRequestThemeDecision = cache(async (): Promise<RequestThemeDecision> => {
   const tenantConfig = await getActiveTenant();
   const [tenantSettings, cmsSettings] = await Promise.all([
-    getTenantById(tenantConfig.tenantId),
+    getTenantForRender(tenantConfig.tenantId),
     // The site's own language, so this shares one cache entry with header and footer.
     getSiteLanguage().then((lang) => createCMSProvider(undefined, tenantConfig.tenantId).getSiteSettings(lang)).catch(() => null),
   ]);

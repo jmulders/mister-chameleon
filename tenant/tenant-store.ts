@@ -904,6 +904,23 @@ export async function getTenantByIdCached(tenantId: string): Promise<TenantSetti
 }
 
 /**
+ * The tenant settings for anything that renders a public page.
+ *
+ * From the cross-instance cache (two minutes, dropped on every save in the
+ * admin), with the direct read as the fallback for a cache that has nothing.
+ *
+ * Use this in layouts, pages and render helpers, never getTenantById(): that
+ * one reads the database on every request. On 21 Nov 2026 it was the one read
+ * the homepage still waited for after the rest of the configuration had moved
+ * to memory, and on a quiet site it took two seconds. Admin screens, previews
+ * and writes keep getTenantById(), so an edit is visible to the one who made it.
+ */
+export async function getTenantForRender(tenantId: string): Promise<TenantSettings | null> {
+  if (!tenantId) return null;
+  return (await getTenantByIdCached(tenantId)) ?? (await getTenantById(tenantId));
+}
+
+/**
  * Returns the tenant whose snippet siteKey matches the given string, or null.
  *
  * Uses a direct Supabase JSONB column filter so only the matching row is
