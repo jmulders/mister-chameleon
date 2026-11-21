@@ -81,6 +81,7 @@ import {
   injectKnownLeadContext,
   forceKnownLeadSegment,
 } from "@/lib/abm/apply-known-lead";
+import { LEAD_COOKIE, readLeadCookie } from "@/lib/abm/lead-cookie";
 import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-visitor-profile";
 import { recordVisitorEvent }      from "@/lib/lead-base/visitor-events-store";
 import { getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
@@ -431,10 +432,14 @@ export async function resolveSlugPageConfig(
     // A lead's personalized URL can target any page (e.g. /pricing), so fold the
     // lead into this page's context too. Inject firmographics first so segments
     // defined on them auto-match. Fail-open: any error → normal personalization.
-    const leadCookie = (request.headers.get("cookie") ?? "")
-      .split(";").map((c) => c.trim())
-      .find((c) => c.startsWith("mc_lead="))
-      ?.slice("mc_lead=".length);
+    // Only with personalization consent (see lib/abm/lead-cookie.ts).
+    const leadCookie = readLeadCookie(
+      (request.headers.get("cookie") ?? "")
+        .split(";").map((c) => c.trim())
+        .find((c) => c.startsWith(`${LEAD_COOKIE}=`))
+        ?.slice(`${LEAD_COOKIE}=`.length),
+      consent,
+    );
 
     let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
     try {

@@ -71,6 +71,7 @@ import {
   injectKnownLeadContext,
   forceKnownLeadSegment,
 } from "@/lib/abm/apply-known-lead";
+import { LEAD_COOKIE, readLeadCookie } from "@/lib/abm/lead-cookie";
 import { recordVisitorProfile, abmLeadToPerson } from "@/lib/lead-base/record-visitor-profile";
 import { getKnownFirmographics, getReturningProfileSignals } from "@/lib/lead-base/visitor-profiles-store";
 import { recordVisitorEvent }              from "@/lib/lead-base/visitor-events-store";
@@ -544,6 +545,9 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
 
   // ── ABM known-lead — phase 1: firmographics BEFORE segment evaluation ─────
   //
+  // Only with personalization consent: readLeadCookie() returns nothing without
+  // it, so a cookie from before the visitor said no is not used.
+  //
   // Resolve the lead referenced by the mc_lead cookie (set by /go/{token}) and
   // load its firmographics (companyName / companyIndustry / companySize /
   // targetAccountMatched) into the enrichment context, plus attach the knownLead
@@ -551,7 +555,9 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   // firmographics auto-match the known account. Fail-open: any error → no-op.
   let abmLead: Awaited<ReturnType<typeof resolveActiveKnownLead>> = null;
   try {
-    abmLead = await resolveActiveKnownLead(cookieStore.get("mc_lead")?.value);
+    abmLead = await resolveActiveKnownLead(
+      readLeadCookie(cookieStore.get(LEAD_COOKIE)?.value, consent),
+    );
     if (abmLead && !isControl) {
       injectKnownLeadContext(
         postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,

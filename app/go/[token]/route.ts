@@ -6,6 +6,11 @@
  * and 307-redirects to the lead's target page. The Node-side AbmLeadEnricher then
  * personalizes subsequent pages from the cookie.
  *
+ * Consent: the cookie is only set when the visitor allowed personalization
+ * (mc_consent). Without it the redirect still happens, to the same page, but
+ * nothing is stored and the page is the one every visitor gets. The reasoning
+ * is in lib/abm/lead-cookie.ts.
+ *
  * Fail-open: unknown / paused / expired handles silently redirect to "/" — never
  * a 404 or an error that reveals the mechanism. Vanity paths (e.g.
  * /offer-for-john) reach here too: the (site)/[slug] route detects a vanity
@@ -18,11 +23,10 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { getActiveTenant }           from "@/tenant/get-active-tenant";
 import { getAbmLeadByHandle, recordAbmVisit } from "@/lib/abm/abm-store";
 import { fireAbmVisitWebhook }        from "@/lib/abm/abm-webhook";
+import { resolveConsent }             from "@/lib/consent/server-consent";
+import { LEAD_COOKIE, LEAD_COOKIE_MAX_AGE, leadCookieAllowed } from "@/lib/abm/lead-cookie";
 
 export const runtime = "nodejs";
-
-const LEAD_COOKIE   = "mc_lead";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export async function GET(
   req: NextRequest,
@@ -46,13 +50,19 @@ export async function GET(
   const target = lead.targetPath.startsWith("/") ? lead.targetPath : "/";
 
   const res = NextResponse.redirect(new URL(target, origin), { status: 307 });
-  res.cookies.set(LEAD_COOKIE, lead.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure:   true,
-    path:     "/",
-    maxAge:   COOKIE_MAX_AGE,
-  });
+
+  // Remember the lead only when the visitor allowed personalization. The
+  // visitor's own choice is read here; the tenant's privacy ceiling is applied
+  // where the cookie is read (the page pipelines).
+  if (leadCookieAllowed(resolveConsent(req.headers.get("cookie")))) {
+    res.cookies.set(LEAD_COOKIE, lead.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure:   true,
+      path:     "/",
+      maxAge:   LEAD_COOKIE_MAX_AGE,
+    });
+  }
 
   // After the redirect is sent: record the visit (with the landing path) and
   // fan out the optional outbound webhook. Runs post-response via after() so it
