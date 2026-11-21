@@ -288,10 +288,18 @@ const nextConfig = {
     const siteMoves = [
       ["/pricing",   "/prijzen"],
       ["/book-demo", "/demo"],
-      // The example cases no longer carry the name of an existing company.
-      ["/cases/case-payt",         "/cases/voorbeeld-saas-facturatie"],
-      ["/cases/case-sendcloud",    "/cases/voorbeeld-verzendplatform"],
-      ["/cases/case-indie-agency", "/cases/voorbeeld-bureau"],
+      // The cases became use cases on 21 Nov 2026: no invented customer, quote
+      // or figure, and no "(voorbeeld)" in the title. First they lost the name of
+      // an existing company, then the word "voorbeeld". Both old addresses go
+      // straight to the new one, without a second hop.
+      ["/cases/case-payt",                  "/cases/drie-titels-voor-drie-doelgroepen"],
+      ["/cases/voorbeeld-saas-facturatie",  "/cases/drie-titels-voor-drie-doelgroepen"],
+      ["/cases/case-sendcloud",             "/cases/testen-zonder-developer"],
+      ["/cases/voorbeeld-verzendplatform",  "/cases/testen-zonder-developer"],
+      ["/cases/case-indie-agency",          "/cases/klantsites-in-een-omgeving"],
+      ["/cases/voorbeeld-bureau",           "/cases/klantsites-in-een-omgeving"],
+      // An article that was replaced the day it went live.
+      ["/blog/de-bedrijfsnaam-in-je-titel", "/blog/van-bezoeker-naar-lead"],
       // Pages that got a Dutch address. Only the exact path: /blog/<article>
       // keeps working.
       ["/features",  "/functies"],
