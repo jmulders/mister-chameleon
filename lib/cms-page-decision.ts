@@ -64,6 +64,7 @@ import path from "path";
 
 import { resolveSession }          from "@/data/session";
 import { fetchVisitorHistory }     from "@/context/fetch-visitor-history";
+import { startVisitorStoredContext } from "@/context/visitor-stored-context";
 import { emptyHistory }            from "@/context/visitor-history";
 import { resolveConsent }          from "@/lib/consent/server-consent";
 import {
@@ -276,8 +277,16 @@ export async function resolveSlugPageConfig(
     //
     // Load visitor history and rules config concurrently — both are needed for
     // buildDecisionContext and the rules provider respectively.
+    //
+    // Everything stored about this visitor comes in one read (migration 188),
+    // started here and shared with the returning-visitor signals further down,
+    // which used to be a read of their own after this one. Null while the
+    // migration is not applied: each reader then does its own reads.
+    const storedContextPromise = ((consent.personalization || consent.enrichment) && sessionId)
+      ? startVisitorStoredContext(tenantId, sessionId)
+      : undefined;
     const [rawHistory, tenantRulesConfig] = await Promise.all([
-      consent.personalization ? fetchVisitorHistory(sessionId, tenantId) : Promise.resolve(emptyHistory()),
+      consent.personalization ? fetchVisitorHistory(sessionId, tenantId, storedContextPromise) : Promise.resolve(emptyHistory()),
       (async () => {
         try {
           // No variant catalogue: with allowUnknownVariantKeys the extra keys
@@ -447,7 +456,7 @@ export async function resolveSlugPageConfig(
       // Returning-visitor signals are a persistent, identity-keyed read — gated on
       // persistent-behaviour or enrichment consent.
       if (!isControl && (consent.personalization || consent.enrichment)) {
-        const returningSignals = await getReturningProfileSignals(tenantId, sessionId);
+        const returningSignals = await getReturningProfileSignals(tenantId, sessionId, storedContextPromise);
         injectReturningVisitorContext(
           postScenarioInput as unknown as import("@/decision/decision-context").DecisionContext,
           returningSignals,

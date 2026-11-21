@@ -70,7 +70,9 @@ import { getDb }               from "@/data/db";
 import { logger }              from "@/lib/logger";
 import { emptyHistory }        from "./visitor-history";
 import type { VisitorHistory } from "./visitor-history";
-import { fetchJourneyState }   from "@/lib/journey/fetch-journey-state";
+import { fetchJourneyState, journeyStateFromRow } from "@/lib/journey/fetch-journey-state";
+import type { BehaviorStateRow } from "@/lib/journey/types";
+import type { VisitorStoredContext } from "./visitor-stored-context";
 
 // ── Type helpers ──────────────────────────────────────────────────────────────
 // Same pattern used throughout the repositories layer to work around the
@@ -134,15 +136,29 @@ function matchesTenant(
 export async function fetchVisitorHistory(
   sessionId: string,
   tenantId: string,
+  /**
+   * The one read of everything stored about this visitor, started by the page
+   * (startVisitorStoredContext). When it has an answer the four queries below
+   * are not made. Absent, or resolved to null, they are made as before.
+   */
+  stored?: Promise<VisitorStoredContext | null>,
 ): Promise<VisitorHistory> {
   try {
+    const preloaded = stored ? await stored : null;
     const db = getDb();
 
     // ── Run all queries concurrently ────────────────────────────────────────
     // The query builders are passed to Promise.all un-awaited (they are
     // thenables), so all four requests are in flight at once. Awaiting inside
     // the array literal would run them one after another.
-    const [pageViewRaw, ctaClickRaw, lastVariantRaw, journeyState] = await Promise.all([
+    const [pageViewRaw, ctaClickRaw, lastVariantRaw, journeyState] = preloaded
+      ? [
+          { data: preloaded.pageViews, error: null },
+          { data: preloaded.ctaClicks, error: null },
+          { data: preloaded.lastVariant ? [preloaded.lastVariant] : [], error: null },
+          journeyStateFromRow(preloaded.behaviorState as BehaviorStateRow | null),
+        ] as const
+      : await Promise.all([
       // 1. Page view rows — fetch payload so the tenant filter can be applied.
       //    Rows per session are tiny (one per page-load within a 30-day window).
       db

@@ -10,7 +10,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { noteFailedRead, READS_AT_ONCE, rememberedRead, REMEMBERED_READ_TAG, WAIT_FOR_A_TURN_MS, type CacheLayer } from "@/lib/cache/remembered-read";
+import { foregroundRead, noteFailedRead, READS_AT_ONCE, rememberedRead, REMEMBERED_READ_TAG, WAIT_FOR_A_TURN_MS, type CacheLayer } from "@/lib/cache/remembered-read";
 
 /**
  * A small stand-in for Next's data cache with the behaviour this code leans
@@ -261,6 +261,48 @@ describe("a few reads at a time", () => {
   });
 });
 
+describe("a read the visitor waits for goes first", () => {
+  const tick = () => new Promise<void>((r) => setImmediate(r));
+
+  it("holds the refresh until the visitor's read has answered", async () => {
+    const cache = fakeCache();
+    const order: string[] = [];
+    let answer!: (v: string) => void;
+    const visitor = foregroundRead(new Promise<string>((r) => { answer = r; }));
+    const read = rememberedRead("first", async (n: string) => { order.push(`config ${n}`); return n; }, { seconds: 60 }, cache.layer);
+    const pending = [read("a"), read("b")];
+    await tick();
+    assert.equal(order.length, 0, "no configuration read starts while the visitor's read is under way");
+    order.push("visitor answered");
+    answer("klaar");
+    assert.equal(await visitor, "klaar");
+    await Promise.all(pending);
+    assert.deepEqual(order, ["visitor answered", "config a", "config b"]);
+  });
+
+  it("does not wait when nothing is under way, and not after a failed visitor read", async () => {
+    const cache = fakeCache();
+    const failing = foregroundRead(Promise.reject(new Error("stuk")));
+    await assert.rejects(failing, /stuk/);
+    await tick();
+    const read = rememberedRead("first-free", async () => "antwoord", { seconds: 60 }, cache.layer);
+    assert.equal(await read(), "antwoord");
+  });
+
+  it("waits no longer than two seconds for a visitor read that hangs", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const cache = fakeCache();
+    let asked = 0;
+    void foregroundRead(new Promise<void>(() => {}));
+    const read = rememberedRead("first-hang", async () => { asked++; return "antwoord"; }, { seconds: 60 }, cache.layer);
+    const pending = read();
+    await tick();
+    assert.equal(asked, 0);
+    t.mock.timers.tick(WAIT_FOR_A_TURN_MS);
+    assert.equal(await pending, "antwoord");
+  });
+});
+
 describe("the stores say when a read failed", () => {
   // Each of these answers a database error with an empty value. Without the
   // note, that empty value would be remembered as the configuration.
@@ -270,6 +312,7 @@ describe("the stores say when a read failed", () => {
     ["lib/design-effect-sets/effect-sets-store.ts", "effect sets", 2],
     ["lib/adaptive-blocks/adaptive-blocks-store.ts", "block by key and block list", 4],
     ["billing/plan-enforcement.ts", "plan, session count and credits", 6],
+    ["interest-profiles/repository.ts", "the tenant's interest profile overrides", 2],
   ];
   for (const [file, what, expected] of cases) {
     it(`${what} (${file})`, async () => {

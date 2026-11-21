@@ -10,6 +10,7 @@ import "server-only";
 
 import { getDb }                      from "@/data/db";
 import { logger }                     from "@/lib/logger";
+import { noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 import { parseAvatarConfig }          from "@/components/admin/avatar-util";
 import { INTEREST_PROFILE_CATALOG }   from "./catalog";
 import type {
@@ -160,6 +161,19 @@ export async function listActiveInterestProfiles(
     return { ok: false, error: msg };
   }
 }
+
+/**
+ * listActiveInterestProfiles() for the public render path: remembered for a
+ * minute across instances, so a visitor does not wait for its two reads (the
+ * profiles, then the tenant's overrides). They are configuration, the same
+ * for every visitor. A failed read is not kept: not the profiles (ok: false)
+ * and not the overrides, which answer an error with "no overrides".
+ */
+export const listActiveInterestProfilesRemembered = rememberedRead(
+  "active-interest-profiles",
+  (tenantId: string | null) => listActiveInterestProfiles(tenantId),
+  { seconds: 60, keep: (result) => result.ok },
+);
 
 // ── listAllInterestProfiles ───────────────────────────────────────────────────
 
@@ -426,6 +440,7 @@ export async function getTenantProfileOverrides(
       ) {
         return {};
       }
+      noteFailedRead();
       logger.warn("[interest-profiles] getTenantProfileOverrides error", {
         tenantId,
         code: result.error.code,
@@ -439,6 +454,7 @@ export async function getTenantProfileOverrides(
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    noteFailedRead();
     logger.warn("[interest-profiles] getTenantProfileOverrides unexpected error", {
       tenantId, error: msg,
     });

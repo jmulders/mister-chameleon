@@ -76,7 +76,40 @@ export const WAIT_FOR_A_TURN_MS = 2000;
 let reading = 0;
 const queue: Array<() => void> = [];
 
+// A read the visitor is waiting for goes first. The refresh of configuration
+// is behind the response, so it can let such a read have the cold database to
+// itself: foregroundRead() marks one, and a remembered read does not start
+// while one is under way (no longer than WAIT_FOR_A_TURN_MS).
+
+let foreground = 0;
+const whenQuiet: Array<() => void> = [];
+
+/** Marks a read the visitor waits for. Returns the same promise. */
+export function foregroundRead<T>(work: Promise<T>): Promise<T> {
+  foreground++;
+  const done = () => {
+    foreground--;
+    if (foreground === 0) whenQuiet.splice(0).forEach((go) => go());
+  };
+  work.then(done, done);
+  return work;
+}
+
+function untilQuiet(): Promise<void> {
+  if (foreground === 0) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const go = () => { clearTimeout(timer); resolve(); };
+    const timer = setTimeout(() => {
+      const at = whenQuiet.indexOf(go);
+      if (at >= 0) whenQuiet.splice(at, 1);
+      resolve();
+    }, WAIT_FOR_A_TURN_MS);
+    whenQuiet.push(go);
+  });
+}
+
 async function inTurn<T>(work: () => Promise<T>): Promise<T> {
+  await untilQuiet();
   let hasSlot = true;
   if (reading < READS_AT_ONCE) {
     reading++;
