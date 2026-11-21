@@ -196,14 +196,16 @@ function HeroCTARow({
   if (visible.length === 0) return null;
 
   return (
-    // Mobile-first: stack buttons vertically on xs; row from sm upward.
-    // `w-full sm:w-auto` on each button ensures they're thumb-friendly on mobile.
+    // One row on every width, a phone included: two buttons side by side keep
+    // the hero short. They wrap only when the two labels do not fit together.
+    // On a phone the side padding is 20 px instead of 24, which is what lets two
+    // labels of about a dozen characters share a 360 px screen.
     //
     // color is pinned to the hero title colour so an opt-in outline/ghost CTA
     // (which inherits currentColor) stays readable on the dark hero surface.
     // primary/secondary set their own text colour and are unaffected.
     <div
-      className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
+      className="flex flex-wrap items-center gap-3 sm:gap-4"
       style={{ color: "var(--hero-title-color)" }}
     >
       {visible.map((cta, i) => (
@@ -214,7 +216,7 @@ function HeroCTARow({
           ctaKey={ctaKey}
           position="hero"
           variant={cta.variant ?? (i === 0 ? "primary" : "secondary")}
-          className="w-full sm:w-auto"
+          className="max-sm:px-5"
         />
       ))}
     </div>

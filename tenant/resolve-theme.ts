@@ -741,6 +741,18 @@ export function resolveThemeForTenant(
     }
   }
 
+  // The badge is the same pair (brand tint with brand text) and gets the same
+  // rule. In a dark preset the brand text is a bright amber, which on the light
+  // tint made the tag above the hero headline yellow on yellow.
+  {
+    const badgeBg = vars["--badge-primary-bg"] ?? vars["--muted"] ?? vars["--bg-subtle"];
+    const badgeText = vars["--badge-primary-text"];
+    if (badgeBg && badgeText) {
+      const ratio = contrastRatio(badgeText, badgeBg);
+      if (ratio !== null && ratio < 4.5) vars["--badge-primary-text"] = readableText(badgeBg);
+    }
+  }
+
   return { key, vars };
 }
 

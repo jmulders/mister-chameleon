@@ -365,6 +365,14 @@ export function blockTokensToStyle(
     if (ratio !== null && ratio < 4.5) style["--btn-secondary-text"] = readableText(secBg);
   }
 
+  // The badge is the same pair and gets the same rule.
+  const badgeBg = style["--badge-primary-bg"];
+  const badgeText = style["--badge-primary-text"];
+  if (typeof badgeBg === "string" && typeof badgeText === "string") {
+    const ratio = contrastRatio(badgeText, badgeBg);
+    if (ratio !== null && ratio < 4.5) style["--badge-primary-text"] = readableText(badgeBg);
+  }
+
   return style as CSSProperties;
 }
 

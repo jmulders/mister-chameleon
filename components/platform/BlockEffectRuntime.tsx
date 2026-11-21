@@ -43,6 +43,7 @@
 
 import { useEffect } from "react";
 import { effectGroup } from "@/design-system/effects/effect-defs";
+import { parallaxOffset } from "@/design-system/effects/parallax-offset";
 
 const SUPPORTED_VERSIONS = new Set(["1"]);
 
@@ -111,8 +112,8 @@ export function BlockEffectRuntime() {
         for (const el of parallaxEls) {
           const rect = el.getBoundingClientRect();
           const speed = parseFloat(getComputedStyle(el).getPropertyValue("--mc-fx-parallax-speed")) || 0.2;
-          const center = rect.top + rect.height / 2;
-          const delta = (center - vh / 2) * -speed;
+          const current = parseFloat(el.style.getPropertyValue("--mc-fx-parallax-y")) || 0;
+          const delta = parallaxOffset({ top: rect.top, height: rect.height, viewport: vh, speed, current });
           el.style.setProperty("--mc-fx-parallax-y", `${delta.toFixed(1)}px`);
         }
         for (const el of scrollFadeEls) {

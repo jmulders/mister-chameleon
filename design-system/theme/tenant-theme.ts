@@ -771,10 +771,13 @@ function buildThemeVarsArray(theme: TenantTheme): [string, string][] {
     //
     // Concrete values break the badge purple-leak chain:
     //   Badge primary: --badge-primary-bg (bg) + --badge-primary-text (text)
-    // These default to primarySubtle / textBrand but are emitted as hex so the
+    // These default to primarySubtle / textBrand (the same pair as the secondary
+    // button, with the same readability rule) but are emitted as hex so the
     // :root chain-fallback to brand-500 never activates inside [data-site].
     ["--badge-primary-bg",   colors.brand.primarySubtle],
-    ["--badge-primary-text", colors.brand.textBrand],
+    // The text is the readable one: a bright brand colour on its own light tint
+    // (a dark preset with an amber brand) was yellow on yellow in the hero tag.
+    ["--badge-primary-text", secBtnText],
 
     // ── Secondary button tokens ───────────────────────────────────────────────
     //
