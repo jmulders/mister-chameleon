@@ -37,6 +37,7 @@ import { logger }                             from "@/lib/logger";
 import type { TenantFormOverrideSettings }    from "@/tenant/types";
 import { DEFAULT_FORM_OVERRIDE_SETTINGS }     from "@/tenant/types";
 import { sanitizeBlockMedia }                 from "@/lib/media/block-media";
+import { parseAddressFieldsMode }             from "@/forms/address-fields";
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,8 @@ function mergeWithDefaults(raw: Record<string, unknown>): TenantFormOverrideSett
         : undefined,
 
     layout: parseLayout(raw.layout),
+
+    addressFields: parseAddressFieldsMode(raw.addressFields),
   };
 }
 

@@ -310,6 +310,15 @@ export interface TenantFormOverrideSettings {
    * not the field set or the server contract. Absent → default single column.
    */
   layout?: FormLayout;
+
+  /**
+   * Adds a postcode and a house-number field to this form, for this tenant
+   * only. "optional" leaves them free to skip, "required" does not. The form
+   * then fills in the street and the town and checks the address
+   * (forms/address-fields.ts). Honoured independently of `overrideEnabled`,
+   * like the layout. Absent → the form keeps the fields of its definition.
+   */
+  addressFields?: "optional" | "required";
 }
 
 /**
