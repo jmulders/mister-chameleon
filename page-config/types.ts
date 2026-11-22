@@ -1572,6 +1572,8 @@ export interface TextMediaBlockData {
   readonly ctas?:        readonly BlockCTA[];
   /** Primary media URL — image CDN URL, YouTube/Vimeo embed URL, or uploaded video URL */
   readonly mediaUrl?:    string;
+  /** A second image for a narrow screen, shown in place of `mediaUrl` on a phone. Images only. */
+  readonly mediaUrlNarrow?: string;
   readonly mediaAlt?:    string;
   /** Caption rendered below the media element */
   readonly caption?:     string;

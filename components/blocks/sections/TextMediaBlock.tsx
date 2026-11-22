@@ -39,6 +39,7 @@ import type { TextMediaVariant } from "@/page-config/block-variants";
 import type { TextMediaBlockData } from "@/page-config";
 import type { PortableTextBlock } from "@/cms/types";
 import { resolveSurface, type BlockSurface } from "@/lib/surface";
+import { cn } from "@/lib/utils";
 
 interface TextMediaBlockProps {
   data:     TextMediaBlockData;
@@ -50,6 +51,7 @@ interface TextMediaBlockProps {
 
 function MediaElement({
   mediaUrl,
+  mediaUrlNarrow,
   mediaAlt,
   mediaType,
   videoSource,
@@ -62,6 +64,7 @@ function MediaElement({
   mediaBgImageUrl,
 }: {
   mediaUrl?:       string;
+  mediaUrlNarrow?: string;
   mediaAlt?:       string;
   mediaType?:      "image" | "video";
   videoSource?:    "youtube" | "vimeo" | "upload";
@@ -216,12 +219,29 @@ function MediaElement({
   return (
     <figure className="relative" style={{ flex: "var(--block-text-media-image-flex, 1)" }}>
       <div style={mediaWrapperStyle}>
+        {/*
+          An image for a phone, when the editor gave one: a wide drawing with
+          labels does not read at the width of a phone. Two images and not a
+          picture element, so each stays a direct child of the frame, where the brand
+          layer looks for it. Both load lazily, and a browser does not fetch a
+          lazy image that is not shown, so a visitor downloads one of the two.
+        */}
+        {mediaUrlNarrow && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={mediaUrlNarrow}
+            alt={mediaAlt ?? ""}
+            loading="lazy"
+            data-part="media-narrow"
+            className={cn("block w-full md:hidden", hasBg ? "object-contain" : "object-cover")}
+          />
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={mediaUrl}
           alt={mediaAlt ?? ""}
           loading="lazy"
-          className={hasBg ? "block w-full object-contain" : "block w-full object-cover"}
+          className={cn("w-full", mediaUrlNarrow ? "hidden md:block" : "block", hasBg ? "object-contain" : "object-cover")}
         />
       </div>
       {caption && (
@@ -277,13 +297,14 @@ function TextColumn({
 
 export function TextMediaBlock({ data, variant: rawVariant, surface }: TextMediaBlockProps) {
   const variant = resolveBlockVariant("textMedia", rawVariant) as TextMediaVariant;
-  const { eyebrow, heading, body, ctas, mediaUrl, mediaAlt, caption, mediaType,
+  const { eyebrow, heading, body, ctas, mediaUrl, mediaUrlNarrow, mediaAlt, caption, mediaType,
           videoSource, posterUrl, autoPlay, loop,
           mediaBgType, mediaBgColor, mediaBgImageUrl } = data;
 
   const media = (
     <MediaElement
       mediaUrl={mediaUrl}
+      mediaUrlNarrow={mediaType === "video" ? undefined : mediaUrlNarrow}
       mediaAlt={mediaAlt}
       mediaType={mediaType}
       videoSource={videoSource}

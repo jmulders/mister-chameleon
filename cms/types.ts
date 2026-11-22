@@ -1880,6 +1880,12 @@ export interface TextMediaSectionData extends PageSectionBase {
   mediaType?:  "image" | "video";
   /** Primary media URL: image CDN URL, YouTube/Vimeo embed URL, or uploaded video URL */
   mediaUrl?:   string;
+  /**
+   * A second image for a narrow screen, shown in place of `mediaUrl` on a phone.
+   * For an image that does not read when it is scaled down, such as a wide
+   * drawing with labels. Images only.
+   */
+  mediaUrlNarrow?: string;
   mediaAlt?:   string;
   caption?:    string;
   /** For video: how the source was specified ("youtube" | "vimeo" | "upload") */
