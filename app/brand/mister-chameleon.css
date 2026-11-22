@@ -134,6 +134,7 @@
     [data-icon="globe"],
     [data-icon="layers"],
     [data-icon="layout"],
+    [data-icon="mail"],
     [data-icon="message-circle"],
     [data-icon="mouse-pointer"],
     [data-icon="repeat"],
@@ -161,6 +162,7 @@
     [data-icon="globe"],
     [data-icon="layers"],
     [data-icon="layout"],
+    [data-icon="mail"],
     [data-icon="message-circle"],
     [data-icon="mouse-pointer"],
     [data-icon="repeat"],
@@ -185,6 +187,7 @@
     [data-icon="globe"],
     [data-icon="layers"],
     [data-icon="layout"],
+    [data-icon="mail"],
     [data-icon="message-circle"],
     [data-icon="mouse-pointer"],
     [data-icon="repeat"],
@@ -209,6 +212,7 @@
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="globe"] { --mc-photo: url("/brand/icoon/globe.png"); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="layers"] { --mc-photo: url("/brand/icoon/layers.png"); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="layout"] { --mc-photo: url("/brand/icoon/layout.png"); }
+[data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="mail"] { --mc-photo: url("/brand/icoon/mail.png"); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="message-circle"] { --mc-photo: url("/brand/icoon/message-circle.png"); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="mouse-pointer"] { --mc-photo: url("/brand/icoon/mouse-pointer.png"); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="repeat"] { --mc-photo: url("/brand/icoon/repeat.png"); }
