@@ -51,7 +51,7 @@ Het publieke domein draait via het platform; content komt uit Statamic. Formulie
 17. **Google Ads conversies** — conversie-actie: Doelen → Conversies → Nieuw → **Conversies offline** → "stap overslaan" + **Verbeterde conversies voor leads aanzetten** → categorie *Gekwalificeerde lead* → `ctId` uit de URL. **Daarna de account-instelling**: Doelen → Conversies → Instellingen → "Verbeterde conversies voor leads" aanzetten + voorwaarden accepteren. Zonder die stap: `DESTINATION_ACCOUNT_NOT_ENABLED_ENHANCED_CONVERSIONS_FOR_LEADS`. Activatie duurt minuten tot ~24u. Vul `ctId` in bij Retargeting → Conversie-feedback.
 18. **Formulieren** — alles loopt via één gedeelde route (contact, CMS-formulieren, trial, demo, aankoop). Statamic-eigen formulieren gaan via de **inbound-form-brug**: listener in de CMS-app → `POST /api/webhooks/inbound-form?tenant=<id>` met `x-mc-secret`. `LEAD_INBOUND_SECRET` op Vercel **én** Ploi, en `php artisan config:clear` in de Ploi-deploy.
 19. **Suppressie** — `LEAD_SUPPRESSION_SECRET`; ESP post naar `/api/webhooks/suppression?tenant=<id>`.
-20. **Firewall + cron** — Vercel → Firewall → Rules: **Bypass** voor `/api/webhooks/*` (Starts with), anders challenget Vercel legitieme webhooks. `CRON_SECRET` gate't alle cron-endpoints.
+20. **Firewall + cron** — Vercel → Firewall → Rules: **Bypass** voor `/api/webhooks/*` (Starts with), anders challenget Vercel legitieme webhooks. `CRON_SECRET` gate't alle cron-endpoints. Hetzelfde geldt voor de updateroutes van de WordPress-plugin: **Bypass** voor `/api/plugin/wp/` (Starts with). Zonder die regel krijgt een WordPress-site op een updatecheck het controlescherm van Vercel terug (429 met `x-vercel-mitigated: challenge`, gemeten op 22-11-2026) en ziet hij nooit een nieuwe versie. De routes begrenzen zichzelf per siteKey (60 checks en 10 downloads per minuut), dus de bypass zet ze niet open.
 21. **Testen** —
     ```bash
     curl -i -X POST "https://www.jouwsite.nl/api/webhooks/inbound-form?tenant=<id>" \
@@ -280,5 +280,6 @@ Resolutie: tenant → platform_settings → env.
 - [ ] Inbound-form-brug + `config:clear`
 - [ ] `LEAD_SUPPRESSION_SECRET` + ESP-webhook
 - [ ] Firewall-bypass `/api/webhooks/*`
+- [ ] Firewall-bypass `/api/plugin/wp/` (updates van de WordPress-plugin)
 - [ ] `CRON_SECRET`
 - [ ] End-to-end: lead + conversie-event `ok`
