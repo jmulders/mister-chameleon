@@ -168,10 +168,19 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // siteKey. A per-IP limit here was wrong for both — v1/slot is called
   // server-to-server by the CMS adapter, so every visitor of a site shares the
   // CMS host's IP and a whole site was throttled at ~20 pageviews/min.
+  //
+  // /api/plugin/wp/update and /api/plugin/wp/download are the update proxy for
+  // the WordPress plugin, where a site identifies itself by its siteKey. They
+  // are called by the site's server like the manifest above, so they share its
+  // problem with one hosting IP. Unlike the manifest they do work per call (a tenant lookup, and
+  // the download fetches the ZIP from GitHub), so they are not left unlimited:
+  // each is rate-limited INSIDE its route, per siteKey.
   const RATE_LIMIT_EXEMPT = new Set([
     "/api/statamic-draft",
     "/api/health",
     "/api/wp-plugin/update",
+    "/api/plugin/wp/update",
+    "/api/plugin/wp/download",
     "/api/snippet/decide",
     "/api/v1/slot",
     // The snippet script itself: the same file for everyone, served from the

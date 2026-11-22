@@ -46,6 +46,10 @@
  *                              (env RATE_LIMIT_SNIPPET_PER_MIN); checked in the route
  *   "slot"     6000 req/min  — CMS adapter v1/slot, per siteKey
  *                              (env RATE_LIMIT_SLOT_PER_MIN); checked in the route
+ *   "pluginUpdate"    60 req/min  — WordPress plugin update check, per siteKey
+ *                              (env RATE_LIMIT_PLUGIN_UPDATE_PER_MIN); checked in the route
+ *   "pluginDownload"  10 req/min  — WordPress plugin ZIP download, per siteKey
+ *                              (env RATE_LIMIT_PLUGIN_DOWNLOAD_PER_MIN); checked in the route
  *
  * ─── Identifiers ─────────────────────────────────────────────────────────────
  *
@@ -62,7 +66,9 @@ import { decideLocally, effectiveCount } from "@/lib/rate-limiting/local-window"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type RateLimitEndpoint = "track" | "api" | "auth" | "default" | "snippet" | "slot";
+export type RateLimitEndpoint =
+  | "track" | "api" | "auth" | "default" | "snippet" | "slot"
+  | "pluginUpdate" | "pluginDownload";
 
 export interface RateLimitResult {
   /** Whether the request is allowed to proceed. */
@@ -97,6 +103,14 @@ const LIMITS: Record<RateLimitEndpoint, number> = {
   // limit would throttle a whole site at ~20 pageviews/min. This is a per-tenant
   // abuse/cost ceiling instead, not a per-visitor limit.
   slot:    envLimit("RATE_LIMIT_SLOT_PER_MIN", 6000),
+  // The WordPress plugin's update proxy (app/api/plugin/wp), keyed per siteKey.
+  // WordPress calls it from the site's server, and many sites share one hosting
+  // IP, so a per-IP limit would refuse a whole host. A site asks for an update
+  // about twice a day and downloads the ZIP once per release. The download is
+  // the tight one: every call fetches the ZIP from GitHub with the platform's
+  // token and counts against that token's hourly budget.
+  pluginUpdate:   envLimit("RATE_LIMIT_PLUGIN_UPDATE_PER_MIN", 60),
+  pluginDownload: envLimit("RATE_LIMIT_PLUGIN_DOWNLOAD_PER_MIN", 10),
 };
 
 // ── Window key ────────────────────────────────────────────────────────────────

@@ -13,6 +13,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantBySiteKey } from "@/tenant/tenant-store";
+import { checkRateLimit } from "@/lib/rate-limiting";
+import { pluginRateLimitKey, rateLimitHeaders } from "@/lib/rate-limiting/route-limit";
 import { getLatestPluginRelease } from "@/lib/wp-plugin/github-release";
 import { resolveUpdate, PLUGIN_SLUG } from "@/lib/wp-plugin/update-service";
 
@@ -32,6 +34,20 @@ export async function GET(request: NextRequest) {
   const url     = new URL(request.url);
   const siteKey = url.searchParams.get("siteKey") ?? "";
   const slug    = url.searchParams.get("slug") ?? PLUGIN_SLUG;
+
+  // Exempt from the proxy's per-IP limiter, because many WordPress sites share
+  // one hosting IP. Limited per siteKey instead. WordPress reads a 429 as
+  // "no answer" and asks again at its next check.
+  // A call without a siteKey is a 404 below and costs nothing, so it is not counted.
+  if (siteKey) {
+    const rateLimit = await checkRateLimit("pluginUpdate", pluginRateLimitKey(siteKey));
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too Many Requests" },
+        { status: 429, headers: { ...CORS_HEADERS, ...rateLimitHeaders(rateLimit) } },
+      );
+    }
+  }
 
   const result = await resolveUpdate(
     { siteKey, slug, origin: url.origin },

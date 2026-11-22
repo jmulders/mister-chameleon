@@ -12,6 +12,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantBySiteKey } from "@/tenant/tenant-store";
+import { checkRateLimit } from "@/lib/rate-limiting";
+import { pluginRateLimitKey, rateLimitHeaders } from "@/lib/rate-limiting/route-limit";
 import { getLatestPluginRelease, fetchPluginAsset } from "@/lib/wp-plugin/github-release";
 import { resolveDownload, PLUGIN_SLUG } from "@/lib/wp-plugin/update-service";
 
@@ -31,6 +33,20 @@ export async function GET(request: NextRequest) {
   const url     = new URL(request.url);
   const siteKey = url.searchParams.get("siteKey") ?? "";
   const slug    = url.searchParams.get("slug") ?? PLUGIN_SLUG;
+
+  // Exempt from the proxy's per-IP limiter, because many WordPress sites share
+  // one hosting IP. Limited per siteKey instead, and tightly: every download
+  // fetches the ZIP from GitHub with the platform's token.
+  // A call without a siteKey is a 404 below and costs nothing, so it is not counted.
+  if (siteKey) {
+    const rateLimit = await checkRateLimit("pluginDownload", pluginRateLimitKey(siteKey));
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too Many Requests" },
+        { status: 429, headers: { ...CORS_HEADERS, ...rateLimitHeaders(rateLimit) } },
+      );
+    }
+  }
 
   const result = await resolveDownload(
     { siteKey, slug },
