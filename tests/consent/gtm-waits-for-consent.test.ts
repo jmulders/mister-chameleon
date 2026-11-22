@@ -139,9 +139,18 @@ describe("the gate", () => {
   it("passes a later change on as an update", () => {
     const p = page();
     p.gate(state({ analytics: true }));
-    p.gate(state({ analytics: true, enrichment: true }));
+    p.gate(state({ analytics: true, advertising: true }));
     const last = commands(p.layer).at(-1);
-    assert.deepEqual(last, ["consent", "update", googleConsentMode(state({ analytics: true, enrichment: true }))]);
+    assert.deepEqual(last, ["consent", "update", googleConsentMode(state({ analytics: true, advertising: true }))]);
+    assert.equal(events(p.layer).at(-1)?.mc_consent_advertising, true);
+  });
+
+  it("passes a change in the platform's own categories on as an event only", () => {
+    const p = page();
+    p.gate(state({ analytics: true }));
+    p.gate(state({ analytics: true, enrichment: true }));
+    // Nothing changed in Google's terms, so Google is not told again.
+    assert.equal(commands(p.layer).length, 1);
     assert.equal(events(p.layer).at(-1)?.mc_consent_enrichment, true);
   });
 
@@ -159,7 +168,7 @@ describe("the gate", () => {
     const gate = createGtmGate("GTM-TEST123", { layer: () => layer, insertScript: () => {}, now: () => 1 });
     gate(state({ analytics: true }));
     layer = [];
-    gate(state({ analytics: true, enrichment: true }));
+    gate(state({ analytics: true, advertising: true }));
     assert.equal(layer.length, 2);
   });
 });

@@ -40,6 +40,27 @@ Voor de container start, en opnieuw bij elke wijziging, staat in de dataLayer:
    `mc_consent_analytics`, `mc_consent_personalization`, `mc_consent_enrichment`,
    `mc_consent_advertising`.
 
+## Google Analytics op dezelfde pagina
+
+Een tenant kan ook Google Analytics via het platform laten laden (`ga4.tracking` met
+verzendwijze "client"). Analytics start alleen als de bezoeker analytics toestaat, en
+dat gebeurt direct bij de keuze in de banner.
+
+Google wil de keuze van de bezoeker weten vóór de eerste `config`. Zonder die melding
+gaat Google ervan uit dat alles mag, ook advertenties. Daarom heeft de pagina één
+melder voor de keuze, die Analytics en Tag Manager delen:
+
+- Wie het eerst start, zet de keuze als `consent default` in de dataLayer, vóór zijn
+  eigen opdrachten. Dat geldt ook voor een tenant met Analytics en zonder container.
+- De ander meldt dezelfde keuze niet nog een keer.
+- Een latere wijziging komt één keer als `consent update`. Verandert er alleen iets
+  in personalisatie of verrijking, dan krijgt Google niets nieuws te horen. De
+  container krijgt dan wel het event `mc_consent`.
+
+Code: `tracking/google-consent.ts`, `tracking/ga4-consent.ts`,
+`components/tracking/Ga4TrackingProvider.tsx`, `components/tracking/google-tag-page.ts`.
+Test: `tests/consent/ga4-consent-default-first.test.ts`.
+
 ## Een tag aan zijn eigen categorie houden
 
 De container laadt zodra een van de drie categorieën is toegestaan. Een bezoeker die
