@@ -344,7 +344,9 @@ export function UtilityBar({
           rel={headerCta!.openInNewTab ? "noopener noreferrer" : undefined}
           className={cn(
             "ml-2 inline-flex items-center justify-center rounded-md px-4 py-1.5",
-            "text-sm font-semibold text-white shadow-sm transition-colors hover:opacity-90",
+            // The label takes the colour that belongs on the primary fill, like the
+            // Button atom. A fixed white vanished on a preset with a light primary.
+            "text-sm font-semibold text-[var(--btn-text,var(--primary-text,#fff))] shadow-sm transition-colors hover:opacity-90",
             // This CTA is an <a> outside the <nav>, so it does not inherit the
             // --font-ui base rule; pin it so the label follows the preset font.
             "[font-family:var(--font-ui)]",

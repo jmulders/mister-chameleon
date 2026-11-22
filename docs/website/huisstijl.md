@@ -115,6 +115,28 @@ de cirkels staan. In de
 opgeslagen instellingen is dat het veld `design.brandLayer`. Geen enkele tenant
 krijgt de cirkels nog op grond van zijn naam.
 
+### Twee presets zonder kleur
+
+Naast de preset "Mister Chameleon" staan er twee in de galerij, in dezelfde categorie
+"House style":
+
+- **Zwart-wit** (`zwart-wit`): zwarte pagina's, witte tekst, witte knoppen met zwarte
+  tekst. Het slotblok is een witte band met zwarte tekst.
+- **Wit-zwart** (`wit-zwart`): witte pagina's, zwarte tekst, zwarte knoppen met witte
+  tekst. Het slotblok is een zwarte band.
+
+Het zwart is het zwart uit het logohandboek (`#1a171b`), de grijzen zijn stappen
+tussen dat zwart en wit. Lettertype, hoofdletters in de titels, hoeken en witruimte
+zijn gelijk aan de preset "Mister Chameleon". Alleen "verstuurd" en "fout" bij een
+formulier houden het groen en rood uit het handboek, omdat zwart die twee niet uit
+elkaar houdt.
+
+Ze dragen zelf geen merklaag. Een site die de cirkels al heeft, houdt ze als een
+regel op een van deze twee overschakelt. De cirkels houden dan hun kleur.
+
+Code: `tenant/design-presets-mister-chameleon.ts`. Test:
+`tests/design/presets-zwart-wit.test.ts`.
+
 ## Wat de site daarvan gebruikt
 
 - Stapnummers als volle cirkel met een wit cijfer, zoals de hoofdstuknummers.

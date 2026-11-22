@@ -87,6 +87,16 @@ function isLightGradient(gradient: string): boolean {
   return lum !== null && lum > 0.5;
 }
 
+/**
+ * The ink for text on a light surface in a DARK preset: the preset's own dark
+ * ground. Null in a light preset, where the foreground already is dark and the
+ * caller keeps what it did before.
+ */
+function inkOnLight(c: { foreground?: string; background?: string }): string | null {
+  if (!c.foreground || !c.background) return null;
+  return isLight(c.foreground) && !isLight(c.background) ? c.background : null;
+}
+
 /** The one colour of a "gradient" whose stops are all the same, or null. */
 function solidGradientColour(gradient: string): string | null {
   const stops = [...gradient.matchAll(/#[0-9a-f]{3,8}\b/gi)].map((m) => m[0].toLowerCase());
@@ -169,8 +179,12 @@ export function blockTokensFromOverrides(
   if (c.gradientHero) {
     put("heroBg", c.gradientHero);
     if (isLightGradient(c.gradientHero)) {
-      put("heroTitleColor",    c.foreground);
-      put("heroSubtitleColor", c.mutedForeground || c.foreground);
+      // Text on a light hero has to be dark. In a light preset that is the
+      // foreground. In a dark preset the foreground is light, so the page's own
+      // dark ground is the ink.
+      const ink = inkOnLight(c);
+      put("heroTitleColor",    ink ?? c.foreground);
+      put("heroSubtitleColor", ink ?? (c.mutedForeground || c.foreground));
       put("heroGlowColor",     c.primary);
     } else {
       put("heroTitleColor",    "#ffffff");
@@ -190,14 +204,27 @@ export function blockTokensFromOverrides(
   if (c.gradient) {
     put("ctaBg", c.gradient);
     if (isLightGradient(c.gradient)) {
-      put("ctaBodyText",   c.mutedForeground || c.foreground);
-      put("textInverse",   c.foreground);
-      put("ctaButtonBg",   c.primary);
-      put("ctaButtonText", c.onPrimary || "#ffffff");
+      // The same for a light band in a dark preset: dark ink for the text, and a
+      // dark button, because a light primary would vanish on the light band.
+      const ink = inkOnLight(c);
+      put("ctaBodyText",   ink ?? (c.mutedForeground || c.foreground));
+      put("textInverse",   ink ?? c.foreground);
+      put("ctaButtonBg",   ink ?? c.primary);
+      put("ctaButtonText", ink ? c.foreground : (c.onPrimary || "#ffffff"));
     } else {
       put("ctaBodyText", "rgba(255,255,255,0.88)");
     }
   }
+
+  // Forms. The stylesheet derives these from the text and card colours at the
+  // root, where a contextual preset's colours are not known yet. Without them a
+  // dark preset showed the default dark label on its own dark ground.
+  put("formLabelColor",       c.foreground);
+  put("formHelpColor",        c.mutedForeground);
+  put("formInputBg",          c.card || c.background);
+  put("formInputText",        c.cardForeground || c.foreground);
+  put("formInputBorder",      c.border);
+  put("formInputPlaceholder", c.mutedForeground);
 
   // Dividers
   put("dividerColor", c.border);
