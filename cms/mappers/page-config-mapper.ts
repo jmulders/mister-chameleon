@@ -506,6 +506,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
           body:        tmBody,
           mediaType:   section.mediaType,
           mediaUrl:    section.mediaUrl,
+          mediaUrlNarrow: section.mediaUrlNarrow,
           mediaAlt:    section.mediaAlt,
           caption:     section.caption,
           videoSource:    section.videoSource,

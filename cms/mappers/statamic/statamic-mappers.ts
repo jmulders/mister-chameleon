@@ -1115,6 +1115,8 @@ export function mapStatamicPageBlocksToSections(
           ctas:        ctas.length > 0 ? ctas : undefined,
           mediaType:   isVideo ? "video" : "image",
           mediaUrl,
+          // The image for a phone, when the editor gave one. Images only.
+          mediaUrlNarrow: isVideo ? undefined : resolveAssetUrl(block.image_mobile),
           mediaAlt:    typeof block.alt      === "string" ? block.alt      : undefined,
           caption:     typeof block.caption  === "string" ? block.caption  : undefined,
           videoSource,
