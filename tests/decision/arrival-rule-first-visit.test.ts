@@ -23,9 +23,11 @@ const field = (name: string, value: unknown = "x", operator = "equals") =>
 const group = (logic: "and" | "or", ...conditions: RuleCondition[]) =>
   ({ type: "group", logic, conditions }) as unknown as RuleCondition;
 
-const DEFAULTS = { heroKey: "hero_default", proofKey: "proof_default", ctaKey: "cta_default" };
+// Variant keys are literal unions in the real type. The gate only compares them.
+type Slots = Pick<ExperiencePlan, "heroKey" | "proofKey" | "ctaKey">;
+const DEFAULTS = { heroKey: "hero_default", proofKey: "proof_default", ctaKey: "cta_default" } as unknown as Slots;
 const LINKEDIN_PLAN = { heroKey: "hero_linkedin_vision", proofKey: "proof_vision", ctaKey: "cta_platform" };
-const plan = (over: Partial<ExperiencePlan> = {}) => ({ ...LINKEDIN_PLAN, reason: "test", ...over }) as ExperiencePlan;
+const plan = (over: Record<string, unknown> = {}) => ({ ...LINKEDIN_PLAN, reason: "test", ...over }) as unknown as ExperiencePlan;
 const firstVisit = () => emptyJourneyState();
 
 describe("restsOnArrivalOnly", () => {
@@ -100,7 +102,7 @@ describe("the gate on a first visit", () => {
   });
 
   it("keeps the theme behind the gate, also for an arrival rule", () => {
-    const out = applyConfidenceGating(plan({ themeKey: "night" } as Partial<ExperiencePlan>), firstVisit(), DEFAULTS, LINKEDIN_PLAN);
+    const out = applyConfidenceGating(plan({ themeKey: "night" }), firstVisit(), DEFAULTS, LINKEDIN_PLAN);
     assert.equal(out.plan.themeKey, undefined);
     assert.equal(out.plan.heroKey, "hero_linkedin_vision");
     assert.equal(out.gating.theme, false);
