@@ -45,6 +45,12 @@ export interface FormTexts {
     pattern:   (label: string) => string;
   };
 
+  /** A form with a postcode and a house number looks the address up. */
+  address: {
+    /** Under the house number when the combination does not exist. */
+    notFound: string;
+  };
+
   newsletter: {
     formLabel:        string;
     emailLabel:       string;
@@ -117,6 +123,10 @@ export const FORM_TEXTS: SiteTexts<FormTexts> = {
       minLength: (label, min) => `${label} must be at least ${min} characters.`,
       maxLength: (label, max) => `${label} must be no more than ${max} characters.`,
       pattern:   (label) => `${label} has an invalid format.`,
+    },
+
+    address: {
+      notFound: "We cannot find an address with this postcode and house number. Please check them.",
     },
 
     newsletter: {
@@ -196,6 +206,10 @@ export const FORM_TEXTS: SiteTexts<FormTexts> = {
       minLength: (_label, min) => `Vul minstens ${min} tekens in.`,
       maxLength: (_label, max) => `Gebruik hooguit ${max} tekens.`,
       pattern:   () => "Dit klopt nog niet. Controleer wat je hebt ingevuld.",
+    },
+
+    address: {
+      notFound: "We vinden geen adres bij deze postcode en dit huisnummer. Kijk ze nog even na.",
     },
 
     newsletter: {
