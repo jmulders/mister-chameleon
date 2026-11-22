@@ -22,6 +22,13 @@
  *   high:      cta=✓  proof=✓  hero=✓  theme=✗  → hero may also change
  *   very_high: cta=✓  proof=✓  hero=✓  theme=✓  → full personalised experience
  *
+ * ─── A rule on where the visitor came from ────────────────────────────────────
+ *
+ *   The bands above weigh behaviour. A rule whose whole condition is about
+ *   arrival (traffic source, UTM, ad click id, referrer) does not rest on
+ *   behaviour, so its hero, proof and CTA are let through at any band. The
+ *   theme is not. See decision/arrival-rule.ts.
+ *
  * ─── How theme gating interacts with the session lock ─────────────────────────
  *
  *   Theme is already session-locked via the mc_theme cookie in
@@ -40,6 +47,7 @@ import {
   computeBehaviorConfidence,
   gateAdaptiveDecisions,
 } from "@/lib/journey/compute-confidence";
+import type { ArrivalPlanKeys } from "./arrival-rule";
 
 // ── Default plan (production-safe baseline) ───────────────────────────────────
 
@@ -74,15 +82,33 @@ export interface GatedPlanResult {
  * @param plan      The rules engine output (may be fully personalised).
  * @param journey   The visitor's current journey state.
  * @param defaults  The baseline plan to fall back to per slot.
+ * @param arrival   The hero, proof and CTA of a matched rule that rests only on
+ *                  where the visitor came from (arrivalPlanOf), or null. A slot
+ *                  that still carries that rule's value is not gated.
  */
 export function applyConfidenceGating(
   plan:     ExperiencePlan,
   journey:  JourneyState,
   defaults: Pick<ExperiencePlan, "heroKey" | "proofKey" | "ctaKey">,
+  arrival:  ArrivalPlanKeys | null = null,
 ): GatedPlanResult {
 
   const confidence = computeBehaviorConfidence(journey);
-  const gating     = gateAdaptiveDecisions(confidence, journey);
+  const byBand     = gateAdaptiveDecisions(confidence, journey);
+
+  // A slot set by an arrival rule is let through, whatever the band says.
+  const fromArrival = (slot: "heroKey" | "proofKey" | "ctaKey"): boolean =>
+    arrival?.[slot] !== undefined && arrival[slot] === plan[slot];
+  const passed: string[] = [];
+  if (!byBand.hero  && fromArrival("heroKey")  && plan.heroKey  !== defaults.heroKey)  passed.push("hero");
+  if (!byBand.proof && fromArrival("proofKey") && plan.proofKey !== defaults.proofKey) passed.push("proof");
+  if (!byBand.cta   && fromArrival("ctaKey")   && plan.ctaKey   !== defaults.ctaKey)   passed.push("cta");
+  const gating = {
+    ...byBand,
+    hero:  byBand.hero  || fromArrival("heroKey"),
+    proof: byBand.proof || fromArrival("proofKey"),
+    cta:   byBand.cta   || fromArrival("ctaKey"),
+  };
 
   let gated    = { ...plan };
   let modified = false;
@@ -128,9 +154,15 @@ export function applyConfidenceGating(
     modified = true;
   }
 
-  const gatingSummary = modified
+  const arrivalNote = passed.length > 0
+    ? `\n  • let through for a rule on where the visitor came from: ${passed.join(", ")}`
+    : "";
+  const gatingSummary = (modified
     ? `Confidence gate applied (band=${confidence.band}, ${Math.round(confidence.overallConfidence * 100)}%):\n  • ${blocked.join("\n  • ")}`
-    : `No slots gated — confidence band '${confidence.band}' (${Math.round(confidence.overallConfidence * 100)}%) allows all active slots.`;
+    : passed.length > 0
+      ? `No slots gated — confidence band '${confidence.band}' (${Math.round(confidence.overallConfidence * 100)}%).`
+      : `No slots gated — confidence band '${confidence.band}' (${Math.round(confidence.overallConfidence * 100)}%) allows all active slots.`
+  ) + arrivalNote;
 
   return {
     plan:          gated,
