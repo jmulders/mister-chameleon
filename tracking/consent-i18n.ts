@@ -93,7 +93,7 @@ const NL: ConsentTexts = {
   banner: {
     dialogLabel:    "Cookiekeuze",
     title:          "Jij kiest welke cookies we plaatsen",
-    description:    "We gebruiken cookies om de site te laten werken, bezoek te meten en je relevante content te tonen. Je kiest zelf welke soorten je toestaat.",
+    description:    "We gebruiken cookies om de site te laten werken en bezoek te meten. Je kiest zelf welke soorten je toestaat.",
     essentialLabel: "Essentieel",
     essentialNote:  "Nodig om de site te laten werken. Kan niet worden uitgezet.",
     acceptAll:      "Alles accepteren",
