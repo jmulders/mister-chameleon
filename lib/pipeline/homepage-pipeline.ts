@@ -51,6 +51,7 @@ import { composeHomepageExperience }       from "@/experience";
 import { substituteBlockCopy, effectiveCopyVariables } from "@/lib/blocks/substitute-context-tokens";
 import type { CmsFallbackKeys }            from "@/experience";
 import { applyConfidenceGating }           from "@/decision/apply-confidence-gating";
+import { arrivalPlanOf }                   from "@/decision/arrival-rule";
 import { emptyJourneyState }              from "@/lib/journey/types";
 import { DEFAULT_HOMEPAGE_PLAN }          from "@/decision/rules/homepage-rules";
 import { recordFailureSignal }            from "@/lib/observability/failure-signal-store";
@@ -359,8 +360,9 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   // is unaffected — bot measurement exclusion is handled in recordVisitorProfile.
   const forceDefaultForBot = isControl || isBotUserAgent(h.get("user-agent"));
 
+  const rulesProvider = new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantConfig.tenantId, sessionId, consent);
   const baseDecisionProvider = new ExperimentDecisionProvider(
-    new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantConfig.tenantId, sessionId, consent),
+    rulesProvider,
     sessionId,
     experimentsEnabled,
     tenantConfig.tenantId,
@@ -889,7 +891,18 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
             ? "Plan experiment challenger active — confidence gating bypassed."
             : "Scenario mode active — confidence gating bypassed.",
         }
-      : applyConfidenceGating(experience.plan, journeyForGating, defaultPlan);
+      : applyConfidenceGating(
+          experience.plan,
+          journeyForGating,
+          defaultPlan,
+          // A rule that rests only on where the visitor came from is as certain
+          // on the first page view as later, so its slots pass the gate.
+          arrivalPlanOf(
+            rulesProvider.lastMatchedRuleId
+              ? tenantRulesConfig?.rules?.find((r) => r.id === rulesProvider.lastMatchedRuleId)
+              : null,
+          ),
+        );
 
   if (anySlotGated) {
     // Save the pre-gating keys so we know which slots actually changed.
