@@ -228,6 +228,22 @@ describe("the brand stylesheet", () => {
       assert.equal(gcd(sets.length, layouts.length), 1);
     });
 
+    it("paint a circle that is left out as nothing, in Safari as well", () => {
+      // Found on an iPhone on 22 Nov 2026: a layout with two circles gives the
+      // third a radius of 0. Drawn as a gradient over the whole canvas with its
+      // stops at the radius, that came to stops at -0.5px and 0px, and Safari
+      // filled the canvas with the third colour. Each circle now fills a square
+      // of its own size, and a square of 0 by 0 is not painted.
+      const after = rule("::after");
+      assert.equal((after.match(/radial-gradient\(closest-side, var\(--mc-[abc]\) calc\(100% - 0\.5px\), transparent\)/g) ?? []).length, 3);
+      assert.doesNotMatch(after, /circle at|calc\(var\(--mc-r\d\) - /, "a circle is drawn over the whole canvas again");
+      for (const i of [1, 2, 3]) {
+        assert.ok(after.includes(`calc(2 * var(--mc-r${i})) calc(2 * var(--mc-r${i}))`), `circle ${i} has no size of its own`);
+        assert.ok(after.includes(`calc(var(--mc-x${i}) - var(--mc-r${i})) calc(var(--mc-y${i}) - var(--mc-r${i}))`), `circle ${i} is not placed by its centre`);
+      }
+      assert.match(after, /background-repeat:\s*no-repeat/);
+    });
+
     it("hand the layout down from the card, not from the icon", () => {
       // Found on 22 Nov 2026: a default set on the icon itself won from the
       // value the card hands down, so every icon got the first layout.
