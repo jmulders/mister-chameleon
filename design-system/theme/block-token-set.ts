@@ -117,6 +117,14 @@ export interface CuratedBlockTokens {
   ctaButtonBg?:        string;
   ctaButtonText?:      string;
 
+  // Forms
+  formLabelColor?:       string;
+  formHelpColor?:        string;
+  formInputBg?:          string;
+  formInputText?:        string;
+  formInputBorder?:      string;
+  formInputPlaceholder?: string;
+
   // Dividers
   dividerColor?:       string;
   dividerWidth?:       string;
@@ -257,6 +265,17 @@ export const BLOCK_TOKEN_GROUPS: readonly BlockTokenGroup[] = [
       { key: "ctaBodyText",   label: "CTA text",        kind: "color", vars: ["--section-cta-body"] },
       { key: "ctaButtonBg",   label: "CTA button bg",   kind: "color", vars: ["--cta-button-bg"] },
       { key: "ctaButtonText", label: "CTA button text", kind: "color", vars: ["--cta-button-text"] },
+    ],
+  },
+  {
+    title: "Forms",
+    fields: [
+      { key: "formLabelColor",       label: "Label",          kind: "color", vars: ["--form-label-color"] },
+      { key: "formHelpColor",        label: "Help text",      kind: "color", vars: ["--form-help-color"] },
+      { key: "formInputBg",          label: "Input bg",       kind: "color", vars: ["--form-input-bg"] },
+      { key: "formInputText",        label: "Input text",     kind: "color", vars: ["--form-input-text"] },
+      { key: "formInputBorder",      label: "Input border",   kind: "color", vars: ["--form-input-border"] },
+      { key: "formInputPlaceholder", label: "Placeholder",    kind: "color", vars: ["--form-input-placeholder"] },
     ],
   },
   {
