@@ -116,14 +116,34 @@
  * to the icons, always black and white, always in a circle. For every icon
  * name with a file in public/brand/icoon the line icon makes way for a small
  * engraved photo of a real object: black ink on the house's paper, cut round.
- * The small circle beside it keeps its colour from the card.
  *
- * The photo carries its own paper, so it reads the same on a light and on a
- * dark card. An icon name without a file keeps the line icon above.
+ * The owner on 22 Nov 2026: every icon had the same small circle at the same
+ * shoulder. Play with them as the large images do: circles that overlap the
+ * photo, in other places, in other numbers and colours.
+ *
+ * So each photo now has two or three flat circles around it. At least one
+ * lies half behind the photo and shows through it, as ink on coloured paper.
+ * Where they stand comes from eight layouts, their colours from seven sets.
+ * The two run at different lengths, so the same pair does not come back
+ * within a block.
+ *
+ * How it is built: the icon is a box of 80 px. Its ::after is a canvas a
+ * little larger than the box, with the circles painted as hard-edged radial
+ * gradients. Its ::before is the round photo on top, multiplied over the
+ * canvas. The box is its own stacking group, so the photo is multiplied over
+ * the circles only and keeps its paper on a dark card.
  *
  * The files come from tools/mc-iconen in the CMS repository, which also lists
  * the source photos. A new icon name needs a file there and a line here.
  */
+/* The first layout and set, for an icon that stands outside a card. Set on
+   the brand's root and not on the icon, where it would win from the card. */
+[data-brand="mister-chameleon"] {
+  --mc-x1: 26px; --mc-y1: 26px; --mc-r1: 22px;
+  --mc-x2: 112px; --mc-y2: 74px; --mc-r2: 8px;
+  --mc-x3: 0px; --mc-y3: 0px; --mc-r3: 0px;
+  --mc-a: var(--mc-magenta); --mc-b: var(--mc-navy); --mc-c: var(--mc-lime);
+}
 [data-brand="mister-chameleon"] [data-part="feature-icon"]:is(
     [data-icon="award"],
     [data-icon="bar-chart"],
@@ -147,10 +167,10 @@
   ) {
   width: 80px !important;
   height: 80px !important;
-  background-color: #f5efe2 !important;
-  background-image: var(--mc-photo);
-  background-size: cover;
-  background-position: center;
+  background-color: transparent !important;
+  background-image: none;
+  border-radius: 0 !important;
+  isolation: isolate;
 }
 [data-brand="mister-chameleon"] [data-part="feature-icon"]:is(
     [data-icon="award"],
@@ -175,8 +195,45 @@
   ) svg {
   display: none;
 }
-/* Large: centre 40,40 with radius 40. Small: 18 px across, 2 px clear of it,
-   up and to the right at 35 degrees. */
+/* The photo, round, on its own paper. */
+[data-brand="mister-chameleon"] [data-part="feature-icon"]:is(
+    [data-icon="award"],
+    [data-icon="bar-chart"],
+    [data-icon="building"],
+    [data-icon="check-circle"],
+    [data-icon="code"],
+    [data-icon="edit-3"],
+    [data-icon="globe"],
+    [data-icon="layers"],
+    [data-icon="layout"],
+    [data-icon="mail"],
+    [data-icon="message-circle"],
+    [data-icon="mouse-pointer"],
+    [data-icon="repeat"],
+    [data-icon="shield"],
+    [data-icon="sliders"],
+    [data-icon="sparkles"],
+    [data-icon="target"],
+    [data-icon="users"],
+    [data-icon="zap"]
+  )::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 80px;
+  height: 80px;
+  z-index: 2;
+  border-radius: 9999px;
+  background-color: #f5efe2;
+  background-image: var(--mc-photo);
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: multiply;
+}
+/* The canvas with the circles: the photo's box plus 12 px to the left and
+   above, 32 px to the right and 6 px below, so a circle stays clear of the
+   title under it. On it the photo's centre is 52,52 and its radius 40. */
 [data-brand="mister-chameleon"] [data-part="feature-icon"]:is(
     [data-icon="award"],
     [data-icon="bar-chart"],
@@ -198,11 +255,36 @@
     [data-icon="users"],
     [data-icon="zap"]
   )::after {
-  left: 73px;
-  top: 2px;
-  width: 18px;
-  height: 18px;
+  left: -12px;
+  top: -12px;
+  width: 124px;
+  height: 98px;
+  z-index: 1;
+  border-radius: 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(circle at var(--mc-x1) var(--mc-y1), var(--mc-a) calc(var(--mc-r1) - 0.5px), transparent var(--mc-r1)),
+    radial-gradient(circle at var(--mc-x2) var(--mc-y2), var(--mc-b) calc(var(--mc-r2) - 0.5px), transparent var(--mc-r2)),
+    radial-gradient(circle at var(--mc-x3) var(--mc-y3), var(--mc-c) calc(var(--mc-r3) - 0.5px), transparent var(--mc-r3));
 }
+/* Eight layouts. A radius of 0 leaves that circle out. */
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 1) { --mc-x1: 26px; --mc-y1: 26px; --mc-r1: 22px; --mc-x2: 112px; --mc-y2: 74px; --mc-r2: 8px; --mc-x3: 0px; --mc-y3: 0px; --mc-r3: 0px; }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 2) { --mc-x1: 98px; --mc-y1: 72px; --mc-r1: 22px; --mc-x2: 110px; --mc-y2: 22px; --mc-r2: 9px; --mc-x3: 0px; --mc-y3: 0px; --mc-r3: 0px; }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 3) { --mc-x1: 22px; --mc-y1: 74px; --mc-r1: 20px; --mc-x2: 106px; --mc-y2: 20px; --mc-r2: 8px; --mc-x3: 116px; --mc-y3: 56px; --mc-r3: 5px; }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 4) { --mc-x1: 104px; --mc-y1: 48px; --mc-r1: 18px; --mc-x2: 12px; --mc-y2: 84px; --mc-r2: 7px; --mc-x3: 0px; --mc-y3: 0px; --mc-r3: 0px; }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 5) { --mc-x1: 84px; --mc-y1: 22px; --mc-r1: 20px; --mc-x2: 12px; --mc-y2: 68px; --mc-r2: 9px; --mc-x3: 114px; --mc-y3: 84px; --mc-r3: 7px; }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 6) { --mc-x1: 36px; --mc-y1: 80px; --mc-r1: 16px; --mc-x2: 22px; --mc-y2: 12px; --mc-r2: 8px; --mc-x3: 0px; --mc-y3: 0px; --mc-r3: 0px; }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 7) { --mc-x1: 48px; --mc-y1: 16px; --mc-r1: 16px; --mc-x2: 104px; --mc-y2: 80px; --mc-r2: 8px; --mc-x3: 0px; --mc-y3: 0px; --mc-r3: 0px; }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 8) { --mc-x1: 16px; --mc-y1: 50px; --mc-r1: 16px; --mc-x2: 100px; --mc-y2: 82px; --mc-r2: 9px; --mc-x3: 72px; --mc-y3: 8px; --mc-r3: 6px; }
+/* Seven sets of colours: the first for the circle behind the photo. */
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(7n + 1) { --mc-a: var(--mc-magenta); --mc-b: var(--mc-navy); --mc-c: var(--mc-lime); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(7n + 2) { --mc-a: var(--mc-sky); --mc-b: var(--mc-orange); --mc-c: var(--mc-purple); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(7n + 3) { --mc-a: var(--mc-lime); --mc-b: var(--mc-plum); --mc-c: var(--mc-teal); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(7n + 4) { --mc-a: var(--mc-orange); --mc-b: var(--mc-teal); --mc-c: var(--mc-magenta); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(7n + 5) { --mc-a: var(--mc-navy); --mc-b: var(--mc-green); --mc-c: var(--mc-red); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(7n + 6) { --mc-a: var(--mc-teal); --mc-b: var(--mc-magenta); --mc-c: var(--mc-sky); }
+[data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(7n + 7) { --mc-a: var(--mc-plum); --mc-b: var(--mc-lime); --mc-c: var(--mc-orange); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="award"] { --mc-photo: url("/brand/icoon/award.png"); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="bar-chart"] { --mc-photo: url("/brand/icoon/bar-chart.png"); }
 [data-brand="mister-chameleon"] [data-part="feature-icon"][data-icon="building"] { --mc-photo: url("/brand/icoon/building.png"); }

@@ -116,7 +116,30 @@ describe("the brand stylesheet", () => {
   describe("the newspaper photo icons", () => {
     const files = readdirSync("public/brand/icoon").filter((f) => f.endsWith(".png")).map((f) => f.slice(0, -4)).sort();
     const urls  = [...css.matchAll(/\[data-part="feature-icon"\]\[data-icon="([a-z0-9-]+)"\] \{ --mc-photo: url\("\/brand\/icoon\/([a-z0-9-]+)\.png"\); \}/g)];
-    const lists = [...css.matchAll(/\[data-part="feature-icon"\]:is\(([^)]*)\)(::after| svg)? \{([^}]*)\}/g)];
+    const lists = [...css.matchAll(/\[data-part="feature-icon"\]:is\(([^)]*)\)(::before|::after| svg)? \{([^}]*)\}/g)];
+    const rule  = (part: string | undefined) => lists.find((m) => m[2] === part)![3]!;
+    const px    = (text: string, name: string) => Number(new RegExp(`(?:^|[\\s;])${name}:\\s*(-?\\d+)px`).exec(text)![1]);
+
+    // The eight ways the coloured circles stand around the photo. Each is up to
+    // three circles as x, y and radius on the canvas; a radius of 0 is no circle.
+    const layouts = [...css.matchAll(/nth-child\(8n \+ (\d)\) \{([^}]*)\}/g)].map((m) => ({
+      n: Number(m[1]),
+      circles: [1, 2, 3]
+        .map((i) => ({ x: px(m[2]!, `--mc-x${i}`), y: px(m[2]!, `--mc-y${i}`), r: px(m[2]!, `--mc-r${i}`) }))
+        .filter((c) => c.r > 0),
+    }));
+    const sets = [...css.matchAll(/nth-child\(7n \+ (\d)\) \{ --mc-a: var\(--mc-([a-z]+)\); --mc-b: var\(--mc-([a-z]+)\); --mc-c: var\(--mc-([a-z]+)\); \}/g)]
+      .map((m) => ({ n: Number(m[1]), colours: [m[2]!, m[3]!, m[4]!] }));
+    // The canvas and the photo on it.
+    const canvas = () => {
+      const after = rule("::after");
+      const size  = px(rule(undefined), "width");
+      return {
+        width: px(after, "width"), height: px(after, "height"),
+        cx: -px(after, "left") + size / 2, cy: -px(after, "top") + size / 2, radius: size / 2,
+        below: px(after, "top") + px(after, "height") - size,
+      };
+    };
 
     it("have one rule per file and one file per rule", () => {
       // The owner asked on 15 Nov 2026 to carry the black-and-white newspaper
@@ -128,7 +151,7 @@ describe("the brand stylesheet", () => {
     });
 
     it("name the same icons in every rule that shapes them", () => {
-      assert.equal(lists.length, 3, "the circle, its hidden line icon and its small circle");
+      assert.equal(lists.length, 4, "the box, its hidden line icon, the photo and the canvas of circles");
       for (const m of lists) {
         const named = [...m[1]!.matchAll(/\[data-icon="([a-z0-9-]+)"\]/g)].map((x) => x[1]!).sort();
         assert.deepEqual(named, files);
@@ -136,21 +159,80 @@ describe("the brand stylesheet", () => {
     });
 
     it("are a round photo on paper of its own, without the line icon", () => {
-      const circle = lists.find((m) => m[2] === undefined)![3]!;
-      assert.match(circle, /background-image:\s*var\(--mc-photo\)/);
-      assert.match(circle, /background-size:\s*cover/);
+      const photo = rule("::before");
+      assert.match(photo, /background-image:\s*var\(--mc-photo\)/);
+      assert.match(photo, /background-size:\s*cover/);
+      assert.match(photo, /border-radius:\s*9999px/);
       // A light paper, so black ink reads on a dark card as well.
-      assert.match(circle, /background-color:\s*#f5efe2 !important/);
-      assert.match(lists.find((m) => m[2] === " svg")![3]!, /display:\s*none/);
+      assert.match(photo, /background-color:\s*#f5efe2/);
+      assert.match(rule(" svg"), /display:\s*none/);
     });
 
-    it("keep the small circle clear of the photo", () => {
-      const circle = lists.find((m) => m[2] === undefined)![3]!;
-      const after  = lists.find((m) => m[2] === "::after")![3]!;
-      const size   = Number(/width:\s*(\d+)px/.exec(circle)![1]);
-      const [left, top, small] = [/left:\s*(-?\d+)px/, /top:\s*(-?\d+)px/, /width:\s*(\d+)px/].map((re) => Number(re.exec(after)![1]));
-      const distance = Math.hypot(left! + small! / 2 - size / 2, top! + small! / 2 - size / 2);
-      assert.ok(distance >= size / 2 + small! / 2, "the circles overlap");
+    it("let the circles show through the photo and nothing else", () => {
+      // The photo is multiplied over the circles behind it, as ink on coloured
+      // paper. The box is its own group, or the photo would also be multiplied
+      // over the card and lose its paper on a dark one.
+      assert.match(rule("::before"), /mix-blend-mode:\s*multiply/);
+      assert.match(rule(undefined), /isolation:\s*isolate/);
+      assert.match(rule(undefined), /background-color:\s*transparent !important/);
+      const layer = (text: string) => Number(/z-index:\s*(\d+)/.exec(text)![1]);
+      assert.ok(layer(rule("::before")) > layer(rule("::after")), "the photo lies under its circles");
+    });
+
+    it("have two or three coloured circles, in eight different ways", () => {
+      // The owner on 22 Nov 2026: every icon had the same small circle at the
+      // same shoulder. Vary the place, the number and the colour.
+      assert.deepEqual(layouts.map((l) => l.n), [1, 2, 3, 4, 5, 6, 7, 8]);
+      for (const l of layouts) assert.ok(l.circles.length === 2 || l.circles.length === 3, `layout ${l.n} has ${l.circles.length} circles`);
+      assert.ok(layouts.some((l) => l.circles.length === 2) && layouts.some((l) => l.circles.length === 3), "the number never changes");
+      // The largest circle stands somewhere else in every layout: no two within 15 px.
+      const large = layouts.map((l) => l.circles[0]!);
+      for (const [i, a] of large.entries()) for (const b of large.slice(i + 1)) {
+        assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= 15, "two layouts put their large circle in the same place");
+      }
+    });
+
+    it("lay a circle half behind the photo in every layout", () => {
+      const { cx, cy, radius } = canvas();
+      for (const l of layouts) {
+        const gaps = l.circles.map((c) => ({ c, d: Math.hypot(c.x - cx, c.y - cy) }));
+        // Behind the photo by at least 3 px and out from under it by at least 5.
+        assert.ok(gaps.some(({ c, d }) => d <= radius + c.r - 3 && d + c.r - radius >= 5), `layout ${l.n} has no circle behind the photo`);
+        // No circle that only just touches the photo: behind it, or 2 px clear.
+        for (const { c, d } of gaps) assert.ok(d <= radius + c.r - 3 || d >= radius + c.r + 2, `layout ${l.n} has a circle that only touches the photo`);
+      }
+    });
+
+    it("keep the circles on their canvas, off each other and off the title", () => {
+      const { width, height, below } = canvas();
+      // What is painted outside the canvas is cut off as a flat edge.
+      for (const l of layouts) for (const c of l.circles) {
+        assert.ok(c.x - c.r >= 0 && c.x + c.r <= width && c.y - c.r >= 0 && c.y + c.r <= height, `layout ${l.n} has a circle off its canvas`);
+      }
+      for (const l of layouts) for (const [i, a] of l.circles.entries()) for (const b of l.circles.slice(i + 1)) {
+        assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= a.r + b.r + 2, `layout ${l.n} has two coloured circles that touch`);
+      }
+      assert.ok(below <= 8, "the canvas reaches the title under the icon");
+    });
+
+    it("change colour on another beat than they change place", () => {
+      const defined = new Set([...css.matchAll(/--mc-([a-z]+):\s*#[0-9a-f]{6}/g)].map((m) => m[1]!));
+      assert.deepEqual(sets.map((s) => s.n), [1, 2, 3, 4, 5, 6, 7]);
+      for (const s of sets) {
+        assert.equal(new Set(s.colours).size, 3, `set ${s.n} uses a colour twice`);
+        for (const colour of s.colours) assert.ok(defined.has(colour), `--mc-${colour} is not a colour of the house`);
+      }
+      assert.equal(new Set(sets.map((s) => s.colours[0])).size, 7, "two sets start with the same colour");
+      // Seven sets against eight layouts: the same pair returns after 56 cards.
+      const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+      assert.equal(gcd(sets.length, layouts.length), 1);
+    });
+
+    it("hand the layout down from the card, not from the icon", () => {
+      // Found on 22 Nov 2026: a default set on the icon itself won from the
+      // value the card hands down, so every icon got the first layout.
+      assert.doesNotMatch(css, /\[data-part="feature-icon"\][^{]*\{[^}]*--mc-(x1|a):/);
+      assert.match(css, /\[data-brand="mister-chameleon"\] \{[^}]*--mc-x1:[^}]*--mc-a:/);
     });
 
     it("get the icon's name from the block, in small letters", () => {
@@ -190,7 +272,8 @@ describe("the brand stylesheet", () => {
   });
 
   it("keeps the circles solid", () => {
-    // The house style has no transparent or blended circles.
+    // The house style has no transparent or faded circles. A photo may let the
+    // circle behind it show through; the circle itself stays one full colour.
     assert.doesNotMatch(css, /opacity|color-mix|rgba\(/);
   });
 
