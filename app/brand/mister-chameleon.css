@@ -263,10 +263,26 @@
   border-radius: 0;
   background-color: transparent;
   background-repeat: no-repeat;
+  /* Each circle is a gradient that fills its own square, and the square has
+     the circle's size. A circle with radius 0 then has a square of 0 by 0,
+     which no browser paints.
+
+     Until 22 Nov 2026 each circle was a gradient over the whole canvas with
+     its stops at the radius. For a circle that is left out the stops came at
+     -0.5px and 0px. Safari painted that as one flat colour: on an iPhone the
+     icons with two circles stood on a lime or purple rectangle. */
   background-image:
-    radial-gradient(circle at var(--mc-x1) var(--mc-y1), var(--mc-a) calc(var(--mc-r1) - 0.5px), transparent var(--mc-r1)),
-    radial-gradient(circle at var(--mc-x2) var(--mc-y2), var(--mc-b) calc(var(--mc-r2) - 0.5px), transparent var(--mc-r2)),
-    radial-gradient(circle at var(--mc-x3) var(--mc-y3), var(--mc-c) calc(var(--mc-r3) - 0.5px), transparent var(--mc-r3));
+    radial-gradient(closest-side, var(--mc-a) calc(100% - 0.5px), transparent),
+    radial-gradient(closest-side, var(--mc-b) calc(100% - 0.5px), transparent),
+    radial-gradient(closest-side, var(--mc-c) calc(100% - 0.5px), transparent);
+  background-size:
+    calc(2 * var(--mc-r1)) calc(2 * var(--mc-r1)),
+    calc(2 * var(--mc-r2)) calc(2 * var(--mc-r2)),
+    calc(2 * var(--mc-r3)) calc(2 * var(--mc-r3));
+  background-position:
+    calc(var(--mc-x1) - var(--mc-r1)) calc(var(--mc-y1) - var(--mc-r1)),
+    calc(var(--mc-x2) - var(--mc-r2)) calc(var(--mc-y2) - var(--mc-r2)),
+    calc(var(--mc-x3) - var(--mc-r3)) calc(var(--mc-y3) - var(--mc-r3));
 }
 /* Eight layouts. A radius of 0 leaves that circle out. */
 [data-brand="mister-chameleon"] [data-part="feature-card"]:nth-child(8n + 1) { --mc-x1: 26px; --mc-y1: 26px; --mc-r1: 22px; --mc-x2: 112px; --mc-y2: 74px; --mc-r2: 8px; --mc-x3: 0px; --mc-y3: 0px; --mc-r3: 0px; }

@@ -66,6 +66,7 @@ import { CartIconButton } from "./CartIconButton";
 import { SearchBar } from "./SearchBar";
 import { SectionTabs } from "./SectionTabs";
 import { TriBandNav } from "./TriBandNav";
+import { mobileMenuLinks, type MobileMenuExtras } from "./mobile-menu";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { HeaderLayoutVariant } from "@/page-config/block-variants";
 import {
@@ -494,6 +495,16 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
       />
     );
 
+    // A phone shows the logo and the menu button only. Everything else the
+    // three bands hold goes into its menu: the search of band 2, the section
+    // tabs and quick links of band 1, and the call to action.
+    const mobileExtras: MobileMenuExtras = {
+      searchHref,
+      searchPlaceholder: t.searchPlaceholder,
+      links:             mobileMenuLinks(sectionTabs, quickLinks, mainNavigation),
+      cta:               headerCta,
+    };
+
     return (
       <HeaderShell headerStyle={headerStyle} noBandPadding={true}>
         {/* ── Band 1: section tabs + quick links ───────────────────── */}
@@ -534,7 +545,8 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
                 {tribandUtility}
               </div>
 
-              {/* Mobile: hamburger only — the desktop nav lives in band 3 */}
+              {/* Mobile: the menu button. Its menu holds the main navigation and
+                  everything else a phone has no room for in the header. */}
               <div className="flex md:hidden items-center gap-2 ml-auto">
                 <TriBandNav
                   tabs={sectionTabs ?? []}
@@ -544,6 +556,7 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
                   navDensity={navDensity}
                   navFamily={familyKey ?? null}
                   mode="mobile-only"
+                  mobileExtras={mobileExtras}
                 />
               </div>
 
