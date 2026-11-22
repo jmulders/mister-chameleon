@@ -15,6 +15,7 @@ import { getDb } from "@/data/db";
 import { loadTenantFormOverrides } from "@/forms/load-tenant-form-overrides";
 import { getAdaptiveBlockByKey } from "@/lib/adaptive-blocks/adaptive-blocks-store";
 import { fetchCMSFormByName, toPlatformFields } from "@/forms/cms-form";
+import { withAddressFields, type AddressFieldsMode } from "@/forms/address-fields";
 import { applyFormOverlay, buildCmsResolvedForm } from "./resolve";
 import type { FormVariantContent } from "./variant";
 import type { FormContextSignals, ResolvedForm } from "./types";
@@ -53,11 +54,13 @@ export async function resolveContextualForm(
   // layout. Keyed by formKey, so it applies to code AND CMS forms. Load it once.
   let turnstileEnabled = false;
   let layout: ResolvedForm["layout"];
+  let addressFields: AddressFieldsMode | undefined;
   if (tenantId) {
     try {
       const override = await loadTenantFormOverrides(tenantId, formKey);
       turnstileEnabled = override.turnstileEnabled;
       layout = override.layout;
+      addressFields = override.addressFields;
     } catch {
       /* fall back to base form */
     }
@@ -76,7 +79,10 @@ export async function resolveContextualForm(
     // the definition) plus the presentation extras; the variant is layered on by
     // the caller. `signals` is kept in the signature for that caller contract.
     void signals;
-    return { ...applyFormOverlay({ fields: formDef.fields }, null, undefined), ...extras };
+    // A tenant may add a postcode and a house number to a built-in form. Render
+    // and submit both come through here, so they agree on the field set.
+    const fields = withAddressFields(formDef.fields, addressFields, locale);
+    return { ...applyFormOverlay({ fields }, null, undefined), ...extras };
   }
 
   // ── 2. CMS-managed form fallback ─────────────────────────────────────────

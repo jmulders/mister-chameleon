@@ -30,6 +30,25 @@ ingebouwde formulieren en voor een formulier uit het CMS.
 
 Een formulier zonder postcode of zonder huisnummer merkt er niets van.
 
+## Postcode en huisnummer toevoegen aan een ingebouwd formulier
+
+De ingebouwde formulieren (contact, sollicitatie, afspraak) zijn voor elke tenant
+gelijk. Een tenant kan er per formulier een postcode en een huisnummer aan toevoegen,
+zonder dat het formulier voor anderen verandert.
+
+- In het beheer: Content, Forms, het formulier, blok "Address fields". Kies "On,
+  optional" of "On, required".
+- De twee velden komen vóór het berichtveld te staan. Heeft het formulier geen
+  berichtveld, dan onderaan.
+- Het gevonden adres staat onder het huisnummer. Het formulier krijgt geen velden voor
+  straat en woonplaats erbij.
+- De instelling staat in `tenant_form_overrides.overrides` als `addressFields`
+  (`"optional"` of `"required"`). Ze geldt los van de hoofdschakelaar van de
+  override, net als de indeling.
+
+Code: `forms/address-fields.ts`, `forms/context/load.ts`.
+Test: `tests/forms/address-fields-setting.test.ts`.
+
 ## De controle bij het versturen
 
 De server kijkt het adres bij het versturen nog een keer na. Alleen een adres dat

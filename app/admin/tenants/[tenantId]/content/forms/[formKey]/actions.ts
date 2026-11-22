@@ -20,6 +20,7 @@
 "use server";
 
 import { revalidatePath }                     from "next/cache";
+import { parseAddressFieldsMode } from "@/forms/address-fields";
 import { getDb }                              from "@/data/db";
 import { logger }                             from "@/lib/logger";
 import type { TenantFormOverrideSettings, FormLayout } from "@/tenant/types";
@@ -142,6 +143,8 @@ export async function saveTenantFormOverrideAction(
           : undefined,
 
       layout: sanitiseLayout(overrides.layout),
+
+      addressFields: parseAddressFieldsMode(overrides.addressFields),
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

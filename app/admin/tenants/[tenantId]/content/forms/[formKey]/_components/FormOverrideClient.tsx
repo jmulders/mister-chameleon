@@ -76,6 +76,7 @@ export function FormOverrideClient({
   const [confirmEnabled,  setConfirmEnabled]  = useState(initialOverride.confirmEnabled);
   const [storeEnabled,    setStoreEnabled]    = useState(initialOverride.storeEnabled);
   const [turnstileEnabled, setTurnstileEnabled] = useState(initialOverride.turnstileEnabled ?? false);
+  const [addressFields, setAddressFields] = useState<"off" | "optional" | "required">(initialOverride.addressFields ?? "off");
   const [layoutTemplate, setLayoutTemplate] = useState<"single" | "split-left" | "split-right">(
     initialOverride.layout?.template ?? "single",
   );
@@ -116,6 +117,7 @@ export function FormOverrideClient({
         confirmEnabled,
         storeEnabled,
         turnstileEnabled,
+        addressFields: addressFields === "off" ? undefined : addressFields,
         customRecipients: parsed,
         customSubject:    customSubject.trim() || undefined,
         customSenderName: customSender.trim()  || undefined,
@@ -277,6 +279,32 @@ export function FormOverrideClient({
             )}
           </div>
           <Toggle value={turnstileEnabled} onChange={setTurnstileEnabled} disabled={isBusy} />
+        </div>
+      </div>
+
+      {/* ── Address fields ─────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+        <div className="px-5 py-4 border-b border-neutral-100">
+          <h2 className="text-sm font-semibold text-neutral-900">Address fields</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Adds a postcode and a house number to this form, for this tenant only. The form
+            looks the address up, shows the street and the town, and tells the visitor when
+            the address does not exist.
+          </p>
+        </div>
+        <div className="px-5 py-4">
+          <label htmlFor="fl-address" className="block text-xs font-medium text-neutral-700 mb-1">Postcode and house number</label>
+          <select
+            id="fl-address"
+            value={addressFields}
+            onChange={(e) => setAddressFields(e.target.value as typeof addressFields)}
+            disabled={isBusy}
+            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            <option value="off">Off</option>
+            <option value="optional">On, optional</option>
+            <option value="required">On, required</option>
+          </select>
         </div>
       </div>
 

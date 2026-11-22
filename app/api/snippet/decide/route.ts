@@ -1270,7 +1270,9 @@ async function handleDecide(request: NextRequest) {
           if (tenantId && variantKey) {
             const variant = await loadFormVariant(tenantId, formKey, variantKey);
             if (variant) {
-              const def = getFormDefinition(formKey);
+              // The base carries the definition's fields plus any the tenant
+              // added to this form (address fields), so a variant chooses from
+              // the same set the submit route validates against.
               resolved = {
                 ...baseForm,
                 title:          variant.title          ?? baseForm.title,
@@ -1279,8 +1281,8 @@ async function handleDecide(request: NextRequest) {
                 successMessage: variant.successMessage ?? baseForm.successMessage,
                 redirectPath:   variant.redirectPath   ?? baseForm.redirectPath,
                 ...(variant.layout ? { layout: variant.layout } : {}),
-                fields: (def && variant.fields?.length)
-                  ? resolvePresentedFields(def.fields, variant.fields)
+                fields: variant.fields?.length
+                  ? resolvePresentedFields(baseForm.fields, variant.fields)
                   : baseForm.fields,
                 segment: variantKey,
               };
