@@ -102,6 +102,7 @@ import type { TenantSettings } from "@/tenant/types";
 import { mapStatamicSeoFields } from "@/cms/mappers/statamic/seo-fields";
 import { dateOnly, isPublishedBy, newestEntriesFirst, newestFirst } from "./listing-dates";
 import { tagsWithThemes } from "./listing-themes";
+import { inTeamOrder } from "./team-order";
 
 // ── Direct file reader (bypasses StatamicClient for local dev reliability) ────
 //
@@ -1970,6 +1971,8 @@ export class StatamicProvider implements CMSProvider {
     // for "recent" mode we pass a capped limit directly to fetchAll.
     const fetchLimit = mode === "specific" ? 500 : (limit ?? 10);
     let items: CollectionItem[] = [];
+    // True for a collection that brings its own order, which "asc" must not turn around.
+    let fixedOrder = false;
 
     if (collection === "articles" || collection === "news") {
       try {
@@ -2099,14 +2102,11 @@ export class StatamicProvider implements CMSProvider {
           imageUrl:      this.resolveAssetUrl(entry.overview_image)       ?? undefined,
           hoverImageUrl: this.resolveAssetUrl(entry.overview_image_hover) ?? undefined,
         }));
-        // honour sort_order ascending for team members (default for this collection)
-        if (source.sortDir !== "desc") {
-          items = [...items].sort((a, b) => {
-            const oa = (entries.find((e) => e.id === a.id) as TeamEntry)?.sort_order ?? 999;
-            const ob = (entries.find((e) => e.id === b.id) as TeamEntry)?.sort_order ?? 999;
-            return oa - ob;
-          });
-        }
+        // A team has no date: the listing follows the number the editor gave
+        // each member, whatever direction the block asks for. See team-order.ts.
+        const sortOrders = new Map(entries.map((entry) => [entry.id, entry.sort_order]));
+        items = inTeamOrder(items, (id) => sortOrders.get(id));
+        fixedOrder = true;
       } catch {
         return [];
       }
@@ -2163,7 +2163,7 @@ export class StatamicProvider implements CMSProvider {
     }
 
     // recent mode — apply sort direction and limit
-    if (sortDir === "asc") items = [...items].reverse();
+    if (sortDir === "asc" && !fixedOrder) items = [...items].reverse();
     if (limit)             items = items.slice(0, limit);
     return items;
   }
