@@ -23,6 +23,14 @@ interface SearchBarProps {
   /** Placeholder text inside the input. Defaults to the site-language text. */
   placeholder?: string;
   className?: string;
+  /**
+   * Fill the row instead of taking a fixed width: the search in the menu on a
+   * phone. The letters are 16 px there, because iOS zooms the page in on a
+   * field with smaller letters.
+   */
+  fill?: boolean;
+  /** Called once a search has been sent off, so a menu around it can close. */
+  onSearch?: () => void;
 }
 
 function SearchIcon() {
@@ -45,6 +53,8 @@ export function SearchBar({
   searchHref  = "/search",
   placeholder,
   className,
+  fill = false,
+  onSearch,
 }: SearchBarProps) {
   const t = SEARCH_TEXTS[useSiteLocale()].bar;
   const [query, setQuery]   = useState("");
@@ -63,6 +73,7 @@ export function SearchBar({
     // stringify to "[object Object]" and 404. Fall back to the canonical path.
     const base = typeof searchHref === "string" && searchHref ? searchHref : "/search";
     router.push(`${base}?q=${encodeURIComponent(q)}`);
+    onSearch?.();
   }
 
   return (
@@ -73,7 +84,8 @@ export function SearchBar({
     >
       <div
         className={cn(
-          "flex items-center gap-2 rounded-full border px-3 py-1.5 transition-all duration-150",
+          "flex items-center gap-2 rounded-full border px-3 transition-all duration-150",
+          fill ? "w-full py-2.5" : "py-1.5",
           // Colour tokens from header CSS variables
           "border-[var(--header-border,var(--border))]",
           "bg-[var(--header-input-bg,var(--bg-subtle,var(--bg)))]",
@@ -106,11 +118,11 @@ export function SearchBar({
           placeholder={placeholder ?? t.placeholder}
           autoComplete="off"
           className={cn(
-            "w-56 min-w-0 bg-transparent text-sm outline-none",
+            "min-w-0 bg-transparent outline-none",
             "text-[var(--header-fg,var(--text))]",
             "placeholder:text-[var(--text-muted)]",
             // Expand on focus for better usability
-            "transition-[width] duration-200 focus:w-72",
+            fill ? "w-full flex-1 text-base" : "w-56 text-sm transition-[width] duration-200 focus:w-72",
           )}
         />
       </div>

@@ -47,6 +47,8 @@ import { NavGrid }     from "./nav/NavGrid";
 import { NavContent }  from "./nav/NavContent";
 import { useSiteLocale } from "@/components/site/SiteLocale";
 import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
+import { SearchBar } from "./SearchBar";
+import { hasMobileMenuExtras, type MobileMenuExtras } from "./mobile-menu";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 // Inline SVGs keep the bundle lean — no icon library dependency.
@@ -154,6 +156,11 @@ interface NavBarProps {
    *   "mobile-only"  — render only the MobileNav hamburger; omit desktop nav
    */
   mode?:          "all" | "desktop-only" | "mobile-only";
+  /**
+   * What the menu on a phone shows besides these items: the search, the links
+   * of the bands a phone does not show, and the call to action.
+   */
+  mobileExtras?:  MobileMenuExtras | null;
 }
 
 // ── Locale flag map ────────────────────────────────────────────────────────────
@@ -398,9 +405,10 @@ function flattenMegaMenuForMobile(item: NavigationItemData, viewLabel: string): 
 
 // ── Mobile nav ────────────────────────────────────────────────────────────────
 
-function MobileNav({ items }: { items: NavigationItemData[] }) {
+function MobileNav({ items, extras = null }: { items: NavigationItemData[]; extras?: MobileMenuExtras | null }) {
   const t = LAYOUT_TEXTS[useSiteLocale()];
   const [menuOpen, setMenuOpen] = useState(false);
+  const withExtras = hasMobileMenuExtras(extras);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const toggleItem = (id: string) => {
@@ -438,8 +446,21 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
             // header's height via scroll-aware padding transitions.
             "absolute inset-x-0 top-full z-40",
             "border-b border-[var(--nav-dropdown-border,var(--border))] bg-[var(--nav-dropdown-bg,var(--bg,#ffffff))] shadow-lg",
+            // With the extras the menu can be taller than a phone held sideways.
+            withExtras && "max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain",
           )}
         >
+          {extras?.searchHref && (
+            <div className="px-4 pt-4" data-part="mobile-menu-search">
+              <SearchBar
+                searchHref={extras.searchHref}
+                placeholder={extras.searchPlaceholder}
+                fill
+                onSearch={() => setMenuOpen(false)}
+                className="w-full"
+              />
+            </div>
+          )}
           <div className="px-4 py-3 space-y-1">
             {items.map((item) => {
               const mobileChildren = flattenMegaMenuForMobile(item, t.view);
@@ -546,6 +567,54 @@ function MobileNav({ items }: { items: NavigationItemData[] }) {
               );
             })}
           </div>
+
+          {/* The links of the bands a phone does not show: section tabs and quick links. */}
+          {extras?.links && extras.links.length > 0 && (
+            <nav
+              aria-label={t.quickLinks}
+              data-part="mobile-menu-links"
+              className="mx-4 border-t border-[var(--nav-dropdown-border,var(--border))] py-3 space-y-1"
+            >
+              {extras.links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  target={link.openInNewTab ? "_blank" : undefined}
+                  rel={link.openInNewTab ? "noopener noreferrer" : undefined}
+                  onClick={() => setMenuOpen(false)}
+                  className={cn(
+                    "block rounded-md px-3 py-2 text-sm",
+                    "text-[var(--nav-dropdown-text,var(--text-muted))]",
+                    "hover:bg-[var(--nav-dropdown-link-hover-bg,var(--primary-subtle))] hover:text-[var(--nav-dropdown-link-hover-text,var(--text-brand))]",
+                    "transition-colors duration-150",
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          )}
+
+          {/* The header's call to action, over the full width. */}
+          {extras?.cta && (
+            <div className="px-4 pb-4 pt-1" data-part="mobile-menu-cta">
+              <Link
+                href={extras.cta.href}
+                target={extras.cta.openInNewTab ? "_blank" : undefined}
+                rel={extras.cta.openInNewTab ? "noopener noreferrer" : undefined}
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  "flex w-full items-center justify-center rounded-md px-4 py-3",
+                  "text-base font-semibold text-[var(--btn-text,var(--primary-text,#fff))] shadow-sm transition-colors hover:opacity-90",
+                  "[font-family:var(--font-ui)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2",
+                )}
+                style={{ backgroundColor: "var(--btn-bg, var(--primary))" }}
+              >
+                {extras.cta.label}
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -585,11 +654,16 @@ export function NavBar({
   navDensity   = "comfortable",
   navFamily    = null,
   mode         = "all",
+  mobileExtras = null,
 }: NavBarProps) {
   // The per-page header-variant override was removed — that authoring field no
   // longer exists. Mega menus are content-driven (see below) and the header
   // style is configured site-wide, so there is nothing to override per item.
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    // Without main navigation a phone still needs its menu for the search, the
+    // other links and the call to action.
+    return mode !== "desktop-only" && hasMobileMenuExtras(mobileExtras) ? <MobileNav items={[]} extras={mobileExtras} /> : null;
+  }
   let effectiveVariant: NavVariant = navVariant;
   const effectiveDensity: NavDensity = navDensity;
 
@@ -634,12 +708,12 @@ export function NavBar({
   }
 
   if (mode === "desktop-only") return <>{DesktopNavComponent}</>;
-  if (mode === "mobile-only")  return <MobileNav items={items} />;
+  if (mode === "mobile-only")  return <MobileNav items={items} extras={mobileExtras} />;
 
   return (
     <>
       {DesktopNavComponent}
-      <MobileNav items={items} />
+      <MobileNav items={items} extras={mobileExtras} />
     </>
   );
 }

@@ -24,6 +24,7 @@ import { usePathname } from "next/navigation";
 import { NavBar } from "./NavBar";
 import type { NavVariant, NavDensity } from "./NavBar";
 import type { NavigationItemData, SectionTabData } from "@/cms/types";
+import type { MobileMenuExtras } from "./mobile-menu";
 
 interface TriBandNavProps {
   /** The configured section tabs (same list as rendered in band 1). */
@@ -41,6 +42,8 @@ interface TriBandNavProps {
   navFamily?:    string | null;
   /** Passed through to NavBar to control desktop / mobile rendering split. */
   mode?:         "all" | "desktop-only" | "mobile-only";
+  /** Passed through to NavBar: what the menu on a phone shows besides the main navigation. */
+  mobileExtras?: MobileMenuExtras | null;
 }
 
 /** Determine which section tab is active for the given pathname. */
@@ -64,6 +67,7 @@ export function TriBandNav({
   navDensity,
   navFamily,
   mode,
+  mobileExtras,
 }: TriBandNavProps) {
   const pathname = usePathname();
 
@@ -85,6 +89,7 @@ export function TriBandNav({
       navDensity={navDensity}
       navFamily={navFamily}
       mode={mode}
+      mobileExtras={mobileExtras}
     />
   );
 }
